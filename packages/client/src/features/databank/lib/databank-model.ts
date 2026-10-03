@@ -302,6 +302,11 @@ function documentCount(health: BankHealth): string {
   return health.total === 1 ? "1 document" : `${health.total} documents`;
 }
 
+/** The re-extract banner's sentence over `BankHealthView.staleExtraction`. */
+export function staleExtractionLine(count: number): string {
+  return count === 1 ? "1 document was extracted with an older extractor." : `${groupThousands(count)} documents were extracted with an older extractor.`;
+}
+
 export function bankHealthLine(health: BankHealth): string {
   const size = documentCount(health);
   const unit = health.chunks === 1 ? "passage" : "passages";

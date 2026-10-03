@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, documents, globalDocuments } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
-import { and, asc, count, desc, eq, gt, inArray, lt, lte, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNotNull, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { DatabankCharacterNotFoundError } from "../contract/errors.ts";
 import type { DocumentListFilter, DocumentPhaseScope } from "../contract/params.ts";
 import type { DocumentAttachmentRows } from "../contract/views.ts";
@@ -219,6 +219,17 @@ export async function listOwnedMeta(db: Db, ownerId: UserId, query: ListDocument
  *  first page was all they had). */
 export async function countOwnedDocuments(db: Db, ownerId: UserId, filter: DocumentListFilter): Promise<number> {
   const rows = await db.select({ total: count() }).from(documents).where(ownedDocumentScope(ownerId, filter));
+  return rows.at(0)?.total ?? 0;
+}
+
+/** The owner's documents a `re-extract` sweep would rewrite: a stored source file and a version other than
+ *  `currentVersion`. The SQL twin of the skip test in `maybeReExtract` (`ingest/index.ts`); the two must agree
+ *  or the banner promises a sweep that changes nothing. */
+export async function countStaleExtractionDocuments(db: Db, ownerId: UserId, currentVersion: string): Promise<number> {
+  const rows = await db
+    .select({ total: count() })
+    .from(documents)
+    .where(and(eq(documents.ownerId, ownerId), isNotNull(documents.sourceAssetId), ne(documents.extractorVersion, currentVersion)));
   return rows.at(0)?.total ?? 0;
 }
 

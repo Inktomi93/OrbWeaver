@@ -79,6 +79,7 @@ import {
   setMobileViewport,
   startEditingMessage,
   toggleMessageSelected,
+  useActiveChatId,
   useActiveConfigGroup,
   useActiveConfigSub,
   useActiveSection,
@@ -2721,6 +2722,23 @@ export function ChatOptionsMenuStory({ withCharacters = false }: ChatOptionsMenu
       </div>
     </CtDataProviders>
   );
+}
+
+/** The ⋯ menu on a fork, beside a readout of the active chat the shell store holds: "Back to parent chat"
+ *  navigates by making the parent the active chat, and the readout is where that lands. */
+export function ChatForkMenuStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div>
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} galleryCharacters={[]} />
+        <ActiveChatReadout />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+function ActiveChatReadout(): ReactElement {
+  return <output data-testid="ct-active-chat">{`active=${useActiveChatId() ?? "none"}`}</output>;
 }
 
 /** The ⋯ menu WITH the two shell surfaces a game-mode transition writes into (#862/#863): the app's ONE

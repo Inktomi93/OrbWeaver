@@ -1,4 +1,4 @@
-import { chatListPageSchema, chatSummarySchema, turnOutcomeSchema, userMacroPicksViewSchema } from "@orb/contracts/chat";
+import { chatLineageViewSchema, chatListPageSchema, chatSummarySchema, turnOutcomeSchema, userMacroPicksViewSchema } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -26,6 +26,11 @@ test("library rows retain per-viewer data while rejecting root and portrait wide
   expect(chatSummarySchema.safeParse({ ...row, participantPortraits: [{ ...portrait, privateCard: "private" }] }).success).toBe(false);
   const page = { items: [row], nextCursor: null, totalCount: 15, viewerLastTurnAt: null };
   expect(chatListPageSchema.parse(page)).toEqual(page);
+  // The lineage chain carries the same strict rows: an ancestor cannot widen past the library row's fields.
+  const lineage = { chain: [row] };
+  expect(chatLineageViewSchema.parse(lineage)).toEqual(lineage);
+  expect(chatLineageViewSchema.safeParse({ chain: [{ ...row, ownerId: "private" }] }).success).toBe(false);
+  expect(chatLineageViewSchema.safeParse({ ...lineage, hiddenAncestorIds: [] }).success).toBe(false);
 });
 
 test("aborted turns and dynamic macro picks preserve their distinct wire semantics", () => {

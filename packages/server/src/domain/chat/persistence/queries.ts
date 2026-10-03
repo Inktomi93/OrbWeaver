@@ -1147,7 +1147,7 @@ export async function loadMessageSeqs(db: Db, chatId: ChatId): Promise<{ id: Mes
  *  row resolver (the server arm that replaced the client's 100-message window). The predicate IS the verb's
  *  belt set for this arm: chat-scoped (no foreign row can enter), `role='user'` (an assistant/system row has
  *  no authoring persona), and author-pinned (a caller can only ever resolve their OWN rows — reach widens,
- *  authority does not). `fromSeq` (inclusive) is the advanced "only the wrong-persona stretch" floor. */
+ *  authority does not). `fromSeq` (inclusive) is the message menu's "Reattribute from here" floor. */
 export async function loadAuthoredUserMessageIds(db: Db, chatId: ChatId, authorUserId: UserId, fromSeq: number | undefined): Promise<MessageId[]> {
   const rows = await db
     .select({ id: messages.id })

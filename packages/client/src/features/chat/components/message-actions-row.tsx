@@ -43,9 +43,11 @@ import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
+import { useReattributeTarget } from "../hooks/use-reattribute-target.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
 import { GenerationCredit } from "./generation-credit.tsx";
+import { ReattributeFromHereConfirm, ReattributeFromHereItem } from "./reattribute-from-here.tsx";
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 
@@ -173,6 +175,10 @@ export function MessageActionsRow({
   // this room has, and the server refuses it anyway (`reactions_disabled`). The pill rows self-hide the
   // same way (the read answers zero groups).
   const reactionsEnabled = useReactionsEnabled(message.chatId);
+  // The viewer's own user line only (`null` elsewhere). Its confirm is a sibling of the menu for the reason
+  // the wire viewer's is, so its open state lives here too.
+  const reattributeTarget = useReattributeTarget(message);
+  const [reattributeOpen, setReattributeOpen] = useState(false);
   const clusterRef = useRef<HTMLDivElement | null>(null);
 
   const { chatId, id: messageId, role, content, excludedFromPrompt, hasContinuation } = message;
@@ -320,6 +326,7 @@ export function MessageActionsRow({
             Add a reaction
           </MenuItem>
         ) : null}
+        <ReattributeFromHereItem onSelect={(): void => setReattributeOpen(true)} target={reattributeTarget} />
         <MenuItem onClick={(): void => copyWithNotice(content, MESSAGE_COPY_FALLBACK)}>
           <Icon icon={Copy} size="sm" />
           Copy
@@ -348,6 +355,7 @@ export function MessageActionsRow({
       {/* Mounted only once opened — an unopened row builds no query key and no dialog subtree (the viewer's
           own read is `enabled: open`, so this is belt-and-braces on the same gate). */}
       {wireOpen ? <VariantWireViewer chatId={chatId} variantId={message.selectedVariantId} open={wireOpen} onOpenChange={setWireOpen} /> : null}
+      <ReattributeFromHereConfirm message={message} onOpenChange={setReattributeOpen} open={reattributeOpen} target={reattributeTarget} />
       {/* Same mount discipline as the wire viewer: an unopened row builds no picker subtree (the picker
           wiring itself — the canon parse + the segment claim — lives in `row-reaction-picker.tsx`). */}
       {pickerOpen ? (

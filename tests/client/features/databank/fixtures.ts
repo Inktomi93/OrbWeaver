@@ -141,12 +141,17 @@ function pagedBank(documents: readonly StubDocument[]): TrpcResponder<"databank.
 
 /** The `databank.bankHealth` census over the SAME array the list responder serves — one fixture bank, two
  *  reads that cannot disagree (a hand-written census beside a live list is how a tile's chip and the pane it
- *  scopes to drift apart in a test and only in a test). */
-function bankCensus(documents: readonly StubDocument[]): () => {
+ *  scopes to drift apart in a test and only in a test). `staleExtraction` is the one number the stub rows
+ *  cannot derive (they carry no extractor version), so a re-extract-banner test names it. */
+export function bankCensus(
+  documents: readonly StubDocument[],
+  staleExtraction = 0,
+): () => {
   total: number;
   passages: number;
   chunks: number;
   byPhase: Record<IngestPhase, number>;
+  staleExtraction: number;
 } {
   return () => {
     const byPhase: Record<IngestPhase, number> = {
@@ -163,7 +168,7 @@ function bankCensus(documents: readonly StubDocument[]): () => {
       chunks += doc.chunkCount;
       passages += doc.embeddedCount;
     }
-    return { byPhase, chunks, passages, total: documents.length };
+    return { byPhase, chunks, passages, staleExtraction, total: documents.length };
   };
 }
 
@@ -200,7 +205,7 @@ export async function stubDatabank(
     "databank.get": (input: TrpcInput<"databank.get">) => {
       const { id, includeText } = input;
       const row = bank.find((d) => d.id === id) ?? READY_DOC;
-      return { ...row, extractorVersion: "ct-extractor-v1", ...(includeText === true ? { extractedText: SOURCE_TEXT } : {}) };
+      return { ...row, ...(includeText === true ? { extractedText: SOURCE_TEXT } : {}) };
     },
     // NAMED, the way the verb answers since #276: rooms arrive already membership-filtered (the server drops
     // what the caller may not see), carrying the client title chain's INPUTS — `title` null here on purpose,
