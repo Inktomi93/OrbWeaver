@@ -3,6 +3,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import { useEffect, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 import type { RuleCreation } from "#state";
 import { assertRuleDraftOwner } from "#state";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
@@ -38,6 +39,7 @@ export function useRuleAutosave(deps: {
       requestId: deps.creation?.requestId ?? null,
       ruleId: deps.ruleId,
       assertOwner: () => assertRuleDraftOwner(deps.owner),
+      timeZone: viewerTimeZone,
       create: (input) => create.mutateAsync({ cacheOwnerId: deps.owner, chatId: deps.chatId, input }),
       update: (input) => update.mutateAsync({ cacheOwnerId: deps.owner, chatId: deps.chatId, input }),
       acknowledge: (row) => {

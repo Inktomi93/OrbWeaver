@@ -29,7 +29,7 @@
 // an `arm_error` — would consume 20 errors and auto-disable the rule, and re-enabling the plugin would NOT
 // re-enable it. A first-party contributor cannot vanish, which is why no other seam here needs this.
 
-import type { AutomationAction, AutomationCelEnv, AutomationFireOutcome, AutomationRunOutcome } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationCelEnv, AutomationCelPlanes, AutomationFireOutcome, AutomationRunOutcome } from "@orb/contracts/automation";
 import { automationActionsSchema } from "@orb/contracts/automation";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
@@ -41,7 +41,7 @@ import { commitReservedFire, finalizeReservedFire, insertFire, releaseFireReserv
 import { disableRule, recordRuleError, stampRuleFired } from "../persistence/rules.ts";
 import { holdsChatHostAuthority, holdsOwnerAuthority } from "../substrate/authority.ts";
 import { buildCelEnv } from "../substrate/cel-env.ts";
-import { evaluatePredicate } from "../substrate/dry-run.ts";
+import { evaluatePredicate, ruleClock } from "../substrate/dry-run.ts";
 import { ownsFactSubject } from "../substrate/fact-scope.ts";
 import { AUTOMATION_SUGGESTION_TTL_MS, invitesOnRefusal, summarizeRateRefusal } from "../substrate/suggestions.ts";
 import { checkBudget } from "./budget-gate.ts";
@@ -76,8 +76,9 @@ function ended(outcome: AutomationRunOutcome, disabled = false): RuleResult {
 interface DispatchDeps {
   readonly resolved: ResolvedTrigger;
   readonly nowMs: number;
-  /** Per-(SCOPE × AUTHOR) CEL env cache. Chat-bus rules share one chat; a domain event's rules span chats
-   *  and now also include chat-less owner-global rules, so the scope half of the key is `ChatId | null`.
+  /** Per-(SCOPE × AUTHOR) CEL planes cache; the clock is per rule (`envFor`). Chat-bus rules share one chat; a
+   *  domain event's rules span chats and now also include chat-less owner-global rules, so the scope half of the
+   *  key is `ChatId | null`.
    *
    *  THE AUTHOR HALF IS A CORRECTNESS FIX, NOT SCOPE BOOKKEEPING (found landing C5). The key was the chatId
    *  alone, and the cached env carries `global` — the AUTHOR's own per-user variable plane. Two enabled rules
@@ -87,7 +88,7 @@ interface DispatchDeps {
    *  rule then evaluated its predicate and rendered its templates against a DIFFERENT USER's globals. Keying
    *  the author in costs one extra env per author per batch and makes that unrepresentable. It matters more
    *  on the global lane, where every rule in a batch is a different owner by construction. */
-  readonly envCache: Map<string, AutomationCelEnv>;
+  readonly envCache: Map<string, AutomationCelPlanes>;
   /** R7 — the HOST who pressed "run it now", or `null` for an ordinary bus fire. Presence IS the manual
    *  flag (one field, so a run can never be manual-but-unattributed) and it is stamped on the fire row; the
    *  gates it lifts are stated at `runGates`. */
@@ -321,24 +322,30 @@ export async function runArms(
   return runArms(ctx, actions, frame, { i: from.i + 1, detail: null, suggested: from.suggested, paused: false });
 }
 
-/** The env for a rule's SCOPE AND AUTHOR — built once per (chat|global × author) per dispatch batch (fold
+/** The planes for a rule's SCOPE AND AUTHOR — built once per (chat|global × author) per dispatch batch (fold
  *  cache read). Both halves of the key are load-bearing; `DispatchDeps.envCache` states why. */
-async function envFor(rc: RuleCtx): Promise<AutomationCelEnv> {
+async function planesFor(rc: RuleCtx): Promise<AutomationCelPlanes> {
   const key = `${rc.chatId ?? ""}|${rc.rule.ownerId}`;
   const cached = rc.deps.envCache.get(key);
   if (cached !== undefined) {
     return cached;
   }
-  const env = await buildCelEnv({
+  const planes = await buildCelEnv({
     ops: rc.ctx.ops,
     db: rc.ctx.db,
     authorUserId: rc.rule.ownerId,
     chatId: rc.chatId,
     fact: rc.deps.resolved.fact,
-    nowMs: rc.deps.nowMs,
   });
-  rc.deps.envCache.set(key, env);
-  return env;
+  rc.deps.envCache.set(key, planes);
+  return planes;
+}
+
+/** The rule's env: the shared planes plus the rule's OWN clock. Two rules in one room can carry two zones, so
+ *  the clock is never cached. The spread is shallow on purpose: `vars` stays the one shared map, so an arm's
+ *  write-through still reaches the later rules of the batch. */
+async function envFor(rc: RuleCtx): Promise<AutomationCelEnv> {
+  return { ...(await planesFor(rc)), ...ruleClock(rc.deps.nowMs, rc.rule.timeZone) };
 }
 
 /** Depth + authority + budget gates. `null` ⇒ proceed to the predicate; else the rule's terminal result.

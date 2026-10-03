@@ -24,6 +24,7 @@ import type { AutomationRuleId, ChatId, MessageId, MessageVariantId, UserId, Wor
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { ZWSP } from "@orb/kit/macro";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAutomationService } from "@orb/server/domain/automation";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { sha256Hex } from "@orb/server/kit/content-hash";
@@ -126,6 +127,7 @@ function makeFrame(args: { chatId: ChatId; authorUserId: UserId; ruleId: Automat
     global: {},
     chat: { id: args.chatId, messageCount: 0 },
     now: { epochMs: FIXED_NOW_MS, hour: 22, dayOfWeek: 2 },
+    timeZone: UTC_TIME_ZONE,
   };
   const fact: TriggerFact = { type: "turnCompleted", bus: "chat", chatId: args.chatId };
   return { chatId: args.chatId, authorUserId: args.authorUserId, fact, env, origin: { ruleId: args.ruleId, automationDepth: 1 }, now: FIXED_NOW_MS };

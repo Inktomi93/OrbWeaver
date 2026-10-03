@@ -9,6 +9,7 @@
 // The admission matrix that decides which rules can EXIST on this lane is `../substrate/validate.int.test.ts`.
 
 import type { AutomationActionInput } from "@orb/contracts/automation";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";
@@ -20,8 +21,22 @@ describe("listOwnerRules", () => {
   test("reads ONLY the caller's own lane — a second author's rules are invisible, not forbidden", async () => {
     const f = await ruleFixture();
     const other = await seedUser(f.db, "user_other");
-    await f.svc.createRule({ principal: principal(f.host), chatId: null, name: "mine", trigger: DOMAIN_TRIGGER, actions: [GLOBAL_ARM] });
-    await f.svc.createRule({ principal: principal(other), chatId: null, name: "theirs", trigger: DOMAIN_TRIGGER, actions: [GLOBAL_ARM] });
+    await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
+      principal: principal(f.host),
+      chatId: null,
+      name: "mine",
+      trigger: DOMAIN_TRIGGER,
+      actions: [GLOBAL_ARM],
+    });
+    await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
+      principal: principal(other),
+      chatId: null,
+      name: "theirs",
+      trigger: DOMAIN_TRIGGER,
+      actions: [GLOBAL_ARM],
+    });
 
     await expect(f.svc.listOwnerRules({ principal: principal(f.host) })).resolves.toMatchObject([{ name: "mine", chatId: null }]);
     await expect(f.svc.listOwnerRules({ principal: principal(other) })).resolves.toMatchObject([{ name: "theirs", chatId: null }]);
@@ -30,13 +45,21 @@ describe("listOwnerRules", () => {
   test("a CHAT rule never appears on the global lane, and vice versa — the two lists are disjoint", async () => {
     const f = await ruleFixture();
     await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(f.host),
       chatId: f.chatId,
       name: "room rule",
       trigger: { bus: "chat", type: "messageCommitted" },
       actions: [GLOBAL_ARM],
     });
-    await f.svc.createRule({ principal: principal(f.host), chatId: null, name: "library rule", trigger: DOMAIN_TRIGGER, actions: [GLOBAL_ARM] });
+    await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
+      principal: principal(f.host),
+      chatId: null,
+      name: "library rule",
+      trigger: DOMAIN_TRIGGER,
+      actions: [GLOBAL_ARM],
+    });
 
     await expect(f.svc.listOwnerRules({ principal: principal(f.host) })).resolves.toMatchObject([{ name: "library rule" }]);
     await expect(f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).resolves.toMatchObject([{ name: "room rule" }]);
@@ -44,8 +67,22 @@ describe("listOwnerRules", () => {
 
   test("orders by position, which is the order the rules were minted in", async () => {
     const f = await ruleFixture();
-    await f.svc.createRule({ principal: principal(f.host), chatId: null, name: "first", trigger: DOMAIN_TRIGGER, actions: [GLOBAL_ARM] });
-    await f.svc.createRule({ principal: principal(f.host), chatId: null, name: "second", trigger: DOMAIN_TRIGGER, actions: [GLOBAL_ARM] });
+    await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
+      principal: principal(f.host),
+      chatId: null,
+      name: "first",
+      trigger: DOMAIN_TRIGGER,
+      actions: [GLOBAL_ARM],
+    });
+    await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
+      principal: principal(f.host),
+      chatId: null,
+      name: "second",
+      trigger: DOMAIN_TRIGGER,
+      actions: [GLOBAL_ARM],
+    });
     // Order IS semantics on this lane exactly as it is in a room: the arms of two rules in one dispatch
     // batch share (and mutate) the author's global variable plane.
     const rules = await f.svc.listOwnerRules({ principal: principal(f.host) });
@@ -56,7 +93,14 @@ describe("listOwnerRules", () => {
   test("an author with no global rules reads an EMPTY lane, never someone else's", async () => {
     const f = await ruleFixture();
     const other = await seedUser(f.db, "user_other");
-    await f.svc.createRule({ principal: principal(f.host), chatId: null, name: "mine", trigger: DOMAIN_TRIGGER, actions: [GLOBAL_ARM] });
+    await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
+      principal: principal(f.host),
+      chatId: null,
+      name: "mine",
+      trigger: DOMAIN_TRIGGER,
+      actions: [GLOBAL_ARM],
+    });
     // The empty read is about WHICH PRINCIPAL ASKED, never about whether any global rule exists — one does.
     await expect(f.svc.listOwnerRules({ principal: principal(other) })).resolves.toEqual([]);
   });

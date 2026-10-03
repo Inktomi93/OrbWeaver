@@ -40,6 +40,7 @@ import {
   GLOBAL_VARIABLE_VALUE_MAX_BYTES,
 } from "@orb/contracts/automation";
 import type { AutomationFireId, AutomationRuleCreationId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
 import {
   check,
@@ -127,6 +128,9 @@ export const automationRules = sqliteTable(
     suggestOnRefusal: integer("suggest_on_refusal", { mode: "boolean" }).notNull().default(true),
     cooldownSeconds: integer("cooldown_seconds").notNull().default(0),
     maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR),
+    // The IANA zone the rule's clock reads in (`now.hour`, `{{time}}`), stamped from the saver's browser on
+    // every create/update/mint. NULL = saved before rules carried a zone: it reads UTC until its next save.
+    timeZone: text("time_zone").$type<IanaTimeZone>(),
     // Increments on predicate_error/action_error, resets on a clean fire; auto-disable at 20.
     consecutiveErrors: integer("consecutive_errors").notNull().default(0),
     // The last skip reason (host debug surface).

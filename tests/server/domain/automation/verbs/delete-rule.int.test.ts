@@ -1,5 +1,6 @@
 // verb: deleteRule — remove a rule (host-only).
 
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAutomationService, createEnabledRuleIndex, RuleNotFoundError } from "@orb/server/domain/automation";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -7,7 +8,7 @@ import { MSG_COMMITTED, makeAutomationHarness, principal, readFailingDb, ruleFix
 
 test("deleteRule removes the rule from the chat's list, and announces the roster move", async () => {
   const { host, chatId, svc, events } = await ruleFixture();
-  const rule = await svc.createRule({ principal: principal(host), chatId, name: "gone", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "gone", trigger: MSG_COMMITTED, actions: [SET_VAR] });
   await svc.deleteRule({ principal: principal(host), ruleId: rule.id });
   await expect(svc.listRules({ principal: principal(host), chatId })).resolves.toHaveLength(0);
   // Create + delete each announce. D50 bans per-entity DELETION events and this is not one — `rulesChanged`
@@ -38,6 +39,7 @@ test("an index-refresh failure does not reject the committed delete, and the del
   });
   const svc = createAutomationService(ctx);
   const rule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(host),
     chatId,
     name: "doomed",
@@ -59,7 +61,7 @@ test("an index-refresh failure does not reject the committed delete, and the del
 
 test("a foreign caller's delete is refused and announces nothing", async () => {
   const { db, host, chatId, svc, events } = await ruleFixture();
-  const rule = await svc.createRule({ principal: principal(host), chatId, name: "kept", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "kept", trigger: MSG_COMMITTED, actions: [SET_VAR] });
   const stranger = await seedUser(db, "user_stranger");
   await expect(svc.deleteRule({ principal: principal(stranger), ruleId: rule.id })).rejects.toThrow(RuleNotFoundError);
   // The guard throws before the DELETE, so the ledger still holds only the create's event — a refused write

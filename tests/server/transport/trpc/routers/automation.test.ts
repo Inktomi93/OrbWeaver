@@ -8,6 +8,7 @@
 
 import type { AutomationRuleId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AutomationService, RuleView } from "@orb/server/domain/automation";
 import type { Context } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
@@ -44,6 +45,7 @@ const RULE: RuleView = {
   suggestOnRefusal: true,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,
+  timeZone: UTC_TIME_ZONE,
   lastError: null,
   lastFiredAt: null,
   createdAt: 1,
@@ -67,9 +69,10 @@ describe("automation.listRulePresets — catalogue read wire-through", () => {
 });
 
 describe("automation.createRuleFromPreset — preset-mint wire-through", () => {
-  test("threads the caller's principal + validated chatId/presetId, and the knob-override bag when present", async () => {
+  test("threads the caller's principal + validated chatId/presetId/zone, and the knob-override bag when present", async () => {
     const createRuleFromPreset = vi.fn<AutomationService["createRuleFromPreset"]>(async () => [RULE]);
     await caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({
+      timeZone: "asia/kathmandu",
       chatId: CHAT,
       presetId: "pacingNudge",
       knobs: { everyN: 8, steer: "shift the pacing" },
@@ -79,12 +82,14 @@ describe("automation.createRuleFromPreset — preset-mint wire-through", () => {
       chatId: CHAT,
       presetId: "pacingNudge",
       knobs: { everyN: 8, steer: "shift the pacing" },
+      // The wire canonicalizes the zone before the verb sees it.
+      timeZone: "Asia/Kathmandu",
     });
   });
 
   test("omits an absent knob bag rather than passing it as undefined (exactOptional discipline)", async () => {
     const createRuleFromPreset = vi.fn<AutomationService["createRuleFromPreset"]>(async () => [RULE]);
-    await caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({ chatId: CHAT, presetId: "cutaways" });
+    await caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, chatId: CHAT, presetId: "cutaways" });
     const [args] = createRuleFromPreset.mock.calls[0] ?? [];
     expect(args && "knobs" in args).toBe(false);
   });
@@ -93,7 +98,7 @@ describe("automation.createRuleFromPreset — preset-mint wire-through", () => {
     const createRuleFromPreset = vi.fn<AutomationService["createRuleFromPreset"]>(async () => [RULE]);
     await expect(
       // @ts-expect-error — an id outside RULE_PRESET_IDS is a compile error too; the wire enum is the runtime belt.
-      caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({ chatId: CHAT, presetId: "notAPreset" }),
+      caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, chatId: CHAT, presetId: "notAPreset" }),
     ).rejects.toThrow();
     expect(createRuleFromPreset).not.toHaveBeenCalled();
   });

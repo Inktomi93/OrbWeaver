@@ -15,6 +15,7 @@ import { automationRules } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { AutomationRuleCreationId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { SQLiteInsertValue } from "drizzle-orm/sqlite-core";
@@ -40,6 +41,7 @@ interface RuleUpdate {
   readonly matchAutomationEvents: boolean;
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
+  readonly timeZone: IanaTimeZone;
   readonly updatedAt: number;
 }
 
@@ -79,6 +81,7 @@ export function toRuleView(row: RuleRow): RuleView {
     suggestOnRefusal: row.suggestOnRefusal,
     cooldownSeconds: row.cooldownSeconds,
     maxFiresPerHour: row.maxFiresPerHour,
+    timeZone: row.timeZone,
     lastError: row.lastError,
     lastFiredAt: row.lastFiredAt,
     createdAt: row.createdAt,

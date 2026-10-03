@@ -22,6 +22,7 @@ import type { AutomationActionInput } from "@orb/contracts/automation";
 import { worldBooks } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import type { AutomationService } from "../../../../../packages/server/src/domain/automation/contract/service.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -59,7 +60,15 @@ function mintGlobal(
   actions: readonly AutomationActionInput[],
   predicateCel: string | null = null,
 ): ReturnType<AutomationService["createRule"]> {
-  return f.svc.createRule({ principal: principal(f.host), chatId: null, name: "library rule", trigger: DOMAIN_TRIGGER, predicateCel, actions });
+  return f.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: principal(f.host),
+    chatId: null,
+    name: "library rule",
+    trigger: DOMAIN_TRIGGER,
+    predicateCel,
+    actions,
+  });
 }
 
 describe("C5 admission — which rules the owner-global lane accepts", () => {
@@ -85,6 +94,7 @@ describe("C5 admission — which rules the owner-global lane accepts", () => {
     // `chat_id IS NULL` alone spans EVERY user's lane; without the owner predicate this would be 2, i.e. one
     // shared ever-climbing counter across a partition that is meant to be per-owner.
     const theirs = await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(other),
       chatId: null,
       name: "their rule",
@@ -112,6 +122,7 @@ describe("C5 admission — which rules the owner-global lane accepts", () => {
     // unrelated one — the refusal a test asserts must be the refusal it is about.
     const notify = await refusalCode(
       f.svc.createRule({
+        timeZone: UTC_TIME_ZONE,
         principal: principal(f.host),
         chatId: null,
         name: "library rule",
@@ -182,6 +193,7 @@ describe("C5 admission — which rules the owner-global lane accepts", () => {
     // The SAME chat-keyed predicate is fine on a room's rule — the refusal is about scope, not about CEL.
     await expect(
       f.svc.createRule({
+        timeZone: UTC_TIME_ZONE,
         principal: principal(f.host),
         chatId: f.chatId,
         name: "room rule",
@@ -196,6 +208,7 @@ describe("C5 admission — which rules the owner-global lane accepts", () => {
     const f = await ruleFixture();
     const code = await refusalCode(
       f.svc.createRule({
+        timeZone: UTC_TIME_ZONE,
         principal: principal(f.host),
         chatId: null,
         name: "global chat rule",
@@ -240,13 +253,13 @@ describe("C5 authority — whose lane it is", () => {
 describe("C5 preset — the living library", () => {
   test("the preset mints ONLY onto the global lane, and the mismatch is refused in BOTH directions", async () => {
     const f = await ruleFixture();
-    await expect(refusalCode(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: f.chatId, presetId: "livingLibrary" }))).resolves.toBe(
-      "automation_rule_preset_scope",
-    );
-    await expect(refusalCode(f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: null, presetId: "diceChips" }))).resolves.toBe(
-      "automation_rule_preset_scope",
-    );
-    const [minted] = await f.svc.createRuleFromPreset({ principal: principal(f.host), chatId: null, presetId: "livingLibrary" });
+    await expect(
+      refusalCode(f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "livingLibrary" })),
+    ).resolves.toBe("automation_rule_preset_scope");
+    await expect(
+      refusalCode(f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: null, presetId: "diceChips" })),
+    ).resolves.toBe("automation_rule_preset_scope");
+    const [minted] = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: null, presetId: "livingLibrary" });
     expect(minted?.chatId).toBeNull();
     expect(minted?.trigger).toEqual(DOMAIN_TRIGGER); // the BUS was derived from the type, never spelled
     expect(minted?.enabled).toBe(false);

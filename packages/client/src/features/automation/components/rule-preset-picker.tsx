@@ -50,6 +50,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 import { useCreateRuleFromPreset } from "../lib/rule-mutations.ts";
 import { defaultKnobValues, knobIssue, mintKnobOverrides } from "../lib/rule-preset-knob-model.ts";
 import { KnobBlockingLine, KnobField } from "./rule-preset-knob-field.tsx";
@@ -92,7 +93,7 @@ function RulePresetConfigure({ chatId, preset, onBack, onDone }: RulePresetConfi
       setTouched(new Set(preset.knobs.map((knob) => knob.key)));
       return;
     }
-    mint.mutate({ chatId, presetId: preset.id, knobs: mintKnobOverrides(preset.knobs, values) }, { onSuccess: () => onDone() });
+    mint.mutate({ chatId, presetId: preset.id, knobs: mintKnobOverrides(preset.knobs, values), timeZone: viewerTimeZone() }, { onSuccess: () => onDone() });
   };
 
   return (

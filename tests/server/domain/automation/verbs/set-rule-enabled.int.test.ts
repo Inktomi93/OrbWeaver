@@ -1,11 +1,12 @@
 // verb: setRuleEnabled — the consent flip (rules are born disabled).
 
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("setRuleEnabled flips the enabled flag and announces the consent act", async () => {
   const { host, chatId, svc, events } = await ruleFixture();
-  const rule = await svc.createRule({ principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
   expect(rule.enabled).toBe(false);
   await svc.setRuleEnabled({ principal: principal(host), ruleId: rule.id, enabled: true });
   const [listed] = await svc.listRules({ principal: principal(host), chatId });

@@ -2,6 +2,7 @@
 // NOTHING (no op, no budget), and logs a test_run fire. A predicate runtime error surfaces without throwing.
 
 import { automationRules } from "@orb/db";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -11,6 +12,7 @@ describe("testRule", () => {
   test("renders arm previews + a true predicate, executes nothing, logs a test_run fire", async () => {
     const { db, host, chatId, svc } = await ruleFixture();
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(host),
       chatId,
       name: "dry",
@@ -34,6 +36,7 @@ describe("testRule", () => {
     const { host, chatId, svc } = await ruleFixture();
     // Reading a field the synthesized fact never populates → a runtime CEL error (no has() guard).
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(host),
       chatId,
       name: "err",

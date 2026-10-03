@@ -17,6 +17,7 @@ import type { ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ChatId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { ROLE_STATUS_LABELS } from "../../../../../packages/client/src/lib/connection-roles.ts";
@@ -70,6 +71,7 @@ const RULE = {
   matchAutomationEvents: false,
   // B4 — RULED F4's per-rule opt-out, at its shipped default (the rule OFFERS to run when rate-capped).
   suggestOnRefusal: true,
+  timeZone: UTC_TIME_ZONE,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,
   lastError: null,
@@ -436,6 +438,8 @@ test("the picker mints a rule from a rule preset — createRuleFromPreset fires 
       chatId: CHAT,
       presetId: "pacingNudge",
       knobs: { everyN: 8, steer: "Shift the pacing." },
+      // The mint carries the browser's zone (pinned to UTC in the CT config) for the rules' clock.
+      timeZone: UTC_TIME_ZONE,
     });
 });
 

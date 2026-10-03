@@ -1,4 +1,16 @@
-import { createTimeLib, epochToMs, humanizeDuration, isoToMs, msToWallClock, secondsToMs, wallClockToMs } from "@orb/kit/time";
+import {
+  calendarPositionIn,
+  createTimeLib,
+  epochToMs,
+  humanizeDuration,
+  ianaTimeZoneSchema,
+  isoToMs,
+  msToWallClock,
+  parseIanaTimeZone,
+  secondsToMs,
+  UTC_TIME_ZONE,
+  wallClockToMs,
+} from "@orb/kit/time";
 import { expect, test } from "../../support/fixtures.ts";
 
 const SEC = 1000;
@@ -309,4 +321,36 @@ test("calendarPosition follows a DST transition: New York's spring-forward day h
   expect(newYork.calendarPosition(Date.UTC(2024, 2, 10, 7, 30))).toEqual({ day: "2024-03-10", weekday: 0, hour: 3 });
   // Earlier that UTC day it is still the previous local evening.
   expect(newYork.calendarPosition(Date.UTC(2024, 2, 10, 3, 0))).toEqual({ day: "2024-03-09", weekday: 6, hour: 22 });
+});
+
+test("calendarPositionIn reads a stored zone exactly as the display factory reads the same zone", () => {
+  const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+  const newYork = parseIanaTimeZone("America/New_York");
+  if (kathmandu === null || newYork === null) {
+    throw new Error("the platform must know both test zones");
+  }
+  for (const instant of [Date.UTC(2024, 0, 1, 18, 14), Date.UTC(2024, 0, 1, 18, 15), Date.UTC(2024, 2, 10, 6, 30), Date.UTC(2024, 2, 10, 7, 30)]) {
+    expect(calendarPositionIn(instant, kathmandu)).toEqual(createTimeLib({ timeZone: "Asia/Kathmandu" }).calendarPosition(instant));
+    expect(calendarPositionIn(instant, newYork)).toEqual(createTimeLib({ timeZone: "America/New_York" }).calendarPosition(instant));
+  }
+});
+
+test("parseIanaTimeZone canonicalizes a known zone and refuses an unknown name or a fixed offset", () => {
+  expect(parseIanaTimeZone("Asia/Kathmandu")).toBe("Asia/Kathmandu");
+  expect(parseIanaTimeZone("america/new_york")).toBe("America/New_York");
+  expect(parseIanaTimeZone("utc")).toBe(UTC_TIME_ZONE);
+  // An ISO string's bracketed zone is resolved to its id, never stored as the whole string.
+  expect(parseIanaTimeZone("2020-01-01T00:00+01:00[Europe/Paris]")).toBe("Europe/Paris");
+  expect(parseIanaTimeZone("+05:45")).toBeNull();
+  expect(parseIanaTimeZone("2020-01-01T00:00+05:45")).toBeNull();
+  expect(parseIanaTimeZone("Mars/Olympus_Mons")).toBeNull();
+  expect(parseIanaTimeZone("")).toBeNull();
+});
+
+test("ianaTimeZoneSchema is the wire gate: it canonicalizes a zone and refuses anything else without echoing it", () => {
+  expect(ianaTimeZoneSchema.parse("asia/kathmandu")).toBe("Asia/Kathmandu");
+  const refused = ianaTimeZoneSchema.safeParse("+05:45");
+  expect(refused.success).toBe(false);
+  expect(refused.error?.issues.map((issue) => issue.message)).toEqual(["Unknown IANA time zone"]);
+  expect(ianaTimeZoneSchema.safeParse(42).success).toBe(false);
 });

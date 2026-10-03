@@ -17,6 +17,7 @@ import type { VariableWriteResult } from "@orb/contracts/chat";
 import { automationFires, chatParticipants } from "@orb/db";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AutomationOps, AutomationTurnRequest, ExecutePluginSuggestion } from "@orb/server/domain/automation";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -112,6 +113,7 @@ async function suggestFixture(): Promise<{
 /** Mint + enable a confirm-first `trigger_turn` rule on the fixture's chat. */
 async function enableConfirmFirstRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<string> {
   const rule = await fx.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(fx.host),
     chatId: fx.chatId,
     name: "recap",
@@ -150,6 +152,7 @@ async function continuationFixture(): Promise<{
  *  direct `set_variable` behind it — #1553's own worked example. */
 async function enableMixedRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<string> {
   const rule = await fx.svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(fx.host),
     chatId: fx.chatId,
     name: "mixed",
@@ -377,6 +380,7 @@ describe("the rate-refusal invitation (RULED F4)", () => {
   /** Enable a SPEND rule with its fire-rate ceiling slammed shut. */
   async function enableRateCappedSpendRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<AutomationRuleId> {
     const rule = await fx.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fx.host),
       chatId: fx.chatId,
       name: "pacing",
@@ -422,6 +426,7 @@ describe("the rate-refusal invitation (RULED F4)", () => {
   test("a NON-spend rule's refusal raises NO invitation (F4 is ON for spend arms, and only those)", async () => {
     const { fixture } = await suggestFixture();
     const rule = await fixture.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fixture.host),
       chatId: fixture.chatId,
       name: "bookkeeping",
@@ -659,6 +664,7 @@ describe('S5 — an ANALYSIS-origin confirm (the {via:"analysis"} payload arm)',
     const { fixture } = await suggestFixture();
     // An enabled analysis rule (the state row's FK parent + the liveness re-check's subject).
     const rule = await fixture.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fixture.host),
       chatId: fixture.chatId,
       name: "analysis",
@@ -803,6 +809,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
     // TWO rules on one chat: an ordinary arm to hold the lane with, and the confirm-first arm that raises the
     // card. Both fire off the same `chatOpened`, in position order.
     const holder = await fixture.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fixture.host),
       chatId: fixture.chatId,
       name: "bookkeeping",
@@ -810,6 +817,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
       actions: [{ type: "set_variable", scope: "chat", key: "beats", op: "inc" }],
     });
     const asker = await fixture.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(fixture.host),
       chatId: fixture.chatId,
       name: "recap",

@@ -6,6 +6,7 @@
 import { automationFires, automationRules } from "@orb/db";
 import type { AutomationRuleId, MessageId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createEnabledRuleIndex } from "@orb/server/domain/automation";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -25,6 +26,7 @@ async function seedEnabledRule(
 ): Promise<AutomationRuleId> {
   const id = mintTypeId("automation_rule");
   await insertRule(fixture.db, {
+    timeZone: UTC_TIME_ZONE,
     id,
     ownerId: fixture.host,
     creationRequestId: null,

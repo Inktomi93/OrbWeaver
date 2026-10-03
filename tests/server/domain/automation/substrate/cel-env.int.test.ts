@@ -7,7 +7,7 @@ import { describe } from "vitest";
 import { authorGlobals, buildCelEnv } from "../../../../../packages/server/src/domain/automation/substrate/cel-env.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage } from "../../chat/_support.ts";
-import { FIXED_NOW_MS, ruleFixture } from "../_support.ts";
+import { ruleFixture } from "../_support.ts";
 
 describe("authorGlobals", () => {
   test("projects the author's global_variables rows into a key→value map", async () => {
@@ -54,7 +54,6 @@ describe("buildCelEnv", () => {
       authorUserId: fixture.host,
       chatId: fixture.chatId,
       fact: { bus: "chat", type: "chatOpened", chatId: fixture.chatId },
-      nowMs: FIXED_NOW_MS,
     });
     expect(env.global).toEqual({ streak: "3" });
     expect(env.chat).toEqual({ id: fixture.chatId, messageCount: 1 });
@@ -69,7 +68,6 @@ describe("buildCelEnv", () => {
       authorUserId: fixture.host,
       chatId: null,
       fact: { bus: "domain", type: "character.updated", chatId: null },
-      nowMs: FIXED_NOW_MS,
     });
     expect(env.vars).toEqual({});
     expect(env.choice).toEqual({});

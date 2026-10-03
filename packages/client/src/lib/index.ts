@@ -271,7 +271,7 @@ export { TEST_IDS, testId } from "./test-ids.ts";
 export { DENSITY_ITEMS } from "./theme-appearance-items.ts";
 export type { ThemeColorFields } from "./theme-override-form.ts";
 export { assignThemeColorFields } from "./theme-override-form.ts";
-export { timeLib } from "./time.ts";
+export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export type { TrpcOpLogEntry } from "./trpc-devlog.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";

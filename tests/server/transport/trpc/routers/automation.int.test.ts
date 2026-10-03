@@ -6,6 +6,7 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import { automationRules } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createCas } from "@orb/server/infra/storage";
 import { eq } from "drizzle-orm";
 import { createApp } from "../../../../../packages/server/src/entry/app.ts";
@@ -14,6 +15,7 @@ import { principal } from "../../../domain/automation/_support.ts";
 import { seedChat, seedParticipant } from "../../../domain/chat/_support.ts";
 
 const body = {
+  timeZone: UTC_TIME_ZONE,
   name: "custom",
   trigger: { bus: "chat" as const, type: "messageCommitted" as const },
   actions: [{ type: "set_variable" as const, scope: "chat" as const, key: "mood", op: "set" as const, value: "grim" }],
@@ -39,6 +41,26 @@ test("owner-local global requests and reorder cannot recover or write another ow
   await ownerCaller.automation.reorderRules({ chatId: null, orderedIds: [own.id] });
   expect(await otherCaller.automation.listOwnerRules()).toEqual([foreign]);
   expect(await ownerCaller.automation.listOwnerRules()).toEqual([own]);
+});
+
+test("the rule's zone is gated at the wire: a known zone lands canonical, an offset or unknown name writes nothing", async ({ db, ownerCaller }) => {
+  const chatId = await seedChat(db, "zones", { id: mintTypeId(ID_PREFIX.chat) });
+  await seedParticipant(db, { chatId, key: "zones-host", userId: OWNER_USER_ID, role: "host" });
+  const birth = (timeZone: string): Parameters<typeof ownerCaller.automation.createRule>[0] => ({
+    ...body,
+    timeZone,
+    chatId,
+    creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation),
+  });
+  await expect(ownerCaller.automation.createRule(birth("+05:45"))).toThrowTRPCError("BAD_REQUEST");
+  await expect(ownerCaller.automation.createRule(birth("Mars/Olympus_Mons"))).toThrowTRPCError("BAD_REQUEST");
+  await expect(ownerCaller.automation.createRuleFromPreset({ chatId, presetId: "pacingNudge", timeZone: "+05:45" })).toThrowTRPCError("BAD_REQUEST");
+  expect(await db.select().from(automationRules).where(eq(automationRules.chatId, chatId))).toEqual([]);
+
+  const rule = await ownerCaller.automation.createRule(birth("asia/kathmandu"));
+  expect(rule.timeZone).toBe("Asia/Kathmandu");
+  await expect(ownerCaller.automation.updateRule({ ...body, timeZone: "+05:45", ruleId: rule.id })).toThrowTRPCError("BAD_REQUEST");
+  expect((await ownerCaller.automation.listRules({ chatId }))[0]?.timeZone).toBe("Asia/Kathmandu");
 });
 
 test("strict mounted authoring creates disabled, updates losslessly without birth metadata, then reorders", async ({

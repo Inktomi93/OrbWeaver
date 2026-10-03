@@ -12,6 +12,8 @@ import { automationRules, chatParticipants, messages } from "@orb/db";
 import type { AutomationRuleId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { and, eq, isNull } from "drizzle-orm";
 import { describe } from "vitest";
 import type { ArmDispatch, AutomationOps } from "../../../../../packages/server/src/domain/automation/contract/ops.ts";
@@ -87,17 +89,20 @@ interface RuleOpts {
   readonly matchAutomationEvents?: boolean;
   readonly cooldownSeconds?: number;
   readonly maxFiresPerHour?: number;
+  readonly predicateCel?: string;
+  readonly timeZone?: IanaTimeZone;
 }
 
 /** Create + enable a rule; returns its id. */
 async function armRule(f: Fixture, opts: RuleOpts): Promise<AutomationRuleId> {
   const p = principal(f.host);
   const rule = await f.svc.createRule({
+    timeZone: opts.timeZone ?? UTC_TIME_ZONE,
     principal: p,
     chatId: f.chatId,
     name: opts.name,
     trigger: opts.trigger ?? CHAT_OPENED,
-    predicateCel: null,
+    predicateCel: opts.predicateCel ?? null,
     actions: opts.actions ?? [SET_VAR],
     matchAutomationEvents: opts.matchAutomationEvents ?? false,
     cooldownSeconds: opts.cooldownSeconds ?? 0,
@@ -208,6 +213,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
   test("does NOTHING for a chat with no enabled rule (the pre-check no-op)", async () => {
     const f = await setup();
     const rule = await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: principal(f.host),
       chatId: f.chatId,
       name: "disabled",
@@ -366,6 +372,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     // A transform-only rule on turnStarted registers into the prompt pipeline; the watcher must skip it (else
     // its arm records a spurious action_error every turn).
     const rule = await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: p,
       chatId: f.chatId,
       name: "xf",
@@ -418,6 +425,64 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
 // LATER arm in the same rule AND a later rule on the same chat in the same batch observe the write. Uses the
 // REAL arm executors over a capturing `applyVariableOps` (the env starts empty — the read-through must come from
 // the in-memory write, not the DB). This is the "order IS semantics" invariant, tested against real dispatch.
+/** A zone the platform must know — the clock suite's fixture zones. */
+function knownZone(name: string): IanaTimeZone {
+  const zone = parseIanaTimeZone(name);
+  if (zone === null) {
+    throw new Error(`test zone ${name} is unknown to this platform`);
+  }
+  return zone;
+}
+
+/** A rule that records `key` when its clock predicate holds. */
+function clockArm(key: string): AutomationActionInput[] {
+  return [{ type: "set_variable", scope: "chat", key, op: "set", value: "1" }];
+}
+
+describe("each rule reads its own wall clock", () => {
+  // The harness clock is 2023-11-14T22:13:20Z: Tuesday 22:13 in UTC, Wednesday 03:58 in Kathmandu (+5:45) and
+  // Tuesday 17:13 in New York (EST).
+  test("three rules in one room read three clocks in one batch, and a rule saved without a zone reads UTC", async () => {
+    const f = await setup();
+    await armRule(f, {
+      name: "kathmandu",
+      timeZone: knownZone("Asia/Kathmandu"),
+      predicateCel: "int(now.hour) == 3 && int(now.dayOfWeek) == 3",
+      actions: clockArm("kathmandu"),
+    });
+    await armRule(f, {
+      name: "new york",
+      timeZone: knownZone("America/New_York"),
+      predicateCel: "int(now.hour) == 17 && int(now.dayOfWeek) == 2",
+      actions: clockArm("newYork"),
+    });
+    const legacy = await armRule(f, { name: "legacy", predicateCel: "int(now.hour) == 22 && int(now.dayOfWeek) == 2", actions: clockArm("legacy") });
+    // A row written before rules carried a zone: the column is NULL, not "UTC".
+    await f.db.update(automationRules).set({ timeZone: null }).where(eq(automationRules.id, legacy));
+
+    await f.svc.handleEvent(chatOpened(f.chatId));
+
+    expect(f.calls).toEqual(["kathmandu", "newYork", "legacy"]);
+  });
+
+  test("a quiet window read on the rule's clock holds the rule back even when UTC says the room is awake", async () => {
+    const f = await setup();
+    // The awake-hours preset's 23→08 shape: 03:58 in Kathmandu is quiet, 22:13 UTC would not be.
+    const ruleId = await armRule(f, {
+      name: "quiet nights",
+      timeZone: knownZone("Asia/Kathmandu"),
+      predicateCel: "(int(now.hour) < 23 && int(now.hour) >= 8)",
+      actions: clockArm("noisy"),
+    });
+
+    await f.svc.handleEvent(chatOpened(f.chatId));
+
+    expect(f.calls).toEqual([]);
+    const [rule] = await f.db.select({ lastFiredAt: automationRules.lastFiredAt }).from(automationRules).where(eq(automationRules.id, ruleId));
+    expect(rule?.lastFiredAt).toBeNull();
+  });
+});
+
 describe("F2 shared-env write-through (order is semantics)", () => {
   /** Real arm executors + a capturing var store; `readVariables` returns `{}` so the env is born empty. */
   function realArmOps(db: Awaited<ReturnType<typeof freshDb>>, captured: VarOp[]): { runArm: ArmDispatch; ops: AutomationOps } {
@@ -467,6 +532,7 @@ describe("F2 shared-env write-through (order is semantics)", () => {
     const svc = createAutomationService(ctx);
     const p = principal(host);
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: p,
       chatId,
       name: "hp",
@@ -500,6 +566,7 @@ describe("F2 shared-env write-through (order is semantics)", () => {
     const p = principal(host);
     // Rule A (position 0) sets the flag; Rule B (position 1) fires ONLY if it observes A's write.
     const ruleA = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: p,
       chatId,
       name: "A-set",
@@ -508,6 +575,7 @@ describe("F2 shared-env write-through (order is semantics)", () => {
       actions: [{ type: "set_variable", scope: "chat", key: "ready", op: "set", value: "yes" }],
     });
     const ruleB = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: p,
       chatId,
       name: "B-react",
@@ -739,6 +807,7 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops }));
     const p = principal(host);
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: p,
       chatId,
       name: "on-message-gen",
@@ -775,6 +844,7 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     // Opted into automation events ⇒ it INTENDS to react to automation-initiated posts. It still must not loop
     // forever — the cascade depth cap (AUTOMATION_DEPTH_HARD_CAP = 3) bounds the chain.
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: p,
       chatId,
       name: "cascading-gen",
@@ -888,6 +958,7 @@ describe("W1 world-info-activation cascade guard (self-chain closed, #704)", () 
     const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops }));
     const p = principal(host);
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: p,
       chatId,
       name: "react-to-lore",
@@ -923,6 +994,7 @@ describe("W1 world-info-activation cascade guard (self-chain closed, #704)", () 
     // Opted into automation events ⇒ it INTENDS to react to automation-plane re-activations. It still must not
     // loop forever — the cascade depth cap (AUTOMATION_DEPTH_HARD_CAP = 3) bounds the chain.
     const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: p,
       chatId,
       name: "cascading-react",
@@ -1004,6 +1076,7 @@ describe("#1433 - bus routing derives from the trigger tuples", () => {
     const f = await setup();
     const p = principal(f.host);
     const chatRule = await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: p,
       chatId: f.chatId,
       name: "chat-lane",
@@ -1013,6 +1086,7 @@ describe("#1433 - bus routing derives from the trigger tuples", () => {
     });
     await f.svc.setRuleEnabled({ principal: p, ruleId: chatRule.id, enabled: true });
     const domainRule = await f.svc.createRule({
+      timeZone: UTC_TIME_ZONE,
       principal: p,
       chatId: f.chatId,
       name: "domain-lane",
@@ -1050,6 +1124,7 @@ test("#1564 — an index-refresh failure after a dispatch auto-disable LATCHES S
   const ctx = makeAutomationHarness(db, { enabled });
   const svc = createAutomationService(ctx);
   const rule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
     principal: principal(host),
     chatId,
     name: "doomed",
@@ -1112,6 +1187,7 @@ describe("#1554 domain-bus dispatch is keyed by OWNER, not one shared lane", () 
     async function armGlobalRule(owner: UserId, key: string): Promise<void> {
       const p = principal(owner);
       const rule = await f.svc.createRule({
+        timeZone: UTC_TIME_ZONE,
         principal: p,
         chatId: null,
         name: `global-${key}`,

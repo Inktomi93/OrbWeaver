@@ -1,6 +1,7 @@
 import { automationRuleCreateSchema, automationRuleUpdateSchema } from "@orb/contracts/automation";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { createSeededIds } from "../../../../support/ids.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
@@ -29,6 +30,7 @@ const initial: TrpcWireOutput<"automation.listRules">[number] = {
   rulePresetKnobs: null,
   matchAutomationEvents: false,
   suggestOnRefusal: true,
+  timeZone: UTC_TIME_ZONE,
   cooldownSeconds: 0,
   maxFiresPerHour: 30,
   lastError: null,

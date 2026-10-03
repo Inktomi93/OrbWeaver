@@ -16,6 +16,7 @@ import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type {
   ArmDispatch,
   ArmExecutorDeps,
@@ -183,6 +184,7 @@ function makeFrame(args: {
     global: {},
     chat: { id: args.chatId, messageCount: 0 },
     now: { epochMs: FIXED_NOW_MS, hour: 22, dayOfWeek: 2 },
+    timeZone: UTC_TIME_ZONE,
   };
   const fact: TriggerFact = args.fact ?? { type: "chatOpened", bus: "chat", chatId: args.chatId };
   return {

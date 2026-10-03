@@ -9,11 +9,12 @@ import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { hashServerBaseline } from "#forms";
 import { createAutosaveEntityForm } from "#forms/editor";
-import { useFocusOnSwap } from "#lib";
+import { useFocusOnSwap, viewerTimeZone } from "#lib";
 import type { RuleCreation } from "#state";
 import { useRuleAutosave } from "../hooks/use-rule-autosave.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { ruleEditorCommitSchema } from "../lib/contract/rule-editor.ts";
+import { ruleClockLine } from "../lib/rule-copy.ts";
 import { ruleEditorBaseline, ruleEditorDrafts } from "../lib/rule-editor-drafts.ts";
 import { emptyRuleEditor, ruleEditorValues } from "../lib/rule-editor-model.ts";
 import { editableRule } from "../lib/rule-save-session.ts";
@@ -94,6 +95,7 @@ export function RuleEditor({
             </Row>
             <RuleEditorSaveStatus session={session} error={failure} restored={restoredDraft && acknowledged === null} uncreated={confirmed === null} />
             <Text voice="gloss">Edits save automatically when complete. New rules start off; enable the rule separately when you are ready.</Text>
+            <Text voice="gloss">{ruleClockLine(confirmed?.timeZone, viewerTimeZone())}</Text>
             {rule === null || rule.rulePresetId === null ? null : (
               <Text voice="gloss">Editing makes this a custom rule and removes its rule-preset lineage.</Text>
             )}

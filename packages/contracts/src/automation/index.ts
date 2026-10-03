@@ -8,6 +8,8 @@ import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId } from 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { ianaTimeZoneSchema, UTC_TIME_ZONE } from "@orb/kit/time";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { ChatBusEvent } from "#chat";
@@ -795,8 +797,23 @@ export interface AutomationCelEnv {
   readonly global: Record<string, string>;
   /** Narrow chat projections. Deliberately tiny; a predicate needing more is a Tier-2 job. */
   readonly chat: { readonly id: string; readonly messageCount: number };
-  /** The injected clock, sampled ONCE per dispatch batch (determinism + no intra-batch skew). */
+  /** The injected clock, sampled ONCE per dispatch batch (determinism + no intra-batch skew). `hour` and
+   *  `dayOfWeek` (0 = Sunday) are the instant's reading on the rule's own clock, {@link AutomationCelEnv.timeZone}. */
   readonly now: { readonly epochMs: number; readonly hour: number; readonly dayOfWeek: number };
+  /** The zone the rule's clock reads in: `now.hour`/`now.dayOfWeek` and the `{{time}}`/`{{date}}` macros.
+   *  Never bound into CEL. Per RULE, not per chat: the planes above are shared across a batch, the clock is not. */
+  readonly timeZone: IanaTimeZone;
+}
+
+/** One rule's clock: the batch instant read in the rule's own zone. */
+export type AutomationCelClock = Pick<AutomationCelEnv, "now" | "timeZone">;
+/** The rule-independent planes a dispatch builds once per (scope × author) and shares across a batch. */
+export type AutomationCelPlanes = Omit<AutomationCelEnv, keyof AutomationCelClock>;
+
+/** The zone a rule's clock reads in. A rule saved before rules carried a zone has none and keeps reading
+ *  UTC until its next save stamps the saver's zone; nothing migrates it silently. */
+export function automationRuleClockZone(timeZone: IanaTimeZone | null): IanaTimeZone {
+  return timeZone ?? UTC_TIME_ZONE;
 }
 
 // ── S4: the suggest/confirm vocabulary ────────────────────────────────────────────────────────────
@@ -1045,7 +1062,12 @@ export const automationRuleEditableSchema = z.strictObject({
 export type AutomationRuleEditable = z.infer<typeof automationRuleEditableSchema>;
 export type AutomationRuleEditableInput = z.input<typeof automationRuleEditableSchema>;
 
+/** The saver's browser zone, stamped on every create, update and preset mint: the rule's clock reads in it.
+ *  It travels beside the authored body, never inside it, so opening an editor never dirties a draft. */
+export const automationRuleTimeZoneSchema = z.strictObject({ timeZone: ianaTimeZoneSchema });
+
 export const automationRuleCreateSchema = automationRuleEditableSchema.extend({
+  ...automationRuleTimeZoneSchema.shape,
   chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
   creationRequestId: typeIdSchema(ID_PREFIX.automationRuleCreation),
 });
@@ -1053,7 +1075,10 @@ export const automationRuleCreateSchema = automationRuleEditableSchema.extend({
 export type AutomationRuleCreate = z.output<typeof automationRuleCreateSchema>;
 export type AutomationRuleCreateInput = z.input<typeof automationRuleCreateSchema>;
 
-export const automationRuleUpdateSchema = automationRuleEditableSchema.extend({ ruleId: typeIdSchema(ID_PREFIX.automationRule) });
+export const automationRuleUpdateSchema = automationRuleEditableSchema.extend({
+  ...automationRuleTimeZoneSchema.shape,
+  ruleId: typeIdSchema(ID_PREFIX.automationRule),
+});
 /** @public twin: automationRuleUpdateSchema */
 export type AutomationRuleUpdate = z.output<typeof automationRuleUpdateSchema>;
 export type AutomationRuleUpdateInput = z.input<typeof automationRuleUpdateSchema>;

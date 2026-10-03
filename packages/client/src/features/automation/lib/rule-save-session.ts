@@ -27,6 +27,9 @@ export function createRuleSaveSession(deps: {
   readonly requestId: AutomationRuleCreationId | null;
   readonly ruleId: AutomationRuleId | null;
   readonly assertOwner: () => void;
+  /** The saver's zone, read at each write: the rule's clock follows whoever saves it, so a rule saved before
+   *  rules carried a zone takes one on its next edit and never by merely opening. */
+  readonly timeZone: () => string;
   readonly create: (input: AutomationRuleCreateInput) => Promise<Rule>;
   readonly update: (input: AutomationRuleUpdateInput) => Promise<Rule>;
   readonly acknowledge: (row: Rule) => void;
@@ -43,7 +46,7 @@ export function createRuleSaveSession(deps: {
         if (deps.requestId === null) {
           throw new Error("A new rule needs its durable creation request.");
         }
-        const recovered = await deps.create({ ...snapshot, chatId: deps.chatId, creationRequestId: deps.requestId });
+        const recovered = await deps.create({ ...snapshot, timeZone: deps.timeZone(), chatId: deps.chatId, creationRequestId: deps.requestId });
         deps.assertOwner();
         target = recovered.id;
         deps.acknowledge(recovered);
@@ -51,7 +54,7 @@ export function createRuleSaveSession(deps: {
       }
       if (confirmed !== fingerprint) {
         deps.assertOwner();
-        const updated = await deps.update({ ...snapshot, ruleId: target });
+        const updated = await deps.update({ ...snapshot, timeZone: deps.timeZone(), ruleId: target });
         deps.assertOwner();
         confirmed = stableStringify(editableRule(updated));
         deps.acknowledge(updated);
