@@ -41,6 +41,26 @@ export const UNCLAIMED_SETTINGS_KEYS: readonly UnclaimedSettingsKey[] = [
     key: "chunk",
     reason: "ingest-time chunking params (size/overlap) — set at import, never edited after; the databank section deliberately round-trips them untouched.",
   },
+  {
+    section: "seeds",
+    key: "defaultPersonaId",
+    reason: "written by the persona library's default action, not a config section.",
+  },
+  {
+    section: "seeds",
+    key: "currentPersonaId",
+    reason: "written by the persona switcher, not a config section.",
+  },
+  {
+    section: "seeds",
+    key: "welcomeAssistantCharacterId",
+    reason: "written by the first-run welcome seed, not a config section.",
+  },
+  {
+    section: "seeds",
+    key: "defaultPresetId",
+    reason: "written by the preset library's default action, not a config section.",
+  },
 ];
 
 /** `defaults[section]` as a plain key bag, or undefined when the namespace is not an object. */
