@@ -36,7 +36,6 @@ import { MessageListSurface } from "./message-list-surface.tsx";
 export interface ChatRoomSurfaceProps {
   readonly handle: ActiveChatHandle;
   readonly busDeps: ChatBusDeps;
-  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
@@ -55,7 +54,7 @@ function resolveRoomAnchor(
     .map((c) => ({ id: c.id, node: c.body(state) }));
 }
 
-export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContributors, toolRenderers }: ChatRoomSurfaceProps): ReactElement {
+export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRenderers }: ChatRoomSurfaceProps): ReactElement {
   const chatId = handle.id;
   const trpc = useTRPC();
 
@@ -101,13 +100,7 @@ export function ChatRoomSurface({ handle, busDeps, onChatForked, surfaceContribu
         {/* P5 CYOA (§5.3): the thread's choice buttons send through the room's own send capability —
             a separate useSendMessage instance from the composer's, so a pick never clears the draft. */}
         <ChoiceSendProvider chatId={chatId}>
-          <MessageListSurface
-            busDeps={busDeps}
-            chatId={chatId}
-            onChatForked={onChatForked}
-            surfaceContributors={surfaceContributors}
-            toolRenderers={toolRenderers}
-          />
+          <MessageListSurface busDeps={busDeps} chatId={chatId} surfaceContributors={surfaceContributors} toolRenderers={toolRenderers} />
         </ChoiceSendProvider>
       </MessageThreadAnchor>
     </Stack>
