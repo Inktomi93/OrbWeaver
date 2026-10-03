@@ -596,6 +596,18 @@ describe("addressedGroups — who a line addresses, for the Smart pickers", () =
     expect(addressedGroups(byNate("Mara, Grace, go."), seats, roster, ["Alex", "Grace"])).toEqual({ groups: [[cid("mara")]], humanAmbiguous: true });
   });
 
+  test("a character's whole name spelled out is no ambiguity, even when a shorter character name inside it is a player's", () => {
+    const roster = [
+      { ref: charRef("rook"), name: "Rook" },
+      { ref: charRef("bard"), name: "Rook the Bard" },
+      { ref: charRef("mara"), name: "Mara" },
+    ];
+    const seats = [seat("rook"), seat("bard"), seat("mara")];
+    const byNate = (text: string): TranscriptLine => ({ speakerName: "Alex", text, characterId: null });
+    expect(addressedGroups(byNate("Rook the Bard, sing."), seats, roster, ["Alex", "Rook"])).toEqual({ groups: [[cid("bard")]], humanAmbiguous: false });
+    expect(addressedGroups(byNate("Rook, sing."), seats, roster, ["Alex", "Rook"])).toEqual({ groups: [], humanAmbiguous: true });
+  });
+
   test("Natural's mention read is unchanged: a bare shared word still names the character there", () => {
     expect(resolveNameMentions("Rook, your move.", rook)).toEqual([cid("bard")]);
   });

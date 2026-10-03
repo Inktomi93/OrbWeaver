@@ -236,6 +236,8 @@ export const groupConfigInputSchema = z.discriminatedUnion("output", [
   z.strictObject({
     output: narratorGroupSchema.shape.output,
     ...groupInputFields,
+    // A transform has no JSON Schema output form, so this schema (and the roster preset view that embeds it)
+    // can only be projected with `io: "input"`; the contract test pins that limit.
     policy: groupInputFields.policy.unwrap().transform(narratorPolicyOf).optional(),
   }),
   z.strictObject({

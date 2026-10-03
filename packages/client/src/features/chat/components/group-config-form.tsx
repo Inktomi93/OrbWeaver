@@ -54,7 +54,10 @@ function policyItemsFor(output: GroupOutput): SelectItems<string> {
   return output === "narrator" ? NARRATOR_POLICY_ITEMS : POLICY_ITEMS;
 }
 
-const RERANKER_SMART_HELP = `Smart picks who replies with your ${SMART_PICKER_LABELS.reranker}. When every name in the last message is clear, the characters it names reply. If a name is shared, by two characters or by a character and a player, Smart makes one pick: among the characters named, or among everyone when a player shares the name. If no ${SMART_PICKER_LABELS.reranker} is available, Natural picks and you're told once per session.`;
+// Clear names never need the picker model, so they still answer while it is missing.
+const NO_PICKER_FALLBACK = "named characters still answer, Natural makes any other pick, and you're told once per session.";
+
+const RERANKER_SMART_HELP = `Smart picks who replies with your ${SMART_PICKER_LABELS.reranker}. When every name in the last message is clear, the characters it names reply. If a name is shared, by two characters or by a character and a player, Smart makes one pick: among the characters named, or among everyone when a player shares the name. If no ${SMART_PICKER_LABELS.reranker} is available, ${NO_PICKER_FALLBACK}`;
 
 // The help under each control states what the server does with it (`engine/select-speakers.ts`,
 // `engine/round.ts`), per policy, so the Rooms guide never has to restate it. Smart's help depends on the
@@ -75,10 +78,10 @@ function smartHelp(utility: UtilityModel, usesUtility: boolean): string {
     return `${SMART_POLICY_COST_SENTENCE} It runs on ${utility.label}. If it can't decide, Natural picks and you're told once per session.`;
   }
   if (utility.kind === "unset") {
-    return `${SMART_POLICY_COST_SENTENCE} No Utility model is set, so Natural picks every round and you're told once per session.`;
+    return `${SMART_POLICY_COST_SENTENCE} No Utility model is set, so ${NO_PICKER_FALLBACK}`;
   }
   if (utility.kind === "blocked") {
-    return `${SMART_POLICY_COST_SENTENCE} Your Utility model is set but not running: ${utility.cause}. Until it runs, Natural picks and you're told once per session.`;
+    return `${SMART_POLICY_COST_SENTENCE} Your Utility model is set but not running: ${utility.cause}. Until it runs, ${NO_PICKER_FALLBACK}`;
   }
   return `${SMART_POLICY_COST_SENTENCE} If it can't decide, Natural picks and you're told once per session.`;
 }

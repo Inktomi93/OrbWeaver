@@ -334,6 +334,34 @@ describe("smartArbitrate — the structured reply", () => {
     expect(prompt).toMatch(/^Sam: and\?$/mu);
   });
 
+  test("no printed speaker tag reads as another seat's label: off-roster characters and players are numbered past the seats", async () => {
+    const structured = arbiterAnswering({ responders: ["Bo"] });
+    await arbitrate({
+      structured,
+      speakerCandidates: annRoster,
+      humanNames: ["Sam", "Ann"],
+      transcript: [
+        { speakerName: "Ann (2)", text: "Gone now.", characterId: cid("dov") },
+        { speakerName: "Ann", text: "Mine.", characterId: cid("bran") },
+        human("Ann", "Hello."),
+        human("Sam", "and?"),
+      ],
+    });
+    const prompt = promptOf(structured);
+    expect(prompt).toContain("Human players: Sam, Ann (3)\n");
+    const history = prompt.slice(prompt.indexOf("Recent conversation:\n") + "Recent conversation:\n".length, prompt.indexOf("\n\nWho speaks next?"));
+    expect(history.split("\n")).toEqual(["Ann (2) (2): Gone now.", "Ann (2): Mine.", "Ann (3): Hello.", "Sam: and?"]);
+  });
+
+  test("eligible characters that all have blank names leave nothing to pick from: a visible natural degrade, never a silent []", async () => {
+    const structured = arbiterAnswering({ responders: ["Aria"] });
+    const blank = CANDIDATES.map((c) => ({ ref: c.ref, name: "" }));
+    const out = await arbitrate({ structured, speakerCandidates: blank });
+    expect(out.speakers).toHaveLength(1);
+    expect(out).toMatchObject({ degraded: true, aborted: false });
+    expect(structured).not.toHaveBeenCalled();
+  });
+
   test("a seat with a blank name is no candidate and is never numbered; it can still speak through Natural", async () => {
     const roster = [
       { ref: charRef("aria"), name: "" },

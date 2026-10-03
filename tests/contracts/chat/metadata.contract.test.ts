@@ -10,6 +10,7 @@ import {
   storedGroupConfigSchema,
 } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("raw group input validation preserves a sparse input instead of applying room defaults", () => {
@@ -44,6 +45,11 @@ test("a narrator room cannot hold Smart: a write or a stored blob with it reads 
   // The raw input plane normalizes the same way and stays sparse.
   expect(groupConfigInputSchema.parse({ output: "narrator", policy: "smart" })).toEqual({ output: "narrator", policy: "natural" });
   expect(groupConfigInputSchema.parse({ output: "per-speaker", policy: "smart" })).toEqual({ output: "per-speaker", policy: "smart" });
+});
+
+test("the raw group input heals with a transform, so it projects to JSON Schema only as input", () => {
+  expect(() => z.toJSONSchema(groupConfigInputSchema, { io: "input" })).not.toThrow();
+  expect(() => z.toJSONSchema(groupConfigInputSchema, { io: "output" })).toThrow(/Transforms cannot be represented/u);
 });
 
 // ═══ groupConfigSchema — memberCardVisibility default sheet (D22) ════════════════

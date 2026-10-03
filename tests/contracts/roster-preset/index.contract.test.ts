@@ -13,6 +13,7 @@ import {
 } from "@orb/contracts/roster-preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
+import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
 const CHAR_A = "character_01j0000000000000000000a01a";
@@ -88,6 +89,11 @@ describe("roster-preset wire", () => {
       updatedAt: 1,
     });
     expect(view.groupConfig).toEqual({ output: "narrator", policy: "natural", smartPicker: "utility" });
+  });
+
+  test("the view heals with a transform, so it projects to JSON Schema only as input, never as output", () => {
+    expect(() => z.toJSONSchema(rosterPresetViewSchema, { io: "input" })).not.toThrow();
+    expect(() => z.toJSONSchema(rosterPresetViewSchema, { io: "output" })).toThrow(/Transforms cannot be represented/u);
   });
 
   test("the RULES rider (B10): absent defaults to [], the id is the CLOSED catalogue enum, one instance per preset, knobs default {}", () => {

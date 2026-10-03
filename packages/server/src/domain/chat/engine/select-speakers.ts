@@ -391,8 +391,8 @@ export const MAX_SMART_RESPONDERS = 3;
 /** The word indices of `text` a human player's name occupies, outside any character's whole name spelled out
  *  there. "Rook, your move." to the player Rook is an address to the human; "Rook the Bard" is the character. A
  *  whole name made only of a human's words ("Grace" for the player Grace, "Bran" for the player Bran Stark) could
- *  be either, so it shields nothing, and when it is written as a name the picker decides; "move with grace" is
- *  an ordinary word and no address at all. */
+ *  be either, so it shields nothing, and when it is written as a name outside a longer whole name the picker
+ *  decides; "move with grace" is an ordinary word and no address at all. */
 function humanWordIndices(
   rawText: readonly string[],
   speakerCandidates: readonly SpeakerCandidate[],
@@ -400,21 +400,28 @@ function humanWordIndices(
 ): { readonly indices: Set<number>; readonly ambiguous: boolean } {
   const text = rawText.map((w) => w.toLowerCase());
   const human = new Set(humanNames.flatMap((n) => rawWordsOf(n).map((w) => w.toLowerCase())).filter((w) => !isNonNaming(w)));
-  const characterSpans = new Set<number>();
-  let ambiguous = false;
-  for (const c of speakerCandidates) {
+  const names = speakerCandidates.map((c) => {
     const rawName = rawWordsOf(c.name);
     const nameWords = rawName.map((w) => w.toLowerCase());
-    if (nameWords.length > 0 && nameWords.every((w) => human.has(w))) {
-      const asName = phraseStarts(text, nameWords).some((start) => rawName.some((w, k) => writtenAsName(rawText[start + k] ?? "", w)));
-      ambiguous ||= asName;
-      continue;
-    }
-    const at = phraseAt(text, nameWords);
-    for (let k = 0; at !== -1 && k < nameWords.length; k += 1) {
-      characterSpans.add(at + k);
+    return { rawName, nameWords, humanOnly: nameWords.length > 0 && nameWords.every((w) => human.has(w)) };
+  });
+  // Every spelled-out whole name that is not purely a human's claims its words first, so "Rook the Bard" addresses
+  // the Bard even beside a character named just "Rook" and a player named Rook.
+  const characterSpans = new Set<number>();
+  for (const { nameWords } of names.filter((n) => !n.humanOnly)) {
+    for (const start of phraseStarts(text, nameWords)) {
+      for (let k = 0; k < nameWords.length; k += 1) {
+        characterSpans.add(start + k);
+      }
     }
   }
+  const ambiguous = names
+    .filter((n) => n.humanOnly)
+    .some(({ rawName, nameWords }) =>
+      phraseStarts(text, nameWords).some(
+        (start) => rawName.some((w, k) => writtenAsName(rawText[start + k] ?? "", w)) && nameWords.some((_, k) => !characterSpans.has(start + k)),
+      ),
+    );
   return { indices: new Set(text.flatMap((w, i) => (human.has(w) && !characterSpans.has(i) ? [i] : []))), ambiguous };
 }
 

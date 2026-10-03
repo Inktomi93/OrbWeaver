@@ -80,24 +80,44 @@ interface Named {
  * keeps one label all round and the response enum maps each label back to exactly one ref. A seat with a blank name
  * gets no label: it cannot be described or addressed, so it is no candidate (it still speaks through `natural`).
  */
-function rosterLabels(speakerCandidates: readonly SpeakerCandidate[]): ReadonlyMap<string, string> {
+function rosterLabels(speakerCandidates: readonly SpeakerCandidate[]): RoundLabels {
   // Labels are per round: a roster change can renumber a seat, which only this round's prompt ever sees.
   const sameAs = (label: string): string => label.toLowerCase();
   const named = speakerCandidates.map((c) => ({ ref: c.ref, name: c.name.trim() })).filter((c) => c.name.length > 0);
   const names = new Set(named.map((c) => sameAs(c.name)));
   const used = new Set<string>();
-  const labels = new Map<string, string>();
-  for (const c of named) {
-    let label = c.name;
+  const next = (name: string): string => {
+    let label = name;
     // A numbered label another seat already carries as its own name is taken too.
-    for (let n = 2; used.has(sameAs(label)) || (label !== c.name && names.has(sameAs(label))); n += 1) {
-      label = `${c.name} (${n})`;
+    for (let n = 2; used.has(sameAs(label)) || (label !== name && names.has(sameAs(label))); n += 1) {
+      label = `${name} (${n})`;
     }
     used.add(sameAs(label));
-    labels.set(speakerKey(c.ref), label);
-  }
-  return labels;
+    return label;
+  };
+  const seats = new Map(named.map((c) => [speakerKey(c.ref), next(c.name)] as const));
+  // Off-roster speakers continue the same pass after every seat, so no printed tag ever reads as a seat's label.
+  const others = new Map<string, string>();
+  const other = (identity: string, name: string): string => {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) {
+      return name;
+    }
+    const known = others.get(identity) ?? next(trimmed);
+    others.set(identity, known);
+    return known;
+  };
+  return { seats, other };
 }
+
+/** The round's printed speaker tags: each seat's label, and a tag for any other speaker (a human player, a
+ *  character no longer seated) keyed by its identity, unique against every seat label. */
+interface RoundLabels {
+  readonly seats: ReadonlyMap<string, string>;
+  readonly other: (identity: string, name: string) => string;
+}
+
+const humanIdentity = (name: string): string => `human:${name.trim().toLowerCase()}`;
 
 /** The cancelled arbitration: no speaker, no degrade (`aborted ⇒ [] + degraded:false`). */
 const CANCELLED: SmartArbitrationResult = Object.freeze({ speakers: [], degraded: false, aborted: true });
@@ -107,7 +127,8 @@ const picked = (speakers: readonly SpeakerRef[]): SmartArbitrationResult => ({ s
 /**
  * Smart's Utility-model pick: the round's responders in order, at most {@link MAX_SMART_RESPONDERS}. Characters
  * the last line names answer without a call only when every name in that line is unambiguous; a lone eligible
- * character answers without one too. `[]` only when NO character is eligible.
+ * character answers without one too. `[]` only when NO character is eligible; eligible characters that all have
+ * blank names leave nothing to pick from, which degrades to `natural` like any other failed pick.
  */
 export async function smartArbitrate(params: SmartArbitrateParams): Promise<SmartArbitrationResult> {
   // Read the signal through a CALL: `signal.aborted` flips asynchronously, so a narrowed read would go stale.
@@ -115,19 +136,6 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
   if (cancelled()) {
     return CANCELLED;
   }
-  const labels = rosterLabels(params.speakerCandidates);
-  const eligible: Named[] = params.candidates
-    .filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }))
-    .map((c) => ({ ref: c.ref, label: labels.get(speakerKey(c.ref)) ?? "", talkativeness: c.talkativeness }))
-    .filter((c) => c.label.length > 0);
-  if (eligible.length <= 1) {
-    return picked(eligible.map((c) => c.ref));
-  }
-  const addressed = addressedInLastLine(params);
-  if (addressed !== null) {
-    return picked(addressed);
-  }
-
   const fallback = (): SmartArbitrationResult => ({
     speakers: selectSpeakers({
       candidates: params.candidates,
@@ -141,6 +149,21 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
     degraded: true,
     aborted: false,
   });
+  const labels = rosterLabels(params.speakerCandidates);
+  const present = params.candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }));
+  const eligible: Named[] = present
+    .map((c) => ({ ref: c.ref, label: labels.seats.get(speakerKey(c.ref)) ?? "", talkativeness: c.talkativeness }))
+    .filter((c) => c.label.length > 0);
+  if (eligible.length === 0 && present.length > 0) {
+    return fallback();
+  }
+  if (eligible.length <= 1) {
+    return picked(eligible.map((c) => c.ref));
+  }
+  const addressed = addressedInLastLine(params);
+  if (addressed !== null) {
+    return picked(addressed);
+  }
 
   const [first, ...rest] = modelChoices(params, eligible);
   if (first === undefined) {
@@ -174,7 +197,7 @@ async function askArbiter(
   params: SmartArbitrateParams,
   arbiter: SpeakerArbiter,
   choices: readonly [Named, ...Named[]],
-  roster: ReadonlyMap<string, string>,
+  roster: RoundLabels,
 ): Promise<readonly string[]> {
   // The enum of the candidates' labels is what fits every wire and keeps anything off the roster from being
   // emitted. The array bounds ride for the wires that enforce them; others strip them, so the reply is read
@@ -239,7 +262,7 @@ function addressedInLastLine(params: SmartArbitrateParams): SpeakerRef[] | null 
 function buildArbiterPrompt(
   params: Pick<SmartArbitrateParams, "transcript" | "room" | "humanNames" | "characterLines" | "lastSpeaker" | "speakerCandidates">,
   choices: readonly Named[],
-  roster: ReadonlyMap<string, string>,
+  roster: RoundLabels,
   contextTokens: number,
 ): string {
   const { transcript } = params;
@@ -255,26 +278,38 @@ function buildArbiterPrompt(
     return `- ${c.label}${who.length > 0 ? `: ${who}` : ""} (${facts})`;
   });
   // The last speaker keeps its round label even when ban-last or a mute left it out of the candidates.
-  const last = params.lastSpeaker === null ? undefined : roster.get(speakerKey(params.lastSpeaker));
+  const last = params.lastSpeaker === null ? undefined : roster.seats.get(speakerKey(params.lastSpeaker));
+  // The players are tagged before the conversation, so their tags follow the listed order.
+  const humans = params.humanNames.map((name) => roster.other(humanIdentity(name), name));
   const scene = arbiterScene(params.room);
   const history = transcript.map((line, i) => {
     const text =
       i === transcript.length - 1
         ? clipHead(line.text, Math.floor(safeTokenWindow(contextTokens) * LAST_LINE_WINDOW_SHARE))
         : clip(line.text, OLDER_LINE_TOKENS);
-    // A character's line rides under its round label, so two characters sharing a name stay attributable.
-    const speaker =
-      line.characterId === null ? line.speakerName : (roster.get(speakerKey({ kind: "character", characterId: line.characterId })) ?? line.speakerName);
-    return speaker === null ? text : `${speaker}: ${text}`;
+    return `${speakerTag(line, roster)}${text}`;
   });
   return [
     ...(scene === null ? [] : [`Scene: ${scene}`]),
-    `Human players: ${params.humanNames.length > 0 ? params.humanNames.join(", ") : "none named"}`,
+    `Human players: ${humans.length > 0 ? humans.join(", ") : "none named"}`,
     `Candidates:\n${candidateLines.join("\n")}`,
     ...(last === undefined ? [] : [`Spoke last: ${last}`]),
     `Recent conversation:\n${history.length > 0 ? history.join("\n") : "(the conversation is just starting)"}`,
     "Who speaks next?",
   ].join("\n\n");
+}
+
+// A character's line rides under its round label and anyone else's under a tag unique against those labels, so two
+// characters sharing a name, or a player sharing one, stay attributable.
+function speakerTag(line: TranscriptLine, roster: RoundLabels): string {
+  if (line.speakerName === null) {
+    return "";
+  }
+  if (line.characterId === null) {
+    return `${roster.other(humanIdentity(line.speakerName), line.speakerName)}: `;
+  }
+  const key = speakerKey({ kind: "character", characterId: line.characterId });
+  return `${roster.seats.get(key) ?? roster.other(key, line.speakerName)}: `;
 }
 
 function clip(text: string, tokens: number): string {

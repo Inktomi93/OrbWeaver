@@ -292,6 +292,15 @@ describe("rerankPick — several characters addressed", () => {
     expect(scores.sent.map((docs) => docs.map((d) => d.id))).toEqual([["c:character_bran", "c:character_cara"]]);
   });
 
+  test("eligible characters that all have blank names leave nothing to rank: a visible natural degrade, never a silent []", async () => {
+    const scores = fakeReranker({ aria: 9, bran: 1, cara: 4 });
+    const blank = KEYS.map((k) => ({ ref: ref(k), name: " " }));
+    const out = await pick({ reranker: scores.op, speakerCandidates: blank });
+    expect(out.speakers).toHaveLength(1);
+    expect(out).toMatchObject({ degraded: true, aborted: false });
+    expect(scores.sent).toHaveLength(0);
+  });
+
   test("a failing role still answers the addressed characters, in mention order, and says so", async () => {
     const out = await pick({ reranker: () => Promise.reject(new Error("rerank down")), lastLine: line("Cara, Aria: now.") });
     expect(out).toEqual({ speakers: [ref("cara"), ref("aria")], degraded: true, aborted: false });

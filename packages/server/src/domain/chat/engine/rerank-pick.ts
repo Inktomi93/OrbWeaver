@@ -101,7 +101,7 @@ function orderAddressed(addressed: readonly CharacterId[], ranked: readonly stri
 }
 
 /** Smart's reranker pick. The addressed characters, else one top-ranked character; `[]` with no eligible
- *  character; CANCELLED on an abort. */
+ *  character; a degraded `natural` pick when every eligible character's name is blank; CANCELLED on an abort. */
 export async function rerankPick(params: RerankPickParams): Promise<SmartArbitrationResult> {
   // Read through a call: the signal flips asynchronously, so a narrowed property read would go stale. A turn
   // already cancelled picks nobody, so no rule below (not even a name in the line) can schedule a speaker.
@@ -113,9 +113,6 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
   const nameByKey = new Map(params.speakerCandidates.map((n) => [speakerKey(n.ref), n.name] as const));
   // A blank name cannot be described or addressed, so that seat is never ranked; it still speaks through `natural`.
   const named: NamedCandidate[] = eligible.map((c) => ({ ref: c.ref, name: (nameByKey.get(speakerKey(c.ref)) ?? "").trim() })).filter((c) => c.name.length > 0);
-  if (named.length <= 1) {
-    return { speakers: named.map((c) => c.ref), degraded: false, aborted: false };
-  }
   const natural = (degraded: boolean): SmartArbitrationResult => ({
     speakers: selectSpeakers({
       candidates: params.candidates,
@@ -129,6 +126,13 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
     degraded,
     aborted: false,
   });
+  // Eligible characters that all have blank names leave nothing to rank: a failed pick, said out loud.
+  if (named.length === 0 && eligible.length > 0) {
+    return natural(true);
+  }
+  if (named.length <= 1) {
+    return { speakers: named.map((c) => c.ref), degraded: false, aborted: false };
+  }
   const line = params.lastLine;
   // An empty room has no line to rank against: natural opens it, and nothing degraded.
   if (line === null) {
