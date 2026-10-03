@@ -20,16 +20,18 @@
 // guarantee. And because that precondition is minted inline, the per-chat isolation catch below is NOT a
 // silent-skip engine: an isolated chat is COUNTED (`failed`) and logged at `error` level — see there.
 
+import type { ImportWindow } from "@orb/contracts/chat";
 import { buildIdentityNameContext } from "@orb/contracts/chat";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
-import { chatParticipants, chats } from "@orb/db";
+import { chatImportClaims, chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, between, eq, inArray, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#kit/abort";
 import type { ChatContext } from "../context.ts";
 import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryEmbedSpace, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
+import type { MemorySweepArgs } from "../contract/workloads.ts";
 import {
   collectConsolidationTier,
   logBuild,
@@ -49,10 +51,20 @@ import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
 import { hostUserIdOf } from "./participants-host.ts";
 
 /** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to
- *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. `only`
- *  narrows that universe to the listed chats — an intersection, so an id outside the host scope matches nothing. */
-export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null, only?: readonly ChatId[] | null): Promise<ChatId[]> {
-  const narrowed = only === undefined || only === null ? undefined : inArray(chats.id, [...only]);
+ *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. `importWindow`
+ *  narrows that universe to the chats whose import claim falls inside it: an intersection, so another owner's
+ *  import in the same span matches nothing. The narrowing is a subquery, so no id list is bound as variables. */
+export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null, importWindow?: ImportWindow | null): Promise<ChatId[]> {
+  const narrowed =
+    importWindow === undefined || importWindow === null
+      ? undefined
+      : inArray(
+          chats.id,
+          ctx.db
+            .select({ id: chatImportClaims.chatId })
+            .from(chatImportClaims)
+            .where(between(chatImportClaims.createdAt, importWindow.from, importWindow.to)),
+        );
   if (hostUserId === undefined || hostUserId === null) {
     const rows = await ctx.db.select({ id: chats.id }).from(chats).where(narrowed);
     return rows.map((r) => r.id);
@@ -72,14 +84,6 @@ export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | nul
     )
     .where(narrowed);
   return rows.map((r) => r.id);
-}
-
-/** The memory sweep's scope: the host scope (`ownerId`, omitted/null = every chat), narrowed to `chatIds` when set. */
-interface MemorySweepArgs {
-  readonly signal: AbortSignal;
-  readonly ownerId?: UserId | null;
-  readonly chatIds?: readonly ChatId[] | null;
-  readonly funderUserId: UserId;
 }
 
 /** A chat's present characters + its host + the projected macro-name context (the summarizer transcript labels
@@ -240,9 +244,10 @@ async function planAllBuckets(ctx: ChatContext, args: MemorySweepArgs, resolveMe
     signal: args.signal,
     resolveMemoryConfig,
     funderUserId: args.funderUserId,
-    digestsDerivable: await digestsDerivableFor(ctx, args.funderUserId),
+    // A segments-only pass plans no digest, exactly as a funder with no Utility model: it makes no Utility-model call.
+    digestsDerivable: !args.segmentsOnly && (await digestsDerivableFor(ctx, args.funderUserId)),
   };
-  for (const chatId of await loadAllChatIds(ctx, args.ownerId, args.chatIds)) {
+  for (const chatId of await loadAllChatIds(ctx, args.ownerId, args.importWindow)) {
     if (args.signal.aborted) {
       break; // cooperative abort between chats — every completed unit is durable + idempotent
     }

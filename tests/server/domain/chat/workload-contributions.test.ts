@@ -2,13 +2,14 @@
 // then calls its TERMINAL — the injected op that records the `memory` scope's `embed_space_state` completion
 // and reclaims the OLD chat-memory embed space. The terminal runs on BOTH arms and is handed the
 // ENUMERATION SCOPE (#2517), which is what the op fans over; it is still suppressed on an aborted run, on
-// a run with per-chat failures (the space must stay a strict superset, never a gap), and on a chat-scoped run
-// (an import's memory-build offer re-derives only the chats it names).
+// a run with per-chat failures (the space must stay a strict superset, never a gap), and on an import-scoped or
+// segments-only run (each re-derives only part of the owner's memory).
 // `group-character-backfill` (D38) projects its mint counts.
 
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
+import { DEFAULT_ADMISSION_KEY } from "@orb/contracts/workloads";
 import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { ChatWorkloadDeps } from "../../../../packages/server/src/domain/chat/contract/workloads.ts";
 import { createChatWorkloadContributions } from "../../../../packages/server/src/domain/chat/workload-contributions.ts";
@@ -21,6 +22,7 @@ const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () =
 const bulkCtx: WorkloadRunContext = { ...ctx, ownerId: null };
 const sig = (): AbortSignal => new AbortController().signal;
 const FAILED_CHATS_RE = /7 chat/;
+const IMPORT_WINDOW = { from: 1_700_000_000_000, to: 1_700_000_005_000 };
 
 function build(
   failed = 0,
@@ -50,31 +52,55 @@ describe("memory-backfill: the model-call estimate", () => {
   test("asks the memory estimate for the run's own scope and funder, never the sweep", async () => {
     const { deps, contributions } = build();
     await expect(contributions[0].modelCalls?.({ ownerId: null, funderUserId: OWNER_ID, params: {} })).resolves.toBe(ESTIMATED_CALLS);
-    expect(deps.estimateMemoryBackfill).toHaveBeenCalledWith({ ownerId: null, funderUserId: OWNER_ID, chatIds: null });
+    expect(deps.estimateMemoryBackfill).toHaveBeenCalledWith({ ownerId: null, funderUserId: OWNER_ID, importWindow: null });
     expect(deps.backfillMemory).not.toHaveBeenCalled();
   });
 
-  test("a chat-scoped estimate asks for exactly the listed chats", async () => {
+  test("an import-window estimate asks for exactly that span; a segments-only pass costs nothing and asks nothing", async () => {
     const { deps, contributions } = build();
-    const chatIds = [mintTypeId(ID_PREFIX.chat), mintTypeId(ID_PREFIX.chat)];
-    await contributions[0].modelCalls?.({ ownerId: OWNER_ID, funderUserId: OWNER_ID, params: { chatIds } });
-    expect(deps.estimateMemoryBackfill).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID, funderUserId: OWNER_ID, chatIds });
+    await contributions[0].modelCalls?.({ ownerId: OWNER_ID, funderUserId: OWNER_ID, params: { importWindow: IMPORT_WINDOW } });
+    expect(deps.estimateMemoryBackfill).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID, funderUserId: OWNER_ID, importWindow: IMPORT_WINDOW });
+    await expect(
+      contributions[0].modelCalls?.({ ownerId: OWNER_ID, funderUserId: OWNER_ID, params: { importWindow: IMPORT_WINDOW, segmentsOnly: true } }),
+    ).resolves.toBe(0);
+    expect(deps.estimateMemoryBackfill).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("memory-backfill: an import's chat-scoped run", () => {
-  test("sweeps only the listed chats and never runs the terminal (it completed no owner's space)", async () => {
+describe("memory-backfill: an import's scoped runs", () => {
+  test("the confirmed build sweeps only the import's span and never runs the terminal (it completed no owner's space)", async () => {
     const { deps, contributions } = build();
-    const chatIds = [mintTypeId(ID_PREFIX.chat)];
-    await contributions[0].run(ctx, { chatIds }, vi.fn(), sig());
-    expect(deps.backfillMemory).toHaveBeenCalledExactlyOnceWith({ funderUserId: OWNER_ID, ownerId: OWNER_ID, chatIds, signal: expect.any(AbortSignal) });
+    await contributions[0].run(ctx, { importWindow: IMPORT_WINDOW }, vi.fn(), sig());
+    expect(deps.backfillMemory).toHaveBeenCalledExactlyOnceWith({
+      funderUserId: OWNER_ID,
+      ownerId: OWNER_ID,
+      importWindow: IMPORT_WINDOW,
+      segmentsOnly: false,
+      signal: expect.any(AbortSignal),
+    });
     expect(deps.purgeMemoryVectors).not.toHaveBeenCalled();
   });
 
-  test("the params schema refuses an empty scope (absent is the whole corpus; empty would mean nothing)", () => {
+  test("the free segment pass sweeps segments only and never runs the terminal either", async () => {
+    const { deps, contributions } = build();
+    await contributions[0].run(ctx, { importWindow: IMPORT_WINDOW, segmentsOnly: true }, vi.fn(), sig());
+    expect(deps.backfillMemory).toHaveBeenCalledWith(expect.objectContaining({ importWindow: IMPORT_WINDOW, segmentsOnly: true }));
+    expect(deps.purgeMemoryVectors).not.toHaveBeenCalled();
+  });
+
+  // The admission unit decides what may run beside what: a whole sweep keeps the shared bucket, and each import
+  // span's segment pass and digest build hold their own, so neither can lock a model-change reindex out.
+  test("a whole sweep keeps the shared unit; an import's two passes each hold the span's own", () => {
     const { contributions } = build();
-    expect(contributions[0].params.safeParse({ chatIds: [] }).success).toBe(false);
-    expect(contributions[0].params.safeParse({ chatIds: ["not_a_chat"] }).success).toBe(false);
+    const key = contributions[0].admissionKey;
+    expect(key?.({})).toBe(DEFAULT_ADMISSION_KEY);
+    expect(new Set([key?.({ importWindow: IMPORT_WINDOW }), key?.({ importWindow: IMPORT_WINDOW, segmentsOnly: true }), DEFAULT_ADMISSION_KEY]).size).toBe(3);
+    expect(key?.({ importWindow: IMPORT_WINDOW })).not.toBe(key?.({ importWindow: { from: IMPORT_WINDOW.from, to: IMPORT_WINDOW.to + 1 } }));
+  });
+
+  test("the params schema refuses a span that ends before it starts", () => {
+    const { contributions } = build();
+    expect(contributions[0].params.safeParse({ importWindow: { from: 2, to: 1 } }).success).toBe(false);
   });
 });
 
@@ -82,14 +108,26 @@ describe("memory-backfill", () => {
   test("runs the corpus sweep with the enumeration scope and returns its folded counts", async () => {
     const { deps, contributions } = build();
     const result = await contributions[0].run(ctx, {}, vi.fn(), sig());
-    expect(deps.backfillMemory).toHaveBeenCalledWith({ funderUserId: OWNER_ID, ownerId: OWNER_ID, chatIds: null, signal: expect.any(AbortSignal) });
+    expect(deps.backfillMemory).toHaveBeenCalledWith({
+      funderUserId: OWNER_ID,
+      ownerId: OWNER_ID,
+      importWindow: null,
+      segmentsOnly: false,
+      signal: expect.any(AbortSignal),
+    });
     expect(result).toEqual({ segments: { scanned: 4, changed: 2 }, digests: { scanned: 6, changed: 3 }, segmentsSkippedOverWindow: 0, failed: 0 });
   });
 
   test("a BULK run (ownerId===null) reclaims the old chat-memory space after the sweep", async () => {
     const { deps, contributions } = build();
     await contributions[0].run(bulkCtx, {}, vi.fn(), sig());
-    expect(deps.backfillMemory).toHaveBeenCalledWith({ funderUserId: OWNER_ID, ownerId: null, chatIds: null, signal: expect.any(AbortSignal) });
+    expect(deps.backfillMemory).toHaveBeenCalledWith({
+      funderUserId: OWNER_ID,
+      ownerId: null,
+      importWindow: null,
+      segmentsOnly: false,
+      signal: expect.any(AbortSignal),
+    });
     expect(deps.purgeMemoryVectors).toHaveBeenCalledTimes(1);
     expect(deps.purgeMemoryVectors).toHaveBeenCalledWith([{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }], null);
   });

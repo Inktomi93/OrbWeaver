@@ -8,17 +8,19 @@
 // because the import brain was split between the portability descriptors and the god-hub. It is built ONCE
 // now and shared: the descriptors take it directly, and the import CONTRIBUTION takes the composed drivers.
 
+import type { ImportWindow } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
-import type { PersonaId, UserId } from "@orb/kit/ids";
+import { DomainOperationError } from "@orb/kit/errors";
+import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
-import type { ImportWorkloadDeps } from "#domain/import";
+import type { ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
 import { DEFAULT_IMPORT_STAGING_DIR } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import { findOwnedPersonaByName } from "#domain/persona";
@@ -31,6 +33,7 @@ import { createApplyImportedAppearance, createImportTheme } from "#domain/settin
 import { bumpStatsCanonVersion, reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
+import { WORKLOAD_NOT_ADMISSIBLE } from "#domain/workloads";
 import type { AttachOwnedBooksByName, ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
 import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "../../transport/trpc/index.ts";
@@ -100,14 +103,12 @@ export interface PortabilityRunnerComposeDeps {
 export interface PortabilityRunnerComposeResult {
   readonly portability: PortabilityRegistry;
   readonly importWorkloads: ImportWorkloadDeps;
+  /** The synchronous chat-import route settles its scope through the same op the workload runs use. */
+  readonly settleImportMemory: SettleImportMemory;
 }
 
 /** The post-import index pass, shared by the zip-bundle portability descriptors AND the ST profile-directory
  *  importer — built ONCE. It embeds the owner's text corpus AFTER the import and calls no Utility model.
- *
- *  AN IMPORT NEVER ENQUEUES `memory-backfill`. That build spends the Utility model once per aged-out block of
- *  every imported chat, and a paid run starts only behind the model-run confirm. Each import result carries
- *  `memoryChatIds` instead, and the client offers "Build memory for imported chats" over exactly those chats.
  *
  *  THE INDEX PASS ADOPTS: any active run of the same admission unit is idempotent and hash-gated, so it
  *  already covers the freshly imported rows, and a second enqueue would only conflict.
@@ -119,8 +120,45 @@ export function createEnqueueImportIndex(workloads: Pick<WorkloadService, "start
   };
 }
 
+/** The post-import memory step, the free half of the owner ruling that derived data an import makes runs on its
+ *  own. It closes the import's span and enqueues the segments-only `memory-backfill` over it: the verbatim-segment
+ *  embeddings, no digest, no Utility-model call. The paid digest build is never enqueued here; the client offers
+ *  it over the returned span behind the model-run confirm.
+ *
+ *  A memory-off owner's pass is refused at admission (it would derive nothing), and the span still returns: the
+ *  client decides the offer from the owner's switch. The pass ADOPTS a run already holding this span's unit.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export function createSettleImportMemory(workloads: Pick<WorkloadService, "start">, now: () => number): SettleImportMemory {
+  return async ({ ownerId, from, memoryChatIds }: { readonly ownerId: UserId; readonly from: number; readonly memoryChatIds: readonly ChatId[] }) => {
+    if (memoryChatIds.length === 0) {
+      return null;
+    }
+    const importWindow: ImportWindow = { from, to: now() };
+    // @orb-waive caught-failure-ownership(err): the one absorbed failure is the memory-off admission refusal, a
+    // normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the
+    // import run. Ends if another refusal code is absorbed here.
+    try {
+      await workloads.start({
+        input: { kind: "memory-backfill", params: { importWindow, segmentsOnly: true } },
+        caller: null,
+        mode: "singular",
+        ownerId,
+        adoptActive: true,
+      });
+    } catch (err) {
+      // The ONE expected refusal: memory is off for this owner, so the pass has nothing to build (#156).
+      if (!(err instanceof DomainOperationError && err.code === WORKLOAD_NOT_ADMISSIBLE)) {
+        throw err;
+      }
+    }
+    return importWindow;
+  };
+}
+
 export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): PortabilityRunnerComposeResult {
   const { db, now, workloads } = deps;
+  const settleImportMemory = createSettleImportMemory(workloads, now);
 
   type ImportOwnerOp = (args: { readonly ownerId: UserId }) => Promise<void>;
   const enqueueImportIndex = createEnqueueImportIndex(workloads);
@@ -185,6 +223,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     runProfileDirImport: async ({ profileRoot, ownerId, dryRun, signal }) =>
       await withQuietBulkFanout(async () => {
         const principal = await deps.resolveOwnerPrincipal(ownerId);
+        const from = now();
         const report = await runProfileDirImport({
           fs,
           profileRoot,
@@ -221,12 +260,13 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           scanned: report.scanned,
           changed: report.changed,
           failed: report.skippedCards.length,
-          memoryChatIds: report.memoryChatIds,
+          memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: report.memoryChatIds }),
           ...(reportPath !== undefined ? { reportPath } : {}),
         };
       }),
     runBundleImport: async ({ archive, ownerId, stagingRoot: root, signal }) =>
       await withQuietBulkFanout(async () => {
+        const from = now();
         const report = await runBundleImport({
           registry: portability,
           ownerId,
@@ -241,18 +281,19 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           skipped: report.skipped,
           failed: report.failed,
           notes: bundleImportNotes(report),
-          memoryChatIds: bundleImportMemoryChatIds(report),
+          memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: bundleImportMemoryChatIds(report) }),
         };
       }),
     runStagedDirImport: async ({ stagedPath, ownerId, signal }) =>
       await withQuietBulkFanout(async () => {
+        const from = now();
         const report = await importStagedArchive({ registry: portability, ownerId, staged: await stageDirectory(stagedPath), signal });
         return {
           imported: report.imported,
           skipped: report.skipped,
           failed: report.failed,
           notes: bundleImportNotes(report),
-          memoryChatIds: bundleImportMemoryChatIds(report),
+          memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: bundleImportMemoryChatIds(report) }),
         };
       }),
     reconcileImportStats,
@@ -266,5 +307,5 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     },
   };
 
-  return { portability, importWorkloads };
+  return { portability, importWorkloads, settleImportMemory };
 }

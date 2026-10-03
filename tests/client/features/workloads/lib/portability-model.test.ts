@@ -5,7 +5,6 @@
 // card batch → per-file; caption elision of zero tallies).
 
 import type { PortableKind } from "@orb/contracts/portability";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 // Deep import the PURE module (NOT the "@orb/client/..." barrel): a barrel import drags browser TSX into
 // the dom-less node typecheck:graph program (the 2026-06-28 dom-lib incident).
 import {
@@ -49,11 +48,11 @@ test("asBundleCounts narrows the `unknown` workload result, defaulting missing/g
     skipped: 1,
     failed: 2,
     notes: [],
-    memoryChatIds: [],
+    memoryScope: null,
   });
-  expect(asBundleCounts({ imported: 5 })).toEqual({ imported: 5, skipped: 0, failed: 0, notes: [], memoryChatIds: [] });
-  expect(asBundleCounts(null)).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryChatIds: [] });
-  expect(asBundleCounts("boom")).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryChatIds: [] });
+  expect(asBundleCounts({ imported: 5 })).toEqual({ imported: 5, skipped: 0, failed: 0, notes: [], memoryScope: null });
+  expect(asBundleCounts(null)).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryScope: null });
+  expect(asBundleCounts("boom")).toEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryScope: null });
 });
 
 // #1710 — the flattened per-file notes a bundle import's workload result carries. A garbage/non-string
@@ -64,34 +63,33 @@ test("asBundleCounts carries the flattened `notes` array through, filtering out 
     skipped: 0,
     failed: 0,
     notes: ["book kept: primary already exists"],
-    memoryChatIds: [],
+    memoryScope: null,
   });
   expect(asBundleCounts({ imported: 1, skipped: 0, failed: 0, notes: ["ok", 7, null] })).toEqual({
     imported: 1,
     skipped: 0,
     failed: 0,
     notes: ["ok"],
-    memoryChatIds: [],
+    memoryScope: null,
   });
 });
 
-// The memory-build offer's scope: the chats an import wrote ride its workload result (both the bundle and the
-// import-st shape), a folder's sequential uploads sum into one scope, and anything that is not a chat id is
-// dropped rather than handed to the backfill.
-test("asBundleCounts carries the written chats; sumBundleCounts joins a folder's uploads into one scope", () => {
-  const first = mintTypeId(ID_PREFIX.chat);
-  const second = mintTypeId(ID_PREFIX.chat);
-  const bundle = asBundleCounts({ imported: 1, skipped: 0, failed: 0, notes: [], memoryChatIds: [first, "character_x", 7] });
-  const profile = asBundleCounts({ scanned: 3, changed: 2, failed: 0, dryRun: false, memoryChatIds: [second] });
+// The memory-build offer's scope handle: an import's span rides its workload result (both the bundle and the
+// import-st shape), a folder's sequential uploads merge into one span, and anything that is not a span reads as none.
+test("asBundleCounts carries the import's span; sumBundleCounts joins a folder's uploads into one span", () => {
+  const bundle = asBundleCounts({ imported: 1, skipped: 0, failed: 0, notes: [], memoryScope: { from: 100, to: 200 } });
+  const profile = asBundleCounts({ scanned: 3, changed: 2, failed: 0, dryRun: false, memoryScope: { from: 300, to: 450 } });
+  const garbage = asBundleCounts({ imported: 1, skipped: 0, failed: 0, notes: [], memoryScope: { from: 9, to: 1 } });
 
-  expect(bundle.memoryChatIds).toEqual([first]);
-  expect(profile.memoryChatIds).toEqual([second]);
-  expect(sumBundleCounts(bundle, profile).memoryChatIds).toEqual([first, second]);
+  expect(bundle.memoryScope).toEqual({ from: 100, to: 200 });
+  expect(garbage.memoryScope).toBeNull();
+  expect(sumBundleCounts(bundle, profile).memoryScope).toEqual({ from: 100, to: 450 });
+  expect(sumBundleCounts(garbage, profile).memoryScope).toEqual({ from: 300, to: 450 });
 });
 
 test("summarizeBundleCounts carries the counts + notes with an empty per-file list", () => {
-  const summary = summarizeBundleCounts({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"], memoryChatIds: [] });
-  expect(summary).toEqual({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"], memoryChatIds: [], outcomes: [] });
+  const summary = summarizeBundleCounts({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"], memoryScope: null });
+  expect(summary).toEqual({ imported: 4, skipped: 0, failed: 1, notes: ["book kept: primary already exists"], memoryScope: null, outcomes: [] });
 });
 
 test("summarizeCardImport maps the server's REAL result — created→imported, deduped→skipped", () => {
@@ -107,7 +105,7 @@ test("summarizeCardImport maps the server's REAL result — created→imported, 
     skipped: 1,
     failed: 0,
     notes: [],
-    memoryChatIds: [],
+    memoryScope: null,
     outcomes: [
       { path: "elara.png", ok: true, detail: "Character card" },
       { path: "kai.json", ok: true, detail: "Already imported" },
@@ -148,6 +146,6 @@ test("summarizeCardImport surfaces a server `failed` entry as a FAILURE with its
 });
 
 test("summaryCaption shows only the non-zero tallies", () => {
-  expect(summaryCaption({ imported: 3, skipped: 0, failed: 0, outcomes: [], notes: [], memoryChatIds: [] })).toBe("3 imported");
-  expect(summaryCaption({ imported: 3, skipped: 1, failed: 2, outcomes: [], notes: [], memoryChatIds: [] })).toBe("3 imported · 1 skipped · 2 failed");
+  expect(summaryCaption({ imported: 3, skipped: 0, failed: 0, outcomes: [], notes: [], memoryScope: null })).toBe("3 imported");
+  expect(summaryCaption({ imported: 3, skipped: 1, failed: 2, outcomes: [], notes: [], memoryScope: null })).toBe("3 imported · 1 skipped · 2 failed");
 });

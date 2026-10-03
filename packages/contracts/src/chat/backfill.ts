@@ -3,14 +3,31 @@
 // domain). `memory-backfill` sweeps the memory subsystem's segments/digests; `group-character-backfill` mints
 // the synthetic group character for every >1-character room that lacks one (D38).
 
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
-/** memory-backfill: `chatIds` narrows the sweep to those chats inside the row's enumeration scope (absent =
- *  every chat in scope). An import's "Build memory for imported chats" offer sends the chats that import
- *  wrote, so the run and its model-call count cover those chats and nothing else. A foreign id outside the
- *  scope matches nothing; the sweep intersects, never widens. */
-export const memoryBackfillWorkloadParams = z.object({ chatIds: z.array(typeIdSchema(ID_PREFIX.chat)).min(1).readonly().optional() });
+/** An import's scope handle: the server-clock span (epoch ms, both ends inclusive) in which the import wrote its
+ *  chats. A chat is in scope when its import claim (`chat_import_claims.createdAt`) falls inside the span. The
+ *  handle is two numbers however many chats the import wrote, so it travels in any request. */
+export interface ImportWindow {
+  readonly from: number;
+  readonly to: number;
+}
+
+export const importWindowSchema = z
+  .strictObject({ from: z.number().int().nonnegative(), to: z.number().int().nonnegative() })
+  .refine((window) => window.from <= window.to, "an import window ends at or after it starts") satisfies z.ZodType<ImportWindow>;
+
+/** The span covering both windows. Two imports' spans merge into one offer; any other chat the same owner imported
+ *  in between is in scope too, which is the owner's own library. */
+export function mergeImportWindows(a: ImportWindow, b: ImportWindow): ImportWindow {
+  return { from: Math.min(a.from, b.from), to: Math.max(a.to, b.to) };
+}
+
+/** memory-backfill: `importWindow` narrows the sweep to the chats an import wrote, intersected with the row's
+ *  enumeration scope (absent = every chat in scope); the sweep never widens. `segmentsOnly` builds the free
+ *  verbatim-segment embeddings and no digest, so it makes no Utility-model call: an import enqueues that pass
+ *  itself, and offers the digest build behind the model-run confirm. */
+export const memoryBackfillWorkloadParams = z.object({ importWindow: importWindowSchema.optional(), segmentsOnly: z.boolean().optional() });
 export type MemoryBackfillWorkloadParams = z.infer<typeof memoryBackfillWorkloadParams>;
 
 /** A backfill sweep's counts: rows examined, rows changed. Shared by both sweeps. */

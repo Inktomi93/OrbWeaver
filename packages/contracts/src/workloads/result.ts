@@ -7,17 +7,16 @@
 // whose owner has its own contracts module are promoted there stage by stage; this module carries the ones
 // still awaiting their owner + assembles the exhaustive map.
 
-import type { ChatId } from "@orb/kit/ids";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { FsckReport } from "#assets";
-import type { BackfillPassResult, MemoryBackfillResult } from "#chat";
+import type { BackfillPassResult, ImportWindow, MemoryBackfillResult } from "#chat";
 import type { IngestRunResult } from "#databank";
 import type { AnalyticsResult } from "#discovery";
 import type { EmbedPassResult } from "#embeddings";
 import type { CatalogRefreshResult } from "#inference";
 import type { RefineryScoreSweepResult } from "#refinery";
 import type { ReconcileStatsWorkloadResult } from "#stats";
+import { importWindowSchema } from "../chat/backfill.ts";
 
 /** A maintenance pass's counts + the `dryRun` echo (assets backfill/gc, import-st). */
 export interface MaintenanceResult {
@@ -29,8 +28,8 @@ export interface MaintenanceResult {
   readonly failed?: number;
   /** import-st only: path to the written import report (what landed / what didn't). Absent on a dry run. */
   readonly reportPath?: string;
-  /** import-st only: see {@link BundleImportWorkloadResult.memoryChatIds}. Absent on a dry run. */
-  readonly memoryChatIds?: readonly ChatId[];
+  /** import-st only: see {@link BundleImportWorkloadResult.memoryScope}. Absent on a dry run. */
+  readonly memoryScope?: ImportWindow | null;
 }
 
 /** A portability bundle import's per-entity tallies. `notes` (#1710) is what a file that DID import still
@@ -42,10 +41,10 @@ export interface BundleImportWorkloadResult {
   readonly skipped: number;
   readonly failed: number;
   readonly notes: readonly string[];
-  /** The real conversations this import WROTE (a deduped re-import adds none). An import enqueues no memory
-   *  build of its own; the client offers "Build memory for imported chats" over exactly these, behind the
-   *  model-run confirm, as a `memory-backfill` scoped by `chatIds`. */
-  readonly memoryChatIds: readonly ChatId[];
+  /** The span in which this import wrote real conversations, or null when it wrote none (a deduped re-import
+   *  writes none). The import enqueues only the free segment pass over it; the client offers "Build memory for
+   *  imported chats" over it behind the model-run confirm, as a `memory-backfill` scoped by `importWindow`. */
+  readonly memoryScope: ImportWindow | null;
 }
 
 /** The auditable terminal census for import's variant token catch-up. Every non-write has a named bucket. */
@@ -94,8 +93,6 @@ export interface WorkloadResultByKind {
   "refine-score-sweep": RefineryScoreSweepResult;
 }
 
-const memoryChatIdsSchema = z.array(typeIdSchema(ID_PREFIX.chat)).readonly();
-
 export const maintenanceResultSchema = z
   .strictObject({
     scanned: z.number(),
@@ -103,13 +100,13 @@ export const maintenanceResultSchema = z
     dryRun: z.boolean(),
     failed: z.number().optional(),
     reportPath: z.string().optional(),
-    memoryChatIds: memoryChatIdsSchema.optional(),
+    memoryScope: importWindowSchema.nullable().optional(),
   })
-  .transform(({ failed, reportPath, memoryChatIds, ...view }) => ({
+  .transform(({ failed, reportPath, memoryScope, ...view }) => ({
     ...view,
     ...(failed !== undefined ? { failed } : {}),
     ...(reportPath !== undefined ? { reportPath } : {}),
-    ...(memoryChatIds !== undefined ? { memoryChatIds } : {}),
+    ...(memoryScope !== undefined ? { memoryScope } : {}),
   })) satisfies z.ZodType<MaintenanceResult>;
 
 export const bundleImportWorkloadResultSchema = z.strictObject({
@@ -117,7 +114,8 @@ export const bundleImportWorkloadResultSchema = z.strictObject({
   skipped: z.number(),
   failed: z.number(),
   notes: z.array(z.string()).readonly(),
-  memoryChatIds: memoryChatIdsSchema,
+  // A row stored before imports carried a scope reads as having none: it offers nothing, and still lists.
+  memoryScope: importWindowSchema.nullable().default(null),
 }) satisfies z.ZodType<BundleImportWorkloadResult>;
 
 export const importTokenUsageBackfillResultSchema = z.strictObject({

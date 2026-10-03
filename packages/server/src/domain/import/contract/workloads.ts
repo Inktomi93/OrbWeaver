@@ -5,7 +5,7 @@
 // assets), so they are composed once at `entry/` and handed in. `reconcileImportStats` is the SAME op the
 // portability descriptors take — one slice, built once, shared by both consumers.
 
-import type { CompareAndSetImportedTokenUsage, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
+import type { CompareAndSetImportedTokenUsage, ImportWindow, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
 import type { ChatId, UserId } from "@orb/kit/ids";
 
@@ -31,9 +31,18 @@ interface ImportPassCounts {
   readonly failed: number;
   /** Path to the written import report (what landed / what didn't). Absent on a dry run (nothing written). */
   readonly reportPath?: string;
-  /** The real conversations the run wrote — the scope of the client's memory-build offer. */
-  readonly memoryChatIds: readonly ChatId[];
+  /** The span in which the run wrote real conversations (null = none): the client's memory-build offer scope. */
+  readonly memoryScope: ImportWindow | null;
 }
+
+/** Close an import's memory scope once its writes are done: `from` is the server clock read before the import
+ *  started. Returns the span as the import's scope handle, or null when the import wrote no real conversation.
+ *  Every import door (the workload runs and the synchronous chat route) settles through the one composed op. */
+export type SettleImportMemory = (args: {
+  readonly ownerId: UserId;
+  readonly from: number;
+  readonly memoryChatIds: readonly ChatId[];
+}) => Promise<ImportWindow | null>;
 
 export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
   /** The staging root the HTTP upload routes wrote under — every staged handle resolves strictly inside it. */

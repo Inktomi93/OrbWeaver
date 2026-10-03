@@ -232,7 +232,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           dryRun,
           failed: result.failed,
           ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
-          ...(dryRun ? {} : { memoryChatIds: result.memoryChatIds }),
+          ...(dryRun ? {} : { memoryScope: result.memoryScope }),
         };
       },
     },

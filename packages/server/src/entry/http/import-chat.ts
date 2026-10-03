@@ -12,10 +12,12 @@
 // mutation missing the custom header) → a hono/body-limit total cap (413). Per-file failures are ISOLATED
 // into `failed[]` (one bad transcript never fails the batch), matching POST /api/import's card contract.
 
+import type { ImportWindow } from "@orb/contracts/chat";
 import type { PortabilityRegistry, PortableEntity } from "@orb/contracts/portability";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { bodyLimit } from "hono/body-limit";
+import type { SettleImportMemory } from "#domain/import";
 import { hasCsrfHeader } from "#infra/auth";
 import type { registerImportBundle } from "./import.ts";
 
@@ -36,6 +38,9 @@ type ImportApp = Parameters<typeof registerImportBundle>[0];
 export interface ImportChatDeps {
   /** The composed registry — its `chat` descriptor IS the import path (resolved once at registration). */
   readonly registry: PortabilityRegistry;
+  /** The server clock the batch's memory scope opens on (the same clock the chat write stamps its claims with). */
+  readonly now: () => number;
+  readonly settleImportMemory: SettleImportMemory;
 }
 
 /** One transcript that landed (or deduped). `created:false` = the chat was already present (no write). */
@@ -54,8 +59,9 @@ interface FailedChat {
 export interface ChatImportResult {
   readonly imported: readonly ImportedChat[];
   readonly failed: readonly FailedChat[];
-  /** The real conversations the batch wrote — the scope of the client's "Build memory for imported chats" offer. */
-  readonly memoryChatIds: readonly ChatId[];
+  /** The span in which the batch wrote real conversations (null = none) — the scope handle of the client's
+   *  "Build memory for imported chats" offer. */
+  readonly memoryScope: ImportWindow | null;
 }
 
 /**
@@ -63,7 +69,8 @@ export interface ChatImportResult {
  * isolated outcome. SEQUENTIAL by construction — a promise CHAIN rather than an await-in-loop — because two
  * transcripts naming the same character must not race the descriptor's handle lookup and dedup reads.
  */
-async function importAll(chat: PortableEntity, ownerId: UserId, files: readonly File[]): Promise<ChatImportResult> {
+async function importAll(chat: PortableEntity, ownerId: UserId, files: readonly File[], deps: ImportChatDeps): Promise<ChatImportResult> {
+  const from = deps.now();
   const imported: ImportedChat[] = [];
   const failed: FailedChat[] = [];
   const memoryChatIds: ChatId[] = [];
@@ -78,7 +85,7 @@ async function importAll(chat: PortableEntity, ownerId: UserId, files: readonly 
       failed.push({ filename: file.name, error: outcome.error ?? IMPORT_FAILED });
     }
   }, Promise.resolve());
-  return { imported, failed, memoryChatIds };
+  return { imported, failed, memoryScope: await deps.settleImportMemory({ ownerId, from, memoryChatIds }) };
 }
 
 /** Register `POST /api/import/chat` on `app`: auth → CSRF → body cap → per-file delegate to the registry's
@@ -116,7 +123,7 @@ export function registerImportChat(app: ImportApp, deps: ImportChatDeps): void {
       if (files.length === 0) {
         return c.json({ error: `no "${UPLOAD_FIELD}" transcript uploads` }, BAD_REQUEST);
       }
-      return c.json(await importAll(chat, principal.userId, files));
+      return c.json(await importAll(chat, principal.userId, files, deps));
     },
   );
 }

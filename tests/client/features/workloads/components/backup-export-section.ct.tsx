@@ -7,9 +7,10 @@
 // tRPC), so they're page.route-d directly. The import half is a TWO-STEP flow since #1099 F36 — a pick
 // stages, a confirm sends — and this file drives both steps.
 
+import type { ImportWindow } from "@orb/contracts/chat";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
-import type { ChatId, WorkloadId } from "@orb/kit/ids";
-import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { WorkloadId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -132,7 +133,7 @@ test("import: a dropped .zip is STAGED first; confirming POSTs the bundle, tails
       workloadId: castId<WorkloadId>("workload_ct_import"),
       kind: "import-bundle",
       at: 1_750_000_002_000,
-      result: { imported: 12, skipped: 1, failed: 0, notes: [], memoryChatIds: [] },
+      result: { imported: 12, skipped: 1, failed: 0, notes: [], memoryScope: null },
     },
   ]);
 
@@ -179,7 +180,7 @@ test("import: a bundle workload's flattened notes render beside the count summar
       workloadId: castId<WorkloadId>("workload_ct_import_notes"),
       kind: "import-bundle",
       at: 1_750_000_002_000,
-      result: { imported: 1, skipped: 0, failed: 0, notes: ["book kept: primary already exists"], memoryChatIds: [] },
+      result: { imported: 1, skipped: 0, failed: 0, notes: ["book kept: primary already exists"], memoryScope: null },
     },
   ]);
 
@@ -197,10 +198,11 @@ test("import: a bundle workload's flattened notes render beside the count summar
 });
 
 // ── AN IMPORT ENQUEUES NOTHING PAID; THE REPORT OFFERS THE MEMORY BUILD ─────────────────────────────────────
-// The finished `import-bundle` result carries the real conversations it wrote. With Memory on, the report offers
-// to build their memory, sized by the server's count for exactly those chats, and only the confirm's yes starts
-// the run; with Memory off there is no offer.
-async function finishImportWith(page: Page, memoryChatIds: readonly ChatId[]): Promise<void> {
+// The finished `import-bundle` result carries the import's span (its scope handle). With Memory on, the report
+// offers to build those chats' memory, sized by the server's count for that span, and only the confirm's yes starts
+// the run; with Memory off there is no offer. The handle is two numbers however many chats the import wrote.
+const IMPORTED_SPAN: ImportWindow = { from: 1_750_000_000_000, to: 1_750_000_002_000 };
+async function finishImportWith(page: Page, memoryScope: ImportWindow): Promise<void> {
   await page.route("**/api/import/bundle", async (route) => {
     await route.fulfill({ status: 202, headers: { "content-type": "application/json" }, body: JSON.stringify({ workloadId: "workload_ct_import_chats" }) });
   });
@@ -210,7 +212,7 @@ async function finishImportWith(page: Page, memoryChatIds: readonly ChatId[]): P
       workloadId: castId<WorkloadId>("workload_ct_import_chats"),
       kind: "import-bundle",
       at: 1_750_000_002_000,
-      result: { imported: 3, skipped: 0, failed: 0, notes: [], memoryChatIds },
+      result: { imported: 3, skipped: 0, failed: 0, notes: [], memoryScope },
     },
   ]);
 }
@@ -222,8 +224,7 @@ async function importBackup(page: Page): Promise<void> {
 }
 
 test("import: with Memory on, the report offers a memory build scoped to the imported chats, behind the paid-run confirm", async ({ mount, page }) => {
-  const chatIds = [mintTypeId(ID_PREFIX.chat), mintTypeId(ID_PREFIX.chat)];
-  const scoped = { input: { kind: "memory-backfill", params: { chatIds } }, mode: "singular" };
+  const scoped = { input: { kind: "memory-backfill", params: { importWindow: IMPORTED_SPAN } }, mode: "singular" };
   const trpc = await routeTrpc(page, {
     ...HOST_VIEWER_ROUTE,
     ...STREAM_MUTATION_ROUTES,
@@ -232,7 +233,7 @@ test("import: with Memory on, the report offers a memory build scoped to the imp
     "workloads.estimateModelCalls": { calls: 14 },
     "workloads.start": { id: "workload_ct_imported_memory" },
   });
-  await finishImportWith(page, chatIds);
+  await finishImportWith(page, IMPORTED_SPAN);
 
   await mount(<BackupSettingsStory />);
   await importBackup(page);
@@ -254,7 +255,7 @@ test("import: with Memory on, the report offers a memory build scoped to the imp
 
 test("import: with Memory off, the report makes no memory offer for the chats it wrote", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { ...HOST_VIEWER_ROUTE, ...STREAM_MUTATION_ROUTES, "settings.getUserSettings": userSettingsView() });
-  await finishImportWith(page, [mintTypeId(ID_PREFIX.chat)]);
+  await finishImportWith(page, IMPORTED_SPAN);
 
   await mount(<BackupSettingsStory />);
   await importBackup(page);

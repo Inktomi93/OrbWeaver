@@ -27,16 +27,21 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import { DomainConflictError } from "@orb/kit/errors";
+import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorkloadId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CharacterService } from "@orb/server/domain/character";
 import { DEFAULT_IMPORT_STAGING_DIR } from "@orb/server/domain/import";
 import type { StartWorkloadParams, WorkloadService } from "@orb/server/domain/workloads";
+import { WORKLOAD_NOT_ADMISSIBLE } from "@orb/server/domain/workloads";
 import { subscribeUserEvents } from "@orb/server/transport/trpc";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import type { PortabilityRunnerComposeDeps } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
-import { buildPortabilityRunner, createEnqueueImportIndex } from "../../../../packages/server/src/entry/compose/portability-runner.ts";
+import {
+  buildPortabilityRunner,
+  createEnqueueImportIndex,
+  createSettleImportMemory,
+} from "../../../../packages/server/src/entry/compose/portability-runner.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -137,7 +142,7 @@ describe("buildPortabilityRunner — quiet mode wraps the bulk runs without swal
 
     // 0/0/0 here is the HONEST answer for an empty tree — the point is that a value came back at all
     // (a `withQuietBulkFanout` that dropped the return would surface `undefined`).
-    expect(counts).toStrictEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryChatIds: [] });
+    expect(counts).toStrictEqual({ imported: 0, skipped: 0, failed: 0, notes: [], memoryScope: null });
   });
 
   // #1710 — through the WORKLOAD door (`runStagedDirImport`, not the verb directly): a card whose character
@@ -206,8 +211,8 @@ describe("buildPortabilityRunner — the terminal library fan (#23) reaches ONLY
 
 // ── AN IMPORT ENQUEUES NOTHING PAID ─────────────────────────────────────────────────────────────────────
 // `memory-backfill` spends the Utility model on every imported chat, and a paid run starts only behind the
-// model-run confirm. The import's own enqueue is the free text `index` pass; the memory build is the client's
-// offer over the result's `memoryChatIds`.
+// model-run confirm. The import's own enqueues are free: the text `index` pass, and the segments-only memory pass
+// over the import's span (`createSettleImportMemory`); the digest build is the client's offer over that span.
 describe("createEnqueueImportIndex — the post-import enqueue is the free index pass alone", () => {
   /** A workloads door that answers like the real one: the single-active unique index refuses a second
    *  enqueue of the same unit, UNLESS the caller asks to adopt the run already holding the slot. */
@@ -247,6 +252,55 @@ describe("createEnqueueImportIndex — the post-import enqueue is the free index
 
     await expect(createEnqueueImportIndex(door.workloads)({ ownerId: OWNER })).resolves.toBeUndefined();
     expect(door.calls.map((call) => call.adoptActive)).toStrictEqual([true]);
+  });
+});
+
+describe("createSettleImportMemory — an import's span, and its free segment pass", () => {
+  const From = 1000;
+  const To = 1900;
+  const chatId = mintTypeId(ID_PREFIX.chat);
+
+  function recordingDoor(answer: (params: StartWorkloadParams) => Promise<{ id: WorkloadId }>): {
+    readonly calls: StartWorkloadParams[];
+    readonly workloads: Pick<WorkloadService, "start">;
+  } {
+    const calls: StartWorkloadParams[] = [];
+    return {
+      calls,
+      workloads: {
+        start: (params: StartWorkloadParams): Promise<{ id: WorkloadId }> => {
+          calls.push(params);
+          return answer(params);
+        },
+      },
+    };
+  }
+
+  test("an import that wrote real conversations returns its span and enqueues ONLY the segments-only pass over it", async () => {
+    const door = recordingDoor(() => Promise.resolve({ id: castId<WorkloadId>("wl_segments") }));
+
+    const scope = await createSettleImportMemory(door.workloads, () => To)({ ownerId: OWNER, from: From, memoryChatIds: [chatId] });
+
+    expect(scope).toStrictEqual({ from: From, to: To });
+    expect(door.calls.map((call) => ({ input: call.input, ownerId: call.ownerId, adoptActive: call.adoptActive }))).toStrictEqual([
+      { input: { kind: "memory-backfill", params: { importWindow: { from: From, to: To }, segmentsOnly: true } }, ownerId: OWNER, adoptActive: true },
+    ]);
+  });
+
+  test("an import that wrote no real conversation has no scope and enqueues nothing", async () => {
+    const door = recordingDoor(() => Promise.resolve({ id: castId<WorkloadId>("wl_unused") }));
+
+    await expect(createSettleImportMemory(door.workloads, () => To)({ ownerId: OWNER, from: From, memoryChatIds: [] })).resolves.toBeNull();
+    expect(door.calls).toEqual([]);
+  });
+
+  test("a memory-off owner's refusal is not an import failure: the span still returns for the client to judge", async () => {
+    const door = recordingDoor(() => Promise.reject(new DomainOperationError(WORKLOAD_NOT_ADMISSIBLE, "Memory is turned off")));
+
+    await expect(createSettleImportMemory(door.workloads, () => To)({ ownerId: OWNER, from: From, memoryChatIds: [chatId] })).resolves.toStrictEqual({
+      from: From,
+      to: To,
+    });
   });
 });
 

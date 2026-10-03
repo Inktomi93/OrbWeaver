@@ -7,9 +7,11 @@
 // isolation), so the toast derives from the REAL per-file outcome, never from "it didn't throw" — an
 // all-failed batch says WHY (the server's own reason: an unparseable file, or a transcript naming a
 // character this account doesn't have yet). A batch that wrote real conversations while Memory is on keeps the
-// dialog open on the memory-build offer, since an import enqueues no paid model run on its own.
+// dialog open on the memory-build offer, since an import enqueues no paid model run on its own. The dropzone stays
+// live, so the offer's scope grows with each drop until a build starts, and a drop after that offers afresh.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { ImportWindow } from "@orb/contracts/chat";
+import { mergeImportWindows } from "@orb/contracts/chat";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -63,13 +65,16 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
   const invalidation = useInvalidation();
   // Read while open, and pessimistic until it lands: an unread switch closes the dialog as before, never strands it.
   const memoryOn = useQuery({ ...trpc.settings.getUserSettings.queryOptions(), enabled: open }).data?.config.memory.enabled === true;
-  // The chats the last batch wrote, held only while the offer is up; a closed dialog forgets them.
-  const [offered, setOffered] = useState<readonly ChatId[]>([]);
+  // The scope on offer: every drop since the last started build, merged. A closed dialog forgets it.
+  const [offer, setOffer] = useState<{ readonly scope: ImportWindow; readonly started: boolean } | null>(null);
   const changeOpen = (next: boolean): void => {
     if (!next) {
-      setOffered([]);
+      setOffer(null);
     }
     onOpenChange(next);
+  };
+  const offerScope = (scope: ImportWindow): void => {
+    setOffer((prev) => ({ scope: prev === null || prev.started ? scope : mergeImportWindows(prev.scope, scope), started: false }));
   };
 
   const onFiles = (accepted: readonly File[]): void => {
@@ -86,8 +91,8 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
         }
         // A raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate manually.
         invalidation.invalidateUser({ type: "chatsChanged" });
-        if (memoryOn && result.memoryChatIds.length > 0) {
-          setOffered(result.memoryChatIds);
+        if (memoryOn && result.memoryScope !== null) {
+          offerScope(result.memoryScope);
           return;
         }
         changeOpen(false);
@@ -110,7 +115,11 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
         multiple={true}
         onFilesSelected={({ accepted }): void => onFiles(accepted)}
       />
-      <ImportedChatsMemoryOffer chatIds={offered} nested={true} />
+      <ImportedChatsMemoryOffer
+        nested={true}
+        onStarted={(): void => setOffer((prev) => (prev === null ? null : { ...prev, started: true }))}
+        scope={offer?.scope ?? null}
+      />
     </FormDialog>
   );
 }

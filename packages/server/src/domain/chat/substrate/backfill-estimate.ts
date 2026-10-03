@@ -2,6 +2,7 @@
 // counted from canon and the stored digests WITHOUT the planner (it mints group characters and prunes, so it
 // cannot double as a read). It errs high: witness narrowing and an edited block's hash drift are not modelled.
 
+import type { ImportWindow } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import type { ResolveBackfillMemoryConfig } from "../contract/memory.ts";
@@ -63,18 +64,18 @@ async function chatCalls(ctx: ChatContext, chatId: ChatId, resolveMemoryConfig: 
 }
 
 /** The Utility-model calls a memory backfill over `ownerId`'s hosted chats (`null` = every chat), narrowed to
- *  `chatIds` when set, would make for `funderUserId`. Zero when the funder has no Utility model: the sweep then
+ *  the chats an import wrote when `importWindow` is set, would make for `funderUserId`. Zero when the funder has no Utility model: the sweep then
  *  builds no digests at all. */
 export async function estimateMemoryBackfillCalls(
   ctx: ChatContext,
-  args: { readonly ownerId: UserId | null; readonly funderUserId: UserId; readonly chatIds: readonly ChatId[] | null },
+  args: { readonly ownerId: UserId | null; readonly funderUserId: UserId; readonly importWindow: ImportWindow | null },
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<number> {
   if (!(await digestsDerivable(ctx, args.funderUserId))) {
     return 0;
   }
   let calls = 0;
-  for (const chatId of await loadAllChatIds(ctx, args.ownerId, args.chatIds)) {
+  for (const chatId of await loadAllChatIds(ctx, args.ownerId, args.importWindow)) {
     calls += await chatCalls(ctx, chatId, resolveMemoryConfig);
   }
   return calls;

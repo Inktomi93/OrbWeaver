@@ -2,10 +2,10 @@
 // portable kind, the export-kind set the checkboxes drive, the export-href builder, and the report →
 // summary normalizers. No React, no I/O.
 
+import type { ImportWindow } from "@orb/contracts/chat";
+import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_KINDS } from "@orb/contracts/portability";
-import type { ChatId } from "@orb/kit/ids";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { CardImportResult, TreeImportPlan } from "#data";
 import { skippedByReason } from "#data";
 
@@ -60,8 +60,9 @@ export interface ImportSummary {
   readonly failed: number;
   readonly outcomes: readonly ImportOutcomeView[];
   readonly notes: readonly string[];
-  /** The real conversations the import wrote — the scope of the "Build memory for imported chats" offer. */
-  readonly memoryChatIds: readonly ChatId[];
+  /** The import's scope handle — the "Build memory for imported chats" offer's scope; null when it wrote no
+   *  real conversation. */
+  readonly memoryScope: ImportWindow | null;
 }
 
 /** The counts + flattened notes a finished `import-bundle` workload reports (no per-file list — #1710's
@@ -71,10 +72,16 @@ export interface BundleCounts {
   readonly skipped: number;
   readonly failed: number;
   readonly notes: readonly string[];
-  readonly memoryChatIds: readonly ChatId[];
+  readonly memoryScope: ImportWindow | null;
 }
 
-const chatIdSchema = typeIdSchema(ID_PREFIX.chat);
+/** One span over both scopes; a missing side leaves the other as it is. */
+function mergeScopes(a: ImportWindow | null, b: ImportWindow | null): ImportWindow | null {
+  if (a === null || b === null) {
+    return a ?? b;
+  }
+  return mergeImportWindows(a, b);
+}
 
 /** Narrow an `unknown` workload-succeeded result into the bundle counts. An `import-st` run reports the
  *  maintenance-pass shape (`scanned`/`changed`/`failed`) instead of `imported`/`skipped`: its new canon is
@@ -83,7 +90,7 @@ export function asBundleCounts(result: unknown): BundleCounts {
   const record = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
   const count = (value: unknown): number => (typeof value === "number" ? value : 0);
   const notes = record["notes"];
-  const memoryChatIds = record["memoryChatIds"];
+  const memoryScope = importWindowSchema.safeParse(record["memoryScope"]);
   const failed = count(record["failed"]);
   const imported = record["imported"] === undefined ? count(record["changed"]) : count(record["imported"]);
   const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed) : count(record["skipped"]);
@@ -92,12 +99,7 @@ export function asBundleCounts(result: unknown): BundleCounts {
     skipped,
     failed,
     notes: Array.isArray(notes) ? notes.filter((note): note is string => typeof note === "string") : [],
-    memoryChatIds: Array.isArray(memoryChatIds)
-      ? memoryChatIds.flatMap((id: unknown) => {
-          const parsed = chatIdSchema.safeParse(id);
-          return parsed.success ? [parsed.data] : [];
-        })
-      : [],
+    memoryScope: memoryScope.success ? memoryScope.data : null,
   };
 }
 
@@ -108,7 +110,7 @@ export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts 
     skipped: a.skipped + b.skipped,
     failed: a.failed + b.failed,
     notes: [...a.notes, ...b.notes],
-    memoryChatIds: [...a.memoryChatIds, ...b.memoryChatIds],
+    memoryScope: mergeScopes(a.memoryScope, b.memoryScope),
   };
 }
 
@@ -146,7 +148,7 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
     failed: result.failed.length,
     notes: [],
     // A bare card writes no chat, so it offers no memory build.
-    memoryChatIds: [],
+    memoryScope: null,
     outcomes: [
       ...created.map((card) => ({
         path: card.filename ?? UNNAMED_CARD,

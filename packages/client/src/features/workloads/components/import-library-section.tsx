@@ -155,7 +155,7 @@ export function ImportLibrarySection(): ReactElement {
       {done ? (
         <Stack gap="block">
           <ImportReportSummary summary={state.summary} />
-          <ImportedChatsMemoryOffer chatIds={state.summary.memoryChatIds} />
+          <ImportedChatsMemoryOffer scope={state.summary.memoryScope} />
           <Row justify="start">
             <Button intent="secondary" onClick={reset}>
               Import another

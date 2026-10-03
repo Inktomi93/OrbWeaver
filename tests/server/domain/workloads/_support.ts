@@ -113,9 +113,9 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
     ...createImportWorkloadContributions({
       stagingRoot: "/tmp/orb-test-staging",
       stProfileDir: "/tmp/orb-test-profiles",
-      runProfileDirImport: stub({ scanned: 0, changed: 0, failed: 0, memoryChatIds: [] }),
-      runBundleImport: stub({ imported: 0, skipped: 0, failed: 0, notes: [], memoryChatIds: [] }),
-      runStagedDirImport: stub({ imported: 0, skipped: 0, failed: 0, notes: [], memoryChatIds: [] }),
+      runProfileDirImport: stub({ scanned: 0, changed: 0, failed: 0, memoryScope: null }),
+      runBundleImport: stub({ imported: 0, skipped: 0, failed: 0, notes: [], memoryScope: null }),
+      runStagedDirImport: stub({ imported: 0, skipped: 0, failed: 0, notes: [], memoryScope: null }),
       listTokenUsageCandidates: stub([]),
       compareAndSetTokenUsage: stub(true),
       reconcileImportStats: stub(undefined),

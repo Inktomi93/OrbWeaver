@@ -24,6 +24,7 @@ import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import {
   assets,
   characterDocuments,
+  chatImportClaims,
   connectionBindings,
   documents,
   notifications,
@@ -2109,10 +2110,11 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "plugin.listDistributed": "admin-gated: role gate (reads deployment policy; no input at all)",
   "admin.embedCharacterCard": "admin-gated: role gate",
   // get/cancel/retry are PROBED above (owner-scoped, id-taking). start/list/subscribe below:
-  "workloads.start": "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id",
+  "workloads.start":
+    "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id. A memory-backfill `importWindow` is a time span, not an id: the sweep intersects it with the run owner's own hosted chats (probed below, and counted in tests/server/domain/chat/substrate/backfill-estimate.int.test.ts)",
   "workloads.list": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "workloads.estimateModelCalls":
-    "self-scoped: the start scope rules, read-only — a singular estimate counts the caller's own library (a bulk one requires the box owner); no foreign id, and it returns a count, never a row",
+    "self-scoped: the start scope rules, read-only — a singular estimate counts the caller's own library (a bulk one requires the box owner); no foreign id, and it returns a count, never a row. A memory-backfill `importWindow` span counts only the caller's own hosted chats (probed below)",
   "workloads.createSchedule": "self-scoped: stamps ownerId = caller (a bulk schedule requires the box owner); no foreign id",
   "workloads.listSchedules": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "connection.refreshCatalog": "admin-gated: writes the deployment KV snapshot",
@@ -3042,5 +3044,38 @@ describe("cross-tenant IDOR sweep — the credential door's provider axis (keyed
     expect(verdict).toBeNull();
     const sealedForAlpha = (await db.select().from(userCredentials)).filter((row) => row.provider === pluginProviderId);
     expect(sealedForAlpha.map((row) => row.ownerId)).toEqual([OWNER_USER_ID]);
+  });
+});
+
+describe("cross-tenant IDOR sweep — an import's memory scope handle", () => {
+  // The handle is a time span, not an id, so a stranger can name the span of A's import. Naming it must confer
+  // nothing: B's run is B's row, carries only the span, and B's count is B's own library's. The sweep's
+  // intersection with the run owner's hosted chats is counted with a funded Utility model in
+  // tests/server/domain/chat/substrate/backfill-estimate.int.test.ts.
+  test("a stranger naming owner A's import span starts only its own run and counts only its own library", async ({ db, ownerCaller, otherCaller }) => {
+    const span = { from: 1_700_000_000_000, to: 1_700_000_060_000 };
+    const character = await ownerCaller.character.create({ input: { handle: "alpha-imported", name: MARK.character, description: "owned by A" } });
+    const room = await seedChat(db, "alpha_imported_room", { title: MARK.character });
+    await seedParticipant(db, { chatId: room, key: "alpha_imported_host", userId: OWNER_USER_ID, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "alpha_imported_char", characterId: castId<CharacterId>(character.id) });
+    await db
+      .insert(chatImportClaims)
+      .values({ chatId: room, characterId: castId<CharacterId>(character.id), importHash: "alpha_import", createdAt: span.from });
+    const input = { kind: "memory-backfill", params: { importWindow: span } } as const;
+    // B's own Memory is on, so B's run is admitted and the probe reaches the scope rather than the opt-out.
+    await otherCaller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
+
+    const strangerCount = await otherCaller.workloads.estimateModelCalls({ input, mode: "singular" });
+    const emptyCount = await otherCaller.workloads.estimateModelCalls({
+      input: { kind: "memory-backfill", params: { importWindow: { from: 0, to: 0 } } },
+      mode: "singular",
+    });
+    expect(strangerCount).toEqual(emptyCount);
+
+    const { id } = await otherCaller.workloads.start({ input, mode: "singular" });
+    const started = (await db.select().from(workloads)).find((row) => row.id === id);
+    expect(started?.ownerId).toBe(OTHER_USER_ID);
+    expect(started?.params).toEqual({ importWindow: span });
+    expect(JSON.stringify(started)).not.toContain(room);
   });
 });

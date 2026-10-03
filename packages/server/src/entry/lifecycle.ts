@@ -934,6 +934,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       character: built.services.character,
       exportService: built.exportService,
       portability: built.portability,
+      settleImportMemory: built.settleImportMemory,
       importWorldInfo: built.importWorldInfo,
       importCardScripts: built.importCardScripts,
       sessions: built.sessions,

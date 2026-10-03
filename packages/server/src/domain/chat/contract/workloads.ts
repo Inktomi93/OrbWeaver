@@ -3,8 +3,8 @@
 // the ONE cross-domain reach, declared here as an injected-op TYPE and wired at the composition root —
 // never a sideways import, and never a shared cross-feature hub.
 
-import type { BackfillPassResult } from "@orb/contracts/chat";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { BackfillPassResult, ImportWindow } from "@orb/contracts/chat";
+import type { UserId } from "@orb/kit/ids";
 import type { MemoryBackfillSweepCounts, MemoryEmbedSpace } from "./memory.ts";
 
 /** A corpus sweep's argument bundle: the enumeration scope (`null` = the bulk all-owners pass) + the signal. */
@@ -15,16 +15,18 @@ interface CorpusSweepArgs {
   readonly signal: AbortSignal;
 }
 
-/** The memory sweep's arguments: the corpus scope, narrowed to `chatIds` when set (`null` = every chat in scope). */
-interface MemorySweepArgs extends CorpusSweepArgs {
-  readonly chatIds: readonly ChatId[] | null;
+/** The memory sweep's arguments: the corpus scope, narrowed to the chats an import wrote when `importWindow` is set
+ *  (`null` = every chat in scope). `segmentsOnly` builds the verbatim segments and plans no digest. */
+export interface MemorySweepArgs extends CorpusSweepArgs {
+  readonly importWindow: ImportWindow | null;
+  readonly segmentsOnly: boolean;
 }
 
 export interface ChatWorkloadDeps {
   /** The memory subsystem's corpus-wide segment/digest rebuild (idempotent, hash-diff resumable). */
   readonly backfillMemory: (args: MemorySweepArgs) => Promise<MemoryBackfillSweepCounts>;
   /** The Utility-model calls {@link backfillMemory} would make over the scope, read without planning or writing. */
-  readonly estimateMemoryBackfill: (args: Omit<MemorySweepArgs, "signal">) => Promise<number>;
+  readonly estimateMemoryBackfill: (args: Omit<MemorySweepArgs, "signal" | "segmentsOnly">) => Promise<number>;
   /** Mint the synthetic group character for every multi-character room that lacks one (D38). */
   readonly backfillGroupCharacters: (args: CorpusSweepArgs) => Promise<BackfillPassResult>;
   /** The memory sweep's TERMINAL: record `embed_space_state`'s `memory` completion for every space the

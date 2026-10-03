@@ -70,8 +70,8 @@ export function bundleImportNotes(report: BundleImportReport): readonly string[]
   return report.outcomes.flatMap((outcome) => outcome.notes ?? []);
 }
 
-/** Every real conversation the bundle wrote, in file order — the ONE derivation of the memory-build offer's
- *  scope, on the {@link bundleImportNotes} precedent. */
+/** Every real conversation the bundle wrote, in file order — the input that decides whether the import has a
+ *  memory scope at all, on the {@link bundleImportNotes} precedent. */
 export function bundleImportMemoryChatIds(report: BundleImportReport): readonly ChatId[] {
   return report.outcomes.flatMap((outcome) => outcome.memoryChatIds ?? []);
 }
