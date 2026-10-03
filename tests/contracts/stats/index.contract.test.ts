@@ -2,15 +2,16 @@ import type { ApplyStatsDelta, StatsDelta } from "@orb/contracts/stats";
 import { statsDeltaSchema } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { statsBucketStart } from "@orb/kit/stats-tally";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 
 // Sample keys: a low-entropy owner brand at the untyped seam + a minted character TypeID (no pasted
-// high-entropy literals — noSecrets). The day grain is what `@orb/kit/stats-tally.utcDay` emits.
+// high-entropy literals — noSecrets). The bucket grain is what `@orb/kit/stats-tally.statsBucketStart` emits.
 const OWNER_ID = castId<UserId>("user-owner");
 const CHARACTER_ID = mintTypeId(ID_PREFIX.character);
-const DAY = "2026-06-26";
 const NOW_MS = 1_750_000_000_000;
+const BUCKET_START = statsBucketStart(NOW_MS);
 const MODEL = testModelId("claude-opus-4");
 const PROVIDER = testProviderId("anthropic");
 
@@ -19,7 +20,7 @@ test("statsDeltaSchema parses the minimal grain-only delta and round-trips (no d
   const value = {
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: MODEL,
     provider: PROVIDER,
     now: NOW_MS,
@@ -28,14 +29,14 @@ test("statsDeltaSchema parses the minimal grain-only delta and round-trips (no d
   // No `.default()` anywhere → an omitted increment stays absent (the delta is a sparse patch); a
   // round-trip that silently grew `tokensIn: 0` keys would double-count under `col = col + excluded.col`.
   expect(parsed).toEqual(value);
-  expect(Object.keys(parsed).sort()).toEqual(["characterId", "day", "model", "now", "ownerId", "provider"].sort());
+  expect(Object.keys(parsed).sort()).toEqual(["bucketStart", "characterId", "model", "now", "ownerId", "provider"].sort());
 });
 
 test("a MESSAGE delta carries the scalar + daily + model slices together and round-trips", () => {
   const value: StatsDelta = {
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: MODEL,
     provider: PROVIDER,
     now: NOW_MS,
@@ -62,7 +63,7 @@ test("a VARIANT delta sets scalar tokens but OMITS the daily token slice (decoup
   const value: StatsDelta = {
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: MODEL,
     provider: PROVIDER,
     now: NOW_MS,
@@ -88,7 +89,7 @@ test("a MODEL-ONLY delta (cross-model swipe bucket) round-trips with no scalar t
   const value: StatsDelta = {
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: testModelId("claude-sonnet-4"),
     provider: PROVIDER,
     now: NOW_MS,
@@ -106,7 +107,7 @@ test("the keys are nullable where the grain allows it (system / no-model writes)
   const value: StatsDelta = {
     ownerId: OWNER_ID,
     characterId: null, // system / no-character write → character_stats skipped
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: null, // no-model write → model_stats skipped
     provider: null,
     now: NOW_MS,
@@ -120,7 +121,7 @@ test("maintenance extrema (firstAt/lastAt/maxContextTokens) accept nulls; increm
   const value: StatsDelta = {
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: null,
     provider: null,
     now: NOW_MS,
@@ -145,7 +146,7 @@ test("a SEAT delta sets the character room census but OMITS the owner chat count
   const value: StatsDelta = {
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: null,
     provider: null,
     now: NOW_MS,
@@ -164,7 +165,7 @@ test("statsDeltaSchema rejects a delta missing the required `now` stamp", () => 
   const invalid = {
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: null,
     provider: null,
   };
@@ -172,13 +173,14 @@ test("statsDeltaSchema rejects a delta missing the required `now` stamp", () => 
 });
 
 test("model_stats.model producer rejects a blank foreign model id", () => {
-  expect(statsDeltaSchema.safeParse({ ownerId: OWNER_ID, characterId: CHARACTER_ID, day: DAY, model: "   ", provider: "anthropic", now: NOW_MS }).success).toBe(
-    false,
-  );
+  expect(
+    statsDeltaSchema.safeParse({ ownerId: OWNER_ID, characterId: CHARACTER_ID, bucketStart: BUCKET_START, model: "   ", provider: "anthropic", now: NOW_MS })
+      .success,
+  ).toBe(false);
 });
 
 test("model_stats.provider producer rejects malformed registry ids and admits only the ruled unknown sentinel", () => {
-  const base = { ownerId: OWNER_ID, characterId: CHARACTER_ID, day: DAY, model: "claude-opus-4", now: NOW_MS };
+  const base = { ownerId: OWNER_ID, characterId: CHARACTER_ID, bucketStart: BUCKET_START, model: "claude-opus-4", now: NOW_MS };
   expect(statsDeltaSchema.safeParse({ ...base, provider: "custom_openai" }).success).toBe(false);
   expect(statsDeltaSchema.safeParse({ ...base, provider: "(unknown)" }).success).toBe(true);
 });
@@ -187,7 +189,7 @@ test("statsDeltaSchema rejects an empty ownerId and a wrong-prefix characterId",
   const emptyOwner = {
     ownerId: "",
     characterId: CHARACTER_ID,
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: null,
     provider: null,
     now: NOW_MS,
@@ -197,7 +199,7 @@ test("statsDeltaSchema rejects an empty ownerId and a wrong-prefix characterId",
   const wrongPrefix = {
     ownerId: OWNER_ID,
     characterId: mintTypeId(ID_PREFIX.persona),
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: null,
     provider: null,
     now: NOW_MS,
@@ -209,7 +211,7 @@ test("statsDeltaSchema rejects a non-numeric increment", () => {
   const value = {
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: null,
     provider: null,
     now: NOW_MS,
@@ -232,7 +234,7 @@ test("ApplyStatsDelta is satisfiable by a no-op and consumes a StatsDelta", () =
   const delta: StatsDelta = {
     ownerId: OWNER_ID,
     characterId: CHARACTER_ID,
-    day: DAY,
+    bucketStart: BUCKET_START,
     model: MODEL,
     provider: PROVIDER,
     now: NOW_MS,

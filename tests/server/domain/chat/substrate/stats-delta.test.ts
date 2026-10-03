@@ -2,7 +2,7 @@
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { utcDay, wordCount } from "@orb/kit/stats-tally";
+import { statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import { describe } from "vitest";
 import {
   assistantTurnDelta,
@@ -35,7 +35,7 @@ describe("assistantTurnDelta", () => {
     });
     expect(d.ownerId).toBe(OWNER);
     expect(d.characterId).toBe(ARIA);
-    expect(d.day).toBe(utcDay(NOW));
+    expect(d.bucketStart).toBe(statsBucketStart(NOW));
     expect(d.assistantTurns).toBe(1);
     expect(d.assistantWords).toBe(wordCount("two words"));
     expect(d.tokensIn).toBe(5);
@@ -253,7 +253,7 @@ describe("userMessageDelta", () => {
     expect(d.userTurns).toBe(1);
     expect(d.userWords).toBe(wordCount("hello there"));
     expect(d.model).toBeNull();
-    expect(d.day).toBe(utcDay(NOW));
+    expect(d.bucketStart).toBe(statsBucketStart(NOW));
   });
 });
 

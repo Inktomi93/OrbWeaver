@@ -7,19 +7,17 @@
 // a transport router must NOT deep-import `contract/params` nor re-spell the union inline).
 
 import {
-  activityHeatmapSchema,
-  characterMomentumSchema,
+  activityBucketSchema,
   characterStatsViewSchema,
-  dailyPointSchema,
   latencyStatsSchema,
   leaderboardPageSchema,
   modelStatRowSchema,
+  momentumBucketSchema,
   ownerStatsViewSchema,
   personaUsageRowSchema,
   reconcileStatsResultSchema,
   STATS_LIST_MAX_LIMIT,
   statsFreshnessSchema,
-  temporalStatsSchema,
   wrappedSummarySchema,
 } from "@orb/contracts/stats";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -50,9 +48,11 @@ export const statsRouter = t.router({
     )
     .query(({ ctx, input }) => ctx.services.stats.leaderboard(ctx.auth.userId, { sort: input?.sort, limit: input?.limit, search: input?.search })),
 
+  // The window bounds are bucket-start instants, never calendar days: the viewer's day is decided on the
+  // client, so the server takes no zone (docs/law/UI-Gates-and-Lessons.md §11.5).
   timeseries: authedProcedure
-    .output(z.array(dailyPointSchema))
-    .input(z.object({ from: z.string().optional(), to: z.string().optional() }).optional())
+    .output(z.array(activityBucketSchema))
+    .input(z.object({ from: z.number().int().optional(), to: z.number().int().optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.timeseries(ctx.auth.userId, { from: input?.from, to: input?.to })),
 
   byModel: authedProcedure
@@ -72,14 +72,7 @@ export const statsRouter = t.router({
 
   wrapped: authedProcedure.output(wrappedSummarySchema.nullable()).query(({ ctx }) => ctx.services.stats.wrapped(ctx.auth.userId)),
 
-  temporal: authedProcedure.output(temporalStatsSchema).query(({ ctx }) => ctx.services.stats.temporal(ctx.auth.userId)),
-
-  activityHeatmap: authedProcedure.output(activityHeatmapSchema).query(({ ctx }) => ctx.services.stats.activityHeatmap(ctx.auth.userId)),
-
-  momentum: authedProcedure
-    .output(characterMomentumSchema)
-    .input(z.object({ limit: z.number().int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional())
-    .query(({ ctx, input }) => ctx.services.stats.momentum(ctx.auth.userId, input?.limit)),
+  momentum: authedProcedure.output(z.array(momentumBucketSchema)).query(({ ctx }) => ctx.services.stats.momentum(ctx.auth.userId)),
 
   latency: authedProcedure
     .output(latencyStatsSchema)

@@ -24,9 +24,6 @@ import type { HistogramBucket } from "@orb/ui/histogram";
  */
 export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
-/** Jan..Dec, index 0 = January — the momentum band's `YYYY-MM` → prose map. */
-const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"] as const;
-
 /** The leaderboard sort axes — ids MIRROR the server `LEADERBOARD_SORTS` tuple
  * (domain/stats/contract/params), the wire enum `leaderboard.sort` validates against; labels are the
  * client-facing names. One home for both the LIST surface's toggle and the header's shared-cache count key. */
@@ -126,6 +123,11 @@ export function formatCompact(n: number): string {
 
 function trimZero(fixed: string, suffix: string): string {
   return `${fixed.endsWith(".0") ? fixed.slice(0, -2) : fixed}${suffix}`;
+}
+
+/** A ratio with one decimal: `1.4` · `0` (trailing `.0` trimmed). */
+export function formatDecimal(n: number): string {
+  return trimZero(n.toFixed(COMPACT_PRECISION), "");
 }
 
 /** A nullable count — `—` when the metric was never recorded (an ST-imported or agent-sdk rollup carries
@@ -234,16 +236,6 @@ export function dailyTokenBuckets(
     label: formatDayLabel(point.day, recorded[index - 1]?.day),
     count: point.tokensOut,
   }));
-}
-
-/** `2026-07` → `July 2026` — the momentum band's month pair. The wire form is a machine `YYYY-MM` sort
- *  key, and printing it raw put a second time vocabulary in a column that otherwise speaks in relative
- *  phrases ("Updated 4h ago"). Data-anchored, so it deliberately does NOT become "last month": the pair
- *  is the two most-recent months WITH ACTIVITY, which may be nowhere near wall-clock now. */
-export function formatMonthLabel(month: string): string {
-  const [year, monthIndex] = month.split("-");
-  const name = MONTH_NAMES[Number(monthIndex) - 1];
-  return name === undefined || year === undefined ? month : `${name} ${year}`;
 }
 
 /** Display names for a leaderboard page, keyed by character id: a name shared by two or more characters

@@ -9,7 +9,6 @@ import type { Db } from "@orb/db";
 import { createStatsContext } from "./context.ts";
 import type { StatsService } from "./contract/service.ts";
 import { createReconcileInFlight } from "./reconcile-in-flight.ts";
-import { createActivityHeatmap } from "./verbs/activity-heatmap.ts";
 import { createByModel } from "./verbs/by-model.ts";
 import { createCharacter } from "./verbs/character.ts";
 import { createEconomics } from "./verbs/economics.ts";
@@ -20,7 +19,6 @@ import { createMomentum } from "./verbs/momentum.ts";
 import { createOverview } from "./verbs/overview.ts";
 import { createPersonaUsage } from "./verbs/persona-usage.ts";
 import { createReconcile } from "./verbs/reconcile.ts";
-import { createTemporal } from "./verbs/temporal.ts";
 import { createTimeseries } from "./verbs/timeseries.ts";
 import { createWrapped } from "./verbs/wrapped.ts";
 
@@ -38,8 +36,6 @@ export function createStatsService(db: Db, now: () => number): StatsService {
     ...createFreshness(ctx),
     ...createPersonaUsage(ctx),
     ...createWrapped(ctx),
-    ...createTemporal(ctx),
-    ...createActivityHeatmap(ctx),
     ...createMomentum(ctx),
     ...createLatency(ctx),
     ...createEconomics(ctx),

@@ -50,6 +50,23 @@ describe("stats.leaderboard — sort wire-through", () => {
   });
 });
 
+// The timeline window is bucket-start instants: the server takes no calendar day and no zone, since the
+// viewer's day is folded on the client.
+describe("stats.timeseries — window wire-through", () => {
+  test("passes epoch-ms bounds to the service, scoped to the principal", async () => {
+    const timeseries = vi.fn<StatsService["timeseries"]>(async () => []);
+    await caller(ctxWith({ timeseries })).stats.timeseries({ from: 1_750_000_000_000, to: 1_750_000_900_000 });
+    expect(timeseries).toHaveBeenCalledWith(OWNER, { from: 1_750_000_000_000, to: 1_750_000_900_000 });
+  });
+
+  test("rejects a calendar-day string bound at the wire boundary", async () => {
+    const timeseries = vi.fn<StatsService["timeseries"]>(async () => []);
+    // @ts-expect-error — a "YYYY-MM-DD" day is not a bucket-start instant.
+    await expect(caller(ctxWith({ timeseries })).stats.timeseries({ from: "2026-07-01" })).rejects.toThrow();
+    expect(timeseries).not.toHaveBeenCalled();
+  });
+});
+
 // P1b: the CONTEXT Personas tab narrows to the drilled character. The id is a PROJECTION filter — the
 // verb's ownerId stays the principal, so the wire-through must not be able to swap whose data is read.
 describe("stats.personaUsage — character scope wire-through", () => {

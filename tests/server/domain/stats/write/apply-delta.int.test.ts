@@ -10,6 +10,7 @@ import { characterStats, dailyStats, modelStats, ownerStats, statsCanonVersions 
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { statsBucketStart } from "@orb/kit/stats-tally";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
@@ -38,7 +39,7 @@ function makeDelta(over: Partial<StatsDelta>): StatsDelta {
   return {
     ownerId,
     characterId,
-    day: "2025-06-01",
+    bucketStart: statsBucketStart(T0),
     model: testModelId("gpt"),
     provider: testProviderId("openrouter"),
     now: T0,

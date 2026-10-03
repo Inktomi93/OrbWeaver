@@ -13,6 +13,7 @@ import { characterStats, chats, ownerStats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { statsBucketStart } from "@orb/kit/stats-tally";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -214,8 +215,8 @@ describe("claimChat — the creation-stats replay", () => {
 
     const created = deltas.find((d) => d.chats === 1);
     // A room created three days ago and started today still counts as created three days ago — otherwise a
-    // reconcile (which reads `chats.created_at`) would disagree with the live plane on the daily histogram.
-    expect(created?.day).toBe(new Date(bornAt).toISOString().slice(0, 10));
+    // reconcile (which reads `chats.created_at`) would disagree with the live plane on the activity timeline.
+    expect(created?.bucketStart).toBe(statsBucketStart(bornAt));
     expect(created?.firstAt).toBe(bornAt);
   });
 

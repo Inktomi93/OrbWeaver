@@ -4,7 +4,7 @@ import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 
 // The CONTEXT band names the leaderboard-drilled character (§6.3 N4/P4), which reads as a claim that the
 // numbers under it are that character's. Two of the three dimension tabs cannot honour it — `model_stats`
-// is owner+model grain and `daily_stats` is owner+day grain, neither has a character axis — and the third
+// is owner+model grain and `daily_stats` is an owner timeline, neither has a character axis — and the third
 // can, because `personaUsage` is a live canon GROUP BY. Measured before this landed: the drilled
 // character's face over the whole library's numbers, including the latency quartet rendering DIFFERENT
 // values from the ones CONTENT showed for that same character, simultaneously.

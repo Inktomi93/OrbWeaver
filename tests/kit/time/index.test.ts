@@ -285,3 +285,28 @@ test("display: past the ~7-day horizon relative falls back to the absolute date"
   const nineDaysAgo = NOW_MS - 9 * DAY_MS;
   expect(lib.formatRelative(nineDaysAgo)).toBe(lib.formatDate(nineDaysAgo));
 });
+
+test("calendarPosition places an instant on the configured zone's calendar, Sunday as weekday 0", () => {
+  const utc = createTimeLib({ timeZone: "UTC" });
+  expect(utc.calendarPosition(Date.UTC(2024, 0, 7, 23, 59))).toEqual({ day: "2024-01-07", weekday: 0, hour: 23 });
+  expect(utc.calendarPosition(Date.UTC(2024, 0, 8, 0, 0))).toEqual({ day: "2024-01-08", weekday: 1, hour: 0 });
+});
+
+test("calendarPosition turns the day at a half-hour and a 45-minute offset zone's own midnight", () => {
+  // Kolkata is UTC+5:30 and Kathmandu UTC+5:45: their midnights fall at 18:30 and 18:15 UTC, inside a UTC hour.
+  const kolkata = createTimeLib({ timeZone: "Asia/Kolkata" });
+  expect(kolkata.calendarPosition(Date.UTC(2024, 0, 1, 18, 29))).toEqual({ day: "2024-01-01", weekday: 1, hour: 23 });
+  expect(kolkata.calendarPosition(Date.UTC(2024, 0, 1, 18, 30))).toEqual({ day: "2024-01-02", weekday: 2, hour: 0 });
+  const kathmandu = createTimeLib({ timeZone: "Asia/Kathmandu" });
+  expect(kathmandu.calendarPosition(Date.UTC(2024, 0, 1, 18, 14))).toEqual({ day: "2024-01-01", weekday: 1, hour: 23 });
+  expect(kathmandu.calendarPosition(Date.UTC(2024, 0, 1, 18, 15))).toEqual({ day: "2024-01-02", weekday: 2, hour: 0 });
+});
+
+test("calendarPosition follows a DST transition: New York's spring-forward day has no 02:00 hour", () => {
+  const newYork = createTimeLib({ timeZone: "America/New_York" });
+  // 2024-03-10: 06:30 UTC is 01:30 EST, and one real hour later is 03:30 EDT.
+  expect(newYork.calendarPosition(Date.UTC(2024, 2, 10, 6, 30))).toEqual({ day: "2024-03-10", weekday: 0, hour: 1 });
+  expect(newYork.calendarPosition(Date.UTC(2024, 2, 10, 7, 30))).toEqual({ day: "2024-03-10", weekday: 0, hour: 3 });
+  // Earlier that UTC day it is still the previous local evening.
+  expect(newYork.calendarPosition(Date.UTC(2024, 2, 10, 3, 0))).toEqual({ day: "2024-03-09", weekday: 6, hour: 22 });
+});
