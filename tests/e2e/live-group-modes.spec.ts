@@ -13,7 +13,7 @@
 //   • manual      — a plain send commits ZERO assistant rows; a force/@mention commits exactly one
 //   • ban-last    — round 2 excludes round 1's last speaker while another seat is eligible
 //   • mute        — a muted seat never appears in a round (but is still force-summonable)
-//   • talkativeness 0 — sorts BEHIND a positive seat under `natural`
+//   • talkativeness 0 — never speaks unprompted beside a positive seat under `natural`
 //   • autoMode    — the chain adds exactly `autoModeMaxTurns` rows on top of the round, then STOPS
 //
 // SPEND: local vLLM only, ~30 short turns at a 32-token output ceiling (`GROUP_TURN_MAX_OUTPUT_TOKENS`).
@@ -252,7 +252,7 @@ test.describe("group modes on the live local stack", () => {
     }
   });
 
-  test("a muted seat is skipped by arbitration but stays force-summonable; talkativeness 0 sorts behind a positive seat", { tag: "@live" }, async () => {
+  test("a muted seat is skipped by arbitration but stays force-summonable; talkativeness 0 stays silent beside a positive seat", { tag: "@live" }, async () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
     skipWhenBackendUnavailable();
     const muteRoom = await seedRoom("mute", 3, { output: "per-speaker", policy: "list" });
@@ -274,15 +274,15 @@ test.describe("group modes on the live local stack", () => {
 
     const weightRoom = await seedRoom("weight", 2, { output: "per-speaker", policy: "natural" });
     try {
-      // `natural` orders the WHOLE eligible pool by a talkativeness-weighted sample: a 0 weight collapses to
-      // the floor (1e-9), whose sample key is ~0, so the quiet seat sorts LAST. Both still speak — the
-      // distinguishing signal is the ORDER, not the membership (that is `mute`'s job, above).
+      // `natural` activates by talkativeness: each unnamed seat speaks only if its roll passes, and when none
+      // does, one seat with talkativeness above 0 is drawn. A 0 seat therefore never speaks unprompted beside
+      // a positive one, so a message naming nobody is answered by the positive seat ALONE, every time.
       const quiet = weightRoom.seats[0];
       expect(quiet).toBeDefined();
       await setSeatKnobs(weightRoom.chatId, quiet?.id ?? "", { talkativeness: 0 });
 
       await sendGroupTurn(weightRoom.chatId, "Say hello.");
-      expect(await speakerSequence(weightRoom.chatId)).toEqual([weightRoom.characterIds[1], weightRoom.characterIds[0]]);
+      expect(await speakerSequence(weightRoom.chatId)).toEqual([weightRoom.characterIds[1]]);
     } finally {
       await teardown(weightRoom);
     }

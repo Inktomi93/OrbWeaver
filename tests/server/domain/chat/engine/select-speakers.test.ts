@@ -8,7 +8,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { resolveMentions, selectSpeakers } from "../../../../../packages/server/src/domain/chat/engine/select-speakers.ts";
+import { NAME_STOPWORDS, resolveMentions, resolveNameMentions, selectSpeakers } from "../../../../../packages/server/src/domain/chat/engine/select-speakers.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A seeded Park-Miller (MINSTD) LCG — the INJECTED PRNG stand-in (D46; no `Math.random`, no bitwise). */
@@ -55,32 +55,227 @@ describe("selectSpeakers — determinism", () => {
     const orders = new Set([1, 2, 3, 4, 5].map((s) => orderFor(s).join(",")));
     expect(orders.size).toBeGreaterThan(1);
   });
+});
 
-  test("natural is a permutation of the eligible set (count preserved)", () => {
-    const candidates = [cc("a"), cc("b"), cc("c")];
+/** A scripted PRNG: returns `draws` in order, so a test names every random decision. `natural` draws one shuffle
+ *  key per pool member (lowest key walks first), then one roll per member in that shuffled walk, then — only
+ *  when nobody was activated — one fallback pick. Running past the script is a test bug, so it throws. */
+function scripted(...draws: number[]): () => number {
+  let i = 0;
+  return (): number => {
+    const next = draws[i];
+    if (next === undefined) {
+      throw new Error(`scripted rng exhausted after ${draws.length} draws`);
+    }
+    i += 1;
+    return next;
+  };
+}
+
+/** Shuffle keys that keep roster order (the first member walks first). */
+const IN_ORDER = [0.1, 0.2, 0.3] as const;
+/** Rolls no 0.5-talkativeness member passes. */
+const ALL_FAIL = [0.9, 0.9, 0.9] as const;
+
+describe("selectSpeakers — natural activation (mentions, talkativeness rolls, one-random fallback)", () => {
+  const trio = [cc("a"), cc("b"), cc("c")];
+
+  test("a member speaks only when its roll is at or under its talkativeness — not every member, every round", () => {
+    // a: 0.5 >= 0.4 passes · b: 0.5 >= 0.6 fails · c: 0.5 >= 0.5 passes (the boundary counts).
+    const out = selectSpeakers({ candidates: trio, policy: "natural", lastSpeaker: null, rng: scripted(...IN_ORDER, 0.4, 0.6, 0.5) });
+    expect(keys(out)).toEqual(keys([charRef("a"), charRef("c")]));
+  });
+
+  test("the rolled speakers reply in the shuffled walk's order, not roster order", () => {
+    // Keys put b first, then c, then a; every roll passes.
+    const out = selectSpeakers({ candidates: trio, policy: "natural", lastSpeaker: null, rng: scripted(0.3, 0.1, 0.2, 0, 0, 0) });
+    expect(keys(out)).toEqual(keys([charRef("b"), charRef("c"), charRef("a")]));
+  });
+
+  test("a member named in the human's message speaks even when its roll fails, and named members go first", () => {
     const out = selectSpeakers({
-      candidates,
+      candidates: trio,
       policy: "natural",
       lastSpeaker: null,
-      rng: seededRng(7),
+      mentionedIds: [cid("c")],
+      // a passes its roll, b and c fail theirs.
+      rng: scripted(...IN_ORDER, 0.1, 0.9, 0.9),
     });
-    const byStr = (a: string, b: string): number => a.localeCompare(b);
-    expect(keys(out).toSorted(byStr)).toEqual([charRef("a"), charRef("b"), charRef("c")].map(speakerKey).sort(byStr));
+    expect(keys(out)).toEqual(keys([charRef("c"), charRef("a")]));
+  });
+
+  test("a member both named and rolled speaks once, in its mention slot (dedupe)", () => {
+    const out = selectSpeakers({
+      candidates: trio,
+      policy: "natural",
+      lastSpeaker: null,
+      mentionedIds: [cid("b"), cid("b")],
+      rng: scripted(...IN_ORDER, 0, 0, 0.9),
+    });
+    expect(keys(out)).toEqual(keys([charRef("b"), charRef("a")]));
+  });
+
+  test("nobody activated: ONE random member speaks, drawn from the members with talkativeness above 0", () => {
+    const candidates = [cc("mute-ish", { talkativeness: 0 }), cc("b"), cc("c")];
+    // Every roll fails; the fallback draw 0.6 over the two chatty members [b, c] picks index 1 → c.
+    const out = selectSpeakers({ candidates, policy: "natural", lastSpeaker: null, rng: scripted(...IN_ORDER, ...ALL_FAIL, 0.6) });
+    expect(keys(out)).toEqual(keys([charRef("c")]));
+  });
+
+  test("nobody activated and every talkativeness is 0: the one random member comes from the whole pool", () => {
+    const candidates = [cc("a", { talkativeness: 0 }), cc("b", { talkativeness: 0 })];
+    const out = selectSpeakers({ candidates, policy: "natural", lastSpeaker: null, rng: scripted(0.1, 0.2, 0.9, 0.9, 0.1) });
+    expect(keys(out)).toEqual(keys([charRef("a")]));
+  });
+
+  test("a zero-talkativeness member never speaks unprompted beside a chatty one (every seed)", () => {
+    const candidates = [cc("quiet", { talkativeness: 0 }), cc("loud", { talkativeness: 0.5 })];
+    for (let seed = 1; seed <= 50; seed += 1) {
+      expect(keys(selectSpeakers({ candidates, policy: "natural", lastSpeaker: null, rng: seededRng(seed) }))).toEqual(keys([charRef("loud")]));
+    }
+  });
+
+  test("ban-last ON: the last speaker is out of the pool — naming it does not bring it back", () => {
+    const out = selectSpeakers({
+      candidates: trio,
+      policy: "natural",
+      lastSpeaker: charRef("a"),
+      mentionedIds: [cid("a")],
+      // Pool is [b, c]: two keys, two passing rolls.
+      rng: scripted(0.1, 0.2, 0, 0),
+    });
+    expect(keys(out)).toEqual(keys([charRef("b"), charRef("c")]));
+  });
+
+  test("ban-last OFF (allowSelfResponses): the last speaker can be named and can roll", () => {
+    const out = selectSpeakers({
+      candidates: trio,
+      policy: "natural",
+      lastSpeaker: charRef("a"),
+      banLast: false,
+      mentionedIds: [cid("a")],
+      rng: scripted(...IN_ORDER, ...ALL_FAIL),
+    });
+    expect(keys(out)).toEqual(keys([charRef("a")]));
+  });
+
+  test("ban-last yields on a solo roster: the one member is restored and the fallback lets it speak", () => {
+    const out = selectSpeakers({
+      candidates: [cc("solo", { talkativeness: 0 })],
+      policy: "natural",
+      lastSpeaker: charRef("solo"),
+      rng: scripted(0.5, 0.9, 0.5),
+    });
+    expect(keys(out)).toEqual(keys([charRef("solo")]));
+  });
+
+  test("a named member who is muted or gone stays silent; the rolls still run", () => {
+    const candidates = [cc("a"), cc("muted", { disabled: true }), cc("gone", { leftSeq: 2 })];
+    const out = selectSpeakers({ candidates, policy: "natural", lastSpeaker: null, mentionedIds: [cid("muted"), cid("gone")], rng: scripted(0.1, 0.4) });
+    expect(keys(out)).toEqual(keys([charRef("a")]));
+  });
+
+  test("maxSpeakers caps AFTER mention-first ordering (a generate's one reply goes to the named member)", () => {
+    const out = selectSpeakers({
+      candidates: trio,
+      policy: "natural",
+      lastSpeaker: null,
+      mentionedIds: [cid("c")],
+      rng: scripted(...IN_ORDER, 0, 0, 0),
+      maxSpeakers: 1,
+    });
+    expect(keys(out)).toEqual(keys([charRef("c")]));
+  });
+
+  test("an @mention is still the hard override: it wins over a word mention and skips the rolls", () => {
+    const out = selectSpeakers({ candidates: trio, policy: "natural", lastSpeaker: null, forcedIds: [cid("b")], mentionedIds: [cid("a")], rng: scripted() });
+    expect(keys(out)).toEqual(keys([charRef("b")]));
+  });
+
+  test("word mentions are natural's alone: `list` ignores them", () => {
+    const out = selectSpeakers({ candidates: trio, policy: "list", lastSpeaker: null, mentionedIds: [cid("c")], rng: scripted() });
+    expect(keys(out)).toEqual(keys([charRef("a"), charRef("b"), charRef("c")]));
+  });
+
+  test("the smart arm reached without the side-LLM (narrator room) activates exactly like natural", () => {
+    const rolls = [...IN_ORDER, 0.4, 0.6, 0.5] as const;
+    const natural = selectSpeakers({ candidates: trio, policy: "natural", lastSpeaker: null, mentionedIds: [cid("b")], rng: scripted(...rolls) });
+    const smart = selectSpeakers({ candidates: trio, policy: "smart", lastSpeaker: null, mentionedIds: [cid("b")], rng: scripted(...rolls) });
+    expect(keys(smart)).toEqual(keys(natural));
   });
 });
 
-describe("selectSpeakers — talkativeness weighting", () => {
-  test("a zero-talkativeness member always sorts behind a positive one (every seed)", () => {
-    const candidates = [cc("quiet", { talkativeness: 0 }), cc("loud", { talkativeness: 0.5 })];
-    for (let seed = 0; seed < 50; seed += 1) {
-      const out = selectSpeakers({
-        candidates,
-        policy: "natural",
-        lastSpeaker: null,
-        rng: seededRng(seed),
-      });
-      expect(out[0]).toEqual(charRef("loud"));
+describe("resolveNameMentions — a character named as a plain word (human-authored text only)", () => {
+  const characters = [
+    { ref: charRef("aria"), name: "Aria Stormborn" },
+    { ref: charRef("bran"), name: "Bran" },
+    { ref: charRef("ariel"), name: "Aria Vell" },
+  ];
+
+  test("any word of the name names the character, case-insensitive, in the order the message names them", () => {
+    expect(resolveNameMentions("bran, ask STORMBORN about it", characters)).toEqual([cid("bran"), cid("aria")]);
+  });
+
+  test("a word two names share names both", () => {
+    expect(resolveNameMentions("Aria?", characters)).toEqual([cid("aria"), cid("ariel")]);
+  });
+
+  test("a name inside a longer word is not a mention", () => {
+    expect(resolveNameMentions("Brandon and Arianna arrive", characters)).toEqual([]);
+  });
+
+  test("a repeated name counts once; no text, no mentions", () => {
+    expect(resolveNameMentions("Bran! Bran!", characters)).toEqual([cid("bran")]);
+    expect(resolveNameMentions("", characters)).toEqual([]);
+  });
+
+  test("a stopword in a name never names the character; its real name word does", () => {
+    const cast = [{ ref: charRef("knight"), name: "The Knight" }, ...characters];
+    expect(resolveNameMentions("Open the door.", cast)).toEqual([]);
+    expect(resolveNameMentions("Knight, open the door.", cast)).toEqual([cid("knight")]);
+    for (const stopword of NAME_STOPWORDS) {
+      expect(resolveNameMentions(`${stopword} ${stopword}`, [{ ref: charRef("lady"), name: "Lady of the Lake" }])).toEqual([]);
     }
+  });
+
+  test("a contraction never names an apostrophe name: one-letter name words do not name", () => {
+    const cast = [
+      { ref: charRef("tpol"), name: "T'Pol" },
+      { ref: charRef("dart"), name: "D'Artagnan" },
+    ];
+    expect(resolveNameMentions("I don't know.", cast)).toEqual([]);
+    expect(resolveNameMentions("I'd rather not.", cast)).toEqual([]);
+    expect(resolveNameMentions("Pol, and you, Artagnan?", cast)).toEqual([cid("tpol"), cid("dart")]);
+  });
+
+  test("a name made only of one-letter words is named by its whole name as a phrase", () => {
+    const cast = [{ ref: charRef("aj"), name: "A. J." }];
+    expect(resolveNameMentions("Ask a friend.", cast)).toEqual([]);
+    expect(resolveNameMentions("Ask A J about it.", cast)).toEqual([cid("aj")]);
+  });
+
+  test("a decomposed accent names the composed name, and the other way round (NFC)", () => {
+    const composed = "Chloé";
+    const decomposed = "Chloé";
+    expect(resolveNameMentions(`${decomposed}?`, [{ ref: charRef("acc"), name: composed }])).toEqual([cid("acc")]);
+    expect(resolveNameMentions(`${composed}?`, [{ ref: charRef("acc"), name: decomposed }])).toEqual([cid("acc")]);
+  });
+
+  test("a name made only of stopwords is named by its whole name as a phrase", () => {
+    const cast = [{ ref: charRef("her"), name: "Her" }, { ref: charRef("you-two"), name: "You Two" }, ...characters];
+    expect(resolveNameMentions("Bran, ask her.", cast)).toEqual([cid("bran"), cid("her")]);
+    expect(resolveNameMentions("Nobody here.", cast)).toEqual([]);
+    // "You Two" has a real word, so only "two" names it — "you" alone never does.
+    expect(resolveNameMentions("Can you help?", cast)).toEqual([]);
+  });
+
+  test("Unicode names split into words the same way", () => {
+    const world = [
+      { ref: charRef("cyr"), name: "Аня" },
+      { ref: charRef("acc"), name: "Chloé" },
+    ];
+    expect(resolveNameMentions("Привет, аня. Chloé?", world)).toEqual([cid("cyr"), cid("acc")]);
+    expect(resolveNameMentions("Анятолия", world)).toEqual([]);
   });
 });
 
