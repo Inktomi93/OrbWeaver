@@ -47,8 +47,12 @@ describe("computeThemes", () => {
 
     const summarize = makeSummarizeRecorder(["Romance", "Warfare"]);
     const svc = createDiscoveryService(makeDiscoveryHarness(db, { summarize }).ctx);
+    // The call estimate reads the same clustering without naming anything: one call per name-worthy cluster.
+    const estimate = await svc.countThemeNameCalls({ k: 2 });
     const stats = await svc.computeThemes({ k: 2, funderUserId: owner });
 
+    expect(estimate).toBe(summarize.calls.flat().length);
+    expect(estimate).toBe(2);
     expect(stats).toMatchObject({ ownersProcessed: 1, clustersWritten: 2, digestsAssigned: 4 });
     const clusters = await db.select().from(themeClusters).where(eq(themeClusters.ownerId, owner));
     expect(clusters).toHaveLength(2);

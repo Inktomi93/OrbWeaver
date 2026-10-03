@@ -34,12 +34,25 @@ function build(
       failed,
       completedSpaces: [{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }],
     })),
+    estimateMemoryBackfill: vi.fn(async () => ESTIMATED_CALLS),
     backfillGroupCharacters: vi.fn(async () => ({ scanned: 5, changed: 1 })),
     purgeMemoryVectors: vi.fn(async () => undefined),
     isMemoryEnabled: vi.fn(async () => memoryEnabled),
   };
   return { deps, contributions: createChatWorkloadContributions(deps) };
 }
+
+/** What the fake memory planner says a backfill would spend. */
+const ESTIMATED_CALLS = 12;
+
+describe("memory-backfill: the model-call estimate", () => {
+  test("asks the memory estimate for the run's own scope and funder, never the sweep", async () => {
+    const { deps, contributions } = build();
+    await expect(contributions[0].modelCalls?.({ ownerId: null, funderUserId: OWNER_ID, params: {} })).resolves.toBe(ESTIMATED_CALLS);
+    expect(deps.estimateMemoryBackfill).toHaveBeenCalledWith({ ownerId: null, funderUserId: OWNER_ID });
+    expect(deps.backfillMemory).not.toHaveBeenCalled();
+  });
+});
 
 describe("memory-backfill", () => {
   test("runs the corpus sweep with the enumeration scope and returns its folded counts", async () => {

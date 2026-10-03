@@ -117,7 +117,7 @@ function clusterSubgroup(
   return builds.filter((b) => b.memberDigestIds.length > 0);
 }
 
-function buildDrafts(solo: readonly OwnedDigest[], opts: ComputeThemesOptions, seed: number): { drafts: ClusterDraft[]; owners: Set<string> } {
+function buildDrafts(solo: readonly OwnedDigest[], opts: Pick<ComputeThemesOptions, "k">, seed: number): { drafts: ClusterDraft[]; owners: Set<string> } {
   const drafts: ClusterDraft[] = [];
   const owners = new Set<string>();
   for (const [, levelGroup] of groupBy(solo, (r) => `${r.ownerId} ${levelOf(r.tier)}`)) {
@@ -139,13 +139,18 @@ function buildDrafts(solo: readonly OwnedDigest[], opts: ComputeThemesOptions, s
   return { drafts, owners };
 }
 
+/** Whether a cluster is big enough to spend a naming call on; smaller ones are stored with no name. */
+function nameWorthy(draft: ClusterDraft): boolean {
+  return draft.memberDigestIds.length >= MIN_NAME_SIZE;
+}
+
 async function nameDrafts(drafts: readonly ClusterDraft[], rc: RoleClients, sampleOpts: SummarizeOptions): Promise<(string | null)[]> {
   const names = new Array<string | null>(drafts.length).fill(null);
   const targets: number[] = [];
   const inputs: SummarizeInput[] = [];
   for (let i = 0; i < drafts.length; i += 1) {
     const draft = drafts[i];
-    if (draft !== undefined && draft.memberDigestIds.length >= MIN_NAME_SIZE) {
+    if (draft !== undefined && nameWorthy(draft)) {
       targets.push(i);
       inputs.push({
         systemPrompt: NAME_SYSTEM,
@@ -170,6 +175,16 @@ async function nameDrafts(drafts: readonly ClusterDraft[], rc: RoleClients, samp
   // those clusters at `name: null` — the same state a below-MIN_NAME_SIZE cluster gets, which the schema and
   // every reader already handle. The cluster keeps its members; only its label is missing.
   return names;
+}
+
+/** The naming calls a recompute would make: one per name-worthy cluster, from the same seeded clustering the pass
+ *  runs over the same solo digests. Reads only; the clustering is CPU work, never a model call. */
+export async function countThemeNameCalls(db: Db, opts: Omit<ComputeThemesOptions, "funderUserId">): Promise<number> {
+  const solo = (await readOwnedDigestVectors(db, opts.ownerId)).filter((r) => !r.isGroup);
+  if (solo.length === 0) {
+    return 0;
+  }
+  return buildDrafts(solo, opts, opts.seed ?? DEFAULT_SEED).drafts.filter(nameWorthy).length;
 }
 
 /**

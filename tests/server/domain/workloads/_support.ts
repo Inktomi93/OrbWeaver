@@ -96,6 +96,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
         failed: 0,
         completedSpaces: [],
       }),
+      estimateMemoryBackfill: stub(0),
       backfillGroupCharacters: stub({ scanned: 0, changed: 0 }),
       purgeMemoryVectors: stub(undefined),
       // The #156 admission precondition's read — the ONE dep here whose VALUE matters to a verb test, since

@@ -25,6 +25,9 @@ interface UserEventCall {
 /** The BULK arm's announce audience — two owners, so the per-owner fan is provable. */
 const BULK_OWNERS: readonly UserId[] = [castId<UserId>("user_alpha"), castId<UserId>("user_beta")];
 
+/** What the fake image sweep says it would spend. */
+const ANALYSIS_CALLS = 5;
+
 function build(): {
   readonly embeddings: EmbeddingsWorkloadDeps["embeddings"];
   readonly index: ReturnType<typeof createEmbeddingsWorkloadContributions>[0];
@@ -34,6 +37,7 @@ function build(): {
   const embeddings = {
     embedCorpus: vi.fn(async () => ({ embedded: 3, skipped: 1 })),
     embedAssets: vi.fn(async () => ({ embedded: 2, skipped: 0 })),
+    countAssetAnalysisCalls: vi.fn(async () => ANALYSIS_CALLS),
   } as unknown as EmbeddingsWorkloadDeps["embeddings"];
   const userEvents: UserEventCall[] = [];
   const [index] = createEmbeddingsWorkloadContributions({
@@ -43,6 +47,22 @@ function build(): {
   });
   return { embeddings, index, userEvents };
 }
+
+describe("index contribution: the model-call estimate", () => {
+  test("a text reindex calls no generative model, so it never asks the image counter", async () => {
+    const { embeddings, index } = build();
+    await expect(index.modelCalls?.({ ownerId: OWNER_ID, funderUserId: OWNER_ID, params: { source: "text" } })).resolves.toBe(0);
+    expect(embeddings.countAssetAnalysisCalls).not.toHaveBeenCalled();
+  });
+
+  test("an image or full reindex counts the avatar analyses over the run's own scope and force", async () => {
+    const { embeddings, index } = build();
+    await expect(index.modelCalls?.({ ownerId: null, funderUserId: OWNER_ID, params: { source: "all", force: true } })).resolves.toBe(ANALYSIS_CALLS);
+    expect(embeddings.countAssetAnalysisCalls).toHaveBeenCalledWith({ ownerId: null, force: true });
+    await index.modelCalls?.({ ownerId: OWNER_ID, funderUserId: OWNER_ID, params: { source: "image" } });
+    expect(embeddings.countAssetAnalysisCalls).toHaveBeenLastCalledWith({ ownerId: OWNER_ID, force: false });
+  });
+});
 
 describe("index contribution", () => {
   test("source=text drives ONLY the corpus pass and projects its counts", async () => {

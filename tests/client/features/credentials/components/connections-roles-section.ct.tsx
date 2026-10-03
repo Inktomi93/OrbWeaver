@@ -29,6 +29,8 @@ import { ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS } from "../../../../../packages/c
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+// The floor capability: the CHEAP model §5.3a warns about, legal on the Utility slot and unable to do two of its three jobs.
+import { TEXT_ONLY_CAPABILITY } from "../../../../support/node/utility-role.ts";
 import { ALL_AVAILABLE } from "../_connection-fixtures.ts";
 import { ConnectionsPaneNarrowStory, ConnectionsPaneWideStory, ConnectionsSettingsHostedStory, ConnectionsSettingsStory } from "../_ct-stories.tsx";
 
@@ -39,27 +41,6 @@ const CHAT_CONNECTION_ID = "user_connection_ctroles00001";
 const UTILITY_CONNECTION_ID = "user_connection_ctroles00002";
 const EMBED_CONNECTION_ID = "user_connection_ctroles00003";
 const LOCAL_CHAT_CONNECTION_ID = "user_connection_ctroles00004";
-
-/** A generation capability at the floor — text in, text out, no structured JSON. The CHEAP model §5.3a
- *  warns about: legal on the Utility slot and silently unable to do two of its three jobs. */
-const TEXT_ONLY_CAPABILITY = {
-  kind: "generation",
-  generation: {
-    reasoning: { mode: "none", enabled: false },
-    sampling: {},
-    input: ["text"],
-    output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] },
-    context: { window: 8192, windowEstimated: true },
-    turns: {
-      assistantPrefill: false,
-      midConversationSystem: false,
-      historySystemRows: false,
-      roleHandlingFloor: "none",
-      explicitPromptCache: false,
-      cacheMinTokens: 1024,
-    },
-  },
-} satisfies NonNullable<NonNullable<TrpcWireOutput<"connection.listBindings">[number]["resolved"]>["capability"]>;
 
 /** A `connection.list` row — `UserConnection` plus the two derived fields the pane renders beside it
  *  (`ConnectionView`: the provider's label and the tasks this row may be bound to). */

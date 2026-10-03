@@ -72,6 +72,13 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
    * admits a bulk sweep and judges only a singular one. OMIT IT when the kind is always meaningful.
    */
   readonly admit?: (args: { readonly ownerId: UserId | null; readonly params: WorkloadParamsByKind[K] }) => Promise<string | null>;
+  /**
+   * How many Utility-model calls a run over this scope would make, counted by the owning domain WITHOUT running
+   * or writing anything, so a person confirms a library-wide paid run knowing its size. `ownerId` is the row's
+   * enumeration scope (`null` = the bulk pass) and `funderUserId` is whose Utility model the run would spend.
+   * OMIT IT when the kind makes no generative model call.
+   */
+  readonly modelCalls?: (args: { readonly ownerId: UserId | null; readonly funderUserId: UserId; readonly params: WorkloadParamsByKind[K] }) => Promise<number>;
   readonly resume: WorkloadResumePolicy;
   /** The run body — a compose-built closure over the OWNING domain's own verbs. No shared env hub. */
   readonly run: (ctx: WorkloadRunContext, params: WorkloadParamsByKind[K], report: ReportProgress, signal: AbortSignal) => Promise<WorkloadResultByKind[K]>;

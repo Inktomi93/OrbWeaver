@@ -484,6 +484,28 @@ describe("distillCharacters", () => {
     expect(await db.select({ id: characterTags.tagId }).from(characterTags).where(eq(characterTags.characterId, bare))).toHaveLength(0);
   });
 
+  test("the call estimate is the number of cards the batch actually sends, per owner and box-wide", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const other = await seedUser(db, "user_b");
+    await seedCharacter(db, { id: "character_bare", ownerId: owner, name: "Bare" });
+    await seedCharacter(db, { id: "character_alpha", ownerId: owner, name: "Alpha", description: "Alpha the aeronaut." });
+    await seedCharacter(db, { id: "character_group", ownerId: owner, synthetic: true });
+    await seedCharacter(db, { id: "character_beta", ownerId: other, name: "Beta", description: "Beta the botanist." });
+    const probe = makeDistillProbe({ batchReply: () => DISTILL_REPLY });
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db).ctx,
+      roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
+    });
+
+    const estimate = await svc.countDistillCalls(owner);
+    await svc.distillCharacters({ ownerId: owner, funderUserId: owner });
+
+    expect(estimate).toBe(probe.batchInputs.length);
+    expect(estimate).toBe(1);
+    expect(await svc.countDistillCalls(null)).toBe(2);
+  });
+
   test("the whole-library BATCH still returns counts and never throws (the narrow arm must not creep here)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");

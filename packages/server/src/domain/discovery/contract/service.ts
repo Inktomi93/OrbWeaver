@@ -240,6 +240,9 @@ export interface DiscoveryService {
   /** Distill a character's card into `character_summaries` facets and stage its labels as pending tag
    *  suggestions. `opts.characterId` narrows to ONE card; absent = whole-library batch. Idempotent. */
   readonly distillCharacters: (opts: DistillCharactersOptions) => Promise<DistillStats>;
+  /** The model calls a whole-library distill would make for `ownerId` (`null` = every owner): one per card
+   *  with writing beyond its name. Reads only. */
+  readonly countDistillCalls: (ownerId: UserId | null) => Promise<number>;
 
   // ── browse (the filterable distilled catalog — CONTENT-only) ───────────────
   /** ONE keyset PAGE of the owner's filterable distilled character catalog, with the boundary for the next
@@ -276,6 +279,8 @@ export interface DiscoveryService {
   // ── themes (workload compute + owner-scoped read) ───────────────────────────
   /** Recompute every owner's emergent themes — a full atomic replace of `theme_clusters` (+ assignments). */
   readonly computeThemes: (opts: ComputeThemesOptions) => Promise<ThemeComputeStats>;
+  /** The cluster-naming model calls a {@link computeThemes} over the same scope and `k` would make. Reads only. */
+  readonly countThemeNameCalls: (opts: Omit<ComputeThemesOptions, "funderUserId">) => Promise<number>;
   /** The owner's theme clusters at `level` (both levels when omitted), ordered by `clusterIdx`. */
   readonly themes: (userId: UserId, level?: ThemeLevel) => Promise<ThemeRow[]>;
   /** Idempotently stamp `digest_theme_assignments.msgMidAt` for the owner, or every owner when omitted. */
@@ -348,7 +353,14 @@ export interface DiscoveryService {
 export interface DiscoveryWorkloadDeps {
   readonly discovery: Pick<
     DiscoveryService,
-    "computeThemes" | "distillCharacters" | "computeCooccurrence" | "computeDuplicatePairs" | "computeChatDuplicatePairs" | "computeCharacterHubScores"
+    | "computeThemes"
+    | "countThemeNameCalls"
+    | "distillCharacters"
+    | "countDistillCalls"
+    | "computeCooccurrence"
+    | "computeDuplicatePairs"
+    | "computeChatDuplicatePairs"
+    | "computeCharacterHubScores"
   >;
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
   /**

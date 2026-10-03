@@ -449,3 +449,26 @@ describe("embedAssets — the image admission floor", () => {
     expect(await db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, seeded.degenerate))).toHaveLength(0);
   });
 });
+
+test("the analysis-call estimate is what the sweep spends, and nothing once every avatar is analysed", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db);
+  const first = await seedAsset(db, ownerId, { id: "asset_estimate_a", hash: "estimate-a" });
+  const second = await seedAsset(db, ownerId, { id: "asset_estimate_b", hash: "estimate-b" });
+  const h = makeStoreHarness(db, {
+    imageAssetIds: [first, second],
+    assetBytes: new Map([
+      [first, IMG],
+      [second, new Uint8Array([...IMG, 5])],
+    ]),
+  });
+  const svc = createEmbeddingsService(h.ctx);
+
+  const before = await svc.countAssetAnalysisCalls({ ownerId, force: false });
+  await svc.embedAssets({ ownerId, force: false, signal: signal() });
+
+  expect(before).toBe(2);
+  expect(h.roleClients.summarize).toHaveBeenCalledTimes(before);
+  expect(await svc.countAssetAnalysisCalls({ ownerId, force: false })).toBe(0);
+  expect(await svc.countAssetAnalysisCalls({ ownerId, force: true })).toBe(2);
+});

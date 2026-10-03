@@ -44,10 +44,13 @@
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { WorkloadKind, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
+import { errorMessage } from "@orb/kit/error-message";
 import type { WorkloadId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
+import type { ModelRunConfirmDialogProps } from "#components";
+import { useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { createEntityMutation, useBusRoom, useInvalidation, useTRPC } from "#data";
 
@@ -71,8 +74,12 @@ const STAGE_LABELS: Record<PassKind, string> = {
 const useStartUnderstandingRun = createEntityMutation<StartWorkloadWire, { readonly id: WorkloadId }>({
   options: (trpc) => trpc.workloads.start.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
-  errorToast: "Couldn't start the understanding pass — a run may already be going.",
+  // The server's own sentence (an admission refusal, a run already going) is the reason; a fixed guess is not.
+  errorToast: (error) => `Couldn't start the understanding pass: ${errorMessage(error)}`,
 });
+
+/** The pass's door, and the confirm's yes when it calls a model. */
+export const RUN_PASS_LABEL = "Run the understanding pass";
 
 function isActive(status: WorkloadStatus): boolean {
   return (ACTIVE_WORKLOAD_STATUSES as readonly WorkloadStatus[]).includes(status);
@@ -162,6 +169,8 @@ export interface UnderstandingPassView {
   readonly liveRunId: WorkloadId | null;
   /** Sink for the room's live progress frames. */
   readonly onLiveProgress: (progress: WorkloadProgress | null) => void;
+  /** The paid-run confirm `start` opens when the pass would call a model (its count and its Utility model). */
+  readonly confirm: ModelRunConfirmDialogProps;
 }
 
 /** `current/total` as a bar fraction — null unless the producer reported a usable pair. Guarded on `total`
@@ -184,6 +193,7 @@ export function useUnderstandingPass(): UnderstandingPassView {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const startRun = useStartUnderstandingRun({ trpc, invalidation });
+  const paidRun = useModelRunConfirm();
   const [liveProgress, setLiveProgress] = useState<WorkloadProgress | null>(null);
 
   // Both NON-suspending on purpose: this card is mounted inside the Archetypes CONTEXT tab, which owns no
@@ -203,25 +213,36 @@ export function useUnderstandingPass(): UnderstandingPassView {
   const run = currentRun(rows);
   const failed = run === null ? lastFailure(rows) : null;
 
+  const enqueueChain = async (): Promise<void> => {
+    const distill = await startRun.mutateAsync({ input: { kind: "distill-characters", params: {} }, mode: "singular" });
+    if (memoryDisabled) {
+      // No digests can exist, so themes is not enqueued at all — a queued row that will refuse is worse
+      // than a pass that says up front what it is not doing.
+      return;
+    }
+    // Each row is gated on the one before it; a failure terminals its dependants as `dependency_failed`
+    // rather than clustering digests nobody wrote.
+    const backfill = await startRun.mutateAsync({ input: { kind: "memory-backfill", params: {} }, mode: "singular", dependsOn: [distill.id] });
+    await startRun.mutateAsync({ input: { kind: "compute-themes", params: {} }, mode: "singular", dependsOn: [backfill.id] });
+  };
+
   const start = (): void => {
     if (run !== null || startRun.isPending) {
       return;
     }
-    // @orb-waive caught-failure-ownership(catch): useStartUnderstandingRun carries
-    // errorToast: "Couldn't start the understanding pass — a run may already be going." — the toast is the
-    // surface for every mutation in this chain. Ends if that mutation drops its errorToast.
-    (async (): Promise<void> => {
-      const distill = await startRun.mutateAsync({ input: { kind: "distill-characters", params: {} }, mode: "singular" });
-      if (memoryDisabled) {
-        // No digests can exist, so themes is not enqueued at all — a queued row that will refuse is worse
-        // than a pass that says up front what it is not doing.
-        return;
-      }
-      // Each row is gated on the one before it; a failure terminals its dependants as `dependency_failed`
-      // rather than clustering digests nobody wrote.
-      const backfill = await startRun.mutateAsync({ input: { kind: "memory-backfill", params: {} }, mode: "singular", dependsOn: [distill.id] });
-      await startRun.mutateAsync({ input: { kind: "compute-themes", params: {} }, mode: "singular", dependsOn: [backfill.id] });
-    })().catch(() => undefined); // Each mutation's errorToast owns the surfaced failure.
+    // THE WHOLE CHAIN IS ONE YES. Its size is every stage it will enqueue, counted before any row exists; the
+    // themes stage is counted over today's digests, since the backfill that adds more has not run yet.
+    // @orb-waive caught-failure-ownership(confirmThen): useStartUnderstandingRun carries an errorToast with the server's
+    // reason — the surface for every mutation in this chain — and `confirmThen` owns a failed count. Ends if that
+    // mutation drops its errorToast.
+    paidRun
+      .confirmThen({
+        title: "Run the understanding pass?",
+        confirmLabel: RUN_PASS_LABEL,
+        estimates: (memoryDisabled ? PASS_KINDS.slice(0, 1) : PASS_KINDS).map((kind) => ({ input: { kind, params: {} }, mode: "singular" as const })),
+        run: enqueueChain,
+      })
+      .catch(() => undefined);
   };
 
   // The LIVE tail wins while it is connected; with no frame yet (a reload mid-pass) the row's DURABLE
@@ -239,6 +260,7 @@ export function useUnderstandingPass(): UnderstandingPassView {
     starting: startRun.isPending,
     liveRunId: run?.id ?? null,
     onLiveProgress: setLiveProgress,
+    confirm: paidRun.dialog,
   };
 }
 

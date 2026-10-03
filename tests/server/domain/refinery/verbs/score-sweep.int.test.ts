@@ -9,7 +9,7 @@ import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { characters, refineryRuns, refinerySessions } from "@orb/db";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createScoreSweep } from "@orb/server/domain/refinery";
+import { createRefineryWorkloadContributions, createScoreSweep } from "@orb/server/domain/refinery";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -302,4 +302,26 @@ test("an aborted sweep stops before spending a model call", async () => {
   // actually took a score, never "whoever the pass was pointed at". (An abort AFTER some stamps does fan:
   // the set is accumulated as the waves land and announced from a `finally`.)
   expect(h.userEvents).toHaveLength(0);
+});
+
+test("the call estimate is what the sweep spends: every unscored card under FILL, none once they are all scored", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_sw_estimate" });
+  const h = makeRefineryHarness(db);
+  await seedOwnedCharacter(h, owner, "sw-card-e1");
+  await seedOwnedCharacter(h, owner, "sw-card-e2");
+  const deps = refineryWorkloadDepsOf(db, h);
+  const [contribution] = createRefineryWorkloadContributions(deps);
+  const estimate = (rescoreAll: boolean): Promise<number | undefined> =>
+    contribution.modelCalls?.({ ownerId: owner, funderUserId: owner, params: { rescoreAll } }) ?? Promise.resolve(undefined);
+
+  const before = await estimate(false);
+  h.queueReply(scoreReply({ overallScore: 6 }));
+  h.queueReply(scoreReply({ overallScore: 6 }));
+  await createScoreSweep(deps)({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: owner });
+
+  expect(before).toBe(h.summarizeCalls.length);
+  expect(before).toBe(2);
+  expect(await estimate(false)).toBe(0);
+  expect(await estimate(true)).toBe(2);
 });

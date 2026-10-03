@@ -16,7 +16,7 @@ import type { SelectOption } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { FormDialog, FormSubmitButton } from "#components";
+import { FormDialog, FormSubmitButton, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, timeLib } from "#lib";
@@ -35,6 +35,9 @@ import {
 import { parseRunAt } from "../lib/workloads-run-model.ts";
 import { MaintenanceKindNote } from "./maintenance-kind-note.tsx";
 import { WorkloadParamFields } from "./workload-kind-fields.tsx";
+
+/** The submit's verb, and the confirm's when the job calls a model. */
+const RUN_LABEL = "Run job";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
@@ -84,6 +87,7 @@ function RunWorkloadFormBody({
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const start = useStartWorkload({ trpc, invalidation });
+  const paidRun = useModelRunConfirm();
 
   const targetItems = users.filter((user) => user.enabled).map((user) => ({ value: user.id as string, label: user.handle as string }));
 
@@ -101,14 +105,24 @@ function RunWorkloadFormBody({
     const bulkOn = isMaintenance || bulkToggleOn;
     const needsTarget = !isMaintenance && bulkToggleOn && WORKLOAD_KIND_MODES[values.kind].bulkRequiresTarget;
     const scheduledAt = parseRunAt(values.runAt);
-    await start.mutateAsync({
+    const scope = {
       input: buildStartInput(values.kind, values),
       mode: bulkOn ? "bulk" : "singular",
       ...(needsTarget ? { targetOwnerId: values.targetOwnerId } : {}),
-      ...(scheduledAt === undefined ? {} : { scheduledAt }),
-      ...(values.dependsOn.length > 0 ? { dependsOn: [...values.dependsOn] } : {}),
+    } as const;
+    await paidRun.confirmThen({
+      title: `Run ${WORKLOAD_KIND_LABELS[values.kind]}?`,
+      confirmLabel: RUN_LABEL,
+      estimates: [scope],
+      run: async (): Promise<void> => {
+        await start.mutateAsync({
+          ...scope,
+          ...(scheduledAt === undefined ? {} : { scheduledAt }),
+          ...(values.dependsOn.length > 0 ? { dependsOn: [...values.dependsOn] } : {}),
+        });
+        onDone();
+      },
     });
-    onDone();
     return values;
   };
 
@@ -193,12 +207,13 @@ function RunWorkloadFormBody({
       )}
       <FormSubmitButton
         disabled={start.isPending}
-        label={start.isPending ? "Starting…" : "Run job"}
+        label={start.isPending ? "Starting…" : RUN_LABEL}
         onSubmit={(): void => {
           form.handleSubmit().catch(() => notify.error("Couldn't start the workload."));
         }}
         testKey="runWorkloadSubmit"
       />
+      <ModelRunConfirmDialog {...paidRun.dialog} nested={true} />
     </Stack>
   );
 }

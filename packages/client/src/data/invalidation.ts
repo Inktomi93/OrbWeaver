@@ -22,6 +22,7 @@ import {
   allRpgGameFilters,
   chatCanonReads,
   chatReads,
+  corpusRecomputeReads,
   hiddenRevealRead,
   promptPreviewReads,
   ROOM_ENTITY_FILTERS,
@@ -337,15 +338,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // ruling 2026-09-20). Widening THIS member to the room was never the alternative — `membership-fan-guard`
   // bans exactly that.
   databankChanged: (_e, trpc) => [trpc.databank.pathFilter()],
-  // Recompute replaces the source rows retained by Explore. A restored query keeps its old cache key,
-  // so search.search and source resolution refresh with discovery; ordinary canon paging is unchanged.
-  // fields/suggest keep their lexical index cache and are deliberately outside this vector-source fan.
-  corpusRecomputed: (_e, trpc) => [
-    trpc.discovery.pathFilter(),
-    trpc.search.similarArt.pathFilter(),
-    trpc.search.search.pathFilter(),
-    trpc.chat.getMessageWindow.pathFilter(),
-  ],
+  corpusRecomputed: (_e, trpc) => corpusRecomputeReads(trpc),
   // The VIEWER'S OWN identity, through the one `identityFilters` helper the recovery ladder also calls (W7b).
   // Closes the staleness design's D5 gap: `sessions.me` had NO bus driver, so an `admin.setRole` grant — or an
   // SSO login elsewhere that renamed the handle / re-derived the role — reached a live client only on a full

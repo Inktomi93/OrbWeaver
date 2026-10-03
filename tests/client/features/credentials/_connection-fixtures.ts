@@ -11,6 +11,8 @@ import type { ProviderAvailability } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import { expect } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+// Deep relative, pure `.ts`: the step titles are read from their one home, never re-typed here.
+import { ADD_DIALOG_COPY } from "../../../../packages/client/src/features/credentials/lib/add-connection-form-model.ts";
 import type { TrpcInput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
 
@@ -178,6 +180,26 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     "connection.catalogModels": opts.catalogModels ?? catalogOf([]),
     "connection.draftCatalogModels": opts.draftCatalogModels ?? catalogOf([]),
     "connection.useForEverything": [],
+    // The first-model step's writes: a patch lands on the stateful row, a role write echoes its binding.
+    "connection.update": ({ connectionId, patch }) => {
+      const index = connections.findIndex((row) => row.id === connectionId);
+      const current = connections[index];
+      if (current === undefined) {
+        throw new Error(`connection.update on a row the stub never created: ${connectionId}`);
+      }
+      const updated = { ...current, ...(patch.allowBackground === undefined ? {} : { allowBackground: patch.allowBackground }) };
+      connections.splice(index, 1, updated);
+      return updated;
+    },
+    "connection.setBinding": ({ task, connectionId }) => ({
+      id: `connection_binding_ct${task}`,
+      actorKind: "user",
+      userId: OWNER_ID,
+      ruleId: null,
+      pluginId: null,
+      task,
+      connectionId,
+    }),
     "connection.verifyAuth": opts.verifyAuth ?? SIGNED_IN,
     "settings.getAppSettingsWithOverrides": () => ({
       resolved: { privateEndpointAllowlist: [...allowlist] },
@@ -193,6 +215,19 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
 /** The open dialog, by its title. */
 export function dialogNamed(page: Page, title: string): Locator {
   return page.getByRole("dialog", { name: title });
+}
+
+/** The first-model step a first chat-capable add opens instead of closing. */
+export function firstModelSetup(page: Page): Locator {
+  return dialogNamed(page, ADD_DIALOG_COPY.setup.title);
+}
+
+/** Leave the first-model step with no Utility model ("Not now", Finish), for a CT about the add itself. */
+export async function skipFirstModelSetup(page: Page): Promise<void> {
+  const setup = firstModelSetup(page);
+  await setup.getByRole("radio", { name: "Not now" }).click();
+  await setup.getByRole("button", { name: "Finish" }).click();
+  await expect(setup).toBeHidden();
 }
 
 /** Pick a provider in the add dialog's grouped picker. */

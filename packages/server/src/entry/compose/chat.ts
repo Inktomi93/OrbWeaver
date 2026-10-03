@@ -78,6 +78,7 @@ import {
   createResolveRpgCardCorpus,
   createResolveRpgParticipants,
   createSetRpgPointer,
+  estimateMemoryBackfillCalls,
   getGroupConfig,
   getRoomOverrides,
 } from "#domain/chat";
@@ -404,6 +405,7 @@ export interface ChatComposeResult {
   readonly backfill: {
     readonly memory: (args: { signal: AbortSignal; ownerId?: UserId | null; funderUserId: UserId }) => ReturnType<typeof backfillMemory>;
     readonly groupCharacters: (args: { signal: AbortSignal; ownerId?: UserId | null; funderUserId: UserId }) => ReturnType<typeof backfillGroupCharacters>;
+    readonly estimateMemory: (args: { ownerId: UserId | null; funderUserId: UserId }) => ReturnType<typeof estimateMemoryBackfillCalls>;
   };
 }
 
@@ -1564,6 +1566,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     backfill: {
       memory: (args) => backfillMemory(chatCtx, args, resolveMemoryConfig),
       groupCharacters: (args) => backfillGroupCharacters(chatCtx, args),
+      // A host asks for their own estimate BEFORE turning memory on (the switch's confirm), so the singular count
+      // reads the admin defaults without the host's opt-out; the bulk count honours each host's switch, as the sweep does.
+      estimateMemory: (args) =>
+        estimateMemoryBackfillCalls(
+          chatCtx,
+          args,
+          args.ownerId === null ? resolveMemoryConfig : (): Promise<MemoryConfig> => Promise.resolve(input.settings.getEffectiveConfig().memoryDefaults),
+        ),
     },
   };
 }

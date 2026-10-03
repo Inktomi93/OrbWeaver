@@ -4,6 +4,7 @@
 
 import type { Capability, CapabilityRequirement, RoutableTask, Task, UnavailableCause } from "@orb/contracts/inference";
 import { bindingTaskOf, CONNECTION_LABEL_SEPARATOR, canFund, EMBED_SPACE_DIMS, requirementMet, taskDef } from "@orb/contracts/inference";
+import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { stripLabelSuffix } from "@orb/kit/strings";
 
@@ -151,6 +152,21 @@ export function labelNamesModel(label: string, model: string): boolean {
   const modelSegments = segments.length > 1 ? segments.slice(1) : segments;
   return modelSegments.some((segment) => names.has(segment.trim().toLowerCase()));
 }
+
+/** Settings → Connections → Model roles, as `openConfigTo` addresses it. The Connections nav takes its ids from here,
+ *  so a door and the leaf it opens cannot drift apart. */
+export const MODEL_ROLES_ADDRESS = { group: "connections", sub: "model-roles" } as const;
+
+/** Where a door to the Utility role lands: Model roles, at the Utility picker. */
+export const UTILITY_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "utility-model" } as const;
+
+/** Whether a resolved Utility model reads pictures, which avatar analysis and picture families need. */
+export function utilityReadsImages(capability: Capability): boolean {
+  return requirementMet(capability, NEEDS_CAPTION_INPUT.requires).ok;
+}
+
+/** What Memory costs, said wherever a person turns it on or picks the model it runs on. */
+export const MEMORY_COST_SENTENCE = `Memory makes about one extra summary call on your Utility model for every ${DEFAULT_MEMORY_DEFAULTS.blockSize} messages once a chat grows long.`;
 
 /** The inline refusal a Model-roles row shows BEFORE writing a binding (§5.3a — the slot is the first
  *  enforcement point): a background task on a row with `allowBackground` off. `null` = bindable. */

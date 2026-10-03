@@ -74,7 +74,7 @@ On Windows, double-click `start.cmd` in the checkout after `pnpm install`. It ru
 | Choice | How | What happens |
 | - | - | - |
 | Just me (default) | nothing | No login. The server listens on this machine only, and you are the owner. |
-| People on my network | `pnpm start --setup`, then "people on my network" | Password login on every interface. The first visit from this machine sets the owner's password. Setup prints the addresses to open. |
+| Me and friends | `pnpm start --setup`, then "me and friends" | Password login on every interface. The first visit from this machine sets the owner's password. Setup prints the addresses to open, and the step that invites friends from outside your network. |
 | Single sign-on | `AUTH_MODE=oidc` or `AUTH_MODE=forward-header` in `.env` | "Login modes" in [`docker/README.md`](docker/README.md) lists the keys. Leave `AUTH_FALLBACK` and `AUTH_FALLBACK_TRUSTED_PEERS` out of `.env`: the app refuses them there and resolves them from the mode. |
 
 In Docker, a login mode takes three lines, because the shipped defaults grant the no-login owner: `AUTH_MODE` (`local`, `oidc` or `forward-header`), `AUTH_FALLBACK=deny` and an empty `AUTH_FALLBACK_TRUSTED_PEERS=`. Put them in `docker/orbweaver.local.env`, or in the `environment:` block as step 1 of "LAN and HTTPS" in [`docker/README.md`](docker/README.md) shows. The first `local` boot prints the password (`docker compose logs orbweaver`).
@@ -84,7 +84,7 @@ A device on your network signs in over plain http, so the password and the sessi
 ### Share over the internet
 
 - `pnpm share` runs one launch with a password login and a public link, which the log prints. The server downloads a pinned `cloudflared` on the first share. `.env` is not changed.
-- In Docker, or once the app runs in the local sign-in mode, the owner presses Start sharing in Admin → Multi-user. It downloads the same pinned `cloudflared` into `data/cache/relay/`.
+- After "me and friends", sign in as the owner and press Start sharing in Settings → Admin → Multi-user. It downloads the same pinned `cloudflared` into `data/cache/relay/` and gives you a public link to send. Docker never asks the setup questions: set the three login lines above, then press Start sharing the same way.
 - For a lasting address, run a tunnel: `tailscale serve --bg 8788`, or `cloudflared tunnel run --token <token>` with a public hostname whose service is `http://localhost:8788`. The recipes are in [`docker/README.md`](docker/README.md).
 - Never forward a router port. Never put a proxy or tunnel in front of "just me": a relayed request is never the owner, so it answers 401.
 
