@@ -290,7 +290,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     hostAllowlist({
       allowedHosts: allowedHostsReader(resolveAllowedHosts(allowedHostsInput()), deps.relayHosts),
       inContainer: deps.inContainer,
-      notice: createHostNotAllowedNotice(deps.now),
+      notice: createHostNotAllowedNotice(deps.now, deps.inContainer),
     }),
   );
 

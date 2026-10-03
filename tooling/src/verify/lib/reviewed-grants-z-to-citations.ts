@@ -52,6 +52,14 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "the version identity becomes hot-swappable within a running process (a live redeploy signal), or the query gains reachable seam coverage.",
   },
   {
+    id: "query-freshness-coverage:share-signinmode",
+    policyId: "query-freshness-coverage",
+    subject: "share.signInMode",
+    operation: "uncovered-query-freshness",
+    why: "the Multi-user sign-in helper (features/user-admin/components/sharing-posture.tsx) reads the sign-in mode, its source and the install shape, which foundation/env fixes once at process load; no write path in this process changes them, and switching the mode takes a server restart, so no invalidation row could ever fire.",
+    endsWhen: "the sign-in mode becomes changeable within a running process (a Settings write), or the query gains reachable seam coverage.",
+  },
+  {
     id: "query-freshness-coverage:share-status",
     policyId: "query-freshness-coverage",
     subject: "share.status",

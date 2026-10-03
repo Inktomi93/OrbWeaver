@@ -1,10 +1,19 @@
 // Shared substrate for the share domain tests (imported, never run). The service is built over the real owner guard
 // and a recording relay controller, so a test reads what reached the relay and the audit log, and in what order.
 
-import type { AuthMode, IpCertificateSetting, IpCertificateStatus, Principal, RelayStatus, UserRole } from "@orb/contracts/identity";
+import type {
+  AuthMode,
+  AuthModeSource,
+  InstallKind,
+  IpCertificateSetting,
+  IpCertificateStatus,
+  Principal,
+  RelayStatus,
+  UserRole,
+} from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { requireOwner } from "@orb/server/domain/admin";
+import { requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import type { ShareService } from "@orb/server/domain/share";
 import { createShareService } from "@orb/server/domain/share";
 import type { AuditEntry } from "@orb/server/foundation/observability";
@@ -47,6 +56,8 @@ export function shareHarness(options: {
   readonly publicAddresses?: readonly string[];
   readonly certificateSetting?: IpCertificateSetting;
   readonly publicBind?: boolean;
+  readonly authModeSource?: AuthModeSource;
+  readonly install?: InstallKind;
 }): ShareHarness {
   const calls: string[] = [];
   const audits: AuditEntry[] = [];
@@ -106,7 +117,10 @@ export function shareHarness(options: {
       });
     },
     requireOwner,
+    requireAdmin,
     authMode: options.authMode,
+    authModeSource: options.authModeSource ?? "env-file",
+    install: options.install ?? "bare-metal",
     ownerNeedsPassword: (): Promise<boolean> => {
       calls.push("ownerNeedsPassword");
       return Promise.resolve(ownerNeedsPassword);
