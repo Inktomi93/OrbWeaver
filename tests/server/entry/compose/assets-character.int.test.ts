@@ -274,3 +274,23 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
     expect(result.text).toBe(fakeGreetingText);
   });
 });
+
+// ── THE LEXICAL INDEX FOLLOWS CARD WRITES THROUGH THE COMPOSED WIRING. The character service's `charactersChanged`
+// user event is what the composition root turns into a field-index eviction; nothing here calls the evict by hand.
+
+describe("the composed character service evicts the owner's lexical index on a delete", () => {
+  test("after remove, the next search counts only the live cards", async ({ db, services }) => {
+    const user = (await seedUser(db, { handle: castId("lexical_owner") })).id;
+    const principal = principalOf(user);
+    const kept = await services.character.create({ principal, input: { handle: castId("kept"), name: "Dragon Kept", description: "d" } });
+    const gone = await services.character.create({ principal, input: { handle: castId("gone"), name: "Dragon Gone", description: "d" } });
+    const before = await services.search.fields({ ownerId: user, query: "dragon", topN: 5 });
+    expect(before.coverage.indexedCharacters).toBe(2);
+
+    await services.character.remove({ principal, characterId: gone.id });
+
+    const after = await services.search.fields({ ownerId: user, query: "dragon", topN: 5 });
+    expect(after.hits.map((h) => h.characterId)).toEqual([kept.id]);
+    expect(after.coverage).toEqual({ requestLimit: 5, indexedCharacters: 1, matchingCharacters: 1 });
+  });
+});

@@ -64,7 +64,7 @@ function build(
     roleClients: { summarize: vi.fn(), summarizerModel: "sum-v1", summarizerContextTokens: 8192 },
     eventBus: bus,
     attachCardTagByName: vi.fn(),
-    resolveUserPresetParams: vi.fn(() => Promise.resolve({})),
+    resolveUtilityPresetParams: vi.fn(() => Promise.resolve({})),
     character: { listEmbeddableCharacterIds: vi.fn(), loadCardText: vi.fn() },
     assets: { listImageAssetIds: vi.fn(), loadAssetBytes: vi.fn(), assetCasRefById: vi.fn() },
     settings: { loadUserSettings: vi.fn(), updateUserSettingsSection: vi.fn() },

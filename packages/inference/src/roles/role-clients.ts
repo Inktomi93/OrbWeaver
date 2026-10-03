@@ -7,7 +7,8 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Task, UnavailableCause } from "@orb/contracts/inference";
-import { acceptsForcedToolChoice, canFund } from "@orb/contracts/inference";
+import { acceptsNamedToolChoice, canFund } from "@orb/contracts/inference";
+import { rolePresetParamsOf } from "@orb/contracts/preset";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, ResponseFormat, SummarizeInput } from "@orb/contracts/role-clients";
 import type { UserId } from "@orb/kit/ids";
@@ -29,23 +30,16 @@ type DeriveTask = (typeof DERIVE_TASKS)[number];
 /** The caller's options onto the backend request. The role surface speaks `maxOutputTokens` (the posture
  *  vocabulary); the backend request keeps `maxTokens`, so this is the one place the name changes. */
 function samplerFields(opts: SummarizeCallOptions | undefined): TaskSampling {
-  return {
-    ...(opts?.maxOutputTokens !== undefined ? { maxTokens: opts.maxOutputTokens } : {}),
-    ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
-    ...(opts?.topP !== undefined ? { topP: opts.topP } : {}),
-    ...(opts?.topK !== undefined ? { topK: opts.topK } : {}),
-    ...(opts?.frequencyPenalty !== undefined ? { frequencyPenalty: opts.frequencyPenalty } : {}),
-    ...(opts?.presencePenalty !== undefined ? { presencePenalty: opts.presencePenalty } : {}),
-    ...(opts?.repetitionPenalty !== undefined ? { repetitionPenalty: opts.repetitionPenalty } : {}),
-    ...(opts?.minP !== undefined ? { minP: opts.minP } : {}),
-  };
+  const { maxOutputTokens, ...rest } = rolePresetParamsOf(opts ?? {});
+  return { ...rest, ...(maxOutputTokens !== undefined ? { maxTokens: maxOutputTokens } : {}) };
 }
 
 /** What the resolved capability says about the two vehicles — read once at the call site, never re-derived. */
 interface VehicleFacts {
   /** The model's endpoints advertise schema-constrained output (`output.structured`). */
   readonly structured: boolean;
-  /** The model accepts a FORCED tool choice (`acceptsForcedToolChoice`). */
+  /** The model is forced onto ONE NAMED tool when asked (`acceptsNamedToolChoice`): the forced-tool vehicle
+   *  names its tool. */
   readonly forcedTool: boolean;
 }
 
@@ -54,16 +48,16 @@ function vehicleFactsOf(conn: Resolved): VehicleFacts {
     return { structured: false, forcedTool: true };
   }
   const generation = conn.capability.generation;
-  return { structured: generation.output.structured === true, forcedTool: acceptsForcedToolChoice(generation) };
+  return { structured: generation.output.structured === true, forcedTool: acceptsNamedToolChoice(generation) };
 }
 
 /** The structured call's WIRE VEHICLE, decided where both the ask and the RESOLVED capability are in hand:
  *  `auto` ⇒ the enforcing `response-format` when the model's endpoints advertise structured output, else the
  *  servable-everywhere forced tool. An explicit vehicle (per-call or deployment) passes through untouched —
  *  including onto a model whose capability is unknown, where the backend's own 400 is the honest answer — with
- *  ONE exception, where the capability KNOWS the answer (#2575): a `forced-tool` ask on a model that rejects
- *  forced tool use AND does structured output rides `response-format`, the vehicle Anthropic prescribes for a
- *  forced call that only existed to extract JSON. Without structured output it stays a forced tool, which the
+ *  ONE exception, where the capability KNOWS the answer (#2575): a `forced-tool` ask on a model that is not
+ *  forced onto a named tool (Anthropic refuses it, llama.cpp runs it as `auto`) AND does structured output
+ *  rides `response-format`, the vehicle Anthropic prescribes for a forced call that only existed to extract JSON. Without structured output it stays a forced tool, which the
  *  wire downgrades to `auto` loudly (`servableToolChoice`). */
 function resolveVehicle(format: ResponseFormat, deployment: ReturnType<InferenceDeps["structuredOutputVehicle"]>, facts: VehicleFacts): ResponseFormat {
   const asked = format.vehicle ?? deployment;

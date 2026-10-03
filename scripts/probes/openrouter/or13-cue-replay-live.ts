@@ -3,6 +3,7 @@
 // user follow-up and one more reply. Pass: no call drops a thinking block for a prefix mismatch, and the cache read
 // grows call over call. OR13_CAP_USD stops the run at an estimated spend.
 
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { randomUUID } from "node:crypto";
 import type { AssembleContext, ChatInjection, ChatReasoningPart, MessageView, SpeakerRef } from "@orb/contracts/chat";
 import { chatReasoningPartSchema } from "@orb/contracts/chat";
@@ -136,6 +137,7 @@ export async function run(): Promise<object> {
     origin: "new-chat-marker",
   };
   const assembleContext: AssembleContext = {
+    timezone: UTC_TIME_ZONE,
     character: { name: SPEAKERS[0].name, description: SPEAKERS[0].description },
     characters: SPEAKERS.map((s) => ({ name: s.name, description: s.description })),
     characterIds: SPEAKERS.map((s) => s.id),

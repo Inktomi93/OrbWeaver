@@ -5,10 +5,11 @@
 import type { Capability, GenerationCapability } from "@orb/contracts/inference";
 import { GENERATION_FLOOR, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, NoConnectionError } from "@orb/inference";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { openRouterCatalogFetch } from "../_openrouter-catalog.ts";
-import { FROZEN_NOW, fakeConnection, fakeDeps, memoryStores, newRuleId, newUserId } from "../_support.ts";
+import { FROZEN_NOW, fakeApiKeySecret, fakeConnection, fakeDeps, memoryStores, newRuleId, newUserId } from "../_support.ts";
 import { localServerFetch } from "../catalog/_local-servers-fetch.ts";
 
 test("structured resolves through the actor's summarize binding before the funder's summarize binding", async () => {
@@ -92,12 +93,14 @@ async function openRouterCapability(model: string): Promise<unknown> {
 
 test("#2575: OpenRouter's advertised `tools` cell no longer erases the curated forced-choice refusal", async () => {
   for (const model of ["anthropic/claude-fable-5.1", "anthropic/claude-opus-5.5"]) {
-    await expect(openRouterCapability(model), model).resolves.toMatchObject({ generation: { tools: { parallel: true, forcedChoice: false } } });
+    await expect(openRouterCapability(model), model).resolves.toMatchObject({
+      generation: { tools: { parallel: true, requiredChoice: false, namedChoice: false } },
+    });
   }
   // PLANTED CONTROL: a Claude that accepts forced tool use states no refusal on the same route.
   const opus5 = await openRouterCapability("anthropic/claude-opus-5");
   expect(opus5).toMatchObject({ generation: { tools: { parallel: true } } });
-  expect(opus5).not.toMatchObject({ generation: { tools: { forcedChoice: false } } });
+  expect(opus5).not.toMatchObject({ generation: { tools: { requiredChoice: false, namedChoice: false } } });
 });
 
 test("#2575: a `:batch` variant takes its base model's curated facts (the catalog pairs them by canonical slug)", async () => {
@@ -105,17 +108,17 @@ test("#2575: a `:batch` variant takes its base model's curated facts (the catalo
   await expect(openRouterCapability("openai/o4-mini:batch")).resolves.toMatchObject({ generation: { reasoning: { mandatory: true } } });
   await expect(openRouterCapability("openai/o4-mini")).resolves.toMatchObject({ generation: { reasoning: { mandatory: true } } });
   await expect(openRouterCapability("anthropic/claude-fable-5.1:batch")).resolves.toMatchObject({
-    generation: { tools: { forcedChoice: false }, reasoning: { mandatory: true } },
+    generation: { tools: { requiredChoice: false, namedChoice: false }, reasoning: { mandatory: true } },
   });
 });
 
 test("#2575: a floating `~…-latest` alias folds as the target its catalog row names, and only then", async () => {
   await expect(openRouterCapability("~anthropic/claude-fable-latest")).resolves.toMatchObject({
-    generation: { tools: { forcedChoice: false }, reasoning: { mandatory: true } },
+    generation: { tools: { requiredChoice: false, namedChoice: false }, reasoning: { mandatory: true } },
   });
   // PLANTED CONTROL: an alias whose row names no target is left unmatched — no Claude row, no guessed facts.
   const mystery = await openRouterCapability("~anthropic/claude-mystery-latest");
-  expect(mystery).not.toMatchObject({ generation: { tools: { forcedChoice: false } } });
+  expect(mystery).not.toMatchObject({ generation: { tools: { requiredChoice: false, namedChoice: false } } });
   expect(mystery).not.toMatchObject({ generation: { reasoning: { mode: "adaptive" } } });
 });
 
@@ -356,6 +359,14 @@ test("an Ollama tool model folds tools and text-only input from `/api/show`, and
   expect(moondream.tools).toBeUndefined();
 });
 
+test("an untagged Ollama model id finds its `:latest` catalog entry, so the server's stated facts reach the fold", async () => {
+  const bare = generationOf(await ollamaResolved("moondream", "chat"));
+  const tagged = generationOf(await ollamaResolved("moondream:latest", "chat"));
+  expect(bare.input).toEqual(["text", "image"]);
+  expect(bare.modalitiesEstimated).toBeUndefined();
+  expect(bare.context).toEqual(tagged.context);
+});
+
 test("an Ollama embedder resolves as an embedder from `/api/show` alone, with the width it states", async () => {
   await expect(ollamaResolved("nomic-embed-text:latest", "embed")).resolves.toMatchObject({ kind: "embedding", embedding: { dims: 768 } });
   // The kind is the server's statement, not the task's fallback: the same row cannot serve a chat turn.
@@ -378,12 +389,23 @@ test("an id-only list states no modalities, so the posture still widens the row 
 // alone, whichever connection warmed first would decide what the other resolves to: a custom-openai row would
 // inherit Ollama's text-only + tools, or an Ollama row the permissive guess D292 removes.
 
+/** A Custom row that reads its server's bare `/v1/models` list instead of detecting the server behind it. */
+const LIST_ONLY = { features: { detectServer: false } };
+
 async function sharedServer(order: readonly ("ollama" | "custom-openai")[]): Promise<Record<string, GenerationCapability>> {
   const stores = memoryStores();
   const rows = order.map((providerId) => {
     const ownerId = newUserId();
-    // moondream: no curated row matches it, so every stated fact below comes from the reader or the posture.
-    const row = fakeConnection({ ownerId, providerId, model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1", allowBackground: true });
+    // moondream: no curated row matches it, so every stated fact below comes from the reader or the posture. The
+    // custom row turns detection off, so it reads the bare list (detection is `behave-as.test.ts`).
+    const row = fakeConnection({
+      ownerId,
+      providerId,
+      model: "moondream:latest",
+      baseUrl: "http://127.0.0.1:1/v1",
+      allowBackground: true,
+      declared: providerId === "custom-openai" ? LIST_ONLY : null,
+    });
     stores.connections.rows.set(row.id, row);
     return { providerId, ownerId, row };
   });
@@ -474,7 +496,7 @@ test("invalidateEndpoint forgets ONE connection's (URL × reader) mirror in memo
   const stores = memoryStores();
   const ownerId = newUserId();
   const ollama = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
-  const custom = fakeConnection({ ownerId, providerId: "custom-openai", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  const custom = fakeConnection({ ownerId, providerId: "custom-openai", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1", declared: LIST_ONLY });
   stores.connections.rows.set(ollama.id, ollama);
   stores.connections.rows.set(custom.id, custom);
   const seen: string[] = [];
@@ -493,4 +515,70 @@ test("invalidateEndpoint forgets ONE connection's (URL × reader) mirror in memo
   expect(showDials(seen), "the forgotten mirror dials again").toBeGreaterThan(before);
   await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: custom.id });
   expect(seen.filter((url) => url.endsWith("/v1/models")).length - listDials, "the sibling's mirror was not touched: only the ollama re-warm listed").toBe(1);
+});
+
+test("two credentials on one authenticated gateway keep their own model lists, and one save forgets only its own", async () => {
+  const stores = memoryStores();
+  const credA = mintTypeId(ID_PREFIX.userCredential);
+  const credB = mintTypeId(ID_PREFIX.userCredential);
+  const ownerA = newUserId();
+  const ownerB = newUserId();
+  const base = { providerId: "custom-openai", model: "listed-model", baseUrl: "http://gateway.test/v1" } as const;
+  const rowA = fakeConnection({ ...base, ownerId: ownerA, credentialId: credA });
+  const rowB = fakeConnection({ ...base, ownerId: ownerB, credentialId: credB });
+  stores.connections.rows.set(rowA.id, rowA);
+  stores.connections.rows.set(rowB.id, rowB);
+  const secrets = new Map([
+    [credA, fakeApiKeySecret("key-a")],
+    [credB, fakeApiKeySecret("key-b")],
+  ]);
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, secrets, fetch: idOnlyModelList() }));
+
+  await runtime.resolve({ task: "chat", principal: principal(ownerA), connectionId: rowA.id });
+  await runtime.resolve({ task: "chat", principal: principal(ownerB), connectionId: rowB.id });
+
+  const gatewayKeys = (): string[] => [...stores.snapshotStore.entries.keys()].filter((key) => key.includes("#@")).sort();
+  expect(gatewayKeys()).toEqual([`catalog:endpoint:http://gateway.test/v1#@${credA}#list`, `catalog:endpoint:http://gateway.test/v1#@${credB}#list`].sort());
+  await runtime.catalogs.invalidateEndpoint(rowA);
+  expect(gatewayKeys()).toEqual([`catalog:endpoint:http://gateway.test/v1#@${credB}#list`]);
+});
+
+test("the runtime's tokenize read fills the token cache once, and invalidateEndpoint forgets it with the endpoint facts", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const model = "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf";
+  const row = fakeConnection({ ownerId, providerId: "llama-cpp", model, baseUrl: "http://127.0.0.1:1/v1" });
+  stores.connections.rows.set(row.id, row);
+  const seen: string[] = [];
+  const runtime = await createInferenceRuntime(
+    fakeDeps({ stores, fetch: localServerFetch("llamacpp-chat", { tokenize: { tokens: [{ id: 42, piece: "Elara" }] } }, seen) }),
+  );
+  const tokenizeCalls = (): number => seen.filter((url) => url.endsWith("/tokenize")).length;
+  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+
+  expect(await runtime.catalogs.tokenize(resolved, ["Elara"])).toEqual({ available: true, words: [{ ok: true, word: "Elara", ids: [42], pieces: ["Elara"] }] });
+  await runtime.catalogs.tokenize(resolved, ["Elara"]);
+  expect(tokenizeCalls(), "a held word is not asked again").toBe(1);
+  expect([...stores.snapshotStore.entries.keys()]).toContain(`catalog:endpoint:http://127.0.0.1:1/v1#tokens:${model}`);
+
+  await runtime.catalogs.invalidateEndpoint(row);
+  expect(
+    [...stores.snapshotStore.entries.keys()].some((key) => key.includes("#tokens:")),
+    "the persisted lookups go with the facts",
+  ).toBe(false);
+  await runtime.catalogs.tokenize(resolved, ["Elara"]);
+  expect(tokenizeCalls(), "a forgotten word is asked once more").toBe(2);
+});
+
+test("a connection whose server has no tokenize endpoint answers unavailable and asks nothing", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  stores.connections.rows.set(row.id, row);
+  const seen: string[] = [];
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seen) }));
+  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  const before = seen.length;
+  expect(await runtime.catalogs.tokenize(resolved, ["Elara"])).toEqual({ available: false, words: [] });
+  expect(seen).toHaveLength(before);
 });

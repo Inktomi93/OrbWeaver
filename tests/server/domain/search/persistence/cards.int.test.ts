@@ -30,6 +30,17 @@ describe("loadCardFields", () => {
     expect(rows[0]?.description).toBe("a shadow witch");
   });
 
+  test("leaves out the synthetic group-as-character bucket", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("cards_synthetic") });
+    await seedCharacter(db, { id: "character_real", ownerId: owner, name: "Real" });
+    await seedCharacter(db, { id: "character_group", ownerId: owner, name: "Group", synthetic: true });
+
+    const rows = await loadCardFields(db, owner);
+
+    expect(rows.map((r) => r.id)).toEqual(["character_real"]);
+  });
+
   test("returns an empty corpus for an owner with no cards", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("cards_empty") });

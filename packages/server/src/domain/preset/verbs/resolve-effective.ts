@@ -145,6 +145,8 @@ function staleCollections(params: UserIntent, sampling: ResolvedChatKnobs["sampl
     drySequenceBreakers:
       params.drySequenceBreakers === undefined || sampling.drySequenceBreakers !== undefined ? undefined : listValue(params.drySequenceBreakers),
     samplerOrder: params.samplerOrder === undefined || sampling.samplerOrder !== undefined ? undefined : params.samplerOrder.join(STAGE_JOINER),
+    bannedStrings: params.bannedStrings === undefined || sampling.bannedStrings !== undefined ? undefined : listValue(params.bannedStrings),
+    banEos: params.banEos === undefined || sampling.banEos !== undefined ? undefined : String(params.banEos),
   };
   return STALE_COLLECTION_KNOBS.flatMap((knob) => {
     const value = values[knob];
@@ -187,6 +189,9 @@ function probeKnobs(params: UserIntent, capability: GenerationCapability, resolv
     dynatempExponent: { explicit: params.dynatempExponent, resolved: sampling.dynatempExponent },
     smoothingFactor: { explicit: params.smoothingFactor, resolved: sampling.smoothingFactor },
     smoothingCurve: { explicit: params.smoothingCurve, resolved: sampling.smoothingCurve },
+    adaptiveTarget: { explicit: params.adaptiveTarget, resolved: sampling.adaptiveTarget },
+    adaptiveDecay: { explicit: params.adaptiveDecay, resolved: sampling.adaptiveDecay },
+    minKeep: { explicit: params.minKeep, resolved: sampling.minKeep },
     seed: { explicit: params.seed, resolved: sampling.seed },
     effort: { explicit: params.effort, quality: qualityEffort, resolved: effortResolved },
     thinkingBudgetTokens: {

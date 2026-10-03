@@ -1,55 +1,84 @@
-// entry/compose/side-gen-params — the preset-read catch that resolves a user's side-gen sampling knobs
-// (#759). `paramsForDefaultPreset` is the ONE closure both `resolveUserPresetParams` and
-// `resolveChatPresetParams` funnel through, so this pins it once at `resolveUserPresetParams`, the
-// direct caller. The rule: a genuinely stale/unowned/missing preset id degrades to
-// `DEFAULT_PROMPT_CONFIG.params` (`PresetNotFoundError`, the documented lenient-id fallback); a database,
-// I/O, or program failure must propagate and never silently replace the caller's configured sampling.
-//
-// Pure unit test — `buildSideGenParams` takes its `preset`/`settings` deps injected (`SideGenParamsDeps`),
-// so this needs no db/compose graph, just fakes.
+// entry/compose/side-gen-params — which preset a Utility-role background task reads (D299). Task defaults
+// resolve no params; "same as chat" follows the active preset; a named preset lends only its generation params;
+// a stale id degrades to task defaults while a real read failure surfaces (#759).
 
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { UserIntent } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, rolePresetParamsOf } from "@orb/contracts/preset";
+import type { RolePresetChoice } from "@orb/contracts/settings";
+import { DEFAULT_USER_SETTINGS, ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { PresetService } from "@orb/server/domain/preset";
 import { PresetNotFoundError } from "@orb/server/domain/preset";
+import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { buildSideGenParams } from "../../../../packages/server/src/entry/compose/side-gen-params.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { presetDetail, presetWithPromptStructure, utilityPresetResolver } from "../../../support/utility-preset.ts";
 
 const USER_ID = castId<UserId>("user_sidegen");
-const PRESET_ID = "preset_sidegen_default";
+const ACTIVE_PRESET_ID = "preset_sidegen_active";
+const UTILITY_PRESET_ID = "preset_sidegen_utility";
 
-describe("buildSideGenParams — the preset-read catch narrows to PresetNotFoundError (#759)", () => {
-  test("a non-not-found rejection PROPAGATES — never silently replaces the caller's configured sampling", async () => {
-    const dbDown = new Error("connection terminated unexpectedly");
-    const { resolveUserPresetParams } = buildSideGenParams({
-      preset: { get: vi.fn().mockRejectedValue(dbDown) },
-      settings: { loadUserSettings: vi.fn().mockResolvedValue({ seeds: { defaultPresetId: PRESET_ID } }) },
-      resolveChatHostUserId: vi.fn(),
-    });
+// A chat preset with a short reply cap — the setting that used to cap every background task.
+const CHAT_PARAMS: UserIntent = { temperature: 1.1, maxOutputTokens: 300, replyMedia: "text+image" };
 
-    await expect(resolveUserPresetParams(USER_ID)).rejects.toBe(dbDown);
-  });
+type PresetGet = PresetService["get"];
 
-  test("a genuinely stale/unowned/missing preset id still degrades to the system default's params", async () => {
-    const { resolveUserPresetParams } = buildSideGenParams({
-      preset: { get: vi.fn().mockRejectedValue(new PresetNotFoundError(castId<PresetId>(PRESET_ID))) },
-      settings: { loadUserSettings: vi.fn().mockResolvedValue({ seeds: { defaultPresetId: PRESET_ID } }) },
-      resolveChatHostUserId: vi.fn(),
-    });
+function resolverFor(choice: RolePresetChoice | null, get: Mock<PresetGet>): ReturnType<typeof buildSideGenParams>["resolveUtilityPresetParams"] {
+  return buildSideGenParams({
+    preset: { get },
+    settings: {
+      loadUserSettings: vi.fn().mockResolvedValue({
+        ...DEFAULT_USER_SETTINGS,
+        seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: ACTIVE_PRESET_ID, summarizePreset: choice },
+      }),
+    },
+  }).resolveUtilityPresetParams;
+}
 
-    await expect(resolveUserPresetParams(USER_ID)).resolves.toEqual(DEFAULT_PROMPT_CONFIG.params);
-  });
+const chatPresetGet = (): Mock<PresetGet> => vi.fn<PresetGet>().mockResolvedValue(presetDetail({ ...DEFAULT_PROMPT_CONFIG, params: CHAT_PARAMS }));
 
-  test("no default preset id at all is unaffected — the floor never calls preset.get", async () => {
-    const get = vi.fn();
-    const { resolveUserPresetParams } = buildSideGenParams({
-      preset: { get },
-      settings: { loadUserSettings: vi.fn().mockResolvedValue({ seeds: { defaultPresetId: null } }) },
-      resolveChatHostUserId: vi.fn(),
-    });
-
-    await expect(resolveUserPresetParams(USER_ID)).resolves.toEqual(DEFAULT_PROMPT_CONFIG.params);
+describe("resolveUtilityPresetParams — the Utility role's preset choice", () => {
+  test("task defaults resolve no params, so a short chat reply cap never reaches a background task", async () => {
+    const get = chatPresetGet();
+    await expect(resolverFor(null, get)(USER_ID)).resolves.toBeUndefined();
     expect(get).not.toHaveBeenCalled();
+  });
+
+  test("same as chat follows the active preset, projected to the role fields", async () => {
+    const get = chatPresetGet();
+    await expect(resolverFor({ kind: ROLE_PRESET_CHOICE_KINDS.sameAsChat }, get)(USER_ID)).resolves.toEqual({ temperature: 1.1, maxOutputTokens: 300 });
+    expect(get).toHaveBeenCalledWith({ userId: USER_ID, id: castId<PresetId>(ACTIVE_PRESET_ID) });
+  });
+
+  test("same as chat with no active preset follows the built-in, exactly as a chat turn does", async () => {
+    const resolve = buildSideGenParams({
+      preset: { get: vi.fn<PresetGet>() },
+      settings: {
+        loadUserSettings: vi.fn().mockResolvedValue({
+          ...DEFAULT_USER_SETTINGS,
+          seeds: { ...DEFAULT_USER_SETTINGS.seeds, summarizePreset: { kind: ROLE_PRESET_CHOICE_KINDS.sameAsChat } },
+        }),
+      },
+    }).resolveUtilityPresetParams;
+    await expect(resolve(USER_ID)).resolves.toEqual(rolePresetParamsOf(DEFAULT_PROMPT_CONFIG.params));
+  });
+
+  test("a named preset lends its generation params and nothing else — not its templates, not chat-only intent", async () => {
+    const params: UserIntent = { temperature: 0.9, maxOutputTokens: 640, compaction: { mode: "managed" }, replyMedia: "text+image" };
+    expect(presetWithPromptStructure(params).sections).not.toEqual(DEFAULT_PROMPT_CONFIG.sections);
+    await expect(utilityPresetResolver(params)(USER_ID)).resolves.toEqual({ temperature: 0.9, maxOutputTokens: 640 });
+  });
+
+  test("a stale or unowned named preset degrades to task defaults", async () => {
+    const get = vi.fn<PresetGet>().mockRejectedValue(new PresetNotFoundError(castId<PresetId>(UTILITY_PRESET_ID)));
+    await expect(resolverFor({ kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: UTILITY_PRESET_ID }, get)(USER_ID)).resolves.toBeUndefined();
+  });
+
+  test("a non-not-found rejection PROPAGATES — never silently replaces the caller's configured sampling (#759)", async () => {
+    const dbDown = new Error("connection terminated unexpectedly");
+    const get = vi.fn<PresetGet>().mockRejectedValue(dbDown);
+    await expect(resolverFor({ kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: UTILITY_PRESET_ID }, get)(USER_ID)).rejects.toBe(dbDown);
   });
 });

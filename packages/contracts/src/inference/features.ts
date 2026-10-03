@@ -47,8 +47,27 @@ export const DEFAULT_SAMPLER_KEYS: Readonly<Record<SamplerKnob, string>> = {
   dynatempExponent: "dynatemp_exponent",
   smoothingFactor: "smoothing_factor",
   smoothingCurve: "smoothing_curve",
+  adaptiveTarget: "adaptive_target",
+  adaptiveDecay: "adaptive_decay",
+  minKeep: "min_keep",
+  bannedStrings: "banned_strings",
+  banEos: "ignore_eos",
   logitBias: "logit_bias",
 };
+
+/** How a server takes the phrase ban: `list` = the phrases under the row's `bannedStrings` key (KoboldCpp
+ *  `banned_strings`, vLLM `bad_words`); `logit-bias-ban` = each phrase as a `logit_bias` key set to `false`, which
+ *  llama.cpp tokenizes and bans itself (`server-schema.cpp` logit_bias handler). */
+export const BANNED_STRINGS_SPELLINGS = ["list", "logit-bias-ban"] as const;
+
+/** The tokenize endpoint a server answers, which turns a word-keyed logit bias into token ids and shows the
+ *  editor what a word maps to. `wordKeysNative` = the server's own `logit_bias` takes word keys as they are. */
+export const TOKENIZE_APIS = ["llama-cpp", "vllm", "koboldcpp"] as const;
+export type TokenizeApi = (typeof TOKENIZE_APIS)[number];
+
+/** How a reasoning token budget is spelled on this server's chat body (llama.cpp and KoboldCpp
+ *  `thinking_budget_tokens`, vLLM `thinking_token_budget`). Absent ⇒ the wire has no budget field. */
+export const REASONING_BUDGET_FIELDS = ["thinking_budget_tokens", "thinking_token_budget"] as const;
 
 /** The sampler-order vocabularies a server may read. A row names one (`features.samplerOrder`); the tokens
  *  below spell it, so a server that reads a known vocabulary under another name is a row, not code. */
@@ -73,6 +92,7 @@ export const SAMPLER_ORDER_TOKENS: Readonly<
       minP: "min_p",
       xtc: "xtc",
       temperature: "temperature",
+      adaptiveP: "adaptive_p",
     },
   },
   koboldcpp: { key: "sampler_order", tokens: { penalties: 6, topK: 0, topA: 1, typicalP: 4, topP: 2, temperature: 5 } },
@@ -91,6 +111,11 @@ export const STRICT_JSON_MODES = ["default-on", "declared-only", "never"] as con
 
 /** How a generic effort level is spelled on this server's wire, if at all. */
 export const EFFORT_SPELLINGS = ["reasoning_effort", "none"] as const;
+
+/** How a turn with reasoning chosen off tells the server's chat template not to think. `chat_template_kwargs`
+ *  = `{enable_thinking: false}` in the template kwargs (Qwen3-style templates on vLLM, llama.cpp and KoboldCpp
+ *  under `--jinja`); `none` = no off switch beyond the effort field. */
+export const THINKING_OFF_SPELLINGS = ["chat_template_kwargs", "none"] as const;
 
 /** Which image-generation arm the server exposes: the images API (`imageModel(id)` against
  *  `/v1/images/generations` + `/edits`) or chat-with-image-output (`modalities: ["text","image"]`). */
@@ -123,6 +148,10 @@ export const endpointFeaturesSchema = z.object({
   images: z.enum(IMAGE_ARMS).optional(),
   modelInfoApi: z.enum(MODEL_INFO_APIS).optional(),
   nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
+  /** Probe the connection's server for a known local server (KoboldCpp, llama.cpp, Ollama) and read the
+   *  matching built-in row's features and model-info API in place of this row's. A declared `modelInfoApi`
+   *  skips the probe; the connection's identity and credential stay this row's. */
+  detectServer: z.boolean().optional(),
   /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
   rerankPath: z.string().optional(),
   /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads
@@ -142,6 +171,19 @@ export const endpointFeaturesSchema = z.object({
   samplerKeys: z.partialRecord(z.enum(SAMPLER_KNOBS), z.string().min(1)).optional(),
   /** The sampler-order vocabulary this server reads ({@link SAMPLER_ORDER_TOKENS}). */
   samplerOrder: z.enum(SAMPLER_ORDER_SPELLINGS).optional(),
+  /** How the phrase ban rides ({@link BANNED_STRINGS_SPELLINGS}); absent ⇒ `list`. */
+  bannedStrings: z.enum(BANNED_STRINGS_SPELLINGS).optional(),
+  /** The tokenize endpoint behind word-keyed logit bias ({@link TOKENIZE_APIS}); absent ⇒ word keys cannot ride. */
+  tokenizeApi: z.enum(TOKENIZE_APIS).optional(),
+  /** The template-level off switch a reasoning-off turn sends ({@link THINKING_OFF_SPELLINGS}); absent ⇒ none. */
+  thinkingOff: z.enum(THINKING_OFF_SPELLINGS).optional(),
+  /** The body field a reasoning token budget rides under ({@link REASONING_BUDGET_FIELDS}). */
+  reasoningBudgetField: z.enum(REASONING_BUDGET_FIELDS).optional(),
+  /** Ollama's native route: how long the model stays loaded after a turn, as Ollama's duration string
+   *  (`"30m"`, `"-1m"` = until the server stops). Absent ⇒ the server's default. */
+  keepAlive: z.string().min(1).optional(),
+  /** Ollama's native route: the prompt batch size (`options.num_batch`); a change reloads the model. */
+  numBatch: z.number().int().positive().optional(),
   /** Feeds the `estimated` cost arm when the wire reports no usage cost (§5.3c). */
   pricing: z.object({ inputPerMTok: z.number().nonnegative(), outputPerMTok: z.number().nonnegative() }).optional(),
   /** Fan-out caps — THREE, one per surface that takes a `concurrency` dep. Wire default 4/8. NO env key. */

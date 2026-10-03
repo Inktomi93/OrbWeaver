@@ -104,7 +104,7 @@ export type Range = z.infer<typeof rangeSchema>;
  *  resolved value and a drop-warning knob name under the same key. The first eight are the hosted-API set; the
  *  rest are the local-server samplers (llama.cpp, KoboldCpp) a model reaches only through a row that states
  *  them. A new member fails `tsc` at the capability shape below, the funnel, the editor catalog and the
- *  wire spelling table until each names it. */
+ *  wire spelling table until each names it; the wire's body list ({@link BODY_SAMPLER_KNOBS}) derives from it. */
 export const SAMPLING_RANGE_KNOBS = [
   "temperature",
   "topP",
@@ -130,6 +130,9 @@ export const SAMPLING_RANGE_KNOBS = [
   "dynatempExponent",
   "smoothingFactor",
   "smoothingCurve",
+  "adaptiveTarget",
+  "adaptiveDecay",
+  "minKeep",
 ] as const;
 export type SamplingRangeKnob = (typeof SAMPLING_RANGE_KNOBS)[number];
 
@@ -158,10 +161,14 @@ const samplingRangeShape = {
   dynatempExponent: rangeSchema.optional(),
   smoothingFactor: rangeSchema.optional(),
   smoothingCurve: rangeSchema.optional(),
+  adaptiveTarget: rangeSchema.optional(),
+  adaptiveDecay: rangeSchema.optional(),
+  minKeep: rangeSchema.optional(),
 } satisfies Record<SamplingRangeKnob, z.ZodOptional<typeof rangeSchema>>;
 
-/** The sampling knobs a capability states with a boolean: the value is not a number to clamp. */
-const SAMPLING_FLAG_KNOBS = ["seed", "logitBias", "stop", "drySequenceBreakers"] as const;
+/** The sampling knobs a capability states with a boolean: the value is not a number to clamp. `bannedStrings` is
+ *  the phrase ban, `banEos` keeps the model from ending its reply. */
+const SAMPLING_FLAG_KNOBS = ["seed", "logitBias", "stop", "drySequenceBreakers", "bannedStrings", "banEos"] as const;
 
 /** Every sampler a request can carry as one keyed value; each has one wire spelling per server. */
 export const SAMPLER_KNOBS = [...SAMPLING_RANGE_KNOBS, ...SAMPLING_FLAG_KNOBS] as const;
@@ -169,8 +176,13 @@ export type SamplerKnob = (typeof SAMPLER_KNOBS)[number];
 
 /** The sampler stages a server can run in a chosen order (llama.cpp `samplers`, KoboldCpp `sampler_order`).
  *  `penalties` is the repetition stage (repetition, presence and frequency together on llama.cpp). */
-export const SAMPLER_STAGES = ["penalties", "dry", "topNSigma", "topK", "topA", "typicalP", "topP", "minP", "xtc", "temperature"] as const;
+export const SAMPLER_STAGES = ["penalties", "dry", "topNSigma", "topK", "topA", "typicalP", "topP", "minP", "xtc", "temperature", "adaptiveP"] as const;
 export type SamplerStage = (typeof SAMPLER_STAGES)[number];
+
+/** A knob that acts only where its stage runs in the chain (llama.cpp applies adaptive-P only when `adaptive_p` is
+ *  in `samplers`). Where the server orders that stage, a set knob makes the order ride even when the preset stores
+ *  none, so the server's default chain with the stage is sent. */
+export const SAMPLER_KNOB_STAGES: Readonly<Partial<Record<SamplingRangeKnob, SamplerStage>>> = { adaptiveTarget: "adaptiveP" };
 export const samplerStageSchema = z.enum(SAMPLER_STAGES) satisfies z.ZodType<SamplerStage>;
 /** A stage order, each stage at most once: a repeat would put one token on the wire twice. The shape a
  *  capability states and a preset stores. */
@@ -189,38 +201,25 @@ export const samplingCapabilitySchema = z.object({
   logitBias: z.boolean().optional(),
   stop: z.boolean().optional(),
   drySequenceBreakers: z.boolean().optional(),
+  bannedStrings: z.boolean().optional(),
+  banEos: z.boolean().optional(),
   samplerOrder: samplerOrderSchema.optional(),
   exclusive: z.array(z.tuple([z.string(), z.string()])).optional(),
 });
 export type SamplingCapability = z.infer<typeof samplingCapabilitySchema>;
 
-/** The samplers whose request-body key the openai-compat wire spells itself: the Vercel V4 call options model
- *  temperature, top-p, the two OpenAI penalties, seed and stop, and `@ai-sdk/openai-compatible` drops a V4
- *  `topK`, so every other knob rides the body under the row's spelling. */
-export const BODY_SAMPLER_KNOBS = [
-  "topK",
-  "minP",
-  "topA",
-  "repetitionPenalty",
-  "repetitionPenaltyRange",
-  "typicalP",
-  "topNSigma",
-  "xtcProbability",
-  "xtcThreshold",
-  "dryMultiplier",
-  "dryBase",
-  "dryAllowedLength",
-  "dryPenaltyLastN",
-  "drySequenceBreakers",
-  "mirostatMode",
-  "mirostatTau",
-  "mirostatEta",
-  "dynatempRange",
-  "dynatempExponent",
-  "smoothingFactor",
-  "smoothingCurve",
-  "logitBias",
-] as const satisfies readonly SamplerKnob[];
+/** The samplers the Vercel V4 call options model: the openai-compat wire hands these to the SDK. */
+const V4_SAMPLER_KNOBS = ["temperature", "topP", "frequencyPenalty", "presencePenalty", "seed", "stop"] as const satisfies readonly SamplerKnob[];
+type V4SamplerKnob = (typeof V4_SAMPLER_KNOBS)[number];
+
+function ridesBody(knob: SamplerKnob): knob is Exclude<SamplerKnob, V4SamplerKnob> {
+  return !V4_SAMPLER_KNOBS.some((modelled) => modelled === knob);
+}
+
+/** The samplers whose request-body key the openai-compat wire spells itself: every sampler the V4 call options
+ *  do not model ({@link V4_SAMPLER_KNOBS}). `@ai-sdk/openai-compatible` drops a V4 `topK`, so it rides here too.
+ *  Derived from {@link SAMPLER_KNOBS}, so a new knob rides the body without a second list to keep. */
+export const BODY_SAMPLER_KNOBS: readonly Exclude<SamplerKnob, V4SamplerKnob>[] = SAMPLER_KNOBS.filter(ridesBody);
 
 export const reasoningCapabilitySchema = z.object({
   mode: reasoningModeSchema,
@@ -284,6 +283,16 @@ export const turnsCapabilitySchema = z.object({
 });
 export type TurnsCapability = z.infer<typeof turnsCapabilitySchema>;
 
+/** The `turns` cells a preset's message handling and a continue read, whose provenance synthesis records
+ *  (`turnsEstimated`): an unmeasured model must not clamp a user's choice to a guess. */
+export const ESTIMABLE_TURNS = [
+  "assistantPrefill",
+  "midConversationSystem",
+  "historySystemRows",
+  "roleHandlingFloor",
+] as const satisfies readonly (keyof TurnsCapability)[];
+export type EstimableTurn = (typeof ESTIMABLE_TURNS)[number];
+
 export const generationCapabilitySchema = z.object({
   reasoning: reasoningCapabilitySchema,
   sampling: samplingCapabilitySchema,
@@ -300,12 +309,20 @@ export const generationCapabilitySchema = z.object({
    *  prose on this (model × wire) — local vLLM's Qwen3-VL wrote 0 chars on 36/36 tool-attached turns. Absent
    *  `silencesProse` ⇒ the wire CO-EMITS (the hosted 6/6). Read through `coEmitsProseWithTools`.
    *
-   *  `forcedChoice: false` = the model REJECTS a forced tool choice (`required`/`tool` — Anthropic's `any`/`tool`)
-   *  with a 400, so a wire downgrades it to `auto` and the structured vehicle avoids the forced tool. Absent ⇒
-   *  ACCEPTED, deliberately not fail-closed: `required` is live-verified and load-bearing on the vLLM and
-   *  OpenRouter routes (the rpg state round), and only a documented model-specific refusal states `false`.
-   *  Read through `acceptsForcedToolChoice`. */
-  tools: z.object({ parallel: z.boolean(), silencesProse: z.boolean().optional(), forcedChoice: z.boolean().optional() }).optional(),
+   *  `requiredChoice: false` / `namedChoice: false` = a forced tool choice of that form (`required`, or a named
+   *  function — Anthropic's `any` / `tool`) does not reach the model as forced: Anthropic answers both with a
+   *  400, llama.cpp runs a named choice as `auto`, Ollama and KoboldCpp take neither. A wire downgrades that
+   *  form to `auto` loudly, and the structured vehicle avoids the named tool. Absent ⇒ ACCEPTED, deliberately not
+   *  fail-closed: `required` is live-verified and load-bearing on the vLLM and OpenRouter routes (the rpg state
+   *  round). Read through `acceptsRequiredToolChoice` / `acceptsNamedToolChoice`. */
+  tools: z
+    .object({
+      parallel: z.boolean(),
+      silencesProse: z.boolean().optional(),
+      requiredChoice: z.boolean().optional(),
+      namedChoice: z.boolean().optional(),
+    })
+    .optional(),
   output: z.object({
     maxTokens: rangeSchema,
     /** `maxTokens` is the kind floor's guess: no tier above it stated a cap. A surface showing it must say so. */
@@ -327,6 +344,10 @@ export const generationCapabilitySchema = z.object({
   modalitiesEstimated: z.boolean().optional(),
   moderated: z.boolean().optional(),
   turns: turnsCapabilitySchema.optional(),
+  /** The `turns` cells no evidence tier stated, so they hold {@link TURNS_FLOOR}'s fail-closed guess. A preset's
+   *  role handling is clamped only against a STATED floor (`turnsLevelFor`), and an estimated prefill cell does
+   *  not block a continue. Absent ⇒ every cell was stated. */
+  turnsEstimated: z.array(z.enum(ESTIMABLE_TURNS)).optional(),
 });
 export type GenerationCapability = z.infer<typeof generationCapabilitySchema>;
 

@@ -3,10 +3,20 @@
 // its credential by id). What this file adds is the pane's DERIVED reads. Each strict schema is its procedure's tRPC
 // output parser: an extra key fails the call instead of reaching the browser.
 
-import type { Capability, ConnectionBinding, ResolvedConnectionView, RoutableTask, Task, UnavailableCause, UserConnection } from "@orb/contracts/inference";
+import type {
+  Capability,
+  ConnectionBinding,
+  ProviderId,
+  ResolvedConnectionView,
+  RoutableTask,
+  Task,
+  UnavailableCause,
+  UserConnection,
+} from "@orb/contracts/inference";
 import {
   capabilitySchema,
   connectionBindingSchema,
+  providerIdSchema,
   resolvedConnectionViewSchema,
   routableTaskSchema,
   taskSchema,
@@ -36,6 +46,8 @@ export interface ConnectionCapabilityView {
   readonly baseline: Capability;
   readonly warnings: readonly ResolvedWarning[];
   readonly tasks: readonly Task[];
+  /** The built-in row this row's server was detected as (`features.detectServer`); absent when it reads as itself. */
+  readonly detectedProviderId?: ProviderId | undefined;
 }
 
 export const connectionCapabilityViewSchema = z.strictObject({
@@ -43,6 +55,7 @@ export const connectionCapabilityViewSchema = z.strictObject({
   baseline: capabilitySchema,
   warnings: z.array(resolvedWarningSchema).readonly(),
   tasks: z.array(taskSchema).readonly(),
+  detectedProviderId: providerIdSchema.optional(),
 }) satisfies z.ZodType<ConnectionCapabilityView>;
 
 /** One Model-roles row: the actor's binding for a task AND what a turn resolves to RIGHT NOW against the

@@ -26,6 +26,7 @@ import type { Resolved } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, ModelId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -61,6 +62,7 @@ const BYO_CREDENTIAL = castId<UserCredentialId>("user_credential_turn");
 const ROTATED_CREDENTIAL = castId<UserCredentialId>("user_credential_rotated");
 
 const ASSEMBLE_CTX: AssembleContext = {
+  timezone: UTC_TIME_ZONE,
   character: { name: "Aria", description: "a bold knight" },
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Alex", description: "the user" },

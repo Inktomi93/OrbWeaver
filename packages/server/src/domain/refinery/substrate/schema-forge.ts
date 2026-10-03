@@ -97,7 +97,11 @@ export async function resolveForgeCall(
   ctx: RefineryContext,
   ownerId: UserId,
 ): Promise<{ overrides: ProseOverrides; sampleOpts: SummarizeOptions; rc: RoleClients }> {
-  const [overrides, presetParams, rc] = await Promise.all([ctx.resolveUserProse(ownerId), ctx.resolveUserPresetParams(ownerId), ctx.roleClientsFor(ownerId)]);
+  const [overrides, presetParams, rc] = await Promise.all([
+    ctx.resolveUserProse(ownerId),
+    ctx.resolveUtilityPresetParams(ownerId),
+    ctx.roleClientsFor(ownerId),
+  ]);
   return { overrides, sampleOpts: resolveSideGenSampling(SIDE_GEN_POSTURES.schema_forge, presetParams), rc };
 }
 

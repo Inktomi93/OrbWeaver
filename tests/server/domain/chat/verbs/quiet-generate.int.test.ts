@@ -4,6 +4,7 @@
 // NOT do — commit no canon (messages / message_variants), emit no bus events, spawn no ghost — plus the reduce
 // shape (final content wins; costUsd rides economics) and failure-honesty (a throwing stream propagates).
 
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
 import type { Resolved } from "@orb/inference";
@@ -108,6 +109,18 @@ describe("quietGenerate — the verb's own contract", () => {
     await quiet(paramsOf(chatId, { intent: { temperature: 0.3 } }));
     // temperature from the caller intent (0.3); maxOutputTokens from the chat preset (2000, the caller intent left it unset).
     expect(sink.at(0)?.intent).toMatchObject({ temperature: 0.3, maxOutputTokens: 2000 });
+  });
+
+  test("only temperature, topP and output cap cross from the host's preset — never its reasoning or sampler chain", async () => {
+    const sink: TurnRequest[] = [];
+    const chatId = await seedChat(db, "qnarrow");
+    const quiet = createQuietGenerate({
+      runChatTurn: scriptedRun(sink, [{ kind: "final", economics: { content: "M", model: testModelId("m") } }]),
+      resolveChatPresetParams: () =>
+        Promise.resolve({ effort: "high", thinkingBudgetTokens: 8000, topK: 40, topP: 0.9, presencePenalty: 0.5, samplerOrder: ["topK", "temperature"] }),
+    });
+    await quiet(paramsOf(chatId, { intent: { ...SIDE_GEN_POSTURES.compaction } }));
+    expect(sink.at(0)?.intent).toEqual({ temperature: 0.3, topP: 0.9, maxOutputTokens: 1024 });
   });
 
   test("a null economics cost yields costUsd: null (a local vLLM turn reports none)", async () => {

@@ -4,7 +4,15 @@
 
 import { existsSync } from "node:fs";
 import type { EnvLine } from "@orb/contracts/identity";
-import { BARE_METAL_ENV_FILE, COMPOSE_UP_COMMAND, CONTAINER_ENV_FILE, ENVIRONMENT_BLOCK_WINS, envFileText, SETUP_COMMAND } from "@orb/contracts/identity";
+import {
+  BARE_METAL_ENV_FILE,
+  COMPOSE_UP_COMMAND,
+  CONTAINER_ENV_FILE,
+  ENVIRONMENT_BLOCK_WINS,
+  envFileText,
+  OVERLAY_PINNED_KEYS,
+  SETUP_COMMAND,
+} from "@orb/contracts/identity";
 
 /** The marker files a container runtime writes: Docker (Engine and Desktop), then Podman. containerd and CRI-O write
  *  neither, which is why the image also declares itself. */
@@ -23,15 +31,18 @@ export function runsInContainer(declared: boolean, exists: (path: string) => boo
 /** How to set `lines` on this install: a lowercase clause ending in a colon, then each line indented on its own line,
  *  so a pasted line never carries its neighbours. A container takes them in its own env file (it reads no `.env` from
  *  the checkout) and needs `docker compose up -d`, because a plain restart keeps the environment it was created with,
- *  and an `environment:` block outranks the file; bare metal leads with setup. */
+ *  and an `environment:` block outranks the file; bare metal leads with setup. A container fix names the host-network
+ *  overlay only when `lines` carry a key the overlay pins, since the overlay overrides no other key. */
 export function settingInstruction(inContainer: boolean, lines: readonly EnvLine[]): string {
   const block = envFileText(lines)
     .split("\n")
     .map((line) => `  ${line}`)
     .join("\n");
-  return inContainer
-    ? `add these lines to ${CONTAINER_ENV_FILE}, then run ${COMPOSE_UP_COMMAND}:\n${block}\n${ENVIRONMENT_BLOCK_WINS}`
-    : `run ${SETUP_COMMAND}, or add these lines to ${BARE_METAL_ENV_FILE} and restart:\n${block}`;
+  if (!inContainer) {
+    return `run ${SETUP_COMMAND}, or add these lines to ${BARE_METAL_ENV_FILE} and restart:\n${block}`;
+  }
+  const overlayPins = lines.some(([key]) => OVERLAY_PINNED_KEYS.includes(key));
+  return `add these lines to ${CONTAINER_ENV_FILE}, then run ${COMPOSE_UP_COMMAND}:\n${block}${overlayPins ? `\n${ENVIRONMENT_BLOCK_WINS}` : ""}`;
 }
 
 /** The shell command that prints the file at absolute `path` on this install. A boot secret is named by this

@@ -265,8 +265,8 @@ test("a run whose own preset cap sits under its payload is REFUSED with the fit 
 
   // The caller's explicit cap, one token under what the surface already told them the run needs.
   const cap = need - 1;
-  const ctx = h.ctx as { resolveUserPresetParams: (userId: unknown) => Promise<SideGenSampling> };
-  ctx.resolveUserPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: cap });
+  const ctx = h.ctx as { resolveUtilityPresetParams: (userId: unknown) => Promise<SideGenSampling> };
+  ctx.resolveUtilityPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: cap });
 
   // NOTHING is queued on the summarize tape: an under-scripted call throws LOUD, so a refusal that still
   // reached the model would fail here with the tape's own error instead of the typed refusal.
@@ -285,7 +285,7 @@ test("a run whose own preset cap sits under its payload is REFUSED with the fit 
 
   // …AND THE ARM IS NARROW. A cap AT the need fits, and the same run then goes through — so the refusal is
   // a statement about the caller's own number, never a new floor under every run.
-  ctx.resolveUserPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: need });
+  ctx.resolveUtilityPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: need });
   h.queueReply(scoreReply());
   const run = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" });
   expect(run.stage).toBe("score");

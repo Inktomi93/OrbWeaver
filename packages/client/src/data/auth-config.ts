@@ -43,7 +43,7 @@ export interface AuthConfig {
    *  it honestly instead of shipping a dead switch. */
   readonly forbidExternalMedia: boolean;
   /** The deployment HTML-trust DEFAULT — the other axis of the render-policy floor. NOT a ceiling: a card's
-   *  own `trustHtml` override wins in either direction (`resolveRenderPolicy`, D294 §12.2). A surface that
+   *  own `trustHtml` override wins in either direction (`resolveRenderPolicy`, docs/law/UI-Theming-and-Content.md §12.2). A surface that
    *  previews card content combines this with the card's override instead of reading the override alone. */
   readonly trustHtml: boolean;
   /** The deployment INTERACTIVE-CARD ceiling, floor TRUE, and the rung an "Inherit default" character

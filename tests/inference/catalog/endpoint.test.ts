@@ -5,6 +5,14 @@ import { expect, test } from "../../support/fixtures.ts";
 import type { LocalServerArm } from "./_local-servers-fetch.ts";
 import { localServerFetch } from "./_local-servers-fetch.ts";
 
+/** The window, kind, width, modality, tools and structured facts this suite pins; the newer per-server facts
+ *  (defaults, template caps, prefill, tool choice) are `endpoint-facts.test.ts`'s. */
+const PINNED_KEYS = ["id", "contextLength", "contextFloor", "contextTrained", "kind", "embeddingDims", "input", "tools", "structured"] as const;
+
+function pinned(rows: readonly EndpointModel[]): Partial<EndpointModel>[] {
+  return rows.map((row) => Object.fromEntries(PINNED_KEYS.filter((key) => row[key] !== undefined).map((key) => [key, row[key]])));
+}
+
 test("endpoint catalog fetch normalizes model ids and the supported context-window spellings", async () => {
   const requests: Array<{ readonly input: string; readonly init: RequestInit | undefined }> = [];
   const fetchImpl = (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
@@ -98,7 +106,7 @@ test("an Ollama row states only a pinned window, and assumes the default floor f
     },
     seen,
   );
-  expect(rows).toEqual([
+  expect(pinned(rows)).toEqual([
     { id: "pinned:8b", contextLength: 16_384, contextTrained: 131_072, structured: true },
     { id: "loaded-wide:8b", contextLength: null, contextFloor: 4096, contextTrained: 131_072, structured: true },
     { id: "loaded-narrow:8b", contextLength: null, contextFloor: 2048, contextTrained: 131_072, structured: true },
@@ -121,10 +129,29 @@ test("an Ollama window, pinned or assumed, is clamped to a trained maximum below
     },
     loaded: [],
   });
-  expect(rows).toEqual([
+  expect(pinned(rows)).toEqual([
     { id: "pinned-past-trained:8b", contextLength: 8192, contextTrained: 8192, structured: true },
     { id: "floor-past-trained:1b", contextLength: null, contextFloor: 2048, contextTrained: 2048, structured: true },
     { id: "pinned-within-trained:8b", contextLength: 16_384, contextTrained: 131_072, structured: true },
+  ]);
+});
+
+// A multimodal model's `model_info` carries a `*.context_length` per component (the vision tower beside the text
+// model), in no promised order. The key under `general.architecture` is the model's own.
+test("the trained window is the model's own architecture key, not whichever *.context_length comes first", async () => {
+  const rows = await readOllama({
+    version: "0.35.1",
+    shows: {
+      "vision:8b": {
+        ["model_info"]: { ["clip.context_length"]: 77, ["general.architecture"]: "gemma3", ["gemma3.context_length"]: 131_072 },
+      },
+      "no-arch:8b": { ["model_info"]: { ["llama.context_length"]: 8192 } },
+    },
+    loaded: [],
+  });
+  expect(rows.map((row) => [row.id, row.contextTrained])).toEqual([
+    ["vision:8b", 131_072],
+    ["no-arch:8b", 8192],
   ]);
 });
 
@@ -189,7 +216,7 @@ function readArm(
 
 test("Ollama: each model's capabilities state its kind, modalities and tools; the version states structured output", async () => {
   const { rows, warnings } = readArm("ollama", "ollama");
-  await expect(rows).resolves.toEqual([
+  expect(pinned(await rows)).toEqual([
     // An embedder: its kind and width, nothing a chat model would state. Its Modelfile pins 8192, but the GGUF
     // was trained at 2048 (`nomic-bert.context_length`), and Ollama clamps the pin to that at load.
     { id: "nomic-embed-text:latest", contextLength: 2048, contextTrained: 2048, kind: "embedding", embeddingDims: 768, structured: true },
@@ -216,7 +243,7 @@ test("Ollama: a build without `capabilities` states no kind, modalities or tools
     "api-version": { version: "0.4.9" },
     "api-show-qwen2.5-0.5b": { model_info: { "qwen2.context_length": 32_768, "qwen2.embedding_length": 896 } },
   });
-  const qwen = (await rows).find((row) => row.id === "qwen2.5:0.5b");
+  const qwen = pinned(await rows).find((row) => row.id === "qwen2.5:0.5b");
   expect(qwen).toEqual({ id: "qwen2.5:0.5b", contextLength: null, contextFloor: 2048, contextTrained: 32_768, embeddingDims: 896, structured: false });
   // No version answer at all: structured stays unstated rather than false.
   const silent = await readArm("ollama", "ollama", { "api-version": undefined }).rows;
@@ -224,21 +251,33 @@ test("Ollama: a build without `capabilities` states no kind, modalities or tools
 });
 
 test("llama.cpp: `/props` states the loaded modalities and the template's tool support for the one model it serves", async () => {
-  await expect(readArm("llamacpp-chat", "llama-cpp").rows).resolves.toEqual([
-    { id: "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf", contextLength: 4096, embeddingDims: 896, input: ["text"], tools: { parallel: true }, structured: true },
+  expect(pinned(await readArm("llamacpp-chat", "llama-cpp").rows)).toEqual([
+    {
+      id: "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+      contextLength: 4096,
+      contextTrained: 32_768,
+      input: ["text"],
+      tools: { parallel: true },
+      structured: true,
+    },
   ]);
   // A projector loaded, a template that cannot render tools: image input stated, tools absent.
-  await expect(readArm("llamacpp-vision", "llama-cpp").rows).resolves.toEqual([
-    { id: "/models/SmolVLM-256M-Instruct-Q8_0.gguf", contextLength: 4096, embeddingDims: 576, input: ["text", "image", "video"], structured: true },
-  ]);
-  // An embedder: its width from the list's `meta`.
-  await expect(readArm("llamacpp-embed", "llama-cpp").rows).resolves.toMatchObject([
-    { id: "/models/nomic-embed-text-v1.5.Q8_0.gguf", contextLength: 2048, embeddingDims: 768 },
+  expect(pinned(await readArm("llamacpp-vision", "llama-cpp").rows)).toEqual([
+    { id: "/models/SmolVLM-256M-Instruct-Q8_0.gguf", contextLength: 4096, contextTrained: 8192, input: ["text", "image", "video"], structured: true },
   ]);
 });
 
+// `meta.n_embd` is the model's hidden size on every row, chat models included (896 on the Qwen chat model, 576 on
+// SmolVLM). It was read as an embedding width; a width now comes only from a vector the server returned.
+test("llama.cpp: `meta.n_embd` is never an embedding width, on a chat row or an embedder's", async () => {
+  for (const arm of ["llamacpp-chat", "llamacpp-vision", "llamacpp-embed"] as const) {
+    const rows = await readArm(arm, "llama-cpp").rows;
+    expect(rows[0]?.embeddingDims, arm).toBeUndefined();
+  }
+});
+
 test("llama.cpp: the router's bare `/props` describes no model, so each row keeps its own modalities and tools stay unstated", async () => {
-  await expect(readArm("llamacpp-router", "llama-cpp").rows).resolves.toEqual([
+  expect(pinned(await readArm("llamacpp-router", "llama-cpp").rows)).toEqual([
     { id: "qwen2.5-0.5b-instruct-q4_k_m", contextLength: null, input: ["text"], structured: true },
     { id: "smolvlm-256m", contextLength: null, input: ["text", "image"], structured: true },
   ]);
@@ -252,22 +291,28 @@ test("llama.cpp: a template that describes tools but cannot render a call states
       build_info: "b2000-abc",
     },
   }).rows;
-  expect(partial[0]).toEqual({ id: "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf", contextLength: 4096, embeddingDims: 896, input: ["text"], structured: false });
+  expect(pinned(partial)[0]).toEqual({
+    id: "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf",
+    contextLength: 4096,
+    contextTrained: 32_768,
+    input: ["text"],
+    structured: false,
+  });
   const silent = readArm("llamacpp-chat", "llama-cpp", { props: undefined });
-  expect(await silent.rows).toEqual([{ id: "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf", contextLength: 4096, embeddingDims: 896 }]);
+  expect(await silent.rows).toEqual([{ id: "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf", contextLength: 4096, contextTrained: 32_768 }]);
   expect(silent.warnings).toHaveLength(1);
 });
 
 test("KoboldCpp: the version states the projector and structured output; tools stay unstated", async () => {
-  await expect(readArm("kobold-chat", "koboldcpp").rows).resolves.toEqual([
-    { id: "koboldcpp/qwen2.5-0.5b-instruct-q4_k_m", contextLength: 4096, input: ["text"], structured: true },
+  expect(pinned(await readArm("kobold-chat", "koboldcpp").rows)).toEqual([
+    { id: "koboldcpp/qwen2.5-0.5b-instruct-q4_k_m", contextLength: 4096, kind: "generation", input: ["text"], structured: true },
   ]);
-  await expect(readArm("kobold-vision", "koboldcpp").rows).resolves.toEqual([
-    { id: "koboldcpp/SmolVLM-256M-Instruct-Q8_0", contextLength: 4096, input: ["text", "image"], structured: true },
+  expect(pinned(await readArm("kobold-vision", "koboldcpp").rows)).toEqual([
+    { id: "koboldcpp/SmolVLM-256M-Instruct-Q8_0", contextLength: 4096, kind: "generation", input: ["text", "image"], structured: true },
   ]);
-  // Below the structured-output floor, and a version string the floor cannot read.
+  // Below the structured-output floor, and a version string the floor cannot read (neither states `llm`).
   const old = await readArm("kobold-chat", "koboldcpp", { "api-extra-version": { version: "1.89", vision: false } }).rows;
-  expect(old[0]).toEqual({ id: "koboldcpp/qwen2.5-0.5b-instruct-q4_k_m", contextLength: 4096, input: ["text"], structured: false });
+  expect(pinned(old)[0]).toEqual({ id: "koboldcpp/qwen2.5-0.5b-instruct-q4_k_m", contextLength: 4096, input: ["text"], structured: false });
   const unreadable = await readArm("kobold-chat", "koboldcpp", { "api-extra-version": { version: "concedo", vision: true } }).rows;
-  expect(unreadable[0]).toEqual({ id: "koboldcpp/qwen2.5-0.5b-instruct-q4_k_m", contextLength: 4096, input: ["text", "image"] });
+  expect(pinned(unreadable)[0]).toEqual({ id: "koboldcpp/qwen2.5-0.5b-instruct-q4_k_m", contextLength: 4096, input: ["text", "image"] });
 });

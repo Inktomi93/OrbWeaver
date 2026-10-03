@@ -30,16 +30,21 @@ export function createRemove(ctx: CharacterContext): CharacterService["remove"] 
       }
     }
 
-    await ctx.audit(
-      {
-        actorUserId: ownerId,
-        action: "character.remove",
-        entityType: "character",
-        entityId: characterId,
-        metadata: { handle },
-      },
-      at,
-    );
-    ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId });
+    // The delete has committed, so the owner's feed is told even when the audit rejects: the caches keyed on the
+    // owner's card set (the lexical index) drop the deleted card, and the failed audit still reaches the caller.
+    try {
+      await ctx.audit(
+        {
+          actorUserId: ownerId,
+          action: "character.remove",
+          entityType: "character",
+          entityId: characterId,
+          metadata: { handle },
+        },
+        at,
+      );
+    } finally {
+      ctx.emitUserEvent(ownerId, { type: "charactersChanged", characterId });
+    }
   };
 }

@@ -91,10 +91,9 @@ type WriteHubScores = EmbeddingsService["writeHubScores"];
  *  acting user (a bulk pass), never a box owner (inference program §7.5-2). */
 type RoleClientsFor = (funderUserId: UserId) => Promise<RoleClients>;
 
-/** The side-gen sampling ladder's middle rung — a user's default-preset generation params, resolved at the
- *  entry root (the caller of distill/analyze is the card owner). Bound type-only here (discovery never reads
- *  the preset domain); the runtime resolver is wired at compose. */
-type ResolveUserPresetParams = (userId: UserId) => Promise<SideGenSampling>;
+/** A user's Utility-role preset params (D299), `undefined` under task defaults, resolved at the entry root
+ *  (the caller of distill/analyze is the card owner). Discovery never reads the preset domain. */
+type ResolveUtilityPresetParams = (userId: UserId) => Promise<SideGenSampling | undefined>;
 
 /** The card owner's model-facing PROSE overrides (PROSE-1 §4.3) — `UserSettings.prose`, resolved at the entry
  *  root off the SAME `loadUserSettings` seam the sampling rung reads. CALLER-scoped, not room-host-scoped
@@ -134,8 +133,8 @@ export interface ComputeThemesDeps {
   readonly now: () => number;
   readonly newThemeClusterId: () => ThemeClusterId;
   readonly roleClientsFor: RoleClientsFor;
-  /** The funder's default-preset params — the `theme_name` posture's middle rung (§7.5-3 arm ii). */
-  readonly resolveUserPresetParams: ResolveUserPresetParams;
+  /** The funder's Utility-role preset params, folded over the `theme_name` posture (§7.5-3 arm ii). */
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   /** Threaded into the tier-k `msgMidAt` backfill `computeThemes` runs after every replace. */
   readonly tier0RangeOf: Tier0RangeOp;
 }
@@ -177,11 +176,11 @@ export interface DistillCharactersDeps {
    *  pass, never a boot-frozen string, so a row is labelled with the model that actually wrote it. */
   readonly roleClientsFor: RoleClientsFor;
   readonly attachCardTagByName: AttachCardTagByName;
-  /** The card owner's default-preset params (the side-gen sampling ladder's middle rung). The whole-library
-   *  batch has no single owner ⇒ the floor stands; the on-demand single-card pass folds `opts.ownerId`'s. */
-  readonly resolveUserPresetParams: ResolveUserPresetParams;
-  /** The card owner's prose overrides — the distill system prompt. Same ownerless-batch rule as the params
-   *  rung: a mixed-owner run resolves nothing and ships the default prompt. */
+  /** The card owner's Utility-role preset params. The whole-library batch has no single owner ⇒ the posture
+   *  stands; the on-demand single-card pass folds `opts.ownerId`'s. */
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
+  /** The card owner's prose overrides — the distill system prompt. Same ownerless-batch rule as the preset
+   *  params: a mixed-owner run resolves nothing and ships the default prompt. */
   readonly resolveUserProse: ResolveUserProse;
 }
 
@@ -195,8 +194,8 @@ export interface DiscoveryContext {
   readonly newThemeClusterId: () => ThemeClusterId;
   readonly roleClientsFor: RoleClientsFor;
   readonly attachCardTagByName: AttachCardTagByName;
-  /** The side-gen sampling ladder's middle rung — the card owner's default-preset params (distill + analyze). */
-  readonly resolveUserPresetParams: ResolveUserPresetParams;
+  /** The card owner's Utility-role preset params (distill + analyze). */
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   /** The card owner's PROSE-1 overrides — the compare / ask / distill system prompts (distill + analyze). */
   readonly resolveUserProse: ResolveUserProse;
   readonly writeHubScores: WriteHubScores;

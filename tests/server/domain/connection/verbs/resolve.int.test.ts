@@ -56,6 +56,23 @@ describe("resolveChatCapability — the target", () => {
   });
 });
 
+describe("tokenizeWords — the logit-bias editor's word lookup", () => {
+  test("it reads the same target as the capability read: a server with no tokenize endpoint answers unavailable, and another user's row reads NOT FOUND", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const other = await seedOwner(db, "user_b");
+    const mine = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "m" });
+    const theirs = await h.svc.create({ principal: other.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "m" });
+    await h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: mine.id });
+
+    expect(await h.svc.tokenizeWords({ principal: owner.principal, words: ["Elara"] })).toEqual({ available: false, words: [] });
+    await expect(
+      h.svc.tokenizeWords({ principal: owner.principal, target: { kind: "connection", connectionId: theirs.id }, words: ["Elara"] }),
+    ).rejects.toMatchObject({ code: CONNECTION_OP_CODES.notFound });
+  });
+});
+
 describe("resolve / availability", () => {
   test("an unbound task throws on resolve and reads `no-connection` on availability — never a born default", async () => {
     const db = await freshDb();

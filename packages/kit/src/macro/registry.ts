@@ -27,17 +27,17 @@ const COMPARATOR = /^(.+?)\s*(==|!=)\s*(.+)$/;
 const DICE_SPEC = /^(\d*)d(\d+)$/;
 const PLAIN_INT = /^\d+$/;
 
-// Honors a per-request IANA `ctx.timezone` (the browser's); an absent/invalid zone falls back to
-// server-local (Luxon's default zone, respects container `TZ`).
+// Honors a per-request IANA `ctx.timezone` (the browser's); an absent/invalid zone falls back to UTC, never the
+// server's own zone, so the same prompt renders the same on any host.
 function nowInZone(ctx: MacroContext): DateTime {
   // `ctx.nowMs` pins the clock when supplied — the single source of "now" (deterministic freeze).
-  const base = ctx.nowMs !== undefined ? DateTime.fromMillis(ctx.nowMs) : DateTime.now();
+  const base = (ctx.nowMs !== undefined ? DateTime.fromMillis(ctx.nowMs) : DateTime.now()).toUTC();
   if (ctx.timezone !== undefined && ctx.timezone !== "") {
     const zoned = base.setZone(ctx.timezone);
     if (zoned.isValid) {
       return zoned;
     }
-    ctx.onWarn?.(`macro: invalid timezone "${ctx.timezone}" — falling back to server-local`);
+    ctx.onWarn?.(`macro: invalid timezone "${ctx.timezone}" — falling back to UTC`);
   }
   return base;
 }
@@ -610,7 +610,7 @@ function registerVolatileMacros(registry: SimpleMacroRegistry): void {
   };
   reg("random", randomHandler);
   reg("pick", pickHandler);
-  // Locale-independent clock formats. Zone = ctx.timezone (browser) → server-local fallback. Volatile —
+  // Locale-independent clock formats. Zone = ctx.timezone (browser) → UTC fallback. Volatile —
   // every render is a different "now" → static-half occurrences bust the cached prefix.
   reg("time", (_args, ctx) => nowInZone(ctx).toFormat("HH:mm:ss"));
   reg("date", (_args, ctx) => nowInZone(ctx).toFormat("yyyy-MM-dd"));

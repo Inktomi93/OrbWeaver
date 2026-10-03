@@ -31,7 +31,7 @@ export async function resolveCharacterDisplay(db: ReadOnlyDb, ownerId: UserId, c
     .from(characters)
     .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
     .leftJoin(characterSummaries, eq(characterSummaries.characterId, characters.id))
-    .where(and(eq(characters.ownerId, ownerId), inArray(characters.id, [...characterIds])));
+    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), inArray(characters.id, [...characterIds])));
   return rows;
 }
 

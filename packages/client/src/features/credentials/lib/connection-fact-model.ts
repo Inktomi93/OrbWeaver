@@ -26,6 +26,7 @@
 
 import type { DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
 import {
+  BANNED_STRINGS_SPELLINGS,
   EFFORT_SPELLINGS,
   foldFeatures,
   IMAGE_ARMS,
@@ -33,9 +34,12 @@ import {
   NATIVE_CHAT_APIS,
   OUTPUT_CAP_FIELDS,
   PREFILL_MODES,
+  REASONING_BUDGET_FIELDS,
   SAMPLER_KNOBS,
   SAMPLER_ORDER_SPELLINGS,
   STRICT_JSON_MODES,
+  THINKING_OFF_SPELLINGS,
+  TOKENIZE_APIS,
 } from "@orb/contracts/inference";
 
 /** Digit grouping for a COUNT. Deliberately not `toLocaleString`/`Intl`: these are token counts and vector
@@ -287,6 +291,7 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   rerankPath: ["rerankPath"],
   modelInfoApi: ["modelInfoApi"],
   nativeChat: ["nativeChat"],
+  detectServer: ["detectServer"],
   sleep: ["sleep.isSleepingPath", "sleep.wakePath"],
   pricing: ["pricing.inputPerMTok", "pricing.outputPerMTok"],
   concurrency: ["concurrency.embed", "concurrency.imageEmbed", "concurrency.summarize"],
@@ -294,6 +299,12 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   requestTimeoutMs: ["requestTimeoutMs"],
   samplerKeys: SAMPLER_KNOBS.map((knob) => `samplerKeys.${knob}`),
   samplerOrder: ["samplerOrder"],
+  bannedStrings: ["bannedStrings"],
+  tokenizeApi: ["tokenizeApi"],
+  reasoningBudgetField: ["reasoningBudgetField"],
+  keepAlive: ["keepAlive"],
+  numBatch: ["numBatch"],
+  thinkingOff: ["thinkingOff"],
 };
 
 // A sampler's plain name from its key ("repetitionPenaltyRange" → "repetition penalty range").
@@ -319,6 +330,7 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
   { path: "rerankPath", name: "rerank path", edit: { kind: "text" }, unset: "not set — no reranking" },
   { path: "modelInfoApi", name: "model info API", edit: { kind: "enum", options: MODEL_INFO_APIS }, unset: NOT_SET },
   { path: "nativeChat", name: "native chat route", edit: { kind: "enum", options: NATIVE_CHAT_APIS }, unset: "not set — chat uses /v1" },
+  { path: "detectServer", name: "detect the server", edit: { kind: "boolean" }, unset: NOT_SET },
   { path: "sleep.isSleepingPath", name: "sleep check path", edit: { kind: "text" } },
   { path: "sleep.wakePath", name: "wake path", edit: { kind: "text" } },
   { path: "pricing.inputPerMTok", name: "price in", edit: { kind: "number" }, format: perMillionTokens },
@@ -341,6 +353,17 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
     unset: NOT_SET,
   },
   { path: "samplerOrder", name: "sampler order vocabulary", edit: { kind: "enum", options: SAMPLER_ORDER_SPELLINGS }, unset: NOT_SET },
+  { path: "bannedStrings", name: "banned phrases form", edit: { kind: "enum", options: BANNED_STRINGS_SPELLINGS }, unset: "not set — a phrase list" },
+  { path: "tokenizeApi", name: "tokenize endpoint", edit: { kind: "enum", options: TOKENIZE_APIS }, unset: "not set — logit bias takes token ids only" },
+  {
+    path: "reasoningBudgetField",
+    name: "thinking budget field",
+    edit: { kind: "enum", options: REASONING_BUDGET_FIELDS },
+    unset: "not set — no thinking budget",
+  },
+  { path: "keepAlive", name: "keep model loaded for", edit: { kind: "text" }, unset: "not set — the server's default" },
+  { path: "numBatch", name: "prompt batch size", edit: { kind: "number" }, unset: "not set — the server's default" },
+  { path: "thinkingOff", name: "thinking off switch", edit: { kind: "enum", options: THINKING_OFF_SPELLINGS }, unset: NOT_SET },
   // One row per spelling the row states; a server that reads the default key needs none.
   ...SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),
 ];

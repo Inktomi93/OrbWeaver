@@ -60,10 +60,21 @@ export async function assertAdmissible<K extends WorkloadKind>(
   params: WorkloadParamsByKind[K],
   ownerId: UserId | null,
 ): Promise<void> {
-  const refusal = await contributions[kind].admit?.({ ownerId, params });
-  if (refusal !== undefined && refusal !== null) {
+  const refusal = await admissionRefusal(contributions, kind, params, ownerId);
+  if (refusal !== null) {
     throw new DomainOperationError(WORKLOAD_NOT_ADMISSIBLE, refusal);
   }
+}
+
+/** The owning domain's refusal sentence for a run, or `null` when it would be admitted. The call estimate reads it
+ *  too, so a count is never shown for a run the enqueue door would turn away. */
+export async function admissionRefusal<K extends WorkloadKind>(
+  contributions: WorkloadContributions,
+  kind: K,
+  params: WorkloadParamsByKind[K],
+  ownerId: UserId | null,
+): Promise<string | null> {
+  return (await contributions[kind].admit?.({ ownerId, params })) ?? null;
 }
 
 /** The OWNING domain's count of the Utility-model calls a run would make (`WorkloadContribution.modelCalls`);

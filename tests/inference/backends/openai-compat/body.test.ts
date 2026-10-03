@@ -25,6 +25,7 @@ function args(overrides: Partial<ShapeArgs> = {}): ShapeArgs & { readonly warnin
     transport: null,
     dialect: "openai-compatible",
     prefillAllowed: false,
+    thinkingOff: false,
     foldSameRole: false,
     replyImages: false,
     warnings: [],
@@ -215,6 +216,21 @@ test("prefill pair only when the row, the capability and the array all agree; th
   const quiet = args({ plan: ends, features: CONTINUE, prefillAllowed: true, extras: { chat_template_kwargs: { enable_thinking: false } } });
   shapeOutboundBody(RAW, quiet);
   expect(quiet.warnings).toEqual([]);
+});
+
+const KWARGS_OFF: EndpointFeatures = { ...SPELLS_EFFORT, thinkingOff: "chat_template_kwargs" };
+
+test("a reasoning-off turn tells the template not to think, keeping the user's own kwargs from extras and includeBody", () => {
+  const fromExtras = shapeOutboundBody(RAW, args({ features: KWARGS_OFF, thinkingOff: true, extras: { chat_template_kwargs: { custom_flag: "x" } } }));
+  expect(fromExtras["chat_template_kwargs"]).toEqual({ custom_flag: "x", enable_thinking: false });
+  const fromInclude = shapeOutboundBody(
+    RAW,
+    args({ features: KWARGS_OFF, thinkingOff: true, transport: { includeBody: { chat_template_kwargs: { documents: [] } } } }),
+  );
+  expect(fromInclude["chat_template_kwargs"]).toEqual({ documents: [], enable_thinking: false });
+  // On (or unset) sends nothing new, and a row with no template switch is left alone.
+  expect("chat_template_kwargs" in shapeOutboundBody(RAW, args({ features: KWARGS_OFF, thinkingOff: false }))).toBe(false);
+  expect("chat_template_kwargs" in shapeOutboundBody(RAW, args({ features: { ...KWARGS_OFF, thinkingOff: "none" }, thinkingOff: true }))).toBe(false);
 });
 
 test("replyImages spells modalities; an effort the row cannot spell is stripped with effort_dropped", () => {

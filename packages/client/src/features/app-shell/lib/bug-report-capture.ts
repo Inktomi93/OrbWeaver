@@ -25,7 +25,13 @@ import { readAgentDebugHandle } from "../../../lib/agent-bridge.ts";
 import type { ThemeObservableRead } from "../../../lib/appearance-carrier-manifest.ts";
 import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "../../../lib/appearance-carrier-manifest.ts";
 import type { BugReportClientBundle, BugReportEnvironment, BugReportRoute } from "../../../lib/bug-report-bundle.ts";
-import { bugReportRouteFrom, buildBugReportClientBundle, FLAGS_UNFILTERABLE_REASON, RENDERS_UNFILTERABLE_REASON } from "../../../lib/bug-report-bundle.ts";
+import {
+  bugReportRouteFrom,
+  buildBugReportClientBundle,
+  clipCapturedText,
+  FLAGS_UNFILTERABLE_REASON,
+  RENDERS_UNFILTERABLE_REASON,
+} from "../../../lib/bug-report-bundle.ts";
 import { consoleErrorRing } from "../../../lib/console-error-ring.ts";
 
 /** The route the debug capture POSTs to — the same same-origin, gate-behind-`/api/_debug` idiom
@@ -66,7 +72,7 @@ function readRoute(shell: unknown): BugReportRoute {
 const THEME_SIGNAL_READERS: Record<ThemeObservableRead, (element: HTMLElement, signal: string) => string | null> = {
   attribute: (element, signal) => element.getAttribute(signal),
   "computed-style": (element, signal) => getComputedStyle(element).getPropertyValue(signal).trim(),
-  "text-content": (element) => element.textContent,
+  "text-content": (element) => clipCapturedText(element.textContent),
 };
 
 /** Every DOM-observable appearance and theme carrier, read off the live document. DERIVED from the carrier

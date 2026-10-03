@@ -6,7 +6,7 @@
 // `version` — a workspace manifest nobody bumps, permanently `0.0.0` — while the release number the owner
 // tags lives in the ROOT manifest. Two homes for one concept, and the wrong one was the one the tracer and
 // the `/api/_debug/config` probe reported. Both now read `#foundation/version`, the single derivation that
-// also answers `/healthz`, the boot line, the bug bundle and Settings → About.
+// also answers `/healthz`, the boot line, the bug bundle and Settings → This install.
 
 import { ORBWEAVER_REPO_URL } from "@orb/kit/version-identity";
 

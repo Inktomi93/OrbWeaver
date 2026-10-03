@@ -57,7 +57,7 @@ export const characters = sqliteTable(
     // external media" setting is an ABSOLUTE ceiling, so a stored `false` only takes effect while the
     // deployment itself allows external media. It is a restriction knob, never an escalation.
     forbidExternalMedia: integer("forbid_external_media", { mode: "boolean" }),
-    // D294 §12.2 render-trust override, the render step of the html-trust ladder. Tri-state: null = inherit the deployment
+    // docs/law/UI-Theming-and-Content.md §12.2 render-trust override, the render step of the html-trust ladder. Tri-state: null = inherit the deployment
     // default, true = this character's card/message HTML is TRUSTED (rich HTML render), false =
     // force untrusted. Same tri-state SHAPE as `forbidExternalMedia`, but it resolves `override ?? global`
     // (a card-level escalation IS the design here — the deployment value is a default, not a ceiling).

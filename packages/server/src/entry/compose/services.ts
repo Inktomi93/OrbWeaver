@@ -417,7 +417,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     versionIdentity,
     // The manual update check's one GET. Wired here (never imported by the domain) so the egress belt stays
     // on this side of the tier line, exactly like `materializeBackground` above it.
-    probeUpstream: createUpstreamProbes({ localVersion: () => versionIdentity().version }),
+    probeUpstream: createUpstreamProbes({ localVersion: () => versionIdentity().version, now }),
     publishPrivateEndpointAllowlist,
   };
   // The workload contribution registry is assembled LAST (it spans every owning domain, chat included) but
@@ -717,11 +717,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     publish();
   };
 
-  // The side-gen sampling ladder's MIDDLE rung (WHICH preset's params a side-gen call reads) — ONE home so
-  // every side-gen consumer resolves the caller/chat preset params the same way. `preset` composes below (the
-  // search-discovery seam), so its `get` is a request-time forward-ref (the `getPreset` precedent — derefed only
-  // when a side-gen call fires, never at boot). `resolveChatHostUserId` is the chat's PRESENT host (role='host',
-  // leftSeq NULL) — the room authority whose preset a chat-scoped side-gen reads.
+  // The chat's PRESENT host (role='host', leftSeq NULL) — the room authority a room picture runs as.
   const resolveChatHostUserId = async (chatId: ChatId): Promise<UserId | null> => {
     const rows = await db
       .select({ userId: chatParticipants.userId })
@@ -730,10 +726,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       .limit(1);
     return rows.at(0)?.userId ?? null;
   };
-  const { resolveUserPresetParams, resolveChatPresetParams } = buildSideGenParams({
+  // WHICH preset a Utility-role background task reads (D299) — one home for every side-gen consumer. `preset`
+  // composes below (the search-discovery seam), so its `get` is a request-time forward-ref (the `getPreset`
+  // precedent — derefed only when a side-gen call fires, never at boot).
+  const { resolveUtilityPresetParams } = buildSideGenParams({
     preset: { get: (args) => preset.get(args) },
     settings,
-    resolveChatHostUserId,
   });
 
   // ── assets + character + the two seeders (the assets-character seam). Threads the late-bound
@@ -756,7 +754,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     getPreset: () => preset,
     getPersona: () => persona,
     getLorebookImport: () => worldInfoCompose.importWorldInfo,
-    resolveUserPresetParams,
+    resolveUtilityPresetParams,
   });
   const { assets, character, galleryCtx, characterSeeder, personaSeeder, backgroundSeeder, characterOwned } = assetsCharacter;
   // Now that `assets` exists, rebind the real materializeBackground op (the holder above forwards to it).
@@ -773,7 +771,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveEmbeddingConnection,
     eventBus,
     attachCardTagByName: tag.attachCardTagByName,
-    resolveUserPresetParams,
+    resolveUtilityPresetParams,
     character,
     assets,
     settings,
@@ -812,7 +810,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     roleClientsFor,
     character,
-    resolveUserPresetParams,
+    resolveUtilityPresetParams,
     loadUserSettings: settings.loadUserSettings,
   });
 
@@ -861,8 +859,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveHostPrincipal: resolveFunderPrincipal,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
     resolveViewerVisibility: (chatId, userId) => resolveViewerVisibility(chatId, userId),
-    resolveUserPresetParams,
-    resolveChatPresetParams,
+    resolveUtilityPresetParams,
     // IMGMAC — the imagery mode templates' user-macro plane, from BOTH authoring homes. Late-bound for the
     // same reason `resolveViewerVisibility` is: chat and rpg both compose below, and this arrow is only
     // called at request time. Handed UNMERGED — the shadow policy is chat's law (`buildTurnUserMacros`).
@@ -932,6 +929,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // is what keeps this out of the late-bind shape the S4 confirmed-act runner had to take.
   const pluginMacros = createPluginMacroRegistry();
   const chatCompose = buildChatService({
+    resolveUtilityPresetParams,
     mediaProcessing: { frameCount: imageAdapter.frameCount, prepareVideo },
     toolUse,
     db,
@@ -1162,7 +1160,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // C5 — the owner-global lane's standing-authority read rides SESSIONS, the one domain that owns `users`.
     sessions,
     roleClientsFor,
-    resolveUserPresetParams,
+    resolveUtilityPresetParams,
     // #679 U8 seams 15/17 — the two canon-write ops the plugin membrane rides under the installer. databank's
     // own createFromText content-addresses + dedups + enqueues the ingest workload (the indexer).
     databankCreateFromText: databank.createFromText,

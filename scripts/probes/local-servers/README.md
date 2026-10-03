@@ -51,6 +51,12 @@ Per arm, in order:
 
 Evidence: `results/<arm>.jsonl`, one row per step, append-only.
 
+`node scripts/probes/local-servers/record-facts.ts` records what the server-detect probe and the native readers
+ask each llama.cpp and KoboldCpp arm, with the status and body each answered (a 501 or a 400 is the answer for the
+embeddings and rerank probes), into `tests/inference/catalog/_local-servers-transcripts.ts`. It needs every arm its
+header lists up, including the embedder-only, unpooled, reranker, `--no-prefill-assistant` and stock-template arms,
+and the two Qwen3.8-27B arms (`LOCAL_RIG_MEMORY=24g`), which mount the GGUF directory read-only.
+
 `node scripts/probes/local-servers/ollama-window.ts [--server-ctx=<n>]` runs the Ollama window through the
 app's own path: the connection's capability as the editor reads it, then a chat turn through the real turn
 pipeline. A fact rides the oldest history message the fit keeps, and the probe records whether the model

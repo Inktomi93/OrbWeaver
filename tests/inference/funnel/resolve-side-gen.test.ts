@@ -1,53 +1,58 @@
-// funnel/resolve-side-gen — the pure side-gen sampling resolver. Pins the TWO-rung ladder fold:
-// right-to-left (floor ← preset params — the per-template override rung was deleted, owner ruling
-// 2026-08-01), absent-skips at both rungs, and the empty-floor honesty (an all-absent result is `{}`,
-// never `undefined`-valued keys — the backend default stands).
+// funnel/resolve-side-gen — the pure fold for a background task's sampling (D299): the role's preset params win
+// per knob, the task posture fills only the knobs they leave unset, and only `ROLE_PRESET_FIELDS` ever cross.
 
+import type { UserIntent } from "@orb/contracts/preset";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveSideGenSampling } from "@orb/inference";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("floor-only: a floor with no higher rung passes through verbatim", () => {
-  expect(resolveSideGenSampling({ temperature: 0.2, maxOutputTokens: 24 })).toEqual({ temperature: 0.2, maxOutputTokens: 24 });
+test("task defaults (no preset params) run the posture alone", () => {
+  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name)).toEqual({ temperature: 0.3, maxOutputTokens: 24 });
 });
 
-test("preset params override the floor per-knob; an absent preset knob defers to the floor", () => {
-  const out = resolveSideGenSampling({ temperature: 0.2, maxOutputTokens: 24 }, { temperature: 0.9 });
-  // temperature came from the preset (0.9 wins over the floor 0.2); maxOutputTokens deferred to the floor.
-  expect(out).toEqual({ temperature: 0.9, maxOutputTokens: 24 });
+test("a preset knob wins; the posture fills only the knobs the preset leaves unset", () => {
+  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.refine_rewrite, { maxOutputTokens: 300 })).toEqual({ temperature: 0.7, maxOutputTokens: 300 });
+  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.refine_rewrite, { temperature: 1.1 })).toEqual({ temperature: 1.1, maxOutputTokens: 2048 });
 });
 
-test("the preset params are the TOP rung — nothing outranks them (no per-template override exists)", () => {
-  const out = resolveSideGenSampling({ temperature: 0.2, maxOutputTokens: 24 }, { temperature: 0.9, maxOutputTokens: 100 });
-  expect(out).toEqual({ temperature: 0.9, maxOutputTokens: 100 });
-  // The signature carries exactly two rungs — a third argument no longer exists to smuggle an override in.
-  expect(resolveSideGenSampling).toHaveLength(2);
+test("every generation param a role takes reaches the task, not just temperature, topP and output cap", () => {
+  const params: UserIntent = {
+    topK: 40,
+    minP: 0.05,
+    topA: 0.2,
+    repetitionPenalty: 1.1,
+    dryMultiplier: 0.8,
+    seed: 7,
+    logitBias: { "50256": -100 },
+    stop: ["\n\n"],
+    samplerOrder: ["temperature", "topK"],
+    adaptiveTarget: 0.6,
+    minKeep: 2,
+    bannedStrings: ["ministrations"],
+    effort: "low",
+    thinkingBudgetTokens: 2048,
+  };
+  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.distill, params)).toEqual({ ...params, temperature: 0.2, maxOutputTokens: 512 });
 });
 
-test("topP folds the same way and is carried through when present at either rung", () => {
-  expect(resolveSideGenSampling({}, { topP: 0.8 })).toEqual({ topP: 0.8 });
-  expect(resolveSideGenSampling({ topP: 0.5 }, undefined)).toEqual({ topP: 0.5 });
+test("a preset with chat-only intent leaves the task's sampling exactly as task defaults would", () => {
+  const chatOnly: UserIntent = {
+    compaction: { mode: "managed", thresholdPct: 80 },
+    replyMedia: "text+image",
+    carryReasoning: "conversation",
+    thinkingDisplay: "summarized",
+    verbosity: "high",
+    maxContextTokens: 8000,
+    providerContextCompression: true,
+    quality: "deep",
+    advanced: { squashSystemMessages: true, parallelToolCalls: false },
+    banEos: true,
+  };
+  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest, chatOnly)).toEqual(resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest));
 });
 
-test("empty floor + no rungs ⇒ {} (the caption case — the backend default stands, never undefined-valued keys)", () => {
-  const out = resolveSideGenSampling({});
-  expect(out).toEqual({});
-  expect(Object.keys(out)).toHaveLength(0);
-});
-
-test("empty floor + preset params reaches the call (the caption ladder — user params now flow through)", () => {
-  expect(resolveSideGenSampling({}, { temperature: 0.7, maxOutputTokens: 500 })).toEqual({ temperature: 0.7, maxOutputTokens: 500 });
-});
-
-test("a knob absent at EVERY rung is OMITTED from the result (never emitted as undefined)", () => {
+test("a knob absent from both sources is omitted, never emitted as undefined", () => {
   const out = resolveSideGenSampling({ temperature: 0.3 }, {});
   expect(out).toEqual({ temperature: 0.3 });
   expect("maxOutputTokens" in out).toBe(false);
-  expect("topP" in out).toBe(false);
-});
-
-test("a full UserIntent-shaped preset (a superset) folds by its sampling fields, ignoring the rest", () => {
-  // The server passes a preset's whole `params` verbatim; the resolver reads only the three sampling knobs.
-  // @orb-waive no-test-fabrication(never): deliberate superset-shaped probe — the resolver must tolerate a WIDER shape than UserIntent and ignore unknown sibling keys. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  const presetLike = { temperature: 0.6, topK: 40, seed: 7, compaction: { mode: "managed" } } as never;
-  expect(resolveSideGenSampling({ maxOutputTokens: 1024 }, presetLike)).toEqual({ temperature: 0.6, maxOutputTokens: 1024 });
 });

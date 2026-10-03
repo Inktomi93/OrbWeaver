@@ -18,6 +18,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import type { TurnEngine, TurnRequest } from "../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createTurnEngine } from "../../../../packages/server/src/domain/chat/engine/engine.ts";
@@ -38,6 +39,7 @@ const GROUP_CHAR = castId<CharacterId>("character_group");
 // (`shapeContextForSpeaker` returns the ctx UNTOUCHED when either is absent, so every posture would take
 // the same early return and the arms under test would never run). A roster of ONE is the D16 subject.
 const ASSEMBLE_CTX: AssembleContext = {
+  timezone: UTC_TIME_ZONE,
   character: { name: "Aria", description: "a bold knight" },
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Alex", description: "the user" },

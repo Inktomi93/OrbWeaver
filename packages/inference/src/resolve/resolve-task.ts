@@ -4,7 +4,8 @@
 //   2. the connection row — it must be the FUNDER's (a binding that names a stranger's row is a domain bug,
 //      refused and recorded, never served);
 //   3. the provider row from the registry, read as the row's owner (a dropped plugin provider, or one none of
-//      the owner's enabled installs contributes ⇒ `no-connection`);
+//      the owner's enabled installs contributes ⇒ `no-connection`); every FACT below reads `behaveAs`'s row
+//      (a detecting row's server), while identity and the credential stay the registered row's;
 //   4. the model's KIND: the OpenRouter catalog row → curated → the row's `declared.kind` → the task's own
 //      kind; then `connectionTasks` decides whether this row may serve the task at all;
 //   5. api coherence (data), the secret (by id, the funder's), the model id normalised (no heal);
@@ -26,12 +27,12 @@ import type {
   Task,
   UserConnection,
 } from "@orb/contracts/inference";
-import { canFund, connectionTasks, effectivePromptCache, foldFeatures, modelIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
+import { canFund, connectionTasks, effectivePromptCache, modelIdSchema, requirementMet, taskDef } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { googleModelId } from "../backends/google/model.ts";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
-import { applyEndpointPosture, clampToTrainedWindow } from "../capability/floor.ts";
+import { applyEndpointPosture, applyServerToolChoice, clampToTrainedWindow } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
 import { advertisedFromOpenAiCompat, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
@@ -44,9 +45,10 @@ import type { Mirror } from "../catalog/mirror.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
-import type { EndpointModel, SpawnIdentity } from "../contract/runtime.ts";
+import type { DetectedServer, EndpointModel, SpawnIdentity } from "../contract/runtime.ts";
 import type { BindingActor, InferenceDeps } from "../deps.ts";
 import type { ProviderRegistry } from "../registry/providers.ts";
+import { behaveAs, behavedFeatures, detectionUrl } from "./behave-as.ts";
 import { resolveApi } from "./coherence.ts";
 import { normalizeModelId } from "./heal.ts";
 import { foldBindings } from "./precedence.ts";
@@ -65,11 +67,14 @@ export interface ResolverContext {
   readonly registry: ProviderRegistry;
   readonly openRouterCatalog: Mirror<ModelCatalogEntry[]>;
   /** The endpoint mirror for one (URL × reader) — a reader's facts never leak into another reader's rows. */
-  readonly endpointModels: (baseUrl: string, modelInfoApi: ModelInfoApi | undefined) => Mirror<EndpointModel[]>;
+  readonly endpointModels: (baseUrl: string, modelInfoApi: ModelInfoApi | undefined, tenant: string | null) => Mirror<EndpointModel[]>;
   readonly agentSdkCatalog: Mirror<AgentSdkModel[]>;
   readonly warmOpenRouter: () => Promise<void>;
   readonly warmEndpoint: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<void>;
   readonly warmAgentSdk: (identity: SpawnIdentity) => Promise<void>;
+  /** The per-URL answer of a detecting row's server probe (`catalog:endpoint:<url>#detect`). */
+  readonly detectedServer: (baseUrl: string) => Mirror<DetectedServer>;
+  readonly warmDetect: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<void>;
 }
 
 export class NoConnectionError extends ProviderError {
@@ -119,10 +124,18 @@ function advertisedFor(
   ctx: ResolverContext,
   {
     provider,
+    registered,
     connection,
     model,
     kind,
-  }: { readonly provider: ProviderDef; readonly connection: UserConnection; readonly model: ModelId; readonly kind: ModelKind },
+  }: {
+    readonly provider: ProviderDef;
+    /** The connection's own row, beneath the behaved one in the features fold (its sampler spellings stay). */
+    readonly registered: ProviderDef;
+    readonly connection: UserConnection;
+    readonly model: ModelId;
+    readonly kind: ModelKind;
+  },
 ): Evidence["advertised"] {
   if (provider.wire === "agent-sdk") {
     const row = agentSdkRowFor(model, ctx.agentSdkCatalog.get());
@@ -136,7 +149,7 @@ function advertisedFor(
   if (provider.wire === "google-generative-ai") {
     return googleAdvertised(entry, provider, model);
   }
-  return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry, kind);
+  return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry, kind, behavedFeatures(registered, provider, connection));
 }
 
 /** The endpoint mirror's row for this connection's model, on the two wires whose list the mirror holds. */
@@ -149,15 +162,36 @@ function endpointEntryFor(
     return;
   }
   const catalogId = provider.wire === "google-generative-ai" ? googleModelId(model) : model;
+  const reader = modelInfoApiOf(ctx, provider, connection);
+  const sameId =
+    reader === "ollama" ? (id: string): boolean => withImplicitLatest(id) === withImplicitLatest(catalogId) : (id: string): boolean => id === catalogId;
   return ctx
-    .endpointModels(baseUrl, modelInfoApiOf(provider, connection))
+    .endpointModels(baseUrl, reader, endpointMirrorTenant(connection))
     .get()
-    ?.find((candidate) => candidate.id === catalogId);
+    ?.find((candidate) => sameId(candidate.id));
 }
 
-/** The reader this row dials beside `/v1/models`: the folded `features.modelInfoApi` (wire ← provider ← declared). */
-export function modelInfoApiOf(provider: ProviderDef, connection: UserConnection): ModelInfoApi | undefined {
-  return foldFeatures(provider.features, connection.declared?.features).modelInfoApi;
+/** Ollama resolves an untagged name to `:latest`, so `llama3` and `llama3:latest` are one model. A `:` that
+ *  precedes a `/` is a registry port, not a tag. */
+function withImplicitLatest(id: string): string {
+  return /:[^/]*$/u.test(id) ? id : `${id}:latest`;
+}
+
+/** Whose list a row's endpoint mirror holds. A server that authenticates the caller may answer each credential with a
+ *  different model list, so an authenticated row keeps its own mirror, named by the credential row's id (never the
+ *  secret) or, for a row that authenticates only through its own headers, by the row. An anonymous server answers
+ *  everyone alike, so its rows share one mirror (`null`). */
+export function endpointMirrorTenant(connection: UserConnection): string | null {
+  if (connection.credentialId !== null) {
+    return connection.credentialId;
+  }
+  return Object.keys(connection.transport?.headers ?? {}).length > 0 ? connection.id : null;
+}
+
+/** The reader this row dials beside `/v1/models`: the folded `features.modelInfoApi` (wire ← registered row ←
+ *  detected row ← declared), so the models mirror keys on the detected reader. */
+export function modelInfoApiOf(ctx: Pick<ResolverContext, "detectedServer">, provider: ProviderDef, connection: UserConnection): ModelInfoApi | undefined {
+  return behavedFeatures(provider, behaveAs(ctx, provider, connection), connection).modelInfoApi;
 }
 
 function googleAdvertised(entry: EndpointModel | undefined, provider: ProviderDef, model: ModelId): Evidence["advertised"] {
@@ -264,6 +298,29 @@ function withLocalLightEmbedDtype(
   return { ...capability, embedding: { ...capability.embedding, dtype: servedDtype } };
 }
 
+/** The warms that must land before any step reads provider facts: a detecting row's server probe, and Google's
+ *  native catalog (its kind decides which tasks the row serves). Both need the credential, which is always the
+ *  REGISTERED row's: its AAD binds the registered provider id, whatever the server turned out to be. */
+async function warmBeforeFacts(
+  ctx: ResolverContext,
+  provider: ProviderDef,
+  connection: UserConnection,
+): Promise<{ readonly behaved: ProviderDef; readonly earlyCredential: ResolvedSecret | null }> {
+  const detecting = detectionUrl(provider, connection) !== null;
+  if (provider.wire !== "google-generative-ai" && !detecting) {
+    return { behaved: provider, earlyCredential: null };
+  }
+  const earlyCredential = await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id });
+  if (detecting) {
+    await ctx.warmDetect(connection, provider, earlyCredential.secret);
+  }
+  const behaved = behaveAs(ctx, provider, connection);
+  if (provider.wire === "google-generative-ai") {
+    await warmFor(ctx, behaved, connection, earlyCredential);
+  }
+  return { behaved, earlyCredential };
+}
+
 interface CapabilityResolveOutcome extends ResolveOutcome {
   readonly baseline: Capability;
 }
@@ -280,17 +337,13 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
       `provider "${connection.providerId}" is not registered (a plugin provider reads no-connection unless one of the owner's enabled plugins contributes it)`,
     );
   }
-  const nativeCredential =
-    provider.wire === "google-generative-ai"
-      ? await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id })
-      : null;
-  if (nativeCredential !== null) {
-    await warmFor(ctx, provider, connection, nativeCredential);
-  }
+  // Every fact read below goes through the behaved row; identity (`providerId`, `provider`, the credential and
+  // every refusal's wording) stays the registered row's.
+  const { behaved, earlyCredential } = await warmBeforeFacts(ctx, provider, connection);
   const declared = connection.declared;
-  const kind = kindOf(ctx, { task: args.task, provider, connection });
-  const baselineKind = includeBaseline ? kindOf(ctx, { task: args.task, provider, connection, includeDeclared: false }) : undefined;
-  const served = connectionTasks(provider, kind);
+  const kind = kindOf(ctx, { task: args.task, provider: behaved, connection });
+  const baselineKind = includeBaseline ? kindOf(ctx, { task: args.task, provider: behaved, connection, includeDeclared: false }) : undefined;
+  const served = connectionTasks(behaved, kind);
   if (!served.includes(args.task)) {
     throw new ProviderError({
       kind: "forbidden",
@@ -298,37 +351,37 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
       message: `connection "${connection.label}" (${provider.id}, ${kind}) cannot serve "${args.task}"`,
     });
   }
-  const api = resolveApi(provider, connection, kind);
+  const api = resolveApi(behaved, connection, kind);
   const credential =
-    nativeCredential ?? (await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id }));
-  if (nativeCredential === null) {
-    await warmFor(ctx, provider, connection, credential);
+    earlyCredential ?? (await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id }));
+  if (provider.wire !== "google-generative-ai") {
+    await warmFor(ctx, behaved, connection, credential);
   }
   const model = normalizeModelId(connection.model, provider.wire === "agent-sdk" ? ctx.agentSdkCatalog.get() : null);
-  const factsModel = factsModelFor(ctx, provider, model);
+  const factsModel = factsModelFor(ctx, behaved, model);
   const family = detectModelFamily(factsModel);
-  const rowQuery = { model: factsModel, providerId: provider.id, wire: provider.wire, api };
+  const rowQuery = { model: factsModel, providerId: behaved.id, wire: behaved.wire, api };
   const evidence: Evidence = {
     declared,
     // Matched per (model × route) like the curated rows — a measurement through OpenRouter never reaches the
     // direct wire, and one for opus-5 never reaches haiku.
     measured: measuredRows(rowQuery),
-    advertised: advertisedFor(ctx, { provider, connection, model, kind }),
+    advertised: advertisedFor(ctx, { provider: behaved, registered: provider, connection, model, kind }),
     curated: curatedRows(rowQuery),
   };
   const synthesized = synthesizeCapability(kind, family, evidence);
   // The trained maximum rides the server's catalog entry. With no entry (a cold mirror the warm could not
   // fill, a model the list does not carry, a native read that failed) it is unknown, so the window stays as
   // declared or folded: there is no number to clamp to.
-  const entry = endpointEntryFor(ctx, { provider, connection, model });
+  const entry = endpointEntryFor(ctx, { provider: behaved, connection, model });
   // D292: the row's own declaration or its server's advertisement states what a turn may carry; only a row
   // nobody described gets the permissive posture.
   const advertisedInput = advertisedStatesInput(entry);
+  // The server-side floors, after synthesis: the endpoint posture, the server's tool-choice support, the trained clamp.
+  const postured = (synthesizedCapability: Capability, inputStated: boolean): Capability =>
+    clampToTrainedWindow(applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated), entry?.toolChoice), entry?.contextTrained);
   const capability = withLocalLightEmbedDtype(
-    clampToTrainedWindow(
-      applyEndpointPosture(provider, synthesized.capability, declared?.generation?.input !== undefined || advertisedInput),
-      entry?.contextTrained,
-    ),
+    postured(synthesized.capability, declared?.generation?.input !== undefined || advertisedInput),
     provider,
     declared?.embedding?.dtype,
     ctx.deps.localLight?.embedDtype,
@@ -337,23 +390,19 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     baselineKind === undefined
       ? undefined
       : withLocalLightEmbedDtype(
-          clampToTrainedWindow(
-            applyEndpointPosture(
-              provider,
-              synthesizeCapability(baselineKind, family, {
-                ...evidence,
-                declared: undefined,
-                advertised: advertisedFor(ctx, { provider, connection, model, kind: baselineKind }),
-              }).capability,
-              advertisedInput,
-            ),
-            entry?.contextTrained,
+          postured(
+            synthesizeCapability(baselineKind, family, {
+              ...evidence,
+              declared: undefined,
+              advertised: advertisedFor(ctx, { provider: behaved, registered: provider, connection, model, kind: baselineKind }),
+            }).capability,
+            advertisedInput,
           ),
           provider,
           undefined,
           ctx.deps.localLight?.embedDtype,
         );
-  const features = foldFeatures(provider.features, declared?.features);
+  const features = behavedFeatures(provider, behaved, connection);
   const requirement = withWireRequirement(requirementMet(capability, taskDef(args.task).requires), args.task, provider, features);
   const resolved: Resolved = {
     task: args.task,

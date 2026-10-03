@@ -75,7 +75,7 @@ describe("createExtractQuiet", () => {
       now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
@@ -109,7 +109,7 @@ describe("createExtractQuiet", () => {
       now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
@@ -130,7 +130,7 @@ describe("createExtractQuiet", () => {
       now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
@@ -155,7 +155,7 @@ describe("createExtractQuiet", () => {
       now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
@@ -183,7 +183,7 @@ describe("createExtractQuiet", () => {
       now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
@@ -210,7 +210,7 @@ describe("createExtractQuiet", () => {
       now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: () => Promise.resolve({ preset: [houseStyleDef("in muted watercolour")], game: [] }),
     });
 
@@ -229,7 +229,7 @@ describe("createExtractQuiet", () => {
       now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: () => Promise.resolve({ preset: [houseStyleDef("in muted watercolour")], game: [houseStyleDef("in harsh charcoal")] }),
     });
 
@@ -249,7 +249,7 @@ describe("createExtractQuiet", () => {
       now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
@@ -276,7 +276,7 @@ describe("createExtractQuiet", () => {
       now: () => at,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: NO_USER_MACROS,
     });
     const instruction = "{{weekday}} {{date}} {{time}}";
@@ -305,7 +305,7 @@ describe("createExtractQuiet", () => {
       now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 
@@ -333,7 +333,7 @@ describe("createExtractQuiet", () => {
       now: () => FROZEN_AT,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
-      resolveChatPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
       resolveUserMacroDefs: NO_USER_MACROS,
     });
 

@@ -50,12 +50,12 @@ async function compareCharactersDeep(
     return null;
   }
   const prompt = buildComparePrompt(base);
-  // The side-gen sampling ladder: the `analyze` floor (temp 0.3, 400 out — a short grounded answer) ← the
-  // caller's default-preset params. The structured-output `responseFormat` is orthogonal and always rides.
+  // The caller's Utility-role preset over the `analyze` posture (temp 0.3, 400 out — a short grounded answer).
+  // The structured-output `responseFormat` is orthogonal and always rides.
   const rc = await ctx.roleClientsFor(args.userId);
   const sampleOpts: StructuredOptions = {
     responseFormat: NARRATIVE_RESPONSE_FORMAT,
-    ...resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(args.userId)),
+    ...resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUtilityPresetParams(args.userId)),
   };
   // The system prompt is a PROSE-1 slot resolved on the SAME caller rung as the sampling above — the library
   // being compared is this user's own. No override ⇒ the shipped prompt, byte for byte.
@@ -111,12 +111,12 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
   }
   const samples = await readCharacterMessageSamples(ctx.db, userId, characterId, ASK_SAMPLE_LIMIT);
   const prompt = buildAskPrompt(card.name, question, samples);
-  // The side-gen sampling ladder: the `analyze` floor ← the caller's default-preset params (the `askCard`
-  // half of the analyze pair — identical posture to the compare narrative). `responseFormat` always rides.
+  // The caller's Utility-role preset over the `analyze` posture (the `askCard` half of the analyze pair —
+  // identical posture to the compare narrative). `responseFormat` always rides.
   const rc = await ctx.roleClientsFor(userId);
   const sampleOpts: StructuredOptions = {
     responseFormat: ANSWER_RESPONSE_FORMAT,
-    ...resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUserPresetParams(userId)),
+    ...resolveSideGenSampling(SIDE_GEN_POSTURES.analyze, await ctx.resolveUtilityPresetParams(userId)),
   };
   const system = resolveProseText("discovery.ask.system", await ctx.resolveUserProse(userId));
   // NO RETRY DRIFT — the compare-narrative invariant above, same shape: everything the retry sends is

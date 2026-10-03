@@ -186,7 +186,7 @@ cannot be derived without git, and a field that is always `false` would lie exac
 
 The GitHub Release page is the changelog's one home; nothing in this repository duplicates it.
 
-**Checking for updates** is manual and one-shot. The About section's button sends a single unauthenticated
+**Checking for updates** is manual and one-shot. An admin's "Check for updates" button in Settings → This install sends a single unauthenticated
 GET through the app's SSRF-safe egress belt and reports `up to date`, `update available`, or `couldn't
 check` with the reason. A stable build asks for the latest GitHub Release
 (`https://api.github.com/repos/Inktomi93/orbweaver/releases/latest`) and compares versions; a dev build asks

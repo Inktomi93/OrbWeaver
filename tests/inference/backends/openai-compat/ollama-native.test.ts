@@ -16,7 +16,7 @@ import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/i
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
-import { fakeResolved } from "../../_support.ts";
+import { fakeResolved, memoryTokenLexicon } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability } from "../_hosted-support.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "./_ollama-native-recordings.ts";
@@ -78,6 +78,7 @@ async function turn(
     now: () => NOW,
     log: silentLog(),
     transport: { fetch: replay(recordings, recorded), app: { name: "t", url: "http://localhost:0" } },
+    tokens: memoryTokenLexicon(),
   });
   return { result, recorded };
 }
@@ -100,6 +101,25 @@ test("an Ollama turn posts /api/chat with the window as num_ctx and the samplers
   expect(result.reply).toBe("Hello, how are you?");
   expect(result.finishReason).toBe("stop");
   expect(result.usage).toMatchObject({ tokensIn: 35, tokensOut: 7 });
+});
+
+test("the connection's keep_alive rides the top level and its num_batch rides options; unset, neither is sent", async () => {
+  const declared = fakeResolved({
+    task: "chat",
+    providerId: "ollama",
+    model: "qwen2.5:0.5b",
+    capability: capability(),
+    baseUrl: BASE_URL,
+    declaredFeatures: { keepAlive: "30m", numBatch: 256 },
+  });
+  const set = (await turn([OLLAMA_NATIVE_RECORDINGS.text], { connection: declared })).recorded[0]?.body ?? {};
+  expect(set["keep_alive"]).toBe("30m");
+  expect(set["options"]).toMatchObject({ ["num_batch"]: 256 });
+  expect(set["options"]).not.toHaveProperty("keep_alive");
+
+  const unset = (await turn([OLLAMA_NATIVE_RECORDINGS.text])).recorded[0]?.body ?? {};
+  expect(unset).not.toHaveProperty("keep_alive");
+  expect(unset["options"]).not.toHaveProperty("num_batch");
 });
 
 test("a recorded tool call comes back as a tool call, and its replay reaches the server as Ollama spells it", async () => {
@@ -134,9 +154,19 @@ test("recorded thinking comes back as reasoning, apart from the answer", async (
     connection: fakeResolved({ task: "chat", providerId: "ollama", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL }),
     params: { effort: "low" },
   });
-  expect(recorded[0]?.body["think"]).toBe(true);
+  // The capability names effort levels, so `think` carries the level (Ollama reads any named level as "think").
+  expect(recorded[0]?.body["think"]).toBe("low");
   expect(result.reasoning).toBe("Okay, the");
   expect(result.reply).toBe("2 + 3 = 5.");
+});
+
+test("think: a model with named effort levels (gpt-oss) gets the level, any other model on/off, and none turns it off", () => {
+  const body = (effort: string): Record<string, unknown> => ({ messages: [{ role: "user", content: "hi" }], ["reasoning_effort"]: effort });
+  const args = { numCtx: undefined, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" };
+  expect(toOllamaChat(body("high"), { ...args, namedThinkLevels: true })["think"]).toBe("high");
+  expect(toOllamaChat(body("high"), args)["think"]).toBe(true);
+  expect(toOllamaChat(body("none"), { ...args, namedThinkLevels: true })["think"]).toBe(false);
+  expect(toOllamaChat({ messages: [] }, { ...args, namedThinkLevels: true })["think"]).toBeUndefined();
 });
 
 test("an image part travels as base64 in `images`, and an image URL is refused before the send", () => {
@@ -273,6 +303,7 @@ test("an image URL refused while the body is translated reaches the caller as th
     now: () => NOW,
     log: silentLog(),
     transport: { fetch: ollamaServer(posted), app: { name: "t", url: "http://localhost:0" } },
+    tokens: memoryTokenLexicon(),
   });
   await expect(failed).rejects.toThrow(/takes inline images only/u);
   await expect(failed).rejects.toBeInstanceOf(ProviderError);
@@ -296,6 +327,31 @@ test("cancelling the translated stream cancels Ollama's stream, so an abort reac
   await reader?.read();
   await reader?.cancel();
   expect(cancelled).toBe(true);
+});
+
+test("a line split across three reads still streams to [DONE]", async () => {
+  const line = '{"message":{"role":"assistant","content":"hello"},"done":false}\n';
+  const cut = Math.floor(line.length / 3);
+  const parts = [line.slice(0, cut), line.slice(cut, cut * 2), line.slice(cut * 2)];
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller): void {
+      for (const part of parts) {
+        controller.enqueue(encoder.encode(part));
+      }
+      controller.close();
+    },
+  });
+  const inner: typeof fetch = () => Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "application/x-ndjson" } }));
+  const res = await ollamaNativeFetch(inner, { baseUrl: BASE_URL, label: "t" })(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
+  const text = await Promise.race([
+    res.text(),
+    new Promise<string>((resolve) => {
+      setTimeout(() => resolve("HUNG"), 2000);
+    }),
+  ]);
+  expect(text).toContain('"content":"hello"');
+  expect(text.endsWith("data: [DONE]\n\n")).toBe(true);
 });
 
 test("a recorded error answer reaches the turn as the server's own message", async () => {
@@ -322,6 +378,7 @@ test("a row that turns the native route off rides /v1 as before", async () => {
     now: () => NOW,
     log: silentLog(),
     transport: { fetch: fetchImpl, app: { name: "t", url: "http://localhost:0" } },
+    tokens: memoryTokenLexicon(),
   });
   expect(recorded[0]?.url).toBe("http://127.0.0.1:11434/v1/chat/completions");
 });
