@@ -11,10 +11,9 @@ import { modelIdSchema, providerIdSchema } from "#inference";
 import type { TokenProvenance } from "../chat/messages.ts";
 import { tokenProvenanceSchema } from "../chat/messages.ts";
 
-/** The page CEILING for the stats top-N reads (`leaderboard`, `byModel`, `momentum`), enforced at the
- *  transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT` precedent). The same 200 the persistence
- *  `rollups.ts` DoS clamp references (homed HERE so the wire ceiling and the clamp never drift); `momentum`
- *  has no domain clamp, so this ceiling is its sole bound. An over-bound ask is a BAD_REQUEST. */
+/** The page CEILING for the stats top-N reads (`leaderboard`, `byModel`), enforced at the transport trust
+ *  boundary (the `CHARACTER_LIST_MAX_LIMIT` precedent). The same 200 the persistence `rollups.ts` DoS clamp
+ *  references (homed HERE so the wire ceiling and the clamp never drift). An over-bound ask is a BAD_REQUEST. */
 export const STATS_LIST_MAX_LIMIT = 200;
 
 /** The per-canon-write increment payload, applied in the same `db.batch()` as the canon write. Three
@@ -318,20 +317,13 @@ export interface WrappedSummary {
   computedAt: number;
 }
 
-export interface MomentumRow {
+/** One character's replies in one UTC quarter-hour (`STATS_BUCKET_MS`) — the momentum timeline. The
+ *  wire carries the bucket's start instant, never a month: the viewer's months are folded on the client. */
+export interface MomentumBucket {
   characterId: CharacterId;
   name: string;
-  current: number;
-  prev: number;
-  delta: number;
-}
-
-export interface CharacterMomentum {
-  /** Most recent calendar months with activity (YYYY-MM), or null if fewer than two. */
-  latestMonth: string | null;
-  prevMonth: string | null;
-  rising: MomentumRow[];
-  falling: MomentumRow[];
+  bucketStart: number;
+  replies: number;
 }
 
 export interface LatencyStats {
@@ -481,20 +473,12 @@ export const wrappedSummarySchema = z.strictObject({
   computedAt: z.number(),
 }) satisfies z.ZodType<WrappedSummary>;
 
-export const momentumRowSchema = z.strictObject({
+export const momentumBucketSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   name: z.string(),
-  current: z.number(),
-  prev: z.number(),
-  delta: z.number(),
-}) satisfies z.ZodType<MomentumRow>;
-
-export const characterMomentumSchema = z.strictObject({
-  latestMonth: z.string().nullable(),
-  prevMonth: z.string().nullable(),
-  rising: z.array(momentumRowSchema),
-  falling: z.array(momentumRowSchema),
-}) satisfies z.ZodType<CharacterMomentum>;
+  bucketStart: z.number().int(),
+  replies: z.number(),
+}) satisfies z.ZodType<MomentumBucket>;
 
 export const latencyStatsSchema = z.strictObject({
   avgTtftMs: z.number().nullable(),

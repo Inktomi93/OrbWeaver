@@ -8,11 +8,11 @@
 
 import {
   activityBucketSchema,
-  characterMomentumSchema,
   characterStatsViewSchema,
   latencyStatsSchema,
   leaderboardPageSchema,
   modelStatRowSchema,
+  momentumBucketSchema,
   ownerStatsViewSchema,
   personaUsageRowSchema,
   reconcileStatsResultSchema,
@@ -72,10 +72,7 @@ export const statsRouter = t.router({
 
   wrapped: authedProcedure.output(wrappedSummarySchema.nullable()).query(({ ctx }) => ctx.services.stats.wrapped(ctx.auth.userId)),
 
-  momentum: authedProcedure
-    .output(characterMomentumSchema)
-    .input(z.object({ limit: z.number().int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional())
-    .query(({ ctx, input }) => ctx.services.stats.momentum(ctx.auth.userId, input?.limit)),
+  momentum: authedProcedure.output(z.array(momentumBucketSchema)).query(({ ctx }) => ctx.services.stats.momentum(ctx.auth.userId)),
 
   latency: authedProcedure
     .output(latencyStatsSchema)

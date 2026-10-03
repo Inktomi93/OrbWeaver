@@ -5,8 +5,9 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { Rhythm } from "../lib/analytics-view-model.ts";
+import { timeLib } from "#lib";
 import { formatCompact } from "../lib/analytics-view-model.ts";
+import type { Rhythm } from "../lib/local-calendar-folds.ts";
 
 export function RhythmFigures({ rhythm }: { readonly rhythm: Rhythm }): ReactElement {
   const busiest = rhythm.busiestDay;
@@ -25,7 +26,7 @@ export function RhythmFigures({ rhythm }: { readonly rhythm: Rhythm }): ReactEle
         <Text voice="gloss">
           {busiest === null
             ? "A day counts as active once you exchange a turn or open a chat in it."
-            : `Your busiest day was ${busiest.day} — activity counts turns exchanged plus chats opened.`}
+            : `Your busiest day was ${timeLib.formatDate(busiest.start)} — activity counts turns exchanged plus chats opened.`}
         </Text>
       </Stack>
     </Section>

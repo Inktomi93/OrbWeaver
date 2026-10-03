@@ -23,12 +23,11 @@ import {
   formatCompact,
   formatCount,
   formatPeak,
-  localTimeline,
-  rhythmOf,
   seriesTokenProvenance,
   UNRECORDED_NOTE,
   weekdayBarItems,
 } from "../lib/analytics-view-model.ts";
+import { localTimeline, rhythmOf } from "../lib/local-calendar-folds.ts";
 import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 import { RhythmFigures } from "./rhythm-figures.tsx";
 

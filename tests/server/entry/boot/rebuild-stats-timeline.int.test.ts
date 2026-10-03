@@ -5,7 +5,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDb, dailyStats, runMigrations } from "@orb/db";
+import { characterStats, createDb, dailyStats, modelStats, ownerStats, runMigrations } from "@orb/db";
 import type { DailyStatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { STATS_BUCKET_MS, statsBucketStart } from "@orb/kit/stats-tally";
@@ -13,7 +13,7 @@ import { rebuildStatsTimelineOnBoot } from "@orb/server/entry/boot";
 import { eq, sql } from "drizzle-orm";
 import { freshDb, SHIPPED_MIGRATIONS, shippedChainThrough } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { seedCharacter, seedChat, seedMessage, seedOwnerStats, seedUser, T0 } from "../../domain/stats/_support.ts";
+import { seedCharacter, seedCharacterStats, seedChat, seedMessage, seedModelStats, seedOwnerStats, seedUser, T0 } from "../../domain/stats/_support.ts";
 
 const PRE_REGRAIN_TAG = "0004_character-import-text-hash";
 const BOOT_NOW = (): number => T0 + 60_000;
@@ -29,13 +29,22 @@ test("an upgraded install's dropped timeline is rebuilt from canon at boot, once
     // Two turns a quarter-hour apart: the rebuilt timeline must keep them in separate buckets.
     await seedMessage(db, { chatId, seq: 1, role: "user", createdAt: T0, variants: [{ content: "hi" }] });
     await seedMessage(db, { chatId, seq: 2, role: "assistant", characterId, createdAt: T0 + STATS_BUCKET_MS, variants: [{ content: "hello" }] });
-    // The pre-upgrade rollups: an owner row with activity and its day-keyed timeline row.
-    await seedOwnerStats(db, ownerId, { chats: 1, userTurns: 1, assistantTurns: 1 });
+    // The pre-upgrade rollups: an owner row with activity and its day-keyed timeline row. Its spend includes
+    // imagery and compaction, which no canon row records, so a canon rebuild would erase it.
+    await seedOwnerStats(db, ownerId, { chats: 1, userTurns: 1, assistantTurns: 1, costUsd: 2.5, costSamples: 3 });
+    await seedModelStats(db, ownerId, { model: "image-model", provider: "openrouter", generations: 2, costUsd: 0.8, costSamples: 2 });
+    await seedCharacterStats(db, characterId, { assistantTurns: 1, chats: 1 });
     await db.run(sql`INSERT INTO daily_stats (id, owner_id, day, user_turns, assistant_turns, computed_at)
       VALUES ('daily_stat_pre_regrain', ${ownerId}, '2026-06-26', 1, 1, ${T0})`);
 
     await runMigrations(db, SHIPPED_MIGRATIONS);
     expect(await db.select().from(dailyStats)).toEqual([]);
+    const untouched = async (): Promise<unknown> => ({
+      owner: await db.select().from(ownerStats),
+      models: await db.select().from(modelStats),
+      characters: await db.select().from(characterStats),
+    });
+    const before = await untouched();
 
     expect(await rebuildStatsTimelineOnBoot({ db, now: BOOT_NOW })).toBe(1);
     const rows = await db.select().from(dailyStats).where(eq(dailyStats.ownerId, ownerId)).orderBy(dailyStats.bucketStart);
@@ -44,6 +53,8 @@ test("an upgraded install's dropped timeline is rebuilt from canon at boot, once
       [statsBucketStart(T0 + STATS_BUCKET_MS), 0, 1],
     ]);
     expect(rows.reduce((sum, r) => sum + r.chatsCreated, 0)).toBe(1);
+    // Only the timeline was rebuilt: the owner, model and character rollups are byte-identical.
+    expect(await untouched()).toEqual(before);
 
     // The predicate, not a marker, is what makes it idempotent: a rebuilt owner has a timeline.
     expect(await rebuildStatsTimelineOnBoot({ db, now: BOOT_NOW })).toBe(0);

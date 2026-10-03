@@ -3,11 +3,8 @@
 // activity-matrix → <Heatmap> reshape, weekday labelling, and the chart-family row adapters. Asserts the
 // boundaries (ms/s/m/h thresholds, k/M cutovers) and the aggregation math, not the trivial passthroughs.
 
-import type { TokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { CalendarPosition } from "@orb/kit/time";
-import { createTimeLib } from "@orb/kit/time";
 import { describe } from "vitest";
 import {
   activityHeatmapMatrix,
@@ -20,17 +17,14 @@ import {
   formatDayLabel,
   formatDecimal,
   formatDurationMs,
-  formatMonthLabel,
   formatMs,
   formatPeak,
   formatPercent,
   formatSignedDelta,
   formatThroughput,
   formatTokens,
-  localTimeline,
   momentumBarItems,
   personaBarItems,
-  rhythmOf,
   seriesTokenProvenance,
   WEEKDAY_LABELS,
   weekdayBarItems,
@@ -155,18 +149,6 @@ describe("formatDayLabel keeps the year at a crossing", () => {
   });
 });
 
-// `2026-07 → 2026-08` was a machine sort key printed beside relative phrases like "Updated 4h ago" (P2e).
-describe("formatMonthLabel", () => {
-  test("names the month", () => {
-    expect(formatMonthLabel("2026-07")).toBe("July 2026");
-    expect(formatMonthLabel("2026-01")).toBe("January 2026");
-  });
-  test("an unparseable month passes through rather than rendering `undefined`", () => {
-    expect(formatMonthLabel("nonsense")).toBe("nonsense");
-    expect(formatMonthLabel("2026-13")).toBe("2026-13");
-  });
-});
-
 // Two identically named characters were indistinguishable in the row AND in its accessible name (P3a).
 describe("disambiguatedNames", () => {
   test("a shared name gets a stable id ref on BOTH twins; unique names are untouched", () => {
@@ -283,124 +265,6 @@ describe("chart-family row adapters", () => {
         { day: "2027-01-01", tokensOut: 0, tokensOutProvenance: "measured" },
       ]),
     ).toEqual([{ label: "2027-01-01", count: 0 }]);
-  });
-});
-
-// The viewer-local fold: the server ships UTC quarter-hour buckets, and these place them on the calendar of
-// an injected zone, exactly as the production `timeLib` does with the browser's own.
-function at(timeZone: string): (epochMs: number) => CalendarPosition {
-  return createTimeLib({ timeZone }).calendarPosition;
-}
-
-function bucket(
-  bucketStart: number,
-  over: Partial<{ chatsCreated: number; userTurns: number; assistantTurns: number; tokensOut: number | null; tokensOutProvenance: TokenProvenance }> = {},
-): {
-  bucketStart: number;
-  chatsCreated: number;
-  userTurns: number;
-  assistantTurns: number;
-  tokensOut: number | null;
-  tokensOutProvenance: TokenProvenance;
-} {
-  return { bucketStart, chatsCreated: 0, userTurns: 0, assistantTurns: 0, tokensOut: null, tokensOutProvenance: "unrecorded", ...over };
-}
-
-describe("localTimeline", () => {
-  test("an empty timeline folds to no days, zeroed weekdays and hours, and no peak", () => {
-    const timeline = localTimeline([], at("UTC"));
-    expect(timeline.days).toEqual([]);
-    expect(timeline.weekdayActivity).toEqual([0, 0, 0, 0, 0, 0, 0]);
-    expect(timeline.weekHourTurns.flat().every((cell) => cell === 0)).toBe(true);
-    expect(timeline.peak).toBeNull();
-    expect(rhythmOf(timeline.days)).toEqual({ activeDays: 0, longestStreakDays: 0, busiestDay: null });
-  });
-
-  test("the day boundary is the viewer's midnight, not UTC's", () => {
-    const buckets = [bucket(Date.UTC(2024, 0, 1, 23, 45), { assistantTurns: 2 }), bucket(Date.UTC(2024, 0, 2, 0, 0), { assistantTurns: 3 })];
-    // UTC splits them across midnight; New York (UTC-5) holds both on its Jan 1 evening.
-    expect(localTimeline(buckets, at("UTC")).days.map((d) => [d.day, d.assistantTurns])).toEqual([
-      ["2024-01-01", 2],
-      ["2024-01-02", 3],
-    ]);
-    expect(localTimeline(buckets, at("America/New_York")).days.map((d) => [d.day, d.assistantTurns])).toEqual([["2024-01-01", 5]]);
-  });
-
-  test("a half-hour and a 45-minute offset zone turn the day inside a UTC hour", () => {
-    // Kathmandu (UTC+5:45) midnight is 18:15 UTC; Kolkata (UTC+5:30) midnight is 18:30 UTC.
-    const buckets = [
-      bucket(Date.UTC(2024, 0, 1, 18, 0), { userTurns: 1 }),
-      bucket(Date.UTC(2024, 0, 1, 18, 15), { userTurns: 1 }),
-      bucket(Date.UTC(2024, 0, 1, 18, 30), { userTurns: 1 }),
-    ];
-    expect(localTimeline(buckets, at("Asia/Kathmandu")).days.map((d) => [d.day, d.activity])).toEqual([
-      ["2024-01-01", 1],
-      ["2024-01-02", 2],
-    ]);
-    expect(localTimeline(buckets, at("Asia/Kolkata")).days.map((d) => [d.day, d.activity])).toEqual([
-      ["2024-01-01", 2],
-      ["2024-01-02", 1],
-    ]);
-    const kathmandu = localTimeline(buckets, at("Asia/Kathmandu"));
-    // Monday 23:45 and Tuesday 00:00 / 00:15 local: weekday rows 1 and 2, hours 23 and 0.
-    expect(kathmandu.weekHourTurns[1]?.[23]).toBe(1);
-    expect(kathmandu.weekHourTurns[2]?.[0]).toBe(2);
-    expect(kathmandu.peak).toEqual({ dayOfWeek: 2, hour: 0, count: 2 });
-  });
-
-  test("a DST transition day places hours by the local clock: New York's spring-forward skips 02:00", () => {
-    const buckets = [bucket(Date.UTC(2024, 2, 10, 6, 45), { userTurns: 1 }), bucket(Date.UTC(2024, 2, 10, 7, 0), { assistantTurns: 1 })];
-    const timeline = localTimeline(buckets, at("America/New_York"));
-    const sunday = timeline.weekHourTurns[0];
-    expect([sunday?.[1], sunday?.[2], sunday?.[3]]).toEqual([1, 0, 1]);
-    expect(timeline.days.map((d) => d.day)).toEqual(["2024-03-10"]);
-  });
-
-  test("weekday activity counts chats opened; the hour grid counts only turns", () => {
-    const sunday = Date.UTC(2024, 0, 7, 12, 0);
-    const timeline = localTimeline([bucket(sunday, { userTurns: 1, assistantTurns: 1, chatsCreated: 1 })], at("UTC"));
-    expect(timeline.weekdayActivity[0]).toBe(3);
-    expect(timeline.weekHourTurns[0]?.[12]).toBe(2);
-    expect(timeline.days[0]?.activity).toBe(3);
-  });
-
-  test("a day's tokens sum only recorded buckets, and an estimate anywhere marks the day estimated", () => {
-    const day = Date.UTC(2024, 0, 3, 9, 0);
-    const timeline = localTimeline(
-      [
-        bucket(day, { assistantTurns: 1, tokensOut: 40, tokensOutProvenance: "measured" }),
-        bucket(day + 900_000, { assistantTurns: 1 }),
-        bucket(day + 1_800_000, { assistantTurns: 1, tokensOut: 2, tokensOutProvenance: "estimated" }),
-        bucket(Date.UTC(2024, 0, 4, 9, 0), { assistantTurns: 1 }),
-      ],
-      at("UTC"),
-    );
-    expect(timeline.days.map((d) => [d.day, d.tokensOut, d.tokensOutProvenance])).toEqual([
-      ["2024-01-03", 42, "estimated"],
-      ["2024-01-04", null, "unrecorded"],
-    ]);
-  });
-});
-
-describe("rhythmOf", () => {
-  test("counts active days, the longest run across a month end and a DST day, and the first busiest day", () => {
-    const days = ["2024-02-28", "2024-02-29", "2024-03-01", "2024-03-09", "2024-03-10", "2024-03-12"].map((day, index) => ({
-      day,
-      assistantTurns: 0,
-      tokensOut: null,
-      tokensOutProvenance: "unrecorded" as const,
-      activity: index === 1 || index === 4 ? 5 : 1,
-    }));
-    expect(rhythmOf(days)).toEqual({ activeDays: 6, longestStreakDays: 3, busiestDay: { day: "2024-02-29", count: 5 } });
-  });
-
-  test("a day with only zeroed activity is not active and does not extend a streak", () => {
-    const days = [
-      { day: "2024-01-01", assistantTurns: 0, tokensOut: null, tokensOutProvenance: "unrecorded" as const, activity: 1 },
-      { day: "2024-01-02", assistantTurns: 0, tokensOut: null, tokensOutProvenance: "unrecorded" as const, activity: 0 },
-      { day: "2024-01-03", assistantTurns: 0, tokensOut: null, tokensOutProvenance: "unrecorded" as const, activity: 1 },
-    ];
-    expect(rhythmOf(days)).toEqual({ activeDays: 2, longestStreakDays: 1, busiestDay: { day: "2024-01-01", count: 1 } });
   });
 });
 

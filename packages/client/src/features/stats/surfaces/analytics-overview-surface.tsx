@@ -38,19 +38,17 @@ import {
   formatCount,
   formatDecimal,
   formatDurationMs,
-  formatMonthLabel,
   formatMs,
   formatPercent,
   formatSignedDelta,
   formatThroughput,
-  localTimeline,
   momentumBarItems,
   REASONING_LABEL,
-  rhythmOf,
   THROUGHPUT_LABEL,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
 import { LEADERBOARD_ROW_ATTR } from "../lib/leaderboard-row-attr.ts";
+import { localMomentum, localTimeline, rhythmOf } from "../lib/local-calendar-folds.ts";
 
 /** The leaderboard row the drill with this character was opened from, when it is on screen and operable. */
 function openerRow(characterId: CharacterId): HTMLElement | null {
@@ -94,7 +92,7 @@ function OverviewBody(): ReactElement {
   const { data: wrapped } = useSuspenseQuery(trpc.stats.wrapped.queryOptions());
   const { data: timeline } = useSuspenseQuery(trpc.stats.timeseries.queryOptions());
   const { data: overview } = useSuspenseQuery(trpc.stats.overview.queryOptions());
-  const { data: momentum } = useSuspenseQuery(trpc.stats.momentum.queryOptions());
+  const { data: momentumBuckets } = useSuspenseQuery(trpc.stats.momentum.queryOptions());
   // #451: the list defaults COLLAPSED here, so "open the list" is right by default — but wrong once a
   // reader docks it, and even collapsed the affordance's verbatim name is "Show list panel" (the topbar
   // toggle, `shell-topbar.tsx`), not "open the list" (WCAG 2.5.3, label-in-name).
@@ -112,6 +110,7 @@ function OverviewBody(): ReactElement {
   }
 
   const rhythm = rhythmOf(localTimeline(timeline, timeLib.calendarPosition).days);
+  const momentum = localMomentum(momentumBuckets, timeLib.calendarPosition);
   const rising = momentumBarItems(momentum.rising);
   const falling = momentumBarItems(momentum.falling);
   // ONE SCALE ACROSS BOTH COLUMNS (side-eye ANALYTICS 2026-08-19, P1d). Rising and Falling are two
@@ -216,7 +215,7 @@ function OverviewBody(): ReactElement {
       </Section>
 
       <Section heading="Momentum">
-        {momentum.latestMonth === null ? (
+        {momentum.latest === null || momentum.prev === null ? (
           <Text voice="gloss">Not enough recent activity to compare months yet.</Text>
         ) : (
           <Stack gap="block">
@@ -224,7 +223,7 @@ function OverviewBody(): ReactElement {
                 column that otherwise speaks in relative phrases (P2e). Deliberately absolute: the pair is
                 the two most-recent months WITH ACTIVITY, which need not be anywhere near now. */}
             <Text voice="gloss">
-              {momentum.prevMonth === null ? "" : formatMonthLabel(momentum.prevMonth)} → {formatMonthLabel(momentum.latestMonth)}
+              {timeLib.formatMonthYear(momentum.prev.start)} → {timeLib.formatMonthYear(momentum.latest.start)}
             </Text>
             <Row gap="section" className="flex-wrap items-start">
               <MomentumColumn label="Rising" rows={rising} sign={1} valueMax={momentumScale} />

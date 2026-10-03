@@ -5,9 +5,11 @@
 // PURE HALF ONLY: the `StatsDelta` payload type and the `applyStatsDelta` upsert (which touch the
 // stats db schema) live in the stats domain, NOT here — kit stays I/O-free.
 
-/** The `daily_stats` timeline grain: a UTC quarter-hour. Every offset a modern zone uses is a whole multiple
- *  of 15 minutes (+5:30, +5:45, +12:45), so a bucket lies inside one local hour and day in every viewer zone,
- *  which is what lets the client fold the timeline into the viewer's days and hours exactly. */
+/** The `daily_stats` timeline grain: a UTC quarter-hour. Every current zone offset is a whole multiple of
+ *  15 minutes (+5:30, +5:45, +12:45) and every transition since 2022 lands on a quarter-hour, so a bucket
+ *  lies inside one local hour and day for the client's fold. Older transitions off a quarter-hour
+ *  (America/St_Johns before 2011, Gaza and Hebron in 2010-11, Antarctica/Casey in 2020-22) can place one
+ *  bucket's tail in the neighbouring local hour. */
 export const STATS_BUCKET_MS = 900_000;
 // Sentinel provider bucket when a model row carries no provider.
 /** The sole non-registry provider bucket, used only by the non-null `model_stats.provider` natural key. */

@@ -13,11 +13,11 @@ import type { ByModelOpts, LatencyScope, LeaderboardOpts, PersonaUsageOpts, Time
 import type { ReconcileStatsResult } from "./results.ts";
 import type {
   ActivityBucket,
-  CharacterMomentum,
   CharacterStatsView,
   LatencyStats,
   LeaderboardPage,
   ModelStatRow,
+  MomentumBucket,
   OwnerStatsView,
   PersonaUsageRow,
   StatsFreshness,
@@ -58,7 +58,7 @@ export interface StatsService {
   /** The shareable "your RP in numbers" headline. `null` until the rollup has run. */
   wrapped: (ownerId: UserId) => Promise<WrappedSummary | null>;
   /** Per-character attention shift between the two most-recent active months (rising / falling). */
-  momentum: (ownerId: UserId, limit?: number) => Promise<CharacterMomentum>;
+  momentum: (ownerId: UserId) => Promise<MomentumBucket[]>;
   /** On-read TTFT/gen latency percentiles for the entity in view (owner / character / model). The stored
    *  rollups carry no percentiles (they can't be `+=`-maintained — invariant #6). */
   latency: (ownerId: UserId, scope: LatencyScope) => Promise<LatencyStats>;

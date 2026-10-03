@@ -319,16 +319,7 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
   let totalBuckets = 0;
   let totalModels = 0;
   for (const ownerId of owners) {
-    let built: { charCount: number; bucketCount: number; modelCount: number };
-    for (;;) {
-      opts.signal?.throwIfAborted();
-      const before = await ownerCanonSnapshot(db, ownerId);
-      built = await computeOwner(db, ownerId, now);
-      const after = await ownerCanonSnapshot(db, ownerId);
-      if (before === after) {
-        break;
-      }
-    }
+    const built = await untilCanonStable(db, ownerId, opts.signal, () => computeOwner(db, ownerId, now));
     totalChars += built.charCount;
     totalBuckets += built.bucketCount;
     totalModels += built.modelCount;
@@ -342,8 +333,9 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
   };
 }
 
-/** Rebuild every owner whose `owner_stats` row records activity but whose `daily_stats` timeline is empty:
- *  the state a timeline re-grain migration leaves, since it drops rows that only canon can re-derive. A
+/** Rebuild ONLY the `daily_stats` timeline of every owner whose `owner_stats` row records activity but whose
+ *  timeline is empty: the state a timeline re-grain migration leaves. The other rollups are left untouched,
+ *  because they also carry non-canon spend (imagery, compaction) that a canon rebuild cannot re-derive. A
  *  live write always lands both rows, so the predicate is idempotent. Returns the owners rebuilt. */
 export async function reconcileOwnersMissingTimeline(db: Db, now: () => number): Promise<number> {
   const owners = await db.all<{ ownerId: string }>(sql`
@@ -351,10 +343,24 @@ export async function reconcileOwnersMissingTimeline(db: Db, now: () => number):
     WHERE o.user_turns + o.assistant_turns + o.system_turns + o.chats > 0
       AND NOT EXISTS (SELECT 1 FROM daily_stats d WHERE d.owner_id = o.owner_id)
   `);
+  const stamp = now();
   for (const { ownerId } of owners) {
-    await reconcileStats(db, { ownerId, now });
+    await untilCanonStable(db, ownerId, undefined, () => computeOwnerTimeline(db, ownerId, stamp));
   }
   return owners.length;
+}
+
+/** Run one owner's rebuild until canon held still across it, so a live write that raced the scan is never
+ *  overwritten by the older fold. */
+async function untilCanonStable<T>(db: Db, ownerId: string, signal: AbortSignal | undefined, build: () => Promise<T>): Promise<T> {
+  for (;;) {
+    signal?.throwIfAborted();
+    const before = await ownerCanonSnapshot(db, ownerId);
+    const built = await build();
+    if (before === (await ownerCanonSnapshot(db, ownerId))) {
+      return built;
+    }
+  }
 }
 
 // The owner's chats (membership, husk-excluding) is `substrate/owner-chat-scope.ts` — ONE home, shared with
@@ -882,7 +888,8 @@ async function writeOwner(db: Db, ownerId: string, rows: OwnerRollupRows): Promi
   await db.batch(batchMany(stmts));
 }
 
-async function computeOwner(db: Db, ownerId: string, now: number): Promise<{ charCount: number; bucketCount: number; modelCount: number }> {
+/** One owner's canon folded into every rollup accumulator. */
+async function foldOwnerCanon(db: Db, ownerId: string): Promise<{ a: Accums; meta: ChatMeta }> {
   const a: Accums = {
     owner: freshOwner(),
     charMap: new Map<string, CharAccum>(),
@@ -892,6 +899,23 @@ async function computeOwner(db: Db, ownerId: string, now: number): Promise<{ cha
   await scanMessages(db, ownerId, a);
   await scanSwipes(db, ownerId, a);
   const meta = await loadChatMeta(db, ownerId);
+  return { a, meta };
+}
+
+/** Replace one owner's `daily_stats` timeline from canon, in one batch, leaving every other rollup as it is. */
+async function computeOwnerTimeline(db: Db, ownerId: string, now: number): Promise<number> {
+  const { a, meta } = await foldOwnerCanon(db, ownerId);
+  const rows = buildBucketRows(castId<UserId>(ownerId), a.bucketMap, meta, now);
+  const stmts: BatchStmt[] = [db.delete(dailyStats).where(eq(dailyStats.ownerId, castId<UserId>(ownerId)))];
+  for (const chunk of chunkRows(rows, rowsPerInsert(DAILY_COLS))) {
+    stmts.push(db.insert(dailyStats).values(chunk));
+  }
+  await db.batch(batchMany(stmts));
+  return rows.length;
+}
+
+async function computeOwner(db: Db, ownerId: string, now: number): Promise<{ charCount: number; bucketCount: number; modelCount: number }> {
+  const { a, meta } = await foldOwnerCanon(db, ownerId);
   ownerExtrema(a.owner, meta);
 
   const oid = castId<UserId>(ownerId);

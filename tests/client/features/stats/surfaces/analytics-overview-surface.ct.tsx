@@ -85,7 +85,19 @@ function timelineDay(dayStart: number): {
 const JULY_1 = Date.UTC(2026, 6, 1);
 const TIMELINE = [JULY_1, JULY_1 + DAY_MS, JULY_1 + 2 * DAY_MS, JULY_1 + 9 * DAY_MS].map(timelineDay);
 
-const MOMENTUM = { latestMonth: null, prevMonth: null, rising: [], falling: [] };
+const MOMENTUM: { characterId: string; name: string; bucketStart: number; replies: number }[] = [];
+
+/** One character's replies in one bucket. Mid-month noon UTC unless stated: the same month in every zone. */
+function replies(
+  characterId: string,
+  name: string,
+  bucketStart: number,
+  count: number,
+): { characterId: string; name: string; bucketStart: number; replies: number } {
+  return { characterId, name, bucketStart, replies: count };
+}
+const MID_JULY = Date.UTC(2026, 6, 15, 12, 0);
+const MID_AUGUST = Date.UTC(2026, 7, 15, 12, 0);
 
 for (const width of [320, 720] as const) {
   test.describe(`dashboard accounting at ${width}`, () => {
@@ -128,12 +140,7 @@ const SHOW_LIST_PANEL_RE = /Show list panel/u;
 
 /** The report's own live shape: a small rise beside a large fall. Independently auto-scaled, +10 and −184
  *  drew as near-identical full-width bars in the same colour. */
-const MOMENTUM_LOPSIDED = {
-  latestMonth: "2026-08",
-  prevMonth: "2026-07",
-  rising: [{ characterId: "character_ct_rising", name: "Morgatha", delta: 10 }],
-  falling: [{ characterId: "character_ct_falling", name: "Kate", delta: -184 }],
-};
+const MOMENTUM_LOPSIDED = [replies("character_ct_falling", "Kate", MID_JULY, 184), replies("character_ct_rising", "Morgatha", MID_AUGUST, 10)];
 
 test("the dashboard's Recompute now button fires stats.reconcile", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
@@ -273,7 +280,7 @@ test("the momentum band names its months and the freshness line carries the abso
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
     "stats.timeseries": () => TIMELINE,
-    "stats.momentum": () => ({ latestMonth: "2026-08", prevMonth: "2026-07", rising: [], falling: [] }),
+    "stats.momentum": () => [replies("character_ct_rising", "Morgatha", MID_JULY, 1), replies("character_ct_rising", "Morgatha", MID_AUGUST, 1)],
   });
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
   await expect(component.getByRole("button", { name: "Recompute now" })).toBeVisible();
@@ -574,4 +581,43 @@ test("with no re-rolled reply and no replies, the swipe figures read unrecorded"
   await expect(figureValue(component, "Swiped replies")).toHaveText("—");
   await expect(figureValue(component, "Swipes to kept reply")).toHaveText("—");
   await expect(figureValue(component, "First chat")).toHaveText("—");
+});
+
+// ── Momentum months are the VIEWER's months (0410) ─────────────────────────────────────────────────
+// 2026-08-01 02:00 UTC is still the evening of July 31 in New York, so there those replies belong to July and
+// the band compares June with July; in UTC the same timeline compares July with August.
+const MONTH_EDGE = [
+  replies("character_ct_rising", "Morgatha", Date.UTC(2026, 5, 15, 12, 0), 1),
+  replies("character_ct_rising", "Morgatha", MID_JULY, 1),
+  replies("character_ct_rising", "Morgatha", Date.UTC(2026, 7, 1, 2, 0), 5),
+];
+
+async function routeMonthEdge(page: Page): Promise<void> {
+  await routeTrpc(page, {
+    "stats.freshness": { computedAt: COMPUTED_AT, stale: false, hasData: true },
+    "stats.overview": OVERVIEW,
+    "stats.wrapped": WRAPPED,
+    "stats.timeseries": TIMELINE,
+    "stats.momentum": MONTH_EDGE,
+  });
+}
+
+test.describe("momentum in New York", () => {
+  test.use({ timezoneId: "America/New_York" });
+  test("a reply at 02:00 UTC on the 1st counts toward the viewer's previous month", async ({ mount, page }) => {
+    await routeMonthEdge(page);
+    const component = await mount(<AnalyticsOverviewSurfaceStory />);
+    await expect(component.getByText("June 2026 → July 2026")).toBeVisible();
+    await expect(component.getByRole("table", { name: "Rising" }).getByRole("cell").first()).toHaveText("+5");
+  });
+});
+
+test.describe("momentum in UTC", () => {
+  test.use({ timezoneId: "UTC" });
+  test("the same reply counts toward August", async ({ mount, page }) => {
+    await routeMonthEdge(page);
+    const component = await mount(<AnalyticsOverviewSurfaceStory />);
+    await expect(component.getByText("July 2026 → August 2026")).toBeVisible();
+    await expect(component.getByRole("table", { name: "Rising" }).getByRole("cell").first()).toHaveText("+4");
+  });
 });

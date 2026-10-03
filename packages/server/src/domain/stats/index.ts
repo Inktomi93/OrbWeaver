@@ -12,12 +12,12 @@ export type { ReconcileStatsResult } from "./contract/results.ts";
 export type { StatsService, StatsWorkloadDeps } from "./contract/service.ts";
 export type {
   ActivityBucket,
-  CharacterMomentum,
   CharacterStatsView,
   LatencyStats,
   LeaderboardPage,
   LeaderboardRow,
   ModelStatRow,
+  MomentumBucket,
   OwnerStatsView,
   PersonaUsageRow,
   StatsFreshness,
