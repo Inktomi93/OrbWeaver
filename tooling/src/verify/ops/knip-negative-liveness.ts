@@ -12,13 +12,14 @@
 // `scripts/probes/`, which does not exist in a worktree or a clean clone. Those stay out of scope.
 //
 // It reads the RESOLVED config (the module knip itself evaluates), not the file's text, so a pattern built
-// by an expression is judged as knip sees it. The import is a repo-root config read licensed by the
+// by an expression is judged as knip sees it. It reads the base `config` export: the production-mode default
+// export only adds positive script entries, so both modes carry the same negations. The import is a repo-root config read licensed by the
 // `tooling-root-config-import` reviewed grant. Tracked membership comes from the git index, the same
 // source the policy resources use (`ops/resource-tracked.ts`); an unreadable index is exit 2.
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/_shared/entrypoint";
 import { EXIT } from "@orb/tooling/_shared/exit-contract";
-import knipConfig from "../../../../knip.ts";
+import { config as knipConfig } from "../../../../knip.ts";
 import type { DeadKnipNegation, KnipNegation, KnipNegativeOutcome, KnipPatternConfig } from "../contract/knip-negative-liveness.ts";
 import { KNIP_PATTERN_KEYS } from "../contract/knip-negative-liveness.ts";
 import { loadTrackedFiles } from "./resource-tracked.ts";

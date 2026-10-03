@@ -6,6 +6,7 @@
 // ROWS for the uploading owner (the round-trip through the actual HTTP handlers, not the layers below).
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
+import type { WorkloadRef } from "@orb/contracts/workloads";
 import "../../../support/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { presets, tags, themes } from "@orb/db";
@@ -274,7 +275,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     // `UserId | null` on the real params, hence the widened recorder element type below.
     const started: (UserId | null)[] = [];
     const recordingWorkloads: ImportBundleDeps["workloads"] = {
-      start: (args): Promise<{ id: WorkloadId }> => {
+      start: (args): Promise<WorkloadRef> => {
         started.push(args.ownerId);
         return Promise.resolve({ id: castId<WorkloadId>("wl_csrf_test") });
       },

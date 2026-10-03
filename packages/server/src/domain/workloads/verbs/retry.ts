@@ -8,9 +8,9 @@
 // instead of dropping it — and clones the RAW params blob so the operator's original input survives verbatim
 // into a build that may have fixed the schema.
 
+import type { WorkloadRef } from "@orb/contracts/workloads";
 import { DEFAULT_ADMISSION_KEY } from "@orb/contracts/workloads";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
-import type { WorkloadId } from "@orb/kit/ids";
 import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { RetryWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
@@ -50,7 +50,7 @@ async function assertCloneDependenciesAvailable(ctx: WorkloadServiceContext, ori
 }
 
 export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, "retry"> {
-  async function retry(params: RetryWorkloadParams): Promise<{ id: WorkloadId }> {
+  async function retry(params: RetryWorkloadParams): Promise<WorkloadRef> {
     const contributions = ctx.getContributions();
     const original = await loadWorkload(ctx.db, contributions, params.id);
     if (original === null || !isVisibleToCaller(ctx.isAdmin, params.caller, original.ownerId)) {

@@ -5,7 +5,7 @@
 // box fills only the gap; and an owner's retuned cadence / disabled row is left untouched (the idempotency
 // claim the header makes — matching on KIND, never on the (kind, cadence) pair).
 
-import type { ScheduleCadence, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
+import type { ScheduleCadence, WorkloadKind, WorkloadMode, WorkloadScheduleRef } from "@orb/contracts/workloads";
 import type { UserId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { WorkloadScheduleRow } from "@orb/server/domain/workloads";
@@ -50,7 +50,7 @@ interface FakeWorkloads {
   readonly created: CreatedSchedule[];
   readonly workloads: {
     readonly listSchedules: () => Promise<readonly WorkloadScheduleRow[]>;
-    readonly createSchedule: (params: CreateArgs) => Promise<{ id: WorkloadScheduleId }>;
+    readonly createSchedule: (params: CreateArgs) => Promise<WorkloadScheduleRef>;
   };
 }
 
@@ -61,7 +61,7 @@ function fakeWorkloads(existing: readonly WorkloadScheduleRow[]): FakeWorkloads 
     created,
     workloads: {
       listSchedules: async (): Promise<readonly WorkloadScheduleRow[]> => await Promise.resolve(existing),
-      createSchedule: async (params: CreateArgs): Promise<{ id: WorkloadScheduleId }> => {
+      createSchedule: async (params: CreateArgs): Promise<WorkloadScheduleRef> => {
         created.push({ kind: params.input.kind, cadence: params.cadence, mode: params.mode, ownerId: params.ownerId });
         return await Promise.resolve({ id: castId<WorkloadScheduleId>(`workload_schedule_new_${params.input.kind}`) });
       },

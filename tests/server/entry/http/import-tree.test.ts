@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry, PortableEntity, PortableFile, PortableKind } from "@orb/contracts/portability";
+import type { WorkloadRef } from "@orb/contracts/workloads";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportTreeDeps } from "@orb/server/entry/http";
@@ -98,7 +99,7 @@ function guardCtx(principal: Principal | null, headers?: Record<string, string>)
 }
 
 let stagingDir: string;
-const startSpy = vi.fn<(p: { input: { kind: string; params: Record<string, unknown> }; ownerId: UserId | null }) => Promise<{ id: WorkloadId }>>();
+const startSpy = vi.fn<(p: { input: { kind: string; params: Record<string, unknown> }; ownerId: UserId | null }) => Promise<WorkloadRef>>();
 
 function deps(): ImportTreeDeps {
   return { workloads: { start: startSpy }, registry: fakeRegistry(), stagingDir };

@@ -2,7 +2,7 @@
 // the two explicit DI bundles, and the injected-op type aliases; `context.ts` is the builder for these types.
 // workloads sideways-imports NO sibling runtime — every cross-feature capability is an injected op wired at entry/.
 
-import type { ModelCallEstimate, WorkloadEvent } from "@orb/contracts/workloads";
+import type { ModelCallEstimate, WorkloadEvent, WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { IsAdmin, RequireOwner } from "#domain/admin";
@@ -110,10 +110,10 @@ export interface BootReclaimReport {
 
 /** The `WorkloadService` surface; every verb threads `caller` as the F3 authorization subject (`null` = trusted system trigger). */
 export interface WorkloadService extends WorkloadScheduleService {
-  readonly start: (params: StartWorkloadParams) => Promise<{ id: WorkloadId }>;
+  readonly start: (params: StartWorkloadParams) => Promise<WorkloadRef>;
   readonly estimateModelCalls: (params: EstimateModelCallsParams) => Promise<ModelCallEstimate>;
   readonly cancel: (params: CancelWorkloadParams) => Promise<CancelWorkloadResult>;
-  readonly retry: (params: RetryWorkloadParams) => Promise<{ id: WorkloadId }>;
+  readonly retry: (params: RetryWorkloadParams) => Promise<WorkloadRef>;
   readonly get: (params: GetWorkloadParams) => Promise<WorkloadRowAnyKind>;
   readonly list: (params: ListWorkloadsParams) => Promise<readonly WorkloadRowAnyKind[]>;
 }

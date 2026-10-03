@@ -1,7 +1,7 @@
 // The knip negative-pattern liveness stage in both directions: a literal negation naming an untracked path
 // reds and names the pattern by workspace; one naming a tracked file passes; a wildcard negation over an
 // absent directory is out of scope. The last case judges the real knip.ts against the real git index.
-import knipConfig from "../../../../knip.ts";
+import { config as knipConfig } from "../../../../knip.ts";
 import { judgeKnipNegatives, knipNegativeReport } from "../../../../tooling/src/verify/ops/knip-negative-liveness.ts";
 import { loadTrackedFiles } from "../../../../tooling/src/verify/ops/resource-tracked.ts";
 import { expect, test } from "../../../support/tool-fixtures.ts";

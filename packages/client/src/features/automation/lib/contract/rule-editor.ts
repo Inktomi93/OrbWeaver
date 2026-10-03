@@ -93,10 +93,7 @@ export const ruleEditorCommitSchema = ruleEditorDraftSchema.superRefine((values,
       });
     }
   }
-});
-
-/** @public twin: ruleEditorCommitSchema */
-export type RuleEditorCommitValues = z.infer<typeof ruleEditorCommitSchema>;
+}) satisfies z.ZodType<RuleEditorValues>;
 
 export interface RuleEditorFailure {
   readonly message: string;
