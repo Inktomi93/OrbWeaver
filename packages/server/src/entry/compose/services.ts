@@ -140,6 +140,7 @@ import { createDomainEventBus } from "./event-bus.ts";
 import { buildImagery } from "./imagery.ts";
 import { createStoreInlineReplyImage } from "./inline-reply-image.ts";
 import { minter } from "./minter.ts";
+import type { PortabilityRunnerComposeResult } from "./portability-runner.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
 import { buildRefinery } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
@@ -287,6 +288,7 @@ export interface ServicesResult {
   readonly assets: AssetsService;
   readonly exportService: ExportService;
   readonly portability: PortabilityRegistry;
+  readonly settleImportMemory: PortabilityRunnerComposeResult["settleImportMemory"];
   readonly importWorldInfo: ImportWorldInfoPort;
   /** The card regex-script lift, for the HTTP card door (the same op every other import door threads). */
   readonly importCardScripts: ImportCardScripts;
@@ -1182,7 +1184,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const rosterPreset = buildRosterPreset({ db, now, audit, emitUserEvent: publishUserEvent, can, chat, automation });
 
   // ── portability + the workloads runner-env (the portability-runner seam) — built LAST.
-  const { portability, importWorkloads } = buildPortabilityRunner({
+  const { portability, importWorkloads, settleImportMemory } = buildPortabilityRunner({
     db,
     now,
     tagCtx,
@@ -1438,6 +1440,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     assets,
     exportService,
     portability,
+    settleImportMemory,
     importWorldInfo,
     importCardScripts: regexCompose.importCardScripts,
     eventBus,

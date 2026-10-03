@@ -129,7 +129,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
 
     const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle() });
 
-    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [], memoryChatIds: ["chat_stub_0"] });
     const input = onlyChatInput(h);
     expect(input.injections).toEqual([{ position: "in_chat", depth: 4, role: "system", content: "Stay wry.", order: 1, createdAt: 1_699_999_000_000 }]);
     expect(input.metadata).toEqual({ roomOverrides: { scenario: "the frontier" } });
@@ -143,9 +143,9 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
     expect(input.messages[1]?.characterId).toBe(ARIA);
     // The orb-only variant economics ride too (`tokensIn` has no ST spelling at all).
     expect(input.messages[1]?.variants[0]?.tokensIn).toBe(90);
-    // A user turn + an assistant turn with text IS a real conversation → the backfill enqueues.
+    // A user turn + an assistant turn with text IS a real conversation → the free index pass enqueues.
     expect(input.isRealConversation).toBe(true);
-    expect(h.backfills).toEqual([{ ownerId: OWNER }]);
+    expect(h.indexEnqueues).toEqual([{ ownerId: OWNER }]);
   });
 
   test("OWNER RULING — a bundle naming no character this account holds is REFUSED, names the handles it looked for, and writes nothing", async () => {
@@ -160,7 +160,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
     expect(outcome.ok === false ? outcome.error : "").toContain("import the character first");
     // NOTHING was written — not a characterless room, not a placeholder card.
     expect(h.chatCalls).toEqual([]);
-    expect(h.backfills).toEqual([]);
+    expect(h.indexEnqueues).toEqual([]);
   });
 
   test("the DIRECTORY handle is the fallback when the carried seat list did not survive", async () => {
@@ -168,7 +168,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
 
     const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle({ characterHandles: [] }) });
 
-    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [], memoryChatIds: ["chat_stub_0"] });
     expect(h.chatCalls[0]?.characterId).toBe(ARIA);
   });
 
@@ -188,7 +188,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
       bytes: bundle({ characterHandles: ["x".repeat(201), "aria"] }),
     });
 
-    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [], memoryChatIds: ["chat_stub_0"] });
     expect(lookedUp).toEqual(["aria"]);
     expect(h.chatCalls[0]?.characterId).toBe(ARIA);
   });
@@ -207,15 +207,17 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
       ...h.profile,
       bulkImportChats: (): ReturnType<ProfileHarness["profile"]["bulkImportChats"]> => {
         imports += 1;
+        // The first import writes the room; the retry finds it already claimed and writes nothing.
+        const wrote = imports === 1 ? 1 : 0;
         return Promise.resolve({
           identities: [identity],
-          written: imports === 1 ? [identity] : [],
-          chatsImported: imports === 1 ? 1 : 0,
-          chatsSkipped: imports === 1 ? 0 : 1,
-          messagesImported: imports === 1 ? 2 : 0,
-          variantsImported: imports === 1 ? 2 : 0,
+          written: Array.from({ length: wrote }, () => identity),
+          chatsImported: wrote,
+          chatsSkipped: 1 - wrote,
+          messagesImported: 2 * wrote,
+          variantsImported: 2 * wrote,
           branchesLinked: 0,
-          realConversationWritten: imports === 1,
+          realConversationsWritten: Array.from({ length: wrote }, () => identity.chatId),
           chatsPersonaHealed: 0,
         });
       },
@@ -239,7 +241,12 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
     await expect(verb({ filename: "aria/chat_recovery.orb.json", bytes })).rejects.toThrow("injected overlay interruption");
     expect(attached).toEqual(new Set(["first"]));
 
-    await expect(verb({ filename: "aria/chat_recovery.orb.json", bytes })).resolves.toEqual({ ok: true, created: false, skippedOverlays: [] });
+    await expect(verb({ filename: "aria/chat_recovery.orb.json", bytes })).resolves.toEqual({
+      ok: true,
+      created: false,
+      skippedOverlays: [],
+      memoryChatIds: [],
+    });
     expect(attached).toEqual(new Set(["first", "second"]));
     expect(imports).toBe(2);
   });
@@ -264,7 +271,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
 
     const outcome = await h.verb({ filename: "aria/chat_2025.jsonl", bytes: jsonl });
 
-    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [], memoryChatIds: ["chat_stub_0"] });
     // The interchange arm's shape: the single migrated note field exists, the orb-only list does not.
     const input = onlyChatInput(h);
     expect(input.injections).toBeUndefined();
@@ -281,7 +288,7 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
 
     const outcome = await h.verb({ filename: "aria/CHAT_2025.JSONL", bytes: jsonl });
 
-    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [], memoryChatIds: ["chat_stub_0"] });
     expect(onlyChatInput(h).importedFrom).toBe("aria/CHAT_2025.JSONL");
   });
 });
@@ -354,7 +361,7 @@ describe("importChatBundle — a dropped overlay is REPORTED, never silent (#146
 
     const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle({ tagNames: ["road"], rpg: campaign }) });
 
-    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [], memoryChatIds: ["chat_stub_0"] });
   });
 
   test("a tag-LESS, campaign-less bundle skips nothing even with both ops unwired — only a CARRIED plane can be lost", async () => {
@@ -362,6 +369,6 @@ describe("importChatBundle — a dropped overlay is REPORTED, never silent (#146
 
     const outcome = await h.verb({ filename: "aria/chat_x.orb.json", bytes: bundle() });
 
-    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [], memoryChatIds: ["chat_stub_0"] });
   });
 });

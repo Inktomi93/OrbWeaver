@@ -29,10 +29,16 @@ declare module "@tanstack/react-query" {
 const GC_TIME_MS = 300_000; // 5 minutes
 const QUERY_RETRIES = 2;
 
+/** A tRPC error's structured code (`CONFLICT`, `BAD_REQUEST`, …), or undefined for any other value. Callers key
+ *  on the code, never on message text. */
+export function trpcErrorCode(error: unknown): string | undefined {
+  return (error as { data?: { code?: string } } | null | undefined)?.data?.code;
+}
+
 /** The default retry schedule, minus a `BAD_REQUEST`: the server refused the input itself, so the same read
  *  gets the same refusal. Every query's default in `createAppQueryClient`; a query that needs another policy sets its own. */
 export function retryUnlessBadRequest(failureCount: number, error: unknown): boolean {
-  return (error as { data?: { code?: string } } | null | undefined)?.data?.code !== "BAD_REQUEST" && failureCount < QUERY_RETRIES;
+  return trpcErrorCode(error) !== "BAD_REQUEST" && failureCount < QUERY_RETRIES;
 }
 
 function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {

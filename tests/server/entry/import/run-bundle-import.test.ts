@@ -7,8 +7,8 @@
 
 import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
-import { runBundleImport } from "@orb/server/entry/import";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { bundleImportMemoryChatIds, runBundleImport } from "@orb/server/entry/import";
 import type { ZipEntry } from "@orb/server/infra/storage";
 import { packZip } from "@orb/server/infra/storage";
 import { describe } from "vitest";
@@ -139,6 +139,25 @@ describe("runBundleImport", () => {
     expect(report).toMatchObject({ imported: 2, skipped: 0, failed: 0 });
     // …and a descriptor that said nothing carries no empty list to read past.
     expect(report.outcomes.find((o) => o.kind === "persona")).not.toHaveProperty("notes");
+  });
+
+  // The bundle enqueues no memory build: the chats each file wrote ride its outcome, and the report's one scope
+  // (what the client offers to build) is every file's chats in file order, a failed file contributing none.
+  test("each chat file's written conversations ride its outcome and flatten into the bundle's memory scope", async () => {
+    const calls: RecordedCall[] = [];
+    const aria = mintTypeId(ID_PREFIX.chat);
+    const bee = mintTypeId(ID_PREFIX.chat);
+    const scope: Record<string, PortableImportOutcome> = {
+      "aria/x.orb.json": { ok: true, created: true, memoryChatIds: [aria] },
+      "junk/y.orb.json": { ok: false, error: "not a chat bundle" },
+      "bee/z.orb.json": { ok: true, created: true, memoryChatIds: [bee] },
+    };
+    const registry: PortabilityRegistry = [fakeEntity("chat", "chats/", calls, (file) => scope[file.filename] ?? { ok: true, created: false })];
+    const archive = await packBundle(Object.keys(scope).map((name) => ({ path: `chats/${name}`, bytes: enc.encode("{}") })));
+
+    const report = await runBundleImport({ registry, ownerId: OWNER, archive });
+
+    expect(bundleImportMemoryChatIds(report)).toEqual([aria, bee]);
   });
 
   test("records an unknown-dir file as a skip, never fatal", async () => {

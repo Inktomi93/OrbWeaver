@@ -322,11 +322,9 @@ async function writeBundle(args: {
     characterId: characterIds.primary,
     chats: [toChatInput({ bundle, characterIds, personaIdByName, filename, importHash: sha256Hex(bytes) })],
   });
-  // The same clause `importChats` runs: a chat canon-write always OFFERS the downstream index sweep,
-  // and the workloads door decides whether it is admissible (#156). This arm reports no enqueue flag, so the
-  // verdict is simply not read here.
-  if (result.realConversationWritten) {
-    await profile.enqueueBackfill({ ownerId: ctx.ownerId });
+  // The same clause `importChats` runs: a real conversation queues the free index pass, never a memory build.
+  if (result.realConversationsWritten.length > 0) {
+    await profile.enqueueImportIndex({ ownerId: ctx.ownerId });
   }
   const identity = result.identities[0];
   if (identity === undefined) {
@@ -335,5 +333,5 @@ async function writeBundle(args: {
     return { ok: false, error: "chat import resolved no canonical identity for the bundle" };
   }
   const skippedOverlays = await restoreOverlays({ profile, ownerId: ctx.ownerId, bundle, identity, characterIds });
-  return { ok: true, created: result.chatsImported > 0, skippedOverlays };
+  return { ok: true, created: result.chatsImported > 0, skippedOverlays, memoryChatIds: result.realConversationsWritten };
 }

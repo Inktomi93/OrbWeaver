@@ -5,9 +5,9 @@
 // assets), so they are composed once at `entry/` and handed in. `reconcileImportStats` is the SAME op the
 // portability descriptors take — one slice, built once, shared by both consumers.
 
-import type { CompareAndSetImportedTokenUsage, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
-import type { ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
-import type { UserId } from "@orb/kit/ids";
+import type { CompareAndSetImportedTokenUsage, ImportWindow, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
+import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
+import type { ChatId, UserId } from "@orb/kit/ids";
 
 export interface ImportTokenUsageBackfillDeps {
   readonly listTokenUsageCandidates: ListImportedTokenUsageCandidates;
@@ -31,18 +31,18 @@ interface ImportPassCounts {
   readonly failed: number;
   /** Path to the written import report (what landed / what didn't). Absent on a dry run (nothing written). */
   readonly reportPath?: string;
+  /** The span in which the run wrote real conversations (null = none): the client's memory-build offer scope. */
+  readonly memoryScope: ImportWindow | null;
 }
 
-/** A bundle import's per-entity tallies, as the delivery core reports them. `notes` (#1710) is the flattened
- *  {@link BundleImportFileOutcome.notes} across the whole report — what a file that DID import still left
- *  behind (a kept edited lorebook, a dropped overlay) — so a BACKGROUND `import-bundle` workload can surface
- *  it too, not only the descriptor-level report the sync door already read (#1688). */
-interface BundleImportCounts {
-  readonly imported: number;
-  readonly skipped: number;
-  readonly failed: number;
-  readonly notes: readonly string[];
-}
+/** Close an import's memory scope once its writes are done: `from` is the server clock read before the import
+ *  started. Returns the span as the import's scope handle, or null when the import wrote no real conversation.
+ *  Every import door (the workload runs and the synchronous chat route) settles through the one composed op. */
+export type SettleImportMemory = (args: {
+  readonly ownerId: UserId;
+  readonly from: number;
+  readonly memoryChatIds: readonly ChatId[];
+}) => Promise<ImportWindow | null>;
 
 export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
   /** The staging root the HTTP upload routes wrote under — every staged handle resolves strictly inside it. */
@@ -52,9 +52,9 @@ export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
   /** The ST profile-directory bulk loop (personas first, then per-bundle character + chats). */
   readonly runProfileDirImport: (args: { profileRoot: string; ownerId: UserId; dryRun: boolean; signal: AbortSignal }) => Promise<ImportPassCounts>;
   /** The single-archive portability import (its own extract belts + caps). */
-  readonly runBundleImport: (args: { archive: Uint8Array; ownerId: UserId; stagingRoot: string; signal: AbortSignal }) => Promise<BundleImportCounts>;
+  readonly runBundleImport: (args: { archive: Uint8Array; ownerId: UserId; stagingRoot: string; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
   /** The folder-upload variant: a staged directory tree walked through the SAME entity routing. */
-  readonly runStagedDirImport: (args: { stagedPath: string; ownerId: UserId; signal: AbortSignal }) => Promise<BundleImportCounts>;
+  readonly runStagedDirImport: (args: { stagedPath: string; ownerId: UserId; signal: AbortSignal }) => Promise<BundleImportWorkloadResult>;
   /** Rebuild the freshly-imported owner's stats rollups from canon (the post-settle). The same injected op
    *  the portability descriptors take — one slice, one home. */
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;

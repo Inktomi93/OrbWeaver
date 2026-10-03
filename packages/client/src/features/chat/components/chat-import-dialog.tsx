@@ -6,13 +6,19 @@
 // The route answers 200 for an accepted batch even when every transcript inside it failed (per-file
 // isolation), so the toast derives from the REAL per-file outcome, never from "it didn't throw" — an
 // all-failed batch says WHY (the server's own reason: an unparseable file, or a transcript naming a
-// character this account doesn't have yet).
+// character this account doesn't have yet). A batch that wrote real conversations while Memory is on keeps the
+// dialog open on the memory-build offer, since an import enqueues no paid model run on its own. The dropzone stays
+// live, so the offer's scope grows with each drop until a build starts, and a drop after that offers afresh.
 
+import type { ImportWindow } from "@orb/contracts/chat";
+import { mergeImportWindows } from "@orb/contracts/chat";
 import { FileDropzone } from "@orb/ui/file-dropzone";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { FormDialog } from "#components";
+import { useState } from "react";
+import { FormDialog, ImportedChatsMemoryOffer } from "#components";
 import type { ChatImportResult } from "#data";
-import { importChats, useInvalidation } from "#data";
+import { importChats, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 
 // Both chat formats the single-chat door accepts: the ST/share transcript and the R6 orb-native BUNDLE
@@ -52,9 +58,24 @@ export interface ChatImportDialogProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-/** The transcript-import dialog: drop `.jsonl` → upload → toast the real outcome → close when something landed. */
+/** The transcript-import dialog: drop `.jsonl` → upload → toast the real outcome → close when something landed,
+ *  or stay on the memory-build offer when the batch wrote real conversations while Memory is on. */
 export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps): ReactElement {
+  const trpc = useTRPC();
   const invalidation = useInvalidation();
+  // Read while open, and pessimistic until it lands: an unread switch closes the dialog as before, never strands it.
+  const memoryOn = useQuery({ ...trpc.settings.getUserSettings.queryOptions(), enabled: open }).data?.config.memory.enabled === true;
+  // The scope on offer: every drop since the last started build, merged. A closed dialog forgets it.
+  const [offer, setOffer] = useState<{ readonly scope: ImportWindow; readonly started: boolean } | null>(null);
+  const changeOpen = (next: boolean): void => {
+    if (!next) {
+      setOffer(null);
+    }
+    onOpenChange(next);
+  };
+  const offerScope = (scope: ImportWindow): void => {
+    setOffer((prev) => ({ scope: prev === null || prev.started ? scope : mergeImportWindows(prev.scope, scope), started: false }));
+  };
 
   const onFiles = (accepted: readonly File[]): void => {
     if (accepted.length === 0) {
@@ -70,7 +91,16 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
         }
         // A raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate manually.
         invalidation.invalidateUser({ type: "chatsChanged" });
-        onOpenChange(false);
+        if (memoryOn && result.memoryScope !== null) {
+          offerScope(result.memoryScope);
+          return;
+        }
+        // A drop that wrote no real conversation (a duplicate, a greeting-only transcript) leaves the scope as it
+        // is, and an offer still waiting on a yes keeps the dialog open rather than being thrown away.
+        if (offer !== null && !offer.started) {
+          return;
+        }
+        changeOpen(false);
       },
       () => notify.error("Couldn't import the chat."),
     );
@@ -79,7 +109,7 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
   return (
     <FormDialog
       description="Drop chat files exported from orbweaver (.orb.json — the whole room) or transcripts from orbweaver or SillyTavern (.jsonl). Each lands on the character it names, so import that character's card first."
-      onOpenChange={onOpenChange}
+      onOpenChange={changeOpen}
       open={open}
       title="Import a chat"
     >
@@ -89,6 +119,11 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
         instructions="Drop a chat file (.orb.json or .jsonl), or click to browse"
         multiple={true}
         onFilesSelected={({ accepted }): void => onFiles(accepted)}
+      />
+      <ImportedChatsMemoryOffer
+        nested={true}
+        onStarted={(): void => setOffer((prev) => (prev === null ? null : { ...prev, started: true }))}
+        scope={offer?.scope ?? null}
       />
     </FormDialog>
   );

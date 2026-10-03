@@ -1,6 +1,6 @@
 // Unit test for domain/import/verbs/importChats (Option B) — `import` performs NO db access: it maps
 // each parsed ST chat → the canonical `BulkImportChatInput` and delegates the WRITE to the injected
-// `bulkImportChats` op (a recording fake here). Asserts the ST→canonical MAPPING + the backfill gate.
+// `bulkImportChats` op (a recording fake here). Asserts the ST→canonical MAPPING + the index gate and memory scope.
 // The db-write correctness is pinned in the chat-domain mirror (`chat/persistence/import-write.int.test.ts`).
 
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
@@ -74,13 +74,13 @@ describe("importChats (Option B mapping)", () => {
     // Every message resolves a selected variant carrying the rendered `mes`.
     expect(chat?.messages[0]?.variants[chat.messages[0].selectedIdx]?.content).toBe("Hello traveller.");
 
-    // gate — a real_conversation chat enqueues exactly ONE backfill.
-    expect(result.backfillEnqueued).toBe(true);
-    expect(h.backfills).toEqual([{ ownerId: OWNER }]);
+    // gate — a real_conversation chat is the memory offer's scope and queues ONE free index pass.
+    expect(result.memoryChatIds).toEqual(["chat_stub_0"]);
+    expect(h.indexEnqueues).toEqual([{ ownerId: OWNER }]);
     expect(result.messagesImported).toBe(2);
   });
 
-  test("no real_conversation → no backfill enqueue (the gate stays closed)", async () => {
+  test("no real_conversation → nothing to offer and no index enqueue (the gate stays closed)", async () => {
     const h = makeProfileHarness(OWNER);
     const svc = createImportChats(h.ctx);
     // A greeting-only chat (no user turn) — the parser buckets it non-real.
@@ -99,7 +99,7 @@ describe("importChats (Option B mapping)", () => {
     });
 
     expect(h.chatCalls[0]?.chats[0]?.isRealConversation).toBe(false);
-    expect(result.backfillEnqueued).toBe(false);
-    expect(h.backfills).toEqual([]);
+    expect(result.memoryChatIds).toEqual([]);
+    expect(h.indexEnqueues).toEqual([]);
   });
 });

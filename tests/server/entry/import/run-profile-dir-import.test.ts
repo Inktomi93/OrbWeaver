@@ -13,8 +13,8 @@ import type { Principal } from "@orb/contracts/identity";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { BulkImportLorebookResult } from "@orb/contracts/world-info";
-import type { AssetId, CharacterId, Handle, PersonaId, PresetId, UserId, WorldBookId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, Handle, PersonaId, PresetId, UserId, WorldBookId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import type { ImportFsPort } from "@orb/server/domain/import";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ProfileDirImportDeps } from "@orb/server/entry/import";
@@ -198,7 +198,10 @@ interface Fakes {
   readonly presetWrites: string[];
   readonly stores: StoreCall[];
   readonly log: string[];
-  readonly backfills: UserId[];
+  /** Every post-import index enqueue (the driver's one enqueue). */
+  readonly indexEnqueues: UserId[];
+  /** Every real conversation the fake chat write reported written, in write order. */
+  readonly memoryChatIds: ChatId[];
   /** Standalone (unattached) library books imported from `worlds/*.json`, by name — deduped like the real op. */
   readonly standaloneBooks: string[];
 }
@@ -213,7 +216,8 @@ function fakes(): Fakes {
   const seenChatHashes = new Set<string>();
   const stores: StoreCall[] = [];
   const log: string[] = [];
-  const backfills: UserId[] = [];
+  const indexEnqueues: UserId[] = [];
+  const memoryChatIds: ChatId[] = [];
   const standaloneBooks: string[] = [];
   const tagAttaches: TagAttach[] = [];
   let charSeq = 0;
@@ -304,12 +308,17 @@ function fakes(): Fakes {
     log.push("bulkImportChats");
     chatWrites.push({ characterId: args.characterId, chats: args.chats });
     let imported = 0;
+    const realConversationsWritten: ChatId[] = [];
     for (const c of args.chats) {
       if (!seenChatHashes.has(c.importHash)) {
         seenChatHashes.add(c.importHash);
         imported += 1;
+        if (c.isRealConversation) {
+          realConversationsWritten.push(mintTypeId(ID_PREFIX.chat));
+        }
       }
     }
+    memoryChatIds.push(...realConversationsWritten);
     return Promise.resolve({
       // The stub writes nothing, so it reports no written rows — the real op returns one identity per chat.
       identities: [],
@@ -319,7 +328,7 @@ function fakes(): Fakes {
       messagesImported: args.chats.reduce((n, c) => n + c.messages.length, 0),
       variantsImported: 0,
       branchesLinked: 0,
-      realConversationWritten: imported > 0 && args.chats.some((c) => c.isRealConversation),
+      realConversationsWritten,
       chatsPersonaHealed: 0,
     });
   };
@@ -336,7 +345,8 @@ function fakes(): Fakes {
     presetWrites,
     stores,
     log,
-    backfills,
+    indexEnqueues,
+    memoryChatIds,
     standaloneBooks,
   };
 }
@@ -385,9 +395,9 @@ function deps(
         renamedFrom: null,
       });
     },
-    enqueueBackfill: ({ ownerId }): Promise<boolean> => {
-      f.backfills.push(ownerId);
-      return Promise.resolve(true);
+    enqueueImportIndex: ({ ownerId }): Promise<void> => {
+      f.indexEnqueues.push(ownerId);
+      return Promise.resolve();
     },
     reconcileImportStats: () => Promise.resolve(),
     now: () => NOW,
@@ -481,8 +491,10 @@ describe("runProfileDirImport", () => {
     for (const s of f.stores) {
       expect(s.maxBytes).toBe(ASSET_UPLOAD_MAX_BYTES);
     }
-    // A real_conversation chat enqueues exactly one memory backfill.
-    expect(f.backfills).toEqual([OWNER.userId]);
+    // A real_conversation chat is the memory offer's scope; the run's one enqueue is the free index pass.
+    expect(f.memoryChatIds).toHaveLength(1);
+    expect(result.memoryChatIds).toEqual(f.memoryChatIds);
+    expect(f.indexEnqueues).toEqual([OWNER.userId]);
   });
 
   test("dryRun predicts the create count with ZERO writes", async () => {
@@ -494,10 +506,11 @@ describe("runProfileDirImport", () => {
     expect(result.scanned).toBe(3);
     // one would-be-created character (fresh owner: no importHash/handle match); personas/chats not predicted.
     expect(result.changed).toBe(1);
-    // No write op fired — no store, no create, no bulk import, no backfill.
+    // No write op fired — no store, no create, no bulk import, no index enqueue.
     expect(f.stores).toHaveLength(0);
     expect(f.log).toHaveLength(0);
-    expect(f.backfills).toHaveLength(0);
+    expect(f.indexEnqueues).toHaveLength(0);
+    expect(result.memoryChatIds).toEqual([]);
   });
 
   test("standalone worlds import as UNATTACHED library books, BEFORE characters, counted in the tally", async () => {
@@ -525,10 +538,10 @@ describe("runProfileDirImport", () => {
     expect(f.log.indexOf("character.create")).toBeGreaterThanOrEqual(0);
   });
 
-  test("MANY characters with chats import fully + enqueue EXACTLY ONE backfill (no per-character abort)", async () => {
-    // Regression: the memory backfill used to be enqueued per character that wrote a real conversation. The
+  test("MANY characters with chats import fully + enqueue EXACTLY ONE index pass (no per-character abort)", async () => {
+    // Regression: the post-import enqueue used to fire per character that wrote a real conversation. The
     // second such enqueue collided on the per-(kind, owner) admission lock and, unhandled, aborted the whole
-    // import mid-loop — "hundreds of characters, only 2 imported". The backfill is now deferred to ONE enqueue
+    // import mid-loop — "hundreds of characters, only 2 imported". There is now ONE enqueue,
     // after the entire import, so every character lands and embeddings never run mid-import.
     const files: Record<string, Uint8Array> = {};
     for (const name of ["Aria", "Bryn", "Cleo", "Dex"]) {
@@ -544,8 +557,11 @@ describe("runProfileDirImport", () => {
     expect(f.log.filter((l) => l === "character.create")).toHaveLength(4);
     expect(f.log.filter((l) => l === "bulkImportChats")).toHaveLength(4);
     expect(result.changed).toBe(8); // 4 chars + 4 chats (no personas in this fixture)
-    // EXACTLY ONE backfill for the whole import — not one per character, and never a thrown conflict.
-    expect(f.backfills).toEqual([OWNER.userId]);
+    // EXACTLY ONE index enqueue for the whole import — not one per character, and never a thrown conflict —
+    // and every character's written conversation in the memory offer's scope.
+    expect(f.indexEnqueues).toEqual([OWNER.userId]);
+    expect(f.memoryChatIds).toHaveLength(4);
+    expect(result.memoryChatIds).toEqual(f.memoryChatIds);
   });
 
   test("ST library tags (settings.tags + tag_map) attach to the matching character by card filename", async () => {
