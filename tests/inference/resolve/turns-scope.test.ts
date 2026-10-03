@@ -51,6 +51,18 @@ test("a hosted GPT continue keeps the nudge: an unmeasured prefill cell does not
   expect(acceptsAssistantPrefill(gpt)).toBe(false);
 });
 
+// A Custom row keeps the relaxation (it is the user's own server), so a hosted family behind a Custom proxy is
+// protected only by what its family row STATES: Gemini takes a system message only before the first turn.
+test("Gemini behind a Custom proxy with the preset at `none` folds every non-leading system row", async () => {
+  const proxied = await generationFor({ providerId: "custom-openai", model: "gemini-2.5-pro", baseUrl: "http://proxy.test/v1" });
+  expect(turnsLevelFor(proxied, "none")).toMatchObject({ midConversationSystem: false, historySystemRows: false });
+});
+
+test("an unknown model behind a Custom proxy stays relaxed", async () => {
+  const unknown = await generationFor({ providerId: "custom-openai", model: "mystery-model-7b", baseUrl: "http://proxy.test/v1" });
+  expect(turnsLevelFor(unknown, "none")).toEqual({ roleHandlingFloor: "none", midConversationSystem: true, historySystemRows: true });
+});
+
 test("an unknown local model with the preset at `none` still sends a mid-history system row", async () => {
   const local = await generationFor({
     providerId: "koboldcpp",
