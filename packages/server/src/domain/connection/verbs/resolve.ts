@@ -3,10 +3,10 @@
 // thing decided here is the PROJECTION: `resolveChatCapability` hands back the credential-free
 // `ResolvedConnectionView`, never the `Resolved` a backend consumes.
 
-import type { CapabilityTarget, ResolvedConnectionView, SendAvailability } from "@orb/contracts/inference";
+import type { CapabilityTarget, ResolvedConnectionView, SendAvailability, TokenizeResult } from "@orb/contracts/inference";
 import type { ResolveOutcome } from "@orb/inference";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
-import type { ResolveChatCapabilityParams, ResolveTaskParams } from "../contract/params.ts";
+import type { ResolveChatCapabilityParams, ResolveTaskParams, TokenizeWordsParams } from "../contract/params.ts";
 import type { ConnectionCapabilityView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
@@ -35,19 +35,27 @@ export function createAvailability(ctx: ConnectionContext): ConnectionService["a
 
 const CHAT_ROLE: CapabilityTarget = { kind: "role", task: "chat" };
 
+/** The caller's own connection a capability target names: a role through the caller's bindings, a connection
+ *  id only after the owner check that every id-taking verb here runs first (see `createCapabilities`). */
+async function resolveChatTarget(ctx: ConnectionContext, params: ResolveChatCapabilityParams): Promise<ResolveOutcome["resolved"]> {
+  const target = params.target ?? CHAT_ROLE;
+  if (target.kind === "role") {
+    return (await ctx.runtime.resolve({ task: target.task, principal: params.principal })).resolved;
+  }
+  if ((await fetchOwnedConnection(ctx.db, params.principal.userId, target.connectionId)) === null) {
+    throw new ConnectionNotFoundError(target.connectionId);
+  }
+  return (await ctx.runtime.resolve({ task: "chat", principal: params.principal, connectionId: target.connectionId })).resolved;
+}
+
 export function createResolveChatCapability(ctx: ConnectionContext): ConnectionService["resolveChatCapability"] {
-  return async (params: ResolveChatCapabilityParams): Promise<ResolvedConnectionView> => {
-    const target = params.target ?? CHAT_ROLE;
-    if (target.kind === "role") {
-      return toResolvedView((await ctx.runtime.resolve({ task: target.task, principal: params.principal })).resolved);
-    }
-    // The owner check runs before the runtime read, as every id-taking verb here does (see `createCapabilities`).
-    if ((await fetchOwnedConnection(ctx.db, params.principal.userId, target.connectionId)) === null) {
-      throw new ConnectionNotFoundError(target.connectionId);
-    }
-    const outcome = await ctx.runtime.resolve({ task: "chat", principal: params.principal, connectionId: target.connectionId });
-    return toResolvedView(outcome.resolved);
-  };
+  return async (params: ResolveChatCapabilityParams): Promise<ResolvedConnectionView> => toResolvedView(await resolveChatTarget(ctx, params));
+}
+
+/** What each word tokenizes to on the targeted connection's server (the logit-bias editor's live display),
+ *  through the runtime's cache. Only the token ids and pieces cross; never the credential. */
+export function createTokenizeWords(ctx: ConnectionContext): ConnectionService["tokenizeWords"] {
+  return async (params: TokenizeWordsParams): Promise<TokenizeResult> => ctx.runtime.catalogs.tokenize(await resolveChatTarget(ctx, params), params.words);
 }
 
 export function createCapabilities(ctx: ConnectionContext): ConnectionService["capabilities"] {

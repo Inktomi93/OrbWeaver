@@ -41,6 +41,8 @@ import { drainStream } from "../v4/stream.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
 import { languageModelFor, providerOptionsKey } from "./model.ts";
 import { wireSampling } from "./sampling.ts";
+import type { TokenLexicon } from "./tokens.ts";
+import { resolveWordBias } from "./tokens.ts";
 
 const MANDATORY_REASONING_RE = /reasoning is mandatory/iu;
 /** llama.cpp server refuses `tools[]` under `--no-jinja` while its `/props` still reports the template's tool
@@ -59,6 +61,7 @@ export interface OpenAiCompatChatDeps {
   readonly log: InferenceLog;
   readonly addSpanEvent?: AddSpanEvent | undefined;
   readonly transport: TransportDeps;
+  readonly tokens: TokenLexicon;
 }
 
 /** The openrouter routing-prefs shape a connection's `extras.provider` may carry (snake_case, OR's own
@@ -174,28 +177,41 @@ function compatibleEffortWord(reasoning: ResolvedReasoning): LanguageModelV4Call
   return reasoning.offChosen === true ? REASONING_OFF : undefined;
 }
 
+/** The thinking budget under the row's own body field, or a warning and nothing where the row names none. */
+function budgetBody(field: Resolved["features"]["reasoningBudgetField"], reasoning: ResolvedReasoning, warnings: ResolvedWarning[]): Record<string, number> {
+  const budget = reasoning.enabled ? reasoning.budgetTokens : undefined;
+  if (budget === undefined) {
+    return {};
+  }
+  if (field === undefined) {
+    warnings.push({
+      code: "sampling_knob_dropped",
+      knob: "thinkingBudgetTokens",
+      message: "thinkingBudgetTokens ignored: this endpoint's row spells no reasoning-budget field",
+    });
+    return {};
+  }
+  return { [field]: budget };
+}
+
 /** The openai-compatible transport: effort rides V4 `reasoning` iff the row spells `reasoning_effort`; a
- *  budget has no slot; verbosity rides the SDK's `textVerbosity` option; the unmodelled sampler knobs ride
- *  `providerOptions[name]` under the row's own spelling, which the SDK spreads into the body. */
+ *  budget rides the row's `reasoningBudgetField` where it names one; verbosity rides the SDK's `textVerbosity`
+ *  option; the unmodelled sampler knobs ride `providerOptions[name]` under the row's own spelling, which the SDK
+ *  spreads into the body. */
 function openAiCompatibleShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings: ResolvedWarning[], key: string): TurnShape {
   const { connection } = req;
   const { knobs, sampling } = turn;
   const reasoning = knobs.reasoning;
   const spellsEffort = connection.features.effort === "reasoning_effort";
   const effort = spellsEffort ? compatibleEffortWord(reasoning) : undefined;
-  if (reasoning.enabled && reasoning.budgetTokens !== undefined) {
-    warnings.push({
-      code: "sampling_knob_dropped",
-      knob: "thinkingBudgetTokens",
-      message: "thinkingBudgetTokens ignored: the OpenAI-compatible chat-completions wire has no reasoning-budget field",
-    });
-  }
+  const budget = budgetBody(connection.features.reasoningBudgetField, reasoning, warnings);
   if (reasoning.enabled && reasoning.effort !== undefined && !spellsEffort) {
     warnings.push({ code: "effort_dropped", message: "effort ignored: this endpoint's row spells no reasoning-effort field" });
   }
   const providerOptions: SharedV4ProviderOptions = {
     [key]: {
       ...sampling.body,
+      ...budget,
       ...(knobs.verbosity !== undefined ? { textVerbosity: knobs.verbosity } : {}),
       ...(connection.features.strictJson === "default-on" ? { strictJsonSchema: req.responseFormat?.strict ?? true } : {}),
       ...(connection.features.strictJson === "declared-only" ? { strictJsonSchema: req.responseFormat?.strict ?? false } : {}),
@@ -593,7 +609,9 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   // Resolved once per turn, not per attempt: a retry or the mandatory-reasoning replay must not warn twice.
   const wireReq: OpenAiCompatChatRequest =
     req.toolChoice === undefined ? req : { ...req, toolChoice: servableToolChoice(req.toolChoice, generation, warnings) };
-  const turnKnobs: TurnKnobs = { knobs, sampling: wireSampling(knobs.sampling, connection.features, dialect, warnings) };
+  // A word-keyed logit bias resolves once per turn, from the cache where held (one tokenize call per new word).
+  const sampling = await resolveWordBias(knobs.sampling, connection, deps.tokens, warnings);
+  const turnKnobs: TurnKnobs = { knobs, sampling: wireSampling(sampling, connection.features, dialect, warnings) };
 
   const run = (includeReasoning: boolean): Promise<StreamDrain> =>
     runWithPreCommitRetry(
@@ -611,6 +629,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           chatId: req.chatId,
           plan,
           prefillAllowed: acceptsAssistantPrefill(generation) && req.tools === undefined,
+          thinkingOff: !knobs.reasoning.enabled && req.params.effort === REASONING_OFF,
           foldSameRole: cachesByAnthropicMarkers(connection, generation),
           replyImages: knobs.replyImages,
           ...(generation.imageDetail === true ? { imageDetail: req.attachmentQuality?.imageDetail ?? DEFAULT_ATTACHMENT_QUALITY.imageDetail } : {}),

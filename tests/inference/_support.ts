@@ -18,6 +18,8 @@ import { builtinProvider, foldFeatures, modelIdSchema, providerIdSchema, require
 import type { AutomationRuleId, ModelId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import type { TokenLexicon } from "../../packages/inference/src/backends/openai-compat/tokens.ts";
+import { createTokenLexicon } from "../../packages/inference/src/backends/openai-compat/tokens.ts";
 import type { ConnectionTransport, Resolved } from "../../packages/inference/src/contract/resolved.ts";
 import type {
   BindingStore,
@@ -28,6 +30,12 @@ import type {
   ProviderStore,
   SnapshotStore,
 } from "../../packages/inference/src/deps.ts";
+
+/** A token lexicon over its own in-memory store. With no server given, every lookup fails, so a turn that
+ *  tokenized anything would carry a dropped-bias warning. */
+export function memoryTokenLexicon(server: typeof fetch = () => Promise.reject(new Error("no tokenize server in this test"))): TokenLexicon {
+  return createTokenLexicon({ fetch: server, snapshotStore: memoryStores().snapshotStore });
+}
 
 /** The frozen clock every fake dep reads; a persisted snapshot stamped with it is fresh by construction. */
 export const FROZEN_NOW = 1_700_000_000_000;

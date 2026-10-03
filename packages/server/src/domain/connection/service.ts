@@ -9,7 +9,7 @@ import { createCatalogs } from "./verbs/catalogs.ts";
 import { createConnections } from "./verbs/connections.ts";
 import { createDiagnostics } from "./verbs/diagnostics.ts";
 import { createProviders } from "./verbs/providers.ts";
-import { createAvailability, createCapabilities, createResolve, createResolveChatCapability } from "./verbs/resolve.ts";
+import { createAvailability, createCapabilities, createResolve, createResolveChatCapability, createTokenizeWords } from "./verbs/resolve.ts";
 
 export function createConnectionService(ctx: ConnectionContext): ConnectionService {
   return {
@@ -17,6 +17,7 @@ export function createConnectionService(ctx: ConnectionContext): ConnectionServi
     availability: createAvailability(ctx),
     resolveChatCapability: createResolveChatCapability(ctx),
     capabilities: createCapabilities(ctx),
+    tokenizeWords: createTokenizeWords(ctx),
     ...createConnections(ctx),
     ...createBindings(ctx),
     ...createCatalogs(ctx),

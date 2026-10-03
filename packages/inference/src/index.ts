@@ -17,6 +17,7 @@ import type {
   ProviderDef,
   SendAvailability,
   Task,
+  TokenizeResult,
   UserConnection,
 } from "@orb/contracts/inference";
 import { agentSdkModelSchema, connectionTasks, modelCatalogEntrySchema } from "@orb/contracts/inference";
@@ -25,10 +26,12 @@ import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "./backends/kit/sanitize.ts";
 import type { LocalLightBackend } from "./backends/local-light/index.ts";
+import { tokenTargetOf } from "./backends/openai-compat/tokens.ts";
 import { curatedKind } from "./capability/sources/curated/loader.ts";
 import type { SynthesizedCapability } from "./capability/synthesize.ts";
 import { fetchEndpointModels } from "./catalog/endpoint.ts";
 import { fetchGoogleModels } from "./catalog/google.ts";
+import { ENDPOINT_CATALOG_PREFIX, endpointCatalogKey, endpointCatalogPrefix } from "./catalog/keys.ts";
 import { builtinCatalog, createCatalogListing } from "./catalog/listing.ts";
 import type { Mirror, MirrorDeps } from "./catalog/mirror.ts";
 import { createMirror } from "./catalog/mirror.ts";
@@ -105,15 +108,6 @@ export { runStructuredTurn } from "./roles/structured-turn.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
-/** One mirror per (URL × reader): a native reader states facts the bare list lacks, so two rows on one URL
- *  through different readers must never share a snapshot (the first warm would decide the other's kind,
- *  modalities and tools). URL first, reader last, so one URL's mirrors share a prefix an invalidation can
- *  delete. The `#` family is new on purpose: a snapshot written under the old URL-only key carries no native
- *  facts and is never read again. */
-const ENDPOINT_CATALOG_PREFIX = "catalog:endpoint:";
-const endpointCatalogPrefix = (baseUrl: string): string => `${ENDPOINT_CATALOG_PREFIX}${baseUrl}#`;
-const endpointCatalogKey = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined): string => `${endpointCatalogPrefix(baseUrl)}${modelInfoApi ?? "list"}`;
-
 export interface CapabilityRead extends SynthesizedCapability {
   /** The same evidence fold with this row's declaration omitted. */
   readonly baseline: Capability;
@@ -156,6 +150,9 @@ export interface InferenceRuntime {
      *  next resolve dials the server again — the hook a save or an endpoint inspection runs, because a server
      *  restarted without its projector or `--jinja` keeps its earlier facts until something asks again. */
     readonly invalidateEndpoint: (connection: UserConnection) => Promise<void>;
+    /** What each word tokenizes to on a resolved connection's server, through the same cache a turn reads (the
+     *  logit-bias editor's live display). A row with no tokenize endpoint answers `available: false`, no words. */
+    readonly tokenize: (resolved: ResolveOutcome["resolved"], words: readonly string[]) => Promise<TokenizeResult>;
   };
   readonly diagnostics: ProviderDiagnostics;
   readonly providers: {
@@ -246,6 +243,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       }
     }
     await deps.snapshotStore.deletePrefix(baseUrl === undefined ? ENDPOINT_CATALOG_PREFIX : endpointCatalogPrefix(baseUrl));
+    await built.openAiCompat.tokens.forget(baseUrl);
   };
   /** ONE connection's (URL × reader) mirror, in memory and in the store; a sibling reader's facts on the same
    *  URL are another row's and stay. */
@@ -258,6 +256,8 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     const modelInfoApi = modelInfoApiOf(provider, connection);
     endpointModels(baseUrl, modelInfoApi).invalidate();
     await deps.snapshotStore.deletePrefix(endpointCatalogKey(baseUrl, modelInfoApi));
+    // The server may now run another tokenizer (a reloaded model, a new server on the URL).
+    await built.openAiCompat.tokens.forget(baseUrl);
   };
 
   const openRouterBaseUrl = (): string => {
@@ -390,6 +390,10 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
         return { models: null };
       },
       invalidateEndpoint,
+      tokenize: async (resolved, words): Promise<TokenizeResult> => {
+        const target = tokenTargetOf(resolved);
+        return target === null ? { available: false, words: [] } : { available: true, words: [...(await built.openAiCompat.tokens.lookup(target, words))] };
+      },
     },
     diagnostics,
     providers: {

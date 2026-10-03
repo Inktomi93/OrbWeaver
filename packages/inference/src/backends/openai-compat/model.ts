@@ -51,6 +51,8 @@ export interface ModelCall {
   readonly chatId?: ChatId | undefined;
   readonly plan: WirePlan | null;
   readonly prefillAllowed: boolean;
+  /** Reasoning is chosen off for this call (body rule 5b). */
+  readonly thinkingOff: boolean;
   /** Fold consecutive plain same-role rows into one message of parts (`body.ts` rule 10). */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
@@ -76,6 +78,7 @@ function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
     transport: call.connection.transport,
     dialect,
     prefillAllowed: call.prefillAllowed,
+    thinkingOff: call.thinkingOff,
     foldSameRole: call.foldSameRole,
     replyImages: call.replyImages,
     imageDetail: call.imageDetail,
@@ -164,7 +167,13 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
   const withExtra = (body: Record<string, unknown>): Record<string, unknown> => shapeOutboundBody({ ...body, ...(call.extraBody ?? {}) }, args);
   const samplerKeys = samplerBodyKeys(connection.features);
   const toNative = (body: Record<string, unknown>): Record<string, unknown> =>
-    toOllamaChat(body, { numCtx: nativeWindow(call), samplerKeys, label: call.label });
+    toOllamaChat(body, {
+      numCtx: nativeWindow(call),
+      samplerKeys,
+      label: call.label,
+      keepAlive: connection.features.keepAlive,
+      numBatch: connection.features.numBatch,
+    });
   return createOpenAICompatible({
     name: connection.providerId,
     baseURL: openAiPath(baseUrl, ""),

@@ -76,7 +76,11 @@ test("behind a Custom endpoint a model family's stated sampling wins; only an un
   }
   expect(generationOf("custom-openai", "gpt-5-mini").sampling.temperature).toBeUndefined();
   expect(generationOf("custom-openai", "gpt-5-mini").sampling.topK).toBeUndefined();
-  expect(statedKnobs(generationOf("custom-openai", "some-finetune-7b").sampling)).toEqual(statedKnobs(generationOf("vllm", "some-finetune-7b").sampling));
+  // vLLM's phrase and EOS bans ride under vLLM's own spellings, so a Custom endpoint is not told it has them.
+  const vllmBans = new Set(["bannedStrings", "banEos"]);
+  expect(statedKnobs(generationOf("custom-openai", "some-finetune-7b").sampling)).toEqual(
+    statedKnobs(generationOf("vllm", "some-finetune-7b").sampling).filter((knob) => !vllmBans.has(knob)),
+  );
 });
 
 test("an embedder served by llama.cpp keeps its embedding capability: the rows state generation sampling only", () => {

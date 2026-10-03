@@ -13,7 +13,7 @@ import { synthesizeCapability } from "../../../../packages/inference/src/capabil
 import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { testProviderId } from "../../../support/inference-identities.ts";
-import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
+import { fakeApiKeySecret, fakeResolved, memoryTokenLexicon } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability, openAiTextStream, scriptedJsonFetch, scriptedSseFetch } from "../_hosted-support.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "./_ollama-native-recordings.ts";
@@ -50,6 +50,11 @@ const EVERY_SAMPLER = {
   dynatempExponent: 1,
   smoothingFactor: 0.3,
   smoothingCurve: 1.5,
+  adaptiveTarget: 0.6,
+  adaptiveDecay: 0.9,
+  minKeep: 2,
+  bannedStrings: ["Elara", "shivers down"],
+  banEos: true,
   seed: 7,
   stop: ["\nUser:"],
   logitBias: { "13": -100 },
@@ -95,7 +100,12 @@ function ollamaServer(recorded: RecordedRequest[]): typeof fetch {
 async function turnBody(providerId: string, params: UserIntent): Promise<{ readonly body: Record<string, unknown>; readonly turn: ChatResult }> {
   const recorded: RecordedRequest[] = [];
   const fetchImpl = providerId === "ollama" ? ollamaServer(recorded) : scriptedSseFetch([openAiTextStream("ok")], recorded);
-  const turn = await runOpenAiCompatChatTurn(chatRequest(providerId, params), { now: () => NOW, log: silentLog(), transport: { fetch: fetchImpl, app: APP } });
+  const turn = await runOpenAiCompatChatTurn(chatRequest(providerId, params), {
+    now: () => NOW,
+    log: silentLog(),
+    transport: { fetch: fetchImpl, app: APP },
+    tokens: memoryTokenLexicon(),
+  });
   return { body: recorded[0]?.body ?? {}, turn };
 }
 
@@ -149,13 +159,19 @@ test("llama.cpp: every sampler rides under the server's own key, repeat_penalty 
     mirostat_eta: 0.1,
     dynatemp_range: 0.5,
     dynatemp_exponent: 1,
+    adaptive_target: 0.6,
+    adaptive_decay: 0.9,
+    min_keep: 2,
+    ignore_eos: true,
     seed: 7,
     stop: ["\nUser:"],
-    logit_bias: { "13": -100 },
+    // llama.cpp bans a phrase as a `false` logit-bias entry, beside the user's own bias.
+    logit_bias: { "13": -100, Elara: false, "shivers down": false },
     // The preset's four stages first, then the server's other stages in its default order (D295).
-    samplers: ["temperature", "min_p", "top_k", "penalties", "dry", "top_n_sigma", "typ_p", "top_p", "xtc"],
+    samplers: ["temperature", "min_p", "top_k", "penalties", "dry", "top_n_sigma", "typ_p", "top_p", "xtc", "adaptive_p"],
   });
   expect(body["repetition_penalty"]).toBeUndefined();
+  expect(body["banned_strings"]).toBeUndefined();
   // llama.cpp has no top-a and no smoothing: those two, and only those, are reported as dropped.
   expect(droppedKnobs(turn).toSorted()).toEqual(["smoothingCurve", "smoothingFactor", "topA"]);
 });
@@ -176,13 +192,18 @@ test("KoboldCpp: its own spellings, no frequency penalty, and the order as sampl
     smoothing_factor: 0.3,
     smoothing_curve: 1.5,
     dry_sequence_breakers: ["\n", ":"],
+    adaptive_target: 0.6,
+    adaptive_decay: 0.9,
+    banned_strings: ["Elara", "shivers down"],
+    ban_eos_token: true,
     // temperature 5, top_k 0, penalties 6, then top_a 1, typical 4, top_p 2 (min_p is not orderable there).
     sampler_order: [5, 0, 6, 1, 4, 2],
   });
   // KoboldCpp reads frequency_penalty only as a stand-in presence penalty, so it is never sent.
   expect(body["frequency_penalty"]).toBeUndefined();
   expect(body["mirostat"]).toBeUndefined();
-  expect(droppedKnobs(turn).toSorted()).toEqual(["frequencyPenalty", "samplerOrder"]);
+  expect(body["ignore_eos"]).toBeUndefined();
+  expect(droppedKnobs(turn).toSorted()).toEqual(["frequencyPenalty", "minKeep", "samplerOrder"]);
 });
 
 test("Ollama (native /api/chat): every knob its options take rides in `options` under Ollama's names", async () => {
@@ -192,7 +213,6 @@ test("Ollama (native /api/chat): every knob its options take rides in `options` 
     top_p: 0.9,
     top_k: 40,
     min_p: 0.05,
-    typical_p: 0.95,
     repeat_penalty: 1.1,
     repeat_last_n: 512,
     frequency_penalty: 0.3,
@@ -205,6 +225,9 @@ test("Ollama (native /api/chat): every knob its options take rides in `options` 
   // `/api/chat` has no logit bias, Mirostat, DRY, XTC or smoothing: exactly those are reported as dropped.
   expect(droppedKnobs(turn)).toContain("logitBias");
   expect(droppedKnobs(turn)).toContain("dryMultiplier");
+  // Ollama deprecated typical_p, and its options have no phrase ban or EOS ban.
+  expect(droppedKnobs(turn)).toEqual(expect.arrayContaining(["typicalP", "bannedStrings", "banEos"]));
+  expect(body["options"]).not.toHaveProperty("typical_p");
   expect(droppedKnobs(turn)).not.toContain("topK");
   expect(droppedKnobs(turn)).not.toContain("repetitionPenalty");
 });
@@ -220,19 +243,104 @@ test("an unset knob is never sent: llama.cpp gets no sampler keys at all", async
   expect(droppedKnobs(turn)).toEqual([]);
 });
 
-test("vLLM and Custom: the OpenAI set plus vLLM's top_k, min_p and repetition_penalty", async () => {
-  for (const providerId of ["vllm", "custom-openai"]) {
-    const { body, turn } = await turnBody(providerId, EVERY_SAMPLER);
-    expect(samplerKeys(body)).toEqual(
-      ["frequency_penalty", "logit_bias", "min_p", "presence_penalty", "repetition_penalty", "seed", "stop", "temperature", "top_k", "top_p"].toSorted(),
-    );
-    expect(droppedKnobs(turn)).toContain("dryMultiplier");
-    expect(droppedKnobs(turn)).not.toContain("topK");
+const OPENAI_PLUS_VLLM = [
+  "frequency_penalty",
+  "logit_bias",
+  "min_p",
+  "presence_penalty",
+  "repetition_penalty",
+  "seed",
+  "stop",
+  "temperature",
+  "top_k",
+  "top_p",
+];
+
+test("vLLM: the OpenAI set plus vLLM's top_k, min_p, repetition_penalty, bad_words and ignore_eos", async () => {
+  const { body, turn } = await turnBody("vllm", EVERY_SAMPLER);
+  expect(samplerKeys(body)).toEqual([...OPENAI_PLUS_VLLM, "bad_words", "ignore_eos"].toSorted());
+  expect(body).toMatchObject({ bad_words: ["Elara", "shivers down"], ignore_eos: true });
+  expect(droppedKnobs(turn)).toContain("dryMultiplier");
+  expect(droppedKnobs(turn)).toEqual(expect.arrayContaining(["adaptiveTarget", "minKeep"]));
+  expect(droppedKnobs(turn)).not.toContain("topK");
+});
+
+test("Custom: the vLLM-shaped default, but no phrase or EOS ban it has not been told the server takes", async () => {
+  const { body, turn } = await turnBody("custom-openai", EVERY_SAMPLER);
+  expect(samplerKeys(body)).toEqual(OPENAI_PLUS_VLLM.toSorted());
+  expect(droppedKnobs(turn)).toEqual(expect.arrayContaining(["bannedStrings", "banEos", "dryMultiplier"]));
+});
+
+test("llama.cpp: an Adaptive-P target alone sends the server's default chain with adaptive_p, so the target applies", async () => {
+  const { body, turn } = await turnBody("llama-cpp", { adaptiveTarget: 0.5 });
+  expect(body).toMatchObject({
+    adaptive_target: 0.5,
+    samplers: ["penalties", "dry", "top_n_sigma", "top_k", "typ_p", "top_p", "min_p", "xtc", "temperature", "adaptive_p"],
+  });
+  expect(droppedKnobs(turn)).toEqual([]);
+});
+
+test("KoboldCpp: an Adaptive-P target sends no order, since its sampler ids have no Adaptive-P stage", async () => {
+  const { body } = await turnBody("koboldcpp", { adaptiveTarget: 0.5 });
+  expect(body["adaptive_target"]).toBe(0.5);
+  expect(body["sampler_order"]).toBeUndefined();
+});
+
+test("llama.cpp: banned phrases with no logit bias of the user's become the whole logit_bias", async () => {
+  const { body } = await turnBody("llama-cpp", { bannedStrings: ["Elara"] });
+  expect(body["logit_bias"]).toEqual({ Elara: false });
+});
+
+test("reasoning off reaches vLLM, llama.cpp, KoboldCpp and Custom as enable_thinking false; on or unset sends nothing new", async () => {
+  for (const providerId of ["vllm", "llama-cpp", "koboldcpp", "custom-openai"]) {
+    expect((await turnBody(providerId, { effort: "none" })).body["chat_template_kwargs"], providerId).toEqual({ enable_thinking: false });
+    expect((await turnBody(providerId, { effort: "high" })).body, providerId).not.toHaveProperty("chat_template_kwargs");
+    expect((await turnBody(providerId, {})).body, providerId).not.toHaveProperty("chat_template_kwargs");
   }
 });
 
+test("reasoning off on Ollama's native route adds no template kwargs", async () => {
+  const { body } = await turnBody("ollama", { effort: "none" });
+  expect(body).not.toHaveProperty("chat_template_kwargs");
+});
+
+test("a thinking budget rides each local server's own field, and a server with none drops it with a warning", async () => {
+  const budgetCapability = (providerId: string): Capability => {
+    const capability = localCapability(providerId);
+    if (capability.kind !== "generation") {
+      throw new Error("a local chat row synthesizes a generation capability");
+    }
+    return { ...capability, generation: { ...capability.generation, reasoning: { mode: "budget", enabled: true, budgetRange: { min: 128, max: 8192 } } } };
+  };
+  const budgetTurn = async (providerId: string): Promise<{ readonly body: Record<string, unknown>; readonly turn: ChatResult }> => {
+    const recorded: RecordedRequest[] = [];
+    const request = chatRequest(providerId, { effort: "high", thinkingBudgetTokens: 1024, maxOutputTokens: 4096 });
+    const turn = await runOpenAiCompatChatTurn(
+      { ...request, connection: { ...request.connection, capability: budgetCapability(providerId) } },
+      { now: () => NOW, log: silentLog(), transport: { fetch: scriptedSseFetch([openAiTextStream("ok")], recorded), app: APP }, tokens: memoryTokenLexicon() },
+    );
+    return { body: recorded[0]?.body ?? {}, turn };
+  };
+  expect((await budgetTurn("llama-cpp")).body["thinking_budget_tokens"]).toBe(1024);
+  expect((await budgetTurn("koboldcpp")).body["thinking_budget_tokens"]).toBe(1024);
+  expect((await budgetTurn("vllm")).body["thinking_token_budget"]).toBe(1024);
+  const custom = await budgetTurn("custom-openai");
+  expect(custom.body["thinking_budget_tokens"]).toBeUndefined();
+  expect(custom.body["thinking_token_budget"]).toBeUndefined();
+  expect(droppedKnobs(custom.turn)).toContain("thinkingBudgetTokens");
+});
+
+test("a repetition penalty of 0 clamps above zero on every local server, so none divides by it", async () => {
+  expect((await turnBody("llama-cpp", { repetitionPenalty: 0 })).body["repeat_penalty"]).toBe(0.01);
+  expect((await turnBody("koboldcpp", { repetitionPenalty: 0 })).body["repetition_penalty"]).toBe(0.01);
+  expect((await turnBody("vllm", { repetitionPenalty: 0 })).body["repetition_penalty"]).toBe(0.01);
+  expect((await turnBody("lm-studio", { repetitionPenalty: 0 })).body["repeat_penalty"]).toBe(0.01);
+  expect((await turnBody("ollama", { repetitionPenalty: 0 })).body["options"]).toMatchObject({ repeat_penalty: 0.01 });
+});
+
 test("LM Studio: its documented set, with repeat_penalty", async () => {
-  const { body } = await turnBody("lm-studio", EVERY_SAMPLER);
+  const { body, turn } = await turnBody("lm-studio", EVERY_SAMPLER);
+  expect(droppedKnobs(turn)).toEqual(expect.arrayContaining(["bannedStrings", "banEos", "adaptiveTarget"]));
   expect(samplerKeys(body)).toEqual(
     ["frequency_penalty", "logit_bias", "presence_penalty", "repeat_penalty", "seed", "stop", "temperature", "top_k", "top_p"].toSorted(),
   );
@@ -262,7 +370,7 @@ test("a declared spelling overrides one row key and keeps the row's others", asy
   const recorded: RecordedRequest[] = [];
   await runOpenAiCompatChatTurn(
     { ...chatRequest("koboldcpp", { topA: 0.2, typicalP: 0.9 }), connection },
-    { now: () => NOW, log: silentLog(), transport: { fetch: scriptedSseFetch([openAiTextStream("ok")], recorded), app: APP } },
+    { now: () => NOW, log: silentLog(), transport: { fetch: scriptedSseFetch([openAiTextStream("ok")], recorded), app: APP }, tokens: memoryTokenLexicon() },
   );
   expect(recorded[0]?.body).toMatchObject({ top_a_custom: 0.2, typical: 0.9 });
 });

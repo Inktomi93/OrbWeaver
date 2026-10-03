@@ -146,13 +146,20 @@ function thinkOf(effort: unknown): boolean | undefined {
 /**
  * The OpenAI chat body the SDK built (after `extras` and `includeBody`) as an `/api/chat` body. `numCtx` is the
  * resolved window, sent as `options.num_ctx` so the server runs the window the capability states.
- * `samplerKeys` are the body keys the sampler seam spells for this row; each moves into `options` as is. Keys
+ * `samplerKeys` are the body keys the sampler seam spells for this row; each moves into `options` as is.
+ * `keepAlive` and `numBatch` are the connection's own (`features.keepAlive`, `features.numBatch`). Keys
  * this file does not know pass through unchanged, so a native field set in `includeBody` reaches the server,
  * and an `options` object set there wins over the translated one key by key.
  */
 export function toOllamaChat(
   body: Json,
-  args: { readonly numCtx: number | undefined; readonly samplerKeys: ReadonlySet<string>; readonly label: string },
+  args: {
+    readonly numCtx: number | undefined;
+    readonly samplerKeys: ReadonlySet<string>;
+    readonly label: string;
+    readonly keepAlive?: string | undefined;
+    readonly numBatch?: number | undefined;
+  },
 ): Json {
   const options: Json = {};
   const rest: Json = {};
@@ -174,7 +181,13 @@ export function toOllamaChat(
     messages: nativeMessages(body["messages"], args.label),
     ...(format !== undefined ? { format } : {}),
     ...(think !== undefined ? { think } : {}),
-    options: { ...options, ...(args.numCtx !== undefined ? { ["num_ctx"]: args.numCtx } : {}), ...(isRecord(body["options"]) ? body["options"] : {}) },
+    ...(args.keepAlive !== undefined ? { ["keep_alive"]: args.keepAlive } : {}),
+    options: {
+      ...options,
+      ...(args.numCtx !== undefined ? { ["num_ctx"]: args.numCtx } : {}),
+      ...(args.numBatch !== undefined ? { ["num_batch"]: args.numBatch } : {}),
+      ...(isRecord(body["options"]) ? body["options"] : {}),
+    },
   };
 }
 

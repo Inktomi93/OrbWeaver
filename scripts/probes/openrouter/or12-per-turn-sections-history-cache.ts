@@ -272,6 +272,9 @@ function capabilityFor(spec: WireSpec, provider: ReturnType<typeof makeResolved>
   return applyEndpointPosture(provider, synthesized.capability, false);
 }
 
+// The probe tokenizes nothing, so the token cache's store holds nothing.
+const NO_SNAPSHOTS = { read: () => Promise.resolve(null), write: () => Promise.resolve(), deletePrefix: () => Promise.resolve() };
+
 /** The wire's real backend behind the real executor and the compose-tier turn bridge, capturing each request. */
 function wireFor(spec: WireSpec, key: string, capture: Capture) {
   const sink: WireCaptureSink = (entry) => {
@@ -281,7 +284,10 @@ function wireFor(spec: WireSpec, key: string, capture: Capture) {
   const shared = { now: Date.now, log: silentLog, fetch: globalThis.fetch, captureWire: sink };
   const registry = new Map([
     ["anthropic-messages" as const, createAnthropicBackend(shared)],
-    ["openai-compat" as const, createOpenAiCompatBackend({ ...shared, app: { name: "orbweaver-or12-probe", url: "http://127.0.0.1" }, embedSpaceDims: 0 }).backend],
+    [
+      "openai-compat" as const,
+      createOpenAiCompatBackend({ ...shared, app: { name: "orbweaver-or12-probe", url: "http://127.0.0.1" }, embedSpaceDims: 0, snapshotStore: NO_SNAPSHOTS }).backend,
+    ],
   ]);
   const executor = createProviderExecutor({ registry, span: (_name, fn) => Promise.resolve(fn()) });
   const base = makeResolved({ providerId: spec.providerId });

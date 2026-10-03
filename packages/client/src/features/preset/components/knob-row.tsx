@@ -42,10 +42,10 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import type { AppFormInstance } from "#forms/editor";
-import type { KnobBinding } from "../lib/capability-panel-model.ts";
 import type { EffectiveKnobRow, KnobGhost } from "../lib/effective-knobs.ts";
 import { clampGloss, knobGhost } from "../lib/effective-knobs.ts";
 import { PRESET_NUMBER_FORMAT } from "../lib/format-count.ts";
+import type { KnobBinding } from "../lib/sampling-knob-catalog.ts";
 
 /** The placeholder for a knob whose funnel reports NO value on this model — the honest empty (§4.3): the
  *  model's own default applies and we do not know the number, so nothing is fabricated. */

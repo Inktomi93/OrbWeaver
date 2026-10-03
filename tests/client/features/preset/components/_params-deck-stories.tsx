@@ -10,12 +10,14 @@
 
 import type { AppFormInstance } from "@orb/client/forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm } from "@orb/client/forms/editor";
+import { builtinProvider } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck.tsx";
+import { samplerSpellingOf } from "../../../../../packages/client/src/features/preset/lib/capability-panel-model.ts";
 import { validatePresetConfig } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
 import type { ReadFailure } from "../../../../../packages/client/src/features/preset/lib/resolve-failure.ts";
 import { makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
@@ -34,6 +36,8 @@ const STORY_CAPABILITY = makeGenerationCapability({
     repetitionPenalty: { min: 0, max: 2 },
     seed: true,
     stop: true,
+    bannedStrings: true,
+    banEos: true,
   },
   output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
   context: { window: 32_768 },
@@ -105,6 +109,26 @@ export function ParamsDeckExplicitStory(): ReactElement {
 }
 
 /** The deck with a STORED-BUT-UNHONORED knob — the §4.2 staleness row (F7). */
+// The same model behind a server that takes neither the phrase ban nor the EOS ban.
+const { bannedStrings: _phraseBan, banEos: _eosBan, ...SAMPLING_WITHOUT_BANS } = STORY_CAPABILITY.sampling;
+
+/** The deck on a server with no phrase or EOS ban: neither control renders. */
+export function ParamsDeckNoBansStory(): ReactElement {
+  return <DeckHarness capability={{ ...STORY_CAPABILITY, sampling: SAMPLING_WITHOUT_BANS }} effective={GHOST_EFFECTIVE} params={{}} />;
+}
+
+/** A stored typical-p this model does not honor, on a KoboldCpp connection: the row names it as KoboldCpp
+ *  spells it (`typical`), not under the default `typical_p`. */
+export function ParamsDeckStaleKoboldStory(): ReactElement {
+  return (
+    <DeckHarness
+      effective={{ ...GHOST_EFFECTIVE, stale: [{ knob: "typicalP", value: 0.9 }] }}
+      params={{ typicalP: 0.9 }}
+      samplerSpelling={samplerSpellingOf(builtinProvider("koboldcpp")?.features, undefined)}
+    />
+  );
+}
+
 export function ParamsDeckStaleStory(): ReactElement {
   return <DeckHarness effective={STALE_EFFECTIVE} params={{ topA: 0.2 }} />;
 }
@@ -175,13 +199,41 @@ interface DeckHarnessProps {
   /** The capability read's THROWN error — passed WHOLE so the gate reads `data.code` (side-eye F-02 + the
    *  2026-08-08 earned-cause fix). `null` = PENDING. */
   readonly capabilityError?: ReadFailure | null;
+  /** Whether the chat connection's server can look words up (the logit-bias editor's word entries). */
+  readonly tokenizes?: boolean;
+  readonly samplerSpelling?: Parameters<typeof ParamsDeck>[0]["samplerSpelling"];
+}
+
+/** A word the story tokenizer cannot look up, so the editor's inline failure shows. */
+export const UNTOKENIZABLE_WORD = "broken";
+
+/** The story's tokenize read: every word becomes its first letter and the rest, with ids 1 and 2. */
+function storyTokenize(available: boolean): Parameters<typeof ParamsDeck>[0]["tokenize"] {
+  return (words) =>
+    Promise.resolve({
+      available,
+      words: available
+        ? words.map((word) =>
+            word === UNTOKENIZABLE_WORD
+              ? { ok: false as const, word, reason: "the tokenizer is offline" }
+              : { ok: true as const, word, ids: [1, 2], pieces: [word.slice(0, 1), word.slice(1)] },
+          )
+        : [],
+    });
 }
 
 /** The shared harness: the REAL deck under the REAL autosave boundary, with the last-saved params KEY SET
  *  mirrored to an `<output>` (the key-minimal patch proof) plus the last-saved value of each knob. The header's REAL `AutosaveStatus` rides along: the
  *  editor's saved-truth arm is a claim about what that affordance says, so the story must render it rather
  *  than a stand-in. */
-function DeckHarness({ params, effective, capability = STORY_CAPABILITY, capabilityError = null }: DeckHarnessProps): ReactElement {
+function DeckHarness({
+  params,
+  effective,
+  capability = STORY_CAPABILITY,
+  capabilityError = null,
+  tokenizes = true,
+  samplerSpelling,
+}: DeckHarnessProps): ReactElement {
   const resolvedCapability = capability ?? undefined;
   const [saved, setSaved] = useState("keys=- ");
   const save = (values: PromptConfig): Promise<void> => {
@@ -208,6 +260,8 @@ function DeckHarness({ params, effective, capability = STORY_CAPABILITY, capabil
               capabilityError={capabilityError}
               effective={effective}
               form={session.form as AppFormInstance<PromptConfig>}
+              samplerSpelling={samplerSpelling}
+              tokenize={storyTokenize(tokenizes)}
             />
           </Container>
         </>
@@ -216,10 +270,14 @@ function DeckHarness({ params, effective, capability = STORY_CAPABILITY, capabil
   );
 }
 
-/** A LOGIT-BIAS map that CHANGES on a still-mounted form — #1502's own case, and the property the blur epoch
- *  must not have weakened: the box belongs to the preset, so a switch REPLACES its text rather than leaving
- *  the previous preset's JSON sitting there for the next blur to write back. Same reseed path as a preset reset (new `serverValues`, no remount key bump), because that is what a preset
- *  switch does to this subtree. */
+/** A LOGIT-BIAS map that CHANGES on a still-mounted form: the editor's rows belong to the preset, so a switch
+ *  replaces them. Same reseed path as a preset reset (new `serverValues`, no remount key bump), because that is
+ *  what a preset switch does to this subtree. */
+/** The deck on a chat connection whose server cannot look words up: the bias editor takes token ids only. */
+export function ParamsDeckIdOnlyBiasStory(): ReactElement {
+  return <DeckHarness effective={GHOST_EFFECTIVE} params={{}} tokenizes={false} />;
+}
+
 export function ParamsDeckLogitBiasSwitchStory(): ReactElement {
   const [switched, setSwitched] = useState(false);
   return (

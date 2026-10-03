@@ -12,7 +12,7 @@
 // `domain/preset/contract/views.ts`, which the client cannot import across the cake.
 
 import { modelDisplayName } from "@orb/kit/model-name";
-import { SAMPLING_KNOBS } from "./capability-panel-model.ts";
+import { SAMPLING_KNOBS } from "./sampling-knob-catalog.ts";
 
 /** One resolved knob as the read returns it: the value the wire would carry + which rung produced it. */
 export interface EffectiveKnobRow {
@@ -50,6 +50,8 @@ const KNOB_LABELS: Readonly<Record<string, string>> = {
   logitBias: "logit bias",
   drySequenceBreakers: "dry breakers",
   samplerOrder: "sampler order",
+  bannedStrings: "banned phrases",
+  banEos: "ban end of reply",
 };
 
 /** The read's rung for a value the server advertised for a knob the preset leaves unset. */

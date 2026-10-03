@@ -125,6 +125,8 @@ export type ResolvedSampling = { readonly [K in SamplingRangeKnob]?: number | un
   readonly logitBias?: Record<string, number> | undefined;
   readonly stop?: readonly string[] | undefined;
   readonly drySequenceBreakers?: readonly string[] | undefined;
+  readonly bannedStrings?: readonly string[] | undefined;
+  readonly banEos?: boolean | undefined;
   readonly samplerOrder?: readonly SamplerStage[] | undefined;
 };
 

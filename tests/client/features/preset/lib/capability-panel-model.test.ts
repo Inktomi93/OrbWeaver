@@ -7,6 +7,7 @@
 // These are exactly the invariants that keep the panel descriptor-driven rather than a hardcoded knob stack.
 
 import type { GenerationCapability, Range } from "@orb/contracts/inference";
+import { builtinProvider, DEFAULT_SAMPLER_KEYS } from "@orb/contracts/inference";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";
 import {
   QUALITY_OPTIONS,
@@ -14,6 +15,7 @@ import {
   qualityFromSelect,
   qualitySelectValue,
   reasoningControlFor,
+  samplerSpellingOf,
   samplerStagesFor,
   samplingKnobsFor,
   supportsDrySequenceBreakers,
@@ -142,4 +144,14 @@ test("the dial's SELECT vocabulary leads with the OFF arm, and OFF round-trips a
   // An unknown wire value is the absence too — never a fabricated dial.
   expect(qualityFromSelect(null)).toBeUndefined();
   expect(qualityFromSelect("nonsense")).toBeUndefined();
+});
+
+test("samplerSpellingOf folds the provider row's spellings, then the connection's declared ones, over the defaults", () => {
+  const kobold = builtinProvider("koboldcpp")?.features;
+  expect(samplerSpellingOf(kobold, undefined).typicalP).toBe("typical");
+  expect(samplerSpellingOf(kobold, undefined).temperature).toBe(DEFAULT_SAMPLER_KEYS.temperature);
+  const declared = samplerSpellingOf(kobold, { samplerKeys: { typicalP: "typical_custom" } });
+  expect(declared.typicalP).toBe("typical_custom");
+  expect(declared.topNSigma, "the row's other spellings stay").toBe("nsigma");
+  expect(samplerSpellingOf(undefined, undefined)).toEqual(DEFAULT_SAMPLER_KEYS);
 });

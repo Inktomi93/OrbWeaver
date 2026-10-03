@@ -216,10 +216,17 @@ const EFFECTIVE_FLOOR: TrpcWireOutput<"preset.resolveEffective"> = {
  * default: it is the arm every non-capability test in this file already assumed.
  */
 const PRESET_EDITOR_AMBIENT_ROUTES: TrpcRoutes<
-  "connection.resolveChatCapability" | "preset.resolveEffective" | "regex.listScripts" | "regex.listForPreset" | "settings.updateUserSettingsSection"
+  | "connection.resolveChatCapability"
+  | "connection.tokenizeWords"
+  | "preset.resolveEffective"
+  | "regex.listScripts"
+  | "regex.listForPreset"
+  | "settings.updateUserSettingsSection"
 > = {
   // A settled, REQUIRED capability descriptor — the connected-model arm.
   "connection.resolveChatCapability": CAPABILITY,
+  // The logit-bias editor's word lookup: a server that tokenizes, asked about no word yet.
+  "connection.tokenizeWords": { available: true, words: [] },
   // The funnel's projection for this preset (§4.3) — the ghost values the knob rows read.
   "preset.resolveEffective": EFFECTIVE_FLOOR,
   // The display-script cluster: the viewer's whole script library and the ones attached to THIS preset.

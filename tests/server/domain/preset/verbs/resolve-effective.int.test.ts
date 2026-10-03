@@ -148,15 +148,30 @@ describe("resolveEffective — the staleness list (F7)", () => {
   });
 
   test("stored list knobs this model does not take are named too, and kept (never deleted) for a model that does", async () => {
-    const params: UserIntent = { drySequenceBreakers: ["\n", ":"], samplerOrder: ["temperature", "topK"], stop: ["END"] };
+    const params: UserIntent = {
+      drySequenceBreakers: ["\n", ":"],
+      samplerOrder: ["temperature", "topK"],
+      stop: ["END"],
+      bannedStrings: ["Elara"],
+      banEos: true,
+    };
     const without = await resolveWith(params, makeGenerationCapability(SAMPLING_CAPABLE));
     expect(without.stale).toStrictEqual([
       { knob: "stop", value: '"END"' },
       { knob: "drySequenceBreakers", value: '"\\n" ":"' },
       { knob: "samplerOrder", value: "temperature → topK" },
+      { knob: "bannedStrings", value: '"Elara"' },
+      { knob: "banEos", value: "true" },
     ]);
     const local = makeGenerationCapability({
-      sampling: { ...SAMPLING_CAPABLE.sampling, stop: true, drySequenceBreakers: true, samplerOrder: ["topK", "temperature"] },
+      sampling: {
+        ...SAMPLING_CAPABLE.sampling,
+        stop: true,
+        drySequenceBreakers: true,
+        samplerOrder: ["topK", "temperature"],
+        bannedStrings: true,
+        banEos: true,
+      },
     });
     expect((await resolveWith(params, local)).stale).toStrictEqual([]);
   });

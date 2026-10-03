@@ -6,6 +6,7 @@
 
 import type { AppFormInstance } from "@orb/client/forms/editor";
 import { createAutosaveEntityForm } from "@orb/client/forms/editor";
+import type { TokenizeResult } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -60,12 +61,22 @@ export function VariablesTabStory(): ReactElement {
  *  derived default as its blank-means-default placeholder). Item-4 first-paint clarity, re-homed with the
  *  fields themselves (redesign §3: Compaction moved whole into Params ▸ CONTEXT). No capability is passed —
  *  CONTEXT is OUR engine's behavior and renders without a model, which is exactly what this pins. */
+// CONTEXT renders without a model; no story here opens the logit-bias editor.
+const NO_TOKENIZER = (): Promise<TokenizeResult> => Promise.resolve({ available: false, words: [] });
+
 export function CompactionTabDefaultsStory(): ReactElement {
   const serverValues: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, compaction: undefined } };
   return (
     <StoryForm entityId={STORY_PRESET} serverValues={serverValues} save={(): Promise<void> => Promise.resolve()}>
       {(session): ReactElement => (
-        <ParamsDeck capability={undefined} capabilityError={null} effective={undefined} form={session.form as AppFormInstance<PromptConfig>} />
+        <ParamsDeck
+          capability={undefined}
+          capabilityError={null}
+          effective={undefined}
+          form={session.form as AppFormInstance<PromptConfig>}
+          samplerSpelling={undefined}
+          tokenize={NO_TOKENIZER}
+        />
       )}
     </StoryForm>
   );
@@ -80,7 +91,14 @@ export function CompactionTabSetStory(): ReactElement {
   return (
     <StoryForm entityId={STORY_PRESET} serverValues={serverValues} save={(): Promise<void> => Promise.resolve()}>
       {(session): ReactElement => (
-        <ParamsDeck capability={undefined} capabilityError={null} effective={undefined} form={session.form as AppFormInstance<PromptConfig>} />
+        <ParamsDeck
+          capability={undefined}
+          capabilityError={null}
+          effective={undefined}
+          form={session.form as AppFormInstance<PromptConfig>}
+          samplerSpelling={undefined}
+          tokenize={NO_TOKENIZER}
+        />
       )}
     </StoryForm>
   );

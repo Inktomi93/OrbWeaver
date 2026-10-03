@@ -16,7 +16,7 @@ import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/i
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
-import { fakeResolved } from "../../_support.ts";
+import { fakeResolved, memoryTokenLexicon } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability } from "../_hosted-support.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "./_ollama-native-recordings.ts";
@@ -78,6 +78,7 @@ async function turn(
     now: () => NOW,
     log: silentLog(),
     transport: { fetch: replay(recordings, recorded), app: { name: "t", url: "http://localhost:0" } },
+    tokens: memoryTokenLexicon(),
   });
   return { result, recorded };
 }
@@ -100,6 +101,25 @@ test("an Ollama turn posts /api/chat with the window as num_ctx and the samplers
   expect(result.reply).toBe("Hello, how are you?");
   expect(result.finishReason).toBe("stop");
   expect(result.usage).toMatchObject({ tokensIn: 35, tokensOut: 7 });
+});
+
+test("the connection's keep_alive rides the top level and its num_batch rides options; unset, neither is sent", async () => {
+  const declared = fakeResolved({
+    task: "chat",
+    providerId: "ollama",
+    model: "qwen2.5:0.5b",
+    capability: capability(),
+    baseUrl: BASE_URL,
+    declaredFeatures: { keepAlive: "30m", numBatch: 256 },
+  });
+  const set = (await turn([OLLAMA_NATIVE_RECORDINGS.text], { connection: declared })).recorded[0]?.body ?? {};
+  expect(set["keep_alive"]).toBe("30m");
+  expect(set["options"]).toMatchObject({ ["num_batch"]: 256 });
+  expect(set["options"]).not.toHaveProperty("keep_alive");
+
+  const unset = (await turn([OLLAMA_NATIVE_RECORDINGS.text])).recorded[0]?.body ?? {};
+  expect(unset).not.toHaveProperty("keep_alive");
+  expect(unset["options"]).not.toHaveProperty("num_batch");
 });
 
 test("a recorded tool call comes back as a tool call, and its replay reaches the server as Ollama spells it", async () => {
@@ -273,6 +293,7 @@ test("an image URL refused while the body is translated reaches the caller as th
     now: () => NOW,
     log: silentLog(),
     transport: { fetch: ollamaServer(posted), app: { name: "t", url: "http://localhost:0" } },
+    tokens: memoryTokenLexicon(),
   });
   await expect(failed).rejects.toThrow(/takes inline images only/u);
   await expect(failed).rejects.toBeInstanceOf(ProviderError);
@@ -322,6 +343,7 @@ test("a row that turns the native route off rides /v1 as before", async () => {
     now: () => NOW,
     log: silentLog(),
     transport: { fetch: fetchImpl, app: { name: "t", url: "http://localhost:0" } },
+    tokens: memoryTokenLexicon(),
   });
   expect(recorded[0]?.url).toBe("http://127.0.0.1:11434/v1/chat/completions");
 });
