@@ -170,8 +170,12 @@ test("endpoint posture: tools without coEmitsProse ⇒ silencesProse; undeclared
   const kept = generationOf(applyEndpointPosture(endpointRow(), declared, true));
   expect(kept.input).toEqual(["text"]);
   expect(kept.modalitiesEstimated).toBeUndefined();
-  // A hosted row is untouched.
-  expect(applyEndpointPosture(hostedRow(), base, false)).toBe(base);
+  // A hosted row gets neither floor, and loses the turns estimate: only an endpoint row relaxes an unmeasured
+  // turns floor, so a hosted route keeps the fail-closed one.
+  const { turnsEstimated: _localOnly, ...hosted } = generationOf(base);
+  expect(generationOf(base).turnsEstimated).toBeDefined();
+  expect(applyEndpointPosture(hostedRow(), base, false)).toEqual({ kind: "generation", generation: hosted });
+  expect(generationOf(applyEndpointPosture(endpointRow(), base, false)).turnsEstimated).toEqual(generationOf(base).turnsEstimated);
 });
 
 // `sampling` is the STATED SET of knobs a tier vouches for (§8.7 step 2: absent ⇒ not honoured; D68: absence is

@@ -320,6 +320,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
               headers: connection.transport?.headers,
               secrets,
               modelInfoApi,
+              probeModel: connection.model,
               warn: (message) => {
                 deps.log.warn({ providerId: provider.id }, message);
               },

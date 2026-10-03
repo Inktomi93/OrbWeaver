@@ -7,6 +7,7 @@
 //     `declared` block or whose server (the advertised tier) states an input list is taken at its word; a row
 //     that states none gets image + video with `modalitiesEstimated`, never a bare text-only floor (the engine
 //     refuses a part it cannot take; hiding the knob was #317).
+//   • `turnsEstimated` survives only on an endpoint row: every hosted route keeps the fail-closed turns floor.
 
 import type { Capability, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
 
@@ -38,8 +39,14 @@ export function applyServerToolChoice(capability: Capability, toolChoice: { read
 }
 
 export function applyEndpointPosture(provider: ProviderDef, capability: Capability, modalitiesStated: boolean): Capability {
-  if (capability.kind !== "generation" || provider.auth !== "endpoint") {
+  if (capability.kind !== "generation") {
     return capability;
+  }
+  if (provider.auth !== "endpoint") {
+    // The estimated-turns relaxation is for the user's own server: a hosted route nobody measured keeps the
+    // fail-closed floor, because its SDK or API refuses what the floor folds (a mid-history system row on Gemini).
+    const { turnsEstimated: _localOnly, ...hosted } = capability.generation;
+    return capability.generation.turnsEstimated === undefined ? capability : { kind: "generation", generation: hosted };
   }
   let generation: GenerationCapability = capability.generation;
   const tools: GenerationCapability["tools"] = generation.tools;

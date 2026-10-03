@@ -14,13 +14,16 @@ import { localServerFetch, transcriptFetch } from "./_local-servers-fetch.ts";
 
 const BASE_URL = "http://127.0.0.1:1/v1";
 
-function read(arm: TranscriptArm, modelInfoApi: "llama-cpp" | "koboldcpp"): Promise<EndpointModel[]> {
-  return fetchEndpointModels({ fetch: transcriptFetch(arm), baseUrl: BASE_URL, secret: null, secrets: NO_PROVIDER_SECRETS, modelInfoApi });
+function read(arm: TranscriptArm, modelInfoApi: "llama-cpp" | "koboldcpp", probeModel?: string): Promise<EndpointModel[]> {
+  const args = { fetch: transcriptFetch(arm), baseUrl: BASE_URL, secret: null, secrets: NO_PROVIDER_SECRETS, modelInfoApi };
+  return fetchEndpointModels(probeModel === undefined ? args : { ...args, probeModel });
 }
 
+/** The one model the server lists, read the way the resolve warm reads it: probed as the connection's model. */
 async function only(arm: TranscriptArm, modelInfoApi: "llama-cpp" | "koboldcpp"): Promise<EndpointModel> {
-  const rows = await read(arm, modelInfoApi);
-  expect(rows).toHaveLength(1);
+  const listed = await read(arm, modelInfoApi);
+  expect(listed).toHaveLength(1);
+  const rows = await read(arm, modelInfoApi, listed[0]?.id);
   return rows[0] as EndpointModel;
 }
 
@@ -99,6 +102,7 @@ test("Ollama: the Modelfile parameters are the server defaults, the render-only 
     secret: null,
     secrets: NO_PROVIDER_SECRETS,
     modelInfoApi: "ollama",
+    probeModel: "qwen2.5:0.5b",
   });
   expect(rows.find((row) => row.id === "qwen2.5:0.5b")).toMatchObject({ prefill: "deliver", toolChoice: { required: false, named: false } });
   // moondream's Modelfile (as the rig's Ollama printed it): numbers as numbers, the repeated `stop` as a list.
@@ -114,6 +118,7 @@ test("Ollama: the Modelfile parameters are the server defaults, the render-only 
     secret: null,
     secrets: NO_PROVIDER_SECRETS,
     modelInfoApi: "ollama",
+    probeModel: "qwen2.5:0.5b",
   });
   expect(closedRows.find((row) => row.id === "qwen2.5:0.5b")?.prefill).toBe("none");
 });

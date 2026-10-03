@@ -124,10 +124,18 @@ function advertisedFor(
   ctx: ResolverContext,
   {
     provider,
+    registered,
     connection,
     model,
     kind,
-  }: { readonly provider: ProviderDef; readonly connection: UserConnection; readonly model: ModelId; readonly kind: ModelKind },
+  }: {
+    readonly provider: ProviderDef;
+    /** The connection's own row, beneath the behaved one in the features fold (its sampler spellings stay). */
+    readonly registered: ProviderDef;
+    readonly connection: UserConnection;
+    readonly model: ModelId;
+    readonly kind: ModelKind;
+  },
 ): Evidence["advertised"] {
   if (provider.wire === "agent-sdk") {
     const row = agentSdkRowFor(model, ctx.agentSdkCatalog.get());
@@ -141,7 +149,7 @@ function advertisedFor(
   if (provider.wire === "google-generative-ai") {
     return googleAdvertised(entry, provider, model);
   }
-  return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry, kind, behavedFeatures(provider, provider, connection));
+  return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry, kind, behavedFeatures(registered, provider, connection));
 }
 
 /** The endpoint mirror's row for this connection's model, on the two wires whose list the mirror holds. */
@@ -338,7 +346,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     // Matched per (model × route) like the curated rows — a measurement through OpenRouter never reaches the
     // direct wire, and one for opus-5 never reaches haiku.
     measured: measuredRows(rowQuery),
-    advertised: advertisedFor(ctx, { provider: behaved, connection, model, kind }),
+    advertised: advertisedFor(ctx, { provider: behaved, registered: provider, connection, model, kind }),
     curated: curatedRows(rowQuery),
   };
   const synthesized = synthesizeCapability(kind, family, evidence);
@@ -366,7 +374,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
             synthesizeCapability(baselineKind, family, {
               ...evidence,
               declared: undefined,
-              advertised: advertisedFor(ctx, { provider: behaved, connection, model, kind: baselineKind }),
+              advertised: advertisedFor(ctx, { provider: behaved, registered: provider, connection, model, kind: baselineKind }),
             }).capability,
             advertisedInput,
           ),

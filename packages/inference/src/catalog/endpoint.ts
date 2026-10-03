@@ -11,7 +11,7 @@ import type { Modality, ModelInfoApi, ModelKind } from "@orb/contracts/inference
 import { parseModalities } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
-import { authHeaders, fetchJson, openAiPath, serverRootOf } from "../backends/kit/fetch-json.ts";
+import { authHeaders, fetchJson, isRedirect, openAiPath, serverRootOf } from "../backends/kit/fetch-json.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
 import { assertNever } from "../contract/errors.ts";
 import type { EndpointModel } from "../contract/runtime.ts";
@@ -39,6 +39,10 @@ export interface EndpointFetchArgs {
   readonly modelInfoApi?: ModelInfoApi | undefined;
   /** Where a failed native read is reported; it never fails the list. */
   readonly warn?: ((message: string) => void) | undefined;
+  /** The ONE listed model the per-model probes may ask about (kind, measured width, prefill). Those probes load or
+   *  wake a model, so a plain listing (the add flow, diagnostics) sets none; the resolve warm names the
+   *  connection's own model. */
+  readonly probeModel?: string | undefined;
 }
 
 export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
@@ -102,8 +106,13 @@ async function probeNative(args: EndpointFetchArgs, path: string, body: unknown)
     method: "POST",
     headers: { ...authHeaders(args.secret, args.headers), "content-type": "application/json" },
     body: JSON.stringify(body),
+    // Host pin (#25): a redirect would replay the headers and the body to another origin, so it is no answer.
+    redirect: "manual",
     ...(args.signal !== undefined ? { signal: args.signal } : {}),
   });
+  if (isRedirect(res)) {
+    return { status: res.status, json: null };
+  }
   const text = await res.text();
   // @orb-waive caught-failure-ownership(catch): a probe answer that is not JSON states nothing; the caller reads
   // the status alone. Ends if a probed route can answer a fact in a non-JSON body.
@@ -235,7 +244,7 @@ async function withOllamaInfo(args: EndpointFetchArgs, rows: readonly EndpointMo
     const loadedContext = loaded?.find((model) => model.name === row.id || model.model === row.id)?.context_length;
     const contextFloor = Math.min(defaultFloor, loadedContext ?? defaultFloor);
     const facts = ollamaFacts(show, contextFloor);
-    const prefill = facts.kind === "generation" ? await nativeRead(args, () => ollamaPrefill(args, row.id)) : undefined;
+    const prefill = facts.kind === "generation" && row.id === args.probeModel ? await nativeRead(args, () => ollamaPrefill(args, row.id)) : undefined;
     out.push(
       withStated(row, {
         ...facts,
@@ -263,6 +272,8 @@ async function ollamaPrefill(args: EndpointFetchArgs, model: string): Promise<En
     messages: LOCAL_SERVER_PROBES.prefillMessages,
     stream: false,
     ["_debug_render_only"]: true,
+    // The render loads the model before it checks render-only; release it at once rather than hold the slot.
+    ["keep_alive"]: 0,
   });
   const parsed = ollamaRenderSchema.safeParse(answer.json);
   return parsed.success ? prefillOf(parsed.data._debug_info.rendered_template) : undefined;
@@ -512,7 +523,7 @@ async function withLlamaCppInfo(args: EndpointFetchArgs, raw: readonly RawRow[],
     const parsed = llamaCppRowSchema.safeParse(raw[index]);
     const meta = parsed.success ? parsed.data.meta : undefined;
     const input = llamaCppRowInput(parsed.success ? parsed.data.architecture?.input_modalities : undefined, server);
-    const model = single ? await llamaCppModelFacts(args, row.id) : {};
+    const model = single && row.id === args.probeModel ? await llamaCppModelFacts(args, row.id) : {};
     out.push(
       withStated(row, {
         contextLength: meta?.n_ctx ?? server.window,
@@ -586,7 +597,7 @@ async function withKoboldCppInfo(args: EndpointFetchArgs, rows: readonly Endpoin
   for (const row of rows) {
     const facts: Partial<EndpointModel> =
       kind === "embedding"
-        ? { kind, embeddingDims: (await nativeRead(args, () => measuredWidth(args, row.id))) ?? undefined }
+        ? { kind, embeddingDims: row.id === args.probeModel ? ((await nativeRead(args, () => measuredWidth(args, row.id))) ?? undefined) : undefined }
         : {
             kind,
             input,

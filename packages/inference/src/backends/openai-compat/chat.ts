@@ -116,7 +116,7 @@ function isJinjaToolsRefusal(error: unknown): boolean {
 const TEMPLATE_DETAIL_LIMIT = 200;
 
 /** A template-role refusal as the fix it needs: not retryable (the same rows fail the same way), and naming the
- *  preset control, with the server's own sentence kept for the reader. */
+ *  preset control, with the matched refusal phrase quoted (not the server's whole message). */
 function templateRoleRefusal(error: unknown, label: string, classified: ProviderError): ProviderError | null {
   const match = TEMPLATE_ROLE_RE.exec(upstreamText(error));
   if (match === null) {

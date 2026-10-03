@@ -5,7 +5,7 @@
 
 import type { ModelInfoApi } from "@orb/contracts/inference";
 import { z } from "zod";
-import { authHeaders, serverRootOf } from "../backends/kit/fetch-json.ts";
+import { authHeaders, isRedirect, serverRootOf } from "../backends/kit/fetch-json.ts";
 import type { DetectedServer } from "../contract/runtime.ts";
 
 export interface DetectArgs {
@@ -32,13 +32,16 @@ const PROBES: readonly { readonly server: ModelInfoApi; readonly path: string; r
   { server: "ollama", path: "/api/version", schema: ollamaVersionSchema },
 ];
 
-/** One GET: the JSON body of a 2xx, `null` for any other answer, and a throw only when nothing answered. */
+/** One GET: the JSON body of a 2xx, `null` for any other answer, and a throw only when nothing answered. A
+ *  redirect is never followed (host pin #25): it would carry the transport headers to another origin, and that
+ *  origin's answer would decide the shared detect cache. */
 async function answer(args: DetectArgs, path: string): Promise<unknown> {
   const res = await args.fetch(`${serverRootOf(args.baseUrl)}${path}`, {
     headers: authHeaders(args.secret, args.headers),
+    redirect: "manual",
     ...(args.signal !== undefined ? { signal: args.signal } : {}),
   });
-  if (!res.ok) {
+  if (!res.ok || isRedirect(res)) {
     return null;
   }
   // @orb-waive caught-failure-ownership(catch): a 2xx that is not JSON is a server that is not this one; the
