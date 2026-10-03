@@ -95,6 +95,11 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
           offerScope(result.memoryScope);
           return;
         }
+        // A drop that wrote no real conversation (a duplicate, a greeting-only transcript) leaves the scope as it
+        // is, and an offer still waiting on a yes keeps the dialog open rather than being thrown away.
+        if (offer !== null && !offer.started) {
+          return;
+        }
         changeOpen(false);
       },
       () => notify.error("Couldn't import the chat."),

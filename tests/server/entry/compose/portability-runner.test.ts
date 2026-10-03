@@ -288,6 +288,15 @@ describe("createSettleImportMemory — an import's span, and its free segment pa
     ]);
   });
 
+  test("a clock that stepped back mid-import closes the span at its start, never inverted", async () => {
+    const door = recordingDoor(() => Promise.resolve({ id: castId<WorkloadId>("wl_segments") }));
+
+    await expect(createSettleImportMemory(door.workloads, () => From - 500)({ ownerId: OWNER, from: From, memoryChatIds: [chatId] })).resolves.toStrictEqual({
+      from: From,
+      to: From,
+    });
+  });
+
   test("an import that wrote no real conversation has no scope and enqueues nothing", async () => {
     const door = recordingDoor(() => Promise.resolve({ id: castId<WorkloadId>("wl_unused") }));
 

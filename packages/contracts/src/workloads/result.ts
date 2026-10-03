@@ -16,7 +16,7 @@ import type { EmbedPassResult } from "#embeddings";
 import type { CatalogRefreshResult } from "#inference";
 import type { RefineryScoreSweepResult } from "#refinery";
 import type { ReconcileStatsWorkloadResult } from "#stats";
-import { importWindowSchema } from "../chat/backfill.ts";
+import { storedImportWindowSchema } from "../chat/backfill.ts";
 
 /** A maintenance pass's counts + the `dryRun` echo (assets backfill/gc, import-st). */
 export interface MaintenanceResult {
@@ -100,7 +100,7 @@ export const maintenanceResultSchema = z
     dryRun: z.boolean(),
     failed: z.number().optional(),
     reportPath: z.string().optional(),
-    memoryScope: importWindowSchema.nullable().optional(),
+    memoryScope: storedImportWindowSchema.nullable().optional(),
   })
   .transform(({ failed, reportPath, memoryScope, ...view }) => ({
     ...view,
@@ -115,7 +115,7 @@ export const bundleImportWorkloadResultSchema = z.strictObject({
   failed: z.number(),
   notes: z.array(z.string()).readonly(),
   // A row stored before imports carried a scope reads as having none: it offers nothing, and still lists.
-  memoryScope: importWindowSchema.nullable().default(null),
+  memoryScope: storedImportWindowSchema.nullable().default(null),
 }) satisfies z.ZodType<BundleImportWorkloadResult>;
 
 export const importTokenUsageBackfillResultSchema = z.strictObject({

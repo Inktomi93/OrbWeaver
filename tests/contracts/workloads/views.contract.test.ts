@@ -78,3 +78,15 @@ test("stored import and memory rows from before the memory scope still parse, as
   expect(workloadRowAnyKindSchema.parse(profile)).toEqual(profile);
   expect(workloadRowAnyKindSchema.parse(memory)).toEqual(memory);
 });
+
+// A stored scope is read for what it is: a coherence refine here would brick a row on read, so an inverted span
+// stored by a clock that stepped back still lists. Input refuses it (`memoryBackfillWorkloadParams`).
+test("a stored inverted import span still parses on read", () => {
+  const bundle = {
+    ...row,
+    kind: "import-bundle",
+    params: { token: "import-bundle-x.zip" },
+    result: { imported: 1, skipped: 0, failed: 0, notes: [], memoryScope: { from: 9, to: 1 } },
+  };
+  expect(workloadRowAnyKindSchema.parse(bundle)).toMatchObject({ poison: false, result: { memoryScope: { from: 9, to: 1 } } });
+});

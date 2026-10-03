@@ -81,7 +81,7 @@ export {
 // The two corpus-sweep workloads' params + results chat OWNS (the junk-drawer exit: a workload's wire shapes
 // are authored by the OWNING domain) — `memory-backfill` + `group-character-backfill`.
 export type { BackfillPassResult, ImportWindow, MemoryBackfillResult, MemoryBackfillWorkloadParams } from "./backfill.ts";
-export { importWindowSchema, memoryBackfillWorkloadParams, mergeImportWindows } from "./backfill.ts";
+export { importWindowSchema, memoryBackfillWorkloadParams, mergeImportWindows, storedImportWindowSchema } from "./backfill.ts";
 export type {
   BulkImportChatInput,
   BulkImportChatsResult,

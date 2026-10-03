@@ -134,7 +134,8 @@ export function createSettleImportMemory(workloads: Pick<WorkloadService, "start
     if (memoryChatIds.length === 0) {
       return null;
     }
-    const importWindow: ImportWindow = { from, to: now() };
+    // A clock that stepped back mid-import must not invert the span and fail an import that finished.
+    const importWindow: ImportWindow = { from, to: Math.max(from, now()) };
     // @orb-waive caught-failure-ownership(err): the one absorbed failure is the memory-off admission refusal, a
     // normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the
     // import run. Ends if another refusal code is absorbed here.

@@ -20,7 +20,7 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../support/composed-real.ts";
 import type { ProviderId } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";
 import {
   assets,
   characterDocuments,
@@ -68,10 +68,12 @@ import { CREDENTIALS_OP_CODES } from "@orb/server/domain/credentials";
 import { appRouter } from "@orb/server/transport/trpc";
 import { strToU8, zipSync } from "fflate";
 import { describe, onTestFinished } from "vitest";
+import { TEST_PROVIDER_ID } from "../../support/factories/resolved-connection.ts";
 import type { AppCaller } from "../../support/fixtures.ts";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../support/fixtures.ts";
 import { principal as automationPrincipal } from "../domain/automation/_support.ts";
 import { seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
+import { seedTurns } from "../domain/chat/memory/_support.ts";
 
 // ── Owner A's distinctive marker names — these strings exist ONLY in A's owned rows, so their appearance in
 //    a stranger's result is an unambiguous LEAK signal (an echoed input id is NOT a leak — a stranger's own
@@ -3047,11 +3049,14 @@ describe("cross-tenant IDOR sweep — the credential door's provider axis (keyed
   });
 });
 
+/** Enough of A's turns to age blocks past the default verbatim window, so A's room would cost summaries. */
+const ALPHA_IMPORTED_TURNS = 40;
+
 describe("cross-tenant IDOR sweep — an import's memory scope handle", () => {
   // The handle is a time span, not an id, so a stranger can name the span of A's import. Naming it must confer
-  // nothing: B's run is B's row, carries only the span, and B's count is B's own library's. The sweep's
-  // intersection with the run owner's hosted chats is counted with a funded Utility model in
-  // tests/server/domain/chat/substrate/backfill-estimate.int.test.ts.
+  // nothing: B's run is B's row, carries only the span, and B's count is B's own library's. The count has teeth:
+  // A's room holds enough turns to need summaries and B has a Utility (summarize) binding, so a sweep that dropped
+  // the run owner's host intersection would reach A's room and count it (or fail on A's embed space).
   test("a stranger naming owner A's import span starts only its own run and counts only its own library", async ({ db, ownerCaller, otherCaller }) => {
     const span = { from: 1_700_000_000_000, to: 1_700_000_060_000 };
     const character = await ownerCaller.character.create({ input: { handle: "alpha-imported", name: MARK.character, description: "owned by A" } });
@@ -3061,16 +3066,31 @@ describe("cross-tenant IDOR sweep — an import's memory scope handle", () => {
     await db
       .insert(chatImportClaims)
       .values({ chatId: room, characterId: castId<CharacterId>(character.id), importHash: "alpha_import", createdAt: span.from });
+    await seedTurns(db, room, castId<CharacterId>(character.id), ALPHA_IMPORTED_TURNS);
+    const strangerUtility = mintTypeId(ID_PREFIX.userConnection);
+    await db.insert(userConnections).values({
+      id: strangerUtility,
+      ownerId: OTHER_USER_ID,
+      label: "stranger utility",
+      providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
+      credentialId: null,
+      baseUrl: null,
+      model: castId<ModelId>("stranger-utility-model"),
+    });
+    await db.insert(connectionBindings).values({
+      id: mintTypeId(ID_PREFIX.connectionBinding),
+      actorKind: "user",
+      userId: OTHER_USER_ID,
+      ruleId: null,
+      pluginId: null,
+      task: "summarize",
+      connectionId: strangerUtility,
+    });
     const input = { kind: "memory-backfill", params: { importWindow: span } } as const;
     // B's own Memory is on, so B's run is admitted and the probe reaches the scope rather than the opt-out.
     await otherCaller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
 
-    const strangerCount = await otherCaller.workloads.estimateModelCalls({ input, mode: "singular" });
-    const emptyCount = await otherCaller.workloads.estimateModelCalls({
-      input: { kind: "memory-backfill", params: { importWindow: { from: 0, to: 0 } } },
-      mode: "singular",
-    });
-    expect(strangerCount).toEqual(emptyCount);
+    expect(await otherCaller.workloads.estimateModelCalls({ input, mode: "singular" })).toEqual({ calls: 0 });
 
     const { id } = await otherCaller.workloads.start({ input, mode: "singular" });
     const started = (await db.select().from(workloads)).find((row) => row.id === id);

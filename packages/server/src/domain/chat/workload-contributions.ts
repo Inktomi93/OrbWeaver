@@ -21,10 +21,15 @@ import type { ChatWorkloadDeps } from "./contract/workloads.ts";
 
 type ChatContributions = readonly [WorkloadContribution<"memory-backfill">, WorkloadContribution<"group-character-backfill">];
 
-/** The memory sweep's concurrency unit. A whole-corpus run keeps the shared bucket, so an import's scoped run or
+/** The memory sweep's admission unit. A whole-corpus run keeps the shared bucket, so an import's scoped run or
  *  its free segment pass never holds the slot a whole sweep (a model-change reindex) needs. Each import span is
- *  its own unit, and its segment pass and its digest build are two. Concurrent runs over one chat are safe: the
- *  segment and digest writes are hash-gated upserts, the same writes the live post-turn build makes. */
+ *  its own unit, and its segment pass and its digest build are two.
+ *
+ *  Distinct units only ADMIT side by side; they do not RUN side by side. Every memory-backfill rides the `sweep`
+ *  lane, which dispatches one row at a time (`DEFAULT_LANE_CONCURRENCY`, transport/jobs/workloads-worker.ts), so a
+ *  later run sees the earlier run's stored digests and skips them. That serial lane is the guard against paying
+ *  twice for one block's summary: the hash-gated upserts keep the rows correct, but two runs overlapping on a chat
+ *  would each call the Utility model before either stored. */
 function memoryAdmissionKey(params: MemoryBackfillWorkloadParams): string {
   const pass = params.segmentsOnly === true ? "segments" : "memory";
   if (params.importWindow === undefined) {

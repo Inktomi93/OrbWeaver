@@ -13,9 +13,18 @@ export interface ImportWindow {
   readonly to: number;
 }
 
-export const importWindowSchema = z
-  .strictObject({ from: z.number().int().nonnegative(), to: z.number().int().nonnegative() })
-  .refine((window) => window.from <= window.to, "an import window ends at or after it starts") satisfies z.ZodType<ImportWindow>;
+/** The span as a stored result carries it: shape only. A coherence refine here would brick an already-stored row
+ *  on read, so `from <= to` is checked where a span is accepted as input ({@link importWindowSchema}). */
+export const storedImportWindowSchema = z.strictObject({
+  from: z.number().int().nonnegative(),
+  to: z.number().int().nonnegative(),
+}) satisfies z.ZodType<ImportWindow>;
+
+/** The span as a run's input: a span that ends before it starts is refused. */
+export const importWindowSchema = storedImportWindowSchema.refine(
+  (window) => window.from <= window.to,
+  "an import window ends at or after it starts",
+) satisfies z.ZodType<ImportWindow>;
 
 /** The span covering both windows. Two imports' spans merge into one offer; any other chat the same owner imported
  *  in between is in scope too, which is the owner's own library. */

@@ -217,3 +217,32 @@ test("a build already running for the span is explained, not reported as a failu
   await expect(offer).toBeVisible();
   await expect(component.getByTestId("import-notice")).toHaveText("success: 2 chats imported.");
 });
+
+// An unstarted offer is waiting on a yes. A later drop that writes no new real conversation leaves the scope as it
+// is and keeps the dialog open: closing would throw the pending offer away.
+for (const [label, quiet] of [
+  ["a duplicate (created:false, no scope)", { imported: [{ filename: "aria.jsonl", created: false }], failed: [], memoryScope: null }],
+  ["a greeting-only transcript (imported, no scope)", { imported: [{ filename: "hello.jsonl", created: true }], failed: [], memoryScope: null }],
+] as const) {
+  test(`an unstarted offer survives a later drop of ${label}`, async ({ mount, page }) => {
+    const trpc = await routeTrpc(page, { ...MEMORY_ON_ROUTES, "workloads.start": { id: "workload_ct_imported_memory" } });
+    let drops = 0;
+    await routeImport(page, () => {
+      drops += 1;
+      return drops === 1 ? writtenBatch(FIRST_SPAN) : quiet;
+    });
+
+    const component = await mount(<ChatImportDialogStory />);
+    const offer = page.getByTestId("imported-chats-memory-offer");
+    await dropBatch(page);
+    await expect(offer.getByRole("button")).toHaveCount(1);
+    await dropBatch(page);
+    await expect.poll(() => drops).toBe(2);
+    // SETTLED: the second drop's own notice landed, so its close-or-stay decision has run.
+    await expect(component.getByTestId("import-notice")).toHaveText("success: Chat imported.");
+
+    await expect(component.getByTestId("import-closes")).toHaveText("0");
+    await offer.getByRole("button").click();
+    await expect.poll(() => trpc.lastInput("workloads.estimateModelCalls")).toEqual(buildOver(FIRST_SPAN));
+  });
+}
