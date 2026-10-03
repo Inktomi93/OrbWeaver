@@ -3,8 +3,8 @@
 // only ASSEMBLES raw tool-call arguments; the tool round's shared path validates them, so equal intent records equally.
 
 import { z } from "zod";
-import type { RpgToolCall } from "./extraction.ts";
-import { RPG_NO_CHANGES_TOOL } from "./extraction.ts";
+import type { RpgRecordedToolCall, RpgToolCall, RpgUnassembledValue } from "./extraction.ts";
+import { RPG_NO_CHANGES_TOOL, recordUnassembledCall } from "./extraction.ts";
 import type { RpgStateRoundTool, RpgStructuredChanges } from "./structured-round.ts";
 import { RPG_STATE_CHANGES_FIELD } from "./structured-round.ts";
 
@@ -19,6 +19,17 @@ const PATH_SEPARATOR = ".";
 export const RPG_PATCH_INDEX_MAX = 999;
 /** A strict decimal number: the only text a numeric field shapes into a number. */
 const NUMERIC = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
+/** ES2025 `JSON.rawJSON`, shipped by every runtime this server supports (engines: node 26 or later) but not yet in TS's
+ *  lib. It writes a number's digits into the arguments verbatim, so a value too large for a double parses to the same
+ *  `Infinity` the tool round's `JSON.parse` sees, and the shared parse refuses it the same way. */
+const rawJson = (JSON as JSON & { readonly rawJSON: (text: string) => unknown }).rawJSON;
+/** Why an entry could not be assembled, in the per-call parse's own vocabulary. */
+const unassembled = {
+  call: (call: number): string => `Invalid call: expected a whole number from 0 to ${RPG_PATCH_INDEX_MAX}, received ${String(call)}`,
+  item: (item: number): string => `Invalid item: expected a whole number from 0 to ${RPG_PATCH_INDEX_MAX}, received ${String(item)}`,
+  field: (plane: string): string => `Unrecognized field: not one of ${plane}'s fields`,
+  tool: (plane: string): string => `Unrecognized tool: ${plane} is not offered this round`,
+} as const;
 
 type SchemaNode = Readonly<Record<string, unknown>>;
 type Args = Record<string, unknown>;
@@ -136,17 +147,60 @@ function leafHint(node: SchemaNode): string {
   return node["type"] === "number" || node["type"] === "integer" ? "number" : "";
 }
 
-/** A tool's field paths as the prompt teaches them: each path, with the values it accepts where they are closed or
- *  numeric. The grammar cannot carry these (every value is text), so the prompt and the decoder carry them. */
-export function describePatchFields(tool: Pick<RpgStateRoundTool, "parameters">): readonly string[] {
-  const described = new Map<string, string>();
-  for (const branch of toolBranches(tool).branches) {
-    for (const [path, leaf] of branch) {
-      const hint = leafHint(leaf.node);
-      described.set(path, hint === "" ? path : `${path} (${hint})`);
+function enumValues(leaf: PatchLeaf): readonly unknown[] | null {
+  const allowed = leaf.node["enum"];
+  return Array.isArray(allowed) ? allowed : null;
+}
+
+/** The field that picks a branch (`targetRef` across the per-actor tracker split): a top-level closed field every
+ *  branch has, with different values per branch. Each branch is named by its values ("Mira", "Kael or Mira"). */
+function branchOwners(branches: readonly ReadonlyMap<string, PatchLeaf>[]): { readonly path: string; readonly names: readonly string[] } | null {
+  const [first] = branches;
+  if (branches.length < 2 || first === undefined) {
+    return null;
+  }
+  for (const [path, leaf] of first) {
+    const values = branches.map((branch) => {
+      const own = branch.get(path);
+      return own === undefined || own.segments.length !== 1 ? null : enumValues(own);
+    });
+    if (leaf.segments.length === 1 && values.every((own) => own !== null) && new Set(values.map((own) => JSON.stringify(own))).size > 1) {
+      return { path, names: values.map((own) => own.join(" or ")) };
     }
   }
-  return [...described.values()];
+  return null;
+}
+
+/** One path's hint across branches: plain when every branch takes the same, else each value set with the branch it
+ *  belongs to (`hp for Mira, mana for Corvin`), so no branch's values drop out of the model's only guidance. */
+function mergedHint(path: string, branches: readonly ReadonlyMap<string, PatchLeaf>[], owners: ReturnType<typeof branchOwners>): string {
+  const present = branches.flatMap((branch, index) => {
+    const leaf = branch.get(path);
+    return leaf === undefined ? [] : [{ leaf, owner: owners?.names[index] ?? "" }];
+  });
+  const hints = present.map(({ leaf }) => leafHint(leaf.node));
+  if (owners === null || owners.path === path || (present.length === branches.length && new Set(hints).size === 1)) {
+    const values = present.flatMap(({ leaf }) => enumValues(leaf) ?? []);
+    return values.length > 0 ? `one of ${[...new Set(values)].join(" | ")}` : (hints[0] ?? "");
+  }
+  const grouped = new Map<string, string[]>();
+  for (const { leaf, owner } of present) {
+    const accepts = enumValues(leaf)?.join(" | ") ?? leafHint(leaf.node);
+    grouped.set(accepts, [...(grouped.get(accepts) ?? []), owner]);
+  }
+  return [...grouped].map(([accepts, names]) => `${accepts === "" ? "" : `${accepts} `}for ${names.join(" or ")}`).join(", ");
+}
+
+/** A tool's field paths as the prompt teaches them: each path, with the values it accepts where they are closed or
+ *  numeric, merged across per-actor branches. The grammar cannot carry these (every value is text), so the prompt
+ *  carries them. */
+export function describePatchFields(tool: Pick<RpgStateRoundTool, "parameters">): readonly string[] {
+  const { branches } = toolBranches(tool);
+  const owners = branchOwners(branches);
+  return patchFieldPaths(tool).map((path) => {
+    const hint = mergedHint(path, branches, owners);
+    return hint === "" ? path : `${path} (${hint})`;
+  });
 }
 
 /** The tool fields the patch list cannot express (an array of objects inside an array of objects): writable through
@@ -190,15 +244,15 @@ function scalarTypes(node: SchemaNode): ReadonlySet<unknown> {
 }
 
 /**
- * Shape one value's text into what a tool call would carry: strict digits become a number where the field takes one
- * (number first, so a number|string `"5"` lands as `5`), `true`/`false` a boolean where it takes one, and every other
+ * Shape one value's text into what a tool call would carry: strict digits become those digits as a JSON number where
+ * the field takes one (number first, so a number|string `"5"` lands as `5`), `true`/`false` a boolean where it takes one, and every other
  * text stays the string sent. A SHAPING step only: a value its field will refuse is kept as sent, and the shared
  * per-call parse refuses it exactly as it refuses that value in a tool call's arguments.
  */
 function shapeValue(node: SchemaNode, raw: string): unknown {
   const types = scalarTypes(node);
-  if ((types.has("number") || types.has("integer")) && NUMERIC.test(raw) && Number.isFinite(Number(raw))) {
-    return Number(raw);
+  if ((types.has("number") || types.has("integer")) && NUMERIC.test(raw)) {
+    return rawJson(raw);
   }
   if (types.has("boolean") && (raw === "true" || raw === "false")) {
     return raw === "true";
@@ -273,25 +327,28 @@ function leafOwner(args: Args, leaf: PatchLeaf, item: number): Args {
   return cursor;
 }
 
-/** Place one entry's shaped value in its call's arguments. False when it cannot form an argument: an id out of range,
- *  a field the tool does not have, or a scalar this call already set (never silently overwritten). */
-function place(args: Args, entry: ReadEntry, leaves: ReadonlyMap<string, PatchLeaf>): boolean {
-  const leaf = leaves.get(entry.field);
-  if (leaf === undefined || !isPatchIndex(entry.item)) {
-    return false;
+/** Why an entry cannot form an argument of its call (a tool the round does not offer, an id out of range, a field the
+ *  tool does not have), or `null`. */
+function unplaceable(entry: ReadEntry, leaves: ReadonlyMap<string, PatchLeaf> | undefined): string | null {
+  if (leaves === undefined) {
+    return unassembled.tool(entry.plane);
   }
+  if (!isPatchIndex(entry.call)) {
+    return unassembled.call(entry.call);
+  }
+  if (!isPatchIndex(entry.item)) {
+    return unassembled.item(entry.item);
+  }
+  return leaves.has(entry.field) ? null : unassembled.field(entry.plane);
+}
+
+/** Place one entry's shaped value in its call's arguments. A scalar set twice keeps the LATER value, as a tool call's
+ *  repeated JSON key does. */
+function place(args: Args, entry: ReadEntry, leaf: PatchLeaf): void {
   const owner = leafOwner(args, leaf, entry.item);
   const key = leaf.segments.at(-1) ?? "";
   const value = shapeValue(leaf.node, entry.value);
-  if (leaf.append) {
-    owner[key] = [...(Array.isArray(owner[key]) ? owner[key] : []), value];
-    return true;
-  }
-  if (Object.hasOwn(owner, key)) {
-    return false;
-  }
-  owner[key] = value;
-  return true;
+  owner[key] = leaf.append ? [...(Array.isArray(owner[key]) ? owner[key] : []), value] : value;
 }
 
 /** Turn every `item`-keyed record under an array-of-objects segment back into an array, in item order. */
@@ -318,6 +375,12 @@ interface CallDraft {
   readonly args: Args;
 }
 
+/** One plane's entries that could not be assembled, as sent, each with why. */
+interface Unplaced {
+  readonly sent: Args[];
+  readonly values: RpgUnassembledValue[];
+}
+
 /**
  * Assemble a patch-list reply into the tool calls it stands for, or `null` when it is not a non-empty `changes` list.
  * Entries group into calls by `(plane, call)` and into array elements by `item`; each value is shaped by its field's
@@ -325,10 +388,9 @@ interface CallDraft {
  * own per-call parse, salvage and record, so a value its field refuses is salvaged or dropped there, by the same zod
  * message, at the same path, as in a tool call's arguments.
  *
- * An entry that cannot form an argument (an unknown plane or field, a prototype key, an id out of range, a repeated
- * scalar) is kept out of the assembled call. Each plane's such entries ride ONE extra call carrying them as sent, so
- * the same record functions mark it (a state tool's call is `dropped`; an unknown plane is recorded the way the tool
- * round records an unknown tool name). `unreadable` counts entries that are not a change at all.
+ * An entry that cannot form an argument (a tool the round does not offer, a field the tool lacks, a prototype key, an
+ * id out of range) never reaches a call: each plane's such entries become ONE `unassembled` record row, `dropped`,
+ * carrying them as sent and naming each one's cause. `unreadable` counts entries that are not a change at all.
  */
 export function patchChangesToToolCalls(value: unknown, tools: readonly RpgStateRoundTool[]): RpgStructuredChanges | null {
   const changes = isRecord(value) ? value[RPG_STATE_CHANGES_FIELD] : undefined;
@@ -337,7 +399,7 @@ export function patchChangesToToolCalls(value: unknown, tools: readonly RpgState
   }
   const leavesByPlane = new Map(tools.map((tool) => [tool.name, toolLeaves(tool)] as const));
   const drafts = new Map<string, CallDraft>();
-  const unplaced = new Map<string, Args[]>();
+  const unplaced = new Map<string, Unplaced>();
   const dropped: string[] = [];
   let unreadable = 0;
   for (const raw of changes) {
@@ -351,21 +413,25 @@ export function patchChangesToToolCalls(value: unknown, tools: readonly RpgState
       continue;
     }
     const leaves = leavesByPlane.get(entry.plane);
-    const key = JSON.stringify([entry.plane, entry.call]);
-    const draft = drafts.get(key) ?? { plane: entry.plane, args: {} };
-    if (leaves !== undefined && isPatchIndex(entry.call) && place(draft.args, entry, leaves)) {
-      drafts.set(key, draft);
+    const leaf = leaves?.get(entry.field);
+    const reason = unplaceable(entry, leaves);
+    if (reason !== null || leaf === undefined) {
+      const own = unplaced.get(entry.plane) ?? { sent: [], values: [] };
+      own.sent.push(entry.sent);
+      own.values.push({ path: entry.field, message: reason ?? unassembled.field(entry.plane), sent: entry.value });
+      unplaced.set(entry.plane, own);
+      dropped.push(`${entry.plane}.${entry.field}`);
       continue;
     }
-    unplaced.set(entry.plane, [...(unplaced.get(entry.plane) ?? []), entry.sent]);
-    dropped.push(`${entry.plane}.${entry.field}`);
+    const key = JSON.stringify([entry.plane, entry.call]);
+    const draft = drafts.get(key) ?? { plane: entry.plane, args: {} };
+    place(draft.args, entry, leaf);
+    drafts.set(key, draft);
   }
-  const calls: RpgToolCall[] = [...drafts.values()].map((draft) => ({
+  const calls: readonly RpgToolCall[] = [...drafts.values()].map((draft) => ({
     name: draft.plane,
     arguments: JSON.stringify(finishArrays(draft.args, leavesByPlane.get(draft.plane)?.values() ?? [])),
   }));
-  for (const [plane, entries] of unplaced) {
-    calls.push({ name: plane, arguments: JSON.stringify(entries) });
-  }
-  return { calls, unreadable, dropped };
+  const unassembledRows: RpgRecordedToolCall[] = [...unplaced].map(([plane, own]) => recordUnassembledCall(plane, JSON.stringify(own.sent), own.values));
+  return { calls, unassembled: unassembledRows, unreadable, dropped };
 }

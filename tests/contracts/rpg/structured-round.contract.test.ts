@@ -21,7 +21,7 @@ test("a multi-change reply decodes to the tool calls a tool round carries, and f
 
   const decoded = structuredChangesToToolCalls(reply);
 
-  expect(decoded).toEqual({ calls: sameCallsAsTools, unreadable: 0, dropped: [] });
+  expect(decoded).toEqual({ calls: sameCallsAsTools, unassembled: [], unreadable: 0, dropped: [] });
   expect(toolCallsToExtraction(decoded?.calls ?? [])).toEqual(toolCallsToExtraction(sameCallsAsTools));
 });
 
@@ -34,5 +34,5 @@ test("a reply that is not a non-empty `changes` list is refused whole", () => {
 test("an entry with no tool name is counted, and every other entry still decodes", () => {
   const decoded = structuredChangesToToolCalls({ changes: [{ args: { location: "x" } }, "update_scene", { tool: "no_changes", args: {} }] });
 
-  expect(decoded).toEqual({ calls: [{ name: "no_changes", arguments: "{}" }], unreadable: 2, dropped: [] });
+  expect(decoded).toEqual({ calls: [{ name: "no_changes", arguments: "{}" }], unassembled: [], unreadable: 2, dropped: [] });
 });

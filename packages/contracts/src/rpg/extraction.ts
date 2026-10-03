@@ -1013,6 +1013,26 @@ export function recordToolCalls(calls: readonly RpgToolCall[]): readonly RpgReco
   });
 }
 
+/** One thing the model sent that could not even be assembled into a call's arguments, with why. */
+export interface RpgUnassembledValue {
+  readonly path: string;
+  readonly message: string;
+  readonly sent: unknown;
+}
+
+/** The record row for a call that never reached the per-call parse because nothing in it could be assembled into
+ *  arguments (a structured patch entry naming a tool or field the round lacks, or an id out of range). A `dropped` row in
+ *  the parse's own `<path>: <message> — sent <value>` issue vocabulary, so every reader of the record, and the
+ *  member projection that re-renders the sent half, reads it like any other drop. `args` is what was sent. */
+export function recordUnassembledCall(name: string, args: string, values: readonly RpgUnassembledValue[]): RpgRecordedToolCall {
+  return {
+    name,
+    args,
+    verdict: "dropped",
+    issues: values.map((value) => `${value.path}: ${value.message}${SENT_VALUE_MARKER}${sentValueAtPath(value.sent, [])}`),
+  };
+}
+
 /** One suppressed path as the disclosure says it. The PATH is the load-bearing half — it is what lets a
  *  reader of a multi-call turn tell which of their pins ate which write. */
 function lockIssue(path: string): string {

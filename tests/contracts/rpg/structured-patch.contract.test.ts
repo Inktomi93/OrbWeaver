@@ -8,6 +8,7 @@ import { checkWireSchema, structuredSchemaComplexity, WIRE_SCHEMA_MODES } from "
 import type { ExtractionRefs, RpgStateRoundTool, RpgToolCall } from "@orb/contracts/rpg";
 import {
   constrainExtractionSchema,
+  describePatchFields,
   malformedToolCallDetails,
   malformedToolCalls,
   patchChangesToToolCalls,
@@ -146,6 +147,9 @@ function scene(...entries: readonly (readonly [string, string])[]): readonly Ent
   return entries.map(([field, value]) => entry("update_scene", 0, field, value));
 }
 
+/** Digits no double holds: a tool call's `JSON.parse` reads them as Infinity. */
+const TOO_LARGE = "1".padEnd(400, "0");
+
 const INTENTS: readonly Intent[] = [
   {
     label: "a refused enum beside a kept field",
@@ -225,6 +229,21 @@ const INTENTS: readonly Intent[] = [
       entry("update_party", 0, "status", "bloodied"),
     ],
     tool: { name: "update_party", arguments: JSON.stringify({ targetRef: "Corvin", trackerDeltas: [{ key: "hp", delta: -2 }], status: "bloodied" }) },
+  },
+  {
+    label: "a number too large for a double, in a number-or-text field",
+    entries: [entry("set_tracker", 0, "key", "omen"), entry("set_tracker", 0, "value", TOO_LARGE)],
+    tool: { name: "set_tracker", arguments: `{"key":"omen","value":${TOO_LARGE}}` },
+  },
+  {
+    label: "a number too large for a double, beside a kept field",
+    entries: scene(["location", "inn"], ["day", TOO_LARGE]),
+    tool: { name: "update_scene", arguments: `{"location":"inn","day":${TOO_LARGE}}` },
+  },
+  {
+    label: "a number written with a trailing zero keeps the digits sent",
+    entries: scene(["location", "inn"], ["day", "1.50"]),
+    tool: { name: "update_scene", arguments: '{"location":"inn","day":1.50}' },
   },
   {
     label: "a long refused value",
@@ -379,50 +398,71 @@ test("a boolean field shapes only `true` or `false`; any other text is kept for 
 
 // ── entries that cannot form an argument ────────────────────────────────────────────────────────────────────────
 
-test("a prototype key never reaches a lookup: it rides its own recorded DROP, carried as sent, beside the assembled call", () => {
-  const unknown = [entry("update_scene", 0, "constructor", "x"), entry("update_scene", 0, "toString", "x"), entry("update_scene", 0, "__proto__", "x")];
+/** What a reader of the record sees for an unassembled row: one issue per entry, naming its cause and the value. */
+const NOT_A_SCENE_FIELD = "Unrecognized field: not one of update_scene's fields";
+
+test("a prototype key never reaches a lookup: it is a recorded DROP naming the cause, carried as sent, beside the call that applied", () => {
+  const unknown = [entry("update_scene", 0, "constructor", "x"), entry("update_scene", 0, "toString", "x"), entry("update_scene", 0, "__proto__", "y")];
   const decoded = decode([...unknown, entry("update_scene", 0, "location", "the inn")]);
 
   expect(decoded?.dropped).toEqual(["update_scene.constructor", "update_scene.toString", "update_scene.__proto__"]);
-  expect(decoded?.calls).toEqual([
-    { name: "update_scene", arguments: '{"location":"the inn"}' },
-    { name: "update_scene", arguments: JSON.stringify(unknown) },
+  expect(decoded?.calls).toEqual([{ name: "update_scene", arguments: '{"location":"the inn"}' }]);
+  expect(decoded?.unassembled).toEqual([
+    {
+      name: "update_scene",
+      args: JSON.stringify(unknown),
+      verdict: "dropped",
+      issues: [`constructor: ${NOT_A_SCENE_FIELD} — sent "x"`, `toString: ${NOT_A_SCENE_FIELD} — sent "x"`, `__proto__: ${NOT_A_SCENE_FIELD} — sent "y"`],
+    },
   ]);
-  expect(recordToolCalls(decoded?.calls ?? []).map((call) => call.verdict)).toEqual(["applied", "dropped"]);
   expect(toolCallsToExtraction(decoded?.calls ?? []).scene).toEqual({ location: "the inn" });
 });
 
-test("a repeated scalar is never silently overwritten; an unknown plane is recorded as the tool round records an unknown tool", () => {
+test("a field set twice in one call keeps the LATER value, as a tool call's repeated JSON key does", () => {
   const decoded = decode([
     entry("update_scene", 0, "location", "the inn"),
     entry("update_scene", 0, "location", "the road"),
-    entry("delete_world", 0, "x", "1"),
-    { plane: "no_changes" },
+    entry("update_scene", 0, "presentUpsert.name", "A"),
+    entry("update_scene", 0, "presentUpsert.name", "B"),
   ]);
+  const toolRound = { name: "update_scene", arguments: '{"location":"the inn","location":"the road","presentUpsert":[{"name":"A","name":"B"}]}' };
 
-  expect(decoded?.dropped).toEqual(["update_scene.location", "delete_world.x"]);
-  expect(argsOf(decoded)).toEqual([
-    { name: "update_scene", args: { location: "the inn" } },
-    { name: "no_changes", args: {} },
-    { name: "update_scene", args: [entry("update_scene", 0, "location", "the road")] },
-    { name: "delete_world", args: [entry("delete_world", 0, "x", "1")] },
+  expect(argsOf(decoded)).toEqual([{ name: "update_scene", args: { location: "the road", presentUpsert: [{ name: "B" }] } }]);
+  expect(toolCallsToExtraction(decoded?.calls ?? [])).toEqual(toolCallsToExtraction([toolRound]));
+  expect(decoded?.dropped).toEqual([]);
+});
+
+test("a tool the round does not offer is a recorded DROP naming why, never a write, even when its name is a real state tool", () => {
+  const noTrackers = roundTools({ ...REFS, gameTrackerKeys: { deltaKeys: [], setKeys: [] } }).filter((tool) => tool.name !== "set_tracker");
+  const sent = [entry("set_tracker", 0, "key", "gold"), entry("set_tracker", 0, "delta", "5")];
+  const decoded = decode([...sent, entry("delete_world", 0, "x", "1"), { plane: "no_changes" }], noTrackers);
+
+  expect(decoded?.calls).toEqual([{ name: "no_changes", arguments: "{}" }]);
+  expect(decoded?.unassembled).toEqual([
+    {
+      name: "set_tracker",
+      args: JSON.stringify(sent),
+      verdict: "dropped",
+      issues: [
+        'key: Unrecognized tool: set_tracker is not offered this round — sent "gold"',
+        'delta: Unrecognized tool: set_tracker is not offered this round — sent "5"',
+      ],
+    },
+    {
+      name: "delete_world",
+      args: JSON.stringify([entry("delete_world", 0, "x", "1")]),
+      verdict: "dropped",
+      issues: ['x: Unrecognized tool: delete_world is not offered this round — sent "1"'],
+    },
   ]);
-  const record = recordToolCalls(decoded?.calls ?? []);
-  expect(record.map((call) => [call.name, call.verdict])).toEqual([
-    ["update_scene", "applied"],
-    ["no_changes", "applied"],
-    ["update_scene", "dropped"],
-    ["delete_world", "applied"],
-  ]);
-  const toolRoundUnknown = { name: "delete_world", arguments: JSON.stringify([entry("delete_world", 0, "x", "1")]) };
-  expect(record[3]).toEqual(recordToolCalls([toolRoundUnknown])[0]);
-  expect(toolCallsToExtraction(decoded?.calls ?? []).scene).toEqual({ location: "the inn" });
+  expect(decoded?.dropped).toEqual(["set_tracker.key", "set_tracker.delta", "delete_world.x"]);
   expect(patchChangesToToolCalls({ changes: [] }, TOOLS)).toBeNull();
 });
 
 test("entries that are not a change at all are counted, never guessed at", () => {
   expect(patchChangesToToolCalls({ changes: [null, 5, { plane: 3 }, { plane: "update_scene", call: 0, field: "location" }] }, TOOLS)).toEqual({
     calls: [],
+    unassembled: [],
     unreadable: 4,
     dropped: [],
   });
@@ -440,7 +480,7 @@ const PROJECTED_PATCH_BOUNDS = z.object({
   }),
 });
 
-test("call and item ids are bounded whole numbers: the schema says so, and an out-of-range id rides its plane's recorded DROP", () => {
+test("call and item ids are bounded whole numbers: the schema says so, and an out-of-range id is a recorded DROP naming which id", () => {
   const projected = projectJsonSchema(stateRoundPatchSchema(TOOLS));
   const member = PROJECTED_PATCH_BOUNDS.parse(projected).properties.changes.items.anyOf[0];
   expect(member?.properties.call).toMatchObject({ type: "integer", minimum: 0, maximum: RPG_PATCH_INDEX_MAX });
@@ -451,25 +491,59 @@ test("call and item ids are bounded whole numbers: the schema says so, and an ou
     entry("update_scene", Number.POSITIVE_INFINITY, "location", "inf"),
     entry("update_scene", -1, "location", "neg"),
     entry("update_scene", 0.5, "day", "2"),
-    entry("update_scene", 2 ** 53, "recentEvent", "huge"),
     entry("update_scene", RPG_PATCH_INDEX_MAX + 1, "recentEvent", "over"),
     { ...entry("update_scene", 0, "presentUpsert.name", "far"), item: 1e21 },
   ];
   const decoded = decode([...outOfRange, { ...entry("update_scene", RPG_PATCH_INDEX_MAX, "location", "the inn"), item: RPG_PATCH_INDEX_MAX }]);
+  const callRange = `expected a whole number from 0 to ${RPG_PATCH_INDEX_MAX}`;
 
-  expect(decoded?.dropped).toEqual([
-    "update_scene.location",
-    "update_scene.location",
-    "update_scene.day",
-    "update_scene.recentEvent",
-    "update_scene.recentEvent",
-    "update_scene.presentUpsert.name",
+  expect(decoded?.calls).toEqual([{ name: "update_scene", arguments: '{"location":"the inn"}' }]);
+  expect(decoded?.unassembled).toEqual([
+    {
+      name: "update_scene",
+      args: JSON.stringify(outOfRange),
+      verdict: "dropped",
+      issues: [
+        `location: Invalid call: ${callRange}, received Infinity — sent "inf"`,
+        `location: Invalid call: ${callRange}, received -1 — sent "neg"`,
+        `day: Invalid call: ${callRange}, received 0.5 — sent "2"`,
+        `recentEvent: Invalid call: ${callRange}, received ${RPG_PATCH_INDEX_MAX + 1} — sent "over"`,
+        `presentUpsert.name: Invalid item: ${callRange}, received 1e+21 — sent "far"`,
+      ],
+    },
   ]);
-  expect(decoded?.calls).toEqual([
-    { name: "update_scene", arguments: '{"location":"the inn"}' },
-    { name: "update_scene", arguments: JSON.stringify(outOfRange) },
+});
+
+// ── the prompt's field teaching ─────────────────────────────────────────────────────────────────────────────────
+
+test("a per-actor split teaches every actor's values, each with the actor it belongs to — no branch's values drop out", () => {
+  const party = (refs: ExtractionRefs): RpgStateRoundTool => roundTools(refs)[0] as RpgStateRoundTool;
+  const mixed = roundTools({
+    ...REFS,
+    trackerWriteGroups: [
+      { targetRefs: ["Mira"], deltaKeys: ["hp"], setKeys: [] },
+      { targetRefs: ["Corvin"], deltaKeys: [], setKeys: ["mood"] },
+    ],
+  })[0] as RpgStateRoundTool;
+
+  expect(describePatchFields(party(SPLIT_REFS))).toEqual([
+    "targetRef (one of Mira | Corvin)",
+    "trackerDeltas.key (hp for Mira, mana for Corvin)",
+    "trackerDeltas.delta (number)",
+    "addCondition.name",
+    "addCondition.modifier (number)",
+    "removeCondition (one of Bleeding)",
+    "status",
   ]);
-  const record = recordToolCalls(decoded?.calls ?? []);
-  expect(record.map((call) => call.verdict)).toEqual(["applied", "dropped"]);
-  expect(record[1]?.args).toBe(JSON.stringify(outOfRange));
+  expect(describePatchFields(mixed)).toEqual(
+    expect.arrayContaining([
+      "targetRef (one of Mira | Corvin)",
+      "trackerDeltas.key (hp for Mira)",
+      "trackerDeltas.delta (number for Mira)",
+      "trackerSets.key (mood for Corvin)",
+      "trackerSets.items (for Corvin)",
+    ]),
+  );
+  // An unsplit tool reads exactly as before.
+  expect(describePatchFields(party(REFS))).toContain("targetRef (one of Mira | Corvin)");
 });

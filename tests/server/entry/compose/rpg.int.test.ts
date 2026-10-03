@@ -3370,7 +3370,30 @@ test("0511: a patch reply naming a prototype key drops that field by name and st
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the inn");
   expect(warn.mock.calls.some(([line]) => JSON.stringify((line as { droppedFields?: unknown }).droppedFields) === '["update_scene.constructor"]')).toBe(true);
+  // The durable record names the cause and keeps the entry as sent, beside the call that applied.
+  const [record] = await findTurnToolCallsByVariant(db, variantId);
+  expect(record?.calls).toEqual([
+    expect.objectContaining({ name: "update_scene", args: '{"location":"the inn"}', verdict: "applied" }),
+    {
+      name: "update_scene",
+      args: JSON.stringify([{ plane: "update_scene", call: 0, field: "constructor", item: 0, value: "x" }]),
+      verdict: "dropped",
+      issues: ['constructor: Unrecognized field: not one of update_scene\'s fields — sent "x"'],
+    },
+  ]);
   warn.mockRestore();
+});
+
+test("0511: a patch reply naming only tools the round does not offer has no usable call, so the round fails", async ({ app, db }) => {
+  const reply = JSON.stringify({ changes: [{ plane: "hack_db", call: 0, field: "x", item: 0, value: "y" }] });
+  const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: reply, cannedToolCalls: [] });
+  const { chatId, messageId, variantId } = await cheapGame(db, rpgCompose, "patch-unoffered");
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.claudeNoForce));
+
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+  const [record] = await findTurnToolCallsByVariant(db, variantId);
+  expect(record?.failure).toContain(RPG_STATE_ROUND_FAILED_SUMMARY);
 });
 
 test("0511: a game asking for `structured` on a row with no structured output runs tool calls and WARNS with a named code", async ({ app, db }) => {

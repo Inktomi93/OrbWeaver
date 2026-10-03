@@ -3,7 +3,7 @@
 // optional and union-typed properties). Either reply decodes to the SAME `RpgToolCall`s a tool round returns.
 
 import { dropNullValues } from "#inference";
-import type { RpgToolCall } from "./extraction.ts";
+import type { RpgRecordedToolCall, RpgToolCall } from "./extraction.ts";
 
 /** The two structured shapes: the round's tools verbatim, and the flat field list for a grammar that caps optional
  *  and union-typed properties. A row takes the first one its grammar fits, in this order. */
@@ -52,9 +52,11 @@ export function stateRoundChangesSchema<S extends Record<string, unknown>>(_proj
 }
 
 /** What a structured state reply decoded to: the calls, how many entries were not a change at all, and (patch
- *  list) the `plane.field` entries that could not form an argument, which ride their own recorded call instead. */
+ *  list) the entries that could not form an argument: their `plane.field` names for the warn, and the `dropped`
+ *  record rows that stand for them beside the calls' own record. */
 export interface RpgStructuredChanges {
   readonly calls: readonly RpgToolCall[];
+  readonly unassembled: readonly RpgRecordedToolCall[];
   readonly unreadable: number;
   readonly dropped: readonly string[];
 }
@@ -85,5 +87,5 @@ export function structuredChangesToToolCalls(value: unknown): RpgStructuredChang
     }
     calls.push({ name: tool, arguments: JSON.stringify(dropNullValues(entry[CHANGE_ARGS_KEY] ?? {})) });
   }
-  return { calls, unreadable, dropped: [] };
+  return { calls, unassembled: [], unreadable, dropped: [] };
 }

@@ -44,6 +44,7 @@ import type {
   RpgExtraction,
   RpgFoldFallbackReason,
   RpgGameConfig,
+  RpgRecordedToolCall,
   RpgSheet,
   RpgSnapshotState,
   RpgStateCaptureVehicle,
@@ -1320,6 +1321,8 @@ async function foldRoundCalls(
     readonly baseState: RpgSnapshotState;
     readonly refs: ExtractionRefs;
     readonly calls: readonly RpgToolCall[];
+    /** A structured patch reply's entries that never formed a call: already `dropped` rows, recorded after the calls. */
+    readonly unassembled?: readonly RpgRecordedToolCall[] | undefined;
     readonly vehicle: string;
     readonly events?: { readonly unparseable: string; readonly stripped: string } | undefined;
   },
@@ -1339,7 +1342,7 @@ async function foldRoundCalls(
     parsed: extraction,
     delta,
   });
-  return { ...delta, recordedToolCalls: recordToolCalls(calls) };
+  return { ...delta, recordedToolCalls: [...recordToolCalls(calls), ...(args.unassembled ?? [])] };
 }
 
 /** A built structured state round: the shape, the tools it stands for, what goes on the wire, and its prompt. */
@@ -1445,7 +1448,7 @@ function logStructuredFallback(args: {
 
 /** What one structured state call came back with. */
 type StructuredCalls =
-  | { readonly kind: "calls"; readonly calls: readonly RpgToolCall[] }
+  | { readonly kind: "calls"; readonly calls: readonly RpgToolCall[]; readonly unassembled: readonly RpgRecordedToolCall[] }
   | { readonly kind: "failed"; readonly err: unknown }
   | { readonly kind: "cancelled" };
 
@@ -1493,9 +1496,11 @@ async function requestStructuredCalls(
     logger.warn({ event: args.events.unparseable, ...line, err }, "rpg structured state round: the reply could not be decoded — nothing applied");
     return { kind: "failed", err };
   }
-  // A reply with no change in it at all (every entry unreadable) carries nothing to record: it is the round failing,
-  // never a quiet beat. A reply whose values were all refused still yields calls, which the shared record drops.
-  if (changes === null || changes.calls.length === 0) {
+  // A reply that addresses none of the round's tools (every entry unreadable, or only tools the round does not offer)
+  // has no usable call: it is the round failing, never a quiet beat, as an empty downgraded tool round is retried.
+  // A reply whose values were all refused still addressed real tools: those are recorded drops.
+  const offered = new Set(round.tools.map((tool) => tool.name));
+  if (changes === null || ![...changes.calls, ...changes.unassembled].some((call) => offered.has(call.name))) {
     logger.warn({ event: args.events.unparseable, ...line }, "rpg structured state round: the reply was not a list of changes — nothing applied");
     return { kind: "failed", err: new Error(STRUCTURED_REPLY_UNREADABLE) };
   }
@@ -1505,7 +1510,7 @@ async function requestStructuredCalls(
       "rpg structured state round: entries that were not a change, or could not be placed in a call, were DROPPED (every other change still applies)",
     );
   }
-  return { kind: "calls", calls: changes.calls };
+  return { kind: "calls", calls: changes.calls, unassembled: changes.unassembled };
 }
 
 /** The cheap round as ONE structured call (the primary vehicle, or the retry after an empty downgraded tool round),
@@ -1536,12 +1541,20 @@ async function runStructuredStateRound(
   if (result.kind === "failed") {
     return { statePatch: {}, journal: [], failure: roundFailure(result.err) };
   }
-  deps.trace?.({ phase: "tool", chatId, turnId, vehicle: STRUCTURED_ROUND_VEHICLE, calls: recordToolCalls(result.calls) });
+  deps.trace?.({ phase: "tool", chatId, turnId, vehicle: STRUCTURED_ROUND_VEHICLE, calls: [...recordToolCalls(result.calls), ...result.unassembled] });
   const answered = [...args.priorCalls, ...result.calls];
-  const calls = needsInventoryAudit(baseState, turnConnection.transcript, answered)
-    ? [...answered, ...(await structuredInventoryAudit(deps, { input: args.input, refs: args.refs, round: args.round, userPrompt: args.userPrompt }))]
-    : answered;
-  return await foldRoundCalls(deps, { chatId, conn, baseState, refs: args.refs, calls, vehicle: STRUCTURED_ROUND_VEHICLE });
+  const audit = needsInventoryAudit(baseState, turnConnection.transcript, answered)
+    ? await structuredInventoryAudit(deps, { input: args.input, refs: args.refs, round: args.round, userPrompt: args.userPrompt })
+    : { calls: [], unassembled: [] };
+  return await foldRoundCalls(deps, {
+    chatId,
+    conn,
+    baseState,
+    refs: args.refs,
+    calls: [...answered, ...audit.calls],
+    unassembled: [...result.unassembled, ...audit.unassembled],
+    vehicle: STRUCTURED_ROUND_VEHICLE,
+  });
 }
 
 /** The selective inventory pass ({@link needsInventoryAudit}) in the round's own structured shape: the same narrowed
@@ -1549,7 +1562,7 @@ async function runStructuredStateRound(
 async function structuredInventoryAudit(
   deps: RpgComposeDeps,
   args: { readonly input: Parameters<RpgRunToolRound>[0]; readonly refs: ExtractionRefs; readonly round: StructuredRound; readonly userPrompt: string },
-): Promise<readonly RpgToolCall[]> {
+): Promise<{ readonly calls: readonly RpgToolCall[]; readonly unassembled: readonly RpgRecordedToolCall[] }> {
   const { chatId, turnId, turnConnection, signal } = args.input;
   const prose = turnConnection.prose;
   const tools = args.round.tools.filter((tool) => tool.name === "update_inventory" || tool.name === RPG_NO_CHANGES_TOOL);
@@ -1566,10 +1579,10 @@ async function structuredInventoryAudit(
     events: { failed: "rpg.inventory-audit.failed", unparseable: "rpg.inventory-audit.unparseable" },
   });
   if (result.kind !== "calls") {
-    return [];
+    return { calls: [], unassembled: [] };
   }
-  deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "structured inventory audit", calls: recordToolCalls(result.calls) });
-  return result.calls;
+  deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "structured inventory audit", calls: [...recordToolCalls(result.calls), ...result.unassembled] });
+  return { calls: result.calls, unassembled: result.unassembled };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1779,7 +1792,14 @@ async function resyncViaStructuredRound(
     return { ok: false, reason: `${RESYNC_FAILED_REASON} ${result.kind === "failed" ? errorMessage(result.err) : ""}`.trimEnd() };
   }
   const calls = [...args.priorCalls, ...result.calls];
-  const delta = await foldRoundCalls(deps, { ...args, refs: args.inputs.refs, calls, vehicle: STRUCTURED_ROUND_VEHICLE, events: RESYNC_EVENTS });
+  const delta = await foldRoundCalls(deps, {
+    ...args,
+    refs: args.inputs.refs,
+    calls,
+    unassembled: result.unassembled,
+    vehicle: STRUCTURED_ROUND_VEHICLE,
+    events: RESYNC_EVENTS,
+  });
   return { ok: true, delta };
 }
 
