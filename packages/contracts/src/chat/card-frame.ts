@@ -88,8 +88,9 @@ export const cardFrameMintResponseSchema = z.strictObject({
    *  instead of inferring one from the trust tier it asked with. Never an input.
    *
    *  `interactive` is the POSTURE the document was built under (#111 legs 1+3) — `true` only when the
-   *  selector's character carries the host's opt-in AND the deployment's `allowInteractiveCards` ceiling is
-   *  up. Since leg 3 it means exactly what it says: this document's `script-src` lets the CARD'S OWN scripts
+   *  selector's character resolves to the ladder's top rung (opted in, or inheriting the default) AND the
+   *  deployment's `allowInteractiveCards` ceiling is up. It means exactly what it says: this document's
+   *  `script-src` lets the CARD'S OWN scripts
    *  run inside the sandbox. It is an ECHO of the server's decision, never an input — the request is a
    *  selector, and `strictObject` refuses a smuggled posture key outright. */
   granted: z.strictObject({ externalMedia: z.boolean(), inlineData: z.boolean(), interactive: z.boolean() }),

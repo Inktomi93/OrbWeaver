@@ -58,9 +58,15 @@ export function parseLogRingLine(line: string): Record<string, unknown> | null {
   }
 }
 
-/** The wall-clock a ring line was written at — pino's `time` (epoch ms), `0` when the line carries none (which
- *  sorts it before every window and is therefore filtered OUT of a windowed read rather than smuggled in). */
+/** The wall-clock a ring line was written at, as epoch ms. `logger.ts` configures `pino.stdTimeFunctions.isoTime`,
+ *  so the `time` every real line carries is an ISO-8601 STRING; pino's default epoch-ms number is read too, so
+ *  this stays right if that formatter is removed. `0` when the line carries no parseable time (which sorts it
+ *  before every window and is therefore filtered OUT of a windowed read rather than smuggled in). */
 export function ringLineTime(record: Record<string, unknown>): number {
   const raw = record["time"];
-  return typeof raw === "number" ? raw : 0;
+  if (typeof raw === "number") {
+    return raw;
+  }
+  const parsed = typeof raw === "string" ? Date.parse(raw) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : 0;
 }

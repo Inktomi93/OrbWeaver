@@ -43,8 +43,9 @@ export interface AuthMetaDeps {
    *  will — a preview that reads the raw override column renders an INHERIT card untrusted on a deployment
    *  that trusts, which is a preview lying about the thing it exists to show. */
   readonly trustHtml: () => boolean;
-  /** The deployment INTERACTIVE-CARD CEILING (`effectiveConfig.allowInteractiveCards`, floor FALSE) — the
-   *  operator's half of the html-trust ladder's top rung (#111 leg 3). Served for the SAME reason
+  /** The deployment INTERACTIVE-CARD CEILING (`effectiveConfig.allowInteractiveCards`, floor TRUE) — the
+   *  operator's half of the html-trust ladder's top rung, and the default rung of an "Inherit default"
+   *  character. Served for the SAME reason
    *  `forbidExternalMedia` is: the per-character "Interactive" rung is inert deployment-wide while this is
    *  off, and a control that offers a capability nothing honours is the dead-opt-in defect. Never a
    *  capability by itself — the frame policy is built server-side from the server's own read. */

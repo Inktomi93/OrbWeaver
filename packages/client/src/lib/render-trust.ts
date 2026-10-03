@@ -17,7 +17,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 
 type RenderTrust = "trusted" | "untrusted";
 /** The D44 §12.2 card render tiers. `tierA` = the DEFAULT inert sanitized allowlist in the main DOM;
- *  `tierB` = the OPT-IN sandboxed `ImmersiveCard` mini-UI that may carry the card's own CSS. */
+ *  `tierB` = the sandboxed `ImmersiveCard` mini-UI that may carry the card's own CSS. */
 type CardTier = "tierA" | "tierB";
 
 /** The fail-closed render policy: no trusted HTML, no external media, static cards. Used when a policy could
@@ -48,7 +48,7 @@ export interface RowRenderPolicy {
    *  verdict, the same reason `trust` itself lives here.
    *
    *  `tierB` (the sandboxed ImmersiveCard, card CSS applied) when EITHER consent is present:
-   *   1. the AUTHOR is trusted — the viewer's own input, or the per-character opt-in D44 names, read off
+   *   1. the AUTHOR is trusted — the viewer's own input, or a character at or above `trusted`, read off
    *      the ONE ordered `renderPolicy.htmlTrust` ladder (`rendersTrustedHtml`), or
    *   2. the ROOM consented — a game chat with `features.immersiveHtml` ON (`lenientCards`). Turning that
    *      switch on is what makes the engine TEACH the model to emit `:::card` fences; a room that asks for

@@ -2,7 +2,7 @@
 #
 #   git clone --branch release https://github.com/Inktomi93/orbweaver && cd orbweaver
 #   docker compose up -d                  # pulls the latest stable release image (no build step)
-#   → http://localhost:8788                 no login by default; under AUTH_MODE=local the first boot prints one (docker compose logs orbweaver)
+#   → http://localhost:8788                 no login by default; under AUTH_MODE=local the first boot makes one (docker compose exec orbweaver cat /app/data/secrets/initial_password)
 #
 # ONE service, the app only. Models are yours: paste a cloud API key in Settings, or point a connection at a
 # model server you already run (Ollama / KoboldCpp / LM Studio / TabbyAPI / vLLM) at

@@ -77,8 +77,9 @@ export interface SandboxFrameProps {
  * script-dead). Applying the attribute on the routed arm as well as the response's `sandbox` directive is
  * deliberate belt-and-suspenders: a mis-wired route that lost its header must not become a same-origin
  * frame — and since #111 leg 3 that belt is load-bearing rather than theoretical, because a routed card on
- * the `interactive` posture RUNS ITS OWN SCRIPTS (`script-src 'unsafe-inline'`, granted only when the host
- * opted this character in AND the deployment's `allowInteractiveCards` ceiling is up). Nothing about which
+ * the `interactive` posture RUNS ITS OWN SCRIPTS (`script-src 'unsafe-inline'`, granted when the character
+ * resolves to the ladder's top rung, its default under the deployment's `allowInteractiveCards` ceiling,
+ * and only while that ceiling is up). Nothing about which
  * posture a document got is decided or even visible here: the server built the policy, this side just
  * frames the URL.
  *

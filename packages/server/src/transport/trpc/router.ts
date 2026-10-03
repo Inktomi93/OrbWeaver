@@ -2,8 +2,10 @@
 // is what the client type-imports; it is `typeof` the root router, so its only possible home is here,
 // hence the one sanctioned no-inline-types exception below.
 
+import { bugReportDiagnosticsSchema } from "@orb/contracts/diagnostics";
 import { z } from "zod";
-import { recordClientError } from "#foundation/observability";
+import { isOwner } from "#domain/admin";
+import { readBugReportDiagnostics, recordClientError } from "#foundation/observability";
 import { adminRouter } from "./routers/admin.ts";
 import { assetsRouter } from "./routers/assets.ts";
 import { automationRouter } from "./routers/automation.ts";
@@ -32,7 +34,7 @@ import { streamRouter } from "./routers/stream.ts";
 import { tagRouter } from "./routers/tag.ts";
 import { workloadsRouter } from "./routers/workloads.ts";
 import { worldInfoRouter } from "./routers/world-info.ts";
-import { publicProcedure, t } from "./trpc.ts";
+import { authedProcedure, publicProcedure, t } from "./trpc.ts";
 
 // The client→server error-report verb's wire bounds. Generous but finite: rejects a pathologically
 // oversized payload at the transport edge before it's parsed/logged; the sink (recordClientError)
@@ -67,6 +69,13 @@ export const appRouter = t.router({
       recordClientError(input);
       return { ok: true } as const;
     }),
+
+  // The production "Report a bug" read: runtime facts for any signed-in caller, and the grammar-checked
+  // error census for the OWNER only (`isOwner`, D17 — the log ring is principal-blind, the `/api/_debug`
+  // posture). No input, no db read. Never the dev capture, which stays behind `/api/_debug`.
+  bugReportDiagnostics: authedProcedure
+    .output(bugReportDiagnosticsSchema)
+    .query(({ ctx }) => readBugReportDiagnostics({ includeServerErrors: isOwner(ctx.auth) })),
 
   admin: adminRouter,
   assets: assetsRouter,

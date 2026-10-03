@@ -217,8 +217,8 @@ test("Start from a theme… seeds the card from the theme's CARD-EMBEDDABLE subs
 // rides `/api/auth/config.forbidExternalMedia`, stubbed here at the network boundary — the honest source.
 
 /** Stub `/api/auth/config` — the honest source for BOTH deployment ceilings this tab reads. The interactive
- *  one (#111 leg 3) defaults to the SHIPPED floor (off) so a test that does not mention it gets the
- *  deployment a fresh box actually has. */
+ *  one defaults to the SHIPPED floor (on) so a test that does not mention it gets the deployment a fresh box
+ *  actually has. */
 async function stubDeployment(page: Page, opts: { readonly externalMediaBlocked: boolean; readonly interactiveCards?: boolean }): Promise<void> {
   // `httpRoute`, not `route` — the module already has a `route()` trpc helper (noShadow).
   await page.route("**/api/auth/config", (httpRoute) =>
@@ -234,7 +234,7 @@ async function stubDeployment(page: Page, opts: { readonly externalMediaBlocked:
         defaultHandle: null,
         multiHumanCapable: false,
         forbidExternalMedia: opts.externalMediaBlocked,
-        allowInteractiveCards: opts.interactiveCards === true,
+        allowInteractiveCards: opts.interactiveCards ?? true,
       }),
     }),
   );
@@ -355,8 +355,8 @@ test("ceiling UP → the ladder promises scripts and shows no deployment note", 
   await expect(page.getByRole("combobox", { name: "HTML rendering" })).toBeEnabled();
 });
 
-test("ceiling DOWN (the shipped floor) → the tab says the rung is inert, and still lets you pick it", async ({ mount, page }) => {
-  await stubDeployment(page, { externalMediaBlocked: false });
+test("ceiling DOWN (an admin revoked it) → the tab says the rung is inert, and still lets you pick it", async ({ mount, page }) => {
+  await stubDeployment(page, { externalMediaBlocked: false, interactiveCards: false });
   await route(page, null);
   await mount(<CharacterTrustTabStory />);
 
@@ -367,6 +367,45 @@ test("ceiling DOWN (the shipped floor) → the tab says the rung is inert, and s
   // …and the rung is still WRITABLE: a host may opt a card in ahead of the admin flip, which is exactly
   // what the stored-consent model expects (the mint re-checks the ceiling on every card it builds).
   await expect(page.getByRole("combobox", { name: "HTML rendering" })).toBeEnabled();
+});
+
+// ── Interactive by default (owner ruling) — the tab says which rung "Inherit default" resolves to ──────
+// The select shows the STORED answer, so an untouched card reads "Inherit default" on every deployment. The
+// resolved line runs the same contracts resolver compose does over the served ceiling, so it is the one
+// place a host learns that an inheriting card runs scripts — and that the admin switch takes it back.
+
+const RESOLVED_STEP = '[data-slot="trust-resolved-step"]';
+
+test("an untouched card on a fresh deployment resolves to Interactive, and reads as Inherit default", async ({ mount, page }) => {
+  await stubDeployment(page, { externalMediaBlocked: true });
+  await route(page, null);
+  await mount(<CharacterTrustTabStory />);
+
+  await expect(page.getByRole("combobox", { name: "HTML rendering" })).toHaveText(/Inherit default/u);
+  await expect(page.locator(RESOLVED_STEP)).toContainText("Interactive");
+});
+
+test("with the ceiling revoked the same untouched card resolves below the rung", async ({ mount, page }) => {
+  await stubDeployment(page, { externalMediaBlocked: true, interactiveCards: false });
+  await route(page, null);
+  await mount(<CharacterTrustTabStory />);
+
+  await expect(page.locator(RESOLVED_STEP)).toContainText("Untrusted");
+  await expect(page.locator(RESOLVED_STEP)).not.toContainText("Interactive");
+});
+
+test("Render HTML stored on the card is the per-character disable even with the ceiling up", async ({ mount, page }) => {
+  await stubDeployment(page, { externalMediaBlocked: true });
+  const card = makeCharacterDetail({ trustHtml: true, interactiveHtml: false });
+  await routeTrpc(page, {
+    "character.get": () => card,
+    "character.update": () => card,
+    "settings.listThemes": () => THEME_LIST,
+    "settings.getUserSettings": () => ({ userId: "user_ct_look", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
+  });
+  await mount(<CharacterTrustTabStory />);
+
+  await expect(page.locator(RESOLVED_STEP)).toContainText("Render HTML");
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────

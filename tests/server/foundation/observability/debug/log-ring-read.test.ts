@@ -60,12 +60,20 @@ describe("parseLogRingLine", () => {
 });
 
 describe("ringLineTime", () => {
-  test("reads pino's `time` (epoch ms) — the one clock a capture window can be compared against", () => {
+  test("reads pino's default `time` (epoch ms)", () => {
     expect(ringLineTime({ time: 1_760_000_000_000 })).toBe(1_760_000_000_000);
+  });
+
+  test("reads the ISO-8601 `time` our logger actually writes — the one clock a capture window is compared against", () => {
+    // `logger.ts` sets `timestamp: pino.stdTimeFunctions.isoTime`, so this string arm is the one every REAL
+    // ring line takes. Earlier pins seeded the ring with a numeric `time`, so nothing noticed that every real
+    // line read 0 — which filtered every logged error out of a windowed bug-report read.
+    expect(ringLineTime({ time: "2026-09-02T00:00:00.000Z" })).toBe(Date.UTC(2026, 8, 2));
   });
 
   test("a line with no usable `time` reads 0, so a windowed read EXCLUDES it rather than smuggling it in", () => {
     expect(ringLineTime({})).toBe(0);
-    expect(ringLineTime({ time: "2026-09-02T00:00:00Z" })).toBe(0);
+    expect(ringLineTime({ time: "not a time" })).toBe(0);
+    expect(ringLineTime({ time: { nested: true } })).toBe(0);
   });
 });

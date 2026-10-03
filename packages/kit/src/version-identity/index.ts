@@ -31,6 +31,10 @@
 import { z } from "zod";
 import { compareSemver } from "#semver";
 
+/** The project's public repository: the upstream a build is compared against, the outbound app identity,
+ *  and where a bug report is filed. */
+export const ORBWEAVER_REPO_URL = "https://github.com/Inktomi93/orbweaver";
+
 /** Where the identity came from. `checkout` = derived from `.git` plain files at boot; `container` = read
  *  from the `version.json` the image build stamped (an image ships no `.git`, so nothing else could answer). */
 export const VERSION_SOURCES = ["checkout", "container"] as const;

@@ -71,17 +71,17 @@ function issueForms(): readonly IssueForm[] {
     });
 }
 
-issueTest("issue ingress has one work form and one program-or-evidence form", () => {
+issueTest("issue ingress has one work form, one program-or-evidence form and the in-app report form", () => {
   const templates = readdirSync(FORMS_DIR)
     .filter((filename) => filename.endsWith(".yml"))
     .sort();
-  expect(templates).toEqual(["bug.yml", "config.yml", "decision.yml", "program-or-evidence.yml", "work-item.yml"]);
+  expect(templates).toEqual(["app-report.yml", "bug.yml", "config.yml", "decision.yml", "program-or-evidence.yml", "work-item.yml"]);
   for (const filename of templates) {
     parseIssueTemplate(filename);
   }
 
   const forms = issueForms();
-  expect(forms.map((form) => form.filename)).toEqual(["bug.yml", "decision.yml", "program-or-evidence.yml", "work-item.yml"]);
+  expect(forms.map((form) => form.filename)).toEqual(["app-report.yml", "bug.yml", "decision.yml", "program-or-evidence.yml", "work-item.yml"]);
 
   const work = forms.find((form) => form.filename === "work-item.yml");
   expect(work?.source).toContain("Build");

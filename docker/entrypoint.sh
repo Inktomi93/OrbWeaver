@@ -117,13 +117,16 @@ case "${mode}" in
       state="$(keep_generated initial_password 'process.stdout.write(require("node:crypto").randomBytes(15).toString("base64url"))')"
       export LOCAL_INITIAL_PASSWORD_FILE="${secrets_dir}/initial_password"
       handle="${OWNER_HANDLES:-${DEFAULT_USER_HANDLE:-owner}}"
+      # The password itself is never written here: this output is the container log, which users paste
+      # into public bug reports. The banner names the command that reads the file instead.
       if [ "${state}" = generated ]; then
         {
           echo "entrypoint: ┌──────────────────────────────────────────────────────────────────────────┐"
           echo "entrypoint: │  FIRST BOOT — your login (no LOCAL_INITIAL_PASSWORD was set, so one was made)  "
           echo "entrypoint: │    user:     ${handle}"
-          echo "entrypoint: │    password: $(cat "${LOCAL_INITIAL_PASSWORD_FILE}")"
-          echo "entrypoint: │  Kept at ${secrets_dir}/initial_password. Change it in Settings, then delete the file."
+          echo "entrypoint: │    password: run  docker compose exec orbweaver cat ${LOCAL_INITIAL_PASSWORD_FILE}"
+          echo "entrypoint: │  It is not printed in this log, so a pasted log cannot leak it."
+          echo "entrypoint: │  Change it in Settings, then delete the file."
           echo "entrypoint: └──────────────────────────────────────────────────────────────────────────┘"
         } >&2
       else

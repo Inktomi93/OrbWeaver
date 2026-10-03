@@ -28,7 +28,15 @@ import { createRoot } from "react-dom/client";
 import { TRPCProvider } from "#data";
 import { AppToaster, BootVeil } from "#features/app-shell";
 import type { ContributorRegistry } from "#lib";
-import { AppErrorBoundary, AppFailureSurface, bindNotify, bindSessionDocumentHost, buildClientErrorPayload, createToastNotify } from "#lib";
+import {
+  AppErrorBoundary,
+  AppFailureSurface,
+  bindNotify,
+  bindSessionDocumentHost,
+  buildClientErrorPayload,
+  createToastNotify,
+  installSafeErrorRing,
+} from "#lib";
 import type { ConfigSectionContribution } from "#state";
 import { queryClient, trpcClient, trpcProxy } from "./compose/app-singletons.ts";
 import { stampAppearanceBootHint } from "./compose/stamp-appearance-boot-hint.ts";
@@ -110,6 +118,10 @@ globalThis.addEventListener("vite:preloadError", () => {
 // whatever notify.* enqueues. Without this bind, user-facing errors were console-only.
 const toastManager = createToastManager();
 bindNotify(createToastNotify(toastManager));
+
+// "Report a bug" reads this ring in every build, so it is installed before the first render. It keeps no
+// message text, which is what lets it ship (see its header); the dev console ring is the full-text twin.
+installSafeErrorRing();
 
 function reportClientError(error: Error, ownerStack: string | null): void {
   const url = `${globalThis.location.pathname}${globalThis.location.search}`;

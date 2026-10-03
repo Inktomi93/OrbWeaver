@@ -26,7 +26,7 @@
 import { Buffer } from "node:buffer";
 import { randomBytes } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
-import type { PluginId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 
 /** A handle lives 30 minutes, sliding on each serve. */
 const MS_PER_MINUTE = 60_000;
@@ -46,13 +46,22 @@ export const FRAME_HANDLE_SHAPE = /^[0-9a-f]{32}$/u;
 
 /** One stored document. `csp` rides WITH the bytes rather than being recomputed at serve time: the policy a
  *  document is served under must be the one decided when it was minted, not one re-derived later from settings
- *  that may since have changed. Not exported: consumers hand `put` an object literal and read `take`'s result
- *  through {@link FrameHandleStore}, so this shape has no cross-module caller (knip). */
+ *  that may since have changed. The one exception only TIGHTENS: `scriptGrant`. Not exported: consumers hand
+ *  `put` an object literal and read `take`'s result through {@link FrameHandleStore}, so this shape has no
+ *  cross-module caller (knip). */
 interface FrameHandleEntry {
   readonly userId: UserId;
   readonly doc: string;
   readonly csp: string;
   readonly bytes: number;
+  /** Present only for a card document minted under the INTERACTIVE posture: the selector the grant came
+   *  from, and the script-free policy the same bytes are served under once a serve no longer resolves to
+   *  that posture (`card-frame.ts`). A serve may withdraw the grant, never widen `csp`. */
+  readonly scriptGrant?: {
+    readonly chatId: ChatId;
+    readonly characterId: CharacterId;
+    readonly withdrawnCsp: string;
+  };
   /** Present only for plugin documents. Captured from the authenticated mint, so asset requests never accept
    *  owner or plugin identity from the opaque frame. */
   readonly plugin?: {

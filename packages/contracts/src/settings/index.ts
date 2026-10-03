@@ -327,9 +327,9 @@ const appSettingsShape = {
   logLevel: logLevelSchema.nullable().optional().catch(undefined),
   forbidExternalMedia: z.boolean().nullable().optional().catch(undefined),
   trustHtml: z.boolean().nullable().optional().catch(undefined),
-  // The deployment CEILING on the html-trust ladder's top rung (#111 leg 3) — "may a card the host opted
-  // in run its own scripts in a viewer's browser". Floor FALSE; an AND with the per-character opt-in, never
-  // a default it can override. See `@orb/contracts/chat::DeploymentRenderPolicy`.
+  // The deployment CEILING on the html-trust ladder's top rung — "may a card run its own scripts in a
+  // viewer's browser". Floor TRUE, and also the default rung of every "Inherit default" character; `false`
+  // revokes it everywhere. See `@orb/contracts/chat::DeploymentRenderPolicy`.
   allowInteractiveCards: z.boolean().nullable().optional().catch(undefined),
   memoryDefaults: memoryDefaultsSchema.nullable().optional().catch(undefined),
   memorySummarizer: memorySummarizerSchema.nullable().optional().catch(undefined),

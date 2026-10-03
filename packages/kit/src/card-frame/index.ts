@@ -86,8 +86,9 @@
 // AND outside the external-media ceiling: an interactive card can beacon a view-receipt, a fingerprint,
 // or anything a viewer is socially engineered into typing INSIDE the frame, on any deployment. It cannot
 // reach the session, storage, the app DOM, or another card. THE ONLY CONTROL IS NOT SERVING THE POSTURE —
-// which is why the deployment ceiling below is a precondition of the grant rather than a convenience, and
-// why its floor is OFF.
+// which is why the deployment ceiling below is a precondition of the grant rather than a convenience. Its
+// floor is ON by owner ruling (interactive cards are the default for every character), so R1 is open on a
+// default deployment and the ceiling is the revocation an operator uses to close it.
 //
 // ── THE COOKIE CEILING (measured in the same probe; corrects a claim that stood in two docs) ──────────────
 // An opaque-origin document's same-origin subresource fetch is `Sec-Fetch-Site: cross-site`, so a
@@ -133,23 +134,21 @@ export const CARD_FRAME_SANDBOX = { document: "allow-scripts", meta: "" } as con
  * The card document's SCRIPT POSTURE — the per-document selection seam (#111 leg 1), GRANTED by leg 3's
  * security pass (2026-08-16).
  *
- *   • `static` — only OUR hash-pinned measurement script may execute. The DEFAULT for every card nobody
- *     opted in (an imported card included), and still what an opted-in card gets whenever the deployment
- *     ceiling is off.
- *   • `interactive` — the host opted THIS character's cards into running their own scripts, AND the
- *     deployment allows it. The TOP RUNG of the one ordered html-trust ladder (`RenderPolicy.htmlTrust`,
- *     contracts/chat: `untrusted` then `trusted` then `interactive`), resolved off the
- *     `characters.interactive_html` column against the `allowInteractiveCards` AppSetting. Interactive
+ *   • `static` — only OUR hash-pinned measurement script may execute. What a card gets when its character
+ *     sits below the top rung ("Render HTML", "Untrusted"), when the deployment ceiling is off, and on
+ *     every failure arm of the mint.
+ *   • `interactive` — the card's character resolves to the TOP RUNG of the one ordered html-trust ladder
+ *     (`RenderPolicy.htmlTrust`, contracts/chat: `untrusted` then `trusted` then `interactive`), resolved
+ *     off the `characters` ladder columns against the `allowInteractiveCards` AppSetting. A character on
+ *     "Inherit default" (an imported card included) resolves there whenever the ceiling is up. Interactive
  *     IMPLIES trusted by construction, so a frame in this posture always has the `data:` door too.
  *
- * TWO CONSENTS, AND BOTH ARE REQUIRED (the leg-3 ruling). The per-character opt-in is the HOST's; the
- * `allowInteractiveCards` AppSetting is the DEPLOYMENT OPERATOR's, it is an AND (never `override ??`), and
- * its floor is OFF. It is a precondition rather than a convenience because of residual R1 in the header
- * above: the grant opens a WebRTC/STUN channel that no CSP directive in Chromium can close, so "may
- * model-authored code run in a viewer's browser at all" is a decision the box's operator has to take
- * knowingly. Leg 1 also shipped an editor that told users the rung was inert ("card scripts stay switched
- * off until the security review lands"), so opt-ins already stored were given under a different
- * representation — a fleet-wide default-ON upgrade would activate them without anyone re-deciding.
+ * THE CEILING IS AN AND (never `override ??`). The `allowInteractiveCards` AppSetting is the DEPLOYMENT
+ * OPERATOR's, its floor is ON by owner ruling, and it is both the default rung of an inheriting card and
+ * the veto no per-character answer rises above. It is the revocation because of residual R1 in the header
+ * above: the grant opens a WebRTC/STUN channel that no CSP directive in Chromium can close, so switching
+ * the posture off is the one control that exists. The per-character disable is a lower rung picked on the
+ * character's Trust tab.
  *
  * The sandbox grant does NOT vary by posture: it is still `allow-scripts` alone (never `allow-same-origin`,
  * never `allow-top-navigation`/`allow-forms`/`allow-popups`) and only `script-src` moves — so

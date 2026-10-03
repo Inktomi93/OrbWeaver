@@ -86,10 +86,12 @@ export interface CardFrameDeps {
   readonly participants: CardFrameParticipantsPort;
   /** The live app-tier external-media ceiling — the SAME read `securityHeaders` is built from. */
   readonly allowExternalMedia: () => boolean;
-  /** The live app-tier INTERACTIVE-CARD ceiling (`effectiveConfig.allowInteractiveCards`, floor FALSE).
+  /** The live app-tier INTERACTIVE-CARD ceiling (`effectiveConfig.allowInteractiveCards`, floor TRUE).
    *  Read here per mint for the same reason `allowExternalMedia` is: `resolveRenderPolicy` already folded
    *  it into the ladder, and this is the boundary that must still hold if that resolver is ever weakened.
-   *  It is the ONLY control over residual R1 (`@orb/kit/card-frame`), so it gets two belts, not one. */
+   *  It is the ONLY control over residual R1 (`@orb/kit/card-frame`), so it is read again on every SERVE
+   *  of an interactive document: switching it off withdraws card scripts from the next frame load, even
+   *  for a handle minted before the switch. */
   readonly allowInteractiveCards: () => boolean;
   readonly now: () => number;
 }
@@ -213,10 +215,18 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       styleTokens: undefined,
       fontFamily: body.fontFamily,
     });
+    // An interactive document keeps its selector and its script-free policy beside it, so a SERVE can
+    // withdraw the grant (see the GET below). `characterId` is non-null here: a null selector never
+    // resolves to the interactive posture.
+    const scriptGrant =
+      policy.posture === "interactive" && body.characterId !== null
+        ? { scriptGrant: { chatId: body.chatId, characterId: body.characterId, withdrawnCsp: buildCardFrameCsp(policy.media, "document", "static") } }
+        : {};
     const id = store.put({
       userId: principal.userId,
       doc,
       csp: buildCardFrameCsp(policy.media, "document", policy.posture),
+      ...scriptGrant,
       expiresAt: deps.now() + FRAME_HANDLE_TTL_MS,
     });
     return c.json({
@@ -226,7 +236,7 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
     });
   });
 
-  app.get(`${CARD_FRAME_ROUTE}/:id`, (c) => {
+  app.get(`${CARD_FRAME_ROUTE}/:id`, async (c) => {
     const principal = c.get("principal");
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
@@ -235,6 +245,16 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
     const entry = FRAME_HANDLE_SHAPE.test(id) ? store.take(id, principal.userId) : undefined;
     if (entry === undefined) {
       return c.body(MISS_DOC, NOT_FOUND, frameHeaders(FLOOR_CSP));
+    }
+    // THE REVOCATION. The client memoizes a handle per card body for the tab's life, so a grant decided
+    // only at mint would outlive an admin switching interactive cards off, a host moving the character
+    // to a lower rung, or the viewer leaving the room. An interactive document is therefore re-resolved
+    // on every serve, through the same membership-gated read as the mint, and served script-free unless
+    // it would still mint interactive. A serve can only withdraw the grant, never add one.
+    if (entry.scriptGrant !== undefined) {
+      const current = await resolvePolicy(deps, principal, entry.scriptGrant);
+      const csp = current.posture === "interactive" ? entry.csp : entry.scriptGrant.withdrawnCsp;
+      return c.body(entry.doc, OK, frameHeaders(csp));
     }
     return c.body(entry.doc, OK, frameHeaders(entry.csp));
   });

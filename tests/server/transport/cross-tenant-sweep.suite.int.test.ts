@@ -1867,6 +1867,12 @@ const EXEMPT: Readonly<Record<string, string>> = {
   health: "public: no auth, no id",
   echo: "public: no auth, no id",
   clientError: "public: fire-and-forget log sink, no id",
+  // The production "Report a bug" read. No input and no db read, so there is no WHERE clause to lose. Its one
+  // principal-dependent arm is the role gate (`isOwner`, D17), pinned per role in
+  // tests/server/transport/trpc/router.test.ts, and what it returns is grammar-checked
+  // process facts and log-line categories, never a user id, a row or free text.
+  bugReportDiagnostics:
+    "box diagnostics: no input, no db read; runtime facts for any caller and the grammar-checked error census for the owner only (isOwner, D17)",
   // Self-scoped by the resolved Principal — no cross-tenant id input (returns only the caller's own world).
   "chat.reapTemporaryChats": "self-scoped maintenance: no input at all — sweeps only the CALLER's own expired temp chats (matrix: non-chat-scoped)",
   "automation.listRulePresets":

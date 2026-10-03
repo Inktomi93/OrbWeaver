@@ -172,11 +172,11 @@ export interface DeploymentRenderPolicy {
   readonly trustHtml: boolean;
   readonly forbidExternalMedia: boolean;
   /** The `allowInteractiveCards` AppSetting — the deployment operator's consent to run model-authored card
-   *  scripts in a viewer's browser at all. FLOOR IS FALSE, and it is an absolute CEILING (an AND, never
-   *  `override ??`): a per-character opt-in cannot reach the top rung without it. Built as a precondition
-   *  of the #111 leg-3 grant, not as a convenience — that grant opens a WebRTC/STUN beacon no CSP directive
-   *  in Chromium can close (`@orb/kit/card-frame` residual R1), so declining the whole posture is the only
-   *  control that exists for it. */
+   *  scripts in a viewer's browser at all. FLOOR IS TRUE (owner ruling: interactive cards are on by default
+   *  for every character). It plays two parts in {@link resolveRenderPolicy}: the DEFAULT rung of a card
+   *  that inherits, and an absolute CEILING (an AND, never `override ??`) that no per-character answer can
+   *  rise above. Switching it off is the revocation: it is the only control over the WebRTC/STUN beacon no
+   *  CSP directive in Chromium can close (`@orb/kit/card-frame` residual R1). */
   readonly allowInteractiveCards: boolean;
 }
 
@@ -186,12 +186,11 @@ export interface DeploymentRenderPolicy {
 export interface RenderPolicyOverride {
   readonly trustHtml: boolean | null;
   readonly forbidExternalMedia: boolean | null;
-  /** `characters.interactive_html` — the HOST's half of the top step's two consents, stored as its own
-   *  column beside `trust_html` rather than as an enum, so the two-tier `override ?? deployment` semantics
-   *  of the render step survive unchanged. Tri-state in SHAPE, two-valued in MEANING: the deployment tier
-   *  is a CEILING rather than something to inherit, so `null` and `false` are both "the host did not opt
-   *  in". The LADDER is what consumers read ({@link RenderPolicy.htmlTrust}); this pair is only ever the
-   *  resolver's input. */
+  /** `characters.interactive_html` — the HOST's answer for the top step, stored as its own column beside
+   *  `trust_html` rather than as an enum, so the two-tier `override ?? deployment` semantics of the render
+   *  step survive unchanged. `true` opts in, `false` opts out (the explicit disable), and `null` with a
+   *  `null` `trustHtml` beside it is "Inherit default", which follows the deployment. The LADDER is what
+   *  consumers read ({@link RenderPolicy.htmlTrust}); this pair is only ever the resolver's input. */
   readonly interactiveHtml: boolean | null;
 }
 
@@ -212,22 +211,30 @@ export interface RenderPolicyOverride {
  *      – the RENDER step keeps `override ?? deployment`, unchanged. Its deployment value is a DEFAULT, not
  *        a block: the floor is the strict end (`untrusted`), and the per-character opt-in IS the designed
  *        escalation path (D44 §12.0); an admin-global `true` likewise stays overridable DOWN by a card.
- *      – the INTERACTIVE step needs BOTH consents and is therefore an AND, the `forbidExternalMedia` shape
- *        rather than the render step's: the deployment `allowInteractiveCards` is an absolute CEILING
- *        (floor FALSE) and the per-character `interactiveHtml` is the host's opt-in under it. Neither
- *        alone reaches the rung. Ruled by the leg-3 security pass (#111) — the grant runs model-authored
- *        code, and its WebRTC residual is not closeable by policy, so the operator of the box gets a veto.
+ *      – the INTERACTIVE step is an AND under the deployment `allowInteractiveCards` CEILING, the
+ *        `forbidExternalMedia` shape rather than the render step's: no per-character answer reaches the
+ *        rung while the ceiling is down. Under the ceiling, a card reaches it two ways (owner ruling:
+ *        interactive cards are on by default for all characters):
+ *          · it INHERITS — both ladder columns are `null` ("Inherit default"), so the ceiling is also its
+ *            default rung. This is every card nobody set, imported ones included.
+ *          · it OPTED IN — `interactiveHtml === true`.
+ *        Any other stored pair is an explicit lower answer and stays below the rung: "Render HTML" and
+ *        "Untrusted" store `interactiveHtml: false`, and that `false` is the per-character disable even
+ *        beside an inherited `trustHtml: null`. A pair with `trustHtml` set and `interactiveHtml: null`
+ *        (a handoff copy, or a row written before the ladder) is an explicit render answer too.
  *        Inside the ceiling the rung WINS over a lower render answer rather than combining with it: a card
  *        carrying the contradictory pair `{ trustHtml: false, interactiveHtml: true }` — reachable only by
  *        a direct API write, never by the single ladder control — resolves to `interactive`, and no
  *        consumer ever sees "runs scripts but renders untrusted". When the CEILING vetoes, that same card
  *        falls back to its own stored render answer (`untrusted` here), never to a rung it did not store.
- *        `=== true`, never truthiness: `null` is "never opted in".
+ *  • `override === null` is NO CARD (a human seat, an unreadable row), not an inheriting card: it keeps the
+ *    fail-closed render floor and never reaches the interactive rung.
  */
 export function resolveRenderPolicy(deployment: DeploymentRenderPolicy, override: RenderPolicyOverride | null): RenderPolicy {
   const trusted = override?.trustHtml ?? deployment.trustHtml;
   const renderStep: HtmlTrustStep = trusted ? "trusted" : "untrusted";
-  const interactive = deployment.allowInteractiveCards && override?.interactiveHtml === true;
+  const inherits = override !== null && override.trustHtml === null && override.interactiveHtml === null;
+  const interactive = deployment.allowInteractiveCards && (inherits || override?.interactiveHtml === true);
   return {
     htmlTrust: interactive ? "interactive" : renderStep,
     forbidExternalMedia: deployment.forbidExternalMedia || override?.forbidExternalMedia === true,
