@@ -1,6 +1,6 @@
-// The shelf foot's balancer. Its three blocks (the side tile, the last tile, the doorway group) either stack or pair,
-// with the last tile beside the other two. Which one levels the columns depends on how tall each block settled, so it
-// is measured, not declared: a full bank wants the pair and an empty one the stack.
+// The shelf foot's balancer. Its blocks (the side tile, the last tile, and the doorway group when one is declared)
+// either stack or pair, with the last tile beside the rest. Which one levels the columns depends on how tall each
+// block settled, so it is measured, not declared: a full bank wants the pair and an empty one the stack.
 
 import type { RefObject } from "react";
 import { useLayoutEffect } from "react";
@@ -19,18 +19,29 @@ function height(el: Element): number {
   return el.getBoundingClientRect().height;
 }
 
+/** The foot's height in each arrangement. With a doorway group: paired puts the last tile beside the side tile over
+ *  the group, stacked puts the side tile over the last tile beside the group. Without one: paired puts the two tiles
+ *  side by side, stacked puts one over the other. */
+function footHeights(side: Element, last: Element, fold: Element | undefined, gap: number): { readonly paired: number; readonly stacked: number } {
+  if (fold === undefined) {
+    return { paired: Math.max(height(side), height(last)), stacked: height(side) + gap + height(last) };
+  }
+  return {
+    paired: Math.max(height(last), height(side) + gap + height(fold)),
+    stacked: height(side) + gap + Math.max(height(last), height(fold)),
+  };
+}
+
 /** Whether the foot should pair, given its blocks: switch only when the other arrangement levels the columns by more
  *  than the hysteresis. */
 function shouldPair(
   columns: { readonly hearth: Element; readonly shelf: Element },
-  blocks: readonly [Element, Element, Element],
+  blocks: { readonly side: Element; readonly last: Element; readonly fold: Element | undefined },
   gap: number,
   isPaired: boolean,
 ): boolean {
   const { hearth, shelf } = columns;
-  const [side, last, fold] = blocks;
-  const paired = Math.max(height(last), height(side) + gap + height(fold));
-  const stacked = height(side) + gap + Math.max(height(last), height(fold));
+  const { paired, stacked } = footHeights(blocks.side, blocks.last, blocks.fold, gap);
   const others = height(shelf) - (isPaired ? paired : stacked);
   const offBy = (footHeight: number): number => Math.abs(height(hearth) - (others + footHeight));
   const current = offBy(isPaired ? paired : stacked);
@@ -75,13 +86,13 @@ export function useBalancedFoot(
       }
       const [side, last, fold] = [...foot.children];
       const split = getComputedStyle(foot).gridTemplateColumns.trim().split(TRACK_SEPARATOR).length === 2;
-      if (!split || side === undefined || last === undefined || fold === undefined) {
+      if (!split || side === undefined || last === undefined) {
         applyFoot(shelf, false);
         return;
       }
       const paired = shouldPair(
         { hearth, shelf },
-        [side, last, fold],
+        { side, last, fold },
         Number.parseFloat(getComputedStyle(foot).rowGap) || 0,
         shelf.getAttribute(FOOT_ATTRIBUTE) === PAIRED,
       );

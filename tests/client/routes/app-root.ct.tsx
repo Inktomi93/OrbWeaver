@@ -886,7 +886,7 @@ const CENSUS_CASES: readonly CensusCase[] = [
   { label: "Corpus", mode: "Labels", onPhoneBar: false, phoneTitle: "Labels · 3", bandCount: "3", bandTitle: "Labels" },
   { label: "Presets", onPhoneBar: false, phoneTitle: "Presets · 4", bandCount: "4" },
   { label: "Databank", onPhoneBar: false, phoneTitle: "Databank · 2", bandCount: "2" },
-  { label: "Extensions", onPhoneBar: false, phoneTitle: "Extensions · 2", bandCount: "2" },
+  { label: "Plugin pages", onPhoneBar: false, phoneTitle: "Plugin pages · 2", bandCount: "2" },
   { label: "Refinery", onPhoneBar: false, phoneTitle: "Refinery · 2", bandCount: "2" },
 ];
 

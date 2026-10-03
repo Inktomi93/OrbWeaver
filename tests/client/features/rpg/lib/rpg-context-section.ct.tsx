@@ -455,10 +455,10 @@ test("the takeover renders the 5 LIVE game tabs + the locked Map (in the Game st
   await Promise.all(["Status", "Inventory", "Scene", "Quests", "Journal"].map((label) => expect(gameStrip.getByRole("button", { name: label })).toBeVisible()));
   await expect(gameStrip.getByRole("button", { name: "Sheet" })).toHaveCount(0);
   // Map is the ONE PHASE-locked tab: visible, wearing the lock + its reason on `title` (never hidden, and
-  // never `aria-disabled` — see the RV-7 CT: it opens onto the body that states when maps arrive).
+  // never `aria-disabled` — see the RV-7 CT: it opens onto the body that says maps are planned).
   const mapTab = gameStrip.getByRole("button", { name: "Map" });
   await expect(mapTab).toBeVisible();
-  await expect(mapTab).toHaveAttribute("title", "Maps unlock with the map arc");
+  await expect(mapTab).toHaveAttribute("title", "Maps are planned");
   // The chat meta set sits in the "Chat" strip below (the bracket's bottom row) — plus the crown GM-console
   // "Game" tab (host-only, `strip:"meta"` — a member never sees it; this stub's viewer IS host).
   const metaStrip = component.getByRole("toolbar", { name: "Chat" });
@@ -2016,14 +2016,14 @@ test.describe("the takeover at mobile width", () => {
 // (so AT announced "unavailable" and Playwright's actionability refused the click) while Enter opened it
 // anyway. One story now — a real tab wearing a lock — so BOTH paths are driven here, plus the SR contract:
 // the reason is the cell's accessible DESCRIPTION (`title` beside an `aria-label`), not a mouse-only tooltip.
-test("RV-7: the locked Map tab opens onto its coming-soon body from BOTH the mouse and the keyboard", async ({ mount, page }) => {
+test("RV-7: the locked Map tab opens onto its planned body from BOTH the mouse and the keyboard", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
   const mapTab = component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Map" });
   // NOT aria-disabled: the lock is a glyph + a reason, not a refusal the tab does not honour.
   await expect(mapTab).not.toHaveAttribute("aria-disabled", "true");
-  await expect(mapTab).toHaveAttribute("title", "Maps unlock with the map arc");
+  await expect(mapTab).toHaveAttribute("title", "Maps are planned");
   // THE LOCK IS IN THE NAME (side-eye 2026-08-06 ARIA). `aria-disabled="false"` + a reason that lives only
   // on `title` left the lock imperceptible to AT — the glyph is decorative and `title` is a DESCRIPTION many
   // readers announce late or not at all. The visible caption stays the name's prefix (WCAG 2.5.3).
@@ -2035,7 +2035,7 @@ test("RV-7: the locked Map tab opens onto its coming-soon body from BOTH the mou
   await mapTab.click();
   const map = component.locator('[data-slot="rpg-map-tab"]');
   await expect(map).toBeVisible();
-  await expect(map).toContainText("Maps unlock with the map arc");
+  await expect(map).toContainText("Maps are planned");
   // NO TICKET ID anywhere in the locked body (side-eye 2026-08-06 P3): "arrives with MA-3" was the one line
   // here addressed to the roadmap rather than the player. Asserted as an ABSENCE so the chip cannot return.
   await expect(map).not.toContainText("MA-3");
@@ -2638,7 +2638,7 @@ test("HUD-1 §7.2: only the PHASE-LOCKED cell carries a `title` — a live cell'
   const component = await mount(<RpgTakeoverStory />);
   const rail = component.getByRole("toolbar", { name: "Game state" });
   await expect(rail.getByRole("button", { name: "Inventory" })).not.toHaveAttribute("title", ANY_TITLE);
-  await expect(rail.getByRole("button", { name: "Map" })).toHaveAttribute("title", "Maps unlock with the map arc");
+  await expect(rail.getByRole("button", { name: "Map" })).toHaveAttribute("title", "Maps are planned");
 });
 
 test("HUD-1: the ACTIVE cell's caption takes the cell's accent state colour (the Text primitive must not win)", async ({ mount, page }) => {

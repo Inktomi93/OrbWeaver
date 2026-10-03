@@ -404,8 +404,6 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
       <HostConsoleScalars chatId={state.chatId} config={config} />
       <RpgGameMacros chatId={state.chatId} config={config} />
       <ResyncControl chatId={state.chatId} />
-      {/* The graduate doorway — the omitted full-only arms all point here ("Graduate to full"). */}
-      <RpgDoorwayLine>Full mode adds skills, combat, sessions, and the map arc — coming with the full graft.</RpgDoorwayLine>
     </Stack>
   );
 }
@@ -417,8 +415,8 @@ export interface RpgGameTabProps {
 /** The Game tab — the HOST console (its own boundary; a config read failure is contained). */
 export function RpgGameTab({ state }: RpgGameTabProps): ReactElement {
   return (
-    // RESERVED (#1098) — the GM console settles into a full section stack (macros, resync, the graduate
-    // doorway) behind a config read, so the tab jumped its own height every time a host opened it.
+    // RESERVED (#1098) — the GM console settles into a full section stack (macros, resync) behind a
+    // config read, so the tab jumped its own height every time a host opened it.
     <QueryBoundary
       fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the host console" onRetry={retry} />}

@@ -51,7 +51,7 @@ import { appearanceLooksSection, makeConfigSection } from "@orb/client/features/
 import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
 import { addDocumentModal, databankDocumentsTile, databankSection } from "@orb/client/features/databank";
 import { makeCorpusSection } from "@orb/client/features/discovery";
-import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
+import { makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personaListSection, personaNotificationsSection, personaThisChatSection } from "@orb/client/features/persona";
@@ -217,13 +217,7 @@ const corpusContextTabs = createContributorRegistry<ContextTabDef<CorpusContextS
 
 // The home-tile seam, assembled as at the real door (home's own jump grid + whatever features raise) —
 // so a shell CT that lands on `home` renders the REAL tile grid, not a stand-in.
-const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
-  chatRecentsTile,
-  chatQuickPicksTile,
-  chatTempChatTile,
-  databankDocumentsTile,
-  buddyDormantTile,
-];
+const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [chatRecentsTile, chatQuickPicksTile, chatTempChatTile, databankDocumentsTile];
 
 const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
   ...HOME_TILE_CONTRIBUTIONS,

@@ -505,7 +505,7 @@ describe("createTurnEngine — happy path", () => {
       prepOf(chatId, {
         assembleContext: {
           ...ASSEMBLE_CTX,
-          wiTrace: { included: 1, dropped: [], matchedKeys: [], activated: [{ id: firedId, keys: ["dragon"] }] },
+          wiTrace: { included: 1, dropped: [], matchedKeys: [], activated: [{ id: firedId, title: "Dragon", keys: ["dragon"] }] },
         },
       }),
     );
@@ -526,7 +526,7 @@ describe("createTurnEngine — happy path", () => {
         automationDepth: 2,
         assembleContext: {
           ...ASSEMBLE_CTX,
-          wiTrace: { included: 1, dropped: [], matchedKeys: [], activated: [{ id: firedId, keys: ["dragon"] }] },
+          wiTrace: { included: 1, dropped: [], matchedKeys: [], activated: [{ id: firedId, title: "Dragon", keys: ["dragon"] }] },
         },
       }),
     );

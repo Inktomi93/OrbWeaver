@@ -91,7 +91,7 @@ function WorldInfoSettingsBody({ sectionId, session }: { readonly sectionId: str
               {(field): ReactElement => (
                 <field.NumberField
                   label="Token budget"
-                  description="The most tokens of matched world-info entries injected into a turn. Entries past the budget are dropped by priority. 0 disables world-info injection."
+                  description="The most tokens of matched world-info entries injected into a turn. Lower-priority entries are dropped first; entries set to Always include are never dropped. 0 means no limit."
                   min={WI_TOKEN_BUDGET_MIN}
                   max={WI_TOKEN_BUDGET_MAX}
                 />

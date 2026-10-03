@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-30
+updated: 2026-10-03
 ---
 
 # Client Architecture Lockdown
@@ -439,7 +439,7 @@ route file, or a feature front-door import in `routes/**` other than the two san
 
 The settings host is a config-GROUP registry: `state/config-group-registry.ts`
 (`ConfigGroupDefinition`, total over `CONFIG_GROUP_IDS` in `state/config-group-ids.ts`, four shelves
-`CONFIG_SHELVES` = User · App · Collections · Extensions), host `features/config` (list + content, rail
+`CONFIG_SHELVES` = User · App · Collections · Plugins), host `features/config` (list + content, rail
 foot). The body union is `sections | collection | placeholder`: every non-collection group is a `sections`
 skimmer over the contribution seam in `state/config-section-registry.ts`, assembled at the door in
 `compose/config-sections.ts` — the one section registry every group's LIST rows derive from (no `surface` case, no

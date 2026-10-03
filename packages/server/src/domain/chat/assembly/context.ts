@@ -77,11 +77,10 @@ interface InjectionCandidate {
   ignoreBudget: boolean;
   priority: number;
   entryId: string;
-  /** Set only for a WI-origin candidate; user/guided candidates use a synthetic entryId and leave this unset. */
-  worldEntryId?: WorldEntryId;
-  /** The WI entry's keyword list (WI-origin only; [] for an always-scope entry) — surfaced in the activation
-   *  trace so the host preview lists WHICH lore fired by identity + keys. Unset for user/guided candidates. */
-  worldEntryKeys?: string[];
+  /** The WI entry this candidate renders — set only for a WI-origin candidate; user/guided candidates use a
+   *  synthetic entryId and leave it unset. Surfaced in the activation trace so the host preview lists WHICH
+   *  lore fired by name and keys (`keys` is [] for an always-scope entry). */
+  worldEntry?: { id: WorldEntryId; title: string; keys: string[] };
   bucket: WiBucket | null;
 }
 
@@ -189,8 +188,7 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
     ignoreBudget: entry.ignoreBudget === true,
     priority: entry.priority,
     entryId: entry.id,
-    worldEntryId: entry.id,
-    worldEntryKeys: [...entry.keys],
+    worldEntry: { id: entry.id, title: entry.title, keys: [...entry.keys] },
   };
   if (entry.inject !== null && entry.inject !== undefined) {
     const injection: ChatInjection = {
@@ -976,9 +974,9 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     input.injectionTokenBudget,
   );
   const { chatInjections, anchored } = routeKept(kept, prose);
-  // WI-origin candidates that survived the budget pass, by identity (id + keys); worldInfoActivated (engine.ts
+  // WI-origin candidates that survived the budget pass, by identity (id + title + keys); worldInfoActivated (engine.ts
   // bus emit + the host preview panel) reads this off wiTrace.
-  const activated = kept.flatMap((c) => (c.worldEntryId !== undefined ? [{ id: c.worldEntryId, keys: c.worldEntryKeys ?? [] }] : []));
+  const activated = kept.flatMap((c) => (c.worldEntry === undefined ? [] : [c.worldEntry]));
 
   return {
     ...base,
@@ -994,7 +992,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     // Carries the resolved host-tier regex set onto the immutable ctx so RECEIVE applies the same set SEND used.
     ...(input.hostTierRegexScripts !== undefined ? { hostTierRegexScripts: input.hostTierRegexScripts } : {}),
     wiTrace: {
-      // WORLD-INFO entries only — the kept candidates that carry a `worldEntryId`, which is exactly
+      // WORLD-INFO entries only — the kept candidates that carry a `worldEntry`, which is exactly
       // `activated`. It used to count every kept injection, and `chatInjections` holds all six candidate
       // families (world-info, user, guided, persona description, author's note, new-chat marker), so any turn
       // with a chat injection reported lore that never fired ("3 included" on a chat with no books at all).

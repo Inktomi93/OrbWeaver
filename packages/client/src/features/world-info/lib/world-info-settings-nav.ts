@@ -10,7 +10,7 @@ export const WORLD_INFO_SETTINGS_SUBCATEGORY: ConfigSubcategory = {
   keywords: ["world", "info", "lore", "scan", "depth", "budget", "tokens", "entries"],
   teach: {
     summary:
-      "Per-chat world-info behavior: scan depth, token budget and which lore books are active. Entries inject context the model reads when their keywords trigger.",
-    affects: ["how much lore the model receives and when, in this chat"],
+      "How far back world-info keywords are matched, and how many tokens of matched entries one turn may carry. A token budget of 0 means no limit. In a shared room, the host's values apply.",
+    affects: ["how much lore the model receives in the chats you host"],
   },
 };

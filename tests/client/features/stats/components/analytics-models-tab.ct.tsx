@@ -16,6 +16,10 @@ const MODELS = [
     tokensOutProvenance: "measured" as const,
     costUsd: 1.25,
     charactersUsedWith: 7,
+    avgTtftMs: 300,
+    p90TtftMs: 900,
+    throughputTps: 42.5,
+    totalGenTimeMs: 8_000_000,
   },
   {
     model: "meta-llama/llama-3.3-70b",
@@ -25,6 +29,10 @@ const MODELS = [
     tokensOutProvenance: "measured" as const,
     costUsd: 0,
     charactersUsedWith: 2,
+    avgTtftMs: null,
+    p90TtftMs: null,
+    throughputTps: 10,
+    totalGenTimeMs: 1_200_000,
   },
 ];
 
@@ -38,6 +46,10 @@ const UNRECORDED_MODEL = {
   tokensOutProvenance: "unrecorded" as const,
   costUsd: null,
   charactersUsedWith: 1,
+  avgTtftMs: null,
+  p90TtftMs: null,
+  throughputTps: 0,
+  totalGenTimeMs: 0,
 };
 
 for (const width of [320, 420] as const) {
@@ -67,6 +79,26 @@ for (const width of [320, 420] as const) {
     });
   });
 }
+
+// Per-model speed carries the same provenance honesty as the accounting line: a TTFT with no samples and a
+// throughput with no recorded generation time read "Not recorded" and a dash, never a measured-looking zero.
+test("each model row shows its time to first token and throughput, and says when either was never recorded", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.byModel": () => [...MODELS.map((model) => (model.costUsd > 0 ? model : { ...model, tokensOutProvenance: "estimated" as const })), UNRECORDED_MODEL],
+    "stats.latency": () => LATENCY,
+  });
+  const component = await mount(<AnalyticsModelsTabStory />);
+  const rows = component.getByRole("list", { name: "Models" }).getByRole("listitem");
+
+  await expect(rows.first()).toContainText("Time to first token · Recorded: 300ms avg, 900ms p90");
+  await expect(rows.first()).toContainText("Throughput · Recorded: 42.5 t/s");
+  // Estimated tokens make an estimated rate; a TTFT with no samples is unrecorded on its own.
+  await expect(rows.nth(1)).toContainText("Time to first token · Not recorded: — avg, — p90");
+  await expect(rows.nth(1)).toContainText("Throughput · Estimated: ~10.0 t/s");
+  // No generation time: the server's division-guard zero must not read as a measured rate.
+  await expect(rows.last()).toContainText("Throughput · Not recorded: —");
+  await expect(rows.last()).not.toContainText("0.0 t/s");
+});
 
 async function mountModels(page: Parameters<typeof routeTrpc>[0]): Promise<void> {
   await routeTrpc(page, {

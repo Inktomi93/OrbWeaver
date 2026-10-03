@@ -30,7 +30,7 @@ import type { MacroFreeze, MacroRegistry, UserMacroDef } from "@orb/kit/macro";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
-import type { ActiveTurns } from "../contract/active-turns.ts";
+import type { ActiveTurnHandle, ActiveTurns } from "../contract/active-turns.ts";
 import type { ArbiterCandidate, AutoModeResult, SpeakerCandidate } from "../contract/arbitration.ts";
 import type { TurnUserMacros } from "../contract/assembly-macros.ts";
 import type { ChatRpgGatherResult, ClaimChatOp } from "../contract/context.ts";
@@ -280,13 +280,6 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, frozenHostUserId?: Use
     presentHumanUserIds,
     humanSeats,
   };
-}
-
-/** The primary character id (roster's first seated-character seat), the solo/single-speaker default. Null only for an
- *  empty roster. */
-function primaryCharacterId(room: Room): CharacterId | null {
-  const first = room.speakerCandidates[0]?.ref;
-  return first !== undefined ? first.characterId : null;
 }
 
 /** The present, NON-MUTED character names a NARRATOR turn actually voices — the narrator nudge's `{{names}}`
@@ -1902,6 +1895,17 @@ async function resolveTurnBase(
  *  refusals (lock contention / consent / budget / a missing target) stranding an open client slot. */
 async function runRegistered(ctx: ChatContext, deps: TurnDeps, viewer: { readonly role: string }, prep: Omit<TurnPrep, "signal">): Promise<TurnOutcome> {
   using handle = deps.activeTurns.register(prep.chatId, prep.triggeredBy);
+  return await runOnHandle(ctx, deps, handle, { viewer, prep });
+}
+
+/** {@link runRegistered}'s engine half, for a verb that registered EARLIER because pre-engine work must be
+ *  abortable too (generate's speaker arbitration can wait on the smart side-LLM). The caller owns `handle`. */
+async function runOnHandle(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  handle: ActiveTurnHandle,
+  { viewer, prep }: { readonly viewer: { readonly role: string }; readonly prep: Omit<TurnPrep, "signal"> },
+): Promise<TurnOutcome> {
   const outcome = await deps.engine.runTurn({ ...prep, slotAccepted: true, signal: handle.signal });
   // P3 (§3.6): a member who ran a DECEPTION-active game turn also loses the reasoning channel in the return
   // (resolved once via the injected rpg op; `false` for a host / non-deception chat).
@@ -1973,18 +1977,24 @@ async function withAcceptedSlot<T>(
   },
   resolve: () => Promise<T>,
 ): Promise<T> {
-  const intent = KIND_TO_INTENT[slot.kind];
   await deps.emit({
     type: "turnAccepted",
     chatId: slot.chatId,
-    intent,
+    intent: KIND_TO_INTENT[slot.kind],
     speakerCharacterId: slot.speakerCharacterId,
     targetMessageId: slot.targetMessageId,
   });
+  return await closeSlotOnThrow(deps, slot, resolve);
+}
+
+/** The pre-engine GUARD half of {@link withAcceptedSlot}: a throw from `work` closes the already-accepted slot
+ *  with `turnAborted` before it propagates. Used directly for pre-engine work that runs after the accept's own
+ *  resolve (generate's speaker arbitration). */
+async function closeSlotOnThrow<T>(deps: TurnDeps, slot: { readonly chatId: ChatId; readonly kind: TurnKind }, work: () => Promise<T>): Promise<T> {
   try {
-    return await resolve();
+    return await work();
   } catch (err) {
-    await deps.emit({ type: "turnAborted", chatId: slot.chatId, intent, reason: "error", automationDepth: 0 });
+    await deps.emit({ type: "turnAborted", chatId: slot.chatId, intent: KIND_TO_INTENT[slot.kind], reason: "error", automationDepth: 0 });
     throw err;
   }
 }
@@ -2306,7 +2316,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
   };
 }
 
-/** The `generate` speaker, TRUST-BOUNDARY resolved. An EXPLICIT speaker must be a PRESENT seated character of THIS
+/** An EXPLICIT `generate` speaker, TRUST-BOUNDARY resolved. It must be a PRESENT seated character of THIS
  *  chat — never trust the branded id from the wire to name any character (a bare `speakerShapeFor` silently
  *  returns an undefined shape for an unknown id, so an unvalidated foreign CharacterId would commit an
  *  assistant canon row attributed to it and leak that character's name+portrait through the message-stamped
@@ -2316,29 +2326,57 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
  *  manual speaker targeting, so a member explicitly generating for a muted seat is legitimate (it does not
  *  inherit any host bypass — the host-only bypass is presence of a LEFT member, which this refuses). A
  *  non-present / unknown / foreign id is a leak-free NOT_FOUND (never reveals whether the character exists
- *  elsewhere), mirroring selectVariant's foreign-variantId refusal. Absent/null ⇒ the primary seated-character seat. */
-function resolveGenerateSpeaker(room: Room, chatId: ChatId, speakerCharacterId: CharacterId | null | undefined): CharacterId | null {
-  if (speakerCharacterId === undefined || speakerCharacterId === null) {
-    return primaryCharacterId(room);
-  }
+ *  elsewhere), mirroring selectVariant's foreign-variantId refusal. An absent speaker is
+ *  {@link arbitrateGenerateSpeaker}'s, never this check's. */
+function requirePresentGenerateSpeaker(room: Room, chatId: ChatId, speakerCharacterId: CharacterId): void {
   const present = room.candidates.some((c) => c.ref.characterId === speakerCharacterId && c.leftSeq === null);
   if (!present) {
     throw new ChatNotFoundError(chatId);
   }
-  return speakerCharacterId;
+}
+
+/** The speaker of a SPEAKERLESS `generate` ("Auto"): the room's own speaker policy, run exactly as a `send`
+ *  round runs it ({@link arbitrate} — natural / in order / round-robin / smart with its visible natural
+ *  fallback, mute and ban-last respected), capped to the ONE reply a generate commits. `null` speaker ⇒ the
+ *  policy schedules nobody (`manual`, or every seat muted), which is the same answer a send gets. */
+async function arbitrateGenerateSpeaker(
+  ctx: ChatContext,
+  deps: TurnDeps,
+  args: {
+    readonly chatId: ChatId;
+    readonly room: Room;
+    readonly group: GroupConfig;
+    readonly funderUserId: UserId;
+    readonly signal: AbortSignal;
+  },
+): Promise<{ readonly speaker: CharacterId | null; readonly aborted: boolean }> {
+  const facts = await canonFacts(ctx, args.chatId);
+  const arbitration = await arbitrate(ctx, deps, {
+    chatId: args.chatId,
+    funderUserId: args.funderUserId,
+    group: args.group,
+    candidates: args.room.candidates,
+    speakerCandidates: args.room.speakerCandidates,
+    lastSpeaker: facts.lastSpeaker,
+    recentHistory: facts.recentHistory,
+    maxSpeakers: 1,
+    signal: args.signal,
+  });
+  return { speaker: arbitration.speakers[0]?.ref.characterId ?? null, aborted: arbitration.aborted };
 }
 
 /** `generate` — a lock-free auxiliary assistant generation: runs concurrent with a locked `send`. Commits a
- *  new assistant slot for the named speaker (or the primary character). */
+ *  new assistant slot for the named speaker, or for the speaker the room's own policy picks. */
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
   return async ({ principal, chatId, speakerCharacterId, intent, guided, afterAssistant }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
+    const slot = { chatId, kind: "generate", speakerCharacterId: null, targetMessageId: null } as const;
     // ACCEPTED: a member asked for a reply, so the client's slot opens before the multi-second resolve. NO
     // `targetMessageId` (a fresh slot, nothing to ghost over) and NO speaker: the requested id is still
     // UNVALIDATED here, and an unvalidated foreign CharacterId must never ride the bus (see the refusal below);
     // `turnStarted` carries the validated speaker. The speaker resolve lives INSIDE the accepted region so its
     // NOT_FOUND closes the slot it opened.
-    const { base, speaker } = await withAcceptedSlot(deps, { chatId, kind: "generate", speakerCharacterId: null, targetMessageId: null }, async () => {
+    const base = await withAcceptedSlot(deps, slot, async () => {
       const resolved = await resolveTurnBase(ctx, deps, {
         principal,
         chatId,
@@ -2348,27 +2386,57 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
         trigger: humanTrigger(principal.userId, membership.activePersonaId),
         guided,
       });
-      return { base: resolved, speaker: resolveGenerateSpeaker(resolved.room, chatId, speakerCharacterId) };
+      if (speakerCharacterId !== undefined && speakerCharacterId !== null) {
+        requirePresentGenerateSpeaker(resolved.room, chatId, speakerCharacterId);
+      }
+      return resolved;
     });
     const { room, identity, connection, assembleContext, macroRegistry, userMacroDraws } = base;
+    // Registered BEFORE the arbitration, so the user's Stop reaches a smart side-LLM pick, not only the engine.
+    using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
+    const pick =
+      speakerCharacterId === undefined || speakerCharacterId === null
+        ? await closeSlotOnThrow(deps, slot, () =>
+            arbitrateGenerateSpeaker(ctx, deps, {
+              chatId,
+              room,
+              group: membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
+              funderUserId: identity.funderUserId,
+              signal: handle.signal,
+            }),
+          )
+        : { speaker: speakerCharacterId, aborted: false };
+    // The two speakerless exits close the accepted slot exactly as a send round's do (`runAiRound`).
+    if (pick.aborted) {
+      await deps.emit({ type: "turnAborted", chatId, intent: KIND_TO_INTENT.generate, reason: "user", automationDepth: 0 });
+      return { messages: [], aborted: true, abortReason: "user" };
+    }
+    if (pick.speaker === null) {
+      await deps.emit({ type: "turnCompleted", chatId, intent: KIND_TO_INTENT.generate, messageId: null });
+      return { messages: [], aborted: false, abortReason: undefined };
+    }
+    const speaker = pick.speaker;
     const shape = speakerShapeFor(room, speaker);
-    return await runRegistered(ctx, deps, membership, {
-      chatId,
-      ...sharedTurnPrepFields({ built: base, identity, connection, intent, toolRecurseLimit: membership.chat.metadata.toolRecurseLimit }),
-      kind: "generate",
-      ...prepMacroFields(macroRegistry, userMacroDraws),
-      speakerCharacterId: speaker,
-      lockFree: true,
-      // A Response fired on an ASSISTANT tail (the wand icon on the model's own last line) rides the
-      // `responseNudge` trailing-user turn so the reply has something to respond to (rudderless otherwise).
-      // A guided steer composes with it (the `guided` injection + this appendUserTurn are independent
-      // channels, exactly like continue/impersonate). A USER-tail Response omits it — the user row is the prompt.
-      // RENDERED (macro path parity): response carries no `{{person}}` today; the registry render substitutes any
-      // `{{user}}/{{char}}` an edited/ST-imported response nudge holds (a safe no-op for the default string).
-      ...(afterAssistant === true
-        ? { appendUserTurn: nudgeOf(assembleContext, "responseNudge", macroRegistry !== null ? { registry: macroRegistry } : {}) }
-        : {}),
-      ...(shape !== undefined ? { shape } : {}),
+    return await runOnHandle(ctx, deps, handle, {
+      viewer: membership,
+      prep: {
+        chatId,
+        ...sharedTurnPrepFields({ built: base, identity, connection, intent, toolRecurseLimit: membership.chat.metadata.toolRecurseLimit }),
+        kind: "generate",
+        ...prepMacroFields(macroRegistry, userMacroDraws),
+        speakerCharacterId: speaker,
+        lockFree: true,
+        // A Response fired on an ASSISTANT tail (the wand icon on the model's own last line) rides the
+        // `responseNudge` trailing-user turn so the reply has something to respond to (rudderless otherwise).
+        // A guided steer composes with it (the `guided` injection + this appendUserTurn are independent
+        // channels, exactly like continue/impersonate). A USER-tail Response omits it — the user row is the prompt.
+        // RENDERED (macro path parity): response carries no `{{person}}` today; the registry render substitutes any
+        // `{{user}}/{{char}}` an edited/ST-imported response nudge holds (a safe no-op for the default string).
+        ...(afterAssistant === true
+          ? { appendUserTurn: nudgeOf(assembleContext, "responseNudge", macroRegistry !== null ? { registry: macroRegistry } : {}) }
+          : {}),
+        ...(shape !== undefined ? { shape } : {}),
+      },
     });
   };
 }
