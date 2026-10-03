@@ -21,7 +21,7 @@
 
 import { PROMPT_TEMPLATE_MODES } from "@orb/contracts/imagery";
 import type { ProviderId } from "@orb/contracts/inference";
-import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserConnectionId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { checkList } from "../kit/check-list.ts";
@@ -74,14 +74,17 @@ export const imageryGenerations = sqliteTable(
     // An edit/reference input was used (reserved — the Phase-7 edit seam). Default false.
     edited: integer("edited", { mode: "boolean" }).notNull().default(false),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    // The provider call this picture came from, shared by every picture of one fanned-out call: the stats
+    // rebuild counts one priced generation per call id. NULL only on rows written before the column existed.
+    callId: text("call_id").$type<ImageryCallId>(),
   },
   (t) => [
     // The Phase-7 reuse lookup key (subject + mode + identity); harmless as a plain index in v1.
     index("imagery_generations_reuse_idx").on(t.subjectCharacterId, t.mode, t.identityHash),
     // The SET-NULL parent scan on a connection delete (`fk-columns-indexed` gate).
     index("imagery_generations_connection_idx").on(t.connectionId),
-    // The two remaining child FKs: an asset delete erases its provenance row and a chat delete drops the
-    // room's generations — both scan this table without a LEADING index (`fk-columns-indexed` gate).
+    // The two remaining child FKs: an asset delete erases its provenance row and a chat delete nulls the
+    // room's `chat_id` — both scan this table without a LEADING index (`fk-columns-indexed` gate).
     index("imagery_generations_asset_idx").on(t.assetId),
     index("imagery_generations_chat_idx").on(t.chatId),
     check("imagery_generations_mode_check", sql.raw(`mode in (${MODE_CHECK_LIST})`)),

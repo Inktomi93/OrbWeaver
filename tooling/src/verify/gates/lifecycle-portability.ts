@@ -201,6 +201,12 @@ const NON_PORTABLE_CANON: Readonly<Record<string, NonPortableRow>> = {
   },
   modelStats: { classification: "DERIVED", why: "same rollup plane as `dailyStats`. Ends never." },
   ownerStats: { classification: "DERIVED", why: "same rollup plane as `dailyStats`. Ends never." },
+  compactionSpend: {
+    classification: "DEFERRED",
+    why:
+      "spend history: the canon the stats rebuild re-derives compaction spend from, beside `imagery_generations` for image spend. Neither travels today " +
+      "(image provenance rides no portable kind either), so a restored box's reconcile starts both spends at zero. Ends when the bundle carries spend history.",
+  },
   statsCanonVersions: {
     classification: "DERIVED",
     why: "monotonic coordination token for rebuilding the stats rollup plane; restore rebuilds the rollups and starts a fresh token. Ends never.",

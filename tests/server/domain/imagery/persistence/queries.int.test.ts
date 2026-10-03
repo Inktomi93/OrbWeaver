@@ -1,16 +1,21 @@
 // persistence: imagery/queries — the ONE `imagery_generations` writer. Proves the
-// INSERT lands a well-formed provenance row against the real schema (the FK to `assets`, the mode CHECK, the
+// INSERT statement, committed through a batch the way the generation tail commits it, lands a well-formed provenance row against the real schema (the FK to `assets`, the mode CHECK, the
 // nullable free-mode columns left at their defaults).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, characters, imageryGenerations, userConnections, users } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import { handleKey } from "@orb/kit/handle-key";
-import type { AssetId, CharacterId, Handle, ImageryGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { findReusableGeneration, insertGeneration, readProvenanceByAsset } from "../../../../../packages/server/src/domain/imagery/persistence/queries.ts";
+import {
+  findReusableGeneration,
+  insertGenerationStatement,
+  readProvenanceByAsset,
+} from "../../../../../packages/server/src/domain/imagery/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -50,27 +55,32 @@ async function seedOwnedAsset(): Promise<{ owner: UserId; assetId: AssetId; conn
   return { owner, assetId, connectionId };
 }
 
-describe("insertGeneration", () => {
+describe("insertGenerationStatement", () => {
   test("writes one free-mode provenance row tied to the stored asset", async () => {
     const { assetId, connectionId } = await seedOwnedAsset();
     const id = castId<ImageryGenerationId>("imagery_generation_1");
 
-    await insertGeneration(db, {
-      id,
-      assetId,
-      chatId: null,
-      mode: "free",
-      subjectCharacterId: null,
-      identityHash: null,
-      prompt: "a lighthouse at dusk",
-      negativePrompt: null,
-      model: testModelId("img-model"),
-      providerId: PROVIDER_ID,
-      connectionId,
-      costUsd: 0.05,
-      edited: false,
-      createdAt: FROZEN_AT,
-    });
+    await db.batch(
+      batchMany([
+        insertGenerationStatement(db, {
+          id,
+          callId: castId<ImageryCallId>("imagery_call_1"),
+          assetId,
+          chatId: null,
+          mode: "free",
+          subjectCharacterId: null,
+          identityHash: null,
+          prompt: "a lighthouse at dusk",
+          negativePrompt: null,
+          model: testModelId("img-model"),
+          providerId: PROVIDER_ID,
+          connectionId,
+          costUsd: 0.05,
+          edited: false,
+          createdAt: FROZEN_AT,
+        }),
+      ]),
+    );
 
     const rows = await db.select().from(imageryGenerations);
     expect(rows).toHaveLength(1);
@@ -95,22 +105,27 @@ describe("insertGeneration", () => {
   test("fills the portrait columns (subject + identity hash + negative) when supplied", async () => {
     const { owner, assetId, connectionId } = await seedOwnedAsset();
     await db.insert(characters).values(makeCharacter({ id: castId<CharacterId>("character_aria"), ownerId: owner }));
-    await insertGeneration(db, {
-      id: castId<ImageryGenerationId>("imagery_generation_p"),
-      assetId,
-      chatId: null,
-      mode: "character",
-      subjectCharacterId: castId<CharacterId>("character_aria"),
-      identityHash: "deadbeef",
-      prompt: "full body portrait, red hair",
-      negativePrompt: "text, watermark",
-      model: testModelId("img-model"),
-      providerId: PROVIDER_ID,
-      connectionId,
-      costUsd: null,
-      edited: false,
-      createdAt: FROZEN_AT,
-    });
+    await db.batch(
+      batchMany([
+        insertGenerationStatement(db, {
+          id: castId<ImageryGenerationId>("imagery_generation_p"),
+          callId: castId<ImageryCallId>("imagery_call_p"),
+          assetId,
+          chatId: null,
+          mode: "character",
+          subjectCharacterId: castId<CharacterId>("character_aria"),
+          identityHash: "deadbeef",
+          prompt: "full body portrait, red hair",
+          negativePrompt: "text, watermark",
+          model: testModelId("img-model"),
+          providerId: PROVIDER_ID,
+          connectionId,
+          costUsd: null,
+          edited: false,
+          createdAt: FROZEN_AT,
+        }),
+      ]),
+    );
     const rows = await db.select().from(imageryGenerations);
     expect(rows[0]).toMatchObject({ subjectCharacterId: "character_aria", identityHash: "deadbeef", negativePrompt: "text, watermark" });
   });
@@ -142,22 +157,27 @@ async function seedGeneration(args: SeedArgs): Promise<void> {
     await db.insert(characters).values(character).onConflictDoNothing();
   }
   const connectionId = await seedConnection(owner, owner);
-  await insertGeneration(db, {
-    id: castId<ImageryGenerationId>(generationId),
-    assetId,
-    chatId: null,
-    mode: MODE_CHARACTER,
-    subjectCharacterId: subjectCharacterId === null ? null : castId<CharacterId>(subjectCharacterId),
-    identityHash,
-    prompt: PORTRAIT_PROMPT,
-    negativePrompt: null,
-    model: testModelId("img-model"),
-    providerId: PROVIDER_ID,
-    connectionId,
-    costUsd: 0.02,
-    edited: false,
-    createdAt,
-  });
+  await db.batch(
+    batchMany([
+      insertGenerationStatement(db, {
+        id: castId<ImageryGenerationId>(generationId),
+        callId: castId<ImageryCallId>(`imagery_call_${generationId}`),
+        assetId,
+        chatId: null,
+        mode: MODE_CHARACTER,
+        subjectCharacterId: subjectCharacterId === null ? null : castId<CharacterId>(subjectCharacterId),
+        identityHash,
+        prompt: PORTRAIT_PROMPT,
+        negativePrompt: null,
+        model: testModelId("img-model"),
+        providerId: PROVIDER_ID,
+        connectionId,
+        costUsd: 0.02,
+        edited: false,
+        createdAt,
+      }),
+    ]),
+  );
 }
 
 async function seedUser(handle: Handle): Promise<UserId> {

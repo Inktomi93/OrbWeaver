@@ -61,6 +61,7 @@ export const TABLE_SCOPING_ROWS: readonly ScopingRow[] = [
   { table: "model_stats", scope: "ownerId", why: "D23 parentless per-user aggregate (×model)." },
   { table: "owner_stats", scope: "ownerId", why: "D23 parentless per-user aggregate." },
   { table: "stats_canon_versions", scope: "ownerId", why: "D23 parentless per-user aggregate — monotonic rebuild ownership token." },
+  { table: "compaction_spend", scope: "ownerId", why: "D23 owner stamp — the funding host's compaction spend ledger; no FK reaches the owner." },
   { table: "personas", scope: "ownerId", why: "D23 true producer — personas are single-owned." },
   {
     table: "roster_presets",
