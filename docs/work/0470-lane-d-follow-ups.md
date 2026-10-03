@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-03
 priority: P3
 area: onboarding
+lane: wt/agent-adde4b4e6702c9cf6
 ---
 
 # Lane D follow-ups
