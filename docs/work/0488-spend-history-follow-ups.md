@@ -23,3 +23,5 @@ Each point ruled and fixed with a drift-gate test.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Also: extraction and caption spend (generate-picture.ts:248-250) never reach stats at all; reconcileStats all-owner mode enumerates only owners with characters.
