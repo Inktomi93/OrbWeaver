@@ -1,5 +1,5 @@
 // The Connections pane's mutations, one createEntityMutation per verb. The connection verbs emit
-// `connectionsChanged` on the user bus (the invalidation map refetches `connection.*`), and the credential
+// `connectionsChanged` on the user bus (the map refetches `connection.*` and the job list), and the credential
 // verbs emit `credentialsChanged`; each still names its own invalidates so a dropped bus stream never leaves
 // the pane stale. The secret never round-trips: `credentials.add` takes the plaintext key, list returns the
 // redacted view.
@@ -7,7 +7,7 @@
 import type { RolePresetChoice } from "@orb/contracts/settings";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { createEntityMutation } from "#data";
+import { connectionWriteReads, createEntityMutation } from "#data";
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
 type DraftModelListing = inferOutput<Trpc["connection"]["draftCatalogModels"]>;
@@ -26,14 +26,14 @@ export const useCreateConnection = createEntityMutation<inferInput<Trpc["connect
 /** Delete a row — every binding on it SET-NULLs to `no-connection`; history keeps its attribution. */
 export const useRemoveConnection = createEntityMutation<inferInput<Trpc["connection"]["remove"]>, unknown>({
   options: (trpc) => trpc.connection.remove.mutationOptions(),
-  invalidates: connectionReads,
+  invalidates: connectionWriteReads,
   errorToast: "Couldn't remove that connection.",
 });
 
 /** §5.3a's one-click survivor: write every compatible `user` binding to this row at once. */
 export const useUseForEverything = createEntityMutation<inferInput<Trpc["connection"]["useForEverything"]>, unknown>({
   options: (trpc) => trpc.connection.useForEverything.mutationOptions(),
-  invalidates: connectionReads,
+  invalidates: connectionWriteReads,
   errorToast: "Couldn't apply that connection to your roles.",
 });
 

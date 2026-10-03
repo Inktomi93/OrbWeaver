@@ -4,8 +4,9 @@
 // The seam is real, not arithmetic: a row in the map answers "what does THIS event stale", and a set here
 // answers "which reads are that", which is the thing several rows share.
 //
-// Every export is consumed by `invalidation.ts` alone. Nothing here calls `invalidateQueries` — the seam's
-// chokepoint stays in the map file (gate `no-inline-invalidate-outside-seam`).
+// Every export is consumed by `invalidation.ts` alone, except `connectionWriteReads`, which the connection
+// mutations share through `#data`. Nothing here calls `invalidateQueries` — the seam's chokepoint stays in the
+// map file (gate `no-inline-invalidate-outside-seam`).
 
 import type { RoomEntityKind } from "@orb/contracts/chat";
 import { ROOM_ENTITY_KINDS } from "@orb/contracts/chat";
@@ -28,6 +29,12 @@ export function corpusRecomputeReads(trpc: Trpc): readonly InvalidateFilter[] {
     trpc.workloads.estimateModelCalls.pathFilter(),
     trpc.workloads.estimateRetryModelCalls.pathFilter(),
   ];
+}
+
+/** What a connection write moves: the `connection.*` reads, and the job list, because a write that changes the
+ *  owner's embed space enqueues an index rebuild the vector role rows only start polling once they see it. */
+export function connectionWriteReads(trpc: Trpc): readonly InvalidateFilter[] {
+  return [trpc.connection.pathFilter(), trpc.workloads.list.pathFilter()];
 }
 
 /** What the proxy's `.queryFilter()`/`.pathFilter()` return — accepted by `invalidateQueries`. */

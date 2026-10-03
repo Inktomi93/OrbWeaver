@@ -493,6 +493,8 @@ const USER_TRACKED_KEYS = [
   // `pluginSurfaceStateChanged` it had no driver — `staleTime:Infinity` would freeze a rendered surface at its
   // first fetch; the member path-invalidates the read so `host.ui.setState` reaches the installer's own client.
   "pluginSurfaceState",
+  // The job list the vector role rows read their embed rebuild from; a connection write can enqueue one.
+  "workloadList",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
@@ -539,9 +541,9 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // A plugin surface published new state: path-invalidates the surface-state read so
   // the installer's own client refetches. Coarse by design — NOT `listSurfaces` (registration is unmoved).
   pluginSurfaceStateChanged: ["pluginSurfaceState"],
-  // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection
-  // router, so the capability read under it goes stale too.
-  connectionsChanged: ["connection", "chatCapability"],
+  // It path-invalidates the WHOLE connection router, so the capability read under it goes stale too, plus the
+  // job list, because the write may have enqueued an embed rebuild.
+  connectionsChanged: ["connection", "chatCapability", "workloadList"],
 };
 
 // The user events carry no chatId EXCEPT `chatsChanged` (which reads it for the getChat branch). A `chatId`
@@ -607,6 +609,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         sourceWindow: trpc.chat.getMessageWindow.queryKey({ chatId: CHAT_ID, target: { kind: "message", messageId: MESSAGE_ID } }),
         sessionsMe: trpc.sessions.me.queryKey(),
         pluginSurfaceState: trpc.plugin.getSurfaceState.queryKey({ pluginId: PLUGIN_ID, surfaceId: "panel" }),
+        workloadList: trpc.workloads.list.queryKey({ kind: "index" }),
       };
       for (const key of Object.values(keys)) {
         // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.

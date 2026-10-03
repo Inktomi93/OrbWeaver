@@ -4,16 +4,14 @@
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { createEntityMutation } from "#data";
+import { connectionWriteReads, createEntityMutation } from "#data";
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
-
-const connectionReads = (trpc: Trpc): ReturnType<Trpc["connection"]["pathFilter"]>[] => [trpc.connection.pathFilter()];
 
 /** A FIELD-WISE patch on one row (ground5 M6: never a GET→whole-blob PUT). */
 export const useUpdateConnection = createEntityMutation<inferInput<Trpc["connection"]["update"]>, ConnectionView>({
   options: (trpc) => trpc.connection.update.mutationOptions(),
-  invalidates: connectionReads,
+  invalidates: connectionWriteReads,
   errorToast: "Couldn't save that connection.",
 });
 
@@ -21,6 +19,6 @@ export const useUpdateConnection = createEntityMutation<inferInput<Trpc["connect
  *  plugin's. `connectionId: null` clears it. */
 export const useSetBinding = createEntityMutation<inferInput<Trpc["connection"]["setBinding"]>, unknown>({
   options: (trpc) => trpc.connection.setBinding.mutationOptions(),
-  invalidates: connectionReads,
+  invalidates: connectionWriteReads,
   errorToast: "Couldn't change that role.",
 });

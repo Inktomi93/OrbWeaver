@@ -173,7 +173,7 @@ async function stubPane(
     readonly credentials?: readonly CredentialRow[];
     readonly settings?: ReturnType<typeof userSettingsView>;
     readonly reindexPreview?: ReindexPreview;
-    readonly workloads?: TrpcWireOutput<"workloads.list">;
+    readonly workloads?: () => TrpcWireOutput<"workloads.list">;
   } = {},
 ): Promise<RolesStub> {
   const recorder = await routeTrpc(page, {
@@ -193,7 +193,7 @@ async function stubPane(
     "settings.getUserSettings": () => opts.settings ?? userSettingsView(),
     "settings.updateUserSettingsSection": () => opts.settings ?? userSettingsView(),
     // The vector rows read the viewer's embedder rebuild from the job list.
-    "workloads.list": () => opts.workloads ?? [],
+    "workloads.list": () => opts.workloads?.() ?? [],
   });
   return { recorder };
 }
@@ -515,11 +515,40 @@ function rebuildRow(status: TrpcWireOutput<"workloads.list">[number]["status"]):
 }
 
 test("the embedding rows say when a rebuild runs and when it failed", async ({ mount, page }) => {
-  await stubPane(page, { workloads: [rebuildRow("failed")] });
+  await stubPane(page, { workloads: () => [rebuildRow("failed")] });
   await mount(<ConnectionsSettingsStory />);
 
   await expect(page.getByText(REBUILD_STATUS_COPY.failed, { exact: true })).toHaveCount(2);
   await expect(page.getByText(REBUILD_STATUS_COPY.running, { exact: true })).toHaveCount(0);
+});
+
+// The app cache never goes stale on its own, and the rows only poll while a rebuild already shows as running,
+// so the confirmed re-point itself must re-read the job list or the rebuild it enqueued stays invisible.
+test("a confirmed embedder re-point shows its rebuild running, then failed", async ({ mount, page }) => {
+  let rebuild: TrpcWireOutput<"workloads.list"> = [];
+  const { recorder } = await stubPane(page, { reindexPreview: STORED_REBUILD, workloads: () => rebuild });
+  // The server enqueues the rebuild inside the binding write, so the job exists from the moment it lands.
+  await page.route(SET_BINDING_ROUTE, async (route) => {
+    rebuild = [rebuildRow("running")];
+    await route.fallback();
+  });
+  await mount(<ConnectionsSettingsStory />);
+  const rebuildLines = (state: string): Locator => page.locator(`[data-rebuild="${state}"]`);
+  // The empty job list has been read and cached before the re-point.
+  await expect.poll(() => recorder.count("workloads.list"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+  await expect(roleSelect(page, "Text embedding")).toBeVisible();
+  await expect(page.locator("[data-rebuild]")).toHaveCount(0);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  await expect(rebuildLines("running")).toHaveCount(2);
+
+  rebuild = [rebuildRow("failed")];
+  // The running line's own poll picks the end up; it re-reads every 5 s.
+  await expect(rebuildLines("failed")).toHaveCount(2, { timeout: 10_000 });
+  await expect(rebuildLines("running")).toHaveCount(0);
 });
 
 // D299: the Utility role picks its preset beside its connection. Absent is task defaults; the other two arms

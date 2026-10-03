@@ -176,7 +176,7 @@ export function ConnectionRoleSlot({
           {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
           <ReadoutLine readout={readout} />
           {rebuild === null ? null : (
-            <Text voice="gloss" className={cn(rebuild === "failed" ? READOUT_INK.blocked : READOUT_INK.divergent, PROSE_MEASURE)}>
+            <Text voice="gloss" data-rebuild={rebuild} className={cn(rebuild === "failed" ? READOUT_INK.blocked : READOUT_INK.divergent, PROSE_MEASURE)}>
               {REBUILD_STATUS_COPY[rebuild]}
             </Text>
           )}
