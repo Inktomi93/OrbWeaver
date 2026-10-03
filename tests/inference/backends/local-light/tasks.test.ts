@@ -4,6 +4,7 @@
 // caller ids and sorts by score, the multimodal PAIR kind is refused.
 
 import { EMBEDDING_FLOOR, RERANK_FLOOR } from "@orb/contracts/inference";
+import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import { createLocalLightEmbed, createLocalLightImageEmbed, createLocalLightRerank } from "../../../../packages/inference/src/backends/local-light/tasks.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -106,6 +107,43 @@ test("rerank: caller ids preserved, sorted by score desc, topN applied, text-onl
   await expect(rerank({ connection: conn, query: { image: "data:image/png;base64,AA==" }, documents: [{ id: "a", text: "x" }] })).rejects.toMatchObject({
     kind: "invalid",
   });
+});
+
+// The tokenizer alone cuts a pair's tail, so a long query used to push the whole document out of the window, and
+// the window it cut to was the model's full one rather than the capability's served one.
+test("rerank: each pair is cut to the capability window, the query to at most half of it", async () => {
+  const seen: { query: string; documents: readonly string[] }[] = [];
+  const cache = {
+    ...fakeModelCache(),
+    scorePairs: (_repo: string, query: string, documents: readonly string[]): Promise<number[]> => {
+      seen.push({ query, documents });
+      return Promise.resolve(documents.map(() => 0));
+    },
+  };
+  const window = 1000;
+  const conn = fakeResolved({
+    task: "rerank",
+    providerId: "local-light",
+    model: "Xenova/ms-marco-MiniLM-L-6-v2",
+    capability: { kind: "rerank", rerank: { ...RERANK_FLOOR, maxInputTokens: window } },
+  });
+  const longText = "word ".repeat(4000);
+  await createLocalLightRerank(cache)({
+    connection: conn,
+    query: longText,
+    documents: [
+      { id: "a", text: longText },
+      { id: "b", text: "short" },
+    ],
+  });
+  expect(seen).toHaveLength(1);
+  const sentQuery = seen.at(0)?.query ?? "";
+  const [long = "", short] = seen.at(0)?.documents ?? [];
+  const budget = safeTokenWindow(window);
+  expect(estimateTokens(sentQuery)).toBeLessThanOrEqual(Math.floor(budget / 2));
+  expect(estimateTokens(sentQuery) + estimateTokens(long)).toBeLessThanOrEqual(budget);
+  expect(estimateTokens(long)).toBeGreaterThan(0);
+  expect(short).toBe("short");
 });
 
 test("imageEmbed: image and text arms share the space tag; the multimodal pair is refused", async () => {

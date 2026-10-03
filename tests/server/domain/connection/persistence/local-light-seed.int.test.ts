@@ -228,3 +228,60 @@ test("a user's own unbound row on the seed's model is never adopted or renamed",
   expect(kept?.label).toBe("my spare encoder");
   expect(kept?.seedSlot).toBeNull();
 });
+
+/** Rewrite the seeded reranker row as an earlier release left it: on that release's model, last written at `updatedAt`. */
+async function onEarlierReranker(
+  db: Awaited<ReturnType<typeof freshDb>>,
+  owner: Awaited<ReturnType<typeof seedUser>>,
+  updatedAt: number,
+): Promise<UserConnectionId> {
+  const [, reranker] = LOCAL_LIGHT_SEED_ROWS;
+  await db
+    .update(userConnections)
+    .set({ model: testModelId(reranker.earlierModels[0]), updatedAt })
+    .where(and(eq(userConnections.ownerId, owner), eq(userConnections.seedSlot, reranker.task)));
+  const row = (
+    await db
+      .select()
+      .from(userConnections)
+      .where(and(eq(userConnections.ownerId, owner), eq(userConnections.seedSlot, reranker.task)))
+  ).at(0);
+  if (row === undefined) {
+    throw new Error("the seed wrote no reranker row");
+  }
+  return row.id;
+}
+
+// An install upgraded from a release that seeded another reranker moves to today's default in place, so the bound
+// rerank role follows without a rebind.
+test("an unedited reranker row on an earlier seed model moves to today's model, keeping its id and binding", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, "user_a");
+  await seedLocalLightConnections(seedDeps(db), owner);
+  const id = await onEarlierReranker(db, owner, FROZEN_AT_MS);
+
+  expect((await seedLocalLightConnections(seedDeps(db, 1), owner)).inserted).toBe(0);
+
+  const row = (await db.select().from(userConnections).where(eq(userConnections.id, id))).at(0);
+  expect(row?.model).toBe(LOCAL_LIGHT_SEED_ROWS[1].model);
+  const rerank = (
+    await db
+      .select()
+      .from(connectionBindings)
+      .where(and(eq(connectionBindings.userId, owner), eq(connectionBindings.task, "rerank")))
+  ).at(0);
+  expect(rerank?.connectionId).toBe(id);
+});
+
+// The earlier model stays in the catalog as the light option, so a user who picked it keeps it on every later boot.
+test("a reranker row the user edited onto an earlier seed model is left alone", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, "user_a");
+  await seedLocalLightConnections(seedDeps(db), owner);
+  const id = await onEarlierReranker(db, owner, FROZEN_AT_MS + 1);
+
+  await seedLocalLightConnections(seedDeps(db, 1), owner);
+
+  const row = (await db.select().from(userConnections).where(eq(userConnections.id, id))).at(0);
+  expect(row?.model).toBe(LOCAL_LIGHT_SEED_ROWS[1].earlierModels[0]);
+});

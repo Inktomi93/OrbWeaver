@@ -43,10 +43,12 @@ export const EMBED_SPACE_DIMS = 1024;
 /** The two rows every user is SEEDED with (§7.2 — the vector floor is a convenience seed, never a special
  *  row): the local-light encoder and reranker, both ordinary `user_connections` on the `local-light`
  *  provider with a `user` binding for `embed` / `rerank`. The ids are the curated `local-light` rows'. The label
- *  is what Model roles shows, so it says what the row does, and it is the seed's idempotency key. */
+ *  is what Model roles shows, so it says what the row does, and it is the seed's idempotency key.
+ *  `earlierModels` are models a previous release seeded into the same slot: the seed moves a slot row the user
+ *  never edited off them onto `model`. Each stays in the built-in catalog, so a user can still pick it. */
 export const LOCAL_LIGHT_SEED_ROWS = [
-  { task: "embed", model: "jinaai/jina-clip-v2", label: "Built-in embeddings" },
-  { task: "rerank", model: "Xenova/ms-marco-MiniLM-L-6-v2", label: "Built-in reranker" },
+  { task: "embed", model: "jinaai/jina-clip-v2", label: "Built-in embeddings", earlierModels: [] },
+  { task: "rerank", model: "cross-encoder/ettin-reranker-32m-v1", label: "Built-in reranker", earlierModels: ["Xenova/ms-marco-MiniLM-L-6-v2"] },
 ] as const;
 
 /** The seed slot a seeded row fills (`user_connections.seed_slot`): its task. The seed's idempotency key, so a

@@ -34,9 +34,9 @@ function run(cache: LocalLightModelCache, call: LocalLightWorkerCall): Promise<L
     case "embedImages":
       return cache.embedImages(call.modelId, call.images);
     case "scorePairs":
-      return cache.scorePairs(call.modelId, call.query, call.documents);
+      return cache.scorePairs(call.modelId, call.query, call.documents, call.onnx);
     case "preload":
-      return cache.preload(call.slot, call.modelId).then(() => null);
+      return cache.preload(call.slot, call.modelId, call.onnx).then(() => null);
     default: {
       const exhaustive: never = call;
       return exhaustive;

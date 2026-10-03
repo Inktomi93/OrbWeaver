@@ -6,10 +6,11 @@ import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { InferenceRuntime, LocalLightModelSlot, LocalLightPrefetchTarget } from "@orb/inference";
 import { LOCAL_LIGHT_MODEL_SLOTS, NoConnectionError } from "@orb/inference";
-import type { ModelId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 
 const LOCAL_LIGHT_PROVIDER_ID = "local-light";
+
+type LocalLightModel = Omit<LocalLightPrefetchTarget, "slot">;
 
 /** Which tasks feed which prefetch slot. `embed` and `imageEmbed` share ONE slot on purpose: they are the same
  *  jina-clip-v2 weights (one joint text↔image space), so warming them separately would be the same download
@@ -31,10 +32,15 @@ export interface LocalLightPrefetchPlanDeps {
 /** Resolve one task for one principal and report the local-light model it would use, or `null` when it lands
  *  elsewhere or nowhere. `no-connection` is the ordinary "not local-light" answer here; any OTHER resolver
  *  failure is logged and treated the same — the prefetch is an optimization and must never fail a boot. */
-async function localLightModelFor(deps: LocalLightPrefetchPlanDeps, principal: Principal, task: RoutableTask): Promise<ModelId | null> {
+async function localLightModelFor(deps: LocalLightPrefetchPlanDeps, principal: Principal, task: RoutableTask): Promise<LocalLightModel | null> {
   try {
     const { resolved } = await deps.resolve({ task, principal });
-    return resolved.provider.id === LOCAL_LIGHT_PROVIDER_ID ? resolved.model : null;
+    if (resolved.provider.id !== LOCAL_LIGHT_PROVIDER_ID) {
+      return null;
+    }
+    // A reranker loads the way its capability says, so the warm-up loads exactly what the first request will.
+    const onnx = resolved.capability.kind === "rerank" ? resolved.capability.rerank.onnx : undefined;
+    return { modelId: resolved.model, ...(onnx === undefined ? {} : { onnx }) };
     // @orb-waive caught-failure-ownership(err): DELIBERATE fail-closed. The owner of a resolver failure is the REQUEST that hits it — this is a speculative pre-warm asking a question it is allowed not to get an answer to, and the only consequence of `null` here is that the box keeps the lazy path it had before this file existed. `no-connection` is the ordinary answer; anything else is surfaced as a structured log naming the task + reason. Ends if the prefetch ever becomes required for correctness rather than latency.
   } catch (err) {
     if (!(err instanceof NoConnectionError)) {
@@ -48,11 +54,11 @@ async function localLightModelFor(deps: LocalLightPrefetchPlanDeps, principal: P
 }
 
 /** The first of a slot's tasks that lands on local-light for this principal claims the slot (header). */
-async function firstLocalLightModel(deps: LocalLightPrefetchPlanDeps, principal: Principal, tasks: readonly RoutableTask[]): Promise<ModelId | null> {
+async function firstLocalLightModel(deps: LocalLightPrefetchPlanDeps, principal: Principal, tasks: readonly RoutableTask[]): Promise<LocalLightModel | null> {
   for (const task of tasks) {
-    const modelId = await localLightModelFor(deps, principal, task);
-    if (modelId !== null) {
-      return modelId;
+    const model = await localLightModelFor(deps, principal, task);
+    if (model !== null) {
+      return model;
     }
   }
   return null;
@@ -63,17 +69,17 @@ export async function planLocalLightPrefetch(deps: LocalLightPrefetchPlanDeps): 
   if (!deps.enabled) {
     return [];
   }
-  const bySlot = new Map<LocalLightModelSlot, ModelId>();
+  const bySlot = new Map<LocalLightModelSlot, LocalLightModel>();
   for (const principal of deps.principals) {
     for (const { slot, tasks } of TASK_SLOTS) {
-      const modelId = bySlot.has(slot) ? null : await firstLocalLightModel(deps, principal, tasks);
-      if (modelId !== null) {
-        bySlot.set(slot, modelId);
+      const model = bySlot.has(slot) ? null : await firstLocalLightModel(deps, principal, tasks);
+      if (model !== null) {
+        bySlot.set(slot, model);
       }
     }
   }
   return LOCAL_LIGHT_MODEL_SLOTS.flatMap((slot: LocalLightModelSlot) => {
-    const modelId = bySlot.get(slot);
-    return modelId === undefined ? [] : [{ slot, modelId }];
+    const model = bySlot.get(slot);
+    return model === undefined ? [] : [{ slot, ...model }];
   });
 }

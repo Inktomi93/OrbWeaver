@@ -1,0 +1,54 @@
+{
+  "label": "minilm-fp32-4c",
+  "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+  "threads": 4,
+  "loadMs": 386,
+  "rss": {
+    "baselineMib": 104,
+    "afterLoadMib": 298,
+    "peakMib": 863,
+    "peakOverBaselineMib": 759
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 8.817596435546875,
+      "irrelevant": -11.128292083740234,
+      "ok": true,
+      "docTokens": 35
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": -9.556486129760742,
+      "irrelevant": -11.06210708618164,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": -11.261024475097656,
+      "irrelevant": -11.261024475097656,
+      "ok": false,
+      "docTokens": 1231
+    }
+  ],
+  "latency": [
+    {
+      "pairTokens": 512,
+      "msPerPairMedian": 126,
+      "after": {
+        "rssMib": 862,
+        "hwmMib": 862
+      }
+    },
+    {
+      "pairTokens": 2048,
+      "msPerPairMedian": 93,
+      "after": {
+        "rssMib": 863,
+        "hwmMib": 863
+      }
+    }
+  ],
+  "heapMib": 36
+}

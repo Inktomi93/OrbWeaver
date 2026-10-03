@@ -1,0 +1,83 @@
+{
+  "label": "shipped-minilm",
+  "batch": 1,
+  "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+  "onnx": {
+    "head": "sequence-classification",
+    "dtype": "q8"
+  },
+  "threads": 4,
+  "loadMs": 162,
+  "rss": {
+    "baselineMib": 104,
+    "afterLoadMib": 204,
+    "peakMib": 467,
+    "peakOverBaselineMib": 363
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 8.770368576049805,
+      "irrelevant": -11.115623474121094,
+      "ok": true,
+      "docTokens": 35
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": -9.565007209777832,
+      "irrelevant": -10.967143058776855,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": -11.242992401123047,
+      "irrelevant": -11.242992401123047,
+      "ok": false,
+      "docTokens": 1231
+    }
+  ],
+  "golden": [-6.8560872077941895, 9.695063591003418, 6.821194171905518, 6.6791205406188965],
+  "window": 512,
+  "workloads": [
+    {
+      "name": "smart-4x500",
+      "docs": 4,
+      "queryTokens": 60,
+      "docTokens": 448,
+      "msPerTurnMedian": 153
+    },
+    {
+      "name": "smart-6x1500",
+      "docs": 6,
+      "queryTokens": 60,
+      "docTokens": 448,
+      "msPerTurnMedian": 246
+    },
+    {
+      "name": "recall-8x400",
+      "docs": 8,
+      "queryTokens": 256,
+      "docTokens": 252,
+      "msPerTurnMedian": 303
+    },
+    {
+      "name": "recall-8x1024",
+      "docs": 8,
+      "queryTokens": 256,
+      "docTokens": 252,
+      "msPerTurnMedian": 330
+    }
+  ],
+  "latency": [
+    {
+      "pairTokens": 512,
+      "msPerPairMedian": 37,
+      "after": {
+        "rssMib": 467,
+        "hwmMib": 467
+      }
+    }
+  ],
+  "heapMib": 40
+}

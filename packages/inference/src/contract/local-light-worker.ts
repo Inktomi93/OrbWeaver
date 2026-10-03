@@ -1,6 +1,7 @@
 // The message protocol between the local-light host (`backends/local-light/worker-cache.ts`) and its worker
 // thread (`backends/local-light/model-worker.ts`). Every value here crosses `postMessage`, so it stays structured-cloneable.
 
+import type { RerankOnnx } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import type { ProviderErrorInit } from "./errors.ts";
 import type { InferenceLog, LocalLightModelSlot } from "./runtime.ts";
@@ -18,9 +19,15 @@ export type LocalLightLogLevel = keyof InferenceLog;
  *  or path the worker would fetch or read outside the server thread's egress firewall. */
 export type LocalLightWorkerCall =
   | { readonly op: "embedTexts" | "embedClipTexts"; readonly modelId: ModelId; readonly texts: readonly string[] }
-  | { readonly op: "scorePairs"; readonly modelId: ModelId; readonly query: string; readonly documents: readonly string[] }
+  | {
+      readonly op: "scorePairs";
+      readonly modelId: ModelId;
+      readonly query: string;
+      readonly documents: readonly string[];
+      readonly onnx: RerankOnnx | undefined;
+    }
   | { readonly op: "embedImages"; readonly modelId: ModelId; readonly images: readonly Uint8Array[] }
-  | { readonly op: "preload"; readonly modelId: ModelId; readonly slot: LocalLightModelSlot };
+  | { readonly op: "preload"; readonly modelId: ModelId; readonly slot: LocalLightModelSlot; readonly onnx: RerankOnnx | undefined };
 
 /** A thrown value as it crosses the thread boundary: a `ProviderError` keeps every field. */
 export type LocalLightWorkerFailure = { readonly kind: "provider"; readonly init: ProviderErrorInit } | { readonly kind: "error"; readonly message: string };
