@@ -231,6 +231,7 @@ export const WITHHELD_VARIANT_SOURCES: Readonly<Record<string, string>> = {
   "content/theme-swatch/variants.ts::themeSwatchVariants": "renders a THEME's own palette preview — judging it against the ambient theme is a category error",
   "diff/variants.ts::diffSegmentVariants":
     "kind axis is colour-bearing but segments render only inside the diff view's structured model — story with a diff fixture",
+  "layout/variants.ts::actionBarVariants": "stacked is a measured-fit geometry axis over composed controls — tests/ui/layout/action-bar.ct.tsx owns it",
   "layout/variants.ts::containerVariants": "spacing/geometry axes only — no judged-rule subject changes across arms",
   "layout/variants.ts::gridVariants": "spacing/geometry axes only",
   "layout/variants.ts::rowVariants": "spacing/geometry axes only",
