@@ -104,7 +104,7 @@ export const EXTENSIONS_EMPTY_COPY = {
   },
   "no-pages": {
     title: "No plugin pages yet",
-    description: (): string => "Install a plugin with page surfaces and it will appear here.",
+    description: (): string => "Install a plugin that brings plugin pages and they will appear here.",
     action: EXTENSIONS_OPEN_PLUGINS_ACTION,
     sub: PLUGINS_INSTALLED_SUBCATEGORY.id,
     setting: null,

@@ -50,6 +50,7 @@ import { timeLib, useDebouncedValue, useFocusOnMount } from "#lib";
 import { clearDatabankPhaseFilter, clearDocumentSelection, openModal, selectDocumentFromList, useDatabankPhaseFilter, useSelectedDocumentId } from "#state";
 import { DatabankLibraryRow } from "../components/databank-library-row.tsx";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
+import { ReExtractBanner } from "../components/re-extract-banner.tsx";
 import {
   useAttachDocumentGlobal,
   useDetachDocumentGlobal,
@@ -137,6 +138,7 @@ export function DatabankLibrarySurface(): ReactElement {
           never changes. There is nothing to remember, so it stays on the unsplit `LibraryListLayout` (whose
           rows container is that definite box) rather than gaining a reservation that could only be a
           tautology. The rows themselves do not suspend at all — see `DatabankList`'s own note. */}
+      <ReExtractBanner />
       <LibrarySurfaceShell errorLabel="your documents" loadingLabel="Loading your documents…">
         <DatabankList />
       </LibrarySurfaceShell>

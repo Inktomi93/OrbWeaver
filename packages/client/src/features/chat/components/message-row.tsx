@@ -7,7 +7,7 @@
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import { isNarratorVoiced } from "@orb/contracts/chat";
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
@@ -66,7 +66,6 @@ export interface MessageRowProps {
   /** The chat-level §4.8 lenient naked-HTML card-wrap verdict (game chat + `features.immersiveHtml`) —
    *  resolved once by the surface, folded into this row's render policy. Absent ⇒ off. */
   readonly lenientHtmlCards?: boolean | undefined;
-  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   /** Present ⇒ this row is a SEEDED GREETING still inside its malleability window: the swipe slot pages the
    *  card's alternates through `chat.setSeededGreeting` instead of the row's own generated variants
    *  (D166). Absent ⇒ the ordinary variant strip. */
@@ -178,7 +177,6 @@ export function MessageRow({
   anchorPersonaId,
   viewerUserId,
   lenientHtmlCards,
-  onChatForked,
   greeting,
   autoFixMarkdown,
   displayScripts,
@@ -349,7 +347,6 @@ export function MessageRow({
         editing,
         selecting,
         message,
-        onChatForked,
         messageActions,
         viewerIsHost,
         generationCredit,

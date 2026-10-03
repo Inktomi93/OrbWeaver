@@ -19,6 +19,7 @@ export type {
   StagedBundleImportDeps,
 } from "./run-bundle-import.ts";
 export {
+  bundleImportMemoryChatIds,
   bundleImportNotes,
   importStagedArchive,
   runBundleImport,

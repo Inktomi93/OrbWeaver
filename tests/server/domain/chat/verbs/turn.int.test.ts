@@ -50,6 +50,7 @@ import {
 } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { buildWireHistory } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { createClaimChat } from "../../../../../packages/server/src/domain/chat/verbs/claim-chat.ts";
+import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
 import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn.ts";
 import { bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { createToolUseService, createToolUseTeachingContributions } from "../../../../../packages/server/src/domain/tool-use/index.ts";
@@ -61,6 +62,7 @@ import { testModelId } from "../../../../support/inference-identities.ts";
 import {
   FROZEN_AT,
   makeChatContext,
+  makeLoadParticipantViews,
   seedCharacter,
   seedChat,
   seedMessage,
@@ -788,6 +790,42 @@ describe("send / impersonate — persona attribution fallback", () => {
     const text = await drainImpersonation(h.turn.impersonateStream({ principal: principal(host), chatId }));
     expect(text.length).toBeGreaterThan(0);
     expect(await loadMaxMessageSeq(db, chatId)).toBe(seqBefore);
+  });
+
+  // The message menu's "Reattribute from here" targets `getChat.viewerActivePersonaId`. It must name exactly the
+  // persona the caller's next line is stamped with, so the restamp makes old lines match new ones.
+  test("the reattribute target is what a send stamps: the swapped-in persona, and null (never the anchor) on an empty seat", async () => {
+    const { host, chatId, spare, names } = await seedPersonaRoom();
+    const h = harness(db, names);
+    const unused = (): Promise<never> => Promise.reject(new Error("unused: getChat reads only the roster here"));
+    const read = createRead(makeChatContext(db), {
+      loadParticipantViews: makeLoadParticipantViews(db),
+      resolveConnection: unused,
+      checkSendAvailability: unused,
+      getNextTurnConnection: unused,
+      resolveForeignInputs: unused,
+    });
+    const setSeat = async (personaId: PersonaId | null): Promise<void> => {
+      await db
+        .update(chatParticipants)
+        .set({ activePersonaId: personaId })
+        .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, host)));
+    };
+    const target = async (): Promise<PersonaId | null> => (await read.getChat({ principal: principal(host), chatId })).viewerActivePersonaId;
+
+    // Swapped mid-chat: the next line and the target both name the new persona.
+    await setSeat(spare);
+    const swapped = await h.turn.commitMessage({ principal: principal(host), chatId, content: "after the swap" });
+    expect(swapped.messages[0]?.personaId).toBe(spare);
+    expect(await target()).toBe(spare);
+
+    // The host's seat holds no persona while an anchor is pinned: the send stamps null (the anchor is the card's
+    // POV, never the speaker's), so there is no persona to restamp to and the target says so.
+    await db.update(chats).set({ anchorPersonaId: spare }).where(eq(chats.id, chatId));
+    await setSeat(null);
+    const bare = await h.turn.commitMessage({ principal: principal(host), chatId, content: "no seat persona" });
+    expect(bare.messages[0]?.personaId).toBeNull();
+    expect(await target()).toBeNull();
   });
 
   test("an EXPLICIT personaId wins over the active persona; an explicit null stays null", async () => {

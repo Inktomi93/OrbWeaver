@@ -5,7 +5,7 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { fsckReportSchema } from "../assets/index.ts";
-import { backfillPassResultSchema, memoryBackfillResultSchema } from "../chat/backfill.ts";
+import { backfillPassResultSchema, memoryBackfillResultSchema, memoryBackfillWorkloadParams } from "../chat/backfill.ts";
 import { ingestRunResultSchema } from "../databank/index.ts";
 import { analyticsResultSchema, computeThemesWorkloadParams, findDuplicatesWorkloadParams } from "../discovery/index.ts";
 import { embedPassResultSchema } from "../embeddings/index.ts";
@@ -96,7 +96,7 @@ const workloadOutputShapes = {
   index: { params: indexWorkloadParams.strict(), result: embedPassResultSchema },
   "distill-characters": { params: emptyWorkloadParams.strict(), result: analyticsResultSchema },
   "compute-themes": { params: computeThemesWorkloadParams.strict(), result: analyticsResultSchema },
-  "memory-backfill": { params: emptyWorkloadParams.strict(), result: memoryBackfillResultSchema },
+  "memory-backfill": { params: memoryBackfillWorkloadParams.strict(), result: memoryBackfillResultSchema },
   "group-character-backfill": { params: emptyWorkloadParams.strict(), result: backfillPassResultSchema },
   "compute-cooccurrence": { params: emptyWorkloadParams.strict(), result: analyticsResultSchema },
   "find-duplicates": { params: findDuplicatesWorkloadParams.strict(), result: analyticsResultSchema },

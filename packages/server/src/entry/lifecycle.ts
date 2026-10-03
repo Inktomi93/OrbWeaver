@@ -87,6 +87,7 @@ import {
   migrateProseSlotVocabOnBoot,
   planLocalLightPrefetch,
   reactivatePluginsOnBoot,
+  rebuildStatsTimelineOnBoot,
   reclaimLocksOnBoot,
   removeOwnerClaimFileOnSpend,
   repairStaleJoinSeqOnBoot,
@@ -561,6 +562,9 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // recording the table-wide max(messages.seq) instead of the per-chat head. Clamp any stale join_seq
     // to the actual per-chat canon head. Idempotent — a no-op on every boot once the candidates are drained.
     await repairStaleJoinSeqOnBoot({ db });
+    // DATA repair, same window: the `daily_stats` timeline re-grain drops rows only canon can rebuild, so every
+    // owner with activity and an empty timeline is rebuilt before the first Insights read.
+    await rebuildStatsTimelineOnBoot({ db, now });
 
     // The boot secrets, phase two: with the schema in place, an absent keyfile is generated only when no row
     // depends on it; otherwise this REFUSES and names the file (owner ruling — a regenerated secret would
@@ -934,6 +938,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       character: built.services.character,
       exportService: built.exportService,
       portability: built.portability,
+      settleImportMemory: built.settleImportMemory,
       importWorldInfo: built.importWorldInfo,
       importCardScripts: built.importCardScripts,
       sessions: built.sessions,

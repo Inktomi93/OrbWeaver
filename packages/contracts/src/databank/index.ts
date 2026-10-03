@@ -102,6 +102,9 @@ export interface BankHealthView {
   readonly chunks: number;
   /** How many documents are in each phase. A total Record (§5.5): a new phase must be counted, not forgotten. */
   readonly byPhase: Record<IngestPhase, number>;
+  /** Documents with a stored source file whose text came from an older extractor: exactly the set an
+   *  owner-wide re-extract sweep would rewrite. The databank header offers that sweep while this is above zero. */
+  readonly staleExtraction: number;
 }
 
 /** The keyset `databank.list` pages by — the boundary row's own `(updatedAt, id)`, because the list is
@@ -261,10 +264,10 @@ export interface IngestRunResult {
 }
 
 /** `get({ includeText })` — the panel's source view. `extractedText` present iff asked (list payloads never
- *  haul the canon); `extractorVersion` surfaces the re-extract-on-upgrade affordance. */
+ *  haul the canon). The re-extract-on-upgrade prompt reads {@link BankHealthView.staleExtraction}, an
+ *  owner-wide count, never a per-document version. */
 export interface DocumentDetailView extends DocumentView {
   readonly extractedText?: string;
-  readonly extractorVersion: string;
 }
 
 /** One CHARACTER that carries this document, as the CONTEXT roster prints it: the id its door navigates to
@@ -347,13 +350,13 @@ export const bankHealthViewSchema = z.strictObject({
   passages: z.number(),
   chunks: z.number(),
   byPhase: z.record(z.enum(INGEST_PHASES), z.number()),
+  staleExtraction: z.number(),
 }) satisfies z.ZodType<BankHealthView>;
 
 export const documentDetailViewSchema = documentViewSchema
   .strict()
   .extend({
     extractedText: z.string().optional(),
-    extractorVersion: z.string(),
   })
   .transform(
     ({ extractedText, ...view }): DocumentDetailView => ({ ...view, ...(extractedText === undefined ? {} : { extractedText }) }),

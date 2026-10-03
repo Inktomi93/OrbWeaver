@@ -18,6 +18,7 @@ import {
   chatDetailSchema,
   chatInjectionInputSchema,
   chatInjectionViewSchema,
+  chatLineageViewSchema,
   chatListCursorSchema,
   chatListPageSchema,
   chatReactionsViewSchema,
@@ -545,6 +546,12 @@ export const chatRouter = t.router({
     .output(chatDetailSchema)
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
     .query(({ ctx, input }) => ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId })),
+  // The fork ancestry, gated per ancestor inside the verb (D27): an ancestor the caller is not a present member
+  // of is omitted, never named, so the room menu's "Back to parent chat" offers only a parent this caller can open.
+  getChatLineage: authedProcedure
+    .output(chatLineageViewSchema)
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .query(({ ctx, input }) => ctx.services.chat.getChatLineage({ principal: ctx.auth, chatId: input.chatId })),
   // The honest-refusal pre-send gate (#54): the deterministic serveability verdict for the chat's own
   // resolved connection — the composer disables SEND + the guided fire actions when `!available`. Member-gated
   // inside the verb; fires no turn/API call (a configured hosted connection reads available, never pre-flighted).

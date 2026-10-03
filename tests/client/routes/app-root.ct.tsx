@@ -69,6 +69,7 @@ const EMPTY_BANK_HEALTH = {
   byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 },
   chunks: 0,
   passages: 0,
+  staleExtraction: 0,
   total: 0,
 } satisfies TrpcWireOutput<"databank.bankHealth">;
 
@@ -783,6 +784,7 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   | "stats.freshness"
   | "stats.overview"
   | "stats.wrapped"
+  | "stats.timeseries"
   | "stats.momentum"
   | "discovery.unusedCharacters"
   | "discovery.modelRouting"
@@ -851,9 +853,9 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
     costUsd: 0,
     genTimeMs: 0,
     topCharacter: null,
-    temporal: { activeDays: 0, longestStreakDays: 0, busiestDay: null, dayOfWeek: [0, 0, 0, 0, 0, 0, 0] },
   },
-  "stats.momentum": { latestMonth: null, prevMonth: null, rising: [], falling: [] },
+  "stats.timeseries": [],
+  "stats.momentum": [],
   // The corpus dashboard's remaining rails (a CASCADE: they could not be requested until the reads above
   // stopped answering null), plus the jobs read its run-a-pass door resolves against. Empty, as above.
   "discovery.unusedCharacters": [],

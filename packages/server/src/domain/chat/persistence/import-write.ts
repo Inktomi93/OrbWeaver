@@ -618,7 +618,7 @@ interface ImportRunState {
   messagesImported: number;
   variantsImported: number;
   chatsPersonaHealed: number;
-  realConversationWritten: boolean;
+  readonly realConversationsWritten: ChatId[];
 }
 
 /** Record a deduplicated candidate and its optional attribution heal in one place. */
@@ -730,7 +730,9 @@ async function importOneChat(args: {
   state.chatsImported += 1;
   state.messagesImported += identity.messageIds.length;
   state.variantsImported += identity.variantIds.reduce((total, pool) => total + pool.length, 0);
-  state.realConversationWritten ||= ci.isRealConversation;
+  if (ci.isRealConversation) {
+    state.realConversationsWritten.push(chatId);
+  }
 }
 
 /** Dup-skips by the scoped atomic import claim (healing the skipped room's persona attribution — see
@@ -758,7 +760,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
       messagesImported: 0,
       variantsImported: 0,
       chatsPersonaHealed: 0,
-      realConversationWritten: false,
+      realConversationsWritten: [],
     };
 
     for (const ci of input) {
@@ -777,7 +779,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
       messagesImported: state.messagesImported,
       variantsImported: state.variantsImported,
       branchesLinked,
-      realConversationWritten: state.realConversationWritten,
+      realConversationsWritten: state.realConversationsWritten,
       chatsPersonaHealed: state.chatsPersonaHealed,
     };
   };

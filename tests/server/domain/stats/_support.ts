@@ -210,11 +210,11 @@ export async function seedCharacterStats(db: Db, characterId: CharacterId, o: Pa
   });
 }
 
-export async function seedDailyStats(db: Db, ownerId: UserId, day: string, o: Partial<typeof dailyStats.$inferInsert> = {}): Promise<void> {
+export async function seedDailyStats(db: Db, ownerId: UserId, bucketStart: number, o: Partial<typeof dailyStats.$inferInsert> = {}): Promise<void> {
   await db.insert(dailyStats).values({
-    id: castId<DailyStatId>(`daily_stat_${day}`),
+    id: castId<DailyStatId>(`daily_stat_${bucketStart}`),
     ownerId,
-    day,
+    bucketStart,
     computedAt: T0,
     ...o,
   });

@@ -26,9 +26,10 @@ export interface LeaderboardOpts {
   search?: string | undefined;
 }
 
+/** An inclusive window over the timeline's bucket starts, epoch-ms. Absent bounds are open. */
 export interface TimeseriesOpts {
-  from?: string | undefined;
-  to?: string | undefined;
+  from?: number | undefined;
+  to?: number | undefined;
 }
 
 export interface ByModelOpts {

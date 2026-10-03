@@ -6,7 +6,7 @@ import type { ChatMetadata } from "@orb/contracts/chat";
 import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
-import type { AssetId, CharacterHandle, CharacterId, PersonaId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { ParsedChat } from "#kit/serde/chat";
 import type { ParsedStTheme } from "#kit/serde/theme";
 
@@ -472,6 +472,9 @@ export interface ImportReport {
    *  reports its repairs here. NOT part of `changed`: a heal writes no new canon. Zero on every fresh
    *  import, and zero on a re-run of an already-attributed corpus. */
   readonly chatsPersonaHealed: number;
+  /** Every real conversation the solo, group and orphan waves WROTE — the scope of the client's memory-build
+   *  offer. Empty on a dry run. Not rendered into the written report. */
+  readonly memoryChatIds: readonly ChatId[];
   // ── the regex + world-link + user-plane accounting (the silent-gap sweep, 2026-08-15): every one of these
   // planes used to vanish without a report line — the counts render even at zero so "read and empty" is
   // distinguishable from "never looked at". ──

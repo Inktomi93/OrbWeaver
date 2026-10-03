@@ -3,7 +3,7 @@
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { createEntityMutation } from "#data";
+import { createEntityMutation, trpcErrorCode } from "#data";
 
 /** The toast for a create the name index refused. */
 export const CREATE_TAG_CONFLICT_TOAST = "Couldn't create the label — that name may already be in use.";
@@ -11,7 +11,7 @@ export const CREATE_TAG_CONFLICT_TOAST = "Couldn't create the label — that nam
 /** The server's case-folded name index refused the create (`DomainConflictError` → CONFLICT). Keyed on the
  *  structured code, never message text. */
 export function isTagNameConflict(error: unknown): boolean {
-  return (error as { data?: { code?: string } } | null | undefined)?.data?.code === "CONFLICT";
+  return trpcErrorCode(error) === "CONFLICT";
 }
 
 /** Create a tag from a name. The created ROW is typed (not `unknown`) because the collection's create verb

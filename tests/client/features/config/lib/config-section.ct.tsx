@@ -102,7 +102,13 @@ function stub(page: Page): Promise<TrpcRecorder> {
     "notifications.list": () => ({ items: [], nextCursor: null }),
     "chat.listChats": () => ({ items: [], nextCursor: null }),
     "databank.list": () => ({ items: [], nextCursor: null }),
-    "databank.bankHealth": () => ({ total: 0, passages: 0, chunks: 0, byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 } }),
+    "databank.bankHealth": () => ({
+      total: 0,
+      passages: 0,
+      chunks: 0,
+      staleExtraction: 0,
+      byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 },
+    }),
   });
 }
 

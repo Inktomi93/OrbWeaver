@@ -192,7 +192,7 @@ test.describe("the page switcher", () => {
     await mount(<ExtensionsSwitcherStory />);
 
     await expect(page.getByText("No plugin pages yet")).toBeVisible();
-    await expect(page.getByText("Install a plugin with page surfaces and it will appear here.")).toBeVisible();
+    await expect(page.getByText("Install a plugin that brings plugin pages and they will appear here.")).toBeVisible();
     // `empty-state-has-action` is the law; this is the RENDERED half of it — a dead-end empty here would make
     // the whole platform undiscoverable for anyone who has never installed a page-bearing plugin.
     await expect(page.getByRole("button", { name: "Open Plugins" })).toBeVisible();
@@ -341,7 +341,7 @@ test.describe("the page-scale shell", () => {
     await mount(<ExtensionsPageStory selectKey={null} />);
 
     await expect(page.getByText("No plugin pages yet")).toBeVisible();
-    await expect(page.getByText("Install a plugin with page surfaces and it will appear here.")).toBeVisible();
+    await expect(page.getByText("Install a plugin that brings plugin pages and they will appear here.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Open Plugins" })).toBeVisible();
     await expect(page.getByText("Pick a plugin page")).toHaveCount(0);
   });

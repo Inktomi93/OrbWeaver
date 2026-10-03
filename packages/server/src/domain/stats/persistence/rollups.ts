@@ -16,14 +16,13 @@ import { castId } from "@orb/kit/ids";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import type { LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "../contract/params.ts";
 import type {
+  ActivityBucket,
   CharacterStatsView,
-  DailyPoint,
   LeaderboardPage,
   ModelStatRow,
   OwnerStatsView,
   PersonaUsageRow,
   StatsFreshness,
-  TemporalStats,
   WrappedSummary,
 } from "../contract/views.ts";
 import { aggregateTokenProvenance, cacheHitRate, deriveExtra, reasoningRate, recordedCost, recordedTokens, throughputTps } from "../substrate/rates.ts";
@@ -33,7 +32,6 @@ import { modelLatencyKey, readLatency, readModelLatencies } from "./latency.ts";
 // references the same value); the `Math.min` is the DoS backstop for internal callers.
 const DEFAULT_LIMIT = 50;
 const UNKNOWN_PROVIDER = "(unknown)";
-const DAY_MS = 86_400_000;
 
 export async function readOverview(db: Db, ownerId: UserId): Promise<OwnerStatsView | null> {
   const row = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
@@ -183,21 +181,22 @@ export async function readLeaderboard(db: Db, ownerId: UserId, opts: Leaderboard
   };
 }
 
-export async function readTimeseries(db: Db, ownerId: UserId, opts: TimeseriesOpts = {}): Promise<DailyPoint[]> {
+/** The owner's activity timeline, ascending by bucket. `from`/`to` bound the bucket start, inclusive. */
+export async function readTimeseries(db: Db, ownerId: UserId, opts: TimeseriesOpts = {}): Promise<ActivityBucket[]> {
   const where = [eq(dailyStats.ownerId, ownerId)];
-  if (opts.from !== undefined && opts.from !== "") {
-    where.push(gte(dailyStats.day, opts.from));
+  if (opts.from !== undefined) {
+    where.push(gte(dailyStats.bucketStart, opts.from));
   }
-  if (opts.to !== undefined && opts.to !== "") {
-    where.push(lte(dailyStats.day, opts.to));
+  if (opts.to !== undefined) {
+    where.push(lte(dailyStats.bucketStart, opts.to));
   }
   const rows = await db
     .select()
     .from(dailyStats)
     .where(and(...where))
-    .orderBy(dailyStats.day);
+    .orderBy(dailyStats.bucketStart);
   return rows.map((r) => ({
-    day: r.day,
+    bucketStart: r.bucketStart,
     chatsCreated: r.chatsCreated,
     userTurns: r.userTurns,
     assistantTurns: r.assistantTurns,
@@ -337,58 +336,16 @@ export async function readPersonaUsage(db: Db, ownerId: UserId, opts: PersonaUsa
   }));
 }
 
-function temporalFrom(days: { day: string; count: number }[]): TemporalStats {
-  const active = days.filter((d) => d.count > 0);
-  let busiest: { day: string; count: number } | null = null;
-  const dow = [0, 0, 0, 0, 0, 0, 0];
-  for (const d of active) {
-    if (!busiest || d.count > busiest.count) {
-      busiest = d;
-    }
-    // `new Date(arg)` parses a known timestamp (not ambient now) — allowed by no-raw-clock.
-    const wd = new Date(`${d.day}T00:00:00Z`).getUTCDay();
-    dow[wd] = (dow[wd] ?? 0) + d.count;
-  }
-  // Longest run of consecutive calendar days with activity.
-  const sorted = active.map((d) => Date.parse(`${d.day}T00:00:00Z`)).sort((a, b) => a - b);
-  let longest = 0;
-  let cur = 0;
-  let prev: number | null = null;
-  for (const t of sorted) {
-    cur = prev !== null && t - prev === DAY_MS ? cur + 1 : 1;
-    if (cur > longest) {
-      longest = cur;
-    }
-    prev = t;
-  }
-  return {
-    activeDays: active.length,
-    longestStreakDays: longest,
-    busiestDay: busiest,
-    dayOfWeek: dow,
-  };
-}
-
-async function dailyActivity(db: Db, ownerId: UserId): Promise<{ day: string; count: number }[]> {
-  const rows = await db.select().from(dailyStats).where(eq(dailyStats.ownerId, ownerId)).orderBy(dailyStats.day);
-  // A day's "activity" = messages exchanged + chats opened that day.
-  return rows.map((r) => ({ day: r.day, count: r.userTurns + r.assistantTurns + r.chatsCreated }));
-}
-
-export async function readTemporal(db: Db, ownerId: UserId): Promise<TemporalStats> {
-  return temporalFrom(await dailyActivity(db, ownerId));
-}
-
-/** Assemble the "your RP in numbers" headline from the owner rollup + the leaderboard top + the daily
- *  timeseries. Null until the rollup has run. */
+/** Assemble the "your RP in numbers" headline from the owner rollup + the leaderboard top. Null until
+ *  the rollup has run. The day-grained rhythm figures are not here: a day is the viewer's, so the client
+ *  derives them from the timeline (`readTimeseries`). */
 export async function readWrapped(db: Db, ownerId: UserId): Promise<WrappedSummary | null> {
   const o = await readOverview(db, ownerId);
   if (!o) {
     return null;
   }
-  const [leaderboard, days] = await Promise.all([readLeaderboard(db, ownerId, { sort: "assistantTurns", limit: 1 }), dailyActivity(db, ownerId)]);
+  const leaderboard = await readLeaderboard(db, ownerId, { sort: "assistantTurns", limit: 1 });
   const top = leaderboard.rows[0];
-  const temporal = temporalFrom(days);
   return {
     firstChatAt: o.firstChatAt,
     lastActivityAt: o.lastActivityAt,
@@ -405,7 +362,6 @@ export async function readWrapped(db: Db, ownerId: UserId): Promise<WrappedSumma
     throughputTps: o.throughputTps,
     forkedChats: o.forkedChats,
     topCharacter: top ? { name: top.name, assistantTurns: top.assistantTurns } : null,
-    temporal,
     computedAt: o.computedAt,
   };
 }

@@ -9,7 +9,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ImportChatDeps } from "@orb/server/entry/http";
 import { registerImportChat } from "@orb/server/entry/http";
 import { describe } from "vitest";
@@ -92,15 +92,20 @@ function handlerFor(deps: ImportChatDeps): Handler {
   return handler;
 }
 
-/** The calls the stub descriptor saw — the THIN-ARM assertion surface. */
+/** The calls the stub descriptor saw — the THIN-ARM assertion surface — and every scope the route settled. */
 interface DescriptorSpy {
   readonly deps: ImportChatDeps;
   readonly calls: { ownerId: UserId; file: PortableFile }[];
+  readonly settled: Parameters<ImportChatDeps["settleImportMemory"]>[0][];
 }
+
+/** The route's clock: the batch opens its memory scope at this instant. */
+const OPENED_AT = 4000;
 
 /** A registry whose `chat` descriptor records every `importFile` call and answers with `outcomeOf(file)`. */
 function spyRegistry(outcome: PortableImportOutcome | ((file: PortableFile) => PortableImportOutcome) = { ok: true, created: true }): DescriptorSpy {
   const calls: { ownerId: UserId; file: PortableFile }[] = [];
+  const settled: Parameters<ImportChatDeps["settleImportMemory"]>[0][] = [];
   const outcomeOf = typeof outcome === "function" ? outcome : (): PortableImportOutcome => outcome;
   const chat: PortableEntity = {
     kind: "chat",
@@ -114,17 +119,22 @@ function spyRegistry(outcome: PortableImportOutcome | ((file: PortableFile) => P
       return Promise.resolve(outcomeOf(file));
     },
   };
-  return { deps: { registry: [chat] }, calls };
+  const settleImportMemory: ImportChatDeps["settleImportMemory"] = (args) => {
+    settled.push(args);
+    return Promise.resolve(args.memoryChatIds.length === 0 ? null : { from: args.from, to: args.from + 1 });
+  };
+  return { deps: { registry: [chat], now: () => OPENED_AT, settleImportMemory }, calls, settled };
 }
 
 interface RouteBody {
   readonly imported: readonly { readonly filename: string; readonly created: boolean }[];
   readonly failed: readonly { readonly filename: string; readonly error: string }[];
+  readonly memoryScope: { readonly from: number; readonly to: number } | null;
 }
 
 describe("registerImportChat — registration + belts", () => {
   test("a registry with no chat descriptor fails LOUD at registration (a composition bug, never a silent no-op)", () => {
-    expect(() => chains({ registry: [] })).toThrow(NO_DESCRIPTOR);
+    expect(() => chains({ ...spyRegistry().deps, registry: [] })).toThrow(NO_DESCRIPTOR);
   });
 
   test("mounts the belt chain [authCsrfGuard, bodyCap, handler]", () => {
@@ -265,5 +275,25 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
     expect(body.imported.map((row) => row.filename)).toEqual(["good.jsonl", "also-good.jsonl"]);
     expect(body.failed.map((row) => row.filename)).toEqual(["bad.jsonl"]);
     expect(spy.calls.map((call) => call.file.filename)).toEqual(["good.jsonl", "bad.jsonl", "also-good.jsonl"]);
+  });
+
+  // The import enqueues no memory build; the body carries every real conversation the batch wrote, in file order,
+  // which is the whole scope the client's "Build memory for imported chats" offer hands to the backfill.
+  test("the batch settles ONE memory scope over every file's written conversations, failures contributing none", async () => {
+    const aria = mintTypeId(ID_PREFIX.chat);
+    const bee = mintTypeId(ID_PREFIX.chat);
+    const spy = spyRegistry((file) => {
+      if (file.filename === "bad.jsonl") {
+        return { ok: false, error: "not a valid chat .jsonl file" };
+      }
+      return { ok: true, created: true, memoryChatIds: [file.filename === "aria.jsonl" ? aria : bee] };
+    });
+    const form = new FormData();
+    form.append("file", fileOf("aria.jsonl", transcript("Aria")));
+    form.append("file", fileOf("bad.jsonl", "garbage\n"));
+    form.append("file", fileOf("bee.jsonl", transcript("Bee")));
+    const body = (await (await handlerFor(spy.deps)(makeCtx(OWNER, form))).json()) as RouteBody;
+    expect(spy.settled).toEqual([{ ownerId: OWNER.userId, from: OPENED_AT, memoryChatIds: [aria, bee] }]);
+    expect(body.memoryScope).toEqual({ from: OPENED_AT, to: OPENED_AT + 1 });
   });
 });

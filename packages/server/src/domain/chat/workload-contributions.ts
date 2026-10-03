@@ -13,18 +13,36 @@
 // returns, and the reclaim is suppressed on the same condition — an incomplete sweep neither succeeded nor
 // re-derived the corpus into the active embed space.
 
-import type { BackfillPassResult, MemoryBackfillResult } from "@orb/contracts/chat";
-import { emptyWorkloadParams } from "@orb/contracts/workloads";
+import type { BackfillPassResult, MemoryBackfillResult, MemoryBackfillWorkloadParams } from "@orb/contracts/chat";
+import { memoryBackfillWorkloadParams } from "@orb/contracts/chat";
+import { DEFAULT_ADMISSION_KEY, emptyWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { ChatWorkloadDeps } from "./contract/workloads.ts";
 
 type ChatContributions = readonly [WorkloadContribution<"memory-backfill">, WorkloadContribution<"group-character-backfill">];
 
+/** The memory sweep's admission unit. A whole-corpus run keeps the shared bucket, so an import's scoped run or
+ *  its free segment pass never holds the slot a whole sweep (a model-change reindex) needs. Each import span is
+ *  its own unit, and its segment pass and its digest build are two.
+ *
+ *  Distinct units only ADMIT side by side; they do not RUN side by side. Every memory-backfill rides the `sweep`
+ *  lane, which dispatches one row at a time (`DEFAULT_LANE_CONCURRENCY`, transport/jobs/workloads-worker.ts), so a
+ *  later run sees the earlier run's stored digests and skips them. That serial lane is the guard against paying
+ *  twice for one block's summary: the hash-gated upserts keep the rows correct, but two runs overlapping on a chat
+ *  would each call the Utility model before either stored. */
+function memoryAdmissionKey(params: MemoryBackfillWorkloadParams): string {
+  const pass = params.segmentsOnly === true ? "segments" : "memory";
+  if (params.importWindow === undefined) {
+    return params.segmentsOnly === true ? pass : DEFAULT_ADMISSION_KEY;
+  }
+  return `${pass}:${String(params.importWindow.from)}-${String(params.importWindow.to)}`;
+}
+
 export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatContributions {
   return [
     {
       kind: "memory-backfill",
-      params: emptyWorkloadParams,
+      params: memoryBackfillWorkloadParams,
       // ADMISSION, not execution (#156): with memory disabled the sweep skips this host's chats entirely
       // (the D36 opt-out, honored on the corpus sweep since #54), so the run can only ever land
       // "0 segments · 0 digests" as a SUCCESS — owner-observed after an ST import auto-enqueued one. A job
@@ -38,14 +56,19 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
         }
         return "Memory is turned off, so there is nothing to back fill — enable Memory in Settings, then run this again.";
       },
-      modelCalls: ({ ownerId, funderUserId }) => deps.estimateMemoryBackfill({ ownerId, funderUserId }),
+      admissionKey: memoryAdmissionKey,
+      // A segments-only pass embeds and never summarizes, so it costs no Utility-model call.
+      modelCalls: async ({ ownerId, funderUserId, params }) =>
+        params.segmentsOnly === true ? 0 : await deps.estimateMemoryBackfill({ ownerId, funderUserId, importWindow: params.importWindow ?? null }),
       // Segment + digest LLM builds per chat × scope bucket — long by construction.
       lane: "sweep",
       // Hash-diff self-healing end to end; the signal aborts cooperatively between chats and at an embed's model wait.
       resume: "idempotent-restart",
-      run: async (ctx, _params, report, signal): Promise<MemoryBackfillResult> => {
+      run: async (ctx, params, report, signal): Promise<MemoryBackfillResult> => {
         report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
-        const counts = await deps.backfillMemory({ ownerId: ctx.ownerId, funderUserId: ctx.userId, signal });
+        const importWindow = params.importWindow ?? null;
+        const segmentsOnly = params.segmentsOnly === true;
+        const counts = await deps.backfillMemory({ ownerId: ctx.ownerId, funderUserId: ctx.userId, importWindow, segmentsOnly, signal });
         report({
           message:
             `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)` +
@@ -80,7 +103,11 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
         // The abort + failure fences do NOT move (#165): a sweep that skipped chats or was cancelled did not
         // re-derive the corpus into the active embed space, so it may neither claim the scope nor reclaim the
         // old one — the space stays a strict superset (never a gap) and the rerun completes it.
-        if (!signal.aborted && counts.failed === 0) {
+        //
+        // An IMPORT-SCOPED run or a SEGMENTS-ONLY pass never reaches the terminal: it re-derived only part of the
+        // owner's memory, so it may neither claim the owner's memory space complete nor reclaim the old one, and
+        // the purge op's vacuous receipt would claim exactly that.
+        if (importWindow === null && !segmentsOnly && !signal.aborted && counts.failed === 0) {
           await deps.purgeMemoryVectors(counts.completedSpaces, enumerationScope);
         }
         // HONEST ACCOUNTING (#165, the #156 family): a per-chat skip is a chat whose memory silently did not

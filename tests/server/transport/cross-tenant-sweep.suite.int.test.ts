@@ -20,10 +20,11 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../support/composed-real.ts";
 import type { ProviderId } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";
 import {
   assets,
   characterDocuments,
+  chatImportClaims,
   connectionBindings,
   documents,
   notifications,
@@ -67,10 +68,12 @@ import { CREDENTIALS_OP_CODES } from "@orb/server/domain/credentials";
 import { appRouter } from "@orb/server/transport/trpc";
 import { strToU8, zipSync } from "fflate";
 import { describe, onTestFinished } from "vitest";
+import { TEST_PROVIDER_ID } from "../../support/factories/resolved-connection.ts";
 import type { AppCaller } from "../../support/fixtures.ts";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../support/fixtures.ts";
 import { principal as automationPrincipal } from "../domain/automation/_support.ts";
 import { seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
+import { seedTurns } from "../domain/chat/memory/_support.ts";
 
 // ── Owner A's distinctive marker names — these strings exist ONLY in A's owned rows, so their appearance in
 //    a stranger's result is an unambiguous LEAK signal (an echoed input id is NOT a leak — a stranger's own
@@ -929,6 +932,7 @@ const PROBES: readonly Probe[] = [
   { path: "stats.character", call: (c, i) => c.stats.character({ characterId: i.characterId }) },
   // ── chat (membership-scoped; the chatId gate is the chokepoint for every secondary id) ──
   { path: "chat.getChat", call: (c, i) => c.chat.getChat({ chatId: i.chatId }) },
+  { path: "chat.getChatLineage", call: (c, i) => c.chat.getChatLineage({ chatId: i.chatId }) },
   { path: "chat.checkSendAvailability", call: (c, i) => c.chat.checkSendAvailability({ chatId: i.chatId }) },
   { path: "chat.getNextTurnConnection", call: (c, i) => c.chat.getNextTurnConnection({ chatId: i.chatId }) },
   // D22 member-card read — the chatId membership gate refuses a stranger BEFORE any card load (the secondary
@@ -2035,8 +2039,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // caller's roster at zero, never their data").
   "stats.personaUsage": "self-scoped by principal.userId; the optional characterId narrows the caller's OWN chats and cannot widen the read",
   "stats.wrapped": "self-scoped by principal.userId",
-  "stats.temporal": "self-scoped by principal.userId",
-  "stats.activityHeatmap": "self-scoped by principal.userId",
   "stats.momentum": "self-scoped by principal.userId",
   "stats.latency": "self-scoped by principal.userId",
   // The one WRITE on the stats surface: no id input at all — the rebuild scope IS principal.userId, so a
@@ -2109,10 +2111,11 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "plugin.listDistributed": "admin-gated: role gate (reads deployment policy; no input at all)",
   "admin.embedCharacterCard": "admin-gated: role gate",
   // get/cancel/retry are PROBED above (owner-scoped, id-taking). start/list/subscribe below:
-  "workloads.start": "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id",
+  "workloads.start":
+    "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id. A memory-backfill `importWindow` is a time span, not an id: the sweep intersects it with the run owner's own hosted chats (probed below, and counted in tests/server/domain/chat/substrate/backfill-estimate.int.test.ts)",
   "workloads.list": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "workloads.estimateModelCalls":
-    "self-scoped: the start scope rules, read-only — a singular estimate counts the caller's own library (a bulk one requires the box owner); no foreign id, and it returns a count, never a row",
+    "self-scoped: the start scope rules, read-only — a singular estimate counts the caller's own library (a bulk one requires the box owner); no foreign id, and it returns a count, never a row. A memory-backfill `importWindow` span counts only the caller's own hosted chats (probed below)",
   "workloads.createSchedule": "self-scoped: stamps ownerId = caller (a bulk schedule requires the box owner); no foreign id",
   "workloads.listSchedules": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "connection.refreshCatalog": "admin-gated: writes the deployment KV snapshot",
@@ -2129,7 +2132,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "databank.listGlobal":
     "self-scoped: listGlobalDocumentIds filters WHERE global_documents.owner_id = principal.userId (the junction's own scope column, D23); takes NO input at all, so there is no foreign id to probe",
   "databank.bankHealth":
-    "self-scoped: takes NO input at all, so there is no foreign id to probe. Every number it returns is a COUNT over the same `owner_id = principal.userId` predicate `databank.list` pages (countOwnedDocuments), and its one cross-domain read — the injected chunk-count op — derives its scope through the FK join `document_chunks → documents.owner_id` (D20), proven in tests/server/domain/embeddings/verbs/count-document-chunks-by-owner.int.test.ts (another owner's chunked documents are absent from the map)",
+    "self-scoped: takes NO input at all, so there is no foreign id to probe. Every number it returns is a COUNT over the same `owner_id = principal.userId` predicate `databank.list` pages (countOwnedDocuments); `staleExtraction` is countStaleExtractionDocuments, which ANDs that same owner predicate with the source-file and extractor-version conditions (another owner's stale documents are excluded, proven in tests/server/domain/databank/verbs/bank-health.int.test.ts); its one cross-domain read — the injected chunk-count op — derives its scope through the FK join `document_chunks → documents.owner_id` (D20), proven in tests/server/domain/embeddings/verbs/count-document-chunks-by-owner.int.test.ts (another owner's chunked documents are absent from the map)",
   "settings.getAppSettings": "admin-gated: deployment settings",
   "settings.getAppSettingsWithOverrides": "admin-gated: deployment settings (resolved + raw overrides)",
   "settings.updateAppSettings": "admin-gated: deployment settings",
@@ -3042,5 +3045,56 @@ describe("cross-tenant IDOR sweep — the credential door's provider axis (keyed
     expect(verdict).toBeNull();
     const sealedForAlpha = (await db.select().from(userCredentials)).filter((row) => row.provider === pluginProviderId);
     expect(sealedForAlpha.map((row) => row.ownerId)).toEqual([OWNER_USER_ID]);
+  });
+});
+
+/** Enough of A's turns to age blocks past the default verbatim window, so A's room would cost summaries. */
+const ALPHA_IMPORTED_TURNS = 40;
+
+describe("cross-tenant IDOR sweep — an import's memory scope handle", () => {
+  // The handle is a time span, not an id, so a stranger can name the span of A's import. Naming it must confer
+  // nothing: B's run is B's row, carries only the span, and B's count is B's own library's. The count has teeth:
+  // A's room holds enough turns to need summaries and B has a Utility (summarize) binding, so a sweep that dropped
+  // the run owner's host intersection would reach A's room and count it (or fail on A's embed space).
+  test("a stranger naming owner A's import span starts only its own run and counts only its own library", async ({ db, ownerCaller, otherCaller }) => {
+    const span = { from: 1_700_000_000_000, to: 1_700_000_060_000 };
+    const character = await ownerCaller.character.create({ input: { handle: "alpha-imported", name: MARK.character, description: "owned by A" } });
+    const room = await seedChat(db, "alpha_imported_room", { title: MARK.character });
+    await seedParticipant(db, { chatId: room, key: "alpha_imported_host", userId: OWNER_USER_ID, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "alpha_imported_char", characterId: castId<CharacterId>(character.id) });
+    await db
+      .insert(chatImportClaims)
+      .values({ chatId: room, characterId: castId<CharacterId>(character.id), importHash: "alpha_import", createdAt: span.from });
+    await seedTurns(db, room, castId<CharacterId>(character.id), ALPHA_IMPORTED_TURNS);
+    const strangerUtility = mintTypeId(ID_PREFIX.userConnection);
+    await db.insert(userConnections).values({
+      id: strangerUtility,
+      ownerId: OTHER_USER_ID,
+      label: "stranger utility",
+      providerId: providerIdSchema.parse(TEST_PROVIDER_ID),
+      credentialId: null,
+      baseUrl: null,
+      model: castId<ModelId>("stranger-utility-model"),
+    });
+    await db.insert(connectionBindings).values({
+      id: mintTypeId(ID_PREFIX.connectionBinding),
+      actorKind: "user",
+      userId: OTHER_USER_ID,
+      ruleId: null,
+      pluginId: null,
+      task: "summarize",
+      connectionId: strangerUtility,
+    });
+    const input = { kind: "memory-backfill", params: { importWindow: span } } as const;
+    // B's own Memory is on, so B's run is admitted and the probe reaches the scope rather than the opt-out.
+    await otherCaller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
+
+    expect(await otherCaller.workloads.estimateModelCalls({ input, mode: "singular" })).toEqual({ calls: 0 });
+
+    const { id } = await otherCaller.workloads.start({ input, mode: "singular" });
+    const started = (await db.select().from(workloads)).find((row) => row.id === id);
+    expect(started?.ownerId).toBe(OTHER_USER_ID);
+    expect(started?.params).toEqual({ importWindow: span });
+    expect(JSON.stringify(started)).not.toContain(room);
   });
 });
