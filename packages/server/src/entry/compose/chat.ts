@@ -83,6 +83,7 @@ import {
   getRoomOverrides,
 } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
+import { readOwnedDistillates } from "#domain/discovery";
 import type { EmbeddingsService } from "#domain/embeddings";
 import { createHandoffRestampStatements } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
@@ -1014,6 +1015,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // was handed. A shape drift on either side is now a `tsc` error rather than a silent no-op.
     maybeRevokeOnAuthFailed: input.maybeRevokeOnAuthFailed,
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
+    resolveCharacterDistillates: async (ownerId, characterIds) =>
+      new Map((await readOwnedDistillates(db, ownerId, characterIds)).map((row) => [row.characterId, row] as const)),
     // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5; the regex arm is #1739) — the four OWNING-domain write
     // factories the accepted property offer executes. Each lives in the domain that owns its tables and is
     // injected here, so chat never writes a `characters`, `world_books`, `regex_scripts` or `chat_digests`

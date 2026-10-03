@@ -211,6 +211,8 @@ function harness(
     summarize?: ChatContext["summarize"];
     /** The funder's bound rerank role, Smart's default pick (default = unbound). */
     resolveSpeakerReranker?: ChatContext["resolveSpeakerReranker"];
+    /** Discovery's distillates for the host's characters (default = none distilled). */
+    resolveCharacterDistillates?: ChatContext["resolveCharacterDistillates"];
     /** The injected rpg turn ops (default null = not wired, byte-identical). The R1 folded-extraction pin
      *  wires a stub whose gather contributes TERMINAL tools, to prove the whole gather→prep→wire→flush thread. */
     rpg?: ChatContext["rpg"];
@@ -268,6 +270,7 @@ function harness(
     ...(over.resolveUserEnabled !== undefined ? { resolveUserEnabled: over.resolveUserEnabled } : {}),
     ...(over.summarize !== undefined ? { summarize: over.summarize } : {}),
     ...(over.resolveSpeakerReranker !== undefined ? { resolveSpeakerReranker: over.resolveSpeakerReranker } : {}),
+    ...(over.resolveCharacterDistillates !== undefined ? { resolveCharacterDistillates: over.resolveCharacterDistillates } : {}),
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
     ...(over.teaching !== undefined ? { teaching: over.teaching } : {}),
     ...(over.tools !== undefined ? { tools: over.tools } : {}),
@@ -1073,6 +1076,60 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     expect(prompts[0]).toContain(
       `Recent conversation:\nhost_pov: Anyone awake?\naria: I never sleep.\nbryn: Speak for yourself.\n${DEFAULT_PERSONA_NAME}: who's up?\n\n`,
     );
+  });
+
+  test("the arbiter reads each character's distilled pitch from the host's library", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
+    const prompts: string[] = [];
+    const asked: unknown[] = [];
+    const h = harness(db, names, {
+      resolveCharacterDistillates: (ownerId, ids) => {
+        asked.push({ ownerId, ids });
+        return Promise.resolve(new Map(chars[1] === undefined ? [] : [[chars[1], { elevatorPitch: "The caravan's guide.", tags: [] }]]));
+      },
+      summarize: (_funderUserId, inputs): Promise<SummarizeResult> => {
+        prompts.push(inputs[0]?.userPrompt ?? "");
+        return Promise.resolve({ items: [{ text: "bryn", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+      },
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "how far to the crossing?" });
+
+    expect(asked).toContainEqual({ ownerId: host, ids: chars });
+    expect(prompts[0]).toMatch(/^- bryn: The caravan's guide\. \(spoke 0 of the last 1 lines, talkativeness \d+%\)$/mu);
+    expect(prompts[0]).toMatch(/^- aria \(spoke/mu);
+  });
+
+  test("several responders the arbiter names all answer, in its order, through the one round", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { smartPicker: "utility" });
+    const h = harness(db, names, { summarize: arbiter('["cara", "aria"]').op });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[2], chars[0]]);
+    expect(warnings(h.events)).toHaveLength(0);
+  });
+
+  test("characters the human names answer without an arbiter call", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { smartPicker: "utility" });
+    const chosen = arbiter("aria");
+    const h = harness(db, names, { summarize: chosen.op });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "cara, bryn: thoughts?" });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[2], chars[1]]);
+    expect(chosen.calls()).toBe(0);
+  });
+
+  test("an @mention of only a muted character forces nobody: the arbiter still picks", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { smartPicker: "utility", disabledKeys: ["cara"] });
+    const chosen = arbiter("bryn");
+    const h = harness(db, names, { summarize: chosen.op });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@cara hello" });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1]]);
+    expect(chosen.calls()).toBe(1);
   });
 
   test("a THROWING arbiter (outage) still commits a turn, chosen by the natural math, with a warning", async () => {

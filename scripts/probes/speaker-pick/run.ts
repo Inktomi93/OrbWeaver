@@ -15,7 +15,7 @@ import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clien
 import type { InferenceLog } from "@orb/inference";
 import { DEFAULT_RERANK_MODEL } from "../../../packages/inference/src/backends/local-light/index.ts";
 import { createModelCache } from "../../../packages/inference/src/backends/local-light/model-cache.ts";
-import type { ArbiterCandidate, SpeakerCandidate } from "../../../packages/server/src/domain/chat/contract/arbitration.ts";
+import type { ArbiterCandidate, SpeakerCandidate, TranscriptLine } from "../../../packages/server/src/domain/chat/contract/arbitration.ts";
 import { resolveNameMentions, selectSpeakers } from "../../../packages/server/src/domain/chat/engine/select-speakers.ts";
 import { smartArbitrate } from "../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
 import { orCall, readEnvKey, totalSpend } from "../openrouter/_kit.ts";
@@ -50,6 +50,8 @@ interface Case {
   readonly room: Room;
   readonly cut: Cut;
   readonly transcript: string;
+  /** The same window as the canon lines `turn.ts` hands the arbiter: a human line carries no character. */
+  readonly lines: readonly TranscriptLine[];
   readonly trigger: { readonly speaker: string; readonly text: string };
   readonly lastSpeaker: RoomCharacter | null;
   readonly candidates: readonly ArbiterCandidate[];
@@ -109,6 +111,7 @@ function buildCases(): Case[] {
         room,
         cut,
         transcript: window.map((l) => `${l.speaker}: ${l.text}`).join("\n"),
+        lines: window.map((l) => ({ speakerName: l.speaker, text: l.text, characterId: room.characters.find((c) => c.name === l.speaker)?.id ?? null })),
         trigger,
         lastSpeaker: room.characters.find((c) => c.name === lastName) ?? null,
         candidates: room.characters.map((c) => ({ ref: characterRef(c), talkativeness: TALKATIVENESS_DEFAULT, disabled: false, leftSeq: null })),
@@ -311,7 +314,9 @@ async function runArbiter(all: readonly Case[], arm: string, completion: Complet
       },
       candidates: c.candidates,
       speakerCandidates: c.speakerCandidates,
-      recentHistory: c.transcript,
+      characterLines: new Map(c.room.characters.map((ch) => [ch.id, ch.persona] as const)),
+      transcript: c.lines,
+      room: { activePersona: { name: c.room.user, description: "" } },
       lastSpeaker: c.lastSpeaker === null ? null : characterRef(c.lastSpeaker),
       mentionedIds: c.humanMentions,
       rng,

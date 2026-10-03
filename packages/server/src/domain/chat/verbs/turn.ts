@@ -83,7 +83,7 @@ import {
 } from "../persistence/canon-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
-import { classifyParticipant } from "../persistence/participant.ts";
+import { classifyParticipant, isArbiterEligible } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentRole } from "../persistence/participants-read.ts";
 import {
   loadCanonHistory,
@@ -105,8 +105,8 @@ import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import {
+  characterLineVia,
   driveRoundVia,
-  personaSummaryOfVia,
   rerankPickVia,
   resolveMentionsVia,
   resolveNameMentionsVia,
@@ -218,8 +218,8 @@ interface Room {
   readonly hostUserId: UserId;
   readonly candidates: readonly ArbiterCandidate[];
   readonly speakerCandidates: readonly SpeakerCandidate[];
-  /** Each seated character's persona text (macros rendered, uncapped) — Smart's reranker documents. */
-  readonly personas: ReadonlyMap<CharacterId, string>;
+  /** Each seated character's "who is this" line (macros rendered, uncapped) — what both Smart pickers read. */
+  readonly characterLines: ReadonlyMap<CharacterId, string>;
   readonly characterIds: readonly CharacterId[];
   /** The `speakerKey`s of the present MUTED seats (character + agent) — the `unmutedCharacters` producer, keyed on
    *  the same seat `disabled` axis arbitration reads. Empty ⇒ nothing muted. */
@@ -272,7 +272,13 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, frozenHostUserId?: Use
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [{ ...r, characterId: actor.characterId }] : [];
   });
-  const cards = await Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId })));
+  const [cards, distillates] = await Promise.all([
+    Promise.all(charRows.map((r) => ctx.getCard({ ownerId: hostUserId, characterId: r.characterId }))),
+    ctx.resolveCharacterDistillates(
+      hostUserId,
+      charRows.map((r) => r.characterId),
+    ),
+  ]);
 
   // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
   // disabled-account containment gate (owner-ruled 2026-08-15) — see `presentAndEnabledHumanUserIdsOf`'s own
@@ -292,12 +298,14 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, frozenHostUserId?: Use
     name: cards[i]?.name ?? "",
   }));
   const candidates: ArbiterCandidate[] = [...charCandidates];
-  const personas = new Map(charRows.map((r, i) => [r.characterId, personaSummaryOfVia(cards[i] ?? null, ctx.now())] as const));
+  const characterLines = new Map(
+    charRows.map((r, i) => [r.characterId, characterLineVia(cards[i] ?? null, distillates.get(r.characterId), ctx.now())] as const),
+  );
   return {
     hostUserId,
     candidates,
     speakerCandidates: [...charSpeakerCandidates],
-    personas,
+    characterLines,
     characterIds: charRows.map((r) => r.characterId),
     mutedSpeakerKeys: new Set(candidates.filter((c) => c.disabled).map((c) => speakerKey(c.ref))),
     personaIds: memberPersonaIdsOf(humanSeats),
@@ -349,10 +357,6 @@ async function transcriptLines(ctx: ChatContext, rows: readonly MessageView[]): 
     text: line.content,
     characterId: rows[i]?.characterId ?? null,
   }));
-}
-
-async function arbiterTranscript(ctx: ChatContext, rows: readonly MessageView[]): Promise<string> {
-  return (await transcriptLines(ctx, rows)).map((line) => (line.speakerName === null ? line.text : `${line.speakerName}: ${line.text}`)).join("\n");
 }
 
 /** The ban-last speaker ref for the last assistant row: its characterId or its authorUserId; null when there
@@ -903,8 +907,10 @@ async function arbitrate(
     readonly group: GroupConfig;
     readonly candidates: readonly ArbiterCandidate[];
     readonly speakerCandidates: readonly SpeakerCandidate[];
-    /** Each character's persona text — the `smart` reranker's documents. */
-    readonly personas: ReadonlyMap<CharacterId, string>;
+    /** Each character's "who is this" line — what both `smart` pickers describe a candidate with. */
+    readonly characterLines: ReadonlyMap<CharacterId, string>;
+    /** The round's assembled context — the `smart` arbiter reads the human players and the scene off it. */
+    readonly assembled: AssembleContext;
     readonly forcedIds?: readonly CharacterId[] | undefined;
     /** Characters the human's message names as a plain word — `natural`'s soft activation (send only). */
     readonly mentionedIds?: readonly CharacterId[] | undefined;
@@ -930,7 +936,9 @@ async function arbitrate(
   // verdict nothing reads — and its degrade would warn the room about a decision that governs nothing. The
   // deterministic sampler still runs: the auto-chain's continue/stop probe reads its nominee (a nominee
   // exists ⇒ narrate again), which is the ONLY thing a narrator round takes from arbitration.
-  if (args.group.policy === "smart" && forced.length === 0 && args.group.output !== "narrator") {
+  // An `@mention` of only muted or departed seats forces nobody, so the picker runs as if none was typed.
+  const forcesSomeone = args.candidates.some((c) => forced.includes(c.ref.characterId) && isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }));
+  if (args.group.policy === "smart" && !forcesSomeone && args.group.output !== "narrator") {
     const smart = await smartPick(ctx, deps, args);
     if (smart.aborted) {
       return { speakers: [], aborted: true, forcedOverride: false };
@@ -938,7 +946,8 @@ async function arbitrate(
     if (smart.degraded) {
       await deps.emit({ type: "warning", chatId: args.chatId, code: SMART_DEGRADE_CODES[args.group.smartPicker] });
     }
-    refs = smart.speakers;
+    // A Smart pick may name several responders; the single-reply paths (the auto-chain, generate) take the first.
+    refs = args.maxSpeakers === undefined ? smart.speakers : smart.speakers.slice(0, args.maxSpeakers);
   } else {
     refs = selectSpeakersVia({
       candidates: args.candidates,
@@ -973,14 +982,27 @@ const SMART_DEGRADE_CODES: Record<SmartPicker, PlainChatWarningCode> = {
 
 type SmartPickArgs = Pick<
   Parameters<typeof arbitrate>[2],
-  "chatId" | "funderUserId" | "group" | "candidates" | "speakerCandidates" | "personas" | "mentionedIds" | "lastSpeaker" | "banLast" | "recentRows" | "signal"
+  | "chatId"
+  | "funderUserId"
+  | "group"
+  | "candidates"
+  | "speakerCandidates"
+  | "characterLines"
+  | "assembled"
+  | "mentionedIds"
+  | "lastSpeaker"
+  | "banLast"
+  | "recentRows"
+  | "signal"
 >;
 
-/** Smart's one pick, by the room's picker: the bound reranker (the default) or the Utility-model arbiter. */
+/** Smart's pick, by the room's picker: the bound reranker (the default) or the Utility-model arbiter. Both read
+ *  the same roster: the candidates, their names and their "who is this" lines. */
 async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs): Promise<SmartArbitrationResult> {
   const shared = {
     candidates: args.candidates,
     speakerCandidates: args.speakerCandidates,
+    characterLines: args.characterLines,
     lastSpeaker: args.lastSpeaker,
     ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
     mentionedIds: args.mentionedIds,
@@ -991,17 +1013,17 @@ async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs):
     return await rerankPickVia({
       ...shared,
       reranker: () => ctx.resolveSpeakerReranker(args.funderUserId),
-      personas: args.personas,
       lastLine: (await transcriptLines(ctx, args.recentRows.slice(-1))).at(-1) ?? null,
     });
   }
-  // The side-gen sampling ladder: the `arbiter` floor (temp 0.2, 24 out — a deterministic name pick) ← the
-  // chat host's default-preset params. The resolved posture is the summarize options as-is.
+  // The side-gen sampling ladder: the `arbiter` floor ← the chat host's default-preset params. The resolved
+  // posture is the summarize options as-is.
   const arbiterSampling = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveChatPresetParams(args.chatId));
   return await smartArbitrateVia({
     ...shared,
     summarize: (inputs, opts) => ctx.summarize(args.funderUserId, inputs, opts),
-    recentHistory: await arbiterTranscript(ctx, args.recentRows),
+    transcript: await transcriptLines(ctx, args.recentRows),
+    room: args.assembled,
     sampling: arbiterSampling,
     // PROSE-1 census 75 — the arbiter prompt is the room HOST's slot, resolved beside its sampling.
     prose: await ctx.resolveChatProse(args.chatId),
@@ -1084,7 +1106,8 @@ async function runChain(
         group: args.group,
         candidates: args.room.candidates,
         speakerCandidates: args.room.speakerCandidates,
-        personas: args.room.personas,
+        characterLines: args.room.characterLines,
+        assembled: args.base.assembleContext,
         // `allowSelfResponses` lifts the BAN, nothing else: `last` still rides as the arbitration's rotation
         // origin, or `pooled` (the "Round-robin" room) re-picks the first roster seat every beat and the
         // chain becomes one character monologuing under a control that promises a rotation.
@@ -1181,7 +1204,8 @@ async function runAiRound(
     group: args.group,
     candidates: args.room.candidates,
     speakerCandidates: args.room.speakerCandidates,
-    personas: args.room.personas,
+    characterLines: args.room.characterLines,
+    assembled: args.base.assembleContext,
     forcedIds: args.forcedIds,
     mentionedIds: args.mentionedIds,
     lastSpeaker: facts.lastSpeaker,
@@ -2452,6 +2476,7 @@ async function arbitrateGenerateSpeaker(
   args: {
     readonly chatId: ChatId;
     readonly room: Room;
+    readonly assembled: AssembleContext;
     readonly group: GroupConfig;
     readonly funderUserId: UserId;
     readonly signal: AbortSignal;
@@ -2464,7 +2489,8 @@ async function arbitrateGenerateSpeaker(
     group: args.group,
     candidates: args.room.candidates,
     speakerCandidates: args.room.speakerCandidates,
-    personas: args.room.personas,
+    characterLines: args.room.characterLines,
+    assembled: args.assembled,
     lastSpeaker: facts.lastSpeaker,
     banLast: banLastFor(args.group, false),
     recentRows: facts.recentRows,
@@ -2510,6 +2536,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
             arbitrateGenerateSpeaker(ctx, deps, {
               chatId,
               room,
+              assembled: assembleContext,
               group: membership.chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
               funderUserId: identity.funderUserId,
               signal: handle.signal,

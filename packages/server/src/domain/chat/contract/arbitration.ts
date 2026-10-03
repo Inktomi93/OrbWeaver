@@ -48,11 +48,19 @@ export interface TranscriptLine {
   readonly characterId: CharacterId | null;
 }
 
+/** What discovery's distill pass learned about one card: its one-line pitch and its facet tags. Absent for an
+ *  undistilled card. Read by the shared "who is this" line both Smart pickers describe a character with. */
+export interface CharacterDistillate {
+  readonly elevatorPitch: string | null;
+  readonly tags: readonly string[];
+}
+
 /** The 7b (`smart`) arbitration outcome: WHO speaks, plus whether the side-LLM actually decided it. Shared
  *  across modules (the engine produces it, the turn verb reads `degraded` to emit the honest-degrade warning
  *  — D41 bans a silent degrade), so it lives here rather than inline on the engine file. */
 export interface SmartArbitrationResult {
-  /** The chosen next speaker (one element), or `[]` when NO candidate is eligible. */
+  /** The round's responders in speaking order (usually one, several when the last line addressed several or
+   *  the Utility model named several), or `[]` when NO candidate is eligible. */
   readonly speakers: readonly SpeakerRef[];
   /** True ⇒ the side-LLM was consulted and its answer was unusable (it threw, or named nothing on the
    *  eligible roster), so `speakers` came from the deterministic `natural` fallback instead of the model.

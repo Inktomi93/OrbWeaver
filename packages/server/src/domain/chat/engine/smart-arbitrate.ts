@@ -1,89 +1,102 @@
-// domain/chat/engine/smart-arbitrate — the 7b SIDE-LLM arbitration (`smart` policy). A
-// request-shaper over the INJECTED `summarize` role (the same summarize/translate pattern memory uses — the
-// op is `ChatContext.summarize` = `RoleClients.summarize`, NOT a sideways call; the injection table homes the
-// side-LLM there, so no FLAG[missing-op]). A low-temp classify call picks the ONE next speaker from the
-// eligible set; the parse is ROSTER-VALIDATING (the pick must be an eligible name) with a deterministic
-// `natural` round-robin FALLBACK (§6) — so a refusal / garbled / off-roster reply, an unwired-summarizer
-// throw, or a dead local box never stalls the round. The fallback is LOUD, not silent: the result carries
-// `degraded:true` and the turn verb emits the `smart_arbitration_degraded` warning (D41 — a model feature
-// degrades visibly or not at all).
+// domain/chat/engine/smart-arbitrate — Smart's opt-in Utility-model pick. A request-shaper over the INJECTED
+// `summarize` role (`ChatContext.summarize`, never a sideways call): a low-temp classify call names the round's
+// responders from the eligible roster, told who the human players are and who each candidate is. The parse is
+// ROSTER-VALIDATING with a `natural` FALLBACK that is LOUD (`degraded:true` → the turn verb's warning, D41).
 //
 // A HANG is not a failure, so the fallback cannot catch it: the turn's `AbortSignal` rides INTO the summarize
-// call (every summarize-serving backend honors it), and an abort returns `aborted:true` — NOT a degrade. The
-// user/host cancelled, so the caller ends the turn instead of generating on a round nobody wants.
-//
-// Runs ONCE per round, lock-free, metered (the caller meters the summarizer spend — §6). Solo / single-
-// eligible short-circuits WITHOUT an LLM call (byte-identical, no `if(isGroup)`).
+// call, and an abort returns `aborted:true`, NOT a degrade. Single-eligible and named-in-the-last-line rounds
+// short-circuit WITHOUT a model call.
 
-import type { SpeakerRef } from "@orb/contracts/chat";
+import type { AssembleContext, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
+import { RPG_SCENE_LINE_LABEL } from "@orb/contracts/rpg";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { CharacterId } from "@orb/kit/ids";
 import { includesWholeName } from "@orb/kit/speaker-label";
-import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate } from "../contract/arbitration.ts";
+import { clampToTokenBudget } from "@orb/kit/tokens";
+import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
-import { selectSpeakers } from "./select-speakers.ts";
+import { addressedGroups, MAX_SMART_RESPONDERS, selectSpeakers } from "./select-speakers.ts";
 
-/** The 7b inputs (file-local — the driver passes a literal). */
+/** Each candidate's "who is this" line in the prompt. */
+const CANDIDATE_LINE_TOKENS = 40;
+/** Each transcript line but the last (about 300 characters); the last line is the one being answered, so it
+ *  rides whole. */
+const OLDER_LINE_TOKENS = 75;
+const SCENE_TOKENS = 60;
+const CLIPPED = "…";
+const PERCENT = 100;
+
+/** What the arbiter reads off the round's assembled context: the human players and the scene. */
+type ArbiterRoom = Pick<AssembleContext, "activePersona" | "people" | "rpgMacros" | "roomOverrides">;
+
 interface SmartArbitrateParams {
   /** The injected side-LLM (`ChatContext.summarize`). */
   readonly summarize: RoleClientsWithSignal["summarize"];
   /** The present roster's character candidates (the eligible set is derived here). */
   readonly candidates: readonly ArbiterCandidate[];
-  /** Display names for the candidates (id → name) — the prompt vocabulary + the roster-validating parse. */
+  /** Display names for the candidates — the prompt vocabulary + the roster-validating parse. */
   readonly speakerCandidates: readonly SpeakerCandidate[];
-  /** Recent transcript text the arbiter reads to decide who speaks next. */
-  readonly recentHistory: string;
-  /** The previous speaker (the fallback's ban-last AND its rotation origin). */
+  /** Each character's "who is this" line (`engine/character-line`), uncapped. */
+  readonly characterLines: ReadonlyMap<CharacterId, string>;
+  /** The trailing canon window, oldest first, each line under its speaker's name. */
+  readonly transcript: readonly TranscriptLine[];
+  readonly room: ArbiterRoom;
+  /** The previous AI speaker: shown to the model, banned from its candidates when `banLast`, and the fallback's
+   *  ban-last and rotation origin. */
   readonly lastSpeaker: SpeakerRef | null;
-  /** Whether the fallback bans the last speaker (the caller's decision from the trigger and the room's
-   *  `allowSelfResponses`). Default TRUE — forwarded verbatim to `selectSpeakers`, which keeps the ban and the
-   *  rotation origin separate. */
+  /** Whether the last speaker sits this round out (`verbs/turn.ts::banLastFor`). Default TRUE. */
   readonly banLast?: boolean | undefined;
-  /** Characters the human trigger text named as a plain word — forwarded to the `natural` fallback, so a
-   *  degraded round still answers the character the human addressed. */
+  /** Characters the human trigger text named as a plain word — forwarded to the `natural` fallback. */
   readonly mentionedIds?: readonly CharacterId[] | undefined;
   /** The injected PRNG (D46) — drives the `natural` fallback's pick. */
   readonly rng: () => number;
-  /** The ROOM HOST's prose overrides (PROSE-1 census row 75, `chat.arbiter.system`), resolved by the caller
-   *  off `ctx.resolveChatProse`. Empty ⇒ the shipped arbiter prompt, byte-identical. */
+  /** The ROOM HOST's prose overrides (`chat.arbiter.system`). Empty ⇒ the shipped arbiter prompt. */
   readonly prose: ProseOverrides;
-  /** The resolved side-gen sampling options (the `arbiter` floor ← the chat host's preset params), passed to
-   *  the summarize seam as-is. A tiny output budget — we want a name, not
-   *  prose — but a user's preset params can now widen it. Absent knobs fall to the runner default. */
+  /** The resolved side-gen sampling options (the `arbiter` posture ← the host's preset params), as-is. */
   readonly sampling: SummarizeOptions;
-  /** The TURN's abort signal (the active-turn handle the verb registered). Threaded into the side-LLM call so
-   *  a box that accepts the socket and never answers can be CUT LOOSE — a hang is not a failure, and without
-   *  this the whole turn waits forever. No deadline rides alongside it ON PURPOSE: a 7B arbiter on slow local
-   *  hardware can legitimately take tens of seconds, so any constant would break a working small-hardware
-   *  setup. Cancellation is the user's (the Stop control / the room-gone sweep), never a guessed number. */
+  /** The TURN's abort signal, threaded into the side-LLM call so a box that never answers can be cut loose. No
+   *  deadline rides alongside it ON PURPOSE: a slow local arbiter can legitimately take tens of seconds. */
   readonly signal?: AbortSignal | undefined;
 }
 
-/** The cancelled arbitration: no speaker, no degrade. Frozen + module-level — every abort arm returns the
- *  same value, and the invariant (`aborted ⇒ [] + degraded:false`) is stated once, here, not per return. */
+interface Named {
+  readonly ref: SpeakerRef;
+  readonly name: string;
+  readonly talkativeness: number;
+}
+
+/** The cancelled arbitration: no speaker, no degrade (`aborted ⇒ [] + degraded:false`). */
 const CANCELLED: SmartArbitrationResult = Object.freeze({ speakers: [], degraded: false, aborted: true });
 
+const picked = (speakers: readonly SpeakerRef[]): SmartArbitrationResult => ({ speakers, degraded: false, aborted: false });
+
 /**
- * The 7b smart arbitration. Returns the ONE chosen next speaker (a single-element array) with
- * `degraded:false`, or — when the side-LLM threw or its reply doesn't validate against the eligible roster —
- * the `natural` fallback's pick with `degraded:true` (the caller surfaces that as a `warning` bus event, so
- * the user learns the order came from the math, not the model — D41). Returns `[]` only when NO character is
- * eligible (the driver maps that to `no-eligible`). Single-eligible short-circuits (no call ⇒ no degrade).
+ * Smart's Utility-model pick: the round's responders in order, at most {@link MAX_SMART_RESPONDERS}. Characters
+ * the last line names answer without a call, as does a lone eligible character. When the reply names nobody on
+ * the roster (or the call throws) the `natural` pick stands with `degraded:true`. `[]` only when NO character is
+ * eligible.
  */
 export async function smartArbitrate(params: SmartArbitrateParams): Promise<SmartArbitrationResult> {
-  const eligible = params.candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }));
-  if (eligible.length === 0) {
-    return { speakers: [], degraded: false, aborted: false };
+  // Read the signal through a CALL: `signal.aborted` flips asynchronously, so a narrowed read would go stale.
+  const cancelled = (): boolean => params.signal?.aborted === true;
+  if (cancelled()) {
+    return CANCELLED;
   }
   const nameByKey = new Map(params.speakerCandidates.map((n) => [speakerKey(n.ref), n.name] as const));
-  const eligibleNamed = eligible.map((c) => ({ ref: c.ref, name: nameByKey.get(speakerKey(c.ref)) ?? "" })).filter((c) => c.name.length > 0);
-  // Single eligible (or none has a resolvable name) — no LLM call needed (solo byte-identical).
-  if (eligibleNamed.length <= 1) {
-    return { speakers: eligibleNamed.map((c) => c.ref), degraded: false, aborted: false };
+  const eligible: Named[] = params.candidates
+    .filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }))
+    .map((c) => ({ ref: c.ref, name: nameByKey.get(speakerKey(c.ref)) ?? "", talkativeness: c.talkativeness }))
+    .filter((c) => c.name.length > 0);
+  if (eligible.length <= 1) {
+    return picked(eligible.map((c) => c.ref));
+  }
+  const addressed = addressedInLastLine(params);
+  if (addressed !== null) {
+    return picked(addressed);
   }
 
   const fallback = (): SmartArbitrationResult => ({
@@ -100,24 +113,12 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
     aborted: false,
   });
 
-  // Read the signal through a CALL, never a narrowed property: `signal.aborted` flips asynchronously, so
-  // tsc's control-flow narrowing after the pre-call guard would (wrongly) prove the post-call checks dead.
-  const cancelled = (): boolean => params.signal?.aborted === true;
-
-  // The turn was already cancelled before we got here — spend nothing on a round nobody is waiting for.
-  if (cancelled()) {
-    return CANCELLED;
-  }
-
-  const userPrompt = buildUserPrompt(
-    params.recentHistory,
-    eligibleNamed.map((c) => c.name),
-  );
+  const choices = modelChoices(params, eligible);
+  const userPrompt = buildArbiterPrompt(params, choices);
   let reply: string;
-  // @orb-waive caught-failure-ownership(catch): classified below by signal state — a settled
-  // signal returns CANCELLED (the user stopped it, not a failure); anything else degrades to the
-  // deterministic `fallback()`, the consumed result the side-LLM's best-effort contract promises. Ends if
-  // the arbiter becomes load-bearing (then a failure must surface, not fall back).
+  // @orb-waive caught-failure-ownership(catch): classified below by signal state — a settled signal returns
+  // CANCELLED (the user stopped it, not a failure); anything else degrades to the deterministic `fallback()`,
+  // the consumed result the side-LLM's best-effort contract promises.
   try {
     const result = await params.summarize([{ systemPrompt: resolveProseText("chat.arbiter.system", params.prose), userPrompt }], {
       ...params.sampling,
@@ -125,43 +126,156 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
     });
     reply = result.items[0]?.text ?? "";
   } catch {
-    // Two very different reasons the call didn't produce a reply, told apart by the TURN's signal — the same
-    // classify-by-signal seam the engine's `abortReasonFor` uses, since the provider only ever surfaces a bare
-    // AbortError. A settled signal means the caller cancelled: the round is OVER, so we return CANCELLED and
-    // the verb ends the turn WITHOUT the degrade warning (the model didn't fail — the user did stop it).
-    // Anything else is the side-LLM being best-effort: degrade to the deterministic fallback, never throw.
     return cancelled() ? CANCELLED : fallback();
   }
-  // The reply landed but the turn was cancelled while it was in flight — same ruling: end, don't generate.
   if (cancelled()) {
     return CANCELLED;
   }
-
-  const picked = matchEligible(reply, eligibleNamed);
-  return picked === null ? fallback() : { speakers: [picked], degraded: false, aborted: false };
+  const responders = parseResponders(reply, choices);
+  return responders.length === 0 ? fallback() : picked(responders);
 }
 
-function buildUserPrompt(recentHistory: string, names: readonly string[]): string {
-  const history = recentHistory.length > 0 ? recentHistory : "(the conversation is just starting)";
-  return `Recent conversation:\n${history}\n\nCharacters who may speak next: ${names.join(", ")}\n\nNext speaker:`;
+/**
+ * The candidates the model may name. The ban on the last speaker holds only when the last line is that
+ * speaker's own, which is what a self-response is. Once a human or another character has spoken, the last
+ * speaker is often exactly who was asked, and banning them there turned right answers into degrades
+ * (scripts/probes/speaker-pick/RESULTS.md). The `natural` fallback keeps its own ban unchanged.
+ */
+function modelChoices(params: SmartArbitrateParams, eligible: readonly Named[]): readonly Named[] {
+  const last = params.lastSpeaker;
+  if (last === null || params.banLast === false || params.transcript.at(-1)?.characterId !== last.characterId) {
+    return eligible;
+  }
+  const unbanned = eligible.filter((c) => speakerKey(c.ref) !== speakerKey(last));
+  return unbanned.length > 0 ? unbanned : eligible;
 }
 
-/** Roster-validating parse: return the eligible character whose name appears in the reply (whole-word,
- *  case-insensitive; longest name first so a substring name can't pre-empt a longer one). Whole-word so an
- *  eligible name embedded in a longer word ("Ari" inside "Arianna") never false-positives (F9 — the header
- *  claimed whole-word; the impl was a bare substring). Null ⇒ no eligible name matched (→ caller falls back).
- *
- *  The boundary test is the SHARED kit one (#1439). The local copy it replaced tested `[a-z0-9]`, which
- *  read every non-ASCII character as a separator — so a short Cyrillic or CJK name embedded in a longer
- *  Cyrillic or CJK word reported a whole-word hit and the arbiter picked a speaker the model never named.
- *  Same root cause, opposite symptom, as the `\b` miss in `select-speakers::resolveMentions`. */
-function matchEligible(reply: string, eligible: readonly { ref: SpeakerRef; name: string }[]): SpeakerRef | null {
-  const haystack = reply.toLowerCase();
-  const byLongest = eligible.toSorted((a, b) => b.name.length - a.name.length);
-  for (const member of byLongest) {
-    if (includesWholeName(haystack, member.name.toLowerCase())) {
-      return member.ref;
+/** The eligible characters the last line names, in mention order; null when it names none, or when one word
+ *  names several characters at once (the model reads the line and settles which one was meant). */
+function addressedInLastLine(params: SmartArbitrateParams): SpeakerRef[] | null {
+  const line = params.transcript.at(-1);
+  if (line === undefined) {
+    return null;
+  }
+  const groups = addressedGroups(line, params.candidates, params.speakerCandidates);
+  if (groups.length === 0 || groups.some((g) => g.length > 1)) {
+    return null;
+  }
+  return groups
+    .flat()
+    .slice(0, MAX_SMART_RESPONDERS)
+    .map((characterId) => ({ kind: "character", characterId }));
+}
+
+/** The arbiter's user prompt: the scene, the human players, each candidate with its line, how often it spoke and
+ *  how talkative it is, the last speaker, then the conversation with every line but the last clipped. */
+function buildArbiterPrompt(
+  params: Pick<SmartArbitrateParams, "transcript" | "room" | "characterLines" | "lastSpeaker" | "speakerCandidates">,
+  choices: readonly Named[],
+): string {
+  const { transcript } = params;
+  const spoke = new Map<CharacterId, number>();
+  for (const line of transcript) {
+    if (line.characterId !== null) {
+      spoke.set(line.characterId, (spoke.get(line.characterId) ?? 0) + 1);
     }
   }
-  return null;
+  const candidateLines = choices.map((c) => {
+    const who = clampToTokenBudget(params.characterLines.get(c.ref.characterId) ?? "", CANDIDATE_LINE_TOKENS).trim();
+    const facts = `spoke ${spoke.get(c.ref.characterId) ?? 0} of the last ${transcript.length} lines, talkativeness ${Math.round(c.talkativeness * PERCENT)}%`;
+    return `- ${c.name}${who.length > 0 ? `: ${who}` : ""} (${facts})`;
+  });
+  const lastKey = params.lastSpeaker === null ? null : speakerKey(params.lastSpeaker);
+  const last = params.speakerCandidates.find((s) => speakerKey(s.ref) === lastKey)?.name;
+  const scene = arbiterScene(params.room);
+  const humans = humanNames(params.room, transcript);
+  const history = transcript.map((line, i) => {
+    const text = i === transcript.length - 1 ? line.text : clip(line.text, OLDER_LINE_TOKENS);
+    return line.speakerName === null ? text : `${line.speakerName}: ${text}`;
+  });
+  return [
+    ...(scene === null ? [] : [`Scene: ${scene}`]),
+    `Human players (never choose them): ${humans.length > 0 ? humans.join(", ") : "none named"}`,
+    `Candidates:\n${candidateLines.join("\n")}`,
+    ...(last === undefined ? [] : [`Spoke last: ${last}`]),
+    `Recent conversation:\n${history.length > 0 ? history.join("\n") : "(the conversation is just starting)"}`,
+    "Who speaks next?",
+  ].join("\n\n");
+}
+
+function clip(text: string, tokens: number): string {
+  const cut = clampToTokenBudget(text, tokens);
+  return cut.length < text.length ? `${cut.trimEnd()}${CLIPPED}` : text;
+}
+
+/** Where the scene stands: a game's location and time off its scene line, else the room's scenario. */
+function arbiterScene(room: Pick<AssembleContext, "rpgMacros" | "roomOverrides">): string | null {
+  const gameScene = (room.rpgMacros?.["rpgSceneState"] ?? "")
+    .split("\n")
+    .find((l) => l.startsWith(RPG_SCENE_LINE_LABEL))
+    ?.slice(RPG_SCENE_LINE_LABEL.length);
+  const scene = (gameScene ?? room.roomOverrides?.scenario ?? "").trim();
+  return scene.length > 0 ? clip(scene, SCENE_TOKENS) : null;
+}
+
+/** The human players' names: the room's personas plus every named human line in the window, deduped. */
+function humanNames(room: Pick<AssembleContext, "activePersona" | "people">, transcript: readonly TranscriptLine[]): string[] {
+  const names = [
+    room.activePersona?.name,
+    ...(room.people ?? []).map((p) => p.name),
+    // A line with no character and a speaker name is a human's (an unnamed system or assistant row stays bare).
+    ...transcript.filter((l) => l.characterId === null).map((l) => l.speakerName),
+  ];
+  const seen = new Map<string, string>();
+  for (const name of names) {
+    const trimmed = name?.trim() ?? "";
+    if (trimmed.length > 0 && !seen.has(trimmed.toLowerCase())) {
+      seen.set(trimmed.toLowerCase(), trimmed);
+    }
+  }
+  return [...seen.values()];
+}
+
+/** The reply's items: a JSON array of names when it holds one, else its comma- or line-separated parts. */
+function replyItems(reply: string): string[] {
+  const open = reply.indexOf("[");
+  const close = reply.lastIndexOf("]");
+  if (open !== -1 && close > open) {
+    // @orb-waive caught-failure-ownership(catch): a malformed array is model output, not a fault; the reply is
+    // then read as a plain list, the same contract the parse gives any other free-form answer.
+    try {
+      const parsed: unknown = JSON.parse(reply.slice(open, close + 1));
+      if (Array.isArray(parsed)) {
+        return parsed.filter((v): v is string => typeof v === "string");
+      }
+    } catch {
+      // Fall through to the plain-list read.
+    }
+  }
+  return reply.split(/[,\n]/u);
+}
+
+/**
+ * Roster-validating parse: each item resolves to a candidate by exact name or id (case-insensitive), else by
+ * the one candidate name it contains as a whole word (longest first, so "Ari" never pre-empts "Arianna" and a
+ * name buried in a longer word never matches). Unknown items are ignored, repeats dropped, the cap enforced.
+ * The boundary test is the shared Unicode-aware `includesWholeName`, so a short CJK or Cyrillic name inside a
+ * longer word is never a hit.
+ */
+function parseResponders(reply: string, choices: readonly Named[]): SpeakerRef[] {
+  const byLongest = choices.toSorted((a, b) => b.name.length - a.name.length);
+  const out: SpeakerRef[] = [];
+  for (const raw of replyItems(reply)) {
+    const item = raw
+      .trim()
+      .replace(/^["'@\s]+|["'.!\s]+$/gu, "")
+      .toLowerCase();
+    const match =
+      choices.find((c) => c.name.toLowerCase() === item || c.ref.characterId.toLowerCase() === item) ??
+      byLongest.find((c) => includesWholeName(item, c.name.toLowerCase()));
+    if (match !== undefined && !out.some((r) => speakerKey(r) === speakerKey(match.ref))) {
+      out.push(match.ref);
+    }
+  }
+  return out.slice(0, MAX_SMART_RESPONDERS);
 }

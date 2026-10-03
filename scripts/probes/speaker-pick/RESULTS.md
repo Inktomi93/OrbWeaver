@@ -30,6 +30,7 @@ column. Its hand-judged column has no such inflation.
 | `natural` (shipped, free) | 36% | 68% | 43% | n/a | 0 / 0 | under 1 | none | free |
 | `natural`, mentions read from any speaker's line | 50% | 75% | 57% | n/a | 0 / 0 | under 1 | none | free |
 | Smart arbiter on Claude Sonnet 5 (shipped prompt and posture) | 76% | 97% | **88%** | 1 of 30 | 415 / 6 | 930 / 1,929 | none local | $0.000833 |
+| Smart arbiter on Claude Sonnet 5, persona-aware (work item 0492, see below) | 86% | 100% | **96%** | 2 of 30 | 658 / 6 (17 calls) | 1,013 / 1,813 | none local | $0.000797 |
 | Smart arbiter on Qwen2.5-0.5B-Instruct Q4_K_M (llama.cpp, 4 CPU) | 14% | 63% | 23% | 0 | 281 / 4 | 2,481 / 3,980 (server: prompt 2,388, gen 73) | 239 MiB container | CPU only |
 | Smart arbiter on Qwen2.5-1.5B-Instruct Q4_K_M (llama.cpp, 4 CPU; above the sub-1B brief, for scale) | 38% | 73% | 46% | 5 of 30 | 281 / 3 | 4,291 / 10,537 (server: prompt 4,133, gen 150) | 974 MiB container | CPU only |
 | Reranker, query = the ten-line window | 10% | 70% | 27% | n/a | none | 4 threads 242 / 336; 1 thread 473 / 780 | about 200 MiB process RSS | free |
@@ -49,6 +50,7 @@ Hand-judged hit by cut kind (judged cuts only):
 | `natural` | 34% | 34% | 39% | 67% |
 | `natural`, mentions from any line | 34% | 34% | 100% | 67% |
 | Smart arbiter, Sonnet 5 | 70% | 100% | 100% | 100% |
+| Smart arbiter, Sonnet 5, persona-aware | 90% | 100% | 100% | 100% |
 | Smart arbiter, Qwen2.5-0.5B | 40% | 0% | 0% | 33% |
 | Smart arbiter, Qwen2.5-1.5B | 40% | 0% | 67% | 67% |
 | Reranker, window | 50% | 0% | 0% | 33% |
@@ -113,14 +115,28 @@ a held-out test on real transcripts, because its best variant was tuned here.
 Sub-2B local text models are a dead end for this job. Both scored at or below the free `natural` policy, at
 seconds of CPU per round.
 
-Two cheap fixes to the shipped arbiter came out of this, and neither is built here:
+Two cheap fixes to the shipped arbiter came out of this. Work item 0506 owns the first; work item 0492 built the second:
 
 1. Raise the `arbiter` posture's 24-token output cap. One Sonnet 5 round in 30 returned empty content at the
    cap. Output is billed as used, so headroom costs nothing on a clean reply.
 2. Tell the arbiter who the human player is, and give it a one-line persona per candidate. The human-name
    picks (1.5B) and the role-addressed misses (Sonnet 5) both trace to the prompt. This changes
-   `chat.arbiter.system` (a re-versioned prose slot) and the user prompt, adds about 60 to 100 input tokens a
-   round, and is unmeasured.
+   `chat.arbiter.system` (a re-versioned prose slot) and the user prompt. Measured under "Persona-aware arbiter"
+   below: the median call grew from 415 to 658 input tokens.
+
+## Persona-aware arbiter (work item 0492)
+
+Evidence: `results/arbiter-claude-sonnet-5-0492.jsonl`, the `arbiter-openrouter` arm on the same 30 cuts, $0.0239.
+The arbiter now reads the human player's name, one line per candidate (here the fixture persona), speaking
+counts, talkativeness and a clipped history, and may name several responders. The table scores the first one.
+
+- Characters named in the last line answer with no model call: 13 of 30 rounds made no call.
+- Role-addressed questions rose from 7 to 9 of 10 hand-judged hits.
+- `starship@16` degraded because the model named Mara, the human player the captain addressed. The contract
+  still cannot return "the human answers".
+- `cafe@15` returned empty content at the 24-token `arbiter` cap and degraded. Work item 0506 raises the cap.
+- Banning the last speaker from the model's candidates after a human line scored 23 of 26: three follow-ups
+  to the last speaker degraded. The shipped arbiter bans the last speaker only when the last line is their own.
 
 ## What building the reranker mode would take
 

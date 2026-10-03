@@ -89,16 +89,17 @@ export const CHAT_PROSE_SLOTS = {
   "chat.arbiter.system": {
     id: "chat.arbiter.system",
     home: "user",
-    version: 2,
-    // v2 is a VOCABULARY fix, not a behavior change: the default text called the model a "turn director"
-    // while every control, id and symbol around it says ARBITER (`chat.arbiter.system`, `ArbiterCandidate`,
-    // `smartArbitrate`, the slot's own "Turn-arbiter prompt" title). Model-facing bytes are still bytes, so
-    // the change rides the lawful re-version path (D132(A)/§4.4) rather than a silent edit that would strand
-    // every host's `baseVersion` stamp.
+    version: 3,
+    // v3 is a BEHAVIOR change (D132(A)/§4.4 re-version): the user prompt now names the human players and gives
+    // each candidate a one-line description, and the arbiter may name several responders. The text says the
+    // humans are never a pick, explains addressing by role, and fixes the reply format the parse accepts. It
+    // stays short on purpose: small Utility models lose a long instruction.
     text:
-      "You are a turn arbiter for a multi-character roleplay. Read the recent conversation and the list of " +
-      "characters who may speak next, then choose the single character who should speak next. Respond with " +
-      "ONLY that character's exact name from the list — no punctuation, no explanation.",
+      "You choose who speaks next in a group roleplay. The human players write their own lines; never choose " +
+      "them. Choose from the listed candidates: the character the last message is addressed to, by name or by " +
+      "role (a question about the road goes to the guide), or else whoever would most naturally answer. " +
+      "Usually choose one. Choose several only when several are addressed directly or each has a strong, " +
+      "immediate reason to respond. Reply with the names only, exactly as listed: comma-separated, or a JSON array.",
     macros: "none",
     requiredMacros: [],
     requiredTokens: [],

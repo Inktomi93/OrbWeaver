@@ -80,7 +80,7 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { ActiveTurns } from "./active-turns.ts";
-import type { SpeakerReranker } from "./arbitration.ts";
+import type { CharacterDistillate, SpeakerReranker } from "./arbitration.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryEmbedSpace, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
@@ -1404,6 +1404,9 @@ export interface ChatContext {
   readonly resolveChat: ResolveChatConnectionOp;
   readonly maybeRevokeOnAuthFailed: MaybeRevokeOnAuthFailedOp;
   readonly getCard: GetCardOp;
+  /** Discovery's distillates for the owner's characters, keyed by id; an undistilled or foreign id is absent.
+   *  Injected because `character_summaries` is discovery's table. */
+  readonly resolveCharacterDistillates: (ownerId: UserId, characterIds: readonly CharacterId[]) => Promise<ReadonlyMap<CharacterId, CharacterDistillate>>;
   /** HOST HANDOFF, the accepted offer's card arm: copy the DEPARTING host's seated cards into the NOMINEE's
    *  library, point-in-time. Injected because `characters` is the character domain's table; find-before-mint by
    *  provenance, so a retried accept converges on the copies it already made. A source id that no longer

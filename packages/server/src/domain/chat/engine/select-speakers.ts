@@ -26,7 +26,7 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { NAME_END_BOUNDARY } from "@orb/kit/speaker-label";
 import { UNICODE_WORD_CHARS } from "@orb/kit/strings";
-import type { ArbiterCandidate, SpeakerCandidate } from "../contract/arbitration.ts";
+import type { ArbiterCandidate, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
 
 /** The arbitration inputs (file-local — callers pass a literal). */
@@ -170,12 +170,10 @@ function applyPolicy(
 ): readonly ArbiterCandidate[] {
   switch (policy) {
     case "natural":
-    // `smart` is the side-LLM path (`engine/smart-arbitrate`), which the turn verb routes a per-speaker
-    // smart round to — so this arm is reached only where it did NOT: a `smart` room whose human `@mention`
-    // resolved to nobody eligible (the named seat is muted/left), and a NARRATOR room, where the arbiter
-    // call is short-circuited because its verdict governs nothing. No model was consulted in either case, so
-    // this is a plain `natural` activation, not the degrade path (the model FAILING is the degrade path,
-    // emitted as `smart_arbitration_degraded` by the caller).
+    // `smart` is the picker path (`engine/rerank-pick`, `engine/smart-arbitrate`), which the turn verb routes a
+    // per-speaker smart round to, including one whose `@mention` named only a muted or departed seat. So this
+    // arm is reached only in a NARRATOR room, where the pick is short-circuited because its verdict governs
+    // nothing. No model was consulted, so this is a plain `natural` activation, not the degrade path.
     case "smart":
       return naturalOrder(pool, state.mentionedIds, rng);
     // `list` — roster order, all of them, every round (no rotation: that is `pooled`).
@@ -333,6 +331,11 @@ function phraseAt(words: readonly string[], seq: readonly string[]): number {
  * named by its whole name as a phrase. Ordered by where each is first named, then roster order.
  */
 export function resolveNameMentions(triggerText: string, candidates: readonly SpeakerCandidate[]): CharacterId[] {
+  return nameMentionHits(triggerText, candidates).map((f) => f.id);
+}
+
+/** Each named character with the word index where it is first named, in {@link resolveNameMentions} order. */
+function nameMentionHits(triggerText: string, candidates: readonly SpeakerCandidate[]): { readonly id: CharacterId; readonly at: number }[] {
   const text = wordsOf(triggerText);
   const found = candidates.flatMap((c, rosterIdx) => {
     const nameWords = wordsOf(c.name);
@@ -340,5 +343,35 @@ export function resolveNameMentions(triggerText: string, candidates: readonly Sp
     const at = keys.size > 0 ? text.findIndex((w) => keys.has(w)) : phraseAt(text, nameWords);
     return at === -1 ? [] : [{ id: c.ref.characterId, at, rosterIdx }];
   });
-  return found.sort((a, b) => a.at - b.at || a.rosterIdx - b.rosterIdx).map((f) => f.id);
+  return found.sort((a, b) => a.at - b.at || a.rosterIdx - b.rosterIdx);
+}
+
+/** The most responders a Smart pick schedules in one round, however many the line or the model named. */
+export const MAX_SMART_RESPONDERS = 3;
+
+/**
+ * Who a canon line addresses by name, for both Smart pickers' mention short-circuit: the ELIGIBLE characters it
+ * names, whoever wrote it, as ordered groups. A group is the characters one word named, so a word two names
+ * share ("Knight" in "The Knight" and "The Black Knight") is ONE ambiguous group the caller resolves. A muted
+ * or departed character is dropped rather than scheduled, and a line's speaker naming itself is no address.
+ */
+export function addressedGroups(
+  line: TranscriptLine,
+  candidates: readonly ArbiterCandidate[],
+  speakerCandidates: readonly SpeakerCandidate[],
+): CharacterId[][] {
+  const eligible = new Set(candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled })).map((c) => speakerKey(c.ref)));
+  const groups = new Map<number, CharacterId[]>();
+  for (const hit of nameMentionHits(line.text, speakerCandidates)) {
+    if (hit.id === line.characterId || !eligible.has(speakerKey({ kind: "character", characterId: hit.id }))) {
+      continue;
+    }
+    const group = groups.get(hit.at);
+    if (group === undefined) {
+      groups.set(hit.at, [hit.id]);
+    } else {
+      group.push(hit.id);
+    }
+  }
+  return [...groups.values()];
 }

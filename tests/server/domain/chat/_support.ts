@@ -544,6 +544,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     summarize: notStubbed,
     // No rerank role is bound by default, so a Smart room on the reranker picks like natural and warns.
     resolveSpeakerReranker: () => Promise.resolve(null),
+    // No card is distilled by default, so each character's line comes from its card.
+    resolveCharacterDistillates: () => Promise.resolve(new Map<never, never>()),
     summarizerContextTokens: () => Promise.resolve(32_000),
     summarizeAvailability: () => Promise.resolve({ available: true }),
     // The embed window the segment build measures each verbatim block against (#165). The production floor

@@ -10,7 +10,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ArbiterCandidate, SpeakerReranker, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { personaSummaryOf, rerankPick } from "../../../../../packages/server/src/domain/chat/engine/rerank-pick.ts";
+import { rerankPick } from "../../../../../packages/server/src/domain/chat/engine/rerank-pick.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
@@ -23,7 +23,7 @@ const SPEAKERS = [
   { ref: ref("bran"), name: "Bran" },
   { ref: ref("cara"), name: "Cara" },
 ];
-const PERSONAS = new Map(KEYS.map((k) => [cid(k), `${k} is a traveller with a long and winding story`] as const));
+const LINES = new Map(KEYS.map((k) => [cid(k), `${k} is a traveller with a long and winding story`] as const));
 const WIDE: RerankCapability = { maxInputTokens: 8192, input: ["text"], instructionAware: false };
 
 /** A rerank role scoring each document by the character it names; records what it was sent. */
@@ -55,7 +55,7 @@ function pick(over: Partial<Parameters<typeof rerankPick>[0]> & Pick<Parameters<
   return rerankPick({
     candidates: CANDIDATES,
     speakerCandidates: SPEAKERS,
-    personas: PERSONAS,
+    characterLines: LINES,
     lastLine: line("what do we do now?"),
     lastSpeaker: null,
     rng: () => 0.5,
@@ -106,7 +106,7 @@ describe("rerankPick — the rules over injected scores", () => {
 describe("rerankPick — documents fit the bound model's window", () => {
   test("a small window clips each persona and keeps the name; a large one sends it whole", async () => {
     const small = fakeReranker({ aria: 1 }, { maxInputTokens: 64, input: ["text"], instructionAware: false });
-    await pick({ reranker: small.op, personas: new Map(KEYS.map((k) => [cid(k), `${k} ${"remembers every road and river ".repeat(20)}`] as const)) });
+    await pick({ reranker: small.op, characterLines: new Map(KEYS.map((k) => [cid(k), `${k} ${"remembers every road and river ".repeat(20)}`] as const)) });
     const clipped = small.sent[0] ?? [];
     expect(clipped.map((d) => d.text?.split(":")[0])).toEqual(["Aria", "Bran", "Cara"]);
     expect(clipped.every((d) => (d.text?.length ?? 0) < 200)).toBe(true);
@@ -117,19 +117,48 @@ describe("rerankPick — documents fit the bound model's window", () => {
   });
 });
 
-describe("rerankPick — cancellation and persona text", () => {
+describe("rerankPick — several characters addressed", () => {
+  test("every character the line names answers, ordered by rank, and only they are ranked", async () => {
+    const scores = fakeReranker({ aria: 9, bran: 3, cara: 5 });
+    const out = await pick({ reranker: scores.op, lastLine: line("Bran and Cara, report."), lastSpeaker: ref("bran") });
+    expect(out).toEqual({ speakers: [ref("cara"), ref("bran")], degraded: false, aborted: false });
+    expect(scores.sent.map((docs) => docs.map((d) => d.text?.split(":")[0]))).toEqual([["Bran", "Cara"]]);
+  });
+
+  test("an ambiguous name is settled by rank within the characters it names", async () => {
+    const knights = [
+      { ref: ref("aria"), name: "The Knight" },
+      { ref: ref("bran"), name: "The Black Knight" },
+      { ref: ref("cara"), name: "Cara" },
+    ];
+    const scores = fakeReranker({ aria: 1, bran: 4, cara: 9 });
+    const out = await pick({ reranker: scores.op, speakerCandidates: knights, lastLine: line("Knight, hold the gate!") });
+    expect(out).toEqual({ speakers: [ref("bran")], degraded: false, aborted: false });
+  });
+
+  test("a failing role still answers the addressed characters, in mention order, and says so", async () => {
+    const out = await pick({ reranker: () => Promise.reject(new Error("rerank down")), lastLine: line("Cara, Aria: now.") });
+    expect(out).toEqual({ speakers: [ref("cara"), ref("aria")], degraded: true, aborted: false });
+  });
+
+  test("a muted mention is dropped; naming only muted characters ranks as if none was named", async () => {
+    const roster = [candidate("aria"), candidate("bran"), { ...candidate("cara"), disabled: true }];
+    const scores = fakeReranker({ aria: 1, bran: 4, cara: 9 });
+    const mixed = await pick({ reranker: scores.op, candidates: roster, lastLine: line("Cara and Aria, look!") });
+    expect(mixed.speakers).toEqual([ref("aria")]);
+    expect(scores.sent).toHaveLength(0);
+
+    const mutedOnly = await pick({ reranker: scores.op, candidates: roster, lastLine: line("Cara, look!") });
+    expect(mutedOnly).toEqual({ speakers: [ref("bran")], degraded: false, aborted: false });
+    expect(scores.sent).toHaveLength(1);
+  });
+});
+
+describe("rerankPick — cancellation", () => {
   test("an already-aborted turn picks nobody, even when the last line names a character", async () => {
     const scores = fakeReranker({ aria: 1 });
     const out = await pick({ reranker: scores.op, lastLine: line("Cara, your turn."), signal: AbortSignal.abort() });
     expect(out).toEqual({ speakers: [], degraded: false, aborted: true });
     expect(scores.sent).toHaveLength(0);
-  });
-
-  test("a blank description falls back to the personality, macros rendered against the card's name", () => {
-    const card = { name: "Aria", personality: "{{char}} is wry and patient" };
-    expect(personaSummaryOf({ ...card, description: "" }, 0)).toBe("Aria is wry and patient");
-    expect(personaSummaryOf({ ...card, description: "  \n " }, 0)).toBe("Aria is wry and patient");
-    expect(personaSummaryOf({ ...card, description: "A keeper of lights" }, 0)).toBe("A keeper of lights");
-    expect(personaSummaryOf({ name: "Aria", description: " ", personality: null }, 0)).toBe("");
   });
 });

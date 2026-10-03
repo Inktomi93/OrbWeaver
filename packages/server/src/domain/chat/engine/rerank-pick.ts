@@ -1,22 +1,18 @@
 // domain/chat/engine/rerank-pick — Smart's default speaker pick over the funder's bound RERANK role. The
-// last line is the query and each eligible character's `Name: persona` is a document; a character named in
-// that line wins outright, else the top-ranked one does, with the last speaker out when the round bans it.
-// Picks by RANK ORDER within the one call: scores are family-specific (logits, [0,1], anything), so no
-// threshold is ever compared. An unbound or failing role degrades to the `natural` pick with `degraded:true`,
-// which the turn verb surfaces as a warning.
+// last line is the query and each eligible character's `Name: line` is a document. Every character the line
+// addresses by name answers, ordered by rank; else the top-ranked one does, with the last speaker out when the
+// round bans it. Picks by RANK ORDER within the one call: scores are family-specific (logits, [0,1], anything),
+// so no threshold is ever compared. An unbound or failing role degrades with `degraded:true`, which the turn
+// verb surfaces as a warning.
 
 import type { SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
-import type { RerankHit } from "@orb/contracts/providers";
 import type { RerankDocument } from "@orb/contracts/role-clients";
 import type { CharacterId } from "@orb/kit/ids";
-import { processMacros } from "@orb/kit/macro";
-import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate, SpeakerReranker, TranscriptLine } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
-import { resolveNameMentions, selectSpeakers } from "./select-speakers.ts";
+import { addressedGroups, MAX_SMART_RESPONDERS, selectSpeakers } from "./select-speakers.ts";
 
 // A cross-encoder spends a few tokens of its window on the pair's own markers ([CLS] q [SEP] d [SEP]).
 const PAIR_MARKER_TOKENS = 3;
@@ -31,8 +27,8 @@ interface RerankPickParams {
   readonly reranker: () => Promise<SpeakerReranker | null>;
   readonly candidates: readonly ArbiterCandidate[];
   readonly speakerCandidates: readonly SpeakerCandidate[];
-  /** Each character's persona text, uncapped; the window cap is applied here, per the bound model. */
-  readonly personas: ReadonlyMap<CharacterId, string>;
+  /** Each character's "who is this" line (`engine/character-line`), uncapped; the window cap is applied here. */
+  readonly characterLines: ReadonlyMap<CharacterId, string>;
   /** The latest canon line, whoever wrote it. Null in an empty room. */
   readonly lastLine: TranscriptLine | null;
   readonly lastSpeaker: SpeakerRef | null;
@@ -49,13 +45,13 @@ interface NamedCandidate {
   readonly name: string;
 }
 
-/** The query and one `Name: persona` document per candidate, each cut to the bound model's window. The query
- *  takes at most half the pair budget; each document fills what the query left, its persona clipped and its
+/** The query and one `Name: line` document per candidate, each cut to the bound model's window. The query
+ *  takes at most half the pair budget; each document fills what the query left, its line clipped and its
  *  name never. Mirrors the inference backend's own clamp, so the backend never re-cuts a different way. */
 export function fitRerankPair(
   windowTokens: number,
   query: string,
-  documents: readonly { readonly id: string; readonly name: string; readonly persona: string }[],
+  documents: readonly { readonly id: string; readonly name: string; readonly line: string }[],
 ): { readonly query: string; readonly documents: RerankDocument[] } {
   const budget = Math.max(0, safeTokenWindow(windowTokens) - PAIR_MARKER_TOKENS);
   const fittedQuery = clampToTokenBudget(query, Math.floor(budget / 2));
@@ -64,55 +60,51 @@ export function fitRerankPair(
     query: fittedQuery,
     documents: documents.map((d) => {
       const head = `${d.name}: `;
-      return { id: d.id, text: `${head}${clampToTokenBudget(d.persona, docBudget - estimateTokens(head))}` };
+      return { id: d.id, text: `${head}${clampToTokenBudget(d.line, docBudget - estimateTokens(head))}` };
     }),
   };
 }
 
-/** The best-ranked hit that names an allowed candidate. Scores are compared only against each other within
- *  this one result, never against a constant, so any family's scale (logits, [0,1]) ranks the same way. */
-function topRanked(hits: readonly RerankHit[], allowed: readonly NamedCandidate[]): SpeakerRef | null {
-  for (const hit of hits.toSorted((a, b) => b.score - a.score)) {
-    const match = allowed.find((c) => speakerKey(c.ref) === hit.id);
-    if (match !== undefined) {
-      return match.ref;
-    }
+/** The `speakerKey`s of `named`, best-ranked first. Scores are compared only against each other within this
+ *  one result, never against a constant, so any family's scale (logits, [0,1]) ranks the same way. Null when
+ *  no role is bound; a failing role throws to the caller. */
+async function rankKeys(params: RerankPickParams, line: TranscriptLine, named: readonly NamedCandidate[]): Promise<readonly string[] | null> {
+  const reranker = await params.reranker();
+  if (reranker === null) {
+    return null;
   }
-  return null;
+  const query = line.speakerName === null ? line.text : `${line.speakerName}: ${line.text}`;
+  const fitted = fitRerankPair(
+    reranker.capability.maxInputTokens,
+    query,
+    named.map((c) => ({ id: speakerKey(c.ref), name: c.name, line: params.characterLines.get(c.ref.characterId) ?? "" })),
+  );
+  const result = await reranker.rerank(fitted.query, fitted.documents, reranker.capability.instructionAware ? { instruction: PICK_INSTRUCTION } : undefined);
+  return result.hits.toSorted((a, b) => b.score - a.score).map((h) => h.id);
 }
 
-/** A card's persona text for the reranker: its description, or its personality when the description is blank,
- *  with macros rendered against the card's own name so no `{{char}}` braces reach the model. Uncapped: the
- *  bound model's window clips it in {@link fitRerankPair}. */
-export function personaSummaryOf(
-  card: { readonly name: string; readonly description: string | null; readonly personality: string | null } | null,
-  nowMs: number,
-): string {
-  if (card === null) {
-    return "";
-  }
-  // `?? ""` as well as the null type: a minimal card double (or a sparse import) can omit the field entirely.
-  const text = [card.description, card.personality].find((t): t is string => (t ?? "").trim().length > 0);
-  if (text === undefined) {
-    return "";
-  }
-  return processMacros(text, { char: card.name, user: DEFAULT_PERSONA_NAME, persona: "", scenario: "", timezone: UTC_TIME_ZONE, nowMs, env: {} });
+const refOf = (characterId: CharacterId): SpeakerRef => ({ kind: "character", characterId });
+
+/** The addressed responders: one per name group (the best-ranked of an ambiguous group), ordered by rank. With
+ *  no ranking (`null`) they keep mention order and an ambiguous group takes its first member. */
+function orderAddressed(groups: readonly (readonly CharacterId[])[], ranked: readonly string[] | null): SpeakerRef[] {
+  const rankOf = (id: CharacterId): number => {
+    const at = ranked?.indexOf(speakerKey(refOf(id))) ?? -1;
+    return at === -1 ? Number.POSITIVE_INFINITY : at;
+  };
+  const chosen = groups.flatMap((group) => {
+    const best = group.toSorted((a, b) => rankOf(a) - rankOf(b))[0];
+    return best === undefined ? [] : [best];
+  });
+  // `toSorted` is stable, so unranked ids (and a null ranking) keep mention order.
+  return chosen
+    .toSorted((a, b) => rankOf(a) - rankOf(b))
+    .slice(0, MAX_SMART_RESPONDERS)
+    .map(refOf);
 }
 
-// Being addressed is the strongest signal a line carries, so a named character wins outright, even the last
-// speaker, whoever wrote the line. The line's own speaker naming itself is not an address.
-function addressedIn(line: TranscriptLine, named: readonly NamedCandidate[]): SpeakerRef | null {
-  const ownKey = line.characterId === null ? null : speakerKey({ kind: "character", characterId: line.characterId });
-  for (const characterId of resolveNameMentions(line.text, named)) {
-    const match = named.find((c) => c.ref.characterId === characterId);
-    if (match !== undefined && speakerKey(match.ref) !== ownKey) {
-      return match.ref;
-    }
-  }
-  return null;
-}
-
-/** Smart's reranker pick. One element on success, `[]` with no eligible character, CANCELLED on an abort. */
+/** Smart's reranker pick. The addressed characters, else one top-ranked character; `[]` with no eligible
+ *  character; CANCELLED on an abort. */
 export async function rerankPick(params: RerankPickParams): Promise<SmartArbitrationResult> {
   // Read through a call: the signal flips asynchronously, so a narrowed property read would go stale. A turn
   // already cancelled picks nobody, so no rule below (not even a name in the line) can schedule a speaker.
@@ -145,40 +137,43 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
     return natural(false);
   }
 
-  const addressed = addressedIn(line, named);
-  if (addressed !== null) {
-    return { speakers: [addressed], degraded: false, aborted: false };
+  // Being addressed is the strongest signal a line carries, so the named characters answer, even the last
+  // speaker. One unambiguous name needs no ranking at all.
+  const groups = addressedGroups(line, params.candidates, params.speakerCandidates);
+  const addressedIds = new Set(groups.flat());
+  if (groups.length === 1 && addressedIds.size === 1) {
+    return { speakers: orderAddressed(groups, null), degraded: false, aborted: false };
   }
+  const pool = addressedIds.size > 0 ? named.filter((c) => addressedIds.has(c.ref.characterId)) : named;
 
-  const lastKey = params.lastSpeaker === null || params.banLast === false ? null : speakerKey(params.lastSpeaker);
-  const unbanned = named.filter((c) => speakerKey(c.ref) !== lastKey);
-  const allowed = unbanned.length > 0 ? unbanned : named;
-
-  let picked: SpeakerRef | null;
+  let ranked: readonly string[] | null;
   // @orb-waive caught-failure-ownership(catch): an unbound, refused or failing rerank role is the documented
-  // degrade, consumed as the visible `natural` fallback; an abort is classified by the turn's signal instead.
+  // degrade, consumed as the visible fallback; an abort is classified by the turn's signal instead.
   try {
-    const reranker = await params.reranker();
-    if (reranker === null) {
-      return natural(true);
-    }
-    const query = line.speakerName === null ? line.text : `${line.speakerName}: ${line.text}`;
-    const fitted = fitRerankPair(
-      reranker.capability.maxInputTokens,
-      query,
-      named.map((c) => ({
-        id: speakerKey(c.ref),
-        name: c.name,
-        persona: params.personas.get(c.ref.characterId) ?? "",
-      })),
-    );
-    const result = await reranker.rerank(fitted.query, fitted.documents, reranker.capability.instructionAware ? { instruction: PICK_INSTRUCTION } : undefined);
-    picked = topRanked(result.hits, allowed);
+    ranked = await rankKeys(params, line, pool);
   } catch {
-    return cancelled() ? CANCELLED : natural(true);
+    if (cancelled()) {
+      return CANCELLED;
+    }
+    ranked = null;
   }
   if (cancelled()) {
     return CANCELLED;
   }
-  return picked === null ? natural(true) : { speakers: [picked], degraded: false, aborted: false };
+  if (addressedIds.size > 0) {
+    // A failed ranking still answers the addressed characters, in mention order; the warning says why the
+    // order (or an ambiguous name's pick) came from the line rather than the model.
+    return { speakers: orderAddressed(groups, ranked), degraded: ranked === null, aborted: false };
+  }
+  const pick = ranked === null ? undefined : topAllowed(params, named, ranked);
+  return pick === undefined ? natural(true) : { speakers: [pick], degraded: false, aborted: false };
+}
+
+/** The best-ranked character, the last speaker out when the round bans it (restored if that empties it). */
+function topAllowed(params: RerankPickParams, named: readonly NamedCandidate[], ranked: readonly string[]): SpeakerRef | undefined {
+  const lastKey = params.lastSpeaker === null || params.banLast === false ? null : speakerKey(params.lastSpeaker);
+  const unbanned = named.filter((c) => speakerKey(c.ref) !== lastKey);
+  const allowed = new Set((unbanned.length > 0 ? unbanned : named).map((c) => speakerKey(c.ref)));
+  const top = ranked.find((key) => allowed.has(key));
+  return named.find((c) => speakerKey(c.ref) === top)?.ref;
 }
