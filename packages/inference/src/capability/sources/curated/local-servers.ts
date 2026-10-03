@@ -1,6 +1,6 @@
-// Curated capability rows — the sampler set each local server takes on its OpenAI route, whatever model it
-// runs. Provider-scoped and LAST in composition order, so the server's stated set replaces any family row's
-// (`sampling` replaces). Body spellings live on the provider row (`features.samplerKeys`), not here.
+// Curated capability rows — the sampler set each local server takes, whatever model it runs, composed LAST so
+// it replaces a family row's set (`sampling` replaces). A Custom endpoint's default set composes FIRST instead:
+// it may proxy a hosted family, whose own stated set must win. Body spellings live on the provider rows.
 
 import type { CapabilityOverrideInput, Range } from "@orb/contracts/inference";
 
@@ -159,13 +159,18 @@ export const localServerRows = [
       cite: "vllm main entrypoints/openai/chat_completion/protocol.py ChatCompletionRequest (temperature, top_p, top_k, min_p, repetition_penalty, penalties, seed, stop, logit_bias); sampling_params.py _verify_args bounds",
     },
   },
+] as const satisfies readonly CapabilityOverrideInput[];
+
+/** The set a Custom endpoint is offered when no family row states one for its model: an unknown server gets the
+ *  vLLM set, a proxied hosted model keeps its family's (D68). */
+export const customEndpointRows = [
   {
     match: { model: ANY_MODEL, provider: "custom-openai" },
     generation: { sampling: VLLM_SAMPLING },
     evidence: {
       tier: "curated",
       dated: DATED,
-      cite: "an unknown OpenAI-compatible server is offered the vLLM set; the connection's declared sampling replaces it for a server that takes less",
+      cite: "an unknown OpenAI-compatible server is offered the vLLM set; a family row states its own, and the connection's declared sampling replaces both",
     },
   },
 ] as const satisfies readonly CapabilityOverrideInput[];

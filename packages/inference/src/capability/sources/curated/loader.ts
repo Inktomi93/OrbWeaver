@@ -16,7 +16,7 @@ import { deepseekRows } from "./deepseek.ts";
 import { embeddersRows } from "./embedders.ts";
 import { googleRows } from "./google.ts";
 import { localLightRows } from "./local-light.ts";
-import { localServerRows } from "./local-servers.ts";
+import { customEndpointRows, localServerRows } from "./local-servers.ts";
 import { metaRows } from "./meta.ts";
 import { mistralRows } from "./mistral.ts";
 import { openaiRows } from "./openai.ts";
@@ -25,6 +25,8 @@ import { xaiRows } from "./xai.ts";
 
 /** File order is composition order: family-wide rows first, then version rows, then wire-specific rows. */
 const CURATED: readonly CompiledRow[] = [
+  // A Custom endpoint's default sampler set: first, so any family row that states a set replaces it.
+  ...compileRows("curated/local-servers.ts", customEndpointRows),
   ...compileRows("curated/anthropic.ts", anthropicRows),
   ...compileRows("curated/openai.ts", openaiRows),
   ...compileRows("curated/google.ts", googleRows),

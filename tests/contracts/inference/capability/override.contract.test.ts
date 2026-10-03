@@ -45,6 +45,11 @@ test("a `tools` cell is refused at parse unless it states `parallel` — in a ro
   expect(capabilityOverrideSchema.safeParse({ generation: { tools: { parallel: true, forcedChoice: false } } }).success).toBe(true);
 });
 
+test("a declared sampler order names each stage once — a repeat would put one token on the wire twice", () => {
+  expect(declaredCapabilitySchema.safeParse({ generation: { sampling: { samplerOrder: ["topK", "topK"] } } }).success).toBe(false);
+  expect(declaredCapabilitySchema.safeParse({ generation: { sampling: { samplerOrder: ["topK", "temperature"] } } }).success).toBe(true);
+});
+
 // `null` is the one stated absence: the connection editor's tool-calls no, which beats a reported yes.
 test("a declared `tools: null` parses as the stated absence; no other generation leaf takes null", () => {
   expect(declaredCapabilitySchema.safeParse({ generation: { tools: null } }).success).toBe(true);

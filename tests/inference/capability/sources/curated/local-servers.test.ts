@@ -62,6 +62,23 @@ test("every stage a server orders has a token in the vocabulary its provider row
   expect(generationOf("koboldcpp", "m").sampling.samplerOrder).toBeDefined();
 });
 
+test("behind a Custom endpoint a model family's stated sampling wins; only an unknown model gets the vLLM set", () => {
+  // A Custom endpoint is often a proxy (LiteLLM, Azure) to a hosted family whose own rows state its set.
+  const familyOnly = (model: string): SamplingCapability => {
+    const rows = curatedRows({ model, providerId: testProviderId("custom-openai"), wire: "openai-compat" }).filter(
+      (row) => row.match?.provider !== "custom-openai",
+    );
+    const { capability } = synthesizeCapability("generation", "other", { curated: rows });
+    return capability.kind === "generation" ? capability.generation.sampling : {};
+  };
+  for (const model of ["gpt-5-mini", "claude-opus-5", "gemini-3-flash-preview"]) {
+    expect(generationOf("custom-openai", model).sampling, model).toEqual(familyOnly(model));
+  }
+  expect(generationOf("custom-openai", "gpt-5-mini").sampling.temperature).toBeUndefined();
+  expect(generationOf("custom-openai", "gpt-5-mini").sampling.topK).toBeUndefined();
+  expect(statedKnobs(generationOf("custom-openai", "some-finetune-7b").sampling)).toEqual(statedKnobs(generationOf("vllm", "some-finetune-7b").sampling));
+});
+
 test("an embedder served by llama.cpp keeps its embedding capability: the rows state generation sampling only", () => {
   const { capability } = synthesizeCapability("embedding", "other", {
     curated: curatedRows({ model: "nomic-embed", providerId: testProviderId("llama-cpp") }),

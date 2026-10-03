@@ -15,7 +15,7 @@ import { expect, test } from "../../../support/fixtures.ts";
 import { testProviderId } from "../../../support/inference-identities.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
-import { openAiTextStream, scriptedJsonFetch, scriptedSseFetch } from "../_hosted-support.ts";
+import { generationCapability, openAiTextStream, scriptedJsonFetch, scriptedSseFetch } from "../_hosted-support.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "./_ollama-native-recordings.ts";
 
 const NOW = 1_700_000_000_000;
@@ -274,6 +274,34 @@ const COMPLETION = JSON.stringify({
   model: MODEL,
   choices: [{ index: 0, message: { role: "assistant", content: "A summary." }, finish_reason: "stop" }],
   usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
+});
+
+test("a side-generation call takes the chat turn's capability gate: OpenAI gets no top_k, and a 3.0 temperature clamps to the model's 2", async () => {
+  const recorded: RecordedRequest[] = [];
+  const deps: BatchDeps = {
+    now: () => NOW,
+    log: silentLog(),
+    transport: { fetch: scriptedJsonFetch([COMPLETION], recorded), app: APP },
+    normalize: passthroughImageNormalizer,
+  };
+  await runOpenAiCompatSummarize(
+    {
+      connection: fakeResolved({
+        task: "summarize",
+        providerId: "openai",
+        model: "gpt-4.1",
+        capability: generationCapability({ sampling: { temperature: { min: 0, max: 2 } } }),
+        secret: fakeApiKeySecret("sk-not-a-real-key"),
+      }),
+      inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long scene." }],
+      temperature: 3,
+      topK: 40,
+      maxTokens: 256,
+    },
+    deps,
+  );
+  expect(recorded[0]?.body["temperature"]).toBe(2);
+  expect(recorded[0]?.body).not.toHaveProperty("top_k");
 });
 
 test("a side-generation call (a posture's temperature, the summarizer's penalties) reaches llama.cpp under the chat turn's spelling", async () => {

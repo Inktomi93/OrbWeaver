@@ -22,6 +22,7 @@ import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
 import { ADAPTIVE_DEFAULT_EFFORT } from "../contract/resolve.ts";
+import type { TaskSampling } from "../contract/roles.ts";
 
 const EFFORT_OFF = "none";
 const ADAPTIVE_BUDGET_WARNING = "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";
@@ -358,6 +359,22 @@ function resolveSampling(params: UserIntent, capability: GenerationCapability, w
     ...(samplerOrder !== undefined ? { samplerOrder } : {}),
   };
   return dropExclusive(gated, s.exclusive, warnings);
+}
+
+/** A summarize/structured call's sampling through the chat turn's own gate: a knob the capability does not
+ *  state drops with `sampling_knob_dropped`, a stated one is clamped into its range. The output cap stays the
+ *  caller's. Side generation and chat therefore send the same knobs to the same model. */
+export function resolveTaskSampling(sampling: TaskSampling, capability: GenerationCapability, warnings: ResolvedWarning[]): TaskSampling {
+  const params: UserIntent = {
+    ...(sampling.temperature !== undefined ? { temperature: sampling.temperature } : {}),
+    ...(sampling.topP !== undefined ? { topP: sampling.topP } : {}),
+    ...(sampling.topK !== undefined ? { topK: sampling.topK } : {}),
+    ...(sampling.frequencyPenalty !== undefined ? { frequencyPenalty: sampling.frequencyPenalty } : {}),
+    ...(sampling.presencePenalty !== undefined ? { presencePenalty: sampling.presencePenalty } : {}),
+    ...(sampling.repetitionPenalty !== undefined ? { repetitionPenalty: sampling.repetitionPenalty } : {}),
+    ...(sampling.minP !== undefined ? { minP: sampling.minP } : {}),
+  };
+  return { ...resolveSampling(params, capability, warnings), ...(sampling.maxTokens !== undefined ? { maxTokens: sampling.maxTokens } : {}) };
 }
 
 /** The order this server runs for the preset's (`completeSamplerOrder`, D295). A stage the server cannot

@@ -172,6 +172,12 @@ export type SamplerKnob = (typeof SAMPLER_KNOBS)[number];
 export const SAMPLER_STAGES = ["penalties", "dry", "topNSigma", "topK", "topA", "typicalP", "topP", "minP", "xtc", "temperature"] as const;
 export type SamplerStage = (typeof SAMPLER_STAGES)[number];
 export const samplerStageSchema = z.enum(SAMPLER_STAGES) satisfies z.ZodType<SamplerStage>;
+/** A stage order, each stage at most once: a repeat would put one token on the wire twice. The shape a
+ *  capability states and a preset stores. */
+export const samplerOrderSchema = z
+  .array(samplerStageSchema)
+  .min(1)
+  .refine((stages) => new Set(stages).size === stages.length, { message: "a sampler stage appears once" });
 
 /** The sampling knobs a model exposes, each a `Range` or a boolean. `exclusive` names knob PAIRS the model
  *  rejects together (current Claude models refuse `temperature` + `top_p` in one request): the funnel keeps
@@ -183,7 +189,7 @@ export const samplingCapabilitySchema = z.object({
   logitBias: z.boolean().optional(),
   stop: z.boolean().optional(),
   drySequenceBreakers: z.boolean().optional(),
-  samplerOrder: z.array(samplerStageSchema).min(1).optional(),
+  samplerOrder: samplerOrderSchema.optional(),
   exclusive: z.array(z.tuple([z.string(), z.string()])).optional(),
 });
 export type SamplingCapability = z.infer<typeof samplingCapabilitySchema>;

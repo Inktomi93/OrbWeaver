@@ -18,7 +18,7 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#inference";
-import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, samplerStageSchema, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
+import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, samplerOrderSchema, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema, proseOverridesViewSchema } from "#prose-slot";
 import type { VersionedParseIssue } from "#versioned-config";
@@ -467,11 +467,7 @@ export const userIntentSchema = z.strictObject({
   smoothingFactor: generationKnobSchemas.smoothingFactor,
   smoothingCurve: generationKnobSchemas.smoothingCurve,
   // The stages to run, in order; a stage left out does not run (both servers read the list that way).
-  samplerOrder: z
-    .array(samplerStageSchema)
-    .min(1)
-    .refine((stages) => new Set(stages).size === stages.length, { message: "a sampler stage appears once" })
-    .optional(),
+  samplerOrder: samplerOrderSchema.optional(),
   seed: generationKnobSchemas.seed,
   logitBias: z.record(z.string(), z.number()).optional(),
   stop: z.array(z.string()).optional(),

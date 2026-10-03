@@ -60,6 +60,7 @@ test("an SDK warning on a batch item is surfaced as its own log line, never swal
       inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long text." }],
       responseFormat: undefined,
       sampling: {},
+      samplingWarnings: [],
       signal: undefined,
     },
     model: fakeModel([
