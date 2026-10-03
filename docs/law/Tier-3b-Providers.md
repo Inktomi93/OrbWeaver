@@ -121,6 +121,36 @@ Motion preparation uses the packaged CLI from `node-av/ffmpeg`, not an executabl
 
 ONE fold in `EVIDENCE_TIERS` order — `declared → measured → advertised → curated → family-floor → kind-floor` (`packages/contracts/src/inference/evidence.ts`, folded by `packages/inference/src/capability/synthesize.ts`). Each tier is a PARTIAL that overrides only the fields it states; `family-floor` ORs in and never subtracts; `sampling` REPLACES because it is the stated SET a tier vouches for and a patch grammar cannot express a measured absence. `declared` wins over a dated measurement with a `declared_overrides_measured` warning naming the field — the user's box is the truth about the user's box.
 
+### Local servers: advertised evidence
+
+A local server's own answer enters the fold as the `advertised` tier. There is no separate tier. The reader is keyed on the folded `features.modelInfoApi` (`MODEL_INFO_APIS` in `packages/contracts/src/inference/features.ts`) and never on a provider id. No backend holds server-named code. `packages/inference/src/catalog/endpoint.ts` dispatches on `modelInfoApi` to one reader per server. Each reader parses its response through a zod schema at the boundary. A failed native read warns and leaves its facts not stated, and the manual override keeps working.
+
+The built-in rows `ollama`, `llama-cpp` and `koboldcpp` set `modelInfoApi` (`packages/contracts/src/inference/builtin-providers.ts`). The `custom-openai` row sets `detectServer`. For such a connection, `detectServer` in `packages/inference/src/catalog/detect.ts` probes the URL in the order KoboldCpp, llama.cpp, Ollama. `behaveAs` in `packages/inference/src/resolve/behave-as.ts` then reads the matching built-in row's features and model-info API. A Custom connection to one of these servers needs no setting. A connection that declares its own `modelInfoApi` skips the probe, and the declaration wins. The connection's identity, `providerId` and credential stay the registered row's. Detection runs only on the `openai-compat` wire.
+
+A generation row states `input`, `tools` and structured output, and an embedding row states its kind and width. `advertisedFromOpenAiCompat` (`packages/inference/src/capability/sources/advertised/openai-compat.ts`) turns the row into the advertised partial. A stated `input` list is taken at its word, and a server that states none keeps the permissive posture (ADR 0292). Ollama's chat route is ADR 0296. Sampler order is ADR 0295.
+
+What each server says:
+
+| Capability | Ollama | llama.cpp server | KoboldCpp |
+| - | - | - | - |
+| tools | `POST /api/show` `capabilities` has `tools`. `parallel` is false. | `GET /props` `chat_template_caps` has `supports_tools` and `supports_tool_calls`. `supports_parallel_tool_calls` sets `parallel`. Router mode states nothing. | Not stated. A call comes back as `tool_calls` only when the model matches the server's parser. The user declares tools. |
+| vision | `capabilities` has `vision`. A model with `completion` and no `vision` states text only. | `/props` `modalities`. In router mode, the row's `architecture.input_modalities`. | `GET /api/extra/version` `vision` and `audio`. |
+| embeddings | `capabilities` has `embedding` states the kind. `model_info` `*.embedding_length` states the width when the model does not generate. | The kind comes from the empty-body answer of `/rerank` and `/v1/embeddings`. A router states no kind. The width is the length of a measured vector, not `n_embd`. | `version.llm` and `version.embeddings` state the kind. The width is a measured vector length. |
+| structured output | `/api/version` at or past `0.5.0`. | `/props` `build_info` at or past build `2480`. | `/api/extra/version` `version` at or past `1.90`. |
+| context window | The Modelfile `num_ctx`, capped at the trained maximum. Unpinned, the version's default floor lowered by a smaller loaded runner (`/api/ps`). | The row's `meta.n_ctx`, else `/props` `default_generation_settings.n_ctx`. | `/props` `n_ctx`, else `default_generation_settings.n_ctx`. |
+
+A version the reader cannot parse states no structured output. Parallel tool calls on Ollama, reasoning mode, sampling ranges and turn cells are not advertised by any of the three. They stay curated, measured or declared. The server floors live in `packages/inference/src/catalog/endpoint.ts`.
+
+Rejected:
+
+- A new evidence tier. `advertised` already means the server's own answer.
+- A server-named code path in a backend. The reader keys on the folded feature.
+- A curated provider-keyed row for structured output. Each server reports a version, so the reader gates on its floor.
+- Advertised tools on KoboldCpp. The server accepts `tools[]`, but a capability a probe cannot prove is a claim, not a statement.
+- A synthetic catalog row for KoboldCpp's embedder. The server's list has no row for it, and an invented row would claim an id the server never listed.
+- A per-row `/props?model=` read in llama.cpp router mode. The read loads the model. The row's `architecture.input_modalities` covers vision, and tools stay not stated.
+- Reading llama.cpp's `architecture` and `meta` in the generic `/v1/models` row read. A generic list carries no kind or modalities, and the `llama-cpp` reader alone reads those fields.
+
 ### Native Google
 
 The `google` provider uses `google-generative-ai` through the low-level V4 models from `@ai-sdk/google` (D279). Shared callers, prompt planning, stream reduction and task dispatch remain the runtime boundary. Native model discovery contributes method-derived kinds and advertised limits through the endpoint catalog mirror. `curated/google.ts` owns shared Gemini model facts; route-specific rows describe transport differences.
