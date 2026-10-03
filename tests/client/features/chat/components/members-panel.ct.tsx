@@ -13,7 +13,7 @@
 //     snap-back via the weight chip);
 //   • authority mirroring: a member view exposes only View character; the draft case drops force-turn.
 
-import { rowActionsName } from "@orb/client/lib";
+import { rowActionsName, talkativenessAccessibleName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MembersKickFocusStory, MembersPanelStory, MembersReseedStory } from "../_ct-stories.tsx";
 
@@ -23,11 +23,10 @@ const KICK_RE = /Kick…/u;
 const REMOVE_ARIA_RE = /Remove Aria from chat/u;
 // The chip's name carries the visible word "talks" (WCAG 2.5.3 — UI-Primitives-and-Reuse §13.10); the
 // stable `Talkativeness: <who>` identity still LEADS, which is why every other lookup here is unaffected.
-// #490 dropped the PERCENT SIGN: the value is a relative sampling weight (`select-speakers.ts`), not a
-// share, and three seats at "50%" summed to 150 in the panel. The name still carries the visible word
-// "talks" and the visible number; the unit it names is the dial, not a percentage.
-const CHIP_50_RE = /Talkativeness: Aria — talks at level 50 of 100/u;
-const CHIP_80_RE = /Talkativeness: Aria — talks at level 80 of 100/u;
+// The value is each character's chance to reply unprompted (`select-speakers.ts`), so the name carries the
+// visible "talks 50%" and says what the percent is a chance of.
+const CHIP_50 = { name: talkativenessAccessibleName("Aria", 0.5), exact: true };
+const CHIP_80 = { name: talkativenessAccessibleName("Aria", 0.8), exact: true };
 
 test("People + Characters render in one list with identity+state accessible names and chips", async ({ mount }) => {
   const component = await mount(<MembersPanelStory withPeople={true} />);
@@ -351,22 +350,20 @@ test("Talkativeness… opens the anchored popover; the slider commits on release
 
 test("the weight chip RE-SEEDS from the prop on a value-only change (bus/other-device echo)", async ({ mount }) => {
   const component = await mount(<MembersReseedStory />);
-  const chip = component.getByRole("button", { name: CHIP_50_RE });
-  // The chip is a labeled value (CP-1 ride-along): the "Talks" label names WHAT the number is; the dial
-  // level stays the glance readout. `toContainText` tolerates the label + the mono span split. #490 took
-  // the PERCENT SIGN off that readout — the value is a relative sampling weight, not a share, and three
-  // seats reading "50%" summed to 150 — so the visible text is the bare level.
-  await expect(chip).toContainText("50");
+  const chip = component.getByRole("button", CHIP_50);
+  // The chip is a labeled value (CP-1 ride-along): the "Talks" label names WHAT the number is; the percent
+  // is the character's chance to reply unprompted. `toContainText` tolerates the label + the mono span split.
+  await expect(chip).toContainText("50%");
 
   // A value-only prop change (the row's key is unchanged, so React never remounts it).
   await component.getByTestId("bump-aria").click();
-  await expect(component.getByRole("button", { name: CHIP_80_RE })).toContainText("80");
+  await expect(component.getByRole("button", CHIP_80)).toContainText("80%");
 });
 
 test("the popover thumb SNAPS BACK to the prop after a failed write (no stale local value)", async ({ mount, page }) => {
   const component = await mount(<MembersReseedStory />);
 
-  await component.getByRole("button", { name: CHIP_50_RE }).click();
+  await component.getByRole("button", CHIP_50).click();
   const thumb = page.getByRole("slider", { name: "Talkativeness: Aria" });
   await thumb.focus();
   // Commit is a NO-OP (busDriven/failed write) → on release the thumb falls back to the prop.
