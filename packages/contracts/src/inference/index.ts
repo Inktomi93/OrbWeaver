@@ -22,6 +22,7 @@ export * from "./provider-schema.ts";
 export * from "./providers.ts";
 export * from "./resolved.ts";
 export * from "./tasks.ts";
+export * from "./tokenize.ts";
 export * from "./usage.ts";
 export * from "./wire-subset.ts";
 export * from "./wires.ts";

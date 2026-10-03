@@ -84,7 +84,7 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
     captureWireReply: deps.captureWireReply,
     imageToPng: deps.imageToPng,
   };
-  const openAiCompat = createOpenAiCompatBackend({ ...shared, app: deps.app, embedSpaceDims: deps.embedSpace.dims });
+  const openAiCompat = createOpenAiCompatBackend({ ...shared, app: deps.app, embedSpaceDims: deps.embedSpace.dims, snapshotStore: deps.snapshotStore });
   const anthropic = createAnthropicBackend(shared);
   const localLight = createLocalLightBackend({ now: deps.now, log: deps.log, superviseDetached: deps.superviseDetached, config: deps.localLight });
   const createAgent = (): AgentSdkBackend =>

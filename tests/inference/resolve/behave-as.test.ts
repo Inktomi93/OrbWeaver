@@ -10,7 +10,7 @@ import { runOpenAiCompatChatTurn } from "../../../packages/inference/src/backend
 import { detectServer } from "../../../packages/inference/src/catalog/detect.ts";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
-import { fakeConnection, fakeDeps, memoryStores, newUserId } from "../_support.ts";
+import { fakeConnection, fakeDeps, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "../backends/openai-compat/_ollama-native-recordings.ts";
 import type { LocalServerArm } from "../catalog/_local-servers-fetch.ts";
 import { localServerFetch } from "../catalog/_local-servers-fetch.ts";
@@ -112,6 +112,7 @@ test("a Custom connection on an Ollama server takes the Ollama row's facts and i
     {
       now: () => 0,
       log: { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined },
+      tokens: memoryTokenLexicon(),
       transport: {
         fetch: (input: Parameters<typeof fetch>[0]): Promise<Response> => {
           recorded.push({ url: String(input) });

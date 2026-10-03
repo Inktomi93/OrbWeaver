@@ -1780,6 +1780,12 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.connection.resolveChatCapability({ target: { kind: "connection", connectionId: i.connectionId } }),
     refusal: CONNECTION_NOT_YOURS,
   },
+  // The tokenize read on the same target: A's row by id must refuse before anything is asked of A's server.
+  {
+    path: "connection.tokenizeWords",
+    call: (c, i) => c.connection.tokenizeWords({ target: { kind: "connection", connectionId: i.connectionId }, words: ["Elara"] }),
+    refusal: CONNECTION_NOT_YOURS,
+  },
   { path: "connection.catalogModels", call: (c, i) => c.connection.catalogModels({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
   { path: "connection.probe", call: (c, i) => c.connection.probe({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
   { path: "connection.accountCredits", call: (c, i) => c.connection.accountCredits({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },

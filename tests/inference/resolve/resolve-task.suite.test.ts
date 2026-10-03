@@ -507,3 +507,43 @@ test("invalidateEndpoint forgets ONE connection's (URL × reader) mirror in memo
   await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: custom.id });
   expect(seen.filter((url) => url.endsWith("/v1/models")).length - listDials, "the sibling's mirror was not touched: only the ollama re-warm listed").toBe(1);
 });
+
+test("the runtime's tokenize read fills the token cache once, and invalidateEndpoint forgets it with the endpoint facts", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const model = "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf";
+  const row = fakeConnection({ ownerId, providerId: "llama-cpp", model, baseUrl: "http://127.0.0.1:1/v1" });
+  stores.connections.rows.set(row.id, row);
+  const seen: string[] = [];
+  const runtime = await createInferenceRuntime(
+    fakeDeps({ stores, fetch: localServerFetch("llamacpp-chat", { tokenize: { tokens: [{ id: 42, piece: "Elara" }] } }, seen) }),
+  );
+  const tokenizeCalls = (): number => seen.filter((url) => url.endsWith("/tokenize")).length;
+  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+
+  expect(await runtime.catalogs.tokenize(resolved, ["Elara"])).toEqual({ available: true, words: [{ ok: true, word: "Elara", ids: [42], pieces: ["Elara"] }] });
+  await runtime.catalogs.tokenize(resolved, ["Elara"]);
+  expect(tokenizeCalls(), "a held word is not asked again").toBe(1);
+  expect([...stores.snapshotStore.entries.keys()]).toContain(`catalog:endpoint:http://127.0.0.1:1/v1#tokens:${model}`);
+
+  await runtime.catalogs.invalidateEndpoint(row);
+  expect(
+    [...stores.snapshotStore.entries.keys()].some((key) => key.includes("#tokens:")),
+    "the persisted lookups go with the facts",
+  ).toBe(false);
+  await runtime.catalogs.tokenize(resolved, ["Elara"]);
+  expect(tokenizeCalls(), "a forgotten word is asked once more").toBe(2);
+});
+
+test("a connection whose server has no tokenize endpoint answers unavailable and asks nothing", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  stores.connections.rows.set(row.id, row);
+  const seen: string[] = [];
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seen) }));
+  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  const before = seen.length;
+  expect(await runtime.catalogs.tokenize(resolved, ["Elara"])).toEqual({ available: false, words: [] });
+  expect(seen).toHaveLength(before);
+});

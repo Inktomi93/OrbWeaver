@@ -7,7 +7,7 @@
 // sibling runtime.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ConnectionBinding, ModelListing, ResolvedConnectionView, RoutableTask, SendAvailability } from "@orb/contracts/inference";
+import type { ConnectionBinding, ModelListing, ResolvedConnectionView, RoutableTask, SendAvailability, TokenizeResult } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -35,6 +35,7 @@ import type {
   ResolveChatCapabilityParams,
   ResolveTaskParams,
   SetBindingParams,
+  TokenizeWordsParams,
   UpdateConnectionParams,
   UseForEverythingParams,
 } from "./params.ts";
@@ -90,6 +91,8 @@ export interface ConnectionService {
   /** The caller's OWN chat connection end-to-end, credential-free (`ResolvedConnectionView`). */
   readonly resolveChatCapability: (params: ResolveChatCapabilityParams) => Promise<ResolvedConnectionView>;
   readonly capabilities: (params: GetConnectionParams) => Promise<ConnectionCapabilityView>;
+  /** Each word's tokens on the targeted connection's server, cached per (server, model, word). */
+  readonly tokenizeWords: (params: TokenizeWordsParams) => Promise<TokenizeResult>;
 
   // ── the user's rows
   readonly list: (params: ListConnectionsParams) => Promise<readonly ConnectionView[]>;

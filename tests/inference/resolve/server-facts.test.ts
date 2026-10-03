@@ -12,7 +12,7 @@ import { applyServerToolChoice } from "../../../packages/inference/src/capabilit
 import type { ResolvedWarning } from "../../../packages/inference/src/contract/resolve.ts";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
-import { fakeConnection, fakeDeps, memoryStores, newUserId } from "../_support.ts";
+import { fakeConnection, fakeDeps, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";
 import { generationCapability } from "../backends/_hosted-support.ts";
 import { localServerFetch, recordedAnswer, transcriptFetch } from "../catalog/_local-servers-fetch.ts";
 
@@ -120,6 +120,7 @@ test("a chat template that refuses the conversation's roles is mapped once, not 
     {
       now: () => 0,
       log: { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined },
+      tokens: memoryTokenLexicon(),
       transport: {
         fetch: (): Promise<Response> => {
           calls += 1;

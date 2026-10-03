@@ -15,6 +15,7 @@ import {
   EFFORT_LEVELS,
   reasoningOffModeOf,
   reasoningReplayOf,
+  SAMPLER_KNOB_STAGES,
   SAMPLING_RANGE_KNOBS,
   survivesPrefixEdit,
 } from "@orb/contracts/inference";
@@ -360,16 +361,36 @@ function resolveSampling(params: UserIntent, capability: GenerationCapability, w
   const logitBias = resolveFlag("logitBias", params.logitBias, s.logitBias, warnings);
   const stop = resolveFlag("stop", params.stop, s.stop, warnings);
   const drySequenceBreakers = resolveFlag("drySequenceBreakers", params.drySequenceBreakers, s.drySequenceBreakers, warnings);
-  const samplerOrder = resolveSamplerOrder(params.samplerOrder, s.samplerOrder, warnings);
+  const bannedStrings = resolveFlag("bannedStrings", params.bannedStrings, s.bannedStrings, warnings);
+  const banEos = resolveFlag("banEos", params.banEos, s.banEos, warnings);
+  const samplerOrder = resolveSamplerOrder(params.samplerOrder, s.samplerOrder, warnings) ?? stageOrderFor(ranged, s.samplerOrder);
   const gated: ResolvedSampling = {
     ...ranged,
     ...(seed !== undefined ? { seed } : {}),
     ...(logitBias !== undefined ? { logitBias } : {}),
     ...(stop !== undefined ? { stop } : {}),
     ...(drySequenceBreakers !== undefined ? { drySequenceBreakers } : {}),
+    ...(bannedStrings !== undefined ? { bannedStrings } : {}),
+    ...(banEos !== undefined ? { banEos } : {}),
     ...(samplerOrder !== undefined ? { samplerOrder } : {}),
   };
   return dropExclusive(gated, s.exclusive, warnings);
+}
+
+/** The server's own default order, when a set knob acts only where its stage runs and the preset stores no
+ *  order (`SAMPLER_KNOB_STAGES`): llama.cpp's adaptive-P needs `adaptive_p` in `samplers`. */
+function stageOrderFor(
+  ranged: { readonly [K in SamplingRangeKnob]?: number },
+  orderable: readonly SamplerStage[] | undefined,
+): readonly SamplerStage[] | undefined {
+  if (orderable === undefined) {
+    return;
+  }
+  const needsStage = SAMPLING_RANGE_KNOBS.some((knob) => {
+    const stage = SAMPLER_KNOB_STAGES[knob];
+    return ranged[knob] !== undefined && stage !== undefined && orderable.includes(stage);
+  });
+  return needsStage ? orderable : undefined;
 }
 
 /** A summarize/structured call's sampling through the chat turn's own gate: a knob the capability does not
@@ -377,11 +398,12 @@ function resolveSampling(params: UserIntent, capability: GenerationCapability, w
  *  caller's. Side generation and chat therefore send the same knobs to the same model. */
 export function resolveTaskSampling(sampling: TaskSampling, capability: GenerationCapability, warnings: ResolvedWarning[]): TaskSampling {
   // Reasoning is not a sampler: the wire resolves it through `resolveSideGenReasoning`, so it passes through.
-  const { maxTokens, effort, thinkingBudgetTokens, stop, drySequenceBreakers, samplerOrder, ...knobs } = sampling;
+  const { maxTokens, effort, thinkingBudgetTokens, stop, drySequenceBreakers, bannedStrings, samplerOrder, ...knobs } = sampling;
   const params: UserIntent = {
     ...knobs,
     ...(stop !== undefined ? { stop: [...stop] } : {}),
     ...(drySequenceBreakers !== undefined ? { drySequenceBreakers: [...drySequenceBreakers] } : {}),
+    ...(bannedStrings !== undefined ? { bannedStrings: [...bannedStrings] } : {}),
     ...(samplerOrder !== undefined ? { samplerOrder: [...samplerOrder] } : {}),
   };
   return {

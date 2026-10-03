@@ -26,6 +26,10 @@ test("every generation param a role takes reaches the task, not just temperature
     logitBias: { "50256": -100 },
     stop: ["\n\n"],
     samplerOrder: ["temperature", "topK"],
+    adaptiveTarget: 0.6,
+    minKeep: 2,
+    bannedStrings: ["ministrations"],
+    banEos: true,
     effort: "low",
     thinkingBudgetTokens: 2048,
   };

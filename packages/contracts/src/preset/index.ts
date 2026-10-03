@@ -312,6 +312,8 @@ const PROBABILITY_MAX = 1;
 const DRY_BASE_MIN = 1;
 const MIROSTAT_MODE_MAX = 2;
 const SMOOTHING_CURVE_MIN = 1;
+// Adaptive-P's decay is an EMA weight below 1 (llama.cpp hard-limits it to 0.99).
+const ADAPTIVE_DECAY_MAX = 0.99;
 const COMPACTION_THRESHOLD_MIN = 0.5;
 const COMPACTION_THRESHOLD_MAX = 0.99;
 // The managed-compaction VERBATIM TAIL: the newest N canon rows kept literal when the SDK owns context and
@@ -372,6 +374,9 @@ interface GenerationKnobValues {
   readonly dynatempExponent?: number;
   readonly smoothingFactor?: number;
   readonly smoothingCurve?: number;
+  readonly adaptiveTarget?: number;
+  readonly adaptiveDecay?: number;
+  readonly minKeep?: number;
   readonly seed?: number;
   readonly compactionThresholdPct?: number;
   readonly compactionVerbatimTail?: number;
@@ -410,6 +415,9 @@ export const generationKnobSchemas = {
   dynatempExponent: z.number().nonnegative().optional(),
   smoothingFactor: z.number().nonnegative().optional(),
   smoothingCurve: z.number().min(SMOOTHING_CURVE_MIN).optional(),
+  adaptiveTarget: z.number().min(PROBABILITY_MIN).max(PROBABILITY_MAX).optional(),
+  adaptiveDecay: z.number().min(PROBABILITY_MIN).max(ADAPTIVE_DECAY_MAX).optional(),
+  minKeep: z.number().int().nonnegative().optional(),
   seed: z.number().int().optional(),
   compactionThresholdPct: z.number().min(COMPACTION_THRESHOLD_MIN).max(COMPACTION_THRESHOLD_MAX).optional(),
   compactionVerbatimTail: z.number().int().min(COMPACTION_VERBATIM_TAIL_MIN).max(COMPACTION_VERBATIM_TAIL_MAX).optional(),
@@ -463,7 +471,14 @@ export const userIntentSchema = z.strictObject({
   dynatempExponent: generationKnobSchemas.dynatempExponent,
   smoothingFactor: generationKnobSchemas.smoothingFactor,
   smoothingCurve: generationKnobSchemas.smoothingCurve,
-  // The stages to run, in order; a stage left out does not run (both servers read the list that way).
+  adaptiveTarget: generationKnobSchemas.adaptiveTarget,
+  adaptiveDecay: generationKnobSchemas.adaptiveDecay,
+  minKeep: generationKnobSchemas.minKeep,
+  // Phrases the model may not write. Stored as words; each server takes them its own way.
+  bannedStrings: z.array(z.string().min(1)).min(1).optional(),
+  // Keep the model from ending its reply (llama.cpp and vLLM `ignore_eos`, KoboldCpp `ban_eos_token`).
+  banEos: z.boolean().optional(),
+  // The stage order to run; a stage it leaves out runs after it, in the server's own order (D295).
   samplerOrder: samplerOrderSchema.optional(),
   seed: generationKnobSchemas.seed,
   logitBias: z.record(z.string(), z.number()).optional(),

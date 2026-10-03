@@ -2,7 +2,8 @@
 // settings the target model does not honor; they stay stored (a preset is shared across connections) and
 // are neither sent nor deleted unless the user presses Clear.
 
-import { DEFAULT_SAMPLER_KEYS } from "@orb/contracts/inference";
+import type { SamplerKnob } from "@orb/contracts/inference";
+import { DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
@@ -11,7 +12,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms/editor";
-import { SAMPLING_KNOBS } from "../lib/capability-panel-model.ts";
+import { SAMPLING_KNOBS } from "../lib/sampling-knob-catalog.ts";
 
 type AppForm = AppFormInstance<PromptConfig>;
 
@@ -40,24 +41,30 @@ const STALE_KNOB_ROWS = [
     clear: (f: AppForm): void => f.setFieldValue("params.drySequenceBreakers", undefined),
   },
   { knob: "samplerOrder", wire: "sampler order", clear: (f: AppForm): void => f.setFieldValue("params.samplerOrder", undefined) },
+  { knob: "bannedStrings", wire: "banned phrases", clear: (f: AppForm): void => f.setFieldValue("params.bannedStrings", undefined) },
+  { knob: "banEos", wire: "EOS ban", clear: (f: AppForm): void => f.setFieldValue("params.banEos", undefined) },
 ] as const;
 
-/** The wire name the staleness row prints for a knob (its own key when this build doesn't know it). */
-function staleWireName(knob: string): string {
-  return STALE_KNOB_ROWS.find((row) => row.knob === knob)?.wire ?? knob;
+/** The wire name the staleness row prints for a knob: a sampler under the target server's own spelling, else
+ *  the row's name, else its own key when this build doesn't know it. */
+function staleWireName(knob: string, spelling: Readonly<Record<SamplerKnob, string>> | undefined): string {
+  const sampler = SAMPLER_KNOBS.find((candidate) => candidate === knob);
+  const spelled = sampler === undefined ? undefined : spelling?.[sampler];
+  return spelled ?? STALE_KNOB_ROWS.find((row) => row.knob === knob)?.wire ?? knob;
 }
 
 /** The staleness row (§4.2, F7 dead) — stored explicit knobs the CURRENT model does not honor. They are
  *  dropped at the funnel and invisible in both directions until this row names them. Rendered only when
  *  non-empty; Keep dismisses for the session (a value legitimately waiting for a model that honors it —
  *  the D68 posture), Clear unsets the fields. */
-export function StalenessRow({
-  form,
-  stale,
-}: {
+export interface StalenessRowProps {
   readonly form: AppForm;
   readonly stale: readonly { readonly knob: string; readonly value: number | string }[];
-}): ReactElement | null {
+  /** The target connection's sampler spellings (`samplerSpellingOf`); `undefined` until its rows load. */
+  readonly spelling: Readonly<Record<SamplerKnob, string>> | undefined;
+}
+
+export function StalenessRow({ form, stale, spelling }: StalenessRowProps): ReactElement | null {
   const [kept, setKept] = useState(false);
   if (kept || stale.length === 0) {
     return null;
@@ -76,7 +83,9 @@ export function StalenessRow({
     // prop on Text (the four-voice grammar owns type color, §2).
     <Row align="center" className="rounded-base border border-warning bg-warning/10 text-warning" gap="field" padding="row">
       <Icon icon={AlertTriangle} size="sm" />
-      <Text voice="label">Set but not honored by this model: {stale.map((entry) => `${staleWireName(entry.knob)} ${String(entry.value)}`).join(" · ")}</Text>
+      <Text voice="label">
+        Set but not honored by this model: {stale.map((entry) => `${staleWireName(entry.knob, spelling)} ${String(entry.value)}`).join(" · ")}
+      </Text>
       <Button intent="ghost" onClick={(): void => setKept(true)} size="sm" type="button">
         Keep
       </Button>

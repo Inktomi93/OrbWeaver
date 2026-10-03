@@ -7,6 +7,7 @@ import { BODY_SAMPLER_KNOBS, DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS, SAMPLER_ORDER_
 import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
 
 const OPENROUTER_DIALECT: Dialect = "openrouter";
+const LOGIT_BIAS_BAN: NonNullable<EndpointFeatures["bannedStrings"]> = "logit-bias-ban";
 // The openrouter provider spells `top_k` from the V4 option; `@ai-sdk/openai-compatible` drops a V4 `topK`
 // with an `unsupported` warning, so on that transport it rides the body instead.
 const OPENROUTER_BODY_KNOBS: readonly SamplerKnob[] = BODY_SAMPLER_KNOBS.filter((knob) => knob !== "topK");
@@ -49,14 +50,26 @@ function spellSamplers(
   warnings: ResolvedWarning[],
 ): Record<string, unknown> {
   const keys = { ...DEFAULT_SAMPLER_KEYS, ...features.samplerKeys };
+  const bansAsBias = features.bannedStrings === LOGIT_BIAS_BAN;
   const spelled: Record<string, unknown> = {};
   for (const knob of knobs) {
     const value = sampling[knob];
-    if (value !== undefined) {
+    if (value !== undefined && !(knob === "bannedStrings" && bansAsBias)) {
       spelled[keys[knob]] = value;
     }
   }
+  if (bansAsBias && sampling.bannedStrings !== undefined && knobs.includes("bannedStrings")) {
+    // `false` is the server's hard ban, and a phrase key is tokenized by the server; the user's own bias keeps
+    // its entries, and a phrase it also biases is banned.
+    const existing = spelled[keys.logitBias];
+    const bias: Record<string, unknown> = isRecord(existing) ? existing : {};
+    spelled[keys.logitBias] = { ...bias, ...Object.fromEntries(sampling.bannedStrings.map((phrase) => [phrase, false])) };
+  }
   return sampling.samplerOrder === undefined ? spelled : { ...spelled, ...spellOrder(sampling.samplerOrder, features.samplerOrder, warnings) };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /** Every body key a sampler can ride under on this row: what a translating route (Ollama's `/api/chat`, which

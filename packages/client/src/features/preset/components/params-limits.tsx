@@ -7,7 +7,8 @@
 // .window`, step 1, with a range-sized `largeStep` for keyboard paging — precision entry is the twin's job,
 // so a 0..131072 range needs no log scale.
 //
-// Gap-closes landed here (§10): G2 `params.stop` (a chip list — capability-gated on `sampling.stop`),
+// Gap-closes landed here (§10): G2 `params.stop` (a chip list — capability-gated on `sampling.stop`, as
+// the banned-phrase list and the EOS ban are on their own flags),
 // G3 `params.providerContextCompression`, G4 `params.compaction.verbatimTail`. `maxBudgetUsd` has no row
 // here because the FIELD is gone: D6 ("build its OUTPUT editor, or delete the field") was resolved DELETE
 // by the owner, 2026-08-02 — it was reachable from no surface, so nobody could set, read, or clear it.
@@ -31,16 +32,15 @@ import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
-import { useState } from "react";
 import { SettingRowGroup, SettingTrackRow } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
-import { StopSequences } from "./sequence-chips.tsx";
+import { LogitBiasEditor } from "./logit-bias-editor.tsx";
+import { BannedPhrases, StopSequences } from "./sequence-chips.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
 
@@ -143,11 +143,28 @@ function OutputCluster({
             )}
           </form.Subscribe>
         </SettingTrackRow>
+        {capability.sampling.banEos === true ? <BanEosRow form={form} /> : null}
       </SettingRowGroup>
-      {/* OUTSIDE the row group: this is a `Fieldset` GROUP (N chips plus an add box), not a label/control
-          row, so it declares its own block instead of taking the group's label track. */}
+      {/* OUTSIDE the row group: these are `Fieldset` GROUPS (N chips plus an add box), not label/control
+          rows, so each declares its own block instead of taking the group's label track. */}
       {capability.sampling.stop === true ? <StopSequences form={form} /> : null}
+      {capability.sampling.bannedStrings === true ? <BannedPhrases form={form} /> : null}
     </Section>
+  );
+}
+
+/** `params.banEos`: on stores `true`, off clears the field (the server's own default lets the reply end). */
+function BanEosRow({ form }: { readonly form: AppForm }): ReactElement {
+  return (
+    <SettingTrackRow>
+      <form.Subscribe selector={(state): boolean => state.values.params.banEos === true}>
+        {(on): ReactElement => (
+          <Field hint="Stops the model from ending its reply early; it writes until the output cap or a stop sequence." label="Ban end of reply">
+            <Switch checked={on} onCheckedChange={(next): void => form.setFieldValue("params.banEos", next ? true : undefined)} />
+          </Field>
+        )}
+      </form.Subscribe>
+    </SettingTrackRow>
   );
 }
 
@@ -271,19 +288,7 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
       </CollapsibleTrigger>
       <CollapsiblePanel>
         <Stack gap="field">
-          {/* THE ONLY UNCONTROLLED FIELD ON THE DECK, AND THEREFORE THE ONLY ONE THAT NEEDED A KEY (#1502).
-              It is uncontrolled because the value is a JSON MAP the user edits as TEXT — a controlled
-              `value` would have to round-trip through `parseLogitBias` on every keystroke and eat any
-              half-typed brace. But React applies `defaultValue` at MOUNT and never again, so switching
-              presets left the previous preset's JSON sitting in the box, and — the half that made it a
-              two-writer bug rather than a display glitch — the next `onBlur` wrote that stale text back
-              over the newly-loaded preset's own bias map. The subscribed serialization is the field's
-              IDENTITY: a preset switch changes it, so React remounts the textarea around the new text,
-              while typing changes nothing (the form value only moves on blur) so an open edit is never
-              disturbed. A blur that stores a map re-mounts with the CANONICAL serialization of what was
-              actually stored, which is also the honest answer to "invalid JSON is ignored" — the box now
-              shows what the preset holds instead of text that looks saved and is not. */}
-          <LogitBiasField form={form} />
+          <LogitBiasEditor form={form} />
           <SettingRowGroup>
             <SettingTrackRow>
               {/* Unset is the model's own default, which allows parallel calls on every wire that has the control, so
@@ -310,77 +315,4 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
       </CollapsiblePanel>
     </Collapsible>
   );
-}
-
-/**
- * The logit-bias escape hatch — the deck's ONE uncontrolled field, and therefore the only one that needed a
- * key (#1502). It is uncontrolled because the value is a JSON MAP the user edits as TEXT: a controlled
- * `value` would round-trip through `parseLogitBias` on every keystroke and eat any half-typed brace. But
- * React applies `defaultValue` at MOUNT and never again, so switching presets left the previous preset's
- * JSON sitting in the box, and — the half that made it a two-writer bug rather than a display glitch — the
- * next `onBlur` wrote that stale text back over the newly-loaded preset's bias map.
- *
- * THE KEY IS THE STORED SERIALIZATION **PLUS A BLUR EPOCH**, and the epoch is the #1570 half. The stored
- * serialization alone made the field's own ruling — "a blur re-mounts with the CANONICAL serialization of
- * what was actually stored, which is the honest answer to 'invalid JSON is ignored'" — true in only one
- * direction. Blur invalid text OVER a stored map and the map becomes `undefined`, the key changes, the box
- * clears: correct. Blur the SAME invalid text with NO stored map and the field value does not move, so the
- * key does not either, so the box keeps text that looks saved and is not. One input, two behaviours.
- *
- * The epoch makes every blur a remount, so the box always shows what the preset HOLDS. Typing still changes
- * nothing (the epoch moves on blur, the serialization only when the form value does), so an open edit is
- * never disturbed — which is the property the key was introduced to protect.
- */
-function LogitBiasField({ form }: { readonly form: AppForm }): ReactElement {
-  const [blurEpoch, setBlurEpoch] = useState(0);
-  return (
-    <form.Subscribe selector={(state): string => serializeLogitBias(state.values.params.logitBias)}>
-      {(serialized): ReactElement => (
-        <Field hint="A JSON map of token id → bias (-100…100). Nudges or blocks specific tokens. Invalid JSON is ignored." label="Logit bias">
-          {/* No `aria-label` (#1621, the Textarea family): this box is the Field's sole `Field.Control`, so
-              the label reaches it through Base UI's `aria-labelledby`, which outranks the attribute. The name
-              is unchanged — `params-deck.ct.tsx` finds it by `getByRole("textbox", { name: "Logit bias" })`
-              both before and after. Measured at `tests/client/a11y/field-control-name.suite.ct.tsx`. */}
-          <Textarea
-            defaultValue={serialized}
-            key={`${String(blurEpoch)}:${serialized}`}
-            onBlur={(e): void => {
-              form.setFieldValue("params.logitBias", parseLogitBias(e.target.value));
-              setBlurEpoch((epoch: number): number => epoch + 1);
-            }}
-            rows={3}
-          />
-        </Field>
-      )}
-    </form.Subscribe>
-  );
-}
-
-/** The stored bias map as the textarea's text — and, because it is the field's `key`, its IDENTITY.
- *  `""` for an unset map, so "no bias" and "a bias this build stored" are different fields. */
-function serializeLogitBias(logitBias: Record<string, number> | undefined): string {
-  return logitBias === undefined ? "" : JSON.stringify(logitBias);
-}
-
-/** Parse the logit-bias JSON textarea → a `Record<string, number>` (or `undefined` on empty/invalid — the
- *  escape hatch never crashes the form; the server re-validates via `userIntentSchema`). */
-function parseLogitBias(raw: string): Record<string, number> | undefined {
-  const trimmed = raw.trim();
-  if (trimmed.length === 0) {
-    return;
-  }
-  let parsed: unknown;
-  // @orb-waive caught-failure-ownership(catch): the doc comment above explains — an unparseable
-  // value returns undefined, which the caller treats as "not set", and the server re-validates via
-  // userIntentSchema. Ends if the caller starts trusting this return without server-side re-validation.
-  try {
-    parsed = JSON.parse(trimmed);
-  } catch {
-    return; // invalid JSON — the escape hatch never crashes the form.
-  }
-  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
-    return;
-  }
-  const entries = Object.entries(parsed).filter(([, v]) => typeof v === "number") as [string, number][];
-  return entries.length === 0 ? undefined : Object.fromEntries(entries);
 }
