@@ -38,12 +38,18 @@ export const IMAGE_ARMS = ["images-api", "chat-modalities"] as const;
  *  declares it and the body shaper renames. Absent ⇒ the SDK's spelling stands. */
 export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as const;
 
+/** A server's native per-model info API, read beside `/v1/models` for facts that list lacks: `ollama` =
+ *  `GET /api/ps` + `POST /api/show` (the window the server truncates at, an embedder's width). */
+export const MODEL_INFO_APIS = ["ollama"] as const;
+export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
+
 export const endpointFeaturesSchema = z.object({
   prefill: z.enum(PREFILL_MODES).optional(),
   strictJson: z.enum(STRICT_JSON_MODES).optional(),
   effort: z.enum(EFFORT_SPELLINGS).optional(),
   outputCapField: z.enum(OUTPUT_CAP_FIELDS).optional(),
   images: z.enum(IMAGE_ARMS).optional(),
+  modelInfoApi: z.enum(MODEL_INFO_APIS).optional(),
   /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
   rerankPath: z.string().optional(),
   /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads

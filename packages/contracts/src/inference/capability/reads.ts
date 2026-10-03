@@ -143,6 +143,17 @@ export function fitsSpace(capability: EmbeddingCapability, dims: number): boolea
   return capability.dims === dims || (capability.mrl && capability.dims > dims);
 }
 
+/** Why a vector model does NOT fit the owner's space, in the words the role badge and the bind refusal both
+ *  show; `null` when it fits. One home, so the pane and the server name the same widths. */
+export function spaceMisfitReason(capability: EmbeddingCapability, dims: number): string | null {
+  if (fitsSpace(capability, dims)) {
+    return null;
+  }
+  return capability.dims < dims
+    ? `it makes ${String(capability.dims)}-wide vectors and search here needs ${String(dims)}-wide ones; a narrower vector is never padded`
+    : `it makes ${String(capability.dims)}-wide vectors that it can't shorten to the ${String(dims)} search here needs`;
+}
+
 /** The requirement verdict — `{ ok: false, missing }` names each unmet clause in `axis:member` spelling so
  *  the picker can say "captioning needs image input" instead of failing at the wire. Never throws. */
 export type RequirementVerdict = { readonly ok: true } | { readonly ok: false; readonly missing: readonly string[] };

@@ -16,6 +16,7 @@
 // and sometimes a select is a row with no rhythm. The revealed editor is a real `<Field>`/`<Select>` with a
 // real label — the mock draws styled `div`s and answers nothing about focus.
 
+import type { DeclaredCapability } from "@orb/contracts/inference";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -24,8 +25,8 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import type { FactRow } from "../lib/connection-fact-model.ts";
-import { parseFactValue } from "../lib/connection-fact-model.ts";
+import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
+import { PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
 
 export interface FactRowListProps {
   readonly rows: readonly FactRow[];
@@ -129,10 +130,12 @@ function FactOverrideEditor({
   );
 }
 
-const BOOLEAN_ITEMS = [
-  { label: "yes", value: "true" },
-  { label: "no", value: "false" },
-];
+function booleanItems(labels: BooleanLabels): readonly { readonly label: string; readonly value: string }[] {
+  return [
+    { label: labels.yes, value: "true" },
+    { label: labels.no, value: "false" },
+  ];
+}
 
 function FactEditControl({
   edit,
@@ -146,7 +149,7 @@ function FactEditControl({
   readonly onChange: (next: string) => void;
 }): ReactElement {
   if (edit.kind === "boolean") {
-    return <FactSelect items={BOOLEAN_ITEMS} label={label} onChange={onChange} value={value} />;
+    return <FactSelect items={booleanItems(edit.labels ?? PLAIN_BOOLEAN_LABELS)} label={label} onChange={onChange} value={value} />;
   }
   if (edit.kind === "enum") {
     return <FactSelect items={edit.options.map((option) => ({ label: option, value: option }))} label={label} onChange={onChange} value={value} />;
@@ -189,4 +192,38 @@ function editHint(edit: FactRow["edit"]): string {
     return "A number. What you type here is what we believe about this server.";
   }
   return "What you type here is what we believe about this server — it does not change what the server does.";
+}
+
+/** "Endpoint quirks" — the `features` block's rows, or nothing when the fold has none to show. */
+export function QuirksBlock({
+  providerFeatures,
+  declared,
+  providerLabel,
+  ownServer,
+  busy,
+  onOverride,
+  onReset,
+}: {
+  readonly providerFeatures: Parameters<typeof quirkFactRows>[0];
+  readonly declared: DeclaredCapability | null;
+  readonly providerLabel: string;
+  /** An own-server row lists the quirks nothing sets too, so they can be declared. */
+  readonly ownServer: boolean;
+  readonly busy: boolean;
+  readonly onOverride: (row: FactRow, value: unknown) => void;
+  readonly onReset: (row: FactRow) => void;
+}): ReactElement | null {
+  const rows = quirkFactRows(providerFeatures, declared?.features, providerLabel, ownServer);
+  if (rows.length === 0) {
+    return null;
+  }
+  return (
+    <Stack gap="tight">
+      <Text voice="label">Endpoint quirks</Text>
+      <Text voice="gloss">
+        How this kind of server behaves, and where each answer came from. Read-only — override a line only when this box differs from the others of its kind.
+      </Text>
+      <FactRowList busy={busy} onOverride={onOverride} onReset={onReset} rows={rows} />
+    </Stack>
+  );
 }

@@ -79,7 +79,8 @@ async function authenticatedRead(deps: DiagnosticsDeps, args: ReadArgs): Promise
 }
 
 /** Credential health by the cheapest authenticated read the row admits: `/credits` on openrouter, `/models`
- *  elsewhere. Success → `ok`; a typed HTTP 401/403 → `revoked`; anything else → `unreachable`. Upstream
+ *  elsewhere. Success → `ok`; a typed HTTP 401/403 → `revoked`; anything else → `unreachable`, carrying the
+ *  status when the server answered. Upstream
  *  prose is never classification evidence: a 5xx body may mention another request's invalid API key. */
 export async function probeOpenAiCompat(req: ProbeRequest, deps: DiagnosticsDeps): Promise<CredentialHealth> {
   const checkedAt = deps.now();
@@ -91,8 +92,12 @@ export async function probeOpenAiCompat(req: ProbeRequest, deps: DiagnosticsDeps
     // @orb-waive caught-failure-ownership(err): credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition.
   } catch (err) {
     const reason = sanitizeApiError(redactSecretsFromText(errorMessage(err), resolvedScrubSet(connection)));
-    const authFailure = err instanceof ProviderError && (err.apiErrorStatus === HTTP_UNAUTHORIZED || err.apiErrorStatus === HTTP_FORBIDDEN);
-    return authFailure ? { status: "revoked", checkedAt, reason } : { status: "unreachable", checkedAt, reason };
+    const httpStatus = err instanceof ProviderError ? err.apiErrorStatus : undefined;
+    if (httpStatus === HTTP_UNAUTHORIZED || httpStatus === HTTP_FORBIDDEN) {
+      return { status: "revoked", checkedAt, reason };
+    }
+    // A status means the server answered: up, but this request failed (a wrong path is a 404, not a dead box).
+    return httpStatus === undefined ? { status: "unreachable", checkedAt, reason } : { status: "unreachable", checkedAt, reason, httpStatus };
   }
 }
 

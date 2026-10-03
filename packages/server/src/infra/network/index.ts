@@ -23,6 +23,7 @@ export {
   type PinnedDownloadLimits,
   privateEgressRanges,
   publishPrivateEndpointAllowlist,
+  resolvedEndpointAdmission,
   type SafeFetchOptions,
   type SafeFetchResult,
   safeFetch,

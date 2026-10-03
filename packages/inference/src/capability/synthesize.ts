@@ -117,6 +117,13 @@ function synthesizeGeneration(family: ModelFamily, evidence: Evidence): Synthesi
     const { windowEstimated: _dropped, ...rest } = capability.context;
     capability = { ...capability, context: rest };
   }
+  // The output cap is ESTIMATED on the same terms: the floor's figure stands only when no tier stated one.
+  const capStated =
+    [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.generation?.output?.maxTokens !== undefined) ||
+    (evidence.advertised as Partial<GenerationCapability> | undefined)?.output?.maxTokens !== undefined ||
+    declared?.output?.maxTokens !== undefined;
+  const { maxTokensEstimated: _priorCapFlag, ...output } = capability.output;
+  capability = { ...capability, output: capStated ? output : { ...output, maxTokensEstimated: true } };
   return { capability: { kind: "generation", generation: applyFamilyFloor(family, capability) }, warnings: declaredOverridesMeasured(declared, measuredRows) };
 }
 
@@ -132,13 +139,18 @@ function synthesizeEmbedding(evidence: Evidence): SynthesizedCapability {
   }
   const declared = evidence.declared?.embedding;
   capability = mergeFlat(capability, declared);
+  const tiers = [...(evidence.curated ?? []), ...(evidence.measured ?? [])];
+  const advertised = evidence.advertised as Partial<EmbeddingCapability> | undefined;
   const stated =
-    [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.embedding?.maxInputTokens !== undefined) ||
-    (evidence.advertised as Partial<EmbeddingCapability> | undefined)?.maxInputTokens !== undefined ||
-    declared?.maxInputTokens !== undefined;
-  const { windowEstimated: _dropped, ...rest } = capability;
+    tiers.some((row) => row.embedding?.maxInputTokens !== undefined) || advertised?.maxInputTokens !== undefined || declared?.maxInputTokens !== undefined;
+  // The width is ESTIMATED when only the floor stated it — a guessed width must never read as a fit.
+  const dimsStated = tiers.some((row) => row.embedding?.dims !== undefined) || advertised?.dims !== undefined || declared?.dims !== undefined;
+  const { windowEstimated: _dropped, dimsEstimated: _priorDimsFlag, ...rest } = capability;
   return {
-    capability: { kind: "embedding", embedding: stated ? rest : { ...rest, windowEstimated: true } },
+    capability: {
+      kind: "embedding",
+      embedding: { ...rest, ...(stated ? {} : { windowEstimated: true }), ...(dimsStated ? {} : { dimsEstimated: true }) },
+    },
     warnings: declaredOverridesMeasured(declared, measuredRows),
   };
 }

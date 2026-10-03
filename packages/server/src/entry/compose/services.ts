@@ -113,7 +113,7 @@ import { createSecretBox } from "#infra/crypto";
 import { createExtractText } from "#infra/extraction";
 import { createImageAdapter } from "#infra/image";
 import { prepareVideo } from "#infra/media";
-import { endpointAdmission, publishPrivateEndpointAllowlist } from "#infra/network";
+import { publishPrivateEndpointAllowlist, resolvedEndpointAdmission } from "#infra/network";
 import { createCas, createUserRuntimeDirs, createVariantCache } from "#infra/storage";
 import { createChatBus, requireParticipant } from "../../domain/chat/index.ts";
 import type { Services } from "../../transport/trpc/context.ts";
@@ -624,7 +624,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       const row = await fetchOwned(db, plugins, pluginId, userId);
       return row === undefined ? null : pluginGrantTasks(row.manifest.capabilities);
     },
-    endpointAdmission,
+    endpointAdmission: resolvedEndpointAdmission,
     recordProbeOutcome: credentials.recordProbeOutcome,
     // The late-bound holder above, derefed at request time.
     onEmbedSpaceChanged: () => {

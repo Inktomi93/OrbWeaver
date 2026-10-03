@@ -164,10 +164,20 @@ export function authHeaders(secret: string | null, extra: Readonly<Record<string
 
 const TRAILING_SLASH_RE = /\/$/u;
 const V1_SUFFIX_RE = /\/v1$/u;
+/** A path segment that names an API version: `/v1`, `/v4`, `/v1beta`. */
+const VERSION_SEGMENT_RE = /\/v\d+[a-z]*(?:\/|$)/u;
 
-/** `<baseUrl>/<path>` with the OpenAI `/v1` segment normalized: a hosted row's fixed URL already ends in
- *  `/v1`; an endpoint row's typed URL usually does not. */
+/** `<baseUrl>/<path>` with the OpenAI version segment normalized: a URL whose path already names a version
+ *  (`/v1`, `/api/paas/v4`, `/v1beta/openai`) is used exactly; any other gets `/v1` appended, because a typed
+ *  server root (`http://127.0.0.1:11434`) usually omits it. */
 export function openAiPath(baseUrl: string, path: string): string {
   const trimmed = baseUrl.replace(TRAILING_SLASH_RE, "");
-  return `${V1_SUFFIX_RE.test(trimmed) ? trimmed : `${trimmed}/v1`}${path}`;
+  const urlPath = URL.parse(trimmed)?.pathname ?? "";
+  return `${VERSION_SEGMENT_RE.test(urlPath) ? trimmed : `${trimmed}/v1`}${path}`;
+}
+
+/** The server root under an OpenAI-compatible base URL: the URL without a trailing `/v1`, where a server's
+ *  native API (Ollama's `/api/*`) lives. */
+export function serverRootOf(baseUrl: string): string {
+  return baseUrl.replace(TRAILING_SLASH_RE, "").replace(V1_SUFFIX_RE, "");
 }

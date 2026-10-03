@@ -59,6 +59,8 @@ const endpointModelSchema = z.object({
   kind: modelCatalogEntrySchema.shape.kind,
   google: modelCatalogEntrySchema.shape.google,
   maxCompletionTokens: modelCatalogEntrySchema.shape.maxCompletionTokens,
+  /** An embedder's vector width, where the server's native model info states it. */
+  embeddingDims: z.number().int().positive().optional(),
 });
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
 export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.ZodType<EndpointModel[]>;

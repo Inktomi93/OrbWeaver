@@ -73,7 +73,10 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     task: "chat",
     label: CONNECTION_ROLE_LABELS.chat,
     heading: "Chat",
-    description: "The main conversation model. Every turn you trigger runs on it.",
+    // Game mode's tool-call need is stated here, not as a rail clause: a `✗ tools` on every chat model that
+    // never plays a game is the unactionable red the roles oracle test exempts.
+    description:
+      "The main conversation model. Every turn you trigger runs on it. Game mode writes its state through this model's tool calls; a model without them keeps a game read-only.",
     optional: false,
     requirements: [],
   },
