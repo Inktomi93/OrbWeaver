@@ -26,6 +26,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { STATS_BUCKET_MS } from "@orb/kit/stats-tally";
 import { and, eq, sql } from "drizzle-orm";
 import { freshDb, SHIPPED_MIGRATIONS, shippedChainThrough } from "../../support/db.ts";
+import { seedCharacterAtBaseline } from "../../support/factories/character.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedUser } from "./_support.ts";
@@ -367,10 +368,7 @@ test("the forward content-unit migration preserves populated rollups, signed cou
     const db = await createDb(":memory:");
     await runMigrations(db, preRename);
     const ownerId = await seedUser(db, { id: "user_content_migration", handle: castId<Handle>("content-migration") });
-    // Raw SQL, not the drizzle table: the live `characters` shape names columns later migrations add.
-    const characterId = mintTypeId(ID_PREFIX.character);
-    await db.run(sql`INSERT INTO characters (id, handle, owner_id, content_hash, name)
-      VALUES (${characterId}, ${`card-${characterId}`}, ${ownerId}, 'hash-of-semantic-fields', 'Stat Subject')`);
+    const { id: characterId } = await seedCharacterAtBaseline(db, { ownerId });
     const characterStatId = mintTypeId(ID_PREFIX.characterStat);
     const dailyStatId = mintTypeId(ID_PREFIX.dailyStat);
     await db.run(sql`INSERT INTO owner_stats (owner_id, content_bytes, user_turns, system_turns, cost_usd, computed_at)

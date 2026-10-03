@@ -75,8 +75,7 @@ export function safeStackFrames(stack: string, origin: string): readonly string[
 }
 
 /** The app section a pathname is on: its first segment when that is a plain slug, else `null`. A deeper
- *  segment or a query is never read.
- *  @public Test-anchored module surface; the reduction is pinned against hostile paths. */
+ *  segment or a query is never read. */
 export function sectionOfPathname(pathname: string): string | null {
   const first = pathname.split("/")[1] ?? "";
   return SECTION_RE.test(first) ? first : null;
@@ -132,7 +131,8 @@ export function safeErrorRing(): SafeErrorRingRead {
   return { records: [...ring], dropped };
 }
 
-/** Clear the ring (`__reset<Noun>`, the test-seam convention). */
+/** Clear the ring (`__reset<Noun>`, the test-seam convention).
+ *  @public Test-anchored module surface; the ring suites reset it between cases. */
 export function __resetSafeErrorRing(): void {
   ring.length = 0;
   dropped = 0;

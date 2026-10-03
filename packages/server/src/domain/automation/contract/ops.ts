@@ -12,7 +12,7 @@ import type {
   AutomationCelEnv,
   AutomationEmitSource,
   AutomationOrigin,
-  AutomationRuleToolView,
+  AutomationRuleTools,
   AutomationRunOutcome,
   AutomationSuggestionKind,
   AutomationTrigger,
@@ -92,7 +92,7 @@ export type PlanRule = (params: CreateRuleParams) => Promise<PlannedRuleInsert>;
 export type RuleOrderScope = { readonly chatId: ChatId } | { readonly chatId: null; readonly ownerId: UserId };
 
 /** Synchronous caller-shelf projection, wired at composition without exposing a rule author's shelf. */
-export type ListRuleTools = (userId: UserId) => AutomationRuleToolView[];
+export type ListRuleTools = (userId: UserId) => AutomationRuleTools;
 
 /** The fact resolver's output: the CEL fact + the event's cascade depth (0 = human plane). */
 export interface ResolvedTrigger {

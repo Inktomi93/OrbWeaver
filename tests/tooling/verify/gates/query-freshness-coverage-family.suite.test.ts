@@ -36,6 +36,7 @@ const STATIC_SUBJECTS = [
   "automation.listOwnerRules",
   "automation.getOwnerBudgets",
   "automation.listRulePresets",
+  "automation.listRuleTools",
   "plugin.list",
   "plugin.listSurfaces",
   "plugin.listCommands",

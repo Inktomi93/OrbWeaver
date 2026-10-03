@@ -27,6 +27,7 @@ import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import type { WorkloadRef } from "@orb/contracts/workloads";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -102,12 +103,7 @@ function makeCtx(principal: Principal | null, body: ReadableStream<Uint8Array> |
 let stagingDir: string;
 const startSpy =
   vi.fn<
-    (p: {
-      input: { kind: string; params: Record<string, unknown> };
-      caller: Principal | null;
-      mode: string;
-      ownerId: UserId | null;
-    }) => Promise<{ id: WorkloadId }>
+    (p: { input: { kind: string; params: Record<string, unknown> }; caller: Principal | null; mode: string; ownerId: UserId | null }) => Promise<WorkloadRef>
   >();
 
 function deps(): ImportBundleDeps {
