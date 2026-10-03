@@ -20,6 +20,7 @@ import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { resolveImageRefToUrl } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
+import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
 import { HISTORY_TRIM_CHUNK_FRACTION, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
@@ -2118,6 +2119,36 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
     expect(executed).toHaveLength(0);
     expect(result.toolsUnsupported).toBe(true);
     expect(result.toolRecords).toEqual([]);
+  });
+
+  // The connection editor's tool-calls no: a declared absence folded over a server's reported yes.
+  test("a declared no to tool calls over a reported yes sends no tools field", async () => {
+    const requests: TurnRequest[] = [];
+    const folded = synthesizeCapability("generation", "other", {
+      advertised: { tools: { parallel: true } },
+      declared: { generation: { tools: null } },
+    }).capability;
+    const { args } = baseArgs({
+      connection: { ...TOOL_CONNECTION, capability: folded },
+      tools: fakeToolOps([]),
+      attachedToolNames: ["tick_clock"],
+      runChatTurn: scriptedDepths([[doneFinal("plain reply")]], requests),
+    });
+    const result = await runTurnPipeline(args);
+    expect(requests[0]).not.toHaveProperty("tools");
+    expect(result.toolsUnsupported).toBe(true);
+    // PLANTED CONTROL: the same reported yes without the declaration attaches the tools.
+    const control: TurnRequest[] = [];
+    const reported = synthesizeCapability("generation", "other", { advertised: { tools: { parallel: true } } }).capability;
+    await runTurnPipeline(
+      baseArgs({
+        connection: { ...TOOL_CONNECTION, capability: reported },
+        tools: fakeToolOps([]),
+        attachedToolNames: ["tick_clock"],
+        runChatTurn: scriptedDepths([[doneFinal("plain reply")]], control),
+      }).args,
+    );
+    expect(control[0]).toHaveProperty("tools");
   });
 });
 

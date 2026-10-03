@@ -42,50 +42,79 @@ test("endpoint catalog fetch normalizes model ids and the supported context-wind
 });
 
 /** An Ollama box: `/v1/models` lists ids only; the native API answers per model. */
-function ollamaFetch(shows: Readonly<Record<string, unknown>>, loaded: readonly unknown[], seen: string[]): typeof fetch {
+function ollamaFetch(
+  box: { readonly version: string; readonly shows: Readonly<Record<string, unknown>>; readonly loaded: readonly unknown[] },
+  seen: string[],
+): typeof fetch {
   return ((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = String(input);
     seen.push(url);
     if (url.endsWith("/v1/models")) {
-      return Promise.resolve(Response.json({ data: Object.keys(shows).map((id) => ({ id })) }));
+      return Promise.resolve(Response.json({ data: Object.keys(box.shows).map((id) => ({ id })) }));
+    }
+    if (url.endsWith("/api/version")) {
+      return Promise.resolve(Response.json({ version: box.version }));
     }
     if (url.endsWith("/api/ps")) {
-      return Promise.resolve(Response.json({ models: loaded }));
+      return Promise.resolve(Response.json({ models: box.loaded }));
     }
     const model = (JSON.parse(String(init?.body)) as { model: string }).model;
-    const show = shows[model];
+    const show = box.shows[model];
     return Promise.resolve(show === undefined ? Response.json({ error: "not found" }, { status: 404 }) : Response.json(show));
   }) as typeof fetch;
 }
 
-// The window Ollama runs is `num_ctx` (Modelfile) or the loaded runner's; the trained maximum in `model_info` is
-// a ceiling it does NOT truncate at, so it must never be reported as the window.
-test("an Ollama row reads the window Ollama truncates at and an embedder's width, never the trained maximum", async () => {
-  const seen: string[] = [];
-  const rows = await fetchEndpointModels({
-    fetch: ollamaFetch(
-      {
-        "pinned:8b": { parameters: "num_ctx                        16384", ["model_info"]: { ["llama.context_length"]: 131_072 } },
-        "loaded:8b": { parameters: 'stop "<|eot_id|>"', ["model_info"]: { ["llama.context_length"]: 131_072 } },
-        "cold:8b": { ["model_info"]: { ["llama.context_length"]: 131_072 } },
-        "nomic-embed-text:latest": { ["model_info"]: { ["nomic-bert.embedding_length"]: 768 } },
-      },
-      [{ name: "loaded:8b", model: "loaded:8b", ["context_length"]: 4096 }],
-      seen,
-    ),
+function readOllama(box: Parameters<typeof ollamaFetch>[0], seen: string[] = []): Promise<EndpointModel[]> {
+  return fetchEndpointModels({
+    fetch: ollamaFetch(box, seen),
     baseUrl: "http://127.0.0.1:11434/v1",
     secret: null,
     secrets: NO_PROVIDER_SECRETS,
     modelInfoApi: "ollama",
   });
+}
+
+const TRAINED_MAX = { ["model_info"]: { ["llama.context_length"]: 131_072 } };
+
+// `/v1/chat/completions` runs the Modelfile's `num_ctx`, else the server default, and keeps only the tail of a
+// longer prompt. The trained maximum is a ceiling it does NOT run at, and a loaded runner's window is whatever
+// the client that loaded it asked for: the next `/v1` request reloads at the default.
+test("an Ollama row states only a pinned window, and assumes the default floor for the rest, never a loaded runner's or the trained maximum", async () => {
+  const seen: string[] = [];
+  const rows = await readOllama(
+    {
+      version: "0.35.1",
+      shows: {
+        "pinned:8b": { parameters: "num_ctx                        16384", ...TRAINED_MAX },
+        "loaded-wide:8b": { parameters: 'stop "<|eot_id|>"', ...TRAINED_MAX },
+        "loaded-narrow:8b": TRAINED_MAX,
+        "cold:8b": TRAINED_MAX,
+        "nomic-embed-text:latest": { ["model_info"]: { ["nomic-bert.embedding_length"]: 768 } },
+      },
+      loaded: [
+        { name: "loaded-wide:8b", model: "loaded-wide:8b", ["context_length"]: 32_768 },
+        { name: "loaded-narrow:8b", model: "loaded-narrow:8b", ["context_length"]: 2048 },
+      ],
+    },
+    seen,
+  );
   expect(rows).toEqual([
-    { id: "pinned:8b", contextLength: 16_384 },
-    { id: "loaded:8b", contextLength: 4096 },
-    { id: "cold:8b", contextLength: null },
-    { id: "nomic-embed-text:latest", contextLength: null, embeddingDims: 768 },
+    { id: "pinned:8b", contextLength: 16_384, structured: true },
+    { id: "loaded-wide:8b", contextLength: null, contextFloor: 4096, structured: true },
+    { id: "loaded-narrow:8b", contextLength: null, contextFloor: 2048, structured: true },
+    { id: "cold:8b", contextLength: null, contextFloor: 4096, structured: true },
+    { id: "nomic-embed-text:latest", contextLength: null, contextFloor: 4096, embeddingDims: 768, structured: true },
   ]);
   expect(seen).toContain("http://127.0.0.1:11434/api/ps");
   expect(seen).toContain("http://127.0.0.1:11434/api/show");
+});
+
+test("the Ollama default floor is 4096 from the VRAM-tier release on and 2048 before it", async () => {
+  const floorAt = async (version: string): Promise<number | undefined> =>
+    (await readOllama({ version, shows: { "cold:8b": TRAINED_MAX }, loaded: [] }))[0]?.contextFloor;
+  expect(await floorAt("0.15.5")).toBe(4096);
+  expect(await floorAt("0.15.4")).toBe(2048);
+  expect(await floorAt("0.4.9")).toBe(2048);
 });
 
 test("a server that does not answer the native API still lists its models, and says why it has no window", async () => {
@@ -102,7 +131,8 @@ test("a server that does not answer the native API still lists its models, and s
     modelInfoApi: "ollama",
     warn: (message) => warnings.push(message),
   });
-  expect(rows).toEqual([{ id: "llama3.1:8b", contextLength: null }]);
+  // No version answer: the lowest default any release shipped stays the assumed window.
+  expect(rows).toEqual([{ id: "llama3.1:8b", contextLength: null, contextFloor: 2048 }]);
   expect(warnings.length).toBeGreaterThan(0);
 });
 
@@ -144,9 +174,9 @@ test("Ollama: each model's capabilities state its kind, modalities and tools; th
     // An embedder: its kind and width, nothing a chat model would state.
     { id: "nomic-embed-text:latest", contextLength: 8192, kind: "embedding", embeddingDims: 768, structured: true },
     // A vision model without tools: image input stated, tools absent (the server refuses `tools[]` for it).
-    { id: "moondream:latest", contextLength: null, kind: "generation", input: ["text", "image"], structured: true },
+    { id: "moondream:latest", contextLength: null, contextFloor: 4096, kind: "generation", input: ["text", "image"], structured: true },
     // A tool model without vision: text only, so the posture never offers it an image it would refuse.
-    { id: "qwen2.5:0.5b", contextLength: null, kind: "generation", input: ["text"], tools: { parallel: false }, structured: true },
+    { id: "qwen2.5:0.5b", contextLength: null, contextFloor: 4096, kind: "generation", input: ["text"], tools: { parallel: false }, structured: true },
   ]);
   expect(warnings).toEqual([]);
 });
@@ -157,7 +187,7 @@ test("Ollama: a build without `capabilities` states no kind, modalities or tools
     "api-show-qwen2.5-0.5b": { model_info: { "qwen2.context_length": 32_768, "qwen2.embedding_length": 896 } },
   });
   const qwen = (await rows).find((row) => row.id === "qwen2.5:0.5b");
-  expect(qwen).toEqual({ id: "qwen2.5:0.5b", contextLength: null, embeddingDims: 896, structured: false });
+  expect(qwen).toEqual({ id: "qwen2.5:0.5b", contextLength: null, contextFloor: 2048, embeddingDims: 896, structured: false });
   // No version answer at all: structured stays unstated rather than false.
   const silent = await readArm("ollama", "ollama", { "api-version": undefined }).rows;
   expect(silent.find((row) => row.id === "qwen2.5:0.5b")?.structured).toBeUndefined();

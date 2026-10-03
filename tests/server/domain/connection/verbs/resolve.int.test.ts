@@ -189,7 +189,8 @@ describe("capabilities", () => {
       model: "llama3.1:8b",
     });
     const assumed = await silent.svc.capabilities({ principal: silentOwner.principal, connectionId: unreported.id });
-    expect(assumed.capability).toMatchObject({ kind: "generation", generation: { context: { windowEstimated: true } } });
+    // No version answer: the lowest default any Ollama release ran, never the generic 8192 floor.
+    expect(assumed.capability).toMatchObject({ kind: "generation", generation: { context: { window: 2048, windowEstimated: true } } });
   });
 });
 
@@ -227,5 +228,31 @@ describe("the endpoint mirror forgets on save and on inspection", () => {
     await h.svc.update({ principal: owner.principal, connectionId: row.id, patch: { label: "renamed" } });
     await h.svc.capabilities({ principal: owner.principal, connectionId: row.id });
     expect(showDials(h), "a save forgets the mirror, so the next read dials").toBeGreaterThan(afterInspect);
+  });
+
+  // A model pulled after the server's mirror was warmed is absent from it, so without a re-read a new connection
+  // for it reads the generic floor instead of what the server states for it.
+  test("a new connection asks the server again, so a model added since the last read gets its own window", async () => {
+    const list = { data: [{ id: "qwen2.5:0.5b" }] };
+    const show: { parameters?: string; capabilities: string[] } = { capabilities: ["completion"] };
+    const db = await freshDb();
+    const h = await makeHarness(db, {
+      routes: [
+        { match: "/api/version", json: { version: "0.35.1" } },
+        { match: "/api/ps", json: { models: [] } },
+        { match: "/api/show", json: show },
+        { match: "/models", json: list },
+      ],
+    });
+    const owner = await seedOwner(db);
+    const first = await h.svc.create({ principal: owner.principal, providerId: OLLAMA, credentialId: null, baseUrl: OLLAMA_URL, model: "qwen2.5:0.5b" });
+    const unpinned = requireGenerationCapability((await h.svc.capabilities({ principal: owner.principal, connectionId: first.id })).capability);
+    expect(unpinned.context, "an unpinned model assumes the server's default floor").toEqual({ window: 4096, windowEstimated: true });
+
+    list.data.push({ id: "qwen2.5-16k:latest" });
+    show.parameters = "num_ctx                        16384";
+    const pinned = await h.svc.create({ principal: owner.principal, providerId: OLLAMA, credentialId: null, baseUrl: OLLAMA_URL, model: "qwen2.5-16k:latest" });
+    const read = requireGenerationCapability((await h.svc.capabilities({ principal: owner.principal, connectionId: pinned.id })).capability);
+    expect(read.context).toEqual({ window: 16_384 });
   });
 });

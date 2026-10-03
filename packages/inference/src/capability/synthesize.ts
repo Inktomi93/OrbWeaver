@@ -56,6 +56,11 @@ function mergeGeneration(base: GenerationCapability, patch: GenerationPatch | Pa
     if (value === undefined) {
       continue;
     }
+    // A stated absence (`tools: null`, the one nullable leaf of the override schema) removes the block.
+    if (value === null) {
+      delete merged[key];
+      continue;
+    }
     if ((NESTED_GENERATION_KEYS as readonly string[]).includes(key) && typeof value === "object" && !Array.isArray(value)) {
       const existing = merged[key];
       merged[key] = { ...(typeof existing === "object" && existing !== null ? existing : {}), ...value };
@@ -107,11 +112,15 @@ function synthesizeGeneration(family: ModelFamily, evidence: Evidence): Synthesi
   }
   const declared = evidence.declared?.generation;
   capability = mergeGeneration(capability, declared);
-  // The window is ESTIMATED unless a tier above the floor stated one.
-  const windowStated =
-    [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.generation?.context?.window !== undefined) ||
-    (evidence.advertised as Partial<GenerationCapability> | undefined)?.context?.window !== undefined ||
-    declared?.context?.window !== undefined;
+  // The window is ESTIMATED unless the tier whose window won the fold stated it rather than assumed it: a
+  // server's floor for a window it does not state replaces a curated trained maximum but stays a guess.
+  const windowSetters = [
+    ...(evidence.curated ?? []).map((row) => row.generation?.context),
+    (evidence.advertised as GenerationPatch | undefined)?.context,
+    ...measuredRows.map((row) => row.context),
+    declared?.context,
+  ].filter((context) => context?.window !== undefined);
+  const windowStated = windowSetters.length > 0 && windowSetters.at(-1)?.windowEstimated !== true;
   capability = { ...capability, context: { ...capability.context, ...(windowStated ? { windowEstimated: undefined } : { windowEstimated: true }) } };
   if (capability.context.windowEstimated === undefined) {
     const { windowEstimated: _dropped, ...rest } = capability.context;
@@ -124,7 +133,20 @@ function synthesizeGeneration(family: ModelFamily, evidence: Evidence): Synthesi
     declared?.output?.maxTokens !== undefined;
   const { maxTokensEstimated: _priorCapFlag, ...output } = capability.output;
   capability = { ...capability, output: capStated ? output : { ...output, maxTokensEstimated: true } };
-  return { capability: { kind: "generation", generation: applyFamilyFloor(family, capability) }, warnings: declaredOverridesMeasured(declared, measuredRows) };
+  return {
+    capability: { kind: "generation", generation: withDeclaredNoTools(applyFamilyFloor(family, capability), declared) },
+    warnings: declaredOverridesMeasured(declared, measuredRows),
+  };
+}
+
+/** The family floor ORs tools back in after the fold; a connection that declares its model takes none is the
+ *  user's box, so that statement stands over the floor too (§6.2: declared is the top tier). */
+function withDeclaredNoTools(capability: GenerationCapability, declared: GenerationPatch | undefined): GenerationCapability {
+  if (declared?.tools !== null) {
+    return capability;
+  }
+  const { tools: _dropped, ...rest } = capability;
+  return rest;
 }
 
 function synthesizeEmbedding(evidence: Evidence): SynthesizedCapability {

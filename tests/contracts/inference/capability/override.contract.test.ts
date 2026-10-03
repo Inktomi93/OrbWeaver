@@ -45,6 +45,13 @@ test("a `tools` cell is refused at parse unless it states `parallel` — in a ro
   expect(capabilityOverrideSchema.safeParse({ generation: { tools: { parallel: true, forcedChoice: false } } }).success).toBe(true);
 });
 
+// `null` is the one stated absence: the connection editor's tool-calls no, which beats a reported yes.
+test("a declared `tools: null` parses as the stated absence; no other generation leaf takes null", () => {
+  expect(declaredCapabilitySchema.safeParse({ generation: { tools: null } }).success).toBe(true);
+  expect(declaredCapabilitySchema.safeParse({ generation: { output: null } }).success).toBe(false);
+  expect(declaredCapabilitySchema.safeParse({ generation: { context: null } }).success).toBe(false);
+});
+
 test("an `evidence` line is DATED and CITED when present", () => {
   expect(capabilityOverrideSchema.safeParse({ evidence: { tier: "measured", dated: "2026-09-19", cite: "req_abc" } }).success).toBe(true);
   expect(capabilityOverrideSchema.safeParse({ evidence: { tier: "measured", dated: "", cite: "req_abc" } }).success).toBe(false);

@@ -152,21 +152,32 @@ const NUM_CTX_RE = /^num_ctx\s+(\d+)\s*$/mu;
 const EMBEDDING_LENGTH_SUFFIX = ".embedding_length";
 /** The release that added JSON-schema constrained output to the chat and OpenAI-compatible endpoints. */
 const OLLAMA_STRUCTURED_FLOOR = "0.5.0";
+/** The release that picks the default window from VRAM: 4096 below 24 GiB, 32768 to 48 GiB, 262144 above
+ *  (docs.ollama.com/context-length). Its lowest tier is the floor from this release on. */
+const OLLAMA_VRAM_TIERS_RELEASE = "0.15.5";
+const OLLAMA_VRAM_TIERS_FLOOR = 4096;
+/** The default every earlier release shipped with at its lowest. */
+const OLLAMA_LEGACY_FLOOR = 2048;
 
-/** Ollama's `/v1/models` carries ids only. Its native API states the window it truncates at (the Modelfile's
- *  `num_ctx`, else the loaded runner's), an embedder's width, and the model's capabilities. The trained maximum
- *  (`<arch>.context_length`) is NOT the window: a request is truncated at `num_ctx`, which the Modelfile pins
- *  or the server defaults, so an unpinned, unloaded model stays unreported and the capability marks it assumed. */
+/** Ollama's `/v1/models` carries ids only. Its native API states the Modelfile's `num_ctx`, an embedder's
+ *  width, and the model's capabilities. `/v1/chat/completions` takes no window knob: it runs the Modelfile's
+ *  `num_ctx`, else the server default, and silently drops the oldest messages that do not fit (the rig lost a
+ *  fact the history fit had kept). So a pinned `num_ctx` is the window. The trained maximum (`<arch>.context_length`) is not,
+ *  and neither is the loaded runner's (`/api/ps`): another client may have loaded it with its own `num_ctx`, and
+ *  the next `/v1` request reloads it at the default. An unpinned model states no window and carries the lowest
+ *  default the version can have, lowered by a smaller loaded runner, for the capability to assume. */
 async function withOllamaInfo(args: EndpointFetchArgs, rows: readonly EndpointModel[]): Promise<EndpointModel[]> {
   const read = nativeReader(args);
   const version = await nativeRead(args, () => read("/api/version").then((json) => ollamaVersionSchema.parse(json).version));
   const structured = versionAtLeast(version ?? undefined, OLLAMA_STRUCTURED_FLOOR);
+  const defaultFloor = versionAtLeast(version ?? undefined, OLLAMA_VRAM_TIERS_RELEASE) === true ? OLLAMA_VRAM_TIERS_FLOOR : OLLAMA_LEGACY_FLOOR;
   const loaded = await nativeRead(args, () => read("/api/ps").then((json) => ollamaPsSchema.parse(json).models));
   const out: EndpointModel[] = [];
   for (const row of rows) {
     const show = await nativeRead(args, () => read("/api/show", { model: row.id }).then((json) => ollamaShowSchema.parse(json)));
     const loadedContext = loaded?.find((model) => model.name === row.id || model.model === row.id)?.context_length;
-    out.push(withStated(row, { ...ollamaFacts(show, loadedContext), structured }));
+    const contextFloor = Math.min(defaultFloor, loadedContext ?? defaultFloor);
+    out.push(withStated(row, { ...ollamaFacts(show, contextFloor), structured }));
   }
   return out;
 }
@@ -183,19 +194,23 @@ function ollamaKind(capabilities: readonly string[] | undefined): ModelKind | un
   return capabilities.includes("completion") ? "generation" : undefined;
 }
 
-function ollamaFacts(show: z.infer<typeof ollamaShowSchema> | null, loadedContext: number | undefined): Partial<EndpointModel> {
+function ollamaWindow(show: z.infer<typeof ollamaShowSchema> | null, contextFloor: number): Pick<EndpointModel, "contextLength" | "contextFloor"> {
   const pinned = show?.parameters === undefined ? undefined : NUM_CTX_RE.exec(show.parameters)?.[1];
-  const contextLength = pinned === undefined ? (loadedContext ?? null) : Number.parseInt(pinned, 10);
+  return pinned === undefined ? { contextLength: null, contextFloor } : { contextLength: Number.parseInt(pinned, 10) };
+}
+
+function ollamaFacts(show: z.infer<typeof ollamaShowSchema> | null, contextFloor: number): Partial<EndpointModel> {
+  const window = ollamaWindow(show, contextFloor);
   const width = Object.entries(show?.model_info ?? {}).find(([key]) => key.endsWith(EMBEDDING_LENGTH_SUFFIX))?.[1];
   const capabilities = show?.capabilities;
   const kind = ollamaKind(capabilities);
   if (kind !== "generation" || capabilities === undefined) {
     // Every architecture states an `embedding_length` (a chat model's is its hidden width), so it is a vector
     // width only where the capabilities do not say the model generates.
-    return { contextLength, embeddingDims: POSITIVE_INT.safeParse(width).success ? (width as number) : undefined, kind };
+    return { ...window, embeddingDims: POSITIVE_INT.safeParse(width).success ? (width as number) : undefined, kind };
   }
   return {
-    contextLength,
+    ...window,
     kind,
     input: modalitiesOf({ vision: capabilities.includes("vision") }),
     tools: capabilities.includes("tools") ? { parallel: false } : undefined,

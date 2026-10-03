@@ -17,7 +17,9 @@ import {
   endpointAuthorityOf,
   endpointNamedInAllowlist,
   extrasFromRows,
+  includeBodyText,
   inferredKindOf,
+  parseIncludeBody,
   purposeNotes,
   rowsFromExtras,
 } from "../../../../../packages/client/src/features/credentials/lib/connection-editor-model.ts";
@@ -112,22 +114,15 @@ describe("a quirk row's source line names the layer it actually came from", () =
 describe("the capability block is honest about what it cannot know", () => {
   const declared: DeclaredCapability = { generation: { context: { window: 65_536 } } };
 
-  // #2478: `connection.capabilities` returns the FOLDED descriptor only, so there is no prior value to
-  // restate. The row says "your override" and invents nothing.
-  test("without a baseline, an overridden row states the override and no replaced value", () => {
-    const rows = capabilityFactRows(GENERATION, declared);
-    expect(rowFor(rows, "generation.context.window")).toMatchObject({ source: "your override", overridden: true });
-  });
-
-  // THE #2478 SEAM. Wiring `CapabilityRead.baseline` is this parameter and nothing else.
-  test("with a baseline, the same row restates what it replaced", () => {
+  // `connection.capabilities` returns the fold without the row's declaration beside the folded descriptor.
+  test("an overridden row restates the baseline value it replaced", () => {
     const baseline: Capability = { kind: "generation", generation: { ...GENERATION.generation, context: { window: 32_768 } } };
     const rows = capabilityFactRows(GENERATION, declared, baseline);
     expect(rowFor(rows, "generation.context.window").source).toBe("your override — it was 32,768 tokens");
   });
 
   test("a row nobody declared says where the value comes from without claiming a tier it cannot prove", () => {
-    expect(rowFor(capabilityFactRows(GENERATION, null), "generation.tools.parallel").source).toBe("what this server and model report");
+    expect(rowFor(capabilityFactRows(GENERATION, null, GENERATION), "generation.tools").source).toBe("what this server and model report");
   });
 });
 
@@ -147,15 +142,15 @@ const LOCAL_FLOOR: Capability = {
 describe("an own-server model can declare what the app has no value for", () => {
   // The Game-mode trap: a row skipped for want of a value is a fact the user can never state.
   test("unstated tool calls and structured output still render, each with an Override", () => {
-    const rows = capabilityFactRows(LOCAL_FLOOR, null);
-    for (const path of ["generation.tools.parallel", "generation.output.structured"]) {
+    const rows = capabilityFactRows(LOCAL_FLOOR, null, LOCAL_FLOOR);
+    for (const path of ["generation.tools", "generation.output.structured"]) {
       expect(rowFor(rows, path)).toMatchObject({ value: "not stated", overridden: false });
     }
   });
 
   // `tools` present IS "accepts tools[]"; `parallel` is its one required field, so this one write declares it.
   test("declaring tool calls writes the whole tools block the schema requires", () => {
-    const row = rowFor(capabilityFactRows(LOCAL_FLOOR, null), "generation.tools.parallel");
+    const row = rowFor(capabilityFactRows(LOCAL_FLOOR, null, LOCAL_FLOOR), "generation.tools");
     const declared = withDeclaredOverride(null, row, parseFactValue(row.edit, row.draft));
     expect(declared).toStrictEqual({ generation: { tools: { parallel: false } } });
     expect(declaredCapabilitySchema.safeParse(declared).success).toBe(true);
@@ -164,17 +159,40 @@ describe("an own-server model can declare what the app has no value for", () => 
   test("an overridden row restates the baseline it replaced, including a value nobody stated", () => {
     const declared: DeclaredCapability = { generation: { tools: { parallel: true } } };
     const capability: Capability = { kind: "generation", generation: { ...LOCAL_FLOOR.generation, tools: { parallel: true } } };
-    expect(rowFor(capabilityFactRows(capability, declared, LOCAL_FLOOR), "generation.tools.parallel")).toMatchObject({
+    expect(rowFor(capabilityFactRows(capability, declared, LOCAL_FLOOR), "generation.tools")).toMatchObject({
       overridden: true,
       source: "your override — it was not stated",
     });
   });
+});
+
+// A server can report tool calls it then refuses (llama.cpp without `--jinja`) or a model can use them badly;
+// the no is the declared absence the resolver folds over a reported yes.
+describe("tool calls can be declared off over a reported yes", () => {
+  const reported: Capability = { kind: "generation", generation: { ...LOCAL_FLOOR.generation, tools: { parallel: false, silencesProse: true } } };
+
+  test("the no writes the declared absence, which parses and counts as one override", () => {
+    const row = rowFor(capabilityFactRows(reported, null, reported), "generation.tools");
+    expect(row).toMatchObject({ value: "yes, one at a time", overridden: false });
+    const declared = withDeclaredOverride(null, row, parseFactValue(row.edit, "no"));
+    expect(declared).toStrictEqual({ generation: { tools: null } });
+    expect(declaredCapabilitySchema.safeParse(declared).success).toBe(true);
+    expect(declaredOverrideCount(declared)).toBe(1);
+  });
+
+  test("the overridden row reads no, restates the reported yes, and Reset returns to it", () => {
+    const declared: DeclaredCapability = { generation: { tools: null } };
+    const { tools: _dropped, ...folded } = reported.generation;
+    const row = rowFor(capabilityFactRows({ kind: "generation", generation: folded }, declared, reported), "generation.tools");
+    expect(row).toMatchObject({ value: "no", overridden: true, draft: "no", source: "your override — it was yes, one at a time" });
+    expect(withoutDeclaredOverride(declared, row)).toBeNull();
+  });
 
   test("a floor-guessed window and output cap read as assumed; a stated one does not", () => {
-    const rows = capabilityFactRows(LOCAL_FLOOR, null);
+    const rows = capabilityFactRows(LOCAL_FLOOR, null, LOCAL_FLOOR);
     expect(rowFor(rows, "generation.context.window").value).toBe("8,192 tokens (assumed)");
     expect(rowFor(rows, "generation.output.maxTokens.max").value).toBe("4,096 tokens (assumed)");
-    expect(rowFor(capabilityFactRows(GENERATION, null), "generation.context.window").value).toBe("32,768 tokens");
+    expect(rowFor(capabilityFactRows(GENERATION, null, GENERATION), "generation.context.window").value).toBe("32,768 tokens");
   });
 
   // Ollama, LM Studio and Custom rows set no rerank path or image arm, so those quirks had no row at all.
@@ -203,7 +221,7 @@ describe("a per-field Override writes exactly one leaf", () => {
 
   // `rangeSchema` needs `min` beside `max`, so a bare `max` write would not parse at the verb.
   test("carries the required sibling on the one leaf that has one", () => {
-    const rows = capabilityFactRows(GENERATION, null);
+    const rows = capabilityFactRows(GENERATION, null, GENERATION);
     const next = withDeclaredOverride(null, rowFor(rows, "generation.output.maxTokens.max"), 16_384);
     expect(next).toStrictEqual({ generation: { output: { maxTokens: { min: 1, max: 16_384 } } } });
   });
@@ -211,7 +229,7 @@ describe("a per-field Override writes exactly one leaf", () => {
   // An override that leaves `{ generation: { context: {} } }` behind still counts as a stated field to the
   // badge and to the server, which is the whole reason Reset prunes.
   test("Reset prunes every ancestor it empties, and the last reset returns the column's null", () => {
-    const rows = capabilityFactRows(GENERATION, { generation: { context: { window: 65_536 } } });
+    const rows = capabilityFactRows(GENERATION, { generation: { context: { window: 65_536 } } }, GENERATION);
     expect(withoutDeclaredOverride({ generation: { context: { window: 65_536 } } }, rowFor(rows, "generation.context.window"))).toBeNull();
   });
 });
@@ -330,13 +348,36 @@ describe("the takes row is honest about a guessed modality list", () => {
       kind: "generation",
       generation: { ...LOCAL_FLOOR.generation, input: ["text", "image", "video"], modalitiesEstimated: true },
     };
-    expect(rowFor(capabilityFactRows(widened, null), "generation.input")).toMatchObject({
-      value: "text, image, video (assumed)",
-      source: "assumed — the server doesn't report it. Override it with your server's real value.",
-    });
+    const guessed = rowFor(capabilityFactRows(widened, null, widened), "generation.input");
+    expect(guessed.value).toBe("text, image, video (assumed)");
+    expect(guessed.source).not.toBe("what this server and model report");
     const stated: Capability = { kind: "generation", generation: { ...LOCAL_FLOOR.generation, input: ["text", "image"], tools: { parallel: false } } };
-    const rows = capabilityFactRows(stated, null);
+    const rows = capabilityFactRows(stated, null, stated);
     expect(rowFor(rows, "generation.input")).toMatchObject({ value: "text, image", source: "what this server and model report" });
-    expect(rowFor(rows, "generation.tools.parallel")).toMatchObject({ value: "yes, one at a time", source: "what this server and model report" });
+    expect(rowFor(rows, "generation.tools")).toMatchObject({ value: "yes, one at a time", source: "what this server and model report" });
+  });
+});
+
+// "Fields to add or replace" validates with the canonical transport schema: what it refuses never reaches a save.
+describe("the request-body overrides field saves only what the transport schema accepts", () => {
+  test("a JSON object saves as written; empty text and an empty object clear it", () => {
+    expect(parseIncludeBody('{ "top_k": 40, "options": { "num_ctx": 8192 } }')).toEqual({
+      ok: true,
+      includeBody: { ["top_k"]: 40, options: { ["num_ctx"]: 8192 } },
+    });
+    expect(parseIncludeBody("   ")).toEqual({ ok: true, includeBody: undefined });
+    expect(parseIncludeBody("{}")).toEqual({ ok: true, includeBody: undefined });
+  });
+
+  test("text that is not one JSON object is refused with a reason", () => {
+    for (const raw of ['{ "top_k": 40', "[1, 2]", "40", '"top_k"', "null"]) {
+      expect(parseIncludeBody(raw).ok, raw).toBe(false);
+    }
+  });
+
+  test("the saved object reads back as the text it parses from", () => {
+    const includeBody = { ["top_k"]: 40, stop: ["</s>"] };
+    expect(parseIncludeBody(includeBodyText(includeBody))).toEqual({ ok: true, includeBody });
+    expect(includeBodyText(undefined)).toBe("");
   });
 });

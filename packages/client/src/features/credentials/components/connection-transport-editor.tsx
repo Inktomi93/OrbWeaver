@@ -1,7 +1,8 @@
 // "Request & response shaping" (= `transport`) — the Diagnostics tier's ENDPOINT-ROW-ONLY block (inference
 // program §5.3a · the step-3b mock `editor.html` Board C). For a server that does not speak plain OpenAI:
-// headers that go out with the request, body fields that must not, and a dot-path map that reads a reply
-// putting things in different places.
+// headers that go out with the request, body fields that must not, body fields to add or replace (applied
+// after Extra request fields and before the exclusions, `openai-body.ts::applyIncludeExclude`), and a
+// dot-path map that reads a reply putting things in different places.
 //
 // THE SAMPLE-RESPONSE PREVIEW IS §5.3a's ONE NAMED AUTHORING AID, and it is here for a reason a reader can
 // check: a dot-path expression is UNVERIFIABLE BY READING. The preview resolves each stated path against a
@@ -23,6 +24,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { includeBodyText, parseIncludeBody } from "../lib/connection-editor-model.ts";
 
 /** The `responseMap` paths, in the pane's reading order with their plain-word names. A `Record` over the
  *  schema's own keys, so a new path is a `tsc` error here rather than a field nothing can author. */
@@ -86,6 +88,8 @@ export function ConnectionTransportEditor({ transport, busy, onCommit }: Connect
         </Field>
       </Row>
 
+      <IncludeBodyField busy={busy} onCommit={(includeBody): void => commit(withIncludeBody(transport, includeBody))} transport={transport} />
+
       <Stack gap="tight">
         <Text voice="label">Where the reply keeps its parts</Text>
         <Text voice="gloss">Dot paths into the server's reply body. Leave a row empty when the server puts nothing there.</Text>
@@ -104,6 +108,45 @@ export function ConnectionTransportEditor({ transport, busy, onCommit }: Connect
 
       <SampleResponsePreview map={map} />
     </Stack>
+  );
+}
+
+/** `transport.includeBody`: one JSON object merged over the request body. Text that the canonical schema
+ *  refuses shows why and is never saved; the field keeps it so the user can fix it. */
+function IncludeBodyField({
+  transport,
+  busy,
+  onCommit,
+}: {
+  readonly transport: ConnectionTransportDoc | null;
+  readonly busy: boolean;
+  readonly onCommit: (includeBody: ConnectionTransportDoc["includeBody"]) => void;
+}): ReactElement {
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <Field
+      description="One JSON object. It is merged over the request after Extra request fields, so a key here replaces the one we would send. Don't send these fields still drops a key, even one set here. Clear the box to remove them all."
+      error={error}
+      label="Fields to add or replace"
+    >
+      <Textarea
+        defaultValue={includeBodyText(transport?.includeBody)}
+        disabled={busy}
+        maxRows={8}
+        onBlur={(event): void => {
+          const parsed = parseIncludeBody(event.target.value);
+          if (!parsed.ok) {
+            setError(parsed.reason);
+            return;
+          }
+          setError(null);
+          onCommit(parsed.includeBody);
+        }}
+        placeholder='{ "top_k": 40 }'
+        rows={2}
+      />
+    </Field>
   );
 }
 
@@ -236,6 +279,10 @@ function withHeaders(transport: ConnectionTransportDoc | null, headers: Record<s
 
 function withExcludeBody(transport: ConnectionTransportDoc | null, excludeBody: readonly string[]): ConnectionTransportDoc {
   return prune({ ...transport, excludeBody: [...excludeBody] });
+}
+
+function withIncludeBody(transport: ConnectionTransportDoc | null, includeBody: ConnectionTransportDoc["includeBody"]): ConnectionTransportDoc {
+  return prune({ ...transport, includeBody });
 }
 
 function withMapPath(

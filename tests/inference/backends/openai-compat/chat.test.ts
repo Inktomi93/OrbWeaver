@@ -1133,7 +1133,7 @@ test("a llama.cpp 'tools param requires --jinja flag' 400 reaches the caller as 
   expect(error.kind).toBe("invalid");
   expect(error.retryable).toBe(false);
   expect(error.message).toContain(
-    "this llama.cpp server runs without --jinja, so tool calls are off; start it with --jinja or set tool calls to no under Advanced",
+    "this llama.cpp server runs without --jinja, so tool calls are off; start it with --jinja, or under Advanced press Override on tool calls and choose no",
   );
   // PLANTED CONTROL: the same 400 on a turn that carried no tools is an ordinary upstream refusal.
   const bare = await runOpenAiCompatChatTurn(orRequest({ connection, tools: undefined }), turnDeps(fetchImpl)).then(

@@ -60,18 +60,44 @@ Server default window as pulled (no `OLLAMA_CONTEXT_LENGTH`, no Modelfile `num_c
 
 Rows: `results/ollama.jsonl`, `kind: "ctx"` (the second block is the `LOCAL_RIG_OLLAMA_CTX=16384` run).
 
-Finding: Ollama's OpenAI-compatible endpoint silently truncates to the server's default window and takes no
-per-request window knob; the native `/api/chat` honours `options.num_ctx`. Two server-side settings raise the
-window for `/v1` too: `OLLAMA_CONTEXT_LENGTH` on the server, or a Modelfile pin (`ollama create` /
-`POST /api/create` with `parameters.num_ctx`). The reader already reports the window
-Ollama runs (`num_ctx` or the loaded runner), so a pinned model reads its true window; an unpinned, unloaded
-model reads "assumed" at the 8192 floor while the server actually cuts at 2048 here — the floor overstates.
+Finding: Ollama's OpenAI-compatible endpoint takes no per-request window knob; the native `/api/chat` honours
+`options.num_ctx`. Two server-side settings raise the window for `/v1` too: `OLLAMA_CONTEXT_LENGTH` on the
+server, or a Modelfile pin (`ollama create` / `POST /api/create` with `parameters.num_ctx`).
+
+The default on this box is 4096, not 2048. `/api/ps` reports `context_length: 4096` for a runner `/v1` loaded,
+and a single user message swept from 1253 to 4053 prompt tokens was evaluated whole with the fact recalled. The
+2050 above is what Ollama keeps of one message longer than the window: its tail. On a chat it keeps the system
+prompt and drops the oldest messages that do not fit. `/api/ps` also reports whatever window the client that
+loaded the runner asked for: after `/api/chat` with `options.num_ctx: 8192` it read 8192, and the next `/v1`
+request reloaded the runner at 4096.
 
 Community providers for a native wire, as of the run: `ai-sdk-ollama` 4.4.0 (peer `ai ^7.0.103`) and
-`ollama-ai-provider-v2` 4.0.1; neither is adopted in this lane.
+`ollama-ai-provider-v2` 4.0.1; neither is adopted.
 
-Recommendation (for the orchestrator to file): keep the OpenAI-compatible wire for Ollama and teach the
-connection to pin the window, either by creating a `<model>-ctx<N>` copy through `POST /api/create` with
-`parameters.num_ctx` when the user overrides the context window, or by telling the user to set
-`OLLAMA_CONTEXT_LENGTH`; switching the wire to a native provider buys `options.num_ctx` per request at the
-cost of a second backend for one server.
+What the reader does with it (`withOllamaInfo` in `packages/inference/src/catalog/endpoint.ts`): a Modelfile
+`num_ctx` is the stated window. Otherwise the row carries `contextFloor`, the lowest default the version can run:
+4096 from 0.15.5 (the release that picks the default from VRAM, lowest tier 4096), 2048 before it or with no
+version, lowered by a smaller loaded runner and never raised by one. The capability assumes the floor and marks
+it, so the editor shows "4,096 tokens (assumed)".
+
+## Ollama window through the app's own path (`ollama-window.ts`)
+
+The real resolve (the capability the editor shows) and the real turn pipeline (assembly, the history fit
+against that window, the openai-compat backend) against the `ollama` arm, `qwen2.5:0.5b`. The history is
+longer than every window. The fact rides the oldest history message the fit keeps, so the server dropping
+anything the fit kept loses it. "Sent" is the request counted whole through `/api/chat` at 32768; "evaluated"
+is what `/v1` reported.
+
+| Arm | Window shown | Sent | Evaluated | Recalled |
+| - | - | - | - | - |
+| no declaration (server default 4096) | 4096, assumed | 3592 | 3592 | yes |
+| window declared at the old 8192 floor (server default 4096) | 8192 | 6975 | 4089 | no |
+| copy pinned with `num_ctx 8192` | 8192, reported | 6975 | 6975 | yes |
+| server started with `OLLAMA_CONTEXT_LENGTH=8192`, no declaration | 4096, assumed | 3592 | 3592 | yes |
+| same server, window declared at 8192 | 8192 | 6975 | 6975 | no |
+
+Rows: `results/ollama-window.jsonl`. The token counts are the proof. Recall from a 0.5B model is noisy near 7000 tokens: with the whole request evaluated, the last row still answered with filler. The server-setting rows show the assumed floor understates a raised default, which is why the guidance pairs `OLLAMA_CONTEXT_LENGTH` with a declared window.
+
+A digit-dense history ("Note 105.0: …" on every line) sent 4176 tokens against the stated 4096 in an earlier
+run of the same probe: the history fit's estimate undercounts that text, and Ollama dropped the oldest kept
+message. Plain prose stays inside the window.
