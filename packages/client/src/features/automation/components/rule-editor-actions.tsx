@@ -3,6 +3,7 @@ import { AUTOMATION_ACTION_ARMS_MAX, AUTOMATION_ACTION_TYPES, AUTOMATION_ARM_SCO
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { SortableList } from "@orb/ui/sortable";
@@ -12,9 +13,12 @@ import { useId, useState } from "react";
 import type { AutosaveSession } from "#forms/editor";
 import { notify } from "#lib";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
-import { armLabel } from "../lib/rule-copy.ts";
+import { armGroups, armLabel, armTitle } from "../lib/rule-copy.ts";
 import { newRuleAction } from "../lib/rule-editor-model.ts";
 import { RuleActionFields } from "./rule-action-fields.tsx";
+
+// Why a rewrite and the other kinds cannot be picked together, shown on the option it rules out.
+const REWRITE_ALONE = "A rewrite cannot share its rule with other kinds of action.";
 
 /** Every structural edit changes the canonical form store; the factory owns its debounce and teardown. */
 export function RuleEditorActions({
@@ -32,8 +36,17 @@ export function RuleEditorActions({
     <form.Subscribe selector={(state): RuleEditorValues => state.values}>
       {(values): ReactElement => {
         const transformOnly = values.actions.some((action) => action.type === "transform_draft");
-        const incompatible = values.actions.length > 0 && (nextType === "transform_draft") !== transformOnly;
+        const ruledOut = (type: AutomationActionType): boolean => values.actions.length > 0 && (type === "transform_draft") !== transformOnly;
+        const incompatible = ruledOut(nextType);
         const full = values.actions.length >= AUTOMATION_ACTION_ARMS_MAX;
+        const pickerItems = armGroups(available).map((group) => ({
+          label: group.label,
+          items: group.types.map((type) => ({
+            value: type,
+            label: armLabel(type),
+            ...(ruledOut(type) ? { disabled: true, description: REWRITE_ALONE } : {}),
+          })),
+        }));
         return (
           <Stack gap="block">
             <Text>Actions run in this order</Text>
@@ -42,10 +55,10 @@ export function RuleEditorActions({
               items={values.actionIds}
               getItemKey={(id): string => id}
               handle={true}
+              // The bare noun the primitive asks for: a position here would go stale the moment the row moves.
               itemLabel={(id): string => {
-                const index = values.actionIds.indexOf(id);
-                const action = values.actions[index];
-                return action === undefined ? "action" : `${index + 1}. ${armLabel(action.type)}`;
+                const action = values.actions[values.actionIds.indexOf(id)];
+                return action === undefined ? "action" : armTitle(action.type);
               }}
               aria-label="Rule actions"
               onReorder={(ids): void => {
@@ -74,10 +87,12 @@ export function RuleEditorActions({
                     <Stack gap="block">
                       <Row gap="field" align="center" className="justify-between">
                         <Text>
-                          {index + 1}. {armLabel(action.type)}
+                          {index + 1}. {armTitle(action.type)}
                         </Text>
                         <Button
                           intent="ghost"
+                          size="icon"
+                          aria-label={`Remove action ${index + 1}`}
                           onClick={(): void => {
                             Promise.all([
                               form.removeFieldValue("actions", index),
@@ -87,7 +102,7 @@ export function RuleEditorActions({
                             ]).catch(() => notify.error("Couldn't remove the action."));
                           }}
                         >
-                          Remove action {index + 1}
+                          <Icon icon={Trash2} size="sm" />
                         </Button>
                       </Row>
                       <RuleActionFields form={form} index={index} action={action} chatId={chatId} />
@@ -99,7 +114,7 @@ export function RuleEditorActions({
             <Select
               aria-label="Action to add"
               value={nextType}
-              items={available.map((type) => ({ value: type, label: armLabel(type) }))}
+              items={pickerItems}
               onValueChange={(value): void => {
                 const type = available.find((candidate) => candidate === value);
                 if (type !== undefined) {
@@ -109,7 +124,7 @@ export function RuleEditorActions({
             />
             {incompatible ? (
               <Text id={incompatibilityId} voice="gloss">
-                Draft transformations cannot mix with other actions. Remove the existing actions before changing kinds.
+                {REWRITE_ALONE} Remove the existing actions to switch kinds.
               </Text>
             ) : null}
             {full ? (

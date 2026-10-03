@@ -13,17 +13,31 @@ import type { PresetDetail, PresetSummary } from "../contract/views.ts";
 
 type PresetRow = typeof presets.$inferSelect;
 
-/** The list-row projection (no config parse needed — summaries omit the blob). */
-export function toPresetSummary(row: PresetRow): PresetSummary {
+type PresetConfigOutcome = ReturnType<typeof promptConfigConfig.parseOutcome>;
+
+// Both projections ask the write guard's exact question (`parseOutcome` over the stored COLUMN version), so
+// the list row, the editor and `updatePresetRow`'s refusal cannot disagree about one row.
+function readConfig(row: PresetRow): PresetConfigOutcome {
+  return promptConfigConfig.parseOutcome(row.config, row.schemaVersion);
+}
+
+function summaryOf(row: PresetRow, outcome: PresetConfigOutcome): PresetSummary {
   return {
     id: row.id,
     name: row.name,
     kind: row.kind,
     isSystemDefault: row.id === SYSTEM_DEFAULT_PRESET_ID,
     forkedFrom: row.forkedFrom,
+    configUnreadable: outcome.intact ? null : outcome.failure,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+/** The list-row projection. It parses the blob only for its verdict, so the list can mark an unreadable row
+ *  before the editor opens it (ADR 0290: a re-import lands beside such a row and never heals it). */
+export function toPresetSummary(row: PresetRow): PresetSummary {
+  return summaryOf(row, readConfig(row));
 }
 
 /**
@@ -40,11 +54,10 @@ export function toPresetSummary(row: PresetRow): PresetSummary {
  *    was the one way the two reads could resolve different versions for the same bytes.
  */
 export function toPresetDetail(row: PresetRow): PresetDetail {
-  const outcome = promptConfigConfig.parseOutcome(row.config, row.schemaVersion);
+  const outcome = readConfig(row);
   return {
-    ...toPresetSummary(row),
+    ...summaryOf(row, outcome),
     config: outcome.value,
     schemaVersion: row.schemaVersion,
-    configUnreadable: outcome.intact ? null : outcome.failure,
   };
 }

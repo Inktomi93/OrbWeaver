@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-23
+status: superseded
+updated: 2026-10-03
+superseded-by: docs/adr/0293-memory-is-off-until-each-user-turns-it-on.md
 ---
 
 # Memory is global with a user opt-out

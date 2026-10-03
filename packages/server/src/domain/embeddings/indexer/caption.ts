@@ -39,7 +39,7 @@
 import { imageBreakdownSchema } from "@orb/contracts/embeddings";
 import { acceptsImageInput } from "@orb/contracts/inference";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import type { ResponseFormat, RoleClients } from "@orb/contracts/role-clients";
+import type { ResolvedTaskView, ResponseFormat, RoleClients } from "@orb/contracts/role-clients";
 import type { SideGenSampling } from "@orb/inference";
 import { ProviderError, resolveSideGenSampling, runStructuredTurn } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -67,6 +67,23 @@ const ANALYSIS_FLOOR: SideGenSampling = SIDE_GEN_POSTURES.caption;
 
 const skipped = (model: string): AvatarAnalysis => ({ caption: "", captionMeta: { model } });
 
+/** Why an analysis on this resolved summarize role would make no provider call, or `null` when it would. The
+ *  analysis and the sweep's call count both decide it here, so the count never promises a call the analysis skips. */
+function analysisSkipCause(resolved: ResolvedTaskView | null): "no-connection" | "unservable" | "no-image-input" | null {
+  if (resolved === null) {
+    return "no-connection";
+  }
+  if (avatarAnalysisUnservable(resolved.model)) {
+    return "unservable";
+  }
+  return resolved.capability.kind === "generation" && acceptsImageInput(resolved.capability.generation) ? null : "no-image-input";
+}
+
+/** Whether an avatar analysis on this owner's summarize role would reach a model (one vision call). */
+export async function avatarAnalysisCallsModel(roleClients: RoleClients): Promise<boolean> {
+  return analysisSkipCause(await roleClients.resolved("structured")) === null;
+}
+
 /**
  * Analyse ONE avatar through the vision-capable summarize role: a caption plus the grammar-enforced facet
  * breakdown, in one call. Returns the skip shape (empty caption, facetless meta) when the structured turn
@@ -79,15 +96,16 @@ export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8A
   // The CAPTION lens is a `structured` call WITH an image input (inference program §7.5-1): it names its task
   // and reads the vision requirement off the resolved capability — `accepts(cap, "input", "image")`.
   const resolved = await roleClients.resolved("structured");
+  const skipCause = analysisSkipCause(resolved);
   if (resolved === null) {
     return skipped("(no-connection)");
   }
   const model = resolved.model;
-  if (avatarAnalysisUnservable(model)) {
+  if (skipCause === "unservable") {
     // Already answered by the backend this process. Silent: the loud line was logged when it latched.
     return skipped(model);
   }
-  if (resolved.capability.kind !== "generation" || !acceptsImageInput(resolved.capability.generation)) {
+  if (skipCause === "no-image-input") {
     if (announceAvatarAnalysisSkip(model)) {
       getLog().warn(
         { model },

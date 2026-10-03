@@ -105,6 +105,8 @@ export interface EmbeddingsContext {
     | undefined;
   readonly loadAssetKind: (assetId: AssetId) => Promise<AssetKind | null>;
   readonly loadAssetMime: LoadAssetMime;
+  /** An asset's stored hash, the CAS key: the sha-256 of its bytes. `null` when the row is gone. */
+  readonly loadAssetHash: (assetId: AssetId) => Promise<string | null>;
   readonly db: Db;
   /** The per-FUNDER role-client bundle (inference program §7.5-2): a vector task is `scope: "owner"`, so the
    *  entity's OWNER funds the embed and DEFINES the space (their `embed`/`imageEmbed` binding). */

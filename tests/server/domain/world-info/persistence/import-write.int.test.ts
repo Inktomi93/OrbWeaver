@@ -175,6 +175,27 @@ describe("createBulkImportLorebook", () => {
     expect(attach).toHaveLength(1);
   });
 
+  // The restore door replaces in place, but its NAME follows D290: a name another owned book holds is numbered,
+  // and the replaced row's own name is never counted as taken.
+  test("a replace takes the card's book name, numbered when ANOTHER owned book holds it", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const bram = await seedCharacter(db, { ownerId: owner.id, handle: castId("bram"), name: "Bram" });
+    const op = createBulkImportLorebook(importCtx(db));
+    await op({ ownerId: owner.id, characterId: aria.id, book: book() });
+    const bramFirst = await op({ ownerId: owner.id, characterId: bram.id, book: eldoria() });
+
+    // Bram's card now carries a book named like Aria's: the restore numbers it instead of minting a twin name.
+    const restored = await op({ ownerId: owner.id, characterId: bram.id, book: { ...eldoria(), name: "Aria's World" } });
+    expect(restored).toMatchObject({ worldBookId: bramFirst.worldBookId, replaced: true, name: "Aria's World (2)", renamedFrom: "Aria's World" });
+
+    // Restoring Aria under her own book's name keeps it bare: the row being replaced is not a collision.
+    const own = await op({ ownerId: owner.id, characterId: aria.id, book: book() });
+    expect(own).toMatchObject({ replaced: true, name: "Aria's World", renamedFrom: null });
+    expect((await db.select({ name: worldBooks.name }).from(worldBooks)).map((r) => r.name).toSorted()).toEqual(["Aria's World", "Aria's World (2)"]);
+  });
+
   test("a non-owned / missing character throws DomainNotFoundError (the ownership precondition)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});

@@ -2,9 +2,10 @@
 // the summarize calls the real sweep makes, drops to zero once the chat is built, mints nothing, and honours an import window.
 
 import type { Db } from "@orb/db";
-import { chatImportClaims } from "@orb/db";
+import { chatImportClaims, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { and, eq, inArray } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ResolveBackfillMemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
 import { backfillMemory, loadAllChatIds } from "../../../../../packages/server/src/domain/chat/substrate/backfill.ts";
@@ -41,6 +42,63 @@ describe("estimateMemoryBackfillCalls — the confirm's count, read without the 
     expect(before).toBe(summarize.calls.length);
     expect(before).toBe(6);
     expect(await estimateMemoryBackfillCalls(ctx, { ownerId: host, funderUserId: host, importWindow: null }, cfg)).toBe(0);
+  });
+
+  // A seated character's bucket holds only what it witnessed, so the count follows the planner's narrowing.
+  test("a character seated mid-chat is counted only for the blocks it witnessed, as the sweep builds them", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const room = await seedChat(db, "room_estimate_late");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "c", characterId: aria, joinSeq: 5 });
+    await seedTurns(db, room, aria, 8);
+    const summarize = fakeSummarize();
+    const { ctx } = await realMemoryWiring(db, host, { summarize: summarize.op });
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 1 });
+
+    const before = await estimateMemoryBackfillCalls(ctx, { ownerId: host, funderUserId: host, importWindow: null }, cfg);
+    await backfillMemory(ctx, { signal: new AbortController().signal, ownerId: host, funderUserId: host, importWindow: null, segmentsOnly: false }, cfg);
+
+    // Seq 5..8 are two witnessed blocks and one consolidation of them; the two blocks before the seat are never built.
+    expect(before).toBe(3);
+    expect(summarize.calls).toHaveLength(before);
+  });
+
+  // An edited message changes its block's hash, so the build re-summarizes that block and every parent above it.
+  test("an edit to a built block is counted again, with the consolidation above it", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const room = await seedChat(db, "room_estimate_edit");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+    await seedTurns(db, room, aria, 8);
+    const summarize = fakeSummarize();
+    const { ctx } = await realMemoryWiring(db, host, { summarize: summarize.op });
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 1 });
+    const scope = { ownerId: host, funderUserId: host, importWindow: null };
+    const sweep = { ...scope, segmentsOnly: false, signal: new AbortController().signal };
+    await backfillMemory(ctx, sweep, cfg);
+    expect(await estimateMemoryBackfillCalls(ctx, scope, cfg)).toBe(0);
+
+    await db
+      .update(messageVariants)
+      .set({ content: "turn 1, rewritten" })
+      .where(
+        inArray(
+          messageVariants.id,
+          db
+            .select({ id: messageVariants.id })
+            .from(messageVariants)
+            .innerJoin(messages, eq(messages.selectedVariantId, messageVariants.id))
+            .where(and(eq(messages.chatId, room), eq(messages.seq, 1))),
+        ),
+      );
+    summarize.calls.length = 0;
+    const after = await estimateMemoryBackfillCalls(ctx, scope, cfg);
+    await backfillMemory(ctx, sweep, cfg);
+
+    expect(after).toBe(2);
+    expect(summarize.calls).toHaveLength(after);
   });
 
   test("a group room counts its unminted shared bucket as unbuilt, mints nothing, and costs nothing with memory off", async () => {

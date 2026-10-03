@@ -220,7 +220,7 @@ test("removing an unavailable connection keeps the confirm open for a failed att
     "This removes the saved connection and unsets any model roles that use it. Past messages keep their attribution, and any saved key remains under Saved keys. This can't be undone.",
   );
   await confirm.getByRole("button", { name: "Remove" }).click();
-  await expect(confirm.getByRole("alert")).toContainText("That didn't go through — delete failed");
+  await expect(confirm.getByRole("alert")).toContainText("That didn't go through: delete failed");
   await expect(confirm.getByRole("button", { name: "Remove" })).toBeFocused();
   await expect.poll(() => recorder.inputs("connection.remove")).toEqual([{ connectionId: CONNECTION_ID }]);
 
@@ -498,7 +498,7 @@ test("an unreachable endpoint says §5.3a's sentence, and the owner is offered t
   await tier(page, "Diagnostics").click();
 
   await component.getByRole("button", { name: "Check again" }).click();
-  await expect(component.locator('[data-slot="connection-unreachable"]')).toHaveText("Can't reach 127.0.0.1 — the server may be down.");
+  await expect(component.locator('[data-slot="connection-unreachable"]')).toHaveText("Can't reach 127.0.0.1. The server may be down.");
 
   // The host is not written down, so the repair is offered where the failure is.
   await component.getByRole("button", { name: "Admit 127.0.0.1:8000" }).click();

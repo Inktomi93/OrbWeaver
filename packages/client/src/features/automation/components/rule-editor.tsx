@@ -2,19 +2,18 @@ import type { AutomationRuleCreationId, AutomationRuleId, ChatId, UserId } from 
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { hashServerBaseline } from "#forms";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
 import type { RuleCreation } from "#state";
 import { useRuleAutosave } from "../hooks/use-rule-autosave.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { ruleEditorCommitSchema } from "../lib/contract/rule-editor.ts";
-import { ruleEditorBaseline, ruleEditorDrafts } from "../lib/rule-editor-drafts.ts";
+import { ruleEditorDrafts } from "../lib/rule-editor-drafts.ts";
 import { emptyRuleEditor, ruleEditorValues } from "../lib/rule-editor-model.ts";
 import { editableRule } from "../lib/rule-save-session.ts";
 import { RuleEditorActions } from "./rule-editor-actions.tsx";
@@ -52,14 +51,6 @@ export function RuleEditor({
   const { save, acknowledged, failure } = useRuleAutosave({ owner, chatId, creation, ruleId, rule });
   const [needsExistingRow] = useState(ruleId !== null);
   const [observedRow, setObservedRow] = useState(rule !== null);
-  const [restoredDraft] = useState(() => {
-    if (rule?.actionsCorrupt === true || (rule === null && ruleId !== null)) {
-      return false;
-    }
-    const initial = rule === null ? emptyRuleEditor(chatId) : ruleEditorValues(editableRule(rule), identity);
-    const surviving = ruleEditorDrafts.readDraft(identity, hashServerBaseline(initial));
-    return surviving !== undefined && ruleEditorBaseline({ ...initial, ...surviving }) !== ruleEditorBaseline(initial);
-  });
   if (rule?.actionsCorrupt === true) {
     return (
       <Card ref={surface} role="region" aria-label="Rule editor" tabIndex={-1}>
@@ -82,17 +73,18 @@ export function RuleEditor({
   }
   const serverValues = confirmed === null ? emptyRuleEditor(chatId) : ruleEditorValues(editableRule(confirmed), identity);
   return (
-    <Card ref={surface} role="region" aria-label="Rule editor" tabIndex={-1}>
+    // Capped at the editor content column: in the full-width library pane the fields otherwise stretch past 800px.
+    <Card ref={surface} role="region" aria-label="Rule editor" tabIndex={-1} className="w-full max-w-(--width-content-col)">
       <RuleForm entityId={identity} serverValues={serverValues} save={save}>
         {(session): ReactElement => (
           <Stack gap="section">
             <Row gap="field" align="center" className="justify-between">
-              <Text>{chatId === null ? "Library-wide rule" : "Chat rule"}</Text>
+              <Heading level={4}>{chatId === null ? "Library-wide rule" : "Chat rule"}</Heading>
               <Button intent="ghost" onClick={onClose}>
                 Close editor
               </Button>
             </Row>
-            <RuleEditorSaveStatus session={session} error={failure} restored={restoredDraft && acknowledged === null} uncreated={confirmed === null} />
+            <RuleEditorSaveStatus session={session} error={failure} uncreated={confirmed === null} />
             <Text voice="gloss">Edits save automatically when complete. New rules start off; enable the rule separately when you are ready.</Text>
             {rule === null || rule.rulePresetId === null ? null : (
               <Text voice="gloss">Editing makes this a custom rule and removes its rule-preset lineage.</Text>

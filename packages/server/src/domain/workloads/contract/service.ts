@@ -12,6 +12,7 @@ import type {
   CancelWorkloadParams,
   CancelWorkloadResult,
   EstimateModelCallsParams,
+  EstimateRetryModelCallsParams,
   GetWorkloadParams,
   ListWorkloadsParams,
   RetryWorkloadParams,
@@ -112,6 +113,7 @@ export interface BootReclaimReport {
 export interface WorkloadService extends WorkloadScheduleService {
   readonly start: (params: StartWorkloadParams) => Promise<WorkloadRef>;
   readonly estimateModelCalls: (params: EstimateModelCallsParams) => Promise<ModelCallEstimate>;
+  readonly estimateRetryModelCalls: (params: EstimateRetryModelCallsParams) => Promise<ModelCallEstimate>;
   readonly cancel: (params: CancelWorkloadParams) => Promise<CancelWorkloadResult>;
   readonly retry: (params: RetryWorkloadParams) => Promise<WorkloadRef>;
   readonly get: (params: GetWorkloadParams) => Promise<WorkloadRowAnyKind>;

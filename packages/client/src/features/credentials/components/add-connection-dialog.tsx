@@ -39,7 +39,7 @@ import type { Invalidation, Trpc } from "#data";
 import { trpcErrorReason } from "#lib";
 import { pushRecentModel } from "#state";
 import { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
-import { useAddCredentialOwned, useCreateConnectionOwned, useDraftCatalogModels } from "../hooks/use-connections-mutations.ts";
+import { useAddCredentialOwned, useCreateConnection, useDraftCatalogModels } from "../hooks/use-connections-mutations.ts";
 import { useSignInCheckAfterSave } from "../hooks/use-sign-in-check.ts";
 import type { AddConnectionFormValues } from "../lib/add-connection-form-model.ts";
 import {
@@ -229,7 +229,7 @@ function connectionInput(args: {
 function AddConnectionFormBody({ trpc, invalidation, purpose, onSaved, onCancel, keyStorage, pickerItems, providerOf }: FormBodyProps): ReactElement {
   const deps = { trpc, invalidation };
   const addCredential = useAddCredentialOwned(deps);
-  const createConnection = useCreateConnectionOwned(deps);
+  const createConnection = useCreateConnection({ ...deps, failureShownInline: true });
   const checkSignIn = useSignInCheckAfterSave(deps);
   const draftModels = useDraftCatalogModels(deps);
   const [listing, setListing] = useState<DraftListing | null>(null);

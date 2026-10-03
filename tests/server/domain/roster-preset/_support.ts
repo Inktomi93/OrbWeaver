@@ -250,7 +250,7 @@ export function makeHarness(db: Db, overrides: Partial<RosterPresetContext> = {}
         const refusal = refuseMints.get(rulePresetId);
         if (refusal !== undefined) {
           // The planted consent-class refusal (automation's OWN error class — what the catch narrows on).
-          return Promise.reject(new RuleValidationError("book_not_attached", refusal));
+          return Promise.reject(new RuleValidationError("unattached_book", refusal));
         }
         const resolved = resolveChatRulePresetKnobs(rulePresetId, overrideKnobs ?? {});
         ruleMints.push({ chatId, rulePresetId, knobs: resolved });

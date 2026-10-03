@@ -19,12 +19,12 @@
 // `preset.list`/`settings.getUserSettings` are stubbed at the NETWORK (routeTrpc); the menu + ConfirmDialog
 // render in a PORTAL, so they are located on `page`, not the mounted component.
 
-import { duplicateActionName, rowActionsName } from "@orb/client/lib";
+import { duplicateActionName, PRESET_UNREADABLE_ROW_MARKER, rowActionsName } from "@orb/client/lib";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";
 import { resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
@@ -146,6 +146,7 @@ function summary(fields: {
   updatedAt?: number;
   kind?: string;
   forkedFrom?: string;
+  configUnreadable?: TrpcWireOutput<"preset.list">[number]["configUnreadable"];
 }): TrpcWireOutput<"preset.list">[number] {
   const isSystemDefault = fields.isSystemDefault ?? false;
   return {
@@ -154,6 +155,7 @@ function summary(fields: {
     kind: fields.kind ?? (isSystemDefault ? "system" : "generation"),
     isSystemDefault,
     forkedFrom: fields.forkedFrom ?? null,
+    configUnreadable: fields.configUnreadable ?? null,
     createdAt: 0,
     updatedAt: fields.updatedAt ?? 0,
   };
@@ -219,6 +221,27 @@ test("L4 the LIST band names the section, counts the presets, and carries the pa
   await expect(importDoor).toHaveAttribute("title", "Import a preset");
   // The in-pane title is retired, not doubled.
   await expect(page.getByRole("heading", { name: "Presets" })).toHaveCount(1);
+});
+
+test("0459 an unreadable preset is marked on its LIST row, by cause, and intact rows carry no mark", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.list": () => [
+      summary({ id: BUILT_IN, name: "Default", isSystemDefault: true }),
+      summary({ id: EDITED_ONE, name: EDITED_ONE_NAME, configUnreadable: "schema-rejected" }),
+      summary({ id: EDITED_TWO, name: EDITED_TWO_NAME, configUnreadable: "version-from-future" }),
+      summary({ id: IMPORTED, name: IMPORTED_NAME }),
+    ],
+    "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null }),
+  });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  // By the EXACT title: "Default (edited)" is a substring of "Default (edited) 2".
+  const rowOf = (name: string): Locator => component.locator(LIST_ROW_ROOT).filter({ has: page.locator(TITLE).getByText(name, { exact: true }) });
+  const warning = '[data-slot="badge"][data-intent="warning"]';
+
+  await expect(rowOf(EDITED_ONE_NAME).locator(warning)).toHaveText(PRESET_UNREADABLE_ROW_MARKER.corrupt);
+  await expect(rowOf(EDITED_TWO_NAME).locator(warning)).toHaveText(PRESET_UNREADABLE_ROW_MARKER["from-a-newer-version"]);
+  await expect(rowOf(IMPORTED_NAME).locator(warning)).toHaveCount(0);
+  await expect(rowOf("Built-in default").locator(warning)).toHaveCount(0);
 });
 
 // ── The SEARCH lens: one query, two readers (side-eye 2026-08-19 P2 + P3) ────────────────────────

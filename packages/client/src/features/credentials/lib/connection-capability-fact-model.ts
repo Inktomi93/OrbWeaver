@@ -11,7 +11,7 @@ import { draftOf, formatLeaf, NOT_STATED, readPath, tokens, unsetRow } from "./c
  *  mock's invented strings — see `connection-fact-model.ts`'s header. */
 const CAPABILITY_SOURCE = "what this server and model report";
 /** A floor guess, not a report — the history fit still runs against it, so the user is told to correct it. */
-const ASSUMED_SOURCE = "assumed — the server doesn't report it. Override it with your server's real value.";
+const ASSUMED_SOURCE = "assumed, because the server doesn't report it. Override it with your server's real value.";
 const UNSTATED_SOURCE = "nobody has stated it, so it counts as no. Override it if your server supports it.";
 const ASSUMED_SUFFIX = " (assumed)";
 

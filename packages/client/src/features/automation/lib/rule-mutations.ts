@@ -24,7 +24,7 @@ import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
-import { activeDurableLocalUserId, durableLocalReadyFor } from "#state";
+import { ruleDraftOwnerCurrent } from "#state";
 
 /** The `listRules` read this section reconciles — tRPC-inferred (`readonly RuleView[]`), so the optimistic
  *  enable/disable patch below stays honest against the wire shape. */
@@ -47,10 +47,6 @@ function ruleListFilter(trpc: Trpc, chatId: ChatId | null): ReturnType<Trpc["aut
  *  filter matches a family and a key names one entry — `createEntityMutation` needs both. */
 function ruleListKey(trpc: Trpc, chatId: ChatId | null): readonly unknown[] {
   return chatId === null ? trpc.automation.listOwnerRules.queryKey() : trpc.automation.listRules.queryKey({ chatId });
-}
-
-function ruleCacheOwnerCurrent(owner: UserId): boolean {
-  return activeDurableLocalUserId() === owner && durableLocalReadyFor(owner);
 }
 
 function echoRule(old: RuleList | undefined, row: RuleList[number]): RuleList | undefined {
@@ -82,11 +78,11 @@ export const useCreateRule = createEntityMutation<
   },
   echo: {
     readKey: (trpc, vars) => ruleListKey(trpc, vars.chatId),
-    allowed: (vars) => ruleCacheOwnerCurrent(vars.cacheOwnerId),
+    allowed: (vars) => ruleDraftOwnerCurrent(vars.cacheOwnerId),
     update: (old, row) => echoRule(old, row),
   },
   // The owner-global key is shared across sign-ins; an old settle must not refetch the new viewer's list.
-  invalidates: (trpc, vars) => (ruleCacheOwnerCurrent(vars.cacheOwnerId) ? [ruleListFilter(trpc, vars.chatId)] : []),
+  invalidates: (trpc, vars) => (ruleDraftOwnerCurrent(vars.cacheOwnerId) ? [ruleListFilter(trpc, vars.chatId)] : []),
   errorToast: "Couldn't create that rule. Your draft is kept.",
 });
 
@@ -110,10 +106,10 @@ export const useUpdateRule = createEntityMutation<
   },
   echo: {
     readKey: (trpc, vars) => ruleListKey(trpc, vars.chatId),
-    allowed: (vars) => ruleCacheOwnerCurrent(vars.cacheOwnerId),
+    allowed: (vars) => ruleDraftOwnerCurrent(vars.cacheOwnerId),
     update: (old, row) => echoRule(old, row),
   },
-  invalidates: (trpc, vars) => (ruleCacheOwnerCurrent(vars.cacheOwnerId) ? [ruleListFilter(trpc, vars.chatId)] : []),
+  invalidates: (trpc, vars) => (ruleDraftOwnerCurrent(vars.cacheOwnerId) ? [ruleListFilter(trpc, vars.chatId)] : []),
   errorToast: "Couldn't save that rule. Your draft is kept.",
 });
 

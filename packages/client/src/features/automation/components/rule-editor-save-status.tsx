@@ -12,15 +12,13 @@ import { ruleEditorFailure } from "../lib/rule-editor-failure.ts";
 export function RuleEditorSaveStatus({
   session,
   error,
-  restored,
   uncreated,
 }: {
   readonly session: AutosaveSession<RuleEditorValues>;
   readonly error: Error | null;
-  readonly restored: boolean;
   readonly uncreated: boolean;
 }): ReactElement {
-  const { form } = session;
+  const { form, restored } = session;
   const failure = ruleEditorFailure(error);
   useEffect(() => {
     const refused = ruleEditorFailure(error);

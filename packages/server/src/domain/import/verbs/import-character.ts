@@ -23,6 +23,7 @@ import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
+import { fileStem } from "@orb/kit/strings";
 import type { ImportContext } from "../context.ts";
 import { ImportCardError } from "../contract/errors.ts";
 import type { ImportCharacterInput } from "../contract/params.ts";
@@ -32,8 +33,6 @@ import { cardToCreateInput, findImportedCharacter, parseCardJson, parseCardPng, 
 
 const PNG_MIME = "image/png";
 const DEFAULT_FALLBACK_NAME = "Imported Character";
-const PATH_SEPARATOR = /[/\\]/;
-const FILE_EXTENSION = /\.[^.]+$/;
 
 // Derive the fallback character name from the source filename ("Aria.png" -> "Aria") when the card JSON
 // carries no name.
@@ -41,8 +40,7 @@ function fallbackNameFrom(filename: string | undefined): string {
   if (filename === undefined) {
     return DEFAULT_FALLBACK_NAME;
   }
-  const base = filename.split(PATH_SEPARATOR).pop() ?? filename;
-  const stem = base.replace(FILE_EXTENSION, "").trim();
+  const stem = fileStem(filename);
   return stem.length > 0 ? stem : DEFAULT_FALLBACK_NAME;
 }
 

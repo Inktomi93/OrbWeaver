@@ -22,6 +22,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes } from "../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../support/node/route-trpc.ts";
 import {
+  InlineFailureStory,
   SectionEchoStory,
   SectionRefusalStory,
   TagCreateColdCacheStory,
@@ -78,6 +79,17 @@ test("cache-optimistic: the pending tag lands in the list before settle, then re
   // real (non-optimistic) row is STILL there (the fixture is stateful — this isn't a transient flash).
   await expect.poll(() => trpc.count("tag.listTags")).toBeGreaterThan(1);
   await expect(page.getByTestId("tag-list")).toContainText("new-tag");
+});
+
+test("failureShownInline: the caller's own surface keeps the error and no toast fires; the default caller still toasts", async ({ mount, page }) => {
+  await routeTrpc(page, { "tag.createTag": () => trpcError({ message: "create failed" }) });
+  await mount(<InlineFailureStory />);
+
+  await page.getByRole("button", { name: "save inline" }).click();
+  await expect(page.getByTestId("inline-error")).toHaveText("inline failure");
+  // Positive control on the same factory and the same failing verb: the default caller is toasted, and only it is.
+  await page.getByRole("button", { name: "save toasted" }).click();
+  await expect(page.getByTestId("notified")).toHaveText("Couldn't create that tag.");
 });
 
 test("rollback: a failed mutation reverts the optimistic row, surfacing the sticky error", async ({ mount, page }) => {

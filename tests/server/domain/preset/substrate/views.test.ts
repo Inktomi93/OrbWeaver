@@ -51,6 +51,16 @@ describe("toPresetSummary", () => {
     expect(s).toMatchObject({ name: "Assistant", kind: "assistant", createdAt: FROZEN_AT });
   });
 
+  // The list row marks an unreadable preset before it opens, so the summary must give the write guard's verdict.
+  test("carries the detail's unreadable verdict for the same row", () => {
+    // @orb-waive no-test-fabrication(unknown): deliberate corrupt-blob probe; `sections` must be an array. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const broken = { ...DEFAULT_PROMPT_CONFIG, sections: "not an array" } as unknown as PromptConfig;
+    expect(toPresetSummary(row()).configUnreadable).toBe(null);
+    expect(toPresetSummary(row({ config: broken })).configUnreadable).toBe("schema-rejected");
+    const future = row({ schemaVersion: DEFAULT_PROMPT_CONFIG.schemaVersion + 1 });
+    expect(toPresetSummary(future).configUnreadable).toBe(toPresetDetail(future).configUnreadable);
+  });
+
   test("carries the fork lineage verbatim (null for a born-here row)", () => {
     expect(toPresetSummary(row()).forkedFrom).toBe(null);
     expect(toPresetSummary(row({ forkedFrom: SYSTEM_DEFAULT_PRESET_ID })).forkedFrom).toBe(SYSTEM_DEFAULT_PRESET_ID);

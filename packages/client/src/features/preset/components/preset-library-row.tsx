@@ -42,12 +42,14 @@
 // "ONE home — the list-row kebab, matching the characters/chats precedent". The same test kills this echo.
 // The two doors that survive are the row radio (list-side commitment) and the editor header's Activate.
 
+import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 import type { PresetId } from "@orb/kit/ids";
-import { Circle, Download, Icon, Lock } from "@orb/ui/icons";
+import { Badge } from "@orb/ui/badge";
+import { AlertTriangle, Circle, Download, Icon, Lock } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { LibraryRow, RowToggleAction } from "#components";
-import { timeLib } from "#lib";
+import { PRESET_UNREADABLE_ROW_MARKER, timeLib, unreadableConfigCause } from "#lib";
 import { presetRowSubtitle } from "../lib/preset-row-view.ts";
 
 /** How many §12.2 cluster slots THIS list reserves on every row — the state dot + the kebab, which is now
@@ -68,6 +70,7 @@ interface PresetRowItem {
   readonly name: string;
   readonly kind: string;
   readonly isSystemDefault: boolean;
+  readonly configUnreadable: VersionedParseFailure | null;
   readonly updatedAt: number;
 }
 
@@ -130,6 +133,18 @@ export function PresetLibraryRow({
       // supersedes side-eye P2-6's "no leading slot" for this one glyph (P2-6's harm was a VARIABLE-width
       // status badge on many rows; this is a fixed glyph on exactly one).
       {...(preset.isSystemDefault ? { leading: <Icon icon={Lock} size="sm" /> } : {})}
+      // The editor's notice explains an unreadable blob; the list says so first, so a re-imported twin
+      // that landed beside it (ADR 0290) is not mistaken for the broken row.
+      {...(preset.configUnreadable === null
+        ? {}
+        : {
+            subtitleLead: (
+              <Badge className="mr-field" intent="warning" size="inline" tone="soft">
+                <Icon icon={AlertTriangle} size="xs" />
+                {PRESET_UNREADABLE_ROW_MARKER[unreadableConfigCause(preset.configUnreadable)]}
+              </Badge>
+            ),
+          })}
       stateToggle={
         <RowToggleAction
           // The dot, not the bolt (owner ruling O-1): a ⚡ reads as a one-shot zap ACTION and had no visible

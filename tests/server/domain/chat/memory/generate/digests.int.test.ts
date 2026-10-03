@@ -392,7 +392,7 @@ describe("memory/generate/digests", () => {
     expect(speakers.every((s) => liveIds.has(s.digestId))).toBe(true);
   });
 
-  test("mode 'off' is a no-op (D36 global disable)", async () => {
+  test("mode 'off' is a no-op (D293 global disable)", async () => {
     const chatId = await seedChat(db, "d");
     await seedTurns(db, chatId, aria, 4);
     const sum = fakeSummarize();

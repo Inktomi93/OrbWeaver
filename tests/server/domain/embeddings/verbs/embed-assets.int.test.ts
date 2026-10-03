@@ -28,7 +28,7 @@ import type { RecordedRequest } from "../../../../inference/backends/_hosted-sup
 import { scriptedJsonFetch } from "../../../../inference/backends/_hosted-support.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { EMBED_DIM, EMBED_MODEL, IMAGE_EMBED_MODEL, makeStoreHarness, pngBytes, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
+import { EMBED_DIM, EMBED_MODEL, IMAGE_EMBED_MODEL, makeRoleClients, makeStoreHarness, pngBytes, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
 
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
 const signal = (): AbortSignal => new AbortController().signal;
@@ -471,4 +471,39 @@ test("the analysis-call estimate is what the sweep spends, and nothing once ever
   expect(h.roleClients.summarize).toHaveBeenCalledTimes(before);
   expect(await svc.countAssetAnalysisCalls({ ownerId, force: false })).toBe(0);
   expect(await svc.countAssetAnalysisCalls({ ownerId, force: true })).toBe(2);
+});
+
+test("the analysis-call estimate counts an avatar re-uploaded under its id, as the sweep re-analyses it", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db);
+  const asset = await seedAsset(db, ownerId, { id: "asset_estimate_reupload", hash: "estimate-reupload" });
+  const bytes = new Map([[asset, IMG]]);
+  const h = makeStoreHarness(db, { imageAssetIds: [asset], assetBytes: bytes });
+  const svc = createEmbeddingsService(h.ctx);
+  await svc.embedAssets({ ownerId, force: false, signal: signal() });
+  expect(await svc.countAssetAnalysisCalls({ ownerId, force: false })).toBe(0);
+
+  // New bytes under the same id: the stored analysis was made from the old ones.
+  bytes.set(asset, new Uint8Array([...IMG, 9]));
+  h.roleClients.summarize.mockClear();
+  const estimate = await svc.countAssetAnalysisCalls({ ownerId, force: false });
+  await svc.embedAssets({ ownerId, force: false, signal: signal() });
+
+  expect(estimate).toBe(1);
+  expect(h.roleClients.summarize).toHaveBeenCalledTimes(estimate);
+});
+
+test("the analysis-call estimate is zero for an owner whose Utility model reads no pictures, as the sweep spends none", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db);
+  const asset = await seedAsset(db, ownerId, { id: "asset_estimate_textonly", hash: "estimate-textonly" });
+  const h = makeStoreHarness(db, { imageAssetIds: [asset], assetBytes: new Map([[asset, IMG]]) });
+  const textOnly = makeRoleClients(false);
+  const svc = createEmbeddingsService({ ...h.ctx, roleClientsFor: () => Promise.resolve(textOnly) });
+
+  const estimate = await svc.countAssetAnalysisCalls({ ownerId, force: true });
+  await svc.embedAssets({ ownerId, force: true, signal: signal() });
+
+  expect(estimate).toBe(0);
+  expect(textOnly.structured).not.toHaveBeenCalled();
 });

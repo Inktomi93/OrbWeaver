@@ -35,10 +35,16 @@ export function useRuleCreations(): readonly RuleCreation[] {
   return useRuleCreationStore((state) => state.sessions);
 }
 
+/** Whether `owner` is the signed-in account and its local drafts have loaded: the one gate every creation
+ *  read and write, the rule cache echo and the editor's entry points ask. */
+export function ruleDraftOwnerCurrent(owner: UserId): boolean {
+  return activeDurableLocalUserId() === owner && durableLocalReadyFor(owner);
+}
+
 /** The active verified namespace is the only readable creation namespace. */
 export function readRuleCreation(identity: string): RuleCreation | undefined {
   const owner = activeDurableLocalUserId();
-  if (owner === null || !durableLocalReadyFor(owner)) {
+  if (owner === null || !ruleDraftOwnerCurrent(owner)) {
     return;
   }
   return useRuleCreationStore.getState().sessions.find((session) => session.requestId === identity);
@@ -46,7 +52,7 @@ export function readRuleCreation(identity: string): RuleCreation | undefined {
 
 /** A queued write must not follow a later sign-in into another user's namespace. */
 export function assertRuleDraftOwner(owner: UserId): void {
-  if (activeDurableLocalUserId() !== owner || !durableLocalReadyFor(owner)) {
+  if (!ruleDraftOwnerCurrent(owner)) {
     throw new Error("This editing session ended when the signed-in account changed. Reopen the rule to continue.");
   }
 }
@@ -81,6 +87,22 @@ export function clearRuleRecoveryCheckpoint(requestId: AutomationRuleCreationId,
     (state) => ({ sessions: state.sessions.map((session) => (session.requestId === requestId ? { ...session, checkpoint: null } : session)) }),
     false,
     "rule-creation/clear-checkpoint",
+  );
+}
+
+/** Forget one scope's acknowledged sessions that hold no draft and no recovery checkpoint: the rule exists and
+ *  nothing local is left to recover. A checkpoint is a draft too, the one a reload restores when the mirror is gone.
+ *  An unacknowledged session keeps its key whatever its draft says, because its create may have landed. */
+export function pruneCompletedRuleCreations(chatId: ChatId | null, owner: UserId, hasDraft: (requestId: AutomationRuleCreationId) => boolean): void {
+  assertRuleDraftOwner(owner);
+  const completed = (session: RuleCreation): boolean =>
+    session.chatId === chatId && session.ruleId !== null && session.checkpoint === null && !hasDraft(session.requestId);
+  useRuleCreationStore.setState(
+    (state) => ({
+      sessions: state.sessions.filter((session) => !completed(session)),
+    }),
+    false,
+    "rule-creation/prune",
   );
 }
 

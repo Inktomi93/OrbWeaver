@@ -56,7 +56,7 @@ export function ConnectionReachability({ connectionId, baseUrl, wakeable, trpc, 
       <ReachabilityVerdict host={host} verdict={verdict} />
       {wakeable ? (
         <Text voice="gloss">
-          This server reports sleeping through its own check path, so a sleeping box is woken before a request runs — you don't have to start it by hand.
+          This server reports sleeping through its own check path, so a sleeping box is woken before a request runs. You don't have to start it by hand.
         </Text>
       ) : null}
       <Row gap="field">
@@ -129,7 +129,7 @@ function ReachabilityVerdict({ verdict, host }: { readonly verdict: CredentialHe
   }
   return (
     <Text className="text-warning" data-slot="connection-unreachable" voice="gloss">
-      {verdict.status === "unreachable" ? `Can't reach ${host ?? "this server"} — the server may be down.` : verdict.reason}
+      {verdict.status === "unreachable" ? `Can't reach ${host ?? "this server"}. The server may be down.` : verdict.reason}
     </Text>
   );
 }

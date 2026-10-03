@@ -117,8 +117,11 @@ export function createAutosaveEntityForm<TValues extends object>(
     // anywhere). Structural compare (formValuesEqual), never identity (mapper-fresh objects).
     const lastSavedRef = useRef<TValues>(seed);
     const draftBaselineRef = useRef(baselineHash);
-    // A restored seed is held for explicit retry, but it is not server-confirmed clean input.
-    const restoredUnsavedRef = useRef(pendingSeed === undefined && !formValuesEqual(seed, { ...config.defaultValues, ...serverValues }));
+    // A restored seed is held for explicit retry, but it is not server-confirmed clean input. State, not a ref:
+    // the session reports it (`AutosaveSession.restored`), so the one fact both holds the echo and drives the status.
+    const [restoredUnsaved, setRestoredUnsaved] = useState(
+      () => pendingSeed === undefined && !formValuesEqual(seed, { ...config.defaultValues, ...serverValues }),
+    );
     // The last server snapshot we baselined to — the clean-echo reseed (§5) compares the incoming
     // `serverValues` against THIS structurally (identity compare is the mapper-fresh-object trap).
     const lastServerRef = useRef<TValues | undefined>(serverValues);
@@ -154,7 +157,7 @@ export function createAutosaveEntityForm<TValues extends object>(
           if (submitEpoch !== submitEpochRef.current) {
             return;
           }
-          restoredUnsavedRef.current = false;
+          setRestoredUnsaved(false);
           lastSavedRef.current = value;
           draftBaselineRef.current = hashServerBaseline(value);
           // Completion owns its submitted snapshot, not edits made while that snapshot was in flight.
@@ -274,7 +277,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         return;
       }
       lastServerRef.current = serverValues;
-      if (saveState !== "saving" && !restoredUnsavedRef.current && !hasUnsavedEdits(form.state.values, lastSavedRef.current)) {
+      if (saveState !== "saving" && !restoredUnsaved && !hasUnsavedEdits(form.state.values, lastSavedRef.current)) {
         // A clean re-baseline: adopt the server values as the new saved truth AND push them into the live
         // form (via each field, so the controlled inputs follow — never `form.reset`, the banned path).
         lastSavedRef.current = serverValues;
@@ -295,7 +298,7 @@ export function createAutosaveEntityForm<TValues extends object>(
           programmaticWriteRef.current = false;
         }
       }
-    }, [serverValues, saveState, form, entityId, baselineHash]);
+    }, [serverValues, saveState, restoredUnsaved, form, entityId, baselineHash]);
 
     // The ONE teardown flush (§4), discard-aware: this cleanup fires exactly on entity switch, reseed(),
     // and boundary unmount (all remount/unmount this component — its deps are all session-stable, so it
@@ -388,6 +391,7 @@ export function createAutosaveEntityForm<TValues extends object>(
           children({
             form: form as AutosaveForm<TValues>,
             saveState: displayed,
+            restored: restoredUnsaved,
             retrySave,
             reseed,
           })

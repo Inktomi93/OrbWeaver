@@ -8,6 +8,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { PAID_RUN_ROUTES } from "../../../../support/node/utility-role.ts";
 import { WorkloadsSchedulesSectionStory } from "../_ct-stories.tsx";
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
@@ -134,6 +135,7 @@ test("the create dialog wires a singular createSchedule (kind + cadence + params
     "sessions.me": () => USER_VIEWER,
     "workloads.listSchedules": () => [],
     "workloads.createSchedule": () => ({ id: "workload_schedule_ct_new" }),
+    ...PAID_RUN_ROUTES,
   });
 
   await mount(<WorkloadsSchedulesSectionStory />);
@@ -190,6 +192,7 @@ test("owner: the create dialog offers a Bulk toggle on a sweep kind and wires a 
     "workloads.listSchedules": () => [],
     "admin.listUsers": () => ADMIN_USERS,
     "workloads.createSchedule": () => ({ id: "workload_schedule_ct_new" }),
+    ...PAID_RUN_ROUTES,
   });
 
   await mount(<WorkloadsSchedulesSectionStory />);
@@ -236,6 +239,7 @@ test("owner: a Maintenance kind schedule is bulk BY FORCE (a note, no toggle) an
     "workloads.listSchedules": () => [],
     "admin.listUsers": () => ADMIN_USERS,
     "workloads.createSchedule": () => ({ id: "workload_schedule_ct_new" }),
+    ...PAID_RUN_ROUTES,
   });
 
   await mount(<WorkloadsSchedulesSectionStory />);
@@ -274,11 +278,38 @@ test("owner: a Maintenance kind schedule is bulk BY FORCE (a note, no toggle) an
     .toBe("bulk");
 });
 
+// A schedule spends on every run with nobody there to say yes, so a kind that calls a model asks once, at create,
+// with the size of one run; nothing is created until that yes.
+test("a schedule whose job calls a model is created only after the per-run count is confirmed", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "sessions.me": () => USER_VIEWER,
+    "workloads.listSchedules": () => [],
+    "workloads.createSchedule": () => ({ id: "workload_schedule_ct_new" }),
+    ...PAID_RUN_ROUTES,
+    "workloads.estimateModelCalls": { calls: 6 },
+  });
+
+  await mount(<WorkloadsSchedulesSectionStory />);
+  await page.getByTestId("schedule-create-button").click();
+  await page.getByTestId("create-schedule-submit").click();
+
+  const confirm = page.getByRole("alertdialog", { name: "Schedule Index (embeddings)?" });
+  await expect(confirm).toBeVisible();
+  await expect.poll(() => trpc.lastInput("workloads.estimateModelCalls")).toEqual({ input: { kind: "index", params: { source: "all" } }, mode: "singular" });
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the confirm is open (settled above) and only its yes creates; a poll would pass at t=0 and prove less.
+  expect(trpc.count("workloads.createSchedule")).toBe(0);
+
+  await confirm.getByRole("button", { name: "Create schedule" }).click();
+  await expect(page.getByTestId("create-schedule-dialog")).toHaveCount(0);
+  await expect.poll(() => trpc.count("workloads.createSchedule")).toBe(1);
+});
+
 test("the Edit action opens a seeded dialog and wires updateSchedule (cadence retune)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "sessions.me": () => USER_VIEWER,
     "workloads.listSchedules": () => [scheduleRow({ cadence: "daily" })],
     "workloads.updateSchedule": () => scheduleRow({ cadence: "weekly" }),
+    ...PAID_RUN_ROUTES,
   });
 
   await mount(<WorkloadsSchedulesSectionStory />);

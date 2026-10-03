@@ -14,13 +14,13 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { FormDialog, FormSubmitButton } from "#components";
+import { FormDialog, FormSubmitButton, ModelRunConfirmDialog, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useCreateScheduleForm } from "../hooks/use-create-schedule-form.ts";
 import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-mutations.ts";
-import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, workloadKindItems } from "../lib/workloads-model.ts";
+import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, WORKLOAD_KIND_LABELS, workloadKindItems } from "../lib/workloads-model.ts";
 import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model.ts";
 import { resolveScheduleMode, SCHEDULE_CADENCE_ITEMS, scheduleFormValuesFromRow, workloadKindBulkSchedulable } from "../lib/workloads-schedule-model.ts";
 import { MaintenanceKindNote } from "./maintenance-kind-note.tsx";
@@ -60,7 +60,7 @@ export function CreateScheduleDialog({ open, onOpenChange, viewerIsOwner }: Crea
 export function EditScheduleDialog({ open, onOpenChange, viewerIsOwner, schedule }: EditScheduleDialogProps): ReactElement {
   return (
     <FormDialog
-      description="Retune this recurring job — change what it runs, its cadence, or (owner) its scope. Enable and pause stay on the row switch."
+      description="Retune this recurring job: change what it runs, its cadence, or (owner) its scope. Enable and pause stay on the row switch."
       onOpenChange={onOpenChange}
       open={open}
       testKey="editScheduleDialog"
@@ -90,6 +90,7 @@ function ScheduleFormBody({
   const invalidation = useInvalidation();
   const create = useCreateSchedule({ trpc, invalidation });
   const update = useUpdateSchedule({ trpc, invalidation });
+  const paidRun = useModelRunConfirm();
   const isEdit = schedule !== undefined;
 
   const save = async (values: CreateScheduleFormValues): Promise<CreateScheduleFormValues> => {
@@ -99,12 +100,22 @@ function ScheduleFormBody({
     const kind: WorkloadKind = values.kind;
     const mode = resolveScheduleMode(kind, values.bulk, viewerIsOwner);
     const input = buildStartInput(kind, values);
-    if (schedule === undefined) {
-      await create.mutateAsync({ input, cadence: values.cadence, mode });
-    } else {
-      await update.mutateAsync({ id: schedule.id, input, cadence: values.cadence, mode });
-    }
-    onDone();
+    // A schedule spends on every run with no one there to confirm it, so the yes is asked here, once, with the
+    // size of one run as the library stands now.
+    await paidRun.confirmThen({
+      title: `Schedule ${WORKLOAD_KIND_LABELS[kind]}?`,
+      confirmLabel: schedule === undefined ? "Create schedule" : "Save schedule",
+      recurring: true,
+      estimates: [{ input, mode }],
+      run: async (): Promise<void> => {
+        if (schedule === undefined) {
+          await create.mutateAsync({ input, cadence: values.cadence, mode });
+        } else {
+          await update.mutateAsync({ id: schedule.id, input, cadence: values.cadence, mode });
+        }
+        onDone();
+      },
+    });
     return values;
   };
 
@@ -134,7 +145,7 @@ function ScheduleFormBody({
             return workloadKindBulkSchedulable(kind) ? (
               <form.AppField name="bulk">
                 {(field): ReactElement => (
-                  <field.SwitchField label="Bulk mode" description="Owner only — recurs across every user's data instead of just yours." />
+                  <field.SwitchField label="Bulk mode" description="Owner only. Recurs across every user's data instead of just yours." />
                 )}
               </form.AppField>
             ) : null;
@@ -154,6 +165,7 @@ function ScheduleFormBody({
         }}
         testKey={isEdit ? "editScheduleSubmit" : "createScheduleSubmit"}
       />
+      <ModelRunConfirmDialog {...paidRun.dialog} nested={true} />
     </Stack>
   );
 }

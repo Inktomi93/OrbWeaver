@@ -671,6 +671,7 @@ const PRESET_ROWS = [1, 2, 3, 4].map((n) => ({
   kind: "generation",
   isSystemDefault: false,
   forkedFrom: null,
+  configUnreadable: null,
   createdAt: 0,
   updatedAt: 0,
 }));

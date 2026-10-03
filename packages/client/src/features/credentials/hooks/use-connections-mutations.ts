@@ -14,20 +14,12 @@ type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
 
 const connectionReads = (trpc: Trpc): ReturnType<Trpc["connection"]["pathFilter"]>[] => [trpc.connection.pathFilter()];
 
-const createConnectionOptions = (trpc: Trpc): ReturnType<Trpc["connection"]["create"]["mutationOptions"]> => trpc.connection.create.mutationOptions();
-
-/** Create a connection row (label auto-minted server-side when omitted). */
+/** Create a connection row (label auto-minted server-side when omitted). The add dialog calls it with
+ *  `failureShownInline`: it states every submit failure in the dialog, where a toast would sit under the scrim. */
 export const useCreateConnection = createEntityMutation<inferInput<Trpc["connection"]["create"]>, ConnectionView>({
-  options: createConnectionOptions,
+  options: (trpc) => trpc.connection.create.mutationOptions(),
   invalidates: connectionReads,
   errorToast: "Couldn't add that connection.",
-});
-
-/** The add dialog's create. No toast: the dialog states every failure of its submit inline, in the
- *  dialog, because a toast sits under the modal's scrim and a second one says the same thing again. */
-export const useCreateConnectionOwned = createEntityMutation<inferInput<Trpc["connection"]["create"]>, ConnectionView>({
-  options: createConnectionOptions,
-  invalidates: connectionReads,
 });
 
 /** Delete a row — every binding on it SET-NULLs to `no-connection`; history keeps its attribution. */
@@ -71,7 +63,7 @@ export const useReplaceCredential = createEntityMutation<inferInput<Trpc["creden
   errorToast: "Couldn't replace that key — check the value and try again.",
 });
 
-/** The add dialog's key mint — `useCreateConnectionOwned`'s twin: the dialog states the failure inline. */
+/** The add dialog's key mint. No toast: the dialog states the failure inline, and this mint has no other caller. */
 export const useAddCredentialOwned = createEntityMutation<inferInput<Trpc["credentials"]["add"]>, CredentialView>({
   options: addCredentialOptions,
   invalidates: (trpc) => [trpc.credentials.list.pathFilter()],

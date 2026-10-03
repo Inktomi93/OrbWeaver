@@ -7,8 +7,8 @@ import {
   assertRuleDraftOwner,
   clearRuleRecoveryCheckpoint,
   createEntityDraftStore,
-  durableLocalReadyFor,
   readRuleCreation,
+  ruleDraftOwnerCurrent,
 } from "#state";
 import type { RuleEditorValues } from "./contract/rule-editor.ts";
 import { ruleEditorDraftSchema } from "./contract/rule-editor.ts";
@@ -109,7 +109,7 @@ export function discardRuleDraft(requestId: AutomationRuleCreationId, owner: Use
   store.clearDraft(requestId);
   clearRuleRecoveryCheckpoint(requestId, owner);
   return (): boolean => {
-    if (activeDurableLocalUserId() !== owner || !durableLocalReadyFor(owner)) {
+    if (!ruleDraftOwnerCurrent(owner)) {
       return false;
     }
     const current = readRuleCreation(requestId);

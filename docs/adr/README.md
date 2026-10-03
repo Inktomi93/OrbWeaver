@@ -46,7 +46,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D33 | [Guided actions live only on the preset](0033-guided-actions-live-only-on-preset.md) | active |
 | D34 | [A db enum derives from a contracts tuple](0034-db-enum-derives-from-contracts-tuple.md) | active |
 | D35 | [Rate limit buckets get their own schema file](0035-rate-limit-buckets-get-own-schema-file.md) | active |
-| D36 | [Memory is global with a user opt-out](0036-memory-global-with-user-opt-out.md) | active |
+| D36 | [Memory is global with a user opt-out](0036-memory-global-with-user-opt-out.md) | superseded by [0293-memory-is-off-until-each-user-turns-it-on.md](0293-memory-is-off-until-each-user-turns-it-on.md) |
 | D37 | [Schema audit standing rules](0037-schema-audit-standing-rules.md) | active |
 | D38 | [Domain events are a closed union carrying ids](0038-domain-events-closed-union-carrying-ids.md) | active |
 | D39 | [Local light inference is its own wire](0039-local-light-inference-own-wire.md) | active |
@@ -240,3 +240,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D290 | [Import identity and additive doors, across split uploads and art attach](0290-import-identity-keeps-its-keys-across-doors-and-uploads.md) | active |
 | D291 | [Plugin names the installable package and plugin page names a screen it contributes](0291-plugin-names-the-package-and-plugin-page-names-its-screen.md) | active |
 | D292 | [A local server that states its modalities is taken at its word](0292-local-server-stated-modalities.md) | active |
+| D293 | [Memory is off until each user turns it on, behind a cost confirm](0293-memory-is-off-until-each-user-turns-it-on.md) | active |

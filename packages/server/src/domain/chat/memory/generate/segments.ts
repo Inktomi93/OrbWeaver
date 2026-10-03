@@ -65,7 +65,7 @@ function chunkHash(blockIdx: number, chunkIdx: number, chunkCount: number, rows:
 /**
  * PHASE 1 for ONE chat — read canon, chunk every complete aged-out block to the embed window, reclaim the
  * blocks/chunks canon dropped, and return the chunk writes whose hash moved. NO embed, NO vector write.
- * `mode: 'off'` (D36) or a chat with no complete aged-out block ⇒ nothing pending.
+ * `mode: 'off'` (D293) or a chat with no complete aged-out block ⇒ nothing pending.
  */
 export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsArgs): Promise<CollectedSegments> {
   const cfg = resolveCfg(args.config);

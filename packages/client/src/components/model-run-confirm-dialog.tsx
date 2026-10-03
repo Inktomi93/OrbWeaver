@@ -9,6 +9,8 @@ import { UtilityModelDoor } from "./utility-model-door.tsx";
 /** The run waiting on a yes, with the calls it makes. */
 interface PendingModelRun {
   readonly calls: number;
+  /** A schedule's confirm: the count is per run, and the run repeats on its cadence. */
+  readonly recurring?: boolean;
   readonly title: string;
   readonly confirmLabel: string;
   readonly run: () => Promise<void>;
@@ -32,7 +34,7 @@ export function ModelRunConfirmDialog({ pending, onOpenChange, nested }: ModelRu
       body={utility.kind === "unset" || utility.kind === "blocked" ? <UtilityModelDoor /> : undefined}
       confirmIntent="primary"
       confirmLabel={pending.confirmLabel}
-      description={modelRunCostSentence(pending.calls, utility)}
+      description={modelRunCostSentence(pending.calls, utility, pending.recurring === true)}
       onConfirm={pending.run}
       onOpenChange={onOpenChange}
       open={true}

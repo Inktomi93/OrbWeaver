@@ -39,7 +39,7 @@ const MESSAGE_ECONOMICS: readonly string[] = [
  *  authored schema object declares, which is what a reintroduction re-spells). */
 export const SCHEMA_BANNED_SHAPES: readonly SchemaBannedShape[] = [
   { kind: "column", table: "chats", column: "ownerId", cite: "D18 (chats are membership-scoped)" },
-  { kind: "column", table: "chats", column: "memoryEnabled", cite: "D36 (memory on/off is a global setting, not per-chat)" },
+  { kind: "column", table: "chats", column: "memoryEnabled", cite: "D293 (memory on/off is a global setting and a per-user switch, not per-chat)" },
   { kind: "column", table: "chats", column: "sessionId", cite: "D25 (agent-sdk cache → sdk-session.ts)" },
   { kind: "column", table: "chats", column: "sessionDirty", cite: "D25 (agent-sdk cache → sdk-session.ts)" },
   {

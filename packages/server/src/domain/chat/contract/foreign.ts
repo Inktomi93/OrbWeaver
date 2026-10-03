@@ -120,7 +120,7 @@ export type TurnTrigger = { readonly kind: "human"; readonly userId: UserId; rea
  *                             budget pass (0 ⇒ unbudgeted).
  *   • `memoryConfig`        — the resolved memory tuning (`AppSettings.memoryDefaults` ⊕ `UserSettings.memory`
  *                             enable, settings/admin) read by recall AND the post-turn build (threaded via
- *                             `TurnPrep.memoryConfig` — D36 opt-out on both sides); absent ⇒ the floor (`DEFAULTS`).
+ *                             `TurnPrep.memoryConfig` — D293 opt-out on both sides); absent ⇒ the floor (`DEFAULTS`).
  *   • `chatBehavior`        — the host's `UserSettings.chat` turn-behavior arm ({@link ChatBehaviorInputs}):
  *                             custom stop strings + auto-continue/auto-swipe. All-off ⇒ byte-identical to today.
  *   • `databankRetrieval`   — the host's `UserSettings.databank.retrieval` (k/minScore/rerank, settings) — the

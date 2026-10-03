@@ -25,6 +25,7 @@ import {
   automationActionsSchema,
   automationRuleEditableSchema,
   LIVE_TRIGGERS,
+  noticeCooldownTooShort,
 } from "@orb/contracts/automation";
 import { MULTIMODAL_MODES } from "@orb/contracts/imagery";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
@@ -118,7 +119,7 @@ function validateActions(input: ValidateInput): readonly AutomationAction[] {
   }
   const actions = parsed.data;
 
-  if (actions.some((a) => a.type === "post_notification") && input.cooldownSeconds < POST_NOTIFICATION_COOLDOWN_FLOOR) {
+  if (noticeCooldownTooShort({ actions, cooldownSeconds: input.cooldownSeconds })) {
     throw new RuleValidationError("cooldown_floor", `a post_notification rule requires cooldownSeconds ≥ ${POST_NOTIFICATION_COOLDOWN_FLOOR}`);
   }
   return actions;
