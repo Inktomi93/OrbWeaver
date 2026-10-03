@@ -12,8 +12,9 @@
 // idempotently — `skippedOverlays` stays what it is, the planes NOT asserted (the kept-book note) — so a
 // first import that died after the row was written finishes on the next one. ART IS IDENTITY: the same text
 // under a different picture is a separate character; the one exception is a JSON card followed by its PNG,
-// which gives the art-less row its art. Rows imported before the content identity landed carry the
-// whole-file hash, so the lookup tries that last (`findImportedCharacter`).
+// which gives the art-less row its art and keeps the JSON's identity as a second key, so the JSON still finds
+// it. Rows imported before the content identity landed carry the whole-file hash, so the lookup tries that
+// last (`findImportedCharacter`).
 
 import type { AttachedBookRef } from "@orb/contracts/character";
 import { pluginImportedFrom } from "@orb/contracts/character";

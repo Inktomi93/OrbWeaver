@@ -101,11 +101,12 @@ export type LinkCarriedBooks = (args: {
 
 // ── the ST NAME-LINK attach (card `extensions.world` + `world_info.charLore` extra books) ──────────
 
-/** Attach the owner's EXISTING books to a character BY EXACT NAME — the ST name-link: a card's
- *  `extensions.world` names its primary lorebook and `world_info.charLore[].extraBooks` name auxiliaries,
- *  and both vocabularies are book NAMES (ids do not survive a cross-box move). Resolution uses the SAME
- *  owner-scoped (ownerId, name) key `ImportStandaloneLorebook` dedups on — exact match, newest-wins, never
- *  fuzzy (a dangling name is returned in `missing` for the report, the §5.7 unresolved-pin posture).
+/** Attach the owner's books to a character BY NAME — the ST name-link: a card's `extensions.world` names its
+ *  primary lorebook and `world_info.charLore[].extraBooks` name auxiliaries, and both vocabularies are book
+ *  NAMES (ids do not survive a cross-box move). A name the same import's worlds wave landed binds THAT row
+ *  through `landed`, whatever name it landed or was reused under (an import is additive, so a changed book
+ *  lands beside the stale one as a numbered twin). Any other name resolves by exact owned name, newest-wins,
+ *  never fuzzy (a dangling name is returned in `missing` for the report, the §5.7 unresolved-pin posture).
  *  `role` is the DESIRED role; a `primary` request DEMOTES to auxiliary when the character already holds a
  *  primary (the at-most-one-primary invariant — an embedded `character_book` import wins the seat). */
 export type AttachOwnedBooksByName = (args: {
@@ -113,4 +114,6 @@ export type AttachOwnedBooksByName = (args: {
   readonly characterId: CharacterId;
   readonly names: readonly string[];
   readonly role: WorldBookRole;
+  /** The books this import's worlds wave landed, keyed by the name the profile calls each one. */
+  readonly landed: ReadonlyMap<string, WorldBookId>;
 }) => Promise<{ readonly linked: number; readonly missing: readonly string[] }>;

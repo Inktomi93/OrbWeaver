@@ -1,6 +1,6 @@
 // verb: attachImportedArt — the JSON-then-PNG exception of the import identity. A no-art row takes the art
-// once and re-keys to the with-art hash; a row that already has art, another owner's row, and a foreign asset
-// all leave the row untouched, with no audit and no emit.
+// once and re-keys to the with-art hash, keeping the art-less hash as a second key; a row that already has
+// art, another owner's row, and a foreign asset all leave the row untouched, with no audit and no emit.
 
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
@@ -17,8 +17,14 @@ import { makeHarness, seedAsset, seedRawCharacter, seedUser } from "../_support.
 const TEXT_HASH = "a".repeat(64);
 const ART_HASH = "b".repeat(64);
 
-async function storedRow(db: Db, id: CharacterId): Promise<{ readonly avatarAssetId: AssetId | null; readonly importHash: string | null }> {
-  const rows = await db.select({ avatarAssetId: characters.avatarAssetId, importHash: characters.importHash }).from(characters).where(eq(characters.id, id));
+async function storedRow(
+  db: Db,
+  id: CharacterId,
+): Promise<{ readonly avatarAssetId: AssetId | null; readonly importHash: string | null; readonly importTextHash: string | null }> {
+  const rows = await db
+    .select({ avatarAssetId: characters.avatarAssetId, importHash: characters.importHash, importTextHash: characters.importTextHash })
+    .from(characters)
+    .where(eq(characters.id, id));
   const row = rows[0];
   if (row === undefined) {
     throw new Error(`character ${id} is missing`);
@@ -37,9 +43,10 @@ describe("attachImportedArt", () => {
 
     expect(await svc.attachImportedArt({ ownerId: owner, characterId, avatarAssetId: art, importHash: ART_HASH })).toBe(true);
 
-    expect(await storedRow(db, characterId)).toEqual({ avatarAssetId: art, importHash: ART_HASH });
+    expect(await storedRow(db, characterId)).toEqual({ avatarAssetId: art, importHash: ART_HASH, importTextHash: TEXT_HASH });
     expect(await svc.findByImportHash({ ownerId: owner, importHash: ART_HASH })).toEqual({ characterId });
-    expect(await svc.findByImportHash({ ownerId: owner, importHash: TEXT_HASH })).toBeNull();
+    // The JSON card the row landed from still finds it, so importing that JSON again is not a duplicate (D290).
+    expect(await svc.findByImportHash({ ownerId: owner, importHash: TEXT_HASH })).toEqual({ characterId });
     expect(harness.audits).toEqual([
       {
         entry: {
@@ -66,7 +73,7 @@ describe("attachImportedArt", () => {
 
     expect(await svc.attachImportedArt({ ownerId: owner, characterId, avatarAssetId: incoming, importHash: ART_HASH })).toBe(false);
 
-    expect(await storedRow(db, characterId)).toEqual({ avatarAssetId: existing, importHash: TEXT_HASH });
+    expect(await storedRow(db, characterId)).toEqual({ avatarAssetId: existing, importHash: TEXT_HASH, importTextHash: null });
     expect(harness.audits).toEqual([]);
     expect(harness.userEvents).toEqual([]);
   });
@@ -82,7 +89,7 @@ describe("attachImportedArt", () => {
 
     expect(await svc.attachImportedArt({ ownerId: caller, characterId: foreignRow, avatarAssetId: art, importHash: ART_HASH })).toBe(false);
 
-    expect(await storedRow(db, foreignRow)).toEqual({ avatarAssetId: null, importHash: TEXT_HASH });
+    expect(await storedRow(db, foreignRow)).toEqual({ avatarAssetId: null, importHash: TEXT_HASH, importTextHash: null });
     expect(harness.audits).toEqual([]);
     expect(harness.userEvents).toEqual([]);
   });
@@ -100,7 +107,7 @@ describe("attachImportedArt", () => {
       AssetNotFoundError,
     );
 
-    expect(await storedRow(db, characterId)).toEqual({ avatarAssetId: null, importHash: TEXT_HASH });
+    expect(await storedRow(db, characterId)).toEqual({ avatarAssetId: null, importHash: TEXT_HASH, importTextHash: null });
     expect(harness.audits).toEqual([]);
     expect(harness.userEvents).toEqual([]);
   });

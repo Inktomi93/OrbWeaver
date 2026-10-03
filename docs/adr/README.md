@@ -233,7 +233,8 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D283 | [Documentation lifecycle permits bounded publication editorial corrections](0283-docs-lifecycle-and-publication-editorial-corrections.md) | active |
 | D284 | [Persona resolution proof permits identity-only publication anonymization](0284-persona-resolution-proof-allows-publication-anonymization.md) | active |
 | D285 | [Parked programs retain concepts and implemented product boundaries](0285-parked-program-concepts-and-retained-product-boundaries.md) | active |
-| D286 | [Import identity and additive doors](0286-import-identity-and-additive-doors.md) | active |
+| D286 | [Import identity and additive doors](0286-import-identity-and-additive-doors.md) | superseded by [0290-import-identity-keeps-its-keys-across-doors-and-uploads.md](0290-import-identity-keeps-its-keys-across-doors-and-uploads.md) |
 | D287 | [Custom rules use canonical autosave and recoverable creation](0287-custom-rules-use-canonical-autosave-and-recoverable-creation.md) | active |
 | D288 | [OpenRouter Claude stays on chat completions (amends D174)](0288-openrouter-claude-stays-on-chat-completions.md) | active |
 | D289 | [The owner claim URL is read from a secrets file, never the log](0289-owner-claim-url-is-read-from-a-secrets-file.md) | active |
+| D290 | [Import identity and additive doors, across split uploads and art attach](0290-import-identity-keeps-its-keys-across-doors-and-uploads.md) | active |

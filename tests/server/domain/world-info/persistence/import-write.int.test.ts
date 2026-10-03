@@ -24,6 +24,8 @@ import { seedCharacter, seedUser } from "../../../../support/factories/index.ts"
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
+/** A name-link call outside a profile import: no worlds wave landed anything. */
+const NONE_LANDED: ReadonlyMap<string, WorldBookId> = new Map();
 
 /** A deterministic counter-minted `WorldInfoImportContext`. */
 function importCtx(db: Db): WorldInfoImportContext {
@@ -316,7 +318,7 @@ describe("createBulkImportLorebook — central dedup", () => {
     expect(variantBooks[0]?.role).toBe("primary");
   });
 
-  test("a same-NAME but different-CONTENT book still MINTS a fresh row (no lossy merge)", async () => {
+  test("a same-NAME but different-CONTENT book still MINTS a fresh row (no lossy merge), under the next free name", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
@@ -344,7 +346,8 @@ describe("createBulkImportLorebook — central dedup", () => {
     });
 
     expect(second.worldBookId).not.toBe(first.worldBookId);
-    expect(await db.select().from(worldBooks)).toHaveLength(2);
+    expect(second).toMatchObject({ created: true, name: "Aria's World (2)", renamedFrom: "Aria's World" });
+    expect((await db.select({ name: worldBooks.name }).from(worldBooks)).map((r) => r.name).toSorted()).toEqual(["Aria's World", "Aria's World (2)"]);
   });
 
   test("a FOREIGN owner's identical book is NEVER a dedup candidate (cross-tenant gate)", async () => {
@@ -376,7 +379,7 @@ describe("createAttachOwnedBooksByName", () => {
     await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: eldoria() });
     const op = createAttachOwnedBooksByName(ctx);
 
-    const result = await op({ ownerId: owner.id, characterId: character.id, names: ["Eldoria", "Never Downloaded"], role: "primary" });
+    const result = await op({ ownerId: owner.id, characterId: character.id, names: ["Eldoria", "Never Downloaded"], role: "primary", landed: NONE_LANDED });
 
     expect(result.linked).toBe(1);
     // Exact-name only — the corpus's 28 dangling world names must come back verbatim for the report.
@@ -395,7 +398,13 @@ describe("createAttachOwnedBooksByName", () => {
     await createBulkImportLorebook(ctx)({ ownerId: owner.id, characterId: character.id, book: book({ name: "Embedded" }) });
     await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: eldoria() });
 
-    const result = await createAttachOwnedBooksByName(ctx)({ ownerId: owner.id, characterId: character.id, names: ["Eldoria"], role: "primary" });
+    const result = await createAttachOwnedBooksByName(ctx)({
+      ownerId: owner.id,
+      characterId: character.id,
+      names: ["Eldoria"],
+      role: "primary",
+      landed: NONE_LANDED,
+    });
 
     expect(result.linked).toBe(1);
     const roles = (await db.select().from(characterBooks)).map((r) => r.role).sort();
@@ -414,14 +423,40 @@ describe("createAttachOwnedBooksByName", () => {
     await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: book({ name: "Extra Lore" }) });
     const op = createAttachOwnedBooksByName(ctx);
 
-    const result = await op({ ownerId: owner.id, characterId: character.id, names: ["Extra Lore", "Foreign Lore"], role: "auxiliary" });
+    const result = await op({ ownerId: owner.id, characterId: character.id, names: ["Extra Lore", "Foreign Lore"], role: "auxiliary", landed: NONE_LANDED });
     expect(result.linked).toBe(1);
     expect(result.missing).toEqual(["Foreign Lore"]);
     expect((await db.select().from(characterBooks)).map((r) => r.role)).toEqual(["auxiliary"]);
 
     // Idempotent: the PK collision no-ops, the attach count stays 1.
-    await op({ ownerId: owner.id, characterId: character.id, names: ["Extra Lore"], role: "auxiliary" });
+    await op({ ownerId: owner.id, characterId: character.id, names: ["Extra Lore"], role: "auxiliary", landed: NONE_LANDED });
     expect(await db.select().from(characterBooks)).toHaveLength(1);
+  });
+
+  test("a landed name binds the landed row over a same-named book, and a landed id the caller does not own never links", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const stranger = await seedUser(db, { handle: castId("stranger"), email: "s@x.test" });
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const ctx = importCtx(db);
+    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: eldoria() });
+    const twin = await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: book({ name: "Eldoria" }) });
+    const foreign = await createImportStandaloneLorebook(ctx)({ ownerId: stranger.id, book: book({ name: "Foreign Lore" }) });
+    expect(twin.name).toBe("Eldoria (2)");
+
+    const result = await createAttachOwnedBooksByName(ctx)({
+      ownerId: owner.id,
+      characterId: character.id,
+      names: ["Eldoria", "Foreign Lore"],
+      role: "primary",
+      landed: new Map([
+        ["Eldoria", twin.worldBookId],
+        ["Foreign Lore", foreign.worldBookId],
+      ]),
+    });
+
+    expect(result).toEqual({ linked: 1, missing: ["Foreign Lore"] });
+    expect((await db.select().from(characterBooks)).map((r) => ({ book: r.worldBookId, role: r.role }))).toEqual([{ book: twin.worldBookId, role: "primary" }]);
   });
 });
 

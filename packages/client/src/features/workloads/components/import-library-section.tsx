@@ -12,7 +12,8 @@
 //     card is skipped and two "Eleni" cards stay two characters.
 //   · the world-book, theme and preset imports — equal content is reused; a same-named DIFFERENT row keeps
 //     its row and the file lands under a numbered name. Nothing is edited in place.
-//   · `import-personas.ts` — a name collision REUSES the first existing persona (skipped, never duplicated).
+//   · `import-personas.ts` — an equal persona is reused; a DIFFERENT persona under a taken name lands beside
+//     it under a numbered name.
 //   · `import-user-settings.ts` — a backup's share-safe settings namespaces deep-MERGE into the owner's.
 // Nothing in any wave deletes, and seed rows (`ownerId IS NULL`) are structurally unreachable — so "adds,
 // never deletes; a backup's settings merge into yours" is the whole true statement. A folder pick also shows

@@ -78,13 +78,15 @@ test("under the cap the whole profile is ONE upload", async () => {
   ]);
 });
 
-test("OVER the cap the profile splits into uploads that each keep a card with its chats, repeat settings.json, and seat a group with its members", async () => {
+test("OVER the cap the profile splits into uploads that each keep a card with its chats, repeat settings.json and the world books, and seat a group with its members", async () => {
   const tight: TreeImportCaps = { totalBytes: 2700, fileBytes: 4000, files: 50_000 };
   const plan = await planTreeImport(syntheticProfile(), tight, (f) => f.text());
   expect(plan.batches.length).toBeGreaterThan(1);
   const paths = plan.batches.map((b) => b.map(relativePathOf));
   for (const batch of paths) {
     expect(batch).toContain("data/default-user/settings.json");
+    // A card's world name-link binds the book its own run landed, so every run carries the books.
+    expect(batch).toContain("data/default-user/worlds/Harbor.json");
     expect(batch.reduce((n, p) => n + (syntheticProfile().find((f) => relativePathOf(f) === p)?.size ?? 0), 0)).toBeLessThanOrEqual(tight.totalBytes);
   }
   // Aria's two chat dirs (the exact slug and the "Aria 2" decoration) ride with Aria's card, never alone.
@@ -100,6 +102,20 @@ test("OVER the cap the profile splits into uploads that each keep a card with it
   // Every planned file was sent at least once.
   const sentOnce = new Set(paths.flat());
   expect(sentOnce.size).toBe(plan.files);
+});
+
+test("a persona's avatar rides in every upload beside settings.json, so no run sees the persona without its art", async () => {
+  const files = [
+    pickedFile("data/default-user/settings.json", "{}"),
+    pickedFile("data/default-user/User Avatars/bob.png", "a".repeat(100)),
+    pickedFile("data/default-user/characters/A.png", "x".repeat(1500)),
+    pickedFile("data/default-user/characters/B.png", "x".repeat(1500)),
+  ];
+  const plan = await planTreeImport(files, { totalBytes: 1700, fileBytes: 4000, files: 50_000 }, (f) => f.text());
+  expect(plan.batches).toHaveLength(2);
+  for (const batch of plan.batches) {
+    expect(batch.map(relativePathOf)).toContain("data/default-user/User Avatars/bob.png");
+  }
 });
 
 test("a file over the per-file cap stays on disk with its reason; the file count cap splits uploads too", async () => {

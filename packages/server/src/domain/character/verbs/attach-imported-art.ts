@@ -1,7 +1,8 @@
 // verb: attachImportedArt — the JSON-then-PNG exception of the import identity (owner ruling): a PNG whose
 // text matches a character that landed from a JSON card gives that row its art, once, and re-keys the row's
-// import identity to the with-art hash. A row that already has art is left alone (false): that card is an
-// alt-art version, a separate character. Import-injected; acts on the resolved `ownerId`.
+// import identity to the with-art hash, keeping the art-less one as a second key so the JSON still finds it.
+// A row that already has art is left alone (false): that card is an alt-art version, a separate character.
+// Import-injected; acts on the resolved `ownerId`.
 
 import type { CharacterContext } from "../context.ts";
 import type { AttachImportedArtParams } from "../contract/params.ts";

@@ -14,7 +14,8 @@
 // book is CONTENT-matched against the owner's existing library BEFORE minting (`#kit/serde/world-info`'s
 // `findDuplicateBook`, the regex `planCardLift` shape). A match LINKS this character to the existing
 // world_books row (a fresh primary character_books attach); no book is duplicated. Only a genuinely new
-// book mints a fresh row + entries. This is the FALLBACK channel — the reference channel (`linkCarriedBooks`)
+// book mints a fresh row + entries, under the next free name when the owner already holds a different book
+// under its name (the standalone path's rule, D290). This is the FALLBACK channel — the reference channel (`linkCarriedBooks`)
 // resolves first and, when it links, the caller skips the embedded book entirely. One db.batch per
 // book; db.transaction() is banned (the :memory: trap).
 //
@@ -167,6 +168,12 @@ async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<DedupCan
   return books.map((b) => ({ id: b.id, name: b.name, entries: byBook.get(b.id) ?? [] }));
 }
 
+/** Every name the caller's own books carry — the collision scan for the free-name mint. */
+async function listOwnedBookNames(db: Db, ownerId: UserId): Promise<string[]> {
+  const rows = await db.select({ name: worldBooks.name }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
+  return rows.map((row) => row.name);
+}
+
 /** @throws {@link DomainNotFoundError} when the target character isn't the caller's. */
 // @orb-waive owner-scoped-writes(worldBooks): `existingBookId` is not caller input — it is the PRIMARY book attached to a character this function just proved the caller owns (`assertOwnedCharacter`), and every path that can create that attachment gates both ends (`attachToCharacter` loads the owned book, `linkCarriedBooks` and `copyCharacterBooks` both carry the owned-source `ownerId` gate). Ends the day an attach can land a book the character's owner does not own — then this re-import would edit a stranger's book in place.
 export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImportLorebook {
@@ -195,13 +202,14 @@ export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImpor
       return { worldBookId: duplicate.id, entryCount: book.entries.length, replaced: false, created: false, name: duplicate.name, renamedFrom: null };
     }
 
+    const name = nextFreeLabel(book.name, await listOwnedBookNames(db, ownerId));
     const bookId = ctx.newBookId();
     const stmts: BatchStmt[] = [
       batchStmt(
         db.insert(worldBooks).values({
           id: bookId,
           ownerId,
-          name: book.name,
+          name,
           description: book.description,
           createdAt: at,
           updatedAt: at,
@@ -218,48 +226,75 @@ export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImpor
       ),
     ];
     await db.batch(batchMany(stmts));
-    return { worldBookId: bookId, entryCount: book.entries.length, replaced: false, created: true, name: book.name, renamedFrom: null };
+    return { worldBookId: bookId, entryCount: book.entries.length, replaced: false, created: true, name, renamedFrom: name === book.name ? null : book.name };
   };
 }
 
+/** Each link name's owned book: a name this import's worlds wave landed binds that row (re-proven owned, so
+ *  the op attaches only the caller's books whoever built the map); any other name takes the newest owned book
+ *  carrying it exactly. A name absent from the result is dangling. */
+async function resolveLinkNames(
+  db: Db,
+  ownerId: UserId,
+  names: readonly string[],
+  landed: ReadonlyMap<string, WorldBookId>,
+): Promise<ReadonlyMap<string, WorldBookId>> {
+  // @orb-waive persistence-no-in-memory-state(Map): query-local name resolution for one attach call. Ends if it outlives the call.
+  const resolved = new Map<string, WorldBookId>();
+  const landedIds = names.flatMap((name) => landed.get(name) ?? []);
+  if (landedIds.length > 0) {
+    const owned = await db
+      .select({ id: worldBooks.id })
+      .from(worldBooks)
+      .where(and(eq(worldBooks.ownerId, ownerId), inArray(worldBooks.id, landedIds)));
+    for (const name of names) {
+      const id = landed.get(name);
+      if (id !== undefined && owned.some((row) => row.id === id)) {
+        resolved.set(name, id);
+      }
+    }
+  }
+  // Newest-wins per name (the `findBookByName` rule, batched). Ordered ASC so the LAST write per name in the
+  // fold is the newest row — and the `id` tiebreak makes that TOTAL: `created_at` is not unique, so books
+  // minted together (a bundle restore) would otherwise let the storage scan decide which one a name resolves to.
+  const unlanded = names.filter((name) => !landed.has(name));
+  if (unlanded.length > 0) {
+    const candidates = await db
+      .select({ id: worldBooks.id, name: worldBooks.name })
+      .from(worldBooks)
+      .where(and(eq(worldBooks.ownerId, ownerId), inArray(worldBooks.name, unlanded)))
+      .orderBy(asc(worldBooks.createdAt), asc(worldBooks.id));
+    for (const row of candidates) {
+      resolved.set(row.name, row.id);
+    }
+  }
+  return resolved;
+}
+
 /**
- * The ST NAME-LINK attach (`AttachOwnedBooksByName` — see the contract's doc for the semantics). Resolution
- * is `findBookByName` — the SAME owner-scoped (ownerId, name)/newest-wins key the standalone import dedups
- * on, so a name links exactly the book that import would have merged onto. A `primary` request demotes to
- * `auxiliary` when the character already holds a primary (at-most-one-primary is a verb-layer invariant —
- * the embedded `character_book` import above claims the seat first in the profile-import ordering).
- * onConflictDoNothing keeps a re-import idempotent (PK `(characterId, worldBookId)`).
+ * The ST NAME-LINK attach (`AttachOwnedBooksByName` — see the contract's doc for the semantics). A name the
+ * same import landed binds the landed row; any other name resolves by the owner-scoped (ownerId, name)
+ * newest-wins key. A `primary` request demotes to `auxiliary` when the character already holds a primary
+ * (at-most-one-primary is a verb-layer invariant — the embedded `character_book` import above claims the
+ * seat first in the profile-import ordering). onConflictDoNothing keeps a re-import idempotent (PK
+ * `(characterId, worldBookId)`).
  */
 export function createAttachOwnedBooksByName(ctx: WorldInfoImportContext): AttachOwnedBooksByName {
-  return async ({ ownerId, characterId, names, role }) => {
+  return async ({ ownerId, characterId, names, role, landed }) => {
     const { db } = ctx;
     if (names.length === 0) {
       return { linked: 0, missing: [] };
     }
     await assertOwnedCharacter(db, ownerId, characterId);
     const primaryFree = role === "primary" && (await findPrimaryBookId(db, characterId)) === null;
-
-    // ONE owner-scoped resolve for the whole name list; newest-wins per name (the `findBookByName` rule,
-    // batched). Ordered ASC so the LAST write per name in the fold is the newest row — and the `id` tiebreak
-    // makes that TOTAL: `created_at` is not unique, so books minted together (a bundle restore) would
-    // otherwise let the storage scan decide which one a name resolves to.
-    const candidates = await db
-      .select({ id: worldBooks.id, name: worldBooks.name })
-      .from(worldBooks)
-      .where(and(eq(worldBooks.ownerId, ownerId), inArray(worldBooks.name, [...names])))
-      .orderBy(asc(worldBooks.createdAt), asc(worldBooks.id));
-    // @orb-waive persistence-no-in-memory-state(Map): query-local newest-wins fold for the batch resolve. Ends if it outlives the call.
-    const newestByName = new Map<string, WorldBookId>();
-    for (const row of candidates) {
-      newestByName.set(row.name, row.id);
-    }
+    const resolved = await resolveLinkNames(db, ownerId, names, landed);
 
     const at = ctx.now();
     const missing: string[] = [];
     const attachRows: (typeof characterBooks.$inferInsert)[] = [];
     let primarySeatOpen = primaryFree;
     for (const name of names) {
-      const bookId = newestByName.get(name);
+      const bookId = resolved.get(name);
       if (bookId === undefined) {
         missing.push(name);
         continue;
@@ -278,12 +313,6 @@ export function createAttachOwnedBooksByName(ctx: WorldInfoImportContext): Attac
 // The standalone (unattached) path — a sibling of createBulkImportLorebook that lands a lone book with no
 // character attach, additively: equal content reuses the owned row (under the name it carries), different
 // content lands under the next free name, and no owned row is ever edited.
-
-/** Every name the caller's own books carry — the collision scan for the free-name mint. */
-async function listOwnedBookNames(db: Db, ownerId: UserId): Promise<string[]> {
-  const rows = await db.select({ name: worldBooks.name }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
-  return rows.map((row) => row.name);
-}
 
 export function createImportStandaloneLorebook(ctx: WorldInfoImportContext): ImportStandaloneLorebook {
   return async ({ ownerId, book }): Promise<BulkImportLorebookResult> => {

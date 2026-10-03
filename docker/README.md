@@ -337,3 +337,10 @@ the composed posture at boot and warns per open exposure.
 `.github/workflows/release.yml` builds the same target for each release. The image is the server as
 source (node 26 runs TypeScript directly), the built client, and a pruned production `node_modules`; how the
 runtime file set is assembled has one home, `docker/assemble-runtime.sh`.
+
+The build needs BuildKit, the default builder since Docker Engine 23 (`docker build` and `docker compose
+build` use it). Dependencies are fetched from the lockfile and installed from the workspace manifests before
+any source is copied, so a source edit rebuilds only the client bundle and the app layer; the dependency
+layers and the image's `node_modules` layer are reused. The release workflow keeps that cache between releases
+in the GitHub Actions cache. The build context is an allowlist: `.dockerignore` names the only paths the
+daemon receives, so a new top-level file the build reads must be added there.
