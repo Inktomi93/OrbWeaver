@@ -12,17 +12,15 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ByModelOpts, LatencyScope, LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "./params.ts";
 import type { ReconcileStatsResult } from "./results.ts";
 import type {
-  ActivityHeatmap,
-  CharacterMomentum,
+  ActivityBucket,
   CharacterStatsView,
-  DailyPoint,
   LatencyStats,
   LeaderboardPage,
   ModelStatRow,
+  MomentumBucket,
   OwnerStatsView,
   PersonaUsageRow,
   StatsFreshness,
-  TemporalStats,
   WrappedSummary,
 } from "./views.ts";
 
@@ -43,9 +41,10 @@ export interface StatsService {
    *  from. Sort defaults to `assistantTurns` (desc); limit defaults to 50, capped at 200. Scoped to the
    *  owner's characters (character_stats has no ownerId — D23). */
   leaderboard: (ownerId: UserId, opts?: LeaderboardOpts) => Promise<LeaderboardPage>;
-  /** Daily-bucketed activity points from `daily_stats`, ascending by day, over an optional inclusive
-   *  [from, to] window (YYYY-MM-DD; both ends optional). */
-  timeseries: (ownerId: UserId, opts?: TimeseriesOpts) => Promise<DailyPoint[]>;
+  /** The owner's activity timeline from `daily_stats`: one point per UTC quarter-hour bucket, ascending,
+   *  over an optional inclusive [from, to] window of bucket starts (epoch-ms; both ends optional). Every
+   *  day-, weekday- and hour-grained Insights chart is folded from this in the viewer's zone, client-side. */
+  timeseries: (ownerId: UserId, opts?: TimeseriesOpts) => Promise<ActivityBucket[]>;
   /** Per-(model, provider) usage rows from `model_stats`, ordered by generation count (desc), with on-read
    *  latency + distinct-character "reach" merged in. Limit defaults to 50, capped at 200. */
   byModel: (ownerId: UserId, opts?: ByModelOpts) => Promise<ModelStatRow[]>;
@@ -58,12 +57,8 @@ export interface StatsService {
   personaUsage: (ownerId: UserId, opts?: PersonaUsageOpts) => Promise<PersonaUsageRow[]>;
   /** The shareable "your RP in numbers" headline. `null` until the rollup has run. */
   wrapped: (ownerId: UserId) => Promise<WrappedSummary | null>;
-  /** Streaks / active days / busiest day / day-of-week (derived from `daily_stats`). */
-  temporal: (ownerId: UserId) => Promise<TemporalStats>;
-  /** Day-of-week × hour-of-day message heatmap (on-read canon scan — `daily_stats` has no hour axis). */
-  activityHeatmap: (ownerId: UserId) => Promise<ActivityHeatmap>;
   /** Per-character attention shift between the two most-recent active months (rising / falling). */
-  momentum: (ownerId: UserId, limit?: number) => Promise<CharacterMomentum>;
+  momentum: (ownerId: UserId) => Promise<MomentumBucket[]>;
   /** On-read TTFT/gen latency percentiles for the entity in view (owner / character / model). The stored
    *  rollups carry no percentiles (they can't be `+=`-maintained — invariant #6). */
   latency: (ownerId: UserId, scope: LatencyScope) => Promise<LatencyStats>;

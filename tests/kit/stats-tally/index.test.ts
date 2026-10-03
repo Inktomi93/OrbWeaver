@@ -1,4 +1,4 @@
-import { modelKey, utcDay, wordCount } from "@orb/kit/stats-tally";
+import { modelKey, STATS_BUCKET_MS, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("wordCount matches ST's \\b\\w+\\b semantics", () => {
@@ -15,12 +15,13 @@ test("wordCount treats empty / nullish as zero", () => {
   expect(wordCount(undefined)).toBe(0);
 });
 
-test("utcDay buckets an epoch-ms to its UTC calendar day", () => {
-  expect(utcDay(0)).toBe("1970-01-01");
-  expect(utcDay(1_700_000_000_000)).toBe("2023-11-14");
-  // Just before midnight UTC vs just after — same instant family, different day.
-  expect(utcDay(Date.UTC(2024, 0, 1, 23, 59, 59))).toBe("2024-01-01");
-  expect(utcDay(Date.UTC(2024, 0, 2, 0, 0, 0))).toBe("2024-01-02");
+test("statsBucketStart floors an epoch-ms to the start of its UTC quarter-hour", () => {
+  const start = Date.UTC(2024, 0, 1, 23, 45, 0);
+  expect(statsBucketStart(start)).toBe(start);
+  expect(statsBucketStart(start + STATS_BUCKET_MS - 1)).toBe(start);
+  expect(statsBucketStart(start + STATS_BUCKET_MS)).toBe(Date.UTC(2024, 0, 2, 0, 0, 0));
+  // Kathmandu (+5:45) local midnight is 18:15 UTC: a bucket boundary, so no bucket straddles its day.
+  expect(statsBucketStart(Date.UTC(2024, 0, 1, 18, 15, 0))).toBe(Date.UTC(2024, 0, 1, 18, 15, 0));
 });
 
 test("modelKey defaults a present model with no provider to (unknown)", () => {

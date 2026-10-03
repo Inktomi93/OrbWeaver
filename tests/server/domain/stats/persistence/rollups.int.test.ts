@@ -2,7 +2,10 @@
 // character reads JOIN characters on the owner; character_stats has no ownerId) + the D18 live personaUsage.
 
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import { dailyStats } from "@orb/db";
+import type { DailyStatId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { STATS_BUCKET_MS, statsBucketStart } from "@orb/kit/stats-tally";
 import { beforeEach, describe } from "vitest";
 import {
   readByModel,
@@ -11,7 +14,6 @@ import {
   readLeaderboard,
   readOverview,
   readPersonaUsage,
-  readTemporal,
   readTimeseries,
   readWrapped,
 } from "../../../../../packages/server/src/domain/stats/persistence/rollups.ts";
@@ -154,22 +156,41 @@ describe("readCharacter / readLeaderboard owner-scoping (D23 — no ownerId on c
   });
 });
 
-describe("readTimeseries / readTemporal", () => {
-  test("timeseries filters to the [from, to] window, ascending", async () => {
-    await seedDailyStats(db, ownerId, "2025-06-01", { userTurns: 1 });
-    await seedDailyStats(db, ownerId, "2025-06-05", { userTurns: 2 });
-    await seedDailyStats(db, ownerId, "2025-06-10", { userTurns: 3 });
-    const points = await readTimeseries(db, ownerId, { from: "2025-06-02", to: "2025-06-09" });
-    expect(points.map((p) => p.day)).toEqual(["2025-06-05"]);
+describe("readTimeseries", () => {
+  test("returns the buckets inside the inclusive [from, to] window of bucket starts, ascending", async () => {
+    const first = statsBucketStart(T0);
+    const middle = first + STATS_BUCKET_MS;
+    const last = first + 2 * STATS_BUCKET_MS;
+    // Seeded out of order, so the ascending order is the read's, not the insert's.
+    await seedDailyStats(db, ownerId, last, { userTurns: 3 });
+    await seedDailyStats(db, ownerId, first, { userTurns: 1 });
+    await seedDailyStats(db, ownerId, middle, { userTurns: 2 });
+    expect((await readTimeseries(db, ownerId)).map((p) => p.bucketStart)).toEqual([first, middle, last]);
+    expect((await readTimeseries(db, ownerId, { from: middle, to: middle })).map((p) => p.userTurns)).toEqual([2]);
+    expect((await readTimeseries(db, ownerId, { from: middle })).map((p) => p.bucketStart)).toEqual([middle, last]);
   });
 
-  test("temporal derives active days + busiest day from daily_stats", async () => {
-    await seedDailyStats(db, ownerId, "2025-06-01", { userTurns: 1, assistantTurns: 1 });
-    await seedDailyStats(db, ownerId, "2025-06-02", { userTurns: 5, assistantTurns: 5 });
-    const t = await readTemporal(db, ownerId);
-    expect(t.activeDays).toBe(2);
-    expect(t.busiestDay?.day).toBe("2025-06-02");
-    expect(t.longestStreakDays).toBe(2); // consecutive days
+  test("returns only the caller's timeline: another owner's bucket at the same instant stays out", async () => {
+    const other = await seedUser(db, "user_other", "user");
+    const bucket = statsBucketStart(T0);
+    await seedDailyStats(db, ownerId, bucket, { assistantTurns: 2 });
+    await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_other"), ownerId: other, bucketStart: bucket, assistantTurns: 9 });
+    expect((await readTimeseries(db, ownerId)).map((p) => p.assistantTurns)).toEqual([2]);
+    expect((await readTimeseries(db, other)).map((p) => p.assistantTurns)).toEqual([9]);
+  });
+
+  test("carries a bucket's token provenance: unrecorded tokens read null, estimates stay flagged", async () => {
+    const bucket = statsBucketStart(T0);
+    await seedDailyStats(db, ownerId, bucket, { assistantTurns: 1, tokensOut: 0 });
+    await seedDailyStats(db, ownerId, bucket + STATS_BUCKET_MS, {
+      assistantTurns: 1,
+      tokensOut: 40,
+      tokensOutMeasuredSamples: 1,
+      tokensOutEstimatedSamples: 1,
+    });
+    const [unrecorded, estimated] = await readTimeseries(db, ownerId);
+    expect(unrecorded).toMatchObject({ tokensOut: null, tokensOutProvenance: "unrecorded" });
+    expect(estimated).toMatchObject({ tokensOut: 40, tokensOutProvenance: "estimated" });
   });
 });
 

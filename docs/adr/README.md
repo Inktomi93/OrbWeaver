@@ -238,3 +238,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D288 | [OpenRouter Claude stays on chat completions (amends D174)](0288-openrouter-claude-stays-on-chat-completions.md) | active |
 | D289 | [The owner claim URL is read from a secrets file, never the log](0289-owner-claim-url-is-read-from-a-secrets-file.md) | active |
 | D290 | [Import identity and additive doors, across split uploads and art attach](0290-import-identity-keeps-its-keys-across-doors-and-uploads.md) | active |
+| D291 | [Plugin names the installable package and plugin page names a screen it contributes](0291-plugin-names-the-package-and-plugin-page-names-its-screen.md) | active |

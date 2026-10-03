@@ -13,7 +13,7 @@ import { VARIANT_METADATA_REASONING_MS_KEY } from "@orb/contracts/chat";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { modelKey, utcDay, wordCount } from "@orb/kit/stats-tally";
+import { modelKey, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 
 /** Convert nullable historical attribution into the only model-stats identities the write contract admits.
  * A blank model has no bucket; a missing/malformed provider takes the ruled `(unknown)` bucket. */
@@ -145,7 +145,7 @@ export function assistantTurnDelta(params: {
   return {
     ownerId: params.ownerId,
     characterId: params.characterId,
-    day: utcDay(params.now),
+    bucketStart: statsBucketStart(params.now),
     model,
     provider,
     assistantTurns: 1,
@@ -167,7 +167,7 @@ export function assistantTurnDelta(params: {
 
 /**
  * Build the per-canon-write delta for a committed user message. `characterId` must be null: the rebuild's
- * per-character grain folds assistant slots only, so a user turn contributes to owner+day grains alone.
+ * per-character grain folds assistant slots only, so a user turn contributes to owner+timeline grains alone.
  */
 export function userMessageDelta(params: {
   readonly ownerId: UserId;
@@ -178,7 +178,7 @@ export function userMessageDelta(params: {
   return {
     ownerId: params.ownerId,
     characterId: params.characterId,
-    day: utcDay(params.now),
+    bucketStart: statsBucketStart(params.now),
     model: null,
     provider: null,
     userTurns: 1,
@@ -197,7 +197,7 @@ export function compactionCostDelta(params: { readonly ownerId: UserId; readonly
   return {
     ownerId: params.ownerId,
     characterId: null,
-    day: utcDay(params.now),
+    bucketStart: statsBucketStart(params.now),
     model: null,
     provider: null,
     costUsd: params.costUsd,
@@ -300,9 +300,9 @@ export function canonMessageDelta(params: { readonly ownerId: UserId; readonly r
   const reasoningGen = isAssistant && hasReasoningText(row.reasoning) ? sign : 0;
   return {
     ownerId: params.ownerId,
-    // Per-char grain is assistant-only (the rebuild's foldMessageChar) — a user/system row is owner+day.
+    // Per-char grain is assistant-only (the rebuild's foldMessageChar) — a user/system row is owner+timeline.
     characterId: isAssistant ? row.characterId : null,
-    day: utcDay(row.createdAt),
+    bucketStart: statsBucketStart(row.createdAt),
     model: creditsModel ? model : null,
     provider: creditsModel ? provider : null,
     userTurns: isUser ? sign : 0,
@@ -400,7 +400,7 @@ export function swipeVariantDelta(params: { readonly ownerId: UserId; readonly r
   return {
     ownerId: params.ownerId,
     characterId: row.characterId,
-    day: utcDay(row.msgCreatedAt),
+    bucketStart: statsBucketStart(row.msgCreatedAt),
     model: creditsModel ? model : null,
     provider: creditsModel ? provider : null,
     swipes: sign,
@@ -462,7 +462,7 @@ export function chatCreatedDelta(params: {
  * extrema candidates, plus the `owner_stats.characters` bump when this is the character's first chat.
  *
  * It carries NO owner-grain `chats`/`chatsCreated`: the room is one room however many characters sit in it,
- * so only the primary seat's {@link chatCreatedDelta} counts it for the owner and the day. Used for every
+ * so only the primary seat's {@link chatCreatedDelta} counts it for the owner and the timeline bucket. Used for every
  * founding seat past the first (`verbs/claim-chat.ts`), every copied seat of a fork (`verbs/fork.ts`), and
  * a character seated into a live room (`verbs/participants.ts::addCharacterToChat`).
  */
@@ -476,7 +476,7 @@ export function seatChatDelta(params: {
   return {
     ownerId: params.ownerId,
     characterId: params.characterId,
-    day: utcDay(params.now),
+    bucketStart: statsBucketStart(params.now),
     model: null,
     provider: null,
     characterChats: 1,
@@ -490,7 +490,7 @@ export function seatChatDelta(params: {
 
 /**
  * The net contribution of an in-place content edit: `words(new) − words(old)` on the role bucket + the
- * UTF-16 code-unit diff, bucketed on the slot's original day (the rebuild folds by `createdAt`, not the edit time).
+ * UTF-16 code-unit diff, bucketed on the slot's original creation time (the rebuild folds by `createdAt`, not the edit time).
  */
 export function editMessageDelta(params: {
   readonly ownerId: UserId;
@@ -508,7 +508,7 @@ export function editMessageDelta(params: {
   return {
     ownerId: params.ownerId,
     characterId: isAssistant ? params.characterId : null,
-    day: utcDay(params.createdAt),
+    bucketStart: statsBucketStart(params.createdAt),
     model: null,
     provider: null,
     userWords: isUser ? wordsDiff : 0,
@@ -539,7 +539,7 @@ export function editReasoningDelta(params: {
   return {
     ownerId: params.ownerId,
     characterId: assistant ? params.characterId : null,
-    day: utcDay(params.createdAt),
+    bucketStart: statsBucketStart(params.createdAt),
     ...statsModelKey(assistant ? params.model : null, assistant ? params.provider : null),
     reasoningGenerations: diff,
     modelReasoningGenerations: diff,

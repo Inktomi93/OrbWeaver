@@ -15,8 +15,8 @@ import {
   formatCompact,
   formatCount,
   formatDayLabel,
+  formatDecimal,
   formatDurationMs,
-  formatMonthLabel,
   formatMs,
   formatPeak,
   formatPercent,
@@ -149,18 +149,6 @@ describe("formatDayLabel keeps the year at a crossing", () => {
   });
 });
 
-// `2026-07 → 2026-08` was a machine sort key printed beside relative phrases like "Updated 4h ago" (P2e).
-describe("formatMonthLabel", () => {
-  test("names the month", () => {
-    expect(formatMonthLabel("2026-07")).toBe("July 2026");
-    expect(formatMonthLabel("2026-01")).toBe("January 2026");
-  });
-  test("an unparseable month passes through rather than rendering `undefined`", () => {
-    expect(formatMonthLabel("nonsense")).toBe("nonsense");
-    expect(formatMonthLabel("2026-13")).toBe("2026-13");
-  });
-});
-
 // Two identically named characters were indistinguishable in the row AND in its accessible name (P3a).
 describe("disambiguatedNames", () => {
   test("a shared name gets a stable id ref on BOTH twins; unique names are untouched", () => {
@@ -277,5 +265,13 @@ describe("chart-family row adapters", () => {
         { day: "2027-01-01", tokensOut: 0, tokensOutProvenance: "measured" },
       ]),
     ).toEqual([{ label: "2027-01-01", count: 0 }]);
+  });
+});
+
+describe("formatDecimal", () => {
+  test("keeps one decimal and trims a trailing .0", () => {
+    expect(formatDecimal(1.44)).toBe("1.4");
+    expect(formatDecimal(2)).toBe("2");
+    expect(formatDecimal(0)).toBe("0");
   });
 });
