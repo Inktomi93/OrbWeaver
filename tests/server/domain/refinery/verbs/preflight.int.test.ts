@@ -80,10 +80,10 @@ test("a preset-params edit reaches the NEXT preflight read (resolved per call, n
   const p = principal(owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   // The harness's resolver is swappable through the context object — simulate a preset edit between reads.
-  const ctx = h.ctx as { resolveUserPresetParams: (userId: unknown) => Promise<SideGenSampling> };
+  const ctx = h.ctx as { resolveUtilityPresetParams: (userId: unknown) => Promise<SideGenSampling> };
   const before = await h.svc.preflight({ principal: p, sessionId: session.id });
   expect(before.stages.find((s) => s.stage === "score")?.maxOutputTokens ?? 0).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
-  ctx.resolveUserPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: 4096 });
+  ctx.resolveUtilityPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: 4096 });
   const after = await h.svc.preflight({ principal: p, sessionId: session.id });
   // THE LADDER IS UNCHANGED by the payload-aware floor: an explicit preset cap still wins OUTRIGHT, and
   // preflight REPORTS it even when it is lower than what the payload wants. The policy question this line
@@ -93,7 +93,7 @@ test("a preset-params edit reaches the NEXT preflight read (resolved per call, n
   expect(after.stages.find((s) => s.stage === "score")?.maxOutputTokens).toBe(4096);
   // A cap UNDER the payload is still reported, ⚠-side and all — the readout that the refusal quotes back.
   const score = after.stages.find((s) => s.stage === "score");
-  ctx.resolveUserPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: (score?.outputEstimate ?? 2) - 1 });
+  ctx.resolveUtilityPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: (score?.outputEstimate ?? 2) - 1 });
   const capped = await h.svc.preflight({ principal: p, sessionId: session.id });
   const cappedScore = capped.stages.find((s) => s.stage === "score");
   expect(cappedScore?.maxOutputTokens).toBe((score?.outputEstimate ?? 2) - 1);

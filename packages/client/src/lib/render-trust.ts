@@ -16,7 +16,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
 type RenderTrust = "trusted" | "untrusted";
-/** The D294 §12.2 card render tiers. `tierA` = the inert sanitized allowlist in the main DOM;
+/** The docs/law/UI-Theming-and-Content.md §12.2 card render tiers. `tierA` = the inert sanitized allowlist in the main DOM;
  *  `tierB` = the sandboxed `ImmersiveCard` mini-UI that may carry the card's own CSS. */
 type CardTier = "tierA" | "tierB";
 
@@ -43,7 +43,7 @@ export interface RowRenderPolicy {
    *  read (the `lenientCards` precedent) rather than a parallel prop down four render helpers. Default ON —
    *  it matches the contract default, so a mount that threads no pref renders what the settings say. */
   readonly colorQuotes: boolean;
-  /** The CARD render tier (D294 §12.2), resolved HERE because it has TWO independent consent axes and this
+  /** The CARD render tier (docs/law/UI-Theming-and-Content.md §12.2), resolved HERE because it has TWO independent consent axes and this
    *  file is the one trust authority — a second spelling elsewhere would be a second spelling of a security
    *  verdict, the same reason `trust` itself lives here.
    *

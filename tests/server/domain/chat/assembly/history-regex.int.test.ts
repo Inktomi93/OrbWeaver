@@ -24,6 +24,7 @@ import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/id
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { HISTORY_DEPTH_PLACEMENT } from "@orb/kit/regex";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createRegexApplyReplace } from "@orb/server/kit/regex";
 import { asc } from "drizzle-orm";
 import { beforeEach } from "vitest";
@@ -108,6 +109,7 @@ async function shapedBodies(room: { host: UserId; chatId: ChatId; charId: Charac
     applyRegexReplace: createRegexApplyReplace(),
   });
   const assembleContext = await buildAssembleContext(ctx, {
+    timezone: UTC_TIME_ZONE,
     chatId: room.chatId,
     ownerId: room.host,
     characterIds: [room.charId],

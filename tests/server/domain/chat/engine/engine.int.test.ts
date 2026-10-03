@@ -16,6 +16,7 @@ import { generationOf, resolveChat } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, ModelId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { applyStatsDelta } from "@orb/server/domain/stats";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { getLog, initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
@@ -54,6 +55,7 @@ const HOST = castId<UserId>("user_host");
 const MEMBER = castId<UserId>("user_member");
 
 const ASSEMBLE_CTX: AssembleContext = {
+  timezone: UTC_TIME_ZONE,
   character: { name: "Aria", description: "a bold knight" },
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Alex", description: "the user" },

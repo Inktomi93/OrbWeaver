@@ -36,6 +36,14 @@ describe("resolveChatDisplay", () => {
 });
 
 describe("resolveCharacterDisplay", () => {
+  test("never names the synthetic group-as-character bucket", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner_synthetic") });
+    const group = await seedCharacter(db, { id: "character_group", ownerId: owner, name: "Group", synthetic: true });
+
+    expect(await resolveCharacterDisplay(db, owner, [group])).toEqual([]);
+  });
+
   test("enriches with summary facets + the avatar CAS hash", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

@@ -9,6 +9,7 @@ import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { SideGenSampling } from "@orb/inference";
 import type {
   AssetId,
   CharacterEmbeddingId,
@@ -111,6 +112,8 @@ export interface EmbeddingsContext {
   /** The per-FUNDER role-client bundle (inference program §7.5-2): a vector task is `scope: "owner"`, so the
    *  entity's OWNER funds the embed and DEFINES the space (their `embed`/`imageEmbed` binding). */
   readonly roleClientsFor: RoleClientsFor;
+  /** The owner's Utility-role preset params (D299), `undefined` under task defaults — avatar analysis sampling. */
+  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
   readonly now: () => number;
   readonly newCharacterEmbeddingId: () => CharacterEmbeddingId;

@@ -19,6 +19,7 @@ import type { Db } from "@orb/db";
 import { ProviderError } from "@orb/inference";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { recentTurnOutcomes } from "@orb/server/foundation/observability";
 import { afterAll, beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -59,6 +60,7 @@ afterAll(() => {
 const HOST = castId<UserId>("user_host");
 
 const ASSEMBLE_CTX: AssembleContext = {
+  timezone: UTC_TIME_ZONE,
   character: { name: "Aria", description: "a bold knight" },
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Alex", description: "the user" },

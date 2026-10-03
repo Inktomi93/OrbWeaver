@@ -56,6 +56,20 @@ export interface BugReportRoute {
  *  reduced pins nothing. */
 export type BugReportLocationRead = Pick<Location, "origin" | "pathname" | "search" | "hash">;
 
+/** The most characters of one captured element text a report carries. The owner's custom CSS is that text, and the
+ *  report POST is capped as a whole (`BUG_REPORT_MAX_BODY_BYTES`), so an unbounded stylesheet would get the entire
+ *  report refused. */
+export const BUG_REPORT_TEXT_MAX_CHARS = 65_536;
+
+/** A captured element text, cut at {@link BUG_REPORT_TEXT_MAX_CHARS} with a marker saying how much was left out, so
+ *  a reader never mistakes a clipped stylesheet for the whole one. */
+export function clipCapturedText(text: string | null): string | null {
+  if (text === null || text.length <= BUG_REPORT_TEXT_MAX_CHARS) {
+    return text;
+  }
+  return `${text.slice(0, BUG_REPORT_TEXT_MAX_CHARS)}\n/* clipped: ${text.length - BUG_REPORT_TEXT_MAX_CHARS} more characters not captured */`;
+}
+
 /**
  * Reduce a live `Location` to the route facts a report may carry: ORIGIN + PATH, never the query string or
  * the fragment.

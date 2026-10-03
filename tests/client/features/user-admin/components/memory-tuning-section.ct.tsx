@@ -1,8 +1,7 @@
 // CT: the Memory tuning admin SECTION (Phase B ③ — memory-tuning-section.tsx). Drives the production admin
 // path: getAppSettingsWithOverrides seeds the knobs (floor ⊕ override), the mode enum writes immediately,
-// numeric knobs batch a Save (memoryDefaults MERGE), the summarizer maxTokens saves separately
-// (memorySummarizer), and Reset clears a whole nested override. Asserts the write fired with the right
-// section/patch shape (route recorder).
+// numeric knobs batch a Save (memoryDefaults MERGE), and Reset clears a whole nested override. Asserts the
+// write fired with the right section/patch shape (route recorder).
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -16,7 +15,7 @@ import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.
 // The section reads its knob VALUES from `overrides` (⊕ the contract floors), not `resolved` — so a plain
 // partial resolved slice suffices (routeTrpc stubs are untyped; the admin-surface CT's APP_SETTINGS
 // precedent — no cast, no fabricated whole-shape).
-const RESOLVED: Partial<EffectiveAppSettings> = { memoryDefaults: {}, memorySummarizer: {} };
+const RESOLVED: Partial<EffectiveAppSettings> = { memoryDefaults: {} };
 
 const UPDATE_PROC = "settings.updateAppSettings";
 
@@ -49,11 +48,10 @@ const MODE_GUIDANCE = [
   ["Story arcs", "Recalls older scenes as consolidated story arcs. Covers more history with less scene-level detail."],
 ] as const;
 
-test("mounts on the grounded floor with a human mode label (blockSize 8, sharper semantic recall, summarize max tokens 1024)", async ({ mount, page }) => {
+test("mounts on the grounded floor with a human mode label (blockSize 8, sharper semantic recall)", async ({ mount, page }) => {
   await stub(page);
   await mount(<MemoryTuningSectionStory />);
   await expect(page.getByRole("textbox", { name: "Block size" })).toHaveValue("8");
-  await expect(page.getByRole("textbox", { name: "Summarize max tokens" })).toHaveValue("1,024");
   await expect(page.getByRole("combobox", { name: "Retrieval mode" })).toContainText("Sharper semantic recall");
   await expect(page.getByText("Using the deployment default: Sharper semantic recall.")).toBeVisible();
 });
@@ -147,23 +145,12 @@ test("a non-integer count knob is rounded to an integer before send (no silent-w
   await expect.poll(() => (lastPartial(trpc)?.["memoryDefaults"] as Record<string, unknown> | undefined)?.["blockSize"], { intervals: [20, 50, 100] }).toBe(9);
 });
 
-test("summarize max tokens saves as a memorySummarizer override", async ({ mount, page }) => {
-  const trpc = await stub(page);
-  await mount(<MemoryTuningSectionStory />);
-  await setNumber(page.getByRole("textbox", { name: "Summarize max tokens" }), "2048");
-  await page.getByRole("button", { name: "Save" }).last().click();
-  await expect
-    .poll(() => (lastPartial(trpc)?.["memorySummarizer"] as Record<string, unknown> | undefined)?.["maxTokens"], { intervals: [20, 50, 100] })
-    .toBe(2048);
-});
-
 test("a memoryDefaults override shows 'Overridden' and Reset clears the whole memoryDefaults override", async ({ mount, page }) => {
   const trpc = await stub(page, { memoryDefaults: { blockSize: 12 } });
   await mount(<MemoryTuningSectionStory />);
   await expect(page.getByRole("textbox", { name: "Block size" })).toHaveValue("12");
   await expect(page.getByText("Overridden. Default: 8.")).toBeVisible();
-  // The first Reset button belongs to the memoryDefaults section.
-  await page.getByRole("button", { name: "Reset to defaults" }).first().click();
+  await page.getByRole("button", { name: "Reset to defaults" }).click();
   await expect.poll(() => lastPartial(trpc)?.["memoryDefaults"], { intervals: [20, 50, 100] }).toBeNull();
 });
 

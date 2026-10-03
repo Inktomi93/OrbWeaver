@@ -321,19 +321,25 @@ function sseFromNdjson(body: ReadableStream<Uint8Array>, label: string): Readabl
     }
   };
   return new ReadableStream<Uint8Array>({
+    // A pull that enqueues nothing is never retried, so keep reading until a line lands or the body ends.
     async pull(controller): Promise<void> {
-      const next = await reader.read();
-      if (next.done) {
-        emit(controller, buffer + decoder.decode());
-        controller.enqueue(encoder.encode(SSE_DONE_LINE));
-        controller.close();
-        return;
-      }
-      buffer += decoder.decode(next.value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        emit(controller, line);
+      for (;;) {
+        const next = await reader.read();
+        if (next.done) {
+          emit(controller, buffer + decoder.decode());
+          controller.enqueue(encoder.encode(SSE_DONE_LINE));
+          controller.close();
+          return;
+        }
+        buffer += decoder.decode(next.value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          emit(controller, line);
+        }
+        if (lines.some((line) => line.trim() !== "")) {
+          return;
+        }
       }
     },
     async cancel(reason): Promise<void> {

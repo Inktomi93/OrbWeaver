@@ -60,8 +60,7 @@ const DATABANK_QUERY_MAX_CHARS = 1000;
 const DATABANK_SLOT_TOKEN_BUDGET = 4096;
 
 /** The zone a chat render's time macros read: the one its caller names, else UTC. The ONE home of the
- *  no-viewer clock; an unset zone would hand the macro engine its own fallback, the server's zone, which no
- *  user is in. */
+ *  no-viewer clock; the server's own zone is no user's. */
 export function assemblyTimeZone(timeZone: IanaTimeZone | undefined): IanaTimeZone {
   return timeZone ?? UTC_TIME_ZONE;
 }

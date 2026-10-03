@@ -33,6 +33,19 @@ describe("remove", () => {
     expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, owner)))[0]?.version).toBe(2);
   });
 
+  test("an audit that rejects after the delete still tells the owner's feed, and still fails the call", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const created = await seedRawCharacter(db, { ownerId: owner, handle: castId<CharacterHandle>("nyx") });
+    const svc = createCharacterService({ ...h.ctx, audit: () => Promise.reject(new Error("audit sink down")) });
+
+    await expect(svc.remove({ principal: principal(owner), characterId: created })).rejects.toThrow("audit sink down");
+
+    expect(h.userEvents).toEqual([{ userId: owner, event: { type: "charactersChanged", characterId: created } }]);
+    expect(await db.select().from(characters).where(eq(characters.id, created))).toEqual([]);
+  });
+
   test("a character with no avatar deletes without a reap call", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

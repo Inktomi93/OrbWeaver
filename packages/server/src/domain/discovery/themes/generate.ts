@@ -210,9 +210,9 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
     return { ownersProcessed: 0, clustersWritten: 0, digestsAssigned: 0, digestsRead: all.length, soloDigestsRead: 0 };
   }
   const { drafts, owners } = buildDrafts(solo, opts, seed);
-  // The `theme_name` posture ← the funder's default-preset params (§7.5-3 arm ii); prose `summarize`.
+  // The funder's Utility-role preset over the `theme_name` posture (§7.5-3 arm ii); prose `summarize`.
   const rc = await deps.roleClientsFor(opts.funderUserId);
-  const sampleOpts = resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name, await deps.resolveUserPresetParams(opts.funderUserId));
+  const sampleOpts = resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name, await deps.resolveUtilityPresetParams(opts.funderUserId));
   const names = await nameDrafts(drafts, rc, sampleOpts);
   const computedAt = deps.now();
 

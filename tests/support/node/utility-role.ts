@@ -90,6 +90,22 @@ export function utilityBindings(state: "running" | "unset", capability: Capabili
   });
 }
 
+/** `views` with the Rerank role running too (on the Utility row's resolve), for a surface whose subject is another role. */
+export function withRunningRerank(views: readonly BindingView[]): readonly BindingView[] {
+  const running = utilityBindings("running").find((view) => view.task === "summarize");
+  return views.map((view) => {
+    if (view.task !== "rerank" || running === undefined) {
+      return view;
+    }
+    return {
+      ...running,
+      task: "rerank",
+      binding: running.binding === null ? null : { ...running.binding, task: "rerank" },
+      resolved: running.resolved === null ? null : { ...running.resolved, task: "rerank" },
+    };
+  });
+}
+
 /** The two reads every Utility-aware surface makes, answered with a running Utility model: spread into a mount whose
  *  subject is not the Utility role, so the reads are fed rather than answered `null`. */
 export const UTILITY_RUNNING_ROUTES: TrpcRoutes<"connection.list" | "connection.listBindings"> = {

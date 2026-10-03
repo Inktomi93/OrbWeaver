@@ -18,6 +18,7 @@
 import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_FORMAT_STRINGS } from "@orb/contracts/preset";
 import type { MessageRole } from "@orb/kit/message-role";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { buildPrompt, resolveNudgeText, shapeTurn } from "../../../packages/server/src/domain/chat/substrate/assembly-access.ts";
 import { convertsToEmptyWireRow } from "../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import type { ImpersonateFixture } from "./fixtures.ts";
@@ -41,6 +42,7 @@ export interface BuiltRequest {
 /** The per-turn assemble context a real impersonate turn resolves for this fixture. */
 function contextFor(fx: ImpersonateFixture): AssembleContext {
   return {
+    timezone: UTC_TIME_ZONE,
     character: fx.character,
     promptConfig: configFor(fx),
     characters: [...fx.characters],

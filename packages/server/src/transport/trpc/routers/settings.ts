@@ -29,13 +29,13 @@ const MAX_THEME_FILE_CHARS = 1_000_000;
 const MAX_FILENAME_CHARS = 512;
 
 export const settingsRouter = t.router({
-  // ── build identity (owner ask 2026-09-18) — the two DEPLOYMENT-GLOBAL reads behind Settings → About.
-  //    `authedProcedure`, not `adminProcedure`: the version string is what a bug report quotes, so anyone who
-  //    can file one must be able to read it. Neither takes an input, neither touches a user row, and the
-  //    per-user rate bucket the authed ladder already debits is the limiter on the update check's one
-  //    outbound GET (`entry/rate-limit-gate.ts`'s `general` scope) — no second bucket exists to add. ──
+  // ── build identity (owner ask 2026-09-18) — the two DEPLOYMENT-GLOBAL reads behind Settings → This install.
+  //    `getVersion` is `authedProcedure`: the version string is what a bug report quotes, so anyone who can
+  //    file one must be able to read it. `checkForUpdate` is `adminProcedure`: its one outbound GET spends
+  //    GitHub's anonymous budget, which is per source IP and shared by the whole box, so a member must not be
+  //    able to burn it (the compose probe also caches a good answer for a few minutes). ──
   getVersion: authedProcedure.output(versionIdentitySchema.strict()).query(({ ctx }) => ctx.services.settings.getVersion()),
-  checkForUpdate: authedProcedure.output(updateCheckSchema).query(({ ctx }) => ctx.services.settings.checkForUpdate()),
+  checkForUpdate: adminProcedure.output(updateCheckSchema).query(({ ctx }) => ctx.services.settings.checkForUpdate()),
 
   getUserSettings: authedProcedure.output(userSettingsViewSchema).query(({ ctx }) => ctx.services.settings.getUserSettings({ principal: ctx.auth })),
 

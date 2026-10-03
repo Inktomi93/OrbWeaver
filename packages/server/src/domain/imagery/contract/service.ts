@@ -25,9 +25,8 @@ interface CaptionResult {
   readonly costUsd: number | null;
 }
 interface CaptionAvatarArgs {
-  /** Reads the subject's card and avatar: a caption never reaches a character the caller cannot read. */
-  readonly caller: Principal;
-  /** Styles and funds the caption (the instruction, the Utility connection). */
+  /** Reads the subject's card and avatar, styles and funds the caption. A room caller has passed
+   *  `resolveRoomRunAs`' roster gate (the subject is a seat of the room) before this host principal reads. */
   readonly runAs: Principal;
   readonly mode: MultimodalMode;
   readonly subjectCharacterId: CharacterId | undefined;
@@ -147,6 +146,9 @@ export interface ImageryContext {
    *  not admit, and a subject that is not a present character seat of the room, with the leak-free
    *  not-found BEFORE any host read, card read or spend. */
   readonly resolveRoomRunAs: (caller: Principal, chatId: ChatId, subjectCharacterId: CharacterId | undefined) => Promise<Principal>;
+  /** Is the caller a present participant of the chat? An edit records the chat it was made in only when they are,
+   *  so a caller-named chat id never reaches provenance on the caller's word alone. */
+  readonly callerInChat: (caller: Principal, chatId: ChatId) => Promise<boolean>;
   /** The sealed `infra/providers` generateImage executor role (bound at compose). */
   readonly generateImage: (req: ImageGenerateRequest) => Promise<ImageGenerateResult>;
   /** Download a provider-returned generated-image URL to bytes through the SSRF-safe egress wrapper. `null`

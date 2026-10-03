@@ -8,6 +8,7 @@ import type { AssembleCharacter, AssembleContext, SpeakerRef } from "@orb/contra
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import { shapeContextForSpeaker, speakerCue, voiceContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
 import { CHAT_OP_CODES } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
@@ -21,6 +22,7 @@ const card = (name: string): AssembleCharacter => ({ name, description: `${name}
 function ctx(): AssembleContext {
   const characters = [card("Aria"), card("Bran")];
   return {
+    timezone: UTC_TIME_ZONE,
     character: characters[0] as AssembleCharacter, // primary (pre-shape)
     promptConfig: DEFAULT_PROMPT_CONFIG,
     characters,
@@ -66,6 +68,7 @@ describe("shapeContextForSpeaker — per-speaker card selection", () => {
 
   test("a ctx with no speakerRefs (solo / hand-built) is returned UNCHANGED — byte-identical", () => {
     const solo: AssembleContext = {
+      timezone: UTC_TIME_ZONE,
       character: card("Solo"),
       promptConfig: DEFAULT_PROMPT_CONFIG,
       recentMessages: [],
@@ -122,6 +125,7 @@ describe("shapeContextForSpeaker — narrator (one turn voices every present cha
 
   test("a SOLO ctx narrator round is still byte-identical (the trivial one-character case, D16)", () => {
     const solo: AssembleContext = {
+      timezone: UTC_TIME_ZONE,
       character: card("Solo"),
       promptConfig: DEFAULT_PROMPT_CONFIG,
       recentMessages: [],

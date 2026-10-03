@@ -3,7 +3,7 @@
 // rows are draft-edited (the parent batches a Save delta); the enum + boolean rows write immediately.
 //
 // CLEAR is SECTION-level, not per-field, for the NESTED AppSettings objects (memoryDefaults /
-// memorySummarizer / rateLimits): the deep-merge write path clears only a TOP-LEVEL key, and a nested
+// rateLimits): the deep-merge write path clears only a TOP-LEVEL key, and a nested
 // `null` fails the inner schema and trips that SECTION field's `.catch(undefined)` — silently dropping the
 // section's entire override set (every sibling knob), though OTHER sections' overrides survive
 // (empirically verified 2026-07-26; the one exception is a leaf explicitly `.nullable()` in the schema,

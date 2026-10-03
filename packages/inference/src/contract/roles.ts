@@ -3,6 +3,7 @@
 // `connection` + `signal`. RESULT shapes live in `@orb/contracts/providers`, not redeclared here.
 
 import type { Task } from "@orb/contracts/inference";
+import type { RolePresetParams } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type {
   ImageEmbedInput,
@@ -16,7 +17,7 @@ import type {
   SummarizeOptions,
 } from "@orb/contracts/role-clients";
 import type { ModelId, UserId } from "@orb/kit/ids";
-import type { ResolvedWarning } from "./resolve.ts";
+import type { ResolvedSampling, ResolvedWarning } from "./resolve.ts";
 import type { Resolved } from "./resolved.ts";
 
 /** The tasks that take a request through this file — every task but the two chat-shaped ones. */
@@ -60,18 +61,9 @@ export interface SummarizeRequestItem {
   readonly images?: readonly ImageInput[] | undefined;
 }
 
-/** The per-item sampling a summarize/structured call carries — the side-gen posture folded beneath the
- *  purpose-scoped preset (§7.5-3), already resolved. */
-export interface TaskSampling {
-  readonly maxTokens?: number | undefined;
-  readonly temperature?: number | undefined;
-  readonly topP?: number | undefined;
-  readonly topK?: number | undefined;
-  readonly frequencyPenalty?: number | undefined;
-  readonly presencePenalty?: number | undefined;
-  readonly repetitionPenalty?: number | undefined;
-  readonly minP?: number | undefined;
-}
+/** The per-item sampling a summarize/structured call carries: the role preset folded over the task posture
+ *  (D299), already resolved. The backend request names the output cap `maxTokens`. */
+export type TaskSampling = ResolvedSampling & Readonly<Pick<RolePresetParams, "effort" | "thinkingBudgetTokens">> & { readonly maxTokens?: number | undefined };
 
 /** SUMMARIZE IS SUMMARIZATION — a prose task. Schema-constrained generation is the DISTINCT `structured`
  *  task (owner ruling 2026-07-27); this request carries NO `responseFormat`, by type. */

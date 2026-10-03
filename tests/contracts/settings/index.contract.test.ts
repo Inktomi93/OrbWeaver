@@ -12,6 +12,7 @@ import {
   PROMPT_CACHE_MIN_DEPTH_CEIL,
   parseAppSettings,
   parseUserSettings,
+  ROLE_PRESET_CHOICE_KINDS,
   resolveImageryCaption,
   resolveImageryTemplate,
   STREAM_SCROLL_MODES,
@@ -32,6 +33,7 @@ const SCHEMA_VERSION_V6 = 6;
 const SCHEMA_VERSION_V7 = 7;
 const SCHEMA_VERSION_V8 = 8;
 const SCHEMA_VERSION_V9 = 9;
+const SCHEMA_VERSION_V10 = 10;
 const SAMPLE_SCAN_DEPTH = 12;
 
 // ── D17 owner-box governance toggles (the headline deviation: exist + the right floor defaults) ──
@@ -46,7 +48,6 @@ test("appSettingsSchema admits null per field (the CLEAR sentinel)", () => {
     forbidExternalMedia: null,
     trustHtml: null,
     memoryDefaults: null,
-    memorySummarizer: null,
     rateLimits: null,
     privateEndpointAllowlist: null,
     maxImageBytes: null,
@@ -145,7 +146,7 @@ test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVER
   };
   const parsed = parseAppSettings(storedV7);
 
-  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V9);
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V10);
   // The knob is GONE — not merely zeroed, absent from the parsed section.
   expect(Object.keys(parsed.memoryDefaults ?? {})).not.toContain("recencyBias");
   // …and the other TEN memoryDefaults knobs survive byte-identically.
@@ -161,8 +162,9 @@ test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVER
     minScore: 0.4,
     keywordMatch: false,
   });
-  // …as does every sibling SECTION (the carry-forward receipt the #461 class demands).
-  expect(parsed.memorySummarizer).toEqual({ maxTokens: 2048, temperature: 0.7 });
+  // …as does every sibling SECTION (the carry-forward receipt the #461 class demands), except the summarizer
+  // override the v9→v10 lift deletes.
+  expect(Object.keys(parsed)).not.toContain("memorySummarizer");
   expect(parsed.rateLimits).toEqual({ aiTurn: 60, login: 10 });
   expect(parsed.agentSdkConcurrency).toEqual({ summarize: 4 });
   expect(parsed.logLevel).toBe("debug");
@@ -204,15 +206,43 @@ test("parseUserSettings degrades a non-object / garbage blob to the full default
   expect(parseUserSettings(42)).toEqual(DEFAULT_USER_SETTINGS);
 });
 
-// ── The versioned-config lift walk (AppSettings v1→v2 strips memorySummarizer.source) ──
+// ── The versioned-config lift walk ──
 
-test("AppSettings v1→v2 lift strips the dropped memorySummarizer.source", () => {
-  const storedV1 = {
-    schemaVersion: SCHEMA_VERSION_V1,
-    memorySummarizer: { source: "hosted", maxTokens: 256 },
+test("v9→v10 AppSettings lift deletes the admin summarizer and engine residue, every sibling intact (D299)", () => {
+  const storedV9 = {
+    schemaVersion: SCHEMA_VERSION_V9,
+    memorySummarizer: { maxTokens: 256, temperature: 0.7, presencePenalty: 1.5 },
+    engineLaunch: { genPresencePenalty: 0 },
+    vllmConcurrency: { summarize: 32 },
+    memoryDefaults: { retrieveK: 12 },
+    rateLimits: { aiTurn: 60 },
+    logLevel: "debug",
   };
-  const parsed = parseAppSettings(storedV1);
-  expect(parsed.memorySummarizer).toEqual({ maxTokens: 256 });
+  expect(parseAppSettings(storedV9)).toEqual({ memoryDefaults: { retrieveK: 12 }, rateLimits: { aiTurn: 60 }, logLevel: "debug" });
+});
+
+test("a v1 blob walks the whole chain to v10 and the summarizer section is gone", () => {
+  const parsed = parseAppSettings({ schemaVersion: SCHEMA_VERSION_V1, memorySummarizer: { source: "hosted", maxTokens: 256 }, logLevel: "warn" });
+  expect(parsed).toEqual({ logLevel: "warn" });
+});
+
+test("a v9 user blob parses at v10 with the Utility preset on task defaults (D299)", () => {
+  const parsed = parseUserSettings({ schemaVersion: SCHEMA_VERSION_V9, seeds: { defaultPresetId: "preset_x" } }, SCHEMA_VERSION_V9);
+  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V10);
+  expect(parsed.seeds.summarizePreset).toBeNull();
+  expect(parsed.seeds.defaultPresetId).toBe("preset_x");
+});
+
+test("the Utility preset choice keeps both explicit arms and degrades a malformed one to task defaults", () => {
+  const seedsOf = (summarizePreset: unknown): UserSettings["seeds"] =>
+    parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, seeds: { summarizePreset } }).seeds;
+  expect(seedsOf({ kind: ROLE_PRESET_CHOICE_KINDS.sameAsChat }).summarizePreset).toEqual({ kind: ROLE_PRESET_CHOICE_KINDS.sameAsChat });
+  expect(seedsOf({ kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: "preset_y" }).summarizePreset).toEqual({
+    kind: ROLE_PRESET_CHOICE_KINDS.preset,
+    presetId: "preset_y",
+  });
+  expect(seedsOf({ kind: ROLE_PRESET_CHOICE_KINDS.preset }).summarizePreset).toBeNull();
+  expect(seedsOf("same-as-chat").summarizePreset).toBeNull();
 });
 
 // NOTE (test-tree cut-over, @orb/inference program §5.3/§5.3c): the `routing.roleDefaults` section and its
@@ -541,7 +571,7 @@ test("v4→(v5→v6→v7) lift is a no-op passthrough — databank + imagery + p
   // sections read back as their prefault defaults (byte-identical — the additive-section precedent). Others survive.
   const storedV4 = { worldInfo: { scanDepth: 12 } };
   const lifted = parseUserSettings(storedV4, SCHEMA_VERSION_V4);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V9);
+  expect(lifted.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
   expect(lifted.worldInfo.scanDepth).toBe(12); // an existing override survives the lift
   expect(lifted.databank.retrieval).toEqual({ k: 5, minScore: 0.25, rerank: false });
   expect(lifted.databank.slotTokenBudget).toBe(4096);
@@ -554,7 +584,7 @@ test("v4→(v5→v6→v7) lift is a no-op passthrough — databank + imagery + p
 test("v5→v6 lift adds the imagery section — a v5 blob with no imagery key reads back the empty override set", () => {
   const storedV5 = { chat: { enterSends: false } };
   const lifted = parseUserSettings(storedV5, SCHEMA_VERSION_V5);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V9);
+  expect(lifted.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
   expect(lifted.chat.enterSends).toBe(false); // an existing override survives
   expect(lifted.imagery).toEqual({ templates: {}, captions: {} });
 });
@@ -562,7 +592,7 @@ test("v5→v6 lift adds the imagery section — a v5 blob with no imagery key re
 test("v6→v7 lift adds the prose section — a v6 blob with no prose key reads back the empty override set", () => {
   const storedV6 = { imagery: { templates: { character: "mine" } } };
   const lifted = parseUserSettings(storedV6, SCHEMA_VERSION_V6);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V9);
+  expect(lifted.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
   expect(lifted.imagery.templates.character).toBe("mine"); // an existing override survives
   expect(lifted.prose).toEqual({});
 });
@@ -579,9 +609,9 @@ test("a stored prose override round-trips, and a RETIRED slot id is stripped ins
   expect(parsed.prose).toEqual({ "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 } });
 });
 
-test("the pinned schema versions: AppSettings v9 (the additive ipCertificate, D275), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
-  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V9);
-  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V9);
+test("the pinned schema versions: AppSettings v10 (the summarizer override's deletion, D299), UserSettings v10 (the additive Utility preset, D299)", () => {
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V10);
+  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V10);
 });
 
 // The AppSettings v8→v9 lift. `ipCertificate` (D275) is purely additive, and absent reads as off, so a stored v8 blob

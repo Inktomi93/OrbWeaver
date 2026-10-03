@@ -2,6 +2,7 @@
 // keyword-match-sees-PENDING-user-text (§3 rule 4, the two-phase lag-kill), per-entry render-ONCE
 // (macro→wiFormat-wrap, §3 rules 1-3), the ONE injection list + ONE budget pass (§4 — lore dropped by
 // priority, operator intent spared), WI position routing, and the immutable/pure ctx (§5 — two calls equal).
+
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
 import type { AssembleContext, AssemblePersona, ChatInjection, PromptTransformResult, RoomOverrides } from "@orb/contracts/chat";
@@ -16,6 +17,7 @@ import { characterBooks, chatBooks, worldBooks, worldEntries } from "@orb/db";
 import { ZWSP } from "@orb/kit/guided";
 import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { beforeEach, describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
 import { buildAssembleContext } from "../../../../../packages/server/src/domain/chat/assembly/context.ts";
@@ -118,6 +120,7 @@ interface InputOver {
 }
 function inputOf(chatId: ChatId, ownerId: UserId, castIds: CharacterId[], over: InputOver = {}): Parameters<typeof buildAssembleContext>[1] {
   return {
+    timezone: UTC_TIME_ZONE,
     chatId: castId(chatId),
     ownerId,
     characterIds: castIds,

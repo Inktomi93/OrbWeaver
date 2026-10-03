@@ -782,6 +782,17 @@ describe("AUTH_FALLBACK_TRUSTED_PEERS — the opt-in widened fallback peer set",
     await expect(reimportEnvIn(dir, { AUTH_FALLBACK: "owner" }, { vitest: false })).rejects.toThrow("AUTH_FALLBACK_TRUSTED_PEERS must not be set in .env");
   });
 
+  test("#301: the peers refusal names the container's env file in a container", async () => {
+    const dir = dirWithEnvFile(["AUTH_MODE=single-user", "AUTH_FALLBACK_TRUSTED_PEERS=172.17.0.0/16"].join("\n"));
+    await expect(reimportEnvIn(dir, { AUTH_FALLBACK: "owner", ORB_CONTAINER: "true" }, { vitest: false })).rejects.toThrow("docker/orbweaver.local.env");
+  });
+
+  // A container marker file on the test host would make this a container too.
+  test.skipIf(runsInContainer(false))("#301: the peers refusal names the launcher's environment on bare metal", async () => {
+    const dir = dirWithEnvFile(["AUTH_MODE=single-user", "AUTH_FALLBACK_TRUSTED_PEERS=172.17.0.0/16"].join("\n"));
+    await expect(reimportEnvIn(dir, { AUTH_FALLBACK: "owner", ORB_CONTAINER: "false" }, { vitest: false })).rejects.toThrow("export it in the environment");
+  });
+
   test("#301: the container environment (not `.env`) is accepted — the supported way to set it", async () => {
     const dir = dirWithEnvFile("AUTH_MODE=single-user");
     const mod = await reimportEnvIn(dir, { AUTH_FALLBACK: "owner", AUTH_FALLBACK_TRUSTED_PEERS: "172.17.0.0/16" }, { vitest: false });

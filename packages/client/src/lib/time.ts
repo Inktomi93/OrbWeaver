@@ -16,7 +16,11 @@ const PROBE_RELATIVE_COMPACT_PLACEHOLDER = "9d";
  *  sees the sentence's real geometry without the ago phrase churning every minute. */
 const PROBE_RELATIVE_AGO_PLACEHOLDER = "a while ago";
 
-const baseTimeLib = createTimeLib();
+// ONE read of the host zone, at module load: the display factory renders in it and `viewerTimeZone` reports it, so a
+// zone the server evaluates for this viewer is the zone their screen shows.
+const VIEWER_TIME_ZONE = hostTimeZone();
+
+const baseTimeLib = createTimeLib({ timeZone: VIEWER_TIME_ZONE });
 
 /** The production instance — browser locale + timezone, real clock (defaulted inside the kit seam);
  *  ALL THREE relative forms freeze to a fixed placeholder under `pnpm snap --probe` (see header). */
@@ -31,5 +35,5 @@ export const timeLib: TimeLib = {
  *  evaluation must run on the viewer's wall clock (an automation rule's `now.hour`, a chat turn's `{{time}}`),
  *  never with a timestamp. */
 export function viewerTimeZone(): string {
-  return hostTimeZone();
+  return VIEWER_TIME_ZONE;
 }
