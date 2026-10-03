@@ -19,6 +19,7 @@ const DATA_URL_RE = /^data:[^;,]+;base64,(?<data>.*)$/su;
 const PART_SEPARATOR = "\n\n";
 const ERROR_BODY_LIMIT = 65_536;
 const REASONING_OFF = "none";
+const THINK_KEY = "think";
 
 /** The output cap's OpenAI spellings, which `/api/chat` reads as `options.num_predict`. The samplers move into
  *  `options` under the keys the sampler seam already spelled for this row (`samplerBodyKeys`). */
@@ -156,7 +157,8 @@ function thinkOf(effort: unknown, namedLevels: boolean): boolean | string | unde
  * `samplerKeys` are the body keys the sampler seam spells for this row; each moves into `options` as is.
  * `keepAlive` and `numBatch` are the connection's own (`features.keepAlive`, `features.numBatch`). Keys
  * this file does not know pass through unchanged, so a native field set in `includeBody` reaches the server,
- * and an `options` object set there wins over the translated one key by key.
+ * and an `options` object set there wins over the translated one key by key. A `think` already in the body is
+ * the user's own (extras or `includeBody`) and stands over the one translated from `reasoning_effort`.
  */
 export function toOllamaChat(
   body: Json,
@@ -181,14 +183,14 @@ export function toOllamaChat(
     }
   }
   const format = formatOf(body["response_format"]);
-  const think = thinkOf(body["reasoning_effort"], args.namedThinkLevels === true);
+  const think = THINK_KEY in body ? undefined : thinkOf(body["reasoning_effort"], args.namedThinkLevels === true);
   return {
     ...rest,
     // `/api/chat` streams unless told otherwise, and the SDK's non-streaming generate sends no `stream` key.
     stream: body["stream"] === true,
     messages: nativeMessages(body["messages"], args.label),
     ...(format !== undefined ? { format } : {}),
-    ...(think !== undefined ? { think } : {}),
+    ...(think !== undefined ? { [THINK_KEY]: think } : {}),
     ...(args.keepAlive !== undefined ? { ["keep_alive"]: args.keepAlive } : {}),
     options: {
       ...options,

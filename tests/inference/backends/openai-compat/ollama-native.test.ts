@@ -177,6 +177,40 @@ test("a folded turn with reasoning unset sends think false; unfolded, the server
   expect(await thinkSent({ effort: "high" }, true)).toBe(true);
 });
 
+test("a think the user's own body sets stands over the computed one, on the Ollama row and on a Custom row detected as Ollama", async () => {
+  const thinking = capability({ reasoning: { mode: "effort", enabled: true } });
+  const ollama = fakeResolved({ task: "chat", providerId: "ollama", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL });
+  const custom = fakeResolved({ task: "chat", providerId: "custom-openai", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL });
+  // Detection folds the registered row, then the detected one (`behavedFeatures`).
+  const detected = { ...custom, features: foldFeatures(builtinProvider("custom-openai")?.features, builtinProvider("ollama")?.features) };
+  const cases = [
+    { name: "folded, unset, includeBody", connection: { ...ollama, transport: { includeBody: { think: true } } }, params: {}, folded: true },
+    { name: "folded, unset, extras", connection: { ...ollama, extras: { think: true } }, params: {}, folded: true },
+    {
+      name: "unfolded, chosen off, includeBody",
+      connection: { ...ollama, transport: { includeBody: { think: true } } },
+      params: { effort: "none" },
+      folded: false,
+    },
+    { name: "detected, folded, unset, includeBody", connection: { ...detected, transport: { includeBody: { think: true } } }, params: {}, folded: true },
+  ] satisfies { name: string; connection: OpenAiCompatChatRequest["connection"]; params: UserIntent; folded: boolean }[];
+  for (const { name, connection, params, folded } of cases) {
+    const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], { connection, params, ...(folded ? { terminalToolsAttached: true } : {}) });
+    expect(recorded[0]?.url, name).toBe("http://127.0.0.1:11434/api/chat");
+    expect(recorded[0]?.body["think"], name).toBe(true);
+  }
+});
+
+test("a model whose reasoning is mandatory (gpt-oss) is never told off on a folded turn with reasoning unset", async () => {
+  const mandatory = capability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], mandatory: true } });
+  const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+    connection: fakeResolved({ task: "chat", providerId: "ollama", model: "gpt-oss:20b", capability: mandatory, baseUrl: BASE_URL }),
+    params: {},
+    terminalToolsAttached: true,
+  });
+  expect(recorded[0]?.body["think"]).not.toBe(false);
+});
+
 test("think: a model with named effort levels (gpt-oss) gets the level, any other model on/off, and none turns it off", () => {
   const body = (effort: string): Record<string, unknown> => ({ messages: [{ role: "user", content: "hi" }], ["reasoning_effort"]: effort });
   const args = { numCtx: undefined, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" };

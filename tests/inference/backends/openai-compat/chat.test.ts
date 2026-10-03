@@ -329,6 +329,13 @@ test("a folded turn on a row with a thinking switch sends thinking off when the 
   expect(kwargsOf(await sentBody(rowRequest("vllm", {}, false)))).toBeUndefined();
 });
 
+test("a folded turn with reasoning unset never tells a mandatory-reasoning model's template off", async () => {
+  const mandatory = generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], mandatory: true } });
+  const req = rowRequest("vllm", {}, true);
+  const body = await sentBody({ ...req, connection: { ...req.connection, capability: mandatory } });
+  expect(kwargsOf(body)).toBeUndefined();
+});
+
 test("the preset's own reasoning choice rides on a row with a thinking switch, folded or not", async () => {
   for (const terminal of [true, false]) {
     expect(kwargsOf(await sentBody(rowRequest("llama-cpp", { effort: "high" }, terminal))), `terminal ${String(terminal)}`).toEqual({ enable_thinking: true });

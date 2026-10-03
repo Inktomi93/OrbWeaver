@@ -212,10 +212,11 @@ function reasoningEnabledFor(
 }
 
 /** THE TEMPLATE THINKING STATE — what a chat template's own thinking switch is told this turn, on a row that
- *  has one (`features.thinkingOff`: the template kwargs, or the effort field's off word). `true`/`false` when the preset chose (after the mandatory clamp); with the
- *  preset unset, `false` on a turn that attaches terminal tools, because a folded turn needs prose and state in
- *  one completion and a template that thinks answers with the calls alone; otherwise `undefined`, and the
- *  server's own default stands as it always has. */
+ *  has one (`features.thinkingOff`: the template kwargs, or the effort field's off word). `true`/`false` when the
+ *  preset chose (after the mandatory clamp); with the preset unset, `false` on a turn that attaches terminal
+ *  tools, because a folded turn needs prose and state in one completion and a template that thinks answers with
+ *  the calls alone, unless the model's reasoning is mandatory, which is never told off; otherwise `undefined`,
+ *  and the server's own default stands as it always has. */
 export function templateThinkingFor(params: UserIntent, capability: GenerationCapability, terminalToolsAttached: boolean): boolean | undefined {
   const presetChose = params.effort !== undefined || params.quality !== undefined || params.thinkingBudgetTokens !== undefined;
   if (presetChose) {
@@ -227,7 +228,7 @@ export function templateThinkingFor(params: UserIntent, capability: GenerationCa
       return false;
     }
   }
-  return terminalToolsAttached ? false : undefined;
+  return terminalToolsAttached && capability.reasoning.mandatory !== true ? false : undefined;
 }
 
 /** THE CARRY RESOLUTION (§8.8) — the ONE home for "how much of the model's own prior thinking rides back".
