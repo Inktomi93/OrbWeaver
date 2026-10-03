@@ -5,13 +5,14 @@
 // (so emoji and CJK cost what a byte-level vocabulary charges), maps "§" to an unknown token the way WordPiece does an
 // out-of-vocabulary character, and throws on an empty decode as the lib does.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import type * as FsPromises from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import type { RerankOnnx } from "@orb/contracts/inference";
 import { modelIdSchema } from "@orb/contracts/inference";
-import { afterAll } from "vitest";
+import { afterAll, vi } from "vitest";
 import type { ModelCacheConfig } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
 import { createModelCache, rerankBatches } from "../../../../packages/inference/src/backends/local-light/model-cache.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -32,6 +33,24 @@ const CACHE_ROOT = mkdtempSync(join(tmpdir(), "orb-rerank-serving-"));
 afterAll(() => {
   rmSync(CACHE_ROOT, { force: true, recursive: true });
 });
+
+/** While set, a write of a head file's temp copy lands half its bytes and then fails, as a full disk does. */
+const faults = vi.hoisted(() => ({ partialWrite: false }));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const real = await importOriginal<typeof FsPromises>();
+  return {
+    ...real,
+    writeFile: async (path: string, data: Uint8Array): Promise<void> => {
+      if (faults.partialWrite && path.endsWith(".part")) {
+        await real.writeFile(path, data.subarray(0, Math.floor(data.length / 2)));
+        throw Object.assign(new Error("planted partial write"), { code: "ENOSPC" });
+      }
+      await real.writeFile(path, data);
+    },
+  };
+});
+
 const noop = (): void => undefined;
 const silentLog = { debug: noop, info: noop, warn: noop, error: noop };
 
@@ -309,6 +328,21 @@ test("a cached head file that no longer parses is fetched again once, and the re
   expect(hub.fetched).toContain("2_Dense/model.safetensors");
   expect(repaired.loadFailed(MODEL)).toBe(false);
   expect(readFileSync(cachedDense)).toEqual(Buffer.from(HEAD_FILES["2_Dense/model.safetensors"] ?? new Uint8Array()));
+});
+
+// A head file is written beside its cache path and renamed over it. A write that fails partway must not leave the
+// temp copy behind: nothing reads it again, so each failed download would leak one.
+test("a head file whose download fails mid-write leaves no temp copy in the cache", async () => {
+  const hub: Hub = { online: true, cacheDir: join(CACHE_ROOT, "partial"), files: HEAD_FILES, fetched: [] };
+  faults.partialWrite = true;
+  try {
+    await expect(cacheOver(stubLib({ hub })).scorePairs(MODEL, "q", ["d"], { maxInputTokens: 64, onnx: ST_HEAD })).rejects.toThrow();
+  } finally {
+    faults.partialWrite = false;
+  }
+  const left = readdirSync(hub.cacheDir ?? "", { recursive: true, encoding: "utf8" });
+  expect(hub.fetched.length, "the download reached the write").toBeGreaterThan(0);
+  expect(left.filter((path) => path.endsWith(".part"))).toEqual([]);
 });
 
 test("offline, a damaged cached head fails the load by name instead of serving it", async () => {
