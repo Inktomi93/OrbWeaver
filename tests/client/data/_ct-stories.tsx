@@ -590,6 +590,47 @@ export function TagCreateColdCacheStory(): ReactElement {
   );
 }
 
+// `failureShownInline`: a caller whose own open surface states the failure opts out of the global toast, while the
+// same factory still toasts for every other caller. The app QueryClient carries the real `errorToast` channel.
+const useCreateTagToasted = createEntityMutation<CreateTagVars, TagView>({
+  options: (trpc) => trpc.tag.createTag.mutationOptions(),
+  invalidates: (trpc) => [trpc.tag.listTags.queryFilter()],
+  errorToast: "Couldn't create that tag.",
+});
+
+function InlineFailureInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const toasted = useCreateTagToasted({ trpc, invalidation });
+  const inline = useCreateTagToasted({ trpc, invalidation, failureShownInline: true });
+  const [notified, setNotified] = useState<readonly string[]>([]);
+  useState(() => {
+    const sink = (notice: NotifyInput): void => setNotified((prior) => [...prior, toNotice(notice).title]);
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
+    return null;
+  });
+  return (
+    <div>
+      <p data-testid="notified">{notified.join(" | ")}</p>
+      <p data-testid="inline-error">{inline.error === null ? "" : "inline failure"}</p>
+      <button type="button" onClick={(): void => inline.mutate({ input: { name: "inline" } })}>
+        save inline
+      </button>
+      <button type="button" onClick={(): void => toasted.mutate({ input: { name: "toasted" } })}>
+        save toasted
+      </button>
+    </div>
+  );
+}
+
+export function InlineFailureStory(): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <InlineFailureInner />
+    </CtAppDataProviders>
+  );
+}
+
 const useCreateTagVariables = createEntityMutation<CreateTagVars, TagView>({
   options: (trpc) => trpc.tag.createTag.mutationOptions(),
   invalidates: (trpc) => [trpc.tag.listTags.queryFilter()],

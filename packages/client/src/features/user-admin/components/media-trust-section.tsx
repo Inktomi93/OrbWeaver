@@ -126,7 +126,7 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
             also turn card scripts off for themselves (`UserSettings.chat.runCardScripts`). */}
         <AdminOverrideSwitch
           label="Let interactive cards run their own scripts"
-          hint="On by default. While on, cards from every character on “Interactive” or “Inherit default” run their own JavaScript inside a locked-down frame — no cookies, no storage, no access to the app or to other cards, and no way to fetch anything. They CAN still beacon out over WebRTC, which no browser policy can block, so an interactive card can tell its author you looked at it, reveal your IP address, and capture anything you type inside the card itself. Turn this off to stop every card from running scripts; a card already on screen stops the next time it loads. One character's cards can be switched down to Render HTML on its Trust tab."
+          hint="On by default. While on, cards from every character on “Interactive” or “Inherit default” run their own JavaScript inside a locked-down frame: no cookies, no storage, no access to the app or to other cards, and no way to fetch anything. They CAN still beacon out over WebRTC, which no browser policy can block, so an interactive card can tell its author you looked at it, reveal your IP address, and capture anything you type inside the card itself. Turn this off to stop every card from running scripts; a card already on screen stops the next time it loads. One character's cards can be switched down to Render HTML on its Trust tab."
           value={resolved.allowInteractiveCards}
           overridden={interactiveOverridden}
           floorLabel={envFloor(interactiveOverridden, resolved.allowInteractiveCards ? "on" : "off")}

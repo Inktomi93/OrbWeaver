@@ -44,7 +44,7 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
       kind: "memory-backfill",
       params: memoryBackfillWorkloadParams,
       // ADMISSION, not execution (#156): with memory disabled the sweep skips this host's chats entirely
-      // (the D36 opt-out, honored on the corpus sweep since #54), so the run can only ever land
+      // (the D293 opt-out, honored on the corpus sweep since #54), so the run can only ever land
       // "0 segments · 0 digests" as a SUCCESS — owner-observed after an ST import auto-enqueued one. A job
       // that structurally cannot produce anything is refused at the enqueue door instead.
       // A BULK pass sweeps EVERY host, so it is admitted regardless: one host's opt-out says nothing about

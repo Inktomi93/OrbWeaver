@@ -48,12 +48,12 @@ test("a draft's typed-model reason names the list it can read in the dialog, and
 
 test("a failed submit is one sentence: with a saved key it names the row (or says it is unnamed); without one, nothing was saved", () => {
   expect(submitFailureSentence({ heldKeyLabel: "work", reason: "the provider refused the model id." })).toBe(
-    "Your key was saved as “work” in Saved keys, but the connection wasn't created — the provider refused the model id. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.",
+    "Your key was saved as “work” in Saved keys, but the connection wasn't created: the provider refused the model id. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.",
   );
   expect(submitFailureSentence({ heldKeyLabel: null, reason: "boom" })).toBe(
-    "Your key (unnamed) was saved in Saved keys, but the connection wasn't created — boom. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.",
+    "Your key (unnamed) was saved in Saved keys, but the connection wasn't created: boom. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.",
   );
-  expect(submitFailureSentence({ heldKeyLabel: undefined, reason: "boom." })).toBe("Nothing was saved — boom.");
+  expect(submitFailureSentence({ heldKeyLabel: undefined, reason: "boom." })).toBe("Nothing was saved: boom.");
 });
 
 test("the typed-id example is in each provider's own spelling", () => {

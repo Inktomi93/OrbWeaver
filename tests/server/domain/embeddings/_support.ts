@@ -38,6 +38,7 @@ import type { EmbeddingsContext } from "../../../../packages/server/src/domain/e
 import type { EmbeddingsIndexerContext, EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { analyzeAvatarImage } from "../../../../packages/server/src/domain/embeddings/indexer/caption.ts";
 import { createImageIndexer } from "../../../../packages/server/src/domain/embeddings/indexer/image.ts";
+import { contentHash } from "../../../../packages/server/src/domain/embeddings/substrate/hash.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "../../../support/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "../../../support/factories/role-clients.ts";
@@ -255,6 +256,12 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
   const ctx: EmbeddingsContext = {
     loadAssetKind: async (assetId) => (await db.select({ kind: assets.kind }).from(assets).where(eq(assets.id, assetId)))[0]?.kind ?? null,
     loadAssetMime: async (assetId) => (await db.select({ mime: assets.mime }).from(assets).where(eq(assets.id, assetId)))[0]?.mime ?? null,
+    // The real CAS hash is the sha-256 of the bytes, so the fake hashes the bytes it serves rather than reading the
+    // seeded row's placeholder hash.
+    loadAssetHash: (assetId) => {
+      const bytes = sources.assetBytes?.get(assetId);
+      return Promise.resolve(bytes === undefined ? null : contentHash(bytes));
+    },
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
     resolveEmbeddingConnection: async (_ownerId, task) => {

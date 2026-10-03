@@ -10,6 +10,7 @@ import {
   AUTOMATION_FIRE_OUTCOMES,
   AUTOMATION_OWNER_BUDGET_DEFAULTS,
   AUTOMATION_RULE_NAME_MAX_CHARS,
+  AUTOMATION_RULE_REFUSAL_CODES,
   AUTOMATION_TRIGGER_BUSES,
   automationActionSchema,
   automationActionsSchema,
@@ -27,7 +28,10 @@ import {
   globalVariableKeySchema,
   isConfirmFirstArm,
   LIVE_TRIGGERS,
+  noticeCooldownTooShort,
   QUICK_REPLY_MODES,
+  ruleRefusalCodeOf,
+  ruleRefusalReason,
   SPEND_ARM_TYPES,
   triggerBusOf,
   triggerFactSchema,
@@ -558,4 +562,22 @@ describe("custom rule authored wire boundary", () => {
     expect(automationRuleToolViewSchema.safeParse({ ...tool, ownerId: "foreign" }).success).toBe(false);
     expect(automationRuleToolViewSchema.safeParse({ ...tool, parameters: { execute: (): string => "not JSON" } }).success).toBe(false);
   });
+});
+
+// The editor reads a refusal's field from its wire reason; another error sharing the `automation_rule_` prefix (the
+// creation scope conflict) must not be mistaken for a code, and every code must survive the round trip.
+test("a rule refusal reason round-trips to its code, and a look-alike reason is not a code", () => {
+  for (const code of AUTOMATION_RULE_REFUSAL_CODES) {
+    expect(ruleRefusalCodeOf(ruleRefusalReason(code))).toBe(code);
+  }
+  expect(ruleRefusalCodeOf("automation_rule_creation_scope_conflict")).toBeNull();
+  expect(ruleRefusalCodeOf("automation_reorder_cooldown_floor")).toBeNull();
+  expect(ruleRefusalCodeOf("")).toBeNull();
+});
+
+test("the notice floor applies only to a rule that posts a notice, and 60 seconds meets it", () => {
+  const notice = [{ type: "post_notification" }] as const;
+  expect(noticeCooldownTooShort({ actions: notice, cooldownSeconds: 59 })).toBe(true);
+  expect(noticeCooldownTooShort({ actions: notice, cooldownSeconds: 60 })).toBe(false);
+  expect(noticeCooldownTooShort({ actions: [{ type: "set_variable" }], cooldownSeconds: 0 })).toBe(false);
 });

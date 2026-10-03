@@ -157,12 +157,14 @@ function releaseOptimisticOwner(queryClient: QueryClient, owner: OptimisticOwner
 }
 
 /** Build the mutation hook once at module scope; features call the returned hook. Deps (trpc +
- *  invalidation) arrive per-call so the factory itself stays import-pure. */
+ *  invalidation) arrive per-call so the factory itself stays import-pure. A caller that renders the failure in
+ *  its own open surface (the surface stays as the retry) passes `failureShownInline`, so the global
+ *  `errorToast` does not say it a second time. */
 export function createEntityMutation<TVars, TData, TRead = unknown>(
   config: EntityMutationConfig<TVars, TData, TRead>,
-): (deps: { trpc: Trpc; invalidation: Invalidation }) => EntityMutationResult<TVars, TData> {
+): (deps: { trpc: Trpc; invalidation: Invalidation; failureShownInline?: boolean }) => EntityMutationResult<TVars, TData> {
   // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useDeleteCharacter = createEntityMutation(...)), so the returned hook has a stable identity (see forms/editor/create-saved-entity-form.ts).
-  return function useEntityMutation({ trpc, invalidation }): EntityMutationResult<TVars, TData> {
+  return function useEntityMutation({ trpc, invalidation, failureShownInline = false }): EntityMutationResult<TVars, TData> {
     async function echoResponse(data: TData, vars: TVars, client: QueryClient): Promise<void> {
       const echo = config.echo;
       if (echo === undefined) {
@@ -186,7 +188,7 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
 
     const mutation = useMutation<TData, DefaultError, TVars, OptimisticContext<TRead>>({
       ...config.options(trpc),
-      ...(config.errorToast === undefined ? {} : { meta: { errorToast: config.errorToast } }),
+      ...(config.errorToast === undefined || failureShownInline ? {} : { meta: { errorToast: config.errorToast } }),
       onMutate: async (vars, context): Promise<OptimisticContext<TRead>> => {
         if (config.optimistic === undefined) {
           return { snapshot: undefined, readKey: null, owner: null };

@@ -88,6 +88,31 @@ describe("rule-creation store", () => {
     expect(persistedSessions(map, aliceKey())).toEqual([second]);
   });
 
+  test("pruning forgets only this scope's acknowledged sessions with no draft", async () => {
+    const { state } = await freshState();
+    await state.bindDurableLocalToUser(ALICE);
+    const otherChat: ChatId = typeIdSchema(ID_PREFIX.chat).parse(ids.next(ID_PREFIX.chat));
+    const otherRule = typeIdSchema(ID_PREFIX.automationRule).parse(ids.next(ID_PREFIX.automationRule));
+    const completed = state.beginRuleCreation(chatId, ALICE);
+    const drafted = state.beginRuleCreation(chatId, ALICE);
+    const unacknowledged = state.beginRuleCreation(chatId, ALICE);
+    const elsewhere = state.beginRuleCreation(otherChat, ALICE);
+    state.acknowledgeRuleCreation(completed.requestId, ruleId, ALICE, null);
+    state.acknowledgeRuleCreation(drafted.requestId, otherRule, ALICE, null);
+    state.acknowledgeRuleCreation(elsewhere.requestId, ruleId, ALICE, null);
+
+    state.pruneCompletedRuleCreations(chatId, ALICE, (requestId) => requestId === drafted.requestId);
+
+    expect(state.readRuleCreation(completed.requestId)).toBeUndefined();
+    expect(state.readRuleCreation(drafted.requestId)?.ruleId).toBe(otherRule);
+    // A create that may have landed keeps its request identity whatever its draft says.
+    expect(state.readRuleCreation(unacknowledged.requestId)).toEqual(unacknowledged);
+    expect(state.readRuleCreation(elsewhere.requestId)?.ruleId).toBe(ruleId);
+
+    await state.bindDurableLocalToUser(BOB);
+    expect(() => state.pruneCompletedRuleCreations(chatId, ALICE, () => false)).toThrow(ENDED);
+  });
+
   test("another signed-in user can neither read nor write the first user's session, which survives a switch back", async () => {
     const { state } = await freshState();
     await state.bindDurableLocalToUser(ALICE);

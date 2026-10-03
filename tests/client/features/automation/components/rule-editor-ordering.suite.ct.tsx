@@ -75,7 +75,7 @@ test("action and quick-reply ordering preserve parallel identities with keyboard
   await page.locator('[data-slot="collapsible-trigger"]').filter({ hasText: "Ordered rule" }).first().click();
   await page.getByRole("button", { name: "Edit Ordered rule", exact: true }).click();
   const actions = page.getByRole("list", { name: "Rule actions", exact: true });
-  await page.getByRole("button", { name: "Reorder 1. offer quick replies", exact: true }).focus();
+  await page.getByRole("button", { name: "Reorder Offer quick replies", exact: true }).focus();
   await page.keyboard.press("Space");
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Space");

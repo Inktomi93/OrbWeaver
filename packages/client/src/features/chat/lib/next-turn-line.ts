@@ -6,7 +6,7 @@ import type { ResolvedConnectionView, UnavailableCause } from "@orb/contracts/in
 import { CONNECTION_LABEL_SEPARATOR } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
 import type { SendRefusalKey } from "#lib";
-import { ADD_CONNECTION_PATH, labelNamesModel, MODEL_ROLES_PATH } from "#lib";
+import { ADD_CONNECTION_DOOR, ADD_CONNECTION_PATH, CHAT_ROLE_DOOR, labelNamesModel, MODEL_ROLES_PATH } from "#lib";
 import type { CreditConnections } from "./swipe-attribution.ts";
 import { providerName } from "./swipe-attribution.ts";
 
@@ -47,19 +47,18 @@ export interface NextTurnLine {
 
 const CHECKING: NextTurnLine = { state: "checking", text: "Next reply: checking the connection…", door: undefined };
 const FAILED: NextTurnLine = { state: "failed", text: "Next reply: the connection couldn't be checked.", door: undefined };
-// The sub and setting literals are the house spelling of a settings deep link: a feature never imports
-// another's nav.
+// The addresses come from `#lib`, which the Connections nav reads too: a feature never imports another's nav.
 const MODEL_ROLES_DOOR: NextTurnDoor = {
   lead: `Choose one under ${MODEL_ROLES_PATH.trail} →`,
   label: MODEL_ROLES_PATH.leaf,
-  sub: "model-roles",
-  setting: "chat-model",
+  sub: CHAT_ROLE_DOOR.sub,
+  setting: CHAT_ROLE_DOOR.setting,
 };
-const ADD_CONNECTION_DOOR: NextTurnDoor = {
+const ADD_CONNECTION_LINE_DOOR: NextTurnDoor = {
   lead: `${ADD_CONNECTION_PATH.trail} →`,
   label: ADD_CONNECTION_PATH.leaf,
-  sub: "connections",
-  setting: "add-connection",
+  sub: ADD_CONNECTION_DOOR.sub,
+  setting: ADD_CONNECTION_DOOR.setting,
 };
 
 /** Whether the viewer's loaded list holds no connection that can serve chat. The Chat picker in Model roles
@@ -83,7 +82,7 @@ export function sendRefusalKey(cause: UnavailableCause, viewerIsHost: boolean | 
 // While the list loads there is no door: a door that swaps under the pointer is worse than a late one.
 function hostUnsetLine(connections: CreditConnections): NextTurnLine {
   if (lacksChatConnection(connections)) {
-    return { state: "unset", text: "Next reply: none of your connections can chat yet.", door: ADD_CONNECTION_DOOR };
+    return { state: "unset", text: "Next reply: none of your connections can chat yet.", door: ADD_CONNECTION_LINE_DOOR };
   }
   const door = connections.rows === undefined && !connections.failed ? undefined : MODEL_ROLES_DOOR;
   return { state: "unset", text: "Next reply: no chat connection is set.", door };

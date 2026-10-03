@@ -3,7 +3,8 @@
 // world_books + world_entries + the primary character_books attach.
 //
 // AN EXISTING PRIMARY IS REPLACED IN PLACE (header update + full entry delete+reinsert), keeping the same
-// worldBookId + attach. THAT IS THE RESTORE DOOR'S SEMANTIC, NOT THE RE-UPLOAD'S (owner ruling 2026-09-05,
+// worldBookId + attach. The header takes the card's book name under the D290 free-name rule: another owned
+// book holding that name numbers it, and the replaced row's own name never counts as taken. THAT IS THE RESTORE DOOR'S SEMANTIC, NOT THE RE-UPLOAD'S (owner ruling 2026-09-05,
 // #1598): re-uploading a card file the owner already imported must NOT revert their edits to the book it
 // carried, so the card-import verb asks `createHasPrimaryBook` first and skips this op when the seat is
 // taken. The one caller that WANTS the replace is the explicit restore verb
@@ -37,7 +38,7 @@ import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { nextFreeLabel } from "@orb/kit/strings";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import type { DedupBook, DedupCandidateBook, DedupLoreEntry } from "#kit/serde/world-info";
 import { findDuplicateBook } from "#kit/serde/world-info";
 import type { AttachOwnedBooksByName, BulkImportLorebook, HasPrimaryBook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import.ts";
@@ -168,9 +169,14 @@ async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<DedupCan
   return books.map((b) => ({ id: b.id, name: b.name, entries: byBook.get(b.id) ?? [] }));
 }
 
-/** Every name the caller's own books carry — the collision scan for the free-name mint. */
-async function listOwnedBookNames(db: Db, ownerId: UserId): Promise<string[]> {
-  const rows = await db.select({ name: worldBooks.name }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
+/** Every name the caller's own books carry — the collision scan for the free-name mint. `except` leaves out
+ *  the row a restore renames, so its own name is free to keep. */
+async function listOwnedBookNames(db: Db, ownerId: UserId, except?: WorldBookId): Promise<string[]> {
+  const owned = eq(worldBooks.ownerId, ownerId);
+  const rows = await db
+    .select({ name: worldBooks.name })
+    .from(worldBooks)
+    .where(except === undefined ? owned : and(owned, ne(worldBooks.id, except)));
   return rows.map((row) => row.name);
 }
 
@@ -184,13 +190,21 @@ export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImpor
     const existingBookId = await findPrimaryBookId(db, characterId);
 
     if (existingBookId !== null) {
+      const name = nextFreeLabel(book.name, await listOwnedBookNames(db, ownerId, existingBookId));
       const stmts: BatchStmt[] = [
-        batchStmt(db.update(worldBooks).set({ name: book.name, description: book.description, updatedAt: at }).where(eq(worldBooks.id, existingBookId))),
+        batchStmt(db.update(worldBooks).set({ name, description: book.description, updatedAt: at }).where(eq(worldBooks.id, existingBookId))),
         batchStmt(db.delete(worldEntries).where(eq(worldEntries.worldBookId, existingBookId))),
         ...entryStmts(ctx, existingBookId, book, at),
       ];
       await db.batch(batchMany(stmts));
-      return { worldBookId: existingBookId, entryCount: book.entries.length, replaced: true, created: false, name: book.name, renamedFrom: null };
+      return {
+        worldBookId: existingBookId,
+        entryCount: book.entries.length,
+        replaced: true,
+        created: false,
+        name,
+        renamedFrom: name === book.name ? null : book.name,
+      };
     }
 
     // CENTRAL DEDUP: before minting, link to an existing content-equivalent book the owner already holds

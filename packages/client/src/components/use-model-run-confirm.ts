@@ -12,7 +12,11 @@ import { useTRPC } from "#data";
 import { notify } from "#lib";
 import type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 
-type EstimateRequest = inferInput<Trpc["workloads"]["estimateModelCalls"]>;
+// A run is counted by the scope it would start under, or, for a retry, by the row it would clone: a retry re-runs
+// that row's owner and params, which the caller's own start scope does not describe.
+type EstimateRequest =
+  | inferInput<Trpc["workloads"]["estimateModelCalls"]>
+  | { readonly retryOf: inferInput<Trpc["workloads"]["estimateRetryModelCalls"]>["id"] };
 
 const ESTIMATE_FAILED = "Couldn't count this run's model calls, so it didn't start.";
 type PendingRun = NonNullable<ModelRunConfirmDialogProps["pending"]>;
@@ -29,7 +33,11 @@ export function useModelRunConfirm(): {
     // Fresh every time: the count is read the moment a person decides, never from an earlier visit's cache. With no
     // count there is no informed yes, so a failed estimate starts nothing and says why.
     const answers = await Promise.all(
-      estimates.map((input) => queryClient.fetchQuery({ ...trpc.workloads.estimateModelCalls.queryOptions(input), staleTime: 0 })),
+      estimates.map((request) =>
+        "retryOf" in request
+          ? queryClient.fetchQuery({ ...trpc.workloads.estimateRetryModelCalls.queryOptions({ id: request.retryOf }), staleTime: 0 })
+          : queryClient.fetchQuery({ ...trpc.workloads.estimateModelCalls.queryOptions(request), staleTime: 0 }),
+      ),
     ).catch((err: unknown) => {
       notify.error({ title: ESTIMATE_FAILED, description: errorMessage(err) });
       return null;

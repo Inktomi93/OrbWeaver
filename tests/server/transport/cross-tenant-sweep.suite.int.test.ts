@@ -856,6 +856,7 @@ const PROBES: readonly Probe[] = [
   // row a landed cancel moves `status` to `cancelled`, which the post-sweep pin reads.
   { path: "workloads.cancel", call: (c, i) => c.workloads.cancel({ id: i.queuedWorkloadId }) },
   { path: "workloads.retry", call: (c, i) => c.workloads.retry({ id: i.workloadId }) },
+  { path: "workloads.estimateRetryModelCalls", call: (c, i) => c.workloads.estimateRetryModelCalls({ id: i.workloadId }) },
   // ── workload SCHEDULES (F3 per-user owner-scoped; update/delete/setEnabled take a scheduleId) — a stranger
   //    must see leak-free NOT_FOUND on a foreign schedule (its `params` carries A's marker, so a broken gate
   //    that resolved A's row would leak it via the returned row). `create`/`list` are EXEMPT (self-scoped). ──

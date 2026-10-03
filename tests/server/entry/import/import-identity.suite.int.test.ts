@@ -236,4 +236,29 @@ describe("import identity across doors and split uploads", () => {
     expect((await ownerCaller.worldInfo.listBooks()).map((b) => b.name).toSorted()).toEqual(["Ashlands", "Eldoria"]);
     expect(await linksOf("Cato")).toEqual([{ id: renamed, role: "primary" }]);
   });
+
+  // One upload holding two SillyTavern profiles imports into one owner, so its name-links are merged: a name
+  // both profiles' worlds carry binds the book the first profile landed, the rule personas follow too.
+  test("a two-profile upload binds a repeated world name to the first profile's book", async ({ app, clock, ownerCaller, importStagingDir }) => {
+    const world = (profile: string, content: string): StagedFile => ({ path: `${profile}/worlds/Eldoria.json`, bytes: ENC.encode(stWorld(content)) });
+    const card = (profile: string, name: string): StagedFile => ({
+      path: `${profile}/characters/${name}.png`,
+      bytes: writeCardChunk(MINIMAL_PNG, v2Card(name, { world: "Eldoria" })),
+    });
+    await importStaged({ app, importStagingDir, now: () => clock.now() }, "profiles", [
+      { path: `alice/${ST_SETTINGS_FILE}`, bytes: ENC.encode("{}") },
+      { path: `bob/${ST_SETTINGS_FILE}`, bytes: ENC.encode("{}") },
+      world("alice", "A forest."),
+      world("bob", "A desert."),
+      card("alice", "Aria"),
+      card("bob", "Bram"),
+    ]);
+
+    const byName = new Map((await ownerCaller.worldInfo.listBooks()).map((b) => [b.name, b.id]));
+    expect([...byName.keys()].toSorted()).toEqual(["Eldoria", "Eldoria (2)"]);
+    for (const name of ["Aria", "Bram"]) {
+      const links = await ownerCaller.worldInfo.listForCharacter({ characterId: await characterNamed(app, name) });
+      expect(links.map((b) => b.id)).toEqual([byName.get("Eldoria")]);
+    }
+  });
 });

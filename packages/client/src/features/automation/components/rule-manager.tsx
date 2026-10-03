@@ -1,15 +1,16 @@
 import type { AutomationRuleCreationId, AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import type { RuleCreation } from "#state";
-import { activeDurableLocalUserId, beginRuleCreation, durableLocalReadyFor, forgetRuleCreation, useRuleCreations } from "#state";
+import { activeDurableLocalUserId, beginRuleCreation, forgetRuleCreation, pruneCompletedRuleCreations, ruleDraftOwnerCurrent, useRuleCreations } from "#state";
 import { ruleEditorDrafts } from "../lib/rule-editor-drafts.ts";
 import { useReorderRules } from "../lib/rule-mutations.ts";
 import { RuleDraftRow } from "./rule-draft-row.tsx";
@@ -34,9 +35,19 @@ export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null;
   const opener = useRef<HTMLButtonElement | null>(null);
   const customButton = useRef<HTMLButtonElement | null>(null);
   const owner = activeDurableLocalUserId();
-  const ready = owner !== null && durableLocalReadyFor(owner);
+  const ready = owner !== null && ruleDraftOwnerCurrent(owner);
   const reasonId = useId();
   const scoped = sessions.filter((session) => session.chatId === chatId);
+  // Only rows that render are numbered, so "Untitled rule 2" never appears beside a single row.
+  const resumable = scoped.filter((session) => session.requestId !== editing?.identity);
+  const drafted = ruleEditorDrafts.useDraftedIds(resumable.map((session) => session.requestId));
+  // A completion whose editor closed without `close` (a chat switch) leaves an acknowledged session with no draft.
+  // It is pruned when the scope's manager mounts, never while one is open, so a discard's Undo keeps its session.
+  useEffect(() => {
+    if (owner !== null && ready) {
+      pruneCompletedRuleCreations(chatId, owner, (requestId) => ruleEditorDrafts.hasDraft(requestId));
+    }
+  }, [chatId, owner, ready]);
   const activeCreation =
     editing?.creation === null ? null : (scoped.find((session) => session.requestId === editing?.creation?.requestId) ?? editing?.creation ?? null);
   const currentId = activeCreation?.ruleId ?? editing?.ruleId;
@@ -81,8 +92,8 @@ export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null;
           onClose={close}
         />
       )}
-      {scoped
-        .filter((session) => session.requestId !== editing?.identity)
+      {resumable
+        .filter((session) => drafted.includes(session.requestId))
         .map((session, index) =>
           owner === null ? null : (
             <RuleDraftRow
@@ -114,6 +125,7 @@ export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null;
               setEditing({ identity: creation.requestId, creation, ruleId: null });
             }}
           >
+            <Icon icon={Plus} size="sm" />
             Custom rule
           </Button>
           <RulePresetPicker chatId={chatId} />

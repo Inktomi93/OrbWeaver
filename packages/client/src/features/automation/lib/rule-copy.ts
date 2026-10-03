@@ -102,6 +102,38 @@ export function triggerLabel(type: string): string {
   return isDomainTriggerType(type) ? domainTriggerLabel(type) : type;
 }
 
+/** The action picker's groups, in display order; every arm belongs to exactly one (`ARM_GROUP_OF`). */
+const ARM_GROUPS = ["chat", "story", "media", "advanced"] as const;
+type ArmGroup = (typeof ARM_GROUPS)[number];
+
+const ARM_GROUP_LABELS: Record<ArmGroup, string> = { chat: "Chat", story: "Story", media: "Media", advanced: "Advanced" };
+
+const ARM_GROUP_OF: Record<AutomationActionType, ArmGroup> = {
+  ["post_notification"]: "chat",
+  ["surface_quick_reply"]: "chat",
+  ["trigger_turn"]: "chat",
+  ["set_chat_background"]: "chat",
+  ["set_variable"]: "story",
+  ["insert_world_info_entry"]: "story",
+  ["run_analysis"]: "story",
+  ["generate_image"]: "media",
+  ["transform_draft"]: "advanced",
+  ["run_tool"]: "advanced",
+};
+
+/** `types` sorted into the picker's labelled groups, in group order; a group with none of them is left out. */
+export function armGroups(types: readonly AutomationActionType[]): { readonly label: string; readonly types: readonly AutomationActionType[] }[] {
+  return ARM_GROUPS.map((group) => ({ label: ARM_GROUP_LABELS[group], types: types.filter((type) => ARM_GROUP_OF[type] === group) })).filter(
+    (group) => group.types.length > 0,
+  );
+}
+
+/** An arm as a title, in sentence case: an action card's heading and its reorder name. */
+export function armTitle(type: AutomationActionType): string {
+  const label = armLabel(type);
+  return `${label.charAt(0).toUpperCase()}${label.slice(1)}`;
+}
+
 /** One action arm as the THING IT DOES, not its wire discriminator. */
 export function armLabel(type: AutomationActionType): string {
   switch (type) {

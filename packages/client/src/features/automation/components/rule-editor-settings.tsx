@@ -69,7 +69,7 @@ export function RuleEditorSettings({
                       }
                     }}
                   />
-                  <Text voice="gloss">{transformOnly ? "Draft transformations apply when a reply starts." : "Only supported events are listed."}</Text>
+                  <Text voice="gloss">{transformOnly ? "Rewrites apply when a reply starts." : "Only supported events are listed."}</Text>
                   {unavailable ? <Text voice="gloss">The stored event is unavailable for this rule. Choose a supported event before saving.</Text> : null}
                 </Stack>
               );
@@ -91,7 +91,7 @@ export function RuleEditorSettings({
                 description={
                   chatId === null
                     ? "Library rules cannot read chat, vars or choice. Global variables belong to the rule author."
-                    : "A CEL expression filters matching events. Draft transformations do not expose event."
+                    : "A CEL expression filters matching events. A rewrite's condition cannot read the event."
                 }
               />
               <Button intent="ghost" className="justify-start" onClick={(): void => field.handleChange(null)}>

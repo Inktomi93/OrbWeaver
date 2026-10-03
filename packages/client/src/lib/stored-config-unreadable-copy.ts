@@ -74,6 +74,12 @@ export const PRESET_UNREADABLE_COPY: Record<UnreadableConfigCause, UnreadableCon
   },
 };
 
+/** The preset LIST row's marker: the same two causes, as a chip short enough for a 272px pane. */
+export const PRESET_UNREADABLE_ROW_MARKER: Record<UnreadableConfigCause, string> = {
+  "from-a-newer-version": "Newer version",
+  corrupt: "Unreadable",
+};
+
 /** The settings pane's words. Its ONE door is `settings.resetUserConfig` (#1771). */
 export const SETTINGS_UNREADABLE_COPY: Record<UnreadableConfigCause, UnreadableConfigCopy> = {
   "from-a-newer-version": {
@@ -84,7 +90,7 @@ export const SETTINGS_UNREADABLE_COPY: Record<UnreadableConfigCause, UnreadableC
   },
   corrupt: {
     headline: "Your settings couldn't be read, so this screen is showing defaults rather than what is stored.",
-    guidance: "Saving is off so your real settings aren't overwritten. Resetting them to the defaults is the way out — it discards what is stored.",
+    guidance: "Saving is off so your real settings aren't overwritten. Resetting them to the defaults is the way out, and it discards what is stored.",
     resetIsPrimary: true,
   },
 };

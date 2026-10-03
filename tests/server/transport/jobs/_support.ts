@@ -84,6 +84,7 @@ export function makeSchedulerDeps(overrides: Partial<CatalogRefreshSchedulerDeps
     list: vi.fn(() => Promise.resolve<readonly WorkloadRowAnyKind[]>([])),
     start: vi.fn(() => Promise.resolve({ id: castId<WorkloadId>("workload_started") })),
     estimateModelCalls: vi.fn(() => Promise.reject(new Error("unused"))),
+    estimateRetryModelCalls: vi.fn(() => Promise.reject(new Error("unused"))),
     cancel: vi.fn(() => Promise.resolve({ status: null })),
     retry: vi.fn(() => Promise.resolve({ id: castId<WorkloadId>("workload_retry") })),
     get: vi.fn(() => Promise.resolve(makeRow())),

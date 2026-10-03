@@ -18,7 +18,7 @@ const secondOwner = "fixture_editor_other";
 const ruleId = typeIdSchema(ID_PREFIX.automationRule).parse(ids.next(ID_PREFIX.automationRule));
 const CONTROL_LABELS = {
   ["set_variable"]: "Variable name",
-  ["transform_draft"]: "Draft transformation template",
+  ["transform_draft"]: "Rewrite template",
   ["insert_world_info_entry"]: "Entry key",
   ["surface_quick_reply"]: "Reply 1 label",
   ["post_notification"]: "Notification template",
@@ -136,7 +136,7 @@ test("custom draft-transform controls produce canonical actions and leave enabli
   await page.getByRole("combobox", { name: "Transform target", exact: true }).click();
   await page.getByRole("option", { name: "Assembled dynamic prompt", exact: true }).click();
   await page.getByRole("switch", { name: "Include events caused by automation", exact: true }).click();
-  await page.getByRole("textbox", { name: "Draft transformation template", exact: true }).fill("{{draft}}\nKeep the visible instruction.");
+  await page.getByRole("textbox", { name: "Rewrite template", exact: true }).fill("{{draft}}\nKeep the visible instruction.");
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await expect
     .poll(() => automationRuleCreateSchema.parse(recorder.lastInput("automation.createRule")))

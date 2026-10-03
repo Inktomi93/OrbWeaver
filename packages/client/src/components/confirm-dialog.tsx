@@ -170,7 +170,7 @@ export function ConfirmDialog({
               retry, which is why nothing here is a second control. */}
           {failure === null ? null : (
             <Text data-slot="confirm-dialog-failure" role="alert" tone="destructive">
-              {`That didn't go through — ${failure}`}
+              {`That didn't go through: ${failure}`}
             </Text>
           )}
           <AlertDialogActions>

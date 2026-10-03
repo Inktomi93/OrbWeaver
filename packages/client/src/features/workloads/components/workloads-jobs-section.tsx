@@ -93,7 +93,7 @@ function WorkloadsJobsBody(): ReactElement {
       .confirmThen({
         title: `Retry ${WORKLOAD_KIND_LABELS[workload.kind]}?`,
         confirmLabel: "Retry",
-        estimates: [{ input: { kind: workload.kind, params: workload.params }, mode: workload.mode }],
+        estimates: [{ retryOf: workload.id }],
         run,
       })
       .catch(() => undefined);

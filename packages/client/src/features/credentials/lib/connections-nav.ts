@@ -5,14 +5,14 @@
 // role references), Model roles, then the saved-key reuse view (inference program §5.3a).
 
 import type { RoutableTask } from "@orb/contracts/inference";
-import { MODEL_ROLES_SUBCATEGORY_ID, UTILITY_ROLE_DOOR } from "#lib";
+import { ADD_CONNECTION_DOOR, CHAT_ROLE_DOOR, MODEL_ROLES_SUBCATEGORY_ID, UTILITY_ROLE_DOOR } from "#lib";
 import type { ConfigSubcategory } from "#state";
 
-const CHAT_MODEL_SETTING = "chat-model";
+const CHAT_MODEL_SETTING = CHAT_ROLE_DOOR.setting;
 const UTILITY_MODEL_SETTING = UTILITY_ROLE_DOOR.setting;
 const EMBED_MODEL_SETTING = "embed-model";
 /** The Connections list's add-flow leaf; its section stamps the add verb with this leaf's control id. */
-export const ADD_CONNECTION_SETTING = "add-connection";
+export const ADD_CONNECTION_SETTING = ADD_CONNECTION_DOOR.setting;
 
 /** The Model roles leaves a deep link can name, by the role row that renders each one's picker. */
 export const ROLE_SETTING_IDS: Readonly<Partial<Record<RoutableTask, string>>> = {

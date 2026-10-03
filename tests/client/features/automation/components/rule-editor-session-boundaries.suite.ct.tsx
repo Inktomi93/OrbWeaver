@@ -103,6 +103,71 @@ test("a clean editor adopts an authoritative refetch after its own save instead 
   await expect.poll(() => automationRuleUpdateSchema.parse(recorder.lastInput("automation.updateRule")).actions).toEqual(row.actions);
 });
 
+// A deletion can also arrive as an authoritative refetch after a successful save: the editor must stop, and nothing
+// it does afterwards may recreate the row, whether the row was opened from the list or born in this editor.
+test("an opened rule deleted under a refetch after its save stops the editor and creates nothing", async ({ mount, page }) => {
+  let rows = [initial];
+  const recorder = await routeTrpc(page, {
+    "automation.listRules": () => rows,
+    "automation.listRulePresets": [],
+    "settings.getUserSettings": settings,
+    "automation.updateRule": (input) => {
+      const { ruleId: _id, ...body } = automationRuleUpdateSchema.parse(input);
+      rows = [{ ...initial, ...body, description: body.description ?? null, predicateCel: body.predicateCel ?? null }];
+      return rows[0];
+    },
+  });
+  await mount(<RuleEditorRulesStory chatId={firstChat} firstOwner={owner} secondOwner={other} />);
+  await page.locator('[data-slot="collapsible-trigger"]').filter({ hasText: "Existing rule" }).first().click();
+  await page.getByRole("button", { name: "Edit Existing rule", exact: true }).click();
+  await page.getByRole("textbox", { name: "Rule name", exact: true }).fill("Saved before deletion");
+  await expect.poll(() => recorder.count("automation.updateRule")).toBe(1);
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  rows = [];
+  await page.getByRole("button", { name: "Refresh rules", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "saving cannot recreate a deleted rule" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Rule name", exact: true })).toHaveCount(0);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the editor has settled into the missing-row alert and holds no form, so no write can start. Ends if this assertion moves before that barrier.
+  expect(recorder.count("automation.createRule")).toBe(0);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): same barrier as above; the one update is the save that preceded the deletion.
+  expect(recorder.count("automation.updateRule")).toBe(1);
+});
+
+test("a newborn rule deleted under a refetch after its acknowledgment is never created a second time", async ({ mount, page }) => {
+  let rows: TrpcWireOutput<"automation.listRules"> = [];
+  const recorder = await routeTrpc(page, {
+    "automation.listRules": () => rows,
+    "automation.listRulePresets": [],
+    "settings.getUserSettings": settings,
+    "automation.createRule": (input) => {
+      const { creationRequestId: _request, ...body } = automationRuleCreateSchema.parse(input);
+      const created: TrpcWireOutput<"automation.createRule"> = {
+        ...initial,
+        ...body,
+        description: body.description ?? null,
+        predicateCel: body.predicateCel ?? null,
+      };
+      rows = [created];
+      return created;
+    },
+  });
+  await mount(<RuleEditorRulesStory chatId={firstChat} firstOwner={owner} secondOwner={other} />);
+  await page.getByRole("button", { name: "Custom rule", exact: true }).click();
+  await page.getByRole("textbox", { name: "Rule name", exact: true }).fill("Newborn");
+  await page.getByRole("button", { name: "Add action", exact: true }).click();
+  await page.getByRole("textbox", { name: "Variable name", exact: true }).fill("newborn_var");
+  await expect.poll(() => recorder.count("automation.createRule")).toBe(1);
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  rows = [];
+  await page.getByRole("button", { name: "Refresh rules", exact: true }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "saving cannot recreate a deleted rule" })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Rule name", exact: true })).toHaveCount(0);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the editor has settled into the missing-row alert and holds no form, so no second create can start. Ends if this assertion moves before that barrier.
+  expect(recorder.count("automation.createRule")).toBe(1);
+});
+
 test("an acknowledged target returning not found retains its draft without creating a replacement", async ({ mount, page }) => {
   let deleted = false;
   const recorder = await routeTrpc(page, {

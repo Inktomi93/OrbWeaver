@@ -197,7 +197,7 @@ const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   "no-chat-connection": `None of your connections can chat yet — add one under ${ADD_CONNECTION_PATH.trail} to send.`,
   "host-no-chat-connection": "The host has no chat connection set — ask them to choose one before sending.",
   // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
-  "endpoint-unreachable": "Can't reach your model's server — it may be down.",
+  "endpoint-unreachable": "Can't reach your model's server. It may be down.",
   // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).
   "runtime-missing": "The Claude subscription runtime isn't installed on this server — pick another connection to send.",
   // The bound row has `allowBackground` off and the task runs unattended (§5.3a).
