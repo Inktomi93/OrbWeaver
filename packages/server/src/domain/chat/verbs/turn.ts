@@ -107,6 +107,7 @@ import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts"
 import {
   characterLineVia,
   driveRoundVia,
+  humanPlayerNamesVia,
   rerankPickVia,
   resolveMentionsVia,
   resolveNameMentionsVia,
@@ -999,10 +1000,12 @@ type SmartPickArgs = Pick<
 /** Smart's pick, by the room's picker: the bound reranker (the default) or the Utility-model arbiter. Both read
  *  the same roster: the candidates, their names and their "who is this" lines. */
 async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs): Promise<SmartArbitrationResult> {
+  const transcript = await transcriptLines(ctx, args.recentRows);
   const shared = {
     candidates: args.candidates,
     speakerCandidates: args.speakerCandidates,
     characterLines: args.characterLines,
+    humanNames: humanPlayerNamesVia([args.assembled.activePersona?.name, ...(args.assembled.people ?? []).map((p) => p.name)], transcript),
     lastSpeaker: args.lastSpeaker,
     ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
     mentionedIds: args.mentionedIds,
@@ -1013,16 +1016,16 @@ async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs):
     return await rerankPickVia({
       ...shared,
       reranker: () => ctx.resolveSpeakerReranker(args.funderUserId),
-      lastLine: (await transcriptLines(ctx, args.recentRows.slice(-1))).at(-1) ?? null,
+      lastLine: transcript.at(-1) ?? null,
     });
   }
   // The side-gen sampling ladder: the `arbiter` floor ← the chat host's default-preset params. The resolved
-  // posture is the summarize options as-is.
+  // posture is the structured call's options as-is.
   const arbiterSampling = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveChatPresetParams(args.chatId));
   return await smartArbitrateVia({
     ...shared,
-    summarize: (inputs, opts) => ctx.summarize(args.funderUserId, inputs, opts),
-    transcript: await transcriptLines(ctx, args.recentRows),
+    arbiter: () => ctx.resolveSpeakerArbiter(args.funderUserId),
+    transcript,
     room: args.assembled,
     sampling: arbiterSampling,
     // PROSE-1 census 75 — the arbiter prompt is the room HOST's slot, resolved beside its sampling.

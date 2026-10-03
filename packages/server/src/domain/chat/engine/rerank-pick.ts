@@ -31,6 +31,8 @@ interface RerankPickParams {
   readonly characterLines: ReadonlyMap<CharacterId, string>;
   /** The latest canon line, whoever wrote it. Null in an empty room. */
   readonly lastLine: TranscriptLine | null;
+  /** The human players (`humanPlayerNames`): a name they share is an address to them, never to a character. */
+  readonly humanNames: readonly string[];
   readonly lastSpeaker: SpeakerRef | null;
   /** Whether the last speaker sits this round out (`verbs/turn.ts::banLastFor`). Default true. */
   readonly banLast?: boolean | undefined;
@@ -139,7 +141,7 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
 
   // Being addressed is the strongest signal a line carries, so the named characters answer, even the last
   // speaker. One unambiguous name needs no ranking at all.
-  const groups = addressedGroups(line, params.candidates, params.speakerCandidates);
+  const groups = addressedGroups(line, params.candidates, params.speakerCandidates, params.humanNames);
   const addressedIds = new Set(groups.flat());
   if (groups.length === 1 && addressedIds.size === 1) {
     return { speakers: orderAddressed(groups, null), degraded: false, aborted: false };

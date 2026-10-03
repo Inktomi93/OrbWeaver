@@ -10,6 +10,7 @@ import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 import type { RerankCapability } from "@orb/contracts/inference";
 import type { RerankResult } from "@orb/contracts/providers";
 import type { RerankDocument } from "@orb/contracts/role-clients";
+import type { RoleClientsWithSignal } from "@orb/inference";
 import type { CharacterId } from "@orb/kit/ids";
 
 /** One candidate the 7a/7b arbitration ranks — a present AI-driven `chat_participants` row's
@@ -38,6 +39,12 @@ export interface SpeakerCandidate {
 export interface SpeakerReranker {
   readonly capability: RerankCapability;
   readonly rerank: (query: string, documents: RerankDocument[], opts?: { readonly instruction: string }) => Promise<RerankResult>;
+}
+
+/** The funder's Utility role as Smart's arbiter reads it: a schema-constrained call. Resolved only when the bound
+ *  row can serve structured output, so the arbiter never reads free text. */
+export interface SpeakerArbiter {
+  readonly structured: RoleClientsWithSignal["structured"];
 }
 
 /** One canon line as the speaker pick reads it: the text, its speaker's display name (null for an unnamed

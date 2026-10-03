@@ -1,18 +1,17 @@
-// engine/smart-arbitrate — Smart's Utility-model pick over a FAKE summarize op. Pins what the model is told (the
-// human players, one capped line per candidate, how often each spoke, talkativeness, the scene, a clipped
-// history with the last line whole), the short-circuits that spend no call (a lone eligible character, names in
-// the last line), the roster-validating parse (comma list or JSON array, unknown names ignored, the cap), and the
-// `natural` fallback with `degraded:true` the turn verb turns into a warning (D41). Plus CANCELLATION: the turn's
-// AbortSignal reaches the op, and an abort is `aborted:true`, never a degrade.
+// engine/smart-arbitrate — Smart's Utility-model pick over a FAKE structured arbiter. Pins what the model is told
+// (the human players, one capped line per candidate, how often each spoke, talkativeness, the scene, a clipped
+// history with the last line whole), the response schema (an enum of the round's candidate names only, within every
+// wire's limits), the short-circuits that spend no call (a lone eligible character, names in the last line), how a
+// payload maps to refs, and the `natural` fallback with `degraded:true` the turn verb turns into a warning (D41).
+// Plus CANCELLATION: the turn's AbortSignal reaches the call, and an abort is `aborted:true`, never a degrade.
 
-import type { AssemblePersona, SpeakerRef } from "@orb/contracts/chat";
+import type { SpeakerRef } from "@orb/contracts/chat";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { RoleClientsWithSignal } from "@orb/inference";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { ArbiterCandidate, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
+import type { ArbiterCandidate, SpeakerArbiter, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
 import { smartArbitrate } from "../../../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -28,23 +27,31 @@ function candidate(k: string, over: Partial<ArbiterCandidate> = {}): ArbiterCand
   };
 }
 
-/** A scripted summarize op returning `text` as the single item. */
-function summarizeReturning(text: string): RoleClientsWithSignal["summarize"] {
-  return vi.fn(
-    (): Promise<SummarizeResult> =>
-      Promise.resolve({
-        items: [{ text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }],
-        model: "fake",
-      }),
-  );
+const replyOf = (text: string): SummarizeResult => ({ items: [{ text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+
+/** A structured arbiter whose every call answers `payload` (a `{responders}` object, or raw text for a broken
+ *  backend). */
+function arbiterAnswering(payload: unknown): SpeakerArbiter["structured"] {
+  return vi.fn((): Promise<SummarizeResult> => Promise.resolve(replyOf(typeof payload === "string" ? payload : JSON.stringify(payload))));
 }
 
-/** The user prompt the op was handed on its one call. */
-function promptOf(summarize: RoleClientsWithSignal["summarize"]): string {
-  const calls = vi.mocked(summarize).mock.calls;
+const bound =
+  (structured: SpeakerArbiter["structured"]): (() => Promise<SpeakerArbiter>) =>
+  (): Promise<SpeakerArbiter> =>
+    Promise.resolve({ structured });
+
+/** The one call's arguments. */
+function callOf(structured: SpeakerArbiter["structured"]): Parameters<SpeakerArbiter["structured"]> {
+  const calls = vi.mocked(structured).mock.calls;
   expect(calls).toHaveLength(1);
-  return calls[0]?.[0][0]?.userPrompt ?? "";
+  const call = calls[0];
+  if (call === undefined) {
+    throw new Error("no call");
+  }
+  return call;
 }
+
+const promptOf = (structured: SpeakerArbiter["structured"]): string => callOf(structured)[0][0]?.userPrompt ?? "";
 
 const SPEAKER_CANDIDATES = [
   { ref: charRef("aria"), name: "Aria" },
@@ -55,7 +62,6 @@ const SPEAKER_CANDIDATES = [
 // The resolved arbiter posture, passed literally since these tests exercise the pure `smartArbitrate`.
 const ARB_SAMPLING = { temperature: 0.2, maxOutputTokens: 24 } as const;
 const CANDIDATES = [candidate("aria"), candidate("bran"), candidate("cara")];
-const persona = (name: string): AssemblePersona => ({ name, description: "" });
 const human = (name: string, text: string): TranscriptLine => ({ speakerName: name, text, characterId: null });
 const said = (k: string, text: string): TranscriptLine => ({
   speakerName: SPEAKER_CANDIDATES.find((s) => s.ref.characterId === cid(k))?.name ?? k,
@@ -64,53 +70,73 @@ const said = (k: string, text: string): TranscriptLine => ({
 });
 
 function arbitrate(
-  over: Partial<Parameters<typeof smartArbitrate>[0]> & Pick<Parameters<typeof smartArbitrate>[0], "summarize">,
+  over: Partial<Parameters<typeof smartArbitrate>[0]> & { readonly structured?: SpeakerArbiter["structured"] },
 ): ReturnType<typeof smartArbitrate> {
+  const { structured, ...rest } = over;
   return smartArbitrate({
+    arbiter: bound(structured ?? arbiterAnswering({ responders: ["Aria"] })),
     candidates: CANDIDATES,
     speakerCandidates: SPEAKER_CANDIDATES,
     characterLines: new Map<CharacterId, string>(),
     transcript: [human("Sam", "what now?")],
+    humanNames: ["Sam"],
     room: {},
     lastSpeaker: null,
     rng: () => 0.5,
     sampling: ARB_SAMPLING,
     prose: {},
-    ...over,
+    ...rest,
   });
 }
 
-describe("smartArbitrate — what the model is told", () => {
-  test("the prompt names the human players and never offers them as candidates", async () => {
-    const summarize = summarizeReturning("Bran");
-    await arbitrate({
-      summarize,
-      room: { activePersona: persona("Sam"), people: [persona("Jun")] },
-      transcript: [human("Rowan", "Anyone?"), said("aria", "Here."), human("Sam", "Bran, the map?")],
-      candidates: [candidate("aria"), candidate("bran")],
-      // The line names Bran by NAME, which would short-circuit; this pin is about the prompt, so make it ambiguous.
-      speakerCandidates: [
-        { ref: charRef("aria"), name: "Aria Bran" },
-        { ref: charRef("bran"), name: "Bran" },
-      ],
-    });
-    const prompt = promptOf(summarize);
-    expect(prompt).toContain("Human players (never choose them): Sam, Jun, Rowan\n");
-    const candidates = prompt.slice(prompt.indexOf("Candidates:"), prompt.indexOf("Recent conversation:"));
-    expect(candidates).not.toMatch(/Sam|Jun|Rowan/u);
+/** Every JSON Schema node in `schema`, depth first. */
+function nodesOf(schema: unknown): Record<string, unknown>[] {
+  if (typeof schema !== "object" || schema === null) {
+    return [];
+  }
+  const node = schema as Record<string, unknown>;
+  return [node, ...Object.values(node).flatMap((v) => (Array.isArray(v) ? v.flatMap(nodesOf) : nodesOf(v)))];
+}
+
+describe("smartArbitrate — the response schema", () => {
+  test("the request's enum is the eligible candidates' names only: no human, no muted character", async () => {
+    const structured = arbiterAnswering({ responders: ["Bran"] });
+    await arbitrate({ structured, humanNames: ["Sam", "Jun"], candidates: [candidate("aria"), candidate("bran"), candidate("cara", { disabled: true })] });
+    const format = callOf(structured)[1].responseFormat;
+    const enums = nodesOf(format.schema).flatMap((n) => (Array.isArray(n["enum"]) ? [n["enum"]] : []));
+    expect(enums).toEqual([["Aria", "Bran"]]);
   });
 
-  test("a reply naming a human player schedules nobody from it (falls back, loudly)", async () => {
-    const out = await arbitrate({ summarize: summarizeReturning("Sam"), room: { activePersona: persona("Sam") } });
-    expect(out.degraded).toBe(true);
-    expect(out.speakers).toHaveLength(1);
+  test("the schema fits every wire's limits: no optional parameters and no unions (Anthropic allows 24 and 16)", async () => {
+    const structured = arbiterAnswering({ responders: ["Bran"] });
+    await arbitrate({ structured });
+    const nodes = nodesOf(callOf(structured)[1].responseFormat.schema);
+    const optionals = nodes.flatMap((n) => {
+      const props = Object.keys((n["properties"] as Record<string, unknown> | undefined) ?? {});
+      const required = (n["required"] as string[] | undefined) ?? [];
+      return props.filter((p) => !required.includes(p));
+    });
+    const unions = nodes.filter((n) => "anyOf" in n || "oneOf" in n || Array.isArray(n["type"]));
+    expect(optionals).toHaveLength(0);
+    expect(unions).toHaveLength(0);
+  });
+});
+
+describe("smartArbitrate — what the model is told", () => {
+  test("the prompt names the human players, who are never candidates", async () => {
+    const structured = arbiterAnswering({ responders: ["Bran"] });
+    await arbitrate({ structured, humanNames: ["Sam", "Jun"], transcript: [said("aria", "Here."), human("Sam", "the map?")] });
+    const prompt = promptOf(structured);
+    expect(prompt).toContain("Human players: Sam, Jun\n");
+    const candidates = prompt.slice(prompt.indexOf("Candidates:"), prompt.indexOf("Recent conversation:"));
+    expect(candidates).not.toMatch(/Sam|Jun/u);
   });
 
   test("each candidate carries its shared line, capped; a blank line leaves the name alone", async () => {
-    const summarize = summarizeReturning("Aria");
+    const structured = arbiterAnswering({ responders: ["Aria"] });
     const long = `Aria keeps the lighthouse. ${"She remembers every ship that ever passed the point. ".repeat(20)}`;
-    await arbitrate({ summarize, characterLines: new Map([[cid("aria"), long]]) });
-    const prompt = promptOf(summarize);
+    await arbitrate({ structured, characterLines: new Map([[cid("aria"), long]]) });
+    const prompt = promptOf(structured);
     const ariaRow = prompt.split("\n").find((l) => l.startsWith("- Aria: ")) ?? "";
     expect(ariaRow).toContain("Aria keeps the lighthouse.");
     expect(ariaRow.length).toBeLessThan(long.length / 4);
@@ -118,13 +144,13 @@ describe("smartArbitrate — what the model is told", () => {
   });
 
   test("speaking counts over the window and the last speaker; replying to its OWN line is banned", async () => {
-    const summarize = summarizeReturning("Bran");
+    const structured = arbiterAnswering({ responders: ["Bran"] });
     await arbitrate({
-      summarize,
+      structured,
       transcript: [said("aria", "One."), said("bran", "Two."), human("Sam", "and?"), said("aria", "Three.")],
       lastSpeaker: charRef("aria"),
     });
-    const prompt = promptOf(summarize);
+    const prompt = promptOf(structured);
     expect(prompt).toContain("- Bran (spoke 1 of the last 4 lines,");
     expect(prompt).toContain("- Cara (spoke 0 of the last 4 lines,");
     expect(prompt).not.toMatch(/^- Aria/mu);
@@ -132,35 +158,28 @@ describe("smartArbitrate — what the model is told", () => {
   });
 
   test("after a human line the last speaker stays a candidate: they are often exactly who was asked", async () => {
-    const summarize = summarizeReturning("Aria");
+    const structured = arbiterAnswering({ responders: ["Aria"] });
     const out = await arbitrate({
-      summarize,
+      structured,
       transcript: [said("aria", "The coffee is new."), human("Sam", "why does it taste different?")],
       lastSpeaker: charRef("aria"),
     });
-    expect(promptOf(summarize)).toContain("- Aria (spoke 1 of the last 2 lines,");
-    expect(out).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
-  });
-
-  test("ban-last lifts when the room allows self-responses: the last speaker stays a candidate", async () => {
-    const summarize = summarizeReturning("Aria");
-    const out = await arbitrate({ summarize, transcript: [said("aria", "One."), said("aria", "Two.")], lastSpeaker: charRef("aria"), banLast: false });
-    expect(promptOf(summarize)).toContain("- Aria (spoke 2 of the last 2 lines,");
+    expect(promptOf(structured)).toContain("- Aria (spoke 1 of the last 2 lines,");
     expect(out).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
   });
 
   test("talkativeness reads as the Group tab's percent", async () => {
-    const summarize = summarizeReturning("Aria");
-    await arbitrate({ summarize, candidates: [candidate("aria", { talkativeness: 0.25 }), candidate("bran", { talkativeness: 1 })] });
-    const prompt = promptOf(summarize);
+    const structured = arbiterAnswering({ responders: ["Aria"] });
+    await arbitrate({ structured, candidates: [candidate("aria", { talkativeness: 0.25 }), candidate("bran", { talkativeness: 1 })] });
+    const prompt = promptOf(structured);
     expect(prompt).toMatch(/^- Aria \(.*talkativeness 25%\)$/mu);
     expect(prompt).toMatch(/^- Bran \(.*talkativeness 100%\)$/mu);
   });
 
   test("the scene line is the game's location and time, else the room's scenario, else absent", async () => {
-    const game = summarizeReturning("Aria");
+    const game = arbiterAnswering({ responders: ["Aria"] });
     await arbitrate({
-      summarize: game,
+      structured: game,
       room: {
         rpgMacros: { rpgSceneState: "Scene: The old mill · day 3 · dusk · rain\nStory: Act 1\nPresent: the miller" },
         roomOverrides: { scenario: "ignored" },
@@ -168,21 +187,21 @@ describe("smartArbitrate — what the model is told", () => {
     });
     expect(promptOf(game)).toMatch(/^Scene: The old mill · day 3 · dusk · rain$/mu);
 
-    const plain = summarizeReturning("Aria");
-    await arbitrate({ summarize: plain, room: { roomOverrides: { scenario: "A storm traps everyone in the inn." } } });
+    const plain = arbiterAnswering({ responders: ["Aria"] });
+    await arbitrate({ structured: plain, room: { roomOverrides: { scenario: "A storm traps everyone in the inn." } } });
     expect(promptOf(plain)).toMatch(/^Scene: A storm traps everyone in the inn\.$/mu);
 
-    const bare = summarizeReturning("Aria");
-    await arbitrate({ summarize: bare, room: { rpgMacros: { rpgSceneState: "Story: Act 1" } } });
+    const bare = arbiterAnswering({ responders: ["Aria"] });
+    await arbitrate({ structured: bare, room: { rpgMacros: { rpgSceneState: "Story: Act 1" } } });
     expect(promptOf(bare)).not.toContain("Scene:");
   });
 
   test("history keeps the last line whole and clips every older line", async () => {
-    const summarize = summarizeReturning("Aria");
+    const structured = arbiterAnswering({ responders: ["Aria"] });
     const older = `Old ${"x".repeat(2000)}`;
     const latest = `New ${"y".repeat(2000)}`;
-    await arbitrate({ summarize, transcript: [said("bran", older), human("Sam", latest)] });
-    const prompt = promptOf(summarize);
+    await arbitrate({ structured, transcript: [said("bran", older), human("Sam", latest)] });
+    const prompt = promptOf(structured);
     const olderRow = prompt.split("\n").find((l) => l.startsWith("Bran: Old")) ?? "";
     expect(olderRow.endsWith("…")).toBe(true);
     expect(olderRow.length).toBeLessThan(400);
@@ -190,219 +209,169 @@ describe("smartArbitrate — what the model is told", () => {
   });
 });
 
-describe("smartArbitrate — the roster-validating parse", () => {
-  const four = [...CANDIDATES, candidate("dov")];
-
-  test("a comma list keeps the model's order; a JSON array works the same", async () => {
-    expect((await arbitrate({ summarize: summarizeReturning("Cara, Aria") })).speakers).toEqual([charRef("cara"), charRef("aria")]);
-    expect((await arbitrate({ summarize: summarizeReturning('["bran", "Cara"]') })).speakers).toEqual([charRef("bran"), charRef("cara")]);
+describe("smartArbitrate — the structured reply", () => {
+  test("the payload's names map to refs in its order, repeats dropped", async () => {
+    const out = await arbitrate({ structured: arbiterAnswering({ responders: ["Cara", "Aria", "Cara"] }) });
+    expect(out).toEqual({ speakers: [charRef("cara"), charRef("aria")], degraded: false, aborted: false });
   });
 
-  test("an id resolves like a name; unknown and repeated names are ignored", async () => {
-    const out = await arbitrate({ summarize: summarizeReturning(`Gandalf, ${cid("bran")}, bran, Aria`) });
-    expect(out).toEqual({ speakers: [charRef("bran"), charRef("aria")], degraded: false, aborted: false });
+  test("the payload is capped: more than the responder cap is invalid and degrades after the one retry", async () => {
+    const structured = arbiterAnswering({ responders: ["Aria", "Bran", "Cara", "Dov"] });
+    const out = await arbitrate({ structured, candidates: [...CANDIDATES, candidate("dov")] });
+    expect(out).toMatchObject({ degraded: true, aborted: false });
+    expect(vi.mocked(structured).mock.calls).toHaveLength(2);
   });
 
-  test("the responder cap holds however many the model names", async () => {
-    const out = await arbitrate({ summarize: summarizeReturning("Aria, Bran, Cara, Dov"), candidates: four });
-    expect(out.speakers).toEqual([charRef("aria"), charRef("bran"), charRef("cara")]);
-  });
-
-  test("tolerates prose around a name", async () => {
-    expect(await arbitrate({ summarize: summarizeReturning("The next speaker should be Cara.") })).toEqual({
-      speakers: [charRef("cara")],
-      degraded: false,
-      aborted: false,
-    });
-  });
-});
-
-// #1439 — the whole-word test is the shared Unicode-aware `includesWholeName`: a short Cyrillic/CJK name inside a
-// longer word is no hit, so the arbiter never schedules a speaker the model did not name.
-describe("smartArbitrate — the parse is Unicode-aware", () => {
-  const uniSpeakers = [
-    { ref: charRef("cyr"), name: "Аня" },
-    { ref: charRef("cjk"), name: "結衣" },
-  ];
-
-  async function pick(text: string): Promise<SpeakerRef | undefined> {
-    const out = await arbitrate({ summarize: summarizeReturning(text), candidates: [candidate("cyr"), candidate("cjk")], speakerCandidates: uniSpeakers });
-    return out.degraded ? undefined : out.speakers[0];
-  }
-
-  test("a Unicode name named on its own is the validated pick", async () => {
-    await expect(pick("Аня")).resolves.toEqual(charRef("cyr"));
-    await expect(pick("結衣")).resolves.toEqual(charRef("cjk"));
-  });
-
-  test("the SAME name buried inside a longer Unicode word is NOT a hit (it degrades instead)", async () => {
-    await expect(pick("Анятолия")).resolves.toBeUndefined();
+  test("a name two candidates share resolves to the first of them in roster order", async () => {
+    const twins = [
+      { ref: charRef("aria"), name: "Guard" },
+      { ref: charRef("bran"), name: "Guard" },
+      { ref: charRef("cara"), name: "Cara" },
+    ];
+    const structured = arbiterAnswering({ responders: ["Guard"] });
+    const out = await arbitrate({ structured, speakerCandidates: twins });
+    expect(out.speakers).toEqual([charRef("aria")]);
+    const enums = nodesOf(callOf(structured)[1].responseFormat.schema).flatMap((n) => (Array.isArray(n["enum"]) ? [n["enum"]] : []));
+    expect(enums).toEqual([["Guard", "Cara"]]);
   });
 });
 
-describe("smartArbitrate — whole-word roster match (F9)", () => {
-  const ariSpeakers = [
-    { ref: charRef("ari"), name: "Ari" },
-    { ref: charRef("bran"), name: "Bran" },
-  ];
-  const ariCandidates = [candidate("ari"), candidate("bran")];
-
-  test('"Arianna" does NOT match the eligible "Ari" (substring is rejected → fallback)', async () => {
-    const out = await arbitrate({
-      summarize: summarizeReturning("Arianna"),
-      candidates: ariCandidates,
-      speakerCandidates: ariSpeakers,
-      // ban-last → the fallback avoids Ari, proving no substring match
-      lastSpeaker: charRef("ari"),
-      banLast: true,
-      transcript: [said("ari", "Hm.")],
-    });
-    expect(out).toEqual({ speakers: [charRef("bran")], degraded: true, aborted: false });
-  });
-
-  test('a whole-word "Ari." (trailing punctuation) still matches', async () => {
-    const out = await arbitrate({ summarize: summarizeReturning("Next: Ari."), candidates: ariCandidates, speakerCandidates: ariSpeakers });
-    expect(out).toEqual({ speakers: [charRef("ari")], degraded: false, aborted: false });
-  });
-});
-
-describe("smartArbitrate — the deterministic fallback", () => {
-  test("an off-roster reply falls back to the natural pick, flagged degraded", async () => {
-    const out = await arbitrate({ summarize: summarizeReturning("Gandalf") });
+describe("smartArbitrate — the visible fallback", () => {
+  test("an unbound or unservable Utility row degrades to natural, with no call", async () => {
+    const out = await arbitrate({ arbiter: () => Promise.resolve(null) });
     expect(out.speakers).toHaveLength(1);
-    expect(out.degraded).toBe(true);
-    expect(out.aborted).toBe(false);
-    expect([charRef("aria"), charRef("bran"), charRef("cara")]).toContainEqual(out.speakers[0]);
+    expect(out).toMatchObject({ degraded: true, aborted: false });
   });
 
-  test("the fallback answers the character the human named: a word mention leads the natural pick", async () => {
-    const out = await arbitrate({ summarize: summarizeReturning("Gandalf"), mentionedIds: [cid("cara")] });
-    expect(out).toEqual({ speakers: [charRef("cara")], degraded: true, aborted: false });
-  });
-
-  test("an op throw, a synchronous unwired throw, and an EMPTY or blank reply all degrade, never throw", async () => {
-    const replies: RoleClientsWithSignal["summarize"][] = [
+  test("a throw, a synchronous unwired throw, an empty reply and an invalid payload all degrade, never throw", async () => {
+    const replies: SpeakerArbiter["structured"][] = [
       vi.fn(() => Promise.reject(new Error("side-LLM down"))),
       vi.fn(() => {
         throw new Error('provider "vllm" is not wired for the "summarize" role');
       }),
       vi.fn((): Promise<SummarizeResult> => Promise.resolve({ items: [], model: "fake" })),
-      summarizeReturning("   "),
-      summarizeReturning("[}"),
+      arbiterAnswering({ responders: [] }),
+      arbiterAnswering({ responders: ["Gandalf"] }),
     ];
-    for (const summarize of replies) {
-      const out = await arbitrate({ summarize });
+    for (const structured of replies) {
+      const out = await arbitrate({ structured });
       expect(out.speakers).toHaveLength(1);
       expect(out).toMatchObject({ degraded: true, aborted: false });
     }
   });
 
-  // The UNTRUSTED-INPUT arm: model output crossing into scheduling. A muted member is not on the roster it may name.
-  test("a reply naming a MUTED member never schedules it (falls back to an eligible seat)", async () => {
-    const out = await arbitrate({
-      summarize: summarizeReturning("Cara"),
-      candidates: [candidate("aria"), candidate("bran"), candidate("cara", { disabled: true })],
-    });
-    expect(out.speakers).not.toContainEqual(charRef("cara"));
-    expect(out).toMatchObject({ degraded: true, aborted: false });
+  test("the fallback answers the character the human named: a word mention leads the natural pick", async () => {
+    const out = await arbitrate({ arbiter: () => Promise.resolve(null), mentionedIds: [cid("cara")] });
+    expect(out).toEqual({ speakers: [charRef("cara")], degraded: true, aborted: false });
   });
 
   test("the fallback honors ban-last (the previous speaker is not re-picked when others remain)", async () => {
-    const out = await arbitrate({ summarize: summarizeReturning("nonsense"), lastSpeaker: charRef("aria") });
+    const out = await arbitrate({ arbiter: () => Promise.resolve(null), lastSpeaker: charRef("aria") });
     expect(out.speakers[0]).not.toEqual(charRef("aria"));
   });
 });
 
 describe("smartArbitrate — short-circuits (no model call)", () => {
-  test("single eligible character → returns it WITHOUT calling summarize, and nothing degraded", async () => {
-    const summarize = summarizeReturning("Aria");
-    const out = await arbitrate({ summarize, candidates: [candidate("aria"), candidate("bran", { disabled: true }), candidate("cara", { leftSeq: 3 })] });
+  test("single eligible character → returns it WITHOUT a call, and nothing degraded", async () => {
+    const structured = arbiterAnswering({ responders: ["Aria"] });
+    const out = await arbitrate({ structured, candidates: [candidate("aria"), candidate("bran", { disabled: true }), candidate("cara", { leftSeq: 3 })] });
     expect(out).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
-    expect(summarize).not.toHaveBeenCalled();
+    expect(structured).not.toHaveBeenCalled();
   });
 
   test("no eligible character → [] (the driver maps this to no-eligible)", async () => {
-    const summarize = summarizeReturning("Aria");
-    expect(await arbitrate({ summarize, candidates: [candidate("aria", { disabled: true })] })).toEqual({ speakers: [], degraded: false, aborted: false });
-    expect(summarize).not.toHaveBeenCalled();
+    const structured = arbiterAnswering({ responders: ["Aria"] });
+    expect(await arbitrate({ structured, candidates: [candidate("aria", { disabled: true })] })).toEqual({ speakers: [], degraded: false, aborted: false });
+    expect(structured).not.toHaveBeenCalled();
   });
 
   test("characters the last line names answer in mention order, whoever wrote it, even the last speaker", async () => {
-    const summarize = summarizeReturning("Aria");
-    const byHuman = await arbitrate({ summarize, transcript: [human("Sam", "Cara?")] });
+    const structured = arbiterAnswering({ responders: ["Aria"] });
+    const byHuman = await arbitrate({ structured, transcript: [human("Sam", "Cara?")] });
     expect(byHuman).toEqual({ speakers: [charRef("cara")], degraded: false, aborted: false });
-    const byCharacter = await arbitrate({ summarize, transcript: [said("aria", "Cara, then Bran: report.")], lastSpeaker: charRef("bran") });
+    const byCharacter = await arbitrate({ structured, transcript: [said("aria", "Cara, then Bran: report.")], lastSpeaker: charRef("bran") });
     expect(byCharacter.speakers).toEqual([charRef("cara"), charRef("bran")]);
-    expect(summarize).not.toHaveBeenCalled();
+    expect(structured).not.toHaveBeenCalled();
   });
 
   test("a muted mention is dropped; a line naming only muted characters asks the model as if none was named", async () => {
-    const summarize = summarizeReturning("Aria");
+    const structured = arbiterAnswering({ responders: ["Aria"] });
     const roster = [candidate("aria"), candidate("bran"), candidate("cara", { disabled: true })];
-    const mixed = await arbitrate({ summarize, candidates: roster, transcript: [human("Sam", "Cara and Bran, look!")] });
+    const mixed = await arbitrate({ structured, candidates: roster, transcript: [human("Sam", "Cara and Bran, look!")] });
     expect(mixed.speakers).toEqual([charRef("bran")]);
-    expect(summarize).not.toHaveBeenCalled();
+    expect(structured).not.toHaveBeenCalled();
 
-    const mutedOnly = await arbitrate({ summarize, candidates: roster, transcript: [human("Sam", "Cara, look!")] });
+    const mutedOnly = await arbitrate({ structured, candidates: roster, transcript: [human("Sam", "Cara, look!")] });
     expect(mutedOnly).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
-    expect(summarize).toHaveBeenCalledTimes(1);
+    expect(structured).toHaveBeenCalledTimes(1);
+  });
+
+  test("a name a human player shares addresses the human, so the model decides; the whole name still short-circuits", async () => {
+    const rook = [
+      { ref: charRef("aria"), name: "Rook the Bard" },
+      { ref: charRef("bran"), name: "Bryn" },
+      { ref: charRef("cara"), name: "Cara" },
+    ];
+    const structured = arbiterAnswering({ responders: ["Cara"] });
+    const toHuman = await arbitrate({ structured, speakerCandidates: rook, humanNames: ["Rook"], transcript: [said("bran", "Rook, your move.")] });
+    expect(toHuman.speakers).toEqual([charRef("cara")]);
+    expect(structured).toHaveBeenCalledTimes(1);
+
+    const toBard = await arbitrate({ structured, speakerCandidates: rook, humanNames: ["Rook"], transcript: [said("bran", "Rook the Bard, your move.")] });
+    expect(toBard).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
+    expect(structured).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
   // Identity-asserted so a fresh controller (which would abort nothing) fails.
-  test("threads the turn's AbortSignal into the summarize call", async () => {
+  test("threads the turn's AbortSignal into the structured call", async () => {
     const controller = new AbortController();
-    const seen: (AbortSignal | undefined)[] = [];
-    const summarize: RoleClientsWithSignal["summarize"] = vi.fn((_inputs, opts): Promise<SummarizeResult> => {
-      seen.push(opts?.signal);
-      return Promise.resolve({ items: [{ text: "Bran", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
-    });
-    const out = await arbitrate({ summarize, signal: controller.signal });
-    expect(seen).toEqual([controller.signal]);
+    const structured = arbiterAnswering({ responders: ["Bran"] });
+    const out = await arbitrate({ structured, signal: controller.signal });
+    expect(callOf(structured)[1].signal).toBe(controller.signal);
     expect(out).toEqual({ speakers: [charRef("bran")], degraded: false, aborted: false });
   });
 
-  // THE HANG: the op settles only when the signal fires. A degrade here would generate a reply the user cancelled.
+  // THE HANG: the call settles only when the signal fires. A degrade here would generate a reply the user cancelled.
   test("an abort mid-call terminates the arbitration with aborted:true (no speaker, no degrade)", async () => {
     const controller = new AbortController();
-    let observed: AbortSignal | undefined;
-    const summarize: RoleClientsWithSignal["summarize"] = vi.fn((_inputs, opts): Promise<SummarizeResult> => {
-      observed = opts?.signal;
-      return new Promise((_resolve, reject) => {
-        opts?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
-      });
-    });
-    const pending = arbitrate({ summarize, signal: controller.signal });
+    const structured: SpeakerArbiter["structured"] = vi.fn(
+      (_inputs, opts): Promise<SummarizeResult> =>
+        new Promise((_resolve, reject) => {
+          opts.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+        }),
+    );
+    const pending = arbitrate({ structured, signal: controller.signal });
+    await vi.waitFor(() => expect(structured).toHaveBeenCalled());
     controller.abort();
     expect(await pending).toEqual({ speakers: [], degraded: false, aborted: true });
-    expect(observed).toBe(controller.signal);
   });
 
-  test("a pre-aborted signal short-circuits without calling summarize, even when the last line names someone", async () => {
-    const summarize = summarizeReturning("Bran");
-    const out = await arbitrate({ summarize, signal: AbortSignal.abort(), transcript: [human("Sam", "Cara?")] });
+  test("a pre-aborted signal short-circuits without a call, even when the last line names someone", async () => {
+    const structured = arbiterAnswering({ responders: ["Bran"] });
+    const out = await arbitrate({ structured, signal: AbortSignal.abort(), transcript: [human("Sam", "Cara?")] });
     expect(out).toEqual({ speakers: [], degraded: false, aborted: true });
-    expect(summarize).not.toHaveBeenCalled();
+    expect(structured).not.toHaveBeenCalled();
   });
 
   test("a NON-abort failure with a LIVE signal still degrades (never aborts)", async () => {
-    const out = await arbitrate({ summarize: vi.fn(() => Promise.reject(new Error("side-LLM down"))), signal: new AbortController().signal });
+    const out = await arbitrate({ structured: vi.fn(() => Promise.reject(new Error("side-LLM down"))), signal: new AbortController().signal });
     expect(out).toMatchObject({ degraded: true, aborted: false });
   });
 });
 
 // PROSE-1 census 75 — the arbiter prompt is a per-USER slot resolved against the ROOM HOST.
 describe("the arbiter prompt is a prose slot", () => {
-  test("no override ⇒ the shipped default rides the summarize call", async () => {
-    const summarize = summarizeReturning("Bran");
-    await arbitrate({ summarize });
-    expect(summarize).toHaveBeenCalledWith([{ systemPrompt: PROSE_SLOTS["chat.arbiter.system"].text, userPrompt: expect.any(String) }], expect.anything());
+  test("no override ⇒ the shipped default rides the call", async () => {
+    const structured = arbiterAnswering({ responders: ["Bran"] });
+    await arbitrate({ structured });
+    expect(callOf(structured)[0][0]?.systemPrompt).toBe(PROSE_SLOTS["chat.arbiter.system"].text);
   });
 
   test("a host override REPLACES the arbiter prompt on the wire", async () => {
-    const summarize = summarizeReturning("Bran");
-    await arbitrate({ summarize, prose: { "chat.arbiter.system": { text: "Pick whoever is angriest.", baseVersion: 1 } } });
-    expect(summarize).toHaveBeenCalledWith([{ systemPrompt: "Pick whoever is angriest.", userPrompt: expect.any(String) }], expect.anything());
+    const structured = arbiterAnswering({ responders: ["Bran"] });
+    await arbitrate({ structured, prose: { "chat.arbiter.system": { text: "Pick whoever is angriest.", baseVersion: 1 } } });
+    expect(callOf(structured)[0][0]?.systemPrompt).toBe("Pick whoever is angriest.");
   });
 });

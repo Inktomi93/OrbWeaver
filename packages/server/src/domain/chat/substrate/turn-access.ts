@@ -17,7 +17,7 @@ import { runAutoMode } from "../engine/auto-mode.ts";
 import { characterLine } from "../engine/character-line.ts";
 import { rerankPick } from "../engine/rerank-pick.ts";
 import { driveRound } from "../engine/round.ts";
-import { resolveMentions, resolveNameMentions, selectSpeakers } from "../engine/select-speakers.ts";
+import { humanPlayerNames, resolveMentions, resolveNameMentions, selectSpeakers } from "../engine/select-speakers.ts";
 import { smartArbitrate } from "../engine/smart-arbitrate.ts";
 import { resolveTurnIdentity } from "../engine/turn-identity.ts";
 
@@ -39,6 +39,11 @@ export function resolveMentionsVia(...args: Parameters<typeof resolveMentions>):
 /** The characters HUMAN-authored trigger text names as a plain word — `natural`'s soft mention activation. */
 export function resolveNameMentionsVia(...args: Parameters<typeof resolveNameMentions>): ReturnType<typeof resolveNameMentions> {
   return resolveNameMentions(...args);
+}
+
+/** The human players' names both Smart pickers read: the room's personas plus the named human lines. PURE. */
+export function humanPlayerNamesVia(...args: Parameters<typeof humanPlayerNames>): ReturnType<typeof humanPlayerNames> {
+  return humanPlayerNames(...args);
 }
 
 /** Smart's Utility-model pick — the round's responders, roster-validating, with a `natural` fallback the result

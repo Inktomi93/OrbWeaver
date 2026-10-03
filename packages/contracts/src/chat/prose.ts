@@ -89,17 +89,16 @@ export const CHAT_PROSE_SLOTS = {
   "chat.arbiter.system": {
     id: "chat.arbiter.system",
     home: "user",
-    version: 3,
-    // v3 is a BEHAVIOR change (D132(A)/§4.4 re-version): the user prompt now names the human players and gives
-    // each candidate a one-line description, and the arbiter may name several responders. The text says the
-    // humans are never a pick, explains addressing by role, and fixes the reply format the parse accepts. It
-    // stays short on purpose: small Utility models lose a long instruction.
+    version: 4,
+    // Re-versioned (D132(A)/§4.4) because the bytes changed: the arbiter answers through a structured-output
+    // schema whose enum holds only the round's candidates, so the text carries no output format and no
+    // "never choose the humans" rule; the schema enforces both. It stays short on purpose: small Utility models
+    // lose a long instruction.
     text:
-      "You choose who speaks next in a group roleplay. The human players write their own lines; never choose " +
-      "them. Choose from the listed candidates: the character the last message is addressed to, by name or by " +
-      "role (a question about the road goes to the guide), or else whoever would most naturally answer. " +
-      "Usually choose one. Choose several only when several are addressed directly or each has a strong, " +
-      "immediate reason to respond. Reply with the names only, exactly as listed: comma-separated, or a JSON array.",
+      "You choose who speaks next in a group roleplay. The human players write their own lines. Choose the " +
+      "character the last message is addressed to, by name or by role (a question about the road goes to the " +
+      "guide), or else whoever would most naturally answer. Usually choose one. Choose several only when several " +
+      "are addressed directly or each has a strong, immediate reason to respond.",
     macros: "none",
     requiredMacros: [],
     requiredTokens: [],

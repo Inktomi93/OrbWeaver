@@ -168,14 +168,13 @@ test("the adapted compaction slot ships the exact bytes DEFAULT_COMPACT_INSTRUCT
 const S1_FROZEN_DEFAULTS: Readonly<Partial<Record<ProseSlotId, string>>> = {
   // packages/server/src/domain/chat/assembly/context.ts — ANCHOR_IDENTITY_PREFIX
   "chat.assembly.anchorIdentity": "The person the character knows as the user is",
-  // packages/server/src/domain/chat/engine/smart-arbitrate.ts — SYSTEM_PROMPT. v3 rewrote it for the arbiter that
-  // is told the human players and a line per candidate and may name several responders; these are the v3 bytes.
+  // packages/server/src/domain/chat/engine/smart-arbitrate.ts — SYSTEM_PROMPT. Rewritten for the structured-output
+  // arbiter, whose schema carries the format and the candidate set; these are the current bytes.
   "chat.arbiter.system":
-    "You choose who speaks next in a group roleplay. The human players write their own lines; never choose " +
-    "them. Choose from the listed candidates: the character the last message is addressed to, by name or by " +
-    "role (a question about the road goes to the guide), or else whoever would most naturally answer. " +
-    "Usually choose one. Choose several only when several are addressed directly or each has a strong, " +
-    "immediate reason to respond. Reply with the names only, exactly as listed: comma-separated, or a JSON array.",
+    "You choose who speaks next in a group roleplay. The human players write their own lines. Choose the " +
+    "character the last message is addressed to, by name or by role (a question about the road goes to the " +
+    "guide), or else whoever would most naturally answer. Usually choose one. Choose several only when several " +
+    "are addressed directly or each has a strong, immediate reason to respond.",
   // packages/server/src/domain/chat/verbs/compaction.ts — COMPACTION_SYSTEM_PROMPT
   "chat.compaction.system":
     "You are a precise conversation summarizer. Produce a faithful, compact summary of the roleplay so far " +

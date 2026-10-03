@@ -331,11 +331,6 @@ function phraseAt(words: readonly string[], seq: readonly string[]): number {
  * named by its whole name as a phrase. Ordered by where each is first named, then roster order.
  */
 export function resolveNameMentions(triggerText: string, candidates: readonly SpeakerCandidate[]): CharacterId[] {
-  return nameMentionHits(triggerText, candidates).map((f) => f.id);
-}
-
-/** Each named character with the word index where it is first named, in {@link resolveNameMentions} order. */
-function nameMentionHits(triggerText: string, candidates: readonly SpeakerCandidate[]): { readonly id: CharacterId; readonly at: number }[] {
   const text = wordsOf(triggerText);
   const found = candidates.flatMap((c, rosterIdx) => {
     const nameWords = wordsOf(c.name);
@@ -343,35 +338,92 @@ function nameMentionHits(triggerText: string, candidates: readonly SpeakerCandid
     const at = keys.size > 0 ? text.findIndex((w) => keys.has(w)) : phraseAt(text, nameWords);
     return at === -1 ? [] : [{ id: c.ref.characterId, at, rosterIdx }];
   });
-  return found.sort((a, b) => a.at - b.at || a.rosterIdx - b.rosterIdx);
+  return found.sort((a, b) => a.at - b.at || a.rosterIdx - b.rosterIdx).map((f) => f.id);
 }
 
 /** The most responders a Smart pick schedules in one round, however many the line or the model named. */
 export const MAX_SMART_RESPONDERS = 3;
 
+/** One character a line names: where, and whether by its whole name. */
+interface AddressHit {
+  readonly id: CharacterId;
+  readonly at: number;
+  readonly full: boolean;
+  readonly nameLength: number;
+}
+
+const sameWords = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && a.every((w, i) => w === b[i]);
+
+/** Where `name` is named in `text`: its whole name as a phrase, else any naming word a human player's name does
+ *  not also use, outside the words another character's whole name already spelled out (`taken`). A word a human
+ *  shares ("Rook" for the player Rook and "Rook the Bard") names the human, and a whole name that IS a human's
+ *  name names nobody. */
+function addressHit(
+  text: readonly string[],
+  c: SpeakerCandidate,
+  humans: { readonly names: readonly (readonly string[])[]; readonly words: ReadonlySet<string> },
+  taken: ReadonlySet<number>,
+): AddressHit | null {
+  const nameWords = wordsOf(c.name);
+  const fullAt = humans.names.some((h) => sameWords(h, nameWords)) ? -1 : phraseAt(text, nameWords);
+  const keys = new Set(nameWords.filter((w) => !(isNonNaming(w) || humans.words.has(w))));
+  const wordAt = keys.size > 0 ? text.findIndex((w, i) => keys.has(w) && !taken.has(i)) : -1;
+  const at = [fullAt, wordAt].filter((i) => i !== -1).reduce((a, b) => Math.min(a, b), Number.POSITIVE_INFINITY);
+  return Number.isFinite(at) ? { id: c.ref.characterId, at, full: at === fullAt, nameLength: nameWords.length } : null;
+}
+
 /**
  * Who a canon line addresses by name, for both Smart pickers' mention short-circuit: the ELIGIBLE characters it
- * names, whoever wrote it, as ordered groups. A group is the characters one word named, so a word two names
- * share ("Knight" in "The Knight" and "The Black Knight") is ONE ambiguous group the caller resolves. A muted
- * or departed character is dropped rather than scheduled, and a line's speaker naming itself is no address.
+ * names, whoever wrote it, as ordered groups. A group is the characters named at one word, so a word two names
+ * share ("Knight" in "The Knight" and "The Black Knight") is ONE ambiguous group the caller resolves, unless a
+ * whole name was spelled out there, when the longest whole name wins. A word that names a human player is not an
+ * address to a character. A muted or departed character is dropped, and a speaker naming itself is no address.
  */
 export function addressedGroups(
   line: TranscriptLine,
   candidates: readonly ArbiterCandidate[],
   speakerCandidates: readonly SpeakerCandidate[],
+  humanNames: readonly string[],
 ): CharacterId[][] {
   const eligible = new Set(candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled })).map((c) => speakerKey(c.ref)));
-  const groups = new Map<number, CharacterId[]>();
-  for (const hit of nameMentionHits(line.text, speakerCandidates)) {
-    if (hit.id === line.characterId || !eligible.has(speakerKey({ kind: "character", characterId: hit.id }))) {
-      continue;
-    }
-    const group = groups.get(hit.at);
-    if (group === undefined) {
-      groups.set(hit.at, [hit.id]);
-    } else {
-      group.push(hit.id);
+  const names = humanNames.map(wordsOf);
+  const humans = { names, words: new Set(names.flat().filter((w) => !isNonNaming(w))) };
+  const text = wordsOf(line.text);
+  const named = speakerCandidates.filter((c) => c.ref.characterId !== line.characterId && eligible.has(speakerKey(c.ref)));
+  // A whole name spelled out claims its words, so "The Black Knight" never also names "The Knight" by "knight".
+  const taken = new Set<number>();
+  for (const c of named) {
+    const nameWords = wordsOf(c.name);
+    const at = names.some((h) => sameWords(h, nameWords)) ? -1 : phraseAt(text, nameWords);
+    for (let k = 0; at !== -1 && k < nameWords.length; k += 1) {
+      taken.add(at + k);
     }
   }
-  return [...groups.values()];
+  const groups = new Map<number, AddressHit[]>();
+  for (const c of named) {
+    const hit = addressHit(text, c, humans, taken);
+    if (hit !== null) {
+      groups.set(hit.at, [...(groups.get(hit.at) ?? []), hit]);
+    }
+  }
+  return [...groups.entries()]
+    .toSorted(([a], [b]) => a - b)
+    .map(([, hits]) => {
+      const longestFull = Math.max(0, ...hits.filter((h) => h.full).map((h) => h.nameLength));
+      return (longestFull > 0 ? hits.filter((h) => h.full && h.nameLength === longestFull) : hits).map((h) => h.id);
+    });
+}
+
+/** The human players' names as the arbiter and the mention check read them: the room's personas plus every named
+ *  human line in the window, deduped case-insensitively. A line with no character and a speaker name is a human's
+ *  (an unnamed system or assistant row stays bare). */
+export function humanPlayerNames(personaNames: readonly (string | undefined)[], transcript: readonly TranscriptLine[]): string[] {
+  const seen = new Map<string, string>();
+  for (const name of [...personaNames, ...transcript.filter((l) => l.characterId === null).map((l) => l.speakerName)]) {
+    const trimmed = name?.trim() ?? "";
+    if (trimmed.length > 0 && !seen.has(trimmed.toLowerCase())) {
+      seen.set(trimmed.toLowerCase(), trimmed);
+    }
+  }
+  return [...seen.values()];
 }

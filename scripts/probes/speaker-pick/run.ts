@@ -11,7 +11,7 @@ import type { SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { ResponseFormat, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { InferenceLog } from "@orb/inference";
 import { DEFAULT_RERANK_MODEL } from "../../../packages/inference/src/backends/local-light/index.ts";
 import { createModelCache } from "../../../packages/inference/src/backends/local-light/model-cache.ts";
@@ -234,7 +234,8 @@ interface CallStats {
   readonly serverGenMs?: number | null;
 }
 
-type Completion = (input: SummarizeInput, opts: SummarizeOptions) => Promise<CallStats>;
+/** One completion constrained to the arbiter's response schema, the way the production structured call sends it. */
+type Completion = (input: SummarizeInput, opts: SummarizeOptions, format: ResponseFormat) => Promise<CallStats>;
 
 function wireMessages(input: SummarizeInput): { role: string; content: string }[] {
   return [
@@ -251,8 +252,17 @@ function wireSampling(opts: SummarizeOptions): Record<string, number> {
 }
 
 function openRouterCompletion(model: string, key: string): Completion {
-  return async (input, opts) => {
-    const r = await orCall({ model, ...wireSampling(opts), messages: wireMessages(input) }, key);
+  return async (input, opts, format) => {
+    const r = await orCall(
+      {
+        model,
+        ...wireSampling(opts),
+        messages: wireMessages(input),
+        // The shape the production OpenRouter arm sends (`openai-compat/chat.ts`): no `strict`, no `require_parameters`.
+        response_format: { type: "json_schema", json_schema: { name: format.name, schema: format.schema } },
+      },
+      key,
+    );
     if (r.status !== HTTP_OK) {
       throw new Error(`openrouter ${r.status}: ${r.error ?? ""}`);
     }
@@ -273,12 +283,12 @@ interface LlamaCppResponse {
 }
 
 function llamaCppCompletion(base: string): Completion {
-  return async (input, opts) => {
+  return async (input, opts, format) => {
     const response = await fetch(`${base}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // Each round is a fresh classification; a reused KV prefix would flatter the latency of later cuts.
-      body: JSON.stringify({ ...wireSampling(opts), cache_prompt: false, messages: wireMessages(input) }),
+      body: JSON.stringify({ ...wireSampling(opts), cache_prompt: false, messages: wireMessages(input), json_schema: format.schema }),
     });
     if (!response.ok) {
       throw new Error(`llama.cpp ${response.status}: ${await response.text()}`);
@@ -303,20 +313,27 @@ async function runArbiter(all: readonly Case[], arm: string, completion: Complet
     const calls: CallStats[] = [];
     const started = performance.now();
     const result = await smartArbitrate({
-      summarize: async (inputs: readonly SummarizeInput[], opts?: SummarizeOptions): Promise<SummarizeResult> => {
-        const input = inputs[0];
-        if (input === undefined) {
-          throw new Error("smartArbitrate sent no input");
-        }
-        const stats = await completion(input, opts ?? {});
-        calls.push(stats);
-        return { items: [{ text: stats.reply, usage: { tokensIn: stats.tokensIn, tokensOut: stats.tokensOut, costUsd: stats.costUsd } }], model: arm };
-      },
+      arbiter: () =>
+        Promise.resolve({
+          structured: async (
+            inputs: readonly SummarizeInput[],
+            opts: SummarizeOptions & { readonly responseFormat: ResponseFormat },
+          ): Promise<SummarizeResult> => {
+            const input = inputs[0];
+            if (input === undefined) {
+              throw new Error("smartArbitrate sent no input");
+            }
+            const stats = await completion(input, opts, opts.responseFormat);
+            calls.push(stats);
+            return { items: [{ text: stats.reply, usage: { tokensIn: stats.tokensIn, tokensOut: stats.tokensOut, costUsd: stats.costUsd } }], model: arm };
+          },
+        }),
       candidates: c.candidates,
       speakerCandidates: c.speakerCandidates,
       characterLines: new Map(c.room.characters.map((ch) => [ch.id, ch.persona] as const)),
       transcript: c.lines,
-      room: { activePersona: { name: c.room.user, description: "" } },
+      humanNames: [c.room.user],
+      room: {},
       lastSpeaker: c.lastSpeaker === null ? null : characterRef(c.lastSpeaker),
       mentionedIds: c.humanMentions,
       rng,

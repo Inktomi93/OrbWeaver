@@ -8,7 +8,14 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { NAME_STOPWORDS, resolveMentions, resolveNameMentions, selectSpeakers } from "../../../../../packages/server/src/domain/chat/engine/select-speakers.ts";
+import {
+  addressedGroups,
+  humanPlayerNames,
+  NAME_STOPWORDS,
+  resolveMentions,
+  resolveNameMentions,
+  selectSpeakers,
+} from "../../../../../packages/server/src/domain/chat/engine/select-speakers.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A seeded Park-Miller (MINSTD) LCG — the INJECTED PRNG stand-in (D46; no `Math.random`, no bitwise). */
@@ -515,5 +522,47 @@ describe("resolveMentions — @mention extraction (human-authored text only)", (
       // The long name wins its own span; the short one must NOT also fire off the prefix inside it.
       expect(resolveMentions("@Анятолия смотрит", world)).toEqual([cid("cyrlong")]);
     });
+  });
+});
+
+describe("addressedGroups — who a line addresses, for the Smart pickers", () => {
+  const seat = (k: string): ArbiterCandidate => ({ ref: charRef(k), talkativeness: 0.5, disabled: false, leftSeq: null });
+  const byBryn = (text: string): { speakerName: string; text: string; characterId: CharacterId } => ({ speakerName: "Bryn", text, characterId: cid("bryn") });
+  const rook = [
+    { ref: charRef("bard"), name: "Rook the Bard" },
+    { ref: charRef("bryn"), name: "Bryn" },
+  ];
+
+  test("a word a human player's name shares addresses the human, not the character", () => {
+    expect(addressedGroups(byBryn("Rook, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual([]);
+  });
+
+  test("the character's whole name, or a word no human shares, still addresses it", () => {
+    expect(addressedGroups(byBryn("Rook the Bard, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual([[cid("bard")]]);
+    expect(addressedGroups(byBryn("Bard, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual([[cid("bard")]]);
+  });
+
+  test("a whole name spelled out wins its words: the longest whole name, never the shorter one inside it", () => {
+    const knights = [
+      { ref: charRef("k"), name: "The Knight" },
+      { ref: charRef("bk"), name: "The Black Knight" },
+    ];
+    const seats = [seat("k"), seat("bk")];
+    expect(addressedGroups(byBryn("The Black Knight, hold the gate."), seats, knights, [])).toEqual([[cid("bk")]]);
+    // A bare shared word stays ambiguous, for the picker to settle.
+    expect(addressedGroups(byBryn("Knight, hold the gate."), seats, knights, [])).toEqual([[cid("k"), cid("bk")]]);
+  });
+
+  test("Natural's mention read is unchanged: a bare shared word still names the character there", () => {
+    expect(resolveNameMentions("Rook, your move.", rook)).toEqual([cid("bard")]);
+  });
+
+  test("the human players are the room's personas plus the named human lines, deduped", () => {
+    const lines = [
+      { speakerName: "jun", text: "hi", characterId: null },
+      { speakerName: "Bryn", text: "hey", characterId: cid("bryn") },
+      { speakerName: null, text: "(system)", characterId: null },
+    ];
+    expect(humanPlayerNames(["Sam", undefined, "Jun"], lines)).toEqual(["Sam", "Jun"]);
   });
 });

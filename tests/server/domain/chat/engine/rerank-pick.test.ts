@@ -57,6 +57,7 @@ function pick(over: Partial<Parameters<typeof rerankPick>[0]> & Pick<Parameters<
     speakerCandidates: SPEAKERS,
     characterLines: LINES,
     lastLine: line("what do we do now?"),
+    humanNames: ["Sam"],
     lastSpeaker: null,
     rng: () => 0.5,
     ...over,
@@ -134,6 +135,31 @@ describe("rerankPick — several characters addressed", () => {
     const scores = fakeReranker({ aria: 1, bran: 4, cara: 9 });
     const out = await pick({ reranker: scores.op, speakerCandidates: knights, lastLine: line("Knight, hold the gate!") });
     expect(out).toEqual({ speakers: [ref("bran")], degraded: false, aborted: false });
+  });
+
+  test("a name a human player shares addresses the human; the character's whole name still addresses it", async () => {
+    const rooms = [
+      { ref: ref("aria"), name: "Rook the Bard" },
+      { ref: ref("bran"), name: "Bran" },
+      { ref: ref("cara"), name: "Cara" },
+    ];
+    const scores = fakeReranker({ aria: 9, bran: 1, cara: 4 });
+    const toHuman = await pick({
+      reranker: scores.op,
+      speakerCandidates: rooms,
+      humanNames: ["Rook"],
+      lastLine: line("Rook, your move.", "Bran", cid("bran")),
+    });
+    expect(toHuman.speakers).toEqual([ref("aria")]);
+    expect(scores.sent).toHaveLength(1);
+    const toBard = await pick({
+      reranker: scores.op,
+      speakerCandidates: rooms,
+      humanNames: ["Rook"],
+      lastLine: line("Rook the Bard, your move.", "Bran", cid("bran")),
+    });
+    expect(toBard).toEqual({ speakers: [ref("aria")], degraded: false, aborted: false });
+    expect(scores.sent).toHaveLength(1);
   });
 
   test("a failing role still answers the addressed characters, in mention order, and says so", async () => {

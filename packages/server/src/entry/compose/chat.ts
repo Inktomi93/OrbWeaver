@@ -9,7 +9,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy, SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
-import { EMBED_SPACE_DIMS, RERANK_FLOOR } from "@orb/contracts/inference";
+import { acceptsNamedToolChoice, EMBED_SPACE_DIMS, RERANK_FLOOR } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -1205,6 +1205,19 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // A rerank binding always carries a rerank capability; the floor stands in only if one ever does not.
       const capability = view.capability.kind === "rerank" ? view.capability.rerank : RERANK_FLOOR;
       return { capability, rerank: (query, documents, opts) => roles.rerank(query, documents, opts) };
+    },
+    // The arbiter is structured output only: a row whose model has neither a response-format nor a named
+    // forced-tool vehicle cannot serve it, so the round degrades visibly instead of reading free text.
+    resolveSpeakerArbiter: async (funderUserId) => {
+      const roles = await input.roleClientsFor(funderUserId);
+      const view = await roles.resolved("structured");
+      if (view?.capability.kind !== "generation") {
+        return null;
+      }
+      const generation = view.capability.generation;
+      return generation.output.structured === true || acceptsNamedToolChoice(generation)
+        ? { structured: (inputs, opts) => roles.structured(inputs, opts) }
+        : null;
     },
     summarizerContextTokens: taskWindows.summarize,
     summarizeAvailability: async (funderUserId) => await input.connection.availability({ task: "summarize", principal: await realHostPrincipal(funderUserId) }),

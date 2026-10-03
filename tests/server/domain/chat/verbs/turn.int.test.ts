@@ -33,6 +33,7 @@ import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
+import type { SpeakerArbiter } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
 import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { ChatBehaviorInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
 import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -208,7 +209,7 @@ function harness(
     runChatTurn?: ChatContext["runChatTurn"];
     /** The `smart` policy's side-LLM turn arbiter (default = the throwing `notStubbed` — every non-smart
      *  room must never reach it). The smart-policy pins script it (a pick, or an outage). */
-    summarize?: ChatContext["summarize"];
+    arbiter?: SpeakerArbiter["structured"];
     /** The funder's bound rerank role, Smart's default pick (default = unbound). */
     resolveSpeakerReranker?: ChatContext["resolveSpeakerReranker"];
     /** Discovery's distillates for the host's characters (default = none distilled). */
@@ -268,7 +269,7 @@ function harness(
     },
     ...(over.readPresence !== undefined ? { readPresence: over.readPresence } : {}),
     ...(over.resolveUserEnabled !== undefined ? { resolveUserEnabled: over.resolveUserEnabled } : {}),
-    ...(over.summarize !== undefined ? { summarize: over.summarize } : {}),
+    ...(over.arbiter !== undefined ? { resolveSpeakerArbiter: boundArbiter(over.arbiter) } : {}),
     ...(over.resolveSpeakerReranker !== undefined ? { resolveSpeakerReranker: over.resolveSpeakerReranker } : {}),
     ...(over.resolveCharacterDistillates !== undefined ? { resolveCharacterDistillates: over.resolveCharacterDistillates } : {}),
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
@@ -969,17 +970,28 @@ describe("send — the group round (N speakers via driveRound)", () => {
 // The `smart` policy routes the round through the side-LLM turn arbiter (`engine/smart-arbitrate`) BEFORE
 // the deterministic sampler is reached. The owner contract: when that call fails, the round degrades to the
 // `natural` math rather than stalling — and says so out loud (D41: no silent degrade).
-/** A scripted turn-arbiter reply (the `summarize` role op the smart arbitration calls). */
-function arbiter(text: string): { op: ChatContext["summarize"]; calls: () => number } {
+/** A scripted Utility arbiter: its structured call answers the schema payload naming `names`, and counts calls. */
+function arbiter(...names: readonly string[]): { op: SpeakerArbiter["structured"]; calls: () => number } {
   let calls = 0;
   return {
     op: (): Promise<SummarizeResult> => {
       calls += 1;
-      return Promise.resolve({ items: [{ text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+      return Promise.resolve(structuredReply(names));
     },
     calls: () => calls,
   };
 }
+
+/** A bound Utility row that serves structured output, answering through `structured`. */
+function boundArbiter(structured: SpeakerArbiter["structured"]): ChatContext["resolveSpeakerArbiter"] {
+  return () => Promise.resolve({ structured });
+}
+
+/** The `{responders}` payload a structured arbiter call returns. */
+const structuredReply = (names: readonly string[]): SummarizeResult => ({
+  items: [{ text: JSON.stringify({ responders: names }), usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }],
+  model: "fake",
+});
 
 const warnings = (events: readonly ChatBusEvent[]): readonly ChatBusEvent[] => events.filter((e) => e.type === "warning");
 
@@ -1017,7 +1029,7 @@ describe("send — Smart's picker route (the reranker by default, the Utility mo
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const ranked = reranker("aria");
     const chosen = arbiter("bryn");
-    const h = harness(db, names, { resolveSpeakerReranker: ranked.op, summarize: chosen.op });
+    const h = harness(db, names, { resolveSpeakerReranker: ranked.op, arbiter: chosen.op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
 
@@ -1043,7 +1055,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   test("the side-LLM's pick is honored (the happy path still works)", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const chosen = arbiter("bryn");
-    const h = harness(db, names, { summarize: chosen.op });
+    const h = harness(db, names, { arbiter: chosen.op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
 
@@ -1064,9 +1076,9 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     await seedMessage(db, chatId, 3, { role: "assistant", characterId: chars[1] ?? null, content: "Speak for yourself." });
     const prompts: string[] = [];
     const h = harness(db, names, {
-      summarize: (_funderUserId, inputs): Promise<SummarizeResult> => {
+      arbiter: (inputs): Promise<SummarizeResult> => {
         prompts.push(inputs[0]?.userPrompt ?? "");
-        return Promise.resolve({ items: [{ text: "aria", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+        return Promise.resolve(structuredReply(["aria"]));
       },
     });
 
@@ -1087,9 +1099,9 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
         asked.push({ ownerId, ids });
         return Promise.resolve(new Map(chars[1] === undefined ? [] : [[chars[1], { elevatorPitch: "The caravan's guide.", tags: [] }]]));
       },
-      summarize: (_funderUserId, inputs): Promise<SummarizeResult> => {
+      arbiter: (inputs): Promise<SummarizeResult> => {
         prompts.push(inputs[0]?.userPrompt ?? "");
-        return Promise.resolve({ items: [{ text: "bryn", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+        return Promise.resolve(structuredReply(["bryn"]));
       },
     });
 
@@ -1102,7 +1114,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
 
   test("several responders the arbiter names all answer, in its order, through the one round", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { smartPicker: "utility" });
-    const h = harness(db, names, { summarize: arbiter('["cara", "aria"]').op });
+    const h = harness(db, names, { arbiter: arbiter("cara", "aria").op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
 
@@ -1113,7 +1125,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   test("characters the human names answer without an arbiter call", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { smartPicker: "utility" });
     const chosen = arbiter("aria");
-    const h = harness(db, names, { summarize: chosen.op });
+    const h = harness(db, names, { arbiter: chosen.op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "cara, bryn: thoughts?" });
 
@@ -1124,7 +1136,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   test("an @mention of only a muted character forces nobody: the arbiter still picks", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { smartPicker: "utility", disabledKeys: ["cara"] });
     const chosen = arbiter("bryn");
-    const h = harness(db, names, { summarize: chosen.op });
+    const h = harness(db, names, { arbiter: chosen.op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@cara hello" });
 
@@ -1135,7 +1147,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   test("a THROWING arbiter (outage) still commits a turn, chosen by the natural math, with a warning", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const h = harness(db, names, {
-      summarize: () => Promise.reject(new Error("side-LLM down")),
+      arbiter: () => Promise.reject(new Error("side-LLM down")),
     });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
@@ -1146,12 +1158,26 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "smart_arbitration_degraded" }]);
   });
 
-  // The small-hardware arm (plan-for-small-hardware): no summarize backend wired ⇒ the role dispatcher
+  // The structured-only arbiter: a Utility row that is unbound or can serve no structured-output vehicle
+  // resolves no arbiter, and the round degrades the same visible way. Free text is never read instead.
+  test("a Utility row that cannot serve structured output degrades loudly", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
+    const h = harness(db, names);
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(chars).toContainEqual(assistants[0]?.characterId);
+    expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "smart_arbitration_degraded" }]);
+  });
+
+  // The small-hardware arm (plan-for-small-hardware): no Utility backend wired ⇒ the role dispatcher
   // fail-closes with a SYNCHRONOUS throw. Same outcome — the round happens and the user is told.
   test("an UNWIRED arbiter (sync fail-closed throw) degrades the same way", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const h = harness(db, names, {
-      summarize: () => {
+      arbiter: () => {
         throw new Error('provider "vllm" is not wired for the "summarize" role');
       },
     });
@@ -1164,7 +1190,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
 
   test("a GARBLED / off-roster reply degrades to the math (never schedules a non-member)", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
-    const h = harness(db, names, { summarize: arbiter("Gandalf the Grey").op });
+    const h = harness(db, names, { arbiter: arbiter("Gandalf the Grey").op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
 
@@ -1177,7 +1203,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   test("a human @mention hard-overrides smart entirely — the arbiter is never called", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const chosen = arbiter("aria");
-    const h = harness(db, names, { summarize: chosen.op });
+    const h = harness(db, names, { arbiter: chosen.op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@bryn hello" });
 
@@ -1189,7 +1215,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
 
   test("a MUTED member named by the arbiter is never scheduled (untrusted model output)", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { smartPicker: "utility", disabledKeys: ["cara"] });
-    const h = harness(db, names, { summarize: arbiter("cara").op });
+    const h = harness(db, names, { arbiter: arbiter("cara").op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
 
@@ -1201,7 +1227,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
 
   // THE HANG (a hang is not a failure, so the degrade belt above cannot catch it): a arbiter box that
   // accepts the request and never answers holds the whole turn open. The turn's abort signal now rides INTO
-  // the summarize op, so the user's Stop cuts it — and a cancelled arbitration is NOT a degrade: the round
+  // the structured call, so the user's Stop cuts it — and a cancelled arbitration is NOT a degrade: the round
   // ends with nothing generated and no warning (nothing degraded — the user stopped it).
   test("an abort mid-arbitration ends the turn: no fallback speaker, no generation, no degrade warning", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
@@ -1216,7 +1242,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
       },
       // The non-responsive box: settles ONLY when the injected signal fires, exactly like a real provider
       // fetch that got a socket and no bytes.
-      summarize: (_funderUserId, _inputs, opts): Promise<SummarizeResult> =>
+      arbiter: (_inputs, opts): Promise<SummarizeResult> =>
         new Promise((_resolve, reject) => {
           opts?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
           arbiterEntered();
@@ -1283,9 +1309,9 @@ describe("send — narrator × smart: the arbiter is short-circuited (its verdic
     let arbiterCalls = 0;
     const h = harness(db, names, {
       groupCharacterId,
-      summarize: (): Promise<SummarizeResult> => {
+      arbiter: (): Promise<SummarizeResult> => {
         arbiterCalls += 1;
-        return Promise.resolve({ items: [{ text: "aria", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+        return Promise.resolve(structuredReply(["aria"]));
       },
     });
 
@@ -1302,7 +1328,7 @@ describe("send — narrator × smart: the arbiter is short-circuited (its verdic
     const groupCharacterId = await seedCharacter(db, host, "group");
     const h = harness(db, names, {
       groupCharacterId,
-      summarize: () => Promise.reject(new Error("side-LLM down")),
+      arbiter: () => Promise.reject(new Error("side-LLM down")),
     });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "narrate" });
@@ -1324,9 +1350,9 @@ describe("send — narrator × smart: the arbiter is short-circuited (its verdic
     let arbiterCalls = 0;
     const h = harness(db, names, {
       groupCharacterId,
-      summarize: (): Promise<SummarizeResult> => {
+      arbiter: (): Promise<SummarizeResult> => {
         arbiterCalls += 1;
-        return Promise.resolve({ items: [{ text: "aria", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+        return Promise.resolve(structuredReply(["aria"]));
       },
     });
 
@@ -1434,18 +1460,18 @@ describe("send — auto-mode AI→AI chain", () => {
     const arrived = new Promise<void>((resolve) => {
       hungEntered = resolve;
     });
-    const summarize: ChatContext["summarize"] = (_funderUserId, _inputs, opts): Promise<SummarizeResult> => {
+    const structured: SpeakerArbiter["structured"] = (_inputs, opts): Promise<SummarizeResult> => {
       calls += 1;
       const pick = calls === 1 ? "aria" : "bryn";
       if (calls <= 2) {
-        return Promise.resolve({ items: [{ text: pick, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+        return Promise.resolve(structuredReply([pick]));
       }
       return new Promise((_resolve, reject) => {
         opts?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
         hungEntered();
       });
     };
-    const h = harness(db, names, { summarize });
+    const h = harness(db, names, { arbiter: structured });
 
     const sending = h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
     await arrived; // the chain reached the hung arbitration
@@ -2271,7 +2297,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
   test("Smart: the side-LLM's pick answers, with one arbiter call and no warning", async () => {
     const { host, chatId, chars, names } = await roomAfter("smart", ["aria", "bryn", "cara"], { smartPicker: "utility" });
     const chosen = arbiter("cara");
-    const h = harness(db, names, { summarize: chosen.op });
+    const h = harness(db, names, { arbiter: chosen.op });
 
     const outcome = await h.turn.generate({ principal: principal(host), chatId });
 
@@ -2282,7 +2308,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
 
   test("Smart fallback: a failing arbiter degrades to the natural pick and says so", async () => {
     const { host, chatId, chars, names } = await roomAfter("smart", ["aria", "bryn"], { smartPicker: "utility" });
-    const h = harness(db, names, { summarize: () => Promise.reject(new Error("side-LLM down")) });
+    const h = harness(db, names, { arbiter: () => Promise.reject(new Error("side-LLM down")) });
 
     const outcome = await h.turn.generate({ principal: principal(host), chatId });
 
@@ -2305,7 +2331,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
   test("an explicit speaker still bypasses the policy: no arbiter call, the named seat answers", async () => {
     const { host, chatId, chars, names } = await roomAfter("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const chosen = arbiter("bryn");
-    const h = harness(db, names, { summarize: chosen.op });
+    const h = harness(db, names, { arbiter: chosen.op });
 
     const outcome = await h.turn.generate({ principal: principal(host), chatId, speakerCharacterId: chars[0] as CharacterId });
 
