@@ -564,6 +564,11 @@ export function reachableActorRefs(base: RpgSnapshotState, participantIndex: Act
   return known;
 }
 
+/** The round's scene calls in call order: the first, then every follow-up the tool vehicles keep. */
+function sceneCallsOf(extraction: RpgExtraction): readonly UpdateSceneArgs[] {
+  return extraction.scene === undefined ? [] : [extraction.scene, ...(extraction.sceneFollowUps ?? [])];
+}
+
 /** The GHOST-ACTOR guard (R5). The per-call `targetRef` enum is a MENU the model can misread: a measured spike
  *  saw a hosted model target "Aldric Vane" — an actor from a STALE enum who was in no live scene — and the
  *  mint arm of {@link resolveActor} happily made him real, so a hallucinated name became a tracked actor the
@@ -577,7 +582,7 @@ export function reachableActorRefs(base: RpgSnapshotState, participantIndex: Act
  *  so the guard only kills names with no referent anywhere. */
 export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtraction, participantIndex: ActorRefIndex): string[] {
   const known = reachableActorRefs(base, participantIndex);
-  for (const up of extraction.scene?.presentUpsert ?? []) {
+  for (const up of sceneCallsOf(extraction).flatMap((scene) => scene.presentUpsert ?? [])) {
     known.add(up.name.toLowerCase());
   }
   const named = [...extraction.party, ...extraction.inventory].map((e) => e.targetRef);
@@ -625,10 +630,12 @@ export function extractionToStateDelta(
   };
 
   state = applyActorArgs(state, extraction, mints, participantIndex);
-  if (extraction.scene !== undefined) {
+  // Every scene call of the round, in call order, each over the state the previous one left: exactly what the
+  // calls would do applied one by one (presence ops keep their order, each `recentEvent` is its own beat).
+  for (const args of sceneCallsOf(extraction)) {
     // `ScenePatch.recentEvents` is `readonly string[]`; the state plane is mutable — split it off and copy it so
     // the overlay type matches (the `update_scene` tool handler spreads the same way through the accumulator).
-    const { recentEvents, ...scene } = applyUpdateScene(state, extraction.scene, participantIndex);
+    const { recentEvents, ...scene } = applyUpdateScene(state, args, participantIndex);
     overlay({ ...scene, ...(recentEvents !== undefined ? { recentEvents: [...recentEvents] } : {}) });
   }
   for (const args of extraction.trackers) {
