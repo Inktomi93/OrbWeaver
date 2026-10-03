@@ -15,6 +15,7 @@ import type { CatalogRefreshOutcome } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
 import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
+import { curatedKindOf } from "../substrate/kind.ts";
 
 function createCatalogModels(ctx: ConnectionContext): ConnectionService["catalogModels"] {
   return async (params): Promise<ModelListing> => {
@@ -24,13 +25,19 @@ function createCatalogModels(ctx: ConnectionContext): ConnectionService["catalog
     }
     // A saved row is re-judged, not trusted: it may name a plugin provider the owner no longer holds enabled.
     const provider = requireProvider(ctx, row.ownerId, row.providerId);
-    return ctx.runtime.catalogs.models({
+    const listing = await ctx.runtime.catalogs.models({
       principal: params.principal,
       providerId: provider.id,
       secret: { credentialId: row.credentialId },
       baseUrl: row.baseUrl,
       headers: row.transport?.headers,
     });
+    // A model of another kind cannot serve the tasks this row is bound to, so it is not offered. An entry the
+    // catalog states no kind for stays: most lists state none.
+    const kind = curatedKindOf(row, provider);
+    return listing.listed && kind !== undefined
+      ? { listed: true, models: listing.models.filter((entry) => entry.kind === undefined || entry.kind === kind) }
+      : listing;
   };
 }
 

@@ -3,9 +3,9 @@
 // field, so it states the folded value, "assumed" where the fold marks a floor guess, and the baseline it replaced.
 
 import type { Capability, DeclaredCapability } from "@orb/contracts/inference";
-import { REASONING_MODES } from "@orb/contracts/inference";
+import { REASONING_MODES, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import type { FactChoice, FactLeaf, FactRow } from "./connection-fact-model.ts";
-import { draftOf, formatLeaf, NOT_STATED, readPath, tokens, unsetRow } from "./connection-fact-model.ts";
+import { draftOf, formatLeaf, grouped, NOT_STATED, readPath, tokens, unsetRow } from "./connection-fact-model.ts";
 
 /** The source line for a capability row this client cannot attribute per field. Deliberately NOT one of the
  *  mock's invented strings — see `connection-fact-model.ts`'s header. */
@@ -16,8 +16,8 @@ const UNSTATED_SOURCE = "nobody has stated it, so it counts as no. Override it i
 const ASSUMED_SUFFIX = " (assumed)";
 /** The resolver raised a declared number to a floor (a reranker window below its minimum), so the folded value is not
  *  the one the user typed; the row says which one is in effect and why. */
-const RAISED_OVERRIDE_SOURCE = (asked: string, used: string, prior: string): string =>
-  `your override of ${asked} is below the minimum, so ${used} is used — it was ${prior}`;
+const RAISED_OVERRIDE_SOURCE = (asked: string, floor: string, prior: string): string =>
+  `Your override of ${asked} is under the ${floor}-token minimum, so ${floor} is used. It was ${prior}.`;
 
 function toolsWith(parallel: boolean): (value: unknown) => boolean {
   return (value): boolean => readPath(value, "parallel") === parallel;
@@ -71,7 +71,14 @@ const EMBEDDING_LEAVES: readonly FactLeaf[] = [
 ];
 
 const RERANK_LEAVES: readonly FactLeaf[] = [
-  { path: "rerank.maxInputTokens", name: "max input", edit: { kind: "number" }, format: tokens, estimatedBy: "rerank.windowEstimated" },
+  {
+    path: "rerank.maxInputTokens",
+    name: "max input",
+    // The resolver raises a smaller window to its floor, so a value under it is refused where it is typed.
+    edit: { kind: "number", min: { value: RERANK_MIN_WINDOW_TOKENS, reads: tokens(RERANK_MIN_WINDOW_TOKENS) } },
+    format: tokens,
+    estimatedBy: "rerank.windowEstimated",
+  },
   { path: "rerank.input", name: "takes", edit: { kind: "list" } },
 ];
 
@@ -94,7 +101,7 @@ function overriddenCapabilitySource(leaf: FactLeaf, baseline: Capability, values
   const prior = readPath(baseline, leaf.path);
   const priorText = prior === undefined ? NOT_STATED : formatLeaf(leaf, prior);
   if (typeof values.declared === "number" && typeof values.folded === "number" && values.folded > values.declared) {
-    return RAISED_OVERRIDE_SOURCE(formatLeaf(leaf, values.declared), formatLeaf(leaf, values.folded), priorText);
+    return RAISED_OVERRIDE_SOURCE(formatLeaf(leaf, values.declared), grouped(values.folded), priorText);
   }
   return `your override — it was ${priorText}`;
 }

@@ -162,6 +162,19 @@ function modelCheckPatch(row: UserConnection, model: ModelId, modelCheck: ModelC
   return model === row.model ? {} : { modelCheck: "unchecked" };
 }
 
+/** A declared reranker window describes the model it was declared on, so a new model without a declaration of
+ *  its own sheds it, as the seed's own move does; carried over, it could exceed the new model's positions. */
+function declaredPatch(row: UserConnection, model: ModelId, declared: UpdateConnectionParams["patch"]["declared"]): Pick<Partial<UserConnection>, "declared"> {
+  if (declared !== undefined) {
+    return { declared };
+  }
+  if (model === row.model || row.declared?.rerank === undefined) {
+    return {};
+  }
+  const { rerank: _earlierModelFacts, ...kept } = row.declared;
+  return { declared: Object.keys(kept).length === 0 ? null : kept };
+}
+
 /** The columns a patch may write, re-validated against the row's (possibly patched) provider. */
 async function validatedPatch(
   ctx: ConnectionContext,
@@ -189,7 +202,7 @@ async function validatedPatch(
     baseUrl,
     model,
     api,
-    ...(patch.declared !== undefined ? { declared: patch.declared } : {}),
+    ...declaredPatch(row, model, patch.declared),
     ...(patch.extras !== undefined ? { extras: patch.extras } : {}),
     ...(patch.transport !== undefined ? { transport: patch.transport } : {}),
     ...modelCheckPatch(row, model, patch.modelCheck),

@@ -136,10 +136,11 @@ interface PoolRow {
   readonly promptPrice: number | null;
   readonly inputModalities: readonly string[];
   readonly supportedParameters: readonly string[];
+  readonly description: string | null;
 }
 
 function row(id: string, label = id, over: Partial<PoolRow> = {}): PoolRow {
-  return { id, label, contextLength: null, promptPrice: null, inputModalities: [], supportedParameters: [], ...over };
+  return { id, label, contextLength: null, promptPrice: null, inputModalities: [], supportedParameters: [], description: null, ...over };
 }
 
 /** A catalog-shaped pool: `count` models per vendor, ids `<vendor>/m<i>`. */

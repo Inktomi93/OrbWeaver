@@ -19,6 +19,8 @@ export const modelCatalogEntrySchema = z.object({
   google: googleModelInfoSchema.optional(),
   id: z.string(),
   name: z.string(),
+  /** One line on when to pick this model over its neighbours; only the built-in catalog states one. */
+  description: z.string().optional(),
   /** Only OpenRouter's catalog carries a kind; every other `/v1/models` is kindless (§5.7 `kindOf`). */
   kind: modelKindSchema.optional(),
   contextLength: z.number().nullable(),

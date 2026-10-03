@@ -38,6 +38,11 @@ export function ModelPickerRow({ entry, picked, current }: { readonly entry: Pic
             {entry.id}
           </Text>
         )}
+        {entry.description === null ? null : (
+          <Text as="span" voice="gloss">
+            {entry.description}
+          </Text>
+        )}
       </Stack>
       {context !== null || price !== null ? (
         <Stack align="end" className="shrink-0" gap="field">

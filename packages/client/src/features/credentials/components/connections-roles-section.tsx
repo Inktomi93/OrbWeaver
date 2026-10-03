@@ -2,14 +2,18 @@
 // user ("binding" is a schema word and never reaches copy, §5.3a), over the persisted `listBindings` read.
 // Owns its own `QueryBoundary`; the row and why it carries three channels is `components/connection-role-slot.tsx`.
 
-import { Section, Stack } from "@orb/ui/layout";
+import { Button } from "@orb/ui/button";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { ConnectionRoleSlot, QueryBoundary } from "#components";
+import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { ROLE_ROWS_ORDERED } from "#lib";
-import { configAnchorId, configSettingControlId } from "#state";
+import { CONNECTIONS_LIST_ADDRESS, ROLE_ROWS_ORDERED } from "#lib";
+import { configAnchorId, configSettingControlId, openConfigTo } from "#state";
+import { useRequestConnectionEditor } from "../lib/connection-editor-request-store.ts";
 import { CONNECTIONS_ROLES_SUBCATEGORY, ROLE_SETTING_IDS } from "../lib/connections-nav.ts";
 import { UtilityPresetSelect } from "./utility-preset-select.tsx";
 
@@ -34,11 +38,53 @@ export function ConnectionsRolesSection(): ReactElement {
   );
 }
 
+type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
+type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
+
+/** The Rerank picker offers one row per connection, and the built-in rerankers share one row; another of them is
+ *  that row's model, so the hint is a door to the row the role is on. Shown only while the role is on a built-in row. */
+function BuiltinRerankerHint({
+  connections,
+  bindings,
+  builtinProviderIds,
+}: {
+  readonly connections: readonly ConnectionListItem[];
+  readonly bindings: readonly BindingView[];
+  readonly builtinProviderIds: ReadonlySet<string>;
+}): ReactElement | null {
+  const requestConnectionEditor = useRequestConnectionEditor();
+  const boundId = bindings.find((view) => view.task === "rerank")?.binding?.connectionId ?? null;
+  const row = connections.find((connection) => connection.id === boundId && builtinProviderIds.has(connection.providerId));
+  if (row === undefined) {
+    return null;
+  }
+  return (
+    <Row align="center" className="flex-wrap" gap="field">
+      <Text voice="gloss" className={PROSE_MEASURE}>
+        {`To use a lighter or older built-in reranker, open ${row.label} under Connections and pick another model.`}
+      </Text>
+      <Button
+        intent="ghost"
+        onClick={(): void => {
+          openConfigTo(CONNECTIONS_LIST_ADDRESS.group, CONNECTIONS_LIST_ADDRESS.sub);
+          requestConnectionEditor(row.id);
+        }}
+        size="sm"
+        type="button"
+      >
+        {`Open ${row.label}`}
+      </Button>
+    </Row>
+  );
+}
+
 function ModelRolesBody(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: connections } = useSuspenseQuery(trpc.connection.list.queryOptions());
   const { data: bindings } = useSuspenseQuery(trpc.connection.listBindings.queryOptions());
+  const { data: available } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
+  const builtinProviderIds = new Set(available.filter((entry) => entry.provider.catalog === "builtin").map((entry) => entry.provider.id));
 
   return (
     <Section divider={true} heading={CONNECTIONS_ROLES_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_ROLES_SUBCATEGORY.id)}>
@@ -61,6 +107,7 @@ function ModelRolesBody(): ReactElement {
             />
             {/* Chat's preset is the active preset (the Presets pane); only Utility picks its own (D299). */}
             {row.task === "summarize" ? <UtilityPresetSelect /> : null}
+            {row.task === "rerank" ? <BuiltinRerankerHint bindings={bindings} builtinProviderIds={builtinProviderIds} connections={connections} /> : null}
           </Stack>
         ))}
       </Stack>

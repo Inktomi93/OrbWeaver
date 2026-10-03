@@ -10,6 +10,7 @@ export const localLightRows = [
       ids: ["jinaai/jina-clip-v2"],
       provider: "local-light",
     },
+    catalog: { name: "Jina CLIP v2", description: "Default. Embeds text and images in one space." },
     kind: "embedding",
     embedding: {
       dims: 1024,
@@ -31,6 +32,7 @@ export const localLightRows = [
       ids: ["cross-encoder/ettin-reranker-32m-v1"],
       provider: "local-light",
     },
+    catalog: { name: "Ettin reranker 32M", description: "Default. Best ranking; reads up to 2,048 tokens." },
     kind: "rerank",
     rerank: {
       // The SERVED window, not the model's 7999: its ONNX export runs full attention in every layer, so a pair's
@@ -58,6 +60,7 @@ export const localLightRows = [
       ids: ["cross-encoder/ettin-reranker-17m-v1"],
       provider: "local-light",
     },
+    catalog: { name: "Ettin reranker 17M", description: "Lighter and faster, for small machines. Reads up to 2,048 tokens." },
     kind: "rerank",
     rerank: {
       maxInputTokens: 2048,
@@ -77,6 +80,7 @@ export const localLightRows = [
       ids: ["Xenova/ms-marco-MiniLM-L-6-v2"],
       provider: "local-light",
     },
+    catalog: { name: "MiniLM reranker", description: "The earlier default. Fastest, but reads only 512 tokens." },
     kind: "rerank",
     rerank: {
       maxInputTokens: 512,

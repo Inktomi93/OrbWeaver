@@ -16,7 +16,7 @@ import { agentSdkCatalogEntry } from "../backends/agent-sdk/index.ts";
 import { listAnthropicModels } from "../backends/anthropic-messages/index.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../backends/kit/model-listing.ts";
 import { resolvedScrubSet } from "../backends/kit/sanitize.ts";
-import { curatedIdsFor, curatedKind } from "../capability/sources/curated/loader.ts";
+import { curatedIdsFor, curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
 import type { ProviderDiagnostics } from "../contract/diagnostics.ts";
 import { assertNever, ProviderError } from "../contract/errors.ts";
 import type { CatalogDraft, MirrorWarm, SpawnIdentity } from "../contract/runtime.ts";
@@ -37,11 +37,19 @@ export interface CatalogListingDeps {
   readonly listModels: ProviderDiagnostics["listModels"];
 }
 
-/** A provider's curated rows: the whole of what the in-process runtime can run for it. */
+/** A provider's curated rows: the whole of what the in-process runtime can run for it, named and described as
+ *  the rows present them. */
 export function builtinCatalog(provider: ProviderDef): ModelCatalogEntry[] {
   return curatedIdsFor(provider.id).map((id) => {
-    const kind = curatedKind({ model: id, providerId: provider.id, wire: provider.wire });
-    return { ...bareCatalogEntry({ id }), ...(kind !== undefined ? { kind } : {}) };
+    const query = { model: id, providerId: provider.id, wire: provider.wire };
+    const kind = curatedKind(query);
+    const presentation = curatedRows(query).find((row) => row.catalog !== undefined)?.catalog;
+    return {
+      ...bareCatalogEntry({ id }),
+      ...(presentation?.name !== undefined ? { name: presentation.name } : {}),
+      ...(presentation?.description !== undefined ? { description: presentation.description } : {}),
+      ...(kind !== undefined ? { kind } : {}),
+    };
   });
 }
 

@@ -157,7 +157,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
   // keydown that set `navigated`, before the state is visible to this render's closures.
   const navigatingRef = useRef(false);
   const recentIds = useRecentModels(recentKey);
-  const view = usePickerView({ models, term, chips, recentIds, pinnedIds: [value, props.currentModel ?? ""], listOwner });
+  const view = usePickerView({ models, term, chips, recentIds, pinnedIds: [value, props.currentModel ?? ""], listOwner, closedList: !typedAllowed });
   const typed = models === null ? null : typedOption({ term, models, allowed: typedAllowed });
   const listReady = models !== null;
   // Until the user moves through the list, the highlight is ours: the row that IS what was typed, or nothing —
@@ -322,6 +322,8 @@ function usePickerView(args: {
   /** The ids the cap never hides: the pick and the model already on the saved row. */
   readonly pinnedIds: readonly string[];
   readonly listOwner: string;
+  /** A closed list is the built-in catalog: a few named models, which a heading per Hub org only splits up. */
+  readonly closedList: boolean;
 }): {
   readonly groups: ReturnType<typeof groupModelEntries<PickerEntry>>["groups"];
   readonly overflow: number;
@@ -342,7 +344,7 @@ function usePickerView(args: {
   const inRecent = new Set(recentEntries.map((entry) => entry.id));
   const grouped = groupModelEntries(
     chipFiltered.filter((entry) => !inRecent.has(entry.id)),
-    { unprefixedHeading: args.listOwner, query: deferredQuery, pinnedIds: args.pinnedIds, sectioned: hasMultiModelVendor(pool) },
+    { unprefixedHeading: args.listOwner, query: deferredQuery, pinnedIds: args.pinnedIds, sectioned: !args.closedList && hasMultiModelVendor(pool) },
   );
   return { groups: grouped.groups, overflow: grouped.overflow, recentEntries, showChips };
 }

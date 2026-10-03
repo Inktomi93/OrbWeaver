@@ -25,6 +25,7 @@ import {
 } from "../../../../../packages/client/src/features/credentials/lib/connection-editor-model.ts";
 import type { FactRow } from "../../../../../packages/client/src/features/credentials/lib/connection-fact-model.ts";
 import {
+  minimumRefusal,
   parseFactValue,
   QUIRK_LEAF_PATH_LIST,
   QUIRK_ROW_PATHS,
@@ -131,6 +132,16 @@ describe("the capability block is honest about what it cannot know", () => {
     expect(row.value).toBe(rowFor(capabilityFactRows(folded, null, folded), "rerank.maxInputTokens").value);
     const plain = rowFor(capabilityFactRows(folded, { rerank: { maxInputTokens: RERANK_MIN_WINDOW_TOKENS } }, baseline), "rerank.maxInputTokens");
     expect(row.source).not.toBe(plain.source);
+  });
+
+  // The resolver raises a smaller window to its floor, so the override editor refuses one where it is typed.
+  test("a reranker window under the floor is refused at entry; the floor itself and every other fact are not", () => {
+    const rerank: Capability = { kind: "rerank", rerank: { maxInputTokens: 512, input: ["text"], instructionAware: false } };
+    const window = rowFor(capabilityFactRows(rerank, null, rerank), "rerank.maxInputTokens");
+    expect(minimumRefusal(window.edit, String(RERANK_MIN_WINDOW_TOKENS - 1))).not.toBeNull();
+    expect(minimumRefusal(window.edit, String(RERANK_MIN_WINDOW_TOKENS))).toBeNull();
+    const context = rowFor(capabilityFactRows(GENERATION, null, GENERATION), "generation.context.window");
+    expect(minimumRefusal(context.edit, "1")).toBeNull();
   });
 
   test("a row nobody declared says where the value comes from without claiming a tier it cannot prove", () => {
