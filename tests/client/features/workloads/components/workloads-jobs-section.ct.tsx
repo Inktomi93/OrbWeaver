@@ -21,22 +21,15 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
+import { PAID_RUN_ROUTES } from "../../../../support/node/utility-role.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
 // never answers them and they rode `routeTrpc`'s lenient null in every mount here. Imported from the bus's
 // own fixture module rather than re-spelled, so the two directions of this feed cannot drift apart.
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { WorkloadsJobsSectionStory } from "../_ct-stories.tsx";
-
-/** The paid-run confirm's reads (its Utility line and the server's call count), fed in every mount: a running Utility
- *  model and a run that calls no model, so a job starts at once unless a test overrides the count. */
-const PAID_RUN_ROUTES: TrpcRoutes<"connection.list" | "connection.listBindings" | "workloads.estimateModelCalls"> = {
-  ...UTILITY_RUNNING_ROUTES,
-  "workloads.estimateModelCalls": { calls: 0 },
-};
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 const OWNER_VIEWER = { userId: "user_ct_root", handle: "root", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;

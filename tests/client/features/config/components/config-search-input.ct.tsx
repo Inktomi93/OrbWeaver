@@ -16,6 +16,7 @@ import type { Page } from "@playwright/test";
 import { hitExtent, resolveSpacingPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const USER_SETTINGS_VIEW = {
@@ -57,7 +58,11 @@ const AMBIENT = {
   "worldInfo.listEntries": [],
   "rosterPreset.list": [],
   "persona.list": [],
+  // A search hit can land on Chat behavior, whose Memory section reads the Utility role.
+  ...UTILITY_RUNNING_ROUTES,
 } satisfies TrpcRoutes<
+  | "connection.list"
+  | "connection.listBindings"
   | "sessions.me"
   | "settings.getUserSettings"
   | "settings.listThemes"

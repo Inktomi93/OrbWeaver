@@ -96,3 +96,11 @@ export const UTILITY_RUNNING_ROUTES: TrpcRoutes<"connection.list" | "connection.
   "connection.list": [UTILITY_ROW],
   "connection.listBindings": utilityBindings("running"),
 };
+
+/** The paid-run confirm's reads (its Utility line and the server's call count): a running Utility model and a run that
+ *  calls no model, so a job starts at once unless a test overrides the count. Spread into any mount of the jobs
+ *  section, which owns the confirm. */
+export const PAID_RUN_ROUTES: TrpcRoutes<"connection.list" | "connection.listBindings" | "workloads.estimateModelCalls"> = {
+  ...UTILITY_RUNNING_ROUTES,
+  "workloads.estimateModelCalls": { calls: 0 },
+};

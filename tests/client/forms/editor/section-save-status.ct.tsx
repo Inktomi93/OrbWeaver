@@ -6,6 +6,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../../support/node/utility-role.ts";
 import { ConfigHostStory } from "../../features/config/_ct-stories.tsx";
 
 const SETTINGS_VIEW = {
@@ -25,6 +26,8 @@ test("a failing section renders inline at its anchor WITH a retry, even while ho
     "settings.getUserSettings": () => SETTINGS_VIEW,
     [UPDATE_PROC]: () => trpcError({ code: "INTERNAL_SERVER_ERROR", message: "nope" }),
     "sessions.me": () => VIEWER,
+    // The chat-behavior pane's Memory section reads the Utility role.
+    ...UTILITY_RUNNING_ROUTES,
     // The config LIST paints every shelf, so the four collection bands read their rosters for the counts —
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
     "tag.listTagsWithUsage": [],

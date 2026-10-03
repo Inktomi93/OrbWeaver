@@ -6,6 +6,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import {
   ConfigHostStory,
   ConfigListDefaultStory,
@@ -164,6 +165,8 @@ function stub(
       { id: "theme_00000000000000000000000003", name: "Light", override: {}, css: null, isSeed: true, isDefault: false, createdAt: 0, updatedAt: 0 },
     ],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
+    // Opening Chat behavior mounts its Memory section, which reads the Utility role.
+    ...UTILITY_RUNNING_ROUTES,
     "regex.listScripts": () => scripts,
     "regex.listGlobal": () => [],
     // The regex CONTEXT arm's reverse rosters (REGROSTER) — this host only proves that the arm MOUNTS;

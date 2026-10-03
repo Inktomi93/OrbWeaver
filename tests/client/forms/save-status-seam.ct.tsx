@@ -9,6 +9,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../support/node/utility-role.ts";
 import { ConfigHostStory } from "../features/config/_ct-stories.tsx";
 import { WorldInfoSettingsSectionStory } from "../features/world-info/_ct-stories.tsx";
 
@@ -37,6 +38,8 @@ const LIST_ROSTER_ROUTES: TrpcRoutes<
 test("HOSTED: reporting sections stay quiet and the host shows ONE aggregate", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...LIST_ROSTER_ROUTES,
+    // The chat-behavior pane's Memory section reads the Utility role.
+    ...UTILITY_RUNNING_ROUTES,
     "settings.getUserSettings": () => SETTINGS_VIEW,
     [UPDATE_PROC]: () => SETTINGS_VIEW,
     "sessions.me": () => VIEWER,

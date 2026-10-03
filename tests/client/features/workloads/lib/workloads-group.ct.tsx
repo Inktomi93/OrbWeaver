@@ -15,6 +15,7 @@ import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { PAID_RUN_ROUTES } from "../../../../support/node/utility-role.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
 // never answers them and they rode `routeTrpc`'s lenient null in every mount here. Imported from the bus's
@@ -48,6 +49,8 @@ function stub(page: Page): Promise<TrpcRecorder> {
     "worldInfo.listBooksWithUsage": [],
     "rosterPreset.list": [],
     ...STREAM_MUTATION_ROUTES,
+    // The jobs section owns the paid-run confirm, which reads the Utility role on mount.
+    ...PAID_RUN_ROUTES,
     "settings.getUserSettings": () => ({ userId: USER_VIEWER.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
     "settings.listThemes": [],
     "sessions.me": () => USER_VIEWER,
@@ -272,6 +275,7 @@ test("POPULATED: both lanes, a job in flight, a poison row, a finished stats reb
     "worldInfo.listBooksWithUsage": [],
     "rosterPreset.list": [],
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "settings.getUserSettings": () => ({ userId: USER_VIEWER.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
     "sessions.me": () => USER_VIEWER,
     "workloads.list": () =>

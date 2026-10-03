@@ -20,6 +20,7 @@ import type { Locator, Page } from "@playwright/test";
 import { beforeHitBox, touchFloorPx } from "../../support/browser/touch-floor.ts";
 import type { TrpcRecorder } from "../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../support/node/utility-role.ts";
 import { ConfigHostStory } from "../features/config/_ct-stories.tsx";
 import { SettingRowDevMenuStory, SettingRowResetStory } from "./setting-row-actions.fixtures.tsx";
 
@@ -200,6 +201,8 @@ test("auto-swipe is ONE row, not three — its dependents ride inside it", async
       configUnreadable: null,
     }),
     "sessions.me": { userId: "user_ct_rowchrome", handle: "ct_rowchrome", globalRole: "user" as const },
+    // The chat-behavior pane's Memory section reads the Utility role.
+    ...UTILITY_RUNNING_ROUTES,
     "settings.listThemes": () => [],
     "rosterPreset.list": [],
     "worldInfo.listBooksWithUsage": () => [],

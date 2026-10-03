@@ -26,6 +26,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcFixtureOutput, TrpcRecorder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ConfigDockedShellStory, ConfigFlashStory, ConfigWorkspaceStory } from "../_ct-stories.tsx";
 
 const REGEX_BAND = /Regex scripts/;
@@ -99,6 +100,8 @@ function stub(
     },
     "automation.listRulePresets": [],
     "sessions.me": { userId: "user_ct_config", handle: "ct_config", globalRole: "user" },
+    // Opening Chat behavior mounts its Memory section, which reads the Utility role.
+    ...UTILITY_RUNNING_ROUTES,
     "regex.listScripts": () => [SCRIPT, SCRIPT_2],
     "regex.listGlobal": () => [],
     "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),

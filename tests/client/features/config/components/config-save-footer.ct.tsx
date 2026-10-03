@@ -12,6 +12,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { ReactElement } from "react";
 import { defineTrpcRoutes, routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ConfigHostStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = {
@@ -39,6 +40,8 @@ const SHELL_VIEWER_ROUTE = defineTrpcRoutes({
   // group (Appearance) before these tests click their way to Chat behavior, and its Looks section reads the
   // theme library — so this file's mounts exercise that pipeline whether or not they are about it.
   "settings.listThemes": [],
+  // Every test here lands on Chat behavior, whose Memory section reads the Utility role.
+  ...UTILITY_RUNNING_ROUTES,
 });
 
 /** The host at the chat-behavior group, whose contributed sections (memory ① · world-info ② · databank ④)
