@@ -15,7 +15,7 @@
 // `findDuplicateBook`, the regex `planCardLift` shape). A match LINKS this character to the existing
 // world_books row (a fresh primary character_books attach); no book is duplicated. Only a genuinely new
 // book mints a fresh row + entries, under the next free name when the owner already holds a different book
-// under its name (the standalone path's rule, D286). This is the FALLBACK channel — the reference channel (`linkCarriedBooks`)
+// under its name (the standalone path's rule, D290). This is the FALLBACK channel — the reference channel (`linkCarriedBooks`)
 // resolves first and, when it links, the caller skips the embedded book entirely. One db.batch per
 // book; db.transaction() is banned (the :memory: trap).
 //

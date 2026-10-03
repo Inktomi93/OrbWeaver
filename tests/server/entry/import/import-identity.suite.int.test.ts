@@ -1,4 +1,4 @@
-// Import identity through the REAL doors (0474, D286). Each case runs the composed stack against a real
+// Import identity through the REAL doors (D290). Each case runs the composed stack against a real
 // database: the Characters dialog door (`runProfileImport`) and the profile-folder door (the `import-st`
 // contribution over a staged SillyTavern profile). The split-upload case also runs the browser planner
 // (`planTreeImport`), because the batches it sends are what the server sees. Pins: a split folder upload
@@ -120,7 +120,7 @@ function dialogDoor(app: ServicesResult, userId: UserId, bytes: Uint8Array, file
   });
 }
 
-describe("import identity holes (0474)", () => {
+describe("import identity across doors and split uploads", () => {
   test("a split folder upload mints each persona once, with its avatar, and every batch's transcripts attribute to it", async ({
     app,
     clock,

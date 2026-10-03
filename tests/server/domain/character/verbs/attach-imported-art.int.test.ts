@@ -45,7 +45,7 @@ describe("attachImportedArt", () => {
 
     expect(await storedRow(db, characterId)).toEqual({ avatarAssetId: art, importHash: ART_HASH, importTextHash: TEXT_HASH });
     expect(await svc.findByImportHash({ ownerId: owner, importHash: ART_HASH })).toEqual({ characterId });
-    // The JSON card the row landed from still finds it, so importing that JSON again is not a duplicate (D286).
+    // The JSON card the row landed from still finds it, so importing that JSON again is not a duplicate (D290).
     expect(await svc.findByImportHash({ ownerId: owner, importHash: TEXT_HASH })).toEqual({ characterId });
     expect(harness.audits).toEqual([
       {

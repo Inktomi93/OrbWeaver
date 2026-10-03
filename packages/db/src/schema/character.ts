@@ -88,7 +88,7 @@ export const characters = sqliteTable(
     // a row imported before it) — DISTINCT from `contentHash`. Null when authored.
     importHash: text("import_hash"),
     // The art-less identity a row that landed from a JSON card keeps once its PNG gives it art and `importHash`
-    // re-keys to the with-art identity, so the JSON still finds it (D286). Null on every other row.
+    // re-keys to the with-art identity, so the JSON still finds it (D290). Null on every other row.
     importTextHash: text("import_text_hash"),
     // The semantic-fields hash (always present — computed at create/edit).
     contentHash: text("content_hash").notNull(),
