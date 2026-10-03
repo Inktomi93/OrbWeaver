@@ -12,7 +12,7 @@ import { RPG_SCENE_LINE_LABEL } from "@orb/contracts/rpg";
 import { runStructuredTurn } from "@orb/inference";
 import type { CharacterId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { clampToTokenBudget } from "@orb/kit/tokens";
+import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerArbiter, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
@@ -20,9 +20,11 @@ import { addressedGroups, MAX_SMART_RESPONDERS, selectSpeakers } from "./select-
 
 /** Each candidate's "who is this" line in the prompt. */
 const CANDIDATE_LINE_TOKENS = 40;
-/** Each transcript line but the last (about 300 characters); the last line is the one being answered, so it
- *  rides whole. */
+/** Each transcript line but the last (about 300 characters). */
 const OLDER_LINE_TOKENS = 75;
+/** The share of the bound model's safe window the last line may take. It is the line being answered, so it rides
+ *  whole until it would crowd out the roster and the instruction; past that its HEAD is cut, keeping the end. */
+const LAST_LINE_WINDOW_SHARE = 0.5;
 const SCENE_TOKENS = 60;
 const CLIPPED = "…";
 const PERCENT = 100;
@@ -70,6 +72,21 @@ interface Named {
   readonly talkativeness: number;
 }
 
+/** A candidate as the model sees it: its `label` is its name, numbered in roster order when two candidates share
+ *  one ("Ann", "Ann (2)"), so the response enum can name each of them and map back to exactly one ref. */
+interface Labeled extends Named {
+  readonly label: string;
+}
+
+function labeled(choices: readonly Named[]): Labeled[] {
+  const seen = new Map<string, number>();
+  return choices.map((c) => {
+    const nth = (seen.get(c.name) ?? 0) + 1;
+    seen.set(c.name, nth);
+    return { ...c, label: nth === 1 ? c.name : `${c.name} (${nth})` };
+  });
+}
+
 /** The cancelled arbitration: no speaker, no degrade (`aborted ⇒ [] + degraded:false`). */
 const CANCELLED: SmartArbitrationResult = Object.freeze({ speakers: [], degraded: false, aborted: true });
 
@@ -113,12 +130,12 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
     aborted: false,
   });
 
-  const choices = modelChoices(params, eligible);
-  const [first, ...rest] = [...new Set(choices.map((c) => c.name))];
+  const choices = labeled(modelChoices(params, eligible));
+  const [first, ...rest] = choices.map((c) => c.label);
   if (first === undefined) {
     return fallback();
   }
-  let names: readonly string[];
+  let labels: readonly string[];
   // @orb-waive caught-failure-ownership(catch): classified by signal state — a settled signal returns CANCELLED
   // (the user stopped it); an unservable row, a failed call or an invalid payload after the one bounded retry
   // degrades to the visible `fallback()`, the arbiter's documented best-effort contract.
@@ -127,33 +144,38 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
     if (arbiter === null) {
       return cancelled() ? CANCELLED : fallback();
     }
-    names = await askArbiter(params, arbiter, choices, [first, ...rest]);
+    labels = await askArbiter(params, arbiter, choices, [first, ...rest]);
   } catch {
     return cancelled() ? CANCELLED : fallback();
   }
   if (cancelled()) {
     return CANCELLED;
   }
-  // A name two candidates share resolves to the first of them, in roster order.
-  const refs = [...new Set(names)].flatMap((name) => choices.find((c) => c.name === name)?.ref ?? []);
-  return picked(refs.slice(0, MAX_SMART_RESPONDERS));
+  // Lenient on length: a wire that strips the array bounds may send more than the cap, which is trimmed rather
+  // than spent on a retry. Only an empty answer degrades.
+  const refs = [...new Set(labels)].flatMap((label) => choices.find((c) => c.label === label)?.ref ?? []).slice(0, MAX_SMART_RESPONDERS);
+  return refs.length === 0 ? fallback() : picked(refs);
 }
 
-/** One schema-constrained call (with the shared one bounded retry): the names the model chose. */
+/** One schema-constrained call (with the shared one bounded retry): the candidate labels the model chose. */
 async function askArbiter(
   params: SmartArbitrateParams,
   arbiter: SpeakerArbiter,
-  choices: readonly Named[],
-  names: readonly [string, ...string[]],
+  choices: readonly Labeled[],
+  labels: readonly [string, ...string[]],
 ): Promise<readonly string[]> {
-  // One array of one enum of the candidates' names: no optionals and no unions, so it fits every wire's
-  // structured-output limits, and nothing off the roster can be emitted.
-  const schema = z.object({ responders: z.array(z.enum(names)).min(1).max(MAX_SMART_RESPONDERS) });
-  const responseFormat: ResponseFormat = { name: RESPONSE_NAME, schema: projectJsonSchema(schema) };
+  // The enum of the candidates' labels is what fits every wire and keeps anything off the roster from being
+  // emitted. The array bounds ride for the wires that enforce them; others strip them, so the reply is read
+  // without them and trimmed by the caller.
+  const responders = z.array(z.enum(labels));
+  const responseFormat: ResponseFormat = {
+    name: RESPONSE_NAME,
+    schema: projectJsonSchema(z.object({ responders: responders.min(1).max(MAX_SMART_RESPONDERS) })),
+  };
   const systemPrompt = resolveProseText("chat.arbiter.system", params.prose);
-  const userPrompt = buildArbiterPrompt(params, choices);
+  const userPrompt = buildArbiterPrompt(params, choices, arbiter.contextTokens);
   const reply = await runStructuredTurn({
-    payloadSchema: schema,
+    payloadSchema: z.object({ responders }),
     run: async (correction) => {
       const result = await arbiter.structured([{ systemPrompt, userPrompt: correction === undefined ? userPrompt : `${userPrompt}\n\n${correction}` }], {
         ...params.sampling,
@@ -202,7 +224,8 @@ function addressedInLastLine(params: SmartArbitrateParams): SpeakerRef[] | null 
  *  how talkative it is, the last speaker, then the conversation with every line but the last clipped. */
 function buildArbiterPrompt(
   params: Pick<SmartArbitrateParams, "transcript" | "room" | "humanNames" | "characterLines" | "lastSpeaker" | "speakerCandidates">,
-  choices: readonly Named[],
+  choices: readonly Labeled[],
+  contextTokens: number,
 ): string {
   const { transcript } = params;
   const spoke = new Map<CharacterId, number>();
@@ -214,13 +237,16 @@ function buildArbiterPrompt(
   const candidateLines = choices.map((c) => {
     const who = clampToTokenBudget(params.characterLines.get(c.ref.characterId) ?? "", CANDIDATE_LINE_TOKENS).trim();
     const facts = `spoke ${spoke.get(c.ref.characterId) ?? 0} of the last ${transcript.length} lines, talkativeness ${Math.round(c.talkativeness * PERCENT)}%`;
-    return `- ${c.name}${who.length > 0 ? `: ${who}` : ""} (${facts})`;
+    return `- ${c.label}${who.length > 0 ? `: ${who}` : ""} (${facts})`;
   });
   const lastKey = params.lastSpeaker === null ? null : speakerKey(params.lastSpeaker);
   const last = params.speakerCandidates.find((s) => speakerKey(s.ref) === lastKey)?.name;
   const scene = arbiterScene(params.room);
   const history = transcript.map((line, i) => {
-    const text = i === transcript.length - 1 ? line.text : clip(line.text, OLDER_LINE_TOKENS);
+    const text =
+      i === transcript.length - 1
+        ? clipHead(line.text, Math.floor(safeTokenWindow(contextTokens) * LAST_LINE_WINDOW_SHARE))
+        : clip(line.text, OLDER_LINE_TOKENS);
     return line.speakerName === null ? text : `${line.speakerName}: ${text}`;
   });
   return [
@@ -236,6 +262,13 @@ function buildArbiterPrompt(
 function clip(text: string, tokens: number): string {
   const cut = clampToTokenBudget(text, tokens);
   return cut.length < text.length ? `${cut.trimEnd()}${CLIPPED}` : text;
+}
+
+/** {@link clip} from the other end: the tail survives. The estimate counts characters, not their order, so
+ *  clamping the reversed codepoints keeps exactly the longest tail that fits. */
+function clipHead(text: string, tokens: number): string {
+  const tail = [...clampToTokenBudget([...text].reverse().join(""), tokens)].reverse().join("");
+  return tail.length < text.length ? `${CLIPPED}${tail.trimStart()}` : text;
 }
 
 /** Where the scene stands: a game's location and time off its scene line, else the room's scenario. */

@@ -55,6 +55,8 @@ export interface SpeakerReranker {
  *  row can serve structured output, so the arbiter never reads free text. */
 export interface SpeakerArbiter {
   readonly structured: RoleClientsWithSignal["structured"];
+  /** The bound model's context window in tokens; the arbiter caps the line it answers to a share of it. */
+  readonly contextTokens: number;
 }
 
 /** One canon line as the speaker pick reads it: the text, its speaker's display name (null for an unnamed

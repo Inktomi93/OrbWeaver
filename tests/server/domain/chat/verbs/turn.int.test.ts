@@ -989,7 +989,7 @@ function arbiter(...names: readonly string[]): { op: SpeakerArbiter["structured"
 
 /** A bound Utility row that serves structured output, answering through `structured`. */
 function boundArbiter(structured: SpeakerArbiter["structured"]): ChatContext["resolveSpeakerArbiter"] {
-  return () => Promise.resolve({ structured });
+  return () => Promise.resolve({ structured, contextTokens: 32_768 });
 }
 
 /** The `{responders}` payload a structured arbiter call returns. */

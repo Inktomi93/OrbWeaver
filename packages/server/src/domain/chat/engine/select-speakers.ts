@@ -379,14 +379,16 @@ function mentionHits(rawText: readonly string[], candidates: readonly SpeakerCan
 export const MAX_SMART_RESPONDERS = 3;
 
 /** The word indices of `text` a human player's name occupies, outside any character's whole name spelled out
- *  there. "Rook, your move." to the player Rook is an address to the human; "Rook the Bard" is the character. */
+ *  there. "Rook, your move." to the player Rook is an address to the human; "Rook the Bard" is the character. A
+ *  whole name made only of a human's words ("Grace" for the player Grace, "Bran" for the player Bran Stark) could
+ *  be either, so it shields nothing and the picker decides. */
 function humanWordIndices(rawText: readonly string[], speakerCandidates: readonly SpeakerCandidate[], humanNames: readonly string[]): Set<number> {
   const text = rawText.map((w) => w.toLowerCase());
   const human = new Set(humanNames.flatMap((n) => rawWordsOf(n).map((w) => w.toLowerCase())).filter((w) => !isNonNaming(w)));
   const characterSpans = new Set<number>();
   for (const c of speakerCandidates) {
     const nameWords = rawWordsOf(c.name).map((w) => w.toLowerCase());
-    const at = phraseAt(text, nameWords);
+    const at = nameWords.every((w) => human.has(w)) ? -1 : phraseAt(text, nameWords);
     for (let k = 0; at !== -1 && k < nameWords.length; k += 1) {
       characterSpans.add(at + k);
     }

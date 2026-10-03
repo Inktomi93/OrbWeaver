@@ -11,6 +11,7 @@ import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import { describe, vi } from "vitest";
 import type { ArbiterCandidate, SpeakerArbiter, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
 import { smartArbitrate } from "../../../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
@@ -36,10 +37,14 @@ function arbiterAnswering(payload: unknown): SpeakerArbiter["structured"] {
   return vi.fn((): Promise<SummarizeResult> => Promise.resolve(replyOf(typeof payload === "string" ? payload : JSON.stringify(payload))));
 }
 
+/** A context window wide enough that no test line is clipped, and one small enough to clip a long line. */
+const WIDE_WINDOW = 200_000;
+const SMALL_WINDOW = 2048;
+
 const bound =
   (structured: SpeakerArbiter["structured"]): (() => Promise<SpeakerArbiter>) =>
   (): Promise<SpeakerArbiter> =>
-    Promise.resolve({ structured });
+    Promise.resolve({ structured, contextTokens: WIDE_WINDOW });
 
 /** The one call's arguments. */
 function callOf(structured: SpeakerArbiter["structured"]): Parameters<SpeakerArbiter["structured"]> {
@@ -217,24 +222,60 @@ describe("smartArbitrate — the structured reply", () => {
     expect(out).toEqual({ speakers: [charRef("cara"), charRef("aria")], degraded: false, aborted: false });
   });
 
-  test("the payload is capped: more than the responder cap is invalid and degrades after the one retry", async () => {
-    const structured = arbiterAnswering({ responders: ["Aria", "Bran", "Cara", "Dov"] });
-    const out = await arbitrate({ structured, candidates: [...CANDIDATES, candidate("dov")] });
-    expect(out).toMatchObject({ degraded: true, aborted: false });
-    expect(vi.mocked(structured).mock.calls).toHaveLength(2);
+  test("a reply longer than the cap (a wire that strips the array bounds) is trimmed, with no retry", async () => {
+    const five = ["Aria", "Bran", "Cara", "Dov", "Eli"];
+    const structured = arbiterAnswering({ responders: five });
+    const out = await arbitrate({
+      structured,
+      candidates: [...CANDIDATES, candidate("dov"), candidate("eli")],
+      speakerCandidates: [...SPEAKER_CANDIDATES, { ref: charRef("eli"), name: "Eli" }],
+    });
+    expect(out).toEqual({ speakers: [charRef("aria"), charRef("bran"), charRef("cara")], degraded: false, aborted: false });
+    expect(vi.mocked(structured).mock.calls).toHaveLength(1);
+    // The bounds still ride for the wires that enforce them.
+    const arrays = nodesOf(callOf(structured)[1].responseFormat.schema).filter((n) => n["type"] === "array");
+    expect(arrays).toEqual([expect.objectContaining({ minItems: 1, maxItems: 3 })]);
   });
 
-  test("a name two candidates share resolves to the first of them in roster order", async () => {
+  test("candidates sharing a name get distinct labels in roster order, and the second is pickable", async () => {
     const twins = [
-      { ref: charRef("aria"), name: "Guard" },
-      { ref: charRef("bran"), name: "Guard" },
+      { ref: charRef("aria"), name: "Ann" },
+      { ref: charRef("bran"), name: "Ann" },
       { ref: charRef("cara"), name: "Cara" },
     ];
-    const structured = arbiterAnswering({ responders: ["Guard"] });
+    const structured = arbiterAnswering({ responders: ["Ann (2)"] });
     const out = await arbitrate({ structured, speakerCandidates: twins });
-    expect(out.speakers).toEqual([charRef("aria")]);
+    expect(out).toEqual({ speakers: [charRef("bran")], degraded: false, aborted: false });
     const enums = nodesOf(callOf(structured)[1].responseFormat.schema).flatMap((n) => (Array.isArray(n["enum"]) ? [n["enum"]] : []));
-    expect(enums).toEqual([["Guard", "Cara"]]);
+    expect(enums).toEqual([["Ann", "Ann (2)", "Cara"]]);
+    const prompt = promptOf(structured);
+    expect(prompt).toMatch(/^- Ann \(spoke/mu);
+    expect(prompt).toMatch(/^- Ann \(2\) \(spoke/mu);
+  });
+});
+
+describe("smartArbitrate — the line being answered fits the bound model", () => {
+  test("a huge last line on a small window keeps its end, within half the safe window", async () => {
+    const structured = arbiterAnswering({ responders: ["Aria"] });
+    const huge = `START ${"filler ".repeat(5000)}what time is it, Sam?`;
+    await arbitrate({
+      arbiter: () => Promise.resolve({ structured, contextTokens: SMALL_WINDOW }),
+      transcript: [human("Sam", huge)],
+    });
+    const row =
+      promptOf(structured)
+        .split("\n")
+        .find((l) => l.startsWith("Sam: ")) ?? "";
+    expect(row.endsWith("what time is it, Sam?")).toBe(true);
+    expect(row).not.toContain("START");
+    expect(estimateTokens(row)).toBeLessThanOrEqual(Math.floor(safeTokenWindow(SMALL_WINDOW) / 2) + estimateTokens("Sam: …"));
+  });
+
+  test("a last line that fits rides whole", async () => {
+    const structured = arbiterAnswering({ responders: ["Aria"] });
+    const long = `START ${"filler ".repeat(500)}end`;
+    await arbitrate({ structured, transcript: [human("Sam", long)] });
+    expect(promptOf(structured)).toContain(`Sam: ${long}`);
   });
 });
 

@@ -764,6 +764,27 @@ export function createGeneratePictureOp(generatePicture: ImageryService["generat
  * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
  * collaborator. Returns the service AND the bus emit.
  */
+/**
+ * Smart's Utility arbiter on the funder's bound row, or null when that row cannot answer it. The arbiter is
+ * structured output only, so the row must serve a vehicle: schema-constrained output, or a forced named tool on a
+ * model that takes `tools[]` at all. Null is the round's visible degrade, never a free-text call. The vehicle
+ * itself is `rc.structured`'s choice.
+ *
+ * @public Test-anchored module surface; the three routes are pinned at `tests/server/entry/compose/speaker-arbiter.test.ts`.
+ */
+export async function speakerArbiterFor(roles: Pick<RoleClientsWithSignal, "resolved" | "structured">): ReturnType<ChatContext["resolveSpeakerArbiter"]> {
+  const view = await roles.resolved("structured");
+  if (view?.capability.kind !== "generation") {
+    return null;
+  }
+  const generation = view.capability.generation;
+  const forcedTool = generation.tools !== undefined && acceptsNamedToolChoice(generation);
+  if (generation.output.structured !== true && !forcedTool) {
+    return null;
+  }
+  return { structured: (inputs, opts) => roles.structured(inputs, opts), contextTokens: generation.context.window };
+}
+
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent } = input;
 
@@ -1210,17 +1231,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     // The arbiter is structured output only: a row whose model has neither a response-format nor a named
     // forced-tool vehicle cannot serve it, so the round degrades visibly instead of reading free text.
-    resolveSpeakerArbiter: async (funderUserId) => {
-      const roles = await input.roleClientsFor(funderUserId);
-      const view = await roles.resolved("structured");
-      if (view?.capability.kind !== "generation") {
-        return null;
-      }
-      const generation = view.capability.generation;
-      return generation.output.structured === true || acceptsNamedToolChoice(generation)
-        ? { structured: (inputs, opts) => roles.structured(inputs, opts) }
-        : null;
-    },
+    resolveSpeakerArbiter: async (funderUserId) => await speakerArbiterFor(await input.roleClientsFor(funderUserId)),
     summarizerContextTokens: taskWindows.summarize,
     summarizeAvailability: async (funderUserId) => await input.connection.availability({ task: "summarize", principal: await realHostPrincipal(funderUserId) }),
     // The embed model's input cap off the resolved EMBEDDING capability (was the vLLM launch window) — the

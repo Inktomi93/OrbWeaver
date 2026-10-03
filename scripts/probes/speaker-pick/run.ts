@@ -38,6 +38,8 @@ const RNG_SEED = 24_601;
 const PM_MODULUS = 2_147_483_647;
 const PM_MULTIPLIER = 48_271;
 const ARBITER_SAMPLING: SummarizeOptions = SIDE_GEN_POSTURES.arbiter;
+/** Sonnet 5's context window, the cap the arbiter sizes the line it answers against. */
+const PROBE_CONTEXT_TOKENS = 200_000;
 const MEBIBYTE = 1_048_576;
 const PERCENT = 100;
 const P50 = 0.5;
@@ -315,6 +317,7 @@ async function runArbiter(all: readonly Case[], arm: string, completion: Complet
     const result = await smartArbitrate({
       arbiter: () =>
         Promise.resolve({
+          contextTokens: PROBE_CONTEXT_TOKENS,
           structured: async (
             inputs: readonly SummarizeInput[],
             opts: SummarizeOptions & { readonly responseFormat: ResponseFormat },

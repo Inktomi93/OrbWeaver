@@ -553,6 +553,25 @@ describe("addressedGroups — who a line addresses, for the Smart pickers", () =
     expect(addressedGroups(byBryn("Knight, hold the gate."), seats, knights, [])).toEqual([[cid("k"), cid("bk")]]);
   });
 
+  test("a whole name made only of a human's words could be either, so nobody short-circuits", () => {
+    const grace = [
+      { ref: charRef("grace"), name: "Grace" },
+      { ref: charRef("bryn"), name: "Bryn" },
+    ];
+    const seats = [seat("grace"), seat("bryn")];
+    // Human "Grace" and character "Grace": the bare name is ambiguous.
+    expect(addressedGroups(byBryn("Grace, help me lift this."), seats, grace, ["Grace"])).toEqual([]);
+    const bran = [
+      { ref: charRef("bran"), name: "Bran" },
+      { ref: charRef("bryn"), name: "Bryn" },
+    ];
+    // Human "Bran Stark" and character "Bran", addressed as "Bran": also ambiguous.
+    expect(addressedGroups(byBryn("Bran, your move."), [seat("bran"), seat("bryn")], bran, ["Bran Stark"])).toEqual([]);
+    // With no such human, the same lines still address the character.
+    expect(addressedGroups(byBryn("Grace, help me lift this."), seats, grace, ["Sam"])).toEqual([[cid("grace")]]);
+    expect(addressedGroups(byBryn("Bran, your move."), [seat("bran"), seat("bryn")], bran, ["Sam"])).toEqual([[cid("bran")]]);
+  });
+
   test("Natural's mention read is unchanged: a bare shared word still names the character there", () => {
     expect(resolveNameMentions("Rook, your move.", rook)).toEqual([cid("bard")]);
   });
