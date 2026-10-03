@@ -376,17 +376,25 @@ export interface SwipeHotspot {
 }
 
 // ── insights (pure-semantics half: themeDrift + unusedCharacters) ───────────────────────────────────────
-/** One theme's prevalence within a story-time month bucket. `themeName` is null below the name-worthiness floor. */
+/** One theme's prevalence within a story-time bucket. `themeName` is null below the name-worthiness floor. */
 export interface ThemeDriftTheme {
   readonly clusterIdx: number;
   readonly themeName: string | null;
   readonly count: number;
 }
 
-/** How the owner's themes shift over story time — per-month theme prevalence, bucket-ascending. */
+/** How the owner's themes shift over story time: every theme's prevalence in one UTC calendar bucket
+ *  (`@orb/kit/time.CALENDAR_BUCKET_MS`), bucket-ascending and count-descending within. The wire carries the
+ *  bucket's start instant, never a month: the viewer's months are folded from it at the display edge. */
 export interface ThemeDriftBucket {
-  readonly bucket: string;
+  readonly bucketStart: number;
   readonly themes: ThemeDriftTheme[];
+}
+
+/** One UTC calendar bucket of a theme's story-time timeline, folded into the viewer's months on display. */
+export interface ThemeTimelineBucket {
+  readonly bucketStart: number;
+  readonly count: number;
 }
 
 // ── insights (economics-composed half: forgottenGems + modelRouting) ──────────────────────
@@ -491,7 +499,7 @@ export interface ThemeDetail {
   readonly name: string | null;
   readonly size: number;
   readonly model: string;
-  readonly timeline: { readonly bucket: string; readonly count: number }[];
+  readonly timeline: ThemeTimelineBucket[];
   readonly members: ThemeMember[];
 }
 
@@ -722,7 +730,12 @@ export const themeDriftThemeSchema = z.strictObject({
   count: z.number(),
 }) satisfies z.ZodType<ThemeDriftTheme>;
 
-export const themeDriftBucketSchema = z.strictObject({ bucket: z.string(), themes: z.array(themeDriftThemeSchema) }) satisfies z.ZodType<ThemeDriftBucket>;
+export const themeDriftBucketSchema = z.strictObject({
+  bucketStart: z.number().int(),
+  themes: z.array(themeDriftThemeSchema),
+}) satisfies z.ZodType<ThemeDriftBucket>;
+
+export const themeTimelineBucketSchema = z.strictObject({ bucketStart: z.number().int(), count: z.number() }) satisfies z.ZodType<ThemeTimelineBucket>;
 
 export const forgottenGemSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
@@ -783,7 +796,7 @@ export const themeDetailSchema = z.strictObject({
   name: z.string().nullable(),
   size: z.number(),
   model: z.string(),
-  timeline: z.array(z.strictObject({ bucket: z.string(), count: z.number() })),
+  timeline: z.array(themeTimelineBucketSchema),
   members: z.array(themeMemberSchema),
 }) satisfies z.ZodType<ThemeDetail>;
 

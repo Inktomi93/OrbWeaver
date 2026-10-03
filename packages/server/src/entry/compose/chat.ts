@@ -979,6 +979,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     newInviteId: minter(ID_PREFIX.chatInvite),
     newPendingTurnId: minter(ID_PREFIX.pendingTurn),
     newChatTurnId: minter(ID_PREFIX.chatTurn),
+    newCompactionSpendId: minter(ID_PREFIX.compactionSpend),
     hashToken: createTokenHasher(input.sessionSecret),
     signupInvites: { mode: input.authMode, mintable: SIGNUP_INVITES_MINTABLE[input.authMode] },
     audit: input.audit,

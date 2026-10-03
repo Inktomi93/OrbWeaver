@@ -1,4 +1,5 @@
-import { modelKey, STATS_BUCKET_MS, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
+import { modelKey, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
+import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("wordCount matches ST's \\b\\w+\\b semantics", () => {
@@ -18,8 +19,8 @@ test("wordCount treats empty / nullish as zero", () => {
 test("statsBucketStart floors an epoch-ms to the start of its UTC quarter-hour", () => {
   const start = Date.UTC(2024, 0, 1, 23, 45, 0);
   expect(statsBucketStart(start)).toBe(start);
-  expect(statsBucketStart(start + STATS_BUCKET_MS - 1)).toBe(start);
-  expect(statsBucketStart(start + STATS_BUCKET_MS)).toBe(Date.UTC(2024, 0, 2, 0, 0, 0));
+  expect(statsBucketStart(start + CALENDAR_BUCKET_MS - 1)).toBe(start);
+  expect(statsBucketStart(start + CALENDAR_BUCKET_MS)).toBe(Date.UTC(2024, 0, 2, 0, 0, 0));
   // Kathmandu (+5:45) local midnight is 18:15 UTC: a bucket boundary, so no bucket straddles its day.
   expect(statsBucketStart(Date.UTC(2024, 0, 1, 18, 15, 0))).toBe(Date.UTC(2024, 0, 1, 18, 15, 0));
 });

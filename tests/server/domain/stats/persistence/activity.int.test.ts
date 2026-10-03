@@ -3,7 +3,8 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { STATS_BUCKET_MS, statsBucketStart } from "@orb/kit/stats-tally";
+import { statsBucketStart } from "@orb/kit/stats-tally";
+import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { beforeEach, describe } from "vitest";
 import { readMomentumBuckets } from "../../../../../packages/server/src/domain/stats/persistence/activity.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -26,11 +27,11 @@ describe("readMomentumBuckets", () => {
     const bucket = statsBucketStart(T0);
     await seedMessage(db, { chatId, seq: 1, role: "user", createdAt: bucket, variants: [{ content: "hi" }] });
     await seedMessage(db, { chatId, seq: 2, role: "assistant", characterId, createdAt: bucket, variants: [{ content: "a" }] });
-    await seedMessage(db, { chatId, seq: 3, role: "assistant", characterId, createdAt: bucket + STATS_BUCKET_MS - 1, variants: [{ content: "b" }] });
-    await seedMessage(db, { chatId, seq: 4, role: "assistant", characterId, createdAt: bucket + STATS_BUCKET_MS, variants: [{ content: "c" }] });
+    await seedMessage(db, { chatId, seq: 3, role: "assistant", characterId, createdAt: bucket + CALENDAR_BUCKET_MS - 1, variants: [{ content: "b" }] });
+    await seedMessage(db, { chatId, seq: 4, role: "assistant", characterId, createdAt: bucket + CALENDAR_BUCKET_MS, variants: [{ content: "c" }] });
     expect(await readMomentumBuckets(db, ownerId)).toEqual([
       { characterId, name: "Aria", bucketStart: bucket, replies: 2 },
-      { characterId, name: "Aria", bucketStart: bucket + STATS_BUCKET_MS, replies: 1 },
+      { characterId, name: "Aria", bucketStart: bucket + CALENDAR_BUCKET_MS, replies: 1 },
     ]);
   });
 

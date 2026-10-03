@@ -23,7 +23,7 @@ import {
 import { isConstraintViolation } from "@orb/db/kit";
 import type { CharacterHandle, CharacterId, CharacterStatId, DailyStatId, Handle, ModelStatId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { STATS_BUCKET_MS } from "@orb/kit/stats-tally";
+import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { and, eq, sql } from "drizzle-orm";
 import { freshDb, SHIPPED_MIGRATIONS, shippedChainThrough } from "../../support/db.ts";
 import { seedCharacterAtBaseline } from "../../support/factories/character.ts";
@@ -226,7 +226,7 @@ test("daily_stats is one row per (owner, bucket) (the composite unique rejects a
   const ownerId = await seedUser(db, { id: "user_daily_dup", handle: castId<Handle>("daily-dup") });
   await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_dup_a"), ownerId, bucketStart: BUCKET });
   // The next bucket is a different key, so it coexists.
-  await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_dup_next"), ownerId, bucketStart: BUCKET + STATS_BUCKET_MS });
+  await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_dup_next"), ownerId, bucketStart: BUCKET + CALENDAR_BUCKET_MS });
 
   let caught: unknown;
   try {
