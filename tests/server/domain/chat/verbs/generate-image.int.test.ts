@@ -11,6 +11,7 @@ import { assets, messageAssets, messages, messageVariants, ownerStats, statsCano
 import type { BatchStmt } from "@orb/db/kit";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished } from "vitest";
@@ -335,6 +336,20 @@ describe("generateImage — gallery auto-add target", () => {
     await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
 
     expect(calls[0]?.gallery).toEqual({ subjectCharacterId: aria });
+  });
+
+  test("the viewer's zone rides to the picture op, where an extraction template's time macros read it", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    await seedGeneratedAsset(host, "one");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    const calls: PictureCall[] = [];
+    const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
+
+    await generateImage({ principal: principal(host), chatId, mode: "scenario", timeZone: UTC_TIME_ZONE });
+    await generateImage({ principal: principal(host), chatId, mode: "scenario" });
+
+    expect(calls.map((c) => c.timeZone)).toEqual([UTC_TIME_ZONE, undefined]);
   });
 
   test("gallery:false keeps the pictures out of every gallery", async () => {

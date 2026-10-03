@@ -7,6 +7,7 @@ import type { CharacterListCursor, CharacterListSort, CreateCharacterInput, Upda
 import type { Principal } from "@orb/contracts/identity";
 import type { GreetingTransformId } from "@orb/contracts/preset";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
 
 export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 
@@ -165,6 +166,8 @@ export interface RewriteGreetingParams extends CharacterActorParams {
   readonly steer: string;
   /** The picked transform KINDS (`GREETING_TRANSFORMS` ids). Absent/empty ⇒ the free text alone. */
   readonly transforms?: readonly GreetingTransformId[];
+  /** The host's reported zone for the template's time macros; absent ⇒ UTC. */
+  readonly timeZone?: IanaTimeZone | undefined;
 }
 
 export interface GenerateGreetingParams extends CharacterActorParams {
@@ -173,6 +176,8 @@ export interface GenerateGreetingParams extends CharacterActorParams {
   readonly steer: string;
   /** The picked transform KINDS (`GREETING_TRANSFORMS` ids). Absent/empty ⇒ the free text alone. */
   readonly transforms?: readonly GreetingTransformId[];
+  /** The host's reported zone for the template's time macros; absent ⇒ UTC. */
+  readonly timeZone?: IanaTimeZone | undefined;
 }
 
 /** Synthetic group-character mint/find (chat-injected, internal); owns the `__group__${chatId}` handle namespace. */

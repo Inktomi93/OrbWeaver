@@ -128,7 +128,9 @@ describe("F3 — a multi-human room's history labels do not depend on who presse
     const { scn, alice, bob } = await twoHumanRoom({ namesBehavior: "default", characters: ["aria", "kai"], cardScope: "scoped" });
 
     await scn.send("hello", { principal: scn.principal(alice) });
-    await scn.send("hey", { principal: scn.principal(bob) });
+    // A natural round answering a human send bans no one, so the seeded pick can re-pick the last speaker, whose
+    // own reply never folds. Naming both seats makes both speak, so the second one's turn always folds the first.
+    await scn.send("hey aria, kai", { principal: scn.principal(bob) });
 
     const allUserText = scn.requests.flatMap((req) => userTexts(req)).join("\n\n");
     // Positive control: the fold happened (another character's reply rides a user row, its speaker inline).

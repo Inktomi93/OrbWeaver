@@ -3707,6 +3707,25 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     await db.insert(characterBooks).values({ characterId: cardChar, worldBookId: bookId, role: "auxiliary", createdAt: FROZEN_AT });
   }
 
+  test("a card field's time macros read the viewer's zone on the injected clock, and UTC with no viewer zone", async () => {
+    const { host, chatId } = await seedCardRoom("mc_clock", "sheet");
+    const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+    if (kathmandu === null) {
+      throw new Error("the platform must know Asia/Kathmandu");
+    }
+    // 20:00 UTC on Thursday the 15th is 01:45 on Friday the 16th in Kathmandu (+5:45).
+    const ctx: ChatContext = {
+      ...makeCardCtx({ card: { ...macroCard, description: "{{weekday}} {{date}} {{time}}" } }),
+      now: () => Date.UTC(2026, 0, 15, 20, 0),
+    };
+    const { getMemberCard } = createRead(ctx, makeCardDeps());
+
+    expect((await getMemberCard({ principal: principal(host), chatId, characterId: cardChar, timeZone: kathmandu })).description).toBe(
+      "Friday 2026-01-16 01:45:00",
+    );
+    expect((await getMemberCard({ principal: principal(host), chatId, characterId: cardChar })).description).toBe("Thursday 2026-01-15 20:00:00");
+  });
+
   test("a MEMBER at `sheet` sees name/description/personality/scenario but NOT systemPrompt/postHistory/lore (wire payload)", async () => {
     const { host, member, chatId } = await seedCardRoom("mc_sheet", "sheet");
     // The card HAS lore, but a `sheet` member is below `sheet+lore` — it must be clamped null regardless.

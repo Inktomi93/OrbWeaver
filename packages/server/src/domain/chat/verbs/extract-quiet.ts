@@ -26,6 +26,7 @@ import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietRe
 import { firstCharacterIdOf } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { loadCanonHistory, loadStoredUserMacroValues } from "../persistence/queries.ts";
+import { assemblyTimeZone } from "../substrate/assemble-gather.ts";
 import { buildTurnUserMacros } from "../substrate/assembly-access.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { isPromptEligible } from "../substrate/prompt-eligibility.ts";
@@ -101,6 +102,8 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
       persona: "",
       scenario: "",
       characterNames: charName.length > 0 ? [charName] : [],
+      timezone: assemblyTimeZone(p.timeZone),
+      nowMs: deps.now(),
       env: {},
     };
     const instruction = processMacros(p.instruction, macroOptions, await resolveUserMacroRegistry(deps, p.chatId));
