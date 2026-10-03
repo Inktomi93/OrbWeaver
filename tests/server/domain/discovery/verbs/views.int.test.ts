@@ -116,7 +116,7 @@ describe("themeDetail", () => {
     const detail = await svcFor(db).themeDetail(owner, 3, "scene");
     expect(detail).not.toBeNull();
     expect(detail?.name).toBe("Quests");
-    expect(detail?.timeline).toEqual([{ bucket: "2024-01", count: 1 }]);
+    expect(detail?.timeline).toEqual([{ bucketStart: JAN_2024, count: 1 }]);
     expect(detail?.members).toEqual([{ characterId: hero, name: "Hero", count: 1 }]);
     expect(detail?.sources).toHaveLength(1);
     expect(detail?.sources[0]).toMatchObject({ source: { kind: "digest", rowId: "digest_1", chatId: chat, scopedCharacterId: hero, tier: 0, blockIdx: 0 } });

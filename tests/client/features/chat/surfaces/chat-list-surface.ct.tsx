@@ -1329,9 +1329,10 @@ for (const axis of ["character", "search"] as const) {
   });
 }
 
-// A FENCE, not a defect proof (it passes pre-fix): `monthExclusiveUpperBound` builds the exclusive ceiling
-// by handing `Date` a month index one past the selection, so December is the one selection whose bound
-// crosses a YEAR. Two-sided — the BOUND rolls into January, the printed LABEL must not.
+// A FENCE, not a defect proof: `monthExclusiveUpperBound` takes the exclusive ceiling from
+// `timeLib.monthStart` of the month after the selection, so December is the one selection whose bound crosses
+// a YEAR. Two-sided — the BOUND rolls into January, the printed LABEL must not. The bound equals the UTC
+// literal below because this CT pins `timezoneId: "UTC"`; the viewer's month edge is UTC midnight there.
 test("#385 a December jump rolls the exclusive bound into the following January while the label stays December", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);

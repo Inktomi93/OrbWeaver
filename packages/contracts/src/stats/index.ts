@@ -3,10 +3,11 @@
 // substrate fulfils). Lives here (not `domain/stats`) because a feature home would force an illegal
 // chat→stats sideways import; the apply IMPL lives in `domain/stats/write/apply-delta.ts`.
 
-import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { MODEL_PROVIDER_UNKNOWN } from "@orb/kit/stats-tally";
+import { MODEL_PROVIDER_UNKNOWN, statsBucketStart } from "@orb/kit/stats-tally";
 import { z } from "zod";
+import type { ProviderId } from "#inference";
 import { modelIdSchema, providerIdSchema } from "#inference";
 import type { TokenProvenance } from "../chat/messages.ts";
 import { tokenProvenanceSchema } from "../chat/messages.ts";
@@ -106,6 +107,59 @@ export const statsDeltaSchema = z.object({
 
 /** The chat↔stats wire payload — chat PRODUCES it, the stats write substrate CONSUMES it. */
 export type StatsDelta = z.infer<typeof statsDeltaSchema>;
+
+/** The increments a SPEND delta may carry: money spent outside the message canon (an image generation, a
+ *  compaction pass). The stats rebuild folds exactly these keys, so a key added here without a fold arm
+ *  fails `tsc` there rather than drifting the rebuild from the live write. */
+export const SPEND_DELTA_FIELDS = ["costUsd", "costSamples", "modelGenerations", "modelGenSamples", "modelCostUsd", "lastAt"] as const;
+export type SpendDeltaField = (typeof SPEND_DELTA_FIELDS)[number];
+
+/** A {@link StatsDelta} narrowed to owner, timeline and model grain spend: never a character, never a turn.
+ *  @remarks Built only by the spend builders below, which the live writers AND the stats rebuild both call
+ *  over the same recorded fields — one builder, so the two writers cannot disagree on what a spend is. */
+export type SpendDelta = Pick<StatsDelta, "ownerId" | "bucketStart" | "model" | "now" | SpendDeltaField> & {
+  readonly characterId: null;
+  readonly provider: ProviderId | null;
+};
+
+/** One image generation's spend: `count` pictures from one priced provider call, on one model bucket.
+ *  @param costUsd - the call's reported cost; null when the provider reports none (generations still count). */
+export function imageGenerationSpendDelta(args: {
+  readonly ownerId: UserId;
+  readonly model: ModelId;
+  readonly provider: ProviderId | null;
+  readonly costUsd: number | null;
+  readonly count: number;
+  readonly now: number;
+}): SpendDelta {
+  return {
+    ownerId: args.ownerId,
+    characterId: null,
+    bucketStart: statsBucketStart(args.now),
+    model: args.model,
+    provider: args.provider,
+    modelGenerations: args.count,
+    modelGenSamples: args.count,
+    now: args.now,
+    ...(args.costUsd !== null ? { costUsd: args.costUsd, modelCostUsd: args.costUsd } : {}),
+  };
+}
+
+/** One priced compaction pass: the marker generation's cost on the owner and timeline grains only (no
+ *  character, no model rollup, no turn counters), so the quiet operation's spend stays visible on stats. */
+export function compactionSpendDelta(args: { readonly ownerId: UserId; readonly costUsd: number; readonly now: number }): SpendDelta {
+  return {
+    ownerId: args.ownerId,
+    characterId: null,
+    bucketStart: statsBucketStart(args.now),
+    model: null,
+    provider: null,
+    costUsd: args.costUsd,
+    costSamples: 1,
+    lastAt: args.now,
+    now: args.now,
+  };
+}
 
 /** The signature of the injected upsert op — chat receives this typed and calls it to enqueue the
  *  rollup-increment statements into the same canon-write batch, so chat never imports the stats
@@ -242,7 +296,7 @@ export interface LeaderboardPage {
   total: number;
 }
 
-/** One `daily_stats` row: the owner's activity in one UTC quarter-hour (`STATS_BUCKET_MS`). The wire
+/** One `daily_stats` row: the owner's activity in one UTC quarter-hour (`@orb/kit/time.CALENDAR_BUCKET_MS`). The wire
  *  carries the bucket's start instant, never a calendar day: the viewer's days, weekdays and hours are
  *  derived from it at the display edge, in the viewer's zone. */
 export interface ActivityBucket {
@@ -317,7 +371,7 @@ export interface WrappedSummary {
   computedAt: number;
 }
 
-/** One character's replies in one UTC quarter-hour (`STATS_BUCKET_MS`) — the momentum timeline. The
+/** One character's replies in one UTC quarter-hour (`@orb/kit/time.CALENDAR_BUCKET_MS`) — the momentum timeline. The
  *  wire carries the bucket's start instant, never a month: the viewer's months are folded on the client. */
 export interface MomentumBucket {
   characterId: CharacterId;
