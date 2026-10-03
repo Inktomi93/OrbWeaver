@@ -747,6 +747,7 @@ export function createGeneratePictureOp(generatePicture: ImageryService["generat
       ...(p.n !== undefined ? { n: p.n } : {}),
       ...(p.size !== undefined ? { size: p.size } : {}),
       ...(p.gallery !== undefined ? { gallery: p.gallery } : {}),
+      ...(p.timeZone !== undefined ? { timeZone: p.timeZone } : {}),
     });
     return {
       images: picture.images.map((img) => ({ assetId: img.assetId })),

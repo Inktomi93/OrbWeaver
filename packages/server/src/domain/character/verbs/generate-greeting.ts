@@ -13,13 +13,18 @@ import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
 import { buildGreetingPrompt, composeGreetingSteer } from "../substrate/greeting-studio.ts";
 
 export function createGenerateGreeting(ctx: CharacterContext): CharacterService["generateGreeting"] {
-  return async ({ principal, characterId, steer, transforms }: GenerateGreetingParams) => {
+  return async ({ principal, characterId, steer, transforms, timeZone }: GenerateGreetingParams) => {
     const row = await loadOwnedCharacterRow(ctx.db, principal.userId, characterId);
     if (row === undefined) {
       throw new CharacterNotFoundError(characterId);
     }
     const { template, prose } = await ctx.resolveGreetingTemplate({ caller: principal, kind: "greeting_new" });
-    const prompt = buildGreetingPrompt({ card: cardOf(row), template, steer: composeGreetingSteer(transforms, steer, prose) });
+    const prompt = buildGreetingPrompt({
+      card: cardOf(row),
+      template,
+      steer: composeGreetingSteer(transforms, steer, prose),
+      clock: { timeZone, nowMs: ctx.now() },
+    });
     return ctx.generateGreetingText({ caller: principal, prompt });
   };
 }

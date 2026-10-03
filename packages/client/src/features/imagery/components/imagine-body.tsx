@@ -38,6 +38,7 @@ import type { ReactElement } from "react";
 import { useEffect, useId, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 import type { ImagineSeed } from "#state";
 import { closeModal, useImagineSeed } from "#state";
 import { useExtractPrompt, useGeneratePicture } from "../hooks/use-imagery-mutations.ts";
@@ -107,7 +108,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
       return;
     }
     void extract
-      .mutateAsync({ chatId: seed.chatId, mode })
+      .mutateAsync({ chatId: seed.chatId, mode, timeZone: viewerTimeZone() })
       .then((result) => {
         setPrompt(result.prompt);
         setReceipt(result);
@@ -121,7 +122,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
     }
     // A present prompt IS the image — sent verbatim as free mode (an extraction mode previewed-then-edited
     // lands here too). An extraction mode with no prompt defers resolution to the server.
-    const base = { chatId: seed.chatId, gallery: toGallery };
+    const base = { chatId: seed.chatId, gallery: toGallery, timeZone: viewerTimeZone() };
     const request = trimmed.length > 0 ? { ...base, mode: "free" as const, prompt: trimmed } : { ...base, mode };
     void generate
       .mutateAsync(request)

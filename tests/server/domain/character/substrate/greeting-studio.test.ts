@@ -5,6 +5,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import { describe } from "vitest";
 import { buildGreetingPrompt, composeGreetingSteer } from "../../../../../packages/server/src/domain/character/substrate/greeting-studio.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const CARD: CharacterCard = {
@@ -45,8 +46,10 @@ describe("composeGreetingSteer", () => {
 });
 
 describe("buildGreetingPrompt", () => {
+  const clock = { timeZone: undefined, nowMs: FROZEN_AT_MS };
+
   test("a new-greeting request (no base) resolves against the card without a stray {{base}} token", () => {
-    const prompt = buildGreetingPrompt({ card: CARD, template: "Write a greeting for {{char}} in {{scenario}}.", steer: "cheerful" });
+    const prompt = buildGreetingPrompt({ card: CARD, template: "Write a greeting for {{char}} in {{scenario}}.", steer: "cheerful", clock });
     expect(prompt).toContain("Aria");
     expect(prompt).toContain("The archive at dusk.");
     expect(prompt.includes("{{base}}")).toBe(false);
@@ -57,6 +60,7 @@ describe("buildGreetingPrompt", () => {
       card: CARD,
       template: "Rewrite this greeting for {{char}}: {{base}}",
       steer: "shorter",
+      clock,
       base: "Welcome, traveler.",
     });
     expect(prompt).toContain("Welcome, traveler.");

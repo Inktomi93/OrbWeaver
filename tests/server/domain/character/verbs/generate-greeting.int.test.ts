@@ -4,6 +4,7 @@
 
 import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { parseIanaTimeZone } from "@orb/kit/time";
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -51,6 +52,25 @@ describe("generateGreeting", () => {
       CharacterNotFoundError,
     );
     expect(harness.greetingTextCalls).toHaveLength(0);
+  });
+
+  test("the template's time macros read the host's zone on the injected clock, and UTC with no zone", async () => {
+    const db = await freshDb();
+    const harness = makeHarness(db);
+    harness.setGreetingTemplate("{{weekday}} {{date}} {{time}}: {{input}}");
+    const svc = createCharacterService(harness.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+    if (kathmandu === null) {
+      throw new Error("the platform must know Asia/Kathmandu");
+    }
+
+    // The harness clock is frozen at 15:06:40 UTC on Sunday 2025-06-15, which is 20:51:40 in Kathmandu (+5:45).
+    await svc.generateGreeting({ principal: principal(owner), characterId: created.id, steer: "hi", timeZone: kathmandu });
+    await svc.generateGreeting({ principal: principal(owner), characterId: created.id, steer: "hi" });
+
+    expect(harness.greetingTextCalls.map((c) => c.prompt)).toEqual(["Sunday 2025-06-15 20:51:40: hi", "Sunday 2025-06-15 15:06:40: hi"]);
   });
 
   test("NEVER writes: the card's greetings are unchanged after a generate", async () => {

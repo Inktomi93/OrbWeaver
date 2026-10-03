@@ -8,6 +8,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { IanaTimeZone } from "@orb/kit/time";
 import { ImageryNotConfiguredError, PromptExtractionFailedError } from "../contract/errors.ts";
 import type { ExtractionMode, ExtractPromptParams } from "../contract/params.ts";
 import type { ExtractedPrompt } from "../contract/results.ts";
@@ -30,6 +31,7 @@ async function extractText(
     readonly chatId: ChatId | undefined;
     readonly mode: ExtractionMode;
     readonly subjectCharacterId: CharacterId | undefined;
+    readonly timeZone: IanaTimeZone | undefined;
   },
 ): Promise<{ readonly prompt: string; readonly costUsd: number | null }> {
   const chatId = args.chatId;
@@ -42,6 +44,7 @@ async function extractText(
     chatId,
     instruction,
     ...(args.subjectCharacterId !== undefined ? { subjectCharacterId: args.subjectCharacterId } : {}),
+    ...(args.timeZone !== undefined ? { timeZone: args.timeZone } : {}),
   });
   const prompt = processReply(text);
   if (prompt.length === 0) {
@@ -64,6 +67,7 @@ export function createResolvePrompt(ctx: ImageryContext, deps: { readonly captio
         chatId: args.chatId,
         mode: extractionFallbackFor(args.mode),
         subjectCharacterId: args.subjectCharacterId,
+        timeZone: args.timeZone,
       });
       return { prompt: fell.prompt, source: "extracted", costUsd: fell.costUsd };
     }
@@ -72,6 +76,7 @@ export function createResolvePrompt(ctx: ImageryContext, deps: { readonly captio
       chatId: args.chatId,
       mode: args.mode,
       subjectCharacterId: args.subjectCharacterId,
+      timeZone: args.timeZone,
     });
     return { prompt: extracted.prompt, source: "extracted", costUsd: extracted.costUsd };
   };
@@ -79,7 +84,13 @@ export function createResolvePrompt(ctx: ImageryContext, deps: { readonly captio
 
 export function createExtractPrompt(_ctx: ImageryContext, deps: { readonly resolvePrompt: ResolvePrompt }): ImageryService["extractPrompt"] {
   return async (p: ExtractPromptParams): Promise<ExtractedPrompt> => {
-    const resolved = await deps.resolvePrompt({ caller: p.caller, chatId: p.chatId, mode: p.mode, subjectCharacterId: p.subjectCharacterId });
+    const resolved = await deps.resolvePrompt({
+      caller: p.caller,
+      chatId: p.chatId,
+      mode: p.mode,
+      subjectCharacterId: p.subjectCharacterId,
+      timeZone: p.timeZone,
+    });
     return { prompt: resolved.prompt, mode: p.mode, source: resolved.source, costUsd: resolved.costUsd };
   };
 }

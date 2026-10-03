@@ -35,7 +35,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { EditableTagChip } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId } from "#lib";
+import { testId, viewerTimeZone } from "#lib";
 
 export interface MemberCardViewerProps {
   readonly chatId: ChatId;
@@ -56,7 +56,7 @@ function isNotFound(error: unknown): boolean {
 export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: MemberCardViewerProps): ReactElement {
   const trpc = useTRPC();
   const card = useQuery({
-    ...trpc.chat.getMemberCard.queryOptions({ chatId, characterId }),
+    ...trpc.chat.getMemberCard.queryOptions({ chatId, characterId, timeZone: viewerTimeZone() }),
     // Gated: the key is built (and the server hit) ONLY while the dialog is open — never eager per row.
     enabled: open,
     // A card that vanished from the roster shouldn't retry a NOT_FOUND into a spinner; the transient

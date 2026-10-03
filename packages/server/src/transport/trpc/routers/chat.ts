@@ -100,6 +100,7 @@ const startChatSchema = z.object({
 const getMemberCardSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   characterId: typeIdSchema(ID_PREFIX.character),
+  timeZone: reportedTimeZoneSchema,
 });
 
 const listMessagesSchema = z.object({
@@ -853,7 +854,7 @@ export const chatRouter = t.router({
   // `chat.generateImage` → `imagery.generatePicture` (an absent `size` falls to the leaf's `defaultSizeFor`).
   generateImage: authedProcedure
     .output(messageViewSchema)
-    .input(generatePictureRequestSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(generatePictureRequestSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat), timeZone: reportedTimeZoneSchema }))
     .mutation(({ ctx, input }) =>
       ctx.services.chat.generateImage({
         principal: ctx.auth,
@@ -863,6 +864,7 @@ export const chatRouter = t.router({
         n: input.n,
         size: input.size,
         gallery: input.gallery,
+        timeZone: input.timeZone,
       }),
     ),
 });
