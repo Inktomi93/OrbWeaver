@@ -103,6 +103,7 @@ const STALE_KNOB_ROWS = [
   { knob: "thinkingDisplay", wire: "reasoning_display", clear: (f: AppForm): void => f.setFieldValue("params.thinkingDisplay", undefined) },
   { knob: "maxOutputTokens", wire: "max_output_tokens", clear: (f: AppForm): void => f.setFieldValue("params.maxOutputTokens", undefined) },
   { knob: "verbosity", wire: "verbosity", clear: (f: AppForm): void => f.setFieldValue("params.verbosity", undefined) },
+  { knob: "replyMedia", wire: "modalities", clear: (f: AppForm): void => f.setFieldValue("params.replyMedia", undefined) },
 ] as const;
 
 /** The wire name the staleness row prints for a knob (its own key when this build doesn't know it). */

@@ -13,7 +13,7 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { BugReportOverPageFixture, DevBugReportButton, PublicBugReportButton } from "./bug-report-button.fixtures.tsx";
+import { BugReportOverPageFixture, BugReportOverThemedPageFixture, DevBugReportButton, PublicBugReportButton } from "./bug-report-button.fixtures.tsx";
 
 const ROUTE = "**/api/_debug/bug-report";
 
@@ -40,7 +40,12 @@ interface PostedBody {
       readonly truncatedAt: number | null;
     }[];
     readonly route: { readonly pathname: string };
-    readonly environment: { readonly userAgent: string; readonly devicePixelRatio: number };
+    readonly environment: {
+      readonly userAgent: string;
+      readonly devicePixelRatio: number;
+      readonly appearance: Readonly<Record<string, string | null>>;
+      readonly appearanceAbsent: readonly string[];
+    };
     readonly checkpointTotals: Record<string, unknown>;
   };
 }
@@ -125,6 +130,40 @@ test("the bundle carries the honesty receipts — the unfilterable sources say W
   expect(bundle.environment.userAgent.length).toBeGreaterThan(0);
   expect(bundle.environment.devicePixelRatio).toBeGreaterThan(0);
   expect(bundle.route.pathname.length).toBeGreaterThan(0);
+});
+
+// The THEME observables the carrier manifest declares reach the bundle off the rendered page: the seed
+// attribute, each scope's computed palette and polarity (the carried room scope separately from the app one),
+// and the owner's custom CSS. An ordinary appearance value still lands beside them, and a carrier whose element
+// is not on the page is named as absent rather than reported as a null value.
+test("the capture reads the declared theme observables beside the ordinary appearance carriers", async ({ mount, page }) => {
+  const posted: PostedBody[] = [];
+  await page.route(ROUTE, async (route) => {
+    posted.push(JSON.parse(route.request().postData() ?? "{}") as PostedBody);
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: "t", written: { json: "/repo/bug-reports/t.json" } }) });
+  });
+
+  await mount(<BugReportOverThemedPageFixture />);
+  await page.getByRole("button", { name: "Report a bug" }).click();
+  await page.getByRole("textbox", { name: "What happened?" }).fill("the room card painted the wrong palette");
+  await page.getByRole("radio", { name: "~5 minutes ago" }).check();
+  await page.getByRole("button", { name: "Capture report" }).click();
+  await expect(page.locator('[data-slot="bug-report-status"]')).toHaveText(/Captured t/u);
+
+  const { appearance, appearanceAbsent } = firstPosted(posted).client.environment;
+  // Positive controls: ordinary appearance carriers still read.
+  expect(appearance["fontScale"]).toBe("1.25");
+  expect(appearance["elevation"]).toBe("raised");
+  // The theme observables.
+  expect(appearance["seedRoot.data-theme"]).toBe("ct-seed");
+  expect(appearance["activeScope.color-scheme"]).toBe("dark");
+  expect(appearance["carriedScope.color-scheme"]).toBe("light");
+  expect(appearance["activeScope.--color-background"]).not.toBe("");
+  expect(appearance["carriedScope.--color-background"]).not.toBe(appearance["activeScope.--color-background"]);
+  expect(appearance["ownerCustomCss.textContent"]).toContain("--ct-owner-marker");
+  // The missing element is stated, and contributes no value.
+  expect(appearanceAbsent).toContain("portalRoot");
+  expect(Object.keys(appearance).some((key) => key.startsWith("portalRoot."))).toBe(false);
 });
 
 test("with a bridge present: the window FILTERS the timestamped censuses and the two unfilterable ones say WHY", async ({ mount, page }) => {

@@ -66,7 +66,7 @@ lines, each labeled in `main.js`:
   Declaring `args` (name/type/enum/required) buys the platform half free: the palette shows typed inputs, the
   composer autocompletes `name=value`, both sides validate before your code runs, and `onRun` receives a
   well-typed `values` bag. `reveal` declares none — the two shapes side by side.
-* **A PAGE** (`anchor: "page"`) — the deck's dashboard behind the app's one Extensions rail entry.
+* **A PAGE** (`anchor: "page"`) — the deck's dashboard behind the app's one Plugin pages rail entry.
 * **A DIALOG** (`anchor: "dialog"`) — the reveal, opened only by `host.ui.openDialog` from the deck's OWN
   command or page action. A plugin structurally cannot open a modal spontaneously.
 * **TOASTS** — the answer to every command (`host.ui.toast`), app-stamped with the plugin's name,

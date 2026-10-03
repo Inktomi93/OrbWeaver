@@ -69,7 +69,7 @@ import { rosterGroup, savedRostersModal } from "#features/roster-preset";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgDiceComposerMediaSurface, rpgDiceToolRenderer, rpgTurnToolCallsSurface } from "#features/rpg";
 import { insightsContextTabs, insightsCorpusMode } from "#features/stats";
 import { labelsContextTabs, labelsCorpusMode } from "#features/tag";
-import { adminGroup } from "#features/user-admin";
+import { aboutGroup, adminGroup } from "#features/user-admin";
 import { backupGroup, workloadsGroup } from "#features/workloads";
 import { worldInfoGroup } from "#features/world-info";
 import type {
@@ -264,6 +264,7 @@ const configGroups = createRegistry("config-groups", CONFIG_GROUP_IDS, {
   connections: connectionsGroup,
   automation: automationGroup,
   admin: adminGroup,
+  about: aboutGroup,
   regex: regexGroup,
   worldInfo: worldInfoGroup,
   // #26/B10 — the saved-roster library's management surface (order 40, after world-info's 30).

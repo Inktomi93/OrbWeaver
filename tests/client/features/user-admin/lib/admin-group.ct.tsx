@@ -37,13 +37,13 @@ const USERS = [
 
 /** The sections at the `admin` anchor, in the door's declared order (`compose/config-sections.ts`) — which IS
  *  the render order: the ones that merged in from the retired SYSTEM pane (SET-SEAMS stage 4 / §10 Q2), then
- *  the ones that moved out of the retired admin pane surface, then the AppSettings admin-tier sections, then
- *  About last (owner ask 2026-09-18).
+ *  the ones that moved out of the retired admin pane surface, then the AppSettings admin-tier sections. About
+ *  is its own ungated group, so it is not at this anchor.
  *
  *  RE-DERIVED at the `@orb/inference` cut-over (2026-09-20) from the door array + each section's `nav.id`
  *  (`configAnchorId(anchor, nav.id)`), never by arithmetic off the old list. Three anchors LEFT with the
- *  in-server vLLM fleet — `compute`, `shared-access`, `engines` — and three arrived since — `approvals`,
- *  `link-sso`, `about`. The COUNT is the point of the pin below: it is `ANCHOR_ORDER.length`, derived here
+ *  in-server vLLM fleet — `compute`, `shared-access`, `engines` — and two arrived since — `approvals` and
+ *  `link-sso`. The COUNT is the point of the pin below: it is `ANCHOR_ORDER.length`, derived here
  *  and nowhere spelled as a number. */
 const ANCHOR_ORDER = [
   "config-anchor-admin-media-trust",
@@ -58,13 +58,11 @@ const ANCHOR_ORDER = [
   "config-anchor-admin-rate-limits",
   "config-anchor-admin-system-tuning",
   "config-anchor-admin-structured-output",
-  "config-anchor-admin-about",
 ];
 
 /** The nav rows the pane DERIVES from its contributions, in door order — one per `ANCHOR_ORDER` entry, read
- *  off each subcategory's `navLabel` where it has one and its `label` otherwise. About is the only row in
- *  this pane that differs between the two ("About" in the rail, "About this install" as the heading), which
- *  is exactly why the list is read per-row rather than assumed to be the headings. */
+ *  off each subcategory's `navLabel` where it has one and its `label` otherwise, so the list is read per-row
+ *  rather than assumed to be the headings. */
 const NAV_LABELS = [
   "Media & trust",
   "Multi-user",
@@ -78,7 +76,6 @@ const NAV_LABELS = [
   "Rate limits",
   "System tuning",
   "Structured output",
-  "About",
 ];
 
 // The resolved slice the AppSettings sections read together (each has its own CT pinning its own knobs; here
@@ -120,15 +117,6 @@ function stub(page: Page, viewer: TrpcWireOutput<"sessions.me">): Promise<TrpcRe
     "sessions.me": () => viewer,
     // Multi-user's owner-only Share card reads the relay; fed at rest.
     "share.status": () => ({ relay: { state: "off" as const }, liveSocketCount: 0, publicAddresses: [], certificate: { state: "off" as const } }),
-    // About (last at this anchor) suspends on the version identity — unfed, its boundary renders the error
-    // state and its anchor never lands, which reads as a short pane rather than as a missing stub.
-    "settings.getVersion": () => ({
-      version: "0.4.1",
-      commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d",
-      short: "823d76f4343a",
-      source: "checkout",
-      channel: "main",
-    }),
     "settings.getAppSettings": () => EFFECTIVE_APP_SETTINGS,
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED_APP),
     // The plain-viewer arm lands on the default `appearance` pane, whose sections read the user settings.

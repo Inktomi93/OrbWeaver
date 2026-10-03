@@ -16,6 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { EXTRACTION_CONTEXT_LABEL } from "../../../../../packages/client/src/features/rpg/lib/host-console-labels.ts";
+import { revealActionName } from "../../../../../packages/ui/src/lib/action-names.ts";
 import { ariaTreeFindings } from "../../../../support/browser/accessible-names.ts";
 import { hitBoxes, resolveSpacingPx, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts";
@@ -1671,9 +1672,13 @@ test("the Veiled ledger (P3, host) renders the standing lies off rpg.revealHidde
 
   await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
 
-  // The ledger section header + the standing lie's character, public claim, and the host-only TRUTH — LIVE
-  // off the P3 `rpg.revealHidden` read (the deception plane), not a placeholder.
+  // The ledger section header + the standing lie's character and public claim — LIVE off the P3
+  // `rpg.revealHidden` read (the deception plane), not a placeholder. The host-only TRUTH sits behind its
+  // reveal gate: out of the DOM at rest, mounted on Reveal.
   await expect(component.getByText("Veiled — host only")).toBeVisible();
+  await expect(component.getByText("claims she never touched it")).toBeVisible();
+  await expect(component.getByText("she pocketed the key")).toHaveCount(0);
+  await component.getByRole("button", { name: revealActionName("the truth for Sola") }).click();
   await expect(component.getByText("she pocketed the key")).toBeVisible();
   // The TurnRef chip anchors where it was told (the trailing-id short form).
   await expect(component.getByText("t_t41")).toBeVisible();

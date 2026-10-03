@@ -109,6 +109,7 @@ export const EFFECTIVE_KNOBS = [
   "thinkingDisplay",
   "maxOutputTokens",
   "verbosity",
+  "replyMedia",
 ] as const;
 export type EffectiveKnob = (typeof EFFECTIVE_KNOBS)[number];
 

@@ -16,7 +16,6 @@ const STATIC_SUBJECTS = [
   "assets.resolveChatBlobRefs",
   "chat.getVariantWire",
   "imagery.readProvenance",
-  "search.fields",
   "search.suggest",
   "chat.checkSendAvailability",
   "notifications.presence",

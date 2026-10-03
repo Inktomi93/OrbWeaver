@@ -253,7 +253,7 @@ host.ui.register({ id, anchor, title, tier, spec, onAction });
 | `chat-flank` | a widget beside the transcript | affinity-tracker, story-clocks |
 | `chat-settings-section` | the room's HOST-controls band (mounts only for the host) | story-clocks |
 | `tool-card` | how one of your tools' calls renders (`toolName` links it) | oracle-deck |
-| `page` | a full page behind the app's one **Extensions** rail entry | oracle-deck, keepsake-camera, card-atlas |
+| `page` | a full page behind the app's one **Plugin pages** rail entry | oracle-deck, keepsake-camera, card-atlas |
 | `dialog` | a house modal, opened only by `host.ui.openDialog` from your own action/command | oracle-deck |
 | `message-footer` | one STATIC decoration strip under every committed message — static-only, no bindings, ≤ 8 nodes; say one thing quietly | oracle-deck |
 

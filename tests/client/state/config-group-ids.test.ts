@@ -16,6 +16,7 @@ test("the tuple is the settings groups + the three collections, each exactly onc
     "connections",
     "automation",
     "admin",
+    "about",
     "regex",
     "worldInfo",
     "rosterPreset",

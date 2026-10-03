@@ -280,7 +280,7 @@ emit exfil-shaped markup). Per-message tier resolved by `resolveRowRenderPolicy`
   HTML):** Streamdown defaults — maximum functionality.
 - **`untrusted` (the DEFAULT — LLM output / imported cards / other participants / system):** the Tier-A
   element allowlist (§12.2) MINUS `img`, plus a `urlTransform` gate (blocks `javascript:`/`data:`/off-allowlist
-  hosts), AND Mermaid withheld (a `mermaid` block renders as an inert code block). KaTeX kept (rehype-katex
+  hosts). KaTeX kept (rehype-katex
   `trust:false` — math-only, inert).
 
 > \[!WARNING] `img` MUST be dropped at the element level for untrusted content — NOT via `urlTransform`.

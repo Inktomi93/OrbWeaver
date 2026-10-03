@@ -1,5 +1,5 @@
-// CT: the About SECTION (Settings → Admin → About this install) — the build identity a bug report quotes,
-// its copy affordance, and the MANUAL update check.
+// CT: the About group's sections (Settings → About) — the build identity a bug report quotes, its copy
+// affordance, and the admin's MANUAL update check.
 //
 // Every assertion here is a user-visible affordance: the rendered version line, the button's accessible
 // name, the verdict badge's text, and the trpc call record. The two properties worth a browser rather than
@@ -14,7 +14,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { AboutSectionStory } from "../_ct-stories.tsx";
+import { AboutSectionStory, AboutUpdatesSectionStory } from "../_ct-stories.tsx";
 
 const LOCAL_COMMIT = "823d76f4343a1cea086b17a1b5bf212b44c17a7d";
 const REMOTE_COMMIT = "f00dcafe1234567890abcdef1234567890abcdef";
@@ -32,7 +32,7 @@ function stub(page: Page, extra: Partial<TrpcRoutes<"settings.checkForUpdate" | 
   return routeTrpc(page, { "settings.getVersion": () => VERSION, ...extra });
 }
 
-test("renders the version line a bug report quotes, anchored at the admin pane's about anchor", async ({ mount, page }) => {
+test("renders the version line a bug report quotes, anchored at the About group's version anchor", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<AboutSectionStory />);
 
@@ -40,7 +40,7 @@ test("renders the version line a bug report quotes, anchored at the admin pane's
   await expect(component.getByTestId("about-version-line")).toHaveText("0.4.1-dev+823d76f4343a");
   await expect(component.getByText("Read from this checkout's git refs at startup.")).toBeVisible();
   await expect(component.getByRole("button", { name: "Copy version for a bug report" })).toBeVisible();
-  await expect(page.locator("#config-anchor-admin-about")).toBeVisible();
+  await expect(page.locator("#config-anchor-about-version")).toBeVisible();
 });
 
 test("a stable release image reports its release tag, and says when it was built", async ({ mount, page }) => {
@@ -55,11 +55,10 @@ test("a stable release image reports its release tag, and says when it was built
 
 test("NOTHING reaches GitHub until the button is pressed — then exactly one check runs", async ({ mount, page }) => {
   const trpc = await stub(page, { "settings.checkForUpdate": () => ({ status: "up-to-date", local: LOCAL_COMMIT, remote: null, reason: null }) });
-  const component = await mount(<AboutSectionStory />);
+  const component = await mount(<AboutUpdatesSectionStory />);
 
-  // Barrier on the SETTLED arm the story produces: the version line painted, the button idle (not
-  // "Checking…"), and NO verdict slot in the DOM — the rendered proof that nothing has been asked yet.
-  await expect(component.getByTestId("about-version-line")).toBeVisible();
+  // Barrier on the SETTLED arm the story produces: the button idle (not "Checking…") and NO verdict slot in
+  // the DOM — the rendered proof that nothing has been asked yet.
   await expect(component.getByRole("button", { name: CHECK_BUTTON })).toBeEnabled();
   await expect(component.getByTestId("about-update-verdict")).toHaveCount(0);
 
@@ -73,7 +72,7 @@ test("NOTHING reaches GitHub until the button is pressed — then exactly one ch
 
 test("up-to-date renders as up-to-date", async ({ mount, page }) => {
   await stub(page, { "settings.checkForUpdate": () => ({ status: "up-to-date", local: LOCAL_COMMIT, remote: null, reason: null }) });
-  const component = await mount(<AboutSectionStory />);
+  const component = await mount(<AboutUpdatesSectionStory />);
 
   await component.getByRole("button", { name: CHECK_BUTTON }).click();
   const verdict = component.getByTestId("about-update-verdict");
@@ -89,7 +88,7 @@ test("a main build that is behind NAMES main's newer commit — the reader can g
       reason: null,
     }),
   });
-  const component = await mount(<AboutSectionStory />);
+  const component = await mount(<AboutUpdatesSectionStory />);
 
   await component.getByRole("button", { name: CHECK_BUTTON }).click();
   const verdict = component.getByTestId("about-update-verdict");
@@ -107,7 +106,7 @@ test("a stable build that is behind NAMES the newer release", async ({ mount, pa
       reason: null,
     }),
   });
-  const component = await mount(<AboutSectionStory />);
+  const component = await mount(<AboutUpdatesSectionStory />);
 
   await component.getByRole("button", { name: CHECK_BUTTON }).click();
   const verdict = component.getByTestId("about-update-verdict");
@@ -124,7 +123,7 @@ test("an UNREACHABLE check says so WITH its reason — never a silent up-to-date
       reason: "couldn't reach GitHub — this box may be offline",
     }),
   });
-  const component = await mount(<AboutSectionStory />);
+  const component = await mount(<AboutUpdatesSectionStory />);
 
   await component.getByRole("button", { name: CHECK_BUTTON }).click();
   const verdict = component.getByTestId("about-update-verdict");

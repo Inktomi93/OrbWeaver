@@ -7,7 +7,10 @@ import { DISABLED_STATE, FOCUS_RING, FOCUS_RING_ON_POPOVER, tv } from "#lib";
 export const colorFieldVariants = tv({
   slots: {
     root: "inline-flex items-center gap-field",
-    swatch: "size-control-sm shrink-0 rounded-control border border-input-border bg-input",
+    // `data-unset` is the display swatch's NO-COLOUR state: outlined and unfilled, so it never reads as a
+    // picked colour (the input fill could pass for a dark grey).
+    swatch:
+      "shrink-0 rounded-control border border-input-border bg-input data-unset:border-dashed data-unset:border-muted-foreground data-unset:bg-transparent",
     hexText: "text-label leading-label text-muted-foreground",
     swatchTrigger: [
       "inline-flex size-control-sm shrink-0 items-center justify-center rounded-control border border-border p-0",
@@ -36,4 +39,12 @@ export const colorFieldVariants = tv({
     // reads as a secondary action, not a full-width primary — it emits the empty "" clear sentinel.
     resetButton: "self-start",
   },
+  variants: {
+    // The display swatch's footprint. The editable trigger always uses `md`, the control size.
+    swatchSize: {
+      md: { swatch: "size-control-sm" },
+      sm: { swatch: "size-3" },
+    },
+  },
+  defaultVariants: { swatchSize: "md" },
 });

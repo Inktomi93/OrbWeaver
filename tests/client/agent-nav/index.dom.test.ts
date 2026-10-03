@@ -104,6 +104,7 @@ test("capabilities() exposes canonical targets and the mounted surface's publish
       "connections",
       "automation",
       "admin",
+      "about",
       "regex",
       "worldInfo",
       "rosterPreset",

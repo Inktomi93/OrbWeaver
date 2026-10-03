@@ -5,7 +5,7 @@ your idea begins with "generate something from the scene…".
 
 `/plugin keepsake-camera snapshot` reads the last few beats, asks the model — privately, structured — for a
 title and a painting prompt, and paints the moment into the room as a postcard. Every keepsake the camera
-catches also lands in its album page under the Extensions rail.
+catches also lands in its album page under the Plugin pages rail entry.
 
 ## Copy me
 
@@ -57,8 +57,8 @@ The album still keeps the postcard when that read is absent or refused.
 
 The album page is a `masterDetail` whose browse stage is a BOUND grid — `tilesFrom: { $state: "tiles" }` —
 so the tile COUNT is data: one keepsake is one tile, never ghost slots. The detail stage's picture is a BOUND
-image (`assetFrom`), and its `open`/`back`/`discard` navigation is ordinary published state, so leaving the
-Extensions section and returning lands where you were. Published with NO chat handle: the album is a
+image (`assetFrom`), and its `open`/`back`/`discard` navigation is ordinary published state, so leaving
+Plugin pages and returning lands where you were. Published with NO chat handle: the album is a
 cross-room roll-up (the deliberate contrast with the story-clocks' per-room `setState(…, chat)`).
 
 One realm rule this file paid for so you don't: **there is no `Date` in the guest.** `new Date(x)` THROWS

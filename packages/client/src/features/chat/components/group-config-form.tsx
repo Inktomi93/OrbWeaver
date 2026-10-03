@@ -137,7 +137,11 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
             {(output): ReactElement => (
               <>
                 <form.AppField name="speakerTags">
-                  {(field): ReactElement => <field.SwitchField label="Label each speaker" description={SPEAKER_TAGS_HELP[output]} />}
+                  {(field): ReactElement => (
+                    // Only the narrator round reads speakerTags; in a per-speaker room the switch would be a
+                    // no-op, so it stays visible, disabled, and explained by its description.
+                    <field.SwitchField label="Label each speaker" description={SPEAKER_TAGS_HELP[output]} disabled={output === "per-speaker"} />
+                  )}
                 </form.AppField>
                 <form.AppField name="groupNudge">
                   {(field): ReactElement => <field.SwitchField label="Nudge the group to stay in character" description={GROUP_NUDGE_HELP[output]} />}

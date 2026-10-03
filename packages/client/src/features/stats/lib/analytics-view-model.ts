@@ -159,6 +159,12 @@ export function formatPercent(rate: number | null, provenance?: TokenProvenance)
   return provenance === "estimated" ? `~${value}` : value;
 }
 
+/** Throughput's own provenance. It divides output tokens by recorded generation time, so with no recorded
+ *  time there is no measurement: the server's `0` there is a division guard. */
+export function throughputProvenance(totalGenTimeMs: number, tokensOutProvenance: TokenProvenance): TokenProvenance {
+  return totalGenTimeMs > 0 ? tokensOutProvenance : "unrecorded";
+}
+
 /** Token-derived throughput with the same provenance spelling as the total it divides. */
 export function formatThroughput(rate: number, provenance: TokenProvenance): string {
   if (provenance === "unrecorded") {

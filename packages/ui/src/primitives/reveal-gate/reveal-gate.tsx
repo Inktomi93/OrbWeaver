@@ -1,11 +1,12 @@
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { hideActionName, revealActionName } from "#lib";
 import { Eye, EyeOff, Icon, Lock } from "#primitives/icons";
 import { revealGateVariants } from "./variants.ts";
 
-export interface RevealGateProps extends Omit<ComponentProps<"div">, "children"> {
-  /** The reveal trigger's label. Default `"Reveal"`. */
-  label?: string;
+const DEFAULT_LABEL = "Reveal";
+
+interface RevealGateBaseProps extends Omit<ComponentProps<"div">, "children"> {
   /** The gated content. Conditionally MOUNTED, never `hidden`/`display:none` — a CSS-hidden secret is still in the DOM. */
   children: ReactNode;
   /** Controlled reveal state. Omit to run uncontrolled off `defaultRevealed`. */
@@ -20,13 +21,21 @@ export interface RevealGateProps extends Omit<ComponentProps<"div">, "children">
   disabled?: boolean;
 }
 
+/** How the triggers are named. A custom `label` is the trigger's visible text and accessible name. A `subject`
+ *  keeps the visible `Reveal`/`Hide` and names both triggers and the announcement after it, so several gates on
+ *  one screen stay distinguishable. The two are exclusive, so the visible text always stays inside the name. */
+type RevealGateNaming = { readonly label?: string; readonly subject?: never } | { readonly subject: string; readonly label?: never };
+
+export type RevealGateProps = RevealGateBaseProps & RevealGateNaming;
+
 /**
  * Shared-screen PRIVACY primitive: content stays entirely unmounted until an explicit Reveal click,
  * then (optionally) can be re-hidden. NOT a disclosure/density control (`@orb/ui/collapsible` is that job).
  */
 export function RevealGate({
   className,
-  label = "Reveal",
+  label = DEFAULT_LABEL,
+  subject,
   children,
   revealed: controlledRevealed,
   defaultRevealed = false,
@@ -47,7 +56,8 @@ export function RevealGate({
     if (!isControlled) {
       setUncontrolledRevealed(next);
     }
-    setAnnouncement(next ? `${label} revealed` : `${label} hidden`);
+    const noun = subject ?? label;
+    setAnnouncement(next ? `${noun} revealed` : `${noun} hidden`);
     onReveal?.(next);
   }
 
@@ -71,6 +81,7 @@ export function RevealGate({
             <button
               ref={hideButtonRef}
               aria-expanded={true}
+              aria-label={subject === undefined ? undefined : hideActionName(subject)}
               className={slots.hideTrigger()}
               data-slot="reveal-gate-hide"
               disabled={disabled}
@@ -87,6 +98,7 @@ export function RevealGate({
           <Icon icon={Lock} size="sm" />
           <button
             aria-expanded={false}
+            aria-label={subject === undefined ? undefined : revealActionName(subject)}
             className={slots.trigger()}
             data-slot="reveal-gate-trigger"
             disabled={disabled}

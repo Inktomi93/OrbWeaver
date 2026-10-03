@@ -32,7 +32,7 @@ docker compose -f docker-compose.yaml -f docker/compose.build.yaml up -d --build
 ```
 
 The overlay names the result `orbweaver:local`, so it never replaces the pulled release. With another
-overlay from this page, list the build overlay right after `docker-compose.yaml`. Settings → Admin → About this install reports `vX.Y.Z` for a
+overlay from this page, list the build overlay right after `docker-compose.yaml`. Settings → About reports `vX.Y.Z` for a
 release and `X.Y.Z-dev+<commit>` for a build of anything else.
 
 ## A model server on your machine

@@ -187,10 +187,13 @@ export interface CorpusHit {
   readonly text: string;
 }
 
-/** score is the BM25 score (higher = better) — the lexical surface's own unit, never mixed with CSLS. */
+/** score is the BM25 score (higher = better) — the lexical surface's own unit, never mixed with CSLS. The
+ *  name and avatar are read with the hit, so a hit names its card whatever page of the library it sits on. */
 export interface FieldSearchHit {
   readonly characterId: CharacterId;
   readonly score: number;
+  readonly name: string;
+  readonly avatarHash: string | null;
 }
 
 export interface FieldSearchResult {
@@ -350,6 +353,8 @@ export const corpusHitSchema = z.strictObject({
 export const fieldSearchHitSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
   score: z.number(),
+  name: z.string(),
+  avatarHash: z.string().nullable(),
 }) satisfies z.ZodType<FieldSearchHit>;
 
 export const fieldSearchResultSchema = z.strictObject({

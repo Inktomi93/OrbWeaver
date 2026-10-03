@@ -26,6 +26,16 @@ export function removeActionName(subject: string): string {
   return `Remove ${subject}`;
 }
 
+/** The accessible name of a control that mounts a hidden subject on request — `Reveal <subject>`. */
+export function revealActionName(subject: string): string {
+  return `Reveal ${subject}`;
+}
+
+/** The accessible name of a control that unmounts a revealed subject again — `Hide <subject>`. */
+export function hideActionName(subject: string): string {
+  return `Hide ${subject}`;
+}
+
 /** The accessible name of a control that copies its subject to the clipboard — `Copy <subject>`. */
 export function copyActionName(subject: string): string {
   return `Copy ${subject}`;

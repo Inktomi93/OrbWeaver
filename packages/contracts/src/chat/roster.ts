@@ -115,7 +115,7 @@ export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
  * "one ladder control, not a second checkbox"). Strictly increasing, and the order IS the meaning:
  *
  *   `untrusted`   — the D21 safe default. Sanitized markdown; a card renders in the inert tierA seal.
- *   `trusted`     — rich HTML + Mermaid render (still SANITIZED — no script/iframe/style/`on*`), and a
+ *   `trusted`     — rich HTML render (still SANITIZED — no script/iframe/style/`on*`), and a
  *                   card gets the sandboxed tierB frame (D44 §12.0).
  *   `interactive` — everything `trusted` has, PLUS the card frame is built under the `interactive`
  *                   {@link https://github.com/Inktomi93/orbweaver/issues/111} posture, which since leg 3's
@@ -135,7 +135,7 @@ export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
 export const HTML_TRUST_STEPS = ["untrusted", "trusted", "interactive"] as const;
 export type HtmlTrustStep = (typeof HTML_TRUST_STEPS)[number];
 
-/** Does this step render the author's HTML as TRUSTED (rich HTML/Mermaid, the tierB card frame)? True for
+/** Does this step render the author's HTML as TRUSTED (rich HTML, the tierB card frame)? True for
  *  every step above the floor — `interactive` includes `trusted` by construction. */
 export function rendersTrustedHtml(step: HtmlTrustStep): boolean {
   return step !== "untrusted";

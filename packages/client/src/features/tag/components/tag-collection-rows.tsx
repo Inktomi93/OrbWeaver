@@ -2,8 +2,9 @@
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { ColorSwatch } from "@orb/ui/color-field";
 import { Icon, Trash2 } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
@@ -276,14 +277,9 @@ function TagCollectionRow({
           </MenuItem>
         ),
       }}
-      leading={
-        <Row
-          aria-hidden={true}
-          className="size-3 shrink-0 rounded-control bg-muted ring-1 ring-muted-foreground"
-          title={tagColorLabel("Background", tag.color)}
-          {...(tag.color === null ? {} : { style: { backgroundColor: tag.color } })}
-        />
-      }
+      // Decorative in the row's spoken form (the census is its description); the colour is stated in words in
+      // the editor the row opens. `null` paints the swatch's own unset state, never a colour.
+      leading={<ColorSwatch aria-hidden={true} size="sm" title={tagColorLabel("Background", tag.color)} value={tag.color} />}
       onSelect={onSelect}
       selected={selected}
       subtitle={tagUsageLabel(tag)}

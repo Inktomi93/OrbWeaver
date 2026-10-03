@@ -56,7 +56,7 @@ const TEACHING = '[data-slot="config-mobile-teaching"]';
 /** Every group the door registers MINUS the admin one: `admin-group.tsx` declares `when: (viewer) =>
  *  viewer.isAdmin`, which this file's `sessions.me` (`globalRole: "user"`) is not. Stated as a number here
  *  rather than derived from `CONFIG_GROUP_IDS`, because a test that reads the tuple it judges proves nothing. */
-const GROUP_COUNT = 11;
+const GROUP_COUNT = 12;
 
 const BOOK = {
   id: "world_book_reach000001",

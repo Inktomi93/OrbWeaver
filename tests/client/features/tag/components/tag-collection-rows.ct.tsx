@@ -11,7 +11,7 @@
 
 import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { INK_VOID_BAR_PCT, INK_VOID_WIDTHS, inkVoid } from "../../../../support/browser/ink-void.ts";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
@@ -157,6 +157,22 @@ test("a row's spoken DESCRIPTION is the census alone — no per-row colour discl
   await expect(row).toHaveAccessibleDescription("7 uses");
   // The words are nowhere in the roster at all — not in a row's name, not in its description.
   await expect(rows.getByText("theme default")).toHaveCount(0);
+});
+
+// The swatch is the shared ColorSwatch: a set colour fills the chip, and NO colour is the swatch's own outlined
+// unset state, so an unset label never reads as a dark picked colour.
+test("a set colour fills the row swatch, and an unset one shows the distinct unset state", async ({ mount, page }) => {
+  await stub(page);
+  const rows = await mount(<TagCollectionRowsStory />);
+  const chip = (id: string): Locator => rows.locator(`[data-label-row="${id}"] [data-slot="color-swatch-chip"]`);
+
+  await expect(chip("tag_adventure")).toHaveCSS("background-color", "rgb(51, 85, 255)");
+  await expect(chip("tag_adventure")).not.toHaveAttribute("data-unset");
+  await expect(chip("tag_orphan")).toHaveAttribute("data-unset", "");
+  await expect(chip("tag_orphan")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(chip("tag_orphan")).toHaveCSS("border-top-style", "dashed");
+  // Decorative: the swatch adds nothing to the row's spoken description.
+  await expect(rows.getByRole("button", { name: "orphan", exact: true })).toHaveAccessibleDescription("unused");
 });
 
 test("the host's filter string narrows the OWNER's rows", async ({ mount, page }) => {

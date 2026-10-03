@@ -1,6 +1,5 @@
-// The About SECTION body (Settings → Admin → About this install) — what this box IS, and one button that
-// asks GitHub whether it is still current (owner ask 2026-09-18: "a versioning system to stay in sync with
-// github and to help with bug reports").
+// The About group's two section bodies (Settings → About): what this box IS, which every member can read,
+// and the admin's one button that asks GitHub whether it is still current.
 //
 // THE VERSION LINE IS THE PRODUCT HERE. Everything else on this section serves it: it is the string a bug
 // report quotes, so it is selectable, copyable in one click, and spelled exactly the way the issue form asks
@@ -29,15 +28,15 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { configAnchorId } from "#state";
-import { ABOUT_SUBCATEGORY } from "../lib/about-nav.ts";
+import { ABOUT_SUBCATEGORY, ABOUT_UPDATES_SUBCATEGORY } from "../lib/about-nav.ts";
 
-/** The section's own suspense/error boundary — it reads for itself, so it recovers for itself. */
+/** The version section's own suspense/error boundary — it reads for itself, so it recovers for itself. */
 export function AboutSection(): ReactElement {
   return (
     <QueryBoundary
       fallback={<SkeletonRows count={2} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="this install's version" onRetry={retry} />}
-      reserveKey="config.admin.about"
+      reserveKey="config.about.version"
     >
       <AboutBody />
     </QueryBoundary>
@@ -60,11 +59,9 @@ function provenanceLine(version: VersionIdentity): string {
 function AboutBody(): ReactElement {
   const trpc = useTRPC();
   const { data: version } = useSuspenseQuery(trpc.settings.getVersion.queryOptions());
-  // MANUAL by construction (see the header): nothing fetches until the button calls `refetch`.
-  const update = useQuery({ ...trpc.settings.checkForUpdate.queryOptions(), enabled: false });
 
   return (
-    <Section className="@container" divider={true} heading={ABOUT_SUBCATEGORY.label} id={configAnchorId("admin", ABOUT_SUBCATEGORY.id)}>
+    <Section className="@container" divider={true} heading={ABOUT_SUBCATEGORY.label} id={configAnchorId("about", ABOUT_SUBCATEGORY.id)}>
       <Stack gap="field" data-testid={testId("aboutSection")}>
         {/* A failed copy replaces the version line with the full report (the line plus the full sha), so the
             text shows once and the field gets the row's whole width. */}
@@ -76,7 +73,21 @@ function AboutBody(): ReactElement {
           </Text>
         </CopyButton>
         <Text voice="gloss">{provenanceLine(version)}</Text>
+      </Stack>
+    </Section>
+  );
+}
 
+/** The admin's manual update check. It needs no version read of its own: the server compares its own frozen
+ *  identity against the upstream head. */
+export function AboutUpdatesSection(): ReactElement {
+  const trpc = useTRPC();
+  // MANUAL by construction (see the header): nothing fetches until the button calls `refetch`.
+  const update = useQuery({ ...trpc.settings.checkForUpdate.queryOptions(), enabled: false });
+
+  return (
+    <Section divider={true} heading={ABOUT_UPDATES_SUBCATEGORY.label} id={configAnchorId("about", ABOUT_UPDATES_SUBCATEGORY.id)}>
+      <Stack gap="field">
         <Row align="center" gap="row">
           <Button
             intent="secondary"

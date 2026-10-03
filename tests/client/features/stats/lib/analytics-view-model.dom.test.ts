@@ -26,6 +26,7 @@ import {
   momentumBarItems,
   personaBarItems,
   seriesTokenProvenance,
+  throughputProvenance,
   WEEKDAY_LABELS,
   weekdayBarItems,
 } from "../../../../../packages/client/src/features/stats/lib/analytics-view-model.ts";
@@ -128,6 +129,12 @@ describe("the nullable formatter family renders unrecorded as an em dash", () =>
     expect(formatThroughput(12.54, "measured")).toBe("12.5 t/s");
     expect(formatThroughput(12.54, "estimated")).toBe("~12.5 t/s");
     expect(formatThroughput(0, "unrecorded")).toBe("—");
+  });
+  test("throughput with no recorded generation time is unrecorded, never a measured 0.0 t/s", () => {
+    expect(formatThroughput(0, throughputProvenance(0, "measured"))).toBe("—");
+    expect(throughputProvenance(0, "estimated")).toBe("unrecorded");
+    expect(formatThroughput(12.54, throughputProvenance(1500, "measured"))).toBe("12.5 t/s");
+    expect(throughputProvenance(1500, "estimated")).toBe("estimated");
   });
   test("seriesTokenProvenance keeps a mixed chart approximate", () => {
     expect(seriesTokenProvenance([{ tokensOutProvenance: "measured" }, { tokensOutProvenance: "estimated" }])).toBe("estimated");

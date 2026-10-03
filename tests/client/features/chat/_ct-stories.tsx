@@ -703,7 +703,7 @@ export interface MessageContentSpansStoryProps {
   readonly characterName?: string;
   readonly userName?: string;
   /** The render trust tier to mount at (D44 §12.0) — defaults `trusted` to preserve the pre-#25 stories.
-   *  The guardrail tests mount `untrusted` to prove `<speaker>` coloring survives + Mermaid is withheld. */
+   *  The guardrail tests mount `untrusted` to prove `<speaker>` coloring survives. */
   readonly trust?: "trusted" | "untrusted";
   /** External-media gate for the mount (defaults `false` = gated, the safe floor). */
   readonly allowExternal?: boolean;

@@ -22,7 +22,7 @@
 
 import { SEMVER_RE } from "@orb/kit/semver";
 import type { ReleaseChannel, Upstream, UpstreamOf, UpstreamProbeResult, UpstreamProbes } from "@orb/kit/version-identity";
-import { shortCommit } from "@orb/kit/version-identity";
+import { ORBWEAVER_REPO_SLUG, shortCommit } from "@orb/kit/version-identity";
 import { z } from "zod";
 import { APP_NAME, APP_URL } from "#foundation/config";
 import type { SafeFetchOptions, SafeFetchResult } from "#infra/network";
@@ -32,7 +32,7 @@ import { safeFetch } from "#infra/network";
  *  settings: "which GitHub repo is Orbweaver" is not a per-deployment knob, and an operator-editable upstream
  *  would turn a fixed GET into an arbitrary-URL fetcher. */
 const UPSTREAM_HOST = "api.github.com";
-const UPSTREAM_REPO = `https://${UPSTREAM_HOST}/repos/Inktomi93/orbweaver`;
+const UPSTREAM_REPO = `https://${UPSTREAM_HOST}/repos/${ORBWEAVER_REPO_SLUG}`;
 /** The one URL each channel asks. `releases/latest` is the newest published, non-draft, non-prerelease
  *  release, which is exactly the set release-please publishes. */
 const UPSTREAM_URLS: Record<ReleaseChannel, string> = {

@@ -6,14 +6,16 @@
 // EACH TEST USES A UNIQUE OWNER — the field-index cache is a module-scope singleton keyed by ownerId, so a
 // shared handle would bleed one test's index into another (a fresh db won't reset the cache).
 
+import { characters } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { FIELD_INDEX_TTL_MS } from "../../../../../packages/server/src/domain/search/substrate/field-index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeSearch, seedCharacter, seedUser } from "../_support.ts";
+import { makeSearch, seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
 describe("fields", () => {
   test("a capped lexical result discloses the matching and indexed denominators", async () => {
@@ -26,6 +28,30 @@ describe("fields", () => {
     expect(result.coverage).toEqual({ requestLimit: 1, indexedCharacters: 3, matchingCharacters: 2 });
     expect(result.hits).toHaveLength(1);
   });
+  // The client renders these straight onto the row, so a hit on any card the owner holds keeps its name and
+  // destination however large the library is. A card deleted inside the index TTL drops out rather than
+  // surfacing as an id with no card behind it.
+  test("each hit carries its card's name and avatar, and a card deleted since the index was built drops out", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("fields_display") });
+    const avatar = await seedAsset(db, { id: "asset_fields_display", ownerId: owner, hash: "avhash_fields" });
+    const kept = await seedCharacter(db, { id: "character_kept", ownerId: owner, name: "Dragon Kept", avatarAssetId: avatar });
+    const gone = await seedCharacter(db, { id: "character_gone", ownerId: owner, name: "Dragon Gone" });
+    const svc = makeSearch(db);
+
+    const before = await svc.fields({ ownerId: owner, query: "dragon", topN: 5 });
+    expect(before.hits.map((h) => ({ characterId: h.characterId, name: h.name, avatarHash: h.avatarHash }))).toEqual(
+      expect.arrayContaining([
+        { characterId: kept, name: "Dragon Kept", avatarHash: "avhash_fields" },
+        { characterId: gone, name: "Dragon Gone", avatarHash: null },
+      ]),
+    );
+
+    await db.delete(characters).where(eq(characters.id, gone));
+    const after = await svc.fields({ ownerId: owner, query: "dragon", topN: 5 });
+    expect(after.hits.map((h) => h.characterId)).toEqual([kept]);
+  });
+
   test("returns the lexically matching card", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("fields_match") });

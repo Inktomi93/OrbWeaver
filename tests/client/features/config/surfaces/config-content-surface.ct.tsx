@@ -142,7 +142,7 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "connection.list": [],
   "connection.listBindings": [],
   "connection.providersAvailable": [],
-  // About (last at the `admin` anchor) suspends on the version identity.
+  // The About group's version section suspends on the version identity.
   "settings.getVersion": { version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout", channel: "main" },
   "plugin.list": [],
   "plugin.listDistributed": [],
@@ -420,6 +420,31 @@ test("a plain user never sees the Admin band", async ({ mount, page }) => {
 
   await expect(component.getByRole("button", { name: "Connections" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Admin" })).toHaveCount(0);
+});
+
+// The install version is any member's read: a plain user reaches the About group, reads the version line
+// and has its copy control, while the admin's update check and the Admin band stay hidden. The server verb
+// is authed-only either way; the gate here is presentation.
+test("a plain user reaches About: the version line and its copy control render; no update check, no Admin band", async ({ mount, page }) => {
+  await stub(page, { "sessions.me": { userId: "user_plain", handle: "plain", globalRole: "user" } });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.getByRole("button", { name: "About", exact: true }).click();
+  await expect(component.getByTestId("about-version-line")).toHaveText("0.4.1-dev+823d76f4343a");
+  await expect(component.getByRole("button", { name: "Copy version for a bug report" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Updates" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Check for updates" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Admin" })).toHaveCount(0);
+});
+
+test("an ADMIN sees the update check under About, beside the same version line", async ({ mount, page }) => {
+  await stub(page, { "sessions.me": { userId: "user_admin", handle: "admin", globalRole: "admin" } });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.getByRole("button", { name: "About", exact: true }).click();
+  await expect(component.getByTestId("about-version-line")).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Updates" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Check for updates" })).toBeVisible();
 });
 
 // D147 — the OTHER side of the same gate: plugins are user-scoped, so a plain user must REACH this group.

@@ -12,6 +12,8 @@ import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CommittedGroupConfigTabStory, GroupConfigFormStory, GroupConfigSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="group-config-saved"]';
+/** The per-speaker reason the disabled switch is described by. */
+const NARRATOR_ONLY = /Only used by Narrator/u;
 
 test("renders the output discriminator + the always-visible toggles (seeded from config)", async ({ mount }) => {
   const component = await mount(<GroupConfigFormStory />);
@@ -32,6 +34,21 @@ test("switching output to narrator rebuilds the arm + re-derives the coupled spe
   await expect(component.locator(SAVED)).toContainText('"speakerTags":true');
   // The narrator arm is `.strict()` — the whole-object rebuild MUST drop cardScope entirely.
   await expect(component.locator(SAVED)).not.toContainText("cardScope");
+});
+
+// `speakerTags` only reaches the narrator round's nudge, so a per-speaker room shows the switch disabled with
+// its reason as the described-by text, and the narrator arm hands it back.
+test("Label each speaker is disabled and explained in a per-speaker room, and live in a narrator room", async ({ mount }) => {
+  const component = await mount(<GroupConfigFormStory />);
+  const labelSpeakers = component.getByRole("switch", { name: "Label each speaker" });
+
+  await expect(labelSpeakers).toBeDisabled();
+  await expect(labelSpeakers).toHaveAccessibleDescription(NARRATOR_ONLY);
+
+  await component.getByRole("button", { name: "Narrator" }).click();
+  await expect(labelSpeakers).toBeEnabled();
+  await labelSpeakers.click();
+  await expect(component.locator(SAVED)).toContainText('"speakerTags":false');
 });
 
 test("toggling group-nudge commits the whole config", async ({ mount }) => {
@@ -71,21 +88,23 @@ test("the scopedCards toggle maps to the per-speaker cardScope arm", async ({ mo
 // ContextTabsPanel, which keys by TAB id only. Switching chats with the Group tab open must remount the
 // form on the new chat's identity (keyed ABOVE the hook owner) — else chat A's frozen FormApi survives and
 // its config autosaves into chat B. A seeds groupNudge=true, B seeds groupNudge=false (a field the test
-// never touches — the decisive tell of WHICH seed is live). Dirty A by toggling label-speakers ON, switch
-// to B, then toggle label-speakers on B: the saved config's UNTOUCHED groupNudge must read B's false, never
-// A's frozen true.
+// never touches — the decisive tell of WHICH seed is live). Dirty A by toggling the per-speaker card scope,
+// switch to B, then toggle it on B: the saved config's UNTOUCHED groupNudge must read B's false, never A's
+// frozen true.
 test("SWITCH pin — switching chats reseeds the form on the new chat, never the previous chat's frozen config", async ({ mount }) => {
   const component = await mount(<GroupConfigSwitchStory />);
 
   // Chat A (groupNudge=true). Dirty it via a DIFFERENT field so the FormApi is non-default → the leg-3-style
-  // teardown/persistence hazard is live: toggle "Label each speaker" ON. The save carries A's groupNudge=true.
-  await component.getByRole("switch", { name: "Label each speaker" }).click();
+  // teardown/persistence hazard is live: toggle the card scope. The save carries A's groupNudge=true.
+  await component.getByRole("button", { name: "Advanced" }).click();
+  await component.getByRole("switch", { name: "Each character sees only their own card" }).click();
   await expect(component.locator(SAVED)).toContainText('"groupNudge":true');
 
-  // Switch to chat B (groupNudge=false). Toggle label-speakers on B; the whole saved config must carry B's
-  // OWN untouched groupNudge=false. A leaked A instance (frozen seed) would save groupNudge=true here.
+  // Switch to chat B (groupNudge=false). The remount closes Advanced; toggle the card scope on B, and the whole
+  // saved config must carry B's OWN untouched groupNudge=false. A leaked A instance would save true here.
   await component.getByRole("button", { name: "switch chat" }).click();
-  await component.getByRole("switch", { name: "Label each speaker" }).click();
+  await component.getByRole("button", { name: "Advanced" }).click();
+  await component.getByRole("switch", { name: "Each character sees only their own card" }).click();
   await expect(component.locator(SAVED)).toContainText('"groupNudge":false');
 });
 
