@@ -30,7 +30,7 @@
 // gate's census, so a THIRD door would land silently — and a third door on any of these three is the drift
 // the budget exists to red on.
 
-import type { MessageView } from "@orb/contracts/chat";
+import type { ForkResult, MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Code, Copy, Eye, EyeOff, GitFork, Icon, Pencil, Redo2, SmilePlus, Undo2 } from "@orb/ui/icons";
@@ -41,11 +41,13 @@ import { useRef, useState } from "react";
 import { ROW_ACTION_INLINE, RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { copyWithNotice, NEEDS_CONTINUATION, notify, testId } from "#lib";
-import { startEditingMessage } from "#state";
+import { selectChat, startEditingMessage } from "#state";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
+import { useReattributeTarget } from "../hooks/use-reattribute-target.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME, MESSAGE_REACTION_ADD_NAME } from "../lib/message-action-names.ts";
 import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
 import { GenerationCredit } from "./generation-credit.tsx";
+import { ReattributeFromHereConfirm, ReattributeFromHereItem } from "./reattribute-from-here.tsx";
 import { RowReactionPicker } from "./row-reaction-picker.tsx";
 import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 
@@ -85,7 +87,7 @@ const useDeleteMutation = createEntityMutation<DeleteVars, unknown>({
   errorToast: "Couldn't delete that message.",
 });
 
-const useForkMutation = createEntityMutation<ForkVars, { chat: { id: ChatId } }>({
+const useForkMutation = createEntityMutation<ForkVars, ForkResult>({
   options: (trpc) => trpc.chat.forkChat.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't fork this chat.",
@@ -127,8 +129,6 @@ function renderGenerationCredit(show: boolean, message: MessageView): ReactEleme
 
 export interface MessageActionsRowProps {
   readonly message: MessageView;
-  /** Optional — a caller without it still forks + notifies, just doesn't switch the active chat. */
-  readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
   readonly messageActions?: "expanded" | "hover" | undefined;
   /** B7/MR3 — the room's PRESENT CHARACTER-NAME set (`speakerThemesByName`'s keys, threaded from the row). The
    *  picker's segment-target list parses the CANON body with these under the narrator-voice gate — the
@@ -147,7 +147,6 @@ export interface MessageActionsRowProps {
 
 export function MessageActionsRow({
   message,
-  onChatForked,
   messageActions,
   viewerIsHost = false,
   generationCredit = false,
@@ -173,6 +172,10 @@ export function MessageActionsRow({
   // this room has, and the server refuses it anyway (`reactions_disabled`). The pill rows self-hide the
   // same way (the read answers zero groups).
   const reactionsEnabled = useReactionsEnabled(message.chatId);
+  // The viewer's own user line only (`null` elsewhere). Its confirm is a sibling of the menu for the reason
+  // the wire viewer's is, so its open state lives here too.
+  const reattributeTarget = useReattributeTarget(message);
+  const [reattributeOpen, setReattributeOpen] = useState(false);
   const clusterRef = useRef<HTMLDivElement | null>(null);
 
   const { chatId, id: messageId, role, content, excludedFromPrompt, hasContinuation } = message;
@@ -229,7 +232,9 @@ export function MessageActionsRow({
     // @orb-waive caught-failure-ownership(catch): the fork mutation's sticky error + global errorToast already surfaced the failure. Ends if the mutation drops its errorToast.
     try {
       const result = await fork.mutateAsync({ chatId, throughSeq: message.seq });
-      onChatForked?.(result.chat.id);
+      // Forking always lands the reader in the new branch. The notice stays because the fork's transcript
+      // is a copy of the parent's, so without it the switch is invisible.
+      selectChat(result.chat.id);
       notify.success("Forked to a new chat.");
     } catch {
       // The sticky mutation error + the global errorToast already surfaced the failure.
@@ -320,6 +325,7 @@ export function MessageActionsRow({
             Add a reaction
           </MenuItem>
         ) : null}
+        <ReattributeFromHereItem onSelect={(): void => setReattributeOpen(true)} target={reattributeTarget} />
         <MenuItem onClick={(): void => copyWithNotice(content, MESSAGE_COPY_FALLBACK)}>
           <Icon icon={Copy} size="sm" />
           Copy
@@ -348,6 +354,7 @@ export function MessageActionsRow({
       {/* Mounted only once opened — an unopened row builds no query key and no dialog subtree (the viewer's
           own read is `enabled: open`, so this is belt-and-braces on the same gate). */}
       {wireOpen ? <VariantWireViewer chatId={chatId} variantId={message.selectedVariantId} open={wireOpen} onOpenChange={setWireOpen} /> : null}
+      <ReattributeFromHereConfirm message={message} onOpenChange={setReattributeOpen} open={reattributeOpen} target={reattributeTarget} />
       {/* Same mount discipline as the wire viewer: an unopened row builds no picker subtree (the picker
           wiring itself — the canon parse + the segment claim — lives in `row-reaction-picker.tsx`). */}
       {pickerOpen ? (

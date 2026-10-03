@@ -430,6 +430,9 @@ const USER_TRACKED_KEYS = [
   "credentials",
   "chatList",
   "chatGet",
+  // The fork lineage (`chat.getChatLineage`, the room menu's "Back to parent chat"): a membership change in any
+  // chat can open or close a fork's parent, so `chatsChanged` drives it.
+  "chatLineage",
   "connection",
   // The preset params panel's capability gate (`connection.resolveChatCapability`) — a SEPARATE tracked key
   // from `connection` because `settingsChanged` invalidates it NARROWLY (the roleDefaults edit re-resolves the
@@ -510,7 +513,7 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // With a chatId present, both the list AND the changed chat's detail (the busDriven chat-row coverage), PLUS
   // `character.list` — the CROSS-DEVICE half of the FIX #2 denorm freshness (device B's only chat-derived
   // signal for a character's `lastChattedAt` / chat membership change).
-  chatsChanged: ["character", "chatGet", "chatList", "stats", "tag"],
+  chatsChanged: ["character", "chatGet", "chatLineage", "chatList", "stats", "tag"],
   // The saved-party root and nothing else (#26): library CRUD only — an apply moves the CHAT (chat bus),
   // so no chat read rides this member.
   rosterPresetsChanged: ["rosterPreset"],
@@ -582,6 +585,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         credentials: trpc.credentials.list.queryKey(),
         chatList: trpc.chat.listChats.queryKey(),
         chatGet: trpc.chat.getChat.queryKey({ chatId: CHAT_ID }),
+        chatLineage: trpc.chat.getChatLineage.queryKey({ chatId: CHAT_ID }),
         connection: trpc.connection.providersAvailable.queryKey(),
         chatCapability: trpc.connection.resolveChatCapability.queryKey(),
         previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),

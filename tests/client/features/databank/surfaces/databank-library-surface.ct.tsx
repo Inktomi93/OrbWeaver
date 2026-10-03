@@ -15,7 +15,7 @@
 import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DatabankHomeTileAndLibraryStory, DatabankLibraryStory } from "../_ct-stories.tsx";
-import { INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
+import { bankCensus, INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
 
 /** One wheel step of the deep-scroll walks below. The poll IS the scroll loop: each attempt wheels once and
  *  reports whether the target has arrived, so the walk needs no `waitForTimeout` and no awaits inside a `for`
@@ -555,4 +555,33 @@ test("a phase scope that matches nothing reads as GOOD NEWS with its own way out
   await expect(pane.getByText("No documents in that state")).toBeVisible();
   await expect(pane.getByText("No documents yet")).toHaveCount(0);
   await expect(pane.getByRole("button", { name: "Show every document" })).toBeVisible();
+});
+
+// The extractor-upgrade banner: the census's `staleExtraction` decides it, and its one action is the
+// owner-wide re-extract behind the same confirm the maintenance kebab opens. Nothing leaves the client
+// until the confirm is accepted.
+test("a stale-extraction census shows the re-extract banner, and its action confirms before the owner-wide re-extract", async ({ mount, page }) => {
+  const bank = [READY_DOC, INDEXING_DOC];
+  const trpc = await stubDatabank(page, { "databank.bankHealth": bankCensus(bank, 3) }, bank);
+  const list = await mount(<DatabankLibraryStory />);
+
+  const banner = list.locator('[data-slot="databank-re-extract-banner"]');
+  await expect(banner).toBeVisible();
+  await banner.getByRole("button", { name: "Re-extract", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await expect.poll(() => trpc.count("databank.reindex"), { intervals: [20, 50, 100] }).toBe(0);
+
+  await page.getByRole("alertdialog").getByRole("button", { name: "Re-extract", exact: true }).click();
+  await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "owner" }, mode: "re-extract" });
+});
+
+test("a bank with nothing extracted by an older extractor shows no re-extract banner", async ({ mount, page }) => {
+  const trpc = await stubDatabank(page);
+  const list = await mount(<DatabankLibraryStory />);
+
+  // The census is answered and the rows have painted, so the absence below is read against a landed
+  // `staleExtraction: 0`, not an unread census.
+  await expect.poll(() => trpc.count("databank.bankHealth"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+  await expect(list.getByText("The Crimson Court")).toBeVisible();
+  await expect(list.locator('[data-slot="databank-re-extract-banner"]')).toHaveCount(0);
 });

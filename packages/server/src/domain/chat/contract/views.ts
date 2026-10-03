@@ -10,7 +10,7 @@
 // Transport-visible list, turn and preview projections are also owned by @orb/contracts/chat.
 // The replay and attach shapes below remain internal transport/engine contracts.
 
-import type { ChatBusEvent, ChatSummary, MessageView } from "@orb/contracts/chat";
+import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { ChatStreamGenerationId } from "@orb/kit/ids";
 
 export type {
@@ -18,6 +18,8 @@ export type {
   // The full chat read (getChat, fork, start, the invite joins) — a wire node: its strict twin
   // (`chatDetailSchema`) is the invite joins' tRPC output parser.
   ChatDetail,
+  // The fork-lineage chain (getChatLineage) — a wire node: `chatLineageViewSchema` is its tRPC output parser.
+  ChatLineageView,
   // The present-tense context-fit answer (previewContextFit) — the cross-boundary wire node (`@orb/contracts/chat`),
   // re-exported type-only so the service + front door share the ONE name.
   ContextFitAnswer,
@@ -35,14 +37,6 @@ export type {
   // re-exported type-only for the same reason. HOST-ONLY payload (see its contract header).
   VariantWireView,
 } from "@orb/contracts/chat";
-
-/** The fork-lineage chain (getChatLineage) — the chat's ancestors then self, oldest-root first. Each ancestor
- *  is walked + gated INDEPENDENTLY (a fork grants NO parent membership); a hidden/
- *  not-a-member ancestor is omitted, so the chain may be sparse. */
-export interface ChatLineageView {
-  /** Oldest ancestor → … → this chat. Membership-gated per ancestor (omitted where not a member). */
-  readonly chain: readonly ChatSummary[];
-}
 
 /** A resumable SSE token-log row (replayStreamEvents) — one streamed delta with its replay cursor
  *  ("resumable SSE stream log"; the db `chat_stream_events` row projected). */

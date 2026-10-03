@@ -19,10 +19,10 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import type { Trpc } from "#data";
-import { useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { useGatedQuery, useInvalidation, useReattributePersona, useTRPC } from "#data";
 import { notify } from "#lib";
 import { useActiveChatId } from "#state";
-import { useReattributePersona, useSetChatActivePersona, useSetChatAnchorPersona } from "../hooks/use-chat-persona.ts";
+import { useSetChatActivePersona, useSetChatAnchorPersona } from "../hooks/use-chat-persona.ts";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;

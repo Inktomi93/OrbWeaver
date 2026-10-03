@@ -14,7 +14,7 @@ import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, NotifyNotice, ToolRenderer } from "#lib";
 import { notify, turnAbortNotice } from "#lib";
-import { chatDeletedFromList, isLanding, openConfigTo, openNewChatPicker, selectChat, useActiveChatHandle } from "#state";
+import { chatDeletedFromList, isLanding, openConfigTo, openNewChatPicker, useActiveChatHandle } from "#state";
 import { createWarningSurface } from "../lib/turn-warning-surface.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
 import { ChatRoomSurface } from "../surfaces/chat-room-surface.tsx";
@@ -66,14 +66,5 @@ export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentP
     return <ChatLandingSurface onNewChat={openNewChatPicker} />;
   }
 
-  return (
-    <ChatRoomSurface
-      busDeps={busDeps}
-      handle={handle}
-      key={handle.id}
-      onChatForked={selectChat}
-      surfaceContributors={surfaceContributors}
-      toolRenderers={toolRenderers}
-    />
-  );
+  return <ChatRoomSurface busDeps={busDeps} handle={handle} key={handle.id} surfaceContributors={surfaceContributors} toolRenderers={toolRenderers} />;
 }

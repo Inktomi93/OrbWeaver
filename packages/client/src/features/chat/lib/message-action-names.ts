@@ -27,6 +27,9 @@ export const MESSAGE_EDIT_NAME = "Edit message";
 /** The row's fork door — branches the conversation at this message. */
 export const MESSAGE_FORK_NAME = "Fork chat here";
 
+/** The viewer's own user row's restamp door: their lines from this one onward take their current persona. */
+export const MESSAGE_REATTRIBUTE_NAME = "Reattribute from here";
+
 /** The row's reaction door (`message-actions-row.tsx`, ordered AFTER Edit/Fork by the #786 owner ruling). */
 export const MESSAGE_REACTION_ADD_NAME = "Add a reaction";
 

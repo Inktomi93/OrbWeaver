@@ -5,9 +5,16 @@
 // settle-time backstop).
 
 import type { MessageView } from "@orb/contracts/chat";
+import type { PersonaId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME, MESSAGE_FORK_NAME } from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
+import {
+  MESSAGE_ACTIONS_MENU_NAME,
+  MESSAGE_EDIT_NAME,
+  MESSAGE_FORK_NAME,
+  MESSAGE_REATTRIBUTE_NAME,
+} from "../../../../../packages/client/src/features/chat/lib/message-action-names.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { MessageActionsRowStory } from "../_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ROOM_ROUTES, makeMessageView } from "../fixtures.ts";
@@ -264,4 +271,53 @@ test("a DISABLED (non-continued) item does not fire the mutation on click", asyn
   await menuItem(page, UNDO_CONTINUE).click({ force: true });
 
   await expect.poll(() => trpc.count("chat.undoContinue")).toBe(0);
+});
+
+// ── Reattribute from here: the viewer's own user line restamps their lines from its seq onward ──────────
+const VIEWER = castId<UserId>("user_ct_viewer");
+const CO_MEMBER = castId<UserId>("user_ct_co_member");
+const VIEWER_PERSONA = castId<PersonaId>("persona_ct_mira");
+const OWN_LINE: MessageView = makeMessageView({ role: "user", authorUserId: VIEWER, seq: 7, content: "I take the left fork." });
+
+/** The room read as the viewer sees it: their user id and their current chat persona (null = none picked). */
+function roomAs(personaId: PersonaId | null): typeof CHAT_ROOM_ROUTES {
+  return { ...CHAT_ROOM_ROUTES, "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], viewerUserId: VIEWER, viewerActivePersonaId: personaId } };
+}
+
+test("Reattribute from here confirms, then restamps the viewer's own lines from this message's seq to their persona", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...roomAs(VIEWER_PERSONA), "persona.list": [], "chat.reattributePersona": () => null });
+  const component = await mount(<MessageActionsRowStory message={OWN_LINE} />);
+
+  await openActionsMenu(component);
+  await menuItem(page, MESSAGE_REATTRIBUTE_NAME).click();
+  // At the settled open-confirm state nothing has been sent: the scope is stated before the write.
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  await expect.poll(() => trpc.count("chat.reattributePersona"), { intervals: [20, 50, 100] }).toBe(0);
+
+  await page.getByRole("alertdialog").getByRole("button", { name: "Reattribute", exact: true }).click();
+  await expect
+    .poll(() => trpc.lastInput("chat.reattributePersona"), { intervals: [20, 50, 100] })
+    .toEqual({ chatId: OWN_LINE.chatId, scope: { kind: "mine", fromSeq: OWN_LINE.seq }, personaId: VIEWER_PERSONA });
+});
+
+test("Reattribute from here is offered only on the viewer's own user line", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...roomAs(VIEWER_PERSONA) });
+  const component = await mount(<MessageActionsRowStory message={makeMessageView({ role: "user", authorUserId: CO_MEMBER })} />);
+
+  await openActionsMenu(component);
+  // Copy settles the open menu, so the absence is read against a rendered item set.
+  await expect(menuItem(page, COPY_RE)).toBeVisible();
+  await expect(menuItem(page, MESSAGE_REATTRIBUTE_NAME)).toHaveCount(0);
+});
+
+test("with no chat persona, Reattribute from here stays in the menu disabled, and opens nothing", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...roomAs(null), "chat.reattributePersona": () => null });
+  const component = await mount(<MessageActionsRowStory message={OWN_LINE} />);
+
+  await openActionsMenu(component);
+  const item = menuItem(page, MESSAGE_REATTRIBUTE_NAME);
+  await expect(item).toHaveAttribute("data-disabled", "");
+  await item.click({ force: true });
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect.poll(() => trpc.count("chat.reattributePersona")).toBe(0);
 });

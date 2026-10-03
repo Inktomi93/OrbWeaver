@@ -107,7 +107,7 @@ const SEEDED_ROSTERS: readonly RosterPresetSummary[] = SEED_MANIFEST.flatMap((it
       ]
     : [],
 );
-const FIRST_BOOT_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 4, stalled: 0 }, chunks: 48, passages: 48, total: 4 };
+const FIRST_BOOT_HEALTH = { byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 4, stalled: 0 }, chunks: 48, passages: 48, staleExtraction: 0, total: 4 };
 /** Ambient to every shipped-registry mount here: the Rosters tile's gate reads the roster library, and `routeTrpc`'s
  *  null is not a list. Empty, so the tile stays off every measurement below; its gate has its own CT. */
 const HOME_ROUTES = { ...CHAT_ROOM_ROUTES, "rosterPreset.list": [] };

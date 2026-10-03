@@ -932,6 +932,7 @@ const PROBES: readonly Probe[] = [
   { path: "stats.character", call: (c, i) => c.stats.character({ characterId: i.characterId }) },
   // ── chat (membership-scoped; the chatId gate is the chokepoint for every secondary id) ──
   { path: "chat.getChat", call: (c, i) => c.chat.getChat({ chatId: i.chatId }) },
+  { path: "chat.getChatLineage", call: (c, i) => c.chat.getChatLineage({ chatId: i.chatId }) },
   { path: "chat.checkSendAvailability", call: (c, i) => c.chat.checkSendAvailability({ chatId: i.chatId }) },
   { path: "chat.getNextTurnConnection", call: (c, i) => c.chat.getNextTurnConnection({ chatId: i.chatId }) },
   // D22 member-card read — the chatId membership gate refuses a stranger BEFORE any card load (the secondary
@@ -2133,7 +2134,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "databank.listGlobal":
     "self-scoped: listGlobalDocumentIds filters WHERE global_documents.owner_id = principal.userId (the junction's own scope column, D23); takes NO input at all, so there is no foreign id to probe",
   "databank.bankHealth":
-    "self-scoped: takes NO input at all, so there is no foreign id to probe. Every number it returns is a COUNT over the same `owner_id = principal.userId` predicate `databank.list` pages (countOwnedDocuments), and its one cross-domain read — the injected chunk-count op — derives its scope through the FK join `document_chunks → documents.owner_id` (D20), proven in tests/server/domain/embeddings/verbs/count-document-chunks-by-owner.int.test.ts (another owner's chunked documents are absent from the map)",
+    "self-scoped: takes NO input at all, so there is no foreign id to probe. Every number it returns is a COUNT over the same `owner_id = principal.userId` predicate `databank.list` pages (countOwnedDocuments); `staleExtraction` is countStaleExtractionDocuments, which ANDs that same owner predicate with the source-file and extractor-version conditions (another owner's stale documents are excluded, proven in tests/server/domain/databank/verbs/bank-health.int.test.ts); its one cross-domain read — the injected chunk-count op — derives its scope through the FK join `document_chunks → documents.owner_id` (D20), proven in tests/server/domain/embeddings/verbs/count-document-chunks-by-owner.int.test.ts (another owner's chunked documents are absent from the map)",
   "settings.getAppSettings": "admin-gated: deployment settings",
   "settings.getAppSettingsWithOverrides": "admin-gated: deployment settings (resolved + raw overrides)",
   "settings.updateAppSettings": "admin-gated: deployment settings",

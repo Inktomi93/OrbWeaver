@@ -79,6 +79,7 @@ import {
   setMobileViewport,
   startEditingMessage,
   toggleMessageSelected,
+  useActiveChatId,
   useActiveConfigGroup,
   useActiveConfigSub,
   useActiveSection,
@@ -2251,6 +2252,21 @@ export function ChatSurfaceContributorStory({ anchor, visible, silent = false, g
   );
 }
 
+/** The REAL `chats` section content open on {@link CHAT_ID} with no surface contributors: the production
+ *  room path a room-changing action (Fork chat here) is driven through. */
+export function ChatsSectionRoomStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtChatContributorSectionRegistry surfaceContributors={NO_SURFACE_CONTRIBUTORS}>
+        <ChatContentHarness />
+      </CtChatContributorSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
 // Mounts the chats section's CONTENT through the real registry (`registry.get("chats").content()`) — the
 // same call the shell's `SectionContent` makes — so the surface-anchor CT drives the production path.
 function ChatContentHarness(): ReactElement {
@@ -2721,6 +2737,32 @@ export function ChatOptionsMenuStory({ withCharacters = false }: ChatOptionsMenu
       </div>
     </CtDataProviders>
   );
+}
+
+/** The ⋯ menu on a fork, beside a readout of the active chat the shell store holds: "Back to parent chat"
+ *  navigates by making the parent the active chat, and the readout is where that lands. */
+export function ChatForkMenuStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div>
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} galleryCharacters={[]} />
+        <ActiveChatReadout />
+        <LineageReadout />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+function ActiveChatReadout(): ReactElement {
+  return <output data-testid="ct-active-chat">{`active=${useActiveChatId() ?? "none"}`}</output>;
+}
+
+/** The menu's lineage read as the cache holds it. Passive (`enabled: false`): it never fetches, so it renders
+ *  the chain only once the menu's own gated read has landed, and stays "unread" on a chat that never asks. */
+function LineageReadout(): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useQuery({ ...trpc.chat.getChatLineage.queryOptions({ chatId: CHAT_ID }), enabled: false });
+  return <output data-testid="ct-lineage">{`lineage=${data === undefined ? "unread" : String(data.chain.length)}`}</output>;
 }
 
 /** The ⋯ menu WITH the two shell surfaces a game-mode transition writes into (#862/#863): the app's ONE

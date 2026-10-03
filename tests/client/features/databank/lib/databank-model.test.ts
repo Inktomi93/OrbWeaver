@@ -166,6 +166,7 @@ describe("bankHealth — the tile's ingest health (D-7)", () => {
     byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 },
     chunks: 0,
     passages: 0,
+    staleExtraction: 0,
     total: 0,
     ...over,
   });

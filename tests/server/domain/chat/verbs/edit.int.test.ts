@@ -1224,21 +1224,29 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
     expect(emitted.filter((e) => e.type === "messageEdited")).toHaveLength(1);
   });
 
-  test("`fromSeq` floors the sweep — only the wrong-persona stretch is re-stamped, earlier history keeps its name", async () => {
-    const { member, chatId } = await seedRoom();
+  // The message menu's "Reattribute from here" sends exactly this scope, with the clicked row's seq.
+  test("`fromSeq` floors the sweep — only the caller's rows at or after the seq move; earlier history and a co-member's lines keep their names", async () => {
+    const { host, member, chatId } = await seedRoom();
     const mira = await seedPersona(db, member, "mira");
     const zara = await seedPersona(db, member, "zara");
+    const hostPersona = await seedPersona(db, host, "hale");
     const early = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member, personaId: mira });
     const cut = await seedMessage(db, chatId, 2, { role: "user", authorUserId: member, personaId: mira });
-    const late = await seedMessage(db, chatId, 3, { role: "user", authorUserId: member, personaId: mira });
+    const theirs = await seedMessage(db, chatId, 3, { role: "user", authorUserId: host, personaId: hostPersona });
+    const late = await seedMessage(db, chatId, 4, { role: "user", authorUserId: member, personaId: mira });
+    // A pinned anchor is the card's POV, not a line's stamp: the restamp never moves it.
+    await db.update(chats).set({ anchorPersonaId: hostPersona }).where(eq(chats.id, chatId));
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine", fromSeq: 2 }, personaId: zara });
+    expect((await db.select({ anchor: chats.anchorPersonaId }).from(chats).where(eq(chats.id, chatId)))[0]?.anchor).toBe(hostPersona);
 
     const byId = new Map((await db.select().from(messages).where(eq(messages.chatId, chatId))).map((r) => [r.id, r]));
     expect(byId.get(early.messageId)?.personaId).toBe(mira); // BELOW the floor — history, not a mistake
     expect(byId.get(cut.messageId)?.personaId).toBe(zara); // the floor is INCLUSIVE
+    expect(byId.get(theirs.messageId)?.personaId).toBe(hostPersona); // past the floor, but another human's line
     expect(byId.get(late.messageId)?.personaId).toBe(zara);
+    expect(emitted.filter((e) => e.type === "messageEdited")).toHaveLength(2);
   });
 
   test("a NON-MEMBER's mine-scope call is a leak-free NOT_FOUND — it can never resolve another room's rows", async () => {
