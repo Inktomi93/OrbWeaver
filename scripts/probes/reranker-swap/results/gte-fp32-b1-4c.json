@@ -1,0 +1,55 @@
+{
+  "label": "gte-fp32-b1-4c",
+  "batch": 1,
+  "model": "Alibaba-NLP/gte-reranker-modernbert-base",
+  "threads": 4,
+  "loadMs": 334015,
+  "rss": {
+    "baselineMib": 105,
+    "afterLoadMib": 971,
+    "peakMib": 1669,
+    "peakOverBaselineMib": 1564
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 3.650329113006592,
+      "irrelevant": -2.629286289215088,
+      "ok": true,
+      "docTokens": 33
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": 1.6343454122543335,
+      "irrelevant": 1.4544398784637451,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": 3.0504798889160156,
+      "irrelevant": 1.0301198959350586,
+      "ok": true,
+      "docTokens": 1221
+    }
+  ],
+  "latency": [
+    {
+      "pairTokens": 512,
+      "msPerPairMedian": 2089,
+      "after": {
+        "rssMib": 1539,
+        "hwmMib": 1543
+      }
+    },
+    {
+      "pairTokens": 2048,
+      "msPerPairMedian": 9825,
+      "after": {
+        "rssMib": 1652,
+        "hwmMib": 1669
+      }
+    }
+  ],
+  "heapMib": 53
+}

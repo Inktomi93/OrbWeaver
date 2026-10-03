@@ -15,6 +15,7 @@ import type { Locator, Page } from "@playwright/test";
 import { ADD_DIALOG_COPY } from "../../../../packages/client/src/features/credentials/lib/add-connection-form-model.ts";
 import type { TrpcInput, TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../support/node/user-settings-view.ts";
 
 export type ConnectionRow = TrpcWireOutput<"connection.list">[number];
 export type CredentialRow = TrpcWireOutput<"credentials.list">[number];
@@ -201,6 +202,9 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
       connectionId,
     }),
     "connection.verifyAuth": opts.verifyAuth ?? SIGNED_IN,
+    // Model roles' Utility preset picker, which the pane renders beside the list: no presets, every default.
+    "preset.list": () => [],
+    "settings.getUserSettings": () => userSettingsView(),
     "settings.getAppSettingsWithOverrides": () => ({
       resolved: { privateEndpointAllowlist: [...allowlist] },
       overrides: { privateEndpointAllowlist: null },

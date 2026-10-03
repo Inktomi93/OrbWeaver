@@ -6,7 +6,8 @@
 // with the model the resolver actually chose.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { RoutableTask } from "@orb/contracts/inference";
+import type { Capability, RerankOnnx, RoutableTask } from "@orb/contracts/inference";
+import { RERANK_FLOOR } from "@orb/contracts/inference";
 import type { InferenceRuntime } from "@orb/inference";
 import { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, NoConnectionError } from "@orb/inference";
 import type { Handle, ModelId, UserId } from "@orb/kit/ids";
@@ -107,6 +108,24 @@ describe("planLocalLightPrefetch", () => {
     });
 
     expect(plan.find((t) => t.slot === "embed")?.modelId).toBe("Xenova/some-other-encoder");
+  });
+
+  // The warm-up must load the same files the first rerank will; a plan without the serving would warm the wrong
+  // head (or fail on a file the repo does not ship) and leave the real load lazy.
+  test("a local-light reranker carries its capability's ONNX serving into the plan", async () => {
+    const onnx: RerankOnnx = { head: "sentence-transformers", dtype: "fp32", files: { x64: "model_quint8_avx2" } };
+    const resolve = vi.fn<InferenceRuntime["resolve"]>(({ task }) => {
+      if (task !== "rerank") {
+        return Promise.reject(new NoConnectionError(`${task}: no connection`));
+      }
+      const capability: Capability = { kind: "rerank", rerank: { ...RERANK_FLOOR, onnx } };
+      const resolved = makeResolved({ task: "rerank", providerId: "local-light", model: castId<ModelId>(DEFAULT_RERANK_MODEL), capability });
+      return Promise.resolve({ resolved, warnings: [] });
+    });
+
+    const plan = await planLocalLightPrefetch({ resolve, principals: [OWNER], enabled: true });
+
+    expect(plan).toEqual([{ slot: "rerank", modelId: DEFAULT_RERANK_MODEL, onnx }]);
   });
 
   test("a THROWING resolver is 'not local-light', never a boot failure", async () => {

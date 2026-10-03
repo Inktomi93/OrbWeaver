@@ -4,7 +4,7 @@
 // D143(c)) close `silencesProse` and widen undeclared modalities with `modalitiesEstimated`.
 
 import type { Capability, CapabilityOverride, EmbeddingCapability, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
-import { builtinProvider, GENERATION_FLOOR, requirementMet, TURNS_FLOOR, taskDef } from "@orb/contracts/inference";
+import { builtinProvider, GENERATION_FLOOR, RERANK_MIN_WINDOW_TOKENS, requirementMet, TURNS_FLOOR, taskDef } from "@orb/contracts/inference";
 import { applyEndpointPosture } from "../../../packages/inference/src/capability/floor.ts";
 import { synthesizeCapability } from "../../../packages/inference/src/capability/synthesize.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -199,4 +199,15 @@ test("sampling is a stated SET: a measured `{}` erases an advertised range; a de
   // The sibling nested blocks keep their one-level merge (a declared effort list leaves the curated mode in place).
   const nested = synthesizeCapability("generation", "other", { curated: [curated], declared: { generation: { reasoning: { effortLevels: ["low"] } } } });
   expect(generationOf(nested.capability).reasoning).toMatchObject({ mode: "effort", effortLevels: ["low"] });
+});
+
+// A declared window of 1 to 4 left a reranker no room for its pair's special tokens, and every rerank threw. A stated
+// window below the floor is raised to it; one at or above the floor is kept as stated.
+test("a reranker's resolved window never drops below the floor, whatever a declared block states", () => {
+  for (const declared of [1, 2, 3, 4]) {
+    const out = synthesizeCapability("rerank", "other", { declared: { rerank: { maxInputTokens: declared } } }).capability;
+    expect(out.kind === "rerank" ? out.rerank.maxInputTokens : null).toBe(RERANK_MIN_WINDOW_TOKENS);
+  }
+  const kept = synthesizeCapability("rerank", "other", { declared: { rerank: { maxInputTokens: 300 } } }).capability;
+  expect(kept.kind === "rerank" ? kept.rerank.maxInputTokens : null).toBe(300);
 });

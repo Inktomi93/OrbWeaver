@@ -2,7 +2,7 @@
 // Board A): the saved-on-blur text field the URL and the auto-minted name both use, and the MODEL field over
 // the shared ModelPicker. Split out of `connection-editor.tsx` at the `component-size` cap.
 
-import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
+import type { ModelCheck, ModelKind, ProviderDef } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
@@ -13,6 +13,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useTRPC } from "#data";
 import { modelIdExample } from "../lib/add-connection-form-model.ts";
+import { editorPickerModels } from "../lib/connection-editor-model.ts";
 import { failedCatalogSource, modelCheckOf, modelListSource, typedModelAllowed } from "../lib/model-picker-model.ts";
 import type { ModelPickerProps } from "./model-picker.tsx";
 import { ModelPicker } from "./model-picker.tsx";
@@ -57,6 +58,7 @@ export function SavedTextField({
  *  corrected, and a failed read corrects nothing: it is not a check. */
 export function ModelField({
   connectionId,
+  kind,
   model,
   modelCheck,
   listOwner,
@@ -65,6 +67,8 @@ export function ModelField({
   onCommit,
 }: {
   readonly connectionId: UserConnectionId;
+  /** The row's kind: a built-in row's picker is narrowed to it (`editorPickerModels`). */
+  readonly kind: ModelKind;
   readonly model: string;
   readonly modelCheck: ModelCheck;
   /** Whose list this is, in the user's words — an endpoint's host, or the provider's label. */
@@ -80,10 +84,12 @@ export function ModelField({
   const recheck = (): void => {
     catalog.refetch().catch(() => undefined); // the query's own error state carries the failure
   };
+  // The model check reads the whole list; only the picker's offer is narrowed.
   const source = catalogSource(catalog, recheck);
+  const offered = pickerSource(source, { catalog: provider?.catalog ?? "url", kind, savedModel: model });
   const checkNow = modelCheckOf(source, model);
   // The searchable list is on screen; an empty answer renders the typed field instead.
-  const listShown = source.status === "listed" && source.models.length > 0;
+  const listShown = offered.status === "listed" && offered.models.length > 0;
 
   // The draft follows the saved row: an outside save (another tab, a list pick here) replaces it.
   const [draft, setDraft] = useState(model);
@@ -133,7 +139,7 @@ export function ModelField({
         }}
         placeholder={provider === undefined ? "" : modelIdExample(provider)}
         recentKey={provider?.id ?? ""}
-        source={source}
+        source={offered}
         typedAllowed={provider === undefined || typedModelAllowed(provider)}
         value={draft}
       />
@@ -148,7 +154,7 @@ export function ModelField({
   );
 }
 
-/** The saved row's list read as the picker's source. */
+/** The saved row's whole list read as a source. */
 function catalogSource(
   catalog: { readonly isError: boolean; readonly error: unknown; readonly data: Parameters<typeof modelListSource>[0] | undefined },
   retry: () => void,
@@ -157,4 +163,9 @@ function catalogSource(
     return failedCatalogSource(catalog.error, retry);
   }
   return catalog.data === undefined ? { status: "loading" } : modelListSource(catalog.data, retry);
+}
+
+/** The source the picker shows: a listed source narrowed by {@link editorPickerModels}, any other arm as it is. */
+function pickerSource(source: ModelPickerProps["source"], row: Parameters<typeof editorPickerModels>[1]): ModelPickerProps["source"] {
+  return source.status === "listed" ? { status: "listed", models: editorPickerModels(source.models, row) } : source;
 }

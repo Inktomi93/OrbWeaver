@@ -170,8 +170,11 @@ export const RERANK_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "rerank-model
 /** Where a door to the Chat role lands: Model roles, at the Chat picker. */
 export const CHAT_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "chat-model" } as const;
 
+/** Settings → Connections → the Connections list, as `openConfigTo` addresses it. */
+export const CONNECTIONS_LIST_ADDRESS = { group: "connections", sub: "connections" } as const;
+
 /** Settings → Connections → the Connections list's add flow, as `openConfigTo` addresses it. */
-export const ADD_CONNECTION_DOOR = { group: "connections", sub: "connections", setting: "add-connection" } as const;
+export const ADD_CONNECTION_DOOR = { ...CONNECTIONS_LIST_ADDRESS, setting: "add-connection" } as const;
 
 /** Whether a resolved Utility model reads pictures, which avatar analysis and picture families need. */
 export function utilityReadsImages(capability: Capability): boolean {

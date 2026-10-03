@@ -1,0 +1,1 @@
+{"arm":"rerank-ettin32m-4c-meta","threads":4,"loadMs":539,"scorePairsCalls":60,"p50Ms":105,"p95Ms":575,"maxMs":700,"rssDeltaMb":107}

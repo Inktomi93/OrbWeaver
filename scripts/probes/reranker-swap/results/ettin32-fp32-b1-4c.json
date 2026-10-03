@@ -1,0 +1,56 @@
+{
+  "label": "ettin32-fp32-b1-4c",
+  "batch": 1,
+  "model": "cross-encoder/ettin-reranker-32m-v1",
+  "threads": 4,
+  "loadMs": 74186,
+  "rss": {
+    "baselineMib": 103,
+    "afterLoadMib": 326,
+    "peakMib": 717,
+    "peakOverBaselineMib": 614
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 9.18609619140625,
+      "irrelevant": -3.6857681274414062,
+      "ok": true,
+      "docTokens": 33
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": 2.387382745742798,
+      "irrelevant": -1.1397416591644287,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": 1.7805194854736328,
+      "irrelevant": 1.4207196235656738,
+      "ok": true,
+      "docTokens": 1221
+    }
+  ],
+  "golden": [6.206852436065674, 10.819440841674805, 8.548133850097656, 9.859709739685059],
+  "latency": [
+    {
+      "pairTokens": 512,
+      "msPerPairMedian": 192,
+      "after": {
+        "rssMib": 500,
+        "hwmMib": 500
+      }
+    },
+    {
+      "pairTokens": 2048,
+      "msPerPairMedian": 1405,
+      "after": {
+        "rssMib": 717,
+        "hwmMib": 717
+      }
+    }
+  ],
+  "heapMib": 70
+}

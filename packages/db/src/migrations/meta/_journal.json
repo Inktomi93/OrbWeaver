@@ -57,6 +57,13 @@
       "when": 1791200000000,
       "tag": "0007_automation-rule-time-zone",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791250000000,
+      "tag": "0008_local-light-seed-model",
+      "breakpoints": true
     }
   ]
 }

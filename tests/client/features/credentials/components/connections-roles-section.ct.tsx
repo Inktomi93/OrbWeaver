@@ -57,6 +57,17 @@ const CHAT_CONNECTION_ID = "user_connection_ctroles00001";
 const UTILITY_CONNECTION_ID = "user_connection_ctroles00002";
 const EMBED_CONNECTION_ID = "user_connection_ctroles00003";
 const LOCAL_CHAT_CONNECTION_ID = "user_connection_ctroles00004";
+const RERANK_CONNECTION_ID = "user_connection_ctroles00005";
+const RERANK_CAPABILITY: TrpcWireOutput<"connection.capabilities">["capability"] = {
+  kind: "rerank",
+  rerank: { maxInputTokens: 2048, input: ["text"], instructionAware: false },
+};
+const RERANK_CAPABILITY_VIEW: TrpcWireOutput<"connection.capabilities"> = {
+  capability: RERANK_CAPABILITY,
+  baseline: RERANK_CAPABILITY,
+  warnings: [],
+  tasks: ["rerank"],
+};
 
 /** A `connection.list` row — `UserConnection` plus the two derived fields the pane renders beside it
  *  (`ConnectionView`: the provider's label and the tasks this row may be bound to). */
@@ -175,6 +186,10 @@ async function stubPane(
   const recorder = await routeTrpc(page, {
     "sessions.me": () => ({ userId: "user_ct_connections", handle: "owner", globalRole: "owner" }),
     "connection.list": () => opts.connections ?? [CHAT_ROW, UTILITY_ROW, EMBED_ROW],
+    // The three reads an opened connection editor makes, for the door from a role to its row.
+    "connection.get": (input) => (opts.connections ?? [CHAT_ROW]).find((row) => row.id === (input as { connectionId: string }).connectionId) ?? CHAT_ROW,
+    "connection.capabilities": () => RERANK_CAPABILITY_VIEW,
+    "connection.catalogModels": () => ({ listed: false, reason: "not listed in this test" }),
     "connection.listBindings": () => opts.bindings ?? UNBOUND,
     // Saved keys turns a credential's registry id into the provider's user-facing LABEL through the
     // registry rows — the one home for `ProviderDef.label`. The connections list row also reads this to
@@ -423,6 +438,38 @@ test("picking a connection writes EXACTLY that task's binding", async ({ mount, 
   await expect(roleSelect(page, "Text embedding")).toBeEnabled();
   // One row's pick is one write — a slot that patched its neighbours would be the roleDefaults blob again.
   await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+// The Rerank picker lists connections, and the built-in rerankers are models of one connection, so the role's door
+// opens that connection's editor, where the model is picked.
+test("a Rerank role on the built-in row has a door that opens that row's editor", async ({ mount, page }) => {
+  const rerankRow = connectionRow({
+    id: RERANK_CONNECTION_ID,
+    label: "Built-in reranker",
+    providerId: "local-light",
+    providerLabel: "Built-in (this device)",
+    model: "cross-encoder/ettin-reranker-32m-v1",
+    tasks: ["rerank"],
+  });
+  const onBuiltin = UNBOUND.map((view) => (view.task === "rerank" ? bindingView("rerank", { binding: binding("rerank", RERANK_CONNECTION_ID) }) : view));
+  await stubPane(page, { connections: [CHAT_ROW, rerankRow], bindings: onBuiltin });
+  await mount(<ConnectionsSettingsStory />);
+
+  await page.getByRole("button", { name: `Open ${rerankRow.label}`, exact: true }).click();
+
+  const editor = page.locator('[data-slot="connection-editor"]');
+  await expect(editor).toBeVisible();
+  await expect(editor.getByText(rerankRow.label, { exact: true })).toBeVisible();
+});
+
+test("a Rerank role on a row the user added offers no door to the built-in row", async ({ mount, page }) => {
+  const rerankRow = connectionRow({ id: RERANK_CONNECTION_ID, label: "Hosted reranker", tasks: ["rerank"] });
+  const onHosted = UNBOUND.map((view) => (view.task === "rerank" ? bindingView("rerank", { binding: binding("rerank", RERANK_CONNECTION_ID) }) : view));
+  await stubPane(page, { connections: [CHAT_ROW, rerankRow], bindings: onHosted });
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect(page.locator("#config-anchor-connections-model-roles").getByRole("combobox").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: `Open ${rerankRow.label}` })).toHaveCount(0);
 });
 
 // D299: the Utility role picks its preset beside its connection. Absent is task defaults; the other two arms

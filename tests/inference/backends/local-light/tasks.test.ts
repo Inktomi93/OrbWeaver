@@ -108,6 +108,44 @@ test("rerank: caller ids preserved, sorted by score desc, topN applied, text-onl
   });
 });
 
+// The window cut happens in the worker, in the model's own tokens; the task hands it the capability's window and
+// serving, and only bounds a huge input so the tokenizer never encodes it whole.
+test("rerank: hands the worker the capability window and serving, and pre-trims only what the window could never hold", async () => {
+  const seen: { query: string; documents: readonly string[]; serving: unknown }[] = [];
+  const cache = {
+    ...fakeModelCache(),
+    scorePairs: (_repo: string, query: string, documents: readonly string[], serving: unknown): Promise<number[]> => {
+      seen.push({ query, documents, serving });
+      return Promise.resolve(documents.map(() => 0));
+    },
+  };
+  const window = 1000;
+  const conn = fakeResolved({
+    task: "rerank",
+    providerId: "local-light",
+    model: "Xenova/ms-marco-MiniLM-L-6-v2",
+    capability: { kind: "rerank", rerank: { ...RERANK_FLOOR, maxInputTokens: window } },
+  });
+  const huge = "word ".repeat(100_000);
+  const fits = "word ".repeat(window);
+  await createLocalLightRerank(cache)({
+    connection: conn,
+    query: huge,
+    documents: [
+      { id: "a", text: huge },
+      { id: "b", text: fits },
+    ],
+  });
+  expect(seen).toHaveLength(1);
+  expect(seen.at(0)?.serving).toEqual({ maxInputTokens: window, onnx: undefined });
+  const [cut = "", whole] = seen.at(0)?.documents ?? [];
+  expect(cut.length).toBeLessThan(huge.length);
+  expect(seen.at(0)?.query.length).toBeLessThan(huge.length);
+  // Generous: a text the window could hold in full is never cut before the real-token clamp sees it.
+  expect(whole).toBe(fits);
+  expect(cut.length).toBeGreaterThan(fits.length);
+});
+
 test("imageEmbed: image and text arms share the space tag; the multimodal pair is refused", async () => {
   const conn = fakeResolved({
     task: "imageEmbed",
