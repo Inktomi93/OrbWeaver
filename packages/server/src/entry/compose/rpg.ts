@@ -38,7 +38,17 @@ import { coEmitsProseWithTools, scrubWireSchema } from "@orb/contracts/inference
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { ExtractionRefs, RpgActorRef, RpgExtraction, RpgGameConfig, RpgSheet, RpgSnapshotState, RpgToolCall, RpgTrackerCarrier } from "@orb/contracts/rpg";
+import type {
+  ExtractionRefs,
+  RpgActorRef,
+  RpgExtraction,
+  RpgGameConfig,
+  RpgSheet,
+  RpgSnapshotState,
+  RpgStateRoundTool,
+  RpgToolCall,
+  RpgTrackerCarrier,
+} from "@orb/contracts/rpg";
 import {
   actorRefKey,
   buildRpgToolDescriptions,
@@ -60,7 +70,9 @@ import {
   salvagedToolCallFields,
   salvageExtraction,
   salvagePopulate,
+  stateRoundChangesSchema,
   strippedToolCallKeys,
+  structuredChangesToToolCalls,
   toolCallsToExtraction,
 } from "@orb/contracts/rpg";
 import type { StructuredOutputShape } from "@orb/contracts/settings";
@@ -92,6 +104,7 @@ import type {
 } from "#domain/rpg";
 import {
   actorCarrier,
+  answersStateRoundStructured,
   buildActorRefIndex,
   createImportRpgGame,
   createRpgChatOps,
@@ -118,6 +131,11 @@ import { minter } from "./minter.ts";
 /** The structured-output schema NAME the structured extraction passes as `responseFormat.name` (OpenAI
  *  `json_schema.name`; Anthropic tool name). One home — no scattered magic string. */
 const EXTRACTION_SCHEMA_NAME = "rpg_state_extraction";
+/** The structured state round's `responseFormat.name`, and the vehicle name its logs and trace carry. */
+const STATE_CHANGES_SCHEMA_NAME = "rpg_state_changes";
+const STRUCTURED_ROUND_VEHICLE = "structured state round";
+/** The host-facing reason a structured state round that answered outside its schema records. */
+const STRUCTURED_REPLY_UNREADABLE = "the model's state reply was not a list of changes";
 const INVENTORY_NAME_WHITESPACE = /\s+/u;
 
 /** THE STRICT-SHAPE ARMS (D126) — one builder per `StructuredOutputShape`, selected at RUNTIME off the
@@ -1058,8 +1076,10 @@ function toolRoundSystem(inputs: PromptInputs): string {
  *
  *  A plane the game doesn't have is OMITTED ENTIRELY, never offered as an empty husk: `set_tracker` disappears
  *  when the game defines no game-subject trackers (the constraint dropped the plane from the schema, and a
- *  tool whose parameters no longer exist would be an invitation to write nothing). */
-function buildToolRoundWireTools(
+ *  tool whose parameters no longer exist would be an invitation to write nothing).
+ *
+ * @public Test-anchored module surface: the structured round's schema-weight pins build from this exact list. */
+export function buildToolRoundWireTools(
   refs: ExtractionRefs,
   config: RpgGameConfig,
   prose: ProseOverrides,
@@ -1202,13 +1222,13 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     // The turn's CAPTURED prose view — see `buildRunExtraction`'s note (no live re-resolve post-commit).
     const prose = turnConnection.prose;
     const inputs: PromptInputs = { config, refs, playerDisplayName, reconcile, prose };
-    const history = [
-      {
-        role: "user" as const,
-        content: [{ type: "text" as const, text: buildExtractionUserPrompt(turnConnection.transcript, baseState, config, prose) }],
-      },
-    ];
+    const userPrompt = buildExtractionUserPrompt(turnConnection.transcript, baseState, config, prose);
+    const history = [{ role: "user" as const, content: [{ type: "text" as const, text: userPrompt }] }];
     const wireTools = buildToolRoundWireTools(refs, config, prose);
+    const format = stateChangesFormat(conn, refs, wireTools);
+    if (format !== null) {
+      return await runStructuredStateRound(deps, { input, refs, format, systemPrompt: structuredRoundSystem(inputs, wireTools), userPrompt });
+    }
     const round: ForcedToolRoundInput = {
       connection: conn,
       // The wire-capture correlation key (see `ExtractCtx.chatId`): without it the one round that writes the state
@@ -1246,26 +1266,109 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
       const auditTools = wireTools.filter((tool) => tool.name === "update_inventory" || tool.name === RPG_NO_CHANGES_TOOL);
       calls = [...calls, ...(await runInventoryAudit({ deps, round, prose, tools: auditTools, turnId }))];
     }
-    // Fold the parallel tool calls → an RpgExtraction → the SAME state delta the structured arm produces (`no_changes`
-    // and any unknown tool contribute nothing — the quiet-turn no-op). A call the fold threw away is NAMED, the
-    // same way the folded arm names its drops (EXT-4a: equal drop semantics means equal VISIBILITY too — the
-    // dedicated round was the one vehicle that dropped silently).
-    logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: "cheap tool round" });
-    const extraction = toolCallsToExtraction(calls);
-    const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
-    logExtractionOutcome({
-      chatId,
-      model: conn.model,
-      api: conn.api,
-      actorRefs: refs.actorRefs.length,
-      base: baseState,
-      participantIndex,
-      parsed: extraction,
-      delta,
-    });
-    return { ...delta, recordedToolCalls: recordToolCalls(calls) };
+    return await foldRoundCalls(deps, { chatId, conn, baseState, refs, calls, vehicle: "cheap tool round" });
   };
+}
+
+/** The dedicated round's shared tail, whichever vehicle carried the calls: fold them → an RpgExtraction → the
+ *  SAME state delta the structured arm produces (`no_changes` and any unknown tool contribute nothing — the
+ *  quiet-turn no-op). A call the fold threw away is NAMED, the same way the folded arm names its drops (EXT-4a:
+ *  equal drop semantics means equal VISIBILITY too — the dedicated round was the one vehicle that dropped silently). */
+async function foldRoundCalls(
+  deps: RpgComposeDeps,
+  args: {
+    readonly chatId: ChatId;
+    readonly conn: Resolved<"chat">;
+    readonly baseState: RpgSnapshotState;
+    readonly refs: ExtractionRefs;
+    readonly calls: readonly RpgToolCall[];
+    readonly vehicle: string;
+  },
+): Promise<RpgStateDelta> {
+  const { chatId, conn, baseState, refs, calls } = args;
+  logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: args.vehicle });
+  const extraction = toolCallsToExtraction(calls);
+  const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
+  const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
+  logExtractionOutcome({
+    chatId,
+    model: conn.model,
+    api: conn.api,
+    actorRefs: refs.actorRefs.length,
+    base: baseState,
+    participantIndex,
+    parsed: extraction,
+    delta,
+  });
+  return { ...delta, recordedToolCalls: recordToolCalls(calls) };
+}
+
+/** The STRUCTURED state round's response format, or `null` where the round rides tools
+ *  ({@link answersStateRoundStructured} decides off the turn's capability). The schema is generated from the
+ *  round's own wire tools, so both vehicles offer one write surface. */
+function stateChangesFormat(conn: Resolved<"chat">, refs: ExtractionRefs, tools: readonly RpgStateRoundTool[]): ResponseFormat | null {
+  const schema = stateRoundChangesSchema(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs), tools);
+  return answersStateRoundStructured(generationOf(conn), schema) ? { name: STATE_CHANGES_SCHEMA_NAME, schema, vehicle: "response-format" } : null;
+}
+
+/** The structured round's system prompt: the tool round's own (header, plane teaching, refs), then the frame
+ *  that turns "call a tool" into "list the call", then each tool with its description. The descriptions ride the
+ *  prompt because a grammar-only wire (Ollama `format`) never shows the model the schema. */
+function structuredRoundSystem(inputs: PromptInputs, tools: readonly RpgStateRoundTool[]): string {
+  const toolLines = tools.map((tool) => `${tool.name}: ${tool.description}`);
+  return [toolRoundSystem(inputs), [resolveProseText("rpg.extract.structuredRoundFrame", inputs.prose), ...toolLines].join("\n")].join("\n\n");
+}
+
+/** The cheap round on a row that cannot force a tool call but constrains its output: ONE structured call whose
+ *  reply decodes to the same tool calls a tool round returns, then the shared tail. A provider throw and an
+ *  unreadable reply both fail LOUDLY (the warn + `failure`), the tool round's posture; a cancel is not a failure. */
+async function runStructuredStateRound(
+  deps: RpgComposeDeps,
+  args: {
+    readonly input: Parameters<RpgRunToolRound>[0];
+    readonly refs: ExtractionRefs;
+    readonly format: ResponseFormat;
+    readonly systemPrompt: string;
+    readonly userPrompt: string;
+  },
+): Promise<RpgStateDelta> {
+  const { chatId, turnId, baseState, turnConnection, signal } = args.input;
+  const conn = turnConnection.connection;
+  const empty = { statePatch: {}, journal: [] };
+  const line = { chatId, model: conn.model, api: conn.api, vehicle: STRUCTURED_ROUND_VEHICLE };
+  let text: string;
+  // @orb-waive caught-failure-ownership(err): errors-as-data — the tool round's twin: a cancel is read off the
+  // signal and returns `empty`; any other failure is the warn below plus the returned `failure`. Ends if the warn is removed.
+  try {
+    text = await runStructuredChat(deps.executor, {
+      connection: conn,
+      chatId,
+      systemPrompt: args.systemPrompt,
+      userPrompt: args.userPrompt,
+      responseFormat: args.format,
+      signal,
+    });
+  } catch (err) {
+    if (isCancelled(signal)) {
+      logCancelled({ ...line, preflight: false });
+      return empty;
+    }
+    logger.warn({ event: "rpg.toolround.failed", ...line, err }, "rpg structured state round failed");
+    return { ...empty, failure: roundFailure(err) };
+  }
+  const changes = structuredChangesToToolCalls(safeJson(text));
+  if (changes === null) {
+    logger.warn({ event: "rpg.toolround.unparseable", ...line }, "rpg structured state round: the reply was not a list of changes — nothing applied");
+    return { ...empty, failure: roundFailure(new Error(STRUCTURED_REPLY_UNREADABLE)) };
+  }
+  if (changes.unreadable > 0) {
+    logger.warn(
+      { event: "rpg.extraction.unparseable", ...line, unreadableEntries: changes.unreadable },
+      "rpg structured state round: change entries without a tool name were DROPPED (every other change still applies)",
+    );
+  }
+  deps.trace?.({ phase: "tool", chatId, turnId, vehicle: STRUCTURED_ROUND_VEHICLE, calls: recordToolCalls(changes.calls) });
+  return await foldRoundCalls(deps, { chatId, conn, baseState, refs: args.refs, calls: changes.calls, vehicle: STRUCTURED_ROUND_VEHICLE });
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

@@ -238,6 +238,7 @@ export const PROSE_SLOT_IDS = [
   "rpg.extract.tool.noChanges",
   "rpg.extract.systemHeader",
   "rpg.extract.toolRoundHeader",
+  "rpg.extract.structuredRoundFrame",
   "rpg.extract.reconcilePass",
   "rpg.extract.foldedReconcile",
   "rpg.extract.lockedPaths",

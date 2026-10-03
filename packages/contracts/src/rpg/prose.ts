@@ -722,6 +722,20 @@ For example, a three-line sign is enough:
     title: "Tool-round header",
     fires: "Opens the cheap TOOL ROUND's system prompt — the plane-by-plane decomposition checklist.",
   },
+  "rpg.extract.structuredRoundFrame": {
+    id: "rpg.extract.structuredRoundFrame",
+    home: "preset",
+    version: 1,
+    text:
+      "Answer with ONE JSON object and nothing else. Its `changes` array holds every tool call you would make this " +
+      'turn, one entry each: `{"tool": <tool name>, "args": <that tool\'s arguments>}`. A beat that changed ' +
+      'NOTHING trackable is the single entry `{"tool": "no_changes", "args": {}}`. The tools:',
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Structured-round frame",
+    fires: "Follows the tool-round header when the model cannot be forced to call a tool and answers the state round as one JSON object instead.",
+  },
   "rpg.extract.reconcilePass": {
     id: "rpg.extract.reconcilePass",
     home: "preset",

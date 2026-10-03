@@ -284,6 +284,8 @@ export {
   rpgQuestSchema,
   rpgSnapshotStateSchema,
 } from "./snapshot.ts";
+export type { RpgStateRoundTool, RpgStructuredChanges } from "./structured-round.ts";
+export { RPG_STATE_CHANGES_FIELD, stateRoundChangesSchema, structuredChangesToToolCalls } from "./structured-round.ts";
 export type {
   AddJournalEntryArgs,
   RollDiceArgs,

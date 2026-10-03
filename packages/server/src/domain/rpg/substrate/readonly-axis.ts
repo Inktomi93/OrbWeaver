@@ -17,6 +17,7 @@
 // on this verdict; the derivation itself is silent truth.
 
 import type { GenerationCapability } from "@orb/contracts/inference";
+import { acceptsRequiredToolChoice, fitsEveryWire } from "@orb/contracts/inference";
 import type { RpgEffectiveDelivery, RpgExtractionMode } from "@orb/contracts/rpg";
 
 /** The per-mode WRITER-capability predicate. A mapped Record, not a switch — a new `RpgExtractionMode` member
@@ -74,4 +75,13 @@ export function deriveEffectiveDelivery(
  *  fail-closed contract as `deriveTrackersReadOnly` — an unresolved capability has no write path. */
 export function hasStructuredWriter(capability: GenerationCapability | null): boolean {
   return capability !== null && capability.output.structured === true;
+}
+
+/** Does the post-commit state round answer as ONE schema-constrained reply instead of tool calls? Where a row
+ *  cannot force a tool call (`requiredChoice: false`) the round's `required` goes out as `auto`, and state capture
+ *  would hang on the model choosing to call one; a row that also constrains its output gets the same seven tools
+ *  as a discriminated-union `schema` instead, which it cannot answer outside of. A schema past the row's stated
+ *  grammar ceilings would 400 every round, so that row keeps the tool round and its loud downgrade. */
+export function answersStateRoundStructured(capability: GenerationCapability, schema: Record<string, unknown>): boolean {
+  return !acceptsRequiredToolChoice(capability) && hasStructuredWriter(capability) && fitsEveryWire([schema], capability.output.structuredLimitsFrom).fits;
 }

@@ -6,6 +6,7 @@
 import type { Capability } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import { stateRoundChangesSchema, structuredChangesToToolCalls } from "@orb/contracts/rpg";
 import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
 import type { BatchDeps } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { runOpenAiCompatStructured, runOpenAiCompatSummarize } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
@@ -356,4 +357,35 @@ test("a row that turns the native route off rides /v1 as before", async () => {
     tokens: memoryTokenLexicon(),
   });
   expect(recorded[0]?.url).toBe("http://127.0.0.1:11434/v1/chat/completions");
+});
+
+test("0511: the rpg structured state round sends its changes schema as `format`, and the recorded reply decodes to the tool calls", async () => {
+  const posted: RecordedRequest[] = [];
+  const replying: typeof fetch = (input, init) => {
+    posted.push({ url: String(input), body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
+    const recording = OLLAMA_NATIVE_RECORDINGS.stateRound;
+    return Promise.resolve(new Response(recording.body, { status: recording.status, headers: { "content-type": recording.contentType } }));
+  };
+  const schema = stateRoundChangesSchema(wireSchema({}), [
+    { name: "update_party", description: "Party.", parameters: { type: "object", properties: { targetRef: { type: "string" } }, additionalProperties: false } },
+    { name: "no_changes", description: "Nothing.", parameters: { type: "object", properties: {}, additionalProperties: false } },
+  ]);
+  const connection = fakeResolved({ task: "structured", providerId: "ollama", model: "qwen2.5:0.5b", capability: capability(), baseUrl: BASE_URL });
+
+  const result = await runOpenAiCompatStructured(
+    {
+      connection,
+      inputs: [{ systemPrompt: "Track state.", userPrompt: "Mira is bleeding." }],
+      responseFormat: { name: "rpg_state_changes", schema, vehicle: "response-format" },
+      signal: undefined,
+    },
+    { ...batchDeps([]), transport: { fetch: replying, app: { name: "t", url: "http://localhost:0" } } },
+  );
+
+  expect(posted[0]?.url).toBe("http://127.0.0.1:11434/api/chat");
+  expect(posted[0]?.body["format"]).toEqual(schema);
+  expect(posted[0]?.body).not.toHaveProperty("tools");
+  const decoded = structuredChangesToToolCalls(JSON.parse(result.items[0]?.text ?? "null"));
+  expect(decoded?.calls.map((call) => call.name)).toEqual(["update_party", "update_inventory"]);
+  expect(decoded?.unreadable).toBe(0);
 });

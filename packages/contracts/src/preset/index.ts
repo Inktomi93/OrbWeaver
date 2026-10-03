@@ -1863,6 +1863,15 @@ export const TEMPLATE_DEFS = [
     cluster: "round",
   },
   {
+    id: "rpg.extract.structuredRoundFrame",
+    kind: "extract",
+    label: "Structured-round frame",
+    fires: "Frames the state round as one JSON object where a model cannot be forced to call a tool",
+    caps: [],
+    defaultSlot: "rpg.extract.structuredRoundFrame",
+    cluster: "round",
+  },
+  {
     id: "rpg.extract.userPrompt.latestBeatLabel",
     kind: "extract",
     label: "Latest-beat label",

@@ -5,6 +5,7 @@
 
 import type { ProviderId } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
+import { stateRoundChangesSchema } from "@orb/contracts/rpg";
 import { castId } from "@orb/kit/ids";
 import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
 import type { BatchDeps } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
@@ -68,6 +69,7 @@ function vllmConnection(): ReturnType<typeof fakeResolved<"structured">> {
 
 async function structuredBody(
   connection: ReturnType<typeof fakeResolved<"structured">>,
+  format: ResponseFormat = FORMAT,
 ): Promise<{ readonly body: Record<string, unknown>; readonly lines: LogLine[] }> {
   const recorded: RecordedRequest[] = [];
   const lines: LogLine[] = [];
@@ -77,7 +79,7 @@ async function structuredBody(
     transport: { fetch: scriptedJsonFetch([COMPLETION], recorded), app: APP },
     normalize: passthroughImageNormalizer,
   };
-  await runOpenAiCompatStructured({ connection, inputs: INPUTS, responseFormat: FORMAT, signal: undefined }, deps);
+  await runOpenAiCompatStructured({ connection, inputs: INPUTS, responseFormat: format, signal: undefined }, deps);
   return { body: recorded[0]?.body ?? {}, lines };
 }
 
@@ -101,4 +103,24 @@ test("#2575 (controls): Opus 5 on OpenRouter and a vLLM endpoint keep the forced
     expect(body["tool_choice"], connection.model).toMatchObject({ type: "function", function: { name: "row" } });
     expect(warnedCodes(lines), connection.model).toEqual([]);
   }
+});
+
+test("0511: the rpg structured state round on a KoboldCpp row rides `response_format` json_schema, never a tool", async () => {
+  const schema = stateRoundChangesSchema(wireSchema({}), [
+    { name: "update_scene", description: "Scene.", parameters: { type: "object", properties: { location: { type: "string" } }, additionalProperties: false } },
+    { name: "no_changes", description: "Nothing.", parameters: { type: "object", properties: {}, additionalProperties: false } },
+  ]);
+  const kobold = fakeResolved({
+    task: "structured",
+    providerId: "koboldcpp",
+    model: "qwen2.5-0.5b",
+    capability: generationCapability({ tools: { parallel: true, requiredChoice: false, namedChoice: false, silencesProse: true } }),
+    baseUrl: "http://127.0.0.1:5001/v1",
+  });
+
+  const { body } = await structuredBody(kobold, { name: "rpg_state_changes", schema, vehicle: "response-format" });
+
+  expect(body["response_format"]).toEqual({ type: "json_schema", json_schema: { name: "rpg_state_changes", schema, strict: false } });
+  expect(body).not.toHaveProperty("tools");
+  expect(body).not.toHaveProperty("tool_choice");
 });

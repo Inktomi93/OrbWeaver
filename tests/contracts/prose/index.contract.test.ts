@@ -559,6 +559,7 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "rpg.extract.tool.noChanges",
     "rpg.extract.systemHeader",
     "rpg.extract.toolRoundHeader",
+    "rpg.extract.structuredRoundFrame",
     "rpg.extract.reconcilePass",
     "rpg.extract.foldedReconcile",
     "rpg.extract.lockedPaths",

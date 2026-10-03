@@ -21,14 +21,15 @@
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/composed-real.ts).
 import "../../../support/composed-real.ts";
+import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
-import type { ChatApi } from "@orb/contracts/inference";
+import type { ChatApi, ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import { STRUCTURED_OUTPUT_VEHICLES } from "@orb/contracts/role-clients";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
-import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
+import { RPG_STATE_ROUND_FAILED_SUMMARY, RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { StructuredOutputShape } from "@orb/contracts/settings";
 import { DEFAULT_STRUCTURED_OUTPUT_SHAPE } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
@@ -43,6 +44,9 @@ import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import { and, eq, isNull } from "drizzle-orm";
 import { vi } from "vitest";
+import { detectModelFamily } from "../../../../packages/inference/src/capability/families.ts";
+import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
+import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
 import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
 import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
@@ -50,6 +54,7 @@ import { commitSnapshotForVariant, findSnapshotByVariant, writeStagedSnapshot } 
 import { findTurnToolCallsByVariant } from "../../../../packages/server/src/domain/rpg/persistence/turn-tool-calls.ts";
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
+import { OLLAMA_NATIVE_RECORDINGS } from "../../../inference/backends/openai-compat/_ollama-native-recordings.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
@@ -3028,4 +3033,182 @@ test("HOST HANDOFF nulls a gmPresetId the new host cannot read, and keeps one th
   expect((await services.rpg.getConfigView({ principal: hostPrincipal(nominee), chatId: foreign.chatId })).gmPresetId).toBeNull();
   // A knob the new host CAN read is untouched — the heal is conditional, never a blanket clear.
   expect((await findGameByChat(db, owned.chatId))?.gmPresetId).toBe(owned.presetId);
+});
+
+// ── 0511: the STRUCTURED state round, keyed on capability ───────────────────────────────────────────────────────
+// A row that cannot force a tool call (`requiredChoice: false`) but constrains its output answers the cheap round as
+// ONE schema-bound reply; every other row (and a Claude row, whose stated grammar ceilings the schema exceeds) keeps
+// the forced tool round byte-for-byte.
+
+/** A row as the shipped curated tables resolve it, so the pins below ride real capabilities, not hand-built ones. */
+function curatedGeneration(model: string, providerId: string): ReturnType<typeof makeGenerationCapability> {
+  const curated = curatedRows({ model, providerId: castId<ProviderId>(providerId), wire: "openai-compat", api: "chat-completions" });
+  const out = synthesizeCapability("generation", detectModelFamily(model), { curated });
+  if (out.capability.kind !== "generation") {
+    throw new Error("expected a generation capability");
+  }
+  return out.capability.generation;
+}
+
+const STATE_ROUND_ROWS = {
+  /** Ollama / KoboldCpp: no forced choice, structured output, no stated ceiling. */
+  local: makeGenerationCapability({
+    output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] },
+    tools: { parallel: true, requiredChoice: false, namedChoice: false, silencesProse: true },
+  }),
+  /** No forced choice, and Anthropic's ceilings, which the round's union schema exceeds. */
+  claudeNoForce: curatedGeneration("anthropic/claude-sonnet-5.5", "openrouter"),
+  /** Claude 4.x: forced choice accepted. */
+  claudeForced: curatedGeneration("anthropic/claude-sonnet-4.5", "openrouter"),
+  openai: curatedGeneration("gpt-5", "openai"),
+} as const;
+
+function stateRoundTurn(capability: ReturnType<typeof makeGenerationCapability>): RpgTurnContext {
+  return tc("chat-completions", {
+    connection: makeResolved({ api: "chat-completions", model: castId<ModelId>("fake-chat-model"), capability: makeCapability(capability) }),
+  });
+}
+
+/** A request with its per-run identities (chat id, resolved row, signal) blanked, hashed: equal fingerprints are
+ *  byte-identical requests. */
+function requestFingerprint(value: unknown): string {
+  const blanked =
+    typeof value === "object" && value !== null && !Array.isArray(value)
+      ? { ...value, chatId: "<chat>", connection: "<connection>", signal: "<signal>" }
+      : value;
+  return createHash("sha256").update(JSON.stringify(blanked)).digest("hex");
+}
+
+/** The recorded Ollama reply's message text — what the structured batch hands back to the round. */
+const RECORDED_STATE_ROUND_REPLY = (JSON.parse(OLLAMA_NATIVE_RECORDINGS.stateRound.body) as { message: { content: string } }).message.content;
+
+test("0511: a no-force structured row asks for the changes schema, and the recorded multi-change reply writes through the tool path", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "sr-local");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: RECORDED_STATE_ROUND_REPLY });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Corvin's blade catches Mira's arm." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.local));
+
+  // ONE structured call, no tool round: the schema rides as `response_format`, never as a forced tool.
+  expect(spy.chatTurns).toEqual([]);
+  expect(spy.vehicles).toEqual(["response-format"]);
+  const schema = spy.schemas[0] as { properties: { changes: { minItems: number; items: { anyOf: { properties: { tool: { enum: string[] } } }[] } } } };
+  expect(schema.properties.changes.minItems).toBe(1);
+  expect(schema.properties.changes.items.anyOf.map((member) => member.properties.tool.enum)).toEqual(
+    [...RPG_TOOL_ROUND_TOOL_NAMES].filter((n) => n !== "set_tracker").map((n) => [n]),
+  );
+  // The model is taught the reply shape and every tool, because a grammar-only wire never shows it the schema.
+  expect(spy.systemPrompts[0]).toContain("`changes` array");
+  expect(spy.systemPrompts[0]).toContain("update_scene: ");
+
+  // Every change is recorded as the tool call it stands for, and the party change landed through the same fold.
+  const [record] = await findTurnToolCallsByVariant(db, variantId);
+  expect(record?.calls.map((call) => call.name)).toEqual(["update_party", "update_inventory"]);
+  expect(record?.failure).toBeNull();
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(JSON.stringify(view.actors)).toContain("Bleeding");
+});
+
+test("0511: a structured `no_changes` reply writes nothing and records the quiet call", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "sr-quiet");
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: JSON.stringify({ changes: [{ tool: "no_changes", args: {} }] }),
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They wait." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.local));
+
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+  const [record] = await findTurnToolCallsByVariant(db, variantId);
+  expect(record?.calls.map((call) => call.name)).toEqual(["no_changes"]);
+  expect(record?.failure).toBeNull();
+});
+
+test("0511: a structured reply outside the schema fails LOUDLY — a durable failure, never a quiet beat", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "sr-bad");
+  const warn = vi.spyOn(logger, "warn");
+  const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: '{"changes": []}' });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Static." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.local));
+
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+  const [record] = await findTurnToolCallsByVariant(db, variantId);
+  expect(record?.calls).toEqual([]);
+  expect(record?.failure).toContain(RPG_STATE_ROUND_FAILED_SUMMARY);
+  expect(warn.mock.calls.some(([line]) => (line as { event?: string }).event === "rpg.toolround.unparseable")).toBe(true);
+  warn.mockRestore();
+});
+
+// Computed against main's compose/rpg.ts (the pre-0511 source) with this exact harness: the forced tool round every
+// row below sent before the structured round existed. A Claude row must keep sending it.
+const MAIN_TOOL_ROUND_FINGERPRINT = "570deed22c1a4b5935c36107b250384b55b1cf972fcebf608017b29d74f4f0a8";
+const MAIN_FOLDED_MOUNT_FINGERPRINT = "61b8e99d25c678e314c7f54733e29b1be177f7df2b9fda5fe39212862ac5351e";
+
+test("0511: Claude (5.5 and 4.x), OpenAI and plain tool rows send the forced tool round byte-identical to main", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "sr-pins");
+  const sent: unknown[] = [];
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    chatArm: (req) => {
+      sent.push(req);
+      // @orb-waive no-test-fabrication(unknown): minimal ChatResult double — the round reads toolCalls and the economics fields only.
+      return Promise.resolve({
+        reply: "",
+        toolCalls: [],
+        usage: { model: "m", tokensIn: 1, tokensOut: 1, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: null, costUsd: null },
+        durationApiMs: 1,
+        finishReason: "tool_calls",
+      } as unknown as ChatResult);
+    },
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  let seq = 1;
+  for (const row of [STATE_ROUND_ROWS.claudeNoForce, STATE_ROUND_ROWS.claudeForced, STATE_ROUND_ROWS.openai]) {
+    const { messageId, variantId } = await seedMessage(db, chatId, seq, { role: "assistant", content: "They arrive." });
+    seq += 1;
+    await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(row));
+  }
+
+  expect(sent).toHaveLength(3);
+  for (const req of sent) {
+    expect(req).toMatchObject({ api: "chat-completions", params: {}, toolChoice: { mode: "required" } });
+    expect(req).not.toHaveProperty("responseFormat");
+    expect(requestFingerprint(req)).toBe(MAIN_TOOL_ROUND_FINGERPRINT);
+  }
+});
+
+test("0511: the folded mount on a Claude 5.5 row is byte-identical to main", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "sr-fold-pin");
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    capability: STATE_ROUND_ROWS.claudeNoForce,
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+
+  const folded = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: hostId });
+
+  expect(folded?.terminalTools?.map((t) => t.name)).toEqual([...RPG_TOOL_ROUND_TOOL_NAMES].filter((n) => n !== "set_tracker"));
+  expect(requestFingerprint(folded?.terminalTools)).toBe(MAIN_FOLDED_MOUNT_FINGERPRINT);
 });
