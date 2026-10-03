@@ -150,6 +150,7 @@ const ollamaVersionSchema = z.object({ version: z.string() }).loose();
 const NUM_CTX_RE = /^num_ctx\s+(\d+)\s*$/mu;
 /** `model_info` keys are prefixed with the architecture (`nomic-bert.embedding_length`). */
 const EMBEDDING_LENGTH_SUFFIX = ".embedding_length";
+const CONTEXT_LENGTH_SUFFIX = ".context_length";
 /** The release that added JSON-schema constrained output to the chat and OpenAI-compatible endpoints. */
 const OLLAMA_STRUCTURED_FLOOR = "0.5.0";
 /** The release that picks the default window from VRAM: 4096 below 24 GiB, 32768 to 48 GiB, 262144 above
@@ -194,9 +195,21 @@ function ollamaKind(capabilities: readonly string[] | undefined): ModelKind | un
   return capabilities.includes("completion") ? "generation" : undefined;
 }
 
+/** The model's trained maximum (`<arch>.context_length`), where `/api/show` states one. */
+function ollamaTrainedWindow(show: z.infer<typeof ollamaShowSchema> | null): number | undefined {
+  const trained = Object.entries(show?.model_info ?? {}).find(([key]) => key.endsWith(CONTEXT_LENGTH_SUFFIX))?.[1];
+  const parsed = POSITIVE_INT.safeParse(trained);
+  return parsed.success ? parsed.data : undefined;
+}
+
+// Ollama clamps `num_ctx` to the trained maximum when it loads the runner, so neither a pin nor the default
+// floor can be a window above it.
 function ollamaWindow(show: z.infer<typeof ollamaShowSchema> | null, contextFloor: number): Pick<EndpointModel, "contextLength" | "contextFloor"> {
+  const trained = ollamaTrainedWindow(show) ?? Number.POSITIVE_INFINITY;
   const pinned = show?.parameters === undefined ? undefined : NUM_CTX_RE.exec(show.parameters)?.[1];
-  return pinned === undefined ? { contextLength: null, contextFloor } : { contextLength: Number.parseInt(pinned, 10) };
+  return pinned === undefined
+    ? { contextLength: null, contextFloor: Math.min(contextFloor, trained) }
+    : { contextLength: Math.min(Number.parseInt(pinned, 10), trained) };
 }
 
 function ollamaFacts(show: z.infer<typeof ollamaShowSchema> | null, contextFloor: number): Partial<EndpointModel> {

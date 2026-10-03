@@ -109,6 +109,25 @@ test("an Ollama row states only a pinned window, and assumes the default floor f
   expect(seen).toContain("http://127.0.0.1:11434/api/show");
 });
 
+// Ollama clamps `num_ctx` to the trained maximum when it loads the runner, so the stated window never exceeds it.
+test("an Ollama window, pinned or assumed, is clamped to a trained maximum below it", async () => {
+  const trained = (context: number): Record<string, unknown> => ({ ["model_info"]: { ["llama.context_length"]: context } });
+  const rows = await readOllama({
+    version: "0.35.1",
+    shows: {
+      "pinned-past-trained:8b": { parameters: "num_ctx                        32768", ...trained(8192) },
+      "floor-past-trained:1b": trained(2048),
+      "pinned-within-trained:8b": { parameters: "num_ctx                        16384", ...trained(131_072) },
+    },
+    loaded: [],
+  });
+  expect(rows).toEqual([
+    { id: "pinned-past-trained:8b", contextLength: 8192, structured: true },
+    { id: "floor-past-trained:1b", contextLength: null, contextFloor: 2048, structured: true },
+    { id: "pinned-within-trained:8b", contextLength: 16_384, structured: true },
+  ]);
+});
+
 test("the Ollama default floor is 4096 from the VRAM-tier release on and 2048 before it", async () => {
   const floorAt = async (version: string): Promise<number | undefined> =>
     (await readOllama({ version, shows: { "cold:8b": TRAINED_MAX }, loaded: [] }))[0]?.contextFloor;
@@ -171,10 +190,12 @@ function readArm(
 test("Ollama: each model's capabilities state its kind, modalities and tools; the version states structured output", async () => {
   const { rows, warnings } = readArm("ollama", "ollama");
   await expect(rows).resolves.toEqual([
-    // An embedder: its kind and width, nothing a chat model would state.
-    { id: "nomic-embed-text:latest", contextLength: 8192, kind: "embedding", embeddingDims: 768, structured: true },
-    // A vision model without tools: image input stated, tools absent (the server refuses `tools[]` for it).
-    { id: "moondream:latest", contextLength: null, contextFloor: 4096, kind: "generation", input: ["text", "image"], structured: true },
+    // An embedder: its kind and width, nothing a chat model would state. Its Modelfile pins 8192, but the GGUF
+    // was trained at 2048 (`nomic-bert.context_length`), and Ollama clamps the pin to that at load.
+    { id: "nomic-embed-text:latest", contextLength: 2048, kind: "embedding", embeddingDims: 768, structured: true },
+    // A vision model without tools: image input stated, tools absent (the server refuses `tools[]` for it). Its
+    // trained 2048 (`phi2.context_length`) clamps the 4096 default floor.
+    { id: "moondream:latest", contextLength: null, contextFloor: 2048, kind: "generation", input: ["text", "image"], structured: true },
     // A tool model without vision: text only, so the posture never offers it an image it would refuse.
     { id: "qwen2.5:0.5b", contextLength: null, contextFloor: 4096, kind: "generation", input: ["text"], tools: { parallel: false }, structured: true },
   ]);
