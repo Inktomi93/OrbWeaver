@@ -56,7 +56,7 @@ describe("resolveEffective — parity with the turn pipeline's own funnel", () =
     });
     // A params blob touching every rung at once: an explicit knob, a quality-fed knob, an out-of-range knob
     // the capability clamps, and knobs the model must default.
-    // (`temperature: 1.9` is INSIDE the schema's 0..2 bound and OUTSIDE the model's 0..1.2 range — the
+    // (`temperature: 1.9` is INSIDE the schema's 0..5 bound and OUTSIDE the model's 0..1.2 range — the
     // capability clamp is what moves it. A schema-illegal value would instead make `params` degrade whole.)
     const params: UserIntent = { quality: "deep", topP: 0.9, temperature: 1.9, maxOutputTokens: 999, effort: "high", verbosity: "low" };
 
@@ -102,6 +102,16 @@ describe("resolveEffective — provenance", () => {
     expect(effective.knobs.thinkingBudgetTokens).toStrictEqual({ value: 2048, provenance: "modelDefault" });
   });
 
+  test("an unset sampler the server advertises a default for reads `serverDefault` at that value; a set one wins", async () => {
+    const capability = makeGenerationCapability({ ...SAMPLING_CAPABLE, samplingDefaults: { topK: 40, minP: 0.05 } });
+    const unset = await resolveWith({}, capability);
+    expect(unset.knobs.topK).toStrictEqual({ value: 40, provenance: "serverDefault" });
+    // minP is not a knob this model states, so its advertised default has no row to show on.
+    expect(unset.knobs.minP).toBeUndefined();
+    const set = await resolveWith({ topK: 12 }, capability);
+    expect(set.knobs.topK).toStrictEqual({ value: 12, provenance: "explicit" });
+  });
+
   test("an unset output cap reads the ENGINE FLOOR the wire actually falls back to", async () => {
     const effective = await resolveWith({}, makeGenerationCapability());
     expect(effective.knobs.maxOutputTokens).toStrictEqual({ value: DEFAULT_MAX_OUTPUT_TOKENS, provenance: "floor" });
@@ -135,6 +145,20 @@ describe("resolveEffective — the staleness list (F7)", () => {
       { knob: "topA", value: 0.2 },
     ]);
     expect(effective.knobs.minP).toBeUndefined();
+  });
+
+  test("stored list knobs this model does not take are named too, and kept (never deleted) for a model that does", async () => {
+    const params: UserIntent = { drySequenceBreakers: ["\n", ":"], samplerOrder: ["temperature", "topK"], stop: ["END"] };
+    const without = await resolveWith(params, makeGenerationCapability(SAMPLING_CAPABLE));
+    expect(without.stale).toStrictEqual([
+      { knob: "stop", value: '"END"' },
+      { knob: "drySequenceBreakers", value: '"\\n" ":"' },
+      { knob: "samplerOrder", value: "temperature → topK" },
+    ]);
+    const local = makeGenerationCapability({
+      sampling: { ...SAMPLING_CAPABLE.sampling, stop: true, drySequenceBreakers: true, samplerOrder: ["topK", "temperature"] },
+    });
+    expect((await resolveWith(params, local)).stale).toStrictEqual([]);
   });
 
   test("nothing stored, nothing stale", async () => {

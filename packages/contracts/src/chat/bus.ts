@@ -11,6 +11,7 @@
 
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { ChatApi, EffortLevel, ProviderId } from "#inference";
+import { SAMPLER_KNOBS } from "#inference";
 import type { WiBusEvent } from "#world-info";
 import type { ChatReasoningPart, MessageView } from "./messages.ts";
 import type { ReactionEmoji } from "./reactions.ts";
@@ -241,17 +242,9 @@ export type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
  *  BY CONSTRUCTION: the bus's raw-string pin admits exactly two anchored free-text keys and this is not one
  *  of them — the `ReactionEmoji`/`MemoryRecallPhase` precedent. One home; the union derives from it. */
 export const ADJUSTED_KNOBS = [
-  "temperature",
-  "topP",
-  "topK",
-  "frequencyPenalty",
-  "presencePenalty",
-  "repetitionPenalty",
-  "minP",
-  "topA",
-  "seed",
-  "logitBias",
-  "stop",
+  // Every sampler, from its one home, and the stage order a server may run them in.
+  ...SAMPLER_KNOBS,
+  "samplerOrder",
   // The quality DIAL (not a sampling knob): dropped when the stored value is not a known quality level.
   "quality",
   // The reasoning token budget, dropped on an effort-mode model that has no budget field.

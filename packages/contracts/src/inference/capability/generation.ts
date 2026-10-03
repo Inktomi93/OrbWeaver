@@ -100,10 +100,40 @@ export const SYSTEM_ROW_PLACEMENT: Readonly<Record<RoleHandling, SystemRowPlacem
 export const rangeSchema = z.object({ min: z.number(), max: z.number() });
 export type Range = z.infer<typeof rangeSchema>;
 
-/** The sampling knobs a model exposes, each a `Range` or a boolean. `exclusive` names knob PAIRS the model
- *  rejects together (current Claude models refuse `temperature` + `top_p` in one request): the funnel keeps
- *  the first-listed and drops the other with `sampling_knob_conflict`. */
-export const samplingCapabilitySchema = z.object({
+/** THE HOME of the NUMERIC sampling knobs: each is a preset field (`UserIntent`), a capability `Range`, a
+ *  resolved value and a drop-warning knob name under the same key. The first eight are the hosted-API set; the
+ *  rest are the local-server samplers (llama.cpp, KoboldCpp) a model reaches only through a row that states
+ *  them. A new member fails `tsc` at the capability shape below, the funnel, the editor catalog and the
+ *  wire spelling table until each names it. */
+export const SAMPLING_RANGE_KNOBS = [
+  "temperature",
+  "topP",
+  "topK",
+  "frequencyPenalty",
+  "presencePenalty",
+  "repetitionPenalty",
+  "minP",
+  "topA",
+  "repetitionPenaltyRange",
+  "typicalP",
+  "topNSigma",
+  "xtcProbability",
+  "xtcThreshold",
+  "dryMultiplier",
+  "dryBase",
+  "dryAllowedLength",
+  "dryPenaltyLastN",
+  "mirostatMode",
+  "mirostatTau",
+  "mirostatEta",
+  "dynatempRange",
+  "dynatempExponent",
+  "smoothingFactor",
+  "smoothingCurve",
+] as const;
+export type SamplingRangeKnob = (typeof SAMPLING_RANGE_KNOBS)[number];
+
+const samplingRangeShape = {
   temperature: rangeSchema.optional(),
   topP: rangeSchema.optional(),
   topK: rangeSchema.optional(),
@@ -112,12 +142,79 @@ export const samplingCapabilitySchema = z.object({
   repetitionPenalty: rangeSchema.optional(),
   minP: rangeSchema.optional(),
   topA: rangeSchema.optional(),
+  repetitionPenaltyRange: rangeSchema.optional(),
+  typicalP: rangeSchema.optional(),
+  topNSigma: rangeSchema.optional(),
+  xtcProbability: rangeSchema.optional(),
+  xtcThreshold: rangeSchema.optional(),
+  dryMultiplier: rangeSchema.optional(),
+  dryBase: rangeSchema.optional(),
+  dryAllowedLength: rangeSchema.optional(),
+  dryPenaltyLastN: rangeSchema.optional(),
+  mirostatMode: rangeSchema.optional(),
+  mirostatTau: rangeSchema.optional(),
+  mirostatEta: rangeSchema.optional(),
+  dynatempRange: rangeSchema.optional(),
+  dynatempExponent: rangeSchema.optional(),
+  smoothingFactor: rangeSchema.optional(),
+  smoothingCurve: rangeSchema.optional(),
+} satisfies Record<SamplingRangeKnob, z.ZodOptional<typeof rangeSchema>>;
+
+/** The sampling knobs a capability states with a boolean: the value is not a number to clamp. */
+const SAMPLING_FLAG_KNOBS = ["seed", "logitBias", "stop", "drySequenceBreakers"] as const;
+
+/** Every sampler a request can carry as one keyed value; each has one wire spelling per server. */
+export const SAMPLER_KNOBS = [...SAMPLING_RANGE_KNOBS, ...SAMPLING_FLAG_KNOBS] as const;
+export type SamplerKnob = (typeof SAMPLER_KNOBS)[number];
+
+/** The sampler stages a server can run in a chosen order (llama.cpp `samplers`, KoboldCpp `sampler_order`).
+ *  `penalties` is the repetition stage (repetition, presence and frequency together on llama.cpp). */
+export const SAMPLER_STAGES = ["penalties", "dry", "topNSigma", "topK", "topA", "typicalP", "topP", "minP", "xtc", "temperature"] as const;
+export type SamplerStage = (typeof SAMPLER_STAGES)[number];
+export const samplerStageSchema = z.enum(SAMPLER_STAGES) satisfies z.ZodType<SamplerStage>;
+
+/** The sampling knobs a model exposes, each a `Range` or a boolean. `exclusive` names knob PAIRS the model
+ *  rejects together (current Claude models refuse `temperature` + `top_p` in one request): the funnel keeps
+ *  the first-listed and drops the other with `sampling_knob_conflict`. `samplerOrder` is the stages the server
+ *  can order, in the server's own default order. */
+export const samplingCapabilitySchema = z.object({
+  ...samplingRangeShape,
   seed: z.boolean().optional(),
   logitBias: z.boolean().optional(),
   stop: z.boolean().optional(),
+  drySequenceBreakers: z.boolean().optional(),
+  samplerOrder: z.array(samplerStageSchema).min(1).optional(),
   exclusive: z.array(z.tuple([z.string(), z.string()])).optional(),
 });
 export type SamplingCapability = z.infer<typeof samplingCapabilitySchema>;
+
+/** The samplers whose request-body key the openai-compat wire spells itself: the Vercel V4 call options model
+ *  temperature, top-p, the two OpenAI penalties, seed and stop, and `@ai-sdk/openai-compatible` drops a V4
+ *  `topK`, so every other knob rides the body under the row's spelling. */
+export const BODY_SAMPLER_KNOBS = [
+  "topK",
+  "minP",
+  "topA",
+  "repetitionPenalty",
+  "repetitionPenaltyRange",
+  "typicalP",
+  "topNSigma",
+  "xtcProbability",
+  "xtcThreshold",
+  "dryMultiplier",
+  "dryBase",
+  "dryAllowedLength",
+  "dryPenaltyLastN",
+  "drySequenceBreakers",
+  "mirostatMode",
+  "mirostatTau",
+  "mirostatEta",
+  "dynatempRange",
+  "dynatempExponent",
+  "smoothingFactor",
+  "smoothingCurve",
+  "logitBias",
+] as const satisfies readonly SamplerKnob[];
 
 export const reasoningCapabilitySchema = z.object({
   mode: reasoningModeSchema,
@@ -184,6 +281,11 @@ export type TurnsCapability = z.infer<typeof turnsCapabilitySchema>;
 export const generationCapabilitySchema = z.object({
   reasoning: reasoningCapabilitySchema,
   sampling: samplingCapabilitySchema,
+  /** The value the server itself runs a sampler at when a request leaves it unset, where the server
+   *  advertises one (llama.cpp `/props` `default_generation_settings.params`, an Ollama Modelfile's
+   *  `PARAMETER` lines). Display only: an unset knob never rides the wire. Kept outside `sampling` because
+   *  `sampling` is a stated set that replaces whole, and a tier that only knows defaults must not erase it. */
+  samplingDefaults: z.partialRecord(z.enum(SAMPLING_RANGE_KNOBS), z.number()).optional(),
   verbosity: z.array(verbositySchema).optional(),
   /** What a chat turn may CARRY. `image` gates the multimodal send, `video` likewise (#317); `audio`/`file`
    *  are captured truth no consumer sends yet. */

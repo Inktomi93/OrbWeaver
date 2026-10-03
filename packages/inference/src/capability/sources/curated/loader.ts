@@ -16,6 +16,7 @@ import { deepseekRows } from "./deepseek.ts";
 import { embeddersRows } from "./embedders.ts";
 import { googleRows } from "./google.ts";
 import { localLightRows } from "./local-light.ts";
+import { localServerRows } from "./local-servers.ts";
 import { metaRows } from "./meta.ts";
 import { mistralRows } from "./mistral.ts";
 import { openaiRows } from "./openai.ts";
@@ -34,6 +35,8 @@ const CURATED: readonly CompiledRow[] = [
   ...compileRows("curated/xai.ts", xaiRows),
   ...compileRows("curated/local-light.ts", localLightRows),
   ...compileRows("curated/embedders.ts", embeddersRows),
+  // The local servers' sampler sets are a fact of the server, not the model: they compose last so they win.
+  ...compileRows("curated/local-servers.ts", localServerRows),
 ];
 
 type CuratedQuery = RowQuery;

@@ -2,7 +2,7 @@
 // tRPC ladder reads off `ctx.rateLimit`. Three buckets keyed on the RESOLVED admin config (env floor ⊕
 // AppSettings override), read fresh per request so a mid-session admin edit is LIVE (updateAppSettings →
 // reloadEffectiveConfig rebuilds the effective-config cache; every consume reads the current cap the same
-// way the engineLaunch/maxImageBytes consumers do):
+// way the maxImageBytes consumer does):
 //   - publicIp   — tight per-IP bucket for anonymous callers (rateLimits.publicIp)
 //   - general    — loose per-user bucket for a normal authed request (rateLimits.authed)
 //   - ai-turn    — the STRICTER per-user bucket for the chat router's $/GPU-spending verbs; a turn call

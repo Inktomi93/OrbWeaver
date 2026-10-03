@@ -25,7 +25,18 @@
 // when stated, because a lone half would not parse at the verb.
 
 import type { DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
-import { EFFORT_SPELLINGS, foldFeatures, IMAGE_ARMS, MODEL_INFO_APIS, OUTPUT_CAP_FIELDS, PREFILL_MODES, STRICT_JSON_MODES } from "@orb/contracts/inference";
+import {
+  EFFORT_SPELLINGS,
+  foldFeatures,
+  IMAGE_ARMS,
+  MODEL_INFO_APIS,
+  OUTPUT_CAP_FIELDS,
+  PREFILL_MODES,
+  SAMPLER_KNOBS,
+  SAMPLER_ORDER_SPELLINGS,
+  SAMPLING_RANGE_KNOBS,
+  STRICT_JSON_MODES,
+} from "@orb/contracts/inference";
 
 /** Digit grouping for a COUNT. Deliberately not `toLocaleString`/`Intl`: these are token counts and vector
  *  widths, not dates or money, and the `no-raw-intl-time` gate exists because a bare `.toLocale*()` is Intl
@@ -262,7 +273,15 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   concurrency: ["concurrency.embed", "concurrency.imageEmbed", "concurrency.summarize"],
   embedBatch: ["embedBatch.maxTokens", "embedBatch.floorTokensPerSec"],
   requestTimeoutMs: ["requestTimeoutMs"],
+  samplerKeys: SAMPLER_KNOBS.map((knob) => `samplerKeys.${knob}`),
+  samplerOrder: ["samplerOrder"],
+  samplerFill: SAMPLING_RANGE_KNOBS.map((knob) => `samplerFill.${knob}`),
 };
+
+// A sampler's plain name from its key ("repetitionPenaltyRange" → "repetition penalty range").
+function samplerWords(knob: string): string {
+  return knob.replaceAll(/([A-Z])/gu, " $1").toLowerCase();
+}
 
 /** The quirk rows, in the PANE's render order (the schema's declaration order is not a UI decision).
  *
@@ -302,6 +321,10 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
     format: (value): string => `${String(value)} ms`,
     unset: NOT_SET,
   },
+  { path: "samplerOrder", name: "sampler order vocabulary", edit: { kind: "enum", options: SAMPLER_ORDER_SPELLINGS }, unset: NOT_SET },
+  // One row per spelling or fill the row states; a server that reads the default key needs none.
+  ...SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),
+  ...SAMPLING_RANGE_KNOBS.map((knob): FactLeaf => ({ path: `samplerFill.${knob}`, name: `${samplerWords(knob)} sent when unset`, edit: { kind: "number" } })),
 ];
 
 function perMillionTokens(value: unknown): string {

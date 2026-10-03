@@ -256,9 +256,27 @@ function samplingDropDescription(knob: AdjustedKnob | undefined): string {
     case "repetitionPenalty":
     case "minP":
     case "topA":
+    case "repetitionPenaltyRange":
+    case "typicalP":
+    case "topNSigma":
+    case "xtcProbability":
+    case "xtcThreshold":
+    case "dryMultiplier":
+    case "dryBase":
+    case "dryAllowedLength":
+    case "dryPenaltyLastN":
+    case "mirostatMode":
+    case "mirostatTau":
+    case "mirostatEta":
+    case "dynatempRange":
+    case "dynatempExponent":
+    case "smoothingFactor":
+    case "smoothingCurve":
     case "seed":
     case "logitBias":
     case "stop":
+    case "drySequenceBreakers":
+    case "samplerOrder":
     // An unnamed drop reads the same way: the model didn't take the setting. It is the TITLE that must not
     // invent a name, and it doesn't.
     case undefined:
@@ -278,21 +296,39 @@ function assertNeverKnob(knob: never): never {
  *  `Record` is the exhaustiveness enforcer (a new `ADJUSTED_KNOBS` member fails `tsc` here). */
 const KNOB_LABELS: Record<AdjustedKnob, string> = {
   carryReasoning: "Reasoning carry",
+  dryAllowedLength: "DRY allowed length",
+  dryBase: "DRY base",
+  dryMultiplier: "DRY strength",
+  dryPenaltyLastN: "DRY range",
+  drySequenceBreakers: "DRY sequence breakers",
+  dynatempExponent: "Dynamic temperature exponent",
+  dynatempRange: "Dynamic temperature range",
   frequencyPenalty: "Frequency penalty",
   logitBias: "Logit bias",
   minP: "Min-P",
+  mirostatEta: "Mirostat eta",
+  mirostatMode: "Mirostat",
+  mirostatTau: "Mirostat tau",
   parallelToolCalls: "Parallel tool calls",
   presencePenalty: "Presence penalty",
   quality: "Quality",
   repetitionPenalty: "Repetition penalty",
+  repetitionPenaltyRange: "Repetition range",
   replyMedia: "Reply pictures",
+  samplerOrder: "Sampler order",
   seed: "Seed",
+  smoothingCurve: "Smoothing curve",
+  smoothingFactor: "Smoothing factor",
   stop: "Stop sequences",
   temperature: "Temperature",
   thinkingBudgetTokens: "Thinking budget",
   topA: "Top-A",
   topK: "Top-K",
+  topNSigma: "Top-nσ",
   topP: "Top-P",
+  typicalP: "Typical-P",
+  xtcProbability: "XTC chance",
+  xtcThreshold: "XTC threshold",
 };
 
 function assertNeverCode(code: never): never {

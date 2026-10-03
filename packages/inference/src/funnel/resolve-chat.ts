@@ -8,8 +8,16 @@
 // turn does.
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
-import type { EffortLevel, GenerationCapability, Range, Verbosity } from "@orb/contracts/inference";
-import { bindsThinkingToPrefix, EFFORT_LEVELS, reasoningOffModeOf, reasoningReplayOf, survivesPrefixEdit } from "@orb/contracts/inference";
+import type { EffortLevel, GenerationCapability, Range, SamplerStage, SamplingRangeKnob, Verbosity } from "@orb/contracts/inference";
+import {
+  bindsThinkingToPrefix,
+  completeSamplerOrder,
+  EFFORT_LEVELS,
+  reasoningOffModeOf,
+  reasoningReplayOf,
+  SAMPLING_RANGE_KNOBS,
+  survivesPrefixEdit,
+} from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
@@ -327,31 +335,54 @@ function dropExclusive(sampling: ResolvedSampling, pairs: readonly (readonly [st
 function resolveSampling(params: UserIntent, capability: GenerationCapability, warnings: ResolvedWarning[]): ResolvedSampling {
   const s = capability.sampling;
   const quality = knownQuality(params.quality, warnings);
-  const temperature = resolveNumeric("temperature", effectiveSampling(params.temperature, quality, "temperature"), s.temperature, warnings);
-  const topP = resolveNumeric("topP", params.topP, s.topP, warnings);
-  const topK = resolveNumeric("topK", params.topK, s.topK, warnings);
-  const freq = resolveNumeric("frequencyPenalty", params.frequencyPenalty, s.frequencyPenalty, warnings);
-  const pres = resolveNumeric("presencePenalty", params.presencePenalty, s.presencePenalty, warnings);
-  const rep = resolveNumeric("repetitionPenalty", params.repetitionPenalty, s.repetitionPenalty, warnings);
-  const minP = resolveNumeric("minP", params.minP, s.minP, warnings);
-  const topA = resolveNumeric("topA", params.topA, s.topA, warnings);
+  // Every numeric knob takes the same gate-and-clamp; only temperature has a quality rung beneath it.
+  const ranged: { [K in SamplingRangeKnob]?: number } = {};
+  for (const knob of SAMPLING_RANGE_KNOBS) {
+    const wanted = knob === "temperature" ? effectiveSampling(params.temperature, quality, "temperature") : params[knob];
+    const value = resolveNumeric(knob, wanted, s[knob], warnings);
+    if (value !== undefined) {
+      ranged[knob] = value;
+    }
+  }
   const seed = resolveFlag("seed", params.seed, s.seed, warnings);
   const logitBias = resolveFlag("logitBias", params.logitBias, s.logitBias, warnings);
   const stop = resolveFlag("stop", params.stop, s.stop, warnings);
+  const drySequenceBreakers = resolveFlag("drySequenceBreakers", params.drySequenceBreakers, s.drySequenceBreakers, warnings);
+  const samplerOrder = resolveSamplerOrder(params.samplerOrder, s.samplerOrder, warnings);
   const gated: ResolvedSampling = {
-    ...(temperature !== undefined ? { temperature } : {}),
-    ...(topP !== undefined ? { topP } : {}),
-    ...(topK !== undefined ? { topK } : {}),
-    ...(freq !== undefined ? { frequencyPenalty: freq } : {}),
-    ...(pres !== undefined ? { presencePenalty: pres } : {}),
-    ...(rep !== undefined ? { repetitionPenalty: rep } : {}),
-    ...(minP !== undefined ? { minP } : {}),
-    ...(topA !== undefined ? { topA } : {}),
+    ...ranged,
     ...(seed !== undefined ? { seed } : {}),
     ...(logitBias !== undefined ? { logitBias } : {}),
     ...(stop !== undefined ? { stop } : {}),
+    ...(drySequenceBreakers !== undefined ? { drySequenceBreakers } : {}),
+    ...(samplerOrder !== undefined ? { samplerOrder } : {}),
   };
   return dropExclusive(gated, s.exclusive, warnings);
+}
+
+/** The order this server runs for the preset's (`completeSamplerOrder`, D295). A stage the server cannot
+ *  order is named in one drop warning. */
+function resolveSamplerOrder(
+  wanted: UserIntent["samplerOrder"],
+  orderable: GenerationCapability["sampling"]["samplerOrder"],
+  warnings: ResolvedWarning[],
+): readonly SamplerStage[] | undefined {
+  if (wanted === undefined) {
+    return;
+  }
+  if (orderable === undefined) {
+    warnings.push({ code: "sampling_knob_dropped", knob: "samplerOrder", message: "samplerOrder ignored: this model's server takes no sampler order" });
+    return;
+  }
+  const unorderable = wanted.filter((stage) => !orderable.includes(stage));
+  if (unorderable.length > 0) {
+    warnings.push({
+      code: "sampling_knob_dropped",
+      knob: "samplerOrder",
+      message: `samplerOrder stages ${unorderable.join(", ")} ignored: this model's server cannot order them`,
+    });
+  }
+  return completeSamplerOrder(wanted, orderable);
 }
 
 function resolveVerbosity(wanted: UserIntent["verbosity"], levels: readonly Verbosity[] | undefined, warnings: ResolvedWarning[]): Verbosity | undefined {

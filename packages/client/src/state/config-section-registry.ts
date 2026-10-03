@@ -24,13 +24,13 @@ import { CONFIG_GROUP_IDS } from "./config-group-ids.ts";
 import type { ConfigSubcategory, SettingsViewerView } from "./config-group-registry.ts";
 
 /** An APP-tier write claim: a top-level `AppSettings` key, or a DOTTED PATH into one of its nested objects
- *  (`engineLaunch.genPresencePenalty`). The dotted arm exists because the app tier has no namespaces — the
+ *  (`rateLimits.aiTurn`). The dotted arm exists because the app tier has no namespaces — the
  *  whole config is ONE object shared by every admin section — so two sections can legitimately own
- *  different LEAVES of one nested key (SET-SEAMS stage 4's resolution of the stage-3 `engineLaunch` hold).
+ *  different LEAVES of one nested key.
  *  `deepMergeAppSettings` recurses per key exactly like the user tier's `deepMergePlain`, so leaf-disjoint
  *  sparse patches commute the same way.
  *
- *  A leaf claimant owns ONLY that leaf: it may never write or CLEAR the parent key (`{engineLaunch: null}`
+ *  A leaf claimant owns ONLY that leaf: it may never write or CLEAR the parent key (`{rateLimits: null}`
  *  would wipe the co-owner's leaves), which is why the partition REDs a parent/child claim pair. */
 type AppSettingsClaimPath = keyof AppSettings | `${keyof AppSettings}.${string}`;
 

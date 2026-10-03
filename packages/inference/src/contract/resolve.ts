@@ -3,7 +3,7 @@
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
-import type { EffortLevel, ReasoningDisplayMode, ReasoningMode, ReasoningOffMode, Verbosity } from "@orb/contracts/inference";
+import type { EffortLevel, ReasoningDisplayMode, ReasoningMode, ReasoningOffMode, SamplerStage, SamplingRangeKnob, Verbosity } from "@orb/contracts/inference";
 import { effortLevelSchema } from "@orb/contracts/inference";
 import type { CarryReasoning } from "@orb/contracts/preset";
 import { z } from "zod";
@@ -118,19 +118,15 @@ export interface ResolvedReasoning {
   readonly display?: ReasoningDisplayMode | undefined;
 }
 
-export interface ResolvedSampling {
-  readonly temperature?: number | undefined;
-  readonly topP?: number | undefined;
-  readonly topK?: number | undefined;
-  readonly frequencyPenalty?: number | undefined;
-  readonly presencePenalty?: number | undefined;
-  readonly repetitionPenalty?: number | undefined;
-  readonly minP?: number | undefined;
-  readonly topA?: number | undefined;
+/** Every numeric sampler the funnel resolved (clamped into the capability's `Range`), the flag knobs, and the
+ *  stage order narrowed to the stages the server can order. */
+export type ResolvedSampling = { readonly [K in SamplingRangeKnob]?: number | undefined } & {
   readonly seed?: number | undefined;
   readonly logitBias?: Record<string, number> | undefined;
   readonly stop?: readonly string[] | undefined;
-}
+  readonly drySequenceBreakers?: readonly string[] | undefined;
+  readonly samplerOrder?: readonly SamplerStage[] | undefined;
+};
 
 export interface ResolvedChatKnobs {
   /** Additive to the request-scoped requestId — disambiguates several provider turns inside one request. */

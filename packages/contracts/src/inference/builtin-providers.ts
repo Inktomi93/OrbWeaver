@@ -106,6 +106,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     features: {
       prefill: "none",
+      samplerKeys: { repetitionPenalty: "repeat_penalty" },
     },
     catalog: "url",
     metered: false,
@@ -121,6 +122,11 @@ export const BUILTIN_PROVIDER_ROWS = [
     features: {
       prefill: "none",
       modelInfoApi: "ollama",
+      // The OpenAI route writes temperature 1 and top_p 1 into a request that omits them; send Ollama's own
+      // defaults instead (api/types.go DefaultOptions). Native `/api/chat` needs no fill.
+      samplerFill: { temperature: 0.8, topP: 0.9 },
+      // Native `/api/chat` `options` spelling; the OpenAI route never states this knob.
+      samplerKeys: { repetitionPenalty: "repeat_penalty" },
     },
     catalog: "url",
     metered: false,
@@ -139,6 +145,8 @@ export const BUILTIN_PROVIDER_ROWS = [
     features: {
       prefill: "none",
       modelInfoApi: "llama-cpp",
+      samplerKeys: { repetitionPenalty: "repeat_penalty" },
+      samplerOrder: "llama-cpp",
     },
     catalog: "url",
     metered: false,
@@ -154,6 +162,9 @@ export const BUILTIN_PROVIDER_ROWS = [
     features: {
       prefill: "none",
       modelInfoApi: "koboldcpp",
+      // The OpenAI route overwrites `mirostat` with `mirostat_mode` (koboldcpp.py:4690).
+      samplerKeys: { typicalP: "typical", topNSigma: "nsigma", repetitionPenaltyRange: "rep_pen_range", mirostatMode: "mirostat_mode" },
+      samplerOrder: "koboldcpp",
     },
     catalog: "url",
     metered: false,

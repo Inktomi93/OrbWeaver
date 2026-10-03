@@ -53,7 +53,7 @@ import { expect, test } from "../../support/fixtures.ts";
 
 // Sample values named so the test isn't littered with bare magic numbers (noMagicNumbers).
 const SAMPLE_TEMPERATURE = 0.7;
-const OUT_OF_RANGE_TEMPERATURE = 3; // userIntentSchema caps temperature at 2
+const OUT_OF_RANGE_TEMPERATURE = 6; // userIntentSchema caps temperature at 5
 const GUIDED_ACTION_COUNT = 8;
 const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;
@@ -424,6 +424,16 @@ test("the QUALITY dial's OFF arm is the ABSENCE — the enum stays three-membere
 
 test("userIntentSchema rejects an out-of-bounds knob (the shared numeric bounds hold)", () => {
   expect(userIntentSchema.safeParse({ temperature: OUT_OF_RANGE_TEMPERATURE }).success).toBe(false);
+});
+
+test("userIntentSchema refuses the local-server shapes a server would reject the whole request for", () => {
+  // llama.cpp errors on an empty breaker list or an empty breaker; a repeated stage has no order to mean.
+  expect(userIntentSchema.safeParse({ drySequenceBreakers: [] }).success).toBe(false);
+  expect(userIntentSchema.safeParse({ drySequenceBreakers: [""] }).success).toBe(false);
+  expect(userIntentSchema.safeParse({ samplerOrder: ["topK", "topK"] }).success).toBe(false);
+  expect(userIntentSchema.safeParse({ mirostatMode: 3 }).success).toBe(false);
+  expect(userIntentSchema.safeParse({ dryBase: 0.5 }).success).toBe(false);
+  expect(userIntentSchema.safeParse({ drySequenceBreakers: ["\n"], samplerOrder: ["temperature", "topK"], mirostatMode: 2, dryBase: 1.75 }).success).toBe(true);
 });
 
 test("userIntentSchema admits only the Claude runtime knob namespace into claudeEnv (allowlist, not a deny set)", () => {

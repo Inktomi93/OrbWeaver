@@ -5,6 +5,7 @@
 import type { RoleHandling } from "@orb/contracts/inference";
 import {
   clampRoleHandling,
+  completeSamplerOrder,
   GENERATION_FLOOR,
   isStricterRoleHandling,
   ROLE_HANDLING,
@@ -54,5 +55,17 @@ describe("the preset knob offers only user levels at or above the model floor", 
     expect(userRoleHandlingOptions("slotted")).toStrictEqual(["semi-strict", "strict"]);
     expect(userRoleHandlingOptions("none")).toStrictEqual(USER_ROLE_HANDLING);
     expect(userRoleHandlingOptions("strict")).toStrictEqual(["strict"]);
+  });
+});
+
+describe("completeSamplerOrder — the order a server runs for a preset's (D295)", () => {
+  const server = ["penalties", "topK", "topA", "typicalP", "topP", "temperature"] as const;
+
+  test("the preset's orderable stages lead in its order; the server's others follow in the server's order", () => {
+    expect(completeSamplerOrder(["temperature", "minP", "topK"], server)).toStrictEqual(["temperature", "topK", "penalties", "topA", "typicalP", "topP"]);
+  });
+
+  test("no preset order is the server's own default order", () => {
+    expect(completeSamplerOrder(undefined, server)).toStrictEqual(server);
   });
 });
