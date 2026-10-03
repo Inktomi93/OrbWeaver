@@ -108,8 +108,8 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
   // ARBITRATION APPLICABILITY (#182 — "some group stuff is showing up even when not in group", owner live
   // report 2026-08-18). Mute, Talkativeness and "Make X speak next" are not per-character preferences: all
   // three are inputs to the GROUP SPEAKER ARBITER (member-row-menu.tsx states it — "mute is passive
-  // arbitration exclusion"; talkativeness is a RELATIVE weight; force-turn overrides the pick). A room with
-  // one character has no arbitration to steer — the weight chip reads a ratio against nobody, muting the sole
+  // arbitration exclusion"; talkativeness is a chance to reply unprompted; force-turn overrides the pick). A room with
+  // one character has no arbitration to steer — the chance chip has nobody to compete with, muting the sole
   // voice leaves a room that cannot answer, and "speak next" is what pressing Send already does. So the three
   // seams are simply ABSENT below two characters, which the panel/row/menu already render as "no affordance"
   // (§8.1, the same mechanism that omits host-only controls for a member) — no second mode, no disabled

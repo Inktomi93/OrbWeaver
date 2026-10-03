@@ -133,7 +133,7 @@ export const PLAIN_CHAT_WARNING_CODES = [
   "context_trimmed_no_summary",
   // The `smart` group policy's side-LLM turn arbiter was unusable this round — the summarize role threw
   // (unwired/offline backend, HTTP error) or its reply named nobody on the eligible roster — so the speaking
-  // order fell back to the deterministic talkativeness-weighted `natural` arbitration. Emitted from the turn
+  // order fell back to the deterministic `natural` arbitration. Emitted from the turn
   // verb's arbitrate step: the round still happens, but the user is told the MATH picked, not the model.
   "smart_arbitration_degraded",
   // A BACKGROUND task (summaries, captions, digests) could not run for this turn's funder — no binding, or the
