@@ -9,8 +9,10 @@
 // policy. The server resolves the selector through the MEMBERSHIP-GATED roster read and takes that
 // participant's server-resolved `renderPolicy` — the same value `ParticipantView.renderPolicy` hands the
 // client, produced by `resolveRenderPolicy` at compose, which is tighten-only against the deployment floor.
-// Every failure resolves to `CARD_FRAME_SAFE_FLOOR`: not a member, roster read threw, character absent from
-// the room, `characterId: null`, `renderPolicy` absent on the row. Fail closed, every arm.
+// Every SELECTOR failure resolves to `CARD_FRAME_SAFE_FLOOR`: not a member, roster read threw, character
+// absent from the room, `characterId: null`, `renderPolicy` absent on the row. A failed read of the viewer's
+// own settings (the script-consent input below) is not caught: it throws, the request errors, and no
+// document is served — closed, not floored.
 //
 //   • `allowExternalMedia` ⇐ the app-tier `forbidExternalMedia` ceiling AND the participant's verdict. The
 //     ceiling is read HERE, per mint, off the same live `getEffectiveConfig()` thunk the app-document CSP
@@ -20,7 +22,7 @@
 //     D294 uses to grant the tierB sandbox).
 //   • the SCRIPT POSTURE ⇐ the TOP step of that same ladder AND the deployment `allowInteractiveCards`
 //     ceiling (#111 legs 1+3) AND the viewer's own `chat.runCardScripts` consent — `interactive` only when
-//     ALL THREE say yes, `static` otherwise and on every failure arm. It selects which `CardFramePosture`
+//     ALL THREE say yes, `static` otherwise and on every selector failure. It selects which `CardFramePosture`
 //     the response policy is built through and is echoed as `granted.interactive`. Since leg 3 this is a real capability: the interactive arm emits
 //     `script-src 'unsafe-inline'` and the card's own scripts execute inside the opaque-origin sandbox.
 //     What that does and does NOT reach — including residual R1, an unclosable WebRTC beacon — is measured
