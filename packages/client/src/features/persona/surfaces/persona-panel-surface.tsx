@@ -27,13 +27,13 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { useGatedQuery, useInvalidation, useReattributePersona, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openConfigTo, useActiveChatId } from "#state";
 import { PersonaAccountFoot } from "../components/persona-account-foot.tsx";
 import { PersonaSwitchList } from "../components/persona-switch-list.tsx";
-import { useReattributePersona, useSetChatActivePersona } from "../hooks/use-chat-persona.ts";
+import { useSetChatActivePersona } from "../hooks/use-chat-persona.ts";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
 import { resolveCurrentPersona } from "../lib/persona-current.ts";
 

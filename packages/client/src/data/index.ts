@@ -105,6 +105,7 @@ export { usePluginDisplayText } from "./use-plugin-display-text.ts";
 export type { PluginFrameRequest } from "./use-plugin-frame.ts";
 export { mintPluginFrame, pluginFrameMintBody, revokePluginFrame, usePluginFrameSrc } from "./use-plugin-frame.ts";
 export { usePromptMacroSuggestions } from "./use-prompt-macro-suggestions.ts";
+export { useReattributePersona } from "./use-reattribute-persona.ts";
 export type { SessionRecoveryState } from "./use-session-recovery.ts";
 export { useSessionRecovery } from "./use-session-recovery.ts";
 export { useSettingsViewerView } from "./use-settings-viewer-view.ts";

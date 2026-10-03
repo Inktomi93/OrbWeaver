@@ -116,6 +116,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     why: "the row-2 Send/Stop control renders only inside Composer; composer.ct drives it end-to-end — the #54 honest-refusal gate (aria-disabled + title, no chat.send fires), the disabled/empty send arms, and Stop/stopping/second-click.",
   },
   "rename-chat-dialog": { coveredBy: "chat-options-menu", why: "the rename dialog opens from the options menu; chat-options-menu.ct drives it." },
+  "reattribute-from-here": {
+    coveredBy: "message-actions-row",
+    why: "the item and its confirm mount in the message row's menu; message-actions-row.ct drives the offer, the disabled case and the restamp payload.",
+  },
   "add-member-popover": {
     coveredBy: "members-panel",
     why: "#490 gave the add-member door ONE home: it anchors on the CONTEXT panel's CAST header (the character-bar twin is gone — two simultaneously-visible doors for one action), and members-panel.ct drives it.",

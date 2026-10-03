@@ -79,6 +79,7 @@ import {
   setMobileViewport,
   startEditingMessage,
   toggleMessageSelected,
+  useActiveChatId,
   useActiveConfigGroup,
   useActiveConfigSub,
   useActiveSection,
@@ -2721,6 +2722,32 @@ export function ChatOptionsMenuStory({ withCharacters = false }: ChatOptionsMenu
       </div>
     </CtDataProviders>
   );
+}
+
+/** The ⋯ menu on a fork, beside a readout of the active chat the shell store holds: "Back to parent chat"
+ *  navigates by making the parent the active chat, and the readout is where that lands. */
+export function ChatForkMenuStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div>
+        <ChatOptionsMenu chatId={CHAT_ID} title="Test chat" characters={[]} galleryCharacters={[]} />
+        <ActiveChatReadout />
+        <LineageReadout />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+function ActiveChatReadout(): ReactElement {
+  return <output data-testid="ct-active-chat">{`active=${useActiveChatId() ?? "none"}`}</output>;
+}
+
+/** The menu's lineage read as the cache holds it. Passive (`enabled: false`): it never fetches, so it renders
+ *  the chain only once the menu's own gated read has landed, and stays "unread" on a chat that never asks. */
+function LineageReadout(): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useQuery({ ...trpc.chat.getChatLineage.queryOptions({ chatId: CHAT_ID }), enabled: false });
+  return <output data-testid="ct-lineage">{`lineage=${data === undefined ? "unread" : String(data.chain.length)}`}</output>;
 }
 
 /** The ⋯ menu WITH the two shell surfaces a game-mode transition writes into (#862/#863): the app's ONE

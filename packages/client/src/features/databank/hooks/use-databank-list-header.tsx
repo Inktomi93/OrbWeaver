@@ -14,6 +14,7 @@
 // The confirm is a `primary` ConfirmDialog, NOT the kebab's `destructive` arm: re-extract deletes nothing
 // (every document, junction and chunk survives — the canon is re-derived from bytes we still hold), and a
 // red confirm on a maintenance sweep teaches the wrong thing about the one control here that IS destructive.
+// The sweep, its confirm copy and its toast live in `use-owner-sweep.tsx`, shared with the re-extract banner.
 //
 // ONE VISIBLE CENSUS *PER REGIME* (#1676, the #1670 class). On a phone the ONE-NAME rule (shell.css) sheds
 // this band's title and the census travels INSIDE it (`list-pane-header.tsx`: "THE COUNT TRAVELS WITH THE
@@ -37,26 +38,18 @@ import { Button } from "@orb/ui/button";
 import { Icon, Plus, RefreshCw } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { MenuGroup, MenuGroupLabel, MenuItem } from "@orb/ui/menu";
-import { useToastManager } from "@orb/ui/toast";
-import { useState } from "react";
-import { ConfirmDialog, RowActionsMenu } from "#components";
-import { useInvalidation, useTRPC } from "#data";
+import { RowActionsMenu } from "#components";
 import type { ListPaneHeaderView } from "#lib";
 import { openModal } from "#state";
 import { useDatabankBankHealth, useDatabankCensus } from "../hooks/use-databank-census.ts";
-import { useReindexDocuments } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_SECTION_LABEL } from "../lib/databank-section-label.ts";
+import { useOwnerSweep } from "./use-owner-sweep.tsx";
 
 export function useDatabankListHeader(): ListPaneHeaderView {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const toast = useToastManager();
   const health = useDatabankBankHealth();
   // ONE spelling of the number, shared with the phone topbar's screen title (#1676) — see the hook.
   const census = useDatabankCensus();
-  const reindex = useReindexDocuments({ trpc, invalidation });
-  const [reExtractOpen, setReExtractOpen] = useState(false);
-  const [reindexOpen, setReindexOpen] = useState(false);
+  const sweep = useOwnerSweep();
   // NEITHER SWEEP IS OFFERED OVER AN EMPTY BANK (side-eye 2026-08-19 P3). Both items were enabled at zero
   // documents — a control whose whole job is "re-run this over everything you have" is a lie when you have
   // nothing, and firing it costs a round trip to be told so. The census the band already prints IS the
@@ -77,17 +70,6 @@ export function useDatabankListHeader(): ListPaneHeaderView {
   // under `exactOptionalPropertyTypes`, "absent" and "present and undefined" are different types, and absent
   // is what an unread census is.
   const countProp = census === undefined ? {} : { count: census };
-
-  const sweep = (mode: "chunk-embed" | "re-extract"): void => {
-    reindex.mutate(
-      { scope: { kind: "owner" }, mode },
-      {
-        onSuccess: (): void => {
-          toast.add({ title: mode === "re-extract" ? "Re-extracting every document…" : "Reindexing every document…" });
-        },
-      },
-    );
-  };
 
   return {
     action: (
@@ -110,11 +92,11 @@ export function useDatabankListHeader(): ListPaneHeaderView {
                 Check the bank again
               </MenuItem>
             ) : null}
-            <MenuItem disabled={reindex.isPending || bankIsEmpty || countUnknown} onClick={(): void => setReindexOpen(true)}>
+            <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("chunk-embed")}>
               <Icon icon={RefreshCw} size="sm" />
               Reindex everything
             </MenuItem>
-            <MenuItem disabled={reindex.isPending || bankIsEmpty || countUnknown} onClick={(): void => setReExtractOpen(true)}>
+            <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("re-extract")}>
               <Icon icon={RefreshCw} size="sm" />
               Re-extract everything
             </MenuItem>
@@ -128,34 +110,7 @@ export function useDatabankListHeader(): ListPaneHeaderView {
     ),
     ...countProp,
     title: DATABANK_SECTION_LABEL,
-    overlay: (
-      <>
-        {/* REINDEX CONFIRMS TOO (side-eye 2026-08-19 P3). It used to fire BARE from the menu while its
-          slower sibling sat behind a dialog — so the one owner-wide sweep a mis-aimed click could start was
-          the one with no way back, and the pair taught that a confirm means "slow" rather than "this is
-          everything you own". Both arms now name their consequence first; `primary`, not destructive, for
-          the reason the re-extract confirm records — nothing is deleted. */}
-
-        <ConfirmDialog
-          confirmIntent="primary"
-          confirmLabel="Reindex"
-          description="Every document you own is re-chunked and re-embedded. Nothing is deleted — this is the sweep you run after a chunking or embedding-model change, and it can take a while on a large bank."
-          onConfirm={(): void => sweep("chunk-embed")}
-          onOpenChange={setReindexOpen}
-          open={reindexOpen}
-          title="Reindex every document?"
-        />
-
-        <ConfirmDialog
-          confirmIntent="primary"
-          confirmLabel="Re-extract"
-          description="Extraction runs again over every source file you uploaded, then everything is re-chunked and re-embedded. Nothing is deleted — this is the slow sweep you run after an extractor upgrade."
-          onConfirm={(): void => sweep("re-extract")}
-          onOpenChange={setReExtractOpen}
-          open={reExtractOpen}
-          title="Re-extract every document?"
-        />
-      </>
-    ),
+    // Both sweeps confirm: the owner-wide scope is what earns the dialog, not the runtime.
+    overlay: sweep.confirm,
   };
 }

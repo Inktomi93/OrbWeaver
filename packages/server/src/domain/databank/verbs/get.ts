@@ -31,6 +31,6 @@ export function createGet(ctx: DatabankContext): DatabankService["get"] {
       },
       counts.get(id) ?? 0,
     );
-    return { ...base, extractorVersion: row.extractorVersion, ...(includeText === true ? { extractedText: row.extractedText } : {}) };
+    return { ...base, ...(includeText === true ? { extractedText: row.extractedText } : {}) };
   };
 }

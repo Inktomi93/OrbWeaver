@@ -8,9 +8,10 @@
 // precedent).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import { BACK_TO_PARENT_CHAT_LABEL } from "../../../../../packages/client/src/features/chat/lib/chat-options-names.ts";
 import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { ChatGameModeMenuStory, ChatOptionsMenuStory } from "../_ct-stories.tsx";
+import { ChatForkMenuStory, ChatGameModeMenuStory, ChatOptionsMenuStory } from "../_ct-stories.tsx";
 import { CHAT_ID, CHAT_ROOM_ROUTES } from "../fixtures.ts";
 
 /** One chats-list row — the fields the row's markers read; the census counts `isGame`. */
@@ -195,4 +196,48 @@ test("#863: turning game mode OFF announces the kept state AND repaints the chat
   // The census flips WITHOUT a reload: `chat.listChats` is in the mutation's invalidation set (#863 P2 —
   // it was not, and the ⚔ marker outlived the toggle for the rest of the session).
   await expect(component.getByText("Game rows: 0")).toBeVisible();
+});
+
+// ── Back to parent chat: a fork's way back, offered only where the lineage read names the parent ─────────
+const PARENT_CHAT_ID = "chat_ct_parent";
+
+/** The fork's room read: `parentChatId` set, everything else the room default. */
+const FORK_ROOM = { ...CHAT_ROOM_ROUTES, "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], parentChatId: PARENT_CHAT_ID } };
+
+/** One lineage row; only `id` is the subject, the rest is the summary wire at its empty defaults. */
+function lineageRow(id: string): TrpcWireOutput<"chat.getChatLineage">["chain"][number] {
+  return { ...LIST_ROW, id, isGame: false };
+}
+
+test("a fork whose parent the viewer can open offers Back to parent chat, and it opens the parent", async ({ mount, page }) => {
+  await routeTrpc(page, { ...FORK_ROOM, "chat.getChatLineage": { chain: [lineageRow(PARENT_CHAT_ID), lineageRow(CHAT_ID)] } });
+  const component = await mount(<ChatForkMenuStory />);
+
+  await component.getByRole("button", { name: "Chat options", exact: true }).click();
+  await page.getByRole("menuitem", { name: BACK_TO_PARENT_CHAT_LABEL, exact: true }).click();
+  await expect(component.getByTestId("ct-active-chat")).toHaveText(`active=${PARENT_CHAT_ID}`);
+});
+
+// D27: a fork grants no parent membership, so the lineage read omits a parent this viewer cannot open, and
+// the item is a permission omit rather than a door into a NOT_FOUND.
+test("a fork whose parent the lineage omits offers no Back to parent chat", async ({ mount, page }) => {
+  await routeTrpc(page, { ...FORK_ROOM, "chat.getChatLineage": { chain: [lineageRow(CHAT_ID)] } });
+  const component = await mount(<ChatForkMenuStory />);
+
+  await component.getByRole("button", { name: "Chat options", exact: true }).click();
+  // The lineage answer has rendered (the passive readout shares its cache entry), so the absence below is the
+  // settled verdict on a chain without the parent, not a read still in flight.
+  await expect(component.getByTestId("ct-lineage")).toHaveText("lineage=1");
+  await expect(page.getByRole("menuitem", { name: "Rename", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: BACK_TO_PARENT_CHAT_LABEL })).toHaveCount(0);
+});
+
+test("a chat that is not a fork offers no Back to parent chat and never reads lineage", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], parentChatId: null } });
+  const component = await mount(<ChatForkMenuStory />);
+
+  await component.getByRole("button", { name: "Chat options", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Rename", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: BACK_TO_PARENT_CHAT_LABEL })).toHaveCount(0);
+  await expect.poll(() => trpc.count("chat.getChatLineage")).toBe(0);
 });

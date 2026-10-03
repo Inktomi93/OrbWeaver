@@ -1,5 +1,5 @@
-// verb: get — owner-scoped fetchOwned. Load-bearing: returns the detail view (extractorVersion always,
-// extractedText ONLY with includeText); a foreign/missing id throws DocumentNotFoundError (no existence leak).
+// verb: get — owner-scoped fetchOwned. Load-bearing: returns the detail view (extractedText ONLY with
+// includeText); a foreign/missing id throws DocumentNotFoundError (no existence leak).
 
 import type { DocumentId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -17,7 +17,7 @@ test("returns the detail view; extractedText only when includeText", async () =>
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "marsh.md", text: TEXT });
 
   const lean = await h.service.get({ principal: principalFor(owner), id: document.id });
-  expect(lean.extractorVersion).toBe("none");
+  expect(lean.name).toBe("marsh.md");
   expect(lean.extractedText).toBeUndefined();
 
   const full = await h.service.get({ principal: principalFor(owner), id: document.id, includeText: true });

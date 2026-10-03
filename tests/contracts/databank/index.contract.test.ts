@@ -1,11 +1,13 @@
 import type { DocOrigin, IngestPhase, ScraperKind } from "@orb/contracts/databank";
 import {
+  bankHealthViewSchema,
   chatDocumentVisibilitySchema,
   chunkParamsSchema,
   DEFAULT_CHAT_DOCUMENT_VISIBILITY,
   DOC_ORIGINS,
   databankSettingsSchema,
   docOriginSchema,
+  documentDetailViewSchema,
   documentIdSchema,
   documentViewSchema,
   INGEST_PHASES,
@@ -132,6 +134,17 @@ test("documentViewSchema accepts a well-formed view and rejects a bad origin", (
   };
   expect(documentViewSchema.parse(view)).toMatchObject({ name: "notes.md", origin: "text" });
   expect(documentViewSchema.safeParse({ ...view, origin: "pdf" }).success).toBe(false);
+  // The detail view is the same strict row plus the opt-in canon. The extractor version stays a stored column:
+  // the re-extract prompt reads the census count, so a per-document version is not on the wire.
+  expect(documentDetailViewSchema.parse({ ...view, extractedText: "canon" })).toEqual({ ...view, extractedText: "canon" });
+  expect(documentDetailViewSchema.safeParse({ ...view, extractorVersion: "1" }).success).toBe(false);
+});
+
+test("bankHealthViewSchema requires the stale-extraction census beside the phase counts", () => {
+  const health = { total: 2, passages: 3, chunks: 3, byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 2, stalled: 0 }, staleExtraction: 1 };
+  expect(bankHealthViewSchema.parse(health)).toEqual(health);
+  const { staleExtraction: _omitted, ...withoutCensus } = health;
+  expect(bankHealthViewSchema.safeParse(withoutCensus).success).toBe(false);
 });
 
 test("chatDocumentVisibilitySchema (D85) validates a branded document-id set and default-denies stray keys", () => {

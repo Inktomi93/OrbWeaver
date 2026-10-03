@@ -114,7 +114,13 @@ function stub(
     "tag.listTagsWithUsage": () => [],
     "chat.listChats": () => ({ items: [], nextCursor: null }),
     "databank.list": () => ({ items: [], nextCursor: null, totalCount: 0 }),
-    "databank.bankHealth": () => ({ total: 0, passages: 0, chunks: 0, byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 } }),
+    "databank.bankHealth": () => ({
+      total: 0,
+      passages: 0,
+      chunks: 0,
+      staleExtraction: 0,
+      byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 },
+    }),
   });
 }
 

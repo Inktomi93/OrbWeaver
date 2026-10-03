@@ -14,9 +14,10 @@ import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { loadParticipants } from "../../../../../packages/server/src/domain/chat/persistence/participants-read.ts";
 import { createParticipants } from "../../../../../packages/server/src/domain/chat/verbs/participants.ts";
+import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../../domain/chat/_support.ts";
+import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedChat, seedParticipant, seedUser } from "../../../domain/chat/_support.ts";
 import { caller, principal as callerPrincipal, makeContext } from "../_support.ts";
 
 /** Owner-scoped `getCard` fake mirroring the real one (D28) — `addCharacterToChat` resolves the card only
@@ -36,6 +37,41 @@ let db: Db;
 
 beforeEach(async () => {
   db = await freshDb();
+});
+
+describe("chat.getChatLineage — the fork ancestry through the real router, gated per ancestor (D27)", () => {
+  /** The read slice behind the procedure. Lineage summaries read only the roster; every other dep refuses,
+   *  so a lineage read that reached for a connection or an assemble input would red here. */
+  function lineageRead(): ReturnType<typeof createRead>["getChatLineage"] {
+    const unused = (): Promise<never> => Promise.reject(new Error("unused: lineage summaries read only the roster"));
+    return createRead(makeChatContext(db), {
+      loadParticipantViews: makeLoadParticipantViews(db),
+      resolveConnection: unused,
+      checkSendAvailability: unused,
+      getNextTurnConnection: unused,
+      resolveForeignInputs: unused,
+    }).getChatLineage;
+  }
+
+  test("a member of both chats sees the parent; a fork-only member's chain omits it; a stranger is NOT_FOUND", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const forkGuest = await seedUser(db, castId<Handle>("fork-guest"));
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
+    const parent: ChatId = await seedChat(db, "parent", { id: mintTypeId(ID_PREFIX.chat) });
+    const fork: ChatId = await seedChat(db, "fork", { id: mintTypeId(ID_PREFIX.chat), parentChatId: parent });
+    await seedParticipant(db, { chatId: parent, key: "parent_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: fork, key: "fork_h", userId: host, role: "host" });
+    // Invited into the fork only: a fork grants no membership of its parent.
+    await seedParticipant(db, { chatId: fork, key: "fork_g", userId: forkGuest, role: "member" });
+
+    const getChatLineage = lineageRead();
+    const as = (userId: UserId): ReturnType<typeof caller> =>
+      caller(makeContext({ auth: callerPrincipal("user", { userId }), services: { chat: { getChatLineage } } }));
+
+    expect((await as(host).chat.getChatLineage({ chatId: fork })).chain.map((c) => c.id)).toEqual([parent, fork]);
+    expect((await as(forkGuest).chat.getChatLineage({ chatId: fork })).chain.map((c) => c.id)).toEqual([fork]);
+    await expect(as(stranger).chat.getChatLineage({ chatId: fork })).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
 });
 
 describe("chat.removeCharacterFromChat — the symmetric drop, driven through the real router + roster service", () => {
