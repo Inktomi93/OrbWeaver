@@ -57,7 +57,7 @@ function fixtureHtml(mode: FixtureMode): string {
     const render = (id) => {
       const body = document.querySelector("#rpg-body");
       body.dataset.slot = id.replace(".", "-") + "-tab";
-      body.textContent = labels[id] + (id === "rpg.map" ? " — Maps unlock with the map arc" : "");
+      body.textContent = labels[id] + (id === "rpg.map" ? " — Maps are planned" : "");
     };
     globalThis.__orb = {
       resetEvidence(){},
@@ -163,7 +163,7 @@ test("the shipped tape seeds, opens, walks, maps, screenshots, and reads the sam
     expect(evalPayloads(data)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ chatId: "chat_rpg_fixture" }),
-        { tab: "rpg.map", status: "opened", lock: "Maps unlock with the map arc" },
+        { tab: "rpg.map", status: "opened", lock: "Maps are planned" },
         { tab: "rpg.game", status: "opened" },
       ]),
     );

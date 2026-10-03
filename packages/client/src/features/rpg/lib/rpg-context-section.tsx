@@ -32,7 +32,7 @@ import { RpgGameTab } from "../components/rpg-game-tab.tsx";
 import { RpgGameTabBody } from "../components/rpg-game-tab-body.tsx";
 import { RpgInventoryTab } from "../components/rpg-inventory-tab.tsx";
 import { RpgJournalTab } from "../components/rpg-journal-tab.tsx";
-import { RpgMapTab } from "../components/rpg-map-tab.tsx";
+import { RPG_MAP_PLANNED, RpgMapTab } from "../components/rpg-map-tab.tsx";
 import { RpgQuestsTab } from "../components/rpg-quests-tab.tsx";
 import { RpgSceneTab } from "../components/rpg-scene-tab.tsx";
 import { RpgStatusTab } from "../components/rpg-status-tab.tsx";
@@ -126,8 +126,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
     },
     {
       // The ONE PHASE-locked tab ("Map"): visible, wearing a lock glyph with its reason
-      // on `title` — the promise visible, the gate honest. RV-7: it OPENS, onto the coming-soon body the
-      // mock drew (`map.html`); MA-3 replaces that with the region map. Because it opens for every input,
+      // on `title`. RV-7: it OPENS, onto the planned-feature body. Because it opens for every input,
       // the bracket's cell does NOT mark it `aria-disabled` (2026-08-01 side-eye: announcing "unavailable"
       // over a tab that Enter and a click both open is two stories) — `disabledReason` is the LOCK's reason
       // here, and the cell decides how to wear it.
@@ -136,9 +135,8 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       icon: MapIcon,
       strip: "game",
       when: isGameChat,
-      // No internal arc id in player-facing copy (side-eye 2026-08-06 P3 — the panel body's "arrives with
-      // MA-3" chip went for the same reason; a ticket number is a fact a player cannot use).
-      disabledReason: (): string => "Maps unlock with the map arc",
+      // Plain "planned" wording: no program name, no ticket id, no unlock the player could earn.
+      disabledReason: (): string => RPG_MAP_PLANNED,
       body: (s): ReactNode =>
         isGameChat(s) ? (
           <Surface tier="instrument">

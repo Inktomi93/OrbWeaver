@@ -18,8 +18,8 @@ const PREVIEW_TRACE = {
   worldInfoIncluded: 2,
   worldInfoDropped: [{ id: "wi_1", reason: "budget" as const }],
   worldInfoActivated: [
-    { id: "we_dragon", keys: ["dragon", "wyrm"] },
-    { id: "we_intro", keys: [] },
+    { id: "we_dragon", title: "Dragon lore", keys: ["dragon", "wyrm"] },
+    { id: "we_intro", title: "", keys: [] },
   ],
   matchedKeys: [{ key: "cake", matchedLatestUserMessage: true }],
   compactSummaryIncluded: true,
@@ -395,7 +395,10 @@ test("the diagnostics drawer still carries the BUILD + SHAPE traces (collapsed b
   await expect(component.getByText("10 → 11 → 9 → 9")).toBeVisible();
   await expect(component.getByText("Placed (offset 3 from end)")).toBeVisible();
   await expect(component.getByText("World info — 2 activated")).toBeVisible();
-  await expect(component.getByText("we_dragon")).toBeVisible();
+  // Fired lore is named by its TITLE, never its raw id; a blank title still gets a row, but no id in its place.
+  await expect(component.getByText("Dragon lore")).toBeVisible();
+  await expect(component.getByText("we_dragon")).toHaveCount(0);
+  await expect(component.getByText("we_intro")).toHaveCount(0);
   await expect(component.getByText("always")).toBeVisible();
   // memoryIncluded:false → no active flag BADGE. Scoped to the badge and exact-matched on purpose: a bare
   // `getByText("Memory")` now also matches the recall section's heading (#250), which would make this pin

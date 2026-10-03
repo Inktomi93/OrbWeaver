@@ -137,8 +137,11 @@ function TraceSummary({ trace }: { readonly trace: AssembleTrace }): ReactElemen
   );
 }
 
-/** The WI entries that actually FIRED into this turn's prompt (budget-survived), by identity — each row is the
- *  entry id + its keyword list (keys empty ⇒ an always-scope entry). Distinct from the `matchedKeys` line on
+/** What a fired entry with a blank title is called — an imported book can carry untitled entries. */
+const UNTITLED_ENTRY = "Untitled entry";
+
+/** The WI entries that actually FIRED into this turn's prompt (budget-survived) — each row is the entry's
+ *  title + its keyword list (keys empty ⇒ an always-scope entry). Distinct from the `matchedKeys` line on
  *  the Trace section (keyword strings, not entry identity). Empty ⇒ a one-line explanation, never a blank. */
 function WorldInfoActivated({ activated }: { readonly activated: AssembleTrace["worldInfoActivated"] }): ReactElement {
   return (
@@ -149,7 +152,7 @@ function WorldInfoActivated({ activated }: { readonly activated: AssembleTrace["
         <Stack gap="field">
           {activated.map((entry) => (
             <Row key={entry.id} gap="block" justify="between" align="center">
-              <Text voice="datum">{entry.id}</Text>
+              <Text voice="datum">{entry.title.trim() === "" ? UNTITLED_ENTRY : entry.title}</Text>
               <Text voice="gloss">{entry.keys.length === 0 ? "always" : entry.keys.join(", ")}</Text>
             </Row>
           ))}

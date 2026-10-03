@@ -27,6 +27,7 @@ test("the 8 assemble shapes pin (slim projections; AssembleContext refs PromptCo
   const persona: AssemblePersona = { name: "Alice", description: "the user" };
   const entry: AssembleWorldEntry = {
     id: mintTypeId(ID_PREFIX.worldEntry),
+    title: "Eld",
     content: "the kingdom of Eld",
     scope: "always",
     keys: [],
@@ -47,7 +48,7 @@ test("the 8 assemble shapes pin (slim projections; AssembleContext refs PromptCo
     dynamicSections: [],
     worldInfoIncluded: 1,
     worldInfoDropped: [],
-    worldInfoActivated: [{ id: "we_1", keys: ["dragon"] }],
+    worldInfoActivated: [{ id: "we_1", title: "Dragon", keys: ["dragon"] }],
     matchedKeys: [],
     compactSummaryIncluded: false,
     memoryIncluded: false,

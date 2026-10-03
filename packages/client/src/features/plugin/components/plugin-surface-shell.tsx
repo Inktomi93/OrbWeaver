@@ -8,7 +8,7 @@
 // surface sits inside chrome a person is already reading as "someone else's panel", while a PAGE fills the whole
 // CONTENT region and is, in the design's own words, the biggest impersonation canvas here — a page can draw a
 // convincing fake settings screen out of house primitives. So the page scale's attribution band is PINNED above
-// the scrollable body (it cannot be scrolled away), carries an explicit "Extension" kicker naming the CLASS of
+// the scrollable body (it cannot be scrolled away), carries an explicit "Plugin" kicker naming the CLASS of
 // thing this is, and has NO opt-out. The CT floor pins the band's presence on every page.
 
 import { Blocks, Icon } from "@orb/ui/icons";
@@ -70,10 +70,10 @@ export function PluginSurfaceShell({ pluginName, title, scale = "panel", childre
               <Text voice="gloss">{title}</Text>
             </>
           ) : null}
-          {/* The KICKER names the CLASS, not the instance: "this is an extension", which is the sentence a
+          {/* The KICKER names the CLASS, not the instance: "this is a plugin", which is the sentence a
               faked settings screen most needs contradicted. */}
           <Text className="ms-auto" voice="kicker">
-            Extension
+            Plugin
           </Text>
         </Row>
         {/* `relative` is load-bearing, not decoration: a scroll container establishes no containing block on

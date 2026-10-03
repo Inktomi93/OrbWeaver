@@ -47,7 +47,7 @@
 // the teaser in the gloss voice, the state line as a FOOTNOTE-scale mono line — and NO interactive
 // element at all (no button, no skeleton, no spinner). `empty-states-are-load-bearing`: omitting the tile
 // would say "this product has no companion"; a fake-loading tile would lie. It has NO band of its own
-// and no `Dormant` badge any more: HomeSurface collects every declared doorway under ONE "What's coming"
+// and no `Dormant` badge any more: HomeSurface collects every declared doorway under ONE "Planned"
 // group (the mockup's right-rail move), so the group's own name says what the per-tile badge used to,
 // once instead of N times — and since #455 that group is a FOLD, collapsed by default, so this body only
 // ever renders once a reader has asked for it.
@@ -102,7 +102,7 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
 }
 
 /** The DORMANT doorway — what this will be, and exactly what must land first. Zero controls, and no band
- *  of its own: HomeSurface groups every doorway under one "What's coming" fold. The dashed LEFT rule is the
+ *  of its own: HomeSurface groups every doorway under one "Planned" fold. The dashed LEFT rule is the
  *  mockup's `.doorway` treatment — the "not built yet" signal at a fraction of a dashed card's weight. */
 export function HomeDoorway({ tile, doorway }: { readonly tile: HomeTileContribution; readonly doorway: DormantDoorway }): ReactElement {
   return (
@@ -211,7 +211,7 @@ export function HomeTile({ tile, column }: { readonly tile: HomeTileContribution
   // NO DOORWAY ARM HERE (review 2026-08-17 F7). The frame used to re-check `tile.body` for the `{dormant}`
   // shape and render `HomeDoorway` itself — residue from before the doorways were GROUPED. HomeSurface
   // partitions the registry first (`live`/`doorways`) and renders every doorway through `HomeDoorway`
-  // directly inside the shared "What's coming" fold, so every tile that reaches this frame is already live and the
+  // directly inside the shared "Planned" fold, so every tile that reaches this frame is already live and the
   // branch was unreachable: a second home for a decision that has one. `HomeTile` has exactly one importer
   // (home-surface.tsx), which is what makes that provable rather than hopeful.
   // The MASTHEAD is bandless and landmark-less by design (see the header): its body renders the page's

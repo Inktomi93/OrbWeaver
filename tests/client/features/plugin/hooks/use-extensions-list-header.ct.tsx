@@ -1,6 +1,6 @@
 // CT: the Extensions LIST chrome-band header (#1190) — the section identity that fills the
 // `.shell-panel-header` band via the `useListHeader` mint slot, mirroring `corpus-list-header.ct.tsx`. Pins that
-// the band names the section ("Extensions") and states the live page count; a zero count renders the title
+// the band names the section ("Plugin pages") and states the live page count; a zero count renders the title
 // alone (no "0"), matching every other section's band idiom (`ListPaneHeader`'s own zero-census rule).
 
 import type { PluginId } from "@orb/kit/ids";
@@ -51,7 +51,7 @@ test("the LIST band names Extensions and states the live page count", async ({ m
   });
   const component = await mount(<ExtensionsListHeaderStory />);
 
-  await expect(component.getByText("Extensions")).toBeVisible();
+  await expect(component.getByText("Plugin pages")).toBeVisible();
   await expect(component.getByText("2")).toBeVisible();
 });
 
@@ -62,6 +62,6 @@ test("zero registered pages renders the title alone, no number", async ({ mount,
   });
   const component = await mount(<ExtensionsListHeaderStory />);
 
-  await expect(component.getByText("Extensions")).toBeVisible();
+  await expect(component.getByText("Plugin pages")).toBeVisible();
   await expect(component.getByText("0")).toHaveCount(0);
 });
