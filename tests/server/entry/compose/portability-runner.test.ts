@@ -26,6 +26,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
+import type { WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorkloadId } from "@orb/kit/ids";
@@ -224,7 +225,7 @@ describe("createEnqueueImportIndex — the post-import enqueue is the free index
     return {
       calls,
       workloads: {
-        start: (params: StartWorkloadParams): Promise<{ id: WorkloadId }> => {
+        start: (params: StartWorkloadParams): Promise<WorkloadRef> => {
           calls.push(params);
           if (params.input.kind === "index" && activeIndexId !== null) {
             if (params.adoptActive !== true) {
@@ -260,7 +261,7 @@ describe("createSettleImportMemory — an import's span, and its free segment pa
   const To = 1900;
   const chatId = mintTypeId(ID_PREFIX.chat);
 
-  function recordingDoor(answer: (params: StartWorkloadParams) => Promise<{ id: WorkloadId }>): {
+  function recordingDoor(answer: (params: StartWorkloadParams) => Promise<WorkloadRef>): {
     readonly calls: StartWorkloadParams[];
     readonly workloads: Pick<WorkloadService, "start">;
   } {
@@ -268,7 +269,7 @@ describe("createSettleImportMemory — an import's span, and its free segment pa
     return {
       calls,
       workloads: {
-        start: (params: StartWorkloadParams): Promise<{ id: WorkloadId }> => {
+        start: (params: StartWorkloadParams): Promise<WorkloadRef> => {
           calls.push(params);
           return answer(params);
         },

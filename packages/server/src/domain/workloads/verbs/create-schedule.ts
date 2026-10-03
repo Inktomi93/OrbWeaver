@@ -7,9 +7,9 @@
 //      stamps the explicit `ownerId` (BAD_REQUEST if that too is null — you can't mint an ownerless schedule).
 // The first run is one cadence-interval out (a fresh nightly schedule doesn't fire the instant it's created).
 
+import type { WorkloadScheduleRef } from "@orb/contracts/workloads";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { WorkloadScheduleId } from "@orb/kit/ids";
 import type { CreateScheduleParams } from "../contract/schedule.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { insertSchedule } from "../persistence/schedule-queries.ts";
@@ -17,7 +17,7 @@ import { assertKindSupportsMode } from "../substrate/authorize.ts";
 import { parseWorkloadInput } from "../substrate/params.ts";
 
 export function createCreateSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "createSchedule"> {
-  async function createSchedule(params: CreateScheduleParams): Promise<{ id: WorkloadScheduleId }> {
+  async function createSchedule(params: CreateScheduleParams): Promise<WorkloadScheduleRef> {
     const input = parseWorkloadInput(ctx.getContributions(), params.input);
     assertKindSupportsMode(input.kind, params.mode);
     if (params.mode === "bulk" && params.caller !== null) {

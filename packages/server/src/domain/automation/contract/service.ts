@@ -4,7 +4,7 @@
 // watcher/dispatch slice implement. The action-arms slice wires the injected `runArm` dispatcher + WIDENS
 // `AutomationOps` with the write ops — no stubs, no reserved slots here.
 
-import type { AutomationRuleToolView, GlobalVariableView, OwnerBudgetView, RulePresetView } from "@orb/contracts/automation";
+import type { AutomationRuleTools, GlobalVariableView, OwnerBudgetView, RulePresetView } from "@orb/contracts/automation";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
@@ -152,7 +152,7 @@ export interface AutomationService {
    *  read: the scope is `principal.userId`, so there is no id to pass and no lane but your own to see. */
   readonly listOwnerRules: (params: ListOwnerRulesParams) => Promise<RuleView[]>;
   /** The caller's currently drivable plugin-tool metadata; never an alternate author's catalog. */
-  readonly listRuleTools: (params: ListRuleToolsParams) => Promise<AutomationRuleToolView[]>;
+  readonly listRuleTools: (params: ListRuleToolsParams) => Promise<AutomationRuleTools>;
   /** The debug surface: a rule's recent fire log (host-only), newest first. */
   readonly listFires: (params: ListFiresParams) => Promise<FireView[]>;
   /** B11 — the room ACTIVITY read: a chat's recent fire log across ALL its rules (host-only), newest first.

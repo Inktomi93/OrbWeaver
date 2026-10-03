@@ -5,9 +5,8 @@
 // caller-supplied future instant is persisted verbatim (absent ⇒ now) and the SAME head query gates on it,
 // so a "Run at" row stays out of the dispatch window until its instant.
 
-import type { WorkloadKind } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadRef } from "@orb/contracts/workloads";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
-import type { WorkloadId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { isActiveKindUniqueViolation, isOwnerForeignKeyViolation } from "../persistence/constraints.ts";
@@ -29,7 +28,7 @@ type AdmissionRow = Omit<Parameters<typeof insertWorkload>[1], "id">;
  * holder existing to be adopted. A conflict with no adoptable row after that is reported as the conflict it
  * is.
  */
-async function admit(ctx: WorkloadServiceContext, row: AdmissionRow, adoptActive: boolean): Promise<{ id: WorkloadId }> {
+async function admit(ctx: WorkloadServiceContext, row: AdmissionRow, adoptActive: boolean): Promise<WorkloadRef> {
   // @orb-waive caught-failure-ownership(err): the ONE absorbed failure is the single-active
   // collision under an explicit `adoptActive` caller, and it is absorbed by RESOLVING it — the caller gets
   // the id of the run that already holds the slot, which is the outcome it asked for. Every other arm throws
@@ -66,7 +65,7 @@ async function admit(ctx: WorkloadServiceContext, row: AdmissionRow, adoptActive
 }
 
 /** One admission attempt: a freshly minted id (a retry must never reuse one) and the insert. */
-async function insertOnce(ctx: WorkloadServiceContext, row: AdmissionRow): Promise<{ id: WorkloadId }> {
+async function insertOnce(ctx: WorkloadServiceContext, row: AdmissionRow): Promise<WorkloadRef> {
   const id = ctx.newWorkloadId();
   await insertWorkload(ctx.db, { ...row, id });
   return { id };
@@ -91,7 +90,7 @@ function asConflict(cause: unknown, kind: WorkloadKind): DomainConflictError {
 }
 
 export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, "start"> {
-  async function start(params: StartWorkloadParams): Promise<{ id: WorkloadId }> {
+  async function start(params: StartWorkloadParams): Promise<WorkloadRef> {
     const contributions = ctx.getContributions();
     const input = parseWorkloadInput(contributions, params.input);
     const ownerId = resolveRunOwner(ctx.requireOwner, params, input.kind);
