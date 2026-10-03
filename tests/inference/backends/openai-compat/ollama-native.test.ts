@@ -160,6 +160,132 @@ test("recorded thinking comes back as reasoning, apart from the answer", async (
   expect(result.reply).toBe("2 + 3 = 5.");
 });
 
+test("a folded turn with reasoning unset sends think false; unfolded, the server's default stands", async () => {
+  // With no `think` field Ollama runs a thinking model's default, and a template that thinks answers a folded turn
+  // with the state calls alone.
+  const thinking = capability({ reasoning: { mode: "effort", enabled: true } });
+  const thinkSent = async (params: UserIntent, terminalToolsAttached: boolean): Promise<unknown> => {
+    const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+      connection: fakeResolved({ task: "chat", providerId: "ollama", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL }),
+      params,
+      ...(terminalToolsAttached ? { terminalToolsAttached } : {}),
+    });
+    return recorded[0]?.body["think"];
+  };
+  expect(await thinkSent({}, true)).toBe(false);
+  expect(await thinkSent({}, false)).toBeUndefined();
+  expect(await thinkSent({ effort: "high" }, true)).toBe(true);
+});
+
+test("a think the user's own body sets stands over the computed one, on the Ollama row and on a Custom row detected as Ollama", async () => {
+  const thinking = capability({ reasoning: { mode: "effort", enabled: true } });
+  const ollama = fakeResolved({ task: "chat", providerId: "ollama", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL });
+  const custom = fakeResolved({ task: "chat", providerId: "custom-openai", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL });
+  // Detection folds the registered row, then the detected one (`behavedFeatures`).
+  const detected = { ...custom, features: foldFeatures(builtinProvider("custom-openai")?.features, builtinProvider("ollama")?.features) };
+  const cases = [
+    { name: "folded, unset, includeBody", connection: { ...ollama, transport: { includeBody: { think: true } } }, params: {}, folded: true },
+    { name: "folded, unset, extras", connection: { ...ollama, extras: { think: true } }, params: {}, folded: true },
+    {
+      name: "unfolded, chosen off, includeBody",
+      connection: { ...ollama, transport: { includeBody: { think: true } } },
+      params: { effort: "none" },
+      folded: false,
+    },
+    { name: "detected, folded, unset, includeBody", connection: { ...detected, transport: { includeBody: { think: true } } }, params: {}, folded: true },
+  ] satisfies { name: string; connection: OpenAiCompatChatRequest["connection"]; params: UserIntent; folded: boolean }[];
+  for (const { name, connection, params, folded } of cases) {
+    const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], { connection, params, ...(folded ? { terminalToolsAttached: true } : {}) });
+    expect(recorded[0]?.url, name).toBe("http://127.0.0.1:11434/api/chat");
+    expect(recorded[0]?.body["think"], name).toBe(true);
+  }
+});
+
+test("a think the user excluded stays absent, folded or chosen, on the Ollama row and on a Custom row detected as Ollama", async () => {
+  const thinking = capability({ reasoning: { mode: "effort", enabled: true } });
+  const ollama = fakeResolved({ task: "chat", providerId: "ollama", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL });
+  const custom = fakeResolved({ task: "chat", providerId: "custom-openai", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL });
+  const detected = { ...custom, features: foldFeatures(builtinProvider("custom-openai")?.features, builtinProvider("ollama")?.features) };
+  const turns = [
+    { params: {}, folded: true },
+    { params: { effort: "none" }, folded: false },
+    { params: { effort: "low" }, folded: false },
+  ] satisfies { params: UserIntent; folded: boolean }[];
+  for (const [row, base] of [
+    ["ollama", ollama],
+    ["detected", detected],
+  ] as const) {
+    for (const { params, folded } of turns) {
+      const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+        connection: { ...base, transport: { excludeBody: ["think"] } },
+        params,
+        ...(folded ? { terminalToolsAttached: true } : {}),
+      });
+      expect(Object.hasOwn(recorded[0]?.body ?? {}, "think"), `${row} ${JSON.stringify(params)} folded=${String(folded)}`).toBe(false);
+    }
+  }
+});
+
+test("every native key the user's body sets or excludes is theirs over the wire: keep_alive, format, stream, options", async () => {
+  const ollama = fakeResolved({
+    task: "chat",
+    providerId: "ollama",
+    model: "qwen2.5:0.5b",
+    capability: capability(),
+    baseUrl: BASE_URL,
+    declaredFeatures: { keepAlive: "30m", numBatch: 256 },
+  });
+  const custom = fakeResolved({ task: "chat", providerId: "custom-openai", model: "qwen2.5:0.5b", capability: capability(), baseUrl: BASE_URL });
+  const detected = { ...custom, features: foldFeatures(builtinProvider("custom-openai")?.features, builtinProvider("ollama")?.features, { keepAlive: "30m" }) };
+  const schema = wireSchema({ type: "object", properties: { mood: { type: "string" } }, required: ["mood"], additionalProperties: false });
+  for (const [row, base] of [
+    ["ollama", ollama],
+    ["detected", detected],
+  ] as const) {
+    const set = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+      connection: { ...base, transport: { includeBody: { keep_alive: "5m", format: "json" } } },
+      responseFormat: { name: "mood", schema },
+    });
+    const sent = set.recorded[0]?.body ?? {};
+    expect([sent["keep_alive"], sent["format"]], row).toEqual(["5m", "json"]);
+    const dropped = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+      connection: { ...base, transport: { excludeBody: ["format", "stream", "options"] } },
+      responseFormat: { name: "mood", schema },
+    });
+    const bare = dropped.recorded[0]?.body ?? {};
+    expect(
+      ["format", "stream", "options"].filter((key) => Object.hasOwn(bare, key)),
+      row,
+    ).toEqual([]);
+  }
+});
+
+test("toOllamaChat: a user-owned key stands as set or stays excluded; a user options object takes ours under it", () => {
+  const args = { numCtx: WINDOW, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t", keepAlive: "30m", numBatch: 256 };
+  const theirs = [{ role: "user", content: [{ type: "image_url", image_url: { url: "https://cdn/x.png" } }] }];
+  const set = toOllamaChat(
+    { messages: theirs, stream: "yes", format: "json", ["keep_alive"]: "5m", options: { ["num_ctx"]: 2048 }, ["response_format"]: { type: "json_object" } },
+    { ...args, userOwned: new Set(["messages", "stream", "format", "keep_alive", "options"]) },
+  );
+  expect(set).toMatchObject({ messages: theirs, stream: "yes", format: "json", ["keep_alive"]: "5m" });
+  expect(set["options"]).toEqual({ ["num_ctx"]: 2048, ["num_batch"]: 256 });
+  const excluded = toOllamaChat(
+    { messages: [], ["reasoning_effort"]: "none", ["response_format"]: { type: "json_object" } },
+    { ...args, userOwned: new Set(["think", "format", "stream", "options", "keep_alive"]) },
+  );
+  expect(["think", "format", "stream", "options", "keep_alive"].filter((key) => Object.hasOwn(excluded, key))).toEqual([]);
+});
+
+test("a model whose reasoning is mandatory (gpt-oss) is never told off on a folded turn with reasoning unset", async () => {
+  const mandatory = capability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], mandatory: true } });
+  const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+    connection: fakeResolved({ task: "chat", providerId: "ollama", model: "gpt-oss:20b", capability: mandatory, baseUrl: BASE_URL }),
+    params: {},
+    terminalToolsAttached: true,
+  });
+  expect(recorded[0]?.body["think"]).not.toBe(false);
+});
+
 test("think: a model with named effort levels (gpt-oss) gets the level, any other model on/off, and none turns it off", () => {
   const body = (effort: string): Record<string, unknown> => ({ messages: [{ role: "user", content: "hi" }], ["reasoning_effort"]: effort });
   const args = { numCtx: undefined, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" };

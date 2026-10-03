@@ -161,8 +161,8 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
       api: req.task,
       plan: null,
       prefillAllowed: false,
-      // A side-generation call that does not reason tells the template too (body rule 5b).
-      thinkingOff: !reasoning.enabled,
+      // The template switch follows the resolved side-gen reasoning: off when it does not run, on when it does.
+      templateThinking: reasoning.enabled,
       foldSameRole: false,
       replyImages: false,
       warnings: [],

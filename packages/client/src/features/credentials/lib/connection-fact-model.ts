@@ -363,7 +363,7 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
   },
   { path: "keepAlive", name: "keep model loaded for", edit: { kind: "text" }, unset: "not set — the server's default" },
   { path: "numBatch", name: "prompt batch size", edit: { kind: "number" }, unset: "not set — the server's default" },
-  { path: "thinkingOff", name: "thinking off switch", edit: { kind: "enum", options: THINKING_OFF_SPELLINGS }, unset: NOT_SET },
+  { path: "thinkingOff", name: "template thinking switch", edit: { kind: "enum", options: THINKING_OFF_SPELLINGS }, unset: NOT_SET },
   // One row per spelling the row states; a server that reads the default key needs none.
   ...SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),
 ];

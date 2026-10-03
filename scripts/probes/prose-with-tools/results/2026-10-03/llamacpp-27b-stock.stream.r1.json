@@ -1,0 +1,280 @@
+{
+  "summary": {
+    "cell": "llamacpp-27b-stock",
+    "server": "llama-cpp",
+    "model": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+    "template": "stock",
+    "mode": "stream",
+    "body": {
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      }
+    },
+    "strict": false,
+    "turns": 10,
+    "both": 3,
+    "proseOnly": 4,
+    "toolsOnly": 3,
+    "empty": 0,
+    "errors": 0,
+    "leaks": 0,
+    "maxPromptTokens": 4657,
+    "medianTokPerSec": 34.45,
+    "medianServerTokPerSec": 33.849999999999994,
+    "ranAt": "2026-10-03T16:40:46.966Z"
+  },
+  "rows": [
+    {
+      "turn": 1,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene", "add_journal_entry"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 13038,
+      "decodeMs": 9029,
+      "promptTokens": 3740,
+      "completionTokens": 320,
+      "tokPerSec": 35.4,
+      "serverTokPerSec": 34.1,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\":\"evening\",\"presentUpsert\":[{\"name\": \"Rook\", \"mood\": \"watchful\", \"thoughts\": \"Find Marro, make the drop, stay out of the rain\"}, {\"name\": \"Marro\", \"emoji\": \"🗝️\", \"mood\": \"wary\", \"appearance\": \"broad, tattooed, salt-stained\", \"outfit\": \"oil-stained leather apron over dark wool\", \"thoughts\": \"Sizing up whether the courier is alone\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"fence\"}}],\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"location\":\"the Drowned Lantern, Saltmere\",\"recentEvent\":\"Rook pushed into the Drowned Lantern and is looking for the fence Marro\"}"
+        },
+        {
+          "name": "add_journal_entry",
+          "arguments": "{\"type\":\"location\",\"content\":\"The Drowned Lantern — a rain-slick tavern on Saltmere's docks. Rook is here to find Marro, a fence, and deliver the Sealed Courier Satchel.\",\"title\":\"The Drowned Lantern\"}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_party", "update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 10720,
+      "decodeMs": 6260,
+      "promptTokens": 3844,
+      "completionTokens": 226,
+      "tokPerSec": 36.1,
+      "serverTokPerSec": 34.3,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"status\":\"wet, watchful, dealing with Marro\"}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"presentUpsert\":[{\"name\": \"Marro\", \"mood\": \"appraising, tight\", \"appearance\": \"thin, ink-stained fingers, close-cropped dark hair\", \"outfit\": \"faded grey coat, leather apron over a shirt\", \"thoughts\": \"weighing whether this satchel is worth the heat\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"fence\"}}, {\"name\": \"Rook\", \"mood\": \"watchful\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"courier\"}}],\"recentEvent\":\"Rook sat down with Marro and set the sealed courier satchel on the table, asking forty gold\"}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "shape": "both",
+      "proseChars": 575,
+      "calls": ["update_inventory", "upsert_quest", "update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 16636,
+      "decodeMs": 15694,
+      "promptTokens": 3923,
+      "completionTokens": 537,
+      "tokPerSec": 34.2,
+      "serverTokPerSec": 34,
+      "content": "Marro leans in, his breath sour with cheap wine. \"The Salt Gate warehouse. Thief slipped it out through the drainage grate — one of the rat-runners who knows the undercity.\" He slides a crumpled sketch across the table, a rough map of the old docks marked with a red X. \"The watch has doubled their rounds since the theft. They're not looking for you, Rook. But they're looking *hard*.\"\n\nHe taps the sketch where the X sits, right beneath the waterline of the old pier. \"You go in, you come out. If you get caught, that purse you're holding buys you a very expensive coffin.\"\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"add\":[{\"name\":\"Crude Sketch\", \"description\":\"A crumpled, ink-stained map of the old docks with a red X marking the Salt Gate drainage grate.\", \"location\":\"pocket\"}, {\"name\":\"Purse of Forty Gold\", \"description\":\"A heavy leather purse, filled with the payment from the Drowned Lantern delivery.\", \"location\":\"belt pouch\"}],\"walletDeltas\":[{\"name\":\"gold\", \"delta\":40}]}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"create\",\"description\":\"Retrieve the stolen harbormaster's ledger from the Salt Gate drainage grate before dawn.\",\"objectives\":[\"Locate the Salt Gate drainage grate\", \"Enter the undercity/drainage system\", \"Retrieve the Harbormaster's Ledger\", \"Return to Marro by dawn\"]}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"recentEvent\":\"Rook accepted a new contract from Marro to retrieve the harbormaster's ledger from the Salt Gate.\",\"presentUpsert\":[{\"name\":\"Rook\", \"mood\":\"ready for the next job\", \"thoughts\":\"Forty gold is a lot, but the watch is closing in.\"}, {\"name\":\"Marro\", \"mood\":\"nervous\", \"thoughts\":\"Hope this courier doesn't get caught; the watch is looking everywhere.\", \"relationship\":{\"kind\":\"ally\"}}]}"
+        }
+      ]
+    },
+    {
+      "turn": 4,
+      "shape": "prose-only",
+      "proseChars": 377,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 4141,
+      "decodeMs": 2933,
+      "promptTokens": 4200,
+      "completionTokens": 101,
+      "tokPerSec": 34.4,
+      "serverTokPerSec": 33.8,
+      "content": "The rain hammers the alley, turning the cobbles into a slick mirror. You keep to the shadows, the crude map tucked in your pocket, and find the chandlery — a low, tar-scented shed with its shutters half-lifted.\n\nA silhouette hunches in the doorway, one eye milky and blind, the other sharp. \"Rook,\" she says flatly. \"You're either very brave or very stupid to come here alone.\"",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 5,
+      "shape": "prose-only",
+      "proseChars": 267,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2924,
+      "decodeMs": 1831,
+      "promptTokens": 4225,
+      "completionTokens": 64,
+      "tokPerSec": 35,
+      "serverTokPerSec": 33.9,
+      "content": "The cudgel cracks across your ribs, and the world tilts. You catch the blade flat against her next swing, sparks flying in the rain, and drive the edge into her forearm. Gessa snarls and stumbles back, but she's bigger than you and the alley gives her room to circle.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 6,
+      "shape": "prose-only",
+      "proseChars": 310,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 3476,
+      "decodeMs": 2263,
+      "promptTokens": 4300,
+      "completionTokens": 78,
+      "tokPerSec": 34.5,
+      "serverTokPerSec": 33.6,
+      "content": "The edge bites clean. Gessa's laugh dies mid-word; she clamps a hand over her thigh and the cudgel clatters away. The ledger drops out of her coat onto the wet stones, and she stares at you with the wrong eye wide. \"That's harbormaster property,\" she hisses. \"Watch's got eyes on every grate in the salt gate.\"",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 7,
+      "shape": "prose-only",
+      "proseChars": 321,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 3560,
+      "decodeMs": 2406,
+      "promptTokens": 4379,
+      "completionTokens": 83,
+      "tokPerSec": 34.5,
+      "serverTokPerSec": 33.7,
+      "content": "You tug the ledger free and shove it into your pack. The linen strip goes around your ribs in two tight passes, and the pain dulls to a hot, throbbing ache that flares with every breath.\n\nRat Alley narrows ahead. The chandlery's door hangs open, a square of yellow light on the wet cobbles. Somewhere above, a gull cries.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 8,
+      "shape": "both",
+      "proseChars": 405,
+      "calls": ["update_scene", "update_party", "set_tracker", "update_inventory", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 18620,
+      "decodeMs": 17515,
+      "promptTokens": 4440,
+      "completionTokens": 596,
+      "tokPerSec": 34,
+      "serverTokPerSec": 33.9,
+      "content": "The fish market is empty at this hour — only gulls and gutted mackerel on ice. Your ribs scream with every stride, but you push through the gap between the salt sheds and down toward the water.\n\nThe bells are still hammering across the harbor. You can see the Salt Gate ahead, its great iron grates set into the seawall, and beyond them the dark mouth of the drainage tunnel. The grate is the only way in.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"Salt Gate, Saltmere\",\"timeOfDay\":\"midnight\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"recentEvent\":\"Rook retrieved the ledger from Gessa and is rushing to the Salt Gate as the watch bells ring midnight.\",\"presentUpsert\":[{\"name\": \"Rook\", \"mood\": \"hurried, in pain\", \"appearance\": \"soaked cloak, linen bandage wrapped tight across the ribs\", \"outfit\": \"wet cloak, shortsword sheathed, pack slung\", \"thoughts\": \"The watch is coming. Need to get through that grate before they spot me.\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"\"}}]}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"Rook\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -3}],\"addCondition\":{\"name\": \"Bruised Ribs\", \"modifier\": -1},\"status\":\"bruised ribs, winded, running\"}"
+        },
+        {
+          "name": "set_tracker",
+          "arguments": "{\"key\":\"heat\",\"value\":30}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"Rook\",\"add\":[{\"name\": \"Harbormaster's Ledger\", \"description\": \"leather-bound, brass clasp, stolen from Gessa and dropped in the mud\", \"quantity\": 1, \"location\": \"pack\"}]}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"completeObjectives\":[\"Locate the Salt Gate drainage grate\", \"Retrieve the Harbormaster's Ledger\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 9,
+      "shape": "both",
+      "proseChars": 326,
+      "calls": ["update_scene", "update_inventory", "update_party", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 18083,
+      "decodeMs": 12236,
+      "promptTokens": 4647,
+      "completionTokens": 415,
+      "tokPerSec": 33.9,
+      "serverTokPerSec": 33.7,
+      "content": "The harbormaster takes the ledger without a word, his thick fingers closing around it. He holds your gaze for a long moment, then turns away to a desk and begins counting out coins. 'You moved fast. The watch has been circling Salt Gate all night.'\n\nHe slides a heavy pouch across the desk. 'For you. And for your discretion.'\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\":\"midnight\",\"recentEvent\":\"Rook returned the harbormaster's ledger to the harbormaster himself and was paid.\",\"presentUpsert\":[{\"name\": \"Harbormaster\", \"emoji\": \"⚖️\", \"mood\": \"wary\", \"appearance\": \"broad-shouldered, salt-weathered face\", \"outfit\": \"heavy wool coat, brass buttons\", \"thoughts\": \"glad the ledger is back, but suspicious of how fast it was recovered\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"client\"}}]}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"remove\":[{\"name\": \"Harbormaster's Ledger\"}]}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"status\":\"bruised ribs, breathing hard, relieved the job is done\"}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"completeObjectives\":[\"Enter the undercity/drainage system\", \"Return to Marro by dawn\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 10,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene", "update_inventory", "update_party"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 12379,
+      "decodeMs": 10982,
+      "promptTokens": 4657,
+      "completionTokens": 377,
+      "tokPerSec": 34.3,
+      "serverTokPerSec": 33.3,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"Drowned Lantern, Salt Gate, Saltmere\",\"timeOfDay\":\"midnight\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"presentUpsert\":[{\"name\": \"Rook\", \"mood\": \"tired, relieved\", \"outfit\": \"rain-soaked courier's cloak, linen binding around ribs\", \"thoughts\": \"One more coin to collect, then find a bed\", \"relationship\": {\"kind\": \"neutral\"}}, {\"name\": \"Marro\", \"mood\": \"wary, calculating\", \"appearance\": \"thin, ink-stained fingers\", \"outfit\": \"worn leather doublet\", \"thoughts\": \"The courier's ribs are bruised — the job cost something\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"fence/client\"}}],\"recentEvent\":\"Rook returns the ledger to Ilse, receives a silver signet ring, and heads back to Marro\"}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"add\":[{\"name\": \"Silver Signet Ring\", \"description\": \"Heavy silver ring, harbormaster's seal worn into the face\", \"location\": \"pocket\"}]}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"status\":\"bruised ribs, rain-soaked, running on fumes\"}"
+        }
+      ]
+    }
+  ]
+}
