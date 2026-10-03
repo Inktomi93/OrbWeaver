@@ -26,4 +26,4 @@ Filled at landing: what ran and where its output is.
 
 Partly built in 6754c7abde (merged 79476c40ee): mermaid option removed, ORBWEAVER_REPO_SLUG, Label each speaker disabled in per-speaker rooms, throughputProvenance, replyMedia knob, Plugin pages copy, Let the room pick. Still open: the phone topbar with Report a bug (side-eye); the home doorway fold (declined, owner-ruled FOLD not cut); the OWNER fork on interactive cards (off / opt-in / default ceiling instead of a boolean).
 
-OWNER RULING (2026-10-03): no off/opt-in/default ceiling. The existing deployment toggle (allowInteractiveCards) plus the per-character lower rungs are the controls; interactive cards just default on. Fork closed.
+Owner ruling: no off/opt-in/default ceiling. The existing deployment toggle (allowInteractiveCards) plus the lower per-character steps are the controls; interactive cards default on. Fork closed.
