@@ -171,7 +171,7 @@ test("an external image LOADS (renders an <img>) when allowExternal=true", async
 test("COMMITTED trust=trusted still renders a raw HTML <img> — the resolved-trust settled path is unchanged", async ({ mount }) => {
   // The counterpart to the ghost's stream-untrusted pin (ghost-message-row.ct.tsx): the #25 fix flips the
   // LIVE stream to untrusted WITHOUT touching the committed path — a message whose resolved policy is
-  // `trusted` (own-user input / a character that opted into rich HTML) still renders permissively. Raw
+  // `trusted` (own-user input / a character resolved at or above `trusted`) still renders permissively. Raw
   // HTML `<img>` is literal text to the D51 tokenizer (not the `![]()` media grammar), so it reaches the
   // trusted markdown seal and renders — proving the two tiers stay distinct and the settled side didn't
   // regress to untrusted. External media is allowed here: a trusted row that forbids it drops the image (below).

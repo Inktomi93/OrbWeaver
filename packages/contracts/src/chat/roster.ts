@@ -116,7 +116,7 @@ export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
  *
  *   `untrusted`   — the D21 safe default. Sanitized markdown; a card renders in the inert tierA seal.
  *   `trusted`     — rich HTML render (still SANITIZED — no script/iframe/style/`on*`), and a
- *                   card gets the sandboxed tierB frame (D44 §12.0).
+ *                   card gets the sandboxed tierB frame (D294 §12.2).
  *   `interactive` — everything `trusted` has, PLUS the card frame is built under the `interactive`
  *                   {@link https://github.com/Inktomi93/orbweaver/issues/111} posture, which since leg 3's
  *                   security pass RUNS the card's own scripts inside that sandbox.
@@ -208,8 +208,9 @@ export interface RenderPolicyOverride {
  *  • the HTML-TRUST LADDER folds the two stored columns into ONE ordered step, and the fold is where
  *    "interactive implies trusted" becomes unrepresentable-otherwise (owner ruling 2026-08-16):
  *      – the RENDER step keeps `override ?? deployment`, unchanged. Its deployment value is a DEFAULT, not
- *        a block: the floor is the strict end (`untrusted`), and the per-character opt-in IS the designed
- *        escalation path (D44 §12.0); an admin-global `true` likewise stays overridable DOWN by a card.
+ *        a block: the floor is the strict end (`untrusted`), and an explicit per-character step IS the
+ *        designed escalation path (D294 §12.2); an admin-global `true` likewise stays overridable DOWN by a
+ *        card. An inheriting card lands on this step only while the interactive ceiling below is down.
  *      – the INTERACTIVE step is an AND under the deployment `allowInteractiveCards` CEILING, the
  *        `forbidExternalMedia` shape rather than the render step's: no per-character answer reaches the
  *        rung while the ceiling is down. Under the ceiling, a card reaches it two ways (owner ruling:

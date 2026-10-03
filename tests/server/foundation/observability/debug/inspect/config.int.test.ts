@@ -76,8 +76,8 @@ test("an explicit stored trustHtml OVERRIDES the deployment tier in BOTH directi
   const forcedOn = await seedCharacter(db, "forced-on", true, null);
   const forcedOff = await seedCharacter(db, "forced-off", false, null);
 
-  // Escalation up from an untrusting deployment — the designed opt-in path (D44 §12.0) lands the
-  // opt-in tier, `tierB` (ImmersiveCard).
+  // Escalation up from an untrusting deployment — an explicit per-character render step (D294 §12.2)
+  // lands `tierB` (ImmersiveCard).
   expect((await characterDetailRow(db, forcedOn, OPEN_FLOOR))?.renderPolicy.cardTier).toBe("tierB");
   // …and DOWN from a trusting one: a card may always refuse the escalation it was granted.
   expect((await characterDetailRow(db, forcedOff, TRUSTING_FLOOR))?.renderPolicy.cardTier).toBe("tierA");

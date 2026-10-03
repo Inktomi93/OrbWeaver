@@ -135,8 +135,8 @@ test("colorQuotes OFF is carried through verbatim (the knob really reaches the r
   expect(r.colorQuotes).toBe(false);
 });
 
-// ── The CARD TIER (D44 §12.2) — TWO independent consent axes ──────────────────────────────────────
-// tierB is the sandboxed ImmersiveCard (card CSS applied); tierA is the default inert allowlist, which
+// ── The CARD TIER (D294 §12.2) — TWO independent consent axes ─────────────────────────────────────
+// tierB is the sandboxed ImmersiveCard (card CSS applied); tierA is the inert allowlist, which
 // forbids `<style>` and therefore cannot render a card AS a card. The mapping was inverted until
 // 2026-08-04 — trusted rows were sent to tierA — so these pin the direction explicitly.
 

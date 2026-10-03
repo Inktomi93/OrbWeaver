@@ -1,8 +1,9 @@
 // One canonical message row behind every chatStyle — looks up its skin from `MESSAGE_ROW_SKINS` and
 // never branches on chatStyle itself. The streaming ghost is a separate component (ghost-message-row);
-// this row is canon-only and holds no per-token subscription. Render trust (untrusted by default):
-// `resolveRowRenderPolicy` trusts ONLY the viewer's own input or an opted-in character — never
-// assistant/LLM/imported content by default (the indirect-prompt-injection boundary).
+// this row is canon-only and holds no per-token subscription. Render trust (D294): `resolveRowRenderPolicy`
+// trusts ONLY the viewer's own input or a character whose server-resolved step is at or above `trusted`
+// (an inheriting character is, by default); the trusted policy still sanitizes, because model output
+// stays untrusted (the indirect-prompt-injection boundary).
 
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
 import { isNarratorVoiced } from "@orb/contracts/chat";

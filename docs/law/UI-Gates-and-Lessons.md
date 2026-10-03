@@ -282,8 +282,9 @@ resolves each participant's step with `resolveRenderPolicy`; `resolveRowRenderPo
   defaults with `rehype-sanitize` and `rehype-harden`, plus `TRUSTED_ALLOWED_TAGS`. Off-origin `img` and every
   `source` are dropped unless the row admits external media (`ownOriginMediaOnly`), links render as
   confirm-gated buttons (Streamdown link safety), and a mermaid block renders as inert code.
-- **`untrusted` (another user's messages, a character on the Untrusted step, a seat with no readable
-  character row, and any row with no resolved policy):** the Tier-A element allowlist (§12.2) MINUS `img`,
+- **`untrusted` (another user's messages, a character on the Untrusted step, and any row with no
+  resolved policy):** a character seat whose row cannot be read takes the deployment floor, which is
+  `untrusted` unless an admin turns `trustHtml` on. The policy is the Tier-A element allowlist (§12.2) MINUS `img`,
   plus a `urlTransform` gate (blocks `javascript:`/`data:`/off-allowlist hosts). KaTeX kept (rehype-katex
   `trust:false` — math-only, inert).
 

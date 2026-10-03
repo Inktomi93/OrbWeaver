@@ -23,9 +23,9 @@
 //   frame-ancestors 'self'
 //
 //   • `interactive` posture — the plugin's OWN scripts run. That is the capability, not a leak: `ui.frame` is
-//     granted by the installer precisely to run the plugin's interface code. Where a CARD needs two consents to
-//     reach this posture (the host's per-character opt-in AND the deployment ceiling) because its author is a
-//     MODEL, a plugin frame's author is software the installing user chose and granted.
+//     granted by the installer precisely to run the plugin's interface code. Where a CARD reaches this posture only
+//     through its character's resolved step AND the deployment ceiling AND the viewer's own consent (D294)
+//     because its author is a MODEL, a plugin frame's author is software the installing user chose and granted.
 //   • NO `connect-src`, inherited from `default-src 'none'` — fetch/XHR/WebSocket/EventSource/sendBeacon are all
 //     refused (measured, `@orb/kit/card-frame`'s reach census). The frame has NO network of its own; every host
 //     call rides the postMessage bridge to the re-gated relay.
