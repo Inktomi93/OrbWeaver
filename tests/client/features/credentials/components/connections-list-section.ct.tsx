@@ -3,8 +3,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 // Pure `.ts`, safe in a node-side CT spec; the feature's front door is a barrel that would pull `.tsx` in.
-import type { ReindexPreview } from "../../../../../packages/client/src/lib/connection-roles.ts";
-import { REINDEX_CONFIRM_COPY, reindexConfirmDescription } from "../../../../../packages/client/src/lib/connection-roles.ts";
+import type { ReindexPreview } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
+import { REINDEX_CONFIRM_COPY, reindexConfirmDescription } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
 import { connectionRow, openRowMenu, stubConnectionsPane } from "../_connection-fixtures.ts";
 import { ConnectionsAuthoringStory } from "../_ct-stories.tsx";
 
@@ -53,7 +53,7 @@ const EMBEDDER_ROW = connectionRow({
   allowBackground: true,
 });
 const EMBEDDER_ROW_NAME = "Local embedder · Qwen3-VL-Embedding-2B";
-const STORED_REBUILD: ReindexPreview = { reindex: true, stored: { cards: 12, memory: 40, documents: 0, images: 3 }, embedCalls: 55 };
+const STORED_REBUILD: ReindexPreview = { reindex: true, stored: { cards: 12, memory: 40, documents: 0, images: 3 }, embedCalls: 55, utilityModelSet: true };
 const SWEEP_ITEM = /Use this connection for everything it can serve/u;
 
 test("using an embedder for everything over a stored index asks first, and Cancel writes nothing", async ({ mount, page }) => {

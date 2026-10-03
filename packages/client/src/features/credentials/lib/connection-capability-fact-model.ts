@@ -53,9 +53,12 @@ const GENERATION_LEAVES: readonly FactLeaf[] = [
   { path: "generation.tools", name: "tool calls", edit: { kind: "choice", choices: TOOL_CALL_CHOICES }, unset: NOT_STATED },
 ];
 
+/** The vector-width fact's path; the editor returns focus to its row after an embedder-change confirm. */
+export const VECTOR_WIDTH_FACT_PATH = "embedding.dims";
+
 const EMBEDDING_LEAVES: readonly FactLeaf[] = [
   {
-    path: "embedding.dims",
+    path: VECTOR_WIDTH_FACT_PATH,
     name: "vector width",
     edit: { kind: "number" },
     format: (value): string => `${String(value)} numbers`,

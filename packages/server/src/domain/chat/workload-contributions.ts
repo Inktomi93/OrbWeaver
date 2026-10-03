@@ -76,7 +76,8 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
           segmentsOnly,
           signal,
           onProgress: (step) => {
-            report({ message: `memory backfill: ${step}`, current: MEMORY_SWEEP_STEPS.indexOf(step) + 1, total: MEMORY_SWEEP_STEPS.length });
+            const current = MEMORY_SWEEP_STEPS.indexOf(step) + 1;
+            report({ message: `Rebuilding chat memory — step ${current} of ${MEMORY_SWEEP_STEPS.length}: ${step}`, current, total: MEMORY_SWEEP_STEPS.length });
           },
         });
         report({

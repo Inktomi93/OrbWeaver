@@ -5,8 +5,9 @@ import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
+import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type { GenerationTask } from "../contract/generation.ts";
-import type { EmbeddingsContext, PinnedGeneration } from "../contract/service.ts";
+import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration } from "../contract/service.ts";
 import { switchTargetGeneration } from "../persistence/space-state.ts";
 
 export async function resolveTargetGeneration(
@@ -16,6 +17,20 @@ export async function resolveTargetGeneration(
   via: GenerationTask = task,
 ): Promise<PinnedGeneration | null> {
   return await resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt: 0 });
+}
+
+const PROBE_TEXT = "width check";
+
+/** One embed through the new connection: the vector must be as wide as the space it would be written into. */
+async function probeWidth(connection: EmbeddingConnectionSnapshot, via: GenerationTask, dims: number): Promise<void> {
+  const result = via === "embed" ? await connection.embed(PROBE_TEXT) : await connection.imageEmbed({ kind: "text", input: PROBE_TEXT });
+  const vector = result.vectors[0];
+  if (vector === null || vector === undefined) {
+    throw new EmbedFailedError("width probe", result.model);
+  }
+  if (vector.length !== dims) {
+    throw new SpaceMismatchError(result.model, dims, vector.length);
+  }
 }
 
 interface ResolveAttempt {
@@ -61,7 +76,9 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt
   if (prior === undefined) {
     await ctx.db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 }).onConflictDoNothing();
   } else if (prior.generationId !== id) {
-    // A new generation never shares the index with the old one: the switch purges the old vectors with it.
+    // A new generation never shares the index with the old one: the switch purges the old vectors with it. So
+    // prove the new space can be written first; a width the embedder does not make keeps the old index.
+    await probeWidth(connection, via, dims);
     await switchTargetGeneration(ctx.db, { ownerId, task, from: prior, to: id });
   }
   const rows = await ctx.db

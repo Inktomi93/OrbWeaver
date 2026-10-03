@@ -8,9 +8,10 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Invalidation, Trpc } from "#data";
 import type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "#lib";
 import {
@@ -19,6 +20,8 @@ import {
   cn,
   connectionHost,
   connectionSummary,
+  embedderRebuildState,
+  REBUILD_STATUS_COPY,
   ROLE_STATUS_LABELS,
   roleReadout,
   roleRequirementVerdicts,
@@ -119,7 +122,15 @@ export function ConnectionRoleSlot({
   const deps = { trpc, invalidation };
   const setBinding = useSetBinding(deps);
   const update = useUpdateConnection(deps);
-  const reindex = useReindexConfirm(trpc);
+  const pickerLabel = `${row.label} connection`;
+  // The confirm opens from the picker's own popup, which is gone by the time it closes; focus returns to the picker.
+  const slotRef = useRef<HTMLDivElement>(null);
+  const reindex = useReindexConfirm(trpc, (): boolean => {
+    slotRef.current?.querySelector<HTMLElement>(`[aria-label="${CSS.escape(pickerLabel)}"]`)?.focus();
+    return false;
+  });
+  const isVectorRole = actor === undefined && VECTOR_ROLES.includes(row.task);
+  const rebuild = useEmbedderRebuild(trpc, isVectorRole);
   // The PICKER's draft — `undefined` until the user touches it, which is the only state that can never
   // diverge. It is never the readout's `{X}`; it is only the other half of the comparison.
   const [draft, setDraft] = useState<string | null | undefined>(undefined);
@@ -147,7 +158,7 @@ export function ConnectionRoleSlot({
   const current = draft === undefined ? persisted : (draft ?? UNSET_VALUE);
 
   return (
-    <Row gap="field" align="start" justify="between" className="flex-wrap">
+    <Row gap="field" align="start" justify="between" className="flex-wrap" ref={slotRef}>
       <Row gap="field" align="start">
         <Badge
           aria-label={ROLE_STATUS_LABELS[status]}
@@ -164,6 +175,11 @@ export function ConnectionRoleSlot({
           </Text>
           {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
           <ReadoutLine readout={readout} />
+          {rebuild === null ? null : (
+            <Text voice="gloss" className={cn(rebuild === "failed" ? READOUT_INK.blocked : READOUT_INK.divergent, PROSE_MEASURE)}>
+              {REBUILD_STATUS_COPY[rebuild]}
+            </Text>
+          )}
           {repairs.map((connection) => (
             <BackgroundRepair
               key={connection.id}
@@ -175,7 +191,7 @@ export function ConnectionRoleSlot({
         </Stack>
       </Row>
       <Select
-        aria-label={`${row.label} connection`}
+        aria-label={pickerLabel}
         id={controlId}
         items={items}
         value={current}
@@ -190,7 +206,7 @@ export function ConnectionRoleSlot({
             setBinding.mutate({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
           };
           // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
-          if (actor === undefined && VECTOR_ROLES.includes(row.task)) {
+          if (isVectorRole) {
             reindex.guard({ kind: "bind", task: row.task, connectionId: picked }, write);
           } else {
             write();
@@ -201,6 +217,20 @@ export function ConnectionRoleSlot({
       {reindex.dialog}
     </Row>
   );
+}
+
+/** How often the vector rows re-read the rebuild while one runs; the run reports progress at about this pace. */
+const REBUILD_POLL_MS = 5000;
+
+/** The viewer's embedder rebuild, read only for their own vector roles. */
+function useEmbedderRebuild(trpc: Trpc, enabled: boolean): ReturnType<typeof embedderRebuildState> {
+  const viewer = useQuery({ ...trpc.sessions.me.queryOptions(), enabled });
+  const rows = useQuery({
+    ...trpc.workloads.list.queryOptions({ kind: "index" }),
+    enabled,
+    refetchInterval: (query) => (embedderRebuildState(query.state.data ?? [], viewer.data?.userId ?? null) === "running" ? REBUILD_POLL_MS : false),
+  });
+  return enabled ? embedderRebuildState(rows.data ?? [], viewer.data?.userId ?? null) : null;
 }
 
 /** The four sentences, one per arm — each spelled ONCE, so a fix lane restyling the steady arm cannot

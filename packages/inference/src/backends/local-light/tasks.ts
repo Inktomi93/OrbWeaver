@@ -3,6 +3,7 @@
 // ids preserved, raw logit as score, text-only), `imageEmbed` (the joint image/text space; the `multimodal`
 // PAIR kind requires explicit text fallback — jina-clip has two encoders and defines no fused vector).
 
+import type { Capability } from "@orb/contracts/inference";
 import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, ImageInput, RerankQuery } from "@orb/contracts/role-clients";
@@ -47,6 +48,11 @@ function finalizeVector(vec: Float32Array, dimensions: number | undefined, model
   return normalizeVector(vec.slice(0, dimensions));
 }
 
+/** The width an MRL connection's vectors are cut to; `undefined` for a model whose vectors cannot be shortened. */
+function declaredMrlWidth(capability: Capability): number | undefined {
+  return capability.kind === "embedding" && capability.embedding.mrl ? capability.embedding.dims : undefined;
+}
+
 function scatter(
   total: number,
   kept: readonly KeptInput[],
@@ -83,7 +89,9 @@ export function createLocalLightEmbed(cache: LocalLightModelCache, spaceTag: (mo
           )
         : [];
     throwIfAborted(req.signal);
-    const vectors = scatter(inputs.length, kept, raw, (vec) => finalizeVector(vec, req.dimensions, modelId));
+    // A caller that asks for no width still writes into the connection's space, so a declared MRL width applies.
+    const dims = req.dimensions ?? declaredMrlWidth(req.connection.capability);
+    const vectors = scatter(inputs.length, kept, raw, (vec) => finalizeVector(vec, dims, modelId));
     return { vectors, model: spaceTag(modelId), usage: { promptTokens: null, totalTokens: null } };
   };
 }
@@ -191,8 +199,7 @@ export function createLocalLightImageEmbed(
     throwIfAborted(req.signal);
     const modelId = req.connection.model;
     // The image side writes into the same space as the text side, so a declared shorter MRL width applies here too.
-    const { capability } = req.connection;
-    const dims = capability.kind === "embedding" && capability.embedding.mrl ? capability.embedding.dims : undefined;
+    const dims = declaredMrlWidth(req.connection.capability);
     const finalize: Finalize = (vec) => finalizeVector(vec, dims, modelId);
     const vectors = await abortableWait(embedByKind(cache, modelId, req.input, finalize), req.signal);
     throwIfAborted(req.signal);

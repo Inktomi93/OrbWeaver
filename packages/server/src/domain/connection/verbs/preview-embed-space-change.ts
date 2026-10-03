@@ -137,6 +137,13 @@ export function createPreviewEmbedSpaceChange(ctx: ConnectionContext): Connectio
       documents: scopes.includes("documents") ? counts.documents : 0,
       images: scopes.includes("images") ? counts.images : 0,
     };
-    return { reindex: scopes.length > 0, stored, embedCalls: stored.cards + stored.memory + stored.documents + stored.images };
+    // "Set" is the user's binding, not reachability: a set Utility model that is briefly down still rebuilds later.
+    const utility = await lookupBinding(ctx.db, { actorKind: "user", actorId: principal.userId }, "summarize");
+    return {
+      reindex: scopes.length > 0,
+      stored,
+      embedCalls: stored.cards + stored.memory + stored.documents + stored.images,
+      utilityModelSet: (utility?.connectionId ?? null) !== null,
+    };
   };
 }

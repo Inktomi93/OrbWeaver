@@ -7,7 +7,8 @@ import type { ProviderAuth, ProviderAvailability, ProviderDef, RoutableTask, Tas
 import { bindingTaskOf, canFund, providerDisplayLabel } from "@orb/contracts/inference";
 import type { SelectItems, SelectOptionGroup } from "@orb/ui/select/items";
 // Direct, not through `#lib`: this module stays barrel-free because node-side CT specs import it.
-import { ROLE_ROWS_ORDERED, VECTOR_ROLES } from "../../../lib/connection-roles.ts";
+import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
+import { VECTOR_ROLES } from "../../../lib/embedder-rebuild.ts";
 
 /** The user-facing Model-role labels a connection may serve. Non-routable tasks fold through their
  *  binding (`agent` → Chat, `structured` → Utility model), so schema task names never leak into copy. */

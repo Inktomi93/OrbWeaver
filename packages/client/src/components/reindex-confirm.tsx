@@ -9,6 +9,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import type { ReindexPreview } from "#lib";
 import { REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm } from "#lib";
+import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
 type EmbedSpaceChange = inferInput<Trpc["connection"]["embedSpaceChangePreview"]>["change"];
@@ -25,7 +26,8 @@ export interface ReindexConfirm {
   readonly dialog: ReactElement;
 }
 
-export function useReindexConfirm(trpc: Trpc): ReindexConfirm {
+/** `finalFocus`: where focus lands when the confirm closes, because the control that opened it may be gone. */
+export function useReindexConfirm(trpc: Trpc, finalFocus?: ConfirmDialogProps["finalFocus"]): ReindexConfirm {
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<PendingWrite | null>(null);
 
@@ -49,6 +51,7 @@ export function useReindexConfirm(trpc: Trpc): ReindexConfirm {
       title={REINDEX_CONFIRM_COPY.title}
       description={reindexConfirmDescription(pending?.preview ?? null)}
       confirmLabel={REINDEX_CONFIRM_COPY.confirmLabel}
+      {...(finalFocus === undefined ? {} : { finalFocus })}
       open={pending !== null}
       onOpenChange={(open): void => {
         if (!open) {

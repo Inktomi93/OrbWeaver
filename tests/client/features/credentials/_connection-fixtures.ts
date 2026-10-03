@@ -186,9 +186,11 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     // The pane's Model roles section reads the Utility preset picker and the memory settings.
     "preset.list": () => [],
     "settings.getUserSettings": () => userSettingsView(),
+    // The embedding rows read the viewer's embedder rebuild from the job list.
+    "workloads.list": () => [],
     // An embedder change first asks whether it would rebuild the index; by default these rows back no stored index.
     "connection.embedSpaceChangePreview": () =>
-      opts.reindexPreview ?? { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 },
+      opts.reindexPreview ?? { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },
     // The first-model step's writes: a patch lands on the stateful row, a role write echoes its binding.
     "connection.update": ({ connectionId, patch }) => {
       const index = connections.findIndex((row) => row.id === connectionId);

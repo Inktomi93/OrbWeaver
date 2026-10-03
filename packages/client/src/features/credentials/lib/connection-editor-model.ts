@@ -109,7 +109,7 @@ export function purposeNotes(capability: Capability, ownServer: boolean): readon
   if (capability.kind === "embedding") {
     return capability.embedding.dimsEstimated === true
       ? [
-          `This server doesn't report the vector width, so we assume ${grouped(capability.embedding.dims)}. Your search index is built at this width, and a wrong guess stops indexing; check the model's card and set the vector width under Advanced.`,
+          `This server doesn't report the vector width, so we assume ${grouped(capability.embedding.dims)}. If the guess is wrong, indexing stops. Check the model's card for its output size and set the vector width under Advanced — changing it rebuilds your search index.`,
         ]
       : [];
   }

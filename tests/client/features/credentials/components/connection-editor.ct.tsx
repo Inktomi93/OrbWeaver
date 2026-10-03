@@ -21,8 +21,11 @@
 //     owner ruling), no per-chat/per-room override (F20).
 
 import type { USER_ROLES } from "@orb/contracts/identity";
+import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+// Pure `.ts`, safe in a node-side CT spec.
+import { REINDEX_CONFIRM_COPY } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
@@ -127,6 +130,7 @@ async function stubEditor(
     readonly accountCredits?: TrpcResponder<"connection.accountCredits">;
     readonly verifyAuth?: TrpcResponder<"connection.verifyAuth">;
     readonly inspectEndpoint?: TrpcResponder<"connection.inspectEndpoint">;
+    readonly reindexPreview?: TrpcWireOutput<"connection.embedSpaceChangePreview">;
   } = {},
 ): Promise<TrpcRecorder> {
   // The row the server holds: a saved model and check land on it, so the refetch after a save reads them.
@@ -143,7 +147,8 @@ async function stubEditor(
     "connection.catalogModels":
       opts.catalogModels ?? ((): TrpcWireOutput<"connection.catalogModels"> => ({ listed: false, reason: "the provider listed no models" })),
     // An embedder-identity patch first asks whether it would rebuild the index; these rows back no stored index.
-    "connection.embedSpaceChangePreview": () => ({ reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 }),
+    "connection.embedSpaceChangePreview": () =>
+      opts.reindexPreview ?? { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },
     "connection.update": ({ patch }) => {
       row = { ...row, model: patch.model ?? row.model, modelCheck: patch.modelCheck ?? row.modelCheck };
       return row;
@@ -1070,4 +1075,26 @@ test("request-body overrides save over the other transport fields, refuse invali
     .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
     .toEqual({ connectionId: CONNECTION_ID, patch: { transport: SHAPED_TRANSPORT } });
   await expect(component.locator('[data-slot="field-error"]')).toHaveCount(0);
+});
+
+// Saving a new vector width closes its editor as the rebuild confirm opens, so the confirm hands focus back to the
+// vector-width row rather than the page.
+test("confirming a vector-width rebuild returns focus to the vector-width row", async ({ mount, page }) => {
+  const embedding: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
+    kind: "embedding",
+    embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
+  };
+  await stubEditor(page, {
+    capabilities: { capability: embedding, baseline: embedding, warnings: [], tasks: ["embed", "imageEmbed"] },
+    reindexPreview: { reindex: true, stored: { cards: 10, memory: 0, documents: 0, images: 0 }, embedCalls: 10, utilityModelSet: true },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+
+  await tier(page, "Advanced").click();
+  await component.getByRole("button", { name: "Override vector width" }).click();
+  await component.getByRole("textbox", { name: "vector width — your value" }).fill("512");
+  await component.getByRole("button", { name: "Save your vector width" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  await expect(component.getByRole("button", { name: "Override vector width" })).toBeFocused();
 });

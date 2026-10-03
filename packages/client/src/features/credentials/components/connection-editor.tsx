@@ -49,12 +49,12 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { QueryBoundary, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
-import { capabilityFactRows } from "../lib/connection-capability-fact-model.ts";
+import { capabilityFactRows, VECTOR_WIDTH_FACT_PATH } from "../lib/connection-capability-fact-model.ts";
 import type { ExtraRow } from "../lib/connection-editor-model.ts";
 import {
   capabilityBadges,
@@ -150,7 +150,13 @@ function AvailableConnectionEditorBody({
 }: ConnectionEditorProps & { readonly connection: ConnectionView; readonly provider: ProviderDef; readonly providers: readonly ProviderDef[] }): ReactElement {
   const { data: capabilityView } = useSuspenseQuery(trpc.connection.capabilities.queryOptions({ connectionId }));
   const update = useUpdateConnection({ trpc, invalidation });
-  const reindex = useReindexConfirm(trpc);
+  // The width editor closes as the confirm opens, so focus returns to the vector-width row, not the page.
+  const factsRef = useRef<HTMLDivElement>(null);
+  const reindex = useReindexConfirm(trpc, (): boolean => {
+    const widthRow = factsRef.current?.querySelector<HTMLElement>(`[data-fact="${VECTOR_WIDTH_FACT_PATH}"] button`) ?? null;
+    widthRow?.focus();
+    return widthRow === null;
+  });
   const providerLabel = providerDisplayLabel(provider);
   // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed.
   const detected = providers.find((row) => row.id === capabilityView.detectedProviderId);
@@ -287,7 +293,7 @@ function AvailableConnectionEditorBody({
           title="Advanced"
         >
           <Stack gap="block">
-            <Stack gap="tight">
+            <Stack gap="tight" ref={factsRef}>
               <Text voice="label">What this server accepts</Text>
               <Text voice="gloss">
                 What we measured or were told about this model. It is a statement about the server, not a setting — changing a line here tells us what to

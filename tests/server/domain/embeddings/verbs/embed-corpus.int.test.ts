@@ -11,7 +11,8 @@ import type { Db } from "@orb/db";
 import { characterEmbeddings, embedGenerations, embedSpaceState, userConnections } from "@orb/db";
 import type { CharacterEmbeddingId, CharacterId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createEmbeddingsService, EmbedFailedError } from "@orb/server/domain/embeddings";
+import type { EmbeddingsContext } from "@orb/server/domain/embeddings";
+import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -22,6 +23,29 @@ const STALE_MODEL = "old-embed-model-v0";
 const NOW = 1_750_000_000_000;
 
 const signal = (): AbortSignal => new AbortController().signal;
+
+/** The width a user declares under Advanced, narrower than the fixture embedder's native `EMBED_DIM`. */
+const DECLARED_DIM = 4;
+
+/** The harness's embed connection restated at `dims`; `returned` is the width the embedder answers with. */
+function restateWidth(h: StoreHarness, dims: number, mrl: boolean, returned: number): EmbeddingsContext {
+  h.roleClients.embed.mockImplementation((input) =>
+    Promise.resolve({
+      vectors: (typeof input === "string" ? [input] : input).map((_, i) => fakeVector(returned, i + 1)),
+      model: EMBED_MODEL,
+      usage: { promptTokens: null, totalTokens: null },
+    }),
+  );
+  return {
+    ...h.ctx,
+    resolveEmbeddingConnection: async (ownerId, task, connectionId): ReturnType<EmbeddingsContext["resolveEmbeddingConnection"]> => {
+      const connection = await h.ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
+      return connection === null || connection.capability.kind !== "embedding"
+        ? connection
+        : { ...connection, capability: { ...connection.capability, embedding: { ...connection.capability.embedding, dims, mrl } } };
+    },
+  };
+}
 
 async function seedTwoCards(db: Awaited<ReturnType<typeof freshDb>>): Promise<{
   owner: UserId;
@@ -309,5 +333,40 @@ describe("embedCorpus — retained generation rebuild", () => {
         [neighbourCard, STALE_MODEL],
       ].sort(),
     );
+  });
+});
+
+// A declared width narrower than the encoder's native one is a generation change: the switch deletes the old
+// index, so the rebuild must write at the declared width or the user loses their index for nothing.
+describe("embedCorpus — a declared vector width", () => {
+  test("an MRL model rebuilds at the declared width, even over a full-width seeded vector", async () => {
+    const db = await freshDb();
+    const seeded = await seedTwoCards(db);
+    const h = makeStoreHarness(db, { characterIds: seeded.ids, cardTexts: seeded.texts });
+    await seedHarnessConnection(db, seeded.owner, h);
+    await createEmbeddingsService(h.ctx).embedCorpus({ ownerId: null, force: false, signal: signal() });
+    // The built-in content ships vectors precomputed at the encoder's native width.
+    const ctx = {
+      ...restateWidth(h, DECLARED_DIM, true, DECLARED_DIM),
+      precomputedEmbedding: () => ({ model: EMBED_MODEL, vector: fakeVector(EMBED_DIM, 5) }),
+    };
+
+    const result = await createEmbeddingsService(ctx).embedCorpus({ ownerId: null, force: true, signal: signal() });
+
+    expect(result).toEqual({ embedded: 2, skipped: 0 });
+    expect((await db.select({ dim: characterEmbeddings.dim }).from(characterEmbeddings)).map((row) => row.dim)).toEqual([DECLARED_DIM, DECLARED_DIM]);
+  });
+
+  test("a width the embedder does not make is refused before the old index is deleted", async () => {
+    const db = await freshDb();
+    const seeded = await seedTwoCards(db);
+    const h = makeStoreHarness(db, { characterIds: seeded.ids, cardTexts: seeded.texts });
+    await seedHarnessConnection(db, seeded.owner, h);
+    await createEmbeddingsService(h.ctx).embedCorpus({ ownerId: null, force: false, signal: signal() });
+    const ctx = restateWidth(h, DECLARED_DIM, false, EMBED_DIM);
+
+    await expect(createEmbeddingsService(ctx).embedCorpus({ ownerId: null, force: true, signal: signal() })).rejects.toBeInstanceOf(SpaceMismatchError);
+
+    expect((await db.select({ dim: characterEmbeddings.dim }).from(characterEmbeddings)).map((row) => row.dim)).toEqual([EMBED_DIM, EMBED_DIM]);
   });
 });

@@ -78,7 +78,7 @@ describe("previewEmbedSpaceChange", () => {
       principal: fixture.owner.principal,
       change: { kind: "bind", task: "embed", connectionId: fixture.other },
     });
-    expect(preview).toEqual({ reindex: true, stored: { cards: 3, memory: 0, documents: 0, images: 0 }, embedCalls: 3 });
+    expect(preview).toMatchObject({ reindex: true, stored: { cards: 3, memory: 0, documents: 0, images: 0 }, embedCalls: 3 });
   });
 
   test("re-picking the bound embedder, or patching a field outside its identity, rebuilds nothing", async () => {
@@ -127,8 +127,27 @@ describe("previewEmbedSpaceChange", () => {
       principal: fixture.owner.principal,
       change: { kind: "everywhere", connectionId: fixture.bound },
     });
-    expect(other).toEqual({ reindex: true, stored: { cards: 2, memory: 0, documents: 0, images: 0 }, embedCalls: 2 });
+    expect(other).toMatchObject({ reindex: true, stored: { cards: 2, memory: 0, documents: 0, images: 0 }, embedCalls: 2 });
     expect(same.reindex).toBe(false);
+  });
+
+  // The switch deletes the chat digests, so the memory rebuild re-summarizes: the pane must know whether it can.
+  test("the preview says whether a Utility model is set to re-summarize chat memory", async () => {
+    const db = await freshDb();
+    const fixture = await twoEmbedders(db);
+    const change = { kind: "bind", task: "embed", connectionId: fixture.other } as const;
+    const without = await fixture.h.svc.previewEmbedSpaceChange({ principal: fixture.owner.principal, change });
+    const utility = await fixture.h.svc.create({
+      principal: fixture.owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "llama3.1",
+      allowBackground: true,
+    });
+    await fixture.h.svc.setBinding({ principal: fixture.owner.principal, task: "summarize", connectionId: utility.id });
+    const withUtility = await fixture.h.svc.previewEmbedSpaceChange({ principal: fixture.owner.principal, change });
+    expect([without.utilityModelSet, withUtility.utilityModelSet]).toEqual([false, true]);
   });
 
   // An unbound role resolves to nothing, so no generation moves and nothing is deleted: the stored index stays.
@@ -140,7 +159,7 @@ describe("previewEmbedSpaceChange", () => {
       principal: fixture.owner.principal,
       change: { kind: "bind", task: "embed", connectionId: null },
     });
-    expect(preview).toEqual({ reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 });
+    expect(preview).toMatchObject({ reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 });
   });
 
   test("a change with nothing stored still says rebuild, at zero cost, and the read writes nothing", async () => {
@@ -151,7 +170,7 @@ describe("previewEmbedSpaceChange", () => {
       principal: fixture.owner.principal,
       change: { kind: "bind", task: "embed", connectionId: fixture.other },
     });
-    expect(preview).toEqual({ reindex: true, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 });
+    expect(preview).toMatchObject({ reindex: true, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 });
     expect(fixture.h.embedSpaceChanges).toHaveLength(changesBefore);
     const bindings = await fixture.h.svc.listBindings({ principal: fixture.owner.principal });
     expect(bindings.find((view) => view.task === "embed")?.binding?.connectionId).toBe(fixture.bound);

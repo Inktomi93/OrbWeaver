@@ -43,7 +43,7 @@ export type {
 export { COLLECTION_LARGE_GROUP } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";
 export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "./config-search-tokens.ts";
-export type { ReindexPreview, RoleBindingView, RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
+export type { RoleBindingView, RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
 export {
   ADD_CONNECTION_DOOR,
   backgroundRepairs,
@@ -56,19 +56,15 @@ export {
   MEMORY_COST_SENTENCE,
   MODEL_ROLES_ADDRESS,
   MODEL_ROLES_SUBCATEGORY_ID,
-  REINDEX_CONFIRM_COPY,
   RERANK_ROLE_DOOR,
   ROLE_ROWS_ORDERED,
   ROLE_STATUS_LABELS,
-  reindexConfirmDescription,
-  reindexNeedsConfirm,
   roleReadout,
   roleRequirementVerdicts,
   roleStatus,
   SMART_POLICY_COST_SENTENCE,
   UTILITY_ROLE_DOOR,
   utilityReadsImages,
-  VECTOR_ROLES,
 } from "./connection-roles.ts";
 export type {
   CharacterDetailAnchor,
@@ -121,6 +117,15 @@ export { IS_DEV } from "./dev-flag.ts";
 export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
 export type { EditSession } from "./edit-session.ts";
 export { resolveCommit } from "./edit-session.ts";
+export type { ReindexPreview } from "./embedder-rebuild.ts";
+export {
+  embedderRebuildState,
+  REBUILD_STATUS_COPY,
+  REINDEX_CONFIRM_COPY,
+  reindexConfirmDescription,
+  reindexNeedsConfirm,
+  VECTOR_ROLES,
+} from "./embedder-rebuild.ts";
 export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
 export { AppErrorBoundary } from "./error-boundary.tsx";
 export type { SendRefusalKey } from "./injection-copy.ts";

@@ -2,6 +2,8 @@
 // a raw runner exception string to user-actionable copy. DOM-free. The row shows the friendly line,
 // keeps the raw string one disclosure away for support.
 
+import { groupThousands } from "@orb/kit/strings";
+
 /** A failure class → user-actionable copy; each entry pairs a lowercase substring matcher with its copy. */
 interface FailureClass {
   readonly match: readonly string[];
@@ -40,8 +42,33 @@ const FAILURE_CLASSES: readonly FailureClass[] = [
   },
 ];
 
+// The two spellings of "the embedder's vectors are not the width the connection states": the embeddings store's
+// width check and the inference backends' fit. Both name the stated width and the produced one.
+const WIDTH_MISMATCHES: readonly { readonly pattern: RegExp; readonly stated: number; readonly made: number }[] = [
+  { pattern: /declared space dim (\d+), embedder returned (\d+)/u, stated: 1, made: 2 },
+  { pattern: /returned a (\d+)-wide vector, but the connection states (\d+)/u, stated: 2, made: 1 },
+];
+
+/** The rebuild-stopped line for an embedder whose real width disagrees with its connection, or `null`. */
+function widthMismatchCopy(raw: string): string | null {
+  for (const { pattern, stated, made } of WIDTH_MISMATCHES) {
+    const match = pattern.exec(raw);
+    const statedWidth = Number(match?.[stated]);
+    const madeWidth = Number(match?.[made]);
+    if (match !== null && Number.isFinite(statedWidth) && Number.isFinite(madeWidth)) {
+      const madeText = groupThousands(madeWidth);
+      return `The rebuild stopped: this embedder makes ${madeText}-wide vectors but the connection says ${groupThousands(statedWidth)}. Set the vector width under Advanced to ${madeText}, then Retry.`;
+    }
+  }
+  return null;
+}
+
 /** The user-actionable line for a raw failure string, or `null` when nothing maps. */
 export function friendlyWorkloadError(raw: string): string | null {
+  const width = widthMismatchCopy(raw);
+  if (width !== null) {
+    return width;
+  }
   const haystack = raw.toLowerCase();
   for (const cls of FAILURE_CLASSES) {
     if (cls.match.some((needle) => haystack.includes(needle))) {

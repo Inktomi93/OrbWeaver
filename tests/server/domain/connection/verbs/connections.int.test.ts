@@ -97,7 +97,10 @@ test("a stated width change enqueues catch-up and the rebuilt corpus becomes rea
   const vectors = await db.select().from(characterEmbeddings);
   expect(vectors).toHaveLength(1);
   expect(vectors[0]).toMatchObject({ generationId: after, dim: 3072 });
-  expect(h.requests.filter((request) => request.url.includes("/embeddings"))).toHaveLength(2);
+  // The first embed, the width probe that proves the new space before the old index goes, and the re-embed — the
+  // probe and the re-embed both at the new width.
+  const embeds = h.requests.filter((request) => request.url.includes("/embeddings"));
+  expect(embeds.map((request) => (JSON.parse(request.body ?? "{}") as { dimensions?: number }).dimensions)).toEqual([1536, 3072, 3072]);
 });
 
 describe("create", () => {

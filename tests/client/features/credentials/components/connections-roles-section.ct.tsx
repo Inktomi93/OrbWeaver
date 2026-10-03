@@ -26,13 +26,9 @@ import type { Locator, Page } from "@playwright/test";
 // how a copy change goes green against a string nobody ships. A deep relative import (the `test-ids.ts`
 // precedent in the sibling key-row CT): this module is pure `.ts`, so it is safe in a node-side CT spec,
 // while the feature's own front door is a barrel that would pull `.tsx` in with it.
-import type { ReindexPreview } from "../../../../../packages/client/src/lib/connection-roles.ts";
-import {
-  REINDEX_CONFIRM_COPY,
-  ROLE_ROWS_ORDERED,
-  ROLE_STATUS_LABELS,
-  reindexConfirmDescription,
-} from "../../../../../packages/client/src/lib/connection-roles.ts";
+import { ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS } from "../../../../../packages/client/src/lib/connection-roles.ts";
+import type { ReindexPreview } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
+import { REBUILD_STATUS_COPY, REINDEX_CONFIRM_COPY, reindexConfirmDescription } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
@@ -177,6 +173,7 @@ async function stubPane(
     readonly credentials?: readonly CredentialRow[];
     readonly settings?: ReturnType<typeof userSettingsView>;
     readonly reindexPreview?: ReindexPreview;
+    readonly workloads?: TrpcWireOutput<"workloads.list">;
   } = {},
 ): Promise<RolesStub> {
   const recorder = await routeTrpc(page, {
@@ -195,15 +192,17 @@ async function stubPane(
     "preset.list": () => PRESET_ROWS,
     "settings.getUserSettings": () => opts.settings ?? userSettingsView(),
     "settings.updateUserSettingsSection": () => opts.settings ?? userSettingsView(),
+    // The vector rows read the viewer's embedder rebuild from the job list.
+    "workloads.list": () => opts.workloads ?? [],
   });
   return { recorder };
 }
 
 /** The server's answer for a change that keeps the owner's embedding generation: nothing to rebuild. */
-const NO_REBUILD: ReindexPreview = { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 };
+const NO_REBUILD: ReindexPreview = { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true };
 
 /** A change that would delete and rebuild a stored index. */
-const STORED_REBUILD: ReindexPreview = { reindex: true, stored: { cards: 12, memory: 40, documents: 0, images: 3 }, embedCalls: 55 };
+const STORED_REBUILD: ReindexPreview = { reindex: true, stored: { cards: 12, memory: 40, documents: 0, images: 3 }, embedCalls: 55, utilityModelSet: true };
 
 /** Hold `connection.setBinding` open; the returned fn lets it through. Registered AFTER routeTrpc so it wins
  *  the route, then `fallback()`s into the stub once released. */
@@ -442,7 +441,7 @@ test("picking a connection writes EXACTLY that task's binding", async ({ mount, 
 // An embedder change that moves to a new generation deletes the stored index and rebuilds it, so the pane asks
 // first — and only when there is something stored to lose.
 test("a new embedder with nothing stored to rebuild is written without asking", async ({ mount, page }) => {
-  const { recorder } = await stubPane(page, { reindexPreview: { ...STORED_REBUILD, stored: NO_REBUILD.stored, embedCalls: 0 } });
+  const { recorder } = await stubPane(page, { reindexPreview: { ...STORED_REBUILD, stored: NO_REBUILD.stored, embedCalls: 0, utilityModelSet: true } });
   await mount(<ConnectionsSettingsStory />);
 
   await roleSelect(page, "Text embedding").click();
@@ -480,6 +479,47 @@ test("confirming the rebuild writes the binding once", async ({ mount, page }) =
     .poll(() => recorder.lastInput("connection.setBinding"), { intervals: [20, 50, 100] })
     .toEqual({ task: "embed", connectionId: EMBED_CONNECTION_ID });
   await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("dismissing the rebuild confirm returns focus to the role's picker", async ({ mount, page }) => {
+  await stubPane(page, { reindexPreview: STORED_REBUILD });
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await expect(page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await expect(roleSelect(page, "Text embedding")).toBeFocused();
+});
+
+/** One embedder-change rebuild row as `workloads.list` returns it. */
+function rebuildRow(status: TrpcWireOutput<"workloads.list">[number]["status"]): TrpcWireOutput<"workloads.list">[number] {
+  return {
+    id: "workload_01jct0rebuild000000000000000",
+    kind: "index",
+    status,
+    mode: "bulk",
+    lane: "sweep",
+    ownerId: null,
+    dependsOn: null,
+    error: status === "failed" ? "embeddings.store: vector dim mismatch for model 'm' — declared space dim 512, embedder returned 1024" : null,
+    progress: null,
+    scheduledAt: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    params: { source: "all", force: true, embedderChanged: true },
+    result: null,
+    poison: false,
+  };
+}
+
+test("the embedding rows say when a rebuild runs and when it failed", async ({ mount, page }) => {
+  await stubPane(page, { workloads: [rebuildRow("failed")] });
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect(page.getByText(REBUILD_STATUS_COPY.failed, { exact: true })).toHaveCount(2);
+  await expect(page.getByText(REBUILD_STATUS_COPY.running, { exact: true })).toHaveCount(0);
 });
 
 // D299: the Utility role picks its preset beside its connection. Absent is task defaults; the other two arms

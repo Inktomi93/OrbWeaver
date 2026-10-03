@@ -163,3 +163,15 @@ test("imageEmbed: an MRL encoder declared at a shorter width embeds images and i
   expect(texts.vectors.map((vector) => vector?.length)).toEqual([512]);
   expect(norm(images.vectors[0] ?? new Float32Array())).toBeCloseTo(1);
 });
+
+test("embed: an MRL encoder declared at a shorter width cuts text to it even when the caller asks for no width", async () => {
+  const conn = fakeResolved({
+    task: "embed",
+    providerId: "local-light",
+    model: MODEL,
+    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 512, mrl: true, input: ["text", "image"] } },
+  });
+  const embed = createLocalLightEmbed(fakeModelCache(1024), tag);
+  const out = await embed({ connection: conn, input: "a red square" });
+  expect(out.vectors.map((vector) => vector?.length)).toEqual([512]);
+});

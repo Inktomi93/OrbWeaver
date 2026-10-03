@@ -55,17 +55,19 @@ describe("store — card-text (character_embeddings)", () => {
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
   });
 
-  test("a malformed seed vector cannot bypass the store dimension tripwire", async () => {
+  // A seed is made at the encoder's native width; one that is not the generation's width is never written. The
+  // card embeds live instead, so a declared narrower width still indexes.
+  test("a seed vector of another width is never written; the card embeds live at the generation's width", async () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const ownerId = await seedUser(db, { handle: castId<Handle>("seed-dimension") });
     const characterId = await seedCharacter(db, ownerId);
     const svc = createEmbeddingsService({ ...h.ctx, precomputedEmbedding: (_hash, model) => ({ model, vector: new Float32Array(2) }) });
-    await expect(svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: CARD_TEXT, model: EMBED_MODEL })).rejects.toBeInstanceOf(
-      SpaceMismatchError,
-    );
-    expect(await db.select().from(characterEmbeddings)).toHaveLength(0);
-    expect(h.roleClients.embed).not.toHaveBeenCalled();
+    await expect(svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: CARD_TEXT, model: EMBED_MODEL })).resolves.toMatchObject({
+      outcome: "written",
+    });
+    expect((await db.select({ dim: characterEmbeddings.dim }).from(characterEmbeddings)).map((row) => row.dim)).toEqual([EMBED_DIM]);
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
   });
   test("concurrent deliveries of one card share inference before the hash gate commits", async () => {
     const db = await freshDb();
@@ -723,7 +725,8 @@ describe("store — a local-light dtype change is a space change (#2417)", () =>
     const reindexed = await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: fp32Space, ownerId: owner });
 
     expect(reindexed.outcome).toBe("written");
-    expect(h.roleClients.embed).toHaveBeenCalledTimes(2);
+    // The original embed, the width probe that precedes the switch, and the re-embed.
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(3);
     // The switch to the new generation deleted the old space's row: the index never holds both.
     const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
     expect(rows.map((r) => r.model)).toEqual([fp32Space]);

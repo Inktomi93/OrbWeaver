@@ -122,3 +122,13 @@ test("cancel/retry affordance predicates: active holds the slot; failure termina
   expect(isRetryableWorkloadStatus("worker_died")).toBe(true);
   expect(isRetryableWorkloadStatus("running")).toBe(false);
 });
+
+// The store's width check and the backends' fit spell the same mismatch with the widths in opposite order; both
+// must read as one line, and a different width pair must not read as the same line.
+test("an embedder width mismatch maps to one rebuild line from either spelling", () => {
+  const store = friendlyWorkloadError("embeddings.store: vector dim mismatch for model 'm@q8' — declared space dim 512, embedder returned 1024");
+  const backend = friendlyWorkloadError("vllm embed: the model returned a 1024-wide vector, but the connection states 512; set the vector width");
+  expect(store).not.toBeNull();
+  expect(backend).toBe(store);
+  expect(friendlyWorkloadError("embeddings.store: vector dim mismatch for model 'm' — declared space dim 768, embedder returned 1024")).not.toBe(store);
+});

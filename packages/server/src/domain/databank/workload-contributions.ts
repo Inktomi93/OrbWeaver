@@ -64,7 +64,7 @@ export function createDatabankWorkloadContributions(deps: DatabankWorkloadDeps):
           mode,
           signal,
           onProgress: (done, total) => {
-            report({ message: `${label} — ${done} of ${total} documents`, current: done, total });
+            report({ message: `Rebuilding databank search — ${done} of ${total} documents`, current: done, total });
           },
         });
         report({

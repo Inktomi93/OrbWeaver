@@ -4,6 +4,7 @@
 
 import type { Capability } from "@orb/contracts/inference";
 import { EMBEDDING_FLOOR, GENERATION_FLOOR, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS, TASKS, UNAVAILABLE_CAUSES } from "@orb/contracts/inference";
+import type { WorkloadStatus } from "@orb/contracts/workloads";
 import {
   backgroundRepairs,
   bindRefusal,
@@ -12,13 +13,18 @@ import {
   labelNamesModel,
   ROLE_ROWS_ORDERED,
   ROLE_STATUS_LABELS,
-  reindexConfirmDescription,
-  reindexNeedsConfirm,
   roleReadout,
   roleRequirementGaps,
   roleRequirementVerdicts,
   roleStatus,
 } from "../../../packages/client/src/lib/connection-roles.ts";
+import type { ReindexPreview } from "../../../packages/client/src/lib/embedder-rebuild.ts";
+import {
+  embedderRebuildState,
+  REINDEX_CONFIRM_COPY,
+  reindexConfirmDescription,
+  reindexNeedsConfirm,
+} from "../../../packages/client/src/lib/embedder-rebuild.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const OPENROUTER = "user_connection_model0000001";
@@ -246,15 +252,39 @@ test("connectionSummary names a model by its own name, and the seeded local rows
 test("the rebuild confirm asks only for a new generation over a stored index", () => {
   const stored = { cards: 2, memory: 0, documents: 0, images: 0 };
   const empty = { cards: 0, memory: 0, documents: 0, images: 0 };
-  expect(reindexNeedsConfirm({ reindex: true, stored, embedCalls: 2 })).toBe(true);
-  expect(reindexNeedsConfirm({ reindex: true, stored: empty, embedCalls: 0 })).toBe(false);
-  expect(reindexNeedsConfirm({ reindex: false, stored, embedCalls: 2 })).toBe(false);
+  expect(reindexNeedsConfirm({ reindex: true, stored, embedCalls: 2, utilityModelSet: true })).toBe(true);
+  expect(reindexNeedsConfirm({ reindex: true, stored: empty, embedCalls: 0, utilityModelSet: true })).toBe(false);
+  expect(reindexNeedsConfirm({ reindex: false, stored, embedCalls: 2, utilityModelSet: true })).toBe(false);
 });
 
-test("the rebuild confirm names the stored scopes and the call count, or only the consequence when unknown", () => {
-  const sentence = reindexConfirmDescription({ reindex: true, stored: { cards: 1200, memory: 0, documents: 0, images: 3 }, embedCalls: 1203 });
-  expect(sentence).toContain("1,200 cards, 3 pictures");
-  expect(sentence).not.toContain("databank");
-  expect(sentence).toContain("1,203 embedding calls");
+// What pauses follows the scopes the rebuild covers, and a memory rebuild says whether the Utility model can run it.
+test("the rebuild confirm names only what pauses and whether chat memory can re-summarize", () => {
+  const preview = (stored: ReindexPreview["stored"], utilityModelSet = true): string =>
+    reindexConfirmDescription({ reindex: true, stored, embedCalls: 1, utilityModelSet });
+  const { pause } = REINDEX_CONFIRM_COPY;
+  const pictures = preview({ cards: 0, memory: 0, documents: 0, images: 3 });
+  expect([pictures.includes(pause.pictures), pictures.includes(pause.search), pictures.includes(pause.memory)]).toEqual([true, false, false]);
+  const cardsAndPictures = preview({ cards: 2, memory: 0, documents: 0, images: 3 });
+  expect([cardsAndPictures.includes(pause.search), cardsAndPictures.includes(pause.pictures)]).toEqual([true, false]);
+  const memory = preview({ cards: 0, memory: 4, documents: 0, images: 0 }, false);
+  expect([memory.includes(pause.memory), memory.includes(pause.search), memory.includes(REINDEX_CONFIRM_COPY.noUtility)]).toEqual([true, false, true]);
+  expect(preview({ cards: 0, memory: 4, documents: 0, images: 0 }).includes(REINDEX_CONFIRM_COPY.resummarize)).toBe(true);
   expect(reindexConfirmDescription(null)).not.toMatch(/\d/u);
+});
+
+// The vector role row speaks for the viewer's newest embedder rebuild only: a later success buries an older failure,
+// and an ordinary index pass or another user's rebuild says nothing.
+test("the role row's rebuild state follows the viewer's newest embedder rebuild", () => {
+  const rebuild = (status: WorkloadStatus, createdAt: number, ownerId: string | null = "user_me"): Parameters<typeof embedderRebuildState>[0][number] => ({
+    kind: "index",
+    status,
+    ownerId,
+    createdAt,
+    params: { source: "all", force: true, embedderChanged: true },
+  });
+  expect(embedderRebuildState([rebuild("running", 2), rebuild("failed", 1)], "user_me")).toBe("running");
+  expect(embedderRebuildState([rebuild("failed", 2, null)], "user_me")).toBe("failed");
+  expect(embedderRebuildState([rebuild("succeeded", 3), rebuild("failed", 2)], "user_me")).toBeNull();
+  expect(embedderRebuildState([rebuild("failed", 2, "user_other")], "user_me")).toBeNull();
+  expect(embedderRebuildState([{ ...rebuild("running", 2), params: { source: "all" } }], "user_me")).toBeNull();
 });

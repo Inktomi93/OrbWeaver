@@ -72,6 +72,16 @@ function assertSpace(model: string, dim: number, vector: Float32Array): void {
   }
 }
 
+/** A precomputed vector for these bytes, only when it is as wide as the generation. The seeds are made at the
+ *  encoder's native width and the space tag carries no width, so a declared narrower width must embed live. */
+function seedFor(
+  ctx: EmbeddingsContext,
+  { hash, kind, generation }: { readonly hash: string; readonly kind: "card-text" | "image-raw"; readonly generation: PinnedGeneration },
+): { readonly model: string; readonly vector: Float32Array<ArrayBuffer> } | null {
+  const seeded = ctx.precomputedEmbedding?.(hash, generation.space, kind, generation.connection) ?? null;
+  return seeded !== null && seeded.vector.length === generation.dims ? seeded : null;
+}
+
 /** card-text → `character_embeddings` (hash-gated; the staleness gate short-circuits before the embed —
  *  unless `force`, the bulk re-index escape hatch that bypasses ONLY the short-circuit). */
 async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, generation: PinnedGeneration): Promise<StoreResult> {
@@ -86,11 +96,8 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, gen
       generationVia: generation.via,
     };
   }
-  const seeded = ctx.precomputedEmbedding?.(hash, generation.space, "card-text", generation.connection);
-  const embedded =
-    seeded === undefined || seeded === null
-      ? await generation.connection.embed(p.content, { signal: p.signal })
-      : { model: seeded.model, vectors: [seeded.vector] };
+  const seeded = seedFor(ctx, { hash, kind: "card-text", generation });
+  const embedded = seeded === null ? await generation.connection.embed(p.content, { signal: p.signal }) : { model: seeded.model, vectors: [seeded.vector] };
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertCharacterEmbedding(ctx.db, {
@@ -173,9 +180,9 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
   // Raw pixels keep their own lens, and generic multimodal callers retain strict pair semantics.
   let embedded: EmbedResult | ImageEmbedResult;
   if (p.lens === "image-raw") {
-    const seeded = ctx.precomputedEmbedding?.(hash, generation.space, "image-raw", generation.connection);
+    const seeded = seedFor(ctx, { hash, kind: "image-raw", generation });
     embedded =
-      seeded === undefined || seeded === null
+      seeded === null
         ? await generation.connection.imageEmbed({ kind: "image", input: p.content }, { signal: p.signal })
         : { model: seeded.model, vectors: [seeded.vector] };
   } else if (p.via === "embed") {

@@ -104,6 +104,8 @@ export interface EmbedSpaceChangePreview {
   readonly stored: { readonly cards: number; readonly memory: number; readonly documents: number; readonly images: number };
   /** The embedding calls the rebuild makes: one per stored vector it replaces. */
   readonly embedCalls: number;
+  /** Whether a Utility model resolves: the switch deletes the chat digests, so memory re-summarizes through it. */
+  readonly utilityModelSet: boolean;
 }
 
 const storedCount = z.number().int().nonnegative();
@@ -112,6 +114,7 @@ export const embedSpaceChangePreviewSchema = z.strictObject({
   reindex: z.boolean(),
   stored: z.strictObject({ cards: storedCount, memory: storedCount, documents: storedCount, images: storedCount }),
   embedCalls: storedCount,
+  utilityModelSet: z.boolean(),
 }) satisfies z.ZodType<EmbedSpaceChangePreview>;
 
 export type { CredentialHealth } from "@orb/contracts/credentials";

@@ -29,13 +29,17 @@ async function announceCorpus(deps: EmbeddingsWorkloadDeps, ctx: WorkloadRunCont
 }
 
 /** The progress row's headline: a re-index after an embedder change says why the library is being rebuilt. */
-const EMBEDDER_CHANGED_LABEL = "Your library is re-indexing for the new embedder";
+const EMBEDDER_CHANGED_LABEL = "Rebuilding search";
 
 function corpusLabel(params: { readonly force?: boolean | undefined; readonly embedderChanged?: boolean | undefined }): string {
   if (params.embedderChanged === true) {
     return EMBEDDER_CHANGED_LABEL;
   }
   return params.force === true ? "re-embedding corpus (force)" : "embedding corpus";
+}
+
+function assetLabel(force: boolean): string {
+  return force ? "re-embedding assets (force)" : "analysing avatars";
 }
 
 /**
@@ -74,14 +78,14 @@ export function createEmbeddingsWorkloadContributions(deps: EmbeddingsWorkloadDe
               force,
               signal,
               onProgress: (done, total) => {
-                report({ message: `${label} — ${done} of ${total}`, current: done, total });
+                report({ message: `${label} — ${done} of ${total} cards`, current: done, total });
               },
             });
             embedded += result.embedded;
             skipped += result.skipped;
           }
           if (params.source === "image" || params.source === "all") {
-            const label = force ? "re-embedding assets (force)" : "analysing avatars";
+            const label = params.embedderChanged === true ? EMBEDDER_CHANGED_LABEL : assetLabel(force);
             report({ message: label });
             // N-of-M (issue #166 rider 3): the pass owns the denominator, so it hands each position back and
             // this is the only place that can turn it into a progress row. Without it a 350-image VL sweep
@@ -91,7 +95,7 @@ export function createEmbeddingsWorkloadContributions(deps: EmbeddingsWorkloadDe
               force,
               signal,
               onProgress: (done, total) => {
-                report({ message: `${label} — ${done} of ${total}`, current: done, total });
+                report({ message: `${label} — ${done} of ${total} pictures`, current: done, total });
               },
             });
             embedded += result.embedded;
