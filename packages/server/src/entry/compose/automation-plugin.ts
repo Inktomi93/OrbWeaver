@@ -150,8 +150,8 @@ export interface AutomationPluginComposeDeps {
    *  `ChatContext.pluginMacros`). Minted there rather than here purely because chat composes FIRST: one shared
    *  instance and no late bind, which is the shape the S4 store had to work around. */
   readonly pluginMacros: PluginMacroRegistry;
-  /** The author's default-preset generation params (the side-gen sampling ladder's middle rung — /autobg). */
-  readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
+  /** A user's Utility-role preset params (D299) — /autobg, rule analysis and plugin quiet calls. */
+  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
   /** #679 U8 seam 15 — databank's canon-write op (`createFromText`), narrowed. The membrane's `databank.ingest`
    *  host fn rides it under the installer (compose resolves the Principal): a scraper plugin ingests into the
    *  installer's OWN library and the derived indexer auto-runs (the write enqueues the ingest workload). */
@@ -211,7 +211,7 @@ function buildQuietResponseFormat(schema: PluginQuietSchema): ResponseFormat {
 /** The plugin `llm.quiet` op; the op bundle's `llm` arm below states its posture.
  * @public Test-anchored module surface; the grant binding it resolves through is pinned at `tests/server/entry/compose/plugin-quiet-grant.suite.int.test.ts`. */
 export function buildPluginQuietLlm(
-  deps: Pick<AutomationPluginComposeDeps, "roleClientsFor" | "resolveUserPresetParams" | "assets" | "resolveOwnerPrincipal">,
+  deps: Pick<AutomationPluginComposeDeps, "roleClientsFor" | "resolveUtilityPresetParams" | "assets" | "resolveOwnerPrincipal">,
 ): PluginHostOps["llm"]["quiet"] {
   /** The VISION arm of the U6 `llm.quiet` widening: guest-named asset ids → bytes, read under the INSTALLER's
    *  OWN Principal (`readOwnedAssetBytes`), which is the whole wall — a guest can name an id but it can only
@@ -230,7 +230,7 @@ export function buildPluginQuietLlm(
     // The plugin's own grant binding answers first; the installer funds either way, and both folds read only
     // the installer's rows, so a grant can never name another user's connection.
     const rc = await deps.roleClientsFor(installerUserId, { kind: "plugin-grant", pluginId });
-    const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, await deps.resolveUserPresetParams(installerUserId));
+    const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, await deps.resolveUtilityPresetParams(installerUserId));
     const images = await resolveQuietImages(installerUserId, opts?.imageAssetIds);
     // The SCHEMA arm (§5.9-2): a schema names `structured` on the grant's `summarize` binding; no schema
     // is prose `summarize` — the explicit two-arm dispatch, never a sniffed option.
@@ -399,14 +399,14 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       return record.isError ? { ok: false, reason: "failed", error: record.result } : { ok: true, result: record.result };
     },
     // The generic quiet-LLM op (C1 widened it from the /autobg-only shape): the DOMAIN owns the prompt text
-    // and names its `SIDE_GEN_POSTURES` floor per call; this seam owns only the wire — resolve the author's
-    // role clients, fold their preset params over the named floor, and DISPATCH on the optional
+    // and names its `SIDE_GEN_POSTURES` posture per call; this seam owns only the wire — resolve the author's
+    // role clients, fold their Utility-role preset params over the named posture, and DISPATCH on the optional
     // `responseFormat`: present ⇒ `structured`, absent ⇒ `summarize` (the ONE place the deleted facade sniff
     // is legitimately re-homed — this contract makes the field optional, `/autobg` passes none; inference
-    // program §13 row 2). A user with no preset params gets the floor byte-identically.
+    // program §13 row 2). Under task defaults the posture alone applies.
     summarizeQuiet: async ({ authorUserId, systemPrompt, prompt, posture, responseFormat }) => {
       const rc = await roleClientsFor(authorUserId);
-      const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUserPresetParams(authorUserId));
+      const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES[posture], await deps.resolveUtilityPresetParams(authorUserId));
       const inputs = [{ systemPrompt, userPrompt: prompt }];
       const res = responseFormat === undefined ? await rc.summarize(inputs, sampling) : await rc.structured(inputs, { ...sampling, responseFormat });
       const item = res.items[0];
@@ -713,8 +713,8 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // third-party plugin text — a prompt-injection MITIGATION, not a boundary; the real boundary is that this
     // call writes nothing and returns a string the guest must route through a separately-granted capability.
     //
-    // Sampling rides the side-gen ladder at the `quiet_generate` floor (temp 0.3, 1024 out — a bounded,
-    // non-creative call) under the installer's own default-preset params, exactly like /autobg. Deliberately
+    // Sampling is the installer's Utility-role preset over the `quiet_generate` posture (temp 0.3, 1024 out — a
+    // bounded, non-creative call), exactly like /autobg. Deliberately
     // NOT a new `SIDE_GEN_KINDS` member: this IS a quiet generation, and minting a parallel posture would add
     // a coupled tuple site to say the same thing.
     //

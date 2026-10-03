@@ -29,7 +29,7 @@ function fakeDeps(): RefineryWorkloadDeps {
   const roleClientsFor = vi.fn() as unknown as RefineryWorkloadDeps["roleClientsFor"];
   return {
     roleClientsFor,
-    resolveUserPresetParams: vi.fn(async () => ({})),
+    resolveUtilityPresetParams: vi.fn(async () => ({})),
     resolveUserProse: vi.fn(async () => ({})),
     listRefineryScoreTargets: vi.fn(async () => ({ targets: [], inScope: 0 })),
     stampRefinerySignals: vi.fn(async () => undefined),

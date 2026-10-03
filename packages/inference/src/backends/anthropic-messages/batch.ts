@@ -12,7 +12,7 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
-import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
+import type { StructuredRequest, SummarizeRequest, TaskSampling } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveSideGenReasoning } from "../../funnel/resolve-chat.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
@@ -66,10 +66,11 @@ function structuredOptions(format: ResponseFormat, label: string, generation: Ge
   };
 }
 
-/** The side-generation `thinking` + `effort` slice: reasoning OFF, through the funnel's mandatory clamp — a model
- *  that cannot disable thinking runs adaptive at its lowest effort instead of 400-ing on `disabled` (#2575). */
-function reasoningOptions(generation: GenerationCapability, warnings: ResolvedWarning[]): JSONObject {
-  const reasoning = resolveSideGenReasoning(generation, warnings);
+/** The side-generation `thinking` + `effort` slice: the role preset's reasoning, else OFF, through the funnel's
+ *  mandatory clamp — a model that cannot disable thinking runs adaptive at its lowest effort instead of 400-ing
+ *  on `disabled` (#2575). */
+function reasoningOptions(generation: GenerationCapability, sampling: TaskSampling, warnings: ResolvedWarning[]): JSONObject {
+  const reasoning = resolveSideGenReasoning(generation, warnings, sampling);
   const effort = reasoning.enabled ? sdkEffortOf(reasoning.effort, warnings, "side-generation") : undefined;
   return { thinking: thinkingOf(reasoning), ...(effort !== undefined ? { effort } : {}) };
 }
@@ -86,7 +87,7 @@ function runBatch(req: BatchRequest, deps: AnthropicBatchDeps): Promise<Summariz
   }
   const { generation } = connection.capability;
   const warnings: ResolvedWarning[] = [];
-  const reasoning = reasoningOptions(generation, warnings);
+  const reasoning = reasoningOptions(generation, req.sampling, warnings);
   const structured: StructuredShape =
     req.responseFormat !== undefined ? structuredOptions(req.responseFormat, label, generation, warnings) : { options: {}, anthropic: {} };
   return runV4Batch({

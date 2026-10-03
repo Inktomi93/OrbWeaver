@@ -10,7 +10,7 @@ import type { WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import type { IsAdmin, RequireOwner } from "#domain/admin";
+import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
 import type { StartWorkloadParams } from "../contract/params.ts";
 
 /**
@@ -67,6 +67,19 @@ export function isVisibleToCaller(isAdmin: IsAdmin, caller: Principal | null, ow
     return true;
   }
   return ownerId !== null && ownerId === caller.userId;
+}
+
+/**
+ * May `caller` clone this row (`retry`) or ask what cloning it would cost? The row must be visible to them, and a
+ * BULK row is the box owner's alone. An admin who is not the box owner is therefore answered exactly as a caller
+ * who cannot see the row, so the refusal is no oracle for whether a bulk row exists.
+ */
+export function canCloneRow(
+  seams: { readonly isAdmin: IsAdmin; readonly isOwner: IsOwner },
+  caller: Principal | null,
+  row: { readonly ownerId: UserId | null; readonly mode: WorkloadMode },
+): boolean {
+  return isVisibleToCaller(seams.isAdmin, caller, row.ownerId) && (caller === null || row.mode !== "bulk" || seams.isOwner(caller));
 }
 
 /**

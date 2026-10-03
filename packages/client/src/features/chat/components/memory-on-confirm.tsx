@@ -10,7 +10,8 @@ import { useGatedQuery, useTRPC } from "#data";
 import { MEMORY_COST_SENTENCE } from "#lib";
 import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_IMPORTED_CHATS_NOTE } from "../lib/memory-settings-section-nav.ts";
 
-const BACKFILL_ESTIMATE = { input: { kind: "memory-backfill", params: {} }, mode: "singular" } as const;
+// Counted before Memory is on, when the backfill would be refused, so the count asks to be taken as admitted.
+const BACKFILL_ESTIMATE = { input: { kind: "memory-backfill", params: {} }, mode: "singular", assumeAdmitted: true } as const;
 
 /** When summaries can run: an existing chat at its next reply, an imported one when its import's offer is taken. */
 const WHEN_CHATS_BUILD = `${MEMORY_EXISTING_CHATS_NOTE} ${MEMORY_IMPORTED_CHATS_NOTE}`;

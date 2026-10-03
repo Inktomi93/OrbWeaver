@@ -61,7 +61,7 @@ async function extractText(
 export function createResolvePrompt(ctx: ImageryContext, deps: { readonly captionAvatar: CaptionAvatar }): ResolvePrompt {
   return async (args) => {
     if (isMultimodalMode(args.mode)) {
-      const captioned = await deps.captionAvatar({ caller: args.caller, runAs: args.runAs, mode: args.mode, subjectCharacterId: args.subjectCharacterId });
+      const captioned = await deps.captionAvatar({ runAs: args.runAs, mode: args.mode, subjectCharacterId: args.subjectCharacterId });
       if (captioned !== null) {
         return { prompt: captioned.prompt, source: "captioned", costUsd: captioned.costUsd };
       }

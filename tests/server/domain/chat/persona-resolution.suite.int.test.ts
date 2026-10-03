@@ -22,6 +22,7 @@
 //   • setChatAnchorPersona host-gate / ownership / null-clears — verbs/chat-lifecycle.int.test.ts.
 //   • send-time personaId stamp (explicit ?? active) — verbs/turn.int.test.ts.
 //   • reattributePersona as the sole history re-stamper — verbs/edit.int.test.ts.
+
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
@@ -30,6 +31,7 @@ import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
 import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { assemblePrompt } from "../../../../packages/server/src/domain/chat/assembly/assemble.ts";
@@ -94,6 +96,7 @@ function inputOf(
   personas: Parameters<typeof buildAssembleContext>[1]["personas"],
 ): Parameters<typeof buildAssembleContext>[1] {
   return {
+    timezone: UTC_TIME_ZONE,
     chatId: castId(chatId),
     ownerId,
     characterIds: castIds,

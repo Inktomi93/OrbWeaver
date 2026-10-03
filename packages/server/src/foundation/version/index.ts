@@ -1,6 +1,6 @@
 // foundation/version — WHAT IS THIS RUNNING ORBWEAVER? The one boot-time read that answers it, for every
 // surface a human or a bug report looks at: `/healthz`, the first boot log line, the bug-report envelope,
-// and Settings → About (owner ask 2026-09-18, "a versioning system to stay in sync with github and to help
+// and Settings → This install (owner ask 2026-09-18, "a versioning system to stay in sync with github and to help
 // with bug reports").
 //
 // IT IS env/observability-CLASS, which is why it is foundation and not a domain: no db, no principal, no

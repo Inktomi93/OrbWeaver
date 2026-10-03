@@ -17,7 +17,8 @@
 //      the human named as a plain word first, then every member whose talkativeness roll passes, in a
 //      shuffled order; nobody activated ⇒ one random member — see `naturalOrder`), `pooled` (ROUND-ROBIN —
 //      least-recently-spoken first: the roster rotated to start at the seat after the last speaker),
-//      `manual` (none — only forced drives it), `smart` (the side-LLM path lives in `engine/smart-arbitrate`;
+//      `manual` (none — only forced drives it), `smart` (the picker is the room's `smartPicker`: the
+//      bound Rerank role in `engine/rerank-pick`, or the Utility-model arbiter in `engine/smart-arbitrate`;
 //      this file sees `smart` only where the turn verb did not route there — see `applyPolicy`).
 //   5. Dedupe, then cap — `maxSpeakers` (optional) truncates the ordered result; default = all activated.
 
@@ -26,7 +27,7 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { NAME_END_BOUNDARY } from "@orb/kit/speaker-label";
 import { UNICODE_WORD_CHARS } from "@orb/kit/strings";
-import type { ArbiterCandidate, SpeakerCandidate } from "../contract/arbitration.ts";
+import type { ArbiterCandidate, NameMention, SpeakerCandidate } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
 
 /** The arbitration inputs (file-local — callers pass a literal). */
@@ -170,12 +171,12 @@ function applyPolicy(
 ): readonly ArbiterCandidate[] {
   switch (policy) {
     case "natural":
-    // `smart` is the side-LLM path (`engine/smart-arbitrate`), which the turn verb routes a per-speaker
-    // smart round to — so this arm is reached only where it did NOT: a `smart` room whose human `@mention`
-    // resolved to nobody eligible (the named seat is muted/left), and a NARRATOR room, where the arbiter
-    // call is short-circuited because its verdict governs nothing. No model was consulted in either case, so
-    // this is a plain `natural` activation, not the degrade path (the model FAILING is the degrade path,
-    // emitted as `smart_arbitration_degraded` by the caller).
+    // `smart` is the model-picked path (`engine/rerank-pick`, or `engine/smart-arbitrate` when the room's
+    // `smartPicker` is the Utility arbiter), which the turn verb routes a per-speaker smart round to — so this
+    // arm is reached only where it did NOT: a `smart` room whose human `@mention` resolved to nobody eligible
+    // (the named seat is muted/left), and a NARRATOR room, where the pick is short-circuited because its
+    // verdict governs nothing. No model was consulted in either case, so this is a plain `natural` activation,
+    // not the degrade path (the picker FAILING is the degrade path, surfaced as a warning by the caller).
     case "smart":
       return naturalOrder(pool, state.mentionedIds, rng);
     // `list` — roster order, all of them, every round (no rotation: that is `pooled`).
@@ -268,8 +269,13 @@ export function resolveMentions(triggerText: string, candidates: readonly Speake
 const WORD = new RegExp(`[${UNICODE_WORD_CHARS}]+`, "gu");
 
 // NFC first, so a decomposed `Chloé` (e + combining accent) and a composed one are the same word.
-function wordsOf(text: string): string[] {
-  return text.normalize("NFC").toLowerCase().match(WORD) ?? [];
+function rawWordsOf(text: string): string[] {
+  return text.normalize("NFC").match(WORD) ?? [];
+}
+
+function startsUpper(word: string): boolean {
+  const first = [...word][0] ?? "";
+  return first !== first.toLowerCase();
 }
 
 /** Name words that never name a character on their own. Nearly every message contains them, so a name like
@@ -332,13 +338,33 @@ function phraseAt(words: readonly string[], seq: readonly string[]): number {
  * name, so "I don't" does not name `T'Pol`. A name made only of {@link NAME_STOPWORDS} and one-letter words is
  * named by its whole name as a phrase. Ordered by where each is first named, then roster order.
  */
-export function resolveNameMentions(triggerText: string, candidates: readonly SpeakerCandidate[]): CharacterId[] {
-  const text = wordsOf(triggerText);
+export function nameMentionsOf(triggerText: string, candidates: readonly SpeakerCandidate[]): NameMention[] {
+  const rawText = rawWordsOf(triggerText);
+  const text = rawText.map((w) => w.toLowerCase());
   const found = candidates.flatMap((c, rosterIdx) => {
-    const nameWords = wordsOf(c.name);
+    const rawName = rawWordsOf(c.name);
+    const nameWords = rawName.map((w) => w.toLowerCase());
     const keys = new Set(nameWords.filter((w) => !isNonNaming(w)));
     const at = keys.size > 0 ? text.findIndex((w) => keys.has(w)) : phraseAt(text, nameWords);
-    return at === -1 ? [] : [{ id: c.ref.characterId, at, rosterIdx }];
+    if (at === -1) {
+      return [];
+    }
+    const hitIdx = text.flatMap((w, i) => (keys.has(w) ? [i] : []));
+    const written = keys.size > 0 ? hitIdx : [at];
+    // A word counts toward `hits` only when it is written as a name, so an ordinary lowercase "hook" cannot
+    // break a tie between characters the text addresses by another word.
+    const asName = written.filter((i) => {
+      const nameWord = rawName[nameWords.indexOf(text[i] ?? "")];
+      return startsUpper(rawText[i] ?? "") || (nameWord !== undefined && !startsUpper(nameWord));
+    });
+    const strong = asName.length > 0;
+    const phraseHits = strong ? nameWords.length : 0;
+    const hits = keys.size > 0 ? new Set(asName.map((i) => text[i])).size : phraseHits;
+    return [{ id: c.ref.characterId, at, rosterIdx, hits, strong }];
   });
-  return found.sort((a, b) => a.at - b.at || a.rosterIdx - b.rosterIdx).map((f) => f.id);
+  return found.sort((a, b) => a.at - b.at || a.rosterIdx - b.rosterIdx).map(({ id, hits, strong }) => ({ id, hits, strong }));
+}
+
+export function resolveNameMentions(triggerText: string, candidates: readonly SpeakerCandidate[]): CharacterId[] {
+  return nameMentionsOf(triggerText, candidates).map((m) => m.id);
 }

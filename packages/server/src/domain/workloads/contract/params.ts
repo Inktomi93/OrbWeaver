@@ -33,6 +33,9 @@ export interface StartWorkloadParams {
  *  caller is always a person, because the estimate exists for a confirm a person reads. */
 export interface EstimateModelCallsParams extends Pick<StartWorkloadParams, "input" | "mode" | "targetOwnerId"> {
   readonly caller: Principal;
+  /** Count the run as if its owning domain would admit it. A run `start` would refuse is otherwise counted as 0
+   *  calls; a confirm that precedes the switch which would admit it (turning Memory on) asks for the count anyway. */
+  readonly assumeAdmitted?: boolean | undefined;
 }
 
 /** The call estimate for a retry: the row a retry would clone, counted under that row's own scope. */

@@ -55,7 +55,7 @@ test("a stored trustHtml of null INHERITS the deployment tier — the resolution
 
   // Same row, two deployments, two opposite verdicts. This is precisely why the probe reports `resolved`
   // rather than leaving a reader to interpret `trustHtml: null`.
-  // TIER POLARITY (D294 §12.2, the renderer's own mapping in `render-trust.ts`): trusted ⇒ `tierB` (the
+  // TIER POLARITY (docs/law/UI-Theming-and-Content.md §12.2, the renderer's own mapping in `render-trust.ts`): trusted ⇒ `tierB` (the
   // sandboxed ImmersiveCard), untrusted ⇒ `tierA` (the inert allowlist). These pins once
   // carried the inverted reading ("sandbox the untrusted") and taught a session to re-invert the fixed
   // code — the CARD-TRUST-INVERTED adjudication is the record. The sweep must mirror the renderer.
@@ -76,7 +76,7 @@ test("an explicit stored trustHtml OVERRIDES the deployment tier in BOTH directi
   const forcedOn = await seedCharacter(db, "forced-on", true, null);
   const forcedOff = await seedCharacter(db, "forced-off", false, null);
 
-  // Escalation up from an untrusting deployment — an explicit per-character render step (D294 §12.2)
+  // Escalation up from an untrusting deployment — an explicit per-character render step (docs/law/UI-Theming-and-Content.md §12.2)
   // lands `tierB` (ImmersiveCard).
   expect((await characterDetailRow(db, forcedOn, OPEN_FLOOR))?.renderPolicy.cardTier).toBe("tierB");
   // …and DOWN from a trusting one: a card may always refuse the escalation it was granted.

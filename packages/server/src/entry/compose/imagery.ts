@@ -64,10 +64,8 @@ export interface ImageryComposeDeps {
   readonly isCharacterSeated: (chatId: ChatId, characterId: CharacterId) => Promise<boolean>;
   /** The row-derived host Principal (`createHostPrincipalResolver`), so a run-as principal carries its real role. */
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
-  /** The run-as principal's default-preset generation params (the side-gen sampling ladder's middle rung — caption). */
-  readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
-  /** The chat host's default-preset params (the side-gen ladder's middle rung — extract-quiet is chat-scoped). */
-  readonly resolveChatPresetParams: (chatId: ChatId) => Promise<SideGenSampling>;
+  /** A user's Utility-role preset params (D299), for caption and extract-quiet. */
+  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
   /** IMGMAC — late-bound (chat + rpg both compose after imagery): the chat's authored user-macro defs from
    *  BOTH homes, so an imagery mode template resolves `{{house_style}}` the way a turn does. Deref'd only at
    *  request time inside `extractQuiet`, exactly like `resolveViewerVisibility` below. */
@@ -137,6 +135,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // a per-turn signal is a follow-up in the imagery/chat contracts.
     fetchImage: (url) => fetchImageBytes(url, deps.maxImageBytes()),
     resolveRunAs: (runAsUserId) => deps.resolveHostPrincipal(runAsUserId),
+    callerInChat: async (caller, chatId) => (await deps.resolveViewerVisibility(chatId, caller.userId)) !== null,
     // D298: a preview runs as the room host. The visibility gate runs first, so a caller the room does
     // not admit reaches no host read and spends nothing of the host's; the turn identity is the one home of
     // "the host funds and runs as".
@@ -144,16 +143,17 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
       if ((await deps.resolveViewerVisibility(chatId, caller.userId)) === null) {
         throw new DomainNotFoundError("chat", chatId);
       }
-      // The host's card reads and Utility spend follow the subject, so it must be one of this room's
-      // characters: otherwise a member could name, or caption, any character the host owns.
-      if (subjectCharacterId !== undefined && !(await deps.isCharacterSeated(chatId, subjectCharacterId))) {
-        throw new DomainNotFoundError("character", subjectCharacterId);
-      }
       const hostUserId = await deps.resolveChatHostUserId(chatId);
       if (hostUserId === null) {
         throw new Error(`imagery: chat ${chatId} has no host to run the preview as`);
       }
       const { runAsUserId } = resolveTurnIdentity({ principalUserId: caller.userId, hostUserId });
+      // The host's card reads and Utility spend follow the subject, so a member's subject must be one of this
+      // room's characters: otherwise a member could name, or caption, any character the host owns. The host
+      // reads only their own characters (owner-checked at the card read), seated or not.
+      if (runAsUserId !== caller.userId && subjectCharacterId !== undefined && !(await deps.isCharacterSeated(chatId, subjectCharacterId))) {
+        throw new DomainNotFoundError("character", subjectCharacterId);
+      }
       return runAsUserId === caller.userId ? caller : await deps.resolveHostPrincipal(runAsUserId);
     },
     storeAsset: (owner, bytes, kind, mime) => assets.store({ principal: owner, bytes, kind, mime, enforceMagic: true }),
@@ -169,7 +169,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
         now,
         summarize: async (funderUserId, ...args) => (await roleClientsFor(funderUserId)).summarize(...args),
         getCard: ({ ownerId, characterId }) => character.getCard({ principal: imageryCardPrincipal(ownerId), characterId }),
-        resolveChatPresetParams: deps.resolveChatPresetParams,
+        resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
         // IMGMAC — the user-macro plane the mode templates resolve against (late-bound: chat + rpg compose
         // after imagery, and this is only ever deref'd at request time).
         resolveUserMacroDefs: deps.resolveUserMacroDefs,
@@ -190,10 +190,9 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // The ONE vision caption op (D45/D47-6): the multimodal template + the avatar bytes over the summarize
     // lane (IC-B: runSummarize forwards images as multimodal content parts).
     captionImage: async ({ runAs, instruction, bytes }): Promise<{ text: string; costUsd: number | null }> => {
-      // The side-gen sampling ladder: the `caption` floor (temperature 0.2, maxOutputTokens 512) ← the
-      // run-as principal's default-preset params. A user with no preset params gets the floor; a user WITH
-      // preset params overrides it through the ladder.
-      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.caption, await deps.resolveUserPresetParams(runAs.userId));
+      // The run-as principal's Utility-role preset over the `caption` posture (temperature 0.2,
+      // maxOutputTokens 512). Under task defaults the posture alone applies.
+      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.caption, await deps.resolveUtilityPresetParams(runAs.userId));
       const rc = await roleClientsFor(runAs.userId);
       const res = await rc.summarize([{ systemPrompt: instruction, userPrompt: "Describe the attached image.", images: [bytes] }], posture);
       const item = res.items[0];

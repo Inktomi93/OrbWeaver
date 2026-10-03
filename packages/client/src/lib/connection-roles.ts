@@ -159,6 +159,9 @@ export const MODEL_ROLES_ADDRESS = { group: "connections", sub: MODEL_ROLES_SUBC
 /** Where a door to the Utility role lands: Model roles, at the Utility picker. */
 export const UTILITY_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "utility-model" } as const;
 
+/** Where a door to the Rerank role lands: Model roles, at the Rerank picker. */
+export const RERANK_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "rerank-model" } as const;
+
 /** Where a door to the Chat role lands: Model roles, at the Chat picker. */
 export const CHAT_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "chat-model" } as const;
 

@@ -250,7 +250,7 @@ export function makeDiscoveryHarness(
     readonly summarize?: SummarizeRecorder;
     readonly hubScores?: HubScoreRecorder;
     readonly attachCardTagByName?: DiscoveryContext["attachCardTagByName"];
-    readonly resolveUserPresetParams?: DiscoveryContext["resolveUserPresetParams"];
+    readonly resolveUtilityPresetParams?: DiscoveryContext["resolveUtilityPresetParams"];
     readonly resolveUserProse?: DiscoveryContext["resolveUserProse"];
     readonly characterEconomics?: DiscoveryContext["characterEconomics"];
     readonly characterModelEconomics?: DiscoveryContext["characterModelEconomics"];
@@ -275,7 +275,7 @@ export function makeDiscoveryHarness(
     attachCardTagByName: overrides.attachCardTagByName ?? tagAttach.op,
     // The side-gen sampling ladder's middle rung; default = an empty posture (no preset params) so the distill/
     // analyze floors stand. A test asserting the ladder overrides it with a scripted params object.
-    resolveUserPresetParams: overrides.resolveUserPresetParams ?? (() => Promise.resolve({})),
+    resolveUtilityPresetParams: overrides.resolveUtilityPresetParams ?? (() => Promise.resolve({})),
     // PROSE-1: the card owner's prose overrides; default = none ⇒ every discovery system prompt is its
     // shipped default (byte-identical to pre-migration). A slot test overrides it with a scripted record.
     resolveUserProse: overrides.resolveUserProse ?? (() => Promise.resolve({})),

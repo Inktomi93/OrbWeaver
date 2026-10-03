@@ -1,6 +1,6 @@
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
-import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatDigestId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
@@ -11,11 +11,13 @@ import { beforeEach, describe } from "vitest";
 import type { EmbeddingsStoreOp, StoreDigestParams } from "../../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/generate/digests.ts";
 import { consolidationSystemPrompt } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/prompts.ts";
+import { SUMMARIZER_OUTPUT_RESERVE_MAX_FRACTION } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/token-guard.ts";
 import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/generate/substrate/transcript.ts";
 import { loadDigestsForScope, loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
+import { CUSTOM_SYSTEM_TEMPLATE, utilityPresetResolver } from "../../../../../support/utility-preset.ts";
 import { asSummarizeOp, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../../_support.ts";
 import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seedTurns, sharedScope, testGenerationId } from "../_support.ts";
 
@@ -167,58 +169,39 @@ describe("memory/generate/digests", () => {
     expect(consolidation?.userPrompt.startsWith("HOST LEAD:\n\n[1]\n")).toBe(true);
   });
 
-  test("the resolved AppSettings.memorySummarizer sampling rides every summarize call (plus the loop-guard presence default)", async () => {
-    const chatId = await seedChat(db, "sampling");
-    await seedTurns(db, chatId, aria, 4);
-    const sum = fakeSummarize();
+  // D299: the memory build runs on the funder's Utility role. Its preset lends sampling only; the digest and
+  // consolidation prompts are the build's own, so a preset with a custom system template changes no prompt.
+  test("the funder's Utility preset sampling rides every summarize call, and its prompt structure never does", async () => {
+    const config = { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 };
+    const baselineChat = await seedChat(db, "sampling-baseline");
+    const presetChat = await seedChat(db, "sampling-preset");
+    await seedTurns(db, baselineChat, aria, 4);
+    await seedTurns(db, presetChat, aria, 4);
+    const baseline = fakeSummarize();
+    const withPreset = fakeSummarize();
     const store = fakeEmbeddingsStore(db);
-    const ctx = makeChatContext(db, { summarize: sum.op, embeddingsStore: store.store, memorySummarizer: () => ({ maxTokens: 512, temperature: 0.3 }) });
+    const utility = utilityPresetResolver({ temperature: 0.9, maxOutputTokens: 512, compaction: { mode: "managed" }, replyMedia: "text+image" });
 
-    await generateDigests(ctx, {
-      scope: sharedScope(chatId),
-      config: { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 },
+    await generateDigests(makeChatContext(db, { summarize: baseline.op, embeddingsStore: store.store }), {
+      scope: sharedScope(baselineChat),
+      config,
+      funderUserId: owner,
+    });
+    await generateDigests(makeChatContext(db, { summarize: withPreset.op, embeddingsStore: store.store, resolveUtilityPresetParams: utility }), {
+      scope: sharedScope(presetChat),
+      config,
       funderUserId: owner,
     });
 
-    // every summarize call (both tier-0 blocks + the tier-1 consolidation) carries the admin's sampling AND the
-    // Qwen3-VL loop-stopping presence-penalty default the memory build always rides.
-    expect(sum.optsSeen).toHaveLength(3);
-    for (const opts of sum.optsSeen) {
-      expect(opts).toEqual({ maxOutputTokens: 512, temperature: 0.3, presencePenalty: 1.5 });
+    expect(withPreset.calls).toHaveLength(3);
+    expect(withPreset.calls.map((c) => c.systemPrompt)).toEqual(baseline.calls.map((c) => c.systemPrompt));
+    expect(withPreset.calls.some((c) => c.systemPrompt.includes(CUSTOM_SYSTEM_TEMPLATE) || c.userPrompt.includes(CUSTOM_SYSTEM_TEMPLATE))).toBe(false);
+    for (const opts of withPreset.optsSeen) {
+      expect(opts).toEqual({ temperature: 0.9, maxOutputTokens: 512 });
     }
   });
 
-  // Owner ruling on docs/work/0325: a saved setting on the model path takes effect on save. The sampling is read
-  // per build, so an admin's change reaches the next summarize call with no restart.
-  test("a memorySummarizer change after the context is built reaches the next summarize call", async () => {
-    const before = await seedChat(db, "sampling-live-before");
-    const after = await seedChat(db, "sampling-live-after");
-    await seedTurns(db, before, aria, 2);
-    await seedTurns(db, after, aria, 2);
-    const sum = fakeSummarize();
-    const store = fakeEmbeddingsStore(db);
-    let saved: MemorySummarizerConfig = { maxTokens: 512 };
-    const ctx = makeChatContext(db, {
-      summarize: sum.op,
-      embeddingsStore: store.store,
-      embeddingsStoreSegments: store.storeSegments,
-      memorySummarizer: () => saved,
-    });
-    const config = { blockSize: 2, verbatimWindow: 0 };
-
-    await generateDigests(ctx, { scope: sharedScope(before), config, funderUserId: owner });
-    expect(sum.optsSeen.at(-1)).toEqual({ maxOutputTokens: 512, presencePenalty: 1.5 });
-
-    saved = { maxTokens: 256, temperature: 0.2 };
-    await generateDigests(ctx, { scope: sharedScope(after), config, funderUserId: owner });
-    expect(sum.optsSeen.at(-1)).toEqual({ maxOutputTokens: 256, temperature: 0.2, presencePenalty: 1.5 });
-  });
-
-  // RED-FIRST (the loop fix): with memorySummarizer UNSET, the summarize opts MUST still carry a loop-stopping
-  // presence penalty (Qwen3-VL card default 1.5) — the summarize wire does not inherit the vLLM chat surface's
-  // per-request presence default, so a repetition_penalty=1.0 model degenerates into a loop without this. Read
-  // via a Record cast so the assertion compiles against the OLD contract (which returned `{}`).
-  test("an unset memorySummarizer STILL rides the loop-stopping presence-penalty default (1.5)", async () => {
+  test("task defaults ride the memory_digest posture alone: an output cap and nothing else", async () => {
     const chatId = await seedChat(db, "sampling-default");
     await seedTurns(db, chatId, aria, 2);
     const sum = fakeSummarize();
@@ -229,12 +212,77 @@ describe("memory/generate/digests", () => {
 
     expect(sum.optsSeen.length).toBeGreaterThan(0);
     for (const opts of sum.optsSeen) {
-      expect((opts as Record<string, unknown> | undefined)?.["presencePenalty"]).toBe(1.5);
-      // An unset admin config rides the TWO loop-guard defaults and nothing else: the presence penalty (1.5)
-      // AND a hard max_tokens ceiling (1024) — both bound the Qwen3-VL repetition_penalty=1.0 loop that would
-      // otherwise run unbounded to the 120s request timeout. The other samplers stay at provider default.
-      expect(opts).toEqual({ maxOutputTokens: 1024, presencePenalty: 1.5 });
+      expect(opts).toEqual({ maxOutputTokens: SIDE_GEN_POSTURES.memory_digest.maxOutputTokens });
     }
+  });
+
+  test("a preset that sets only chat-only intent (compaction, reply media) leaves the summarize request unchanged", async () => {
+    const chatId = await seedChat(db, "sampling-chat-only");
+    await seedTurns(db, chatId, aria, 2);
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const utility = utilityPresetResolver({ compaction: { mode: "managed", thresholdPct: 70 }, replyMedia: "text+image" });
+    const ctx = makeChatContext(db, {
+      summarize: sum.op,
+      embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
+      resolveUtilityPresetParams: utility,
+    });
+
+    await generateDigests(ctx, { scope: sharedScope(chatId), config: { blockSize: 2, verbatimWindow: 0 }, funderUserId: owner });
+
+    expect(sum.optsSeen.length).toBeGreaterThan(0);
+    for (const opts of sum.optsSeen) {
+      expect(opts).toEqual({ maxOutputTokens: SIDE_GEN_POSTURES.memory_digest.maxOutputTokens });
+    }
+  });
+
+  test("a Utility output cap as large as the window still leaves the block room: the reserve clamps to half the window", async () => {
+    const window = 32_000;
+    const chatId = await seedChat(db, "sampling-huge-cap");
+    await seedTurns(db, chatId, aria, 2);
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, {
+      summarize: sum.op,
+      embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
+      summarizerContextTokens: () => Promise.resolve(window),
+      resolveUtilityPresetParams: utilityPresetResolver({ maxOutputTokens: window }),
+    });
+
+    const counts = await generateDigests(ctx, { scope: sharedScope(chatId), config: { blockSize: 2, verbatimWindow: 0 }, funderUserId: owner });
+
+    expect(counts.written).toBeGreaterThan(0);
+    for (const opts of sum.optsSeen) {
+      expect(opts).toEqual({ maxOutputTokens: window * SUMMARIZER_OUTPUT_RESERVE_MAX_FRACTION });
+    }
+  });
+
+  // Owner ruling on docs/work/0325: a saved setting on the model path takes effect on save. The preset is read
+  // per build, so a changed Utility choice reaches the next summarize call with no restart.
+  test("a changed Utility choice after the context is built reaches the next summarize call", async () => {
+    const before = await seedChat(db, "sampling-live-before");
+    const after = await seedChat(db, "sampling-live-after");
+    await seedTurns(db, before, aria, 2);
+    await seedTurns(db, after, aria, 2);
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    let current = utilityPresetResolver({ maxOutputTokens: 512 });
+    const ctx = makeChatContext(db, {
+      summarize: sum.op,
+      embeddingsStore: store.store,
+      embeddingsStoreSegments: store.storeSegments,
+      resolveUtilityPresetParams: (userId) => current(userId),
+    });
+    const config = { blockSize: 2, verbatimWindow: 0 };
+
+    await generateDigests(ctx, { scope: sharedScope(before), config, funderUserId: owner });
+    expect(sum.optsSeen.at(-1)).toEqual({ maxOutputTokens: 512 });
+
+    current = utilityPresetResolver({ maxOutputTokens: 256, temperature: 0.2 });
+    await generateDigests(ctx, { scope: sharedScope(after), config, funderUserId: owner });
+    expect(sum.optsSeen.at(-1)).toEqual({ maxOutputTokens: 256, temperature: 0.2 });
   });
 
   // #329 P1 (RED-FIRST): the consolidation is fed the children's FULL stored digests (anchor · facts · keywords),

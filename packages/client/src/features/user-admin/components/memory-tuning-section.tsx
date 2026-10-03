@@ -1,22 +1,16 @@
 // The Memory tuning admin SECTION (Phase B ③) — the write-side memory config: AppSettings.memoryDefaults
-// (the 10 recall/consolidation knobs) + AppSettings.memorySummarizer (the digest-summarize sampling). Both
-// are admin-tier b-nature overrides: each field shows its deployment floor and whether it's an active
-// override; a section-level Reset clears the whole nested override to the floor (the merge-safe
+// (the recall/consolidation knobs), an admin-tier b-nature override: each field shows its deployment floor and
+// whether it's an active override; Reset clears the whole nested override to the floor (the merge-safe
 // `{ <key>: null }`). Numeric knobs batch a Save; the mode enum + keywordMatch boolean write immediately.
-// Reads getAppSettingsWithOverrides for the honest floor-vs-override story.
+// Reads getAppSettingsWithOverrides for the honest floor-vs-override story. Summary sampling is not here:
+// each user's Utility role picks its preset (D299).
 //
 // A settings-SECTION CONTRIBUTION (§6c) at the `admin` anchor, owned by user-admin (admin-tier config).
 
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import { MEMORY_RETRIEVAL_MODES } from "@orb/contracts/search";
 import type { MemoryDefaults, MemoryDefaultsBoundKey, ResolvedMemoryDefaults } from "@orb/contracts/settings";
-import {
-  clampMemoryDefault,
-  clampMemorySummarizerMaxTokens,
-  DEFAULT_MEMORY_DEFAULTS,
-  DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS,
-  MEMORY_DEFAULTS_BOUNDS,
-} from "@orb/contracts/settings";
+import { clampMemoryDefault, DEFAULT_MEMORY_DEFAULTS, MEMORY_DEFAULTS_BOUNDS } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -152,7 +146,6 @@ function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
   const save = useUpdateAppOverrides({ trpc, invalidation });
 
   const stored = data.overrides.memoryDefaults ?? null;
-  const summarizerStored = data.overrides.memorySummarizer ?? null;
   // The effective memoryDefaults baseline = the floor ⊕ stored override (per field), every knob present.
   const effective: ResolvedMemoryDefaults = { ...DEFAULT_MEMORY_DEFAULTS, ...(stored ?? {}) };
   const [draft, setDraft] = useState<NumericDraft>(() => toNumericDraft(effective));
@@ -175,97 +168,51 @@ function MemoryTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
     save.mutateAsync({ partial: { memoryDefaults: null } }).catch(() => undefined);
   };
 
-  // memorySummarizer maxTokens (numeric override; temperature floor is the provider default, shown as such).
-  const summarizerOverridden = isOverridden(summarizerStored?.maxTokens);
-  const summarizerMaxTokens = summarizerStored?.maxTokens ?? DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS;
-  const [summarizerDraft, setSummarizerDraft] = useState<string>(() => String(summarizerMaxTokens));
-  // The clamped value the Save would write — Save is enabled only when it CLAMPS to something different (a
-  // non-finite/blank draft clamps to null → Save stays disabled, never sending a wipe-triggering value).
-  const summarizerClamped = clampMemorySummarizerMaxTokens(Number(summarizerDraft));
-  const summarizerDirty = summarizerClamped !== null && summarizerClamped !== summarizerMaxTokens;
-
-  const saveSummarizer = (): void => {
-    if (summarizerClamped === null) {
-      return;
-    }
-    save.mutateAsync({ partial: { memorySummarizer: { ...(summarizerStored ?? {}), maxTokens: summarizerClamped } } }).catch(() => undefined);
-  };
-  const resetSummarizer = (): void => {
-    setSummarizerDraft(String(DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS)); // re-sync the draft to the floor (side-eye P2)
-    save.mutateAsync({ partial: { memorySummarizer: null } }).catch(() => undefined);
-  };
-
   return (
     <Section divider={true} heading={MEMORY_TUNING_SUBCATEGORY.label} id={configAnchorId("admin", MEMORY_TUNING_SUBCATEGORY.id)}>
-      <Stack gap="section">
-        <Stack gap="field">
-          <Text voice="label" className="text-muted-foreground">
-            Recall &amp; consolidation. Unchanged controls use the deployment defaults.
-          </Text>
-          <AdminOverrideSelect
-            label="Retrieval mode"
-            hint={MODE_GUIDANCE[effective.mode].description}
-            value={effective.mode}
-            items={MODE_ITEMS}
-            overridden={isOverridden(stored?.mode)}
-            floorLabel={MODE_GUIDANCE[DEFAULT_MEMORY_DEFAULTS.mode].label}
-            onSet={(next): void => writeMemoryDefaults({ mode: next as MemoryRetrievalMode })}
-          />
-          <AdminOverrideSwitch
-            label="Keyword match"
-            hint="Also recall scenes whose saved keywords appear in recent messages. This can catch exact names, but may add loosely related scenes."
-            value={effective.keywordMatch}
-            overridden={isOverridden(stored?.keywordMatch)}
-            floorLabel={DEFAULT_MEMORY_DEFAULTS.keywordMatch ? "on" : "off"}
-            onSet={(next): void => writeMemoryDefaults({ keywordMatch: next })}
-          />
-          {NUMERIC_KNOBS.map(({ key, label, hint, step }) => (
-            <AdminOverrideField
-              key={key}
-              label={label}
-              hint={hint}
-              value={draft[key] ?? ""}
-              onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
-              overridden={isOverridden(stored?.[key])}
-              floorValue={DEFAULT_MEMORY_DEFAULTS[key]}
-              min={MEMORY_DEFAULTS_BOUNDS[key].min}
-              {...(MEMORY_DEFAULTS_BOUNDS[key].max === null ? {} : { max: MEMORY_DEFAULTS_BOUNDS[key].max })}
-              step={step}
-            />
-          ))}
-          <AdminOverrideResetRow
-            dirty={dirty}
-            anyOverridden={anyDefaultsOverridden}
-            saving={save.isPending}
-            errored={save.error !== null}
-            onSave={(): void => writeMemoryDefaults(patch)}
-            onReset={resetMemoryDefaults}
-          />
-        </Stack>
-
-        <Stack gap="field">
-          <Text voice="label" className="text-muted-foreground">
-            Memory summary generation. Unchanged temperature uses the summarizer provider default.
-          </Text>
+      <Stack gap="field">
+        <Text voice="label" className="text-muted-foreground">
+          Recall &amp; consolidation. Unchanged controls use the deployment defaults.
+        </Text>
+        <AdminOverrideSelect
+          label="Retrieval mode"
+          hint={MODE_GUIDANCE[effective.mode].description}
+          value={effective.mode}
+          items={MODE_ITEMS}
+          overridden={isOverridden(stored?.mode)}
+          floorLabel={MODE_GUIDANCE[DEFAULT_MEMORY_DEFAULTS.mode].label}
+          onSet={(next): void => writeMemoryDefaults({ mode: next as MemoryRetrievalMode })}
+        />
+        <AdminOverrideSwitch
+          label="Keyword match"
+          hint="Also recall scenes whose saved keywords appear in recent messages. This can catch exact names, but may add loosely related scenes."
+          value={effective.keywordMatch}
+          overridden={isOverridden(stored?.keywordMatch)}
+          floorLabel={DEFAULT_MEMORY_DEFAULTS.keywordMatch ? "on" : "off"}
+          onSet={(next): void => writeMemoryDefaults({ keywordMatch: next })}
+        />
+        {NUMERIC_KNOBS.map(({ key, label, hint, step }) => (
           <AdminOverrideField
-            label="Summarize max tokens"
-            hint="Maximum output reserved for each memory summary. More tokens preserve detail but cost more time and context."
-            value={summarizerDraft}
-            onChange={setSummarizerDraft}
-            overridden={summarizerOverridden}
-            floorValue={DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS}
-            min={1}
-            step={64}
+            key={key}
+            label={label}
+            hint={hint}
+            value={draft[key] ?? ""}
+            onChange={(next): void => setDraft((d) => ({ ...d, [key]: next }))}
+            overridden={isOverridden(stored?.[key])}
+            floorValue={DEFAULT_MEMORY_DEFAULTS[key]}
+            min={MEMORY_DEFAULTS_BOUNDS[key].min}
+            {...(MEMORY_DEFAULTS_BOUNDS[key].max === null ? {} : { max: MEMORY_DEFAULTS_BOUNDS[key].max })}
+            step={step}
           />
-          <AdminOverrideResetRow
-            dirty={summarizerDirty}
-            anyOverridden={anyFieldOverridden(summarizerStored)}
-            saving={save.isPending}
-            errored={save.error !== null}
-            onSave={saveSummarizer}
-            onReset={resetSummarizer}
-          />
-        </Stack>
+        ))}
+        <AdminOverrideResetRow
+          dirty={dirty}
+          anyOverridden={anyDefaultsOverridden}
+          saving={save.isPending}
+          errored={save.error !== null}
+          onSave={(): void => writeMemoryDefaults(patch)}
+          onReset={resetMemoryDefaults}
+        />
       </Stack>
     </Section>
   );

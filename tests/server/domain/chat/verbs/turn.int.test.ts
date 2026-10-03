@@ -12,10 +12,11 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { NormalizedFinishReason } from "@orb/contracts/inference";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
+import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messageVariants, personaBooks, personas, statsCanonVersions, worldBooks, worldEntries } from "@orb/db";
@@ -60,6 +61,7 @@ import { principal as makePrincipal } from "../../../../support/factories/princi
 import { makeCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
+import { CUSTOM_SYSTEM_TEMPLATE, utilityPresetResolver } from "../../../../support/utility-preset.ts";
 import {
   FROZEN_AT,
   makeChatContext,
@@ -156,7 +158,7 @@ function seededPrng(seed = 1): () => number {
 
 // A frozen {{roll:d20}} bakes to a literal number; the identity {{user}} stays raw (per-view at read).
 const FROZEN_ROLL_RE = /^I roll (\d+) and \{\{user\}\} smiles$/;
-// A frozen {{time}} bakes to the send-time clock (HH:mm:ss); server-local zone, so assert the SHAPE.
+// A frozen {{time}} bakes to the send-time clock (HH:mm:ss); UTC when no viewer zone is sent, so assert the SHAPE.
 const FROZEN_TIME_RE = /^the time is \d{2}:\d{2}:\d{2}$/;
 
 const PERSONAS: { anchor: AssemblePersona | null; active: AssemblePersona | null } = {
@@ -211,6 +213,8 @@ function harness(
     summarize?: ChatContext["summarize"];
     /** The funder's bound rerank role, Smart's default pick (default = unbound). */
     resolveSpeakerReranker?: ChatContext["resolveSpeakerReranker"];
+    /** The funder's Utility-role preset params (default = task defaults). */
+    resolveUtilityPresetParams?: ChatContext["resolveUtilityPresetParams"];
     /** The injected rpg turn ops (default null = not wired, byte-identical). The R1 folded-extraction pin
      *  wires a stub whose gather contributes TERMINAL tools, to prove the whole gather→prep→wire→flush thread. */
     rpg?: ChatContext["rpg"];
@@ -268,6 +272,7 @@ function harness(
     ...(over.resolveUserEnabled !== undefined ? { resolveUserEnabled: over.resolveUserEnabled } : {}),
     ...(over.summarize !== undefined ? { summarize: over.summarize } : {}),
     ...(over.resolveSpeakerReranker !== undefined ? { resolveSpeakerReranker: over.resolveSpeakerReranker } : {}),
+    ...(over.resolveUtilityPresetParams !== undefined ? { resolveUtilityPresetParams: over.resolveUtilityPresetParams } : {}),
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
     ...(over.teaching !== undefined ? { teaching: over.teaching } : {}),
     ...(over.tools !== undefined ? { tools: over.tools } : {}),
@@ -1033,6 +1038,42 @@ describe("send — Smart's picker route (the reranker by default, the Utility mo
     expect(assistants).toHaveLength(1);
     expect(chars).toContainEqual(assistants[0]?.characterId);
     expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "speaker_rerank_unavailable" }]);
+  });
+});
+
+/** An arbiter that picks `text` and records each call's prompt and sampling options (the abort signal aside). */
+function recordingArbiter(text: string): { op: ChatContext["summarize"]; seen: { inputs: readonly SummarizeInput[]; opts: SummarizeOptions | undefined }[] } {
+  const seen: { inputs: readonly SummarizeInput[]; opts: SummarizeOptions | undefined }[] = [];
+  return {
+    op: (_funder, inputs, opts): Promise<SummarizeResult> => {
+      const { signal: _signal, ...sampling } = opts ?? {};
+      seen.push({ inputs, opts: sampling });
+      return Promise.resolve({ items: [{ text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+    },
+    seen,
+  };
+}
+
+describe("send — the smart arbiter runs on the funder's Utility preset (D299)", () => {
+  test("the Utility preset's sampling reaches the arbiter, and its custom system template never does", async () => {
+    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
+    const baseline = recordingArbiter("bryn");
+    await harness(db, names, { summarize: baseline.op }).turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    const withPreset = recordingArbiter("aria");
+    const utility = utilityPresetResolver({ temperature: 0.9, maxOutputTokens: 64, compaction: { mode: "managed" }, replyMedia: "text+image" });
+    await harness(db, names, { summarize: withPreset.op, resolveUtilityPresetParams: utility }).turn.send({
+      principal: principal(host),
+      chatId,
+      content: "and now?",
+    });
+
+    expect(baseline.seen.map((call) => call.opts)).toEqual([SIDE_GEN_POSTURES.arbiter]);
+    expect(withPreset.seen.map((call) => call.opts)).toEqual([{ temperature: 0.9, maxOutputTokens: 64 }]);
+    expect(withPreset.seen.map((call) => call.inputs.map((input) => input.systemPrompt))).toEqual(
+      baseline.seen.map((call) => call.inputs.map((input) => input.systemPrompt)),
+    );
+    expect(JSON.stringify(withPreset.seen)).not.toContain(CUSTOM_SYSTEM_TEMPLATE);
   });
 });
 

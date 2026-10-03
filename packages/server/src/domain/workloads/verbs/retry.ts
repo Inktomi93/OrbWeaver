@@ -17,7 +17,7 @@ import type { WorkloadService, WorkloadServiceContext } from "../contract/servic
 import type { WorkloadRowAnyKind } from "../contract/workload-row.ts";
 import { isActiveKindUniqueViolation } from "../persistence/constraints.ts";
 import { findUnavailableWorkloadDependency, insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
-import { isVisibleToCaller } from "../substrate/authorize.ts";
+import { canCloneRow } from "../substrate/authorize.ts";
 import { activeConflictMessage, assertAdmissible, resolveAdmissionKey } from "../substrate/params.ts";
 
 const ENTITY = "workload";
@@ -53,11 +53,8 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
   async function retry(params: RetryWorkloadParams): Promise<WorkloadRef> {
     const contributions = ctx.getContributions();
     const original = await loadWorkload(ctx.db, contributions, params.id);
-    if (original === null || !isVisibleToCaller(ctx.isAdmin, params.caller, original.ownerId)) {
+    if (original === null || !canCloneRow(ctx, params.caller, original)) {
       throw new DomainNotFoundError(ENTITY, params.id);
-    }
-    if (params.caller !== null && original.mode === "bulk") {
-      ctx.requireOwner(params.caller);
     }
     await assertCloneDependenciesAvailable(ctx, original);
     const clone = await resolveCloneParams(ctx, contributions, original);

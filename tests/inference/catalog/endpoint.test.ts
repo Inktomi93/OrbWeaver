@@ -136,6 +136,25 @@ test("an Ollama window, pinned or assumed, is clamped to a trained maximum below
   ]);
 });
 
+// A multimodal model's `model_info` carries a `*.context_length` per component (the vision tower beside the text
+// model), in no promised order. The key under `general.architecture` is the model's own.
+test("the trained window is the model's own architecture key, not whichever *.context_length comes first", async () => {
+  const rows = await readOllama({
+    version: "0.35.1",
+    shows: {
+      "vision:8b": {
+        ["model_info"]: { ["clip.context_length"]: 77, ["general.architecture"]: "gemma3", ["gemma3.context_length"]: 131_072 },
+      },
+      "no-arch:8b": { ["model_info"]: { ["llama.context_length"]: 8192 } },
+    },
+    loaded: [],
+  });
+  expect(rows.map((row) => [row.id, row.contextTrained])).toEqual([
+    ["vision:8b", 131_072],
+    ["no-arch:8b", 8192],
+  ]);
+});
+
 test("the Ollama default floor is 4096 from the VRAM-tier release on and 2048 before it", async () => {
   const floorAt = async (version: string): Promise<number | undefined> =>
     (await readOllama({ version, shows: { "cold:8b": TRAINED_MAX }, loaded: [] }))[0]?.contextFloor;

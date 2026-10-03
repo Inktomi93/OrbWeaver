@@ -248,6 +248,8 @@ export function createSignupMinterCheck(
 /** What `buildChatService` needs from the composition root — boot primitives + the already-built sibling
  *  services chat's injected ops route through (their front doors only). */
 export interface ChatComposeInput {
+  /** A user's Utility-role preset params (`side-gen-params.ts`), for the arbiter and the memory build. */
+  readonly resolveUtilityPresetParams: ChatContext["resolveUtilityPresetParams"];
   readonly mediaProcessing: Pick<Parameters<typeof resolveImageRefToUrl>[0], "frameCount" | "prepareVideo">;
   /** Optional — absent wires `ChatContext.tools` to null (byte-identical no-op). */
   readonly toolUse?: ToolUseService | undefined;
@@ -902,9 +904,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     return config.userMacros;
   };
 
-  // The side-gen sampling ladder's MIDDLE rung for chat-scoped side-gen (quiet-generate/compaction + arbiter):
-  // the chat HOST's active-preset generation params. One home with `resolvePromptVariables` (same host + config
-  // resolution — a hostless/stale room degrades to the system-default params, never a throw).
+  // The chat HOST's active-preset generation params for quiet-generate/compaction, which run on the chat
+  // connection. One home with `resolvePromptVariables` (same host + config resolution — a hostless/stale room
+  // degrades to the system-default params, never a throw).
   const resolveChatPresetParams = async (chatId: ChatId): Promise<UserIntent> => {
     const hostUserId = await resolveChatHostUserId(chatId);
     if (hostUserId === null) {
@@ -1209,7 +1211,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // SAME fact the transport's belt clamp reads, so the segment build's skip boundary and the wire's
     // last-resort cut can't disagree.
     embedContextTokens: taskWindows.embed,
-    memorySummarizer: () => input.settings.getEffectiveConfig().memorySummarizer,
+    resolveUtilityPresetParams: input.resolveUtilityPresetParams,
     // record INSERTs the row (assigning seq) THEN the persisted view is published onto the live bus —
     // a dead bus path never loses an event (subscriptions replay from the table by seq).
     resolveHandle: (handle) => input.resolveHandle(handle),
@@ -1577,6 +1579,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       groupCharacters: (args) => backfillGroupCharacters(chatCtx, args),
       // A host asks for their own estimate BEFORE turning memory on (the switch's confirm), so the singular count
       // reads the admin defaults without the host's opt-out; the bulk count honours each host's switch, as the sweep does.
+      // A retry or a start is counted only if the workloads door would admit it (`admit` above), so only the
+      // switch's confirm sees this count while the host's switch is still off.
       estimateMemory: (args) =>
         estimateMemoryBackfillCalls(
           chatCtx,

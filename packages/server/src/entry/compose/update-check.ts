@@ -1,10 +1,11 @@
-// `probeUpstream` op impls — the network half of Settings → About's "check for updates" button, extracted
+// `probeUpstream` op impls — the network half of Settings → This install's "check for updates" button, extracted
 // from the composition root so its failure mapping is unit-testable with an injected fetch (the
 // `materialize-background.ts` precedent beside it).
 //
 // IT IS A MANUAL CHECK AND NOTHING ELSE (owner ask 2026-09-18, "stay in sync with github"): ONE click, ONE
 // unauthenticated GET. No polling timer, no background job, no persisted state, no telemetry — nothing leaves
-// this box but an HTTP GET, and nothing about this box is sent. The comparison itself is pure and lives in
+// this box but an HTTP GET, and nothing about this box is sent. A good answer is remembered in memory for
+// {@link ANSWER_TTL_MS}, so repeated clicks cost GitHub's anonymous budget one GET per window. The comparison itself is pure and lives in
 // `@orb/kit/version-identity`.
 //
 // ONE GET PER RELEASE CHANNEL. A `main` build asks for main's head commit; a `stable` build
@@ -17,7 +18,7 @@
 //
 // EVERY FAILURE IS A NAMED REASON, never a throw: offline, rate-limited (GitHub's unauthenticated budget is
 // per source IP and this shares it with everything else on the box), no release published yet, a shape the
-// payload did not have. The About surface prints the reason under an `unknown` verdict, because "couldn't
+// payload did not have. The update-check surface prints the reason under an `unknown` verdict, because "couldn't
 // check" and "you are current" must never render the same.
 
 import { SEMVER_RE } from "@orb/kit/semver";
@@ -51,6 +52,9 @@ const MAX_BYTES = 200_000;
 /** Shorter than the egress default: this fires on a click with a spinner under it, so a wedged connection
  *  must become a printed "couldn't reach GitHub" while the person is still looking at the button. */
 const DEADLINE_MS = 8000;
+/** How long a successful answer is reused. GitHub's anonymous budget is per source IP, so a re-click inside the
+ *  window answers from memory; a failure is never kept, so a retry after "offline" really retries. */
+const ANSWER_TTL_MS = 300_000;
 
 /** The fields this op reads out of GitHub's commit payload. Everything else it returns is ignored by
  *  construction — `.parse` on a narrow schema means a payload reshuffle degrades to a named `unknown`
@@ -76,6 +80,8 @@ export interface UpstreamProbeDeps {
   /** The identity this box reports — its `version` rides the User-Agent so GitHub's logs (and ours) can tell
    *  which build asked. Never a user id, never a deployment identifier. */
   readonly localVersion: () => string;
+  /** The clock the answer's age is read from; compose injects it. */
+  readonly now: () => number;
   /** Test seam; defaults to the real `safeFetch`. */
   readonly fetchImpl?: (url: string, options: SafeFetchOptions) => Promise<SafeFetchResult>;
 }
@@ -97,8 +103,22 @@ function statusReason(channel: ReleaseChannel, status: number): string {
 /** The two probes the update check runs on, one per channel, over the same GET and failure mapping. */
 export function createUpstreamProbes(deps: UpstreamProbeDeps): UpstreamProbes {
   const fetchImpl = deps.fetchImpl ?? safeFetch;
+  const answers = new Map<ReleaseChannel, { readonly at: number; readonly result: UpstreamProbeResult<Upstream> }>();
 
   async function probe<T extends Upstream>(channel: ReleaseChannel, parse: (body: string) => UpstreamProbeResult<T>): Promise<UpstreamProbeResult<T>> {
+    const kept = answers.get(channel);
+    if (kept !== undefined && deps.now() - kept.at < ANSWER_TTL_MS) {
+      // Only the channel's own parse ever stored this entry, so it is the arm `parse` would have produced.
+      return kept.result as UpstreamProbeResult<T>;
+    }
+    const result = await fetchUpstream(channel, parse);
+    if (result.ok) {
+      answers.set(channel, { at: deps.now(), result });
+    }
+    return result;
+  }
+
+  async function fetchUpstream<T extends Upstream>(channel: ReleaseChannel, parse: (body: string) => UpstreamProbeResult<T>): Promise<UpstreamProbeResult<T>> {
     let res: SafeFetchResult;
     try {
       res = await fetchImpl(UPSTREAM_URLS[channel], {
@@ -115,7 +135,7 @@ export function createUpstreamProbes(deps: UpstreamProbeDeps): UpstreamProbes {
       });
     } catch {
       // The refusal IS the product: offline, DNS failure, deadline and every egress denial collapse to the
-      // one thing the About surface can say, and the belt has already logged its own securityEvent for the
+      // one thing the update-check surface can say, and the belt has already logged its own securityEvent for the
       // denials that matter. No waiver is owed — the owner is machine-visible (the returned typed refusal,
       // which the caller must branch on), which is why the caught-failure gate does not report this site.
       return { ok: false, reason: "couldn't reach GitHub — this box may be offline" };

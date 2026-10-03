@@ -1,4 +1,4 @@
-// verbs: getVersion + checkForUpdate — the two reads behind Settings → About (owner ask 2026-09-18: "a
+// verbs: getVersion + checkForUpdate — the two reads behind Settings → This install (owner ask 2026-09-18: "a
 // versioning system to stay in sync with github and to help with bug reports").
 //
 // WHY THEY ARE SETTINGS VERBS. Neither touches the db and neither is scoped to a principal — they are

@@ -21,7 +21,7 @@ import type { RoleClientsWithSignal } from "@orb/inference";
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
-import { can, isAdmin, requireOwner } from "#domain/admin";
+import { can, isAdmin, isOwner, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { MemoryEmbedSpace } from "#domain/chat";
@@ -83,8 +83,8 @@ export interface SearchDiscoveryComposeDeps {
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
   readonly eventBus: DomainEventBus;
   readonly attachCardTagByName: TagService["attachCardTagByName"];
-  /** The card owner's default-preset params (the side-gen sampling ladder's middle rung — distill + analyze). */
-  readonly resolveUserPresetParams: DiscoveryContext["resolveUserPresetParams"];
+  /** The card owner's Utility-role preset params (D299) — distill + analyze. */
+  readonly resolveUtilityPresetParams: DiscoveryContext["resolveUtilityPresetParams"];
   readonly character: Pick<CharacterService, "listEmbeddableCharacterIds" | "loadCardText">;
   readonly assets: Pick<AssetsService, "listImageAssetIds" | "loadAssetBytes" | "assetCasRefById">;
   readonly settings: Pick<SettingsService, "loadUserSettings" | "updateUserSettingsSection">;
@@ -161,6 +161,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadAssetHash: async (assetId) => (await assets.assetCasRefById(assetId))?.hash ?? null,
     db,
     roleClientsFor,
+    resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
     now,
     newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding),
@@ -329,7 +330,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newDuplicateChatPairId: minter(ID_PREFIX.duplicateChatPair),
     roleClientsFor,
     attachCardTagByName: deps.attachCardTagByName,
-    resolveUserPresetParams: deps.resolveUserPresetParams,
+    resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
     // PROSE-1 — the compare / ask / distill system prompts off the CARD OWNER's `UserSettings.prose` (the
     // same caller scoping imagery's template resolvers use: a library analysis is one human's request about
     // their own cards, not a room-level side generation). No override ⇒ the shipped prompts.
@@ -373,6 +374,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newWorkloadId: minter(ID_PREFIX.workload),
     newScheduleId: minter(ID_PREFIX.workloadSchedule),
     requireOwner,
+    isOwner,
     isAdmin,
   });
 

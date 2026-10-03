@@ -19,6 +19,7 @@
 // every read and the write stubbed at the network (routeTrpc).
 
 import { TASKS } from "@orb/contracts/inference";
+import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // The row labels + render order are read from their ONE home rather than re-typed — a re-spelled literal is
@@ -29,12 +30,27 @@ import { ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS } from "../../../../../packages/c
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 // The floor capability: the CHEAP model §5.3a warns about, legal on the Utility slot and unable to do two of its three jobs.
 import { TEXT_ONLY_CAPABILITY } from "../../../../support/node/utility-role.ts";
 import { ALL_AVAILABLE } from "../_connection-fixtures.ts";
 import { ConnectionsPaneNarrowStory, ConnectionsPaneWideStory, ConnectionsSettingsHostedStory, ConnectionsSettingsStory } from "../_ct-stories.tsx";
 
 const AUTOSAVE_STATUS = '[data-slot="autosave-status"]';
+const UTILITY_PRESET_LABEL = "Utility preset";
+const UTILITY_PRESET_ID = "preset_ctroles_utility";
+const PRESET_ROWS = [
+  {
+    id: UTILITY_PRESET_ID,
+    name: "Terse utility",
+    kind: "generation",
+    isSystemDefault: false,
+    forkedFrom: null,
+    configUnreadable: null,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+];
 const SET_BINDING_ROUTE = /setBinding/;
 
 const CHAT_CONNECTION_ID = "user_connection_ctroles00001";
@@ -153,6 +169,7 @@ async function stubPane(
     readonly connections?: readonly ConnectionRow[];
     readonly bindings?: readonly BindingView[];
     readonly credentials?: readonly CredentialRow[];
+    readonly settings?: ReturnType<typeof userSettingsView>;
   } = {},
 ): Promise<RolesStub> {
   const recorder = await routeTrpc(page, {
@@ -167,6 +184,9 @@ async function stubPane(
     "credentials.list": () => opts.credentials ?? [],
     "connection.setBinding": () => binding("chat", CHAT_CONNECTION_ID),
     "connection.update": () => CHAT_ROW,
+    "preset.list": () => PRESET_ROWS,
+    "settings.getUserSettings": () => opts.settings ?? userSettingsView(),
+    "settings.updateUserSettingsSection": () => opts.settings ?? userSettingsView(),
   });
   return { recorder };
 }
@@ -197,11 +217,14 @@ test("every routable task gets a row, in the pane's own render order", async ({ 
   const component = await mount(<ConnectionsSettingsStory />);
 
   await expect(component.getByRole("heading", { name: "Model roles" })).toBeVisible();
-  const labels = ROLE_ROWS_ORDERED.map((row) => row.label);
-  await expect(page.getByRole("combobox")).toHaveCount(labels.length);
+  // Each role's connection picker in render order; the Utility row alone also carries its preset choice (D299).
+  const pickers = ROLE_ROWS_ORDERED.flatMap((row) =>
+    row.task === "summarize" ? [`${row.label} connection`, UTILITY_PRESET_LABEL] : [`${row.label} connection`],
+  );
+  await expect(page.getByRole("combobox")).toHaveCount(pickers.length);
   await expect
     .poll(async () => await page.getByRole("combobox").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("aria-label"))))
-    .toStrictEqual(labels.map((label) => `${label} connection`));
+    .toStrictEqual(pickers);
   // §5.3a's RENAME is the full string, and it is the row's HEADING: a user who reads "Summaries" and binds
   // a cheap text-only model silently breaks captioning, so the third consumer is named in the label itself.
   await expect(page.getByText("Utility model — summaries, structured extraction, captions", { exact: true })).toBeVisible();
@@ -400,6 +423,51 @@ test("picking a connection writes EXACTLY that task's binding", async ({ mount, 
   await expect(roleSelect(page, "Text embedding")).toBeEnabled();
   // One row's pick is one write — a slot that patched its neighbours would be the roleDefaults blob again.
   await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+// D299: the Utility role picks its preset beside its connection. Absent is task defaults; the other two arms
+// are explicit, and each pick is one `seeds` patch of exactly that key.
+test("the Utility preset starts on task defaults and writes each choice as one seeds patch", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page);
+  await mount(<ConnectionsSettingsStory />);
+  const picker = page.getByRole("combobox", { name: UTILITY_PRESET_LABEL });
+  await expect(picker).toContainText("Task defaults");
+
+  await picker.click();
+  await page.getByRole("option", { name: "Terse utility" }).click();
+  await expect
+    .poll(() => recorder.lastInput("settings.updateUserSettingsSection"), { intervals: [20, 50, 100] })
+    .toEqual({ section: "seeds", patch: { summarizePreset: { kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: UTILITY_PRESET_ID } } });
+  await expect(picker).toBeEnabled();
+
+  await picker.click();
+  await page.getByRole("option", { name: "Same as chat" }).click();
+  await expect
+    .poll(() => recorder.lastInput("settings.updateUserSettingsSection"), { intervals: [20, 50, 100] })
+    .toEqual({ section: "seeds", patch: { summarizePreset: { kind: ROLE_PRESET_CHOICE_KINDS.sameAsChat } } });
+  await expect(picker).toBeEnabled();
+
+  await picker.click();
+  await page.getByRole("option", { name: "Task defaults" }).click();
+  await expect
+    .poll(() => recorder.lastInput("settings.updateUserSettingsSection"), { intervals: [20, 50, 100] })
+    .toEqual({ section: "seeds", patch: { summarizePreset: null } });
+});
+
+test("a stored named Utility preset shows by name", async ({ mount, page }) => {
+  await stubPane(page, {
+    settings: userSettingsView({ seeds: { summarizePreset: { kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: UTILITY_PRESET_ID } } }),
+  });
+  await mount(<ConnectionsSettingsStory />);
+  await expect(page.getByRole("combobox", { name: UTILITY_PRESET_LABEL })).toContainText("Terse utility");
+});
+
+test("a Utility preset that no longer exists reads as task defaults, which is what the server runs", async ({ mount, page }) => {
+  await stubPane(page, {
+    settings: userSettingsView({ seeds: { summarizePreset: { kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: "preset_ctroles_gone" } } }),
+  });
+  await mount(<ConnectionsSettingsStory />);
+  await expect(page.getByRole("combobox", { name: UTILITY_PRESET_LABEL })).toContainText("Task defaults");
 });
 
 // THE 2026-08-01 INCIDENT, re-pointed at the surface that replaced it — and at the arm §5.3a added for it.

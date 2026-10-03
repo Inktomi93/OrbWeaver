@@ -1,6 +1,7 @@
 // infra/auth/host-allowlist — the DNS-rebinding decision. A browser cannot forge `Host`, so a rebound page is
 // refused on it; `X-Forwarded-Host` only ever adds a host to judge, from a trusted hop, and never replaces `Host`.
 
+import { ENVIRONMENT_BLOCK_WINS } from "@orb/contracts/identity";
 import { resolveAllowedHosts } from "@orb/server/foundation/env";
 import { logger } from "@orb/server/foundation/observability";
 import type { HostFacts } from "@orb/server/infra/auth";
@@ -164,6 +165,16 @@ describe("createHostNotAllowedNotice", () => {
         }),
     };
   }
+
+  test.each([true, false])("inContainer=%s: the line carries that install shape's ALLOWED_HOSTS fix, and never the overlay sentence", (inContainer) => {
+    const spy = vi.spyOn(logger, "warn");
+    createHostNotAllowedNotice(() => T0, inContainer)(REBOUND);
+    const message = String(spy.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === EVENT)?.[1]);
+    expect(message.includes("docker/orbweaver.local.env")).toBe(inContainer);
+    expect(message.includes("docker compose up -d")).toBe(inContainer);
+    expect(message).toContain("ALLOWED_HOSTS=<the host>");
+    expect(message).not.toContain(ENVIRONMENT_BLOCK_WINS);
+  });
 
   test("one refused host logs once per hour", () => {
     const h = harness();

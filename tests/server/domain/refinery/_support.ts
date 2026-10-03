@@ -91,7 +91,7 @@ export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}
     newRefineryRunId: (): RefineryRunId => mintTypeId(ID_PREFIX.refineryRun),
     newRefinerySchemaId: (): RefinerySchemaId => mintTypeId(ID_PREFIX.refinerySchema),
     roleClientsFor,
-    resolveUserPresetParams: () => Promise.resolve(options.presetParams ?? {}),
+    resolveUtilityPresetParams: () => Promise.resolve(options.presetParams ?? {}),
     resolveUserProse: () => Promise.resolve({}),
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
@@ -125,7 +125,7 @@ export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}
 export function refineryWorkloadDepsOf(db: Db, h: RefineryHarness): RefineryWorkloadDeps {
   return {
     roleClientsFor: h.ctx.roleClientsFor,
-    resolveUserPresetParams: h.ctx.resolveUserPresetParams,
+    resolveUtilityPresetParams: h.ctx.resolveUtilityPresetParams,
     resolveUserProse: h.ctx.resolveUserProse,
     listRefineryScoreTargets: createListRefineryScoreTargets({ db }),
     stampRefinerySignals: h.ctx.stampRefinerySignals,

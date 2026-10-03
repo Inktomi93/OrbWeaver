@@ -29,8 +29,8 @@ export const REFINERY_RESPONSE_FORMATS: Record<RefineryStage, ResponseFormat> = 
   analyze: { name: "refinery_analyze", schema: projectJsonSchema(REFINERY_STAGE_PAYLOADS.analyze) },
 };
 
-/** The side-gen posture each stage samples under — the ladder's floor rung (the owner's preset params are
- *  the second rung, resolved per call). Shared with the sweep for the same reason as the formats above. */
+/** The side-gen posture each stage samples under; the owner's Utility-role preset params fold over it per call
+ *  (D299). Shared with the sweep for the same reason as the formats above. */
 export const REFINERY_POSTURE_BY_STAGE: Record<RefineryStage, SideGenKind> = {
   score: "refine_score",
   rewrite: "refine_rewrite",

@@ -189,7 +189,7 @@ export async function seedSegment(
  *  slot — the memory build now batches its block/consolidation summarizes. `calls` + `optsSeen` are FLATTENED
  *  (one entry per input across all calls) so the existing "N items summarized" assertions hold regardless of
  *  batching; `batchSizes` records the per-CALL input count (the batching proof — every value is 1 under the
- *  old per-block loop, >1 once a pass batches). `optsSeen` captures the `AppSettings.memorySummarizer` wire. */
+ *  old per-block loop, >1 once a pass batches). `optsSeen` captures the resolved summarize options. */
 export function fakeSummarize(): {
   fn: (inputs: { systemPrompt: string; userPrompt: string }[], opts?: SummarizeOptions) => Promise<SummarizeResult>;
   /** The same fake as the funder-keyed `ChatContext.summarize` op (the funder is ignored — one scripted tape). */

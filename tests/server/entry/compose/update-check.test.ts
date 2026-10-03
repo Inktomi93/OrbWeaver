@@ -15,6 +15,7 @@ import type { SafeFetchOptions, SafeFetchResult } from "@orb/server/infra/networ
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
+const NOW = 1_700_000_000_000;
 const SHA = "f00dcafe1234567890abcdef1234567890abcdef";
 const COMMIT_PAYLOAD = JSON.stringify({ sha: SHA, commit: { committer: { date: "2026-09-17T12:00:00Z" } } });
 /** The release payload in its own snake_case JSON, written as text. */
@@ -40,7 +41,7 @@ interface Seen {
 
 describe("createUpstreamProbes", () => {
   test("main: a 200 commit payload becomes main's head, with the sha shortened to the same 12 the local one uses", async () => {
-    const probes = createUpstreamProbes({ localVersion: () => "0.4.1", fetchImpl: () => Promise.resolve(result({})) });
+    const probes = createUpstreamProbes({ localVersion: () => "0.4.1", now: () => NOW, fetchImpl: () => Promise.resolve(result({})) });
     expect(await probes.main()).toEqual({
       ok: true,
       upstream: { channel: "main", commit: SHA, short: "f00dcafe1234", committedAt: "2026-09-17T12:00:00Z" },
@@ -48,7 +49,7 @@ describe("createUpstreamProbes", () => {
   });
 
   test("stable: a 200 release payload becomes the latest version, its v prefix removed", async () => {
-    const probes = createUpstreamProbes({ localVersion: () => "0.1.0", fetchImpl: () => Promise.resolve(result({ body: RELEASE_PAYLOAD })) });
+    const probes = createUpstreamProbes({ localVersion: () => "0.1.0", now: () => NOW, fetchImpl: () => Promise.resolve(result({ body: RELEASE_PAYLOAD })) });
     expect(await probes.stable()).toEqual({ ok: true, upstream: { channel: "stable", version: "0.2.0", publishedAt: "2026-10-01T12:00:00Z" } });
   });
 
@@ -56,6 +57,7 @@ describe("createUpstreamProbes", () => {
     const seen: Seen[] = [];
     const probes = createUpstreamProbes({
       localVersion: () => "0.4.1",
+      now: () => NOW,
       fetchImpl: (url: string, options: SafeFetchOptions) => {
         seen.push({ url, options });
         return Promise.resolve(result({}));
@@ -77,19 +79,19 @@ describe("createUpstreamProbes", () => {
   });
 
   test("a rate-limited 403 says SO — 'try again in a few minutes', not 'unreachable'", async () => {
-    const probes = createUpstreamProbes({ localVersion: () => "0.4.1", fetchImpl: () => Promise.resolve(result({ status: 403 })) });
+    const probes = createUpstreamProbes({ localVersion: () => "0.4.1", now: () => NOW, fetchImpl: () => Promise.resolve(result({ status: 403 })) });
     const outcome = await probes.main();
     expect(outcome.ok).toBe(false);
     expect(outcome.ok ? "" : outcome.reason).toContain("rate-limiting");
   });
 
   test("a 404 on the release lookup means no stable release exists yet, and says so", async () => {
-    const probes = createUpstreamProbes({ localVersion: () => "0.0.0", fetchImpl: () => Promise.resolve(result({ status: 404 })) });
+    const probes = createUpstreamProbes({ localVersion: () => "0.0.0", now: () => NOW, fetchImpl: () => Promise.resolve(result({ status: 404 })) });
     expect(await probes.stable()).toEqual({ ok: false, reason: "no stable release has been published on GitHub yet" });
   });
 
   test("a 404 on main's head is NOT read as 'no release' — it is GitHub's plain answer", async () => {
-    const probes = createUpstreamProbes({ localVersion: () => "0.4.1", fetchImpl: () => Promise.resolve(result({ status: 404 })) });
+    const probes = createUpstreamProbes({ localVersion: () => "0.4.1", now: () => NOW, fetchImpl: () => Promise.resolve(result({ status: 404 })) });
     expect(await probes.main()).toEqual({ ok: false, reason: "GitHub answered 404" });
   });
 
@@ -97,6 +99,7 @@ describe("createUpstreamProbes", () => {
     let disposed = false;
     const probes = createUpstreamProbes({
       localVersion: () => "0.4.1",
+      now: () => NOW,
       fetchImpl: () =>
         Promise.resolve(
           result({
@@ -112,10 +115,49 @@ describe("createUpstreamProbes", () => {
   });
 
   test("an egress throw (offline, private-range denial, deadline) becomes a reason — the op never throws", async () => {
-    const probes = createUpstreamProbes({ localVersion: () => "0.4.1", fetchImpl: () => Promise.reject(new Error("getaddrinfo ENOTFOUND")) });
+    const probes = createUpstreamProbes({ localVersion: () => "0.4.1", now: () => NOW, fetchImpl: () => Promise.reject(new Error("getaddrinfo ENOTFOUND")) });
     const outcome = await probes.stable();
     expect(outcome.ok).toBe(false);
     expect(outcome.ok ? "" : outcome.reason).toContain("offline");
+  });
+});
+
+describe("createUpstreamProbes — a good answer is kept for a few minutes", () => {
+  const answerWindowMs = 300_000;
+
+  test("clicks inside the window cost one GET per channel; past it the next click asks GitHub again", async () => {
+    let at = NOW;
+    let gets = 0;
+    const probes = createUpstreamProbes({
+      localVersion: () => "0.4.1",
+      now: () => at,
+      fetchImpl: () => {
+        gets += 1;
+        return Promise.resolve(result({}));
+      },
+    });
+    await probes.main();
+    at += answerWindowMs - 1;
+    await probes.main();
+    expect(gets).toBe(1);
+    at += 1;
+    await probes.main();
+    expect(gets).toBe(2);
+  });
+
+  test("a failure is never kept, so a retry after 'offline' really retries", async () => {
+    let gets = 0;
+    const probes = createUpstreamProbes({
+      localVersion: () => "0.4.1",
+      now: () => NOW,
+      fetchImpl: () => {
+        gets += 1;
+        return gets === 1 ? Promise.reject(new Error("getaddrinfo ENOTFOUND")) : Promise.resolve(result({}));
+      },
+    });
+    expect((await probes.main()).ok).toBe(false);
+    expect((await probes.main()).ok).toBe(true);
+    expect(gets).toBe(2);
   });
 });
 

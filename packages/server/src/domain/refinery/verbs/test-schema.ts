@@ -30,7 +30,11 @@ export function createTestSchema(ctx: RefineryContext): RefineryService["testSch
     // open on the hosted wire; this projection is the enforcement, not a formality.
     const lifted = liftJsonSchema(doc.schema);
     const projected = projectJsonSchema(lifted);
-    const [overrides, presetParams, rc] = await Promise.all([ctx.resolveUserProse(ownerId), ctx.resolveUserPresetParams(ownerId), ctx.roleClientsFor(ownerId)]);
+    const [overrides, presetParams, rc] = await Promise.all([
+      ctx.resolveUserProse(ownerId),
+      ctx.resolveUtilityPresetParams(ownerId),
+      ctx.roleClientsFor(ownerId),
+    ]);
     const posture = stage === "score" ? SIDE_GEN_POSTURES.refine_score : SIDE_GEN_POSTURES.refine_analyze;
     const sampleOpts: StructuredOptions = {
       responseFormat: { name: "refinery_schema_preview", schema: projected },
