@@ -114,6 +114,13 @@ describe("toChatRequest — array wires", () => {
     expect("tools" in req ? req.tools : undefined).toEqual([SCENE]);
     expect("toolChoice" in req ? req.toolChoice : undefined).toEqual({ mode: "auto" });
   });
+
+  test("the request says when terminal tools ride, so the wire can pin the template's thinking state", () => {
+    const folded = toChatRequest(turnOf("chat-completions", { tools: { terminal: [SCENE] } }));
+    expect("terminalToolsAttached" in folded ? folded.terminalToolsAttached : undefined).toBe(true);
+    const offerOnly = toChatRequest(turnOf("chat-completions", { tools: { offer: { definitions: [TICK], execute: recordingExecute([]), turnLimit: 3 } } }));
+    expect(offerOnly).not.toHaveProperty("terminalToolsAttached");
+  });
 });
 
 describe("toChatRequest — the Agent SDK", () => {

@@ -20,7 +20,7 @@ import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../.
 import type { Resolved } from "../../contract/resolved.ts";
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
-import { resolveChat } from "../../funnel/resolve-chat.ts";
+import { resolveChat, templateThinkingFor } from "../../funnel/resolve-chat.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "../kit/cache-control.ts";
 import { cachesByAnthropicMarkers, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
@@ -173,6 +173,8 @@ function placeCache(args: {
 interface TurnKnobs {
   readonly knobs: ResolvedChatKnobs;
   readonly sampling: ReturnType<typeof wireSampling>;
+  /** {@link templateThinkingFor}: body rule 5b sends it on a `chat_template_kwargs` row, the effort word on a `reasoning_effort` one. */
+  readonly templateThinking: boolean | undefined;
 }
 
 interface TurnShape {
@@ -199,8 +201,12 @@ function openRouterReasoning(reasoning: ResolvedReasoning): JSONObject {
 }
 
 // The effort word a row that spells `reasoning_effort` sends. A chosen off spells `none` (the funnel clamps a
-// mandatory model up instead); an unset effort sends nothing, so the model reasons at its own default.
-function compatibleEffortWord(reasoning: ResolvedReasoning): LanguageModelV4CallOptions["reasoning"] {
+// mandatory model up instead); an unset effort sends nothing, so the model reasons at its own default. A row whose
+// thinking switch is the effort field sends `none` whenever the template must not think, an unset effort included.
+function compatibleEffortWord(reasoning: ResolvedReasoning, switchOff: boolean): LanguageModelV4CallOptions["reasoning"] {
+  if (switchOff) {
+    return REASONING_OFF;
+  }
   if (reasoning.enabled) {
     return reasoning.effort === undefined ? undefined : wireEffortOf(reasoning.effort);
   }
@@ -233,7 +239,8 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, wa
   const { knobs, sampling } = turn;
   const reasoning = knobs.reasoning;
   const spellsEffort = connection.features.effort === "reasoning_effort";
-  const effort = spellsEffort ? compatibleEffortWord(reasoning) : undefined;
+  const switchOff = turn.templateThinking === false && connection.features.thinkingOff === "reasoning_effort";
+  const effort = spellsEffort ? compatibleEffortWord(reasoning, switchOff) : undefined;
   const budget = budgetBody(connection.features.reasoningBudgetField, reasoning, warnings);
   if (reasoning.enabled && reasoning.effort !== undefined && !spellsEffort) {
     warnings.push({ code: "effort_dropped", message: "effort ignored: this endpoint's row spells no reasoning-effort field" });
@@ -641,7 +648,11 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     req.toolChoice === undefined ? req : { ...req, toolChoice: servableToolChoice(req.toolChoice, generation, warnings) };
   // A word-keyed logit bias resolves once per turn, from the cache where held (one tokenize call per new word).
   const sampling = await resolveWordBias(knobs.sampling, connection, deps.tokens, warnings);
-  const turnKnobs: TurnKnobs = { knobs, sampling: wireSampling(sampling, connection.features, dialect, warnings) };
+  const turnKnobs: TurnKnobs = {
+    knobs,
+    sampling: wireSampling(sampling, connection.features, dialect, warnings),
+    templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true),
+  };
 
   const run = (includeReasoning: boolean): Promise<StreamDrain> =>
     runWithPreCommitRetry(
@@ -659,7 +670,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           chatId: req.chatId,
           plan,
           prefillAllowed: acceptsAssistantPrefill(generation) && req.tools === undefined,
-          thinkingOff: !knobs.reasoning.enabled && req.params.effort === REASONING_OFF,
+          templateThinking: turnKnobs.templateThinking,
           foldSameRole: cachesByAnthropicMarkers(connection, generation),
           replyImages: knobs.replyImages,
           ...(generation.imageDetail === true ? { imageDetail: req.attachmentQuality?.imageDetail ?? DEFAULT_ATTACHMENT_QUALITY.imageDetail } : {}),

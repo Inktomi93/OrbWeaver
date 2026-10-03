@@ -1,0 +1,307 @@
+{
+  "summary": {
+    "cell": "llamacpp-27b-served",
+    "server": "llama-cpp",
+    "model": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+    "template": "served",
+    "mode": "stream",
+    "body": {
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      }
+    },
+    "strict": false,
+    "turns": 10,
+    "both": 6,
+    "proseOnly": 1,
+    "toolsOnly": 3,
+    "empty": 0,
+    "errors": 0,
+    "leaks": 0,
+    "maxPromptTokens": 4778,
+    "medianTokPerSec": 34.9,
+    "medianServerTokPerSec": 34.4,
+    "ranAt": "2026-10-03T16:37:24.025Z"
+  },
+  "rows": [
+    {
+      "turn": 1,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 8825,
+      "decodeMs": 7856,
+      "promptTokens": 3792,
+      "completionTokens": 285,
+      "tokPerSec": 36.3,
+      "serverTokPerSec": 34.9,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\":\"evening\",\"presentUpsert\":[{\"name\": \"Rook\", \"mood\": \"watchful, wet\", \"appearance\": \"soaked cloak, shortsword at hip, satchel on shoulder\", \"outfit\": \"traveling cloak, courier leathers\", \"thoughts\": \"find Marro, deliver, get paid, leave before the rain gets worse\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"the courier in question\"}}, {\"name\": \"Marro\", \"mood\": \"leisurely, amused\", \"appearance\": \"heavyset, scarred jaw, ink-stained fingers\", \"outfit\": \"sleeveless shirt, open vest over a gold chain\", \"thoughts\": \"good, the boy came through the rain\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"fence for small goods and worse\"}}],\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"location\":\"the Drowned Lantern, Saltmere\",\"recentEvent\":\"Rook ducks into the Drowned Lantern to find Marro\"}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene", "update_inventory"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 7396,
+      "decodeMs": 6091,
+      "promptTokens": 3892,
+      "completionTokens": 224,
+      "tokPerSec": 36.8,
+      "serverTokPerSec": 35,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"presentUpsert\":[{\"name\": \"Marro\", \"emoji\": \"🪶\", \"mood\": \"lethargic, sharp\", \"appearance\": \"thin, ink-stained fingers, pale\", \"outfit\": \"grey coat, loose collar\", \"thoughts\": \"weighing the satchel's worth against the risk\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"fence\"}}],\"recentEvent\":\"Rook slides into the booth and puts the sealed satchel on the table, offering forty gold\"}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"remove\":[{\"name\": \"Sealed Courier Satchel\"}],\"walletDeltas\":[{\"name\": \"gold\", \"delta\": 40}]}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "shape": "both",
+      "proseChars": 429,
+      "calls": ["upsert_quest", "update_scene", "update_party", "update_inventory"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 11858,
+      "decodeMs": 10952,
+      "promptTokens": 3983,
+      "completionTokens": 387,
+      "tokPerSec": 35.3,
+      "serverTokPerSec": 35.1,
+      "content": "Marro leans forward, voice dropping. \"The Tidegate warehouse. Harbor watch swept it an hour ago — no ledger, no thief. Word is it went to Brine & Co., the smuggler's den in the old docks.\"\n\nHe taps the table. \"The watch is tightening up tonight. I don't know how they know, but if you go in loud, you'll have a full crew on your heels. Go quiet, or go early.\"\n\nThe rain hammers the window. Somewhere below, a bell tolls the hour.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"action\":\"create\",\"name\":\"The Harbormaster's Ledger\",\"description\":\"Recover the stolen harbormaster's ledger from Brine & Co. in the old docks before dawn. The Tidegate warehouse is already swept.\",\"objectives\":[\"Get to Brine & Co. in the old docks\", \"Locate and retrieve the harbormaster's ledger\", \"Return to Marro by dawn\"]}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"recentEvent\":\"Rook accepted Marro's job: recover the harbormaster's ledger from Brine & Co. by dawn\"}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"status\":\"wet and watchful\"}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"remove\":[{\"name\": \"Sealed Courier Satchel\"}]}"
+        }
+      ]
+    },
+    {
+      "turn": 4,
+      "shape": "both",
+      "proseChars": 515,
+      "calls": ["update_scene", "update_party"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 11509,
+      "decodeMs": 10560,
+      "promptTokens": 4148,
+      "completionTokens": 367,
+      "tokPerSec": 34.8,
+      "serverTokPerSec": 34.5,
+      "content": "Rain hammers the warped planks of Rat Alley, the stench of fish guts and brine seeping through your soaked boots. You keep to the shadows, the alley's dark gaps swallowing your outline. Ahead, a rusted gate hangs open into a narrow yard where oil lamps flicker behind cracked shutters. This is Brine & Co.\n\nA figure stands just inside the gate, leaning against a barrel of salted cod. The one-eyed thug. She's got a knife in one hand and a stolen ledger tucked under her arm, its leather cover glistening with rain.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"Rat Alley, Saltmere\",\"timeOfDay\":\"night\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"recentEvent\":\"Rook arrives at Brine & Co. in Rat Alley, finding Gessa guarding the stolen ledger\",\"presentUpsert\":[{\"name\": \"Gessa\", \"emoji\": \"🗡️\", \"mood\": \"guarded, wary\", \"appearance\": \"one-eyed, broad-shouldered thug\", \"outfit\": \"tattered coat, knife in hand\", \"thoughts\": \"weighing whether this courier is worth the trouble\", \"relationship\": {\"kind\": \"enemy\", \"label\": \"ganger of the ledger\"}}]}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"status\":\"soaked, watchful, on edge\"}"
+        }
+      ]
+    },
+    {
+      "turn": 5,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_party", "update_scene", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 9151,
+      "decodeMs": 7762,
+      "promptTokens": 4266,
+      "completionTokens": 278,
+      "tokPerSec": 35.8,
+      "serverTokPerSec": 34.3,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -3}],\"addCondition\":{\"name\": \"Bleeding\", \"modifier\": -1},\"status\":\"ribs ached, breathing hard, on edge\"}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"presentUpsert\":[{\"name\": \"Gessa\", \"emoji\": \"🔨\", \"mood\": \"brutal, aggressive\", \"appearance\": \"broad, one eye missing, scarred\", \"outfit\": \"leather apron, heavy boots\", \"thoughts\": \"Nobody touches what she holds\", \"relationship\": {\"kind\": \"enemy\", \"label\": \"Thug\"}}],\"recentEvent\":\"Gessa attacks Rook in Rat Alley, striking his ribs\"}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\"}"
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "shape": "both",
+      "proseChars": 459,
+      "calls": ["update_party", "upsert_quest", "update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 14093,
+      "decodeMs": 8418,
+      "promptTokens": 4377,
+      "completionTokens": 288,
+      "tokPerSec": 34.2,
+      "serverTokPerSec": 33.9,
+      "content": "Blood wells hot down your thigh — no, *her* thigh — as the blade bites. Gessa hisses, crumpling, and the ledger clatters on wet stone between you. Her cudgel skids away into a puddle. She grabs her leg, face going grey, and lurches toward the alley mouth. \"Watch your back, courier,\" she rasps, and disappears into the rain.\n\nYou're still breathing hard, ribs aching, a thin line of blood tracing down your own side. The ledger sits there, slick and innocent.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"status\":\"ribs ached, bleeding from the cut, catching breath\"}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"completeObjectives\":[\"Get to Brine & Co. in the old docks\", \"Locate and retrieve the harbormaster's ledger\"]}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"recentEvent\":\"Rook wounded Gessa and claimed the ledger in Rat Alley\"}"
+        }
+      ]
+    },
+    {
+      "turn": 7,
+      "shape": "both",
+      "proseChars": 429,
+      "calls": ["update_party", "update_scene", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 11133,
+      "decodeMs": 9988,
+      "promptTokens": 4436,
+      "completionTokens": 350,
+      "tokPerSec": 35,
+      "serverTokPerSec": 34.7,
+      "content": "The linen strip tightens around your ribs and the bleeding eases, though the pain still throbs with every breath. The ledger is heavy in your pack, its brass clasp cold against your hip.\n\nRat Alley opens onto the wet cobbles of the Old Docks. Dawn is a thin grey line in the east — maybe an hour out. Marro's words ring in your head: *by dawn.*\n\nYou're limping, bleeding, and out of breath. The rain soaks through your bandaging.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"status\":\"ribs bound, still bleeding faintly, winded\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -3}],\"addCondition\":{\"name\": \"Bleeding\", \"modifier\": -1}}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"Old Docks, Saltmere\",\"timeOfDay\":\"night\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"recentEvent\":\"Rook bound his ribs and headed for the docks to find Marro before dawn\"}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\"}"
+        }
+      ]
+    },
+    {
+      "turn": 8,
+      "shape": "both",
+      "proseChars": 352,
+      "calls": ["update_party", "update_inventory", "update_scene", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 16292,
+      "decodeMs": 15241,
+      "promptTokens": 4523,
+      "completionTokens": 520,
+      "tokPerSec": 34.1,
+      "serverTokPerSec": 33.9,
+      "content": "The fish market is a chaos of overturned crates and wet scales. Your lungs burn with every stride, the linen binding slick with your own blood. Bells hammer from the lighthouse to your left.\n\nThe watch is already at the dock gates — you can hear the heavy thud of their boots on the planks. They'll have the old docks locked down before the next chime.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -3}],\"status\":\"ribs bound, bleeding faintly, winded\"}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"add\":[{\"name\": \"Harbormaster's Ledger\", \"description\": \"Leather-bound ledger, brass clasp shut, stolen from Brine & Co.\", \"location\": \"pack\"}]}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"Old Docks, Saltmere\",\"timeOfDay\":\"night\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"recentEvent\":\"Rook cuts through the fish market as the watch closes in on the Old Docks\",\"presentUpsert\":[{\"name\": \"Rook\", \"emoji\": \"🏃\", \"mood\": \"desperate\", \"appearance\": \"winded, ribs bound with linen, bleeding faintly\", \"outfit\": \"wet cloak, shortsword sheathed\", \"thoughts\": \"need to find a way past the watch before they seal the docks\"}]}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"description\":\"Recover the stolen harbormaster's ledger from Brine & Co. in the old docks before dawn. The Tidegate warehouse is already swept.\",\"objectives\":[\"Return to Marro by dawn\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 9,
+      "shape": "both",
+      "proseChars": 417,
+      "calls": ["update_inventory", "update_party", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 11915,
+      "decodeMs": 10736,
+      "promptTokens": 4647,
+      "completionTokens": 370,
+      "tokPerSec": 34.5,
+      "serverTokPerSec": 34.2,
+      "content": "The harbormaster takes the ledger with damp hands, checks the clasp, and exhales like a man surfacing. 'By the salt, it's intact.' He presses a folded paper into your palm — a writ of thanks, and a purse that clinks heavier than Marro's. 'For your trouble. And mind the watch.'\n\nOutside, the lanterns along the quay are coming on in pairs, and the bells have stopped. You've made it in, but the night is nearly spent.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"add\":[{\"name\": \"Writ of Thanks\", \"description\": \"Harbormaster's official seal, folded paper\", \"location\": \"pack\"}, {\"name\": \"Harbormaster's purse\", \"description\": \"heavy coin purse from the harbormaster\", \"location\": \"pack\"}],\"walletDeltas\":[{\"name\": \"gold\", \"delta\": 25}]}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -2}],\"status\":\"winded, ribs bound, faintly bleeding\"}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"completeObjectives\":[\"Return to Marro by dawn\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 10,
+      "shape": "prose-only",
+      "proseChars": 398,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 4273,
+      "decodeMs": 2966,
+      "promptTokens": 4778,
+      "completionTokens": 103,
+      "tokPerSec": 34.7,
+      "serverTokPerSec": 34.1,
+      "content": "The rain has turned to a thin drizzle by the time you reach the taproom, and your ribs are a dull throb beneath the linen. The door groans open on its own. Marro is already there, ledger in one hand, two fingers raised.\n\n'By the tide,' he says, turning it over. 'You got it back. And alive.' He pushes a small brass token across the boards. 'This buys you a favor from me. You'll want it, courier.'",
+      "reasoning": "",
+      "rawCalls": []
+    }
+  ]
+}
