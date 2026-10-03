@@ -216,9 +216,9 @@ test("with a renderContext, {{char}}/{{user}} resolve to real names before Markd
 
 // ── P4 — the immersive html-card lifecycle chrome (parity-plus §4.7) ──────────────────────────────
 //
-// TIER MAPPING (D44 §12.2), and why these mount TRUSTED: Tier B — the sandboxed ImmersiveCard with the
-// card's own CSS — is the OPT-IN per-character trust tier. Tier A is the DEFAULT inert allowlist, which
-// forbids `<style>`, so a card cannot render as a card there.
+// TIER MAPPING (D294 §12.2), and why these mount TRUSTED: Tier B — the sandboxed ImmersiveCard with the
+// card's own CSS — is the tier of a character at or above `trusted`, which every inheriting character is by
+// default. Tier A is the inert allowlist, which forbids `<style>`, so a card cannot render as a card there.
 //
 // These tests mounted `untrusted` until 2026-08-04 because the client's mapping was INVERTED. The whole
 // card suite therefore exercised only the tier the inversion left working, and the trusted path — the one
@@ -374,8 +374,8 @@ test("a transcript card COLLAPSES to its title bar and re-shows the SAME scripts
 // body is final, so it renders as the card it was meant to be.
 test("an UNTERMINATED card in a stored body renders the card chrome, not raw fence syntax", async ({ mount }) => {
   const truncated = ':::card title="Ashfell Night Market"\n\n<div style="font-family: \'Courier New';
-  // Mounted TRUSTED so the assertion is about the EOF-close, not about the tier (D44 §12.2 — tier B is
-  // the opt-in tier; see the P4 header). The untrusted twin below pins that the same recovery happens on
+  // Mounted TRUSTED so the assertion is about the EOF-close, not about the tier (D294 §12.2 — tier B is
+  // the trusted-author tier; see the P4 header). The untrusted twin below pins that the same recovery happens on
   // the inert tier, so a truncated card never regresses to raw fence syntax on EITHER path.
   const component = await mount(<MessageContentSpansStory trust="trusted" content={`Look:\n${truncated}`} />);
   const card = component.locator('[data-slot="immersive-card"]');

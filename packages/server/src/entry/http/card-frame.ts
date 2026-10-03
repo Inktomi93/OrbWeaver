@@ -16,8 +16,8 @@
 //     ceiling is read HERE, per mint, off the same live `getEffectiveConfig()` thunk the app-document CSP
 //     reads — one deployment ceiling, two consumers, and the frame can never out-vote it.
 //   • `allowInlineData` ⇐ the participant's HTML-TRUST LADDER at or above `trusted`. This is the door:
-//     `data:` images for cards authored by a character the HOST opted into (the same consent D44 uses to
-//     grant the tierB sandbox).
+//     `data:` images for cards authored by a character that resolves at or above that step (the same step
+//     D294 uses to grant the tierB sandbox).
 //   • the SCRIPT POSTURE ⇐ the TOP step of that same ladder AND the deployment `allowInteractiveCards`
 //     ceiling (#111 legs 1+3) AND the viewer's own `chat.runCardScripts` consent — `interactive` only when
 //     ALL THREE say yes, `static` otherwise and on every failure arm. It selects which `CardFramePosture`

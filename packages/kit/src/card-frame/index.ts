@@ -271,8 +271,8 @@ export function foldCardFrameHeight(current: number | undefined, data: unknown):
 export interface CardFrameMediaPolicy {
   /** The app-tier "Block external media" ceiling ∧ the per-character verdict ⇒ `https:` on img/media. */
   readonly allowExternalMedia: boolean;
-  /** The DOORWAY: `data:` on img/media, granted only by a per-character `renderPolicy.trustHtml` opt-in (the
-   *  same host consent D44 uses to grant the tierB sandbox). Expressible ONLY on the `document` delivery —
+  /** The DOORWAY: `data:` on img/media, granted only when the character's resolved `renderPolicy.htmlTrust` is
+   *  at or above `trusted` (the same step D294 uses to grant the tierB sandbox). Expressible ONLY on the `document` delivery —
    *  the srcdoc floor cannot out-vote the app document's `img-src`, which is why this door needed a route. */
   readonly allowInlineData: boolean;
 }

@@ -1,7 +1,7 @@
 // Unit: the render-trust resolver (client lib/render-trust) — the ONE place the per-message render
-// trust tier + external-media gate are decided (D44 §12.0, UNTRUSTED BY DEFAULT). Pins the exact rule that
-// replaced the pre-#25 hardcoded `trust="trusted"`: trusted ONLY for the viewer's own input OR an opted-in
-// character; everything else untrusted; fail-CLOSED when no resolved policy is present.
+// trust tier + external-media gate are decided (D294 §12.2). Pins the exact rule that replaced the pre-#25
+// hardcoded `trust="trusted"`: trusted ONLY for the viewer's own input OR a character whose resolved step is
+// at or above `trusted`; everything else untrusted; fail-CLOSED when no resolved policy is present.
 
 import type { ParticipantView, RenderPolicy } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";

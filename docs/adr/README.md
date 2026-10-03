@@ -54,7 +54,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D41 | [Chat warnings are structured events](0041-chat-warnings-structured-events.md) | active |
 | D42 | [The UI package is the domain-agnostic component layer](0042-ui-package-domain-agnostic-component-layer.md) | active |
 | D43 | [Standing meta-rules from the neo client audit](0043-standing-meta-rules-from-neo-client-audit.md) | active |
-| D44 | [Theming and rich content use trust tiers](0044-theming-and-rich-content-use-trust-tiers.md) | active |
+| D44 | [Theming and rich content use trust tiers](0044-theming-and-rich-content-use-trust-tiers.md) | superseded by [0294-interactive-story-cards-are-on-by-default.md](0294-interactive-story-cards-are-on-by-default.md) |
 | D45 | [Vision input is gated by model capability](0045-vision-input-gated-by-model-capability.md) | active |
 | D46 | [Scripting variables live on two planes](0046-scripting-variables-live-on-two-planes.md) | active |
 | D47 | [Seven SillyTavern gaps are committed](0047-seven-sillytavern-gaps-committed.md) | active |
@@ -241,3 +241,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D291 | [Plugin names the installable package and plugin page names a screen it contributes](0291-plugin-names-the-package-and-plugin-page-names-its-screen.md) | active |
 | D292 | [A local server that states its modalities is taken at its word](0292-local-server-stated-modalities.md) | active |
 | D293 | [Memory is off until each user turns it on, behind a cost confirm](0293-memory-is-off-until-each-user-turns-it-on.md) | active |
+| D294 | [Rich content uses trust tiers, and interactive story cards are on by default](0294-interactive-story-cards-are-on-by-default.md) | active |

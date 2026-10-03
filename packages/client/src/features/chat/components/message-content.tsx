@@ -48,13 +48,13 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "media":
       return <MessageMediaBlock key={key} block={block} allowExternal={allowExternal} />;
-    // D44 §12.2, the TWO card tiers — see the `cardTrust` mapping in MessageSegment for which row gets which:
-    //   tierB = the OPT-IN trust tier — the ImmersiveCard chrome (§4.7 lifecycle: collapsed sandbox → expand
+    // D294 §12.2, the TWO card tiers — see the `cardTrust` mapping in MessageSegment for which row gets which:
+    //   tierB = the trusted-author tier — the ImmersiveCard chrome (§4.7 lifecycle: collapsed sandbox → expand
     //           lightbox → view-raw) around the sandboxed SandboxFrame (null-origin iframe + per-frame CSP),
     //           with the card's own CSS applied. The row's external-media verdict rides along: the sandbox
     //           CSP is the SAME axis as MessageMedia's gate, so a card's <img src="https://…"> obeys the
     //           same setting the media block does.
-    //   tierA = the DEFAULT inert tier — the sanitized allowlist in the main DOM. Tier A FORBIDS <style> and
+    //   tierA = the inert tier for every other row — the sanitized allowlist in the main DOM. Tier A FORBIDS <style> and
     //           inline style=, so `block.css` is not merely unused here, it is unusable by law.
     // The inert arm is wrapped in InertCard rather than emitted bare: an unstyled card in the prose flow is
     // indistinguishable from the model writing plain text, which is how this read as "cards vanish". The

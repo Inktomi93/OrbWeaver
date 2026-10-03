@@ -6,7 +6,7 @@ updated: 2026-09-23
 
 # UI-Gates-and-Lessons
 
-> **The UI enforcement law.** Decision records: D42–D44, D52, D54, D62, D66.
+> **The UI enforcement law.** Decision records: D42, D43, D52, D54, D62, D66, D294.
 > §-map + reading order: `UI-Architecture-and-Layout.md` header.
 
 ## 7. The sealed gotchas — fix each ONCE, in a place a cold agent can't bypass
@@ -270,17 +270,21 @@ per-theme `color-scheme`).
 
 The threat surface is chat-only: character-card fields render as escaped text; the only untrusted-markdown
 render is chat's message body. The `@orb/ui/markdown` seam exposes two trust policies (BUILT in
-`packages/ui/src/markdown/policy.ts`). **Governing posture (D44 §12.0): UNTRUSTED BY DEFAULT** — "trusted"
-names the permissive POLICY, not a default; the model is untrusted (indirect prompt-injection can make it
-emit exfil-shaped markup). Per-message tier resolved by `resolveRowRenderPolicy`
-(`client/src/lib/render-trust.ts` — re-homed from features/chat, cross-feature tier 4); the opt-in mirrors `forbidExternalMedia` (deployment-global
-`trustHtml` AND per-character override, resolved server-side `override ?? global`).
+`packages/ui/src/markdown/policy.ts`). **Governing posture (D294):** a row's policy follows its author's
+step on the HTML-trust ladder (UI-Theming-and-Content.md §12.2). The model stays untrusted, because indirect
+prompt injection can make it emit exfil-shaped markup, so the `trusted` policy still sanitizes. The server
+resolves each participant's step with `resolveRenderPolicy`; `resolveRowRenderPolicy`
+(`client/src/lib/render-trust.ts`, cross-feature tier 4) picks the policy per message. A character on
+"Inherit default" resolves to `interactive` while `allowInteractiveCards` is on, so its messages render
+`trusted` by default.
 
-- **`trusted` (the OPT-IN escalation — the viewer's OWN input, or a character/global that opted into rich
-  HTML):** Streamdown defaults — maximum functionality.
-- **`untrusted` (the DEFAULT — LLM output / imported cards / other participants / system):** the Tier-A
-  element allowlist (§12.2) MINUS `img`, plus a `urlTransform` gate (blocks `javascript:`/`data:`/off-allowlist
-  hosts). KaTeX kept (rehype-katex
+- **`trusted` (the viewer's own messages, and a character at or above the `trusted` step):** Streamdown
+  defaults with `rehype-sanitize` and `rehype-harden`, plus `TRUSTED_ALLOWED_TAGS`. Off-origin `img` and every
+  `source` are dropped unless the row admits external media (`ownOriginMediaOnly`), links render as
+  confirm-gated buttons (Streamdown link safety), and a mermaid block renders as inert code.
+- **`untrusted` (another user's messages, a character on the Untrusted step, a seat with no readable
+  character row, and any row with no resolved policy):** the Tier-A element allowlist (§12.2) MINUS `img`,
+  plus a `urlTransform` gate (blocks `javascript:`/`data:`/off-allowlist hosts). KaTeX kept (rehype-katex
   `trust:false` — math-only, inert).
 
 > \[!WARNING] `img` MUST be dropped at the element level for untrusted content — NOT via `urlTransform`.

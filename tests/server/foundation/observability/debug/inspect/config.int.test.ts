@@ -55,8 +55,8 @@ test("a stored trustHtml of null INHERITS the deployment tier — the resolution
 
   // Same row, two deployments, two opposite verdicts. This is precisely why the probe reports `resolved`
   // rather than leaving a reader to interpret `trustHtml: null`.
-  // TIER POLARITY (D44 §12.2, the renderer's own mapping in `render-trust.ts`): trusted ⇒ `tierB` (the
-  // OPT-IN sandboxed ImmersiveCard), untrusted ⇒ `tierA` (the DEFAULT inert allowlist). These pins once
+  // TIER POLARITY (D294 §12.2, the renderer's own mapping in `render-trust.ts`): trusted ⇒ `tierB` (the
+  // sandboxed ImmersiveCard), untrusted ⇒ `tierA` (the inert allowlist). These pins once
   // carried the inverted reading ("sandbox the untrusted") and taught a session to re-invert the fixed
   // code — the CARD-TRUST-INVERTED adjudication is the record. The sweep must mirror the renderer.
   const onUntrusting = await characterDetailRow(db, id, OPEN_FLOOR);
