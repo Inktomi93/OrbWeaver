@@ -8,7 +8,7 @@
 // turn does.
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
-import type { EffortLevel, GenerationCapability, Range, SamplerStage, SamplingRangeKnob, Verbosity } from "@orb/contracts/inference";
+import type { EffortLevel, GenerationCapability, Range, SamplerStage, SamplingRangeKnob, Verbosity, Wire } from "@orb/contracts/inference";
 import {
   bindsThinkingToPrefix,
   completeSamplerOrder,
@@ -247,26 +247,25 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
 }
 
 /** THE SIDE-GENERATION REASONING — what a `summarize` / `structured` call runs. When the role's preset sets
- *  effort or a thinking budget (D299), those govern. Otherwise the posture is "reasoning OFF" (a summary is not
- *  worth thinking tokens). Both resolve through the SAME on/off decision and mandatory clamp a chat turn takes,
+ *  effort or a thinking budget (D299), those govern; a budget alone turns reasoning on at that budget. Otherwise
+ *  the posture is "reasoning OFF" (a summary is not worth thinking tokens). Both resolve through the SAME on/off decision and mandatory clamp a chat turn takes,
  *  never spelled `disabled` straight at the wire: a model whose reasoning is mandatory (Fable, Opus 5.5) 400s
  *  that, so it runs at its minimum effort or budget with `reasoning_mandatory_clamp`. No display is resolved —
  *  a batch reads only the reply text. An explicit `none` (a posture's floor) is the same off.
  *
  *  Reasoning that runs is paid out of the output cap on every wire this serves, so the cap grows by the room the
- *  thinking may take ({@link sideGenOutputCap}); a cap sized for the answer alone ends in an empty reply. */
+ *  thinking may take ({@link sideGenOutputCap}); a cap sized for the answer alone ends in an empty reply. A wire
+ *  whose SDK already adds the budget to the cap gets the visible cap as-is on the budget arm. */
 export function resolveSideGenReasoning(
   capability: GenerationCapability,
+  wire: Wire,
   warnings: ResolvedWarning[],
-  wanted: Pick<TaskSampling, "effort" | "thinkingBudgetTokens" | "maxTokens"> = {},
+  wanted: Pick<TaskSampling, "effort" | "thinkingBudgetTokens" | "maxTokens">,
 ): SideGenReasoning {
   const r = capability.reasoning;
   const presetGoverns = (wanted.effort !== undefined && wanted.effort !== EFFORT_OFF) || wanted.thinkingBudgetTokens !== undefined;
   const params: UserIntent = presetGoverns
-    ? {
-        ...(wanted.effort !== undefined ? { effort: wanted.effort } : {}),
-        ...(wanted.thinkingBudgetTokens !== undefined ? { thinkingBudgetTokens: wanted.thinkingBudgetTokens } : {}),
-      }
+    ? presetReasoningIntent(capability, wanted, warnings)
     : {
         effort: EFFORT_OFF,
         ...(r.mode === "budget" && r.mandatory === true && r.budgetRange !== undefined ? { thinkingBudgetTokens: r.budgetRange.min } : {}),
@@ -274,7 +273,8 @@ export function resolveSideGenReasoning(
   // A budget may take what the model's own cap leaves beside the visible answer.
   const room = capability.output.maxTokens.max - (wanted.maxTokens ?? 0);
   const { display: _display, ...reasoning } = resolveReasoning(params, capability, room, warnings);
-  return { reasoning, maxTokens: sideGenOutputCap(capability, reasoning, wanted.maxTokens) };
+  const budgetAddedByWire = reasoning.enabled && reasoning.mode === "budget" && WIRES_ADDING_THINKING_BUDGET.has(wire);
+  return { reasoning, maxTokens: budgetAddedByWire ? wanted.maxTokens : sideGenOutputCap(capability, reasoning, wanted.maxTokens) };
 }
 
 // The thinking room for an effort level on a model that states no budget range: Anthropic's documented budget
@@ -282,6 +282,42 @@ export function resolveSideGenReasoning(
 const REASONING_ALLOWANCE_RANGE: Range = { min: 1024, max: 32_000 };
 // An effort-mode model that names no default effort reasons at a level the wire does not say: size for high.
 const UNSTATED_ALLOWANCE_EFFORT: EffortLevel = "high";
+
+// Wires whose SDK grows the output cap by the thinking budget itself: @ai-sdk/anthropic sends
+// `max_tokens = maxOutputTokens + budget_tokens` on `thinking.type: "enabled"`, so the funnel must not add it too.
+const WIRES_ADDING_THINKING_BUDGET: ReadonlySet<Wire> = new Set<Wire>(["anthropic-messages"]);
+
+// The lowest effort level whose share of `range` covers `budget`, so the room an effort wire leaves is never
+// smaller than the budget the user asked for; the model's top level when none does.
+function effortForBudget(budget: number, levels: readonly EffortLevel[] | undefined, range: Range): EffortLevel {
+  const pool = (levels !== undefined && levels.length > 0 ? levels : EFFORT_LEVELS).toSorted((a, b) => EFFORT_LEVELS.indexOf(a) - EFFORT_LEVELS.indexOf(b));
+  return pool.find((level) => budgetForEffort(level, range) >= budget) ?? pool.at(-1) ?? EFFORT_LEVELS[0];
+}
+
+// A preset's own reasoning choice. A budget with no effort is a choice to reason at that budget: a budget-mode
+// model runs it as given; a model that reasons by effort runs the level that covers it, and says so.
+function presetReasoningIntent(
+  capability: GenerationCapability,
+  wanted: Pick<TaskSampling, "effort" | "thinkingBudgetTokens">,
+  warnings: ResolvedWarning[],
+): UserIntent {
+  const { effort, thinkingBudgetTokens: budget } = wanted;
+  if (effort !== undefined || budget === undefined) {
+    return { ...(effort !== undefined ? { effort } : {}), ...(budget !== undefined ? { thinkingBudgetTokens: budget } : {}) };
+  }
+  const r = capability.reasoning;
+  const level = effortForBudget(budget, r.effortLevels, r.budgetRange ?? REASONING_ALLOWANCE_RANGE);
+  if (r.mode === "budget") {
+    return { effort: level, thinkingBudgetTokens: budget };
+  }
+  if (r.enabled) {
+    const message = `reasoning budget ${budget} ran as effort "${level}": this model reasons by effort level and takes no token budget`;
+    warnings.push(
+      r.mode === "adaptive" ? { code: "adaptive_budget_dropped", message } : { code: "sampling_knob_dropped", knob: "thinkingBudgetTokens", message },
+    );
+  }
+  return { effort: level };
+}
 
 /** The output cap a side-generation call sends: its visible budget, plus the room its reasoning may take when
  *  reasoning runs (the budget itself, else the effort's share of the model's budget range), within the model's

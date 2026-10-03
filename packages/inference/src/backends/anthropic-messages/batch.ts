@@ -86,7 +86,7 @@ function runBatch(req: BatchRequest, deps: AnthropicBatchDeps): Promise<Summariz
   }
   const { generation } = connection.capability;
   const warnings: ResolvedWarning[] = [];
-  const sideGen = resolveSideGenReasoning(generation, warnings, req.sampling);
+  const sideGen = resolveSideGenReasoning(generation, connection.wire, warnings, req.sampling);
   const reasoning = reasoningOptions(sideGen.reasoning, warnings);
   const structured: StructuredShape =
     req.responseFormat !== undefined ? structuredOptions(req.responseFormat, label, generation, warnings) : { options: {}, anthropic: {} };

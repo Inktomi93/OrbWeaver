@@ -17,7 +17,7 @@ export function runGoogleBatch(req: SummarizeRequest | StructuredRequest, deps: 
   const label = `${connection.providerId} ${task} (${connection.model})`;
   const warnings: ResolvedWarning[] = [];
   const batch = batchRequestOf(req, task);
-  const sideGen = resolveSideGenReasoning(generation, warnings, batch.sampling);
+  const sideGen = resolveSideGenReasoning(generation, connection.wire, warnings, batch.sampling);
   return runV4Batch({
     req: batch,
     model: googleProviderFor({ connection, deps, label, api: task }).chat(googleModelId(connection.model)),

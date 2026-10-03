@@ -156,6 +156,54 @@ test("an off posture keeps the visible cap: no thinking runs, so none is paid fo
   expect(off["max_tokens"]).toBe(ARBITER_CAP);
 });
 
+const BUDGET_MODELS = ["claude-haiku-4-5", "claude-sonnet-4-5"] as const;
+const PRESET_BUDGET = 2048;
+
+async function presetBody(
+  model: string,
+  preset: { readonly effort?: "low" | "high"; readonly thinkingBudgetTokens?: number },
+): Promise<Record<string, unknown>> {
+  const recorded: RecordedRequest[] = [];
+  await runAnthropicSummarize(
+    { connection: connectionFor("summarize", model), inputs: INPUTS, ...preset, maxTokens: ARBITER_CAP, signal: undefined },
+    batchDeps(recorded, []),
+  );
+  return recorded[0]?.body ?? {};
+}
+
+function budgetOf(body: Record<string, unknown>): number {
+  const thinking = body["thinking"];
+  const budget = typeof thinking === "object" && thinking !== null && "budget_tokens" in thinking ? thinking.budget_tokens : undefined;
+  if (typeof budget !== "number") {
+    throw new Error(`no budget_tokens on the wire: ${JSON.stringify(thinking)}`);
+  }
+  return budget;
+}
+
+test("a Utility preset that sets only a thinking budget runs extended thinking at that budget, with room for it", async () => {
+  for (const model of BUDGET_MODELS) {
+    const body = await presetBody(model, { thinkingBudgetTokens: PRESET_BUDGET });
+    expect(body["thinking"], model).toEqual({ type: "enabled", budget_tokens: PRESET_BUDGET });
+    expect(body["max_tokens"], model).toBe(ARBITER_CAP + PRESET_BUDGET);
+  }
+});
+
+test("an `enabled` thinking budget is added to max_tokens once: the SDK adds it, the funnel does not add it again", async () => {
+  for (const model of BUDGET_MODELS) {
+    const body = await presetBody(model, { effort: "low" });
+    expect(body["max_tokens"], model).toBe(ARBITER_CAP + budgetOf(body));
+  }
+});
+
+test("an adaptive model's thinking room is the funnel's own allowance, and a budget-only preset runs as the effort that covers it", async () => {
+  const chosen = await presetBody("claude-opus-5", { effort: "high" });
+  // The `high` share of the allowance range: an adaptive call sends no budget, so the SDK adds nothing.
+  expect(chosen["max_tokens"]).toBe(ARBITER_CAP + 10_159);
+  const budgeted = await presetBody("claude-opus-5", { thinkingBudgetTokens: PRESET_BUDGET });
+  expect(budgeted["output_config"]).toMatchObject({ effort: "low" });
+  expect(budgeted["max_tokens"]).toBeGreaterThanOrEqual(ARBITER_CAP + PRESET_BUDGET);
+});
+
 test("a model whose off is `between_tools` keeps the side-generation posture off with that spelling, never a clamp", async () => {
   const { body, lines } = await summarizeBody("claude-sonnet-5-5");
   expect(body["thinking"]).toEqual({ type: "between_tools" });

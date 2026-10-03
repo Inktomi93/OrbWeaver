@@ -151,7 +151,7 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
   const structured: StructuredShape =
     req.responseFormat !== undefined ? structuredOptions(req, req.responseFormat, generation, warnings) : { options: {}, openRouterChat: undefined };
   const sampling = wireSampling(req.sampling, connection.features, connection.provider.dialect ?? "openai-compatible", warnings);
-  const sideGen = resolveSideGenReasoning(generation, warnings, req.sampling);
+  const sideGen = resolveSideGenReasoning(generation, connection.wire, warnings, req.sampling);
   const send = (reasoning: ResolvedReasoning, maxTokens: number | undefined, sent: ResolvedWarning[]): Promise<SummarizeResult> => {
     const slice = connection.provider.dialect === "openrouter" ? openRouterSlice(reasoning) : compatibleSlice(connection.features, reasoning, sent);
     const call: ModelCall = {
