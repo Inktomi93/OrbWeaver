@@ -1,11 +1,11 @@
 // CT: the Analytics OVERVIEW dashboard's RECOMPUTE affordance — the client half of the direct
-// `stats.reconcile` twin (the queue keeps the all-owners bulk sweep). Drives the PRODUCTION path: the four
+// `stats.reconcile` twin (the queue keeps the all-owners bulk sweep). Drives the PRODUCTION path: the five
 // suspense reads seed the dashboard, the button fires the real mutation, and the settle invalidates the
 // stats router root so the freshness line re-reads. Asserts the wire actually fires — a "Recompute now"
 // button that renders but dispatches nothing is exactly the failure this covers.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { readCanvasBandInk, solidColumns } from "../../../../support/browser/canvas-ink.ts";
 import { readPhantomScrollers } from "../../../../support/browser/scroll-containing-block.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
@@ -19,6 +19,7 @@ const ABSOLUTE_STAMP = /\d{4}/;
 const RENDERED_UNDEFINED = /undefined/i;
 
 const OVERVIEW = {
+  variantMessages: 6,
   tokensIn: 1000,
   tokensOut: 2000,
   swipeWords: 30_200_000,
@@ -45,13 +46,44 @@ const WRAPPED = {
   costUsd: 1.25,
   genTimeMs: 90_000,
   topCharacter: null,
-  // `longestStreakDays` and `dayOfWeek` are the CONTRACT's spellings (`TemporalStats`,
-  // packages/server/src/domain/stats/contract/views.ts). The stub previously said `longestStreak` (the
-  // Rhythm band rendered "undefinedd" through every green run) and separately `byDayOfWeek` (a field the
-  // contract has never had) — a test double whose shape doesn't match the contract hides the very field
-  // it is meant to exercise. #296.
-  temporal: { activeDays: 4, longestStreakDays: 3, busiestDay: null, dayOfWeek: [0, 0, 0, 0, 0, 0, 0] },
+  firstChatAt: COMPUTED_AT - 400 * 86_400_000,
+  avgSwipeDepth: 1.44,
+  swipeRate: 0.25,
 };
+
+const NOON_MS = 12 * 3_600_000;
+const DAY_MS = 86_400_000;
+/** One noon-UTC bucket per active day — noon lands on the same calendar day in every zone a runner uses. */
+function timelineDay(dayStart: number): {
+  bucketStart: number;
+  chatsCreated: number;
+  userTurns: number;
+  assistantTurns: number;
+  swipes: number;
+  tokensIn: null;
+  tokensOut: null;
+  tokensInProvenance: "unrecorded";
+  tokensOutProvenance: "unrecorded";
+  genTimeMs: number;
+  messageDatesApprox: boolean;
+} {
+  return {
+    bucketStart: dayStart + NOON_MS,
+    chatsCreated: 0,
+    userTurns: 1,
+    assistantTurns: 1,
+    swipes: 0,
+    tokensIn: null,
+    tokensOut: null,
+    tokensInProvenance: "unrecorded",
+    tokensOutProvenance: "unrecorded",
+    genTimeMs: 0,
+    messageDatesApprox: false,
+  };
+}
+// Four active days, three of them consecutive: the Rhythm band must read 4 and 3d off the real fold.
+const JULY_1 = Date.UTC(2026, 6, 1);
+const TIMELINE = [JULY_1, JULY_1 + DAY_MS, JULY_1 + 2 * DAY_MS, JULY_1 + 9 * DAY_MS].map(timelineDay);
 
 const MOMENTUM = { latestMonth: null, prevMonth: null, rising: [], falling: [] };
 
@@ -70,6 +102,7 @@ for (const width of [320, 720] as const) {
             tokensOutProvenance: accounting.provenance,
           }),
           "stats.wrapped": () => ({ ...WRAPPED, costUsd: accounting.cost }),
+          "stats.timeseries": () => TIMELINE,
           "stats.momentum": () => MOMENTUM,
         });
         const component = await mount(<AnalyticsOverviewSurfaceStory width={width} />);
@@ -107,8 +140,9 @@ test("the dashboard's Recompute now button fires stats.reconcile", async ({ moun
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
-    "stats.reconcile": () => ({ owners: 1, characters: 3, days: 4, models: 2, computedAt: COMPUTED_AT + 1000 }),
+    "stats.reconcile": () => ({ owners: 1, characters: 3, buckets: 4, models: 2, computedAt: COMPUTED_AT + 1000 }),
   });
 
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
@@ -132,6 +166,7 @@ test("the Economics band renders the reasoning WINDOW beside the reasoning rate"
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
   });
 
@@ -147,14 +182,14 @@ test("the Economics band renders the reasoning WINDOW beside the reasoning rate"
 });
 
 // ── The Rhythm band renders the fixture's real values, never `undefined` (#296) ─────────────────────
-// A test double whose field names drift from the `TemporalStats` contract renders "undefinedd" through
-// every green run — the double passes, the surface silently lies. Pin the actual rendered text so a
-// future drift (contract rename, stub typo) fails HERE instead of in a screenshot nobody looked at.
-test("the Rhythm band renders the WRAPPED.temporal fixture's real values, never 'undefined'", async ({ mount, page }) => {
+// The band is folded on the client from the `stats.timeseries` buckets. Pin the actual rendered values so
+// a drift in the wire shape or the fold fails HERE instead of in a screenshot nobody looked at.
+test("the Rhythm band renders the timeline fixture's real values, never 'undefined'", async ({ mount, page }) => {
   await routeTrpc(page, {
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
   });
 
@@ -179,6 +214,7 @@ test("the cache tile names its denominator and reports the INPUT share, not a co
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => ({ ...OVERVIEW, cacheHitRate: 0.019_36 }),
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
   });
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
@@ -196,6 +232,7 @@ test("an unmeasured figure renders an em dash, never a zero", async ({ mount, pa
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => ({ ...OVERVIEW, cacheHitRate: null, tokensIn: null, tokensOut: null }),
     "stats.wrapped": () => ({ ...WRAPPED, costUsd: null }),
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
   });
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
@@ -218,6 +255,7 @@ test("the Words definition and the swipe-word exclusion are stated where they ar
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
   });
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
@@ -234,6 +272,7 @@ test("the momentum band names its months and the freshness line carries the abso
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => ({ latestMonth: "2026-08", prevMonth: "2026-07", rising: [], falling: [] }),
   });
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
@@ -262,6 +301,7 @@ test("Rising and Falling share ONE value scale and read as different intents (P1
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM_LOPSIDED,
   });
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
@@ -311,8 +351,9 @@ test("the button is disabled while its own recompute is in flight", async ({ mou
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
-    "stats.reconcile": () => ({ owners: 1, characters: 3, days: 4, models: 2, computedAt: COMPUTED_AT + 1000 }),
+    "stats.reconcile": () => ({ owners: 1, characters: 3, buckets: 4, models: 2, computedAt: COMPUTED_AT + 1000 }),
   });
   const release = await holdReconcile(page);
 
@@ -333,6 +374,7 @@ test("a raced recompute (CONFLICT) renders the honest notice, not a failure", as
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
     // What the server's per-user single-flight gate returns when another tab (or an earlier click) is
     // already rebuilding this owner's rollups.
@@ -367,6 +409,7 @@ test("no absolutely-positioned box escapes the analytics overview scroller (the 
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
   });
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
@@ -384,6 +427,7 @@ test("the top-character subtitle names the real affordance while collapsed and d
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => ({ ...WRAPPED, topCharacter: { name: "Aveline", assistantTurns: 12 } }),
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
   });
 
@@ -408,6 +452,7 @@ test("the overview dashboard's content region carries a non-zero inset (#1200)",
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
   });
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
@@ -451,6 +496,7 @@ test("#1727 the overview surface scrolls past the fold AND remembers its settled
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,
     "stats.wrapped": () => WRAPPED,
+    "stats.timeseries": () => TIMELINE,
     "stats.momentum": () => MOMENTUM,
   });
 
@@ -484,6 +530,7 @@ test("an activity rollup without any replies has no reasoning ratio", async ({ m
     "stats.freshness": { computedAt: COMPUTED_AT, stale: false, hasData: true },
     "stats.overview": { ...OVERVIEW, assistantTurns: 0, swipes: 0, reasoningRate: 0 },
     "stats.wrapped": { ...WRAPPED, replies: 0, swipes: 0 },
+    "stats.timeseries": TIMELINE,
     "stats.momentum": MOMENTUM,
   });
   const component = await mount(<AnalyticsOverviewSurfaceStory />);
@@ -492,4 +539,39 @@ test("an activity rollup without any replies has no reasoning ratio", async ({ m
   ).toHaveText("—");
   await test.info().attach("0314-no-replies", { body: await component.screenshot(), contentType: "image/png" });
   await test.info().attach("0314-no-replies-aria", { body: Buffer.from(await component.ariaSnapshot()), contentType: "text/plain" });
+});
+
+function figureValue(scope: Locator, label: string): Locator {
+  return scope.locator('[data-slot="stat-figure"]', { hasText: label }).locator('[data-slot="stat-figure-value"]');
+}
+
+// ── The three all-time swipe and first-chat figures (0372) ─────────────────────────────────────────
+// The rates divide by replies, and the depth averages over replies with more than one take, so with no
+// sample each must read as unrecorded rather than the 0 an empty denominator divides to.
+test("All-time totals render the first chat, the swiped share and the swipe depth, with em dashes when there is no sample", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": { computedAt: COMPUTED_AT, stale: false, hasData: true },
+    "stats.overview": OVERVIEW,
+    "stats.wrapped": WRAPPED,
+    "stats.timeseries": TIMELINE,
+    "stats.momentum": MOMENTUM,
+  });
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await expect(figureValue(component, "Swiped replies")).toHaveText("25%");
+  await expect(figureValue(component, "Swipes to kept reply")).toHaveText("1.4");
+  await expect(figureValue(component, "First chat")).toHaveText(ABSOLUTE_STAMP);
+});
+
+test("with no re-rolled reply and no replies, the swipe figures read unrecorded", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "stats.freshness": { computedAt: COMPUTED_AT, stale: false, hasData: true },
+    "stats.overview": { ...OVERVIEW, variantMessages: 0 },
+    "stats.wrapped": { ...WRAPPED, replies: 0, swipeRate: 0, avgSwipeDepth: 0, firstChatAt: null },
+    "stats.timeseries": TIMELINE,
+    "stats.momentum": MOMENTUM,
+  });
+  const component = await mount(<AnalyticsOverviewSurfaceStory />);
+  await expect(figureValue(component, "Swiped replies")).toHaveText("—");
+  await expect(figureValue(component, "Swipes to kept reply")).toHaveText("—");
+  await expect(figureValue(component, "First chat")).toHaveText("—");
 });

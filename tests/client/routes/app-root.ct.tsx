@@ -782,6 +782,7 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
   | "stats.freshness"
   | "stats.overview"
   | "stats.wrapped"
+  | "stats.timeseries"
   | "stats.momentum"
   | "discovery.unusedCharacters"
   | "discovery.modelRouting"
@@ -847,8 +848,8 @@ const SECTION_CENSUS_ROUTES: TrpcRoutes<
     costUsd: 0,
     genTimeMs: 0,
     topCharacter: null,
-    temporal: { activeDays: 0, longestStreakDays: 0, busiestDay: null, dayOfWeek: [0, 0, 0, 0, 0, 0, 0] },
   },
+  "stats.timeseries": [],
   "stats.momentum": { latestMonth: null, prevMonth: null, rising: [], falling: [] },
   // The corpus dashboard's remaining rails (a CASCADE: they could not be requested until the reads above
   // stopped answering null), plus the jobs read its run-a-pass door resolves against. Empty, as above.

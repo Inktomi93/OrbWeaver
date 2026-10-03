@@ -8,7 +8,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatParticipantId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { utcDay } from "@orb/kit/stats-tally";
+import { statsBucketStart } from "@orb/kit/stats-tally";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { insertCanonMessageStatements, reattributeMessagesStatement } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
@@ -140,7 +140,7 @@ describe("reconcileStats", () => {
   test("rebuilds owner / character / daily / model rollups from canon", async () => {
     const clock = createFrozenClock(T0 + 999);
     const res = await reconcileStats(db, { ownerId, now: clock.now });
-    expect(res).toEqual({ owners: 1, characters: 1, days: 1, models: 1, computedAt: T0 + 999 });
+    expect(res).toEqual({ owners: 1, characters: 1, buckets: 1, models: 1, computedAt: T0 + 999 });
 
     const owner = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
     expect(owner?.userTurns).toBe(1);
@@ -173,7 +173,7 @@ describe("reconcileStats", () => {
     expect(char?.chats).toBe(1);
 
     const day = (await db.select().from(dailyStats).where(eq(dailyStats.ownerId, ownerId)))[0];
-    expect(day?.day).toBe(utcDay(T0));
+    expect(day?.bucketStart).toBe(statsBucketStart(T0));
     expect(day?.userTurns).toBe(1);
     expect(day?.assistantTurns).toBe(1);
     expect(day?.swipes).toBe(1);

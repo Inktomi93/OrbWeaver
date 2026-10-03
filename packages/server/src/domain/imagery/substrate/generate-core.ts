@@ -11,7 +11,7 @@ import { modelIdSchema } from "@orb/contracts/inference";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { AssetId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
-import { utcDay } from "@orb/kit/stats-tally";
+import { statsBucketStart } from "@orb/kit/stats-tally";
 import { GenerationFailedError } from "../contract/errors.ts";
 import type { GeneratedPictureImage, GenerationOutcome, GenerationProvenanceInput } from "../contract/results.ts";
 import type { GeneratedImage, ImageGenerateRequest, ImageryContext } from "../contract/service.ts";
@@ -101,7 +101,7 @@ function buildDelta(args: {
   return {
     ownerId: args.caller.userId,
     characterId: null,
-    day: utcDay(args.now),
+    bucketStart: statsBucketStart(args.now),
     model: args.model,
     provider: args.providerId,
     modelGenerations: args.count,

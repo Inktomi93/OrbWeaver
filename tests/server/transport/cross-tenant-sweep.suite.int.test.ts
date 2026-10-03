@@ -2035,8 +2035,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // caller's roster at zero, never their data").
   "stats.personaUsage": "self-scoped by principal.userId; the optional characterId narrows the caller's OWN chats and cannot widen the read",
   "stats.wrapped": "self-scoped by principal.userId",
-  "stats.temporal": "self-scoped by principal.userId",
-  "stats.activityHeatmap": "self-scoped by principal.userId",
   "stats.momentum": "self-scoped by principal.userId",
   "stats.latency": "self-scoped by principal.userId",
   // The one WRITE on the stats surface: no id input at all — the rebuild scope IS principal.userId, so a

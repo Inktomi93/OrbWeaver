@@ -26,8 +26,9 @@ export const statsDeltaSchema = z.object({
   ownerId: brandedId<UserId>(),
   // null for system / no-character writes → `character_stats` is skipped for this delta.
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
-  // 'YYYY-MM-DD' UTC of the message (the `daily_stats` grain — produced by `@orb/kit/stats-tally.utcDay`).
-  day: z.string(),
+  // The epoch-ms start of the message's UTC quarter-hour (the `daily_stats` key — produced by
+  // `@orb/kit/stats-tally.statsBucketStart`).
+  bucketStart: z.number().int(),
   // null → `model_stats` is skipped; `provider` coalesces to '(unknown)' at the model-key seam, not here.
   model: modelIdSchema.nullable(),
   provider: z.union([providerIdSchema, z.literal(MODEL_PROVIDER_UNKNOWN)]).nullable(),
@@ -67,9 +68,9 @@ export const statsDeltaSchema = z.object({
   // `characterChats`. Same grain split as `daily*`/`model*`.
   characterChats: z.number().optional(),
   characterForkedChats: z.number().optional(),
-  // per-day chats-created (the `daily_stats` column; bucketed on `day`).
+  // per-bucket chats-created (the `daily_stats` column; bucketed on `bucketStart`).
   chatsCreated: z.number().optional(),
-  // `daily_stats` flag — set when a migrated chat clobbers a message day (OR-merged in the upsert).
+  // `daily_stats` flag — set when a migrated chat clobbers a message time (OR-merged in the upsert).
   messageDatesApprox: z.boolean().optional(),
 
   dailyTokensIn: z.number().optional(),
@@ -242,8 +243,11 @@ export interface LeaderboardPage {
   total: number;
 }
 
-export interface DailyPoint {
-  day: string;
+/** One `daily_stats` row: the owner's activity in one UTC quarter-hour (`STATS_BUCKET_MS`). The wire
+ *  carries the bucket's start instant, never a calendar day: the viewer's days, weekdays and hours are
+ *  derived from it at the display edge, in the viewer's zone. */
+export interface ActivityBucket {
+  bucketStart: number;
   chatsCreated: number;
   userTurns: number;
   assistantTurns: number;
@@ -295,14 +299,6 @@ export interface PersonaUsageRow {
   lastUsedAt: number | null;
 }
 
-export interface TemporalStats {
-  activeDays: number;
-  longestStreakDays: number;
-  busiestDay: { day: string; count: number } | null;
-  /** Sun..Sat, index 0 = Sunday. */
-  dayOfWeek: number[];
-}
-
 export interface WrappedSummary {
   firstChatAt: number | null;
   lastActivityAt: number | null;
@@ -319,15 +315,7 @@ export interface WrappedSummary {
   throughputTps: number;
   forkedChats: number;
   topCharacter: { name: string; assistantTurns: number } | null;
-  temporal: TemporalStats;
   computedAt: number;
-}
-
-export interface ActivityHeatmap {
-  /** 7 rows (0 = Sunday … 6 = Saturday) × 24 cols (UTC hour). */
-  matrix: number[][];
-  total: number;
-  peak: { dayOfWeek: number; hour: number; count: number } | null;
 }
 
 export interface MomentumRow {
@@ -423,8 +411,8 @@ export const leaderboardPageSchema = z.strictObject({
   total: z.number(),
 }) satisfies z.ZodType<LeaderboardPage>;
 
-export const dailyPointSchema = z.strictObject({
-  day: z.string(),
+export const activityBucketSchema = z.strictObject({
+  bucketStart: z.number().int(),
   chatsCreated: z.number(),
   userTurns: z.number(),
   assistantTurns: z.number(),
@@ -435,7 +423,7 @@ export const dailyPointSchema = z.strictObject({
   tokensOutProvenance: tokenProvenanceSchema,
   genTimeMs: z.number(),
   messageDatesApprox: z.boolean(),
-}) satisfies z.ZodType<DailyPoint>;
+}) satisfies z.ZodType<ActivityBucket>;
 
 export const modelStatRowSchema = z.strictObject({
   model: z.string(),
@@ -474,13 +462,6 @@ export const personaUsageRowSchema = z.strictObject({
   lastUsedAt: z.number().nullable(),
 }) satisfies z.ZodType<PersonaUsageRow>;
 
-export const temporalStatsSchema = z.strictObject({
-  activeDays: z.number(),
-  longestStreakDays: z.number(),
-  busiestDay: z.strictObject({ day: z.string(), count: z.number() }).nullable(),
-  dayOfWeek: z.array(z.number()),
-}) satisfies z.ZodType<TemporalStats>;
-
 export const wrappedSummarySchema = z.strictObject({
   firstChatAt: z.number().nullable(),
   lastActivityAt: z.number().nullable(),
@@ -497,15 +478,8 @@ export const wrappedSummarySchema = z.strictObject({
   throughputTps: z.number(),
   forkedChats: z.number(),
   topCharacter: z.strictObject({ name: z.string(), assistantTurns: z.number() }).nullable(),
-  temporal: temporalStatsSchema,
   computedAt: z.number(),
 }) satisfies z.ZodType<WrappedSummary>;
-
-export const activityHeatmapSchema = z.strictObject({
-  matrix: z.array(z.array(z.number())),
-  total: z.number(),
-  peak: z.strictObject({ dayOfWeek: z.number(), hour: z.number(), count: z.number() }).nullable(),
-}) satisfies z.ZodType<ActivityHeatmap>;
 
 export const momentumRowSchema = z.strictObject({
   characterId: typeIdSchema(ID_PREFIX.character),
@@ -535,7 +509,8 @@ export const latencyStatsSchema = z.strictObject({
 export interface ReconcileStatsResult {
   owners: number;
   characters: number;
-  days: number;
+  /** `daily_stats` rows written: quarter-hour buckets, not days. */
+  buckets: number;
   models: number;
   computedAt: number;
 }
@@ -543,7 +518,7 @@ export interface ReconcileStatsResult {
 export const reconcileStatsResultSchema = z.strictObject({
   owners: z.number(),
   characters: z.number(),
-  days: z.number(),
+  buckets: z.number(),
   models: z.number(),
   computedAt: z.number(),
 }) satisfies z.ZodType<ReconcileStatsResult>;

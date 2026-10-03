@@ -5,7 +5,7 @@
 // `characterId`; the `(owner, model, provider)` unique-index conflict; and the epoch-ms NUMBER timestamps
 // (never Date). ZERO vector columns is enforced structurally by the dep-cruiser gate, not here.
 
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Db } from "@orb/db";
@@ -23,9 +23,9 @@ import {
 import { isConstraintViolation } from "@orb/db/kit";
 import type { CharacterHandle, CharacterId, CharacterStatId, DailyStatId, Handle, ModelStatId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { STATS_BUCKET_MS } from "@orb/kit/stats-tally";
 import { and, eq, sql } from "drizzle-orm";
-import { readMigrationFiles } from "drizzle-orm/migrator";
-import { freshDb } from "../../support/db.ts";
+import { freshDb, SHIPPED_MIGRATIONS, shippedChainThrough } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../support/inference-identities.ts";
 import { seedUser } from "./_support.ts";
@@ -190,8 +190,10 @@ test("deleting a character CASCADEs its character_stats row (the rollup dies wit
   expect(rows).toHaveLength(0);
 });
 
-// ── daily_stats: KEEPS ownerId; owner×day unique; message-stream credit ────────────────────────────────
-test("daily_stats round-trips (KEEPS ownerId, day bucket, OR-flag default false, numeric computedAt)", async () => {
+// ── daily_stats: KEEPS ownerId; owner×bucket unique; message-stream credit ─────────────────────────────
+const BUCKET = 1_782_432_000_000;
+
+test("daily_stats round-trips (KEEPS ownerId, quarter-hour bucket, OR-flag default false, numeric computedAt)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_daily", handle: castId<Handle>("daily") });
   const id = castId<DailyStatId>("daily_stat_one");
@@ -199,7 +201,7 @@ test("daily_stats round-trips (KEEPS ownerId, day bucket, OR-flag default false,
   await db.insert(dailyStats).values({
     id,
     ownerId,
-    day: "2026-06-26",
+    bucketStart: BUCKET,
     chatsCreated: 1,
     assistantTurns: 5,
     tokensIn: 800,
@@ -209,23 +211,25 @@ test("daily_stats round-trips (KEEPS ownerId, day bucket, OR-flag default false,
 
   const rows = await db.select().from(dailyStats).where(eq(dailyStats.id, id));
   expect(rows).toHaveLength(1);
-  // D23 KEEP: daily_stats is a parentless owner×day aggregate — ownerId is its own key.
+  // D23 KEEP: daily_stats is a parentless owner×bucket aggregate — ownerId is its own key.
   expect(rows[0]?.ownerId).toBe(ownerId);
-  expect(rows[0]?.day).toBe("2026-06-26");
+  expect(rows[0]?.bucketStart).toBe(BUCKET);
   expect(rows[0]?.tokensOut).toBe(1600);
   // The migration-approximate flag is a boolean defaulting to false (OR-merged in the upsert).
   expect(rows[0]?.messageDatesApprox).toBe(false);
   expect(rows[0]?.computedAt).toBeTypeOf("number");
 });
 
-test("daily_stats is one row per (owner, day) (the composite unique rejects a duplicate day)", async () => {
+test("daily_stats is one row per (owner, bucket) (the composite unique rejects a duplicate bucket)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_daily_dup", handle: castId<Handle>("daily-dup") });
-  await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_dup_a"), ownerId, day: "2026-06-26" });
+  await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_dup_a"), ownerId, bucketStart: BUCKET });
+  // The next bucket is a different key, so it coexists.
+  await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_dup_next"), ownerId, bucketStart: BUCKET + STATS_BUCKET_MS });
 
   let caught: unknown;
   try {
-    await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_dup_b"), ownerId, day: "2026-06-26" });
+    await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_dup_b"), ownerId, bucketStart: BUCKET });
   } catch (err) {
     caught = err;
   }
@@ -239,7 +243,7 @@ test("daily_stats.ownerId FK is enforced (a missing user is rejected)", async ()
     await db.insert(dailyStats).values({
       id: castId<DailyStatId>("daily_stat_orphan"),
       ownerId: castId<UserId>("user_does_not_exist"),
-      day: "2026-06-26",
+      bucketStart: BUCKET,
     });
   } catch (err) {
     caught = err;
@@ -352,27 +356,21 @@ test("D23 ownership split: owner/daily/model KEEP ownerId; character_stats has N
   expect(characterStats.characterId).toBeDefined();
 });
 
-const MIGRATIONS_DIR = "packages/db/src/migrations";
-const PRE_RENAME_TAGS = ["0000_baseline", "0001_native-google"] as const;
+const PRE_RENAME_TAG = "0001_native-google";
+const PRE_REGRAIN_TAG = "0004_character-import-text-hash";
 
 test("the forward content-unit migration preserves populated rollups, signed counts and daily grain", async () => {
   const dir = mkdtempSync(join(tmpdir(), "orb-stats-content-migration-"));
   try {
-    mkdirSync(join(dir, "meta"));
-    const migrations = readMigrationFiles({ migrationsFolder: MIGRATIONS_DIR });
-    const entries = PRE_RENAME_TAGS.map((tag, idx) => {
-      const migration = migrations[idx];
-      if (migration === undefined) {
-        throw new Error(`missing immutable migration ${tag}`);
-      }
-      writeFileSync(join(dir, `${tag}.sql`), readFileSync(join(MIGRATIONS_DIR, `${tag}.sql`)));
-      return { idx, version: "6", when: migration.folderMillis, tag, breakpoints: true };
-    });
-    writeFileSync(join(dir, "meta", "_journal.json"), JSON.stringify({ version: "7", dialect: "sqlite", entries }));
+    const preRename = shippedChainThrough(join(dir, "pre-rename"), PRE_RENAME_TAG);
+    const preRegrain = shippedChainThrough(join(dir, "pre-regrain"), PRE_REGRAIN_TAG);
     const db = await createDb(":memory:");
-    await runMigrations(db, dir);
+    await runMigrations(db, preRename);
     const ownerId = await seedUser(db, { id: "user_content_migration", handle: castId<Handle>("content-migration") });
-    const characterId = await seedCharacter(db, ownerId, mintTypeId(ID_PREFIX.character));
+    // Raw SQL, not the drizzle table: the live `characters` shape names columns later migrations add.
+    const characterId = mintTypeId(ID_PREFIX.character);
+    await db.run(sql`INSERT INTO characters (id, handle, owner_id, content_hash, name)
+      VALUES (${characterId}, ${`card-${characterId}`}, ${ownerId}, 'hash-of-semantic-fields', 'Stat Subject')`);
     const characterStatId = mintTypeId(ID_PREFIX.characterStat);
     const dailyStatId = mintTypeId(ID_PREFIX.dailyStat);
     await db.run(sql`INSERT INTO owner_stats (owner_id, content_bytes, user_turns, system_turns, cost_usd, computed_at)
@@ -387,8 +385,8 @@ test("the forward content-unit migration preserves populated rollups, signed cou
     expect(beforeOwner?.["content_bytes"]).toBe(17);
     expect(beforeCharacter?.["content_bytes"]).toBe(-9);
     expect(beforeDaily?.["system_turns"]).toBe(7);
-    expect(await hasPendingMigrations(db, MIGRATIONS_DIR)).toBe(true);
-    await runMigrations(db, MIGRATIONS_DIR);
+    expect(await hasPendingMigrations(db, preRegrain)).toBe(true);
+    await runMigrations(db, preRegrain);
     await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
     const afterOwner = await db.get<Record<string, unknown>>(sql`SELECT * FROM owner_stats WHERE owner_id = ${ownerId}`);
     const afterCharacter = await db.get<Record<string, unknown>>(sql`SELECT * FROM character_stats WHERE character_id = ${characterId}`);
@@ -399,11 +397,49 @@ test("the forward content-unit migration preserves populated rollups, signed cou
     expect(afterCharacter).toEqual(renamed(beforeCharacter));
     expect(afterDaily).toEqual(beforeDaily);
     expect(afterDaily).not.toHaveProperty("content_chars");
-    expect(await hasPendingMigrations(db, MIGRATIONS_DIR)).toBe(false);
-    await runMigrations(db, MIGRATIONS_DIR);
+    expect(await hasPendingMigrations(db, preRegrain)).toBe(false);
+    await runMigrations(db, preRegrain);
     expect(await db.get(sql`SELECT * FROM owner_stats WHERE owner_id = ${ownerId}`)).toEqual(afterOwner);
     expect(await db.get(sql`SELECT * FROM character_stats WHERE character_id = ${characterId}`)).toEqual(afterCharacter);
     expect((await db.get<Record<string, number>>(sql`PRAGMA foreign_keys`))?.["foreign_keys"]).toBe(1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("the timeline re-grain migration replaces the day-keyed daily_stats with an empty quarter-hour table and keeps every other rollup", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "orb-stats-regrain-migration-"));
+  try {
+    const db = await createDb(":memory:");
+    await runMigrations(db, shippedChainThrough(dir, PRE_REGRAIN_TAG));
+    const ownerId = await seedUser(db, { id: "user_regrain_migration", handle: castId<Handle>("regrain-migration") });
+    await db.run(sql`INSERT INTO owner_stats (owner_id, user_turns, assistant_turns, computed_at) VALUES (${ownerId}, 3, 4, 1700000000000)`);
+    await db.run(sql`INSERT INTO daily_stats (id, owner_id, day, user_turns, computed_at)
+      VALUES (${mintTypeId(ID_PREFIX.dailyStat)}, ${ownerId}, '2026-06-26', 3, 1700000000000)`);
+    const beforeOwner = await db.get<Record<string, unknown>>(sql`SELECT * FROM owner_stats WHERE owner_id = ${ownerId}`);
+
+    expect(await hasPendingMigrations(db, SHIPPED_MIGRATIONS)).toBe(true);
+    await runMigrations(db, SHIPPED_MIGRATIONS);
+    await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
+
+    // A day row cannot be split into the quarter-hours it came from, so the migration drops it; the boot
+    // step rebuilds the timeline from canon (`tests/server/entry/boot/rebuild-stats-timeline.int.test.ts`).
+    expect(await db.all(sql`SELECT * FROM daily_stats`)).toEqual([]);
+    const columns = await db.all<{ name: string }>(sql`SELECT name FROM pragma_table_info('daily_stats')`);
+    expect(columns.map((c) => c.name)).toContain("bucket_start");
+    expect(columns.map((c) => c.name)).not.toContain("day");
+    expect(await db.get(sql`SELECT * FROM owner_stats WHERE owner_id = ${ownerId}`)).toEqual(beforeOwner);
+
+    // The rebuilt table takes the live schema's rows and enforces the (owner, bucket) key.
+    await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_regrain_a"), ownerId, bucketStart: BUCKET, userTurns: 1 });
+    let caught: unknown;
+    try {
+      await db.insert(dailyStats).values({ id: castId<DailyStatId>("daily_stat_regrain_b"), ownerId, bucketStart: BUCKET });
+    } catch (err) {
+      caught = err;
+    }
+    expect(isConstraintViolation(caught)?.kind).toBe("unique");
+    expect(await hasPendingMigrations(db, SHIPPED_MIGRATIONS)).toBe(false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

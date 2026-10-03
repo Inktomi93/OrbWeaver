@@ -1,8 +1,7 @@
 export type {
-  ActivityHeatmap,
+  ActivityBucket,
   CharacterMomentum,
   CharacterStatsView,
-  DailyPoint,
   ExtraStats,
   LatencyStats,
   LeaderboardPage,
@@ -12,6 +11,5 @@ export type {
   OwnerStatsView,
   PersonaUsageRow,
   StatsFreshness,
-  TemporalStats,
   WrappedSummary,
 } from "@orb/contracts/stats";

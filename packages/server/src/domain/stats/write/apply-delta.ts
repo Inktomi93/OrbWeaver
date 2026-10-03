@@ -214,7 +214,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
   );
 
   // daily_stats always writes. Daily tokens credit the message stream only — a swipe bumps
-  // day.swipes/genTimeMs but not day.tokens.
+  // the bucket's swipes/genTimeMs but not its tokens.
   batch.push(
     batchStmt(
       db
@@ -222,7 +222,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
         .values({
           id: mintTypeId(ID_PREFIX.dailyStat),
           ownerId: delta.ownerId,
-          day: delta.day,
+          bucketStart: delta.bucketStart,
           chatsCreated: n(delta.chatsCreated),
           userTurns: n(delta.userTurns),
           assistantTurns: n(delta.assistantTurns),
@@ -243,7 +243,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
           computedAt: delta.now,
         })
         .onConflictDoUpdate({
-          target: [dailyStats.ownerId, dailyStats.day],
+          target: [dailyStats.ownerId, dailyStats.bucketStart],
           set: {
             chatsCreated: sql`${dailyStats.chatsCreated} + excluded.chats_created`,
             userTurns: sql`${dailyStats.userTurns} + excluded.user_turns`,
@@ -261,7 +261,7 @@ export const applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db> = (batch: BatchSt
             costUsd: sql`${dailyStats.costUsd} + excluded.cost_usd`,
             costSamples: sql`${dailyStats.costSamples} + excluded.cost_samples`,
             genTimeMs: sql`${dailyStats.genTimeMs} + excluded.gen_time_ms`,
-            // OR the approx flag — once a day is flagged migrated-approx it stays so.
+            // OR the approx flag — once a bucket is flagged migrated-approx it stays so.
             messageDatesApprox: sql`(${dailyStats.messageDatesApprox} OR excluded.message_dates_approx)`,
             computedAt: sql`MAX(${dailyStats.computedAt}, excluded.computed_at)`,
           },

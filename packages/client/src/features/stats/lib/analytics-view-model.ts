@@ -14,6 +14,7 @@
 import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CalendarPosition } from "@orb/kit/time";
 import type { BarListItem } from "@orb/ui/bar-list";
 import type { HeatmapMatrix } from "@orb/ui/heatmap";
 import type { HistogramBucket } from "@orb/ui/histogram";
@@ -55,6 +56,7 @@ const PERCENT = 100;
 const SECONDS_PRECISION = 1;
 const COMPACT_PRECISION = 1;
 const HOURS_PER_DAY = 24;
+const MS_PER_DAY = 86_400_000;
 /** How many trailing id characters a duplicate-name disambiguator shows. */
 const SHORT_REF_LEN = 4;
 /** Length of the `YYYY-` prefix dropped to leave `MM-DD`. */
@@ -126,6 +128,11 @@ export function formatCompact(n: number): string {
 
 function trimZero(fixed: string, suffix: string): string {
   return `${fixed.endsWith(".0") ? fixed.slice(0, -2) : fixed}${suffix}`;
+}
+
+/** A ratio with one decimal: `1.4` · `0` (trailing `.0` trimmed). */
+export function formatDecimal(n: number): string {
+  return trimZero(n.toFixed(COMPACT_PRECISION), "");
 }
 
 /** A nullable count — `—` when the metric was never recorded (an ST-imported or agent-sdk rollup carries
@@ -234,6 +241,116 @@ export function dailyTokenBuckets(
     label: formatDayLabel(point.day, recorded[index - 1]?.day),
     count: point.tokensOut,
   }));
+}
+
+/** One viewer-local calendar day of the activity timeline. */
+export interface LocalDay {
+  readonly day: string;
+  readonly assistantTurns: number;
+  /** `null` when no bucket that day recorded output usage — absent accounting, never a measured zero. */
+  readonly tokensOut: number | null;
+  readonly tokensOutProvenance: TokenProvenance;
+  /** Turns exchanged plus chats opened: the rhythm figures' and weekday bars' definition of activity. */
+  readonly activity: number;
+}
+
+/** The activity timeline folded onto the viewer's calendar. */
+export interface LocalTimeline {
+  /** Days with any recorded bucket, ascending. */
+  readonly days: readonly LocalDay[];
+  /** Activity per weekday, Sun..Sat. */
+  readonly weekdayActivity: readonly number[];
+  /** Turns per (weekday, hour), Sun..Sat × 00..23 — system rows are not turns a reader exchanged. */
+  readonly weekHourTurns: readonly (readonly number[])[];
+  readonly peak: { readonly dayOfWeek: number; readonly hour: number; readonly count: number } | null;
+}
+
+/** Fold the server's UTC quarter-hour timeline into the viewer's days, weekdays and hours. `position` is
+ *  the time seam's `calendarPosition`: a quarter-hour bucket never straddles a local hour in any zone, so
+ *  placing a bucket by its start instant is exact. Buckets arrive ascending, so days come out ascending. */
+export function localTimeline(
+  buckets: readonly {
+    readonly bucketStart: number;
+    readonly chatsCreated: number;
+    readonly userTurns: number;
+    readonly assistantTurns: number;
+    readonly tokensOut: number | null;
+    readonly tokensOutProvenance: TokenProvenance;
+  }[],
+  position: (epochMs: number) => CalendarPosition,
+): LocalTimeline {
+  const days = new Map<string, LocalDay>();
+  const weekdayActivity = WEEKDAY_LABELS.map(() => 0);
+  const weekHourTurns = WEEKDAY_LABELS.map(() => Array.from({ length: HOURS_PER_DAY }, () => 0));
+  for (const bucket of buckets) {
+    const at = position(bucket.bucketStart);
+    const turns = bucket.userTurns + bucket.assistantTurns;
+    const activity = turns + bucket.chatsCreated;
+    days.set(at.day, addBucketToDay(days.get(at.day), at.day, bucket, activity));
+    weekdayActivity[at.weekday] = (weekdayActivity[at.weekday] ?? 0) + activity;
+    const row = weekHourTurns[at.weekday];
+    if (row !== undefined) {
+      row[at.hour] = (row[at.hour] ?? 0) + turns;
+    }
+  }
+  return { days: [...days.values()], weekdayActivity, weekHourTurns, peak: peakCell(weekHourTurns) };
+}
+
+function addBucketToDay(
+  prior: LocalDay | undefined,
+  day: string,
+  bucket: { readonly assistantTurns: number; readonly tokensOut: number | null; readonly tokensOutProvenance: TokenProvenance },
+  activity: number,
+): LocalDay {
+  if (prior === undefined) {
+    return { day, assistantTurns: bucket.assistantTurns, tokensOut: bucket.tokensOut, tokensOutProvenance: bucket.tokensOutProvenance, activity };
+  }
+  return {
+    day,
+    assistantTurns: prior.assistantTurns + bucket.assistantTurns,
+    tokensOut: bucket.tokensOut === null ? prior.tokensOut : (prior.tokensOut ?? 0) + bucket.tokensOut,
+    tokensOutProvenance: combineTokenProvenance(prior.tokensOutProvenance, bucket.tokensOutProvenance),
+    activity: prior.activity + activity,
+  };
+}
+
+function peakCell(matrix: readonly (readonly number[])[]): LocalTimeline["peak"] {
+  let peak: LocalTimeline["peak"] = null;
+  matrix.forEach((row, dayOfWeek) => {
+    row.forEach((count, hour) => {
+      if (count > 0 && (peak === null || count > peak.count)) {
+        peak = { dayOfWeek, hour, count };
+      }
+    });
+  });
+  return peak;
+}
+
+/** The rhythm figures over the viewer's days. */
+export interface Rhythm {
+  readonly activeDays: number;
+  readonly longestStreakDays: number;
+  readonly busiestDay: { readonly day: string; readonly count: number } | null;
+}
+
+/** Active days, the longest run of consecutive active days, and the busiest day (the first, on a tie). */
+export function rhythmOf(days: readonly LocalDay[]): Rhythm {
+  const active = days.filter((day) => day.activity > 0);
+  let busiestDay: Rhythm["busiestDay"] = null;
+  let longestStreakDays = 0;
+  let streak = 0;
+  let previous: number | null = null;
+  for (const day of active) {
+    if (busiestDay === null || day.activity > busiestDay.count) {
+      busiestDay = { day: day.day, count: day.activity };
+    }
+    // A calendar day's ordinal: the local date read as a UTC midnight, so a DST day still steps by one.
+    const ordinal = Date.parse(`${day.day}T00:00:00Z`) / MS_PER_DAY;
+    streak = previous !== null && ordinal - previous === 1 ? streak + 1 : 1;
+    longestStreakDays = Math.max(longestStreakDays, streak);
+    previous = ordinal;
+  }
+  return { activeDays: active.length, longestStreakDays, busiestDay };
 }
 
 /** `2026-07` → `July 2026` — the momentum band's month pair. The wire form is a machine `YYYY-MM` sort

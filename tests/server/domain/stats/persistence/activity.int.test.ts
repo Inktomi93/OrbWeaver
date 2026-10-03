@@ -1,10 +1,10 @@
-// persistence/activity — the on-read heatmap (user+assistant in the owner's chats, system excluded; D18
-// membership-scoped) + per-character momentum across the two most-recent active months (D28).
+// persistence/activity — per-character momentum across the two most-recent active months (D28), D18
+// membership-scoped.
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { readActivityHeatmap, readCharacterMomentum } from "../../../../../packages/server/src/domain/stats/persistence/activity.ts";
+import { readCharacterMomentum } from "../../../../../packages/server/src/domain/stats/persistence/activity.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { DAY, seedCharacter, seedChat, seedMessage, seedUser, T0 } from "../_support.ts";
@@ -17,78 +17,6 @@ beforeEach(async () => {
   db = await freshDb();
   ownerId = await seedUser(db);
   characterId = await seedCharacter(db, ownerId);
-});
-
-describe("readActivityHeatmap", () => {
-  test("counts user + assistant turns (system excluded) in the owner's chats", async () => {
-    const chatId = await seedChat(db, characterId);
-    await seedMessage(db, {
-      chatId,
-      seq: 1,
-      role: "user",
-      createdAt: T0,
-      variants: [{ content: "x" }],
-    });
-    await seedMessage(db, {
-      chatId,
-      seq: 2,
-      role: "assistant",
-      characterId,
-      createdAt: T0,
-      variants: [{ content: "y" }],
-    });
-    await seedMessage(db, {
-      chatId,
-      seq: 3,
-      role: "system",
-      createdAt: T0,
-      variants: [{ content: "z" }],
-    });
-
-    const h = await readActivityHeatmap(db, ownerId);
-    expect(h.total).toBe(2); // user + assistant, NOT system
-    expect(h.peak).not.toBeNull();
-    const matrixSum = h.matrix.flat().reduce((s, v) => s + v, 0);
-    expect(matrixSum).toBe(2);
-  });
-
-  test("empty owner yields a zeroed matrix with no peak", async () => {
-    const h = await readActivityHeatmap(db, ownerId);
-    expect(h.total).toBe(0);
-    expect(h.peak).toBeNull();
-  });
-
-  test("a husk room's turns are invisible — the heatmap uses the SAME owner-chat scope as the rebuild", async () => {
-    // An unclaimed room (`chats.started_at` NULL) whose seeded greeting already landed. Both rollup
-    // writers (the live delta plane and rebuild-from-canon's `ownerChatIds`) treat it as nonexistent, so
-    // the on-read heatmap must too or the dashboard disagrees with every other stats surface.
-    const husk = await seedChat(db, characterId, { id: "chat_husk", startedAt: null });
-    await seedMessage(db, {
-      chatId: husk,
-      seq: 1,
-      role: "assistant",
-      characterId,
-      createdAt: T0,
-      variants: [{ content: "greeting" }],
-    });
-
-    const huskOnly = await readActivityHeatmap(db, ownerId);
-    expect(huskOnly.total).toBe(0);
-    expect(huskOnly.peak).toBeNull();
-
-    // …and the filter NARROWS rather than blanking: a started room in the same library still counts.
-    const started = await seedChat(db, characterId, { id: "chat_started" });
-    await seedMessage(db, {
-      chatId: started,
-      seq: 1,
-      role: "user",
-      createdAt: T0,
-      variants: [{ content: "hi" }],
-    });
-
-    const withStarted = await readActivityHeatmap(db, ownerId);
-    expect(withStarted.total).toBe(1);
-  });
 });
 
 describe("readCharacterMomentum", () => {

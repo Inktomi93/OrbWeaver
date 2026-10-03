@@ -345,7 +345,7 @@ async function snapshotRollups(database: Db, owner: UserId): Promise<RollupSnaps
   return {
     owner: ownerRow ? strip(ownerRow) : null,
     chars: chars.map(strip).sort(byKey("characterId")),
-    days: days.map(strip).sort(byKey("day")),
+    days: days.map(strip).sort(byKey("bucketStart")),
     models: models.map(strip).sort(byKey("model")),
   };
 }

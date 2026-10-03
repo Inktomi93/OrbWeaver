@@ -1,9 +1,9 @@
-// The Analytics CONTENT dashboard (nothing drilled) — the composed turn-economics home. Reads four
+// The Analytics CONTENT dashboard (nothing drilled) — the composed turn-economics home. Reads five
 // owner-scoped stats verbs: `freshness` (the rollup recency + the has-any-data gate), `wrapped` (the
-// highlight reel + embedded temporal streaks), `overview` (the full economics figures), and `momentum`
-// (rising / falling characters over the last two active months). The top-character callout drills into
-// that character's stats; momentum renders as ranked delta bars. With no data the surface teaches a
-// next step (start a chat) instead of showing a wall of zeros.
+// highlight reel), `timeseries` (the activity timeline the rhythm trio folds onto the viewer's calendar),
+// `overview` (the full economics figures), and `momentum` (rising / falling characters over the last two
+// active months). The top-character callout drills into that character's stats; momentum renders as ranked
+// delta bars. With no data the surface teaches a next step (start a chat) instead of showing a wall of zeros.
 //
 // THE INSET LIVES ON THE SCROLLER, ONCE (#1200 — the Corpus precedent, `corpus-content.tsx`). Analytics
 // shipped with padding nowhere in its component tree: a 5-level DOM walk from `analytics-content.tsx`
@@ -36,14 +36,17 @@ import {
   formatAccountingLabel,
   formatCompact,
   formatCount,
+  formatDecimal,
   formatDurationMs,
   formatMonthLabel,
   formatMs,
   formatPercent,
   formatSignedDelta,
   formatThroughput,
+  localTimeline,
   momentumBarItems,
   REASONING_LABEL,
+  rhythmOf,
   THROUGHPUT_LABEL,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
@@ -89,6 +92,7 @@ function OverviewBody(): ReactElement {
   const trpc = useTRPC();
   const { data: freshness } = useSuspenseQuery(trpc.stats.freshness.queryOptions());
   const { data: wrapped } = useSuspenseQuery(trpc.stats.wrapped.queryOptions());
+  const { data: timeline } = useSuspenseQuery(trpc.stats.timeseries.queryOptions());
   const { data: overview } = useSuspenseQuery(trpc.stats.overview.queryOptions());
   const { data: momentum } = useSuspenseQuery(trpc.stats.momentum.queryOptions());
   // #451: the list defaults COLLAPSED here, so "open the list" is right by default — but wrong once a
@@ -107,7 +111,7 @@ function OverviewBody(): ReactElement {
     return <EmptyStateNoData />;
   }
 
-  const temporal = wrapped.temporal;
+  const rhythm = rhythmOf(localTimeline(timeline, timeLib.calendarPosition).days);
   const rising = momentumBarItems(momentum.rising);
   const falling = momentumBarItems(momentum.falling);
   // ONE SCALE ACROSS BOTH COLUMNS (side-eye ANALYTICS 2026-08-19, P1d). Rising and Falling are two
@@ -146,13 +150,19 @@ function OverviewBody(): ReactElement {
             <StatFigure label="Forked chats" value={formatCompact(wrapped.forkedChats)} />
             <StatFigure label={formatAccountingLabel("Spend", wrapped.costUsd)} value={formatUsd(wrapped.costUsd)} />
             <StatFigure label="Time generating" value={formatDurationMs(wrapped.genTimeMs)} />
+            <StatFigure label="First chat" value={wrapped.firstChatAt === null ? "—" : timeLib.formatDate(wrapped.firstChatAt)} />
+            {/* The swiped share divides by replies and the depth by re-rolled replies; with no sample each reads
+                unrecorded rather than the 0 an empty denominator divides to. */}
+            <StatFigure label="Swiped replies" value={formatPercent(wrapped.replies === 0 ? null : wrapped.swipeRate)} />
+            <StatFigure label="Swipes to kept reply" value={overview.variantMessages === 0 ? "—" : formatDecimal(wrapped.avgSwipeDepth)} />
           </Grid>
           {/* THE DEFINITIONS, STATED (P2d/P3d). "Words" is your turns PLUS the replies — one definition,
               here and on the drill, where it used to silently mean assistant-only. The swipe words sit
               beside "Swipes" and are NOT in it, which is the exact pair that read as a contradiction. */}
           <Text voice="gloss">
-            Words counts your turns and the replies you kept; the {formatCompact(overview.swipeWords)} words in swipes you didn't keep are not included.{" "}
-            {UNRECORDED_NOTE}
+            Words counts your turns and the replies you kept; the {formatCompact(overview.swipeWords)} words in swipes you didn't keep are not included. Swiped
+            replies is the share of replies you swiped at least once; swipes to kept reply is how far past the first take your kept reply sat, on average, among
+            those. {UNRECORDED_NOTE}
           </Text>
           {wrapped.topCharacter === null ? null : (
             <ListRow
@@ -169,7 +179,7 @@ function OverviewBody(): ReactElement {
         </Stack>
       </Section>
 
-      <RhythmFigures temporal={temporal} />
+      <RhythmFigures rhythm={rhythm} />
 
       <Section heading="Economics">
         <Stack gap="block">

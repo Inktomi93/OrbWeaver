@@ -1,57 +1,15 @@
-// domain/stats/persistence/activity — on-read behavioral analytics the rollup tables can't express: the
-// day×hour heatmap (daily_stats is day-grained) and per-character momentum (character_stats is cumulative),
-// both straight from canon. Bounded owner-scoped scans. Time buckets are UTC (strftime default, no
-// 'localtime'). A chat has no ownerId (D18) — "the owner's chats" is membership-derived via an owned
-// character participant, and BOTH scans bind that definition from its one home
-// (`substrate/owner-chat-scope.ts`) rather than re-spelling the join, so an unclaimed husk room is invisible
-// here exactly as it is to the rollup writers (#1477).
+// domain/stats/persistence/activity — per-character momentum straight from canon (character_stats is
+// cumulative). Months are UTC (strftime default). Owner scope is the one-home membership definition in
+// `substrate/owner-chat-scope.ts`, so a husk room is invisible here exactly as it is to the rollup writers.
 
 import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import type { ActivityHeatmap, CharacterMomentum, MomentumRow } from "../contract/views.ts";
+import type { CharacterMomentum, MomentumRow } from "../contract/views.ts";
 import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
 
-const DAYS_PER_WEEK = 7;
-const HOURS_PER_DAY = 24;
-const MAX_DOW = 6; // Saturday (strftime %w: 0 = Sunday)
-const MAX_HOUR = 23;
 const DEFAULT_MOMENTUM_LIMIT = 10;
-
-/** Messages-per-(weekday, hour) over the owner's whole history. Counts user + assistant turns, not system
- *  rows; scoped through the domain's ONE owner-chat definition (`substrate/owner-chat-scope`), which is
- *  membership-derived AND husk-excluding — the heatmap used to carry its own copy of the join without the
- *  husk arm, so a never-started room's seeded greeting counted here and in no other stats surface (#1477). */
-export async function readActivityHeatmap(db: Db, ownerId: string): Promise<ActivityHeatmap> {
-  const rows = await db.all<{ dow: number; hour: number; n: number }>(sql`
-    SELECT CAST(strftime('%w', m.created_at / 1000, 'unixepoch') AS INTEGER) AS dow,
-           CAST(strftime('%H', m.created_at / 1000, 'unixepoch') AS INTEGER) AS hour,
-           COUNT(*) AS n
-    FROM messages m
-    WHERE m.role IN ('user', 'assistant')
-      AND m.chat_id IN (${ownerChatIds(ownerId)})
-    GROUP BY dow, hour
-  `);
-  const matrix: number[][] = Array.from({ length: DAYS_PER_WEEK }, () => new Array<number>(HOURS_PER_DAY).fill(0));
-  let total = 0;
-  let peak: { dayOfWeek: number; hour: number; count: number } | null = null;
-  for (const r of rows) {
-    if (r.dow < 0 || r.dow > MAX_DOW || r.hour < 0 || r.hour > MAX_HOUR) {
-      continue;
-    }
-    const row = matrix[r.dow];
-    if (!row) {
-      continue;
-    }
-    row[r.hour] = r.n;
-    total += r.n;
-    if (!peak || r.n > peak.count) {
-      peak = { dayOfWeek: r.dow, hour: r.hour, count: r.n };
-    }
-  }
-  return { matrix, total, peak };
-}
 
 interface MonthCountRow {
   characterId: CharacterId;
@@ -102,8 +60,8 @@ function momentumRows(rows: MonthCountRow[], latestMonth: string, prevMonth: str
 
 /** Per-character attention shift between the two most-recent active months. Anchored to the data's latest
  *  months (not wall-clock now) so a quiet current month doesn't read as "everything falling". Husk-excluded
- *  through the same one-home owner-chat scope as the heatmap: a never-started room's seeded greeting is not
- *  attention the user paid a character (#1477). */
+ *  through the one-home owner-chat scope: a never-started room's seeded greeting is not attention the user
+ *  paid a character (#1477). */
 export async function readCharacterMomentum(db: Db, ownerId: string, limit = DEFAULT_MOMENTUM_LIMIT): Promise<CharacterMomentum> {
   const rows = await db.all<MonthCountRow>(sql`
     SELECT m.character_id AS characterId, MIN(c.name) AS name,

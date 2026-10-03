@@ -1,6 +1,6 @@
 // Full RECONCILE: a memory-bounded streaming rebuild of the four rollup tables for one owner (or every
 // owner) from canon — the backfill/post-import/drift-repair path (rollups are maintained live elsewhere).
-// Keyset-paged streams over messages + swipe variants (bounded peak memory); per-character/model/day
+// Keyset-paged streams over messages + swipe variants (bounded peak memory); per-character/model/bucket
 // accumulator Maps; atomic per-owner replace-write (one db.batch) so a read never sees a half-rebuilt owner.
 // Owner-scoping is membership-derived: the owner's chats are those with a character participant they own.
 
@@ -13,7 +13,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { CharacterId, ModelId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { MODEL_PROVIDER_UNKNOWN, utcDay, wordCount } from "@orb/kit/stats-tally";
+import { MODEL_PROVIDER_UNKNOWN, STATS_BUCKET_MS, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import { eq, sql } from "drizzle-orm";
 import type { ReconcileStatsResult } from "../contract/results.ts";
 import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
@@ -70,7 +70,7 @@ interface ModelAccum extends TokenSampleAccum {
   cacheReadTokens: number;
   cacheWriteTokens: number;
 }
-interface DayAccum extends TokenSampleAccum {
+interface BucketAccum extends TokenSampleAccum {
   userTurns: number;
   assistantTurns: number;
   systemTurns: number;
@@ -118,7 +118,7 @@ interface ModelEntry {
 interface Accums {
   owner: OwnerAccum;
   charMap: Map<string, CharAccum>;
-  dayMap: Map<string, DayAccum>;
+  bucketMap: Map<number, BucketAccum>;
   modelMap: Map<string, ModelEntry>;
 }
 
@@ -164,7 +164,7 @@ const freshModel = (): ModelAccum => ({
   cacheReadTokens: 0,
   cacheWriteTokens: 0,
 });
-const freshDay = (): DayAccum => ({
+const freshBucket = (): BucketAccum => ({
   userTurns: 0,
   assistantTurns: 0,
   systemTurns: 0,
@@ -212,7 +212,7 @@ const freshOwner = (): OwnerAccum => ({
   lastActivityAt: 0,
 });
 
-function get<V>(map: Map<string, V>, key: string, mk: () => V): V {
+function get<K, V>(map: Map<K, V>, key: K, mk: () => V): V {
   let v = map.get(key);
   if (v === undefined) {
     v = mk();
@@ -316,10 +316,10 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
 
   const now = opts.now();
   let totalChars = 0;
-  let totalDays = 0;
+  let totalBuckets = 0;
   let totalModels = 0;
   for (const ownerId of owners) {
-    let built: { charCount: number; dayCount: number; modelCount: number };
+    let built: { charCount: number; bucketCount: number; modelCount: number };
     for (;;) {
       opts.signal?.throwIfAborted();
       const before = await ownerCanonSnapshot(db, ownerId);
@@ -330,16 +330,31 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
       }
     }
     totalChars += built.charCount;
-    totalDays += built.dayCount;
+    totalBuckets += built.bucketCount;
     totalModels += built.modelCount;
   }
   return {
     owners: owners.length,
     characters: totalChars,
-    days: totalDays,
+    buckets: totalBuckets,
     models: totalModels,
     computedAt: now,
   };
+}
+
+/** Rebuild every owner whose `owner_stats` row records activity but whose `daily_stats` timeline is empty:
+ *  the state a timeline re-grain migration leaves, since it drops rows that only canon can re-derive. A
+ *  live write always lands both rows, so the predicate is idempotent. Returns the owners rebuilt. */
+export async function reconcileOwnersMissingTimeline(db: Db, now: () => number): Promise<number> {
+  const owners = await db.all<{ ownerId: string }>(sql`
+    SELECT o.owner_id AS ownerId FROM owner_stats o
+    WHERE o.user_turns + o.assistant_turns + o.system_turns + o.chats > 0
+      AND NOT EXISTS (SELECT 1 FROM daily_stats d WHERE d.owner_id = o.owner_id)
+  `);
+  for (const { ownerId } of owners) {
+    await reconcileStats(db, { ownerId, now });
+  }
+  return owners.length;
 }
 
 // The owner's chats (membership, husk-excluding) is `substrate/owner-chat-scope.ts` — ONE home, shared with
@@ -389,7 +404,7 @@ interface MessageRow {
 }
 
 /** Owner-grain economics from a message's SELECTED variant (tokens/cost/cache/ctx/chars/gen/reasoning). */
-function foldOwnerMessage(owner: OwnerAccum, day: DayAccum, r: MessageRow): void {
+function foldOwnerMessage(owner: OwnerAccum, bucket: BucketAccum, r: MessageRow): void {
   const chars = r.content?.length ?? 0;
   owner.contentChars += chars;
   owner.tokensIn += r.ti ?? 0;
@@ -406,37 +421,37 @@ function foldOwnerMessage(owner: OwnerAccum, day: DayAccum, r: MessageRow): void
   if (r.createdAt > owner.lastActivityAt) {
     owner.lastActivityAt = r.createdAt;
   }
-  day.tokensIn += r.ti ?? 0;
-  day.tokensOut += r.tout ?? 0;
-  foldTokenSamples(day, r);
-  day.costUsd += r.cost ?? 0;
-  day.costSamples += Number(r.cost !== null);
+  bucket.tokensIn += r.ti ?? 0;
+  bucket.tokensOut += r.tout ?? 0;
+  foldTokenSamples(bucket, r);
+  bucket.costUsd += r.cost ?? 0;
+  bucket.costSamples += Number(r.cost !== null);
   const gen = genDurationMs(r);
   if (gen !== null) {
     owner.genTimeMs += gen;
     owner.genSamples++;
-    day.genTimeMs += gen;
+    bucket.genTimeMs += gen;
   }
 }
 
 /** Turn/word counts split on role (ST is_user binary: userWords vs non-user assistant+system words). */
-function foldRoleCounts(owner: OwnerAccum, day: DayAccum, r: MessageRow): void {
+function foldRoleCounts(owner: OwnerAccum, bucket: BucketAccum, r: MessageRow): void {
   const words = wordCount(r.content);
   if (r.role === "user") {
     owner.userTurns++;
     owner.userWords += words;
-    day.userTurns++;
-    day.userWords += words;
+    bucket.userTurns++;
+    bucket.userWords += words;
     return;
   }
   owner.assistantWords += words;
-  day.assistantWords += words;
+  bucket.assistantWords += words;
   if (r.role === "system") {
     owner.systemTurns++;
-    day.systemTurns++;
+    bucket.systemTurns++;
   } else {
     owner.assistantTurns++;
-    day.assistantTurns++;
+    bucket.assistantTurns++;
   }
 }
 
@@ -469,14 +484,14 @@ function foldMessageChar(charMap: Map<string, CharAccum>, r: MessageRow): void {
   }
 }
 
-/** Fold one message (its SELECTED variant — the kept take) across owner/char/day/model accumulators. */
+/** Fold one message (its SELECTED variant — the kept take) across owner/char/bucket/model accumulators. */
 function foldMessage(r: MessageRow, a: Accums): void {
-  const day = get(a.dayMap, utcDay(r.createdAt), freshDay);
+  const bucket = get(a.bucketMap, statsBucketStart(r.createdAt), freshBucket);
   if (r.createdAt - r.chatCreatedAt > MIGRATION_GAP_MS) {
-    day.approx = true;
+    bucket.approx = true;
   }
-  foldOwnerMessage(a.owner, day, r);
-  foldRoleCounts(a.owner, day, r);
+  foldOwnerMessage(a.owner, bucket, r);
+  foldRoleCounts(a.owner, bucket, r);
   // Settle depth: a re-rolled message (>1 variant) contributes its SELECTED idx (the take you kept).
   if (r.variantCount > 1 && r.selectedIdx !== null) {
     a.owner.variantMessages++;
@@ -572,10 +587,10 @@ function foldSwipeChar(charMap: Map<string, CharAccum>, r: SwipeRow): void {
   }
 }
 
-/** Fold one swipe (a NON-selected variant) across owner/char/day/model. Swipes credit the RE-ROLL
- *  counters; daily gets swipe COUNT + gen-time but NOT swipe tokens (esoteric #1). */
+/** Fold one swipe (a NON-selected variant) across owner/char/bucket/model. Swipes credit the RE-ROLL
+ *  counters; the timeline bucket gets swipe COUNT + gen-time but NOT swipe tokens (esoteric #1). */
 function foldSwipe(r: SwipeRow, a: Accums): void {
-  const day = get(a.dayMap, utcDay(r.msgCreatedAt), freshDay);
+  const bucket = get(a.bucketMap, statsBucketStart(r.msgCreatedAt), freshBucket);
   const gen = genDurationMs(r);
   a.owner.swipes++;
   a.owner.swipeWords += wordCount(r.content);
@@ -584,11 +599,11 @@ function foldSwipe(r: SwipeRow, a: Accums): void {
   a.owner.tokensOut += r.tout ?? 0;
   foldTokenSamples(a.owner, r);
   a.owner.reasoningMs += reasoningMsOf(r);
-  day.swipes++;
+  bucket.swipes++;
   if (gen !== null) {
     a.owner.genTimeMs += gen;
     a.owner.genSamples++;
-    day.genTimeMs += gen;
+    bucket.genTimeMs += gen;
   }
   if (hasReasoning(r)) {
     a.owner.reasoningGenerations++;
@@ -645,11 +660,11 @@ interface CharChatMeta {
 }
 interface ChatMeta {
   chatByChar: Map<string, CharChatMeta>;
-  chatsCreatedByDay: Map<string, number>;
+  chatsCreatedByBucket: Map<number, number>;
   library: { characters: number; chats: number; forkedChats: number };
 }
 
-/** The chat-level aggregates: per-character chat counts + first/last, daily chatsCreated, owner library
+/** The chat-level aggregates: per-character chat counts + first/last, per-bucket chatsCreated, owner library
  *  totals. Forks count independently — a fork is a separate playthrough, so a fork's copied canon is not
  *  content-hash-deduped. */
 async function loadChatMeta(db: Db, ownerId: string): Promise<ChatMeta> {
@@ -664,11 +679,13 @@ async function loadChatMeta(db: Db, ownerId: string): Promise<ChatMeta> {
     GROUP BY cp.character_id
   `);
   const chatByChar = new Map(chatAgg.map((r) => [r.cid, r]));
-  const chatDays = await db.all<{ day: string; n: number }>(sql`
-    SELECT strftime('%Y-%m-%d', ch.created_at / 1000, 'unixepoch') AS day, COUNT(DISTINCT ch.id) AS n
-    FROM chats ch WHERE ch.id IN (${ownerChatIds(ownerId)}) GROUP BY day
+  // The bucket is computed in SQL with the same floor `statsBucketStart` applies to a message: the CAST
+  // keeps the division integral whatever numeric type the driver binds the width as.
+  const chatBuckets = await db.all<{ bucketStart: number; n: number }>(sql`
+    SELECT CAST(ch.created_at / ${STATS_BUCKET_MS} AS INTEGER) * ${STATS_BUCKET_MS} AS bucketStart, COUNT(DISTINCT ch.id) AS n
+    FROM chats ch WHERE ch.id IN (${ownerChatIds(ownerId)}) GROUP BY bucketStart
   `);
-  const chatsCreatedByDay = new Map(chatDays.map((r) => [r.day, r.n]));
+  const chatsCreatedByBucket = new Map(chatBuckets.map((r) => [r.bucketStart, r.n]));
   const library = (
     await db.all<{ characters: number; chats: number; forkedChats: number }>(sql`
       SELECT (SELECT COUNT(*) FROM characters WHERE owner_id = ${ownerId}) AS characters,
@@ -677,7 +694,7 @@ async function loadChatMeta(db: Db, ownerId: string): Promise<ChatMeta> {
                 AND id IN (${ownerChatIds(ownerId)})) AS forkedChats
     `)
   )[0] ?? { characters: 0, chats: 0, forkedChats: 0 };
-  return { chatByChar, chatsCreatedByDay, library };
+  return { chatByChar, chatsCreatedByBucket, library };
 }
 
 /** Owner extrema: earliest chat created, latest of (last message seen, last chat update). */
@@ -780,15 +797,15 @@ function buildOwnerRow(ownerId: UserId, owner: OwnerAccum, meta: ChatMeta, now: 
   };
 }
 
-function buildDayRows(ownerId: UserId, dayMap: Map<string, DayAccum>, meta: ChatMeta, now: number): (typeof dailyStats.$inferInsert)[] {
-  const dayKeys = new Set([...dayMap.keys(), ...meta.chatsCreatedByDay.keys()]);
-  return [...dayKeys].map((day) => {
-    const d = dayMap.get(day) ?? freshDay();
+function buildBucketRows(ownerId: UserId, bucketMap: Map<number, BucketAccum>, meta: ChatMeta, now: number): (typeof dailyStats.$inferInsert)[] {
+  const bucketKeys = new Set([...bucketMap.keys(), ...meta.chatsCreatedByBucket.keys()]);
+  return [...bucketKeys].map((bucketStart) => {
+    const d = bucketMap.get(bucketStart) ?? freshBucket();
     return {
       id: mintTypeId(ID_PREFIX.dailyStat),
       ownerId,
-      day,
-      chatsCreated: meta.chatsCreatedByDay.get(day) ?? 0,
+      bucketStart,
+      chatsCreated: meta.chatsCreatedByBucket.get(bucketStart) ?? 0,
       userTurns: d.userTurns,
       assistantTurns: d.assistantTurns,
       systemTurns: d.systemTurns,
@@ -838,7 +855,7 @@ function buildModelRows(ownerId: UserId, modelMap: Map<string, ModelEntry>, now:
 interface OwnerRollupRows {
   ownerRow: typeof ownerStats.$inferInsert;
   charRows: (typeof characterStats.$inferInsert)[];
-  dayRows: (typeof dailyStats.$inferInsert)[];
+  bucketRows: (typeof dailyStats.$inferInsert)[];
   modelRows: (typeof modelStats.$inferInsert)[];
 }
 
@@ -856,7 +873,7 @@ async function writeOwner(db: Db, ownerId: string, rows: OwnerRollupRows): Promi
   for (const chunk of chunkRows(rows.charRows, rowsPerInsert(CHAR_COLS))) {
     stmts.push(db.insert(characterStats).values(chunk));
   }
-  for (const chunk of chunkRows(rows.dayRows, rowsPerInsert(DAILY_COLS))) {
+  for (const chunk of chunkRows(rows.bucketRows, rowsPerInsert(DAILY_COLS))) {
     stmts.push(db.insert(dailyStats).values(chunk));
   }
   for (const chunk of chunkRows(rows.modelRows, rowsPerInsert(MODEL_COLS))) {
@@ -865,11 +882,11 @@ async function writeOwner(db: Db, ownerId: string, rows: OwnerRollupRows): Promi
   await db.batch(batchMany(stmts));
 }
 
-async function computeOwner(db: Db, ownerId: string, now: number): Promise<{ charCount: number; dayCount: number; modelCount: number }> {
+async function computeOwner(db: Db, ownerId: string, now: number): Promise<{ charCount: number; bucketCount: number; modelCount: number }> {
   const a: Accums = {
     owner: freshOwner(),
     charMap: new Map<string, CharAccum>(),
-    dayMap: new Map<string, DayAccum>(),
+    bucketMap: new Map<number, BucketAccum>(),
     modelMap: new Map<string, ModelEntry>(),
   };
   await scanMessages(db, ownerId, a);
@@ -881,13 +898,13 @@ async function computeOwner(db: Db, ownerId: string, now: number): Promise<{ cha
   const rows: OwnerRollupRows = {
     ownerRow: buildOwnerRow(oid, a.owner, meta, now),
     charRows: buildCharRows(a.charMap, meta, now),
-    dayRows: buildDayRows(oid, a.dayMap, meta, now),
+    bucketRows: buildBucketRows(oid, a.bucketMap, meta, now),
     modelRows: buildModelRows(oid, a.modelMap, now),
   };
   await writeOwner(db, ownerId, rows);
   return {
     charCount: rows.charRows.length,
-    dayCount: rows.dayRows.length,
+    bucketCount: rows.bucketRows.length,
     modelCount: rows.modelRows.length,
   };
 }
