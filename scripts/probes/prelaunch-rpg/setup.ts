@@ -7,6 +7,7 @@ import { createConnection } from "node:net";
 import { dirname, join, resolve, sep } from "node:path";
 import process, { env } from "node:process";
 import { fileURLToPath } from "node:url";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { pnpmInvocation } from "@orb/tooling/_shared/platform";
 import { killPidGroup } from "@orb/tooling/_shared/proc";
 import type { ProviderRequestReceipt, ScriptedProvider } from "./scripted-provider.ts";
@@ -330,7 +331,7 @@ async function seedAndProve(provider: ScriptedProvider): Promise<{
   requireEqual(game.trackersReadOnly, false, "rpg.createGame trackersReadOnly");
 
   let flushCount = 0;
-  await mutate("chat.send", { chatId, content: "Cross the ford.", intent: { maxOutputTokens: 64 } });
+  await mutate("chat.send", { chatId, content: "Cross the ford.", intent: { maxOutputTokens: 64 }, timeZone: UTC_TIME_ZONE });
   const fordFlush = await waitForNextFlush(chatId, flushCount, "wrote", "ford turn");
   flushCount += 1;
   const afterFordMessages = await query<MessagesPage>("chat.listMessages", { chatId });
@@ -339,7 +340,7 @@ async function seedAndProve(provider: ScriptedProvider): Promise<{
   const fordVariantId = ford.selectedVariantId;
   const afterFord = await readTracker(chatId, "after-ford", "the ford");
 
-  await mutate("chat.send", { chatId, content: "Wait and say nothing about our position.", intent: { maxOutputTokens: 64 } });
+  await mutate("chat.send", { chatId, content: "Wait and say nothing about our position.", intent: { maxOutputTokens: 64 }, timeZone: UTC_TIME_ZONE });
   const quietFlush = await waitForNextFlush(chatId, flushCount, "no-writes", "quiet turn");
   flushCount += 1;
   const afterQuietMessages = await query<MessagesPage>("chat.listMessages", { chatId });
@@ -351,7 +352,7 @@ async function seedAndProve(provider: ScriptedProvider): Promise<{
   const quietVariantId = quiet.selectedVariantId;
   const afterQuiet = await readTracker(chatId, "after-quiet", "the ford");
 
-  await mutate("chat.swipe", { chatId, messageId: beatBMessageId, intent: { maxOutputTokens: 64 } });
+  await mutate("chat.swipe", { chatId, messageId: beatBMessageId, intent: { maxOutputTokens: 64 }, timeZone: UTC_TIME_ZONE });
   const keepFlush = await waitForNextFlush(chatId, flushCount, "wrote", "keep swipe");
   const variants = await query<readonly MessageVariantSummary[]>("chat.listMessageVariants", { chatId, messageId: beatBMessageId });
   requireEqual(variants.length, 2, "beat B variant count");
