@@ -22,8 +22,8 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { Resolved } from "@orb/inference";
-import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createActiveTurns } from "../../../packages/server/src/domain/chat/active-turns.ts";
 import type { ActiveTurns } from "../../../packages/server/src/domain/chat/contract/active-turns.ts";
 import type { ChatContext } from "../../../packages/server/src/domain/chat/contract/context.ts";
@@ -76,6 +76,10 @@ const DEFAULT_PERSONAS: {
 export interface ChatScenarioOptions {
   /** A pre-migrated db to seed into; omitted ⇒ a fresh `freshDb()` (`:memory:`). */
   readonly db?: Db;
+  /** Mint real TypeIDs for the room, its characters and every message the turns write. Off ⇒ the readable
+   *  test ids; on for a test that drives the verbs through the tRPC router, whose `typeIdSchema` inputs and
+   *  outputs refuse the readable ones. */
+  readonly typeIds?: boolean;
   /** The roster character keys (also their display names). Default `["aria"]` (a solo room). */
   readonly characters?: readonly string[];
   /** Character keys seeded MUTED (`disabled: true`) — auto-selection excludes them (#29). */
@@ -187,12 +191,12 @@ async function seedRoom(
     ...(options.cardScope !== undefined ? { cardScope: options.cardScope } : {}),
     ...(options.autoMode === true ? { autoMode: true, autoModeMaxTurns: options.autoModeMaxTurns ?? 2, autoModeDelayMs: 0 } : {}),
   };
-  const chatId = await seedChat(db, "a", { metadata: { group } });
+  const chatId = await seedChat(db, "a", { metadata: { group }, ...(options.typeIds === true ? { id: mintTypeId(ID_PREFIX.chat) } : {}) });
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
   const chars: CharacterId[] = [];
   const names: Record<string, string> = {};
   for (const key of characters) {
-    const characterId = await seedCharacter(db, host, key);
+    const characterId = await seedCharacter(db, host, key, options.typeIds === true ? { id: mintTypeId(ID_PREFIX.character) } : {});
     await seedParticipant(db, {
       chatId,
       key,
@@ -228,6 +232,12 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     },
     getCard: ({ characterId }) => Promise.resolve(cardOf(names[characterId] ?? "Unknown")),
     mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: castId<CharacterId>("character_group") }),
+    ...(options.typeIds === true
+      ? {
+          newMessageId: (): MessageId => mintTypeId(ID_PREFIX.message),
+          newMessageVariantId: (): MessageVariantId => mintTypeId(ID_PREFIX.messageVariant),
+        }
+      : {}),
     ...options.ctx,
   });
 

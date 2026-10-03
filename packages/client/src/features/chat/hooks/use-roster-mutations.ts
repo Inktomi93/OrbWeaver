@@ -67,6 +67,7 @@ export const useSetSeatKnobs = createEntityMutation<SetSeatKnobsVars, unknown>({
 interface ForceCharacterTurnVars {
   readonly chatId: ChatId;
   readonly characterId: CharacterId;
+  readonly timeZone: string;
 }
 
 export const useForceCharacterTurn = createEntityMutation<ForceCharacterTurnVars, unknown>({

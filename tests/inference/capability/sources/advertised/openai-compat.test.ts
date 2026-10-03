@@ -15,6 +15,12 @@ test("a generation row states exactly the facts its server reported", () => {
   // A row the native API never described states only its window; nothing about modalities, tools or output.
   expect(advertisedFromOpenAiCompat({ contextLength: 32_768, embeddingDims: undefined }, "generation")).toStrictEqual({ context: { window: 32_768 } });
   expect(advertisedFromOpenAiCompat({ contextLength: null, embeddingDims: undefined }, "generation")).toStrictEqual({});
+  // A server's default floor for a window it does not state is a guess the capability keeps marked; a stated
+  // window wins over it.
+  expect(advertisedFromOpenAiCompat({ contextLength: null, contextFloor: 4096 }, "generation")).toStrictEqual({
+    context: { window: 4096, windowEstimated: true },
+  });
+  expect(advertisedFromOpenAiCompat({ contextLength: 16_384, contextFloor: 4096 }, "generation")).toStrictEqual({ context: { window: 16_384 } });
   // A server past the floor states structured output; one before it, or one that reported no version, states nothing.
   expect(advertisedFromOpenAiCompat({ contextLength: null, embeddingDims: undefined, structured: false }, "generation")).toStrictEqual({});
 });

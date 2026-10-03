@@ -8,13 +8,10 @@
 import { BELT_OWNED_BODY_KEYS, endpointFeaturesSchema, foldFeatures, isBeltOwnedBodyKey, WIRE_DEFAULT_FEATURES } from "@orb/contracts/inference";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("the sampler maps fold key by key: overriding one spelling keeps the row's others, and no layer means no map", () => {
-  const row = { samplerKeys: { typicalP: "typical", topNSigma: "nsigma" }, samplerFill: { temperature: 0.8 } } as const;
-  const folded = foldFeatures(row, { samplerKeys: { topA: "top_a_custom" }, samplerFill: { topP: 0.9 } });
+test("the sampler spellings fold key by key: overriding one keeps the row's others, and no layer means no map", () => {
+  const folded = foldFeatures({ samplerKeys: { typicalP: "typical", topNSigma: "nsigma" } }, { samplerKeys: { topA: "top_a_custom" } });
   expect(folded.samplerKeys).toEqual({ typicalP: "typical", topNSigma: "nsigma", topA: "top_a_custom" });
-  expect(folded.samplerFill).toEqual({ temperature: 0.8, topP: 0.9 });
   expect(foldFeatures({ prefill: "none" })).not.toHaveProperty("samplerKeys");
-  expect(foldFeatures({ prefill: "none" })).not.toHaveProperty("samplerFill");
 });
 
 test("an empty fold is the WIRE default, not an empty object", () => {

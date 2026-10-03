@@ -46,7 +46,8 @@ const MANDATORY_REASONING_RE = /reasoning is mandatory/iu;
 /** llama.cpp server refuses `tools[]` under `--no-jinja` while its `/props` still reports the template's tool
  *  support, so the reader cannot see it coming; the 400 is the first signal and it must read as the fix. */
 const JINJA_TOOLS_RE = /requires --jinja flag/iu;
-const JINJA_TOOLS_MESSAGE = "this llama.cpp server runs without --jinja, so tool calls are off; start it with --jinja or set tool calls to no under Advanced";
+const JINJA_TOOLS_MESSAGE =
+  "this llama.cpp server runs without --jinja, so tool calls are off; start it with --jinja, or under Advanced press Override on tool calls and choose no";
 const CONTEXT_COMPRESSION_PLUGIN = "context-compression";
 const MIDDLE_OUT_ENGINE = "middle-out";
 const OPENROUTER_KEY = "openrouter";

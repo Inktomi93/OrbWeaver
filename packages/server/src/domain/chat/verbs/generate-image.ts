@@ -49,7 +49,7 @@ interface GenerateImageDeps {
 
 export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): Pick<ChatService, "generateImage"> {
   return {
-    generateImage: async ({ principal, chatId, mode, prompt, n, size, gallery }: GenerateImageParams): Promise<MessageView> => {
+    generateImage: async ({ principal, chatId, mode, prompt, n, size, gallery, timeZone }: GenerateImageParams): Promise<MessageView> => {
       await requireParticipant(ctx, principal, chatId);
       const participants = await loadParticipants(ctx.db, chatId);
       const hostUserId = hostUserIdOf(participants);
@@ -67,6 +67,7 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
         ...(n !== undefined ? ({ n } satisfies Pick<PictureParams, "n">) : {}),
         ...(size !== undefined ? ({ size } satisfies Pick<PictureParams, "size">) : {}),
         ...(galleryCharacterId !== null ? ({ gallery: { subjectCharacterId: galleryCharacterId } } satisfies Pick<PictureParams, "gallery">) : {}),
+        timeZone,
       });
 
       // ONE message body STRING: the prompt (if any) + one markdown image ref per generated asset (D51).

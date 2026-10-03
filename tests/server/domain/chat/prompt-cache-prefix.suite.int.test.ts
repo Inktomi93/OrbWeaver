@@ -14,6 +14,7 @@ import type { Resolved } from "@orb/inference";
 import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { parseWorldBookFile } from "@orb/server/kit/serde/world-info";
 import { and, eq } from "drizzle-orm";
@@ -127,7 +128,9 @@ describe("F3 — a multi-human room's history labels do not depend on who presse
     const { scn, alice, bob } = await twoHumanRoom({ namesBehavior: "default", characters: ["aria", "kai"], cardScope: "scoped" });
 
     await scn.send("hello", { principal: scn.principal(alice) });
-    await scn.send("hey", { principal: scn.principal(bob) });
+    // A natural round answering a human send bans no one, so the seeded pick can re-pick the last speaker, whose
+    // own reply never folds. Naming both seats makes both speak, so the second one's turn always folds the first.
+    await scn.send("hey aria, kai", { principal: scn.principal(bob) });
 
     const allUserText = scn.requests.flatMap((req) => userTexts(req)).join("\n\n");
     // Positive control: the fold happened (another character's reply rides a user row, its speaker inline).
@@ -337,7 +340,7 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     await setSeatPersona(scn, scn.host, steve);
 
     await scn.send("hi", { principal: scn.principal() });
-    await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1 });
+    await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1, timeZone: UTC_TIME_ZONE });
 
     const human = requestAt(scn, 0);
     const auto = requestAt(scn, 1);
@@ -356,7 +359,7 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     await seedMessage(scn.db, scn.chatId, 2, { role: "assistant", characterId: scn.chars[0] ?? null, content: "a reply" });
 
     await scn.send("hi", { principal: scn.principal() });
-    await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1 });
+    await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1, timeZone: UTC_TIME_ZONE });
 
     expect(userTexts(requestAt(scn, 1))[0]).toBe(userTexts(requestAt(scn, 0))[0]);
     expectHistoryPrefixKept(requestAt(scn, 0), requestAt(scn, 1));

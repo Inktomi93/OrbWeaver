@@ -11,6 +11,7 @@ import type { ChatEvent, ChatRequest, ChatResult, WarningCode } from "@orb/infer
 import { AGENT_CONTINUATION_PROMPT_STUB, createInferenceRuntime, DEFAULT_EMBED_MODEL } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, ImageryGenerationId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { HumanSeatPersona, TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
 import {
   activePersonaIdFor,
@@ -899,9 +900,20 @@ describe("createGeneratePictureOp — chat's generatePicture op over imagery", (
     const chatId = castId<ChatId>("chat_room");
     const subjectCharacterId = castId<CharacterId>("character_aria");
 
-    const result = await op({ caller, chatId, mode: "free", prompt: "a dragon", n: 2, size: "portrait", gallery: { subjectCharacterId } });
+    const result = await op({
+      caller,
+      chatId,
+      mode: "free",
+      prompt: "a dragon",
+      n: 2,
+      size: "portrait",
+      gallery: { subjectCharacterId },
+      timeZone: UTC_TIME_ZONE,
+    });
 
-    expect(calls).toEqual([{ caller, chatId, mode: "free", prompt: "a dragon", n: 2, size: "portrait", gallery: { subjectCharacterId } }]);
+    expect(calls).toEqual([
+      { caller, chatId, mode: "free", prompt: "a dragon", n: 2, size: "portrait", gallery: { subjectCharacterId }, timeZone: UTC_TIME_ZONE },
+    ]);
     expect(result).toEqual({ images: [{ assetId: "asset_one" }], warnings: [{ code: "image_edit_dropped", detail: "dropped" }] });
   });
 });

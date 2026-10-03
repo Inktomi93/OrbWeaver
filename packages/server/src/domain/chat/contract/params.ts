@@ -44,6 +44,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { IanaTimeZone } from "@orb/kit/time";
 
 // The one-turn typed steer is the CONTRACTS wire shape (`guidedSteerSchema`) — re-exported here so the
 // verb *Params surface stays one import (F6 re-home: the local re-spell died when the wire schema landed).
@@ -62,6 +63,13 @@ interface ChatScopedParams extends ChatActorParams {
 /** A message-scoped base (canon edits/variant operations). */
 interface MessageScopedParams extends ChatScopedParams {
   readonly messageId: MessageId;
+}
+
+/** A verb whose assembly renders `{{date}}`/`{{time}}`/`{{weekday}}` for a viewer reads them in the zone that
+ *  viewer's browser reported (UI-Gates §11.5, the timezone pipeline). Absent ⇒ UTC, the clock of a caller with
+ *  no viewer; never the server's own zone. */
+interface ViewerClockParams {
+  readonly timeZone?: IanaTimeZone | undefined;
 }
 
 /** `startChat` — lazy chat+roster creation, greeting seeding, CREATION-INTENT inputs only
@@ -115,12 +123,12 @@ export interface GetChatParams extends ChatScopedParams {}
 /** `getMemberCard` — read ONE roster character's card, field-clamped to the room's `memberCardVisibility`
  *  (D22). The `characterId` MUST be a present character seat of THIS chat; a not-in-roster / foreign id is a
  *  leak-free NOT_FOUND (you cannot read an arbitrary card through a chat you happen to be in). */
-export interface GetMemberCardParams extends ChatScopedParams {
+export interface GetMemberCardParams extends ChatScopedParams, ViewerClockParams {
   readonly characterId: CharacterId;
 }
 
 /** `previewAssembly` — the BUILD product for a hypothetical turn (host/admin trace). */
-export interface PreviewAssemblyParams extends ChatScopedParams {
+export interface PreviewAssemblyParams extends ChatScopedParams, ViewerClockParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
   readonly guided?: GuidedSteer | undefined;
   /** D121-G / §7.1 — assemble this room as if THIS preset were active, for the preset editor's BOUND Prompt
@@ -140,7 +148,7 @@ export interface GetActivePresetConfigParams extends ChatScopedParams {}
  *  landed `ResolveForeignInputsOp.presetOverride` seam (the rpg GM-voice redirect's), which resolves
  *  owned-or-system UNDER THE HOST and degrades to the host's own default on a stale/unowned id — so a preset
  *  the caller does not own can never be read through a chat. */
-export interface PreviewActionTemplatesParams extends ChatScopedParams {
+export interface PreviewActionTemplatesParams extends ChatScopedParams, ViewerClockParams {
   readonly presetId: PresetId;
 }
 
@@ -209,7 +217,7 @@ export interface ReplayChatEventsParams extends ChatScopedParams {
 export interface ChatEventBoundsParams extends ChatScopedParams {}
 
 /** `send` — persist a user message then run the AI turn. */
-export interface SendParams extends ChatScopedParams {
+export interface SendParams extends ChatScopedParams, ViewerClockParams {
   readonly content: string;
   readonly personaId?: PersonaId | null | undefined;
   readonly blocks?: readonly MessageContentBlock[] | undefined;
@@ -221,7 +229,7 @@ export interface SendParams extends ChatScopedParams {
 
 /** `commitMessage` — the "Simple Send" / post-without-generate lever (D56): commit a user message WITHOUT
  *  firing the AI turn. `SendParams` MINUS `intent`/`guided` (no generation ⇒ no gen-config, no steer). */
-export interface CommitMessageParams extends ChatScopedParams {
+export interface CommitMessageParams extends ChatScopedParams, ViewerClockParams {
   readonly content: string;
   readonly personaId?: PersonaId | null | undefined;
   readonly blocks?: readonly MessageContentBlock[] | undefined;
@@ -230,7 +238,7 @@ export interface CommitMessageParams extends ChatScopedParams {
 }
 
 /** `swipe` — appends a fresh variant to an assistant slot (a reroll; slot attribution unchanged). */
-export interface SwipeParams extends MessageScopedParams {
+export interface SwipeParams extends MessageScopedParams, ViewerClockParams {
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
 }
@@ -239,7 +247,7 @@ export interface SwipeParams extends MessageScopedParams {
  *  generates, persisting NOTHING. The user reviews the drafted line in the composer and commits it with a
  *  normal send. Same steer/perspective picker as a real turn; `personaId` selects the authoring persona's
  *  voice. The verb yields text deltas (see {@link ChatService.impersonateStream}). */
-export interface ImpersonateStreamParams extends ChatScopedParams {
+export interface ImpersonateStreamParams extends ChatScopedParams, ViewerClockParams {
   readonly personaId?: PersonaId | null | undefined;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
@@ -249,7 +257,7 @@ export interface ImpersonateStreamParams extends ChatScopedParams {
 }
 
 /** `generate` — a lock-free auxiliary generation (runs concurrent with a locked send). */
-export interface GenerateParams extends ChatScopedParams {
+export interface GenerateParams extends ChatScopedParams, ViewerClockParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
@@ -262,7 +270,7 @@ export interface GenerateParams extends ChatScopedParams {
 }
 
 /** `continueTurn` — extends the tail assistant message in place. */
-export interface ContinueTurnParams extends MessageScopedParams {
+export interface ContinueTurnParams extends MessageScopedParams, ViewerClockParams {
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
 }
@@ -274,7 +282,7 @@ export interface UndoContinueParams extends MessageScopedParams {}
 export interface RevertContinueParams extends MessageScopedParams {}
 
 /** `forceCharacterTurn` — forces a specific roster character to speak next (host-only). */
-export interface ForceCharacterTurnParams extends ChatScopedParams {
+export interface ForceCharacterTurnParams extends ChatScopedParams, ViewerClockParams {
   readonly characterId: CharacterId;
   readonly intent?: UserIntent | undefined;
   readonly guided?: GuidedSteer | undefined;
@@ -311,6 +319,9 @@ export interface RequestTurnParams {
   readonly guided?: GuidedSteer | undefined;
   /** The binding actor whose own chat binding the turn folds before the funder's (an automation rule's). */
   readonly actor?: BindingActor | undefined;
+  /** The clock the turn's time macros read. No viewer drives this turn, so the caller states its ruled zone:
+   *  an automation rule's own stamped clock, else UTC. */
+  readonly timeZone: IanaTimeZone;
 }
 
 /** `compact` — the manual compaction lever; produces the portable checkpoint. */
@@ -322,7 +333,7 @@ export interface CompactParams extends ChatScopedParams {
 export interface AbortParams extends ChatScopedParams {}
 
 /** `generateImage` — generates n image(s), then persists one message whose body carries n asset: refs. */
-export interface GenerateImageParams extends ChatScopedParams {
+export interface GenerateImageParams extends ChatScopedParams, ViewerClockParams {
   readonly mode: PromptTemplateMode;
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
@@ -334,12 +345,12 @@ export interface GenerateImageParams extends ChatScopedParams {
 }
 
 /** `selectVariant` — flips messages.selectedVariantId to a sibling swipe (pointer move, zero copy). */
-export interface SelectVariantParams extends MessageScopedParams {
+export interface SelectVariantParams extends MessageScopedParams, ViewerClockParams {
   readonly variantId: MessageVariantId;
 }
 
 /** `editMessage` — edits the selected variant's content in place. */
-export interface EditMessageParams extends MessageScopedParams {
+export interface EditMessageParams extends MessageScopedParams, ViewerClockParams {
   readonly content: string;
 }
 

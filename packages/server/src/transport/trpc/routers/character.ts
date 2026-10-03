@@ -20,6 +20,7 @@ import {
 } from "@orb/contracts/character";
 import { GREETING_TRANSFORM_IDS } from "@orb/contracts/preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -215,7 +216,15 @@ export const characterRouter = t.router({
   // templating fork, ARM B — owner 2026-08-09), the same doctrine `guidedSteerSchema.gameSteer` states.
   rewriteGreeting: authedProcedure
     .output(generatedGreetingSchema)
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), greeting: z.string(), steer: z.string(), transforms: greetingTransformIds.optional() }))
+    .input(
+      z.object({
+        characterId: typeIdSchema(ID_PREFIX.character),
+        greeting: z.string(),
+        steer: z.string(),
+        transforms: greetingTransformIds.optional(),
+        timeZone: reportedTimeZoneSchema,
+      }),
+    )
     .mutation(({ ctx, input }) =>
       ctx.services.character.rewriteGreeting({
         principal: ctx.auth,
@@ -223,18 +232,27 @@ export const characterRouter = t.router({
         greeting: input.greeting,
         steer: input.steer,
         ...(input.transforms === undefined ? {} : { transforms: input.transforms }),
+        timeZone: input.timeZone,
       }),
     ),
 
   generateGreeting: authedProcedure
     .output(generatedGreetingSchema)
-    .input(z.object({ characterId: typeIdSchema(ID_PREFIX.character), steer: z.string(), transforms: greetingTransformIds.optional() }))
+    .input(
+      z.object({
+        characterId: typeIdSchema(ID_PREFIX.character),
+        steer: z.string(),
+        transforms: greetingTransformIds.optional(),
+        timeZone: reportedTimeZoneSchema,
+      }),
+    )
     .mutation(({ ctx, input }) =>
       ctx.services.character.generateGreeting({
         principal: ctx.auth,
         characterId: input.characterId,
         steer: input.steer,
         ...(input.transforms === undefined ? {} : { transforms: input.transforms }),
+        timeZone: input.timeZone,
       }),
     ),
 });

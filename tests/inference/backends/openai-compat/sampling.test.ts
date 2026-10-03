@@ -16,6 +16,7 @@ import { testProviderId } from "../../../support/inference-identities.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { openAiTextStream, scriptedJsonFetch, scriptedSseFetch } from "../_hosted-support.ts";
+import { OLLAMA_NATIVE_RECORDINGS } from "./_ollama-native-recordings.ts";
 
 const NOW = 1_700_000_000_000;
 const APP = { name: "orbweaver-test", url: "http://localhost:0" };
@@ -82,13 +83,19 @@ function chatRequest(providerId: string, params: UserIntent): OpenAiCompatChatRe
   };
 }
 
+/** Ollama's native `/api/chat` answering with the rig's recorded NDJSON stream, recording what was posted. */
+function ollamaServer(recorded: RecordedRequest[]): typeof fetch {
+  const recording = OLLAMA_NATIVE_RECORDINGS.text;
+  return (input, init): Promise<Response> => {
+    recorded.push({ url: String(input), body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
+    return Promise.resolve(new Response(recording.body, { status: recording.status, headers: { "content-type": recording.contentType } }));
+  };
+}
+
 async function turnBody(providerId: string, params: UserIntent): Promise<{ readonly body: Record<string, unknown>; readonly turn: ChatResult }> {
   const recorded: RecordedRequest[] = [];
-  const turn = await runOpenAiCompatChatTurn(chatRequest(providerId, params), {
-    now: () => NOW,
-    log: silentLog(),
-    transport: { fetch: scriptedSseFetch([openAiTextStream("ok")], recorded), app: APP },
-  });
+  const fetchImpl = providerId === "ollama" ? ollamaServer(recorded) : scriptedSseFetch([openAiTextStream("ok")], recorded);
+  const turn = await runOpenAiCompatChatTurn(chatRequest(providerId, params), { now: () => NOW, log: silentLog(), transport: { fetch: fetchImpl, app: APP } });
   return { body: recorded[0]?.body ?? {}, turn };
 }
 
@@ -178,23 +185,36 @@ test("KoboldCpp: its own spellings, no frequency penalty, and the order as sampl
   expect(droppedKnobs(turn).toSorted()).toEqual(["frequencyPenalty", "samplerOrder"]);
 });
 
-test("Ollama (OpenAI route): the six knobs its decoder keeps ride; the rest drop loudly", async () => {
+test("Ollama (native /api/chat): every knob its options take rides in `options` under Ollama's names", async () => {
   const { body, turn } = await turnBody("ollama", EVERY_SAMPLER);
-  expect(samplerKeys(body)).toEqual(["frequency_penalty", "presence_penalty", "seed", "stop", "temperature", "top_p"]);
-  expect(droppedKnobs(turn)).toContain("topK");
-  expect(droppedKnobs(turn)).toContain("minP");
-  expect(droppedKnobs(turn)).toContain("repetitionPenalty");
-  expect(droppedKnobs(turn)).not.toContain("temperature");
+  expect(body["options"]).toMatchObject({
+    temperature: 1.2,
+    top_p: 0.9,
+    top_k: 40,
+    min_p: 0.05,
+    typical_p: 0.95,
+    repeat_penalty: 1.1,
+    repeat_last_n: 512,
+    frequency_penalty: 0.3,
+    presence_penalty: 0.4,
+    seed: 7,
+    stop: ["\nUser:"],
+  });
+  // No sampler is left at the top level, where `/api/chat` would ignore it.
+  expect(samplerKeys(body)).toEqual(["options"]);
+  // `/api/chat` has no logit bias, Mirostat, DRY, XTC or smoothing: exactly those are reported as dropped.
+  expect(droppedKnobs(turn)).toContain("logitBias");
+  expect(droppedKnobs(turn)).toContain("dryMultiplier");
+  expect(droppedKnobs(turn)).not.toContain("topK");
+  expect(droppedKnobs(turn)).not.toContain("repetitionPenalty");
 });
 
-test("Ollama (OpenAI route): an unset temperature and top-p go out at Ollama's own defaults, never its injected 1.0", async () => {
+test("Ollama (native /api/chat): an unset knob is not sent, so the Modelfile's own value applies", async () => {
   const { body } = await turnBody("ollama", {});
-  expect(body).toMatchObject({ temperature: 0.8, top_p: 0.9 });
-  const explicit = await turnBody("ollama", { temperature: 0.3 });
-  expect(explicit.body).toMatchObject({ temperature: 0.3, top_p: 0.9 });
+  expect(Object.keys((body["options"] ?? {}) as Record<string, unknown>)).toEqual(["num_ctx"]);
 });
 
-test("an unset knob is never sent to a server that has no fill: llama.cpp gets no sampler keys at all", async () => {
+test("an unset knob is never sent: llama.cpp gets no sampler keys at all", async () => {
   const { body, turn } = await turnBody("llama-cpp", {});
   expect(samplerKeys(body)).toEqual([]);
   expect(droppedKnobs(turn)).toEqual([]);
@@ -224,6 +244,7 @@ test("one preset, two servers: each wire carries only its target's knobs", async
   const ollama = await turnBody("ollama", preset);
   expect(llama.body["dry_multiplier"]).toBe(0.8);
   expect(ollama.body["dry_multiplier"]).toBeUndefined();
+  expect(ollama.body["options"]).not.toHaveProperty("dry_multiplier");
   expect(droppedKnobs(ollama.turn)).toEqual(["dryMultiplier"]);
   expect(droppedKnobs(llama.turn)).toEqual([]);
 });

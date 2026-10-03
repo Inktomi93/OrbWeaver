@@ -243,3 +243,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D293 | [Memory is off until each user turns it on, behind a cost confirm](0293-memory-is-off-until-each-user-turns-it-on.md) | active |
 | D294 | [Rich content uses trust tiers, and interactive story cards are on by default](0294-interactive-story-cards-are-on-by-default.md) | active |
 | D295 | [Sampler order on the chat wire](0295-sampler-order-on-the-chat-wire.md) | active |
+| D296 | [Ollama chat rides its native route](0296-ollama-chat-rides-its-native-route.md) | active |

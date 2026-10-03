@@ -121,11 +121,11 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     features: {
       prefill: "none",
+      // Ollama reads `reasoning_effort` as `think` on both chat routes (off for `none`).
+      effort: "reasoning_effort",
       modelInfoApi: "ollama",
-      // The OpenAI route writes temperature 1 and top_p 1 into a request that omits them; send Ollama's own
-      // defaults instead (api/types.go DefaultOptions). Native `/api/chat` needs no fill.
-      samplerFill: { temperature: 0.8, topP: 0.9 },
-      // Native `/api/chat` `options` spelling; the OpenAI route never states this knob.
+      nativeChat: "ollama",
+      // The `/api/chat` `options` spelling (api/types.go `Options`).
       samplerKeys: { repetitionPenalty: "repeat_penalty" },
     },
     catalog: "url",
@@ -141,7 +141,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     // The reader states tools from `/props` `chat_template_caps`, which the server reports even under
     // `--no-jinja` while refusing `tools[]` with "tools param requires --jinja flag"; the chat backend maps
-    // that refusal to a readable error, and the user can set tool calls to no under Advanced.
+    // that refusal to a readable error, and the user overrides tool calls to no under Advanced.
     features: {
       prefill: "none",
       modelInfoApi: "llama-cpp",

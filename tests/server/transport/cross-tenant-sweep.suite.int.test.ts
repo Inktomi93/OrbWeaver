@@ -557,11 +557,11 @@ const PROBES: readonly Probe[] = [
   // character integrity re-read proves A's card was untouched.
   {
     path: "character.rewriteGreeting",
-    call: (c, i) => c.character.rewriteGreeting({ characterId: i.characterId, greeting: "hi there", steer: "make it formal" }),
+    call: (c, i) => c.character.rewriteGreeting({ characterId: i.characterId, greeting: "hi there", steer: "make it formal", timeZone: UTC_TIME_ZONE }),
   },
   {
     path: "character.generateGreeting",
-    call: (c, i) => c.character.generateGreeting({ characterId: i.characterId, steer: "a cheerful opening" }),
+    call: (c, i) => c.character.generateGreeting({ characterId: i.characterId, steer: "a cheerful opening", timeZone: UTC_TIME_ZONE }),
   },
   // ── persona (owner-scoped) ──
   { path: "persona.get", call: (c, i) => c.persona.get({ personaId: i.personaId }) },
@@ -940,7 +940,7 @@ const PROBES: readonly Probe[] = [
   { path: "chat.getNextTurnConnection", call: (c, i) => c.chat.getNextTurnConnection({ chatId: i.chatId }) },
   // D22 member-card read — the chatId membership gate refuses a stranger BEFORE any card load (the secondary
   // `characterId` is roster-scoped inside the verb, but the chatId chokepoint is what the sweep probes).
-  { path: "chat.getMemberCard", call: (c, i) => c.chat.getMemberCard({ chatId: i.chatId, characterId: i.characterId }) },
+  { path: "chat.getMemberCard", call: (c, i) => c.chat.getMemberCard({ chatId: i.chatId, characterId: i.characterId, timeZone: UTC_TIME_ZONE }) },
   { path: "chat.listMessages", call: (c, i) => c.chat.listMessages({ chatId: i.chatId }) },
   { path: "chat.getMessageWindow", call: (c, i) => c.chat.getMessageWindow({ chatId: i.chatId, target: { kind: "message", messageId: i.messageId } }) },
   {
@@ -961,7 +961,7 @@ const PROBES: readonly Probe[] = [
   { path: "chat.reapHusk", call: (c, i) => c.chat.reapHusk({ chatId: i.chatId }) },
   {
     path: "chat.editMessage",
-    call: (c, i) => c.chat.editMessage({ chatId: i.chatId, messageId: i.messageId, content: "hacked" }),
+    call: (c, i) => c.chat.editMessage({ chatId: i.chatId, messageId: i.messageId, content: "hacked", timeZone: UTC_TIME_ZONE }),
   },
   {
     // R3 §4.8/F6 — the seeded-greeting step. HOST-only and a CONTENT WRITE on A's canon, so a dropped
@@ -1127,7 +1127,7 @@ const PROBES: readonly Probe[] = [
     // chatId gate (`requireHost`) is the one that must bite, and the override needs no probe of its own
     // because compose resolves it under the ROOM HOST.
     path: "chat.previewAssembly",
-    call: (c, i) => c.chat.previewAssembly({ chatId: i.chatId, presetOverride: i.presetId }),
+    call: (c, i) => c.chat.previewAssembly({ chatId: i.chatId, presetOverride: i.presetId, timeZone: UTC_TIME_ZONE }),
   },
   {
     // D8's bound readout. TWO foreign-id surfaces on one call, and the chatId gate is the one that must bite:
@@ -1136,7 +1136,7 @@ const PROBES: readonly Probe[] = [
     // by compose, so a caller cannot aim it at a library that is not the room host's (and a miss degrades to
     // the host's own default rather than throwing).
     path: "chat.previewActionTemplates",
-    call: (c, i) => c.chat.previewActionTemplates({ chatId: i.chatId, presetId: i.presetId }),
+    call: (c, i) => c.chat.previewActionTemplates({ chatId: i.chatId, presetId: i.presetId, timeZone: UTC_TIME_ZONE }),
   },
   { path: "chat.getShapeTrace", call: (c, i) => c.chat.getShapeTrace({ chatId: i.chatId }) },
   {
@@ -1186,7 +1186,7 @@ const PROBES: readonly Probe[] = [
   },
   {
     path: "chat.forceCharacterTurn",
-    call: (c, i) => c.chat.forceCharacterTurn({ chatId: i.chatId, characterId: i.characterId }),
+    call: (c, i) => c.chat.forceCharacterTurn({ chatId: i.chatId, characterId: i.characterId, timeZone: UTC_TIME_ZONE }),
   },
   { path: "chat.getGroupConfig", call: (c, i) => c.chat.getGroupConfig({ chatId: i.chatId }) },
   {
@@ -1198,8 +1198,8 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.setChatAnchorPersona({ chatId: i.chatId, personaId: i.personaId }),
   },
   { path: "chat.abort", call: (c, i) => c.chat.abort({ chatId: i.chatId }) },
-  { path: "chat.send", call: (c, i) => c.chat.send({ chatId: i.chatId, content: "hi" }) },
-  { path: "chat.commitMessage", call: (c, i) => c.chat.commitMessage({ chatId: i.chatId, content: "hi" }) },
+  { path: "chat.send", call: (c, i) => c.chat.send({ chatId: i.chatId, content: "hi", timeZone: UTC_TIME_ZONE }) },
+  { path: "chat.commitMessage", call: (c, i) => c.chat.commitMessage({ chatId: i.chatId, content: "hi", timeZone: UTC_TIME_ZONE }) },
   // ── invites / human-membership (FINAL-Auth-Modes §7 P1 — host/member-gated inside the verbs; the
   //    token-carrying verbs are token-authenticated: a guessed token is a leak-free NOT_FOUND, and a
   //    targeted/foreign invite collapses to the same shape). The fixture context is multi-human capable,
@@ -1259,15 +1259,15 @@ const PROBES: readonly Probe[] = [
   },
   {
     path: "chat.swipe",
-    call: (c, i) => c.chat.swipe({ chatId: i.chatId, messageId: i.messageId }),
+    call: (c, i) => c.chat.swipe({ chatId: i.chatId, messageId: i.messageId, timeZone: UTC_TIME_ZONE }),
   },
   {
     path: "chat.selectVariant",
-    call: (c, i) => c.chat.selectVariant({ chatId: i.chatId, messageId: i.messageId, variantId: FAKE.variantId }),
+    call: (c, i) => c.chat.selectVariant({ chatId: i.chatId, messageId: i.messageId, variantId: FAKE.variantId, timeZone: UTC_TIME_ZONE }),
   },
   {
     path: "chat.continueTurn",
-    call: (c, i) => c.chat.continueTurn({ chatId: i.chatId, messageId: i.messageId }),
+    call: (c, i) => c.chat.continueTurn({ chatId: i.chatId, messageId: i.messageId, timeZone: UTC_TIME_ZONE }),
   },
   // undo/revertContinue gate `requireParticipant(chatId)` then load the snapshot chat-scoped: a stranger
   // passing A's chatId collapses to NOT_FOUND before the load, and a foreign messageId (chat B's) matches
@@ -1283,11 +1283,11 @@ const PROBES: readonly Probe[] = [
   },
   // A SUBSCRIPTION (async iterable) — the `requireParticipant` gate runs on the first `.next()`, so DRAIN it
   // to trigger the gate (a stranger's iteration must throw the leak-free NOT_FOUND before yielding a byte).
-  { path: "chat.impersonateStream", call: (c, i) => drainAsyncIterable(c.chat.impersonateStream({ chatId: i.chatId })) },
-  { path: "chat.generate", call: (c, i) => c.chat.generate({ chatId: i.chatId }) },
+  { path: "chat.impersonateStream", call: (c, i) => drainAsyncIterable(c.chat.impersonateStream({ chatId: i.chatId, timeZone: UTC_TIME_ZONE })) },
+  { path: "chat.generate", call: (c, i) => c.chat.generate({ chatId: i.chatId, timeZone: UTC_TIME_ZONE }) },
   {
     path: "chat.generateImage",
-    call: (c, i) => c.chat.generateImage({ chatId: i.chatId, mode: "free", prompt: "x", n: 1 }),
+    call: (c, i) => c.chat.generateImage({ chatId: i.chatId, mode: "free", prompt: "x", n: 1, timeZone: UTC_TIME_ZONE }),
   },
 
   // ── imagery (I5): the client-facing leaf verbs. editImage/readProvenance gate on the OWNED-asset join
@@ -1299,7 +1299,7 @@ const PROBES: readonly Probe[] = [
     path: "imagery.editImage",
     call: (c, i) => c.imagery.editImage({ sourceAssetId: mintTypeId(ID_PREFIX.asset), instruction: "make it night", chatId: i.chatId }),
   },
-  { path: "imagery.extractPrompt", call: (c, i) => c.imagery.extractPrompt({ chatId: i.chatId, mode: "scenario" }) },
+  { path: "imagery.extractPrompt", call: (c, i) => c.imagery.extractPrompt({ chatId: i.chatId, mode: "scenario", timeZone: UTC_TIME_ZONE }) },
   { path: "imagery.readProvenance", call: (c) => c.imagery.readProvenance({ assetId: mintTypeId(ID_PREFIX.asset) }) },
 
   // ── automation (A8): every rule-lifecycle verb is host-authored room authority (04 §2). The chat-scoped

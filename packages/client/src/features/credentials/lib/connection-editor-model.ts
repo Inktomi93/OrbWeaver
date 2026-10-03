@@ -1,15 +1,16 @@
 // The connection EDITOR's pure model (inference program §5.3a, step 9 · the step-3b
 // mock): the TIER-LEVEL derived content — the inferred-kind verdict,
-// the task-requirement badge rail, the two tier count badges, the Extras rows and their belt gloss, and the
-// private-endpoint admission predicate. No JSX, no hooks — every function here is a fold over data already
-// on the wire.
+// the task-requirement badge rail, the two tier count badges, the Extras rows and their belt gloss, the
+// request-body overrides field, and the private-endpoint admission predicate. No JSX, no hooks — every
+// function here is a fold over data already on the wire.
 //
 // The Advanced tier's FACT-ROW grammar (both blocks' rows, their source lines and the per-field Override
 // write path) is the other half, at `connection-fact-model.ts` — split at the `component-size` cap, and the
 // honesty rules that govern what a source line may say live in THAT file's header.
 
-import type { Capability, DeclaredCapability, ModelKind, RoutableTask, Task } from "@orb/contracts/inference";
-import { BELT_OWNED_BODY_KEYS, EMBED_SPACE_DIMS, requirementMet, spaceMisfitReason, taskDef } from "@orb/contracts/inference";
+import type { Capability, ConnectionTransportDoc, DeclaredCapability, ModelKind, RoutableTask, Task } from "@orb/contracts/inference";
+import { BELT_OWNED_BODY_KEYS, connectionTransportSchema, EMBED_SPACE_DIMS, requirementMet, spaceMisfitReason, taskDef } from "@orb/contracts/inference";
+import { errorMessage } from "@orb/kit/error-message";
 import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 // Direct, not through `#lib`: node-side CT specs import this module.
 import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
@@ -241,6 +242,39 @@ function stringifyExtraValue(value: unknown): string {
 export function rowsFromExtras(extras: Readonly<Record<string, unknown>> | null, nextId: (index: number) => string): readonly ExtraRow[] {
   const saved = Object.entries(extras ?? {}).map(([key, value], index): ExtraRow => ({ id: nextId(index), key, value: stringifyExtraValue(value) }));
   return [...saved, { id: nextId(saved.length), key: "", value: "" }];
+}
+
+// ── the Diagnostics tier: request-body overrides (`transport.includeBody`) ─────────────────────────────
+
+/** What the overrides field saves: the object (`undefined` clears it), or why the text is refused unsaved. */
+type IncludeBodyParse = { readonly ok: true; readonly includeBody: ConnectionTransportDoc["includeBody"] } | { readonly ok: false; readonly reason: string };
+
+/** The canonical schema the connection writer validates with, so the field refuses exactly what a save would. */
+const INCLUDE_BODY_SCHEMA = connectionTransportSchema.shape.includeBody;
+const INCLUDE_BODY_SHAPE_REASON = 'Write one JSON object, like {"top_k": 40}.';
+
+/** The overrides field's text as the transport value it saves. Empty text, or an empty object, clears it. */
+export function parseIncludeBody(raw: string): IncludeBodyParse {
+  const text = raw.trim();
+  if (text === "") {
+    return { ok: true, includeBody: undefined };
+  }
+  let json: unknown;
+  try {
+    json = JSON.parse(text) as unknown;
+  } catch (err) {
+    return { ok: false, reason: `That is not valid JSON (${errorMessage(err)}). ${INCLUDE_BODY_SHAPE_REASON}` };
+  }
+  const parsed = INCLUDE_BODY_SCHEMA.safeParse(json);
+  if (!parsed.success || parsed.data === undefined) {
+    return { ok: false, reason: INCLUDE_BODY_SHAPE_REASON };
+  }
+  return { ok: true, includeBody: Object.keys(parsed.data).length === 0 ? undefined : parsed.data };
+}
+
+/** The saved overrides as the field's text: indented JSON, or empty when none are set. */
+export function includeBodyText(includeBody: ConnectionTransportDoc["includeBody"]): string {
+  return includeBody === undefined ? "" : JSON.stringify(includeBody, null, 2);
 }
 
 // ── the Diagnostics tier: the private-endpoint admission affordance ────────────────────────────────────

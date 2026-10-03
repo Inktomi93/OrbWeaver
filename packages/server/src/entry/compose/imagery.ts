@@ -119,6 +119,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     extractQuiet: (() => {
       const base = createExtractQuiet({
         db,
+        now,
         summarize: async (funderUserId, ...args) => (await roleClientsFor(funderUserId)).summarize(...args),
         getCard: ({ ownerId, characterId }) => character.getCard({ principal: imageryCardPrincipal(ownerId), characterId }),
         resolveChatPresetParams: deps.resolveChatPresetParams,

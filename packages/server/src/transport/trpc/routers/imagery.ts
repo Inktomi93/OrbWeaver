@@ -12,6 +12,7 @@
 import { assetIdSchema } from "@orb/contracts/assets";
 import { extractedPromptSchema, generatedPictureSchema, generationProvenanceSchema, promptTemplateModeSchema, sizePresetSchema } from "@orb/contracts/imagery";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -61,6 +62,7 @@ export const imageryRouter = t.router({
         chatId: typeIdSchema(ID_PREFIX.chat),
         mode: extractionModeSchema,
         subjectCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
+        timeZone: reportedTimeZoneSchema,
       }),
     )
     .mutation(({ ctx, input }) =>
@@ -69,6 +71,7 @@ export const imageryRouter = t.router({
         chatId: input.chatId,
         mode: input.mode,
         ...(input.subjectCharacterId === undefined ? {} : { subjectCharacterId: input.subjectCharacterId }),
+        timeZone: input.timeZone,
       }),
     ),
 

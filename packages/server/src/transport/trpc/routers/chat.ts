@@ -60,6 +60,7 @@ import { rpgGameTemplateSchema } from "@orb/contracts/rpg";
 import { messageWindowCursorSchema, messageWindowTargetSchema } from "@orb/contracts/search";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { reportedTimeZoneSchema } from "@orb/kit/time";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
@@ -99,6 +100,7 @@ const startChatSchema = z.object({
 const getMemberCardSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   characterId: typeIdSchema(ID_PREFIX.character),
+  timeZone: reportedTimeZoneSchema,
 });
 
 const listMessagesSchema = z.object({
@@ -120,6 +122,9 @@ const listMessageVariantsSchema = z.object({
   messageId: typeIdSchema(ID_PREFIX.message),
 });
 
+// Every procedure whose assembly renders `{{date}}`/`{{time}}`/`{{weekday}}` requires `timeZone`, the viewer's browser
+// zone (UI-Gates §11.5). `reportedTimeZoneSchema` refuses a non-string and reads an unknown zone as UTC, so a
+// browser on a zone this server's ICU lacks still runs its turn.
 const sendSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   content: z.string(),
@@ -130,6 +135,7 @@ const sendSchema = z.object({
   attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
+  timeZone: reportedTimeZoneSchema,
 });
 
 // `commitMessage` — the D56 "Simple Send" / post-without-generate lever: `sendSchema` MINUS intent/guided (no
@@ -140,6 +146,7 @@ const commitMessageSchema = z.object({
   personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
   blocks: z.array(messageContentBlockSchema).optional(),
   attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
+  timeZone: reportedTimeZoneSchema,
 });
 
 const swipeSchema = z.object({
@@ -147,6 +154,7 @@ const swipeSchema = z.object({
   messageId: typeIdSchema(ID_PREFIX.message),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
+  timeZone: reportedTimeZoneSchema,
 });
 
 // The remaining guided-generation verbs (chat-surface-lane task #27 — the composer WAND):
@@ -161,6 +169,7 @@ const continueTurnSchema = z.object({
   messageId: typeIdSchema(ID_PREFIX.message),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
+  timeZone: reportedTimeZoneSchema,
 });
 
 // The continue undo/redo pair (guided Phase-1 Lane C — F2): `ChatService.undoContinue`/`revertContinue`
@@ -180,6 +189,7 @@ const impersonateStreamSchema = z.object({
   personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
+  timeZone: reportedTimeZoneSchema,
 });
 
 const generateSchema = z.object({
@@ -190,6 +200,7 @@ const generateSchema = z.object({
   // The wand Response icon sets this when the tail is an assistant turn — the `responseNudge` gate (a reply
   // after the model's own line needs something to respond to; a user-tail Response omits it).
   afterAssistant: z.boolean().optional(),
+  timeZone: reportedTimeZoneSchema,
 });
 
 // The step-BACK verb (task #19 — swipe-strip's left chevron): `ChatService.selectVariant`
@@ -202,6 +213,7 @@ const selectVariantSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
   variantId: typeIdSchema(ID_PREFIX.messageVariant),
+  timeZone: reportedTimeZoneSchema,
 });
 
 // The Stop verb (task #18 — the composer's mid-stream STOP): `ChatService.abort` (domain/chat/verbs/
@@ -221,6 +233,7 @@ const editMessageSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   messageId: typeIdSchema(ID_PREFIX.message),
   content: z.string(),
+  timeZone: reportedTimeZoneSchema,
 });
 
 // R3 §4.8/F6 — step a seeded greeting onto another of its card's alternates. The input carries an INDEX
@@ -358,6 +371,7 @@ const previewAssemblySchema = z.object({
   speakerCharacterId: typeIdSchema(ID_PREFIX.character).nullish(),
   guided: guidedSteerSchema.optional(),
   presetOverride: typeIdSchema(ID_PREFIX.preset).optional(),
+  timeZone: reportedTimeZoneSchema,
 });
 
 // `previewActionTemplates` — the preset editor's BOUND readout: every
@@ -369,6 +383,7 @@ const previewAssemblySchema = z.object({
 const previewActionTemplatesSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   presetId: typeIdSchema(ID_PREFIX.preset),
+  timeZone: reportedTimeZoneSchema,
 });
 
 // `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon.
@@ -502,6 +517,7 @@ const forceCharacterTurnSchema = z.object({
   characterId: typeIdSchema(ID_PREFIX.character),
   intent: userIntentSchema.optional(),
   guided: guidedSteerSchema.optional(),
+  timeZone: reportedTimeZoneSchema,
 });
 
 export const chatRouter = t.router({
@@ -838,7 +854,7 @@ export const chatRouter = t.router({
   // `chat.generateImage` → `imagery.generatePicture` (an absent `size` falls to the leaf's `defaultSizeFor`).
   generateImage: authedProcedure
     .output(messageViewSchema)
-    .input(generatePictureRequestSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat) }))
+    .input(generatePictureRequestSchema.extend({ chatId: typeIdSchema(ID_PREFIX.chat), timeZone: reportedTimeZoneSchema }))
     .mutation(({ ctx, input }) =>
       ctx.services.chat.generateImage({
         principal: ctx.auth,
@@ -848,6 +864,7 @@ export const chatRouter = t.router({
         n: input.n,
         size: input.size,
         gallery: input.gallery,
+        timeZone: input.timeZone,
       }),
     ),
 });

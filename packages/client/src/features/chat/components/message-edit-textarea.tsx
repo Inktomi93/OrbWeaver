@@ -13,6 +13,7 @@ import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useLayoutEffect, useRef } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 import { cancelEditingMessage, setMessageEditDraft, useMessageEditDraftText } from "#state";
 import { MESSAGE_EDIT_NAME } from "../lib/message-action-names.ts";
 
@@ -20,6 +21,7 @@ interface EditMessageVars {
   readonly chatId: ChatId;
   readonly messageId: MessageId;
   readonly content: string;
+  readonly timeZone: string;
 }
 
 const useEditMessageMutation = createEntityMutation<EditMessageVars, unknown>({
@@ -73,6 +75,7 @@ export function MessageEditTextarea({ message, onSave }: MessageEditTextareaProp
         chatId: message.chatId,
         messageId: message.id,
         content: text,
+        timeZone: viewerTimeZone(),
       });
       cancelEditingMessage(message.id);
     } catch {

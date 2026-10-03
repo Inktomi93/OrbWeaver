@@ -112,6 +112,7 @@ async function orchestratorPrompt(
     ...(p.chatId === undefined ? {} : { chatId: p.chatId }),
     mode: p.mode,
     subjectCharacterId: p.subjectCharacterId,
+    timeZone: p.timeZone,
   });
 }
 

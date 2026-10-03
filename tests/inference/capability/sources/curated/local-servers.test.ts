@@ -37,7 +37,7 @@ test("the server's set wins over a model family's: a Qwen or Gemma model on llam
   expect(statedKnobs(generationOf("llama-cpp", "gemma-3-27b-it").sampling)).toEqual(plain);
 });
 
-test("the gate differs per server: DRY on llama.cpp and KoboldCpp, not on Ollama's OpenAI route or vLLM", () => {
+test("the gate differs per server: DRY on llama.cpp and KoboldCpp, not on Ollama or vLLM", () => {
   expect(generationOf("llama-cpp", "m").sampling.dryMultiplier).toBeDefined();
   expect(generationOf("koboldcpp", "m").sampling.dryMultiplier).toBeDefined();
   expect(generationOf("ollama", "m").sampling.dryMultiplier).toBeUndefined();

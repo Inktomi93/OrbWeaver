@@ -76,6 +76,7 @@ import type {
 import type { UserMacroDef } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RegexReplacer } from "@orb/kit/regex";
+import type { IanaTimeZone } from "@orb/kit/time";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { ActiveTurns } from "./active-turns.ts";
@@ -377,6 +378,9 @@ export interface ExtractQuietParams {
    *  membership is not visibility — so the caller must obtain this from chat's `resolveViewerVisibility` op.
    *  `NO_HISTORY_FLOOR` (0) is the unclamped common case. */
   readonly historyFloorSeq: HistoryFloorSeq;
+  /** The initiating viewer's zone, which the template's `{{date}}`/`{{time}}`/`{{weekday}}` read. Absent ⇒ UTC
+   *  (a caller with no viewer: automation, a plugin, a model tool call). */
+  readonly timeZone?: IanaTimeZone | undefined;
 }
 export interface ExtractQuietResult {
   readonly text: string;
@@ -398,6 +402,8 @@ type ResolveChatUserMacroDefsOp = (chatId: ChatId) => Promise<ChatUserMacroDefs>
 /** The deps `createExtractQuiet` closes over, assembled at the composition root. */
 export interface ExtractQuietDeps {
   readonly db: Db;
+  /** The clock the template's time macros read (the injected determinism seam, never the ambient wall clock). */
+  readonly now: () => number;
   readonly summarize: SummarizeOp;
   readonly getCard: GetCardOp;
   /** The chat host's default-preset params (the side-gen sampling ladder's middle rung — extract-quiet is
@@ -1046,6 +1052,8 @@ export type GeneratePictureOp = (p: {
   readonly size?: SizePresetName | undefined;
   /** The character whose gallery each picture joins; imagery adds it only when the caller owns that character. */
   readonly gallery?: { readonly subjectCharacterId: CharacterId } | undefined;
+  /** The viewer's zone an extraction template's time macros read; absent ⇒ UTC. */
+  readonly timeZone?: IanaTimeZone | undefined;
 }) => Promise<{
   readonly images: readonly { readonly assetId: AssetId }[];
   // Imagery's native warning vocabulary (e.g. `image_edit_dropped` — an edit/avatar-reference input dropped for

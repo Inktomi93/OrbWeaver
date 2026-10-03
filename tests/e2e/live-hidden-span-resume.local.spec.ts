@@ -29,6 +29,7 @@
 
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { E2E_FIXTURE_PROVIDER_PORT } from "@orb/tooling/_shared/ports";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
@@ -100,7 +101,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
     // themselves, so no host-presence defer applies.
     const hostLive = collectChatRoomFrames({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
     await new Promise((resolve) => setTimeout(resolve, PRESENCE_SETTLE_MS));
-    await host.mutation("chat.send", { chatId, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
+    await host.mutation("chat.send", { chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
     const hostValues = requireSatisfied(await hostLive, "host live");
 
     const cursor = openerSeq(hostValues);

@@ -7,6 +7,9 @@
 // One createTurn(ctx, deps) factory bundles: round-driving/control verbs send/forceCharacterTurn/abort, plus
 // the auxiliary single-speaker turns swipe/continueTurn(+undo/revert)/impersonate/generate. Every generating
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
+// The CLOCK RULING: time macros read the zone the viewer's browser reported with the request, and a send's
+// follow-ups inherit it. A turn with no viewer reads its caller's ruled zone (an automation rule's own clock)
+// or UTC: a deferred drain's `pending_turns` row stores no zone, and the server's zone is no user's.
 
 import type {
   AssembleContext,
@@ -29,6 +32,8 @@ import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId,
 import type { MacroFreeze, MacroRegistry, UserMacroDef } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
 import type { ActiveTurnHandle, ActiveTurns } from "../contract/active-turns.ts";
@@ -655,6 +660,9 @@ async function buildTurnContext(
      *  holds the row (`requireHost`/`requireParticipant` loaded it, or the drain path read it), so the turn
      *  path buys no extra query; REQUIRED so tsc names any future caller that forgets it. */
     readonly chatMetadata: ChatMetadata;
+    /** The zone the turn's time macros read (the file header's clock ruling). A REQUIRED key, so every turn
+     *  states its clock; `undefined` reads UTC. */
+    readonly timeZone: IanaTimeZone | undefined;
   },
   /** SEND sink — when present and host-tier scripts resolve, writes the post-regex user text for the verb to persist. */
   out?: SendRegexSink,
@@ -752,6 +760,7 @@ async function buildTurnContext(
       multiHuman: seatsMultipleHumans(args.presentHumanUserIds),
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
+      timeZone: args.timeZone,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
       ...(args.guided !== undefined ? { guided: args.guided } : {}),
       // The rpg gather-args: macro feed + the game turn's `{{expr::…}}` CEL activation (parity-plus §12), each
@@ -1357,11 +1366,13 @@ async function runAutoFollowUp(run: () => Promise<TurnOutcome>): Promise<Message
   }
 }
 
-/** The resolved auto-behavior frame: the acting principal + chat + the abort signal that short-circuits a
- *  follow-up loop, shared by the swipe/continue loops. */
+/** The resolved auto-behavior frame: the acting principal + chat + the send's viewer zone (each follow-up reads
+ *  the clock the send did) + the abort signal that short-circuits a follow-up loop, shared by the swipe/continue
+ *  loops. */
 interface AutoFrame {
   readonly principal: SendParams["principal"];
   readonly chatId: ChatId;
+  readonly timeZone: SendParams["timeZone"];
   readonly signal: AbortSignal;
 }
 
@@ -1373,7 +1384,7 @@ async function runAutoSwipe(auto: AutoBehaviorDeps, frame: AutoFrame, tip: Messa
   let current = tip;
   for (let i = 0; i < cfg.maxRetries && !frame.signal.aborted; i += 1) {
     const target = current;
-    const next = await runAutoFollowUp(() => auto.swipe({ principal: frame.principal, chatId: frame.chatId, messageId: target.id }));
+    const next = await runAutoFollowUp(() => auto.swipe({ principal: frame.principal, chatId: frame.chatId, messageId: target.id, timeZone: frame.timeZone }));
     if (next === null) {
       break;
     }
@@ -1396,7 +1407,9 @@ async function runAutoContinue(auto: AutoBehaviorDeps, frame: AutoFrame, tip: Me
       break;
     }
     const target = current;
-    const next = await runAutoFollowUp(() => auto.continueTurn({ principal: frame.principal, chatId: frame.chatId, messageId: target.id }));
+    const next = await runAutoFollowUp(() =>
+      auto.continueTurn({ principal: frame.principal, chatId: frame.chatId, messageId: target.id, timeZone: frame.timeZone }),
+    );
     if (next === null) {
       break;
     }
@@ -1415,18 +1428,16 @@ async function runAutoContinue(auto: AutoBehaviorDeps, frame: AutoFrame, tip: Me
 async function runAutoBehaviors(
   auto: AutoBehaviorDeps,
   args: {
-    readonly principal: SendParams["principal"];
-    readonly chatId: ChatId;
+    readonly frame: AutoFrame;
     readonly committed: readonly MessageView[];
     readonly behavior: ChatBehaviorInputs;
-    readonly signal: AbortSignal;
   },
 ): Promise<MessageView[]> {
+  const { frame } = args;
   const tip = tailAssistant(args.committed);
-  if (tip === undefined || args.signal.aborted) {
+  if (tip === undefined || frame.signal.aborted) {
     return [];
   }
-  const frame: AutoFrame = { principal: args.principal, chatId: args.chatId, signal: args.signal };
   if (args.behavior.autoSwipe.enabled && isAutoSwipeRejected(tip.content, args.behavior.autoSwipe)) {
     return await runAutoSwipe(auto, frame, tip, args.behavior.autoSwipe);
   }
@@ -1444,12 +1455,10 @@ async function runAutoBehaviors(
 async function assembleSendResult(
   auto: AutoBehaviorDeps,
   args: {
-    readonly principal: SendParams["principal"];
-    readonly chatId: ChatId;
+    readonly frame: AutoFrame;
     readonly userView: MessageView;
     readonly round: TurnOutcome;
     readonly behavior: ChatBehaviorInputs;
-    readonly signal: AbortSignal;
   },
 ): Promise<TurnOutcome> {
   if (args.round.aborted) {
@@ -1462,13 +1471,7 @@ async function assembleSendResult(
   // Post-round auto-behaviors: auto-swipe (too-short/blacklisted reply) takes precedence over
   // auto-continue (length-capped reply) — a reply can't be both. Gated on the host's settings (all-off ⇒ no
   // follow-up, byte-identical), bounded, abort-aware; every follow-up row joins the send's result.
-  const followUps = await runAutoBehaviors(auto, {
-    principal: args.principal,
-    chatId: args.chatId,
-    committed: args.round.messages,
-    behavior: args.behavior,
-    signal: args.signal,
-  });
+  const followUps = await runAutoBehaviors(auto, { frame: args.frame, committed: args.round.messages, behavior: args.behavior });
   return { messages: [args.userView, ...args.round.messages, ...followUps], aborted: false };
 }
 
@@ -1526,6 +1529,7 @@ async function commitUserTurn(
     readonly personaId?: PersonaId | null | undefined;
     readonly attachmentAssetIds?: readonly AssetId[] | undefined;
     readonly guided?: GuidedSteer | undefined;
+    readonly timeZone: IanaTimeZone | undefined;
   },
 ): Promise<CommittedUserTurn> {
   const { principal, chatId, content, personaId, guided } = args;
@@ -1580,6 +1584,7 @@ async function commitUserTurn(
       // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
       candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
       chatMetadata: membership.chat.metadata,
+      timeZone: args.timeZone,
     },
     sendOut,
   );
@@ -1619,7 +1624,7 @@ async function commitUserTurn(
  *  the round, then (if autoMode) chain AI→AI, then run the host's post-round auto-behaviors.
  *  Member-gated; AI turns run as the host. */
 function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): ChatService["send"] {
-  return async ({ principal, chatId, content, personaId, attachmentAssetIds, intent, guided }: SendParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, content, personaId, attachmentAssetIds, intent, guided, timeZone }: SendParams): Promise<TurnOutcome> => {
     const { membership, room, identity, connection, group, userView, built } = await commitUserTurn(ctx, deps, {
       principal,
       chatId,
@@ -1627,6 +1632,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       personaId,
       attachmentAssetIds,
       guided,
+      timeZone,
     });
     // Only what this body still reads on its own — the shared prep block comes off `built` itself now.
     const { chatBehavior, respondsToLatestUserTurn, macroRegistry, userMacroDraws } = built;
@@ -1673,7 +1679,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
     // §3.6 RETURN PROJECTION: the assistant reply in `round.messages` carries the model's hidden spans; a
     // NON-HOST member who ran this turn must not receive the truth bytes in the HTTP return (the bus + list
     // reads already strip — this closes the mutation-return sibling). The host reads verbatim.
-    const outcome = await assembleSendResult(auto, { principal, chatId, userView, round, behavior: chatBehavior, signal: handle.signal });
+    const outcome = await assembleSendResult(auto, { frame: { principal, chatId, timeZone, signal: handle.signal }, userView, round, behavior: chatBehavior });
     return stripMessagesForViewer(outcome, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
   };
 }
@@ -1685,13 +1691,14 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
  *  committed user row through the §3.6 return projection (a member's own row carries no hidden/reasoning bytes,
  *  but strip uniformly). A real user beat: the rpg user-commit locks in the prior assistant's snapshot. */
 function createCommitMessage(ctx: ChatContext, deps: TurnDeps): ChatService["commitMessage"] {
-  return async ({ principal, chatId, content, personaId, attachmentAssetIds }: CommitMessageParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, content, personaId, attachmentAssetIds, timeZone }: CommitMessageParams): Promise<TurnOutcome> => {
     const { membership, userView } = await commitUserTurn(ctx, deps, {
       principal,
       chatId,
       content,
       personaId,
       attachmentAssetIds,
+      timeZone,
     });
     return stripMessagesForViewer({ messages: [userView], aborted: false }, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
   };
@@ -1711,7 +1718,7 @@ function createCommitMessage(ctx: ChatContext, deps: TurnDeps): ChatService["com
  *  the engine's pre-start refusals close the slot too — including the `locked` one `driveRound` SWALLOWS, which
  *  on this path is the only closer there is (the verb returns a normal empty round). */
 function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService["forceCharacterTurn"] {
-  return async ({ principal, chatId, characterId, intent, guided }: ForceCharacterTurnParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, characterId, intent, guided, timeZone }: ForceCharacterTurnParams): Promise<TurnOutcome> => {
     const membership = await requireHost(ctx, principal, chatId);
     const room = await loadRoom(ctx, chatId);
     const identity = resolveTurnIdentityVia({
@@ -1749,6 +1756,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
           // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
           candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
           chatMetadata: membership.chat.metadata,
+          timeZone,
         }),
       };
     });
@@ -1871,6 +1879,7 @@ async function resolveTurnBase(
     /** The target slot's persisted user-macro draws (WAVE MU) — swipe/continue replay them byte-exact so the
      *  re-generation resolves the identical draw. Absent (generate) ⇒ a fresh draw. */
     readonly frozenUserMacroDraws?: UserMacroDraws | undefined;
+    readonly timeZone: IanaTimeZone | undefined;
   },
 ): Promise<TurnBase> {
   const { principal, chatId } = args;
@@ -1917,6 +1926,7 @@ async function resolveTurnBase(
     // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
     candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
     chatMetadata: args.chatMetadata,
+    timeZone: args.timeZone,
   });
   return {
     room,
@@ -2054,7 +2064,7 @@ async function closeSlotOnThrow<T>(deps: TurnDeps, slot: { readonly chatId: Chat
  *  a new selected variant. `regenerate` is swipe on the last assistant message. A non-assistant / missing
  *  target is NOT_FOUND. */
 function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
-  return async ({ principal, chatId, messageId, intent, guided }: SwipeParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, messageId, intent, guided, timeZone }: SwipeParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     // RECORDED TWIN (#1767): `continueTurn` opens with the same guard. Two sites, and each one's COMMENT is
     // the point — the leak-free NOT_FOUND means something different per verb (swipe-append vs extend-in-place)
@@ -2085,6 +2095,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
         // abandoned. The gather cuts the tracked state before it, exactly as the canon context is cut here.
         regenSlotMessageId: messageId,
         guided,
+        timeZone,
         // WAVE MU: replay the slot's persisted draw record so this swipe resolves the IDENTICAL random-pick draw.
         // RECORDED TWIN (#1767): continue's gather ends on the same spread + closing punctuation. That is a
         // FORMATTING coincidence of two independent argument lists, not a shared decision — the six lines
@@ -2112,7 +2123,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
  *  slot (+ a continue nudge) and the generated text is APPENDED to the variant, snapshotting `preContinue*` so
  *  `undoContinue` can restore it (D26). A non-assistant / missing target is a leak-free NOT_FOUND. */
 function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["continueTurn"] {
-  return async ({ principal, chatId, messageId, intent, guided }: ContinueTurnParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, messageId, intent, guided, timeZone }: ContinueTurnParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     // Chat-scoped load: a messageId from another chat matches nothing, so a member can't continue-append another room's canon.
     const target = await loadSlotTarget(ctx.db, chatId, messageId);
@@ -2130,6 +2141,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
         chatMetadata: membership.chat.metadata,
         trigger: humanTrigger(principal.userId, membership.activePersonaId),
         guided,
+        timeZone,
         // WAVE MU: a continue replays the slot's draw record so its extension prompt carries the same drawn values.
         ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
       }),
@@ -2261,7 +2273,7 @@ function createDeltaBridge(): DeltaBridge {
  *  `infra/providers/backends/kit/abort-flatten.ts`; `domain/rpg/flush-barrier.ts` folds the same way for the
  *  same reason (providers is sealed to domain, so the fold is spelled, not imported). */
 function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService["impersonateStream"] {
-  return async function* ({ principal, chatId, personaId, intent, guided, signal }: ImpersonateStreamParams): AsyncGenerator<ImpersonateStreamDelta> {
+  return async function* ({ principal, chatId, personaId, intent, guided, signal, timeZone }: ImpersonateStreamParams): AsyncGenerator<ImpersonateStreamDelta> {
     const membership = await requireParticipant(ctx, principal, chatId);
     // An EXPLICIT personaId must be owned by the acting caller — even for a non-persisting draft, the persona
     // binds the assembled prompt's `{{user}}`/name, so a foreign id would read another user's private persona
@@ -2289,6 +2301,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
       // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
       trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       guided,
+      timeZone,
     });
     // The non-persisting generation: same assemble ctx + impersonateNudge + steer a real turn builds, run
     // through the engine's generate-only path (no lock, no canon write, no bus emit). Each text delta is pushed
@@ -2421,7 +2434,7 @@ async function arbitrateGenerateSpeaker(
 /** `generate` — a lock-free auxiliary assistant generation: runs concurrent with a locked `send`. Commits a
  *  new assistant slot for the named speaker, or for the speaker the room's own policy picks. */
 function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate"] {
-  return async ({ principal, chatId, speakerCharacterId, intent, guided, afterAssistant }: GenerateParams): Promise<TurnOutcome> => {
+  return async ({ principal, chatId, speakerCharacterId, intent, guided, afterAssistant, timeZone }: GenerateParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const slot = { chatId, kind: "generate", speakerCharacterId: null, targetMessageId: null } as const;
     // ACCEPTED: a member asked for a reply, so the client's slot opens before the multi-second resolve. NO
@@ -2438,6 +2451,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
         chatMetadata: membership.chat.metadata,
         trigger: humanTrigger(principal.userId, membership.activePersonaId),
         guided,
+        timeZone,
       });
       if (speakerCharacterId !== undefined && speakerCharacterId !== null) {
         requirePresentGenerateSpeaker(resolved.room, chatId, speakerCharacterId);
@@ -2597,6 +2611,8 @@ async function runDeferredRound(
     // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
     candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
     chatMetadata: chat.metadata,
+    // The sender's zone is not on the queued row, so the drain reads the no-viewer clock (the header's ruling).
+    timeZone: UTC_TIME_ZONE,
   });
   using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   // Persistence carries the initiator plus the frozen host. Reconstitute the triple once and pass it whole.
@@ -2761,7 +2777,7 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
 
 export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurnOp {
   return async (params: RequestTurnParams): Promise<TurnOutcome> => {
-    const { chatId, initiator, automationDepth, speakerCharacterId, guided } = params;
+    const { chatId, initiator, automationDepth, speakerCharacterId, guided, timeZone } = params;
     const { chat, room, connection, identity } = await resolveRequestTurn(ctx, deps, params);
     // A forced speaker coerces the round to per-speaker so a narrator room still voices the named character.
     const baseGroup = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
@@ -2785,6 +2801,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
       // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
       candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
       chatMetadata: chat.metadata,
+      timeZone,
     });
     using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {

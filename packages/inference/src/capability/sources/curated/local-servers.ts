@@ -109,13 +109,25 @@ export const localServerRows = [
     },
   },
   {
-    // The OpenAI route decodes into a fixed struct and drops `top_k`, `min_p`, `repeat_penalty` and `logit_bias`
-    // (openai/openai.go:110-131, 617-793), so only these six reach the model there.
+    // The native `/api/chat` route (D296): its `options` map takes these and logs and ignores any other key; it
+    // has no logit bias, Mirostat, DRY or XTC field.
     match: { model: ANY_MODEL, provider: "ollama" },
     generation: {
-      sampling: { temperature: LOCAL_TEMPERATURE, topP: PROBABILITY, frequencyPenalty: PENALTY, presencePenalty: PENALTY, seed: true, stop: true },
+      sampling: {
+        temperature: LOCAL_TEMPERATURE,
+        topP: PROBABILITY,
+        topK: TOP_K,
+        minP: PROBABILITY,
+        typicalP: PROBABILITY,
+        repetitionPenalty: REPETITION,
+        repetitionPenaltyRange: TOKEN_WINDOW,
+        frequencyPenalty: PENALTY,
+        presencePenalty: PENALTY,
+        seed: true,
+        stop: true,
+      },
     },
-    evidence: { tier: "curated", dated: DATED, cite: "ollama 42e911bc openai/openai.go ChatCompletionRequest (110-131) + FromChatRequest (617-793)" },
+    evidence: { tier: "curated", dated: DATED, cite: "ollama 42e911bc api/types.go Options (568-596) decoded by Options.FromMap (1022-1123)" },
   },
   {
     match: { model: ANY_MODEL, provider: "lm-studio" },

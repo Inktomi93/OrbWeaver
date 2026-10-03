@@ -30,11 +30,11 @@ import {
   foldFeatures,
   IMAGE_ARMS,
   MODEL_INFO_APIS,
+  NATIVE_CHAT_APIS,
   OUTPUT_CAP_FIELDS,
   PREFILL_MODES,
   SAMPLER_KNOBS,
   SAMPLER_ORDER_SPELLINGS,
-  SAMPLING_RANGE_KNOBS,
   STRICT_JSON_MODES,
 } from "@orb/contracts/inference";
 
@@ -48,7 +48,7 @@ export function grouped(value: unknown): string {
 // ── the Advanced tier: ONE fact-row grammar for both blocks ────────────────────────────────────────────
 
 /**
- * The control an Override reveals for ONE fact. Five kinds cover every row in both blocks — which is WHY
+ * The control an Override reveals for ONE fact. Six kinds cover every row in both blocks — which is WHY
  * both blocks are flattened to LEAVES.
  *
  * STATED DEVIATION FROM THE MOCK (Board B): the drawing joins two composite quirks into one reading row
@@ -64,12 +64,21 @@ type FactEdit =
   | { readonly kind: "number" }
   | { readonly kind: "boolean"; readonly labels?: BooleanLabels }
   | { readonly kind: "list" }
-  | { readonly kind: "enum"; readonly options: readonly string[] };
+  | { readonly kind: "enum"; readonly options: readonly string[] }
+  | { readonly kind: "choice"; readonly choices: readonly FactChoice[] };
 
 /** How a boolean fact reads when "yes"/"no" would hide what the value means. */
 export interface BooleanLabels {
   readonly yes: string;
   readonly no: string;
+}
+
+/** One answer of a `choice` fact, for a leaf whose answers are not one scalar each: the label it reads as, the
+ *  value its Override writes at the leaf's path, and whether a resolved value reads as it. */
+export interface FactChoice {
+  readonly label: string;
+  readonly writes: unknown;
+  readonly matches: (value: unknown) => boolean;
 }
 
 /** The plain reading of a boolean fact, for a leaf that states no labels of its own. */
@@ -175,12 +184,18 @@ export function parseFactValue(edit: FactRow["edit"], raw: string): unknown {
       .map((part) => part.trim())
       .filter((part) => part !== "");
   }
+  if (edit.kind === "choice") {
+    return edit.choices.find((choice) => choice.label === raw)?.writes;
+  }
   return raw.trim();
 }
 
 /** The control's seed for a resolved value — the inverse of {@link parseFactValue}. An unstated leaf seeds the
  *  control's first choice (a boolean seeds "no", the cautious answer) or an empty field. */
 export function draftOf(edit: FactEdit, value: unknown): string {
+  if (edit.kind === "choice") {
+    return (value === undefined ? edit.choices[0] : edit.choices.find((choice) => choice.matches(value)))?.label ?? "";
+  }
   if (value === undefined) {
     if (edit.kind === "boolean") {
       return "false";
@@ -201,6 +216,9 @@ function readValue(edit: FactEdit, value: unknown): string {
   }
   if (edit.kind === "list") {
     return Array.isArray(value) ? value.map((part) => String(part)).join(", ") : "";
+  }
+  if (edit.kind === "choice") {
+    return edit.choices.find((choice) => choice.matches(value))?.label ?? String(value);
   }
   return String(value);
 }
@@ -268,6 +286,7 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   images: ["images"],
   rerankPath: ["rerankPath"],
   modelInfoApi: ["modelInfoApi"],
+  nativeChat: ["nativeChat"],
   sleep: ["sleep.isSleepingPath", "sleep.wakePath"],
   pricing: ["pricing.inputPerMTok", "pricing.outputPerMTok"],
   concurrency: ["concurrency.embed", "concurrency.imageEmbed", "concurrency.summarize"],
@@ -275,7 +294,6 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   requestTimeoutMs: ["requestTimeoutMs"],
   samplerKeys: SAMPLER_KNOBS.map((knob) => `samplerKeys.${knob}`),
   samplerOrder: ["samplerOrder"],
-  samplerFill: SAMPLING_RANGE_KNOBS.map((knob) => `samplerFill.${knob}`),
 };
 
 // A sampler's plain name from its key ("repetitionPenaltyRange" → "repetition penalty range").
@@ -300,6 +318,7 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
   { path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS }, unset: "not set — no image generation" },
   { path: "rerankPath", name: "rerank path", edit: { kind: "text" }, unset: "not set — no reranking" },
   { path: "modelInfoApi", name: "model info API", edit: { kind: "enum", options: MODEL_INFO_APIS }, unset: NOT_SET },
+  { path: "nativeChat", name: "native chat route", edit: { kind: "enum", options: NATIVE_CHAT_APIS }, unset: "not set — chat uses /v1" },
   { path: "sleep.isSleepingPath", name: "sleep check path", edit: { kind: "text" } },
   { path: "sleep.wakePath", name: "wake path", edit: { kind: "text" } },
   { path: "pricing.inputPerMTok", name: "price in", edit: { kind: "number" }, format: perMillionTokens },
@@ -322,9 +341,8 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
     unset: NOT_SET,
   },
   { path: "samplerOrder", name: "sampler order vocabulary", edit: { kind: "enum", options: SAMPLER_ORDER_SPELLINGS }, unset: NOT_SET },
-  // One row per spelling or fill the row states; a server that reads the default key needs none.
+  // One row per spelling the row states; a server that reads the default key needs none.
   ...SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),
-  ...SAMPLING_RANGE_KNOBS.map((knob): FactLeaf => ({ path: `samplerFill.${knob}`, name: `${samplerWords(knob)} sent when unset`, edit: { kind: "number" } })),
 ];
 
 function perMillionTokens(value: unknown): string {

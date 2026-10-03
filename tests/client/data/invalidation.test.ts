@@ -18,6 +18,7 @@ import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { AutomationRuleId, CharacterId, ChatId, ChatTurnId, DocumentId, MessageId, PluginId, PresetId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
 import { withViewTransition } from "../../../packages/client/src/lib/view-transition.ts";
@@ -285,7 +286,7 @@ describe("invalidation — the bus half (invalidate)", () => {
         rpgTrackerView: trpc.rpg.getTrackerView.queryKey({ chatId: CHAT_ID }),
         rpgJournal: trpc.rpg.listJournal.queryKey({ chatId: CHAT_ID, limit: 50 }),
         listChatInjections: trpc.chat.listChatInjections.queryKey({ chatId: CHAT_ID }),
-        getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
+        getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID, timeZone: UTC_TIME_ZONE }),
         runtimeVariables: trpc.chat.getRuntimeVariables.queryKey({ chatId: CHAT_ID }),
         reactions: trpc.chat.listReactions.queryKey({ chatId: CHAT_ID }),
         regexForChat: trpc.regex.listForChat.queryKey({ chatId: CHAT_ID }),
@@ -315,7 +316,7 @@ describe("invalidation — the bus half (invalidate)", () => {
     const { invalidate, queryClient, trpc } = setup();
     const keys: Partial<Record<TrackedKey, readonly unknown[]>> = {
       getChat: trpc.chat.getChat.queryKey({ chatId: CHAT_ID }),
-      getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
+      getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID, timeZone: UTC_TIME_ZONE }),
       previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
       previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
       getShapeTrace: trpc.chat.getShapeTrace.queryKey({ chatId: CHAT_ID }),
@@ -593,7 +594,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         chatCapability: trpc.connection.resolveChatCapability.queryKey(),
         previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
         previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
-        memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
+        memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID, timeZone: UTC_TIME_ZONE }),
         stats: trpc.stats.overview.queryKey(),
         refinery: trpc.refinery.listSessions.queryKey(),
         rosterPreset: trpc.rosterPreset.list.queryKey(),
@@ -1027,7 +1028,7 @@ describe("invalidation — the live-only lane's attach heal reaches a CO-MEMBER 
    *  someone other than the entity's owner, and therefore the ones the heal owes. */
   function roomPublicKeys(trpc: ReturnType<typeof createTrpcProxy>): Record<string, readonly unknown[]> {
     return {
-      memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID }),
+      memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID, timeZone: UTC_TIME_ZONE }),
       regexRack: trpc.regex.listForChat.queryKey({ chatId: CHAT_ID }),
       databankRack: trpc.databank.listActiveForChat.queryKey({ chatId: CHAT_ID }),
     };

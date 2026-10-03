@@ -10,6 +10,7 @@ import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 import { clearRoomInvite, goToLanding, openModal, useRoomInviteRequest, useTurnSpeakerCharacterId } from "#state";
 import { useKickMember, useNominateHostHandoff, useSelfLeave, useSetMemberHistoryVisibility } from "../hooks/use-membership-mutations.ts";
 import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } from "../hooks/use-roster-mutations.ts";
@@ -200,7 +201,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable }:
               setSeatKnobs.mutate({ chatId, participantId, patch });
             }
           },
-          forceTurn: (characterId): void => forceTurn.mutate({ chatId, characterId }),
+          forceTurn: (characterId): void => forceTurn.mutate({ chatId, characterId, timeZone: viewerTimeZone() }),
         })}
         onRemoveCharacter={isHost ? (characterId): void => removeCharacter.mutate({ chatId, characterId }) : undefined}
         onViewCharacter={(characterId): void => setViewCardCharacterId(characterId)}

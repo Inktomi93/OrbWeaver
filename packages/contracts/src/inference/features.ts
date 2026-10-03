@@ -14,7 +14,7 @@
 
 import { z } from "zod";
 import type { SamplerKnob, SamplerStage } from "./capability/generation.ts";
-import { SAMPLER_KNOBS, SAMPLING_RANGE_KNOBS } from "./capability/generation.ts";
+import { SAMPLER_KNOBS } from "./capability/generation.ts";
 
 /** The request key each sampler rides under when the row names no other: the OpenAI / vLLM / llama.cpp
  *  vocabulary, which a server reads except where its row says otherwise (`features.samplerKeys`). Which knobs
@@ -109,6 +109,12 @@ export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as cons
 export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp"] as const;
 export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 
+/** A server's native chat route, sent instead of `/v1/chat/completions` (D296). `ollama` = `POST /api/chat`,
+ *  which takes `options.num_ctx` and the samplers the OpenAI route drops; `none` = `/v1`, the override that
+ *  turns a provider row's native route off. Embeddings stay on `/v1`. */
+export const NATIVE_CHAT_APIS = ["ollama", "none"] as const;
+export type NativeChatApi = (typeof NATIVE_CHAT_APIS)[number];
+
 export const endpointFeaturesSchema = z.object({
   prefill: z.enum(PREFILL_MODES).optional(),
   strictJson: z.enum(STRICT_JSON_MODES).optional(),
@@ -116,6 +122,7 @@ export const endpointFeaturesSchema = z.object({
   outputCapField: z.enum(OUTPUT_CAP_FIELDS).optional(),
   images: z.enum(IMAGE_ARMS).optional(),
   modelInfoApi: z.enum(MODEL_INFO_APIS).optional(),
+  nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
   /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
   rerankPath: z.string().optional(),
   /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads
@@ -135,10 +142,6 @@ export const endpointFeaturesSchema = z.object({
   samplerKeys: z.partialRecord(z.enum(SAMPLER_KNOBS), z.string().min(1)).optional(),
   /** The sampler-order vocabulary this server reads ({@link SAMPLER_ORDER_TOKENS}). */
   samplerOrder: z.enum(SAMPLER_ORDER_SPELLINGS).optional(),
-  /** The one exception to "an unset knob is not sent": values sent for a knob the turn left unset, on a route
-   *  that substitutes a value of its own for an absent field instead of the server's default (Ollama's OpenAI
-   *  route writes `temperature: 1` and `top_p: 1`). A knob the turn resolved always wins. */
-  samplerFill: z.partialRecord(z.enum(SAMPLING_RANGE_KNOBS), z.number()).optional(),
   /** Feeds the `estimated` cost arm when the wire reports no usage cost (§5.3c). */
   pricing: z.object({ inputPerMTok: z.number().nonnegative(), outputPerMTok: z.number().nonnegative() }).optional(),
   /** Fan-out caps — THREE, one per surface that takes a `concurrency` dep. Wire default 4/8. NO env key. */
@@ -165,21 +168,19 @@ export const WIRE_DEFAULT_FEATURES: EndpointFeatures = {
 
 /** Fold `wire default ← provider row ← connection.declared` field-wise: the connection's server is the
  *  truth, then the provider's shipped defaults, then the wire's. Field-wise means a row that sets only
- *  `prefill` keeps the provider's `sleep`; the per-knob maps fold key by key, so overriding one spelling keeps
- *  the row's others. */
+ *  `prefill` keeps the provider's `sleep`; `samplerKeys` folds key by key, so overriding one spelling keeps the
+ *  row's others. */
 export function foldFeatures(...layers: readonly (EndpointFeatures | undefined)[]): EndpointFeatures {
   let folded: EndpointFeatures = { ...WIRE_DEFAULT_FEATURES };
   for (const layer of layers) {
     if (layer !== undefined) {
       // An empty map states nothing, so a fold where no layer names one keeps the key absent.
       const samplerKeys = { ...folded.samplerKeys, ...layer.samplerKeys };
-      const samplerFill = { ...folded.samplerFill, ...layer.samplerFill };
       folded = {
         ...folded,
         ...layer,
         concurrency: { ...folded.concurrency, ...layer.concurrency },
         ...(Object.keys(samplerKeys).length > 0 ? { samplerKeys } : {}),
-        ...(Object.keys(samplerFill).length > 0 ? { samplerFill } : {}),
       };
     }
   }

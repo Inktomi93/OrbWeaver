@@ -2,8 +2,8 @@
 // other knob rides the body under the row's own spelling (`features.samplerKeys` over `DEFAULT_SAMPLER_KEYS`,
 // `features.samplerOrder`). Which knobs ride was decided by the funnel; an unset knob is never sent.
 
-import type { Dialect, EndpointFeatures, SamplerKnob, SamplerStage, SamplingRangeKnob } from "@orb/contracts/inference";
-import { BODY_SAMPLER_KNOBS, DEFAULT_SAMPLER_KEYS, SAMPLER_ORDER_TOKENS, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
+import type { Dialect, EndpointFeatures, SamplerKnob, SamplerStage } from "@orb/contracts/inference";
+import { BODY_SAMPLER_KNOBS, DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS, SAMPLER_ORDER_TOKENS } from "@orb/contracts/inference";
 import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
 
 const OPENROUTER_DIALECT: Dialect = "openrouter";
@@ -16,21 +16,6 @@ interface WireSampling {
   readonly v4: ResolvedSampling;
   /** The rest, keyed by this server's own body field names. */
   readonly body: Record<string, unknown>;
-}
-
-/** The row's `samplerFill` beneath the turn's own values: a knob the turn resolved always wins. */
-function withFill(sampling: ResolvedSampling, fill: EndpointFeatures["samplerFill"]): ResolvedSampling {
-  if (fill === undefined) {
-    return sampling;
-  }
-  const filled: { [K in SamplingRangeKnob]?: number } = {};
-  for (const knob of SAMPLING_RANGE_KNOBS) {
-    const value = fill[knob];
-    if (sampling[knob] === undefined && value !== undefined) {
-      filled[knob] = value;
-    }
-  }
-  return { ...sampling, ...filled };
 }
 
 /** The order's tokens under its vocabulary's key. A stage the vocabulary cannot spell is a real drop, so it
@@ -74,8 +59,15 @@ function spellSamplers(
   return sampling.samplerOrder === undefined ? spelled : { ...spelled, ...spellOrder(sampling.samplerOrder, features.samplerOrder, warnings) };
 }
 
-export function wireSampling(resolved: ResolvedSampling, features: EndpointFeatures, dialect: Dialect, warnings: ResolvedWarning[]): WireSampling {
-  const sampling = withFill(resolved, features.samplerFill);
+/** Every body key a sampler can ride under on this row: what a translating route (Ollama's `/api/chat`, which
+ *  takes them all in `options`) moves out of the OpenAI body. */
+export function samplerBodyKeys(features: EndpointFeatures): ReadonlySet<string> {
+  const keys = { ...DEFAULT_SAMPLER_KEYS, ...features.samplerKeys };
+  const order = features.samplerOrder === undefined ? [] : [SAMPLER_ORDER_TOKENS[features.samplerOrder].key];
+  return new Set([...SAMPLER_KNOBS.map((knob) => keys[knob]), ...order]);
+}
+
+export function wireSampling(sampling: ResolvedSampling, features: EndpointFeatures, dialect: Dialect, warnings: ResolvedWarning[]): WireSampling {
   if (dialect === OPENROUTER_DIALECT) {
     return { v4: sampling, body: spellSamplers(sampling, features, OPENROUTER_BODY_KNOBS, warnings) };
   }

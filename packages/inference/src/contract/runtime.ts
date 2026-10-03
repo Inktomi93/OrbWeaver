@@ -56,6 +56,11 @@ export type ReachabilityProbe = (args: {
 const endpointModelSchema = z.object({
   id: z.string(),
   contextLength: z.number().nullable(),
+  /** The smallest window the server runs a model at whose window it does not state, where the server's own
+   *  defaults bound it. The advertised tier assumes it in place of the generic floor; never a reading. */
+  contextFloor: z.number().int().positive().optional(),
+  /** The model's trained maximum where the server states it; a server that clamps to it runs no larger window. */
+  contextTrained: z.number().int().positive().optional(),
   kind: modelCatalogEntrySchema.shape.kind,
   google: modelCatalogEntrySchema.shape.google,
   maxCompletionTokens: modelCatalogEntrySchema.shape.maxCompletionTokens,

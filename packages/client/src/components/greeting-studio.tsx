@@ -37,10 +37,11 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, useColorQuotedSpeech, useInvalidation, useTRPC } from "#data";
+import { viewerTimeZone } from "#lib";
 
 /** The rewrite generation — returns the revised greeting text (no cache/bus effect; the result is previewed). */
 const useRewriteGreetingMutation = createEntityMutation<
-  { characterId: CharacterId; greeting: string; steer: string; transforms?: GreetingTransformId[] | undefined },
+  { characterId: CharacterId; greeting: string; steer: string; transforms?: GreetingTransformId[] | undefined; timeZone: string },
   inferOutput<Trpc["character"]["rewriteGreeting"]>
 >({
   options: (trpc) => trpc.character.rewriteGreeting.mutationOptions(),
@@ -50,7 +51,7 @@ const useRewriteGreetingMutation = createEntityMutation<
 
 /** The new-greeting generation — returns a fresh greeting text (no cache/bus effect; the result is previewed). */
 const useGenerateGreetingMutation = createEntityMutation<
-  { characterId: CharacterId; steer: string; transforms?: GreetingTransformId[] | undefined },
+  { characterId: CharacterId; steer: string; transforms?: GreetingTransformId[] | undefined; timeZone: string },
   inferOutput<Trpc["character"]["generateGreeting"]>
 >({
   options: (trpc) => trpc.character.generateGreeting.mutationOptions(),
@@ -109,12 +110,15 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
 
   const onRewrite = (): void => {
     rewrite.mutate(
-      { characterId, greeting: baseGreeting, steer: instruction, transforms: pickedTransforms() },
+      { characterId, greeting: baseGreeting, steer: instruction, transforms: pickedTransforms(), timeZone: viewerTimeZone() },
       { onSuccess: (result): void => setPreview(result.text) },
     );
   };
   const onGenerate = (): void => {
-    generate.mutate({ characterId, steer: instruction, transforms: pickedTransforms() }, { onSuccess: (result): void => setPreview(result.text) });
+    generate.mutate(
+      { characterId, steer: instruction, transforms: pickedTransforms(), timeZone: viewerTimeZone() },
+      { onSuccess: (result): void => setPreview(result.text) },
+    );
   };
 
   if (preview !== null) {

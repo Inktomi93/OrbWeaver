@@ -18,15 +18,24 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveSteerFragments } from "@orb/contracts/prose";
 import { composeRewriteSteer, resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 
 // The user-facing name in an authoring-time greeting (no persona is bound at card-editing time — a greeting
 // is written for whoever loads the card, so the neutral second person is the honest {{user}} stand-in). The
 // character/scenario come from the card itself.
 const AUTHORING_USER_NAME = "You";
 
+// The clock a greeting template's `{{date}}`/`{{time}}` read: the host's reported zone (absent ⇒ UTC, never
+// the server's own zone) at the injected now.
+interface GreetingClock {
+  readonly timeZone: IanaTimeZone | undefined;
+  readonly nowMs: number;
+}
+
 /** Build the card-scoped macro options a greeting template resolves against (the automation arm-render
  *  precedent — a non-chat, non-persona ProcessMacroOptions). `env: {}` is a valid empty MacroEnv. */
-function cardMacroOptions(card: CharacterCard): ProcessMacroOptions {
+function cardMacroOptions(card: CharacterCard, clock: GreetingClock): ProcessMacroOptions {
   // Card fields are nullable (`string | null`); the macro context wants a string for `scenario` and
   // `string | undefined` for the shortcuts (a missing field renders "").
   return {
@@ -37,6 +46,8 @@ function cardMacroOptions(card: CharacterCard): ProcessMacroOptions {
     description: card.description ?? undefined,
     personality: card.personality ?? undefined,
     exampleMessages: card.exampleMessages ?? undefined,
+    timezone: clock.timeZone ?? UTC_TIME_ZONE,
+    nowMs: clock.nowMs,
     env: {},
   };
 }
@@ -60,7 +71,13 @@ export function composeGreetingSteer(transforms: readonly GreetingTransformId[] 
 /** Resolve the final bounded-completion prompt for a greeting-studio request. `base` (the existing greeting)
  *  is passed ONLY for a rewrite — it fills the `{{base}}` token (neutralized in the kit resolver); a
  *  new-greeting request omits it and its template never contains the token. */
-export function buildGreetingPrompt(args: { readonly card: CharacterCard; readonly template: string; readonly steer: string; readonly base?: string }): string {
+export function buildGreetingPrompt(args: {
+  readonly card: CharacterCard;
+  readonly template: string;
+  readonly steer: string;
+  readonly clock: GreetingClock;
+  readonly base?: string;
+}): string {
   const opts = args.base === undefined ? undefined : { base: args.base };
-  return resolveGuidedInstruction(args.template, args.steer, cardMacroOptions(args.card), opts);
+  return resolveGuidedInstruction(args.template, args.steer, cardMacroOptions(args.card, args.clock), opts);
 }

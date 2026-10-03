@@ -9,6 +9,15 @@
 
 import type { Capability, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
 
+/** A server that states its model's trained maximum clamps any larger window to it at load (Ollama), so a
+ *  declared or advertised window above it would budget the history fit past what the server evaluates. */
+export function clampToTrainedWindow(capability: Capability, trained: number | undefined): Capability {
+  if (capability.kind !== "generation" || trained === undefined || capability.generation.context.window <= trained) {
+    return capability;
+  }
+  return { kind: "generation", generation: { ...capability.generation, context: { ...capability.generation.context, window: trained } } };
+}
+
 export function applyEndpointPosture(provider: ProviderDef, capability: Capability, modalitiesStated: boolean): Capability {
   if (capability.kind !== "generation" || provider.auth !== "endpoint") {
     return capability;
