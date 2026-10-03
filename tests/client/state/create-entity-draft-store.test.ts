@@ -3,7 +3,9 @@
 // freshness gate — the ENVELOPE (`{ values, schemaVersion, baselineHash }`) plus the read-time
 // validate + schema-version + baseline-hash checks that discard a stale/unverifiable draft.
 
-import { createEntityDraftStore } from "@orb/client/state";
+import { __resetDurableLocal, bindDurableLocalToUser, createEntityDraftStore } from "@orb/client/state";
+import type { VerifiedUserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { z } from "zod";
 import type { StateStorage } from "zustand/middleware";
@@ -133,5 +135,60 @@ describe("createEntityDraftStore", () => {
     );
     const store = createEntityDraftStore<CardDraft>({ name: "t-schema", storage, validate, schemaVersion: 2 });
     expect(store.readDraft("a", "h")).toBeUndefined();
+  });
+
+  test("provenance reads return only validated current string metadata and never mutate the envelope", () => {
+    const cases = [
+      { values: { name: "Name", description: "Text" }, schemaVersion: 2, baselineHash: "confirmed" },
+      { values: { name: "Incomplete" }, schemaVersion: 2, baselineHash: "invalid-model" },
+      { values: { name: "Name", description: "Text" }, schemaVersion: 1, baselineHash: "old-version" },
+      { values: { name: "Name", description: "Text" }, schemaVersion: 2, baselineHash: 17 },
+      { values: { name: "Name", description: "Text" }, schemaVersion: 2 },
+    ];
+    for (const [index, envelope] of cases.entries()) {
+      const name = `t-provenance-${index}`;
+      const key = `orb-draft:${name}`;
+      const { storage, map } = memoryStorage({ [key]: JSON.stringify({ state: { drafts: { a: envelope } }, version: 1 }) });
+      const store = createEntityDraftStore<CardDraft>({ name, storage, validate, schemaVersion: 2 });
+      const before = map.get(key);
+      expect(store.readDraftBaseline("a")).toBe(index === 0 ? "confirmed" : undefined);
+      expect(store.readDraftBaseline("missing")).toBeUndefined();
+      expect(map.get(key)).toBe(before);
+    }
+  });
+
+  test("provenance is unreadable during rebinding and cannot cross verified-user namespaces", async () => {
+    __resetDurableLocal();
+    try {
+      const first = castId<VerifiedUserId>("fixture_draft_owner");
+      const second = castId<VerifiedUserId>("fixture_draft_other");
+      const { storage } = memoryStorage();
+      const hydration = Promise.withResolvers<string | null>();
+      const started = Promise.withResolvers<void>();
+      const heldStorage: StateStorage = {
+        ...storage,
+        getItem: (name) => {
+          if (name === `orb-draft:u/${second}/t-provenance-owner`) {
+            started.resolve();
+            return hydration.promise;
+          }
+          return storage.getItem(name);
+        },
+      };
+      const store = createEntityDraftStore<CardDraft>({ name: "t-provenance-owner", storage: heldStorage, validate, schemaVersion: 1 });
+      await bindDurableLocalToUser(first);
+      store.setDraft("a", { name: "Private", description: "Draft" }, "first-baseline");
+      expect(store.readDraftBaseline("a")).toBe("first-baseline");
+      const binding = bindDurableLocalToUser(second);
+      await started.promise;
+      expect(store.readDraftBaseline("a")).toBeUndefined();
+      hydration.resolve(null);
+      await binding;
+      expect(store.readDraftBaseline("a")).toBeUndefined();
+      await bindDurableLocalToUser(first);
+      expect(store.readDraftBaseline("a")).toBe("first-baseline");
+    } finally {
+      __resetDurableLocal();
+    }
   });
 });

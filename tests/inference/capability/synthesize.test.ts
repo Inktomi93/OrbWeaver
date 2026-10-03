@@ -4,7 +4,7 @@
 // D143(c)) close `silencesProse` and widen undeclared modalities with `modalitiesEstimated`.
 
 import type { Capability, CapabilityOverride, EmbeddingCapability, GenerationCapability, ProviderDef } from "@orb/contracts/inference";
-import { builtinProvider, GENERATION_FLOOR, TURNS_FLOOR } from "@orb/contracts/inference";
+import { builtinProvider, GENERATION_FLOOR, requirementMet, TURNS_FLOOR, taskDef } from "@orb/contracts/inference";
 import { applyEndpointPosture } from "../../../packages/inference/src/capability/floor.ts";
 import { synthesizeCapability } from "../../../packages/inference/src/capability/synthesize.ts";
 import { expect, test } from "../../support/fixtures.ts";
@@ -77,6 +77,32 @@ test("the window is estimated when no tier above the floor states one", () => {
   const gen = generationOf(synthesizeCapability("generation", "other", {}).capability);
   expect(gen.context.windowEstimated).toBe(true);
   expect(gen.context.window).toBe(GENERATION_FLOOR.context.window);
+});
+
+// The own-server case: a local model no tier knows (the kind floor states no tools and no structured output),
+// and the user's box is the truth about the user's box. Without this the model can serve neither the agent
+// nor the structured task, and a game on it has no write path.
+test("declared tool calls and structured output fold over a model no tier states them for", () => {
+  const bare = generationOf(synthesizeCapability("generation", "other", {}).capability);
+  expect(bare.tools).toBeUndefined();
+  expect(bare.output.structured).toBeUndefined();
+  const out = synthesizeCapability("generation", "other", { declared: { generation: { tools: { parallel: false }, output: { structured: true } } } });
+  const gen = generationOf(out.capability);
+  expect(gen.tools).toEqual({ parallel: false });
+  expect(gen.output.structured).toBe(true);
+  expect(gen.output.maxTokens).toEqual(GENERATION_FLOOR.output.maxTokens); // the sibling the patch did not state survives
+  expect(requirementMet(out.capability, taskDef("agent").requires)).toEqual({ ok: true });
+  expect(requirementMet(out.capability, taskDef("structured").requires)).toEqual({ ok: true });
+  expect(out.warnings).toEqual([]);
+});
+
+test("the output cap and an embedder's width are estimated until a tier states them", () => {
+  expect(generationOf(synthesizeCapability("generation", "other", {}).capability).output.maxTokensEstimated).toBe(true);
+  const stated = synthesizeCapability("generation", "other", { advertised: { output: { maxTokens: { min: 1, max: 16_384 }, modalities: ["text"] } } });
+  expect(generationOf(stated.capability).output.maxTokensEstimated).toBeUndefined();
+  expect(embeddingOf(synthesizeCapability("embedding", "other", {}).capability).dimsEstimated).toBe(true);
+  expect(embeddingOf(synthesizeCapability("embedding", "other", { advertised: { dims: 768 } }).capability)).toMatchObject({ dims: 768 });
+  expect(embeddingOf(synthesizeCapability("embedding", "other", { advertised: { dims: 768 } }).capability).dimsEstimated).toBeUndefined();
 });
 
 test("the family floor ADDS tools/structured for an anthropic id and never subtracts", () => {

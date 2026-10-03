@@ -57,6 +57,7 @@ interface WorldInfoPoolTarget {
 /** One book-expansion row — the uniform shape across all four scopes (the shared SELECT projection). */
 interface BookExpansionRow {
   id: WorldEntryId;
+  title: string;
   content: string;
   enabled: boolean | null;
   priority: number | null;
@@ -67,6 +68,7 @@ interface BookExpansionRow {
 
 const entryColumns = {
   id: worldEntries.id,
+  title: worldEntries.title,
   content: worldEntries.content,
   enabled: worldEntries.enabled,
   priority: worldEntries.priority,
@@ -85,6 +87,7 @@ function fromBookExpansion(row: BookExpansionRow, attachment: AssembleWorldEntry
   const inject = resolveEntryInjection(row.metadata);
   return {
     id: row.id,
+    title: row.title,
     content: row.content,
     scope: resolveEntryScope(row.metadata, keys.length > 0),
     keys,

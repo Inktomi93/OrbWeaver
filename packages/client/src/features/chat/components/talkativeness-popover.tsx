@@ -85,27 +85,32 @@ export function TalkativenessPopover({
           }
         }}
       >
-        <Row gap="field" align="center" className="min-w-48">
-          {/* The popover names the unit the chip cannot spell in two glyphs: a RELATIVE weight over the
-              other speakers, which is why three members can all sit at 50 and nothing sums to 100. */}
-          <Text as="span" voice="label">
-            Talks relative to the others
-          </Text>
-          <Stack ref={initialFocusRef} tabIndex={-1} className="flex-1 outline-none">
-            <Slider
-              value={weight}
-              min={0}
-              max={1}
-              step={0.05}
-              thumbLabels={[`Talkativeness: ${row.displayName}`]}
-              onValueChange={(value): void => setDragValue(firstThumb(value))}
-              onValueCommitted={(value): void => {
-                setDragValue(null);
-                onSetTalkativeness(row.characterId, firstThumb(value));
-              }}
-            />
-          </Stack>
-        </Row>
+        <Stack gap="field" className="min-w-48">
+          <Row gap="field" align="center">
+            {/* The popover names the unit the chip cannot spell in two glyphs: a RELATIVE weight over the
+                other speakers, which is why three members can all sit at 50 and nothing sums to 100. */}
+            <Text as="span" voice="label">
+              Talks relative to the others
+            </Text>
+            <Stack ref={initialFocusRef} tabIndex={-1} className="flex-1 outline-none">
+              <Slider
+                value={weight}
+                min={0}
+                max={1}
+                step={0.05}
+                thumbLabels={[`Talkativeness: ${row.displayName}`]}
+                onValueChange={(value): void => setDragValue(firstThumb(value))}
+                onValueCommitted={(value): void => {
+                  setDragValue(null);
+                  onSetTalkativeness(row.characterId, firstThumb(value));
+                }}
+              />
+            </Stack>
+          </Row>
+          {/* When the weight applies is `engine/select-speakers.ts`: only the natural order and Smart's
+              fallback read it, and a zero weight is floored so the character still speaks, last. */}
+          <Text voice="gloss">Counts only when Orbweaver picks who speaks: Natural, and Smart when it can't decide. At 0 a character still replies, last.</Text>
+        </Stack>
       </PopoverPopup>
     </Popover>
   );

@@ -90,7 +90,7 @@
       "args": [
         "/",
         "--eval",
-        "(async()=>{const orb=window.__orb;if(!orb)throw new Error('__orb unavailable');const caps=orb.nav.capabilities();if(!caps.contextTabs.includes('rpg.map'))throw new Error('phase-locked rpg.map was not published for this game');const opened=await orb.nav.contextTab('rpg.map');if(!opened.ok)throw new Error('rpg.map refused: '+opened.reason);return {tab:'rpg.map',status:'opened',lock:'Maps unlock with the map arc'};})()",
+        "(async()=>{const orb=window.__orb;if(!orb)throw new Error('__orb unavailable');const caps=orb.nav.capabilities();if(!caps.contextTabs.includes('rpg.map'))throw new Error('phase-locked rpg.map was not published for this game');const opened=await orb.nav.contextTab('rpg.map');if(!opened.ok)throw new Error('rpg.map refused: '+opened.reason);return {tab:'rpg.map',status:'opened',lock:'Maps are planned'};})()",
         "--wait-for",
         "[data-slot=\"rpg-map-tab\"]",
         "--expect-visible",

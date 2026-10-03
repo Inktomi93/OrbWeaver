@@ -6,7 +6,7 @@
 import { SkeletonRows } from "@orb/client/data";
 import { chatAlsoOpenTile, chatMastheadTile, chatQuickPicksTile, chatRecentsTile, chatTempChatTile } from "@orb/client/features/chat";
 import { databankDocumentsTile } from "@orb/client/features/databank";
-import { buddyDormantTile, HomeSurface, homeRoadmapTiles, makeSectionJumpTile } from "@orb/client/features/home";
+import { HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
 import { rosterPresetHomeTile } from "@orb/client/features/roster-preset";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { HomeTileContribution, HomeTileRegion } from "@orb/client/state";
@@ -100,17 +100,18 @@ function ActiveSectionProbe(): ReactElement {
   return <output>section={useActiveSection()}</output>;
 }
 
-/** The REAL registered doorway (buddy — automation's retired with B3) — the shipped tile, not a fake: proof
- *  the DORMANT arm survives the round trip through the door and the frame. Buddy ALONE, deliberately: the
- *  tile's own contract is what this story serves, and the roadmap set has its own story below. */
-export function HomeRealDoorwaysStory(): ReactElement {
-  return <Story tiles={[buddyDormantTile]} />;
-}
+/** A second doorway, declared AHEAD of the first in `order`, so the group's rows follow `(order, id)`. */
+const SECOND_DORMANT_TILE: HomeTileContribution = {
+  id: "dormant-second",
+  title: "Atlas",
+  icon: Clock,
+  order: 70,
+  body: { dormant: { reason: "Not started yet.", teaser: "A second planned thing, so the group holds more than one row." } },
+};
 
-/** THE SHIPPED "What's coming" SET (#834) — buddy plus the roadmap tuple, exactly as the door assembles
- *  them, so the region's rendered contents ARE the curated list rather than a story's own invention. */
-export function HomeRoadmapStory(): ReactElement {
-  return <Story tiles={[buddyDormantTile, ...homeRoadmapTiles]} />;
+/** Two doorways under the one fold: the derived count and one named row per doorway, in `(order, id)`. */
+export function HomeDoorwayGroupStory(): ReactElement {
+  return <Story tiles={[DORMANT_TILE, SECOND_DORMANT_TILE]} />;
 }
 
 // ── The THREE REGIONS (#102, the Hearth Room) ───────────────────────────────────────────────────────
@@ -123,10 +124,10 @@ const REGION_TILES: readonly HomeTileContribution[] = [
   { id: "rail", title: "Shelf tile", icon: BrainCircuit, order: 20, region: "shelf", body: () => <Text>shelf body</Text> },
   // No `region` at all — the DEFAULT, which must be the shelf (never a silent promotion into the hearth).
   { id: "unplaced", title: "Unplaced tile", icon: Clock, order: 30, body: () => <Text>unplaced body</Text> },
-  buddyDormantTile,
+  DORMANT_TILE,
 ];
 
-/** All three regions + the real doorway: the masthead above the split, one tile per column, the
+/** All three regions + a doorway: the masthead above the split, one tile per column, the
  *  unplaced tile defaulting to the shelf, and the (now single) doorway collected under ONE fold (#455 —
  *  automation's doorway retired with B3). */
 export function HomeRegionStory(): ReactElement {
@@ -281,11 +282,6 @@ const SHIPPED_TILES: readonly HomeTileContribution[] = [
   rosterPresetHomeTile,
   chatTempChatTile,
   databankDocumentsTile,
-  buddyDormantTile,
-  // #834 — the roadmap doorways the door spreads after buddy. They are collapsed at rest (the panel is
-  // unmounted while the fold is closed), so what they add to a settled measurement is the band's count
-  // chip; including them is what keeps "the door's array, verbatim" true.
-  ...homeRoadmapTiles,
 ];
 
 // ── The COLUMN-BALANCE instrument (#226) ─────────────────────────────────────────────────────────────

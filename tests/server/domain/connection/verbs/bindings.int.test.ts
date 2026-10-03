@@ -306,3 +306,31 @@ describe("useForEverything", () => {
     expect(h.embedSpaceChanges).toEqual([owner.userId]);
   });
 });
+
+// 768 is what the usual local embedder makes, and the space admits 1024; a narrower vector is never padded.
+// The refusal lands at the role, before a document is indexed, and names both widths.
+describe("a vector role refuses an embedder whose width does not fit the space", () => {
+  test("a 768-wide local embedder is refused for search vectors, and the sweep skips the vector roles it cannot hold", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const narrow = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "nomic-embed-text:latest",
+      allowBackground: true,
+    });
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: narrow.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.taskUnservable,
+      message: expect.stringContaining("768"),
+    });
+    expect(await h.svc.useForEverything({ principal: owner.principal, connectionId: narrow.id })).toEqual([]);
+    expect(h.embedSpaceChanges).toEqual([]);
+
+    // Control: the same row declared at the space's width binds.
+    await h.svc.update({ principal: owner.principal, connectionId: narrow.id, patch: { declared: { embedding: { dims: 1024 } } } });
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: narrow.id })).resolves.toMatchObject({ task: "embed" });
+  });
+});

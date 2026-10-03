@@ -13,19 +13,12 @@
 // feature plus ONE array member HERE — home is never edited. Canonical `(order, id)` at the door: chat's
 // masthead line is order 0, its recents hero 10, its also-open list 15, the face shelf 20, the roster
 // feature's rosters 25 and temp chat 30;
-// home's own "Elsewhere in the house" rail is 40; databank's tile 50; the buddy dormant doorway 80, and the
-// the indexed roadmap doorways from 81 (automation's dormant tile 90 was RETIRED with B3 — its own contract said it
-// stays "until B3", and B3's chips now consume the channel it stood for). WHICH COLUMN each lands in is the
+// home's own "Elsewhere in the house" rail is 40; databank's tile 50. WHICH COLUMN each lands in is the
 // tile's own `region`, never a list here. Home consumes the registry BLIND through `makeHomeSection`.
-//
-// THE ROADMAP BLOCK IS ONE MEMBER, SPREAD (#834): `homeRoadmapTiles` is home's curated mirror of the
-// open program items under `docs/work/`, and its own file is the one home for both
-// the list and its orders. It is spread rather than enumerated here precisely so the door never becomes a
-// second copy of that list — adding a program is an edit to `features/home/lib/roadmap.ts` and nothing else.
 
 import { chatAlsoOpenTile, chatMastheadTile, chatQuickPicksTile, chatRecentsTile, chatTempChatTile } from "#features/chat";
 import { databankDocumentsTile } from "#features/databank";
-import { buddyDormantTile, homeRoadmapTiles, makeSectionJumpTile } from "#features/home";
+import { makeSectionJumpTile } from "#features/home";
 import { rosterPresetHomeTile } from "#features/roster-preset";
 import type { ContributorRegistry } from "#lib";
 import { createContributorRegistry } from "#lib";
@@ -39,8 +32,6 @@ const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
   rosterPresetHomeTile,
   chatTempChatTile,
   databankDocumentsTile,
-  buddyDormantTile,
-  ...homeRoadmapTiles,
 ];
 
 /** The ONE home-tile registry (G8) — assembled here, consumed blind by `makeHomeSection` at the door. */

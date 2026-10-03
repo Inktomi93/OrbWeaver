@@ -234,3 +234,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D284 | [Persona resolution proof permits identity-only publication anonymization](0284-persona-resolution-proof-allows-publication-anonymization.md) | active |
 | D285 | [Parked programs retain concepts and implemented product boundaries](0285-parked-program-concepts-and-retained-product-boundaries.md) | active |
 | D286 | [Import identity and additive doors](0286-import-identity-and-additive-doors.md) | active |
+| D287 | [Custom rules use canonical autosave and recoverable creation](0287-custom-rules-use-canonical-autosave-and-recoverable-creation.md) | active |

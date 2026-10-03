@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-29
+updated: 2026-10-03
 ---
 
 # UI-Architecture-and-Layout
@@ -195,8 +195,8 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             --spacing-section dividers: Chats · Characters ·
             Corpus (primary; `corpus` is the SECTION/feature name — the owning DOMAIN is `discovery`;
             its Explore · Insights · Labels modes compose the `stats` and `tag` surfaces through the door)
-            | Configuration · Extensions · Databank · Presets · Refinery (authoring group — Configuration
-            is the roster of the LIBRARIES the others are built from; Extensions is ONE entry for the
+            | Configuration · Plugin pages · Databank · Presets · Refinery (authoring group — Configuration
+            is the roster of the LIBRARIES the others are built from; Plugin pages is ONE entry for the
             whole plugin platform, never one per plugin — it ships rail-VISIBLE with a teaching empty
             rather than hidden-until-populated, because a hidden entry makes the platform undiscoverable;
             per-plugin promotion is a recorded owner knob, not built (the impersonation surface); Databank
@@ -301,7 +301,7 @@ Per-section grid (end-state; the D62 program builds toward it):
 | Chats | conversation rows · search · star/archive chips · `+` → new-chat picker | LANDING (hero + recents + quick-picks) | chat room (header · thread · composer) | tabs: Members(group) · Overrides · Group(host) · Preview(host) · Injections — REGISTRY-owned via `defineContextTabs` (`ContextTabsPanel`, built M3; `client-architecture-lockdown.md` §6b), not a bespoke `<Tabs>` |
 | Characters | character rows · search · `+` create/import | teaching state | detail card → editor | activity (chats with them) + actions |
 | Configuration | one COLLAPSED group per registered `CollectionContribution` (band = icon · kicker · count · optional import · create `+`); expanded groups get a count-driven filter and windowed rows — World Info's book rows scented "entries · attached ×N" | the welcome (a launcher card per collection) | the selected member's OWN editor, mounted (never a dialog) — for a book, its entry list + entry editor | the selected collection's own CONTEXT variant (a book's activation scopes), or its own `{kind:"none"}` copy |
-| Extensions | the PAGE SWITCHER: one plugin-labelled row per registered `ui.page` surface across the caller's granted-and-enabled plugins — never in the rail (title + the plugin's name as subtitle AND accessible-name disambiguator) | the teaching empty, naming WHICH emptiness (nothing installed · awaiting consent · switched off · no page) or "pick a page" — each case names a different fact, with its own next step and its own config anchor, deliberately different copy, so the LIST and CONTENT panes cannot disagree, resolved once in `useExtensionsEmpty` | the selected page inside the PAGE-SCALE plugin shell: a pinned band (plugin name · glyph · "Extension" kicker, no opt-out) above the scrollable DSL body | `{kind:"none"}` — a plugin page owns its whole CONTENT region |
+| Extensions | the PAGE SWITCHER: one plugin-labelled row per registered `ui.page` surface across the caller's granted-and-enabled plugins — never in the rail (title + the plugin's name as subtitle AND accessible-name disambiguator) | the teaching empty, naming WHICH emptiness (nothing installed · awaiting consent · switched off · no page) or "pick a page" — each case names a different fact, with its own next step and its own config anchor, deliberately different copy, so the LIST and CONTENT panes cannot disagree, resolved once in `useExtensionsEmpty` | the selected page inside the PAGE-SCALE plugin shell: a pinned band (plugin name · glyph · "Plugin" kicker, no opt-out) above the scrollable DSL body | `{kind:"none"}` — a plugin page owns its whole CONTENT region |
 | Databank | document rows (name · phase chip when NOT ready · origin/size/chunks) + search; band = DATABANK · count · Add · a maintenance kebab | teaching state | the document detail (Details · Maintenance · the source-text reveal) | the activation panel: Everywhere · Active in · the retrieval-knobs pointer |
 | Presets | preset rows + CRUD toolbar | teaching state | tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process · Compaction · Prompt) | usage/bindings (default-collapsed) |
 | Corpus · Explore | the mode switch + the search omnibox + target picker + results (default-docked) | overview home (coverage · insights · keywords) | readable artifact or character dossier | selected artifact evidence and source actions; otherwise `Whole corpus` analysis tabs |

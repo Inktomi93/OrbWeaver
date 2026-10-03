@@ -402,6 +402,46 @@ export function endpointAdmission(baseUrl: string): (typeof ENDPOINT_ADMISSIONS)
   return admittedByAllowlist(host, port) || (host === "localhost" && admittedByAllowlist(literal, port)) ? "admitted" : "refused";
 }
 
+/** The write-time admission the connection domain runs: {@link endpointAdmission}, plus a HOSTNAME resolved
+ *  now. A name that lands on a private address this deployment does not admit (`host.docker.internal`,
+ *  `ollama.lan`) is `refused` here, so the dialog names the authority and offers the owner's Admit, instead of
+ *  saving a row whose every dial fails at the connect gate. The judgement is the connect gate's own: the env
+ *  belt and the published ranges admit, `NEVER_ADMISSIBLE_RANGES` subtracts. A name that does not resolve now
+ *  stays `public`; the connect gate judges it when it does. */
+export async function resolvedEndpointAdmission(baseUrl: string): Promise<(typeof ENDPOINT_ADMISSIONS)[number]> {
+  const verdict = endpointAdmission(baseUrl);
+  const url = URL.parse(baseUrl);
+  const host = url === null ? "" : unbracket(url.hostname).toLowerCase();
+  if (verdict !== "public" || parseIp(host) !== null) {
+    return verdict;
+  }
+  const addresses = await lookupAll(host);
+  if (addresses.length === 0) {
+    return verdict;
+  }
+  const allowlist = envEgressAllowlist();
+  const ranges = privateEgressRanges();
+  const refused = firstRefusedAddress(
+    addresses,
+    (address) => isInRanges(address, NEVER_ADMISSIBLE_RANGES) || (shouldBlockEgress(address, host, allowlist, ranges) && !addressInAdmittedRanges(address)),
+  );
+  return refused === undefined ? verdict : "refused";
+}
+
+/** Every address a hostname resolves to through the firewall's own lookup; none when it does not resolve. */
+function lookupAll(hostname: string): Promise<readonly string[]> {
+  return new Promise((resolve) => {
+    firewallLookup(hostname, { all: true }, (err, address): void => {
+      if (err) {
+        // An unresolvable name is no verdict at write time: the connect gate judges it once it resolves.
+        resolve([]);
+        return;
+      }
+      resolve(Array.isArray(address) ? address.map((a) => String((a as { address?: unknown }).address ?? a)) : [String(address)]);
+    });
+  });
+}
+
 /** Is this RESOLVED or literal address inside an admitted range? `NEVER_ADMISSIBLE_RANGES` is subtracted
  *  HERE, not only at publish: the publish-time check sees the ENTRY, so a broad operator CIDR
  *  (`0.0.0.0/0`, `128.0.0.0/1`) would otherwise swallow the link-local metadata class it can never state
@@ -470,9 +510,9 @@ export function __firewallConnectForTest(): buildConnector.connector {
   return createFirewallConnect().connect;
 }
 
-/** The global firewall's connect function, over the env belt read now and the published allowlist read live. */
-function createFirewallConnect(): { readonly connect: buildConnector.connector; readonly allowlist: ReadonlySet<string> } {
-  const ranges = privateEgressRanges();
+/** The env belt's host set: `EGRESS_ALLOWLIST` plus the OIDC issuer host. One read for the connect gate and
+ *  the write-time admission, so the two cannot disagree about a declared host. */
+function envEgressAllowlist(): Set<string> {
   const allowlist = new Set(
     (env.EGRESS_ALLOWLIST ?? "")
       .split(",")
@@ -488,6 +528,13 @@ function createFirewallConnect(): { readonly connect: buildConnector.connector; 
       // malformed issuer — env refinement would have caught it in oidc mode
     }
   }
+  return allowlist;
+}
+
+/** The global firewall's connect function, over the env belt read now and the published allowlist read live. */
+function createFirewallConnect(): { readonly connect: buildConnector.connector; readonly allowlist: ReadonlySet<string> } {
+  const ranges = privateEgressRanges();
+  const allowlist = envEgressAllowlist();
 
   const baseConnect = buildConnector({
     lookup(hostname, options, callback): void {

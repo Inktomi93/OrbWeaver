@@ -40,7 +40,14 @@ interface EntityMutationBase<TVars, TData, TRead> {
    * invalidate — the covering bus tick still arrives and confirms the same row, a structural no-op).
    * Distinct from `optimistic`, which writes the UNCONFIRMED intent before the server has agreed.
    */
-  readonly echo?: (trpc: Trpc, vars: TVars) => QueryKey;
+  readonly echo?:
+    | ((trpc: Trpc, vars: TVars) => QueryKey)
+    | {
+        readonly readKey: (trpc: Trpc, vars: TVars) => QueryKey;
+        /** A response must not reach a cache whose verified viewer changed while the write was pending. */
+        readonly allowed: (vars: TVars) => boolean;
+        readonly update: (old: TRead | undefined, data: TData, vars: TVars) => TRead | undefined;
+      };
   /** Optional global-toast message on failure (rides mutation `meta` → MutationCache.onError). A function
    *  form may return `null` to suppress the toast for a specific error (e.g. a stale turn abort the bus
    *  surfaces its own notice for — see `isSilencedTurnAbort`). */
@@ -156,6 +163,27 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
 ): (deps: { trpc: Trpc; invalidation: Invalidation }) => EntityMutationResult<TVars, TData> {
   // biome-ignore lint/nursery/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useDeleteCharacter = createEntityMutation(...)), so the returned hook has a stable identity (see forms/editor/create-saved-entity-form.ts).
   return function useEntityMutation({ trpc, invalidation }): EntityMutationResult<TVars, TData> {
+    async function echoResponse(data: TData, vars: TVars, client: QueryClient): Promise<void> {
+      const echo = config.echo;
+      if (echo === undefined) {
+        return;
+      }
+      if (typeof echo === "function") {
+        client.setQueryData<TData>(echo(trpc, vars), data);
+        return;
+      }
+      if (!echo.allowed(vars)) {
+        return;
+      }
+      const readKey = echo.readKey(trpc, vars);
+      // A pre-write read can still deliver old bytes after the committed response has arrived.
+      await client.cancelQueries({ queryKey: readKey, exact: true });
+      if (!echo.allowed(vars)) {
+        return;
+      }
+      client.setQueryData<TRead>(readKey, (old) => echo.update(old, data, vars));
+    }
+
     const mutation = useMutation<TData, DefaultError, TVars, OptimisticContext<TRead>>({
       ...config.options(trpc),
       ...(config.errorToast === undefined ? {} : { meta: { errorToast: config.errorToast } }),
@@ -196,7 +224,7 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
           releaseOptimisticOwner(context.client, onMutateResult.owner);
         }
       },
-      onSuccess: (data, vars, onMutateResult, context) => {
+      onSuccess: async (data, vars, onMutateResult, context) => {
         if (onMutateResult.owner !== null) {
           releaseOptimisticOwner(context.client, onMutateResult.owner);
         }
@@ -207,12 +235,9 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
           notify.error(refusal);
           return;
         }
-        if (config.echo === undefined) {
-          return;
-        }
         // Runs BEFORE the mutateAsync promise resolves (v5 awaits the callbacks in the execution chain), so
         // a caller awaiting the save sees the seeded read, not the pre-write one.
-        context.client.setQueryData<TData>(config.echo(trpc, vars), data);
+        await echoResponse(data, vars, context.client);
       },
       onSettled: (data, _error, vars) => {
         // Always reconcile — the optimistic value is never trusted as final. The settled response rides

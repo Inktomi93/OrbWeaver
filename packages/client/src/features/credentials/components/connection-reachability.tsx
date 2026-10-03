@@ -2,7 +2,8 @@
 // program §5.3a · the step-3b mock `editor.html` Board C).
 //
 // THE REFUSAL COPY IS §5.3a's, VERBATIM: "Can't reach `<host>` — the server may be down."
-// (`endpoint-unreachable`, renamed from `engine-down` in the same tuple sweep that retired `engine-off`).
+// (`endpoint-unreachable`, renamed from `engine-down` in the same tuple sweep that retired `engine-off`) — for a
+// dial nothing answered. A server that answered with an HTTP status is up, so that arm states the status.
 //
 // NO "WAKE IT" BUTTON, and that is a CORRECTION to the mock rather than an omission. The mock draws one
 // beside "Check again". There is no wake verb on the connection router, and there is not supposed to be:
@@ -113,6 +114,17 @@ function ReachabilityVerdict({ verdict, host }: { readonly verdict: CredentialHe
       <Text className="text-warning" voice="gloss">
         The provider is rate-limiting us right now. Nothing is wrong with the connection.
       </Text>
+    );
+  }
+  if (verdict.status === "unreachable" && verdict.httpStatus !== undefined) {
+    // The server ANSWERED: "may be down" would be false, and the status is what tells a wrong path from a fault.
+    return (
+      <Stack data-slot="connection-unreachable" gap="tight">
+        <Text className="text-warning" voice="gloss">
+          {`${host ?? "This server"} answered HTTP ${String(verdict.httpStatus)}, so it is running but refused this request.`}
+        </Text>
+        <Text voice="gloss">{verdict.reason}</Text>
+      </Stack>
     );
   }
   return (

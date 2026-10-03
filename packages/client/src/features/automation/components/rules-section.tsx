@@ -25,19 +25,10 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
-import type { Trpc } from "#data";
 import { QueryErrorState, useTRPC } from "#data";
-import { RulePresetPicker } from "./rule-preset-picker.tsx";
-import { RuleRow } from "./rule-row.tsx";
-
-/** One row of the rule list — tRPC-inferred, so a wire reshape breaks here at compile time. Declared per
- *  consumer rather than exported from `rule-row.tsx`: a feature `components/` file is not a type home
- *  (`no-inline-types`), and the client feature tree has no `contract/` to move it to. The alias is one line
- *  off the SAME inferred source in both places, so the two cannot drift. */
-type Rule = inferOutput<Trpc["automation"]["listRules"]>[number];
+import { RuleManager } from "./rule-manager.tsx";
 
 /** The section's opening line — one gloss, painted in BOTH arms (settled and reserving) because it depends
  *  on no read. Every sibling section in this pane opens with one. */
@@ -136,22 +127,8 @@ export function RulesSection({ chatId }: RulesSectionProps): ReactElement {
         <Text voice="gloss">
           Nothing is watching this chat yet. Add a rule — post an image, nudge the pacing, offer chips — and it starts off until you enable it.
         </Text>
-      ) : (
-        <Stack gap="section">
-          {/* THE HAIRLINE IS GONE, AND ITS RULING SURVIVES — its INPUT changed (#886 vs side-eye #621 P2-7).
-              #621 added `<Separator />` between rules because an unbounded stack gave each "Recent activity"
-              disclosure equal distance to its own title and to the NEXT rule's, so a reader could not tell
-              which rule it belonged to. At #886 every rule is a bounded `!p-0` Card and that disclosure lives
-              INSIDE the card's own panel: the boundary the hairline was standing in for is now painted, and a
-              rule between two card edges cannot be misread. A hairline between adjacent cards would be a
-              second boundary for one seam — which is what the Field-overrides and Injections lists, the idiom
-              this row now wears, already decline to draw. */}
-          {rules.map((rule: Rule) => (
-            <RuleRow chatId={chatId} key={rule.id} rule={rule} />
-          ))}
-        </Stack>
-      )}
-      <RulePresetPicker chatId={chatId} />
+      ) : null}
+      <RuleManager key={chatId} chatId={chatId} rules={rules} />
     </Stack>
   );
 }

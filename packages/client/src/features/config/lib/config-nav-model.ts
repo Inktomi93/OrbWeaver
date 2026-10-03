@@ -11,7 +11,7 @@ export const CONFIG_SHELF_LABELS: Record<ConfigShelf, string> = {
   user: "User",
   app: "App",
   collections: "Collections",
-  extensions: "Extensions",
+  extensions: "Plugins",
 };
 
 /** The DOM id of a shelf's kicker — the one home for both ends of the shelf's `aria-labelledby` wiring

@@ -11,7 +11,7 @@
 // AND THE ONE §9 SAYS IS LOAD-BEARING: THE PINNED ATTRIBUTION BAND. A full page is the biggest impersonation
 // canvas in this design — a page can draw a convincing fake settings screen entirely out of house primitives,
 // because house primitives are what it is made of. So the band's presence is pinned ON EVERY PAGE (both pages
-// of a two-page roster, not one), and it is pinned to carry the plugin's NAME and the "Extension" kicker: a
+// of a two-page roster, not one), and it is pinned to carry the plugin's NAME and the "Plugin" kicker: a
 // band that rendered without the name would be the wall reporting green while doing nothing.
 
 import type { PluginId } from "@orb/kit/ids";
@@ -126,14 +126,14 @@ test.describe("the page switcher", () => {
   test("search matches page and plugin names and clearing restores the roster", async ({ mount, page }) => {
     await routeTrpc(page, TWO_PAGES);
     await mount(<ExtensionsSwitcherStory />);
-    const search = page.getByRole("textbox", { name: "Search extension pages" });
+    const search = page.getByRole("textbox", { name: "Search plugin pages" });
     await search.fill("oracle");
     await expect(page.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
     await expect(page.getByRole("button", { name: /Chips.*Scene Chips/u })).toHaveCount(0);
     await search.fill("chips");
     await expect(page.getByRole("button", { name: /Chips.*Scene Chips/u })).toBeVisible();
     await search.fill("no such page");
-    await expect(page.getByText("No matching extension pages")).toBeVisible();
+    await expect(page.getByText("No matching plugin pages")).toBeVisible();
     await page.getByRole("button", { name: "Clear search", exact: true }).click();
     await expect(search).toHaveValue("");
     await expect(page.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
@@ -153,9 +153,9 @@ test.describe("the page switcher", () => {
     await expect(page.locator('[data-focus-origin="extensions"]')).toBeFocused();
     const section = await mount(<ExtensionsSwitcherStory />);
 
-    const destination = page.getByRole("region", { name: "Extension pages" });
+    const destination = page.getByRole("region", { name: "Plugin pages" });
     await expect(destination).toBeFocused();
-    await expect(destination).toHaveAccessibleName("Extension pages");
+    await expect(destination).toHaveAccessibleName("Plugin pages");
     await expect(section.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
   });
 
@@ -191,7 +191,7 @@ test.describe("the page switcher", () => {
     await routeTrpc(page, NO_PAGES);
     await mount(<ExtensionsSwitcherStory />);
 
-    await expect(page.getByText("No extension pages yet")).toBeVisible();
+    await expect(page.getByText("No plugin pages yet")).toBeVisible();
     await expect(page.getByText("Install a plugin with page surfaces and it will appear here.")).toBeVisible();
     // `empty-state-has-action` is the law; this is the RENDERED half of it — a dead-end empty here would make
     // the whole platform undiscoverable for anyone who has never installed a page-bearing plugin.
@@ -212,7 +212,7 @@ test.describe("the teaching empty names WHICH emptiness", () => {
     await expect(page.getByRole("button", { name: "Add a plugin" })).toBeVisible();
     // The old collapse: an account with nothing installed and an account with nine ungranted plugins read
     // identically. It must not be the page-surfaces line any more.
-    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+    await expect(page.getByText("No plugin pages yet")).toHaveCount(0);
   });
 
   test("INSTALLED BUT AWAITING CONSENT ⇒ the fresh-boot fact, counted, pointing at the grant", async ({ mount, page }) => {
@@ -223,7 +223,7 @@ test.describe("the teaching empty names WHICH emptiness", () => {
     // COUNTED, because "some plugins" is the same shrug the old copy was. Two rows asking ⇒ "2 plugins are".
     await expect(page.getByText(/2 plugins are installed but not allowed to do anything yet/u)).toBeVisible();
     // The two lies this arm replaces.
-    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+    await expect(page.getByText("No plugin pages yet")).toHaveCount(0);
     await expect(page.getByText("No plugins installed yet")).toHaveCount(0);
   });
 
@@ -262,7 +262,7 @@ test.describe("the teaching empty names WHICH emptiness", () => {
 
     await expect(page.getByText("Your plugins are turned off")).toBeVisible();
     await expect(page.getByRole("button", { name: "Open Plugins" })).toBeVisible();
-    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+    await expect(page.getByText("No plugin pages yet")).toHaveCount(0);
   });
 
   test("A PLUGIN THAT DIED ⇒ say it failed, never 'you turned them off' or 'go install one' (#1865)", async ({ mount, page }) => {
@@ -275,7 +275,7 @@ test.describe("the teaching empty names WHICH emptiness", () => {
     // The `errored`+`disabled` mix satisfies `all-off`'s predicate, and one enabled sibling would have
     // produced `no-pages` instead — so the two are asserted absent, not merely unasserted.
     await expect(page.getByText("Your plugins are turned off")).toHaveCount(0);
-    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+    await expect(page.getByText("No plugin pages yet")).toHaveCount(0);
   });
 
   test("the CONTENT pane mirrors the SAME reason — two panes never state two facts", async ({ mount, page }) => {
@@ -292,8 +292,8 @@ test.describe("the teaching empty names WHICH emptiness", () => {
     await expect(component.getByRole("button", { name: "Review what Oracle Deck asks for" })).toBeVisible();
     await expect(component.getByRole("button", { name: "Review what Scene Chips asks for" })).toBeVisible();
     await expect(component.getByRole("button", { name: "Review what they ask for" })).toHaveCount(0);
-    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
-    await expect(page.getByText("Pick an extension page")).toHaveCount(0);
+    await expect(page.getByText("No plugin pages yet")).toHaveCount(0);
+    await expect(page.getByText("Pick a plugin page")).toHaveCount(0);
   });
 });
 
@@ -307,7 +307,7 @@ test.describe("the page-scale shell", () => {
     await expect(band).toBeVisible();
     await expect(band).toContainText("Oracle Deck");
     await expect(band).toContainText("The Deck");
-    await expect(band).toContainText("Extension");
+    await expect(band).toContainText("Plugin");
     // …and the page's own body rendered beneath it, bound to the plugin's published state.
     await expect(page.getByText("Session open · 2 dealt")).toBeVisible();
     await first.unmount();
@@ -318,7 +318,7 @@ test.describe("the page-scale shell", () => {
     const secondBand = page.getByTestId("plugin-page-attribution");
     await expect(secondBand).toBeVisible();
     await expect(secondBand).toContainText("Scene Chips");
-    await expect(secondBand).toContainText("Extension");
+    await expect(secondBand).toContainText("Plugin");
   });
 
   test("NO SELECTION reads differently from NO PAGES — 'pick one' and 'there are none' are different facts", async ({ mount, page }) => {
@@ -326,8 +326,8 @@ test.describe("the page-scale shell", () => {
     await mount(<ExtensionsPageStory selectKey={null} />);
     // Two pages exist; nothing is picked. Collapsing this into the install-a-plugin empty would tell a person
     // with two extensions installed that they have none.
-    await expect(page.getByText("Pick an extension page")).toBeVisible();
-    await expect(page.getByText("No extension pages yet")).toHaveCount(0);
+    await expect(page.getByText("Pick a plugin page")).toBeVisible();
+    await expect(page.getByText("No plugin pages yet")).toHaveCount(0);
     // …and no band, because no page is being attributed.
     await expect(page.getByTestId("plugin-page-attribution")).toHaveCount(0);
   });
@@ -340,10 +340,10 @@ test.describe("the page-scale shell", () => {
     await routeTrpc(page, NO_PAGES);
     await mount(<ExtensionsPageStory selectKey={null} />);
 
-    await expect(page.getByText("No extension pages yet")).toBeVisible();
+    await expect(page.getByText("No plugin pages yet")).toBeVisible();
     await expect(page.getByText("Install a plugin with page surfaces and it will appear here.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Open Plugins" })).toBeVisible();
-    await expect(page.getByText("Pick an extension page")).toHaveCount(0);
+    await expect(page.getByText("Pick a plugin page")).toHaveCount(0);
   });
 
   test("a page titled exactly like its plugin says the name ONCE in the band (P3-7)", async ({ mount, page }) => {
@@ -359,7 +359,7 @@ test.describe("the page-scale shell", () => {
 
     const band = page.getByTestId("plugin-page-attribution");
     await expect(band).toBeVisible();
-    await expect(band).toContainText("Extension");
+    await expect(band).toContainText("Plugin");
     await expect(band.getByText("Oracle Deck")).toHaveCount(1);
     await expect(band.getByText("·")).toHaveCount(0);
   });
@@ -381,15 +381,15 @@ for (const phone of [false, true]) {
       await routeTrpc(page, TWO_PAGES);
       const component = await mount(<ExtensionsCensusStory phone={phone} />);
       const identity = phone ? component.getByRole("heading", { level: 1 }) : component.locator('[data-slot="list-pane-title"]');
-      const label = (count: string): string => (phone ? `Extensions · ${count}` : `Extensions${count}`);
+      const label = (count: string): string => (phone ? `Plugin pages · ${count}` : `Plugin pages${count}`);
       await expect(identity).toHaveText(label("2"));
-      const search = component.getByRole("textbox", { name: "Search extension pages" });
+      const search = component.getByRole("textbox", { name: "Search plugin pages" });
       await search.fill("oracle");
       await expect(component.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
       await expect(component.getByRole("button", { name: /Chips.*Scene Chips/u })).toHaveCount(0);
       await expect(identity).toHaveText(label("1"));
       await search.fill("no such page");
-      await expect(component.getByText("No matching extension pages", { exact: true })).toBeVisible();
+      await expect(component.getByText("No matching plugin pages", { exact: true })).toBeVisible();
       await expect(identity).toHaveText(label("0 of 2"));
       await component.getByRole("button", { name: "Clear search", exact: true }).click();
       await expect(search).toHaveValue("");
@@ -405,12 +405,12 @@ test("an open page keeps its phone title when a roster filter excludes it", asyn
   await component.getByRole("button", { name: /The Deck.*Oracle Deck/u }).click();
   const title = component.getByRole("heading", { level: 1 });
   await expect(title).toHaveText("The Deck");
-  await component.getByRole("textbox", { name: "Search extension pages" }).fill("chips");
+  await component.getByRole("textbox", { name: "Search plugin pages" }).fill("chips");
   await expect(component.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toHaveCount(0);
   await expect(component.getByRole("button", { name: /Chips.*Scene Chips/u })).toBeVisible();
   await expect(title).toHaveText("The Deck");
   await component.getByRole("button", { name: "Back to extensions", exact: true }).click();
-  await expect(title).toHaveText("Extensions · 1");
+  await expect(title).toHaveText("Plugin pages · 1");
 });
 
 test("surfaces without a visible plugin enter neither the composed roster nor its census", async ({ mount, page }) => {
@@ -422,8 +422,8 @@ test("surfaces without a visible plugin enter neither the composed roster nor it
   const title = component.getByRole("heading", { level: 1 });
   await expect(component.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
   await expect(component.getByRole("button", { name: /Chips.*Scene Chips/u })).toHaveCount(0);
-  await expect(title).toHaveText("Extensions · 1");
-  await component.getByRole("textbox", { name: "Search extension pages" }).fill("chips");
-  await expect(component.getByText("No matching extension pages", { exact: true })).toBeVisible();
-  await expect(title).toHaveText("Extensions · 0 of 1");
+  await expect(title).toHaveText("Plugin pages · 1");
+  await component.getByRole("textbox", { name: "Search plugin pages" }).fill("chips");
+  await expect(component.getByText("No matching plugin pages", { exact: true })).toBeVisible();
+  await expect(title).toHaveText("Plugin pages · 0 of 1");
 });

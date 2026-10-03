@@ -7,7 +7,9 @@
 // line that is merely plausible is the defect.
 
 import type { Capability, DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
+import { declaredCapabilitySchema, EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import { describe } from "vitest";
+import { capabilityFactRows } from "../../../../../packages/client/src/features/credentials/lib/connection-capability-fact-model.ts";
 import {
   beltKeyGloss,
   capabilityBadges,
@@ -16,11 +18,12 @@ import {
   endpointNamedInAllowlist,
   extrasFromRows,
   inferredKindOf,
+  purposeNotes,
   rowsFromExtras,
 } from "../../../../../packages/client/src/features/credentials/lib/connection-editor-model.ts";
 import type { FactRow } from "../../../../../packages/client/src/features/credentials/lib/connection-fact-model.ts";
 import {
-  capabilityFactRows,
+  parseFactValue,
   QUIRK_LEAF_PATH_LIST,
   QUIRK_ROW_PATHS,
   quirkFactRows,
@@ -128,6 +131,69 @@ describe("the capability block is honest about what it cannot know", () => {
   });
 });
 
+// An own-server model the app knows nothing about: the kind floor, nothing stated about tools or structured
+// output, and a window nobody reported.
+const LOCAL_FLOOR: Capability = {
+  kind: "generation",
+  generation: {
+    reasoning: { mode: "none", enabled: false },
+    sampling: {},
+    input: ["text"],
+    output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"], maxTokensEstimated: true },
+    context: { window: 8192, windowEstimated: true },
+  },
+};
+
+describe("an own-server model can declare what the app has no value for", () => {
+  // The Game-mode trap: a row skipped for want of a value is a fact the user can never state.
+  test("unstated tool calls and structured output still render, each with an Override", () => {
+    const rows = capabilityFactRows(LOCAL_FLOOR, null);
+    for (const path of ["generation.tools.parallel", "generation.output.structured"]) {
+      expect(rowFor(rows, path)).toMatchObject({ value: "not stated", overridden: false });
+    }
+  });
+
+  // `tools` present IS "accepts tools[]"; `parallel` is its one required field, so this one write declares it.
+  test("declaring tool calls writes the whole tools block the schema requires", () => {
+    const row = rowFor(capabilityFactRows(LOCAL_FLOOR, null), "generation.tools.parallel");
+    const declared = withDeclaredOverride(null, row, parseFactValue(row.edit, row.draft));
+    expect(declared).toStrictEqual({ generation: { tools: { parallel: false } } });
+    expect(declaredCapabilitySchema.safeParse(declared).success).toBe(true);
+  });
+
+  test("an overridden row restates the baseline it replaced, including a value nobody stated", () => {
+    const declared: DeclaredCapability = { generation: { tools: { parallel: true } } };
+    const capability: Capability = { kind: "generation", generation: { ...LOCAL_FLOOR.generation, tools: { parallel: true } } };
+    expect(rowFor(capabilityFactRows(capability, declared, LOCAL_FLOOR), "generation.tools.parallel")).toMatchObject({
+      overridden: true,
+      source: "your override — it was not stated",
+    });
+  });
+
+  test("a floor-guessed window and output cap read as assumed; a stated one does not", () => {
+    const rows = capabilityFactRows(LOCAL_FLOOR, null);
+    expect(rowFor(rows, "generation.context.window").value).toBe("8,192 tokens (assumed)");
+    expect(rowFor(rows, "generation.output.maxTokens.max").value).toBe("4,096 tokens (assumed)");
+    expect(rowFor(capabilityFactRows(GENERATION, null), "generation.context.window").value).toBe("32,768 tokens");
+  });
+
+  // Ollama, LM Studio and Custom rows set no rerank path or image arm, so those quirks had no row at all.
+  test("an own-server row lists the declarable quirks nothing sets; a hosted row does not", () => {
+    const own = quirkFactRows({ prefill: "none" }, undefined, "Ollama", true);
+    expect(rowFor(own, "features.rerankPath")).toMatchObject({ overridden: false, draft: "" });
+    expect(rowFor(own, "features.images")).toMatchObject({ overridden: false, draft: "images-api" });
+    expect(own.map((row) => row.path)).not.toContain("features.sleep.wakePath"); // a lone half would not parse
+    expect(quirkFactRows({ prefill: "none" }, undefined, "Ollama").map((row) => row.path)).not.toContain("features.rerankPath");
+    expect(withDeclaredOverride(null, rowFor(own, "features.rerankPath"), "/v1/rerank")).toStrictEqual({ features: { rerankPath: "/v1/rerank" } });
+  });
+
+  test("the Purpose tier notes the unstated and guessed facts, the tool and structured ones on own-server rows only", () => {
+    expect(purposeNotes(LOCAL_FLOOR, true)).toHaveLength(3);
+    expect(purposeNotes(LOCAL_FLOOR, false)).toHaveLength(1);
+    expect(purposeNotes(GENERATION, true)).toHaveLength(0);
+  });
+});
+
 describe("a per-field Override writes exactly one leaf", () => {
   test("mints the intermediate objects the path needs and leaves the siblings alone", () => {
     const rows = quirkFactRows(VLLM_FEATURES, { strictJson: "declared-only" }, "vLLM");
@@ -172,6 +238,17 @@ describe("the capability rail", () => {
     const badges = capabilityBadges(GENERATION, ["chat"]);
     expect(badges.find((badge) => badge.task === "generateImage")?.reason).toBe("no image output");
     expect(badges.find((badge) => badge.task === "embed")?.reason).toBe("wrong kind");
+  });
+
+  // "wrong vector width" alone does not say which way; a 768-wide local embedder must read as too narrow.
+  test("a vector-width refusal names both widths", () => {
+    const narrow: Capability = {
+      kind: "embedding",
+      embedding: { dims: 768, mrl: true, maxInputTokens: 8192, input: ["text"], output: ["vector"], instructionAware: false },
+    };
+    const reason = capabilityBadges(narrow, ["embed", "imageEmbed"]).find((badge) => badge.task === "embed")?.reason ?? "";
+    expect(reason).toContain("768");
+    expect(reason).toContain(String(EMBED_SPACE_DIMS));
   });
 });
 

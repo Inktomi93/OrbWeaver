@@ -4,12 +4,18 @@
 // `availability` answers a VERDICT where `resolve` throws; and `capabilities` refuses a row that is not the
 // caller's rather than describing a stranger's model.
 
-import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, requireGenerationCapability } from "@orb/contracts/inference";
 import { NoConnectionError } from "@orb/inference";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
+import { hasStructuredWriter, hasToolWriter } from "../../../../../packages/server/src/domain/rpg/substrate/readonly-axis.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../_support.ts";
+
+const OLLAMA = castId<ProviderId>("ollama");
+const OLLAMA_URL = "http://127.0.0.1:11434";
 
 describe("resolveChatCapability — the target", () => {
   test("a role target resolves through that role's binding, and a connection target names the row itself", async () => {
@@ -129,5 +135,60 @@ describe("capabilities", () => {
     expect(read.capability).toMatchObject({ kind: "embedding", embedding: { dims: 768 } });
     expect(read.baseline).toMatchObject({ kind: "embedding", embedding: { dims: 1024 } });
     expect([...read.tasks].toSorted()).toEqual(["embed", "imageEmbed"]);
+  });
+
+  // The Game-mode path end to end: an own-server model nothing states tools for has no write path until the
+  // user declares them on the connection, and the declaration is what the next resolve hands the game.
+  test("declared tool calls and structured output reach the resolved chat capability and give a game its write path", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "llama3.1:8b" });
+    const generationOf = async (): Promise<GenerationCapability> =>
+      requireGenerationCapability((await h.runtime.resolve({ task: "chat", principal: owner.principal, connectionId: row.id })).resolved.capability);
+    expect(hasToolWriter(await generationOf())).toBe(false);
+    expect(hasStructuredWriter(await generationOf())).toBe(false);
+
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: row.id,
+      patch: { declared: { generation: { tools: { parallel: false }, output: { structured: true } } } },
+    });
+    expect(hasToolWriter(await generationOf())).toBe(true);
+    expect(hasStructuredWriter(await generationOf())).toBe(true);
+  });
+
+  // Ollama's `/v1/models` carries no window and truncates at its own `num_ctx`; the trained maximum in
+  // `model_info` is NOT that window. A server whose native read fails still lists, and its window reads assumed.
+  test("an Ollama row reads the window the server truncates at, never the trained maximum, and an unreported one is assumed", async () => {
+    const models = { match: "/v1/models", json: { data: [{ id: "llama3.1:8b" }] } };
+    const show = {
+      match: "/api/show",
+      json: {
+        parameters: 'num_ctx                        16384\nstop                           "<|eot_id|>"',
+        ["model_info"]: { ["llama.context_length"]: 131_072 },
+      },
+    };
+    const db = await freshDb();
+    const owner = await seedOwner(db);
+    const reporting = await makeHarness(db, { routes: [models, show, { match: "/api/ps", json: { models: [] } }] });
+    const row = await reporting.svc.create({ principal: owner.principal, providerId: OLLAMA, credentialId: null, baseUrl: OLLAMA_URL, model: "llama3.1:8b" });
+    const read = await reporting.svc.capabilities({ principal: owner.principal, connectionId: row.id });
+    expect(read.capability).toMatchObject({ kind: "generation", generation: { context: { window: 16_384 } } });
+    expect(read.capability.kind === "generation" ? read.capability.generation.context.windowEstimated : "not generation").toBeUndefined();
+    expect(reporting.requests.map((request) => request.url)).toContain("http://127.0.0.1:11434/api/show");
+
+    const silentDb = await freshDb();
+    const silent = await makeHarness(silentDb, { routes: [models] });
+    const silentOwner = await seedOwner(silentDb);
+    const unreported = await silent.svc.create({
+      principal: silentOwner.principal,
+      providerId: OLLAMA,
+      credentialId: null,
+      baseUrl: OLLAMA_URL,
+      model: "llama3.1:8b",
+    });
+    const assumed = await silent.svc.capabilities({ principal: silentOwner.principal, connectionId: unreported.id });
+    expect(assumed.capability).toMatchObject({ kind: "generation", generation: { context: { windowEstimated: true } } });
   });
 });

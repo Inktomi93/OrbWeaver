@@ -743,14 +743,24 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await expectInsideViewport(page, dialog);
     });
 
-    test(`${arm}: refusal — with key storage off the dialog refuses the INPUT, never the save`, async ({ mount, page }) => {
+    // The refusal is per provider: a keyed provider's INPUT is refused (never the save), and a keyless own
+    // server is still addable, without a key field it could not keep.
+    test(`${arm}: refusal — with key storage off a keyed provider's input is refused and a keyless server still adds`, async ({ mount, page }) => {
       await stubConnectionsPane(page, { storageEnabled: false });
       await mount(<ConnectionsAuthoringStory width={width} />);
       const dialog = await openAddDialog(page);
+      await pickProvider(page, dialog, "OpenAI");
       await expect(dialog.getByText("Key storage is turned off on this server")).toBeVisible();
-      await expect(dialog.getByRole("combobox", { name: "Provider" })).toHaveCount(0);
+      await expect(dialog.getByLabel("API key", { exact: true })).toHaveCount(0);
+      await expect(dialog.getByRole("button", { name: "Add connection" })).toHaveCount(0);
       await expect(dialog.getByRole("button", { name: "Close" })).toBeVisible();
       await expectInsideViewport(page, dialog);
+
+      await pickProvider(page, dialog, "Ollama");
+      await expect(dialog.getByLabel("Server URL", { exact: true })).toBeVisible();
+      await expect(dialog.getByLabel("API key (optional)", { exact: true })).toHaveCount(0);
+      await expect(dialog.locator('[data-slot="add-connection-keyless-note"]')).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "Add connection" })).toBeVisible();
     });
 
     test(`${arm}: error — a failed connection write after a saved key is stated, with the retry in reach`, async ({ mount, page }) => {

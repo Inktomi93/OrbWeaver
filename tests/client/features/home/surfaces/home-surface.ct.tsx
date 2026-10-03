@@ -26,6 +26,7 @@ import { characterListResponder, makeCharacterSummary } from "../../character/fi
 import { CHAT_ROOM_ROUTES, chatListResponder, makeChatSummary, makeSeatPortrait } from "../../chat/fixtures.ts";
 import { READY_DOC, stubDatabank } from "../../databank/fixtures.ts";
 import {
+  HomeDoorwayGroupStory,
   HomeDormantTileStory,
   HomeEmptyStory,
   HomeFoldStory,
@@ -33,7 +34,6 @@ import {
   HomeRegionStory,
   HomeRememberedAlsoOpenStory,
   HomeRememberedStarterStory,
-  HomeRoadmapStory,
   HomeScrollCueFittingStory,
   HomeScrollCueStory,
   HomeShippedFirstBootStory,
@@ -43,9 +43,8 @@ import {
 } from "../_ct-stories.tsx";
 
 const TEASER_RE = /Your companion/u;
-/** The doorway group's ONE name since #455 — its disclosure trigger, its h2, and its region's a11y name.
- *  It replaced "Not yet", which named the group from inside a band you were already reading. */
-const GROUP_LABEL = "What's coming";
+/** The doorway group's ONE name since #455 — its disclosure trigger, its h2, and its region's a11y name. */
+const GROUP_LABEL = "Planned";
 /** The doorway's STATE LINE. It was the tracked developer citation ("waiting on: domain/buddy (not in the
  *  retro tree)") until the 2026-08-17 rail sweep (P1-3) — user-voice copy now, and no "waiting on:" prefix. */
 const REASON_RE = /^Not started yet/u;
@@ -183,31 +182,27 @@ test("#833 the doorway fold wears the sibling band (kicker register + hairline) 
   await expect(rule).toHaveAttribute("aria-hidden", "true");
 });
 
-// ── WHAT THE REGION LISTS (#834) ───────────────────────────────────────────────────────────────────
-// B3 retired automation's doorway and left this whole region delivering ONE dateless row, so the owner
-// ruled its SUBJECT rather than its existence: it lists the committed-but-unrealized programs
-// (the open program items under `docs/work/`), buddy among them. The tuple's parity with those
-// items is a node test (`tests/client/features/home/lib/roadmap.test.ts`); what only a browser can say is
-// that the curated list REACHES the surface — one named row each, in order, behind one press, with the
-// count the band advertises equal to what opens.
-/** The shipped set, in door order: buddy's 80 leads, then the roadmap tuple's own reading order. */
-const ROADMAP_ROW_NAMES = ["Buddy", "RPG mode", "Reactions", "World state", "Agents of their own", "World maps"];
+// ── WHAT THE GROUP HOLDS ────────────────────────────────────────────────────────────────────────────
+// Every declared doorway reaches the surface: one named row each, in `(order, id)`, behind one press, with
+// the count the band advertises equal to what opens.
+/** The story's doorways in `(order, id)`: the second fake declares the lower order, so it leads. */
+const DOORWAY_ROW_NAMES = ["Atlas", "Buddy"];
 
-test("#834 the fold lists the committed roadmap — a derived count on the band, one named row per program", async ({ mount }) => {
-  const home = await mount(<HomeRoadmapStory />);
+test("the fold lists every doorway — a derived count on the band, one named row per doorway", async ({ mount }) => {
+  const home = await mount(<HomeDoorwayGroupStory />);
   const region = home.locator(`section[aria-label="${GROUP_LABEL}"]`);
 
   // The count is the band's TRAILING chip and it is DERIVED — asserted against the rows that actually
-  // open, so a tuple that grows while the chip does not (or the reverse) fails here rather than lying.
+  // open, so a doorway set that grows while the chip does not (or the reverse) fails here rather than lying.
   //
-  // RED-FIRST (side-eye HOME 2026-09-02 H10): the chip used to reach AT as a BARE "7" — `snap --aria`
-  // rendered `button "What's coming"` and then an unattributed `text: "7"`, so a screen-reader user heard
-  // "What's coming, collapsed… seven". The unit word is real text INSIDE the chip, screen-reader-only, so
-  // the chip names itself. What it is NOT is the review's other suggestion — folding the count into the
-  // trigger's accessible name — because #482 and #833 both ruled on that exact string, and the chip sits
-  // outside the button precisely so nothing concatenates into it. The trigger assertion below is the
-  // other half of this pin: the name is still EXACTLY the group's one name.
-  await expect(region.locator('[data-slot="badge"]')).toHaveText(`${String(ROADMAP_ROW_NAMES.length)} items`);
+  // RED-FIRST (side-eye HOME 2026-09-02 H10): the chip used to reach AT as a BARE figure, so a
+  // screen-reader user heard the group's name, "collapsed… seven" with nothing saying seven WHAT. The unit
+  // word is real text INSIDE the chip, screen-reader-only, so the chip names itself. What it is NOT is the
+  // review's other suggestion — folding the count into the trigger's accessible name — because #482 and
+  // #833 both ruled on that exact string, and the chip sits outside the button precisely so nothing
+  // concatenates into it. The trigger assertion below is the other half of this pin: the name is still
+  // EXACTLY the group's one name.
+  await expect(region.locator('[data-slot="badge"]')).toHaveText(`${String(DOORWAY_ROW_NAMES.length)} items`);
   // …and the unit word costs the band NOTHING: it is clipped to the screen-reader box, so the chip still
   // paints the bare figure the mock draws in the trailing slot.
   await expect
@@ -219,7 +214,7 @@ test("#834 the fold lists the committed roadmap — a derived count on the band,
   await trigger.click();
 
   // EXACT names, in order — a heading each, which is how a heading-navigating reader steps the list.
-  await expect(region.getByRole("heading", { level: 3 })).toHaveText(ROADMAP_ROW_NAMES);
+  await expect(region.getByRole("heading", { level: 3 })).toHaveText(DOORWAY_ROW_NAMES);
   // Every row is a DOORWAY, not an IOU with a control on it: the opened panel offers nothing to press.
   await expect(region.locator('[data-slot="collapsible-panel"] button')).toHaveCount(0);
 });
@@ -384,8 +379,7 @@ test("#102 DOORWAYS are grouped under ONE band, not framed one by one", async ({
   await expect(group).toBeVisible();
   // #455: the band is a FOLD now, so the grouping contract is asserted on the opened panel.
   await group.getByRole("button", { name: GROUP_LABEL }).click();
-  // The one remaining real doorway lives inside that ONE band (automation's doorway retired with B3 — its
-  // chips now consume the channel it stood for; buddy is the last genuinely-dormant feature)…
+  // The story's one doorway lives inside that ONE band…
   await expect(group.locator("[data-home-tile]")).toHaveCount(1);
   // …and neither wears a band, a badge or a control of its own (a doorway has no chrome to spend).
   await expect(group.getByText("Dormant")).toHaveCount(0);
@@ -1215,7 +1209,7 @@ test("#455 the doorway group ships COLLAPSED — one control line, and the roadm
   await expect(trigger).toBeVisible();
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
   // The teaser line is ALL that is rendered: no doorway body, no title, no roadmap prose.
-  await expect(home.locator('[data-home-tile="buddy"]')).toHaveCount(0);
+  await expect(home.locator('[data-home-tile="dormant"]')).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 3 })).toHaveCount(0);
 });
 
@@ -1224,10 +1218,9 @@ test("#455 opening the fold restores the block WHOLE — #457's h3 titles and ra
 
   await page.getByRole("button", { name: GROUP_LABEL }).click();
   await expect(page.getByRole("button", { name: GROUP_LABEL })).toHaveAttribute("aria-expanded", "true");
-  await expect(home.locator('[data-home-tile="buddy"]')).toBeVisible();
+  await expect(home.locator('[data-home-tile="dormant"]')).toBeVisible();
   // #457's work SURVIVES the fold rather than being folded away with it: real h3 titles, and the teaser
   // still on the `prose` length modifier (the ramp stop above bare micro), which is what P3-6 ruled.
-  // (Automation's doorway retired with B3, so buddy is the one remaining h3 title.)
   await expect(page.getByRole("heading", { level: 3 })).toHaveText(["Buddy"]);
   const triggerSize = await page.getByRole("button", { name: GROUP_LABEL }).evaluate((el) => Number.parseFloat(globalThis.getComputedStyle(el).fontSize));
   // P3-6's actual defect: the explanatory paragraph rendered at the SAME step as the label above it.

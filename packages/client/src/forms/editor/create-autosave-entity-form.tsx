@@ -1,30 +1,6 @@
-// createAutosaveEntityForm — the session-boundary autosave factory (D78,
-// D78; SEAL landed 2026-07-16). The ONE way a feature mounts an autosave form: `const XForm =
-// createAutosaveEntityForm<TValues>(config)` at module scope, then `<XForm entityId serverValues save>
-// {(session) => …}</XForm>`. The factory OWNS identity, reseed, the teardown flush, the baseline, and the
-// save driver (the D78 ledger row); the internal Session hook is unexported, so the failure modes it kills
-// (§7) are unspellable rather than merely discouraged. `no-manual-autosave-flush` (G-A) bans the retired
-// call-site array flush; `no-form-reset-in-autosave` / `no-direct-useform` / `form-factory-for-multifield`
-// hold the rest. `noComponentHookFactories` is off for this file via a biome.json override (see the bottom).
-//
-// EXACTLY ONE PERSISTENCE SEAM is a COMPILE fact, not prose (Codex audit client-forms-01): the factory is
-// overloaded so a config WITHOUT `save` returns a boundary whose `save` prop is REQUIRED. A seamless mount
-// used to report "Saved" over an edit it had thrown away — see the factory TSDoc + the onSubmit refusal.
-//
-// WHY a boundary component and not a hook (D78 §0–§2): the old factory delegated entity IDENTITY to an
-// invisible consumer convention ("put a React `key` above the component that calls the hook"). When a lane
-// composed the key wrong, it rendered the previous entity under the new one and one keystroke persisted A
-// into B (the live F1 P0). Here the factory OWNS the key: the internal Session component is defined inside
-// the factory closure and never exported, so a consumer CANNOT mount an autosave form except through the
-// boundary that keys its own Session. Wrong key placement is no longer a mistake you can spell.
-//
-//   Boundary  — holds `epoch` state + a discard-flag ref; renders <Session key={entityId:epoch}> and
-//               threads the reseed payload down as a plain prop. An identity change OR reseed() bumps the
-//               key = a React-guaranteed full teardown/remount of the form AND the consumer's body
-//               (tabs/scroll/local state reset with it — the entity-switch behavior; D78 §2 O1).
-//   Session   — owns the private useAppForm call, saveState, lastSavedRef, the store-subscription save
-//               driver (§3), and the ONE teardown flush (§4, discard-aware). Its seed = the reseed payload
-//               if present, else defaults ⊕ serverValues ⊕ surviving draft.
+// D78 autosave boundary: the keyed session owns identity, reseeding, confirmed baseline, draft mirror and teardown flush.
+// Every writable mount supplies exactly one persistence seam; consumers never create a second save driver.
+// The private session remounts on entity changes or explicit reseeding, keeping outgoing writes on their original entity.
 
 import { revalidateLogic } from "@tanstack/react-form";
 import type { ReactElement, ReactNode, RefObject } from "react";
@@ -140,6 +116,9 @@ export function createAutosaveEntityForm<TValues extends object>(
     // genuinely clean (the permanently-dirty `isDefaultValue` defect never applies — it is not consulted
     // anywhere). Structural compare (formValuesEqual), never identity (mapper-fresh objects).
     const lastSavedRef = useRef<TValues>(seed);
+    const draftBaselineRef = useRef(baselineHash);
+    // A restored seed is held for explicit retry, but it is not server-confirmed clean input.
+    const restoredUnsavedRef = useRef(pendingSeed === undefined && !formValuesEqual(seed, { ...config.defaultValues, ...serverValues }));
     // The last server snapshot we baselined to — the clean-echo reseed (§5) compares the incoming
     // `serverValues` against THIS structurally (identity compare is the mapper-fresh-object trap).
     const lastServerRef = useRef<TValues | undefined>(serverValues);
@@ -175,9 +154,15 @@ export function createAutosaveEntityForm<TValues extends object>(
           if (submitEpoch !== submitEpochRef.current) {
             return;
           }
-          // Re-baseline to the just-saved snapshot AFTER save resolves (§4) — all guards now read clean.
+          restoredUnsavedRef.current = false;
           lastSavedRef.current = value;
-          config.draft?.clearDraft(entityId);
+          draftBaselineRef.current = hashServerBaseline(value);
+          // Completion owns its submitted snapshot, not edits made while that snapshot was in flight.
+          if (formValuesEqual(form.state.values, value)) {
+            config.draft?.clearDraft(entityId);
+          } else {
+            mirrorDraft(config.draft, entityId, form.state.values, draftBaselineRef.current);
+          }
           setSaveState("saved");
         } catch (error) {
           // Record the failed lifecycle for the retry affordance, then re-throw so the driver's own
@@ -255,7 +240,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         if (!programmaticWriteRef.current) {
           breaker.onEdit();
         }
-        mirrorDraft(config.draft, entityId, values, baselineHash);
+        mirrorDraft(config.draft, entityId, values, draftBaselineRef.current);
         if (stoppedRef.current) {
           return; // the breaker tripped this session — no further autosaves until reseed/remount
         }
@@ -278,7 +263,7 @@ export function createAutosaveEntityForm<TValues extends object>(
       return (): void => subscription.unsubscribe();
       // `hasUnsavedEdits` is a plain function over `form` + a ref (D54 — no manual memo), so `form` already
       // IS its dependency; naming the callback identity would only re-arm on every render.
-    }, [form, entityId, baselineHash, readOnly, unwritable]);
+    }, [form, entityId, readOnly, unwritable]);
 
     // Clean server-echo reseed (§5, two-device freshness): when `serverValues` changes STRUCTURALLY
     // (deep-compare vs the last-seen snapshot — identity is the mapper-fresh-object trap) and the form is
@@ -289,10 +274,11 @@ export function createAutosaveEntityForm<TValues extends object>(
         return;
       }
       lastServerRef.current = serverValues;
-      if (saveState !== "saving" && !hasUnsavedEdits(form.state.values, lastSavedRef.current)) {
+      if (saveState !== "saving" && !restoredUnsavedRef.current && !hasUnsavedEdits(form.state.values, lastSavedRef.current)) {
         // A clean re-baseline: adopt the server values as the new saved truth AND push them into the live
         // form (via each field, so the controlled inputs follow — never `form.reset`, the banned path).
         lastSavedRef.current = serverValues;
+        draftBaselineRef.current = baselineHash;
         // Stamp the mirror with the NEW server baseline (`baselineHash` already reflects this render's
         // `serverValues`), so a crash-restored draft is verified against the truth the form now shows.
         mirrorDraft(config.draft, entityId, serverValues, baselineHash);

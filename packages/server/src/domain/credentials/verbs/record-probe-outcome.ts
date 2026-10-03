@@ -19,6 +19,8 @@ import { clearRevokedOwned, fetchOwnedCredential, setRevokedById } from "../pers
 import { requireOwned } from "../substrate/credential-not-found.ts";
 import { beginProbe, recordStrike, resetStrikes } from "../substrate/health-throttle.ts";
 
+const HTTP_SERVER_ERROR_MIN = 500;
+
 interface Outcome {
   readonly ownerId: UserId;
   readonly credentialId: UserCredentialId;
@@ -44,8 +46,11 @@ async function applyOutcome(ctx: CredentialContext, args: Outcome, result: Crede
     return { status: "revoked", checkedAt: now, reason: result.reason };
   }
   if (result.status === "unreachable") {
-    if (args.localEndpoint) {
-      return { status: "unreachable", checkedAt: now, reason: result.reason };
+    // A server that answered with a client error (a wrong path's 404) is up, so it strikes nothing; a 5xx is
+    // often a proxy in front of a dead box, so it strikes like a transport failure.
+    const answeredUp = result.httpStatus !== undefined && result.httpStatus < HTTP_SERVER_ERROR_MIN;
+    if (args.localEndpoint || answeredUp) {
+      return { ...result, checkedAt: now };
     }
     const { strikes, limitHit } = recordStrike(credentialId);
     if (limitHit) {

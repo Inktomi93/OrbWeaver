@@ -825,6 +825,22 @@ test("PARALLEL TOOL CALLS — off saves false, and on clears the field back to t
   await expect.poll(() => saved(deck).textContent(), savePoll()).not.toContain("parallelToolCalls");
 });
 
+// REPLY PICTURES is the only door to `replyMedia`. It renders on a text-only model too (this story's), because
+// a preset outlives the model it is previewed on: the funnel drops it there with a chat warning. On stores
+// `text+image`; off clears the field, so a preset that never asked for pictures stores nothing.
+test("REPLY PICTURES — on stores text+image in the preset, and off clears the field", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+
+  const toggle = deck.getByRole("switch", { name: "Reply pictures" });
+  await expect(toggle).not.toBeChecked();
+  await toggle.click();
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('replyMedia:"text+image"');
+
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  await expect.poll(() => saved(deck).textContent(), savePoll()).not.toContain("replyMedia");
+});
+
 // ── #1570 item 3 · THE BOX ALWAYS SHOWS WHAT THE PRESET HOLDS, IN BOTH DIRECTIONS ────────────────
 // The field's own ruling is "a blur re-mounts with the CANONICAL serialization of what was actually stored
 // — the honest answer to 'invalid JSON is ignored'". Keyed on the stored serialization ALONE that was true
