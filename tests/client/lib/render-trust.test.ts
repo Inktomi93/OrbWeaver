@@ -57,7 +57,7 @@ test("ANOTHER human's user message is UNTRUSTED (authorUserId !== viewerUserId)"
   expect(r.trust).toBe("untrusted");
 });
 
-test("an assistant message with NO opt-in is UNTRUSTED (the safe default)", () => {
+test("an assistant message whose character resolved to the untrusted step is UNTRUSTED", () => {
   const r = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,
@@ -69,9 +69,10 @@ test("an assistant message with NO opt-in is UNTRUSTED (the safe default)", () =
   expect(r.allowExternal).toBe(false);
 });
 
-test("an assistant message whose character OPTED IN (resolved trustHtml=true) is trusted", () => {
-  // Covers BOTH the per-character override AND the deployment-global opt-in — both resolve server-side to
-  // the same `renderPolicy.trustHtml` the client reads here (the client never re-resolves).
+test("an assistant message whose character resolved to the trusted step is trusted", () => {
+  // Every server-side route to that step (an explicit per-character step, the deployment `trustHtml`
+  // default, or an inheriting character) lands as the same `renderPolicy.htmlTrust` the client reads here
+  // (the client never re-resolves).
   const r = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,
@@ -83,7 +84,7 @@ test("an assistant message whose character OPTED IN (resolved trustHtml=true) is
   expect(r.allowExternal).toBe(true);
 });
 
-test("a system message is UNTRUSTED (never own-input, never a character opt-in)", () => {
+test("a system message is UNTRUSTED (never own-input, and no character policy to read)", () => {
   const r = resolveRowRenderPolicy({
     role: "system",
     authorUserId: null,
@@ -152,7 +153,7 @@ test("an UNTRUSTED author in a non-game room gets tierA — the inert default", 
   expect(r.cardTier).toBe("tierA");
 });
 
-test("AXIS 1 — a per-character trustHtml opt-in grants tierB", () => {
+test("AXIS 1 — a character resolved to the trusted step gets tierB", () => {
   const r = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,
@@ -166,7 +167,7 @@ test("AXIS 1 — a per-character trustHtml opt-in grants tierB", () => {
 test("AXIS 2 — the ROOM's immersive-HTML switch grants tierB even to an UNTRUSTED author", () => {
   // Turning on immersive HTML is what makes the engine TEACH the model to emit `:::card` fences. A room
   // that asks for cards and then renders them inert is a toggle that lies, so the host flipping it IS the
-  // consent — independent of whether the authoring character opted in.
+  // consent — independent of the authoring character's resolved step.
   const r = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,
