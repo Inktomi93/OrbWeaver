@@ -235,3 +235,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D285 | [Parked programs retain concepts and implemented product boundaries](0285-parked-program-concepts-and-retained-product-boundaries.md) | active |
 | D286 | [Import identity and additive doors](0286-import-identity-and-additive-doors.md) | active |
 | D287 | [Custom rules use canonical autosave and recoverable creation](0287-custom-rules-use-canonical-autosave-and-recoverable-creation.md) | active |
+| D288 | [OpenRouter Claude stays on chat completions (amends D174)](0288-openrouter-claude-stays-on-chat-completions.md) | active |
