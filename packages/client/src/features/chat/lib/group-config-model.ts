@@ -16,6 +16,8 @@ export const GROUP_CONFIG_ENTITY_PREFIX = "group-config:";
 export interface GroupConfigFormValues {
   readonly output: GroupOutput;
   readonly policy: GroupPolicy;
+  /** Smart only: pick with the Utility-model arbiter instead of the reranker (=\> wire smartPicker: "utility"). */
+  readonly smartUsesUtility: boolean;
   /** per-speaker only: each character sees only its own card (=\> wire cardScope: "scoped"). */
   readonly scopedCards: boolean;
   readonly speakerTags: boolean;
@@ -35,6 +37,7 @@ export function toGroupConfigForm(config: GroupConfig): GroupConfigFormValues {
   return {
     output: config.output,
     policy: config.policy,
+    smartUsesUtility: config.smartPicker === "utility",
     scopedCards: config.output === "per-speaker" ? config.cardScope === "scoped" : false,
     speakerTags: config.speakerTags,
     groupNudge: config.groupNudge,
@@ -49,6 +52,7 @@ export function toGroupConfigForm(config: GroupConfig): GroupConfigFormValues {
 export function fromGroupConfigForm(values: GroupConfigFormValues): GroupConfig {
   const shared = {
     policy: values.policy,
+    smartPicker: values.smartUsesUtility ? "utility" : "reranker",
     speakerTags: values.speakerTags,
     groupNudge: values.groupNudge,
     autoMode: values.autoMode,

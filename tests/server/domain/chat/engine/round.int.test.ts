@@ -55,6 +55,7 @@ const PER_SPEAKER: GroupConfig = { ...DEFAULT_GROUP_CONFIG };
 const NARRATOR: GroupConfig = {
   output: "narrator",
   policy: "natural",
+  smartPicker: "reranker",
   speakerTags: true,
   groupNudge: true,
   autoMode: false,

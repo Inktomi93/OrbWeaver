@@ -61,10 +61,10 @@ export const GROUP_POLICIES = ["natural", "list", "pooled", "manual", "smart"] a
 export type GroupPolicy = (typeof GROUP_POLICIES)[number];
 /** Arbitration policy (WHO speaks each round). `@mention` is NOT a policy value — it is a hard override
  *  applied BEFORE the policy (and in a NARRATOR room it COERCES the round to per-speaker for the named
- *  character, like the other two forced doors). `smart` is LIVE: the side-LLM turn arbiter
- *  (`domain/chat/engine/smart-arbitrate`) picks the one next speaker, roster-validated; `natural` is its
- *  DEGRADE arm — a thrown/garbled/off-roster reply falls back to the natural pick and says so out loud
- *  (`smart_arbitration_degraded`, D41). A NARRATOR round never buys that arbiter call (see the arm below). */
+ *  character, like the other two forced doors). `smart` picks the one next speaker with the room's
+ *  {@link SmartPicker}: the bound reranker by default (`domain/chat/engine/rerank-pick`), or the Utility-model
+ *  arbiter (`domain/chat/engine/smart-arbitrate`) as the opt-in upgrade. `natural` is its DEGRADE arm, and the
+ *  degrade says so out loud (D41). A NARRATOR round never buys either pick (see the arm below). */
 export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural") satisfies z.ZodType<GroupPolicy>;
 
 /** The policy names the host reads on the room's Group tab. A guest's invite preview says how the room plays in its
@@ -74,8 +74,25 @@ export const GROUP_POLICY_LABELS: Record<GroupPolicy, string> = {
   list: "Everyone, in order",
   pooled: "Round-robin",
   manual: "Only when I pick",
-  smart: "Smart (Utility model)",
+  smart: "Smart",
 };
+
+/** What Smart picks with (owner ruling on 0420): the bound rerank role by default, free and local on the
+ *  built-in reranker, or the Utility-model arbiter as the opt-in upgrade. A sub-setting of `smart`, never a
+ *  policy of its own; every other policy ignores it. */
+export const SMART_PICKERS = ["reranker", "utility"] as const;
+export type SmartPicker = (typeof SMART_PICKERS)[number];
+/** The picker names the host reads under Smart on the Group tab. */
+export const SMART_PICKER_LABELS: Record<SmartPicker, string> = {
+  reranker: "Rerank model",
+  utility: "Utility model",
+};
+/** The Group-tab switch that turns on Smart's Utility-model picker; the arbiter prompt's editor copy names it too. */
+export const SMART_UTILITY_SWITCH_LABEL = `Use the ${SMART_PICKER_LABELS.utility} instead`;
+// A stored blob from before the sub-setting existed parses to the default, so no migration is owed.
+const smartPickerField = {
+  smartPicker: z.enum(SMART_PICKERS).catch("reranker").default("reranker"),
+} as const;
 
 // Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (both arms are strict).
 // Defaults make the OFF path byte-identical (no timer / no auto-turn / no scheduling).
@@ -135,6 +152,7 @@ export const groupConfigSchema = z.discriminatedUnion("output", [
      *  it still governs here is the auto-chain's cheap deterministic continue/stop probe, so `manual` ends a
      *  narrator chain after the first beat. */
     policy: groupPolicySchema,
+    ...smartPickerField,
     speakerTags: z.boolean().catch(true).default(true),
     groupNudge: z.boolean().catch(true).default(true),
     ...autoModeFields,
@@ -145,6 +163,7 @@ export const groupConfigSchema = z.discriminatedUnion("output", [
   z.strictObject({
     output: z.literal("per-speaker"),
     policy: groupPolicySchema,
+    ...smartPickerField,
     cardScope: z.enum(["merged", "scoped"]).catch("merged").default("merged"),
     speakerTags: z.boolean().catch(false).default(false),
     groupNudge: z.boolean().catch(true).default(true),
@@ -192,6 +211,7 @@ export type GroupConfigInput = z.input<typeof groupConfigSchema>;
 const [narratorGroupSchema, perSpeakerGroupSchema] = groupConfigSchema.options;
 const groupInputFields = {
   policy: groupPolicySchema.unwrap().unwrap().optional(),
+  smartPicker: smartPickerField.smartPicker.unwrap().unwrap().optional(),
   speakerTags: narratorGroupSchema.shape.speakerTags.unwrap().unwrap().optional(),
   groupNudge: narratorGroupSchema.shape.groupNudge.unwrap().unwrap().optional(),
   autoMode: autoModeFields.autoMode.unwrap().unwrap().optional(),
@@ -216,6 +236,7 @@ export const groupConfigInputSchema = z.discriminatedUnion("output", [
 export const DEFAULT_GROUP_CONFIG: GroupConfig = {
   output: "per-speaker",
   policy: "natural",
+  smartPicker: "reranker",
   cardScope: "merged",
   speakerTags: false,
   groupNudge: true,

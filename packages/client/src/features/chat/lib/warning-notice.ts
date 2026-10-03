@@ -100,6 +100,11 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
         description: "The turn-arbiter model wasn't available, so who speaks next was picked automatically.",
         title: "Who speaks next was picked automatically",
       };
+    case "speaker_rerank_unavailable":
+      return {
+        description: "Smart ranks speakers with your Rerank model, and none was available, so who speaks next was picked automatically.",
+        title: "No Rerank model to pick who speaks next",
+      };
     case "guided_placed_as_injection":
       return {
         description: "This preset has no Guided instruction marker to place it in, so your steering was added as an inline instruction.",
