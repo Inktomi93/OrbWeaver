@@ -23,3 +23,5 @@ Prove persisted mode selection and restart recovery under the native launcher an
 ## Evidence
 
 Delegated source audit: `/tmp/claude-launch-punchlist/items.json`, proposal `19 + ruling: Start sharing reachable from Settings without env edits`. The report contains exact source paths, coupled tests and independent skeptic findings. Runtime and implementation acceptance remain required.
+
+Owner ruling (2026-10-03): env stays a working source of truth; Settings is added beside it, never replaces it. Define precedence explicitly (env pins win, or Settings overrides, decided against Spine-Config-and-Serialization.md) and show the source in the UI.
