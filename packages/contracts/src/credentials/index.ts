@@ -45,13 +45,14 @@ export function parseProviderMetadata(raw: unknown): ProviderMetadata {
 export type CredentialHealth =
   | { status: "ok"; checkedAt: number }
   | { status: "revoked"; checkedAt: number; reason: string }
-  | { status: "unreachable"; checkedAt: number; reason: string }
+  /** `httpStatus` = the server answered with a non-auth HTTP error (a wrong path's 404, a proxy's 502) rather than not at all. */
+  | { status: "unreachable"; checkedAt: number; reason: string; httpStatus?: number | undefined }
   | { status: "throttled"; checkedAt: number }
   | { status: "unchecked"; checkedAt: number; reason: string };
 export const credentialHealthSchema = z.discriminatedUnion("status", [
   z.strictObject({ status: z.literal("ok"), checkedAt: z.number() }),
   z.strictObject({ status: z.literal("revoked"), checkedAt: z.number(), reason: z.string() }),
-  z.strictObject({ status: z.literal("unreachable"), checkedAt: z.number(), reason: z.string() }),
+  z.strictObject({ status: z.literal("unreachable"), checkedAt: z.number(), reason: z.string(), httpStatus: z.number().int().optional() }),
   z.strictObject({ status: z.literal("throttled"), checkedAt: z.number() }),
   z.strictObject({ status: z.literal("unchecked"), checkedAt: z.number(), reason: z.string() }),
 ]) satisfies z.ZodType<CredentialHealth>;

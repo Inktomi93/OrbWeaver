@@ -9,10 +9,11 @@
 // honesty rules that govern what a source line may say live in THAT file's header.
 
 import type { Capability, DeclaredCapability, ModelKind, RoutableTask, Task } from "@orb/contracts/inference";
-import { BELT_OWNED_BODY_KEYS, requirementMet, taskDef } from "@orb/contracts/inference";
+import { BELT_OWNED_BODY_KEYS, EMBED_SPACE_DIMS, requirementMet, spaceMisfitReason, taskDef } from "@orb/contracts/inference";
 import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 // Direct, not through `#lib`: node-side CT specs import this module.
 import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
+import { grouped } from "./connection-fact-model.ts";
 
 // ── the Purpose tier: the inferred-kind verdict ────────────────────────────────────────────────────────
 
@@ -66,6 +67,9 @@ const CLAUSE_WORDS: Readonly<Record<string, string>> = {
   dims: "wrong vector width",
 };
 
+/** `requirementMet`'s width clause spelling (`dims:1024`). */
+const DIMS_CLAUSE_PREFIX = "dims:";
+
 function clauseWords(clause: string): string {
   const axis = clause.split(":")[0] ?? clause;
   return CLAUSE_WORDS[clause] ?? CLAUSE_WORDS[axis] ?? clause;
@@ -84,7 +88,10 @@ function badgeFor(task: RoutableTask, label: string, capability: Capability, tas
   // fallback for a task nothing more specific refused.
   const verdict = requirementMet(capability, def.requires);
   if (!verdict.ok) {
-    return { task, label, ok: false, reason: verdict.missing.map(clauseWords).join(", ") };
+    // A width clause names both widths: "wrong vector width" alone leaves the user guessing which way.
+    const width = capability.kind === "embedding" && def.requires?.dims !== undefined ? spaceMisfitReason(capability.embedding, def.requires.dims) : null;
+    const clauses = verdict.missing.map((clause) => (width !== null && clause.startsWith(DIMS_CLAUSE_PREFIX) ? width : clauseWords(clause)));
+    return { task, label, ok: false, reason: clauses.join(", ") };
   }
   if (!tasks.includes(task)) {
     return { task, label, ok: false, reason: "this provider doesn't serve it" };
@@ -99,6 +106,38 @@ function badgeFor(task: RoutableTask, label: string, capability: Capability, tas
 export function capabilityBadges(capability: Capability, tasks: readonly Task[]): readonly CapabilityBadge[] {
   const badges = ROLE_ROWS_ORDERED.map((row) => badgeFor(row.task, row.label, capability, tasks));
   return [...badges.filter((badge) => badge.ok), ...badges.filter((badge) => !badge.ok)];
+}
+
+/** The Purpose tier's notes: what an unstated or guessed fact costs the user, and where to state it. Only facts
+ *  the fold marks: on an own-server row an unstated tool-call or structured-output leaf (a hosted catalog
+ *  states those), and anywhere a floor-guessed window or vector width. */
+export function purposeNotes(capability: Capability, ownServer: boolean): readonly string[] {
+  if (capability.kind === "embedding") {
+    return capability.embedding.dimsEstimated === true
+      ? [
+          `This server doesn't report the vector width, so we assume ${grouped(capability.embedding.dims)}. Search needs ${grouped(EMBED_SPACE_DIMS)}-wide vectors; check the model's card and set the vector width under Advanced.`,
+        ]
+      : [];
+  }
+  if (capability.kind !== "generation") {
+    return [];
+  }
+  const generation = capability.generation;
+  const notes: string[] = [];
+  if (ownServer && generation.tools === undefined) {
+    notes.push(
+      "Game mode writes its state with tool calls, and this model has none stated, so a game on it stays read-only. If your server supports tool calls, set tool calls under Advanced.",
+    );
+  }
+  if (ownServer && generation.output.structured !== true) {
+    notes.push("The Utility role's structured extraction needs structured output. If your server supports it, set structured output under Advanced.");
+  }
+  if (generation.context.windowEstimated === true) {
+    notes.push(
+      `This server doesn't report its context size, so we assume ${grouped(generation.context.window)} tokens. If the server's real size is smaller, long chats lose their start; set the context window under Advanced.`,
+    );
+  }
+  return notes;
 }
 
 // ── the two tier count badges ──────────────────────────────────────────────────────────────────────────

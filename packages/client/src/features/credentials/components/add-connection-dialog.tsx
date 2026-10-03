@@ -23,8 +23,6 @@ import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
-import { EmptyState } from "@orb/ui/empty-state";
-import { Icon, LockOpen } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { WebSpinner } from "@orb/ui/spinner";
@@ -46,6 +44,7 @@ import {
   CONNECTION_FORM_COPY,
   draftKeyOf,
   draftModelReason,
+  keyStorageBlocks,
   listsOnDemand,
   needsBaseUrl,
   sameFormValues,
@@ -104,7 +103,8 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation }: 
 }
 
 /** CREDENTIAL-STORAGE-SILENT-FAIL — ASK BEFORE COLLECTING: the deployment's SecretBox capability is read
- *  first and the INPUT refused, never the save, so nobody types a live key into a form that cannot keep it. */
+ *  first and the INPUT refused, never the save, so nobody types a live key into a form that cannot keep it.
+ *  The refusal is per provider (`keyStorageBlocks`): a keyless own-server row needs no storage at all. */
 function AddConnectionGate({
   trpc,
   invalidation,
@@ -116,22 +116,13 @@ function AddConnectionGate({
 }): ReactElement {
   const { data: storage } = useSuspenseQuery(trpc.credentials.storageStatus.queryOptions());
   const { data: available } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
-  if (!storage.enabled) {
-    return (
-      <EmptyState
-        action={<DialogClose render={<Button intent="secondary">Close</Button>} />}
-        icon={<Icon icon={LockOpen} size="md" />}
-        title="Key storage is turned off on this server"
-        description="The server has no usable encryption key, so a provider key saved here could not be stored. It generates one beside its database on first boot; the server log says why it could not. Fix that file, or set CREDENTIALS_KEY in the server environment, restart, and add the connection then."
-      />
-    );
-  }
   const providers = new Map(available.map((row) => [row.provider.id as string, row.provider]));
   return (
     <AddConnectionFormBody
       trpc={trpc}
       invalidation={invalidation}
       onDone={onDone}
+      keyStorage={storage.enabled}
       pickerItems={providerPickerItems(available)}
       providerOf={(id): ProviderDef | undefined => providers.get(id)}
     />
@@ -142,6 +133,8 @@ interface FormBodyProps {
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
   readonly onDone: () => void;
+  /** The deployment can store a secret; off ⇒ a provider that needs one cannot be added. */
+  readonly keyStorage: boolean;
   readonly pickerItems: SelectItems<string>;
   readonly providerOf: (id: string) => ProviderDef | undefined;
 }
@@ -169,7 +162,7 @@ function connectionInput(args: {
   };
 }
 
-function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, providerOf }: FormBodyProps): ReactElement {
+function AddConnectionFormBody({ trpc, invalidation, onDone, keyStorage, pickerItems, providerOf }: FormBodyProps): ReactElement {
   const deps = { trpc, invalidation };
   const addCredential = useAddCredentialOwned(deps);
   const createConnection = useCreateConnectionOwned(deps);
@@ -316,6 +309,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
                 <ProviderFields
                   form={form}
                   provider={provider}
+                  keyStorage={keyStorage}
                   trpc={trpc}
                   invalidation={invalidation}
                   held={held}
@@ -343,10 +337,18 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, pickerItems, provid
             }
           </form.Subscribe>
 
-          <Row gap="field" justify="end">
-            <DialogClose render={<Button intent="ghost">Cancel</Button>} />
-            <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
-          </Row>
+          <form.Subscribe selector={(state): string => state.values.providerId}>
+            {(providerId): ReactElement | null => {
+              const provider = providerOf(providerId);
+              // A blocked pick's notice carries its own Close; this footer would only repeat it.
+              return provider !== undefined && keyStorageBlocks(provider, keyStorage) ? null : (
+                <Row gap="field" justify="end">
+                  <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+                  <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
+                </Row>
+              );
+            }}
+          </form.Subscribe>
         </Stack>
       </form>
     </form.AppForm>

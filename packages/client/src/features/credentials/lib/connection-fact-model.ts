@@ -3,7 +3,8 @@
 // `features` ("Endpoint quirks") are different schemas with the same reading job, so they get one row shape,
 // one source-line derivation and one per-field Override write path. Split out of
 // `connection-editor-model.ts` at the `component-size` cap; that file keeps the tier-level reads (the
-// verdict, the badge rail, the extras rows, the admission predicate) and this one keeps the grammar.
+// verdict, the badge rail, the extras rows, the admission predicate), this one keeps the grammar and the
+// quirk rows, and `connection-capability-fact-model.ts` keeps the capability rows.
 //
 // THE SOURCE LINE IS DERIVED, NEVER ASSERTED, and the two blocks are honest to DIFFERENT depths — stated
 // here because the mock is not:
@@ -11,23 +12,25 @@
 //     `connection.providersAvailable`, `foldFeatures`/`WIRE_DEFAULT_FEATURES` are isomorphic
 //     (`@orb/contracts/inference/features.ts`), and the row's own override is `declared.features`. So a quirk
 //     row states its true resolved value, its true layer, and — when overridden — the exact value it replaced.
-//   • CAPABILITY rows are NOT. `connection.capabilities` returns the FOLDED descriptor only
-//     (`domain/connection/contract/results.ts::ConnectionCapabilityView`); there is no per-field provenance and
-//     no baseline-without-`declared` anywhere on the wire, and the synthesis that would produce one is
-//     node-only. The mock's "reported by the server" / "measured on the first turn" / "your override — the
-//     server reported 4,096" are MOCK INVENTION, not §5.3a copy (the mock design §4's inventory lists no capability
-//     source string), so they are NOT rendered: a fabricated number is the worst thing a diagnostics surface
-//     can carry. The rows say only what is true, and `capabilityFactRows` takes the missing fact as an
-//     OPTIONAL `baseline` parameter — #2478 wires `CapabilityRead.baseline` into it and the restatement turns
-//     on with no other edit.
+//   • CAPABILITY rows are NOT. `connection.capabilities` returns the FOLDED descriptor plus a `baseline` (the
+//     same fold without the row's `declared`), and no per-field provenance; the synthesis is node-only. The
+//     mock's "reported by the server" / "measured on the first turn" strings are MOCK INVENTION, so they are
+//     NOT rendered: a fabricated number is the worst thing a diagnostics surface can carry. A row says only
+//     what is true: the value, "assumed" where the fold marks the value as a floor guess, and the replaced
+//     value from `baseline` when the row is overridden.
+//
+// A LEAF THE FOLD DOES NOT STATE STILL RENDERS when it can be declared on its own (`unset`): a local model
+// with no stated tool calls must be able to say "this server takes tools", and a missing row cannot be
+// overridden. Composite leaves whose schema needs a sibling (`sleep`, `pricing`, `embedBatch`) render only
+// when stated, because a lone half would not parse at the verb.
 
-import type { Capability, DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
-import { EFFORT_SPELLINGS, foldFeatures, IMAGE_ARMS, OUTPUT_CAP_FIELDS, PREFILL_MODES, REASONING_MODES, STRICT_JSON_MODES } from "@orb/contracts/inference";
+import type { DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
+import { EFFORT_SPELLINGS, foldFeatures, IMAGE_ARMS, MODEL_INFO_APIS, OUTPUT_CAP_FIELDS, PREFILL_MODES, STRICT_JSON_MODES } from "@orb/contracts/inference";
 
 /** Digit grouping for a COUNT. Deliberately not `toLocaleString`/`Intl`: these are token counts and vector
  *  widths, not dates or money, and the `no-raw-intl-time` gate exists because a bare `.toLocale*()` is Intl
  *  by the back door — un-memoized and locale-drifting — in a surface whose whole job is a stable reading. */
-function grouped(value: unknown): string {
+export function grouped(value: unknown): string {
   return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
@@ -48,9 +51,18 @@ function grouped(value: unknown): string {
 type FactEdit =
   | { readonly kind: "text" }
   | { readonly kind: "number" }
-  | { readonly kind: "boolean" }
+  | { readonly kind: "boolean"; readonly labels?: BooleanLabels }
   | { readonly kind: "list" }
   | { readonly kind: "enum"; readonly options: readonly string[] };
+
+/** How a boolean fact reads when "yes"/"no" would hide what the value means. */
+export interface BooleanLabels {
+  readonly yes: string;
+  readonly no: string;
+}
+
+/** The plain reading of a boolean fact, for a leaf that states no labels of its own. */
+export const PLAIN_BOOLEAN_LABELS: BooleanLabels = { yes: "yes", no: "no" };
 
 export interface FactRow {
   /** The DOTTED path from the `declared` block's root (`features.prefill`, `generation.context.window`) —
@@ -74,14 +86,21 @@ export interface FactRow {
 }
 
 /** One row's static description — the reading name, the control, and how the raw value reads. */
-interface FactLeaf {
+export interface FactLeaf {
   readonly path: string;
   readonly name: string;
   readonly edit: FactEdit;
   readonly format?: (value: unknown) => string;
+  /** Present ⇒ the leaf renders even when the fold states no value, reading as this, so it can be declared. */
+  readonly unset?: string;
+  /** The flag (a dotted path from the same root) the fold sets when this value is a floor guess. */
+  readonly estimatedBy?: string;
 }
 
-function readPath(root: unknown, path: string): unknown {
+export const NOT_STATED = "not stated";
+const NOT_SET = "not set";
+
+export function readPath(root: unknown, path: string): unknown {
   let cursor: unknown = root;
   for (const segment of path.split(".")) {
     if (typeof cursor !== "object" || cursor === null) {
@@ -148,8 +167,15 @@ export function parseFactValue(edit: FactRow["edit"], raw: string): unknown {
   return raw.trim();
 }
 
-/** The control's seed for a resolved value — the inverse of {@link parseFactValue}. */
-function draftOf(edit: FactEdit, value: unknown): string {
+/** The control's seed for a resolved value — the inverse of {@link parseFactValue}. An unstated leaf seeds the
+ *  control's first choice (a boolean seeds "no", the cautious answer) or an empty field. */
+export function draftOf(edit: FactEdit, value: unknown): string {
+  if (value === undefined) {
+    if (edit.kind === "boolean") {
+      return "false";
+    }
+    return edit.kind === "enum" ? (edit.options[0] ?? "") : "";
+  }
   if (edit.kind === "list") {
     return Array.isArray(value) ? value.map((part) => String(part)).join(", ") : "";
   }
@@ -159,7 +185,8 @@ function draftOf(edit: FactEdit, value: unknown): string {
 /** How a raw leaf value READS when the leaf states no formatter of its own. */
 function readValue(edit: FactEdit, value: unknown): string {
   if (edit.kind === "boolean") {
-    return value === true ? "yes" : "no";
+    const labels = edit.labels ?? PLAIN_BOOLEAN_LABELS;
+    return value === true ? labels.yes : labels.no;
   }
   if (edit.kind === "list") {
     return Array.isArray(value) ? value.map((part) => String(part)).join(", ") : "";
@@ -167,7 +194,7 @@ function readValue(edit: FactEdit, value: unknown): string {
   return String(value);
 }
 
-function formatLeaf(leaf: FactLeaf, value: unknown): string {
+export function formatLeaf(leaf: FactLeaf, value: unknown): string {
   return leaf.format === undefined ? readValue(leaf.edit, value) : leaf.format(value);
 }
 
@@ -198,6 +225,12 @@ function layerSource(providerLabel: string, fromProvider: boolean): string {
   return fromProvider ? `from the ${providerLabel} provider row` : "the default for this kind of server";
 }
 
+/** The row for a declarable leaf the fold states nothing for: its absence reading, and an Override that opens
+ *  on the control's first choice. Never overridden — a declared leaf has a value. */
+export function unsetRow(path: string, leaf: FactLeaf, value: string, source: string): FactRow {
+  return { path, name: leaf.name, value, source, overridden: false, edit: leaf.edit, draft: draftOf(leaf.edit, undefined), siblings: {} };
+}
+
 /** An overridden row's source line — it restates the value it REPLACED whenever that value is knowable, so
  *  the thing you overrode is never hidden by the override (§5.3a). `replaced === undefined` means this client
  *  cannot know it (see the header); the line then says so instead of inventing one. */
@@ -223,6 +256,7 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   reasoningKeys: ["reasoningKeys"],
   images: ["images"],
   rerankPath: ["rerankPath"],
+  modelInfoApi: ["modelInfoApi"],
   sleep: ["sleep.isSleepingPath", "sleep.wakePath"],
   pricing: ["pricing.inputPerMTok", "pricing.outputPerMTok"],
   concurrency: ["concurrency.embed", "concurrency.imageEmbed", "concurrency.summarize"],
@@ -238,14 +272,15 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
  *  contains, so it is written in plain words and the wire's string stays in the VALUE (`reasoning fields` →
  *  `reasoning, reasoning_content`). */
 const QUIRK_LEAVES: readonly FactLeaf[] = [
-  { path: "prefill", name: "prefill", edit: { kind: "enum", options: PREFILL_MODES } },
-  { path: "prefillSuppressesThinking", name: "prefill suppresses thinking", edit: { kind: "boolean" } },
-  { path: "strictJson", name: "strict JSON", edit: { kind: "enum", options: STRICT_JSON_MODES } },
-  { path: "effort", name: "effort field", edit: { kind: "enum", options: EFFORT_SPELLINGS } },
-  { path: "outputCapField", name: "output cap field", edit: { kind: "enum", options: OUTPUT_CAP_FIELDS } },
-  { path: "reasoningKeys", name: "reasoning fields", edit: { kind: "list" } },
-  { path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS } },
-  { path: "rerankPath", name: "rerank path", edit: { kind: "text" } },
+  { path: "prefill", name: "prefill", edit: { kind: "enum", options: PREFILL_MODES }, unset: NOT_SET },
+  { path: "prefillSuppressesThinking", name: "prefill suppresses thinking", edit: { kind: "boolean" }, unset: NOT_SET },
+  { path: "strictJson", name: "strict JSON", edit: { kind: "enum", options: STRICT_JSON_MODES }, unset: NOT_SET },
+  { path: "effort", name: "effort field", edit: { kind: "enum", options: EFFORT_SPELLINGS }, unset: NOT_SET },
+  { path: "outputCapField", name: "output cap field", edit: { kind: "enum", options: OUTPUT_CAP_FIELDS }, unset: NOT_SET },
+  { path: "reasoningKeys", name: "reasoning fields", edit: { kind: "list" }, unset: NOT_SET },
+  { path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS }, unset: "not set — no image generation" },
+  { path: "rerankPath", name: "rerank path", edit: { kind: "text" }, unset: "not set — no reranking" },
+  { path: "modelInfoApi", name: "model info API", edit: { kind: "enum", options: MODEL_INFO_APIS }, unset: NOT_SET },
   { path: "sleep.isSleepingPath", name: "sleep check path", edit: { kind: "text" } },
   { path: "sleep.wakePath", name: "wake path", edit: { kind: "text" } },
   { path: "pricing.inputPerMTok", name: "price in", edit: { kind: "number" }, format: perMillionTokens },
@@ -260,14 +295,20 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
     edit: { kind: "number" },
     format: (value): string => `${String(value)} tokens/second`,
   },
-  { path: "requestTimeoutMs", name: "request deadline", edit: { kind: "number" }, format: (value): string => `${String(value)} ms` },
+  {
+    path: "requestTimeoutMs",
+    name: "request deadline",
+    edit: { kind: "number" },
+    format: (value): string => `${String(value)} ms`,
+    unset: NOT_SET,
+  },
 ];
 
 function perMillionTokens(value: unknown): string {
   return `$${String(value)} per million tokens`;
 }
 
-function tokens(value: unknown): string {
+export function tokens(value: unknown): string {
   return `${grouped(value)} tokens`;
 }
 
@@ -279,11 +320,14 @@ export const QUIRK_LEAF_PATH_LIST: readonly string[] = Object.values(QUIRK_LEAF_
 export const QUIRK_ROW_PATHS: readonly string[] = QUIRK_LEAVES.map((leaf) => leaf.path);
 
 /** "Endpoint quirks" — one row per FOLDED leaf, with the layer it came from and, when the row overrides it,
- *  the value it replaced. Fully derivable: every layer is in the client's hands. */
+ *  the value it replaced. Fully derivable: every layer is in the client's hands. `showUnset` adds the
+ *  declarable leaves nothing sets — an own-server row is fully user-declared (Tier-3b §10.10), a hosted
+ *  provider's quirks are its row's. */
 export function quirkFactRows(
   providerFeatures: EndpointFeatures | undefined,
   declaredFeatures: EndpointFeatures | undefined,
   providerLabel: string,
+  showUnset = false,
 ): readonly FactRow[] {
   const base = foldFeatures(providerFeatures);
   const folded = foldFeatures(providerFeatures, declaredFeatures);
@@ -291,6 +335,9 @@ export function quirkFactRows(
   for (const leaf of QUIRK_LEAVES) {
     const value = readPath(folded, leaf.path);
     if (value === undefined) {
+      if (showUnset && leaf.unset !== undefined) {
+        rows.push(unsetRow(`features.${leaf.path}`, leaf, leaf.unset, "nothing sets it for this kind of server"));
+      }
       continue;
     }
     const fromProvider = readPath(providerFeatures, leaf.path) !== undefined;
@@ -307,100 +354,6 @@ export function quirkFactRows(
       edit: leaf.edit,
       draft: draftOf(leaf.edit, value),
       siblings: {},
-    });
-  }
-  return rows;
-}
-
-// ── "What this server accepts" (= the `declared` capability) ───────────────────────────────────────────
-
-/** The source line for a capability row this client cannot attribute per field. Deliberately NOT one of the
- *  mock's four invented strings — see the file header and #2478. */
-const CAPABILITY_SOURCE = "what this server and model report";
-
-const GENERATION_LEAVES: readonly FactLeaf[] = [
-  { path: "generation.context.window", name: "context window", edit: { kind: "number" }, format: tokens },
-  { path: "generation.output.maxTokens.max", name: "max output", edit: { kind: "number" }, format: tokens },
-  { path: "generation.input", name: "takes", edit: { kind: "list" } },
-  { path: "generation.output.modalities", name: "gives back", edit: { kind: "list" } },
-  { path: "generation.reasoning.enabled", name: "thinking", edit: { kind: "boolean" } },
-  { path: "generation.reasoning.mode", name: "thinking dial", edit: { kind: "enum", options: REASONING_MODES } },
-  { path: "generation.output.structured", name: "structured output", edit: { kind: "boolean" } },
-  { path: "generation.tools.parallel", name: "parallel tool calls", edit: { kind: "boolean" } },
-];
-
-const EMBEDDING_LEAVES: readonly FactLeaf[] = [
-  { path: "embedding.dims", name: "vector width", edit: { kind: "number" }, format: (value): string => `${String(value)} numbers` },
-  { path: "embedding.mrl", name: "truncatable", edit: { kind: "boolean" } },
-  { path: "embedding.maxInputTokens", name: "max input", edit: { kind: "number" }, format: tokens },
-  { path: "embedding.input", name: "takes", edit: { kind: "list" } },
-];
-
-const RERANK_LEAVES: readonly FactLeaf[] = [
-  { path: "rerank.maxInputTokens", name: "max input", edit: { kind: "number" }, format: tokens },
-  { path: "rerank.input", name: "takes", edit: { kind: "list" } },
-];
-
-// An if-chain with a BARE tail, the `capability/reads.ts::missingClauses` idiom: biome cannot narrow a
-// cross-module discriminated union inside a switch. Exhaustiveness stays compile-time — a fourth kind widens
-// the tail and `.rerank` stops existing on it.
-function leavesOf(capability: Capability): readonly FactLeaf[] {
-  if (capability.kind === "generation") {
-    return GENERATION_LEAVES;
-  }
-  if (capability.kind === "embedding") {
-    return EMBEDDING_LEAVES;
-  }
-  return RERANK_LEAVES;
-}
-
-function capabilitySource(overridden: boolean, replaced: string | undefined): string {
-  if (!overridden) {
-    return CAPABILITY_SOURCE;
-  }
-  return replaced === undefined ? "your override" : `your override — it was ${replaced}`;
-}
-
-/** The one leaf whose schema sibling is REQUIRED: `output.maxTokens` is a `rangeSchema`, so a write naming
- *  only `max` would not parse. The sibling rides from the RESOLVED value, which is what the user is
- *  declaring around. */
-const MAX_TOKENS_PATH = "generation.output.maxTokens.max";
-const MAX_TOKENS_MIN_PATH = "generation.output.maxTokens.min";
-
-function siblingsFor(path: string, capability: Capability): Readonly<Record<string, unknown>> {
-  if (path !== MAX_TOKENS_PATH) {
-    return {};
-  }
-  const min = readPath(capability, MAX_TOKENS_MIN_PATH);
-  return min === undefined ? {} : { [MAX_TOKENS_MIN_PATH]: min };
-}
-
-/**
- * "What this server accepts" — the same row grammar as the quirks, over the FOLDED capability.
- *
- * `baseline` is THE #2478 SEAM and the only thing missing from this block: hand it the same synthesis
- * computed WITHOUT the row's `declared` and every overridden row restates the value it replaced, exactly as
- * the quirks already do. Until `CapabilityRead` carries it, the parameter is absent at the one call site and
- * the source line says "your override" with no invented prior.
- */
-export function capabilityFactRows(capability: Capability, declared: DeclaredCapability | null, baseline?: Capability): readonly FactRow[] {
-  const rows: FactRow[] = [];
-  for (const leaf of leavesOf(capability)) {
-    const value = readPath(capability, leaf.path);
-    if (value === undefined) {
-      continue;
-    }
-    const overridden = readPath(declared, leaf.path) !== undefined;
-    const prior = baseline === undefined || !overridden ? undefined : readPath(baseline, leaf.path);
-    rows.push({
-      path: leaf.path,
-      name: leaf.name,
-      value: formatLeaf(leaf, value),
-      source: capabilitySource(overridden, prior === undefined ? undefined : formatLeaf(leaf, prior)),
-      overridden,
-      edit: leaf.edit,
-      draft: draftOf(leaf.edit, value),
-      siblings: siblingsFor(leaf.path, capability),
     });
   }
   return rows;

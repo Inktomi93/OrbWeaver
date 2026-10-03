@@ -48,6 +48,7 @@ import {
   endpointAdmission,
   installEgressFirewall,
   publishPrivateEndpointAllowlist,
+  resolvedEndpointAdmission,
 } from "@orb/server/infra/network";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, request, setGlobalDispatcher } from "undici";
@@ -388,6 +389,30 @@ describe("publishPrivateEndpointAllowlist — the deployment's private-endpoint 
     expect(endpointAdmission("http://other.lan:11434")).toBe("public"); // a NAME we cannot resolve here is not "refused" — the DNS gate judges it at connect
     publishPrivateEndpointAllowlist(["127.0.0.1"]);
     expect(endpointAdmission("http://localhost:8703")).toBe("admitted");
+  });
+
+  // The Docker trap: `host.docker.internal` / `ollama.lan` used to save as `public` and fail every dial at the
+  // connect gate with an opaque transport error. The write-time read now resolves the NAME through the
+  // firewall's own lookup and refuses it there, so the dialog can name it and offer the owner's Admit.
+  test("a HOSTNAME that resolves private is refused at write time, admitted by its authority, and a public or unresolvable one stays public", async () => {
+    publishPrivateEndpointAllowlist([]);
+    __setFirewallLookupForTest(answering("192.168.65.254"));
+    expect(endpointAdmission("http://host.docker.internal:11434")).toBe("public"); // the sync read cannot see past the name
+    expect(await resolvedEndpointAdmission("http://host.docker.internal:11434")).toBe("refused");
+    __setFirewallLookupForTest(answering("169.254.169.254"));
+    expect(await resolvedEndpointAdmission("http://metadata.example:80")).toBe("refused");
+
+    publishPrivateEndpointAllowlist(["host.docker.internal:11434"]);
+    __setFirewallLookupForTest(answering("192.168.65.254"));
+    expect(await resolvedEndpointAdmission("http://host.docker.internal:11434")).toBe("admitted");
+    expect(await resolvedEndpointAdmission("http://host.docker.internal:8080")).toBe("refused"); // another port is its own admission
+
+    __setFirewallLookupForTest(answering("93.184.215.14"));
+    expect(await resolvedEndpointAdmission("https://models.example.com/v1")).toBe("public");
+    __setFirewallLookupForTest((_hostname, _options, callback): void => {
+      callback(Object.assign(new Error("getaddrinfo ENOTFOUND"), { code: "ENOTFOUND" }), "", 4);
+    });
+    expect(await resolvedEndpointAdmission("http://unresolvable.lan:11434")).toBe("public");
   });
 
   test("a public address rides the unchanged SSRF guard — the allowlist is not consulted for it", () => {

@@ -64,3 +64,15 @@ test("a non-auth HTTP 500 is unreachable, not the retired unchecked verdict", as
   expect(health.reason).toContain("HTTP 500");
   expect(health.reason).toContain("invalid api key cache is unavailable");
 });
+
+// "Check again" told a 404 the server may be down. A server that answered carries its status, so the pane can
+// say it is running and a wrong path is a 404; a dial nothing answered carries none.
+test("an unreachable verdict carries the status when the server answered, and none when nothing did", async () => {
+  const answered = await probeOpenAiCompat({ connection: connection() }, { fetch: responseFetch(404, JSON.stringify({ error: "not found" })), now: () => NOW });
+  expect(answered).toMatchObject({ status: "unreachable", httpStatus: 404 });
+
+  const dead: typeof fetch = () => Promise.reject(new TypeError("fetch failed"));
+  const silent = await probeOpenAiCompat({ connection: connection() }, { fetch: dead, now: () => NOW });
+  expect(silent.status).toBe("unreachable");
+  expect(silent).not.toHaveProperty("httpStatus");
+});

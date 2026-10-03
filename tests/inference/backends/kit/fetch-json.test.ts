@@ -11,7 +11,7 @@
 // noisy upstream body becomes. They drive the REAL `fetchJson` through its injected `fetch`, so there is
 // no mock of the thing under test.
 
-import { fetchJson } from "../../../../packages/inference/src/backends/kit/fetch-json.ts";
+import { fetchJson, openAiPath, serverRootOf } from "../../../../packages/inference/src/backends/kit/fetch-json.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -79,4 +79,23 @@ test("POSITIVE CONTROL — a 2xx JSON body is untouched by any of this and parse
   });
   expect(result.status).toBe(OK);
   expect(result.json).toEqual({ data: [{ id: "some-model" }] });
+});
+
+// A typed server root gets `/v1`; a URL that already names a version is used exactly, so a `/v4` or
+// `/v1beta/openai` root is reachable instead of growing a second version segment.
+test.each([
+  ["http://127.0.0.1:11434", "http://127.0.0.1:11434/v1/models"],
+  ["http://127.0.0.1:1234/", "http://127.0.0.1:1234/v1/models"],
+  ["https://models.example.com/v1/", "https://models.example.com/v1/models"],
+  ["https://models.example.com/api/paas/v4", "https://models.example.com/api/paas/v4/models"],
+  ["https://models.example.com/v1beta/openai", "https://models.example.com/v1beta/openai/models"],
+  ["https://models.example.com/proxy", "https://models.example.com/proxy/v1/models"],
+  ["https://v2.example.com", "https://v2.example.com/v1/models"],
+])("openAiPath(%s) dials %s", (baseUrl, expected) => {
+  expect(openAiPath(baseUrl, "/models")).toBe(expected);
+});
+
+test("the server root drops the OpenAI version segment so a native API is reachable beside it", () => {
+  expect(serverRootOf("http://127.0.0.1:11434/v1/")).toBe("http://127.0.0.1:11434");
+  expect(serverRootOf("http://127.0.0.1:11434")).toBe("http://127.0.0.1:11434");
 });

@@ -49,7 +49,7 @@ interface FakeRoute {
 
 export interface HarnessOptions {
   /** The F12 write-time admission read. Default: `invalid` for a non-http(s) URL, `admitted` otherwise. */
-  readonly admission?: ((baseUrl: string) => EndpointAdmission) | undefined;
+  readonly admission?: ((baseUrl: string) => EndpointAdmission | Promise<EndpointAdmission>) | undefined;
   /** Which credential ids the caller holds. Default: every id is the caller's. */
   readonly credentialOwned?: ((ownerId: UserId, credentialId: UserCredentialId) => boolean) | undefined;
   readonly ruleOwned?: boolean | undefined;
@@ -262,7 +262,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     credentialOwned: (ownerId, credentialId) => Promise.resolve(options.credentialOwned?.(ownerId, credentialId) ?? true),
     ruleOwnedBy: () => Promise.resolve(options.ruleOwned ?? true),
     pluginGrantTasksOf: () => Promise.resolve(options.pluginOwned === false ? null : (options.pluginGrantTasks ?? ["summarize"])),
-    endpointAdmission: options.admission ?? defaultAdmission,
+    endpointAdmission: async (baseUrl) => await (options.admission ?? defaultAdmission)(baseUrl),
     recordProbeOutcome: (args) => {
       probeRecords.push(args);
       return Promise.resolve(args.result);

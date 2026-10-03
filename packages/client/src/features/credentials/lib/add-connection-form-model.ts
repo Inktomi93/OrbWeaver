@@ -6,11 +6,26 @@
 
 import type { ProviderAuth, ProviderDef, Wire } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDisplayLabel } from "@orb/contracts/inference";
+import { isLoopbackHost } from "@orb/kit/allowed-hosts";
 import { ADD_CONNECTION_PATH } from "#lib";
 import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** The command the Claude-subscription step asks the user to run (§5.3a: "a copyable `claude setup-token`"). */
 export const CLAUDE_SETUP_TOKEN_COMMAND = "claude setup-token";
+
+/** The Claude-subscription notice, shown at setup and on the saved connection. Conditional on purpose: the policy
+ *  is Anthropic's to change. Sources, checked when this was written: support.claude.com articles 15036540
+ *  (Agent SDK and third-party app usage draws from the plan's usage limits) and 12429409 (usage credits bill
+ *  at API rates past the limits), and code.claude.com/docs/en/legal-and-compliance ("Authentication and
+ *  credential use"). Re-verify both before changing the wording. */
+export const CLAUDE_SUBSCRIPTION_NOTICE = {
+  runtime:
+    "This runs Anthropic's official Claude Code runtime on this server with your sign-in. Every request counts against your plan's usage limits, the same pool as Claude Code.",
+  extraUsage:
+    "Past those limits, Anthropic may bill requests as usage credits at API rates if you have usage credits turned on. Check Settings > Usage on claude.ai before long sessions.",
+  terms:
+    "Anthropic's terms reserve subscription sign-ins for its own apps and ordinary individual use, and do not permit third-party developers to route requests through Free, Pro or Max plan credentials. Using your subscription here may fall outside those terms, and Anthropic can limit or end access. For predictable billing and terms, use an Anthropic API key instead.",
+} as const;
 
 /** What the setup-token copy button names as its subject: `Copy <this>`. */
 export const CLAUDE_SETUP_TOKEN_COPY_SUBJECT = `the command ${CLAUDE_SETUP_TOKEN_COMMAND}`;
@@ -63,6 +78,27 @@ export function needsKey(provider: ProviderDef | undefined): boolean {
 export function acceptsKey(provider: ProviderDef | undefined): boolean {
   return needsKey(provider) || provider?.auth === "endpoint";
 }
+
+/** Whether a typed server URL names this machine (`localhost`, 127.0.0.0/8, `::1`). From a server in Docker
+ *  that is the container itself, which is the most common reason an own-server row cannot reach its box. */
+export function namesLoopback(baseUrl: string): boolean {
+  const host = URL.parse(baseUrl.trim())?.hostname.toLowerCase() ?? "";
+  return host !== "" && isLoopbackHost(host);
+}
+
+/** With key storage off a provider whose rows NEED a secret cannot be added: the input is refused before
+ *  anyone types a live key into a form that cannot keep it. A keyless own-server row still can be. */
+export function keyStorageBlocks(provider: ProviderDef, keyStorage: boolean): boolean {
+  return !keyStorage && needsKey(provider);
+}
+
+/** Why the key step is closed while key storage is off. */
+export const KEY_STORAGE_OFF_COPY = {
+  title: "Key storage is turned off on this server",
+  description:
+    "The server has no usable encryption key, so a provider key saved here could not be stored. It generates one beside its database on first boot; the server log says why it could not. Fix that file, or set CREDENTIALS_KEY in the server environment, restart, and add the connection then.",
+  keylessNote: "Key storage is off on this server, so this connection can't carry an API key. A local server that needs no key works.",
+} as const;
 
 /** Whether the dialog lists this draft's models on "List models": an endpoint under its URL, and a hosted
  *  provider under the API key pasted for it. A subscription token lists only once it is saved. */

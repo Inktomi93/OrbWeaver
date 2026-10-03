@@ -120,6 +120,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     features: {
       prefill: "none",
+      modelInfoApi: "ollama",
     },
     catalog: "url",
     metered: false,

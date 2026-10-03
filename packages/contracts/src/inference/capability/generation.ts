@@ -187,6 +187,8 @@ export const generationCapabilitySchema = z.object({
   tools: z.object({ parallel: z.boolean(), silencesProse: z.boolean().optional(), forcedChoice: z.boolean().optional() }).optional(),
   output: z.object({
     maxTokens: rangeSchema,
+    /** `maxTokens` is the kind floor's guess: no tier above it stated a cap. A surface showing it must say so. */
+    maxTokensEstimated: z.boolean().optional(),
     /** Accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
     structured: z.boolean().optional(),
     /** What the model can PRODUCE. `image` here is what makes a chat model answer with pictures (§6.7) and

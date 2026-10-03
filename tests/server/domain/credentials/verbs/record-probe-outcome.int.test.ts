@@ -94,6 +94,39 @@ test("a REMOTE endpoint's unreachable answer strikes, and the limit revokes as `
   expect(statuses.slice(0, -1).every((status) => status === "unreachable")).toBe(true);
 });
 
+// A remote server that answered 404 (a wrong path) is up; striking it would revoke a good key as "unreachable"
+// after a few checks. A 5xx keeps striking: it is often a proxy in front of a dead box.
+test("a REMOTE endpoint that answered with a client error strikes nothing and keeps its status", async () => {
+  const db = await freshDb();
+  const h = makeHarness(db);
+  const { svc, owner, cred } = await seedCredential(db, h, { ownerId: "user_answered" });
+  for (let attempt = 0; attempt < HEALTH_STRIKE_LIMIT + 1; attempt += 1) {
+    const result = await svc.recordProbeOutcome({
+      principal: principal(owner),
+      credentialId: cred.id,
+      result: { status: "unreachable", checkedAt: 0, reason: "credential probe: HTTP 404", httpStatus: 404 },
+      localEndpoint: false,
+    });
+    expect(result).toMatchObject({ status: "unreachable", httpStatus: 404 });
+    h.advance(HEALTH_THROTTLE_MS + 1);
+  }
+  expect((await svc.list({ principal: principal(owner) })).find((row) => row.id === cred.id)?.revokedAt).toBeNull();
+
+  const { owner: proxyOwner, cred: proxied } = await seedCredential(db, h, { ownerId: "user_proxied" });
+  const statuses: string[] = [];
+  for (let attempt = 0; attempt < HEALTH_STRIKE_LIMIT; attempt += 1) {
+    const result = await svc.recordProbeOutcome({
+      principal: principal(proxyOwner),
+      credentialId: proxied.id,
+      result: { status: "unreachable", checkedAt: 0, reason: "credential probe: HTTP 502", httpStatus: 502 },
+      localEndpoint: false,
+    });
+    statuses.push(result.status);
+    h.advance(HEALTH_THROTTLE_MS + 1);
+  }
+  expect(statuses.at(-1)).toBe("revoked");
+});
+
 test("a recovered `ok` CLEARS a prior revocation", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
