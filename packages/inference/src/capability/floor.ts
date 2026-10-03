@@ -1,7 +1,8 @@
 // The per-wire posture floors applied AFTER synthesis — the two rules that are neither evidence nor a family:
-//   • `silencesProse` (§6.4, D112): on any `auth: endpoint` connection, `tools` declared but not
-//     `coEmitsProse` ⇒ `silencesProse: true`. The 36/36 local-Qwen measurement is why the floor is closed;
-//     hosted catalogs carry it absent (co-emits, 6/6 measured). Fails closed on an unmeasured wire.
+//   • `silencesProse` (§6.4, D112): on any `auth: endpoint` connection, `tools` with no tier stating
+//     `silencesProse` ⇒ `silencesProse: true`. Fails closed on an unmeasured (model × server); a curated,
+//     measured (`sources/measured/local-servers.ts`) or declared `silencesProse: false` passes untouched.
+//     Hosted catalogs carry it absent (co-emits, 6/6 measured).
 //   • D143(c) as amended by D292: PERMISSIVE modalities for an endpoint row that nobody described. A row whose
 //     `declared` block or whose server (the advertised tier) states an input list is taken at its word; a row
 //     that states none gets image + video with `modalitiesEstimated`, never a bare text-only floor (the engine

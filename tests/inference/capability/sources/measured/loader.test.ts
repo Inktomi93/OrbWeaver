@@ -6,7 +6,9 @@
 // while NOT listing it; strips temperature while — consistently — not listing it).
 
 import type { GenerationCapability, ModelCatalogEntry, ProviderId } from "@orb/contracts/inference";
+import { builtinProvider, coEmitsProseWithTools } from "@orb/contracts/inference";
 import { castId } from "@orb/kit/ids";
+import { applyEndpointPosture } from "../../../../../packages/inference/src/capability/floor.ts";
 import { advertisedFromOpenRouter } from "../../../../../packages/inference/src/capability/sources/advertised/openrouter.ts";
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { measuredRows } from "../../../../../packages/inference/src/capability/sources/measured/loader.ts";
@@ -193,4 +195,56 @@ test("H1: verbosity — opus-5 via OR resolves NONE (OR's list is inverted; Anth
   const gpt = viaOpenRouter("openai/gpt-5.4", GPT54_ADVERTISED, "openai");
   expect(gpt.verbosity).toEqual(["low", "medium", "high"]);
   expect(resolveChat({ verbosity: "low" }, gpt).verbosity).toBe("low");
+});
+
+// ── local servers: prose with tool calls (scripts/probes/prose-with-tools) ──────────────────────────────────
+// The endpoint floor closes `silencesProse` on every local model no tier measured; a measured co-emitting row
+// is the only thing that opens folded RPG there. The advertised tier is what the server's own reader states
+// (tools, not co-emission), as `catalog/endpoint.ts` folds it.
+
+function localResolved(providerId: string, model: string): GenerationCapability {
+  const provider = builtinProvider(providerId);
+  if (provider === undefined) {
+    throw new Error(`${providerId} row missing`);
+  }
+  const query = { model, providerId: castId<ProviderId>(providerId), wire: provider.wire, api: "chat-completions" } as const;
+  const synthesized = synthesizeCapability("generation", "qwen", {
+    curated: curatedRows(query),
+    advertised: { tools: { parallel: false } },
+    measured: measuredRows(query),
+  });
+  const floored = applyEndpointPosture(provider, synthesized.capability, false);
+  if (floored.kind !== "generation") {
+    throw new Error("expected a generation capability");
+  }
+  return floored.generation;
+}
+
+test("a measured co-emitting (model × server) row lifts the endpoint floor: Qwen3.8-27B folds on vLLM, llama.cpp and Ollama", () => {
+  for (const [provider, model] of [
+    ["vllm", "qwen3.8-27b"],
+    ["vllm", "/media/models/quantized/Qwen3.8-27B-W8A8-Dynamic-Per-Token"],
+    ["llama-cpp", "Qwen3.8-27B-UD-Q4_K_M.gguf"],
+    ["ollama", "qwen3.8-27b:latest"],
+    ["ollama", "qwen3.8:27b"],
+  ] as const) {
+    const gen = localResolved(provider, model);
+    expect(gen.tools, `${provider} ${model}`).toEqual({ parallel: true, silencesProse: false });
+    expect(coEmitsProseWithTools(gen), `${provider} ${model}`).toBe(true);
+  }
+});
+
+test("an unmeasured local cell stays fail-closed: another model, or the same model on a server nobody measured", () => {
+  for (const [provider, model] of [
+    ["vllm", "Qwen/Qwen3-VL-8B-Instruct"],
+    ["vllm", "qwen3.8-flash-next"],
+    ["llama-cpp", "qwen2.5-0.5b-instruct-q4_k_m.gguf"],
+    ["ollama", "qwen3.8:35b"],
+    // Measured, and still closed: KoboldCpp's default tool mode cannot co-emit and its API does not name the mode.
+    ["koboldcpp", "koboldcpp/Qwen3.8-27B-UD-Q4_K_M"],
+  ] as const) {
+    const gen = localResolved(provider, model);
+    expect(gen.tools?.silencesProse, `${provider} ${model}`).toBe(true);
+    expect(coEmitsProseWithTools(gen), `${provider} ${model}`).toBe(false);
+  }
 });
