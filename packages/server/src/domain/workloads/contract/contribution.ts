@@ -28,8 +28,8 @@ import type { z } from "zod";
 
 /**
  * The `DomainOperationError.code` an enqueue door throws when the OWNING DOMAIN refused the row's admission
- * (`WorkloadContribution.admit`). One home for the string, because the producer side reads it: an importer
- * that OFFERS a memory backfill treats the refusal as a normal outcome (#156), not as an import failure.
+ * (`WorkloadContribution.admit`). One home for the string, because a producer reads it: the import's free segment
+ * pass treats the memory-off refusal as a normal outcome (#156), not as an import failure.
  */
 export const WORKLOAD_NOT_ADMISSIBLE = "not_admissible";
 

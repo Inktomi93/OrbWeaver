@@ -403,9 +403,9 @@ export interface ChatComposeResult {
   readonly signupInvites: SignupInviteOps;
   /** Chat's corpus sweeps, bound over the chat ctx. */
   readonly backfill: {
-    readonly memory: (args: { signal: AbortSignal; ownerId?: UserId | null; funderUserId: UserId }) => ReturnType<typeof backfillMemory>;
+    readonly memory: (args: Parameters<typeof backfillMemory>[1]) => ReturnType<typeof backfillMemory>;
     readonly groupCharacters: (args: { signal: AbortSignal; ownerId?: UserId | null; funderUserId: UserId }) => ReturnType<typeof backfillGroupCharacters>;
-    readonly estimateMemory: (args: { ownerId: UserId | null; funderUserId: UserId }) => ReturnType<typeof estimateMemoryBackfillCalls>;
+    readonly estimateMemory: (args: Parameters<typeof estimateMemoryBackfillCalls>[1]) => ReturnType<typeof estimateMemoryBackfillCalls>;
   };
 }
 

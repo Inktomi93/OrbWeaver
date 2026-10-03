@@ -20,16 +20,18 @@
 // guarantee. And because that precondition is minted inline, the per-chat isolation catch below is NOT a
 // silent-skip engine: an isolated chat is COUNTED (`failed`) and logged at `error` level — see there.
 
+import type { ImportWindow } from "@orb/contracts/chat";
 import { buildIdentityNameContext } from "@orb/contracts/chat";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
-import { chatParticipants, chats } from "@orb/db";
+import { chatImportClaims, chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, between, eq, inArray, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#kit/abort";
 import type { ChatContext } from "../context.ts";
 import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryEmbedSpace, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
+import type { MemorySweepArgs } from "../contract/workloads.ts";
 import {
   collectConsolidationTier,
   logBuild,
@@ -49,10 +51,22 @@ import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
 import { hostUserIdOf } from "./participants-host.ts";
 
 /** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to
- *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. */
-export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null): Promise<ChatId[]> {
+ *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. `importWindow`
+ *  narrows that universe to the chats whose import claim falls inside it: an intersection, so another owner's
+ *  import in the same span matches nothing. The narrowing is a subquery, so no id list is bound as variables. */
+export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null, importWindow?: ImportWindow | null): Promise<ChatId[]> {
+  const narrowed =
+    importWindow === undefined || importWindow === null
+      ? undefined
+      : inArray(
+          chats.id,
+          ctx.db
+            .select({ id: chatImportClaims.chatId })
+            .from(chatImportClaims)
+            .where(between(chatImportClaims.createdAt, importWindow.from, importWindow.to)),
+        );
   if (hostUserId === undefined || hostUserId === null) {
-    const rows = await ctx.db.select({ id: chats.id }).from(chats);
+    const rows = await ctx.db.select({ id: chats.id }).from(chats).where(narrowed);
     return rows.map((r) => r.id);
   }
   const rows = await ctx.db
@@ -67,7 +81,8 @@ export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | nul
         eq(chatParticipants.userId, hostUserId),
         isNull(chatParticipants.leftSeq),
       ),
-    );
+    )
+    .where(narrowed);
   return rows.map((r) => r.id);
 }
 
@@ -223,19 +238,16 @@ async function digestsDerivableFor(ctx: ChatContext, funderUserId: UserId): Prom
 /** PHASE 1 — plan every (chat × scope) bucket corpus-wide (segments + tier-0 collect; NO summarize). One
  *  poisoned chat is counted + logged, never kills the sweep (#41 — every EXPECTED branch returns without
  *  throwing, so a throw landing in the catch is a genuine unexpected fault). */
-async function planAllBuckets(
-  ctx: ChatContext,
-  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null; readonly funderUserId: UserId },
-  resolveMemoryConfig: ResolveBackfillMemoryConfig,
-): Promise<PlanSweep> {
+async function planAllBuckets(ctx: ChatContext, args: MemorySweepArgs, resolveMemoryConfig: ResolveBackfillMemoryConfig): Promise<PlanSweep> {
   const sweep: PlanSweep = { plans: [], segments: [], segmentsScanned: 0, digestsScanned: 0, failed: 0, spaces: new Map() };
   const deps: PlanDeps = {
     signal: args.signal,
     resolveMemoryConfig,
     funderUserId: args.funderUserId,
-    digestsDerivable: await digestsDerivableFor(ctx, args.funderUserId),
+    // A segments-only pass plans no digest, exactly as a funder with no Utility model: it makes no Utility-model call.
+    digestsDerivable: !args.segmentsOnly && (await digestsDerivableFor(ctx, args.funderUserId)),
   };
-  for (const chatId of await loadAllChatIds(ctx, args.ownerId)) {
+  for (const chatId of await loadAllChatIds(ctx, args.ownerId, args.importWindow)) {
     if (args.signal.aborted) {
       break; // cooperative abort between chats — every completed unit is durable + idempotent
     }
@@ -537,7 +549,7 @@ async function commitAllPlans(
  */
 export async function backfillMemory(
   ctx: ChatContext,
-  args: { readonly signal: AbortSignal; readonly ownerId?: UserId | null; readonly funderUserId: UserId },
+  args: MemorySweepArgs,
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<MemoryBackfillSweepCounts> {
   const sweep = await planAllBuckets(ctx, args, resolveMemoryConfig);

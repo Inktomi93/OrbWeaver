@@ -106,6 +106,6 @@ export function createImportChatFile(
     // The ST interchange carries no overlay planes at all (no tags, no campaign — that is the whole reason
     // the orb-native bundle exists), so this arm can never skip one. The EMPTY list still rides: an absent
     // field would read as "not looked at" at the door that renders it.
-    return { ok: true, created: result.chatsImported > 0, skippedOverlays: [] };
+    return { ok: true, created: result.chatsImported > 0, skippedOverlays: [], memoryChatIds: result.memoryChatIds };
   };
 }

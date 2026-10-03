@@ -216,6 +216,7 @@ function appDeps(): AppDeps {
     character: untouched,
     exportService: untouched,
     portability: [inertChatPortability],
+    settleImportMemory: untouched,
     importWorldInfo: untouched,
     importCardScripts: untouched,
     sessions: untouched,

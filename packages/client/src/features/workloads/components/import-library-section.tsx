@@ -1,7 +1,8 @@
 // import-library-section — the Backup & Restore pane's import half: a dropzone that accepts a .zip
 // portability backup or a bare character card, and a folder picker for an unzipped backup or a SillyTavern
 // profile. A .zip or a folder runs as background workloads; a bare card imports synchronously. On success
-// the library is already blanket-invalidated; the report renders below.
+// the library is already blanket-invalidated; the report renders below, with the memory-build offer for the
+// chats the import wrote (an import enqueues no paid model run on its own).
 //
 // THE PREFLIGHT IS THE POINT. The pane described what it ACCEPTS and never what it DOES: a drop began
 // uploading on the spot, so a reader restoring a backup over a library they had already built learned the
@@ -26,6 +27,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { ImportedChatsMemoryOffer } from "#components";
 import type { TreeImportPlan } from "#data";
 import { useUploadCaps } from "#data";
 import { testId } from "#lib";
@@ -153,6 +155,7 @@ export function ImportLibrarySection(): ReactElement {
       {done ? (
         <Stack gap="block">
           <ImportReportSummary summary={state.summary} />
+          <ImportedChatsMemoryOffer scope={state.summary.memoryScope} />
           <Row justify="start">
             <Button intent="secondary" onClick={reset}>
               Import another

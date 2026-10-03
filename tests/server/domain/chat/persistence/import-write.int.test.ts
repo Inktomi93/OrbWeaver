@@ -220,7 +220,7 @@ describe("createBulkImportChats", () => {
 
     expect(result.chatsImported).toBe(1);
     expect(result.messagesImported).toBe(2);
-    expect(result.realConversationWritten).toBe(true);
+    expect(result.realConversationsWritten).toEqual(result.written.map((identity) => identity.chatId));
     expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, owner.id)))[0]?.version).toBe(1);
 
     const chatRows = await db.select().from(chats);

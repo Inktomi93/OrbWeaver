@@ -204,10 +204,10 @@ export function useLibraryImport(): LibraryImport {
   const importFolder = (plan: TreeImportPlan): void => {
     const epoch = ++requestEpoch.current;
     if (plan.batches.length === 0) {
-      finish(epoch, { imported: 0, skipped: 0, failed: 0, outcomes: [], notes: planNotes(plan) });
+      finish(epoch, { imported: 0, skipped: 0, failed: 0, outcomes: [], notes: planNotes(plan), memoryScope: null });
       return;
     }
-    const run: FolderRun = { epoch, plan, index: 0, done: { imported: 0, skipped: 0, failed: 0, notes: [] } };
+    const run: FolderRun = { epoch, plan, index: 0, done: { imported: 0, skipped: 0, failed: 0, notes: [], memoryScope: null } };
     folderRun.current = run;
     sendBatch(run);
   };

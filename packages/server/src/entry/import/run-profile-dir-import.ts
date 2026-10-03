@@ -14,8 +14,8 @@
 // are CARD FILENAMES and the filename → characterId map is that wave's output. Counts follow
 // the maintenance-pass shape: `scanned` = every ST entity the loader examined (bundles + personas + chat
 // files + the recorded non-happy-path skips), `changed` = net-new canon written (created characters +
-// created personas + imported chats). The runner reconciles stats post-run when `changed > 0`; a
-// chat write enqueues the memory backfill via the injected op.
+// created personas + imported chats). The runner reconciles stats post-run when `changed > 0`. No memory
+// build is enqueued: the report's `memoryChatIds` is the scope of the client's confirmed offer.
 //
 // dryRun: parse + collect + the read-only dedup MATCH only — ZERO writes. The import verbs have no
 // write-free mode, so the driver never calls them under `dryRun`; it predicts the character-create count via
@@ -33,7 +33,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
-import type { AssetId, CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
 import { inertActivationFields } from "@orb/kit/world-info";
 import type { BulkImportChats } from "#domain/chat";
@@ -141,7 +141,7 @@ export interface ProfileDirImportDeps {
   readonly newBackgroundEntryId?: () => string;
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
-  readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<boolean>;
+  readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly now: () => number;
   /** The zone the staged ST snapshot's wall-clock dates were written in. Omitted ⇒ {@link hostTimeZone} — a
@@ -596,6 +596,8 @@ interface WaveOutcomes {
   /** ALREADY-IMPORTED rooms this run back-filled persona attribution onto, summed across the solo, group and
    *  orphan waves (the dedup-skip HEAL — `BulkImportChatsResult.chatsPersonaHealed`). */
   readonly chatsPersonaHealed: number;
+  /** Every wave's written real conversations, in run order: solo bundles, group rooms, orphans. */
+  readonly memoryChatIds: readonly ChatId[];
   /** The GLOBAL regex wave (found counts ride `collected`; these are the write-time outcomes). */
   readonly globalRegexScriptsLifted: number;
   readonly globalRegexScriptsReused: number;
@@ -634,6 +636,7 @@ const NO_WAVES: WaveOutcomes = {
   seatedDisabledMembers: [],
   unresolvedPinnedPersonas: [],
   chatsPersonaHealed: 0,
+  memoryChatIds: [],
   globalRegexScriptsLifted: 0,
   globalRegexScriptsReused: 0,
   globalRegexSkippedReason: null,
@@ -796,9 +799,11 @@ async function importOrphanBundles(
   readonly orphanSkipped: { dir: string; reason: string }[];
   readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
   readonly chatsPersonaHealed: number;
+  readonly memoryChatIds: ChatId[];
 }> {
   let changed = 0;
   let chatsPersonaHealed = 0;
+  const memoryChatIds: ChatId[] = [];
   const orphanImports: { dir: string; characterName: string; created: boolean; chatsImported: number }[] = [];
   const orphanSkipped: { dir: string; reason: string }[] = [];
   const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
@@ -828,6 +833,7 @@ async function importOrphanBundles(
       const chatResult = await service.importChats({ characterId: mint.characterId, chats: orphan.chats });
       changed += chatResult.chatsImported;
       chatsPersonaHealed += chatResult.chatsPersonaHealed;
+      memoryChatIds.push(...chatResult.memoryChatIds);
       unresolvedPins.push(...chatResult.unresolvedPinnedPersonas);
       orphanImports.push({ dir: orphan.dirName, characterName: mint.name, created: mint.created, chatsImported: chatResult.chatsImported });
     } catch (err) {
@@ -835,7 +841,7 @@ async function importOrphanBundles(
       orphanSkipped.push({ dir: orphan.dirName, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
     }
   }
-  return { changed, orphanImports, orphanSkipped, unresolvedPins, chatsPersonaHealed };
+  return { changed, orphanImports, orphanSkipped, unresolvedPins, chatsPersonaHealed, memoryChatIds };
 }
 
 /** Import one collected card bundle: the character (idempotent by importHash) then its chats. Returns the
@@ -850,6 +856,8 @@ async function importOneBundle(
   readonly unresolvedPins: readonly ImportUnresolvedPinnedPersona[];
   /** Already-imported rooms of THIS card whose persona attribution this run back-filled (the dedup-skip HEAL). */
   readonly chatsPersonaHealed: number;
+  /** The card's written real conversations (the memory-build offer's scope). */
+  readonly memoryChatIds: readonly ChatId[];
   /** The card's regex-script lift counts (D121-E) — summed into the report's card-lift accounting. */
   readonly scriptsLifted: number;
   readonly scriptsReused: number;
@@ -861,7 +869,7 @@ async function importOneBundle(
   }
   const scripts = { scriptsLifted: cardResult.regexScriptsLifted, scriptsReused: cardResult.regexScriptsReused };
   if (bundle.chats.length === 0) {
-    return { changed, characterId: cardResult.characterId, unresolvedPins: [], chatsPersonaHealed: 0, ...scripts };
+    return { changed, characterId: cardResult.characterId, unresolvedPins: [], chatsPersonaHealed: 0, memoryChatIds: [], ...scripts };
   }
   const chatResult = await service.importChats({ characterId: cardResult.characterId, chats: bundle.chats });
   changed += chatResult.chatsImported;
@@ -870,6 +878,7 @@ async function importOneBundle(
     characterId: cardResult.characterId,
     unresolvedPins: chatResult.unresolvedPinnedPersonas,
     chatsPersonaHealed: chatResult.chatsPersonaHealed,
+    memoryChatIds: chatResult.memoryChatIds,
     ...scripts,
   };
 }
@@ -923,6 +932,8 @@ async function importCollectedBundles(
   readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
   /** The solo wave's half of the dedup-skip HEAL count. */
   readonly chatsPersonaHealed: number;
+  /** The solo wave's written real conversations. */
+  readonly memoryChatIds: ChatId[];
   /** The card-lift halves of the regex accounting, summed across every imported card. */
   readonly cardScriptsLifted: number;
   readonly cardScriptsReused: number;
@@ -931,6 +942,7 @@ async function importCollectedBundles(
 }> {
   let changed = 0;
   let chatsPersonaHealed = 0;
+  const memoryChatIds: ChatId[] = [];
   const skippedCards: ImportSkippedCard[] = [];
   const characterIdByCardFilename = new Map<string, CharacterId>();
   const characterNameByCardFilename = new Map<string, string>();
@@ -949,6 +961,7 @@ async function importCollectedBundles(
       const result = await importOneBundle(service, bundle);
       changed += result.changed;
       chatsPersonaHealed += result.chatsPersonaHealed;
+      memoryChatIds.push(...result.memoryChatIds);
       unresolvedPins.push(...result.unresolvedPins);
       cardScriptsLifted += result.scriptsLifted;
       cardScriptsReused += result.scriptsReused;
@@ -972,17 +985,18 @@ async function importCollectedBundles(
     characterNameByCardFilename,
     unresolvedPins,
     chatsPersonaHealed,
+    memoryChatIds,
     cardScriptsLifted,
     cardScriptsReused,
     skippedCardTags,
   };
 }
 
-/** Assemble the run's ImportContext. Post-import embedding is enqueued ONCE at the very end of the whole
+/** Assemble the run's ImportContext. The post-import index pass is enqueued ONCE at the very end of the whole
  *  import (gated on `changed > 0`) — NOT per character. Reasons: (1) the per-(kind, owner) admission lock
  *  makes a per-entity enqueue collide, and an unhandled conflict aborts the import mid-loop (the "only 2 of
- *  hundreds imported" bug); (2) the embed passes (characters then chats) must run AFTER the whole import,
- *  never while it is still writing. So the per-chat `enqueueBackfill` the importChats verb calls is a NO-OP
+ *  hundreds imported" bug); (2) the index pass must run AFTER the whole import, never while it is still
+ *  writing. So the per-chat `enqueueImportIndex` the importChats verb calls is a NO-OP
  *  here — the driver owns the one enqueue. */
 function contextFor(deps: ProfileDirImportDeps, store: ImportAssetPort["store"]): ReturnType<typeof buildImportContext> {
   return buildImportContext({
@@ -1000,9 +1014,8 @@ function contextFor(deps: ProfileDirImportDeps, store: ImportAssetPort["store"])
       personaByUserName: new Map(),
       bulkImportChats: deps.bulkImportChats,
       bulkImportPersonas: deps.bulkImportPersonas,
-      // NO-OP (see the header): the driver owns the one enqueue, so this per-chat call enqueues nothing and
-      // reports nothing enqueued.
-      enqueueBackfill: (): Promise<boolean> => Promise.resolve(false),
+      // NO-OP (see the header): the driver owns the one enqueue, so this per-chat call enqueues nothing.
+      enqueueImportIndex: (): Promise<void> => Promise.resolve(),
       reconcileStats: deps.reconcileImportStats,
       ...(deps.importPreset !== undefined ? { importPreset: deps.importPreset } : {}),
       ...(deps.importTheme !== undefined ? { importTheme: deps.importTheme } : {}),
@@ -1122,12 +1135,11 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   });
   changed += groupResult.groupChatsImported;
 
-  // ONE post-import embed enqueue for the whole run, gated on new canon (characters/personas/chats/worlds/
-  // presets/group rooms) — the op chains embed-characters → embed-chats via dependsOn (see portability-runner).
-  // Triggered on ANY new canon, not just a chat, so a characters-only import still embeds its cards. Skipped on
-  // abort (retry re-runs).
+  // ONE post-import index enqueue for the whole run, gated on new canon (characters/personas/chats/worlds/
+  // presets/group rooms). Triggered on ANY new canon, not just a chat, so a characters-only import still embeds
+  // its cards. Skipped on abort (retry re-runs).
   if (changed > 0 && !deps.signal.aborted) {
-    await deps.enqueueBackfill({ ownerId: deps.principal.userId });
+    await deps.enqueueImportIndex({ ownerId: deps.principal.userId });
   }
 
   return reportFrom({
@@ -1160,6 +1172,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       // Every wave's dedup-skip HEALS, summed: this is the number the operator reads to see an existing
       // corpus gain the persona attribution its first import could not resolve.
       chatsPersonaHealed: bundleResult.chatsPersonaHealed + groupResult.chatsPersonaHealed + orphanResult.chatsPersonaHealed,
+      memoryChatIds: [...bundleResult.memoryChatIds, ...groupResult.memoryChatIds, ...orphanResult.memoryChatIds],
       globalRegexScriptsLifted,
       globalRegexScriptsReused,
       globalRegexSkippedReason,

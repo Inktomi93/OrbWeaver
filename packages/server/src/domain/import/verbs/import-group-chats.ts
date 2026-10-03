@@ -20,7 +20,7 @@
 
 import type { BulkImportChatInput, ChatMetadata } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { ImportContext } from "../context.ts";
 import type { ImportGroupsResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
@@ -149,7 +149,7 @@ function refusalFor(group: CollectedGroup, seatCount: number): string | null {
 /** ONE group's room(s), or the contained refusal. PER-GROUP ISOLATION lives here rather than in the wave loop:
  *  a refused seat or one malformed transcript is one skipped room, never an aborted wave. */
 type GroupOutcome =
-  | { readonly ok: true; readonly chatsImported: number; readonly realConversation: boolean; readonly chatsPersonaHealed: number }
+  | { readonly ok: true; readonly chatsImported: number; readonly memoryChatIds: readonly ChatId[]; readonly chatsPersonaHealed: number }
   | { readonly ok: false; readonly reason: string };
 
 export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, "importGroupChats"> {
@@ -157,12 +157,12 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     group: CollectedGroup,
     profile: ReturnType<typeof requireProfile>,
     seats: GroupSeats,
-  ): Promise<{ readonly chatsImported: number; readonly realConversation: boolean; readonly chatsPersonaHealed: number }> {
+  ): Promise<{ readonly chatsImported: number; readonly memoryChatIds: readonly ChatId[]; readonly chatsPersonaHealed: number }> {
     const { seated, speakerByName, mutedSeats } = seats;
     // Proven non-empty by `refusalFor` before this runs; the fallback keeps the read total.
     const primary = seated[0];
     if (primary === undefined) {
-      return { chatsImported: 0, realConversation: false, chatsPersonaHealed: 0 };
+      return { chatsImported: 0, memoryChatIds: [], chatsPersonaHealed: 0 };
     }
     const characterIds = seated.slice(1).map((s) => s.characterId);
     const metadata = metadataFor(group);
@@ -189,7 +189,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       ),
     );
     const counts = await profile.bulkImportChats({ ownerId: ctx.ownerId, characterId: primary.characterId, chats });
-    return { chatsImported: counts.chatsImported, realConversation: counts.realConversationWritten, chatsPersonaHealed: counts.chatsPersonaHealed };
+    return { chatsImported: counts.chatsImported, memoryChatIds: counts.realConversationsWritten, chatsPersonaHealed: counts.chatsPersonaHealed };
   }
 
   /** Import one group, converting BOTH refusal shapes — the precondition miss and a thrown write — into the
@@ -212,7 +212,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     const profile = requireProfile(ctx);
     let groupsImported = 0;
     let groupChatsImported = 0;
-    let backfillNeeded = false;
+    const memoryChatIds: ChatId[] = [];
     let chatsPersonaHealed = 0;
     const skippedGroups: ImportSkippedGroup[] = [];
     const skippedMembers: ImportSkippedGroupMember[] = [];
@@ -241,7 +241,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       // every transcript by importHash, and counting the room again would report a no-op as work.
       groupsImported += outcome.chatsImported > 0 ? 1 : 0;
       groupChatsImported += outcome.chatsImported;
-      backfillNeeded = backfillNeeded || outcome.realConversation;
+      memoryChatIds.push(...outcome.memoryChatIds);
       chatsPersonaHealed += outcome.chatsPersonaHealed;
     }
 
@@ -250,7 +250,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       groupChatsImported,
       skippedGroups,
       skippedMembers,
-      backfillNeeded,
+      memoryChatIds,
       unresolvedPinnedPersonas: unresolvedPins,
       chatsPersonaHealed,
       ambiguousSpeakerNames,

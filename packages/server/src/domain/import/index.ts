@@ -50,7 +50,7 @@ export type {
   ImportUnresolvedPinnedPersona,
   ImportWorldNote,
 } from "./contract/views.ts";
-export type { BackfillTokenUsage, ImportTokenUsageBackfillDeps, ImportWorkloadDeps } from "./contract/workloads.ts";
+export type { BackfillTokenUsage, ImportTokenUsageBackfillDeps, ImportWorkloadDeps, SettleImportMemory } from "./contract/workloads.ts";
 export { collectBundlesFromDir } from "./loader/collect.ts";
 export { createImportService } from "./service.ts";
 export { findImportedCharacter, importFileHash, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "./substrate/card.ts";
