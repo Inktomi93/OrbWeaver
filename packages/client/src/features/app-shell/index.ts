@@ -16,7 +16,7 @@ export { appearanceBackgroundSection } from "./lib/appearance-background-section
 export { appearanceEffectsSection } from "./lib/appearance-effects-section.tsx";
 export { appearanceReadingSection } from "./lib/appearance-reading-section.tsx";
 export { appearanceSizingSection } from "./lib/appearance-sizing-section.tsx";
-// The DEV bug-found capture (#1095) — a `topbar.trail` widget gated on IS_DEV; see its own header.
+// "Report a bug" — a `topbar.trail` widget in every build; its developer capture is dev-gated inside the form.
 export { bugReportChrome } from "./lib/bug-report-chrome.tsx";
 export { contextToggleChrome } from "./lib/context-toggle-chrome.tsx";
 export { fullscreenChrome } from "./lib/fullscreen-chrome.tsx";

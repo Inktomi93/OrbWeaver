@@ -21,7 +21,7 @@ here stay out of git, but a directory outside the checkout survives a `git clean
 | file | feeds | used by |
 | - | - | - |
 | `session_secret` | `SESSION_SECRET` (≥32 chars) | `local`, `oidc` — otherwise generated into the data volume |
-| `local_initial_password` | `LOCAL_INITIAL_PASSWORD` (≥8 chars, first-boot owner seed) | `local` — otherwise generated and printed on the first boot |
+| `local_initial_password` | `LOCAL_INITIAL_PASSWORD` (≥8 chars, first-boot owner seed) | `local` — otherwise generated on the first boot and never printed; read it with `docker compose exec orbweaver cat /app/data/secrets/initial_password` |
 | `oidc_client_secret` | `OIDC_CLIENT_SECRET` | `oidc` |
 | `credentials_key` | `CREDENTIALS_KEY` (32 bytes, hex/base64 — losing it orphans every stored provider key) | any mode storing provider keys, to pin the key — otherwise generated into the data volume |
 | `openrouter_api_key` | `OPENROUTER_API_KEY` | only to seed OpenRouter at boot |

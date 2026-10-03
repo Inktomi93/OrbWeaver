@@ -242,14 +242,14 @@ test("renders the four shelves as NAMED groups, labelled by their own kicker, wi
   await expect(list.getByRole("group", { exact: true, name: "User" })).toBeVisible();
   await expect(list.getByRole("group", { exact: true, name: "App" })).toBeVisible();
   await expect(list.getByRole("group", { exact: true, name: "Collections" })).toBeVisible();
-  await expect(list.getByRole("group", { exact: true, name: "Extensions" })).toBeVisible();
+  await expect(list.getByRole("group", { exact: true, name: "Plugins" })).toBeVisible();
   // The bands live INSIDE their shelf, which is the whole point — a group nobody is in is decoration.
   await expect(list.getByRole("group", { exact: true, name: "User" }).getByRole("button", { name: "Appearance" })).toBeVisible();
   // Connections is a USER-shelf group since the `@orb/inference` cut-over (every row is the member's own,
   // §5.3a) — it sits beside Personas / Appearance / Chat behavior, not beside Automation and Admin.
   await expect(list.getByRole("group", { exact: true, name: "User" }).locator(`${BAND}[data-config-group="connections"]`)).toBeVisible();
   await expect(list.getByRole("group", { exact: true, name: "App" }).getByRole("button", { name: "Automation" })).toBeVisible();
-  await expect(list.getByRole("group", { exact: true, name: "Extensions" }).getByRole("button", { name: "Plugins" })).toBeVisible();
+  await expect(list.getByRole("group", { exact: true, name: "Plugins" }).getByRole("button", { name: "Plugins" })).toBeVisible();
 });
 
 // PREMISE RETIRED, TEST KEPT (#925 ruling 4). This used to open "nothing active ⇒ the welcome": the arrival

@@ -109,8 +109,8 @@ function OutputCluster({
           step={1}
         />
       </KnobGrid>
-      {verbosityLevels === undefined ? null : (
-        <SettingRowGroup>
+      <SettingRowGroup>
+        {verbosityLevels === undefined ? null : (
           <SettingTrackRow>
             <form.AppField name="params.verbosity">
               {(field): ReactElement => {
@@ -130,13 +130,32 @@ function OutputCluster({
               }}
             </form.AppField>
           </SettingTrackRow>
-        </SettingRowGroup>
-      )}
+        )}
+        {/* Shown for every model, because a preset outlives the model it is previewed on: the hint says
+            whether THIS model can draw, and a text-only model drops the knob with a chat warning. Off clears
+            the field, so a preset that never asked for pictures stores nothing. */}
+        <SettingTrackRow>
+          <form.Subscribe selector={(state): boolean => state.values.params.replyMedia === "text+image"}>
+            {(on): ReactElement => (
+              <Field hint={replyPicturesHint(capability)} label="Reply pictures">
+                <Switch checked={on} onCheckedChange={(next): void => form.setFieldValue("params.replyMedia", next ? "text+image" : undefined)} />
+              </Field>
+            )}
+          </form.Subscribe>
+        </SettingTrackRow>
+      </SettingRowGroup>
       {/* OUTSIDE the row group: this is a `Fieldset` GROUP (N chips plus an add box), not a label/control
           row, so it declares its own block instead of taking the group's label track. */}
       {capability.sampling.stop === true ? <StopSequences form={form} /> : null}
     </Section>
   );
+}
+
+/** The Reply pictures hint, by whether the previewed model's output can carry images. */
+function replyPicturesHint(capability: GenerationCapability): string {
+  return capability.output.modalities.includes("image")
+    ? "Lets the model answer with pictures in the chat as well as text. This model can draw them."
+    : "Lets an image-capable model answer with pictures in the chat. This model writes text only, so it ignores this, and its replies say so.";
 }
 
 /** CONTEXT (§4 cluster 5) — compaction mode/threshold/instructions (re-homed from the Compaction leaf),

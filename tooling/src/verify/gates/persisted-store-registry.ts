@@ -86,6 +86,12 @@ interface DeviceLocalClassification {
 /** Every persisted-store NAME the tree has ruled legitimately DEVICE-local, with its rationale. A new
  *  `createPersistedStore` / `createEntityDraftStore` name lands here IN THE SAME COMMIT. */
 export const DEVICE_LOCAL_REGISTRY: Readonly<Record<string, DeviceLocalClassification>> = {
+  "rule-creations": {
+    why: "Per-device pending automation birth request and acknowledged target identities, isolated by verified owner so interrupted creation resumes without another rule.",
+  },
+  "automation-rule-editor": {
+    why: "Unsubmitted automation prose and incomplete actions; a per-user crash-survival cache baseline-gated against the authoritative server row.",
+  },
   shell: { why: "panel dock/collapse + active section — per-device layout chrome (§12.1 carve-out)" },
   "active-chat": {
     why:

@@ -1082,7 +1082,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // The tier combine is the ONE contracts resolver (`resolveRenderPolicy`) — external media is
     // TIGHTEN-ONLY there, so a card's `forbidExternalMedia: false` can never widen past a blocking
     // deployment (which the app-document CSP enforces independently), and the ladder's top rung needs the
-    // `allowInteractiveCards` ceiling as well as the card's own opt-in (#111 leg 3).
+    // `allowInteractiveCards` ceiling, which is also the default rung of a card that inherits.
     resolveSeatDeco: async ({ ownerId, characterId }) => {
       const cfg = input.settings.getEffectiveConfig();
       const floor = { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia, allowInteractiveCards: cfg.allowInteractiveCards };

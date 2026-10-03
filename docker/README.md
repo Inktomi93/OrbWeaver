@@ -71,7 +71,7 @@ There is no server-wide switch. An Anthropic API key is a different thing: a met
 | `AUTH_MODE` | who gets in | needs |
 | - | - | - |
 | `single-user` (default) | no login; whoever reaches the app from THIS machine is the owner | the port on `127.0.0.1` (the default) |
-| `local` | username + password stored by the app | nothing — the first boot generates the password and prints it once (`docker compose logs orbweaver`); or set `LOCAL_INITIAL_PASSWORD` |
+| `local` | username + password stored by the app | nothing — the first boot generates the password and keeps it out of the log; read it with `docker compose exec orbweaver cat /app/data/secrets/initial_password`, or set `LOCAL_INITIAL_PASSWORD` |
 | `oidc` | your identity provider (Authentik, Authelia, Keycloak, …) | the `OIDC_*` block in `docker/orbweaver.env`, HTTPS |
 | `forward-header` | a forward-auth proxy | `FORWARD_AUTH_*` — prefer the signed JWT path |
 

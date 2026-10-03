@@ -35,14 +35,9 @@
 // makes this a fold rather than a cut. `CollapsiblePanel` unmounts its content while closed, so the
 // shelf really does get the height back rather than hiding it under a clip.
 //
-// …AND THE FOLD FINALLY HAS A SUBJECT (#834, owner-ruled 2026-08-30). B3 retired automation's doorway and
-// left the whole region delivering ONE dateless row, so the owner ruled what the region is FOR rather than
-// whether to keep it: it lists the committed-but-unrealized programs
-// (the open program items under `docs/work/`), with buddy among them. Home reads no doc and
-// holds no second list — those programs are declared as home-owned DORMANT DOORWAY TILES
-// (`lib/roadmap.ts`), so they arrive through the door like every other tile and this surface's partition,
-// grouping, fold and count all apply unchanged. The only thing that moved here is the band's trailing
-// COUNT, which is derived from the doorways it holds.
+// …AND IT LISTS ONLY PLANNED WORK THAT IS IN FLIGHT (owner ruling: parked programs are not advertised).
+// No shipped tile declares a doorway today, so the fold does not render; a doorway tile arriving through
+// the door brings it back, with the band's trailing COUNT derived from the doorways it holds.
 //
 // NO PERSISTENCE, deliberately (the brief's fork, taken): the house device-local disclosure precedent
 // (`config-group-open-store`) is a whole persisted store + a `persistence-boundary` registration, and
@@ -95,10 +90,9 @@ export interface HomeSurfaceProps {
 const WEAVE_SIZE = 64;
 
 /** The doorway group's ONE name — the fold's trigger, its region's accessible name, and the teaser a
- *  collapsed group leads with. Forward-facing on purpose (#455, the owner's own wording): "Not yet" named
- *  the group from the inside of a band you were already reading, and reads as a refusal on a line whose
- *  whole job is to invite the press. */
-const DOORWAY_GROUP_LABEL = "What's coming";
+ *  collapsed group leads with. "Planned" by owner ruling: it states what the work is without promising
+ *  when it arrives. */
+const DOORWAY_GROUP_LABEL = "Planned";
 
 /** One declared doorway, already narrowed off its tile — the surface groups doorways under a single band,
  *  so it needs the pair, and narrowing ONCE here is what keeps the render free of a re-check whose other
@@ -139,13 +133,13 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
   // The DEFAULT region (`HomeTileContribution.region` documents why): a tile that declares nothing is a
   // data surface and belongs on the shelf, never promoted into the hearth by omission.
   const shelf = live.filter((tile) => (tile.region !== "masthead" && tile.region !== "hearth") || tile.useRegion !== undefined);
-  // The rail's FOOT — the last shelf tile, which pairs with the doorway group at a wide pane (see the
-  // subgrid below). `slice(-1)` rather than `at(-1)` so the empty-shelf arm needs no null branch in JSX.
-  // The tile before it joins the foot too. `useBalancedFoot` stacks the side tile above the pair of the last tile and
-  // the doorway group, or pairs the last tile beside the other two, whichever ends the columns closer.
-  const shelfFoot = doorways.length === 0 ? [] : shelf.slice(-1);
-  const shelfFootSide = doorways.length === 0 ? [] : shelf.slice(-2, -1);
-  const shelfLead = doorways.length === 0 ? shelf : shelf.slice(0, -2);
+  // The rail's FOOT — the last two shelf tiles, plus the doorway group when one is declared (see the subgrid
+  // below). `slice` rather than `at` so the empty-shelf arm needs no null branch in JSX. `useBalancedFoot` stacks
+  // the foot or pairs the last tile beside the rest of it, whichever ends the columns closer.
+  const hasFold = doorways.length > 0;
+  const shelfFoot = shelf.slice(-1);
+  const shelfFootSide = shelf.slice(-2, -1);
+  const shelfLead = shelf.slice(0, -2);
 
   return (
     // FORM tier (UI-Density-Law.md §3.1): home is a surface you land on and act from, so its islands
@@ -208,8 +202,8 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
 
                       WHICH two is POSITIONAL, never named: home reads no feature, so "the tile at the foot
                       of the shelf" is the only thing it can say, and it is the same presentation license it
-                      already exercises by grouping every doorway under one band. With no doorways to pair
-                      against there is nothing to pair and the tail renders in flow. */}
+                      already exercises by grouping every doorway under one band. With no doorway group the
+                      last tile pairs beside the tile before it instead, and stacked, both span the foot. */}
                   <Grid className="grid-flow-row-dense items-start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
                     {shelfFootSide.map((tile) => (
                       <Stack className="col-span-full min-w-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
@@ -217,7 +211,12 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       </Stack>
                     ))}
                     {shelfFoot.map((tile) => (
-                      <Stack className="min-w-0 group-data-[foot=paired]/shelf:row-span-2" key={tile.id}>
+                      <Stack
+                        className={
+                          hasFold ? "min-w-0 group-data-[foot=paired]/shelf:row-span-2" : "col-span-full min-w-0 group-data-[foot=paired]/shelf:col-auto"
+                        }
+                        key={tile.id}
+                      >
                         <HomeTile column="shelf" tile={tile} />
                       </Stack>
                     ))}
@@ -274,11 +273,11 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                                 the trigger's accessible name is exactly the group's one name (#482/#833 both
                                 ruled on that string), and a chip inside the button would concatenate into it.
                                 It is DERIVED, never declared — the fold says how much it is holding, so a
-                                roadmap entry landing or a doorway going live moves this number by itself.
+                                doorway arriving or going live moves this number by itself.
                                 …AND IT NAMES ITSELF NOW (side-eye HOME 2026-09-02 H10). It reached AT as a
-                                bare figure — `snap --aria` rendered `button "What's coming"` and then an
-                                unattributed `text: "7"`, so a screen-reader user heard "What's coming,
-                                collapsed… seven" with nothing saying seven WHAT. The review's first
+                                bare figure — `snap --aria` rendered the trigger and then an unattributed
+                                `text: "7"`, so a screen-reader user heard the group's name, "collapsed…
+                                seven" with nothing saying seven WHAT. The review's first
                                 suggested arm was to fold the count into the trigger's accessible name, and
                                 that is the one thing the paragraph above forbids: #482 and #833 both ruled
                                 on that exact string. So the unit word rides INSIDE the chip instead, as

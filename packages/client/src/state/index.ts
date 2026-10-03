@@ -220,10 +220,7 @@ export { createPersistedStore } from "./create-persisted-store.ts";
 export { clearDatabankPhaseFilter, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
 export { __resetDeploymentBootHint, rememberMultiHumanCapable, useMultiHumanCapableHint } from "./deployment-boot-hint.ts";
-// `draft-config-store.ts` was DELETED 2026-08-14 (D166): it held a
-// whole second config model — greetings, roster overrides, group config, room overrides, injections,
-// startAsGame — for a room that had no server row. The room has a row from the creation click, so every one
-// of those is now the COMMITTED verb it always shadowed.
+// D166: room configuration belongs to committed server verbs, not a second local draft model.
 export type { DurableLocalPersistApi, DurableLocalStorage } from "./durable-local.ts";
 export {
   __resetDurableLocal,
@@ -381,6 +378,16 @@ export {
   useRegexBulkSelectedIds,
 } from "./regex-bulk-store.ts";
 export { applyRpgRoundEvent, clearRpgRounds, readRpgRoundPendingForTest, useRpgRoundPending } from "./rpg-round-store.ts";
+export type { RuleCreation } from "./rule-creation-store.ts";
+export {
+  acknowledgeRuleCreation,
+  assertRuleDraftOwner,
+  beginRuleCreation,
+  clearRuleRecoveryCheckpoint,
+  forgetRuleCreation,
+  readRuleCreation,
+  useRuleCreations,
+} from "./rule-creation-store.ts";
 export type { SectionId } from "./section-ids.ts";
 export { isSectionId, RETIRED_SECTION_HEAL, resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
 export { LIST_OFF_SCREEN_HINT, useSectionHasSelection, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";

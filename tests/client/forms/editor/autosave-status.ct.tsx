@@ -16,7 +16,7 @@ test("reads out each lifecycle state and the error-state Retry fires onRetry", a
   await expect(component.getByText("Saving…")).toBeVisible();
 
   await component.getByRole("button", { name: "set draft" }).click();
-  await expect(component.getByText("Draft — edit to create")).toBeVisible();
+  await expect(component.getByText("Not saved yet")).toBeVisible();
 
   // The HELD-write arm (side-eye PROSE-LIMIT P2): the driver gates on `form.state.isValid`, so an invalid
   // form is a write nobody is making — and this line used to keep reading "Saved" over it. It is POLITE
@@ -25,11 +25,16 @@ test("reads out each lifecycle state and the error-state Retry fires onRetry", a
   await component.getByRole("button", { name: "set blocked" }).click();
   const blocked = component.locator('[data-slot="autosave-status"]');
   await expect(blocked).toContainText("Not saved");
+  await expect(blocked).toContainText("Review this form before saving.");
   await expect(blocked).toHaveAttribute("role", "status");
   await expect(blocked.getByRole("button", { name: "Retry" })).toHaveCount(0);
 
   await component.getByRole("button", { name: "set error" }).click();
-  await expect(component.getByText("Save failed —")).toBeVisible();
+  const failed = component.getByText("Save failed —");
+  await expect(failed).toBeVisible();
+  await expect(failed).toHaveAttribute("data-voice", "reading");
+  await expect(component.locator('[data-slot="autosave-status"]')).toHaveAttribute("role", "alert");
+  await expect(component.locator('[data-slot="autosave-status"] svg')).toHaveCount(1);
 
   // Retry is a BUTTON (an affordance, not text) — clicking it fires the injected onRetry.
   await component.getByRole("button", { name: "Retry" }).click();

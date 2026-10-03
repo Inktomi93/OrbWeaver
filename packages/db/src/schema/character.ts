@@ -67,11 +67,10 @@ export const characters = sqliteTable(
     // of THIS column plus `trust_html`. Stored as a second column rather than an enum so the render step
     // keeps its two-tier `override ?? deployment` semantics unchanged; the LADDER is the presentation +
     // resolver contract, and nothing but `resolveRenderPolicy` reads this pair. `true` builds this
-    // character's card documents under the `interactive` frame posture (`@orb/kit/card-frame`) and IMPLIES
-    // the render step below it. Nullable like its siblings, two-valued in MEANING today (no deployment tier
-    // ⇒ `null` and `false` both mean "not interactive"); nullable anyway so the leg-3 security pass can add
-    // an app tier — and its "inherit" — with no schema churn. What the top rung does NOT do yet is run
-    // card-authored scripts: both postures serve the same policy until that pass lands.
+    // character's card documents under the `interactive` frame posture (`@orb/kit/card-frame`), where card
+    // scripts run, and IMPLIES the render step below it. `false` is the per-character disable. `null` beside
+    // a `null` `trust_html` is "Inherit default", which resolves to the top rung while the deployment
+    // `allowInteractiveCards` ceiling is up (owner ruling: interactive cards on by default).
     interactiveHtml: integer("interactive_html", { mode: "boolean" }),
     // D44 §12.1/§12.5 — the per-character theme-token OVERRIDE (nullable: null = no override, inherit the
     // global selected theme). Mirrors `trustHtml`'s tri-state-override shape, but the "value" here is a

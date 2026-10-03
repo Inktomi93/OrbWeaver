@@ -1,7 +1,7 @@
 // Seal-level CT for @orb/ui/markdown (Streamdown 2.5). The two trust policies + the capability
 // surface the rebuild wired in full: the GFM singleTilde fix, the token-sourced Shiki plugin (RENDER
 // proof here; the TOKENS-value proof is deterministic in shiki-plugin.test.ts), the KaTeX math plugin,
-// the token-styled Mermaid (render-or-graceful-error), the trusted `<speaker>` literal passthrough,
+// the inert mermaid fence under both policies, the trusted-policy link/markup pins, the trusted `<speaker>` literal passthrough,
 // and the large-block guard, plus the STREAMING-mode goldens (unterminated fence / torn emphasis /
 // mode diff / reduced-motion) in the second half of this file. The end-to-end torn-`<speaker>`
 // hold-back (a consumer-level concern — `holdTornSpeaker` runs in the ghost row, not the seal) stays
@@ -141,18 +141,71 @@ test("trusted: inline math ($…$) renders a KaTeX element", async ({ mount }) =
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 
-test("trusted: a mermaid diagram renders OR degrades to the graceful token-styled error (never white-screens)", async ({ mount }) => {
+// ── TRUSTED IS THE DEFAULT RENDER FOR EVERY CHARACTER ────────────────────────────────────────────────────
+// Interactive cards are on by default (owner ruling) and the ladder makes interactive imply trusted, so the
+// trusted policy below now renders every character's messages in the MAIN DOM. These pin the three things
+// that keep that safe: a link can neither run script nor navigate the app, raw markup cannot execute, and a
+// mermaid fence runs no diagram engine. (External images are the app document's CSP, pinned in
+// tests/server/entry/http/security-headers.test.ts, not this seal.)
+
+test("trusted: a javascript: link is blocked, and a raw link is a confirm-gated button that cannot navigate the app", async ({ mount, page }) => {
+  const js = ["java", "script:alert(1)"].join("");
+  const raw = '<a href="https://example.test/elsewhere" target="_self" rel="opener">raw link</a>';
+  const cmp = await mount(<Markdown trust="trusted" mode="static">{`[click](${js}) and ${raw}`}</Markdown>);
+  // No anchor of either link reaches the DOM: the script URL is blocked outright, and Streamdown's link
+  // safety renders the raw link as a BUTTON, so its `target`/`rel` and its href never become a navigation.
+  await expect(cmp.locator(`[href^="java"]`)).toHaveCount(0);
+  await expect(cmp.locator('a[href="https://example.test/elsewhere"]')).toHaveCount(0);
+  const link = cmp.getByRole("button", { name: "raw link" });
+  await expect(link).toBeVisible();
+  // A click opens the confirm and nothing else: the app does not navigate, and no tab opens until the reader
+  // confirms.
+  const before = page.url();
+  let popups = 0;
+  page.context().on("page", () => {
+    popups += 1;
+  });
+  await link.click();
+  await expect(page.locator('[data-streamdown="link-safety-modal"]')).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open link", exact: true })).toBeVisible();
+  expect(page.url()).toBe(before);
+  expect(popups).toBe(0);
+});
+
+test("trusted: raw markup cannot execute — no script, no inline handler, no inline style", async ({ mount, page }) => {
+  let alerted = false;
+  page.on("dialog", (d) => {
+    alerted = true;
+    void d.dismiss();
+  });
+  const tag = "script";
+  const md = `<img src="/none.png" onerror="alert(1)"> <${tag}>alert(2)</${tag}> <div style="position:fixed;inset:0" onclick="alert(3)">cover</div>`;
+  const cmp = await mount(
+    <Markdown trust="trusted" mode="static">
+      {md}
+    </Markdown>,
+  );
+  await expect(cmp).toContainText("cover");
+  await expect(cmp.locator("script")).toHaveCount(0);
+  await expect(cmp.locator("[onerror], [onclick]")).toHaveCount(0);
+  await expect(cmp.locator('div[style*="fixed"]')).toHaveCount(0);
+  await cmp.getByText("cover").click();
+  expect(alerted).toBe(false);
+});
+
+test("trusted: a mermaid fence runs no diagram engine — it renders as inert code", async ({ mount }) => {
+  // The seal passes `plugins` with `code` and `math` only, and Streamdown mounts a diagram only through a
+  // `plugins.mermaid` renderer, so the fence takes the code-block arm under BOTH policies. A future change
+  // that wires a diagram engine reds here and owes a review of what that engine executes.
   const md = "```mermaid\ngraph TD; A-->B;\n```";
   const cmp = await mount(
     <Markdown trust="trusted" mode="static">
       {md}
     </Markdown>,
   );
-  // Either outcome is graceful: a rendered <svg> diagram, or the seal's <MermaidError> fallback.
-  // What must NEVER happen is the seal-level error boundary (white-screen guard) firing.
-  await expect(cmp.locator('svg, [data-slot="markdown-mermaid-error"]').first()).toBeVisible({
-    timeout: 15_000,
-  });
+  await expect(cmp).toContainText("graph TD");
+  await expect(cmp.locator('[data-streamdown="mermaid"]')).toHaveCount(0);
+  await expect(cmp.locator('[data-streamdown="mermaid-block"]')).toHaveCount(0);
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
 });
 

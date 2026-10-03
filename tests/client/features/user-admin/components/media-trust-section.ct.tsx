@@ -23,7 +23,7 @@ const BYTES_PER_MB = 1_000_000;
 const RESOLVED: Partial<EffectiveAppSettings> = {
   forbidExternalMedia: true,
   trustHtml: false,
-  // #111 leg 3 — the interactive-card kill-switch, mounted here at its SHIPPED floor (off).
+  // The interactive-card kill-switch, mounted OFF: a deployment whose admin revoked it (the shipped floor is on).
   allowInteractiveCards: false,
   maxImageBytes: 5 * BYTES_PER_MB,
 };
@@ -51,7 +51,7 @@ test("mounts on the resolved values and stamps its own admin anchor", async ({ m
 
   await expect(page.getByRole("switch", { name: "Block external media" })).toBeChecked();
   await expect(page.getByRole("switch", { name: "Render rich HTML as trusted" })).not.toBeChecked();
-  // #111 leg 3 — the deployment kill-switch for card scripts, and it renders OFF on the shipped floor.
+  // The deployment kill-switch for card scripts renders the resolved value (off in this fixture).
   await expect(page.getByRole("switch", { name: INTERACTIVE_SWITCH })).not.toBeChecked();
   await expect(page.getByRole("textbox", { name: "Max generated-image download (MB)" })).toHaveValue("5");
   await expect(page.locator("#config-anchor-admin-media-trust")).toBeVisible();

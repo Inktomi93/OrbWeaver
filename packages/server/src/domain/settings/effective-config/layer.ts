@@ -24,12 +24,11 @@ import { env } from "#foundation/env";
 // Born-in-DB floors (no env var; only an admin override moves them).
 const FORBID_EXTERNAL_MEDIA_FLOOR = true;
 const TRUST_HTML_FLOOR = false;
-// The html-trust ladder's TOP rung, deployment half (#111 leg 3 security pass). OFF, and the floor is the
-// ruling rather than a convention: the grant runs model-authored scripts in a viewer's browser, and it
-// opens a WebRTC/STUN beacon no CSP directive can close (`@orb/kit/card-frame` residual R1), so an admin
-// has to turn it on deliberately. Leg 1 also shipped an editor saying the rung was inert, so per-character
-// opt-ins already stored were given under a different representation — default-ON would activate them.
-const ALLOW_INTERACTIVE_CARDS_FLOOR = false;
+// The html-trust ladder's TOP rung, deployment half. ON by owner ruling: interactive cards are the default
+// for every character, so this is both the ceiling and the rung an "Inherit default" card resolves to
+// (`resolveRenderPolicy`). An admin override of `false` is the revocation, and the only control over the
+// WebRTC/STUN beacon no CSP directive can close (`@orb/kit/card-frame` residual R1).
+const ALLOW_INTERACTIVE_CARDS_FLOOR = true;
 const MS_PER_HOUR = 3_600_000;
 const HOURS_PER_DAY = 24;
 const MS_PER_DAY = MS_PER_HOUR * HOURS_PER_DAY;

@@ -31,6 +31,7 @@ import { ExtensionsAwaitingConsent } from "../components/extensions-awaiting-con
 import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
 import { useExtensionsRoster } from "../hooks/use-extensions-roster.ts";
 import { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
+import { EXTENSIONS_SECTION_LABEL } from "../lib/extensions-section-label.ts";
 
 /** The rows, or the teaching empty. Split from the shell so the boundary wraps a component that reads. */
 function ExtensionsPageList(): ReactElement {
@@ -72,7 +73,7 @@ function ExtensionsPageList(): ReactElement {
           </Button>
         }
         description="Try a page title or plugin name."
-        title="No matching extension pages"
+        title="No matching plugin pages"
         titleAs="h2"
       />
     );
@@ -110,7 +111,7 @@ export function ExtensionsSwitcherSurface(): ReactElement {
     // The arrival target names the pane it moved focus into. A child row's name cannot name this node for
     // assistive technology; the Presets list uses the same named-region convention for the same hook.
     <Container
-      aria-label="Extension pages"
+      aria-label={EXTENSIONS_SECTION_LABEL}
       className="h-full min-h-0 outline-none"
       data-testid={testId("extensionsSwitcher")}
       ref={surfaceRef}
@@ -120,11 +121,11 @@ export function ExtensionsSwitcherSurface(): ReactElement {
       <LibraryListFrame
         searchValue={search}
         onSearchChange={setExtensionsSearchQuery}
-        searchLabel="Search extension pages"
-        searchPlaceholder="Search extension pages"
+        searchLabel="Search plugin pages"
+        searchPlaceholder="Search plugin pages"
         scroll={true}
       >
-        <LibrarySurfaceShell errorLabel="your extension pages" loadingLabel="Loading extension pages…">
+        <LibrarySurfaceShell errorLabel="your plugin pages" loadingLabel="Loading plugin pages…">
           <ExtensionsPageList />
         </LibrarySurfaceShell>
       </LibraryListFrame>

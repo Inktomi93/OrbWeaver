@@ -109,7 +109,7 @@ export function ExtensionsPageSurface(): ReactElement {
     return (
       <Container className="h-full outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
         <Stack gap="block" role="status">
-          <Text voice="label">Loading extension page…</Text>
+          <Text voice="label">Loading plugin page…</Text>
           <SkeletonRows count={3} shape="line" />
         </Stack>
       </Container>
@@ -118,7 +118,7 @@ export function ExtensionsPageSurface(): ReactElement {
   if (key !== null && pageState.isError) {
     return (
       <Container className="h-full outline-none" data-testid={testId("extensionsContent")} ref={surfaceRef} tabIndex={-1}>
-        <QueryErrorState label="this extension page" onRetry={pageState.retry} />
+        <QueryErrorState label="this plugin page" onRetry={pageState.retry} />
       </Container>
     );
   }
@@ -136,7 +136,7 @@ export function ExtensionsPageSurface(): ReactElement {
                 // Nothing to repair here — the next step is the switcher beside this pane, and on a phone
                 // `clearPluginPage` is exactly the back door that reveals it.
                 <Button intent="secondary" onClick={clearPluginPage} size="sm">
-                  Browse extension pages
+                  Browse plugin pages
                 </Button>
               }
               description={EXTENSIONS_NO_SELECTION_BODY}

@@ -335,9 +335,8 @@ const chrome = createContributorRegistry(
     sections: sections.list(),
     modals: modals.list(),
     // U5 (#679, §4.5): the "Plugins" wand — SILENT when a person's plugins register no commands.
-    // `bugReportChrome` (#1095) is registered unconditionally and gates itself on IS_DEV in `useVisible` — the
-    // registry's own no-gap contract, and the same shape every other capability-gated widget here uses. It
-    // renders nothing in a production build.
+    // `bugReportChrome` is visible in every build ("Report a bug"); only its developer capture is dev-gated,
+    // inside the form.
     // `characterCreateChrome` (#1669) is the first SECTION-scoped trail entry: the Characters pane's primary,
     // on a phone only, where the LIST band that used to carry it is shed. Its `useVisible` states the three
     // conditions; the zone is shell-global, the affordance is not.

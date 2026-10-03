@@ -2,6 +2,7 @@ import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
 import { parse } from "yaml";
 import { expect, test } from "../support/tool-fixtures.ts";
 
@@ -131,6 +132,43 @@ test("the entrypoint exports generated file paths, keeps the data volume private
   // local mode: generated + kept, under the data volume, never printed on later boots
   expect(shim).toContain("keep_generated session_secret");
   expect(shim).toContain("keep_generated initial_password");
+});
+
+// The entrypoint's stderr IS the container log (`docker compose logs`), and the bug-report guidance has users
+// paste that log into public issues. So the generated owner password must never be written there, on the
+// first boot or any later one. Runs the REAL script as the current (non-root) user against a scratch data
+// dir: as non-root it skips the chown/setpriv drop and goes straight to the secret generation under test.
+test("a generated first-boot password never reaches the container log", ({ repoRoot, scratch, skip }) => {
+  if (process.getuid?.() === 0) {
+    skip("running as root would exercise the privilege drop to PUID 1000, which cannot write this scratch dir");
+  }
+  const dataDir = join(scratch, "data");
+  // A non-root start skips the entrypoint's own `mkdir` (that is the root arm's job) and refuses a data dir
+  // that does not exist, so the harness provides it — writable by this uid, as a bind mount would be.
+  mkdirSync(dataDir, { recursive: true });
+  // ONLY these keys: an inherited LOCAL_INITIAL_PASSWORD or SESSION_SECRET would skip the generation under test.
+  // biome-ignore-start lint/style/noProcessEnv: the child's environment IS the subject; it needs this process's PATH to find `node`.
+  // biome-ignore-start lint/style/useNamingConvention: environment variable names are the entrypoint's fixed upper-case keys.
+  const childEnv = { PATH: process.env["PATH"] ?? "", AUTH_MODE: "local", DATA_DIR: dataDir };
+  // biome-ignore-end lint/style/useNamingConvention: end of the block above
+  // biome-ignore-end lint/style/noProcessEnv: end of the block above
+  const boot = (): SpawnSyncReturns<string> => spawnSync("sh", [join(repoRoot, "docker/entrypoint.sh"), "true"], { env: childEnv, encoding: "utf8" });
+  const passwordFile = join(dataDir, "secrets", "initial_password");
+
+  const first = boot();
+  expect(first.status, first.stderr).toBe(0);
+  const password = readFileSync(passwordFile, "utf8");
+  expect(password.length).toBeGreaterThanOrEqual(20);
+  const firstLog = `${first.stdout}${first.stderr}`;
+  // Positive control: the first-boot banner DID print, and it names where the password is read from.
+  expect(firstLog).toContain("FIRST BOOT");
+  expect(firstLog).toContain(passwordFile);
+  expect(firstLog).not.toContain(password);
+
+  const later = boot();
+  expect(later.status, later.stderr).toBe(0);
+  expect(readFileSync(passwordFile, "utf8")).toBe(password);
+  expect(`${later.stdout}${later.stderr}`).not.toContain(password);
 });
 
 test("every compose shape resolves (the base and every overlay)", ({ repoRoot, scratch, skip }) => {

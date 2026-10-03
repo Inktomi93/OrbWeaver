@@ -30,13 +30,14 @@
 // they exist separately — the sibling defect this file already argues against for "pick one" vs "there are
 // none" (see the no-selection copy below), applied to its own empty.
 
+import { EXTENSIONS_SECTION_LABEL } from "./extensions-section-label.ts";
 import { PLUGIN_PERMISSIONS_SETTING_ID, PLUGINS_INSTALL_SUBCATEGORY, PLUGINS_INSTALLED_SUBCATEGORY } from "./plugins-nav.ts";
 
 /** The section's placeholder (title, description) — DISTINCT from every sibling's by the
  *  `placeholder-copy-registry` gate, and it doubles as the home-tile gloss, so it says what the section IS
  *  rather than pointing at a pane the tile has no left rail for. */
 export const EXTENSIONS_PLACEHOLDER = {
-  title: "Extensions",
+  title: EXTENSIONS_SECTION_LABEL,
   description: "Full-page surfaces the plugins you installed provide — browsers, dashboards, whatever they bring, drawn by the app.",
 } as const;
 
@@ -73,7 +74,7 @@ export const EXTENSIONS_OPEN_PLUGINS_ACTION = "Open Plugins";
 export const EXTENSIONS_EMPTY_COPY = {
   "none-installed": {
     title: "No plugins installed yet",
-    description: (): string => "Extensions are full pages a plugin brings — browsers, dashboards, whatever it adds. Install one and its pages open here.",
+    description: (): string => "Plugin pages are full pages a plugin brings: browsers, dashboards, whatever it adds. Install one and its pages open here.",
     action: "Add a plugin",
     sub: PLUGINS_INSTALL_SUBCATEGORY.id,
     setting: null,
@@ -102,7 +103,7 @@ export const EXTENSIONS_EMPTY_COPY = {
     setting: null,
   },
   "no-pages": {
-    title: "No extension pages yet",
+    title: "No plugin pages yet",
     description: (): string => "Install a plugin with page surfaces and it will appear here.",
     action: EXTENSIONS_OPEN_PLUGINS_ACTION,
     sub: PLUGINS_INSTALLED_SUBCATEGORY.id,
@@ -113,7 +114,7 @@ export const EXTENSIONS_EMPTY_COPY = {
 /** The CONTENT pane's no-selection state — a switcher with rows but nothing picked. Distinct copy from the
  *  empty above: "pick one" and "there are none" are different facts and collapsing them is the generic-filler
  *  defect the house sweeps for. */
-export const EXTENSIONS_NO_SELECTION_TITLE = "Pick an extension page";
+export const EXTENSIONS_NO_SELECTION_TITLE = "Pick a plugin page";
 export const EXTENSIONS_NO_SELECTION_BODY = "Choose a page on the left to open it here.";
 
 /** The CONTENT pane's DANGLING state — the selected page's plugin was disabled or removed while it was open. */

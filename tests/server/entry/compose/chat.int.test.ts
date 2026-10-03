@@ -250,6 +250,33 @@ describe("resolveSeatDeco — the tighten-only external-media ceiling, composed 
     // The human seat keeps the bare deployment floor.
     expect(roster.find((p) => p.userId === host)?.renderPolicy).toEqual({ htmlTrust: "untrusted", forbidExternalMedia: true });
   });
+
+  // Interactive cards are on by default for every character (owner ruling), over the REAL born-in-DB floor:
+  // an untouched card — every imported or freshly created one — resolves to the ladder's top rung, and the
+  // two lower rungs written through the real update verb (exactly what the Trust tab fires) are the
+  // per-character disable. The human seat proves "no card" is not "inherit".
+  test("an untouched card resolves to the top rung; Render HTML and Untrusted are the per-character disable", async ({ db, services }) => {
+    const host = await seedUser(db, castId<Handle>("cardhost"));
+    const principal = hostPrincipal(host);
+    const inheriting = await seedCharacter(db, host, "cardinherit");
+    const renderHtml = await seedCharacter(db, host, "cardrender");
+    const untrusted = await seedCharacter(db, host, "carduntrusted");
+    await services.character.update({ principal, characterId: renderHtml, input: { trustHtml: true, interactiveHtml: false } });
+    await services.character.update({ principal, characterId: untrusted, input: { trustHtml: false, interactiveHtml: false } });
+
+    const chatId = await seedChat(db, "cards");
+    await seedParticipant(db, { chatId, key: "cardhost", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "cardinherit", characterId: inheriting });
+    await seedParticipant(db, { chatId, key: "cardrender", characterId: renderHtml });
+    await seedParticipant(db, { chatId, key: "carduntrusted", characterId: untrusted });
+
+    const roster = await services.chat.listParticipants({ principal, chatId });
+    const stepOf = (characterId: typeof inheriting): string | undefined => roster.find((p) => p.characterId === characterId)?.renderPolicy?.htmlTrust;
+    expect(stepOf(inheriting)).toBe("interactive");
+    expect(stepOf(renderHtml)).toBe("trusted");
+    expect(stepOf(untrusted)).toBe("untrusted");
+    expect(roster.find((p) => p.userId === host)?.renderPolicy?.htmlTrust).toBe("untrusted");
+  });
 });
 
 // ── #759 — the composed preset-read catches narrow to PresetNotFoundError, END TO END ──────────────────────

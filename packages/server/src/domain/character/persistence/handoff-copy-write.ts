@@ -146,7 +146,9 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
             // an OWNER BOUNDARY silently: the nominee gets a trusted-but-static copy and re-opts-in on a card
             // they now own and can read. Same precedent as the refinery signals below — some things simply do
             // not travel with a handoff. Nothing in the room breaks: those seats keep rendering, one rung
-            // lower, until the new host decides. NOT the same call as `duplicate`, which is same-owner.
+            // lower, until the new host decides. NOT the same call as `duplicate`, which is same-owner. A
+            // source on "Inherit default" stays inheriting, so its copy follows the deployment default like
+            // every other card the nominee owns; only an explicit opt-in is held back.
             interactiveHtml: null,
             themeOverride: source.themeOverride,
             // …but the BACKGROUND is re-owned, not carried by id (step 3 / #1426).

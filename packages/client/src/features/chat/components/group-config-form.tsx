@@ -4,7 +4,7 @@
 // setDraftGroupConfig directly. Output is the DU discriminator — a mode switch re-derives the coupled
 // speakerTags default so the legible default follows the mode.
 
-import type { GroupConfig, MemberCardVisibility } from "@orb/contracts/chat";
+import type { GroupConfig, GroupPolicy, MemberCardVisibility } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, GROUP_OUTPUT_LABELS, GROUP_POLICIES, GROUP_POLICY_LABELS, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
@@ -27,6 +27,26 @@ const POLICY_ITEMS: SelectItems<string> = GROUP_POLICIES.map((value) => ({
   value,
   label: GROUP_POLICY_LABELS[value],
 }));
+
+// The help under each control states what the server does with it (`engine/select-speakers.ts`,
+// `engine/round.ts`), per policy and per output mode, so the Rooms guide never has to restate it.
+const POLICY_HELP: Record<GroupPolicy, string> = {
+  natural: "Every character who can speak replies, in a shuffled order that favors the more talkative ones. Whoever spoke last sits out.",
+  list: "Every character who can speak replies, in the order they joined. Whoever spoke last sits out.",
+  pooled: "Every character who can speak replies, starting with the one after whoever spoke last.",
+  manual: "Nobody replies on their own. Mention a character with @, or pick one from Generate reply. A Narrator room still narrates every message.",
+  smart: "Your Utility model picks the one character who should reply. If it can't, one is picked by talkativeness and you're told.",
+};
+
+const SPEAKER_TAGS_HELP: Record<GroupOutput, string> = {
+  narrator: "Asks the model to mark who says each line, so every character's lines get their own color.",
+  "per-speaker": "Only used by Narrator. Here every message already belongs to one character.",
+};
+
+const GROUP_NUDGE_HELP: Record<GroupOutput, string> = {
+  narrator: "Tells the model which characters are present to voice.",
+  "per-speaker": "When several characters reply, tells each one to write only as themselves.",
+};
 
 const VISIBILITY_LABELS: Record<MemberCardVisibility, string> = {
   "name-avatar": "Name + avatar only",
@@ -113,9 +133,18 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
             )}
           </form.AppField>
 
-          <form.AppField name="speakerTags">{(field): ReactElement => <field.SwitchField label="Label each speaker" />}</form.AppField>
-
-          <form.AppField name="groupNudge">{(field): ReactElement => <field.SwitchField label="Nudge the group to stay in character" />}</form.AppField>
+          <form.Subscribe selector={(state): GroupOutput => state.values.output}>
+            {(output): ReactElement => (
+              <>
+                <form.AppField name="speakerTags">
+                  {(field): ReactElement => <field.SwitchField label="Label each speaker" description={SPEAKER_TAGS_HELP[output]} />}
+                </form.AppField>
+                <form.AppField name="groupNudge">
+                  {(field): ReactElement => <field.SwitchField label="Nudge the group to stay in character" description={GROUP_NUDGE_HELP[output]} />}
+                </form.AppField>
+              </>
+            )}
+          </form.Subscribe>
 
           <Accordion>
             <AccordionItem value="advanced">
@@ -123,21 +152,34 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
               <AccordionPanel>
                 <Stack gap="section" className="pt-block">
                   <form.AppField name="policy">
-                    {(field): ReactElement => <field.SelectField label="Who speaks each round" items={POLICY_ITEMS} />}
+                    {(field): ReactElement => (
+                      <field.SelectField label="Who speaks each round" items={POLICY_ITEMS} description={POLICY_HELP[field.state.value]} />
+                    )}
                   </form.AppField>
 
                   <form.Subscribe selector={(state): GroupOutput => state.values.output}>
                     {(output): ReactElement | null =>
                       output === "per-speaker" ? (
                         <form.AppField name="scopedCards">
-                          {(field): ReactElement => <field.SwitchField label="Each character sees only their own card" />}
+                          {(field): ReactElement => (
+                            <field.SwitchField
+                              label="Each character sees only their own card"
+                              description="Each reply is written from that character's card alone, and with memory on they recall only what happened while they were in the room. Off, every reply sees every card."
+                            />
+                          )}
                         </form.AppField>
                       ) : null
                     }
                   </form.Subscribe>
 
                   <form.AppField name="memberCardVisibility">
-                    {(field): ReactElement => <field.SelectField label="How much of each member the others see" items={VISIBILITY_ITEMS} />}
+                    {(field): ReactElement => (
+                      <field.SelectField
+                        label="How much of each member the others see"
+                        items={VISIBILITY_ITEMS}
+                        description="What the other people in this room can open on each character's card. You always see the whole card."
+                      />
+                    )}
                   </form.AppField>
 
                   <Stack gap="field">

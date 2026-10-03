@@ -51,7 +51,7 @@ import { appearanceLooksSection, makeConfigSection } from "@orb/client/features/
 import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
 import { addDocumentModal, databankDocumentsTile, databankSection } from "@orb/client/features/databank";
 import { makeCorpusSection } from "@orb/client/features/discovery";
-import { buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
+import { makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
 import { imageDetailModal, imageEditModal, imagineModal } from "@orb/client/features/imagery";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personaListSection, personaNotificationsSection, personaThisChatSection } from "@orb/client/features/persona";
@@ -150,8 +150,11 @@ bindSessionDocumentHost({
 export function CtDataProviders({
   children,
   refetchOnWindowFocus = true,
+  configureQueryClient,
 }: {
   readonly children: ReactNode;
+  /** Instrument the freshly constructed client before any provider consumer mounts. */
+  readonly configureQueryClient?: (queryClient: QueryClient) => void;
   /** Opt OUT of react-query's `refetchOnWindowFocus` (v5 default: `true`).
    *
    *  Needed by any story whose pin is "THIS interaction issued the re-read": an errored query is stale, so a
@@ -167,6 +170,7 @@ export function CtDataProviders({
       mutations: { retry: false },
     },
   });
+  configureQueryClient?.(queryClient);
   const trpcClient = createTrpcClient();
   return (
     <QueryClientProvider client={queryClient}>
@@ -217,13 +221,7 @@ const corpusContextTabs = createContributorRegistry<ContextTabDef<CorpusContextS
 
 // The home-tile seam, assembled as at the real door (home's own jump grid + whatever features raise) —
 // so a shell CT that lands on `home` renders the REAL tile grid, not a stand-in.
-const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
-  chatRecentsTile,
-  chatQuickPicksTile,
-  chatTempChatTile,
-  databankDocumentsTile,
-  buddyDormantTile,
-];
+const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [chatRecentsTile, chatQuickPicksTile, chatTempChatTile, databankDocumentsTile];
 
 const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
   ...HOME_TILE_CONTRIBUTIONS,

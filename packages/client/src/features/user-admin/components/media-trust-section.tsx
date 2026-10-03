@@ -114,18 +114,18 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
         />
         <AdminOverrideSwitch
           label="Render rich HTML as trusted"
-          hint="Render rich HTML cards + Mermaid diagrams as trusted by default across the deployment. Off keeps the untrusted-by-default posture; a per-character override still layers on top."
+          hint="The rendering for characters on “Inherit default” while interactive cards are switched off: on renders their messages as rich HTML, off keeps them as sanitized text. While interactive cards are on, those characters already render rich HTML. A character's own Trust tab choice still wins."
           value={resolved.trustHtml}
           overridden={trustOverridden}
           floorLabel={envFloor(trustOverridden, resolved.trustHtml ? "on" : "off")}
           onSet={(next): void => write({ trustHtml: next })}
         />
-        {/* The html-trust ladder's TOP rung, deployment half (#111 leg 3). OFF by default and deliberately
-            the loudest hint in this section: it is the only control that exists over the WebRTC beacon the
-            grant opens, which no Content-Security-Policy directive can close. */}
+        {/* The html-trust ladder's TOP rung, deployment half. ON by default (owner ruling) and deliberately
+            the loudest hint in this section: switching it off is the only control that exists over the
+            WebRTC beacon the grant opens, which no Content-Security-Policy directive can close. */}
         <AdminOverrideSwitch
           label="Let interactive cards run their own scripts"
-          hint="Off by default. When on, a card from a character you marked “Interactive” runs its own JavaScript inside a locked-down frame — no cookies, no storage, no access to the app or to other cards, and no way to fetch anything. It CAN still beacon out over WebRTC, which no browser policy can block, so an interactive card can tell its author you looked at it and can capture anything you type inside the card itself. Leave this off unless you trust the cards you have marked Interactive. Changes reach an open tab on reload."
+          hint="On by default. While on, cards from every character on “Interactive” or “Inherit default” run their own JavaScript inside a locked-down frame — no cookies, no storage, no access to the app or to other cards, and no way to fetch anything. They CAN still beacon out over WebRTC, which no browser policy can block, so an interactive card can tell its author you looked at it, reveal your IP address, and capture anything you type inside the card itself. Turn this off to stop every card from running scripts; a card already on screen stops the next time it loads. One character's cards can be switched down to Render HTML on its Trust tab."
           value={resolved.allowInteractiveCards}
           overridden={interactiveOverridden}
           floorLabel={envFloor(interactiveOverridden, resolved.allowInteractiveCards ? "on" : "off")}

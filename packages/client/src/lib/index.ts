@@ -25,6 +25,8 @@ export {
   THEME_CARRIER_OBSERVABLES,
 } from "./appearance-carrier-manifest.ts";
 export { setBootReadPending } from "./boot-reads.ts";
+export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
+export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
 export { __resetBusDupBursts, busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
 export { deriveChatTitle, UNTITLED_CHAT_TITLE } from "./chat-title.ts";
 export type { ClientErrorPayload } from "./client-error-report.ts";
@@ -233,6 +235,8 @@ export {
   type SeedThemeName,
 } from "./resolve-theme-scope-tokens.ts";
 export { chatWithActionName, duplicateActionName, renameActionName, rowActionSubject, rowActionsName, rowQualifiers } from "./row-qualifiers.ts";
+export type { SafeErrorRingRead } from "./safe-error-ring.ts";
+export { installSafeErrorRing, safeErrorRing } from "./safe-error-ring.ts";
 export type { SessionMessage, SingleFlightOutcome } from "./session-channel.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export type { SessionDocumentHost } from "./session-document-host.ts";

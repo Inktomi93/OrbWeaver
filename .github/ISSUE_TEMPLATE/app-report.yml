@@ -1,0 +1,23 @@
+name: Bug report from the app
+description: Opened by "Report a bug" in Orbweaver. Check the text before you submit; it is public.
+title: "bug: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form was filled in by the app's "Report a bug" button. Everything here will be public. The app leaves out chats, characters, personas, keys and error messages; read it once more and remove anything you do not want to share. You can attach the downloaded diagnostics file or a screenshot below.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what went wrong, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: Filled in by the app. Version, system, page and recent error types.
+    validations:
+      required: false

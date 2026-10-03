@@ -7,7 +7,7 @@
 // tests/server/foundation/observability/client-error.test.ts — this file only proves the TRANSPORT
 // contract: reachable anonymously, validates input, always answers { ok: true } on success.
 
-import { logger } from "@orb/server/foundation/observability";
+import { logger, logRing } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "./_support.ts";
@@ -62,5 +62,36 @@ describe("clientError (the client error boundary's report verb)", () => {
       url: "https://example.test/",
     });
     expect(result).toEqual({ ok: true });
+  });
+});
+
+// The production "Report a bug" read. Its one principal-dependent arm is the role gate: the log ring is
+// principal-blind, so the error census is the OWNER's (D17 — box diagnostics are not a delegated admin's), and
+// every other signed-in caller gets runtime facts only. Driven through the real router, so the output schema's
+// grammars run too. What the census may contain is pinned by
+// tests/server/foundation/observability/bug-report-diagnostics.test.ts.
+describe("bugReportDiagnostics (the production bug reporter's server read)", () => {
+  const errorLine = JSON.stringify({ level: "error", time: "2026-09-02T08:00:00.000Z", msg: "chat bus: append failed", code: "SQLITE_BUSY" });
+
+  test("the owner gets the error census", async () => {
+    logRing.clear();
+    logRing.push(errorLine);
+    const read = await caller(makeContext({ auth: principal("owner") })).bugReportDiagnostics();
+    expect(read.serverErrors.kind).toBe("included");
+    expect(JSON.stringify(read.serverErrors)).toContain("SQLITE_BUSY");
+  });
+
+  test("an admin and a user get runtime facts only — never the principal-blind census", async () => {
+    logRing.clear();
+    logRing.push(errorLine);
+    for (const role of ["admin", "user"] as const) {
+      const read = await caller(makeContext({ auth: principal(role) })).bugReportDiagnostics();
+      expect(read.serverErrors, role).toEqual({ kind: "owner-only" });
+      expect(read.runtime.node, role).toMatch(/^v\d/u);
+    }
+  });
+
+  test("an anonymous caller is refused", async () => {
+    await expect(caller(makeContext({ auth: null })).bugReportDiagnostics()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });

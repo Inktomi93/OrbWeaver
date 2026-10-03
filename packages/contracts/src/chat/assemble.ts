@@ -85,6 +85,8 @@ export type AssembleWorldEntry = (AssembleWorldEntryFields & SharedBookAttachmen
 interface AssembleWorldEntryFields {
   /** Stable entry id — dedup key + priority tiebreaker (priority DESC, id ASC). */
   id: WorldEntryId;
+  /** The entry's author-facing name. The host preview lists fired lore by it; it never reaches the model. */
+  title: string;
   content: string;
   scope: WorldInfoScope;
   keys: string[];
@@ -243,8 +245,9 @@ export interface AssembleTrace {
   worldInfoDropped: { id: string; reason: "budget" }[];
   /** The WI entries that actually FIRED into this turn's prompt — the budget-survived pool by entry IDENTITY
    *  (not `matchedKeys`, which is keyword strings). `keys` is the entry's keyword list ([] for an always-scope
-   *  entry); the host inspector lists these so a human can see WHICH lore the model saw. Empty ⇒ no WI fired. */
-  worldInfoActivated: { id: string; keys: string[] }[];
+   *  entry); the host inspector lists these by `title` so a human can see WHICH lore the model saw. Empty ⇒ no
+   *  WI fired. */
+  worldInfoActivated: { id: string; title: string; keys: string[] }[];
   matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
   compactSummaryIncluded: boolean;
   memoryIncluded: boolean;
@@ -714,7 +717,7 @@ export interface AssembleContext {
     included: number;
     dropped: { id: string; reason: "budget" }[];
     matchedKeys: { key: string; matchedLatestUserMessage: boolean }[];
-    activated: { id: WorldEntryId; keys: string[] }[];
+    activated: { id: WorldEntryId; title: string; keys: string[] }[];
   };
 }
 
@@ -764,7 +767,7 @@ export const assembleTraceSchema = z.strictObject({
   dynamicSections: z.array(z.string()),
   worldInfoIncluded: z.number(),
   worldInfoDropped: z.array(z.strictObject({ id: z.string(), reason: z.literal("budget") })),
-  worldInfoActivated: z.array(z.strictObject({ id: z.string(), keys: z.array(z.string()) })),
+  worldInfoActivated: z.array(z.strictObject({ id: z.string(), title: z.string(), keys: z.array(z.string()) })),
   matchedKeys: z.array(z.strictObject({ key: z.string(), matchedLatestUserMessage: z.boolean() })),
   compactSummaryIncluded: z.boolean(),
   memoryIncluded: z.boolean(),

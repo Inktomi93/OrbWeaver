@@ -46,9 +46,10 @@ export interface AuthConfig {
    *  own `trustHtml` override wins in either direction (`resolveRenderPolicy`, D44 §12.0). A surface that
    *  previews card content combines this with the card's override instead of reading the override alone. */
   readonly trustHtml: boolean;
-  /** The deployment INTERACTIVE-CARD ceiling (#111 leg 3), floor FALSE. FALSE ⇒ the per-character
-   *  "Interactive" rung is inert deployment-wide: the mint builds every card through the static posture and
-   *  card scripts stay CSP-refused. Read by the surface that offers the rung, for the same
+  /** The deployment INTERACTIVE-CARD ceiling, floor TRUE, and the rung an "Inherit default" character
+   *  resolves to while it is up. FALSE ⇒ the per-character "Interactive" rung is inert deployment-wide: the
+   *  mint builds every card through the static posture and card scripts stay CSP-refused. Read by the surface
+   *  that offers the rung, for the same
    *  don't-ship-a-dead-switch reason as {@link forbidExternalMedia}. Never a capability the client grants —
    *  the frame policy is built server-side from the server's own read of this. */
   readonly allowInteractiveCards: boolean;
@@ -170,9 +171,9 @@ export function useExternalMediaBlocked(): boolean {
 
 /** Does this deployment allow interactive cards at all (#111 leg 3)? FALSE ⇒ the per-character "Interactive"
  *  rung stores fine but resolves to the static posture everywhere, so a surface offering it must say so.
- *  `=== true`, so a not-yet-landed config reads as BLOCKED — the strict direction, and the one that matches
- *  the server's own floor. (The external-media twin defaults the other way for the same reason: there the
- *  strict reading is "blocked", and here the strict reading is "not allowed".) */
+ *  `=== true`, so a not-yet-landed config reads as BLOCKED — the strict direction, even though the server's
+ *  floor is on. (The external-media twin defaults the other way for the same reason: there the strict
+ *  reading is "blocked", and here the strict reading is "not allowed".) */
 export function useInteractiveCardsAllowed(): boolean {
   return useAuthConfig().data?.allowInteractiveCards === true;
 }

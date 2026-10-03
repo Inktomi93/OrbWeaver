@@ -53,8 +53,8 @@ export interface RpgGameRow {
 /** The render-policy verdict for one character: what the row stores, what the deployment floors it to, and
  *  what actually resolves. `resolved` is what the client reads — the other two explain WHY. */
 export interface RenderPolicyVerdict {
-  /** The character's own tri-state columns (`null` = inherit the deployment tier — except `interactiveHtml`,
-   *  #111, which has no deployment tier, so `null` there simply means static). */
+  /** The character's own tri-state columns (`null` = inherit the deployment tier; both ladder columns
+   *  `null` is "Inherit default", the interactive rung while `allowInteractiveCards` is up). */
   stored: RenderPolicyOverride;
   /** The deployment tier the override resolves against — the two axes an AppSetting carries. Absent when the
    *  effective config was not injected. */

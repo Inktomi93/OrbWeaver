@@ -207,12 +207,11 @@ describe("GET /api/auth/config", () => {
     expect((await run(config)).body["trustHtml"]).toBe(true);
   });
 
-  // #111 leg 3 — the INTERACTIVE-CARD ceiling. Served for the same don't-ship-a-dead-switch reason as the
-  // external-media one: while it is off, the per-character "Interactive" rung stores fine and resolves to
-  // the static posture, so the editor has to say so. The DEFAULT arm asserts FALSE deliberately: the shipped
-  // floor is off, and a config that started serving `true` by accident would silently arm every card whose
-  // host clicked the rung back when the editor said it was inert.
-  test("serves the deployment allowInteractiveCards ceiling, read PER REQUEST, floor OFF", async () => {
+  // The INTERACTIVE-CARD ceiling. Served for the same don't-ship-a-dead-switch reason as the external-media
+  // one: while it is off, the per-character "Interactive" rung stores fine and resolves to the static
+  // posture, so the editor has to say so. This route serves whatever the injected read says (the shipped
+  // floor, ON, is pinned by the effective-config layer test); the arms below prove it is read per request.
+  test("serves the deployment allowInteractiveCards ceiling, read PER REQUEST", async () => {
     expect((await run(handlers(depsFor("local")).config)).body["allowInteractiveCards"]).toBe(false);
 
     let allows = false;

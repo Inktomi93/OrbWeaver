@@ -16,7 +16,7 @@ export const APPEARANCE_LOOKS_SUBCATEGORY: ConfigSubcategory = {
   keywords: ["theme", "palette", "color", "dark", "light", "appearance"],
   teach: {
     summary:
-      "Appearance choices are applied states, not modes you enter — picking a look APPLIES it (#297). Shipped and self-made themes live in ONE collection and wear the same card; whether a theme shipped with the app is a property of that theme, not a different kind of thing.",
+      "Picking a look applies it right away; there is no mode to enter or leave. Shipped and self-made themes live in ONE collection and wear the same card; whether a theme shipped with the app is a property of that theme, not a different kind of thing.",
     affects: ["the whole app's palette, on this account everywhere you sign in"],
   },
   settings: [

@@ -1,17 +1,19 @@
-// CT: the dev bug-found button (#1095 — features/app-shell/components/bug-report-button.tsx).
+// CT: the developer capture inside "Report a bug" (features/app-shell/components/bug-report-button.tsx). The
+// production outputs of the same form are pinned in bug-report-public.ct.tsx.
 //
 // MOUNTED DIRECTLY, on purpose. playwright-ct builds with `vite build`, i.e. PRODUCTION mode, so `IS_DEV` is
-// false here and the component's own chrome entry (`lib/bug-report-chrome.tsx`, `useVisible: () => IS_DEV`)
-// renders nothing in a CT. A direct mount is the sanctioned shape for a dev-gated arm, not a workaround — and
+// false here and the chrome entry (`ReportBugChromeButton`, `devCapture={IS_DEV}`) would hide the capture in a
+// CT. A direct mount with `devCapture` on is the sanctioned shape for a dev-gated arm, not a workaround — and
 // the same production build is what makes the `bridge: false` assertion below REAL rather than simulated:
 // `window.__orb` genuinely does not exist in this bundle.
 //
 // The POST is intercepted so the CT proves the WIRE (what the button would actually send) without writing a
 // file into the repo from a browser test.
 
+import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { BugReportButton } from "../../../../../packages/client/src/features/app-shell/components/bug-report-button.tsx";
-import { BugReportOverPageFixture } from "./bug-report-button.fixtures.tsx";
+import type { Page } from "@playwright/test";
+import { BugReportOverPageFixture, DevBugReportButton, PublicBugReportButton } from "./bug-report-button.fixtures.tsx";
 
 const ROUTE = "**/api/_debug/bug-report";
 
@@ -58,7 +60,7 @@ test("captures the note + the window, and the status line names the written repo
     });
   });
 
-  await mount(<BugReportButton />);
+  await mount(<DevBugReportButton />);
   const trigger = page.getByRole("button", { name: "Report a bug" });
   await expect(trigger).toBeVisible();
 
@@ -92,7 +94,7 @@ test("the bundle carries the honesty receipts — the unfilterable sources say W
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: "x", written: { json: "/repo/bug-reports/x.json" } }) });
   });
 
-  await mount(<BugReportButton />);
+  await mount(<DevBugReportButton />);
   await page.getByRole("button", { name: "Report a bug" }).click();
   await page.getByRole("textbox", { name: "What happened?" }).fill("something looked wrong");
   await page.getByRole("radio", { name: "~5 minutes ago" }).check();
@@ -132,7 +134,7 @@ test("with a bridge present: the window FILTERS the timestamped censuses and the
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: "y", written: { json: "/repo/bug-reports/y.json" } }) });
   });
 
-  await mount(<BugReportButton />);
+  await mount(<DevBugReportButton />);
 
   // A CT bundle has no `__orb` (production build), so the bridge-PRESENT arm is exercised by installing the
   // reads the capture actually consumes. This is the shape of the real handle, not a mock of the capture:
@@ -230,7 +232,7 @@ test("a refused capture SAYS SO, and names WHICH ARM refused (#1193)", async ({ 
     });
   });
 
-  await mount(<BugReportButton />);
+  await mount(<DevBugReportButton />);
   await page.getByRole("button", { name: "Report a bug" }).click();
   await page.getByRole("textbox", { name: "What happened?" }).fill("this one will be refused");
   await page.getByRole("button", { name: "Capture report" }).click();
@@ -254,7 +256,7 @@ test("a capture that throws while ASSEMBLING says so too — the button never we
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: "z", written: { json: "/repo/bug-reports/z.json" } }) });
   });
 
-  await mount(<BugReportButton />);
+  await mount(<DevBugReportButton />);
   // A bridge whose FIRST census read throws — the real shape of a broken debug handle, not a mocked capture.
   await page.evaluate(() => {
     Object.assign(globalThis, {
@@ -290,7 +292,7 @@ test("a refusal with NO gate body says only the status — no invented cause", a
     await route.fulfill({ status: 502, contentType: "text/html", body: "<html><body>Bad Gateway</body></html>" });
   });
 
-  await mount(<BugReportButton />);
+  await mount(<DevBugReportButton />);
   await page.getByRole("button", { name: "Report a bug" }).click();
   await page.getByRole("textbox", { name: "What happened?" }).fill("the proxy is down");
   await page.getByRole("button", { name: "Capture report" }).click();
@@ -343,4 +345,111 @@ test.describe("#2444 the form popover's touch containment", () => {
     await page.touchscreen.tap(point.x, point.y);
     await expect(page.getByTestId("page-taps")).toHaveText("0");
   });
+});
+
+// ── THE PRODUCTION PATH: a public summary the user reads first, a prefilled issue, a downloadable bundle ────
+// A CT builds in production mode, so these run the form exactly as a production build ships it. GitHub is
+// fulfilled locally: the pins are about the link the app opens, never about reaching the network.
+
+const ISSUE_PAGE = "https://github.com/**";
+const ISSUE_NEW = "https://github.com/Inktomi93/orbweaver/issues/new";
+/** `BUG_REPORT_ISSUE_URL_MAX` in `lib/bug-report-public.ts`. A CT spec's node side cannot import a value from a
+ *  module that has imports, so the limit is restated here and pinned by the node suite beside it. */
+const ISSUE_URL_MAX = 4000;
+const NOTE = "The roster pane painted empty after I renamed a character";
+
+const CANARY = {
+  chat: "canarychatline the lantern-keeper whispered",
+  persona: "canarypersonatext with a long backstory",
+  apiKey: "sk-or-v1-canaryapikey0123456789abcdef",
+  invite: "canaryinvitetoken0123",
+} as const;
+
+async function prepare(page: Page, note: string): Promise<void> {
+  await page.getByRole("button", { name: "Report a bug" }).click();
+  await page.getByRole("textbox", { name: "What happened?" }).fill(note);
+  await page.getByRole("button", { name: "Prepare report" }).click();
+  await expect(page.getByRole("textbox", { name: "Report to share" })).toBeVisible();
+}
+
+/** Click the share button and return the tab it opened. A `noopener` tab has no opener, so it is caught as a
+ *  new page in the context rather than as the page's popup. */
+async function shareAndCatchIssueTab(page: Page): Promise<URL> {
+  await page.context().route(ISSUE_PAGE, (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<p>issue form</p>" }));
+  const opened = page.context().waitForEvent("page");
+  await page.getByRole("button", { name: "Copy and open a GitHub issue" }).click();
+  const tab = await opened;
+  await tab.waitForLoadState();
+  return new URL(tab.url());
+}
+
+test("PRODUCTION: no developer capture, and the report is shown in full before anything leaves the page", async ({ mount, page }) => {
+  await mount(<PublicBugReportButton />);
+  await prepare(page, NOTE);
+  await expect(page.getByRole("button", { name: "Capture report" })).toHaveCount(0);
+  const preview = page.getByRole("textbox", { name: "Report to share" });
+  await expect(preview).toHaveValue(new RegExp(NOTE, "u"));
+  await expect(preview).toHaveValue(/v0\.9\.0/u);
+  await expect(page.locator('[data-slot="bug-report-status"]')).toHaveText("Report ready. Nothing has been sent.");
+});
+
+test("PRODUCTION: one click copies the report and opens the app's issue form prefilled with the same text", async ({ mount, page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await mount(<PublicBugReportButton />);
+  await prepare(page, NOTE);
+  const summary = await page.getByRole("textbox", { name: "Report to share" }).inputValue();
+
+  const issue = await shareAndCatchIssueTab(page);
+  expect(`${issue.origin}${issue.pathname}`).toBe(ISSUE_NEW);
+  expect(issue.searchParams.get("template")).toBe("app-report.yml");
+  expect(issue.searchParams.get("what-happened")).toBe(NOTE);
+  expect(issue.searchParams.get("diagnostics")).toContain("SQLITE_BUSY");
+  expect(issue.href.length).toBeLessThanOrEqual(ISSUE_URL_MAX);
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(summary);
+});
+
+test("PRODUCTION: a report too long for a link opens cut to fit and says so, while the clipboard carries all of it", async ({ mount, page }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const long = `${"The scene froze while the card rendered. ".repeat(150)}END-OF-REPORT`;
+  await mount(<PublicBugReportButton />);
+  await prepare(page, long);
+
+  const issue = await shareAndCatchIssueTab(page);
+  expect(issue.href.length).toBeLessThanOrEqual(ISSUE_URL_MAX);
+  expect(issue.searchParams.get("what-happened")).not.toContain("END-OF-REPORT");
+  await expect(page.locator('[data-slot="bug-report-status"]')).toContainText("cut to fit the link");
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain("END-OF-REPORT");
+});
+
+test("PRODUCTION: canaries from the page's errors and URL reach neither the preview, the issue link nor the file", async ({ mount, page }) => {
+  await mount(<PublicBugReportButton />);
+  // Seed the REAL production ring through the browser's own surfaces: a console error carrying chat text and a
+  // key, an uncaught TypeError whose message is persona text, and a rejection; on a path carrying a token.
+  await page.evaluate((canary) => {
+    history.pushState(null, "", `/chats/${canary.invite}?code=${canary.apiKey}#t=${canary.apiKey}`);
+    console.error(`render failed: ${canary.chat}`, { apiKey: canary.apiKey });
+    const uncaught = new TypeError(canary.persona);
+    globalThis.dispatchEvent(new ErrorEvent("error", { error: uncaught, message: uncaught.message }));
+    globalThis.dispatchEvent(new PromiseRejectionEvent("unhandledrejection", { promise: Promise.resolve(), reason: new Error(canary.chat) }));
+  }, CANARY);
+  await prepare(page, NOTE);
+
+  const previewBox = page.getByRole("textbox", { name: "Report to share" });
+  // Positive control: the errors WERE recorded and reported, by type.
+  await expect(previewBox).toHaveValue(/uncaught TypeError/u);
+  await expect(previewBox).toHaveValue(/\*\*Page:\*\* chats/u);
+  const preview = await previewBox.inputValue();
+
+  const issue = await shareAndCatchIssueTab(page);
+  const downloaded = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download diagnostics" }).click();
+  const file = await (await downloaded).path();
+  const bundle = readFileSync(file, "utf8");
+  expect(JSON.parse(bundle)).toMatchObject({ format: "orbweaver-bug-report", whatHappened: NOTE });
+
+  for (const output of [preview, issue.href, decodeURIComponent(issue.search.replaceAll("+", " ")), bundle]) {
+    for (const [name, value] of Object.entries(CANARY)) {
+      expect(output, name).not.toContain(value);
+    }
+  }
 });

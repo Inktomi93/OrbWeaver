@@ -11,6 +11,7 @@
 // the block CONTENT already renders for the drilled character — two different values for one metric,
 // on screen at the same time. So it renders only in the UNDRILLED state; drilled, CONTENT owns it.
 
+import type { ModelStatRow } from "@orb/contracts/stats";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { formatUsd } from "@orb/kit/strings";
 import { BarList } from "@orb/ui/bar-list";
@@ -24,7 +25,15 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
-import { byModelBarItems, formatAccountingLabel, formatCompact, formatMs, formatTokens, UNRECORDED_NOTE } from "../lib/analytics-view-model.ts";
+import {
+  byModelBarItems,
+  formatAccountingLabel,
+  formatCompact,
+  formatMs,
+  formatThroughput,
+  formatTokens,
+  UNRECORDED_NOTE,
+} from "../lib/analytics-view-model.ts";
 import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 
 export function AnalyticsModelsTab(): ReactElement {
@@ -89,6 +98,7 @@ function ModelsBody(): ReactElement {
                     Aggregate only · {formatAccountingLabel("Output tokens", model.tokensOut, model.tokensOutProvenance)} ·{" "}
                     {formatAccountingLabel("Cost", model.costUsd)}
                   </Text>
+                  <ModelSpeed model={model} />
                 </Stack>
               );
             })}
@@ -97,6 +107,20 @@ function ModelsBody(): ReactElement {
         <Text voice="gloss">{UNRECORDED_NOTE}</Text>
       </Section>
     </Stack>
+  );
+}
+
+/** One model's speed: time to first token and output throughput, each with its provenance. Throughput is
+ *  output tokens over generation time, so a row with no recorded generation time has no throughput, and
+ *  the server's `0` there is a division guard, not a measurement. */
+function ModelSpeed({ model }: { readonly model: ModelStatRow }): ReactElement {
+  const throughputOrigin = model.totalGenTimeMs > 0 ? model.tokensOutProvenance : "unrecorded";
+  const throughput = throughputOrigin === "unrecorded" ? null : model.throughputTps;
+  return (
+    <Text voice="gloss">
+      {formatAccountingLabel("Time to first token", model.avgTtftMs)}: {formatMs(model.avgTtftMs)} avg, {formatMs(model.p90TtftMs)} p90 ·{" "}
+      {formatAccountingLabel("Throughput", throughput, throughputOrigin)}: {formatThroughput(model.throughputTps, throughputOrigin)}
+    </Text>
   );
 }
 

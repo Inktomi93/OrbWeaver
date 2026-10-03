@@ -13,9 +13,10 @@
 // HTML rendering is ONE LADDER control, not two switches (owner ruling 2026-08-16, #111): Untrusted <
 // Render HTML < Interactive, plus Inherit for "no override". It writes the `trust_html` +
 // `interactive_html` pair through the contracts helper, so the incoherent "interactive but untrusted" pair
-// is unwritable here and unrepresentable in the resolved policy. Since leg 3's security pass the top rung
-// really does run card-authored scripts — but only when the deployment's `allowInteractiveCards` ceiling is
-// also up, so this surface reads that ceiling and says which of the two it is. It does NOT lock the control
+// is unwritable here and unrepresentable in the resolved policy. The top rung runs card-authored scripts,
+// and it is also where "Inherit default" lands while the deployment's `allowInteractiveCards` ceiling is up
+// (owner ruling: interactive cards on by default), so this surface reads that ceiling, says which rung the
+// character resolves to, and names the lower rungs as the per-character disable. It does NOT lock the control
 // the way the external-media row does: there EVERY value is inert under the ceiling, here only one of four.
 
 import type { HtmlTrustStep } from "@orb/contracts/chat";
@@ -30,6 +31,7 @@ import { useId } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useExternalMediaBlocked, useInteractiveCardsAllowed, useInvalidation, useTRPC } from "#data";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
+import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterAppearanceTabProps } from "./character-appearance-tab.tsx";
 
 /** inherit / on / off ⇄ null / true / false (the tri-state wire encoding, shared by both Trust controls). */
@@ -100,6 +102,9 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
   // control — only ONE of the four values is inert while it is off, and disabling the whole select would
   // take away three working choices. The rung stays pickable and the note below says what it will do.
   const interactiveCardsAllowed = useInteractiveCardsAllowed();
+  // What the stored pair actually RESOLVES to on this deployment — the same resolver compose runs. The
+  // select shows the stored answer, and "Inherit default" alone does not say which rung that is.
+  const resolvedStep = usePreviewRenderPolicy(data).htmlTrust;
   const externalMediaLockId = useId();
   const interactiveLockId = useId();
 
@@ -154,7 +159,12 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
         <Text id={interactiveLockId} voice="gloss">
           HTML rendering is a ladder: Untrusted keeps this character's messages as plain sanitized text, Render HTML lets them use rich HTML and card styling,
           and Interactive is Render HTML plus cards that run their own scripts, in a locked-down frame that cannot reach your session, your data, or the rest of
-          the app.
+          the app. A card's script can still send a signal out over WebRTC, which no browser setting can block, so it can reveal that you viewed it, your IP
+          address, and anything you type into the card itself. Inherit default follows this box's setting, which is Interactive unless an admin switched
+          interactive cards off. Pick Render HTML or Untrusted to stop this character's cards from running scripts.
+        </Text>
+        <Text voice="gloss" data-slot="trust-resolved-step">
+          This character's messages render as {HTML_TRUST_LABELS[resolvedStep]} right now.
         </Text>
         {interactiveCardsAllowed ? null : (
           <Text voice="gloss">

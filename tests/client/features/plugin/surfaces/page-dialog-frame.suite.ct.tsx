@@ -130,11 +130,11 @@ test("a PAGE-anchored frame renders its own document inside the PAGE-SCALE shell
   await mount(<ExtensionsPageStory selectKey={{ pluginId: ORACLE_ID, surfaceId: "board_page" }} />);
 
   // THE §9 WALL: a full-page frame is arbitrary HTML at the biggest impersonation scale, so it wears the pinned
-  // attribution band — the plugin's name and the "Extension" kicker — that every vocabulary page wears.
+  // attribution band — the plugin's name and the "Plugin" kicker — that every vocabulary page wears.
   const band = page.getByTestId("plugin-page-attribution");
   await expect(band).toBeVisible();
   await expect(band).toContainText("Oracle Deck");
-  await expect(band).toContainText("Extension");
+  await expect(band).toContainText("Plugin");
 
   // THE FRAME ITSELF, beneath the band: the plugin's own opaque-origin document painted its own pixels. Before
   // #787 this row rendered the "hasn't published anything" gloss and no frame at all.
@@ -204,10 +204,10 @@ test("a selected page shows catalog loading and failure before Retry, never a fa
   });
   await mount(<ExtensionsPageStory selectKey={{ pluginId: ORACLE_ID, surfaceId: "board_page" }} />);
 
-  await expect(page.getByText("Loading extension page…", { exact: true })).toBeVisible();
+  await expect(page.getByText("Loading plugin page…", { exact: true })).toBeVisible();
   firstRead.release(trpcError({ code: "INTERNAL_SERVER_ERROR" }));
-  await expect(page.getByText("Couldn't load this extension page.", { exact: true })).toBeVisible();
-  await expect(page.getByText("That extension page is gone", { exact: false })).toHaveCount(0);
+  await expect(page.getByText("Couldn't load this plugin page.", { exact: true })).toBeVisible();
+  await expect(page.getByText("That plugin page is gone", { exact: false })).toHaveCount(0);
   await page.getByRole("button", { name: "Retry", exact: true }).click();
   await expect(page.getByTestId("plugin-page-attribution")).toContainText("Oracle Deck");
   await expect(page.getByText("Recovered page", { exact: true })).toBeVisible();

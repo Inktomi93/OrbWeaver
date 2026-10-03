@@ -83,9 +83,12 @@ interface Harness {
 function harness(
   overrides: {
     readonly deployExternal?: boolean;
-    /** The #111 leg-3 deployment ceiling. Defaults TRUE here so the posture tests are about the posture;
-     *  its SHIPPED floor is false, and the ceiling's own tests pass it explicitly. */
+    /** The deployment interactive-card ceiling. Defaults TRUE, its shipped floor; the ceiling's own tests
+     *  pass it explicitly. */
     readonly deployInteractive?: boolean;
+    /** A LIVE ceiling read, for the revocation tests that flip it between a mint and a serve. Wins over
+     *  `deployInteractive` when present. */
+    readonly interactiveCeiling?: () => boolean;
     readonly roster?: () => Promise<readonly ParticipantView[]>;
     /** Mount the APP's own `securityHeaders` above the route, exactly as `entry/app.ts` does — the arm that
      *  proves the served document keeps ITS policy rather than the app's (added 2026-08-28 with #679 U7). */
@@ -96,7 +99,7 @@ function harness(
   const deps: CardFrameDeps = {
     participants: { listParticipants: overrides.roster ?? ((): Promise<readonly ParticipantView[]> => Promise.resolve(ROSTER)) },
     allowExternalMedia: () => overrides.deployExternal ?? true,
-    allowInteractiveCards: () => overrides.deployInteractive ?? true,
+    allowInteractiveCards: overrides.interactiveCeiling ?? ((): boolean => overrides.deployInteractive ?? true),
     now: () => 1_000_000,
   };
   const app = new Hono<PrincipalEnv>();
@@ -396,8 +399,63 @@ describe("card-frame — the interactive-card grant", () => {
     expect(await cspFor(INTERACTIVE, false)).toContain("img-src 'self' data: https:");
   });
 
-  test("the ceiling is a VETO, not a grant — it cannot lift a card that never opted in", async () => {
+  test("the ceiling is a VETO at this boundary, not a grant — it cannot lift a seat the resolver put below the rung", async () => {
     expect((await grantedFor(TRUSTED, true)).interactive).toBe(false);
     expect((await grantedFor(UNTRUSTED, true)).interactive).toBe(false);
+  });
+});
+
+// ── THE REVOCATION REACHES A HANDLE ALREADY MINTED ───────────────────────────────────────────────────────
+// Interactive cards are on by default, so the revocation paths are the controls that matter: the admin
+// ceiling, a character moved to a lower rung, and a viewer who left the room. The client memoizes one handle
+// per card body for the tab's whole life, so a grant decided only at mint would outlive all three. Each test
+// mints INTERACTIVE, changes the world, and asserts the NEXT SERVE of the same handle.
+
+describe("card-frame — revocation at serve", () => {
+  const scriptSrcOf = (res: Response): string | undefined =>
+    (res.headers.get("content-security-policy") ?? "").split("; ").find((directive) => directive.startsWith("script-src "));
+  const staticScriptSrc = `script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`;
+
+  test("the admin switching interactive cards OFF withdraws card scripts from a handle minted while it was on", async () => {
+    const deployment = { ceiling: true };
+    const h = harness({ interactiveCeiling: () => deployment.ceiling });
+    const url = await mintUrl(h, { ...CARD, characterId: INTERACTIVE });
+    expect(scriptSrcOf(await h.serve(url))).toBe("script-src 'unsafe-inline'");
+    deployment.ceiling = false;
+    const revoked = await h.serve(url);
+    expect(revoked.status).toBe(200);
+    expect(scriptSrcOf(revoked)).toBe(staticScriptSrc);
+    // Only the script grant is withdrawn: the same bytes still render, with the same media policy.
+    expect(await revoked.text()).toContain("<p>a sealed letter</p>");
+    expect(revoked.headers.get("content-security-policy")).toContain("img-src 'self' data: https:");
+    // Switching it back on restores the grant the mint decided, and no more.
+    deployment.ceiling = true;
+    expect(scriptSrcOf(await h.serve(url))).toBe("script-src 'unsafe-inline'");
+  });
+
+  test("a host moving the character down to Render HTML withdraws the grant on the next serve", async () => {
+    let roster: readonly ParticipantView[] = ROSTER;
+    const h = harness({ roster: (): Promise<readonly ParticipantView[]> => Promise.resolve(roster) });
+    const url = await mintUrl(h, { ...CARD, characterId: INTERACTIVE });
+    roster = ROSTER.map((seat) => (seat.characterId === INTERACTIVE ? participant(INTERACTIVE, { htmlTrust: "trusted", forbidExternalMedia: false }) : seat));
+    expect(scriptSrcOf(await h.serve(url))).toBe(staticScriptSrc);
+  });
+
+  test("a viewer who is no longer a member gets the script-free document, never the minted grant", async () => {
+    const viewer: { member: boolean } = { member: true };
+    const h = harness({
+      roster: (): Promise<readonly ParticipantView[]> => (viewer.member ? Promise.resolve(ROSTER) : Promise.reject(new Error("not a participant"))),
+    });
+    const url = await mintUrl(h, { ...CARD, characterId: INTERACTIVE });
+    viewer.member = false;
+    expect(scriptSrcOf(await h.serve(url))).toBe(staticScriptSrc);
+  });
+
+  test("a serve can only withdraw: a handle minted STATIC is never promoted when the seat later resolves interactive", async () => {
+    let roster: readonly ParticipantView[] = ROSTER;
+    const h = harness({ roster: (): Promise<readonly ParticipantView[]> => Promise.resolve(roster) });
+    const url = await mintUrl(h, { ...CARD, characterId: TRUSTED });
+    roster = ROSTER.map((seat) => (seat.characterId === TRUSTED ? participant(TRUSTED, { htmlTrust: "interactive", forbidExternalMedia: false }) : seat));
+    expect(scriptSrcOf(await h.serve(url))).toBe(staticScriptSrc);
   });
 });

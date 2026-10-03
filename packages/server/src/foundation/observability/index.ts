@@ -11,6 +11,7 @@ export {
   logAudit,
   resetAuditFailureCount,
 } from "./audit.ts";
+export { readBugReportDiagnostics } from "./bug-report-diagnostics.ts";
 export { type ClientErrorReport, recordClientError } from "./client-error.ts";
 export {
   type AdminAuthChecker,

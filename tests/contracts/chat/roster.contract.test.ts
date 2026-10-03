@@ -173,13 +173,12 @@ test("rosterMemberSpecSchema rejects `human`, `observer`, and `agent` — humans
 // document CSP (built from the DEPLOYMENT value alone) then blocked anyway. `trustHtml` deliberately keeps
 // `override ?? deployment`: its deployment value is a DEFAULT sitting at the strict end, not a block.
 
-// Both media fixtures carry `allowInteractiveCards: true` so the tests below isolate the axis they are
-// about. The FLOOR is false (`domain/settings/effective-config/layer.ts`) and the ceiling gets its own
-// fixture + its own tests further down — a fixture that quietly disabled the top rung would make the
-// ladder's own tests pass for the wrong reason.
+// Both media fixtures carry `allowInteractiveCards: true`, the SHIPPED floor
+// (`domain/settings/effective-config/layer.ts`), so the media tests run on the deployment a fresh box has.
+// The ceiling's other position gets its own fixture + its own tests further down.
 const BLOCKING_DEPLOYMENT: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: true, allowInteractiveCards: true };
 const PERMISSIVE_DEPLOYMENT: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false, allowInteractiveCards: true };
-/** The SHIPPED floor for the top rung: an operator who has not opted the deployment in (#111 leg 3). */
+/** The REVOCATION: an operator who switched interactive cards off deployment-wide. */
 const INTERACTIVE_FORBIDDEN: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false, allowInteractiveCards: false };
 const CARD_ALLOWS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: false, interactiveHtml: null };
 const CARD_FORBIDS: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: true, interactiveHtml: null };
@@ -204,7 +203,9 @@ test("deployment ALLOWS + card allows/inherits ⇒ ALLOWED (the resolver is not 
 });
 
 test("the RENDER step keeps `override ?? deployment` — the per-character escalation path is DELIBERATE (D44 §12.0)", () => {
-  const deployment: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false, allowInteractiveCards: true };
+  // The ceiling is DOWN here so an inheriting card lands on the render step itself rather than on the rung
+  // above it; the ceiling's own tests are below.
+  const deployment: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false, allowInteractiveCards: false };
   expect(resolveRenderPolicy(deployment, { trustHtml: true, forbidExternalMedia: null, interactiveHtml: null }).htmlTrust).toBe("trusted");
   expect(resolveRenderPolicy(deployment, CARD_INHERITS).htmlTrust).toBe("untrusted");
   // …and a card may force UNtrusted below an admin-global opt-in.
@@ -222,16 +223,15 @@ test("the axes are INDEPENDENT — an HTML-trust opt-in does not drag external m
 
 // ═══ THE HTML-TRUST LADDER — untrusted < trusted < interactive (owner ruling 2026-08-16, #111) ═════════
 //
-// ONE ordered axis, so no consumer can read two booleans and invent a fourth state. Reaching the floor must
-// not depend on a card carrying an explicit `false`: every card that predates the column — every imported
-// one — carries `null`, and #111's done criterion is that all of them stay static.
+// ONE ordered axis, so no consumer can read two booleans and invent a fourth state.
 //
-// THE TOP RUNG TAKES TWO CONSENTS (leg-3 security pass, 2026-08-16). It used to be per-card only, and the
-// test below used to assert exactly that ("no deployment tier widens or narrows it"). That assertion is
-// REPLACED, not deleted: the rung now runs model-authored code and carries a WebRTC beacon no CSP directive
-// can close, so the deployment operator holds a veto (`allowInteractiveCards`, floor FALSE) and the resolver
-// ANDs it with the host's per-card opt-in. The replacement pins are stronger than the one they retire —
-// they assert both directions of the AND plus the fallback rung.
+// DEFAULT-ON, WITH ONE CEILING (owner ruling: interactive cards on by default for every character). A card on
+// "Inherit default" — both ladder columns `null`, which is every card nobody set, imported ones included —
+// resolves to the top rung while the deployment `allowInteractiveCards` ceiling is up. The ceiling is still
+// an AND over every route to the rung, because the rung runs model-authored code and carries a WebRTC beacon
+// no CSP directive can close: switching it off is the revocation. A lower rung stored on the card is the
+// per-character disable. These pins replace the earlier "never-opted-in stays static" ones: they assert both
+// routes to the rung, the veto over both, and every explicit lower answer.
 
 test("the ladder is ordered, and its order is the API — untrusted < trusted < interactive", () => {
   expect([...HTML_TRUST_STEPS]).toEqual(["untrusted", "trusted", "interactive"]);
@@ -239,16 +239,24 @@ test("the ladder is ordered, and its order is the API — untrusted < trusted < 
   expect(HTML_TRUST_STEPS.map(allowsInteractiveCards)).toEqual([false, false, true]);
 });
 
-test("the top rung needs BOTH consents — the host's card opt-in AND the deployment ceiling", () => {
+test("an INHERITING card resolves to the top rung under the ceiling — the default-on ruling", () => {
+  // Both media fixtures, because the media axis is unrelated to the ladder.
+  expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, CARD_INHERITS).htmlTrust).toBe("interactive");
+  expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, CARD_INHERITS).htmlTrust).toBe("interactive");
+  // `forbidExternalMedia` is not part of the ladder: a card that set only that column still inherits it.
+  expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, CARD_FORBIDS).htmlTrust).toBe("interactive");
+});
+
+test("THE REVOCATION: with the ceiling down, neither the default nor an opt-in reaches the rung", () => {
   const opted: RenderPolicyOverride = { trustHtml: null, forbidExternalMedia: null, interactiveHtml: true };
-  // Host opted in, deployment allows ⇒ the rung. (Both media fixtures, because the media axis is unrelated.)
   expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, opted).htmlTrust).toBe("interactive");
-  expect(resolveRenderPolicy(BLOCKING_DEPLOYMENT, opted).htmlTrust).toBe("interactive");
-  // Host opted in, deployment FORBIDS ⇒ NOT the rung. This is the kill-switch, and it is the only control
-  // that exists over the grant's WebRTC residual, so it is asserted as an absolute rather than a default.
+  // This is the kill-switch, the only control over the grant's WebRTC residual, so it is asserted as an
+  // absolute over BOTH routes to the rung.
   expect(allowsInteractiveCards(resolveRenderPolicy(INTERACTIVE_FORBIDDEN, opted).htmlTrust)).toBe(false);
-  // Deployment allows, host did NOT opt in ⇒ still not the rung: the ceiling is a veto, never a grant.
-  expect(allowsInteractiveCards(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, CARD_INHERITS).htmlTrust)).toBe(false);
+  expect(allowsInteractiveCards(resolveRenderPolicy(INTERACTIVE_FORBIDDEN, CARD_INHERITS).htmlTrust)).toBe(false);
+  // An inheriting card lands on the deployment's own render default, not on a rung it never stored.
+  expect(resolveRenderPolicy(INTERACTIVE_FORBIDDEN, CARD_INHERITS).htmlTrust).toBe("untrusted");
+  expect(resolveRenderPolicy({ ...INTERACTIVE_FORBIDDEN, trustHtml: true }, CARD_INHERITS).htmlTrust).toBe("trusted");
 });
 
 test("a vetoed card falls back to its OWN stored render answer, never to a rung it did not store", () => {
@@ -262,14 +270,27 @@ test("a vetoed card falls back to its OWN stored render answer, never to a rung 
   expect(resolveRenderPolicy(INTERACTIVE_FORBIDDEN, contradictory).htmlTrust).toBe("untrusted");
 });
 
-test("FAIL-CLOSED to static: never-opted-in (null), opted-out (false) and no card at all stay off the top rung", () => {
-  for (const resolved of [
-    resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, CARD_INHERITS),
-    resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, { trustHtml: null, forbidExternalMedia: null, interactiveHtml: false }),
-    resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, null),
-  ]) {
-    expect(allowsInteractiveCards(resolved.htmlTrust)).toBe(false);
+test("THE PER-CHARACTER DISABLE: every explicit lower answer stays off the rung under the ceiling", () => {
+  for (const [label, override] of [
+    // The two lower rungs of the one ladder control.
+    ["Render HTML", { ...renderPolicyOverrideForStep("trusted"), forbidExternalMedia: null }],
+    ["Untrusted", { ...renderPolicyOverrideForStep("untrusted"), forbidExternalMedia: null }],
+    // An explicit opt-out beside an inherited render step (a pre-ladder or direct API write): the `false`
+    // is the host's answer and wins over the default.
+    ["opted out, render inherited", { trustHtml: null, forbidExternalMedia: null, interactiveHtml: false }],
+    // A render answer with no interactive column (a handoff copy, a pre-ladder row): explicit, not inherit.
+    ["trusted, interactive unset", { trustHtml: true, forbidExternalMedia: null, interactiveHtml: null }],
+    ["untrusted, interactive unset", { trustHtml: false, forbidExternalMedia: null, interactiveHtml: null }],
+  ] as const) {
+    expect(allowsInteractiveCards(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, override).htmlTrust), label).toBe(false);
   }
+});
+
+test("FAIL-CLOSED: no card at all (`null`) is NOT an inheriting card and never reaches the rung", () => {
+  // A human seat or an unreadable card row resolves through `null`; treating it as "Inherit default" would
+  // hand the script posture to content no character row vouches for.
+  expect(resolveRenderPolicy(PERMISSIVE_DEPLOYMENT, null).htmlTrust).toBe("untrusted");
+  expect(resolveRenderPolicy({ ...PERMISSIVE_DEPLOYMENT, trustHtml: true }, null).htmlTrust).toBe("trusted");
 });
 
 test("a TRUSTED card is not thereby interactive — the rung above is its own host act", () => {
