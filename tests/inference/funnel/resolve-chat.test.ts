@@ -295,6 +295,36 @@ test("budget mode: the effort level picks the budget when none is set, and an ex
   expect(resolveChat({ effort: "low", thinkingBudgetTokens: 2048 } satisfies UserIntent, cap).reasoning.budgetTokens).toBe(2048);
 });
 
+// ── local-server samplers: one gate for every numeric knob, and the D295 sampler order ─────────────────────
+
+const droppedKnobs = (knobs: ReturnType<typeof resolveChat>): readonly (string | undefined)[] =>
+  knobs.warnings.filter((w) => w.code === "sampling_knob_dropped").map((w) => w.knob);
+
+test("an extended sampler rides clamped where the capability states it, and drops by name where it does not", () => {
+  const stated = resolveChat({ dryMultiplier: 9, mirostatMode: 2 } satisfies UserIntent, generation({ sampling: { dryMultiplier: { min: 0, max: 5 } } }));
+  expect(stated.sampling.dryMultiplier).toBe(5);
+  expect(stated.sampling.mirostatMode).toBeUndefined();
+  expect(droppedKnobs(stated)).toEqual(["mirostatMode"]);
+});
+
+test("sampler order: no stated stages drops it; stated stages complete it and name the stages the server cannot order", () => {
+  const unordered = resolveChat({ samplerOrder: ["temperature", "topK"] } satisfies UserIntent, generation());
+  expect(unordered.sampling.samplerOrder).toBeUndefined();
+  expect(droppedKnobs(unordered)).toEqual(["samplerOrder"]);
+  const ordered = resolveChat(
+    { samplerOrder: ["temperature", "xtc", "topK"] } satisfies UserIntent,
+    generation({ sampling: { samplerOrder: ["penalties", "topK", "temperature"] } }),
+  );
+  expect(ordered.sampling.samplerOrder).toEqual(["temperature", "topK", "penalties"]);
+  expect(ordered.warnings.find((w) => w.knob === "samplerOrder")?.message).toContain("xtc");
+});
+
+test("an unset sampler order sends nothing and warns about nothing, even where the server orders stages", () => {
+  const knobs = resolveChat({} satisfies UserIntent, generation({ sampling: { samplerOrder: ["topK", "temperature"] } }));
+  expect(knobs.sampling.samplerOrder).toBeUndefined();
+  expect(droppedKnobs(knobs)).toEqual([]);
+});
+
 test("replyMedia: the DEFAULT (absent / text) asks for nothing and warns about nothing, on either model", () => {
   expect(resolveChat({} satisfies UserIntent, generation({ output: IMAGE_OUT })).replyImages).toBe(false);
   const textOnly = resolveChat({ replyMedia: "text" } satisfies UserIntent, generation());

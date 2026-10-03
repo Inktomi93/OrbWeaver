@@ -13,6 +13,70 @@
 // greys the belt keys) and `@orb/inference` is node-only.
 
 import { z } from "zod";
+import type { SamplerKnob, SamplerStage } from "./capability/generation.ts";
+import { SAMPLER_KNOBS } from "./capability/generation.ts";
+
+/** The request key each sampler rides under when the row names no other: the OpenAI / vLLM / llama.cpp
+ *  vocabulary, which a server reads except where its row says otherwise (`features.samplerKeys`). Which knobs
+ *  ride at all is the capability's call, never this table's. */
+export const DEFAULT_SAMPLER_KEYS: Readonly<Record<SamplerKnob, string>> = {
+  temperature: "temperature",
+  topP: "top_p",
+  frequencyPenalty: "frequency_penalty",
+  presencePenalty: "presence_penalty",
+  seed: "seed",
+  stop: "stop",
+  topK: "top_k",
+  minP: "min_p",
+  topA: "top_a",
+  repetitionPenalty: "repetition_penalty",
+  repetitionPenaltyRange: "repeat_last_n",
+  typicalP: "typical_p",
+  topNSigma: "top_n_sigma",
+  xtcProbability: "xtc_probability",
+  xtcThreshold: "xtc_threshold",
+  dryMultiplier: "dry_multiplier",
+  dryBase: "dry_base",
+  dryAllowedLength: "dry_allowed_length",
+  dryPenaltyLastN: "dry_penalty_last_n",
+  drySequenceBreakers: "dry_sequence_breakers",
+  mirostatMode: "mirostat",
+  mirostatTau: "mirostat_tau",
+  mirostatEta: "mirostat_eta",
+  dynatempRange: "dynatemp_range",
+  dynatempExponent: "dynatemp_exponent",
+  smoothingFactor: "smoothing_factor",
+  smoothingCurve: "smoothing_curve",
+  logitBias: "logit_bias",
+};
+
+/** The sampler-order vocabularies a server may read. A row names one (`features.samplerOrder`); the tokens
+ *  below spell it, so a server that reads a known vocabulary under another name is a row, not code. */
+export const SAMPLER_ORDER_SPELLINGS = ["llama-cpp", "koboldcpp"] as const;
+export type SamplerOrderSpelling = (typeof SAMPLER_ORDER_SPELLINGS)[number];
+
+/** Each vocabulary's body key and per-stage token. A stage with no token is not orderable in it. llama.cpp:
+ *  `common_sampler_types_from_names` canonical names; KoboldCpp: `expose.h` `enum samplers` ids, where min-p,
+ *  DRY, XTC and top-n-sigma run at fixed places outside the order. */
+export const SAMPLER_ORDER_TOKENS: Readonly<
+  Record<SamplerOrderSpelling, { readonly key: string; readonly tokens: Readonly<Partial<Record<SamplerStage, string | number>>> }>
+> = {
+  "llama-cpp": {
+    key: "samplers",
+    tokens: {
+      penalties: "penalties",
+      dry: "dry",
+      topNSigma: "top_n_sigma",
+      topK: "top_k",
+      typicalP: "typ_p",
+      topP: "top_p",
+      minP: "min_p",
+      xtc: "xtc",
+      temperature: "temperature",
+    },
+  },
+  koboldcpp: { key: "sampler_order", tokens: { penalties: 6, topK: 0, topA: 1, typicalP: 4, topP: 2, temperature: 5 } },
+};
 
 /** How a delivered trailing-assistant row is continued on this server. `continue-final-message` = vLLM's
  *  `continue_final_message: true` + `add_generation_prompt: false` pair; `deliver` = send the row and hope;
@@ -72,6 +136,12 @@ export const endpointFeaturesSchema = z.object({
    *  `["reasoning", "reasoning_content"]` (0.26 renamed it; a `reasoning_content`-only read silently dropped
    *  every reasoning token, live-verified 2026-08-10). Applied by the transport's chunk reshaper. */
   reasoningKeys: z.array(z.string().min(1)).optional(),
+  /** The key a sampler rides under on this server, where it differs from `DEFAULT_SAMPLER_KEYS` (llama.cpp
+   *  reads `repeat_penalty`; KoboldCpp reads `typical`, `nsigma`, `rep_pen_range`, and on its OpenAI route
+   *  only `mirostat_mode`). Folds key by key. */
+  samplerKeys: z.partialRecord(z.enum(SAMPLER_KNOBS), z.string().min(1)).optional(),
+  /** The sampler-order vocabulary this server reads ({@link SAMPLER_ORDER_TOKENS}). */
+  samplerOrder: z.enum(SAMPLER_ORDER_SPELLINGS).optional(),
   /** Feeds the `estimated` cost arm when the wire reports no usage cost (§5.3c). */
   pricing: z.object({ inputPerMTok: z.number().nonnegative(), outputPerMTok: z.number().nonnegative() }).optional(),
   /** Fan-out caps — THREE, one per surface that takes a `concurrency` dep. Wire default 4/8. NO env key. */
@@ -98,12 +168,20 @@ export const WIRE_DEFAULT_FEATURES: EndpointFeatures = {
 
 /** Fold `wire default ← provider row ← connection.declared` field-wise: the connection's server is the
  *  truth, then the provider's shipped defaults, then the wire's. Field-wise means a row that sets only
- *  `prefill` keeps the provider's `sleep`. */
+ *  `prefill` keeps the provider's `sleep`; `samplerKeys` folds key by key, so overriding one spelling keeps the
+ *  row's others. */
 export function foldFeatures(...layers: readonly (EndpointFeatures | undefined)[]): EndpointFeatures {
   let folded: EndpointFeatures = { ...WIRE_DEFAULT_FEATURES };
   for (const layer of layers) {
     if (layer !== undefined) {
-      folded = { ...folded, ...layer, concurrency: { ...folded.concurrency, ...layer.concurrency } };
+      // An empty map states nothing, so a fold where no layer names one keeps the key absent.
+      const samplerKeys = { ...folded.samplerKeys, ...layer.samplerKeys };
+      folded = {
+        ...folded,
+        ...layer,
+        concurrency: { ...folded.concurrency, ...layer.concurrency },
+        ...(Object.keys(samplerKeys).length > 0 ? { samplerKeys } : {}),
+      };
     }
   }
   return folded;

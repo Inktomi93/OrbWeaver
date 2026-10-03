@@ -46,7 +46,15 @@ const KNOB_LABELS: Readonly<Record<string, string>> = {
   maxContextTokens: "context",
   verbosity: "verbosity",
   replyMedia: "reply pictures",
+  stop: "stop sequences",
+  logitBias: "logit bias",
+  drySequenceBreakers: "dry breakers",
+  samplerOrder: "sampler order",
 };
+
+/** The read's rung for a value the server advertised for a knob the preset leaves unset. */
+const SERVER_DEFAULT = "serverDefault";
+const SERVER_DEFAULT_GLOSS = "server default";
 
 /** {@link KNOB_LABELS} with the honest fallback. */
 export function knobLabel(knob: string): string {
@@ -99,6 +107,10 @@ function ghostGloss(provenance: string, quality: string | undefined): string | n
   if (provenance === "floor") {
     return "default";
   }
+  // Not sent: the server runs its own advertised value for an unset knob.
+  if (provenance === SERVER_DEFAULT) {
+    return SERVER_DEFAULT_GLOSS;
+  }
   // The ONE client-supplied rung (`params-limits.tsx`): `maxContextTokens` is OUR history soft-cap, not a
   // wire knob — it never enters `resolveChat`, so the funnel reports nothing for it and the honest ghost is
   // the model's own window off the capability descriptor. Named as its own rung so it can never be read as
@@ -130,6 +142,9 @@ export function provenanceSuffix(provenance: string): string | null {
   }
   if (provenance === "window") {
     return "window";
+  }
+  if (provenance === SERVER_DEFAULT) {
+    return SERVER_DEFAULT_GLOSS;
   }
   if (provenance === "clamped") {
     return "clamped";

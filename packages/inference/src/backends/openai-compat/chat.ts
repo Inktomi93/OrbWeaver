@@ -32,7 +32,7 @@ import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-he
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../kit/sanitize.ts";
 import { emitTurnSpanEvents } from "../kit/turn-span.ts";
-import { functionTools, jsonResponseFormat, samplingExtras, servableToolChoice, standardSampling, toolChoiceOf, wireEffortOf } from "../v4/options.ts";
+import { functionTools, jsonResponseFormat, servableToolChoice, standardSampling, toolChoiceOf, wireEffortOf } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
@@ -40,6 +40,7 @@ import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
 import { languageModelFor, providerOptionsKey } from "./model.ts";
+import { wireSampling } from "./sampling.ts";
 
 const MANDATORY_REASONING_RE = /reasoning is mandatory/iu;
 /** llama.cpp server refuses `tools[]` under `--no-jinja` while its `/props` still reports the template's tool
@@ -135,6 +136,12 @@ function placeCache(args: {
 
 // ── the per-dialect option builders ───────────────────────────────────────────────────────────────────────
 
+/** The turn's resolved knobs and their wire spelling, both computed once per turn (never per attempt). */
+interface TurnKnobs {
+  readonly knobs: ResolvedChatKnobs;
+  readonly sampling: ReturnType<typeof wireSampling>;
+}
+
 interface TurnShape {
   readonly options: Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal">;
   readonly extraBody: Record<string, unknown>;
@@ -169,9 +176,10 @@ function compatibleEffortWord(reasoning: ResolvedReasoning): LanguageModelV4Call
 
 /** The openai-compatible transport: effort rides V4 `reasoning` iff the row spells `reasoning_effort`; a
  *  budget has no slot; verbosity rides the SDK's `textVerbosity` option; the unmodelled sampler knobs ride
- *  `providerOptions[name]`, which the SDK spreads into the body. */
-function openAiCompatibleShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs, warnings: ResolvedWarning[], key: string): TurnShape {
+ *  `providerOptions[name]` under the row's own spelling, which the SDK spreads into the body. */
+function openAiCompatibleShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings: ResolvedWarning[], key: string): TurnShape {
   const { connection } = req;
+  const { knobs, sampling } = turn;
   const reasoning = knobs.reasoning;
   const spellsEffort = connection.features.effort === "reasoning_effort";
   const effort = spellsEffort ? compatibleEffortWord(reasoning) : undefined;
@@ -187,7 +195,7 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, knobs: ResolvedChat
   }
   const providerOptions: SharedV4ProviderOptions = {
     [key]: {
-      ...samplingExtras(knobs.sampling),
+      ...sampling.body,
       ...(knobs.verbosity !== undefined ? { textVerbosity: knobs.verbosity } : {}),
       ...(connection.features.strictJson === "default-on" ? { strictJsonSchema: req.responseFormat?.strict ?? true } : {}),
       ...(connection.features.strictJson === "declared-only" ? { strictJsonSchema: req.responseFormat?.strict ?? false } : {}),
@@ -195,7 +203,7 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, knobs: ResolvedChat
   };
   return {
     options: {
-      ...standardSampling(knobs.sampling, knobs.maxOutputTokens),
+      ...standardSampling(sampling.v4, knobs.maxOutputTokens),
       ...(effort !== undefined ? { reasoning: effort } : {}),
       ...(req.tools !== undefined ? { tools: functionTools(req.tools, { strictJson: connection.features.strictJson, warnings }) } : {}),
       ...(req.toolChoice !== undefined ? { toolChoice: toolChoiceOf(req.toolChoice) } : {}),
@@ -344,8 +352,9 @@ function openRouterExtras(
  *  `text: { verbosity: "low" }`. The funnel has already gated it (`knobs.verbosity` is present only when the
  *  resolved capability advertises the level), so the old unconditional `verbosity_dropped` was a lie on
  *  every OR turn. */
-function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs, warnings: ResolvedWarning[], includeReasoning: boolean): TurnShape {
+function openRouterShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings: ResolvedWarning[], includeReasoning: boolean): TurnShape {
   const { connection } = req;
+  const { knobs, sampling } = turn;
   const { routing, models } = openRouterExtras(connection, warnings);
   const search = webSearchOptions(connection.extras, warnings);
   const debug = debugOptions(connection.extras, warnings);
@@ -362,7 +371,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
   };
   return {
     options: {
-      ...standardSampling(knobs.sampling, knobs.maxOutputTokens),
+      ...standardSampling(sampling.v4, knobs.maxOutputTokens),
       ...(req.tools !== undefined ? { tools: functionTools(req.tools, { strictJson: connection.features.strictJson, warnings }) } : {}),
       ...(req.toolChoice !== undefined ? { toolChoice: toolChoiceOf(req.toolChoice) } : {}),
       ...(req.responseFormat !== undefined
@@ -371,7 +380,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, knobs: ResolvedChatKnobs,
       providerOptions,
     },
     extraBody: {
-      ...samplingExtras(knobs.sampling),
+      ...sampling.body,
       ...(knobs.verbosity !== undefined ? { verbosity: knobs.verbosity } : {}),
       ...(routing !== undefined ? { provider: routing } : {}),
       // C3: the turn-owned compression entry MERGED with the user's declared plugins (validated against the
@@ -584,14 +593,15 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   // Resolved once per turn, not per attempt: a retry or the mandatory-reasoning replay must not warn twice.
   const wireReq: OpenAiCompatChatRequest =
     req.toolChoice === undefined ? req : { ...req, toolChoice: servableToolChoice(req.toolChoice, generation, warnings) };
+  const turnKnobs: TurnKnobs = { knobs, sampling: wireSampling(knobs.sampling, connection.features, dialect, warnings) };
 
   const run = (includeReasoning: boolean): Promise<StreamDrain> =>
     runWithPreCommitRetry(
       (markCommitted) => {
         const shape =
           dialect === "openrouter"
-            ? openRouterShape(wireReq, knobs, warnings, includeReasoning)
-            : openAiCompatibleShape(wireReq, knobs, warnings, providerOptionsKey(connection.providerId));
+            ? openRouterShape(wireReq, turnKnobs, warnings, includeReasoning)
+            : openAiCompatibleShape(wireReq, turnKnobs, warnings, providerOptionsKey(connection.providerId));
         attempt.shape = shape;
         const call: ModelCall = {
           connection,

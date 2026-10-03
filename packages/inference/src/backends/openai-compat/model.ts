@@ -24,6 +24,7 @@ import type { WirePlan } from "../v4/prompt.ts";
 import type { ShapeArgs } from "./body.ts";
 import { shapeOutboundBody } from "./body.ts";
 import { ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
+import { samplerBodyKeys } from "./sampling.ts";
 import type { ReasoningTags } from "./think-tags.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
 
@@ -161,7 +162,9 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
   const baseUrl = baseUrlOf(call);
   const args = shapeArgs(call, "openai-compatible");
   const withExtra = (body: Record<string, unknown>): Record<string, unknown> => shapeOutboundBody({ ...body, ...(call.extraBody ?? {}) }, args);
-  const toNative = (body: Record<string, unknown>): Record<string, unknown> => toOllamaChat(body, { numCtx: nativeWindow(call), label: call.label });
+  const samplerKeys = samplerBodyKeys(connection.features);
+  const toNative = (body: Record<string, unknown>): Record<string, unknown> =>
+    toOllamaChat(body, { numCtx: nativeWindow(call), samplerKeys, label: call.label });
   return createOpenAICompatible({
     name: connection.providerId,
     baseURL: openAiPath(baseUrl, ""),

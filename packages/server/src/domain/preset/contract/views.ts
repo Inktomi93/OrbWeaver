@@ -6,6 +6,7 @@
 
 import type { VisibleRoomRef } from "@orb/contracts/chat";
 import { visibleRoomRefSchema } from "@orb/contracts/chat";
+import { SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { promptConfigViewSchema } from "@orb/contracts/preset";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
@@ -86,8 +87,10 @@ export interface PresetUsageView {
 
 /** WHY a knob has the value it has — the funnel's four rungs, plus the engine floor that stands when the
  *  funnel itself yields nothing. `clamped` wins over its own source: a value the user (or the quality dial)
- *  asked for that the capability moved is a clamp, and the deck says so. */
-export const EFFECTIVE_PROVENANCES = ["explicit", "quality", "modelDefault", "clamped", "floor"] as const;
+ *  asked for that the capability moved is a clamp, and the deck says so. `serverDefault` is the value a server
+ *  advertised for a knob the preset leaves unset (`GenerationCapability.samplingDefaults`): never sent, the
+ *  server runs it. */
+export const EFFECTIVE_PROVENANCES = ["explicit", "quality", "modelDefault", "clamped", "floor", "serverDefault"] as const;
 export type EffectiveProvenance = (typeof EFFECTIVE_PROVENANCES)[number];
 
 /** The SCALAR generation knobs the funnel resolves — the KnobRow surface, in deck order. Deliberately NOT
@@ -95,14 +98,7 @@ export type EffectiveProvenance = (typeof EFFECTIVE_PROVENANCES)[number];
  *  `maxContextTokens`/`compaction.*` never enter `resolveChat` at all, so projecting them would be
  *  inventing a resolution the turn pipeline does not perform. */
 export const EFFECTIVE_KNOBS = [
-  "temperature",
-  "topP",
-  "topK",
-  "minP",
-  "topA",
-  "frequencyPenalty",
-  "presencePenalty",
-  "repetitionPenalty",
+  ...SAMPLING_RANGE_KNOBS,
   "seed",
   "effort",
   "thinkingBudgetTokens",
@@ -119,10 +115,15 @@ export interface EffectiveKnobReading {
   readonly provenance: EffectiveProvenance;
 }
 
+/** The stored list knobs the deck's staleness row also names (no slider row of their own). */
+export const STALE_COLLECTION_KNOBS = ["stop", "logitBias", "drySequenceBreakers", "samplerOrder"] as const;
+export type StaleCollectionKnob = (typeof STALE_COLLECTION_KNOBS)[number];
+
 /** A STORED explicit knob this model does not honor (redesign §4.2 / F7): the funnel dropped it, so it is
- *  invisible on the wire — the deck's staleness row is what makes it visible instead of silently dead. */
+ *  invisible on the wire — the deck's staleness row is what makes it visible instead of silently dead. A
+ *  collection knob's `value` is its display form. */
 export interface StaleKnob {
-  readonly knob: EffectiveKnob;
+  readonly knob: EffectiveKnob | StaleCollectionKnob;
   readonly value: number | string;
 }
 
@@ -180,8 +181,15 @@ const effectiveKnobReadingSchema = z.strictObject({
   value: effectiveKnobValueSchema,
   provenance: z.enum(EFFECTIVE_PROVENANCES),
 }) satisfies z.ZodType<EffectiveKnobReading>;
-const staleKnobSchema = z.strictObject({ knob: z.enum(EFFECTIVE_KNOBS), value: effectiveKnobValueSchema }) satisfies z.ZodType<StaleKnob>;
-const qualityMappingSchema = z.strictObject({ quality: z.string(), entries: z.array(staleKnobSchema).readonly() }) satisfies z.ZodType<QualityMapping>;
+const staleKnobSchema = z.strictObject({
+  knob: z.enum([...EFFECTIVE_KNOBS, ...STALE_COLLECTION_KNOBS]),
+  value: effectiveKnobValueSchema,
+}) satisfies z.ZodType<StaleKnob>;
+const qualityMappingEntrySchema = z.strictObject({ knob: z.enum(EFFECTIVE_KNOBS), value: effectiveKnobValueSchema }) satisfies z.ZodType<QualityMappingEntry>;
+const qualityMappingSchema = z.strictObject({
+  quality: z.string(),
+  entries: z.array(qualityMappingEntrySchema).readonly(),
+}) satisfies z.ZodType<QualityMapping>;
 export const effectivePresetSchema = z.strictObject({
   presetId: typeIdSchema(ID_PREFIX.preset),
   model: brandedId<ModelId>(),

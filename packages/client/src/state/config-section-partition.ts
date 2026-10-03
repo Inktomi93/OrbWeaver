@@ -62,7 +62,7 @@ function claimLabel(id: string): string {
  *  is an overlap in disguise: the parent's owner writes (and clears) the whole nested object, wiping the
  *  leaf owner's value. Returns the conflicting claim id + its owning section. */
 function findNestedConflict(owners: ReadonlyMap<string, string>, id: string): readonly [string, string] | undefined {
-  // The DOT is load-bearing: a claim that merely shares a name PREFIX (`engineLaunchExtra`) is a sibling key,
+  // The DOT is load-bearing: a claim that merely shares a name PREFIX (`rateLimitsExtra`) is a sibling key,
   // not a nested one.
   return [...owners].find(([claimed]) => claimed.startsWith(`${id}.`) || id.startsWith(`${claimed}.`));
 }

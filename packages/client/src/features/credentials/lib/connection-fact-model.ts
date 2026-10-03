@@ -33,6 +33,8 @@ import {
   NATIVE_CHAT_APIS,
   OUTPUT_CAP_FIELDS,
   PREFILL_MODES,
+  SAMPLER_KNOBS,
+  SAMPLER_ORDER_SPELLINGS,
   STRICT_JSON_MODES,
 } from "@orb/contracts/inference";
 
@@ -290,7 +292,14 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   concurrency: ["concurrency.embed", "concurrency.imageEmbed", "concurrency.summarize"],
   embedBatch: ["embedBatch.maxTokens", "embedBatch.floorTokensPerSec"],
   requestTimeoutMs: ["requestTimeoutMs"],
+  samplerKeys: SAMPLER_KNOBS.map((knob) => `samplerKeys.${knob}`),
+  samplerOrder: ["samplerOrder"],
 };
+
+// A sampler's plain name from its key ("repetitionPenaltyRange" → "repetition penalty range").
+function samplerWords(knob: string): string {
+  return knob.replaceAll(/([A-Z])/gu, " $1").toLowerCase();
+}
 
 /** The quirk rows, in the PANE's render order (the schema's declaration order is not a UI decision).
  *
@@ -331,6 +340,9 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
     format: (value): string => `${String(value)} ms`,
     unset: NOT_SET,
   },
+  { path: "samplerOrder", name: "sampler order vocabulary", edit: { kind: "enum", options: SAMPLER_ORDER_SPELLINGS }, unset: NOT_SET },
+  // One row per spelling the row states; a server that reads the default key needs none.
+  ...SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),
 ];
 
 function perMillionTokens(value: unknown): string {

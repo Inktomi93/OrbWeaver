@@ -18,7 +18,7 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#inference";
-import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
+import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, samplerOrderSchema, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema, proseOverridesViewSchema } from "#prose-slot";
 import type { VersionedParseIssue } from "#versioned-config";
@@ -294,7 +294,9 @@ export type CarryReasoning = (typeof CARRY_REASONING_MODES)[number];
 export const CARRY_REASONING_DEFAULT: CarryReasoning = "off";
 
 const TEMPERATURE_MIN = 0;
-const TEMPERATURE_MAX = 2;
+// The local servers take any temperature (llama.cpp clamps only below at 0, KoboldCpp not at all), and the
+// high-temperature-plus-min-p recipe runs above 2; a hosted model's own range still clamps it at the funnel.
+const TEMPERATURE_MAX = 5;
 const TOP_P_MIN = 0;
 const TOP_P_MAX = 1;
 const MIN_P_MIN = 0;
@@ -305,6 +307,14 @@ const PENALTY_MIN = -2;
 const PENALTY_MAX = 2;
 const REPETITION_PENALTY_MIN = 0;
 const REPETITION_PENALTY_MAX = 2;
+const PROBABILITY_MIN = 0;
+const PROBABILITY_MAX = 1;
+// The local-server samplers' bounds (llama.cpp `server-schema.cpp`, KoboldCpp `koboldcpp.py` `generate()`):
+// the DRY base below 1 is replaced by the server's default, Mirostat has three modes (0 = off), and the
+// smoothing curve's neutral value is 1. Every other new knob is a non-negative magnitude.
+const DRY_BASE_MIN = 1;
+const MIROSTAT_MODE_MAX = 2;
+const SMOOTHING_CURVE_MIN = 1;
 const COMPACTION_THRESHOLD_MIN = 0.5;
 const COMPACTION_THRESHOLD_MAX = 0.99;
 // The managed-compaction VERBATIM TAIL: the newest N canon rows kept literal when the SDK owns context and
@@ -349,6 +359,22 @@ interface GenerationKnobValues {
   readonly frequencyPenalty?: number;
   readonly presencePenalty?: number;
   readonly repetitionPenalty?: number;
+  readonly repetitionPenaltyRange?: number;
+  readonly typicalP?: number;
+  readonly topNSigma?: number;
+  readonly xtcProbability?: number;
+  readonly xtcThreshold?: number;
+  readonly dryMultiplier?: number;
+  readonly dryBase?: number;
+  readonly dryAllowedLength?: number;
+  readonly dryPenaltyLastN?: number;
+  readonly mirostatMode?: number;
+  readonly mirostatTau?: number;
+  readonly mirostatEta?: number;
+  readonly dynatempRange?: number;
+  readonly dynatempExponent?: number;
+  readonly smoothingFactor?: number;
+  readonly smoothingCurve?: number;
   readonly seed?: number;
   readonly compactionThresholdPct?: number;
   readonly compactionVerbatimTail?: number;
@@ -371,6 +397,22 @@ export const generationKnobSchemas = {
   frequencyPenalty: z.number().min(PENALTY_MIN).max(PENALTY_MAX).optional(),
   presencePenalty: z.number().min(PENALTY_MIN).max(PENALTY_MAX).optional(),
   repetitionPenalty: z.number().min(REPETITION_PENALTY_MIN).max(REPETITION_PENALTY_MAX).optional(),
+  repetitionPenaltyRange: z.number().int().nonnegative().optional(),
+  typicalP: z.number().min(PROBABILITY_MIN).max(PROBABILITY_MAX).optional(),
+  topNSigma: z.number().nonnegative().optional(),
+  xtcProbability: z.number().min(PROBABILITY_MIN).max(PROBABILITY_MAX).optional(),
+  xtcThreshold: z.number().min(PROBABILITY_MIN).max(PROBABILITY_MAX).optional(),
+  dryMultiplier: z.number().nonnegative().optional(),
+  dryBase: z.number().min(DRY_BASE_MIN).optional(),
+  dryAllowedLength: z.number().int().nonnegative().optional(),
+  dryPenaltyLastN: z.number().int().nonnegative().optional(),
+  mirostatMode: z.number().int().nonnegative().max(MIROSTAT_MODE_MAX).optional(),
+  mirostatTau: z.number().nonnegative().optional(),
+  mirostatEta: z.number().nonnegative().optional(),
+  dynatempRange: z.number().nonnegative().optional(),
+  dynatempExponent: z.number().nonnegative().optional(),
+  smoothingFactor: z.number().nonnegative().optional(),
+  smoothingCurve: z.number().min(SMOOTHING_CURVE_MIN).optional(),
   seed: z.number().int().optional(),
   compactionThresholdPct: z.number().min(COMPACTION_THRESHOLD_MIN).max(COMPACTION_THRESHOLD_MAX).optional(),
   compactionVerbatimTail: z.number().int().min(COMPACTION_VERBATIM_TAIL_MIN).max(COMPACTION_VERBATIM_TAIL_MAX).optional(),
@@ -404,6 +446,28 @@ export const userIntentSchema = z.strictObject({
   frequencyPenalty: generationKnobSchemas.frequencyPenalty,
   presencePenalty: generationKnobSchemas.presencePenalty,
   repetitionPenalty: generationKnobSchemas.repetitionPenalty,
+  // The local-server samplers (`SAMPLING_RANGE_KNOBS` past the hosted eight). Each rides only where the
+  // connection's capability states it; on every other model it drops like any other unlisted knob.
+  repetitionPenaltyRange: generationKnobSchemas.repetitionPenaltyRange,
+  typicalP: generationKnobSchemas.typicalP,
+  topNSigma: generationKnobSchemas.topNSigma,
+  xtcProbability: generationKnobSchemas.xtcProbability,
+  xtcThreshold: generationKnobSchemas.xtcThreshold,
+  dryMultiplier: generationKnobSchemas.dryMultiplier,
+  dryBase: generationKnobSchemas.dryBase,
+  dryAllowedLength: generationKnobSchemas.dryAllowedLength,
+  dryPenaltyLastN: generationKnobSchemas.dryPenaltyLastN,
+  // llama.cpp refuses the whole request on an empty breaker list or an empty breaker, so neither can be stored.
+  drySequenceBreakers: z.array(z.string().min(1)).min(1).optional(),
+  mirostatMode: generationKnobSchemas.mirostatMode,
+  mirostatTau: generationKnobSchemas.mirostatTau,
+  mirostatEta: generationKnobSchemas.mirostatEta,
+  dynatempRange: generationKnobSchemas.dynatempRange,
+  dynatempExponent: generationKnobSchemas.dynatempExponent,
+  smoothingFactor: generationKnobSchemas.smoothingFactor,
+  smoothingCurve: generationKnobSchemas.smoothingCurve,
+  // The stages to run, in order; a stage left out does not run (both servers read the list that way).
+  samplerOrder: samplerOrderSchema.optional(),
   seed: generationKnobSchemas.seed,
   logitBias: z.record(z.string(), z.number()).optional(),
   stop: z.array(z.string()).optional(),

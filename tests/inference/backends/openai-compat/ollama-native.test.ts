@@ -4,12 +4,14 @@
 // wrong reply, tool call, reasoning or usage.
 
 import type { Capability } from "@orb/contracts/inference";
+import { builtinProvider, foldFeatures } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
 import type { BatchDeps } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { runOpenAiCompatStructured, runOpenAiCompatSummarize } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
 import { ollamaNativeFetch, toOllamaChat } from "../../../../packages/inference/src/backends/openai-compat/ollama-native.ts";
+import { samplerBodyKeys } from "../../../../packages/inference/src/backends/openai-compat/sampling.ts";
 import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -23,6 +25,8 @@ const NOW = 1_700_000_000_000;
 const BASE_URL = "http://127.0.0.1:11434/v1";
 const WINDOW = 8192;
 const RED_PNG = "iVBORw0KGgo=";
+/** The sampler keys the shipped ollama row spells, which the translator moves into `options`. */
+const OLLAMA_SAMPLER_KEYS = samplerBodyKeys(foldFeatures(builtinProvider("ollama")?.features));
 const WEATHER = { name: "get_weather", description: "Weather for a city.", parameters: { type: "object", properties: { city: { type: "string" } } } };
 
 type Recording = (typeof OLLAMA_NATIVE_RECORDINGS)[keyof typeof OLLAMA_NATIVE_RECORDINGS];
@@ -116,7 +120,7 @@ test("a recorded tool call comes back as a tool call, and its replay reaches the
         { role: "tool", ["tool_call_id"]: "call_s4210pyw", content: "18C and clear" },
       ],
     },
-    { numCtx: WINDOW, label: "t" },
+    { numCtx: WINDOW, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" },
   );
   expect(replayed["messages"]).toEqual([
     { role: "assistant", content: "", ["tool_calls"]: [{ id: "call_s4210pyw", function: { name: "get_weather", arguments: { city: "Paris" } } }] },
@@ -148,13 +152,13 @@ test("an image part travels as base64 in `images`, and an image URL is refused b
         },
       ],
     },
-    { numCtx: WINDOW, label: "t" },
+    { numCtx: WINDOW, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" },
   );
   expect(body["messages"]).toEqual([{ role: "user", content: "What colour?", images: [RED_PNG] }]);
   expect(() =>
     toOllamaChat(
       { messages: [{ role: "user", content: [{ type: "image_url", ["image_url"]: { url: "https://cas.test/a.png" } }] }] },
-      { numCtx: WINDOW, label: "t" },
+      { numCtx: WINDOW, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" },
     ),
   ).toThrow(ProviderError);
 });
@@ -170,13 +174,15 @@ test("a JSON schema becomes `format`, effort becomes `think`, and an includeBody
       ["keep_alive"]: "10m",
       options: { ["num_ctx"]: 2048 },
     },
-    { numCtx: WINDOW, label: "t" },
+    { numCtx: WINDOW, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" },
   );
   expect(body["format"]).toEqual({ type: "object" });
   expect(body["think"]).toBe(false);
   expect(body["keep_alive"]).toBe("10m");
   expect(body["options"]).toEqual({ ["top_k"]: 40, ["num_ctx"]: 2048 });
-  expect(toOllamaChat({ ["response_format"]: { type: "json_object" } }, { numCtx: undefined, label: "t" })["format"]).toBe("json");
+  expect(toOllamaChat({ ["response_format"]: { type: "json_object" } }, { numCtx: undefined, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" })["format"]).toBe(
+    "json",
+  );
 });
 
 test("a recorded non-streaming answer (the structured path) reads back as one OpenAI completion", async () => {

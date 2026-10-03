@@ -13,6 +13,7 @@ import type { ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { StructuredRequest, SummarizeRequest, SummarizeRequestItem, TaskSampling } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
+import { resolveTaskSampling } from "../../funnel/resolve-chat.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
@@ -36,17 +37,23 @@ export interface BatchRequest {
   readonly task: "summarize" | "structured";
   readonly inputs: readonly SummarizeRequestItem[];
   readonly responseFormat: ResponseFormat | undefined;
+  /** The caller's sampling after the chat turn's capability gate (`resolveTaskSampling`). */
   readonly sampling: TaskSampling;
+  /** What that gate dropped, logged once per batch with the wire's own warnings. */
+  readonly samplingWarnings: readonly ResolvedWarning[];
   readonly signal: AbortSignal | undefined;
 }
 
 export function batchRequestOf(req: SummarizeRequest | StructuredRequest, task: BatchRequest["task"]): BatchRequest {
+  const samplingWarnings: ResolvedWarning[] = [];
+  const capability = req.connection.capability;
   return {
     connection: req.connection,
     task,
     inputs: req.inputs,
     responseFormat: task === "structured" && "responseFormat" in req ? req.responseFormat : undefined,
-    sampling: req,
+    sampling: capability.kind === "generation" ? resolveTaskSampling(req, capability.generation, samplingWarnings) : req,
+    samplingWarnings,
     signal: req.signal,
   };
 }
@@ -163,7 +170,7 @@ async function runItem(run: BatchRun, log: ProviderLogger, item: SummarizeReques
 export async function runV4Batch(run: BatchRun): Promise<SummarizeResult> {
   const { req } = run;
   const log = providerLogger(run.log, req.connection.wire, req.connection.providerId);
-  for (const warning of run.warnings ?? []) {
+  for (const warning of [...req.samplingWarnings, ...(run.warnings ?? [])]) {
     log.emit("warn", "provider.resolve-warning", { task: req.task, model: req.connection.model, code: warning.code, reason: warning.message });
   }
   const items: (SummarizeResultItem | undefined)[] = new Array(req.inputs.length).fill(undefined);

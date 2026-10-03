@@ -152,8 +152,7 @@ export const DEFAULT_MEMORY_DEFAULTS: ResolvedMemoryDefaults = {
 const REPETITION_PENALTY_FLOOR = 0;
 const NUCLEUS_FLOOR = 0;
 const NUCLEUS_CEIL = 1;
-// OpenAI presence_penalty / frequency_penalty wire range — the ONE home shared by the summarizer's own knobs
-// AND the vLLM chat surface's per-request gen default (engineLaunch.genPresencePenalty, below).
+// OpenAI presence_penalty / frequency_penalty wire range, used only by the summarizer's own knobs here.
 export const GEN_PRESENCE_PENALTY_MIN = -2;
 export const GEN_PRESENCE_PENALTY_MAX = 2;
 export const memorySummarizerSchema = z.object({

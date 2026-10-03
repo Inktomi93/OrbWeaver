@@ -17,11 +17,12 @@ export function runGoogleBatch(req: SummarizeRequest | StructuredRequest, deps: 
   const label = `${connection.providerId} ${task} (${connection.model})`;
   const warnings: ResolvedWarning[] = [];
   const reasoning = resolveSideGenReasoning(generation, warnings);
+  const batch = batchRequestOf(req, task);
   return runV4Batch({
-    req: batchRequestOf(req, task),
+    req: batch,
     model: googleProviderFor({ connection, deps, label, api: task }).chat(googleModelId(connection.model)),
     options: {
-      ...standardSampling(req, req.maxTokens),
+      ...standardSampling(batch.sampling, batch.sampling.maxTokens),
       ...("responseFormat" in req ? { responseFormat: jsonResponseFormat(req.responseFormat, req.responseFormat.schema) } : {}),
       providerOptions: { [GOOGLE_KEY]: { ...googleExtras(connection, warnings), ...googleThinking(reasoning) } },
     },
