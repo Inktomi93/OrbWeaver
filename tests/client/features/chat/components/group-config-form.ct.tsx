@@ -43,12 +43,15 @@ test("switching output to narrator rebuilds the arm + re-derives the coupled spe
 
 // `speakerTags` only reaches the narrator round's nudge, so a per-speaker room shows the switch disabled and
 // wired to its field's own description (the reason), and the narrator arm hands it back.
-test("Label each speaker is disabled and explained in a per-speaker room, and live in a narrator room", async ({ mount }) => {
+test("Label each speaker is disabled and explained in a per-speaker room, and live in a narrator room", async ({ mount, page }) => {
   const component = await mount(<GroupConfigFormStory />);
   const labelSpeakers = component.getByRole("switch", { name: "Label each speaker" });
 
   await expect(labelSpeakers).toBeDisabled();
-  const description = component.locator('[data-slot="field-root"]', { has: labelSpeakers }).locator('[data-slot="field-description"]');
+  // A `has` locator resolves inside the outer element, so it is spelled from `page`: the mounted component's
+  // own locators carry the mount root, which no field contains.
+  const field = component.locator('[data-slot="field-root"]').filter({ has: page.getByRole("switch", { name: "Label each speaker" }) });
+  const description = field.locator('[data-slot="field-description"]');
   await expect(description).toBeVisible();
   const descriptionId = (await description.getAttribute("id")) ?? "";
   expect(descriptionId).not.toBe("");
