@@ -282,7 +282,10 @@ const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefini
 // Mirror the door (`compose/config-sections.ts`): ONE config-section registry for every anchor (SET-SEAMS
 // §5.2), read by the config host's LIST (rows + search) and CONTENT (render), so a shell CT renders the
 // contributed sections exactly as production does — every non-collection group is a skimmer over these
-// so an omission here renders an incomplete group in every CT.
+// so an omission here renders an incomplete group in every CT. ORDER is part of the mirror too: the host
+// renders each anchor in registry order, so a reordered entry here moves the section on screen in every CT.
+// `ct-config-mirror-parity` compares the two lists as multisets and does not see order; the per-group
+// order CTs (`chat-behavior-group.ct.tsx` and its siblings) do.
 const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = createContributorRegistry<ConfigSectionContribution>("config-sections", [
   // personas · backup · connections · automation ← the §6.8 conversions, in the door's order.
   personaNotificationsSection,
@@ -296,10 +299,10 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
   automationLibraryRulesSection,
   automationBudgetSection,
   // chat-behavior ← the DECOMPOSED pane (SET-SEAMS stage 2) leading, then the already-contributed sections.
-  chatAttachmentQualitySection,
   chatMessageHandlingSection,
   chatStreamingSection,
   memorySettingsSection,
+  chatAttachmentQualitySection,
   worldInfoSettingsSection,
   databankSettingsSection,
   imageryTemplatesSection,

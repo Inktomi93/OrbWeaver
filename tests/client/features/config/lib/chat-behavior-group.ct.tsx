@@ -15,16 +15,18 @@ import type { Page } from "@playwright/test";
 import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/browser/settings-geometry.ts";
 import type { TrpcRecorder, TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { ChatBehaviorGroupStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_chat_behavior_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, configUnreadable: null, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 
-/** The pane's seven sections, in the door's declared order (main.tsx) — which IS the render order. */
+/** The pane's eight sections, in the door's declared order (main.tsx) — which IS the render order. */
 const ANCHOR_ORDER = [
   "config-anchor-chat-behavior-message-handling",
   "config-anchor-chat-behavior-streaming",
   "config-anchor-chat-behavior-memory",
+  "config-anchor-chat-behavior-attachments",
   "config-anchor-chat-behavior-world-info",
   "config-anchor-chat-behavior-databank",
   "config-anchor-chat-behavior-imagery-templates",
@@ -33,12 +35,14 @@ const ANCHOR_ORDER = [
 
 /** The nav rows the pane DERIVES from its contributions, in door order — a section that declares a
  *  `navLabel` shows THAT here ("Chat & message handling" stays the heading). */
-const NAV_LABELS = ["Message handling", "Streaming", "Memory", "World info", "Databank", "Image prompts", "Prose"];
+const NAV_LABELS = ["Message handling", "Streaming", "Memory", "Attachments", "World info", "Databank", "Image prompts", "Prose"];
 
 function stub(page: Page, update: TrpcResponder<typeof UPDATE_PROC> = () => SETTINGS_VIEW): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     // The config LIST paints every shelf, so the four collection bands read their rosters for the counts —
     // fed empty (the honest fresh-library arm) rather than left to routeTrpc's inert null.
+    // The Memory section reads the Utility role to say which model pays for summaries.
+    ...UTILITY_RUNNING_ROUTES,
     "tag.listTagsWithUsage": [],
     "regex.listScripts": [],
     "worldInfo.listBooksWithUsage": [],
@@ -63,7 +67,7 @@ function patchCountFor(trpc: TrpcRecorder, key: string): number {
   return patches(trpc).filter((patch) => key in patch).length;
 }
 
-test("the skimmer renders all seven contributed sections, in the door's declared order", async ({ mount, page }) => {
+test("the skimmer renders all eight contributed sections, in the door's declared order", async ({ mount, page }) => {
   await stub(page);
   await mount(<ChatBehaviorGroupStory />);
   await page.getByRole("heading", { name: "Chat & message handling" }).waitFor();
@@ -124,7 +128,7 @@ test("a section's save carries none of its siblings' keys and never re-fires or 
   await expect(page.getByRole("combobox", { name: "While a reply streams" })).toContainText("Pin my message to the top");
 });
 
-// P4 — STATUS AGGREGATION (SET-SEAMS §3/§9). Six sections, ONE footer; RETRY stays local to the section that
+// P4 — STATUS AGGREGATION (SET-SEAMS §3/§9). Eight sections, ONE footer; RETRY stays local to the section that
 // owns the failed edit.
 test("the pane shows exactly ONE aggregate save footer, not one per section", async ({ mount, page }) => {
   await stub(page);
