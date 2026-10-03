@@ -109,10 +109,11 @@ export interface SetBindingParams extends ActorParams {
 }
 
 /** The caller's own pending embedder change, previewed before it is written: re-pointing a role at a row (or
- *  clearing it), or patching a row's fields. */
+ *  clearing it), patching a row's fields, or using a row for everything it can serve. */
 export type EmbedSpaceChange =
   | { readonly kind: "bind"; readonly task: RoutableTask; readonly connectionId: UserConnectionId | null }
-  | { readonly kind: "update"; readonly connectionId: UserConnectionId; readonly patch: UpdateConnectionParams["patch"] };
+  | { readonly kind: "update"; readonly connectionId: UserConnectionId; readonly patch: UpdateConnectionParams["patch"] }
+  | { readonly kind: "everywhere"; readonly connectionId: UserConnectionId };
 
 export interface PreviewEmbedSpaceChangeParams extends ActorParams {
   readonly change: EmbedSpaceChange;

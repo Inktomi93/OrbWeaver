@@ -23,14 +23,12 @@ import {
   roleReadout,
   roleRequirementVerdicts,
   roleStatus,
+  VECTOR_ROLES,
 } from "#lib";
 import { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
 import { useReindexConfirm } from "./reindex-confirm.tsx";
 
 const UNSET_VALUE = "";
-
-/** The roles whose binding defines the owner's vector space; re-pointing the user's own one can rebuild the index. */
-const VECTOR_ROLES: readonly RoleRow["task"][] = ["embed", "imageEmbed"];
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 const PROSE_MEASURE = "max-w-(--reading-measure-prose)";

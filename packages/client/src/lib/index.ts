@@ -68,6 +68,7 @@ export {
   SMART_POLICY_COST_SENTENCE,
   UTILITY_ROLE_DOOR,
   utilityReadsImages,
+  VECTOR_ROLES,
 } from "./connection-roles.ts";
 export type {
   CharacterDetailAnchor,

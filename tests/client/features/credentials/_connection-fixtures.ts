@@ -130,6 +130,8 @@ export interface PaneStubOptions {
   readonly role?: (typeof USER_ROLES)[number];
   /** The deployment's private-endpoint allowlist. A `settings.updateAppSettings` that writes it replaces it. */
   readonly allowlist?: readonly string[];
+  /** Replaces `connection.embedSpaceChangePreview`; the default backs no stored index. */
+  readonly reindexPreview?: TrpcWireOutput<"connection.embedSpaceChangePreview">;
 }
 
 /** A passing sign-in check, as the agent-sdk backend answers it. */
@@ -180,8 +182,9 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     "connection.catalogModels": opts.catalogModels ?? catalogOf([]),
     "connection.draftCatalogModels": opts.draftCatalogModels ?? catalogOf([]),
     "connection.useForEverything": [],
-    // An embedder-identity patch first asks whether it would rebuild the index; these rows back no stored index.
-    "connection.embedSpaceChangePreview": () => ({ reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 }),
+    // An embedder change first asks whether it would rebuild the index; by default these rows back no stored index.
+    "connection.embedSpaceChangePreview": () =>
+      opts.reindexPreview ?? { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 },
     // The first-model step's writes: a patch lands on the stateful row, a role write echoes its binding.
     "connection.update": ({ connectionId, patch }) => {
       const index = connections.findIndex((row) => row.id === connectionId);

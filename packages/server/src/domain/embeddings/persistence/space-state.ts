@@ -4,14 +4,10 @@ import type { VectorScope } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import {
-  assets,
   characterEmbeddings,
-  characters,
   chatDigests,
-  chatParticipants,
   chatSegments,
   documentChunks,
-  documents,
   embedGenerations,
   embedGenerationTargets,
   embedSpaceState,
@@ -20,7 +16,7 @@ import {
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { UserId } from "@orb/kit/ids";
-import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { GenerationReceipt, GenerationTask } from "../contract/generation.ts";
 
 function taskOf(scope: VectorScope): GenerationTask {
@@ -50,32 +46,36 @@ interface RetireScope {
   readonly onlyIf: ReturnType<typeof sql>;
 }
 
+// A generation belongs to one owner and task, so the owner's vectors are the rows of their generations. Scoping
+// through the producers instead would miss a chat with no present host, whose vectors the owner still funded.
 function retiredVectorStatements(db: Db, { ownerId, task, keep, onlyIf }: RetireScope): BatchStmt[] {
+  const retired = db
+    .select({ id: embedGenerations.id })
+    .from(embedGenerations)
+    .where(and(eq(embedGenerations.ownerId, ownerId), eq(embedGenerations.task, task), ne(embedGenerations.id, keep)));
   if (task === "imageEmbed") {
-    const owned = db.select({ id: assets.id }).from(assets).where(eq(assets.ownerId, ownerId));
-    return [batchStmt(db.delete(imageEmbeddings).where(and(inArray(imageEmbeddings.assetId, owned), ne(imageEmbeddings.generationId, keep), onlyIf)))];
+    return [batchStmt(db.delete(imageEmbeddings).where(and(inArray(imageEmbeddings.generationId, retired), onlyIf)))];
   }
-  const ownedCharacters = db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId));
-  const hostedChats = db
-    .select({ id: chatParticipants.chatId })
-    .from(chatParticipants)
-    .where(and(eq(chatParticipants.userId, ownerId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)));
-  const ownedDocuments = db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, ownerId));
   return [
-    batchStmt(
-      db.delete(characterEmbeddings).where(and(inArray(characterEmbeddings.characterId, ownedCharacters), ne(characterEmbeddings.generationId, keep), onlyIf)),
-    ),
-    batchStmt(db.delete(chatSegments).where(and(inArray(chatSegments.chatId, hostedChats), ne(chatSegments.generationId, keep), onlyIf))),
-    batchStmt(db.delete(chatDigests).where(and(inArray(chatDigests.chatId, hostedChats), ne(chatDigests.generationId, keep), onlyIf))),
-    batchStmt(db.delete(documentChunks).where(and(inArray(documentChunks.documentId, ownedDocuments), ne(documentChunks.generationId, keep), onlyIf))),
+    batchStmt(db.delete(characterEmbeddings).where(and(inArray(characterEmbeddings.generationId, retired), onlyIf))),
+    batchStmt(db.delete(chatSegments).where(and(inArray(chatSegments.generationId, retired), onlyIf))),
+    batchStmt(db.delete(chatDigests).where(and(inArray(chatDigests.generationId, retired), onlyIf))),
+    batchStmt(db.delete(documentChunks).where(and(inArray(documentChunks.generationId, retired), onlyIf))),
   ];
 }
 
-/** Every owner's stored target per task, with the connection role it embeds through. */
-export async function readGenerationTargets(
-  db: Db,
-): Promise<{ readonly ownerId: UserId; readonly task: GenerationTask; readonly via: GenerationTask; readonly generationId: GenerationReceipt["id"] }[]> {
-  return await db
+/** Every owner's stored target per task, with the connection role it embeds through and whether every scope of
+ *  the task has promoted it. An unpromoted target is a rebuild in progress, or one whose sweep died. */
+export async function readGenerationTargets(db: Db): Promise<
+  {
+    readonly ownerId: UserId;
+    readonly task: GenerationTask;
+    readonly via: GenerationTask;
+    readonly generationId: GenerationReceipt["id"];
+    readonly promoted: boolean;
+  }[]
+> {
+  const targets = await db
     .select({
       ownerId: embedGenerationTargets.ownerId,
       task: embedGenerationTargets.task,
@@ -84,13 +84,25 @@ export async function readGenerationTargets(
     })
     .from(embedGenerationTargets)
     .innerJoin(embedGenerations, eq(embedGenerations.id, embedGenerationTargets.generationId));
+  const states = await db
+    .select({ ownerId: embedSpaceState.ownerId, scope: embedSpaceState.scope, activeGenerationId: embedSpaceState.activeGenerationId })
+    .from(embedSpaceState);
+  return targets.map((target) => ({
+    ...target,
+    promoted: VECTOR_SCOPES_BY_TASK[target.task].every((scope) =>
+      states.some((state) => state.ownerId === target.ownerId && state.scope === scope && state.activeGenerationId === target.generationId),
+    ),
+  }));
 }
 
 /**
  * Move an owner's target to a new generation and delete every vector of the old ones in the same batch, so
  * no index ever holds two generations. The scope rows lose their active generation too: reads refuse as
- * "re-indexing" until the sweeps promote the new one, rather than reading an emptied space. Every statement is
- * guarded on the switch having landed, so a racing writer that moved the target first deletes nothing here.
+ * "re-indexing" until the sweeps promote the new one, rather than reading an emptied space.
+ *
+ * @remarks Every statement runs only when THIS batch moves the target. The batch is one transaction, so each
+ * statement checks the target is still the observed `from` and the target UPDATE runs last. A resolver that
+ * lost the race, even to the same `to`, writes nothing: it cannot wipe a rebuild already under way.
  */
 export async function switchTargetGeneration(
   db: Db,
@@ -102,17 +114,23 @@ export async function switchTargetGeneration(
   },
 ): Promise<void> {
   const { ownerId, task, from, to } = input;
-  const epoch = from.epoch + 1;
-  const switched = sql`exists (
+  const unmoved = sql`exists (
     select 1 from embed_generation_targets t
-    where t.owner_id = ${ownerId} and t.task = ${task} and t.generation_id = ${to} and t.epoch = ${epoch}
+    where t.owner_id = ${ownerId} and t.task = ${task} and t.generation_id = ${from.generationId} and t.epoch = ${from.epoch}
   )`;
   await db.batch(
     batchMany([
+      ...retiredVectorStatements(db, { ownerId, task, keep: to, onlyIf: unmoved }),
+      batchStmt(
+        db
+          .update(embedSpaceState)
+          .set({ activeGenerationId: null, candidateGenerationId: null, candidateEpoch: null })
+          .where(and(eq(embedSpaceState.ownerId, ownerId), inArray(embedSpaceState.scope, [...VECTOR_SCOPES_BY_TASK[task]]), unmoved)),
+      ),
       batchStmt(
         db
           .update(embedGenerationTargets)
-          .set({ generationId: to, epoch })
+          .set({ generationId: to, epoch: from.epoch + 1 })
           .where(
             and(
               eq(embedGenerationTargets.ownerId, ownerId),
@@ -121,13 +139,6 @@ export async function switchTargetGeneration(
               eq(embedGenerationTargets.epoch, from.epoch),
             ),
           ),
-      ),
-      ...retiredVectorStatements(db, { ownerId, task, keep: to, onlyIf: switched }),
-      batchStmt(
-        db
-          .update(embedSpaceState)
-          .set({ activeGenerationId: null, candidateGenerationId: null, candidateEpoch: null })
-          .where(and(eq(embedSpaceState.ownerId, ownerId), inArray(embedSpaceState.scope, [...VECTOR_SCOPES_BY_TASK[task]]), switched)),
       ),
     ]),
   );

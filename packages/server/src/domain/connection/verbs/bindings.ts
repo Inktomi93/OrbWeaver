@@ -7,7 +7,7 @@
 // the purge+reindex trigger. Any embedder width is admitted: the owner's space takes the bound embedder's width.
 
 import type { ConnectionBinding, RoutableTask, UserConnection } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, canFund, connectionTasks, isRoutableTask, providerDisplayLabel, ROUTABLE_TASKS, taskDef } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, canFund, providerDisplayLabel, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
@@ -17,7 +17,7 @@ import type { ConnectionContext, ConnectionService } from "../contract/service.t
 import { listBindingsForActor, lookupBinding, upsertBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
 import { VECTOR_TASKS } from "../substrate/embed-space.ts";
-import { curatedKindOf } from "../substrate/kind.ts";
+import { everywhereTasks, servableTasks } from "../substrate/kind.ts";
 import { toResolvedView } from "../substrate/resolved-view.ts";
 
 /** The caller's actor, proven: absent ⇒ their own `user` arm; a rule/plugin arm must be theirs. A plugin grant
@@ -41,15 +41,6 @@ async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: Bin
     throw new DomainOperationError(CONNECTION_OP_CODES.actorTaskUnrouted, `this plugin routes nothing through ${binds}.`);
   }
   return { actorKind: "plugin-grant", actorId: actor.pluginId };
-}
-
-/** The tasks this row may be bound to — provider × the model's kind. */
-function servableTasks(ctx: ConnectionContext, row: UserConnection): readonly RoutableTask[] {
-  const provider = ctx.runtime.providers.registry.get(row.providerId, row.ownerId);
-  if (provider === undefined) {
-    return [];
-  }
-  return connectionTasks(provider, curatedKindOf(row, provider) ?? "generation").filter(isRoutableTask);
 }
 
 function requireServable(ctx: ConnectionContext, row: UserConnection, task: RoutableTask): void {
@@ -156,9 +147,7 @@ function createUseForEverything(ctx: ConnectionContext): ConnectionService["useF
     if (row === null) {
       throw new ConnectionNotFoundError(params.connectionId);
     }
-    // Every routable task the row can serve AND fund: a background task on a row with the flag off is
-    // skipped (not refused — the user asked for "everything it can serve", and it cannot serve that).
-    const tasks = servableTasks(ctx, row).filter((task) => taskDef(task).spend === "foreground" || row.allowBackground);
+    const tasks = everywhereTasks(ctx, row);
     const actor: StoredActor = { actorKind: "user", actorId: userId };
     const written: ConnectionBinding[] = [];
     for (const task of tasks) {

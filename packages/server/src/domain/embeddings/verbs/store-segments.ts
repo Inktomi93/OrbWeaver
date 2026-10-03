@@ -145,7 +145,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
     for (const [i, item] of pending.entries()) {
       const p = item.params;
       const embedded = embeddedByIndex.get(i) ?? { model: p.model, vector: null };
-      await upsertChatSegment(ctx.db, {
+      const landed = await upsertChatSegment(ctx.db, {
         id: ctx.newChatSegmentId(),
         chatId: p.chatId,
         blockIdx: p.blockIdx,
@@ -160,7 +160,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
         dim: item.generation.dims,
         now: ctx.now(),
       });
-      results[item.index] = { outcome: "written", contentHash: p.contentHash, model: embedded.model, ...receiptOf(item.generation) };
+      results[item.index] = { outcome: landed ? "written" : "noop", contentHash: p.contentHash, model: embedded.model, ...receiptOf(item.generation) };
     }
     return results;
   };

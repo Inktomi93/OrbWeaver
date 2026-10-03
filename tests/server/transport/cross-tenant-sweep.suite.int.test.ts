@@ -1813,6 +1813,11 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.connection.embedSpaceChangePreview({ change: { kind: "update", connectionId: i.connectionId, patch: { model: ATTACKER_TEXT } } }),
     refusal: CONNECTION_NOT_YOURS,
   },
+  {
+    path: "connection.embedSpaceChangePreview",
+    call: (c, i) => c.connection.embedSpaceChangePreview({ change: { kind: "everywhere", connectionId: i.connectionId } }),
+    refusal: CONNECTION_NOT_YOURS,
+  },
   // The CREDENTIAL-reach pair. `credentialOwned` is the only belt; its refusal is a different documented
   // code (`connection_credential_foreign`), collapsed the same way — `credentialOwned` answers false for a
   // credential that does not exist AND for one that is A's, so neither probe is an existence oracle.

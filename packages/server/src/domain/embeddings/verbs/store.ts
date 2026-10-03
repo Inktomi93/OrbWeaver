@@ -93,7 +93,7 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, gen
       : { model: seeded.model, vectors: [seeded.vector] };
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
-  await upsertCharacterEmbedding(ctx.db, {
+  const landed = await upsertCharacterEmbedding(ctx.db, {
     id: ctx.newCharacterEmbeddingId(),
     characterId: p.characterId,
     embedding: vector,
@@ -104,7 +104,7 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, gen
     now: ctx.now(),
   });
   return {
-    outcome: "written",
+    outcome: landed ? "written" : "noop",
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
@@ -188,7 +188,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
   }
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
-  await upsertImageEmbedding(ctx.db, {
+  const landed = await upsertImageEmbedding(ctx.db, {
     id: ctx.newImageEmbeddingId(),
     assetId: p.assetId,
     lens: p.lens,
@@ -202,7 +202,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     now: ctx.now(),
   });
   return {
-    outcome: "written",
+    outcome: landed ? "written" : "noop",
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
@@ -239,7 +239,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
   const embedded = await generation.connection.embed(p.text, { signal: p.signal });
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
-  await upsertChatDigest(ctx.db, {
+  const landed = await upsertChatDigest(ctx.db, {
     id: ctx.newChatDigestId(),
     chatId: p.chatId,
     scopedCharacterId: p.scopedCharacterId,
@@ -259,7 +259,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
   });
   // The persistence seam commits the digest and its complete speaker projection as one atomic batch.
   return {
-    outcome: "written",
+    outcome: landed ? "written" : "noop",
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
@@ -290,7 +290,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
   const embedded = await generation.connection.embed(p.content, { signal: p.signal });
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
-  await upsertDocumentChunk(ctx.db, {
+  const landed = await upsertDocumentChunk(ctx.db, {
     id: ctx.newDocumentChunkId(),
     documentId: p.fkRefs.documentId,
     chunkIdx: p.fkRefs.chunkIdx,
@@ -305,7 +305,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
     now: ctx.now(),
   });
   return {
-    outcome: "written",
+    outcome: landed ? "written" : "noop",
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,

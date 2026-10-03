@@ -143,6 +143,7 @@ export const connectionRouter = t.router({
         change: z.discriminatedUnion("kind", [
           z.object({ kind: z.literal("bind"), task: routableTaskSchema, connectionId: connectionId.nullable() }),
           z.object({ kind: z.literal("update"), connectionId, patch: connectionFields.partial() }),
+          z.object({ kind: z.literal("everywhere"), connectionId }),
         ]),
       }),
     )

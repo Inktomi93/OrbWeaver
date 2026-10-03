@@ -1,6 +1,6 @@
 // verb: staleGenerationOwners — the owners whose stored target generation is no longer the one their binding
-// resolves to now. A user's own embedder change raises the re-index trigger at the write; this read catches the
-// change no user made, such as a release that moves generation identity, so boot can re-index those owners.
+// resolves to now, or was never promoted. A user's own embedder change raises the re-index trigger at the write;
+// this read catches a change no user made and a rebuild a crash stopped, so boot can re-index those owners.
 
 import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import type { UserId } from "@orb/kit/ids";
@@ -30,7 +30,9 @@ export function createStaleGenerationOwners(ctx: EmbeddingsContext): EmbeddingsS
         continue;
       }
       const space = embedSpaceOf(connection.model, embedDtypeOf(connection.capability));
-      if (generationIdOf({ ownerId: target.ownerId, task: target.task, via: target.via, connection, space }) !== target.generationId) {
+      // Boot has no live sweep, so an unpromoted target is a rebuild that died mid-way: its reads refuse until
+      // a sweep finishes it.
+      if (!target.promoted || generationIdOf({ ownerId: target.ownerId, task: target.task, via: target.via, connection, space }) !== target.generationId) {
         stale.push(target.ownerId);
       }
     }

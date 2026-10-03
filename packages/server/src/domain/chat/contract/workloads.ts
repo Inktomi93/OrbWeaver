@@ -20,7 +20,7 @@ interface CorpusSweepArgs {
 export interface MemorySweepArgs extends CorpusSweepArgs {
   readonly importWindow: ImportWindow | null;
   readonly segmentsOnly: boolean;
-  /** Called as each phase of {@link MEMORY_SWEEP_STEPS} finishes. */
+  /** Called as each phase of {@link MEMORY_SWEEP_STEPS} starts, so the progress row names the running phase. */
   readonly onProgress?: ((step: MemorySweepStep) => void) | undefined;
 }
 

@@ -8,7 +8,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
-import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
+import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { connectionFingerprint } from "#kit/embedding-generation";
 import type { EmbedSpace, EmbedSpaces } from "../contract/results.ts";
@@ -30,15 +30,16 @@ export async function vectorSpacesOf(ctx: SpaceResolveCtx, principal: Principal)
   return Object.fromEntries(entries);
 }
 
-/** One vector task's space, through the bound connection or, when `connectionId` names one, through that row
- *  as if it were bound. A resolve REFUSAL is a legitimate reading of "no space" — an unbound, unservable or
- *  unfundable task has no vectors to strand — so it folds to `null` rather than failing the write that asked. */
-export async function vectorSpaceOf(
+/** One vector task's space and whether its encoder embeds pixels, through the bound connection or, when
+ *  `connectionId` names one, through that row as if it were bound. A resolve REFUSAL is a legitimate reading of
+ *  "no space" — an unbound, unservable or unfundable task has no vectors to strand — so it folds to `null`
+ *  rather than failing the write that asked. */
+export async function vectorResolutionOf(
   ctx: SpaceResolveCtx,
   principal: Principal,
   task: RoutableTask,
   connectionId?: UserConnectionId,
-): Promise<EmbedSpace | null> {
+): Promise<{ readonly space: EmbedSpace; readonly servesImages: boolean } | null> {
   // @orb-waive caught-failure-ownership(catch): a refused resolve IS the "no space" answer this comparison
   // needs; nothing is swallowed, and a throw here would fail a connection write over an unrelated task.
   try {
@@ -47,13 +48,26 @@ export async function vectorSpaceOf(
       return null;
     }
     return {
-      fingerprint: connectionFingerprint(resolved),
-      model: embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability)),
-      dim: resolved.capability.embedding.dims,
+      space: {
+        fingerprint: connectionFingerprint(resolved),
+        model: embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability)),
+        dim: resolved.capability.embedding.dims,
+      },
+      servesImages: servesImageVectors(resolved.capability),
     };
   } catch {
     return null;
   }
+}
+
+/** One vector task's space — {@link vectorResolutionOf} without the pixel question. */
+export async function vectorSpaceOf(
+  ctx: SpaceResolveCtx,
+  principal: Principal,
+  task: RoutableTask,
+  connectionId?: UserConnectionId,
+): Promise<EmbedSpace | null> {
+  return (await vectorResolutionOf(ctx, principal, task, connectionId))?.space ?? null;
 }
 
 /** Did one task's space move? Encoder identity or width — the trigger's whole condition, in one place. */

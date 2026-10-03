@@ -1,43 +1,36 @@
 // verb: previewEmbedSpaceChange — would a pending embedder change move the caller to a new embedding generation,
 // and what would the rebuild cover? A new generation deletes the old index at once and re-embeds it, so the pane
 // asks before writing. Read-only: nothing here writes, resolves a secret into the answer, or touches another
-// owner's rows.
+// owner's rows. A role that resolves to nothing after the change moves no generation, so it deletes nothing.
 
 import type { VectorScope } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserConnection } from "@orb/contracts/inference";
-import { EMBED_SPACE_FIELDS, servesImageVectors } from "@orb/contracts/inference";
+import { EMBED_SPACE_FIELDS } from "@orb/contracts/inference";
+import type { UserConnectionId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { EmbedSpaceChange } from "../contract/params.ts";
-import type { EmbedSpaceChangePreview } from "../contract/results.ts";
+import type { EmbedSpace, EmbedSpaceChangePreview } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { lookupBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
-import { spaceMoved, VECTOR_TASKS, vectorSpaceOf } from "../substrate/embed-space.ts";
+import { spaceMoved, VECTOR_TASKS, vectorResolutionOf } from "../substrate/embed-space.ts";
+import { everywhereTasks } from "../substrate/kind.ts";
 
 type VectorTask = keyof typeof VECTOR_SCOPES_BY_TASK;
+type Resolution = Awaited<ReturnType<typeof vectorResolutionOf>>;
+type UpdateChange = Extract<EmbedSpaceChange, { readonly kind: "update" }>;
+
+/** The rows a rebind would point vector roles at; `null` clears the role. */
+type Rebind = ReadonlyMap<VectorTask, UserConnectionId | null>;
 
 function isVectorTask(task: string): task is VectorTask {
   return VECTOR_TASKS.some((vectorTask) => vectorTask === task);
 }
 
-/** Does the owner's image index live in the text space? Then an `embed` change rebuilds the pictures too. */
-async function imagesRideTheTextSpace(ctx: ConnectionContext, principal: Principal): Promise<boolean> {
-  // @orb-waive caught-failure-ownership(catch): an unresolvable image role is the "no image embedder" answer — the captions then ride the text space, which is exactly the fact asked. Ends if this read gates a write.
-  try {
-    const { resolved } = await ctx.runtime.resolve({ task: "imageEmbed", principal });
-    return !servesImageVectors(resolved.capability);
-  } catch {
-    return true;
-  }
-}
-
-type BindChange = Extract<EmbedSpaceChange, { readonly kind: "bind" }>;
-type UpdateChange = Extract<EmbedSpaceChange, { readonly kind: "update" }>;
-
-async function requireOwnedRow(ctx: ConnectionContext, principal: Principal, connectionId: UpdateChange["connectionId"]): Promise<UserConnection> {
+async function requireOwnedRow(ctx: ConnectionContext, principal: Principal, connectionId: UserConnectionId): Promise<UserConnection> {
   const row = await fetchOwnedConnection(ctx.db, principal.userId, connectionId);
   if (row === null) {
     throw new ConnectionNotFoundError(connectionId);
@@ -45,21 +38,60 @@ async function requireOwnedRow(ctx: ConnectionContext, principal: Principal, con
   return row;
 }
 
-/** Re-pointing a role moves its space when the row it would resolve to is a different encoder or width. */
-async function bindMoves(ctx: ConnectionContext, principal: Principal, change: BindChange): Promise<readonly VectorTask[]> {
+/** Where the owner's pictures are embedded: through `imageEmbed` when it embeds pixels, else their caption
+ *  through the text role (embeddings' `resolveImageSpace`). The role is part of the image generation's id. */
+function imageSpaceOf(image: Resolution, text: Resolution): { readonly via: VectorTask; readonly space: EmbedSpace } | null {
+  if (image?.servesImages === true) {
+    return { via: "imageEmbed", space: image.space };
+  }
+  return text === null ? null : { via: "embed", space: text.space };
+}
+
+async function rebindOf(ctx: ConnectionContext, principal: Principal, change: Exclude<EmbedSpaceChange, UpdateChange>): Promise<Rebind> {
+  if (change.kind === "everywhere") {
+    const row = await requireOwnedRow(ctx, principal, change.connectionId);
+    return new Map(
+      everywhereTasks(ctx, row)
+        .filter(isVectorTask)
+        .map((task) => [task, row.id]),
+    );
+  }
   if (change.connectionId !== null) {
     await requireOwnedRow(ctx, principal, change.connectionId);
   }
-  if (!isVectorTask(change.task)) {
+  return isVectorTask(change.task) ? new Map([[change.task, change.connectionId]]) : new Map();
+}
+
+/** The scopes a rebind rebuilds: a role whose resolved space changes to another real space. */
+async function rebindScopes(ctx: ConnectionContext, principal: Principal, rebind: Rebind): Promise<readonly VectorScope[]> {
+  if (rebind.size === 0) {
     return [];
   }
-  const before = await vectorSpaceOf(ctx, principal, change.task);
-  const after = change.connectionId === null ? null : await vectorSpaceOf(ctx, principal, change.task, change.connectionId);
-  return spaceMoved(before, after) ? [change.task] : [];
+  const resolveAfter = async (task: VectorTask, now: Resolution): Promise<Resolution> => {
+    if (!rebind.has(task)) {
+      return now;
+    }
+    const connectionId = rebind.get(task) ?? null;
+    return connectionId === null ? null : await vectorResolutionOf(ctx, principal, task, connectionId);
+  };
+  const textNow = await vectorResolutionOf(ctx, principal, "embed");
+  const imageNow = await vectorResolutionOf(ctx, principal, "imageEmbed");
+  const textAfter = await resolveAfter("embed", textNow);
+  const imageAfter = await resolveAfter("imageEmbed", imageNow);
+  const scopes: VectorScope[] = [];
+  if (textAfter !== null && spaceMoved(textNow?.space, textAfter.space)) {
+    scopes.push(...VECTOR_SCOPES_BY_TASK.embed);
+  }
+  const picturesNow = imageSpaceOf(imageNow, textNow);
+  const picturesAfter = imageSpaceOf(imageAfter, textAfter);
+  if (picturesAfter !== null && (picturesNow?.via !== picturesAfter.via || spaceMoved(picturesNow.space, picturesAfter.space))) {
+    scopes.push(...VECTOR_SCOPES_BY_TASK.imageEmbed);
+  }
+  return scopes;
 }
 
 /** Patching a row moves the space of every vector role it backs, when the patch changes an identity field. */
-async function updateMoves(ctx: ConnectionContext, principal: Principal, change: UpdateChange): Promise<readonly VectorTask[]> {
+async function updateScopes(ctx: ConnectionContext, principal: Principal, change: UpdateChange): Promise<readonly VectorScope[]> {
   const row = await requireOwnedRow(ctx, principal, change.connectionId);
   const { patch } = change;
   if (!EMBED_SPACE_FIELDS.some((field) => patch[field] !== undefined && stableStringify(patch[field]) !== stableStringify(row[field] ?? null))) {
@@ -71,16 +103,21 @@ async function updateMoves(ctx: ConnectionContext, principal: Principal, change:
       bound.push(task);
     }
   }
-  return bound;
+  const scopes: VectorScope[] = bound.flatMap((task) => [...VECTOR_SCOPES_BY_TASK[task]]);
+  // Pictures embedded through the text role move with it.
+  if (bound.includes("embed") && !bound.includes("imageEmbed")) {
+    const pictures = imageSpaceOf(await vectorResolutionOf(ctx, principal, "imageEmbed"), await vectorResolutionOf(ctx, principal, "embed"));
+    if (pictures?.via === "embed") {
+      scopes.push(...VECTOR_SCOPES_BY_TASK.imageEmbed);
+    }
+  }
+  return scopes;
 }
 
 export function createPreviewEmbedSpaceChange(ctx: ConnectionContext): ConnectionService["previewEmbedSpaceChange"] {
   return async ({ principal, change }): Promise<EmbedSpaceChangePreview> => {
-    const tasks = change.kind === "bind" ? await bindMoves(ctx, principal, change) : await updateMoves(ctx, principal, change);
-    const scopes: VectorScope[] = tasks.flatMap((task) => [...VECTOR_SCOPES_BY_TASK[task]]);
-    if (tasks.includes("embed") && !tasks.includes("imageEmbed") && (await imagesRideTheTextSpace(ctx, principal))) {
-      scopes.push("images");
-    }
+    const scopes =
+      change.kind === "update" ? await updateScopes(ctx, principal, change) : await rebindScopes(ctx, principal, await rebindOf(ctx, principal, change));
     const counts = await ctx.countOwnedVectors(principal.userId);
     const stored = {
       cards: scopes.includes("cards") ? counts.cards : 0,
@@ -88,6 +125,6 @@ export function createPreviewEmbedSpaceChange(ctx: ConnectionContext): Connectio
       documents: scopes.includes("documents") ? counts.documents : 0,
       images: scopes.includes("images") ? counts.images : 0,
     };
-    return { reindex: tasks.length > 0, stored, embedCalls: stored.cards + stored.memory + stored.documents + stored.images };
+    return { reindex: scopes.length > 0, stored, embedCalls: stored.cards + stored.memory + stored.documents + stored.images };
   };
 }

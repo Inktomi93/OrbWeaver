@@ -1,7 +1,7 @@
-// Discovery reads only the owner's current generation. A generation switch deletes the old vectors, but a store
-// that pinned the old generation before the switch can land its row afterwards, at another width under the same
-// model tag. This suite plants such a row in every vector table and runs every in-memory pass: none may throw on
-// the width mismatch, and none may report the late rows.
+// Discovery reads only the owner's current generation. A generation switch deletes the old vectors and the store
+// refuses a late write for a retired generation, so this second belt is for a row that arrives any other way, at
+// another width under the same model tag. This suite plants such a row in every vector table and runs every
+// in-memory pass: none may throw on the width mismatch, and none may report the late rows.
 
 import type { Db } from "@orb/db";
 import { characterEmbeddings, characterSummaries, characters, chatDigests, chatSegments, embedGenerations, imageEmbeddings } from "@orb/db";
@@ -10,6 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { computeGroupHubs } from "../../../../packages/server/src/domain/discovery/substrate/hub-math.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import {
@@ -153,6 +154,16 @@ async function seedMixedCorpus(db: Db): Promise<Corpus> {
 }
 
 describe("discovery never meets a late write from an old generation", () => {
+  // The positive control: the hub math over the fixture's card rows, both generations at once, throws on
+  // the mixed widths — so a pass that does not throw below really filtered the late rows out.
+  test("the fixture really mixes widths: the hub math over every card row throws", async () => {
+    const db = await freshDb();
+    await seedMixedCorpus(db);
+    const rows = await db.select({ embedding: characterEmbeddings.embedding }).from(characterEmbeddings);
+    expect(new Set(rows.map((row) => row.embedding.length)).size).toBe(2);
+    expect(() => computeGroupHubs(rows.map((row) => row.embedding))).toThrow(/dim mismatch/u);
+  });
+
   test("the hub passes score only current-generation rows", async () => {
     const db = await freshDb();
     await seedMixedCorpus(db);

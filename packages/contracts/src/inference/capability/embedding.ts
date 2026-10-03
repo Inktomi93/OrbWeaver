@@ -31,6 +31,10 @@ export const embeddingCapabilitySchema = z.object({
 });
 export type EmbeddingCapability = z.infer<typeof embeddingCapabilitySchema>;
 
+/** The connection-row fields a vector space's identity is derived from. A patch touching none of them cannot move
+ *  an owner to a new embedding generation, so neither the server preview nor the pane's confirm needs to ask. */
+export const EMBED_SPACE_FIELDS = ["providerId", "baseUrl", "model", "api", "declared", "extras", "transport"] as const;
+
 /** THE VECTOR-SPACE IDENTITY of an embedding — `<model>` or `<model>@<dtype>`. THE ONE derivation of the
  *  space tag every vector row is keyed on, every retrieval scan filters on, and a generation's identity is
  *  minted from. It lives here, in contracts, because BOTH sides must spell it identically or the box breaks
@@ -47,10 +51,6 @@ export type EmbeddingCapability = z.infer<typeof embeddingCapabilitySchema>;
  *  The two sides read their dtype from two different facts (the deployment's served precision vs the curated
  *  capability row), which they are expected to agree on; `embeddings.store` refuses a write where they do
  *  not, so a disagreement is LOUD rather than a silently split corpus. */
-/** The connection-row fields a vector space's identity is derived from. A patch touching none of them cannot move
- *  an owner to a new embedding generation, so neither the server preview nor the pane's confirm needs to ask. */
-export const EMBED_SPACE_FIELDS = ["providerId", "baseUrl", "model", "api", "declared", "extras", "transport"] as const;
-
 export function embedSpaceOf(model: string, dtype: string | undefined): string {
   return dtype === undefined ? model : `${model}@${dtype}`;
 }

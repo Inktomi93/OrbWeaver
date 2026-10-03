@@ -31,8 +31,8 @@ import { ownedRealCharacters } from "./character-scope.ts";
 
 /**
  * The owner's current generation for one scope: the active one search reads, or the target while no promotion
- * has landed. A switch deletes the old generation's rows, but a write already in flight at the switch can land
- * under the old generation afterwards; this key keeps that row out of every pass until the promotion deletes it.
+ * has landed, so a pass during a rebuild sees the partial new index. A switch deletes the old generation's rows and
+ * the store refuses a late write for it; this key keeps any other-generation row out of every pass regardless.
  */
 function currentGeneration(rowGeneration: SQLWrapper, owner: SQLWrapper, scope: VectorScope): SQL {
   const task = scope === "images" ? "imageEmbed" : "embed";

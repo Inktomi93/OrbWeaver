@@ -373,6 +373,9 @@ export function backgroundRepairs<T extends { readonly id: string; readonly allo
   return args.connections.filter((connection) => connection.tasks.includes(args.row.task) && !canFund(connection, args.row.task));
 }
 
+/** The roles whose binding defines the owner's vector space; re-pointing the user's own one can rebuild the index. */
+export const VECTOR_ROLES: readonly RoutableTask[] = ["embed", "imageEmbed"];
+
 /** What the server says a pending embedder change would rebuild (`connection.embedSpaceChangePreview`). */
 export interface ReindexPreview {
   readonly reindex: boolean;

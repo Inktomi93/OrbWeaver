@@ -13,7 +13,6 @@ import type { CharacterEmbeddingId, CharacterId, EmbedGenerationId, Handle, User
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, EmbedFailedError } from "@orb/server/domain/embeddings";
 import { describe } from "vitest";
-import { upsertCharacterEmbedding } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import type { StoreHarness } from "../_support.ts";
@@ -238,8 +237,9 @@ describe("embedCorpus — retained generation rebuild", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner, { id: "character_a", name: "Aria" });
     const staleGenerationId = await seedDetachedGeneration(db, owner, STALE_MODEL);
-    // A row stranded in an OLD `(model, dim)` space (a prior embed model, since changed).
-    await upsertCharacterEmbedding(db, {
+    // A row stranded in an OLD `(model, dim)` space (a prior embed model, since changed). Inserted raw: the store
+    // refuses a write for a generation that is no target.
+    await db.insert(characterEmbeddings).values({
       id: castId<CharacterEmbeddingId>("character_embedding_stale"),
       characterId,
       embedding: fakeVector(EMBED_DIM, 9),
@@ -247,7 +247,7 @@ describe("embedCorpus — retained generation rebuild", () => {
       model: STALE_MODEL,
       generationId: staleGenerationId,
       dim: EMBED_DIM,
-      now: NOW,
+      createdAt: NOW,
     });
     const h = makeStoreHarness(db, {
       characterIds: [characterId],
@@ -279,7 +279,7 @@ describe("embedCorpus — retained generation rebuild", () => {
       ["character_embedding_stale", characterId, ownerStaleGenerationId],
       ["character_embedding_neighbour", neighbourCard, neighbourStaleGenerationId],
     ] as const) {
-      await upsertCharacterEmbedding(db, {
+      await db.insert(characterEmbeddings).values({
         id: castId<CharacterEmbeddingId>(id),
         characterId: card,
         embedding: fakeVector(EMBED_DIM, 9),
@@ -287,7 +287,7 @@ describe("embedCorpus — retained generation rebuild", () => {
         model: STALE_MODEL,
         generationId,
         dim: EMBED_DIM,
-        now: NOW,
+        createdAt: NOW,
       });
     }
     const h = makeStoreHarness(db, {

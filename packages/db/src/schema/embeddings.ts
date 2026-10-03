@@ -26,8 +26,9 @@
 //     used to OMIT model and overwrite the old space in place, an inconsistency with the orphaning
 //     character/image tables). So a model or width change is uniformly PURGE + REINDEX: the batch that moves
 //     the owner's target generation deletes their old vectors (`embeddings/persistence/space-state.ts`
-//     `switchTargetGeneration`), the sweeps rebuild the new one, and the promotion deletes any old-generation
-//     row a write already in flight landed afterwards — an index never holds two generations at rest.
+//     `switchTargetGeneration`) and the sweeps rebuild the new one. Every vector upsert lands only while its
+//     generation is still the owner's target (`embeddings/persistence/queries.ts`), so a write in flight across
+//     the switch never lands — an index never holds two generations at rest.
 //
 // `image_embeddings.lens` DERIVES the canonical `IMAGE_LENSES` tuple from `@orb/contracts/embeddings`
 // (D34 — promoted out of the server tier so db can derive; db deps are kit + contracts + drizzle only).

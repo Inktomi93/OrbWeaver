@@ -8,7 +8,7 @@
 // sweeps by `tests/server/domain/embeddings/embed-space-round-trip.suite.int.test.ts`.
 
 import type { Db } from "@orb/db";
-import { characterEmbeddings, embedGenerations } from "@orb/db";
+import { characterEmbeddings, embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -36,6 +36,11 @@ async function seedGeneration(db: Db, ownerId: UserId, model: string, task: "emb
       createdAt: NOW,
     })
     .onConflictDoNothing();
+  // The owner's current target: an upsert lands only while its generation is one.
+  await db
+    .insert(embedGenerationTargets)
+    .values({ ownerId, task, generationId: id, epoch: 1 })
+    .onConflictDoUpdate({ target: [embedGenerationTargets.ownerId, embedGenerationTargets.task], set: { generationId: id } });
   return id;
 }
 

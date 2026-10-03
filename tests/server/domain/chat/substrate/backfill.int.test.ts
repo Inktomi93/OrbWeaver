@@ -133,6 +133,37 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect(counts.completedSpaces).toEqual([]);
   });
 
+  // The re-index progress row names the phase that is RUNNING: a slow segment flood reads "embedding transcripts".
+  test("progress names each phase as it starts, so the flood reports embedding and the batch reports summarizing", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const room = await seedChat(db, "room_progress");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+    await seedTurns(db, room, aria, 4);
+    const steps: string[] = [];
+    const seen: Record<"embedding" | "summarizing", string | undefined> = { embedding: undefined, summarizing: undefined };
+    const store = fakeEmbeddingsStore(db);
+    const summarize = fakeSummarize();
+    const ctx = makeChatContext(db, {
+      summarize: (...args: Parameters<typeof summarize.op>) => {
+        seen.summarizing ??= steps.at(-1);
+        return summarize.op(...args);
+      },
+      embeddingsStore: store.store,
+      embeddingsStoreSegments: (params) => {
+        seen.embedding ??= steps.at(-1);
+        return store.storeSegments(params);
+      },
+    });
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
+
+    await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS, onProgress: (step) => steps.push(step) }, cfg);
+
+    expect(seen).toEqual({ embedding: "embedding transcripts", summarizing: "summarizing" });
+    expect(steps).toEqual(["planning chats", "embedding transcripts", "summarizing", "writing digests"]);
+  });
+
   test("segments visit every chat; digest buckets mirror the engine's scopes (group bucket only >1 character)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     await seedRooms(host);

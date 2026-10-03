@@ -112,6 +112,35 @@ describe("previewEmbedSpaceChange", () => {
     expect(unboundRow.reindex).toBe(false);
   });
 
+  // "Use this connection for everything it can serve" rebinds the vector roles too, so it previews like a bind.
+  test("using another embedder for everything over a stored index says rebuild; the bound one rebuilds nothing", async () => {
+    const db = await freshDb();
+    const fixture = await twoEmbedders(db);
+    await storeCardVectors(db, fixture, 2);
+    const other = await fixture.h.svc.previewEmbedSpaceChange({
+      principal: fixture.owner.principal,
+      change: { kind: "everywhere", connectionId: fixture.other },
+    });
+    const same = await fixture.h.svc.previewEmbedSpaceChange({
+      principal: fixture.owner.principal,
+      change: { kind: "everywhere", connectionId: fixture.bound },
+    });
+    expect(other).toEqual({ reindex: true, stored: { cards: 2, memory: 0, documents: 0, images: 0 }, embedCalls: 2 });
+    expect(same.reindex).toBe(false);
+  });
+
+  // An unbound role resolves to nothing, so no generation moves and nothing is deleted: the stored index stays.
+  test("clearing the text embedder over a stored index rebuilds nothing", async () => {
+    const db = await freshDb();
+    const fixture = await twoEmbedders(db);
+    await storeCardVectors(db, fixture, 2);
+    const preview = await fixture.h.svc.previewEmbedSpaceChange({
+      principal: fixture.owner.principal,
+      change: { kind: "bind", task: "embed", connectionId: null },
+    });
+    expect(preview).toEqual({ reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 });
+  });
+
   test("a change with nothing stored still says rebuild, at zero cost, and the read writes nothing", async () => {
     const db = await freshDb();
     const fixture = await twoEmbedders(db);
