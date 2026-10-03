@@ -1,0 +1,1 @@
+{"arm":"rerank-1c-meta","threads":1,"loadMs":493,"scorePairsCalls":60,"p50Ms":150,"p95Ms":702,"maxMs":780,"rssDeltaMb":206}

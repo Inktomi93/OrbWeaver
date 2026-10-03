@@ -17,6 +17,7 @@ import { ConfigHostStory } from "../../config/_ct-stories.tsx";
 import { AdminGroupStory } from "../_ct-stories.tsx";
 import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
 import { appSettingsView, EFFECTIVE_APP_SETTINGS } from "../app-settings-fixtures.ts";
+import { signInModeView } from "../auth-config-fixtures.ts";
 
 const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
 const PLAIN_VIEWER = { userId: "user_kes", handle: "kes", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
@@ -117,6 +118,8 @@ function stub(page: Page, viewer: TrpcWireOutput<"sessions.me">): Promise<TrpcRe
     "sessions.me": () => viewer,
     // Multi-user's owner-only Share card reads the relay; fed at rest.
     "share.status": () => ({ relay: { state: "off" as const }, liveSocketCount: 0, publicAddresses: [], certificate: { state: "off" as const } }),
+    // Multi-user's sign-in panel suspends on the boot-fixed mode; unfed, the whole section renders its error state.
+    "share.signInMode": () => signInModeView("single-user"),
     "settings.getAppSettings": () => EFFECTIVE_APP_SETTINGS,
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED_APP),
     // The plain-viewer arm lands on the default `appearance` pane, whose sections read the user settings.

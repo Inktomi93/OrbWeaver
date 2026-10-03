@@ -39,18 +39,77 @@ export const authModeSchema = z.enum(AUTH_MODES) satisfies z.ZodType<AuthMode>;
  *  under it, and the server's refusals name it, so both read this one spelling. */
 export const SETUP_COMMAND = "pnpm start --setup";
 
+/** Where an install's settings live. Bare metal reads `.env` in the checkout; a container reads its compose env files,
+ *  the operator's own being `docker/orbweaver.local.env`, and the `environment:` block of the compose file wins over
+ *  both. The server's refusals and the Multi-user sign-in helper name these spellings. */
+export const BARE_METAL_ENV_FILE = ".env";
+export const CONTAINER_ENV_FILE = "docker/orbweaver.local.env";
+export const COMPOSE_FILE = "docker-compose.yaml";
+/** The overlay whose own `environment:` block pins single-user and the owner fallback over both env files. */
+export const HOST_NETWORK_OVERLAY = "docker/compose.host-network.yaml";
+/** Recreates the container with changed env files; a plain restart keeps the environment it was created with. */
+export const COMPOSE_UP_COMMAND = "docker compose up -d";
+
 /** The setup answer that turns sign-in on, in the words the wizard prints. The sharing panel quotes it to a
  *  single-user owner, so both read this one spelling. */
 export const SETUP_FRIENDS_ANSWER = "me and friends";
 
-/** The `environment:` lines of `docker-compose.yaml` that switch a container to the local sign-in mode, in print
- *  order. The shipped `docker/orbweaver.env` pairs single-user with the owner fallback and the bridge peers, which
- *  production refuses beside a login mode, so all three keys move. A server env test boots these over that file. */
-export const CONTAINER_LOCAL_LOGIN_ENV = [
-  ["AUTH_MODE", "local"],
+/** Where the running `AUTH_MODE` came from: the `.env` file the server loads (the setup wizard writes it too), the
+ *  environment the process started with (a container's compose env files, a launcher, a shell export), or nowhere,
+ *  so the schema default applies. */
+export const AUTH_MODE_SOURCES = ["env-file", "process-env", "default"] as const;
+export type AuthModeSource = (typeof AUTH_MODE_SOURCES)[number];
+
+/** The install shape, which decides the file a setting goes in and how the server restarts. */
+export const INSTALL_KINDS = ["container", "bare-metal"] as const;
+export type InstallKind = (typeof INSTALL_KINDS)[number];
+
+/** The sign-in modes the Multi-user helper prints a switch for, in print order. */
+export const SIGN_IN_TARGET_MODES = ["local", "oidc", "forward-header"] as const satisfies readonly AuthMode[];
+export type SignInTargetMode = (typeof SIGN_IN_TARGET_MODES)[number];
+
+/** One `KEY=value` line of an env file. */
+export type EnvLine = readonly [key: string, value: string];
+
+/** The env key that selects the sign-in mode. */
+export const AUTH_MODE_KEY = "AUTH_MODE";
+
+/** The keys each sign-in mode needs beside `AUTH_MODE`, with example values the owner replaces and the boot parse
+ *  accepts. */
+export const SIGN_IN_MODE_KEYS = {
+  local: [],
+  oidc: [
+    ["OIDC_ISSUER", "https://auth.example.com/application/o/orbweaver/"],
+    ["OIDC_CLIENT_ID", "orbweaver"],
+    ["OIDC_CLIENT_SECRET", "your-client-secret"],
+    ["OIDC_REDIRECT_URIS", "https://orbweaver.example.com/api/auth/oidc/callback"],
+  ],
+  "forward-header": [["FORWARD_AUTH_TRUSTED_PROXIES", "172.18.0.100/32"]],
+} as const satisfies Record<SignInTargetMode, readonly EnvLine[]>;
+
+/** The two owner-fallback keys a container moves with the mode: the shipped `docker/orbweaver.env` pairs single-user
+ *  with the owner fallback and the bridge peers, which production refuses beside a login mode. On bare metal they stay
+ *  out of `.env`, where the boot parse refuses them and resolves both from the mode. */
+export const CONTAINER_LOGIN_FALLBACK_ENV = [
   ["AUTH_FALLBACK", "deny"],
   ["AUTH_FALLBACK_TRUSTED_PEERS", ""],
-] as const satisfies readonly (readonly [string, string])[];
+] as const satisfies readonly EnvLine[];
+
+/** Why a container switch can fail to take: any compose `environment:` block wins over the env files, an overlay's
+ *  included. The server cannot see which compose files started it, so the overlay that pins the no-login pair is named
+ *  outright. The server's container instructions and the Multi-user helper both print this sentence. */
+export const ENVIRONMENT_BLOCK_WINS = `A key in any compose environment: block wins over ${CONTAINER_ENV_FILE}: ${COMPOSE_FILE}, or an overlay such as ${HOST_NETWORK_OVERLAY}, whose environment: lines set ${AUTH_MODE_KEY}: single-user and ${CONTAINER_LOGIN_FALLBACK_ENV[0][0]}: owner. Remove those lines there, or start without that overlay.`;
+
+/** The env lines that switch an install to `mode`, in print order. A server env test boots every block. */
+export function signInModeEnvLines(mode: SignInTargetMode, install: InstallKind): readonly EnvLine[] {
+  const fallback = install === "container" ? CONTAINER_LOGIN_FALLBACK_ENV : [];
+  return [[AUTH_MODE_KEY, mode], ...fallback, ...SIGN_IN_MODE_KEYS[mode]];
+}
+
+/** Env lines as env-file text, one `KEY=value` per line, the form `.env` and compose env files both read. */
+export function envFileText(lines: readonly EnvLine[]): string {
+  return lines.map(([key, value]) => `${key}=${value}`).join("\n");
+}
 
 /** The modes that mint a session cookie, so they need the SESSION_SECRET pepper to authenticate anyone. */
 export const COOKIE_AUTH_MODES = ["local", "oidc"] as const satisfies readonly AuthMode[];
@@ -200,6 +259,18 @@ export const shareStatusSchema = z.strictObject({
   certificate: ipCertificateStatusSchema,
 });
 export type ShareStatus = z.infer<typeof shareStatusSchema>;
+
+/** `share.signInMode`: the running sign-in mode, where it came from and the install shape, all fixed at boot, and per
+ *  target mode the refusal Start sharing would meet under it (null where a relayed visitor can sign in). Strict, so the
+ *  only env values that reach the browser are the mode and, on an oidc box, the public origins of `OIDC_REDIRECT_URIS`
+ *  its oidc refusal names; never a secret. */
+export const signInModeViewSchema = z.strictObject({
+  mode: authModeSchema,
+  source: z.enum(AUTH_MODE_SOURCES),
+  install: z.enum(INSTALL_KINDS),
+  targets: z.array(z.strictObject({ mode: z.enum(SIGN_IN_TARGET_MODES), shareRefusal: shareRefusalNoticeSchema.nullable() })),
+});
+export type SignInModeView = z.infer<typeof signInModeViewSchema>;
 
 /** The share fields on `/api/auth/config`. `url` is the public origin while the relay is up, served to a signed-in
  *  caller only; an anonymous visitor reads `null`, because the sign-in page needs no link to hand out. */

@@ -18,6 +18,7 @@ import { readEscapedAbsolutes } from "../../../../support/browser/settings-geome
 import { makeResolvedView } from "../../../../support/factories/resolved-connection.ts";
 import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { signInModeView } from "../../user-admin/auth-config-fixtures.ts";
 import { ConfigDeepLinkFromDoorStory, ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance group suspends on — defaults are enough to render it. */
@@ -129,6 +130,8 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "settings.getAppSettingsWithOverrides": { resolved: APP_CONFIG, overrides: {} },
   // Multi-user's owner-only Share card reads the relay under an owner viewer; fed at rest.
   "share.status": { relay: { state: "off" }, liveSocketCount: 0, publicAddresses: [], certificate: { state: "off" } },
+  // Multi-user's sign-in panel suspends on the boot-fixed mode; unfed, the whole section renders its error state.
+  "share.signInMode": signInModeView("single-user"),
   "persona.list": [],
   "credentials.list": [],
   "workloads.list": [],

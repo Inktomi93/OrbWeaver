@@ -11,16 +11,16 @@
 // re-pointed: their subject does not exist. What survives is the claim this module was written for — ONE
 // module-private `useIsBoxOwner()` predicate, per-KEY rather than per-section.
 
-import type { ShareStatus } from "@orb/contracts/identity";
+import type { ShareStatus, SignInModeView } from "@orb/contracts/identity";
 import { copyActionName } from "@orb/ui/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
 import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
 import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
-import { stubAuthConfig } from "../auth-config-fixtures.ts";
+import { refusalSentence, signInModeView } from "../auth-config-fixtures.ts";
 
 const UPDATE_PROC = "settings.updateAppSettings";
 
@@ -37,18 +37,21 @@ const RESOLVED: Partial<EffectiveAppSettings> = {
   privateEndpointAllowlist: ["127.0.0.1", "::1"],
 };
 
-function stub(
-  page: Page,
-  viewer: TrpcWireOutput<"sessions.me">,
-  overrides: Partial<AppSettingsOverrides> = {},
-  resolved: typeof RESOLVED = RESOLVED,
-): Promise<TrpcRecorder> {
+interface StubOptions {
+  readonly overrides?: Partial<AppSettingsOverrides>;
+  readonly resolved?: typeof RESOLVED;
+  readonly signIn?: SignInModeView;
+}
+
+function stub(page: Page, viewer: TrpcWireOutput<"sessions.me">, options: StubOptions = {}): Promise<TrpcRecorder> {
+  const { overrides = {}, resolved = RESOLVED, signIn = signInModeView("single-user") } = options;
   return routeTrpc(page, {
     "settings.getAppSettingsWithOverrides": () => appSettingsView(resolved, overrides),
     "sessions.me": () => viewer,
     [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
     // The owner's Share card beside the posture panel reads these; its own CT drives them.
     "share.status": () => SHARE_OFF,
+    "share.signInMode": () => signIn,
     "admin.listUsers": () => [],
   });
 }
@@ -116,12 +119,10 @@ test("the owner can save an explicitly empty private-endpoint list without reset
 // Multi-user's Reset is viewer-shaped: an owner clears all three keys, a delegated admin only the one they may
 // write — a blanket clear would name `localMultiUser` and bounce off `requireOwner` with nothing saved.
 test("Multi-user's Reset clears only the keys the viewer may clear — owner", async ({ mount, page }) => {
-  const trpc = await stub(
-    page,
-    OWNER,
-    { localMultiUser: true, discreetLogin: true, privateEndpointAllowlist: ["ollama.lan:11434"] },
-    { ...RESOLVED, privateEndpointAllowlist: ["ollama.lan:11434"] },
-  );
+  const trpc = await stub(page, OWNER, {
+    overrides: { localMultiUser: true, discreetLogin: true, privateEndpointAllowlist: ["ollama.lan:11434"] },
+    resolved: { ...RESOLVED, privateEndpointAllowlist: ["ollama.lan:11434"] },
+  });
   await mount(<GovernanceSectionsStory />);
 
   await page.locator("#config-anchor-admin-multi-user").getByRole("button", { name: "Reset to defaults" }).click();
@@ -136,7 +137,9 @@ test("Multi-user's Reset clears only the keys the viewer may clear — owner", a
 });
 
 test("Multi-user's Reset clears only the keys the viewer may clear — delegated admin", async ({ mount, page }) => {
-  const trpc = await stub(page, DELEGATED_ADMIN, { localMultiUser: true, discreetLogin: true, privateEndpointAllowlist: ["ollama.lan:11434"] });
+  const trpc = await stub(page, DELEGATED_ADMIN, {
+    overrides: { localMultiUser: true, discreetLogin: true, privateEndpointAllowlist: ["ollama.lan:11434"] },
+  });
   await mount(<GovernanceSectionsStory />);
 
   await page.locator("#config-anchor-admin-multi-user").getByRole("button", { name: "Reset to defaults" }).click();
@@ -144,38 +147,70 @@ test("Multi-user's Reset clears only the keys the viewer may clear — delegated
 });
 
 // The read-only sharing panel beside the seating switch: letting other devices sign in is an env change
-// (AUTH_MODE), never a runtime switch, so the panel states the box's posture and how to change it.
-test("single-user: the sharing panel gives the setup command that lets other devices sign in", async ({ mount, page }) => {
+// (AUTH_MODE), never a runtime switch, so the panel states the mode, where it came from, and the lines that switch it.
+function signInPanel(page: Page): Locator {
+  return page.getByTestId("admin-sharing-panel");
+}
+
+function targetBlocks(page: Page): Locator {
+  return signInPanel(page).getByTestId("admin-sign-in-target");
+}
+
+test("single-user on bare metal: the setup command, then a switch for each login mode", async ({ mount, page }) => {
   await stub(page, OWNER);
-  await stubAuthConfig(page, "single-user");
   await mount(<GovernanceSectionsStory />);
 
-  const panel = page.getByTestId("admin-sharing-panel");
+  const panel = signInPanel(page);
   await expect(panel).toHaveAttribute("data-auth-mode", "single-user");
+  await expect(panel).toHaveAttribute("data-install", "bare-metal");
   await expect(panel.getByTestId("admin-sharing-line")).toHaveText("pnpm start --setup");
+  await expect(targetBlocks(page)).toHaveCount(3);
+  await expect(targetBlocks(page).nth(0)).toHaveAttribute("data-target-mode", "local");
 });
 
-test("oidc: the sharing panel states the running mode's line", async ({ mount, page }) => {
-  await stub(page, OWNER);
-  await stubAuthConfig(page, "oidc");
+test("a container never offers the setup command, which it cannot run", async ({ mount, page }) => {
+  await stub(page, OWNER, { signIn: signInModeView("single-user", { install: "container", source: "process-env" }) });
   await mount(<GovernanceSectionsStory />);
 
-  const panel = page.getByTestId("admin-sharing-panel");
-  await expect(panel).toHaveAttribute("data-auth-mode", "oidc");
-  await expect(panel.getByTestId("admin-sharing-line")).toHaveText("AUTH_MODE=oidc");
+  const panel = signInPanel(page);
+  await expect(panel).toHaveAttribute("data-auth-mode-source", "process-env");
+  await expect(panel.getByTestId("admin-sharing-line")).toHaveCount(0);
+  await expect(targetBlocks(page)).toHaveCount(3);
+});
+
+test("the running mode gets no switch, and a refused mode carries the server's own refusal sentence", async ({ mount, page }) => {
+  await stub(page, DELEGATED_ADMIN, { signIn: signInModeView("oidc") });
+  await mount(<GovernanceSectionsStory />);
+
+  await expect(signInPanel(page)).toHaveAttribute("data-auth-mode", "oidc");
+  await expect(targetBlocks(page)).toHaveCount(2);
+  await expect(page.locator('[data-target-mode="oidc"]')).toHaveCount(0);
+  await expect(page.locator('[data-target-mode="forward-header"]')).toContainText(refusalSentence("forward-header"));
 });
 
 test.describe("the sharing panel's copy", () => {
   test.use({ permissions: ["clipboard-read", "clipboard-write"] });
 
-  test("copies the running mode's environment line exactly", async ({ mount, page }) => {
+  test("bare metal copies only the mode line into .env: the fallback keys stay out", async ({ mount, page }) => {
     await stub(page, OWNER);
-    await stubAuthConfig(page, "oidc");
     await mount(<GovernanceSectionsStory />);
 
-    const panel = page.getByTestId("admin-sharing-panel");
-    await panel.getByRole("button", { name: copyActionName("the environment line AUTH_MODE=oidc"), exact: true }).click();
-    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("AUTH_MODE=oidc");
+    await signInPanel(page)
+      .getByRole("button", { name: copyActionName("the local lines"), exact: true })
+      .click();
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("AUTH_MODE=local");
+  });
+
+  test("a container copies the mode with the fallback pair the shipped env file needs overridden", async ({ mount, page }) => {
+    await stub(page, OWNER, { signIn: signInModeView("single-user", { install: "container", source: "process-env" }) });
+    await mount(<GovernanceSectionsStory />);
+
+    await signInPanel(page)
+      .getByRole("button", { name: copyActionName("the forward-header lines"), exact: true })
+      .click();
+    await expect
+      .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toBe("AUTH_MODE=forward-header\nAUTH_FALLBACK=deny\nAUTH_FALLBACK_TRUSTED_PEERS=\nFORWARD_AUTH_TRUSTED_PROXIES=172.18.0.100/32");
   });
 });
 
@@ -184,7 +219,6 @@ test.describe("the sharing panel's manual-copy fallback at 360px", () => {
 
   test("the field takes the panel's full width and replaces the chip it repeats", async ({ mount, page }) => {
     await stub(page, OWNER);
-    await stubAuthConfig(page, "single-user");
     await mount(<GovernanceSectionsStory width={360} />);
     // What an insecure (plain http) origin looks like: the [SecureContext] Clipboard API is absent.
     await page.evaluate(() => {
@@ -192,7 +226,7 @@ test.describe("the sharing panel's manual-copy fallback at 360px", () => {
       Object.defineProperty(globalThis, "isSecureContext", { configurable: true, value: false });
     });
 
-    const panel = page.getByTestId("admin-sharing-panel");
+    const panel = signInPanel(page);
     await panel.getByRole("button", { name: copyActionName("the command pnpm start --setup"), exact: true }).click();
     const field = panel.getByRole("textbox", { name: "the command pnpm start --setup", exact: true });
     await expect(field).toBeFocused();
@@ -207,42 +241,40 @@ test.describe("the sharing panel's manual-copy fallback at 360px", () => {
 });
 
 // Read-only by ruling: the auth mode is a boot fact, so the panel offers nothing to toggle, for any viewer.
-// Its one button copies the line; it changes nothing.
-// P3-7 — the panel is a real heading, and every command, key and file the instruction names reads as code on ONE line:
+// P3-7: the panel is a real heading, and every command, key and file a sentence names reads as code on ONE line:
 // a command broken across two lines reads as two commands.
 test.describe("at a 360px viewport", () => {
   test.use({ viewport: { width: 360, height: 800 } });
 
-  test("oidc: 'Who can sign in' is a heading, and no command in the instruction breaks across lines", async ({ mount, page }) => {
-    await stub(page, OWNER);
-    await stubAuthConfig(page, "oidc");
+  test("oidc: 'Who can sign in' is a heading, and no command in a sentence breaks across lines", async ({ mount, page }) => {
+    await stub(page, OWNER, { signIn: signInModeView("oidc") });
     await mount(<GovernanceSectionsStory />);
-    const panel = page.getByTestId("admin-sharing-panel");
+    const panel = signInPanel(page);
     await expect(panel.getByRole("heading", { level: 4, name: "Who can sign in" })).toBeVisible();
     const commands = panel.locator("p kbd");
-    await expect(commands).toHaveCount(4);
-    // One line box each, no taller than the single-line chip the panel copies from.
+    await expect(commands.first()).toBeVisible();
+    // One line box each, all the height of the shortest: a wrapped command is two boxes and twice as tall.
     await expect
       .poll(async () => {
-        const chip = await panel.getByTestId("admin-sharing-line").boundingBox();
-        const heights = await commands.evaluateAll((nodes) =>
+        const boxes = await commands.evaluateAll((nodes) =>
           nodes.map((node) => ({ rects: node.getClientRects().length, height: node.getBoundingClientRect().height })),
         );
-        return heights.every((h) => h.rects === 1 && chip !== null && h.height <= chip.height + 1);
+        const line = Math.min(...boxes.map((box) => box.height));
+        return boxes.every((box) => box.rects === 1 && box.height <= line + 1);
       })
       .toBe(true);
   });
 });
 
-test("the sharing panel is read-only: no switch, no field, only the copy button, even for the owner", async ({ mount, page }) => {
+test("the sharing panel is read-only: no switch, no field, only copy buttons, even for the owner", async ({ mount, page }) => {
   await stub(page, OWNER);
-  await stubAuthConfig(page, "single-user");
   await mount(<GovernanceSectionsStory />);
 
-  const panel = page.getByTestId("admin-sharing-panel");
+  const panel = signInPanel(page);
   await expect(panel).toBeVisible();
   await expect(panel.getByRole("switch")).toHaveCount(0);
   await expect(panel.getByRole("textbox")).toHaveCount(0);
-  await expect(panel.getByRole("button")).toHaveCount(1);
+  // The setup command and one block per login mode.
+  await expect(panel.getByRole("button")).toHaveCount(4);
   await expect(panel.getByRole("button", { name: copyActionName("the command pnpm start --setup"), exact: true })).toBeVisible();
 });

@@ -10,10 +10,11 @@ import { hostname } from "node:os";
 import { resolve } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
-import type { AUTH_MODES } from "@orb/contracts/identity";
+import type { AUTH_MODES, AuthModeSource, InstallKind } from "@orb/contracts/identity";
 import { authModeSchema, shareRelayKindSchema } from "@orb/contracts/identity";
 import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
+import { ENV_FROM_FILE_KEY, envFromFileKeys } from "@orb/kit/env-file";
 import { isSupervised, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
@@ -22,7 +23,7 @@ import type { AllowedHostsInput } from "./allowed-hosts.ts";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "./allowed-hosts.ts";
 import type { BindPostureInput } from "./bind.ts";
 import { resolveBindPosture } from "./bind.ts";
-import { runsInContainer } from "./container.ts";
+import { runsInContainer, settingInstruction } from "./container.ts";
 import type { DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 import type { OwnerFallbackPeerInput } from "./fallback-peers.ts";
 import { parseOwnerFallbackTrustedPeers, resolveOwnerFallbackPeers } from "./fallback-peers.ts";
@@ -156,6 +157,11 @@ const UTF8_BOM = "﻿";
  *  `.env` with `override:true` and computes byte-identical contents, so there is no cross-replica state to
  *  reconcile — it is boot-constant deployment provenance, not runtime accumulator state. */
 const envFileKeys = new Set<string>();
+// The keys whose value the file actually put in `process.env`: a declared key the process already held stays the
+// process's under no-override, so declaring is not supplying. Written once at load, like `envFileKeys`.
+const envFileSuppliedKeys = new Set<string>();
+// The value the file declared per key, so a launcher's restated key counts as the file's only while it still holds it.
+const envFileValues = new Map<string, string>();
 
 function loadEnvFileWithOverride(override: boolean): void {
   // ORB_ENV_NO_FILE — skip the file ENTIRELY (not merely the override direction). Set globally by
@@ -177,8 +183,10 @@ function loadEnvFileWithOverride(override: boolean): void {
   for (const [key, value] of Object.entries(parseEnv(raw.startsWith(UTF8_BOM) ? raw.slice(UTF8_BOM.length) : raw))) {
     if (value !== undefined) {
       envFileKeys.add(key);
+      envFileValues.set(key, value);
       if (override || process.env[key] === undefined) {
         process.env[key] = value;
+        envFileSuppliedKeys.add(key);
       }
     }
   }
@@ -198,7 +206,7 @@ const LAUNCH_ONLY_ENV_KEYS = [
   },
   {
     key: "AUTH_FALLBACK_TRUSTED_PEERS",
-    why: "it widens who is the un-credentialed OWNER, and .env's override:true would carry that widening into every launch from this directory — including a dev or prod run that never meant to open it. A container passes it in the CONTAINER environment (compose `environment:`/`docker run -e`), never in the app's own .env.",
+    why: `it widens who is the un-credentialed OWNER, and .env's override:true would carry that widening into every launch from this directory, including a dev or prod run that never meant to open it. A container takes it from its own env file, never the app's .env: ${settingInstruction(true, [["AUTH_FALLBACK_TRUSTED_PEERS", "<CIDR list>"]])}`,
   },
   {
     key: SUPERVISOR_ENV_KEY,
@@ -221,6 +229,19 @@ function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx): void {
 // invocation that wants its own shell vars honored.
 const skipOverride = process.env["VITEST"] !== undefined || process.env["ORB_ENV_NO_OVERRIDE"] !== undefined;
 loadEnvFileWithOverride(!skipOverride);
+
+// A value present right after the load and not put there by the file came with the process, unless the launcher says
+// it restated that key from the file (`pnpm start --share` / `--port` re-send `.env` with the override off). The value
+// must still equal the file's, so a hand-set list cannot claim a value `.env` does not hold.
+function sourceAfterLoad(key: string): AuthModeSource {
+  if (envFileSuppliedKeys.has(key) || (envFromFileKeys(process.env[ENV_FROM_FILE_KEY]).has(key) && envFileValues.get(key) === process.env[key])) {
+    return "env-file";
+  }
+  return process.env[key] === undefined ? "default" : "process-env";
+}
+
+// Read once, before anything can scrub or rewrite `process.env`.
+const AUTH_MODE_SOURCE = sourceAfterLoad("AUTH_MODE");
 
 /** A boolean knob's env codec — ONE home for the posture, so no site can drift.
  *
@@ -856,6 +877,16 @@ export function diagnosticsPostureInput(): DiagnosticsPostureInput {
  *  reader; `entry/lifecycle` composes it into the auth seam, which owns no copy of the rule. */
 export function ownerFallbackCredentialInput(): OwnerFallbackCredentialInput {
   return { nodeEnv: env.NODE_ENV, authFallback: env.AUTH_FALLBACK, fallbackWidened: resolveOwnerFallbackPeers(ownerFallbackPeerInput()).widened };
+}
+
+/** Where the running `AUTH_MODE` came from, fixed at load. Only the source travels; the value is `env.AUTH_MODE`. */
+export function authModeSource(): AuthModeSource {
+  return AUTH_MODE_SOURCE;
+}
+
+/** The install shape, from the image's own declaration or the runtime's marker files. */
+export function installKind(): InstallKind {
+  return runsInContainer(env.ORB_CONTAINER) ? "container" : "bare-metal";
 }
 
 /** Was this process started by the launcher that respawns it on the restart exit code (`@orb/kit/supervisor`)? The

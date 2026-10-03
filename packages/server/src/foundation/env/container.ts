@@ -3,15 +3,13 @@
 // through `settingInstruction`, so the two shapes' fix text has one home.
 
 import { existsSync } from "node:fs";
-import { SETUP_COMMAND } from "@orb/contracts/identity";
+import type { EnvLine } from "@orb/contracts/identity";
+import { BARE_METAL_ENV_FILE, COMPOSE_UP_COMMAND, CONTAINER_ENV_FILE, ENVIRONMENT_BLOCK_WINS, envFileText, SETUP_COMMAND } from "@orb/contracts/identity";
 
 /** The marker files a container runtime writes: Docker (Engine and Desktop), then Podman. containerd and CRI-O write
  *  neither, which is why the image also declares itself. */
 export const CONTAINER_MARKER_FILES = ["/.dockerenv", "/run/.containerenv"] as const;
 
-const BARE_METAL_ENV_FILE = ".env";
-const COMPOSE_FILE = "docker-compose.yaml";
-const CONTAINER_ENV_FILE = "docker/orbweaver.local.env";
 // The service name in the shipped `docker-compose.yaml`; the entrypoint's first-boot banner names it too.
 const COMPOSE_SERVICE = "orbweaver";
 
@@ -22,12 +20,18 @@ export function runsInContainer(declared: boolean, exists: (path: string) => boo
   return declared || CONTAINER_MARKER_FILES.some((path) => exists(path));
 }
 
-/** How to set `key` to `value` on this install, as one clause ending in the restart. A container leads with the
- *  compose `environment:` block (the container reads no `.env` from the checkout); bare metal leads with setup. */
-export function settingInstruction(inContainer: boolean, key: string, value: string): string {
+/** How to set `lines` on this install: a lowercase clause ending in a colon, then each line indented on its own line,
+ *  so a pasted line never carries its neighbours. A container takes them in its own env file (it reads no `.env` from
+ *  the checkout) and needs `docker compose up -d`, because a plain restart keeps the environment it was created with,
+ *  and an `environment:` block outranks the file; bare metal leads with setup. */
+export function settingInstruction(inContainer: boolean, lines: readonly EnvLine[]): string {
+  const block = envFileText(lines)
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n");
   return inContainer
-    ? `add ${key}: ${value} under environment: in ${COMPOSE_FILE} (or ${key}=${value} in ${CONTAINER_ENV_FILE}), then restart the container`
-    : `run ${SETUP_COMMAND}, or set ${key}=${value} in ${BARE_METAL_ENV_FILE}, then restart`;
+    ? `add these lines to ${CONTAINER_ENV_FILE}, then run ${COMPOSE_UP_COMMAND}:\n${block}\n${ENVIRONMENT_BLOCK_WINS}`
+    : `run ${SETUP_COMMAND}, or add these lines to ${BARE_METAL_ENV_FILE} and restart:\n${block}`;
 }
 
 /** The shell command that prints the file at absolute `path` on this install. A boot secret is named by this
