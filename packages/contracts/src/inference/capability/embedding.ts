@@ -1,8 +1,8 @@
-// The EMBEDDING capability — the admission facts for a vector model. `dims` + `dtype` are what the space tag
-// `(model, dim[@dtype])` is derived from (`embeddings.ts:22-28`'s law: two providers serving the same
-// weights at the same dtype ARE one space, so there is deliberately no provider id here). `dims` IS the
-// owner's space width: a vector is never padded, and only an MRL model's vector is ever shortened — it is
-// asked for exactly `dims`, which is how a declared shorter width is honoured.
+// The EMBEDDING capability — the admission facts for a vector model. `dtype` folds into the space tag
+// `model[@dtype]` (two providers serving the same weights at the same dtype ARE one space, so there is
+// deliberately no provider id here). `dims` IS the owner's space width; it rides the generation identity, not
+// the tag. A vector is never padded. An MRL model is asked for exactly `dims` and only its longer vector is
+// cut to that width; any other width mismatch is refused, which is how a declared shorter width is honoured.
 
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
@@ -47,6 +47,10 @@ export type EmbeddingCapability = z.infer<typeof embeddingCapabilitySchema>;
  *  The two sides read their dtype from two different facts (the deployment's served precision vs the curated
  *  capability row), which they are expected to agree on; `embeddings.store` refuses a write where they do
  *  not, so a disagreement is LOUD rather than a silently split corpus. */
+/** The connection-row fields a vector space's identity is derived from. A patch touching none of them cannot move
+ *  an owner to a new embedding generation, so neither the server preview nor the pane's confirm needs to ask. */
+export const EMBED_SPACE_FIELDS = ["providerId", "baseUrl", "model", "api", "declared", "extras", "transport"] as const;
+
 export function embedSpaceOf(model: string, dtype: string | undefined): string {
   return dtype === undefined ? model : `${model}@${dtype}`;
 }

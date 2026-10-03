@@ -89,7 +89,7 @@ function storeBatch(batch: readonly KeptInput[], embeddings: readonly number[][]
     }
     const input = batch[index];
     if (input !== undefined) {
-      vectors[input.index] = fitToDim(vector, dimension, label);
+      vectors[input.index] = fitToDim(vector, { dims: dimension, mrl: capability.mrl }, label);
     }
   }
 }

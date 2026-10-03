@@ -53,7 +53,7 @@ describe("pruneDocumentChunks", () => {
     expect(rows.map((r) => r.chunkIdx).sort((a, b) => a - b)).toEqual([0, 1, 2]);
   });
 
-  test("retains the retired generation while pruning the pending generation's tail", async () => {
+  test("a model change empties the old space at the switch, and the prune trims only the new generation's tail", async () => {
     const db = await freshDb();
     const harness = makeStoreHarness(db);
     const svc = createEmbeddingsService(harness.ctx);
@@ -83,13 +83,13 @@ describe("pruneDocumentChunks", () => {
     embedAs(harness, EMBED_MODEL);
     await storeChunks(svc, { documentId, count: 4, model: EMBED_MODEL, ownerId: owner }); // the pending space
 
-    // Promotion owns retired-generation reclamation. This post-ingest prune may delete only the pending
-    // generation's surplus tail; the still-active old generation remains readable until the joint swap.
+    // The store that moved the owner to the new generation deleted the old space in the same batch, so the
+    // post-ingest prune has only the new generation's surplus tail left to trim.
     const { rowsDeleted } = await svc.pruneDocumentChunks({ documentId, keepCount: 3, model: EMBED_MODEL });
 
-    expect(rowsDeleted).toBe(1); // pending generation idx 3 only
+    expect(rowsDeleted).toBe(1); // the new generation's idx 3 only
     const rows = await db.select().from(documentChunks).where(eq(documentChunks.documentId, documentId));
-    expect(rows.filter((row) => row.model === OLD_MODEL)).toHaveLength(3);
+    expect(rows.filter((row) => row.model === OLD_MODEL)).toEqual([]);
     expect(rows.filter((row) => row.model === EMBED_MODEL)).toHaveLength(3);
   });
 

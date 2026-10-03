@@ -9,6 +9,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
 import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
+import type { UserConnectionId } from "@orb/kit/ids";
 import { connectionFingerprint } from "#kit/embedding-generation";
 import type { EmbedSpace, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext } from "../contract/service.ts";
@@ -24,18 +25,24 @@ export const VECTOR_TASKS: readonly RoutableTask[] = ["embed", "imageEmbed"];
  *  before and after their write. The shape is {@link EmbedSpaces} (contract/results.ts). */
 export async function vectorSpacesOf(ctx: SpaceResolveCtx, principal: Principal): Promise<EmbedSpaces> {
   const entries = await Promise.all(
-    VECTOR_TASKS.map(async (task): Promise<readonly [RoutableTask, EmbedSpace | null]> => [task, await spaceFor(ctx, principal, task)]),
+    VECTOR_TASKS.map(async (task): Promise<readonly [RoutableTask, EmbedSpace | null]> => [task, await vectorSpaceOf(ctx, principal, task)]),
   );
   return Object.fromEntries(entries);
 }
 
-/** A resolve REFUSAL is a legitimate reading of "no space" — an unbound, unservable or unfundable task has
- *  no vectors to strand — so it folds to `null` rather than failing the write that asked. */
-async function spaceFor(ctx: SpaceResolveCtx, principal: Principal, task: RoutableTask): Promise<EmbedSpace | null> {
+/** One vector task's space, through the bound connection or, when `connectionId` names one, through that row
+ *  as if it were bound. A resolve REFUSAL is a legitimate reading of "no space" — an unbound, unservable or
+ *  unfundable task has no vectors to strand — so it folds to `null` rather than failing the write that asked. */
+export async function vectorSpaceOf(
+  ctx: SpaceResolveCtx,
+  principal: Principal,
+  task: RoutableTask,
+  connectionId?: UserConnectionId,
+): Promise<EmbedSpace | null> {
   // @orb-waive caught-failure-ownership(catch): a refused resolve IS the "no space" answer this comparison
   // needs; nothing is swallowed, and a throw here would fail a connection write over an unrelated task.
   try {
-    const { resolved } = await ctx.runtime.resolve({ task, principal });
+    const { resolved } = await ctx.runtime.resolve({ task, principal, ...(connectionId === undefined ? {} : { connectionId }) });
     if (resolved.capability.kind !== "embedding") {
       return null;
     }
@@ -49,7 +56,12 @@ async function spaceFor(ctx: SpaceResolveCtx, principal: Principal, task: Routab
   }
 }
 
-/** Did any vector task's space move? The trigger's whole condition, in one place. */
+/** Did one task's space move? Encoder identity or width — the trigger's whole condition, in one place. */
+export function spaceMoved(before: EmbedSpace | null | undefined, after: EmbedSpace | null | undefined): boolean {
+  return before?.fingerprint !== after?.fingerprint || before?.dim !== after?.dim;
+}
+
+/** Did any vector task's space move? */
 export function spacesDiffer(before: EmbedSpaces, after: EmbedSpaces): boolean {
-  return VECTOR_TASKS.some((task) => before[task]?.fingerprint !== after[task]?.fingerprint || before[task]?.dim !== after[task]?.dim);
+  return VECTOR_TASKS.some((task) => spaceMoved(before[task], after[task]));
 }

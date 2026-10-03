@@ -56,27 +56,26 @@ export function createDatabankWorkloadContributions(deps: DatabankWorkloadDeps):
         const corpusWide = params.scope.kind === "owner";
         const generationReceipts = corpusWide ? await deps.beginDocumentVectorSweep(ctx.ownerId) : [];
         const mode = params.mode ?? DEFAULT_REINDEX_MODE;
-        report({ message: `databank-reindex: ${mode} (${params.scope.kind} scope)` });
-        const result = await deps.databankIngest.reindex({ ownerId: ctx.ownerId, scope: params.scope, mode, signal });
+        const label = `databank-reindex: ${mode} (${params.scope.kind} scope)`;
+        report({ message: label });
+        const result = await deps.databankIngest.reindex({
+          ownerId: ctx.ownerId,
+          scope: params.scope,
+          mode,
+          signal,
+          onProgress: (done, total) => {
+            report({ message: `${label} — ${done} of ${total} documents`, current: done, total });
+          },
+        });
         report({
           message: `databank-reindex: ${result.documents} docs, ${result.chunksUpserted} written, ${result.chunksPruned} pruned, ${result.reExtracted} re-extracted`,
         });
         // THE PASS'S TERMINAL — record the `documents` scope's completion for the generations this pass
-        // opened, and reclaim the chunks stranded in any OTHER embed space once cards, memory and
-        // documents all name the same target generation. The DELETE lives in embeddings/persistence (the ONE
-        // vector write path) — this is the injected op, never a db reach.
-        //
-        // #2517 — THE RULING SURVIVES, ITS INPUT CHANGED, exactly as in chat's memory sweep: the BULK-ONLY
-        // fence was an argument about the cross-owner FAN-OUT, and it had the COMPLETION welded to it, so an
-        // owner's own reindex could never make `readGeneration` say `ready`. The fan-out now lives inside
-        // `beginDocumentVectorSweep`, which enumerates the scope it is handed. Still skipped on abort: the
-        // space stays a strict superset (never a gap); the rerun reclaims it.
-        //
-        // WHAT DID *NOT* CHANGE: the reclaim's blast radius. `markGenerationComplete` promotes nothing until
-        // cards, memory AND documents name the same `(generation, epoch)`, and its DELETEs derive their row
-        // set from THIS owner's documents (`embeddings/persistence/space-state.ts retiredVectorStatements`),
-        // so a per-owner pass can only ever reclaim its own old space. The cross-owner reach lives solely in
-        // the op's fan-out, which the enumeration scope still decides.
+        // opened; the promotion lands once cards, memory and documents all name the same target generation.
+        // The old generation's chunks were already deleted when the target moved
+        // (`embeddings/persistence/space-state.ts switchTargetGeneration`). An aborted pass claims nothing and
+        // leaves the new index partial for the rerun. The cross-owner reach lives solely in the op's fan-out
+        // (`beginDocumentVectorSweep`), which the enumeration scope decides.
         if (corpusWide && !signal.aborted) {
           await deps.purgeDocumentVectors(generationReceipts);
         }

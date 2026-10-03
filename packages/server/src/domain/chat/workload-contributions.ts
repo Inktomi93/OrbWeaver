@@ -4,13 +4,13 @@
 // (D38 — mint the synthetic group character for every multi-character room that lacks one).
 //
 // The ops are the SAME chat-ctx-bound sweeps compose already built; only their home changed. The one
-// cross-domain reach — the memory scope's `embed_space_state` completion plus the
-// old-embed-space reclaim — is an INJECTED op at chat's door (`purgeMemoryVectors`), which is exactly what
+// cross-domain reach — the memory scope's `embed_space_state` completion — is an INJECTED op at chat's door
+// (`purgeMemoryVectors`), which is exactly what
 // the retired hub existed to avoid building. That op ENUMERATES the scope it is handed (#2517), so the
 // bulk/singular distinction is a fan-out property of the op and not a fence on calling it.
 //
 // A memory sweep with ANY per-chat failure is a FAILED workload (#165): the tally throws rather than
-// returns, and the reclaim is suppressed on the same condition — an incomplete sweep neither succeeded nor
+// returns, and the completion is suppressed on the same condition — an incomplete sweep neither succeeded nor
 // re-derived the corpus into the active embed space.
 
 import type { BackfillPassResult, MemoryBackfillResult, MemoryBackfillWorkloadParams } from "@orb/contracts/chat";
@@ -18,6 +18,7 @@ import { memoryBackfillWorkloadParams } from "@orb/contracts/chat";
 import { DEFAULT_ADMISSION_KEY, emptyWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { ChatWorkloadDeps } from "./contract/workloads.ts";
+import { MEMORY_SWEEP_STEPS } from "./contract/workloads.ts";
 
 type ChatContributions = readonly [WorkloadContribution<"memory-backfill">, WorkloadContribution<"group-character-backfill">];
 
@@ -68,7 +69,16 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
         report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
         const importWindow = params.importWindow ?? null;
         const segmentsOnly = params.segmentsOnly === true;
-        const counts = await deps.backfillMemory({ ownerId: ctx.ownerId, funderUserId: ctx.userId, importWindow, segmentsOnly, signal });
+        const counts = await deps.backfillMemory({
+          ownerId: ctx.ownerId,
+          funderUserId: ctx.userId,
+          importWindow,
+          segmentsOnly,
+          signal,
+          onProgress: (step) => {
+            report({ message: `memory backfill: ${step}`, current: MEMORY_SWEEP_STEPS.indexOf(step) + 1, total: MEMORY_SWEEP_STEPS.length });
+          },
+        });
         report({
           message:
             `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)` +
@@ -76,37 +86,18 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
             `${counts.failed > 0 ? `, ${counts.failed} chats FAILED (skipped — see error log)` : ""}`,
         });
         // THE SWEEP'S TERMINAL — record `embed_space_state`'s `memory` completion for the scope this run
-        // actually covered, and reclaim the rows stranded in any OTHER embed space once cards,
-        // memory and documents all name the same target generation.
-        //
-        // #2517 — THE RULING SURVIVES, ITS INPUT CHANGED. This was BULK-ONLY, on the reasoning that "a model
-        // change is a box-level event, so a singular per-owner catch-up must not delete the global old
-        // space". That is an argument about the cross-owner FAN-OUT, and it had the COMPLETION welded to it:
-        // memory (like documents) therefore recorded a completion ONLY from the all-owners arm, while cards
-        // had always recorded one per owner (`embed-corpus.ts completeCardSweep`). An owner who caught up
-        // their own corpus was left with a `cards`-only ledger and `readGeneration` reporting `moving`
-        // forever over a corpus that was entirely at rest. The fan-out fence is now where it belongs — INSIDE
-        // the injected op, which enumerates the scope it is handed — so a singular run still cannot reach a
-        // neighbour, and can finally record its own truth. (`enumerationScope` is the WORKLOAD ROW's scope,
-        // not a chat owner — chats stay membership-scoped, D18.)        //
-        // WHAT DID *NOT* CHANGE, since a loosened conditional is exactly what a future reader will doubt:
-        // the RECLAIM's blast radius. It is not fenced here and never was — `markGenerationComplete` writes
-        // this scope's CANDIDATE row and promotes NOTHING until cards, memory AND documents all name the
-        // same `(generation, epoch)`, and every DELETE it then runs derives its row set from THIS owner's
-        // characters / hosted chats / documents (`persistence/space-state.ts retiredVectorStatements`). So a
-        // per-owner run reclaims exactly that owner's own old space — which is the SAME guarantee
-        // `embed-corpus.ts`'s per-owner card purge has always relied on ("a bulk pass covers every
-        // owner, a singular pass exactly one, and neither can reach a neighbour's live space"). The "global
-        // old space" the fence was written against is reachable only through the op's cross-owner FAN-OUT,
-        // and that fan-out is still decided by the enumeration scope alone.
+        // actually covered; the promotion lands once cards, memory and documents all name the same target
+        // generation. The old generation's rows were deleted when the target moved
+        // (`embeddings/persistence/space-state.ts switchTargetGeneration`). The op enumerates the scope it is
+        // handed, so a singular run reaches only its own owner (`enumerationScope` is the WORKLOAD ROW's scope,
+        // not a chat owner — chats stay membership-scoped, D18).
         const enumerationScope = ctx.ownerId;
-        // The abort + failure fences do NOT move (#165): a sweep that skipped chats or was cancelled did not
-        // re-derive the corpus into the active embed space, so it may neither claim the scope nor reclaim the
-        // old one — the space stays a strict superset (never a gap) and the rerun completes it.
+        // A sweep that skipped chats or was cancelled did not re-derive the corpus (#165), so it may not claim
+        // the scope; the new index stays partial and the rerun completes it.
         //
         // An IMPORT-SCOPED run or a SEGMENTS-ONLY pass never reaches the terminal: it re-derived only part of the
-        // owner's memory, so it may neither claim the owner's memory space complete nor reclaim the old one, and
-        // the purge op's vacuous receipt would claim exactly that.
+        // owner's memory, so it may not claim the owner's memory space complete, and the op's vacuous receipt
+        // would claim exactly that.
         if (importWindow === null && !segmentsOnly && !signal.aborted && counts.failed === 0) {
           await deps.purgeMemoryVectors(counts.completedSpaces, enumerationScope);
         }

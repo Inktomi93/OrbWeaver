@@ -20,7 +20,13 @@ interface CorpusSweepArgs {
 export interface MemorySweepArgs extends CorpusSweepArgs {
   readonly importWindow: ImportWindow | null;
   readonly segmentsOnly: boolean;
+  /** Called as each phase of {@link MEMORY_SWEEP_STEPS} finishes. */
+  readonly onProgress?: ((step: MemorySweepStep) => void) | undefined;
 }
+
+/** The memory sweep's phases in run order — the progress rows an embedder switch's re-index shows. */
+export const MEMORY_SWEEP_STEPS = ["planning chats", "embedding transcripts", "summarizing", "writing digests"] as const;
+export type MemorySweepStep = (typeof MEMORY_SWEEP_STEPS)[number];
 
 export interface ChatWorkloadDeps {
   /** The memory subsystem's corpus-wide segment/digest rebuild (idempotent, hash-diff resumable). */
@@ -30,17 +36,12 @@ export interface ChatWorkloadDeps {
   /** Mint the synthetic group character for every multi-character room that lacks one (D38). */
   readonly backfillGroupCharacters: (args: CorpusSweepArgs) => Promise<BackfillPassResult>;
   /** The memory sweep's TERMINAL: record `embed_space_state`'s `memory` completion for every space the
-   *  sweep brought current and — once cards, memory AND documents all name the same target generation —
-   *  reclaim the rows stranded in an older embed space.
+   *  sweep brought current; the promotion lands once cards, memory AND documents name the same target.
    *
-   *  THE ENUMERATION SCOPE IS AN ARGUMENT, not a caller-side fence (#2517). The op enumerates exactly the
-   *  scope it is handed: `null` = every corpus owner (the bulk arm), a `UserId` = that one owner. That is
-   *  what keeps a per-owner catch-up off a neighbour's space — and it is why the COMPLETION half no longer
-   *  has to be suppressed on the singular arm, which had left an owner whose memory was perfectly current
-   *  reading `moving` forever.
-   *
-   *  The DELETE lives in embeddings/persistence (the ONE vector write path) — this is the injected op,
-   *  never a db reach from chat. */
+   *  THE ENUMERATION SCOPE IS AN ARGUMENT, not a caller-side fence. The op enumerates exactly the scope it is
+   *  handed: `null` = every corpus owner (the bulk arm), a `UserId` = that one owner, so a per-owner catch-up
+   *  never reaches a neighbour's space. The state write lives in embeddings/persistence — this is the injected
+   *  op, never a db reach from chat. */
   readonly purgeMemoryVectors: (spaces: readonly MemoryEmbedSpace[], enumerationScope: UserId | null) => Promise<void>;
   /** Is the memory subsystem ON for this host (#156)? Resolved through the ONE memory-config merge
    *  (`entry/compose/chat.ts resolveMemoryConfig`: admin defaults ⊕ the host's `memory.enabled` opt-out), so

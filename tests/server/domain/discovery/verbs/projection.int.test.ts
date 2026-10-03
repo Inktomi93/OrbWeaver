@@ -40,7 +40,9 @@ function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
 }
 
 describe("corpusProjection", () => {
-  test("an equal-size model-space tie chooses the lexical model and returns points in stable id order", async () => {
+  // The first model seeded is the owner's current generation; the other model's rows are leftovers a pass
+  // never plots, so a stale space cannot double a card in the projection.
+  test("projects only the owner's current generation, in stable id order", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_tied_spaces");
     for (const model of ["model-b", "model-a"]) {
@@ -50,7 +52,7 @@ describe("corpusProjection", () => {
       }
     }
     const points = await svcFor(db).corpusProjection(owner);
-    expect(points.map((p) => p.name)).toEqual(["model-a_0", "model-a_1", "model-a_2"]);
+    expect(points.map((p) => p.name)).toEqual(["model-b_0", "model-b_1", "model-b_2"]);
   });
 
   test("projects the owner's cards to 2D with name + genre, owner-scoped", async () => {

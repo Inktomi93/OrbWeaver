@@ -57,6 +57,8 @@ export type { RegexScopeOrderProps } from "./regex-scope-order.tsx";
 export { RegexScopeOrder } from "./regex-scope-order.tsx";
 export type { RegexScriptPickerProps } from "./regex-script-picker.tsx";
 export { RegexScriptPicker } from "./regex-script-picker.tsx";
+export type { ReindexConfirm } from "./reindex-confirm.tsx";
+export { useReindexConfirm } from "./reindex-confirm.tsx";
 export type { RelationManagerItem, RelationManagerSectionProps } from "./relation-manager-section.tsx";
 export { RelationManagerSection } from "./relation-manager-section.tsx";
 export type { RowActionsMenuProps, RowDestructiveAction } from "./row-actions-menu.tsx";

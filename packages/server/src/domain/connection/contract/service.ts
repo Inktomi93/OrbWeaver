@@ -6,6 +6,7 @@
 // cross-feature dep arrives as an injected op, wired at the composition root; connection sideways-imports no
 // sibling runtime.
 
+import type { VectorScope } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type { ConnectionBinding, ModelListing, ResolvedConnectionView, RoutableTask, SendAvailability, TokenizeResult } from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
@@ -27,6 +28,7 @@ import type {
   GetConnectionParams,
   ListBindingsParams,
   ListConnectionsParams,
+  PreviewEmbedSpaceChangeParams,
   ProvidersAvailableParams,
   RefreshCatalogParams,
   RegisterPluginProvidersParams,
@@ -39,7 +41,15 @@ import type {
   UpdateConnectionParams,
   UseForEverythingParams,
 } from "./params.ts";
-import type { BindingView, CatalogRefreshOutcome, ConnectionCapabilityView, ConnectionView, CredentialHealth, ProviderAvailability } from "./results.ts";
+import type {
+  BindingView,
+  CatalogRefreshOutcome,
+  ConnectionCapabilityView,
+  ConnectionView,
+  CredentialHealth,
+  EmbedSpaceChangePreview,
+  ProviderAvailability,
+} from "./results.ts";
 
 /** The F12 admission verdict for an endpoint `baseUrl` at WRITE time (the fetch guard re-judges at connect):
  *  `public` = not a private address, a hostname resolved (one that does not resolve yet is judged at connect); `admitted` = private and on the
@@ -75,6 +85,8 @@ export interface ConnectionContext {
   /** The embed-space trigger re-raised (§10-4): the caller's embed / imageEmbed space MAY have changed — the settings-blob
    *  trigger this replaces enqueued the purge+reindex; the composition root binds the same op here. */
   readonly onEmbedSpaceChanged: (ownerId: UserId) => void;
+  /** How many vectors the owner has stored per scope (the embeddings domain's count), for the change preview. */
+  readonly countOwnedVectors: (ownerId: UserId) => Promise<Readonly<Record<VectorScope, number>>>;
   /** The per-user freshness plane (`connectionsChanged`) — injected, never a sideways reach at the bus
    *  (D38, the house injected-emit pattern — refinery's `RefineryContext` precedent). Every persisting verb
    *  (`create` · `update` · `remove` · `setBinding` · `useForEverything`) calls it with the acting owner AFTER
@@ -107,6 +119,9 @@ export interface ConnectionService {
   readonly getBoundConnection: (params: GetBoundConnectionParams) => Promise<Pick<ConnectionView, "label" | "providerId" | "providerLabel" | "model"> | null>;
   readonly setBinding: (params: SetBindingParams) => Promise<ConnectionBinding>;
   readonly useForEverything: (params: UseForEverythingParams) => Promise<readonly ConnectionBinding[]>;
+  /** Would this pending change move the caller to a new embedding generation, and how much would it rebuild?
+   *  Read-only: the pane asks before writing, so the user can confirm an index rebuild. */
+  readonly previewEmbedSpaceChange: (params: PreviewEmbedSpaceChangeParams) => Promise<EmbedSpaceChangePreview>;
 
   // ── catalogs
   readonly catalogModels: (params: CatalogModelsParams) => Promise<ModelListing>;

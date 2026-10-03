@@ -38,7 +38,7 @@
 // SAVED row invalidates its credential, its base URL, its model and its kind at once; a control that starts
 // that cascade and handles none of it is worse than no control. The row says so and points at the add flow.
 
-import { providerDisplayLabel } from "@orb/contracts/inference";
+import { EMBED_SPACE_FIELDS, providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -50,7 +50,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useId, useState } from "react";
-import { QueryBoundary, useUpdateConnection } from "#components";
+import { QueryBoundary, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
@@ -150,6 +150,7 @@ function AvailableConnectionEditorBody({
 }: ConnectionEditorProps & { readonly connection: ConnectionView; readonly provider: ProviderDef; readonly providers: readonly ProviderDef[] }): ReactElement {
   const { data: capabilityView } = useSuspenseQuery(trpc.connection.capabilities.queryOptions({ connectionId }));
   const update = useUpdateConnection({ trpc, invalidation });
+  const reindex = useReindexConfirm(trpc);
   const providerLabel = providerDisplayLabel(provider);
   // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed.
   const detected = providers.find((row) => row.id === capabilityView.detectedProviderId);
@@ -158,8 +159,15 @@ function AvailableConnectionEditorBody({
   const declared = connection.declared;
   const busy = update.isPending;
 
+  // A patch to an identity field of a row that backs the user's embedder can rebuild their index; the server says
+  // whether it would. Any other field (a label, a switch) cannot move a space and is written straight through.
   const patch = (part: Parameters<typeof update.mutate>[0]["patch"]): void => {
-    update.mutate({ connectionId, patch: part });
+    const write = (): void => update.mutate({ connectionId, patch: part });
+    if (EMBED_SPACE_FIELDS.some((field) => part[field] !== undefined)) {
+      reindex.guard({ kind: "update", connectionId, patch: part }, write);
+    } else {
+      write();
+    }
   };
 
   return (
@@ -167,6 +175,7 @@ function AvailableConnectionEditorBody({
     <Container className="@container/connection-editor" name="connection-editor">
       <Stack data-slot="connection-editor" gap="block">
         <ConnectionEditorHeader label={connection.label} onDone={onDone} />
+        {reindex.dialog}
 
         <EditorTier defaultOpen={true} title="Essential">
           <Stack gap="row">

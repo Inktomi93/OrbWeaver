@@ -8,6 +8,7 @@ import { createBindings } from "./verbs/bindings.ts";
 import { createCatalogs } from "./verbs/catalogs.ts";
 import { createConnections } from "./verbs/connections.ts";
 import { createDiagnostics } from "./verbs/diagnostics.ts";
+import { createPreviewEmbedSpaceChange } from "./verbs/preview-embed-space-change.ts";
 import { createProviders } from "./verbs/providers.ts";
 import { createAvailability, createCapabilities, createResolve, createResolveChatCapability, createTokenizeWords } from "./verbs/resolve.ts";
 
@@ -18,6 +19,7 @@ export function createConnectionService(ctx: ConnectionContext): ConnectionServi
     resolveChatCapability: createResolveChatCapability(ctx),
     capabilities: createCapabilities(ctx),
     tokenizeWords: createTokenizeWords(ctx),
+    previewEmbedSpaceChange: createPreviewEmbedSpaceChange(ctx),
     ...createConnections(ctx),
     ...createBindings(ctx),
     ...createCatalogs(ctx),

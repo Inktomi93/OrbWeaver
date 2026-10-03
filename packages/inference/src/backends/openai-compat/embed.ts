@@ -7,7 +7,7 @@
 //   • THE TRANSPORT BATCH IS BOUNDED BY TOKENS AS WELL AS ITEMS (#187): `features.embedBatch.maxTokens` caps
 //     a POST; the deadline scales with the tokens it carries at `floorTokensPerSec`.
 //   • the `dimensions` REJECTION fallback: a pooling combo that 400s on the MRL knob is re-asked without it and
-//     the vector is truncated client-side (`fitToDim` refuses a NARROWER one — #1635).
+//     the MRL vector is cut client-side; `fitToDim` refuses every other width mismatch.
 //   • the ChatML scaffold when the capability says `promptScaffold: "chatml"` (Qwen3-VL-Embedding); the
 //     query/document instructions when `instructionAware`.
 // Empty inputs filter to `null` (the `EmbedResult` contract); vectors land L2-normalized (the same primitive
@@ -22,6 +22,7 @@ import type { Resolved } from "../../contract/resolved.ts";
 import type { EmbedRequest } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { foldAbortInto } from "../kit/abort-flatten.ts";
+import type { VectorFit } from "../kit/embedding-input.ts";
 import { embeddingPrompt, fitToDim } from "../kit/embedding-input.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { providerLogger } from "../kit/provider-log.ts";
@@ -154,7 +155,7 @@ interface BatchRun {
   readonly label: string;
   readonly secrets: ReturnType<typeof resolvedScrubSet>;
   readonly dimensions: number | undefined;
-  readonly fitDim: number | undefined;
+  readonly fit: VectorFit;
   readonly vectors: (Float32Array<ArrayBuffer> | null)[];
 }
 
@@ -185,7 +186,7 @@ async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<num
     for (const [j, vec] of result.embeddings.entries()) {
       const slot = batch[j];
       if (slot !== undefined) {
-        run.vectors[slot.index] = fitToDim(vec, run.fitDim, label);
+        run.vectors[slot.index] = fitToDim(vec, run.fit, label);
       }
     }
     return result.tokens;
@@ -231,7 +232,7 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
     label,
     secrets: resolvedScrubSet(connection),
     dimensions: isOpenRouter ? undefined : req.dimensions,
-    fitDim: req.dimensions,
+    fit: { dims: req.dimensions ?? capability.dims, mrl: capability.mrl },
     vectors,
   };
   const usages: (number | undefined)[] = new Array(batches.length).fill(undefined);

@@ -10,6 +10,7 @@ import type { AvatarAnalysis } from "./contract/results.ts";
 import type { EmbeddingsService } from "./contract/service.ts";
 import { analyzeAvatarImage, avatarAnalysisCallsModel } from "./indexer/caption.ts";
 import { createImageAnalysisCounter, createImageIndexer } from "./indexer/image.ts";
+import { countOwnedVectors } from "./persistence/owned-vector-counts.ts";
 import { resolveTargetGeneration } from "./substrate/generation.ts";
 import { createClearTable } from "./verbs/clear-table.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
@@ -21,6 +22,7 @@ import { createPruneMemoryBlocks } from "./verbs/prune-memory-blocks.ts";
 import { createPurgeDisallowedImages } from "./verbs/purge-disallowed-images.ts";
 import { createPurgeDocumentVectors } from "./verbs/purge-document-vectors.ts";
 import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors.ts";
+import { createStaleGenerationOwners } from "./verbs/stale-generation-owners.ts";
 import { createStore } from "./verbs/store.ts";
 import { createStoreSegments } from "./verbs/store-segments.ts";
 import { createWriteHubScores } from "./verbs/write-hub-scores.ts";
@@ -36,6 +38,8 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     purgeDisallowedImages: createPurgeDisallowedImages(ctx),
     indexAsset,
     resolveGeneration: (ownerId, task, via) => resolveTargetGeneration(ctx, ownerId, task, via),
+    staleGenerationOwners: createStaleGenerationOwners(ctx),
+    countOwnedVectors: (ownerId) => countOwnedVectors(ctx.db, ownerId),
     store,
     storeSegments: createStoreSegments(ctx),
     writeHubScores: createWriteHubScores(ctx),

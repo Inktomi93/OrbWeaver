@@ -724,9 +724,8 @@ describe("store — a local-light dtype change is a space change (#2417)", () =>
 
     expect(reindexed.outcome).toBe("written");
     expect(h.roleClients.embed).toHaveBeenCalledTimes(2);
-    // Additive, never overwritten in place — the retired space survives until its generation is promoted
-    // Additive, never overwritten in place — the retired space survives until its generation is promoted
+    // The switch to the new generation deleted the old space's row: the index never holds both.
     const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
-    expect(rows.map((r) => r.model).toSorted()).toEqual([fp32Space, q8Space].toSorted());
+    expect(rows.map((r) => r.model)).toEqual([fp32Space]);
   });
 });

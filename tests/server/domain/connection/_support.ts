@@ -21,6 +21,7 @@ import { castId } from "@orb/kit/ids";
 import type { ConnectionContext, ConnectionService, EndpointAdmission } from "@orb/server/domain/connection";
 import { createConnectionPorts, createConnectionService } from "@orb/server/domain/connection";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import { countOwnedVectors } from "../../../../packages/server/src/domain/embeddings/persistence/owned-vector-counts.ts";
 import { fakeModelCache } from "../../../inference/_support.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal } from "../../../support/factories/principal.ts";
@@ -270,6 +271,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
       probeRecords.push(args);
       return Promise.resolve(args.result);
     },
+    countOwnedVectors: (ownerId) => countOwnedVectors(db, ownerId),
     onEmbedSpaceChanged: (ownerId): void => {
       embedSpaceChanges.push(ownerId);
     },

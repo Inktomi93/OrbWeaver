@@ -149,9 +149,9 @@ test("a slow stale resolution cannot reset a newer target or promote its generat
   expect(cardCandidate).toEqual([{ generationId: newGeneration.id, epoch: 2 }]);
 
   expect(await markGenerationComplete(db, { ownerId, scope: "memory", generation: newGeneration, now: 4 })).toBe(false);
+  // The switch to the new target already deleted the old generation's chunks; only the rebuild's row exists.
   const beforePromotion = await db.select({ id: documentChunks.id }).from(documentChunks).where(eq(documentChunks.documentId, documentId));
-  expect(beforePromotion).toEqual(expect.arrayContaining([{ id: oldKeptId }, { id: oldExtraId }, { id: newKeptId }]));
-  expect(beforePromotion).toHaveLength(3);
+  expect(beforePromotion).toEqual([{ id: newKeptId }]);
   expect(await markGenerationComplete(db, { ownerId, scope: "documents", generation: newGeneration, now: 5 })).toBe(true);
 
   expect(await db.select({ id: documentChunks.id }).from(documentChunks).where(eq(documentChunks.documentId, documentId))).toEqual([{ id: newKeptId }]);

@@ -12,6 +12,7 @@ import {
   chatSegments,
   documentChunks,
   documents,
+  embedGenerations,
   embedGenerationTargets,
   embedSpaceState,
   imageEmbeddings,
@@ -41,14 +42,18 @@ function guard(ownerId: UserId, generation: GenerationReceipt): ReturnType<typeo
   )`;
 }
 
-function retiredVectorStatements(db: Db, ownerId: UserId, generation: GenerationReceipt, promotionGuard: ReturnType<typeof sql>): BatchStmt[] {
-  if (generation.task === "imageEmbed") {
+/** Deletes for every vector of the owner's `task` scopes that is not in generation `keep`, each behind `onlyIf`. */
+interface RetireScope {
+  readonly ownerId: UserId;
+  readonly task: GenerationTask;
+  readonly keep: GenerationReceipt["id"];
+  readonly onlyIf: ReturnType<typeof sql>;
+}
+
+function retiredVectorStatements(db: Db, { ownerId, task, keep, onlyIf }: RetireScope): BatchStmt[] {
+  if (task === "imageEmbed") {
     const owned = db.select({ id: assets.id }).from(assets).where(eq(assets.ownerId, ownerId));
-    return [
-      batchStmt(
-        db.delete(imageEmbeddings).where(and(inArray(imageEmbeddings.assetId, owned), ne(imageEmbeddings.generationId, generation.id), promotionGuard)),
-      ),
-    ];
+    return [batchStmt(db.delete(imageEmbeddings).where(and(inArray(imageEmbeddings.assetId, owned), ne(imageEmbeddings.generationId, keep), onlyIf)))];
   }
   const ownedCharacters = db.select({ id: characters.id }).from(characters).where(eq(characters.ownerId, ownerId));
   const hostedChats = db
@@ -58,19 +63,78 @@ function retiredVectorStatements(db: Db, ownerId: UserId, generation: Generation
   const ownedDocuments = db.select({ id: documents.id }).from(documents).where(eq(documents.ownerId, ownerId));
   return [
     batchStmt(
-      db
-        .delete(characterEmbeddings)
-        .where(and(inArray(characterEmbeddings.characterId, ownedCharacters), ne(characterEmbeddings.generationId, generation.id), promotionGuard)),
+      db.delete(characterEmbeddings).where(and(inArray(characterEmbeddings.characterId, ownedCharacters), ne(characterEmbeddings.generationId, keep), onlyIf)),
     ),
-    batchStmt(db.delete(chatSegments).where(and(inArray(chatSegments.chatId, hostedChats), ne(chatSegments.generationId, generation.id), promotionGuard))),
-    batchStmt(db.delete(chatDigests).where(and(inArray(chatDigests.chatId, hostedChats), ne(chatDigests.generationId, generation.id), promotionGuard))),
-    batchStmt(
-      db.delete(documentChunks).where(and(inArray(documentChunks.documentId, ownedDocuments), ne(documentChunks.generationId, generation.id), promotionGuard)),
-    ),
+    batchStmt(db.delete(chatSegments).where(and(inArray(chatSegments.chatId, hostedChats), ne(chatSegments.generationId, keep), onlyIf))),
+    batchStmt(db.delete(chatDigests).where(and(inArray(chatDigests.chatId, hostedChats), ne(chatDigests.generationId, keep), onlyIf))),
+    batchStmt(db.delete(documentChunks).where(and(inArray(documentChunks.documentId, ownedDocuments), ne(documentChunks.generationId, keep), onlyIf))),
   ];
 }
 
-/** Record one successful scope and atomically promote+purge when every required scope proves this target. */
+/** Every owner's stored target per task, with the connection role it embeds through. */
+export async function readGenerationTargets(
+  db: Db,
+): Promise<{ readonly ownerId: UserId; readonly task: GenerationTask; readonly via: GenerationTask; readonly generationId: GenerationReceipt["id"] }[]> {
+  return await db
+    .select({
+      ownerId: embedGenerationTargets.ownerId,
+      task: embedGenerationTargets.task,
+      via: embedGenerations.via,
+      generationId: embedGenerationTargets.generationId,
+    })
+    .from(embedGenerationTargets)
+    .innerJoin(embedGenerations, eq(embedGenerations.id, embedGenerationTargets.generationId));
+}
+
+/**
+ * Move an owner's target to a new generation and delete every vector of the old ones in the same batch, so
+ * no index ever holds two generations. The scope rows lose their active generation too: reads refuse as
+ * "re-indexing" until the sweeps promote the new one, rather than reading an emptied space. Every statement is
+ * guarded on the switch having landed, so a racing writer that moved the target first deletes nothing here.
+ */
+export async function switchTargetGeneration(
+  db: Db,
+  input: {
+    readonly ownerId: UserId;
+    readonly task: GenerationTask;
+    readonly from: { readonly generationId: GenerationReceipt["id"]; readonly epoch: number };
+    readonly to: GenerationReceipt["id"];
+  },
+): Promise<void> {
+  const { ownerId, task, from, to } = input;
+  const epoch = from.epoch + 1;
+  const switched = sql`exists (
+    select 1 from embed_generation_targets t
+    where t.owner_id = ${ownerId} and t.task = ${task} and t.generation_id = ${to} and t.epoch = ${epoch}
+  )`;
+  await db.batch(
+    batchMany([
+      batchStmt(
+        db
+          .update(embedGenerationTargets)
+          .set({ generationId: to, epoch })
+          .where(
+            and(
+              eq(embedGenerationTargets.ownerId, ownerId),
+              eq(embedGenerationTargets.task, task),
+              eq(embedGenerationTargets.generationId, from.generationId),
+              eq(embedGenerationTargets.epoch, from.epoch),
+            ),
+          ),
+      ),
+      ...retiredVectorStatements(db, { ownerId, task, keep: to, onlyIf: switched }),
+      batchStmt(
+        db
+          .update(embedSpaceState)
+          .set({ activeGenerationId: null, candidateGenerationId: null, candidateEpoch: null })
+          .where(and(eq(embedSpaceState.ownerId, ownerId), inArray(embedSpaceState.scope, [...VECTOR_SCOPES_BY_TASK[task]]), switched)),
+      ),
+    ]),
+  );
+}
+
+/** Record one successful scope and atomically promote when every required scope proves this target. The
+ *  promotion also deletes any old-generation row a write already in flight at the switch landed afterwards. */
 export async function markGenerationComplete(
   db: Db,
   input: { readonly ownerId: UserId; readonly scope: VectorScope; readonly generation: GenerationReceipt; readonly now: number },
@@ -125,7 +189,12 @@ export async function markGenerationComplete(
   }
 
   const promotionGuard = guard(input.ownerId, input.generation);
-  const statements: BatchStmt[] = retiredVectorStatements(db, input.ownerId, input.generation, promotionGuard);
+  const statements: BatchStmt[] = retiredVectorStatements(db, {
+    ownerId: input.ownerId,
+    task: input.generation.task,
+    keep: input.generation.id,
+    onlyIf: promotionGuard,
+  });
   statements.push(
     batchStmt(
       db

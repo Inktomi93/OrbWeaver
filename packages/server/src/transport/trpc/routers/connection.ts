@@ -32,7 +32,13 @@ import {
 import { accountCreditsSchema, endpointInspectionSchema, generationCostSchema, verifyAuthResultSchema } from "@orb/contracts/providers";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { bindingViewSchema, catalogRefreshOutcomeSchema, connectionCapabilityViewSchema, connectionViewSchema } from "#domain/connection";
+import {
+  bindingViewSchema,
+  catalogRefreshOutcomeSchema,
+  connectionCapabilityViewSchema,
+  connectionViewSchema,
+  embedSpaceChangePreviewSchema,
+} from "#domain/connection";
 import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
 const connectionId = connectionRefSchema.shape.connectionId;
@@ -128,6 +134,20 @@ export const connectionRouter = t.router({
     .input(z.object({ connectionId }))
     .output(z.array(connectionBindingSchema.strict()).readonly())
     .mutation(({ ctx, input }) => ctx.services.connection.useForEverything({ principal: ctx.auth, connectionId: input.connectionId })),
+
+  // The caller's own pending embedder change, read before it is written: would it rebuild the index, and how much.
+  // A query like `listBindings`: it resolves through the same runtime read and dials nothing new.
+  embedSpaceChangePreview: authedProcedure
+    .input(
+      z.object({
+        change: z.discriminatedUnion("kind", [
+          z.object({ kind: z.literal("bind"), task: routableTaskSchema, connectionId: connectionId.nullable() }),
+          z.object({ kind: z.literal("update"), connectionId, patch: connectionFields.partial() }),
+        ]),
+      }),
+    )
+    .output(embedSpaceChangePreviewSchema)
+    .query(({ ctx, input }) => ctx.services.connection.previewEmbedSpaceChange({ principal: ctx.auth, change: input.change })),
 
   // ── catalogs
   catalogModels: authedProcedure

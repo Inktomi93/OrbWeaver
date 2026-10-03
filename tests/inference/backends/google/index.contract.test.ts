@@ -130,6 +130,18 @@ test("wrong native embedding count or width refuses instead of filling or trunca
   }
 });
 
+// A non-MRL model cannot be cut to a shorter width: its prefix is not an embedding. A vector wider than the
+// connection states is refused rather than stored truncated.
+test("a non-MRL embedder whose vectors disagree with its stated width is refused, never cut", async () => {
+  const base = connection("embed", "gemini-embedding-001");
+  if (base.capability.kind !== "embedding") {
+    throw new Error("the curated Google embedder is an embedding model");
+  }
+  const nonMrl = { ...base, capability: { kind: "embedding" as const, embedding: { ...base.capability.embedding, dims: 512, mrl: false } } };
+  const native = backend(() => Promise.resolve(Response.json({ embedding: { values: Array.from({ length: 768 }, (_v, i) => (i % 5) + 1) } })));
+  await expect(native.embed({ connection: nonMrl, input: "hello" })).rejects.toMatchObject({ kind: "invalid", retryable: false });
+});
+
 test("native safety finish is a refusal event and an aborted call remains typed", async () => {
   const blocked = await backend(() => Promise.resolve(sse([], "SAFETY"))).runChatTurn(request());
   expect(blocked.finishReason).toBe("filter");

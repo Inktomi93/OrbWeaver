@@ -6,7 +6,7 @@ import type { Capability, CapabilityRequirement, RoutableTask, Task, Unavailable
 import { bindingTaskOf, CONNECTION_LABEL_SEPARATOR, canFund, requirementMet, taskDef } from "@orb/contracts/inference";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import { modelDisplayName } from "@orb/kit/model-name";
-import { stripLabelSuffix } from "@orb/kit/strings";
+import { groupThousands, stripLabelSuffix } from "@orb/kit/strings";
 
 export const CONNECTION_ROLE_LABELS: Record<RoutableTask, string> = {
   chat: "Chat",
@@ -371,4 +371,45 @@ export function backgroundRepairs<T extends { readonly id: string; readonly allo
     return [];
   }
   return args.connections.filter((connection) => connection.tasks.includes(args.row.task) && !canFund(connection, args.row.task));
+}
+
+/** What the server says a pending embedder change would rebuild (`connection.embedSpaceChangePreview`). */
+export interface ReindexPreview {
+  readonly reindex: boolean;
+  readonly stored: { readonly cards: number; readonly memory: number; readonly documents: number; readonly images: number };
+  readonly embedCalls: number;
+}
+
+/** The embedder-change confirm's fixed words. */
+export const REINDEX_CONFIRM_COPY = {
+  title: "Rebuild your search index?",
+  confirmLabel: "Switch and rebuild",
+  pause: "Search and memory recall pause until the rebuild finishes.",
+  unknown: "This embedder change deletes your search index and rebuilds it.",
+} as const;
+
+/** What one stored vector of each scope is, in the user's words. */
+const REINDEX_SCOPE_NOUNS = {
+  cards: "cards",
+  memory: "chat memory entries",
+  documents: "databank passages",
+  images: "pictures",
+} as const satisfies Record<keyof ReindexPreview["stored"], string>;
+
+/** Ask first only when the change moves to a new embedding generation AND that index holds something:
+ *  rebuilding an empty index costs nothing the user could want to weigh. */
+export function reindexNeedsConfirm(preview: ReindexPreview): boolean {
+  return preview.reindex && preview.embedCalls > 0;
+}
+
+/** The confirm's consequence sentence. `null` = the preview could not be read, so the counts are unknown and
+ *  the sentence says only what the change does. */
+export function reindexConfirmDescription(preview: ReindexPreview | null): string {
+  if (preview === null) {
+    return `${REINDEX_CONFIRM_COPY.unknown} ${REINDEX_CONFIRM_COPY.pause}`;
+  }
+  const parts = (Object.keys(REINDEX_SCOPE_NOUNS) as (keyof ReindexPreview["stored"])[])
+    .filter((scope) => preview.stored[scope] > 0)
+    .map((scope) => `${groupThousands(preview.stored[scope])} ${REINDEX_SCOPE_NOUNS[scope]}`);
+  return `This embedder change deletes your search index (${parts.join(", ")}) and rebuilds it. ${REINDEX_CONFIRM_COPY.pause} The rebuild makes about ${groupThousands(preview.embedCalls)} embedding calls.`;
 }

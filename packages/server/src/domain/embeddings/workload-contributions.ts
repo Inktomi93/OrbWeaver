@@ -28,6 +28,16 @@ async function announceCorpus(deps: EmbeddingsWorkloadDeps, ctx: WorkloadRunCont
   }
 }
 
+/** The progress row's headline: a re-index after an embedder change says why the library is being rebuilt. */
+const EMBEDDER_CHANGED_LABEL = "Your library is re-indexing for the new embedder";
+
+function corpusLabel(params: { readonly force?: boolean | undefined; readonly embedderChanged?: boolean | undefined }): string {
+  if (params.embedderChanged === true) {
+    return EMBEDDER_CHANGED_LABEL;
+  }
+  return params.force === true ? "re-embedding corpus (force)" : "embedding corpus";
+}
+
 /**
  * `index` — the parameterized embeddings reindex: text (corpus + chat-block memory), image (avatars), or
  * all (both, one atomic result). Its ADMISSION KEY is the embed source, so a text reindex and an image
@@ -56,7 +66,7 @@ export function createEmbeddingsWorkloadContributions(deps: EmbeddingsWorkloadDe
           let embedded = 0;
           let skipped = 0;
           if (params.source === "text" || params.source === "all") {
-            const label = force ? "re-embedding corpus (force)" : "embedding corpus";
+            const label = corpusLabel(params);
             report({ message: label });
             // An embedder switch re-embeds every card, so the corpus pass reports N of M like the avatar pass.
             const result = await deps.embeddings.embedCorpus({

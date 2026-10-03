@@ -132,6 +132,9 @@ export interface SearchDiscoveryComposeResult {
   /** {@link SearchDiscoveryComposeResult.enqueueEmbedReindex} for a trigger that must not wait on it: the same
    *  sweeps, started detached. */
   readonly detachEmbedReindex: (scope: UserId | null) => void;
+  /** Boot's catch-up: the same sweeps for every owner whose stored generation is no longer the one their
+   *  binding resolves to, started detached. No user action raised the trigger, so autoindex does not gate it. */
+  readonly detachStaleSpaceReindex: () => void;
   /** A memory-off owner's vacuous memory receipt against their current target, or `null` (memory on, or no
    *  target). The memory sweep's terminal records it for an owner the sweep covered but built nothing for. */
   readonly vacuousMemoryReceipt: (ownerId: UserId) => Promise<MemoryEmbedSpace | null>;
@@ -409,11 +412,13 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   //   • a `UserId` — a seed bound that owner's encoder outside the binding verb: that owner's SINGULAR sweeps. None
   //     with the autoindex off: then nothing embeds in the background, no target is pinned, and search reads the
   //     live space with no migration to wait on.
+  //   • a `UserId` with `embedderChanged` — boot found the owner's stored generation stale: their SINGULAR sweeps,
+  //     the index pass forced, whatever the autoindex says, because the sweep's generation switch empties their index.
   // `caller: null` is the trusted-system mode-gate bypass. Each enqueue runs in its own root span, and a duplicate
   // run (a kind already active → DomainConflictError) or any enqueue failure is logged there, never thrown at the
   // write that triggered it.
-  const embedSweeps = (scope: UserId | null): readonly EmbedSweep[] => {
-    if (scope !== null && deps.getEffectiveConfig().corpusAutoindex !== true) {
+  const embedSweeps = (scope: UserId | null, embedderChanged = scope === null): readonly EmbedSweep[] => {
+    if (!embedderChanged && deps.getEffectiveConfig().corpusAutoindex !== true) {
       return [];
     }
     const at = String(now());
@@ -426,7 +431,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     return [
       sweep("index", () =>
         workloads.start({
-          input: { kind: "index", params: scope === null ? { source: "all", force: true } : { source: "all" } },
+          input: { kind: "index", params: embedderChanged ? { source: "all", force: true, embedderChanged } : { source: "all" } },
           caller: null,
           mode,
           ownerId: scope,
@@ -448,6 +453,14 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     for (const s of embedSweeps(scope)) {
       superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
     }
+  };
+
+  const detachStaleSpaceReindex = (): void => {
+    superviseDetached("embeddings.staleGeneration.reindex", EMBED_REINDEX_SPAN, { workloadKind: "index" }, async () => {
+      for (const ownerId of await embeddings.staleGenerationOwners()) {
+        await Promise.all(embedSweeps(ownerId, true).map((s) => superviseSettled(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start)));
+      }
+    });
   };
 
   let autoindexEnabled = deps.getEffectiveConfig().corpusAutoindex === true;
@@ -477,6 +490,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     workloads,
     enqueueEmbedReindex,
     detachEmbedReindex,
+    detachStaleSpaceReindex,
     vacuousMemoryReceipt,
     listCorpusOwners: () => distinctCorpusOwners(db),
   };

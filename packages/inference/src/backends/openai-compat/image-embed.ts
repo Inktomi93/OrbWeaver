@@ -110,7 +110,7 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
   if (connection.baseUrl === null) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: `${label}: the connection carries no base URL` });
   }
-  const dim = connection.capability.embedding.dims;
+  const { dims: dim, mrl } = connection.capability.embedding;
   const conversations = await toConversations(req.input, deps.normalize);
   const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(conversations.length).fill(null);
   let next = 0;
@@ -128,7 +128,7 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
       const response = await embedOne({ req, deps, label, messages, dim });
       const item = response.data[0];
       if (item !== undefined) {
-        vectors[i] = fitToDim(Array.from(decodeEmbeddingVector(item.embedding, label)), dim, label);
+        vectors[i] = fitToDim(Array.from(decodeEmbeddingVector(item.embedding, label)), { dims: dim, mrl }, label);
       }
     }
   };

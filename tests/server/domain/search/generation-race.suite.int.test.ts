@@ -42,7 +42,7 @@ async function connection(db: Db, ownerId: UserId, key: string): Promise<Embeddi
   };
 }
 
-test("a promotion between query embedding and scan retries once against the new active generation", async () => {
+test("a switch and promotion between query embedding and scan retry once against the new active generation", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_query_generation_race" });
   const oldConnection = await connection(db, ownerId, "old");
@@ -62,15 +62,19 @@ test("a promotion between query embedding and scan retries once against the new 
     await markGenerationComplete(db, { ownerId, scope, generation: oldGeneration, now: 1 });
   }
 
-  live = newConnection;
-  const newGeneration = await resolveTargetGeneration({ db, now: () => 2, resolveEmbeddingConnection: resolve }, ownerId, "embed");
-  if (newGeneration === null) {
-    throw new Error("expected new generation");
-  }
+  // The query embeds against the old generation; before its scan, the owner's binding moves and the rebuild of
+  // the new generation completes. The scan's result belongs to a space that no longer exists, so it retries.
   let calls = 0;
+  let newGenerationId: string | undefined;
   const result = await withActiveQuerySpace({ db, resolveEmbeddingConnection: resolve }, ownerId, "embed", async (space) => {
     calls += 1;
     if (calls === 1) {
+      live = newConnection;
+      const newGeneration = await resolveTargetGeneration({ db, now: () => 2, resolveEmbeddingConnection: resolve }, ownerId, "embed");
+      if (newGeneration === null) {
+        throw new Error("expected new generation");
+      }
+      newGenerationId = newGeneration.id;
       for (const scope of VECTOR_SCOPES_BY_TASK.embed) {
         await markGenerationComplete(db, { ownerId, scope, generation: newGeneration, now: 2 });
       }
@@ -79,5 +83,5 @@ test("a promotion between query embedding and scan retries once against the new 
   });
 
   expect(calls).toBe(2);
-  expect(result).toBe(newGeneration.id);
+  expect(result).toBe(newGenerationId);
 });

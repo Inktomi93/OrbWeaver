@@ -26,7 +26,13 @@ import type { Locator, Page } from "@playwright/test";
 // how a copy change goes green against a string nobody ships. A deep relative import (the `test-ids.ts`
 // precedent in the sibling key-row CT): this module is pure `.ts`, so it is safe in a node-side CT spec,
 // while the feature's own front door is a barrel that would pull `.tsx` in with it.
-import { ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS } from "../../../../../packages/client/src/lib/connection-roles.ts";
+import type { ReindexPreview } from "../../../../../packages/client/src/lib/connection-roles.ts";
+import {
+  REINDEX_CONFIRM_COPY,
+  ROLE_ROWS_ORDERED,
+  ROLE_STATUS_LABELS,
+  reindexConfirmDescription,
+} from "../../../../../packages/client/src/lib/connection-roles.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
@@ -170,6 +176,7 @@ async function stubPane(
     readonly bindings?: readonly BindingView[];
     readonly credentials?: readonly CredentialRow[];
     readonly settings?: ReturnType<typeof userSettingsView>;
+    readonly reindexPreview?: ReindexPreview;
   } = {},
 ): Promise<RolesStub> {
   const recorder = await routeTrpc(page, {
@@ -183,6 +190,7 @@ async function stubPane(
     "connection.providersAvailable": () => ALL_AVAILABLE,
     "credentials.list": () => opts.credentials ?? [],
     "connection.setBinding": () => binding("chat", CHAT_CONNECTION_ID),
+    "connection.embedSpaceChangePreview": () => opts.reindexPreview ?? NO_REBUILD,
     "connection.update": () => CHAT_ROW,
     "preset.list": () => PRESET_ROWS,
     "settings.getUserSettings": () => opts.settings ?? userSettingsView(),
@@ -190,6 +198,12 @@ async function stubPane(
   });
   return { recorder };
 }
+
+/** The server's answer for a change that keeps the owner's embedding generation: nothing to rebuild. */
+const NO_REBUILD: ReindexPreview = { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 };
+
+/** A change that would delete and rebuild a stored index. */
+const STORED_REBUILD: ReindexPreview = { reindex: true, stored: { cards: 12, memory: 40, documents: 0, images: 3 }, embedCalls: 55 };
 
 /** Hold `connection.setBinding` open; the returned fn lets it through. Registered AFTER routeTrpc so it wins
  *  the route, then `fallback()`s into the stub once released. */
@@ -422,6 +436,49 @@ test("picking a connection writes EXACTLY that task's binding", async ({ mount, 
   // it to come back enabled reads the recorder after the surface has finished rather than mid-transition.
   await expect(roleSelect(page, "Text embedding")).toBeEnabled();
   // One row's pick is one write — a slot that patched its neighbours would be the roleDefaults blob again.
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+// An embedder change that moves to a new generation deletes the stored index and rebuilds it, so the pane asks
+// first — and only when there is something stored to lose.
+test("a new embedder with nothing stored to rebuild is written without asking", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, { reindexPreview: { ...STORED_REBUILD, stored: NO_REBUILD.stored, embedCalls: 0 } });
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+});
+
+test("a new embedder over a stored index asks first, and Cancel writes nothing", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, { reindexPreview: STORED_REBUILD });
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+
+  const confirm = page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title });
+  await expect(confirm).toBeVisible();
+  await expect(confirm.getByText(reindexConfirmDescription(STORED_REBUILD), { exact: true })).toBeVisible();
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+
+  await expect(confirm).toHaveCount(0);
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(0);
+});
+
+test("confirming the rebuild writes the binding once", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, { reindexPreview: STORED_REBUILD });
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  await expect
+    .poll(() => recorder.lastInput("connection.setBinding"), { intervals: [20, 50, 100] })
+    .toEqual({ task: "embed", connectionId: EMBED_CONNECTION_ID });
   await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
 });
 

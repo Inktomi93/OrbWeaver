@@ -55,16 +55,15 @@ export function vectorSpaceFingerprint(connection: EmbeddingConnectionIdentity):
   );
 }
 
-/** Every generation minted before the space width followed the embedder wrote vectors exactly this wide. */
+/** The width whose generations hash no width term, so every id minted without one stays valid. */
 const LEGACY_GENERATION_DIMS = 1024;
 
 /**
  * The generation id: the concrete encoder configuration plus the width its vectors are written at.
  *
- * @remarks The width joins the hash only when it is not {@link LEGACY_GENERATION_DIMS}. Before widths followed
- * the embedder, every corpus was written 1024 wide (a wider MRL model was cut to 1024), so omitting that width
- * keeps each existing generation's id and its stored vectors stay readable with no re-index; an MRL encoder
- * whose vectors were cut gets a fresh id and re-indexes at its own width.
+ * @remarks The width joins the hash only when it is not {@link LEGACY_GENERATION_DIMS}. Ids minted without a
+ * width term all describe 1024-wide vectors, so a 1024-wide encoder keeps its id and its stored vectors stay
+ * readable with no re-index; an encoder at any other width gets its own id and indexes at that width.
  */
 export function generationIdOf(params: {
   readonly ownerId: unknown;

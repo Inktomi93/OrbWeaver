@@ -67,6 +67,25 @@ describe("memory-backfill: the model-call estimate", () => {
   });
 });
 
+describe("memory-backfill: progress", () => {
+  test("each finished phase becomes an N-of-M progress row, so an embedder switch's rebuild shows progress", async () => {
+    const { deps, contributions } = build();
+    vi.mocked(deps.backfillMemory).mockImplementationOnce((args) => {
+      args.onProgress?.("summarizing");
+      return Promise.resolve({
+        segments: { scanned: 0, changed: 0 },
+        digests: { scanned: 0, changed: 0 },
+        segmentsSkippedOverWindow: 0,
+        failed: 0,
+        completedSpaces: [],
+      });
+    });
+    const report = vi.fn();
+    await contributions[0].run(ctx, {}, report, sig());
+    expect(report).toHaveBeenCalledWith(expect.objectContaining({ current: 3, total: 4 }));
+  });
+});
+
 describe("memory-backfill: an import's scoped runs", () => {
   test("the confirmed build sweeps only the import's span and never runs the terminal (it completed no owner's space)", async () => {
     const { deps, contributions } = build();
@@ -77,6 +96,7 @@ describe("memory-backfill: an import's scoped runs", () => {
       importWindow: IMPORT_WINDOW,
       segmentsOnly: false,
       signal: expect.any(AbortSignal),
+      onProgress: expect.any(Function),
     });
     expect(deps.purgeMemoryVectors).not.toHaveBeenCalled();
   });
@@ -114,6 +134,7 @@ describe("memory-backfill", () => {
       importWindow: null,
       segmentsOnly: false,
       signal: expect.any(AbortSignal),
+      onProgress: expect.any(Function),
     });
     expect(result).toEqual({ segments: { scanned: 4, changed: 2 }, digests: { scanned: 6, changed: 3 }, segmentsSkippedOverWindow: 0, failed: 0 });
   });
@@ -127,6 +148,7 @@ describe("memory-backfill", () => {
       importWindow: null,
       segmentsOnly: false,
       signal: expect.any(AbortSignal),
+      onProgress: expect.any(Function),
     });
     expect(deps.purgeMemoryVectors).toHaveBeenCalledTimes(1);
     expect(deps.purgeMemoryVectors).toHaveBeenCalledWith([{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }], null);

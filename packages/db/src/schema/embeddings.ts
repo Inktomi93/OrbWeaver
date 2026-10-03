@@ -24,10 +24,10 @@
 //     space (re-index workload). ALL FIVE producers key their idempotent upsert ON `model`
 //     (character/image/document_chunks always did; chat_segments/chat_digests were fixed to match — they
 //     used to OMIT model and overwrite the old space in place, an inconsistency with the orphaning
-//     character/image tables). So a model change is uniformly PURGE + REINDEX: the new space is written
-//     additively (no overwrite, no inconsistent orphan), then the rows of every non-active generation are
-//     retired inside the promotion transaction (`embeddings/persistence/space-state.ts`
-//     `retiredVectorStatements`) — never stranded.
+//     character/image tables). So a model or width change is uniformly PURGE + REINDEX: the batch that moves
+//     the owner's target generation deletes their old vectors (`embeddings/persistence/space-state.ts`
+//     `switchTargetGeneration`), the sweeps rebuild the new one, and the promotion deletes any old-generation
+//     row a write already in flight landed afterwards — an index never holds two generations at rest.
 //
 // `image_embeddings.lens` DERIVES the canonical `IMAGE_LENSES` tuple from `@orb/contracts/embeddings`
 // (D34 — promoted out of the server tier so db can derive; db deps are kit + contracts + drizzle only).
@@ -285,7 +285,7 @@ export const chatDigests = sqliteTable(
     // The distilled digest body (§2b: topicAnchor + significance-filtered facts + keywords, folded into one
     // stored text). What fills `{{memory}}` AND what is embedded. A digest always has a body — NOT NULL.
     text: text("text").notNull(),
-    // The native vector (`dim` wide).— the distilled lens embedding (the sharp search key).
+    // The native vector (`dim` wide) — the distilled lens embedding (the sharp search key).
     embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // The staleness/collapse key. NOT NULL.
     contentHash: text("content_hash").notNull(),
@@ -360,7 +360,7 @@ export const chatSegments = sqliteTable(
     // The verbatim transcript of the chunk (§2a) — stored + embedded; the ground truth a digest hit resolves
     // back to, returned directly so cross-chat reads never re-read N chats' canon per hit. NOT NULL.
     text: text("text").notNull(),
-    // The native vector (`dim` wide).— the verbatim lens embedding.
+    // The native vector (`dim` wide) — the verbatim lens embedding.
     embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // The staleness/collapse key. NOT NULL.
     contentHash: text("content_hash").notNull(),

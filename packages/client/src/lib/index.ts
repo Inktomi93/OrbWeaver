@@ -43,7 +43,7 @@ export type {
 export { COLLECTION_LARGE_GROUP } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";
 export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "./config-search-tokens.ts";
-export type { RoleBindingView, RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
+export type { ReindexPreview, RoleBindingView, RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
 export {
   ADD_CONNECTION_DOOR,
   backgroundRepairs,
@@ -56,9 +56,12 @@ export {
   MEMORY_COST_SENTENCE,
   MODEL_ROLES_ADDRESS,
   MODEL_ROLES_SUBCATEGORY_ID,
+  REINDEX_CONFIRM_COPY,
   RERANK_ROLE_DOOR,
   ROLE_ROWS_ORDERED,
   ROLE_STATUS_LABELS,
+  reindexConfirmDescription,
+  reindexNeedsConfirm,
   roleReadout,
   roleRequirementVerdicts,
   roleStatus,

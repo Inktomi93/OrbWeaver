@@ -142,6 +142,8 @@ async function stubEditor(
     // A list that answers nothing is the TYPED-ID arm, and it is not a check of the saved model.
     "connection.catalogModels":
       opts.catalogModels ?? ((): TrpcWireOutput<"connection.catalogModels"> => ({ listed: false, reason: "the provider listed no models" })),
+    // An embedder-identity patch first asks whether it would rebuild the index; these rows back no stored index.
+    "connection.embedSpaceChangePreview": () => ({ reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0 }),
     "connection.update": ({ patch }) => {
       row = { ...row, model: patch.model ?? row.model, modelCheck: patch.modelCheck ?? row.modelCheck };
       return row;

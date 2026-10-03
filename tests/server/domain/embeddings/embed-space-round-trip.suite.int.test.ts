@@ -27,13 +27,15 @@ import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, documentChunks } from "@orb/db";
-import type { CharacterId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { CharacterEmbeddingId, CharacterId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { readOwnedCharacterVectors } from "../../../../packages/server/src/domain/discovery/persistence/embed-store-reads.ts";
 import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
 import type { EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
+import { upsertCharacterEmbedding } from "../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { requireTaskModel } from "../../../../packages/server/src/domain/embeddings/substrate/task-model.ts";
 import { SEARCH_SPACE_REINDEXING } from "../../../../packages/server/src/domain/search/contract/errors.ts";
 import type { ActiveQuerySpace } from "../../../../packages/server/src/domain/search/contract/service.ts";
@@ -396,7 +398,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     ]);
   });
 
-  test("a partial reindex cannot purge the last-complete document corpus before replacement", async () => {
+  test("a generation switch deletes the old corpus at once, and a partial rebuild leaves nothing stale", async () => {
     const db = await freshDb();
     const drive = await driveOwnerWithBoundEncoder(db);
     const documentId = await seedDocument(db, drive.userId, { text: CHUNK_TEXT });
@@ -411,6 +413,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       ownerId: drive.userId,
     });
     await runEmbedSweeps(drive);
+    expect(await db.select().from(documentChunks)).toHaveLength(1);
 
     const second = await drive.harness.svc.create({
       principal: drive.principal,
@@ -423,24 +426,19 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     });
     await drive.harness.svc.setBinding({ principal: drive.principal, task: "embed", connectionId: second.id });
 
-    // Documents finish independently from cards and memory. The terminal must retain the complete
-    // generation until all three scopes can promote together; it cannot delete first and hope that the
-    // other refill jobs catch up later.
+    // The sweep's first step moves the target, and that one batch deletes the old generation's rows.
     const generation = await drive.svc.resolveGeneration(drive.userId, "embed");
     if (generation === null) {
       throw new Error("expected generation");
     }
-    const purged = await drive.svc.purgeDocumentVectors({ ownerId: drive.userId, generation });
-    expect(purged.chunks).toBe(0);
-    expect(await db.select().from(documentChunks)).toHaveLength(1);
-    expect(
-      await nearestDocumentChunks(db, {
-        documentIds: [documentId],
-        queryVector: queryVector(),
-        model: oldTag ?? "",
-        limit: 5,
-      }),
-    ).toHaveLength(1);
+    expect(await db.select().from(documentChunks)).toEqual([]);
+    await expect(spaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
+
+    // Only the documents scope finishes (the card and memory sweeps were cut short): the index holds no old
+    // row, and reads keep refusing until every scope promotes the new generation.
+    await drive.svc.purgeDocumentVectors({ ownerId: drive.userId, generation });
+    expect((await db.select().from(documentChunks)).filter((row) => row.generationId !== generation.id)).toEqual([]);
+    await expect(spaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
   });
 
   test("the derived read tag carries the encoder's curated dtype — the fact the backend stamps", async () => {
@@ -579,11 +577,15 @@ describe("the space width follows the bound embedder", () => {
     expect(await readAll(drive, chatId)).toEqual({ cards: [CARD_ID], digests: [DIGEST_TEXT], segments: [SEGMENT_TEXT] });
   });
 
-  test("narrowing an MRL embedder's declared width re-indexes, and a mid-move scan never compares the two widths", async () => {
+  test("narrowing an MRL embedder's width rebuilds at the new width, and a late old-generation write is never ranked", async () => {
     const db = await freshDb();
     const drive = await driveOwnerWithBoundEncoder(db, { characterIds: [CARD_ID], cardTexts: new Map([[CARD_ID, CARD_TEXT]]) }, undefined, NARROW_ROW);
     await seedCharacter(db, drive.userId, { id: CARD_ID, name: "Mara" });
     await runEmbedSweeps(drive);
+    const oldGeneration = await drive.svc.resolveGeneration(drive.userId, "embed");
+    if (oldGeneration === null) {
+      throw new Error("expected the bound generation");
+    }
 
     const shorter = 512;
     await drive.harness.svc.update({
@@ -594,17 +596,29 @@ describe("the space width follows the bound embedder", () => {
     expect(drive.harness.embedSpaceChanges).toContain(drive.userId);
     await drive.svc.embedCorpus({ force: false, signal: new AbortController().signal, ownerId: drive.userId });
 
-    // The MRL server was asked for the declared width, and both widths now sit under one model tag.
+    // The MRL server was asked for the declared width, and the switch left only the new width behind.
     const lastEmbed = drive.harness.requests.filter((request) => request.url.includes(NARROW_ENCODER_ROUTE.match)).at(-1);
     expect(JSON.parse(lastEmbed?.body ?? "{}")).toMatchObject({ dimensions: shorter });
-    expect(await storedWidths(db)).toEqual([
-      [NARROW_ENCODER, shorter, shorter],
-      [NARROW_ENCODER, NARROW_DIMS, NARROW_DIMS],
-    ]);
-    // A scan on the tag alone ranks only rows of the query's width; comparing across widths is a libSQL error.
+    expect(await storedWidths(db)).toEqual([[NARROW_ENCODER, shorter, shorter]]);
+
+    // A store that pinned the old generation before the switch lands its row afterwards.
+    await upsertCharacterEmbedding(db, {
+      id: castId<CharacterEmbeddingId>("character_embedding_late"),
+      characterId: CARD_ID,
+      embedding: queryVector(NARROW_DIMS),
+      contentHash: "late-write",
+      model: NARROW_ENCODER,
+      generationId: oldGeneration.id,
+      dim: NARROW_DIMS,
+      now: 0,
+    });
+    // Search ranks only rows of its query's width under one tag, so the late row cannot make libSQL throw…
     const hits = await nearestCharacters(db, { ownerId: drive.userId, queryVector: queryVector(shorter), model: NARROW_ENCODER, limit: 5 });
     expect(hits.map((hit) => hit.characterId)).toEqual([CARD_ID]);
+    // …and discovery reads only the owner's current generation, so no pass meets the late row.
+    expect((await readOwnedCharacterVectors(db, drive.userId)).map((row) => row.embedding.length)).toEqual([shorter]);
 
+    // The promotion deletes the late row: the index holds one generation at rest.
     await runEmbedSweeps(drive);
     expect(await storedWidths(db)).toEqual([[NARROW_ENCODER, shorter, shorter]]);
   });

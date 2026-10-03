@@ -2,9 +2,11 @@
 // discovery's in-RAM analytics cluster over; discovery writes no vector row here (hub-score write goes
 // through the injected `embeddings.writeHubScores` seam). Vector rows carry no ownerId — owner derives via
 // characters.ownerId, the present chat host (kind='human' AND role='host' AND leftSeq IS NULL), or assets.ownerId.
+// Every vector read keeps only the owner's current generation (`currentGeneration`), so one pass never meets
+// two widths or two models.
 
 import type { ThemeTimelineBucket } from "@orb/contracts/discovery";
-import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
+import type { ImageCaptionMeta, VectorScope } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import {
   assets,
@@ -16,14 +18,34 @@ import {
   chats,
   digestThemeAssignments,
   embedGenerations,
+  embedGenerationTargets,
+  embedSpaceState,
   imageEmbeddings,
   themeClusters,
 } from "@orb/db";
 import type { AssetId, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, ThemeClusterId, UserId } from "@orb/kit/ids";
-import type { SQL } from "drizzle-orm";
+import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
 import { ownedRealCharacters } from "./character-scope.ts";
+
+/**
+ * The owner's current generation for one scope: the active one search reads, or the target while no promotion
+ * has landed. A switch deletes the old generation's rows, but a write already in flight at the switch can land
+ * under the old generation afterwards; this key keeps that row out of every pass until the promotion deletes it.
+ */
+function currentGeneration(rowGeneration: SQLWrapper, owner: SQLWrapper, scope: VectorScope): SQL {
+  const task = scope === "images" ? "imageEmbed" : "embed";
+  return sql`${rowGeneration} = coalesce(
+    (select ${embedSpaceState.activeGenerationId} from ${embedSpaceState} where ${embedSpaceState.ownerId} = ${owner} and ${embedSpaceState.scope} = ${scope}),
+    (select ${embedGenerationTargets.generationId} from ${embedGenerationTargets} where ${embedGenerationTargets.ownerId} = ${owner} and ${embedGenerationTargets.task} = ${task})
+  )`;
+}
+
+const currentCard = currentGeneration(characterEmbeddings.generationId, characters.ownerId, "cards");
+const currentDigest = currentGeneration(chatDigests.generationId, chatParticipants.userId, "memory");
+const currentSegment = currentGeneration(chatSegments.generationId, chatParticipants.userId, "memory");
+const currentImage = currentGeneration(imageEmbeddings.generationId, assets.ownerId, "images");
 
 interface DigestKeywordRow {
   readonly ownerId: UserId;
@@ -85,7 +107,7 @@ export async function readOwnedCharacterHashes(db: Db, ownerId: UserId): Promise
     .select({ characterId: characterEmbeddings.characterId, contentHash: characterEmbeddings.contentHash })
     .from(characterEmbeddings)
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
-    .where(ownedRealCharacters(ownerId));
+    .where(and(ownedRealCharacters(ownerId), currentCard));
 }
 
 // ── duplicate-character pass ──────────────────────────────────────────────────
@@ -104,7 +126,7 @@ export async function readOwnedCharacterVectors(db: Db, ownerId?: UserId | null)
     .from(characterEmbeddings)
     .leftJoin(embedGenerations, eq(embedGenerations.id, characterEmbeddings.generationId))
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
-    .where(ownedRealCharacters(ownerId));
+    .where(and(ownedRealCharacters(ownerId), currentCard));
 }
 
 // ── hub passes (always owner-scoped — csls analyzes YOUR OWN library only, no cross-tenant read) ──
@@ -122,7 +144,7 @@ export async function readCharacterHubVectors(db: Db, ownerId: UserId): Promise<
     })
     .from(characterEmbeddings)
     .innerJoin(characters, eq(characterEmbeddings.characterId, characters.id))
-    .where(ownedRealCharacters(ownerId));
+    .where(and(ownedRealCharacters(ownerId), currentCard));
 }
 
 /** ONE owner's digest embeddings as hub rows, carrying `tier` (owner = the present chat host). */
@@ -145,7 +167,8 @@ export async function readDigestHubVectors(db: Db, ownerId: UserId): Promise<Dig
         eq(chatParticipants.userId, ownerId),
         isNull(chatParticipants.leftSeq),
       ),
-    );
+    )
+    .where(currentDigest);
 }
 
 /** ONE owner's verbatim segment embeddings as hub rows (owner = the present chat host, via `chatId`). */
@@ -167,7 +190,8 @@ export async function readSegmentHubVectors(db: Db, ownerId: UserId): Promise<Hu
         eq(chatParticipants.userId, ownerId),
         isNull(chatParticipants.leftSeq),
       ),
-    );
+    )
+    .where(currentSegment);
 }
 
 /** ONE owner's image embeddings as hub rows (owner via `assets.ownerId`); image↔image hub ONLY (#2). */
@@ -181,7 +205,7 @@ export async function readImageHubVectors(db: Db, ownerId: UserId): Promise<HubV
     })
     .from(imageEmbeddings)
     .innerJoin(assets, eq(imageEmbeddings.assetId, assets.id))
-    .where(eq(assets.ownerId, ownerId));
+    .where(and(eq(assets.ownerId, ownerId), currentImage));
 }
 
 // ── distinct-owner enumerations (the BULK csls fan-out universe — the owners who HAVE rows in each table) ──
@@ -293,6 +317,7 @@ export async function readOwnedDigestVectors(db: Db, ownerId?: UserId | null): P
     })
     .from(chatDigests)
     .innerJoin(chatParticipants, hostJoin)
+    .where(currentDigest)
     .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
 }
 
@@ -327,7 +352,7 @@ export async function readOwnedDigestKeywords(db: Db, ownerId?: UserId | null): 
     })
     .from(chatDigests)
     .innerJoin(chatParticipants, hostJoin)
-    .where(eq(chatDigests.tier, 0))
+    .where(and(eq(chatDigests.tier, 0), currentDigest))
     .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
 }
 
@@ -357,6 +382,7 @@ export async function readOwnedChatSegmentHashes(db: Db, ownerId?: UserId | null
     })
     .from(chatSegments)
     .innerJoin(chatParticipants, segmentHostJoin(chatSegments.chatId, ownerId))
+    .where(currentSegment)
     .then((rows) => rows.flatMap((r) => (r.ownerId === null ? [] : [{ ...r, ownerId: r.ownerId as UserId }])));
 }
 
@@ -508,11 +534,13 @@ export async function readCorpusCoverage(db: Db, ownerId: UserId): Promise<{ cha
     db
       .select({ n: sql<number>`count(${chatDigests.id})` })
       .from(chatDigests)
-      .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chatDigests.chatId), hosted)),
+      .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chatDigests.chatId), hosted))
+      .where(currentDigest),
     db
       .select({ n: sql<number>`count(${chatSegments.id})` })
       .from(chatSegments)
-      .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chatSegments.chatId), hosted)),
+      .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chatSegments.chatId), hosted))
+      .where(currentSegment),
   ]);
   return {
     characters: chars[0]?.n ?? 0,
@@ -631,7 +659,7 @@ export async function readOwnedAvatarVectors(db: Db, ownerId: UserId): Promise<A
     .leftJoin(embedGenerations, eq(embedGenerations.id, imageEmbeddings.generationId))
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
-    .where(and(ownedRealCharacters(ownerId), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared)));
+    .where(and(ownedRealCharacters(ownerId), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared), currentImage));
 }
 
 interface PortraitPair {
@@ -643,7 +671,8 @@ interface PortraitPair {
 }
 
 /** Every non-synthetic owner character with both a card-text vector and an avatar vector in the same model
- *  space, excluding shared avatars — the cross-modal portrait-alignment input (paired cosine, in-RAM). */
+ *  space at the same width, each from its current generation, excluding shared avatars — the cross-modal
+ *  portrait-alignment input (paired cosine, in-RAM). */
 export async function readOwnedPortraitPairs(db: Db, ownerId: UserId): Promise<PortraitPair[]> {
   const shared = await sharedAvatarAssetIds(db, ownerId);
   return await db
@@ -657,8 +686,15 @@ export async function readOwnedPortraitPairs(db: Db, ownerId: UserId): Promise<P
     .from(imageEmbeddings)
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
-    .innerJoin(characterEmbeddings, and(eq(characterEmbeddings.characterId, characters.id), eq(characterEmbeddings.model, imageEmbeddings.model)))
-    .where(and(ownedRealCharacters(ownerId), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared)));
+    .innerJoin(
+      characterEmbeddings,
+      and(
+        eq(characterEmbeddings.characterId, characters.id),
+        eq(characterEmbeddings.model, imageEmbeddings.model),
+        eq(characterEmbeddings.dim, imageEmbeddings.dim),
+      ),
+    )
+    .where(and(ownedRealCharacters(ownerId), eq(imageEmbeddings.lens, IMAGE_VECTOR_LENS), excludeShared(shared), currentImage, currentCard));
 }
 
 interface CaptionRow {
@@ -684,7 +720,14 @@ async function captionRows(db: Db, ownerId: UserId, extra?: SQL): Promise<Captio
     .innerJoin(characters, eq(characters.avatarAssetId, imageEmbeddings.assetId))
     .innerJoin(assets, eq(assets.id, imageEmbeddings.assetId))
     .where(
-      and(ownedRealCharacters(ownerId), eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS), isNotNull(imageEmbeddings.captionMeta), excludeShared(shared), extra),
+      and(
+        ownedRealCharacters(ownerId),
+        eq(imageEmbeddings.lens, IMAGE_CAPTION_LENS),
+        isNotNull(imageEmbeddings.captionMeta),
+        excludeShared(shared),
+        currentImage,
+        extra,
+      ),
     )
     .orderBy(asc(characters.name));
   return rows.map((r) => ({ ...r, captionMeta: r.captionMeta ?? null }));
@@ -746,6 +789,7 @@ export async function readOwnedSegmentVectorsByChat(
         isNull(chatParticipants.leftSeq),
       ),
     )
+    .where(currentSegment)
     // Target chat first (its rows are never evicted by the cap), then recency for the rest.
     .orderBy(desc(eq(chatSegments.chatId, targetChatId)), desc(chatSegments.createdAt))
     .limit(cap);

@@ -346,6 +346,8 @@ export interface ServicesResult {
   readonly enqueueEmbedReindex: (scope: UserId | null) => Promise<void>;
   /** The same sweeps started detached, for a boot seed that must not wait on them. */
   readonly detachEmbedReindex: (scope: UserId | null) => void;
+  /** Boot's re-index of every owner whose stored generation went stale without a user action, detached. */
+  readonly detachStaleSpaceReindex: () => void;
   /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);
    *  `lifecycle.ts` hands it to `createApp`, which registers `/api/_debug/memory/recalls` over it. */
   readonly recallRecorder: MemoryRecallRecorder;
@@ -388,12 +390,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
   // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
   // boot. Until then it is an inert no-op.
-  let embedReindex: Pick<SearchDiscoveryComposeResult, "enqueueEmbedReindex" | "detachEmbedReindex"> = {
+  let embedReindex: Pick<SearchDiscoveryComposeResult, "enqueueEmbedReindex" | "detachEmbedReindex" | "detachStaleSpaceReindex"> = {
     enqueueEmbedReindex: () => Promise.resolve(),
     detachEmbedReindex: () => undefined,
+    detachStaleSpaceReindex: () => undefined,
   };
   // chat's memory-enabled read for the search-discovery seam, which composes before chat. Bound once chat exists.
   let isMemoryEnabled: (ownerId: UserId) => Promise<boolean> = () => Promise.reject(new Error("compose: isMemoryEnabled invoked before chat wiring"));
+  // The connection pane's embedder-change preview counts the embeddings domain's rows, which compose after it.
+  let countOwnedVectors: ConnectionContext["countOwnedVectors"] = () =>
+    Promise.reject(new Error("compose: countOwnedVectors invoked before search-discovery wiring"));
   // materializeBackground (side-eye F-P0-2): built after `assets` + `effectiveConfig` exist (the assets-character
   // seam), but settings/character/chat compose BEFORE `assets`, so they deref this late-bound holder at request
   // time (the `spriteSheetOps` pattern). Invoked only when a user pastes an external background URL.
@@ -626,6 +632,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     endpointAdmission: resolvedEndpointAdmission,
     recordProbeOutcome: credentials.recordProbeOutcome,
     // The late-bound holder above, derefed at request time.
+    countOwnedVectors: (ownerId) => countOwnedVectors(ownerId),
     onEmbedSpaceChanged: () => {
       embedReindex.detachEmbedReindex(null);
     },
@@ -797,6 +804,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   } = searchDiscovery;
   // Bind the embed-space sweep enqueue now that `workloads` exists.
   embedReindex = searchDiscovery;
+  countOwnedVectors = searchDiscovery.embeddings.countOwnedVectors;
   await searchDiscovery.embeddings.purgeDisallowedImages();
   refreshAutoindex = searchDiscovery.refreshAutoindex;
 
@@ -1469,6 +1477,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     enqueueEmbedReindex: (scope) => embedReindex.enqueueEmbedReindex(scope),
     detachEmbedReindex: (scope): void => {
       embedReindex.detachEmbedReindex(scope);
+    },
+    detachStaleSpaceReindex: (): void => {
+      embedReindex.detachStaleSpaceReindex();
     },
     wireCaptureOn,
   };

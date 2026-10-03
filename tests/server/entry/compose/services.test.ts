@@ -19,6 +19,7 @@ import {
   chatSegments,
   chats,
   embedGenerations,
+  embedGenerationTargets,
   imageEmbeddings,
   rpgGames,
   tags,
@@ -786,6 +787,40 @@ describe("embed-model change reindex trigger (DBK-B(b))", () => {
     expect(bulkKinds.has("index")).toBe(true); // character/image/memory chunks
     expect(bulkKinds.has("databank-reindex")).toBe(true); // document chunks
     expect(bulkKinds.has("memory-backfill")).toBe(true); // chat memory
+  });
+
+  // B4: a release that moves generation identity leaves owners whose stored target no user action will ever
+  // re-raise. Boot finds them and queues the same sweeps a binding change does, for that owner, forced.
+  test("boot queues the embed-space sweeps for an owner whose stored generation went stale", async () => {
+    const db = await freshDb();
+    const result = await buildGraph(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("stale-owner") });
+    await result.seedUserConnections(owner);
+    const legacy = castId<EmbedGenerationId>("embed_generation_from_an_older_release");
+    await db.insert(embedGenerations).values({
+      id: legacy,
+      ownerId: owner,
+      task: "embed",
+      via: "embed",
+      connectionId: null,
+      connectionRef: castId<UserConnectionId>("user_connection_legacy"),
+      fingerprint: "legacy",
+      space: "legacy",
+      createdAt: 0,
+    });
+    await db.insert(embedGenerationTargets).values({ ownerId: owner, task: "embed", generationId: legacy, epoch: 1 });
+
+    result.detachStaleSpaceReindex();
+    const queued = async (): Promise<(typeof workloads.$inferSelect)[]> =>
+      (await db.select().from(workloads)).filter((row) => row.ownerId === owner && row.mode === "singular");
+    let rows: (typeof workloads.$inferSelect)[] = [];
+    for (let attempt = 0; attempt < DRAIN_MAX_TURNS && rows.length < 2; attempt += 1) {
+      rows = await queued();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    // A memory-off owner's memory scope completes vacuously instead of queuing a run; the other two are runs.
+    expect(rows.map((row) => row.kind).toSorted((a, b) => a.localeCompare(b))).toEqual(["databank-reindex", "index"]);
+    expect(rows.find((row) => row.kind === "index")?.params).toMatchObject({ source: "all", force: true, embedderChanged: true });
   });
 
   test("a detached enqueue rejection is structured and operator-visible without failing the settings write", async () => {

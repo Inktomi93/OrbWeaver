@@ -7,6 +7,7 @@ import { and, eq } from "drizzle-orm";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
 import type { GenerationTask } from "../contract/generation.ts";
 import type { EmbeddingsContext, PinnedGeneration } from "../contract/service.ts";
+import { switchTargetGeneration } from "../persistence/space-state.ts";
 
 export async function resolveTargetGeneration(
   ctx: Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection">,
@@ -59,21 +60,9 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt
   const prior = observed[0];
   if (prior === undefined) {
     await ctx.db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 }).onConflictDoNothing();
-  } else {
-    await ctx.db
-      .update(embedGenerationTargets)
-      .set({
-        generationId: id,
-        epoch: prior.generationId === id ? prior.epoch : prior.epoch + 1,
-      })
-      .where(
-        and(
-          eq(embedGenerationTargets.ownerId, ownerId),
-          eq(embedGenerationTargets.task, task),
-          eq(embedGenerationTargets.generationId, prior.generationId),
-          eq(embedGenerationTargets.epoch, prior.epoch),
-        ),
-      );
+  } else if (prior.generationId !== id) {
+    // A new generation never shares the index with the old one: the switch purges the old vectors with it.
+    await switchTargetGeneration(ctx.db, { ownerId, task, from: prior, to: id });
   }
   const rows = await ctx.db
     .select({ generationId: embedGenerationTargets.generationId, epoch: embedGenerationTargets.epoch })

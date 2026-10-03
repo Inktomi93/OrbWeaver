@@ -256,7 +256,14 @@ export interface DatabankIngest {
   /** chunk+embed+prune ONE document (the databank-ingest runner's body). */
   readonly ingestDocument: (args: { documentId: DocumentId; signal: AbortSignal }) => Promise<IngestRunResult>;
   /** Re-run the derived layer for one document or every document of an owner (`null` = box-wide). */
-  readonly reindex: (args: { ownerId: UserId | null; scope: ReindexScope; mode: ReindexMode; signal: AbortSignal }) => Promise<IngestRunResult>;
+  readonly reindex: (args: {
+    ownerId: UserId | null;
+    scope: ReindexScope;
+    mode: ReindexMode;
+    signal: AbortSignal;
+    /** Each document's position as it finishes, so an embedder switch's re-index reads N of M. */
+    onProgress?: ((done: number, total: number) => void) | undefined;
+  }) => Promise<IngestRunResult>;
 }
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the two RAG kinds).

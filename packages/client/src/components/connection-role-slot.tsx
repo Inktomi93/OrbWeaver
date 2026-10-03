@@ -25,8 +25,12 @@ import {
   roleStatus,
 } from "#lib";
 import { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
+import { useReindexConfirm } from "./reindex-confirm.tsx";
 
 const UNSET_VALUE = "";
+
+/** The roles whose binding defines the owner's vector space; re-pointing the user's own one can rebuild the index. */
+const VECTOR_ROLES: readonly RoleRow["task"][] = ["embed", "imageEmbed"];
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
@@ -117,6 +121,7 @@ export function ConnectionRoleSlot({
   const deps = { trpc, invalidation };
   const setBinding = useSetBinding(deps);
   const update = useUpdateConnection(deps);
+  const reindex = useReindexConfirm(trpc);
   // The PICKER's draft — `undefined` until the user touches it, which is the only state that can never
   // diverge. It is never the readout's `{X}`; it is only the other half of the comparison.
   const [draft, setDraft] = useState<string | null | undefined>(undefined);
@@ -182,11 +187,20 @@ export function ConnectionRoleSlot({
           if (picked === undefined) {
             return;
           }
-          setDraft(picked);
-          setBinding.mutate({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
+          const write = (): void => {
+            setDraft(picked);
+            setBinding.mutate({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
+          };
+          // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
+          if (actor === undefined && VECTOR_ROLES.includes(row.task)) {
+            reindex.guard({ kind: "bind", task: row.task, connectionId: picked }, write);
+          } else {
+            write();
+          }
         }}
         placeholder={unsetText}
       />
+      {reindex.dialog}
     </Row>
   );
 }

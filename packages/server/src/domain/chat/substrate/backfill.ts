@@ -553,9 +553,13 @@ export async function backfillMemory(
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<MemoryBackfillSweepCounts> {
   const sweep = await planAllBuckets(ctx, args, resolveMemoryConfig);
+  args.onProgress?.("planning chats");
   const segments = await storeAllSegments(ctx, sweep.segments, args.signal);
+  args.onProgress?.("embedding transcripts");
   const perPlanTexts = await summarizeAllPending(ctx, args.funderUserId, sweep.plans);
+  args.onProgress?.("summarizing");
   const committed = await commitAllPlans(ctx, sweep.plans, perPlanTexts, { signal: args.signal, funderUserId: args.funderUserId });
+  args.onProgress?.("writing digests");
   const failed = sweep.failed + segments.failed + committed.failed;
   return {
     segments: { scanned: sweep.segmentsScanned, changed: segments.written },

@@ -12,6 +12,8 @@ import {
   labelNamesModel,
   ROLE_ROWS_ORDERED,
   ROLE_STATUS_LABELS,
+  reindexConfirmDescription,
+  reindexNeedsConfirm,
   roleReadout,
   roleRequirementGaps,
   roleRequirementVerdicts,
@@ -237,4 +239,22 @@ test("labelNamesModel never counts the provider segment as naming the model", ()
 test("connectionSummary names a model by its own name, and the seeded local rows by what they do", () => {
   expect(connectionSummary({ label: "work key", model: "openai/gpt-5-mini" })).toBe("work key · gpt-5-mini");
   expect(LOCAL_LIGHT_SEED_ROWS.map(connectionSummary)).toEqual(["Built-in embeddings · jina-clip-v2", "Built-in reranker · ms-marco-MiniLM-L-6-v2"]);
+});
+
+// The embedder-change confirm asks only when a change both moves to a new generation AND has something stored to
+// rebuild; the sentence names only the scopes that hold vectors, and stays honest when the counts are unknown.
+test("the rebuild confirm asks only for a new generation over a stored index", () => {
+  const stored = { cards: 2, memory: 0, documents: 0, images: 0 };
+  const empty = { cards: 0, memory: 0, documents: 0, images: 0 };
+  expect(reindexNeedsConfirm({ reindex: true, stored, embedCalls: 2 })).toBe(true);
+  expect(reindexNeedsConfirm({ reindex: true, stored: empty, embedCalls: 0 })).toBe(false);
+  expect(reindexNeedsConfirm({ reindex: false, stored, embedCalls: 2 })).toBe(false);
+});
+
+test("the rebuild confirm names the stored scopes and the call count, or only the consequence when unknown", () => {
+  const sentence = reindexConfirmDescription({ reindex: true, stored: { cards: 1200, memory: 0, documents: 0, images: 3 }, embedCalls: 1203 });
+  expect(sentence).toContain("1,200 cards, 3 pictures");
+  expect(sentence).not.toContain("databank");
+  expect(sentence).toContain("1,203 embedding calls");
+  expect(reindexConfirmDescription(null)).not.toMatch(/\d/u);
 });

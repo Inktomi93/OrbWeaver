@@ -3,6 +3,7 @@
 // no principal/guard on any bundle — the vector substrate carries no ownerId.
 
 import type { AssetKind } from "@orb/contracts/assets";
+import type { VectorScope } from "@orb/contracts/embeddings";
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import type { Capability, ProviderId } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
@@ -136,6 +137,10 @@ export interface EmbeddingsService {
   readonly purgeDisallowedImages: () => Promise<void>;
   readonly indexAsset: (assetId: AssetId, options?: { readonly force?: boolean; readonly signal?: AbortSignal | undefined }) => Promise<StoreResult | null>;
   readonly resolveGeneration: (ownerId: UserId, task: GenerationTask, via?: GenerationTask) => Promise<PinnedGeneration | null>;
+  /** The owners whose stored target generation differs from the one their binding resolves to now. Read-only. */
+  readonly staleGenerationOwners: () => Promise<readonly UserId[]>;
+  /** How many vectors the owner has stored per scope — what an embedder change would delete and rebuild. */
+  readonly countOwnedVectors: (ownerId: UserId) => Promise<Readonly<Record<VectorScope, number>>>;
   /** The only vector inserter for the single-item lenses. Hash-gates on `(key, model)` — a matched
    *  `content_hash` is a noop; else embeds, asserts the vector matches the declared space `dim`, and upserts.
    *  Never touches `hub_score`. Verbatim SEGMENTS go through {@link storeSegments} instead. */
