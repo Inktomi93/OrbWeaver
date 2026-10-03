@@ -27,7 +27,7 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { NAME_END_BOUNDARY } from "@orb/kit/speaker-label";
 import { UNICODE_WORD_CHARS } from "@orb/kit/strings";
-import type { ArbiterCandidate, NameMention, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
+import type { ArbiterCandidate, LineAddress, NameMention, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
 
 /** The arbitration inputs (file-local — callers pass a literal). */
@@ -172,11 +172,10 @@ function applyPolicy(
   switch (policy) {
     case "natural":
     // `smart` is the model-picked path (`engine/rerank-pick`, or `engine/smart-arbitrate` when the room's
-    // `smartPicker` is the Utility arbiter), which the turn verb routes a per-speaker smart round to, including
-    // one whose `@mention` named only a muted or departed seat. So this arm is reached only in a NARRATOR room,
-    // where the pick is short-circuited because its verdict governs nothing. No model was consulted, so this is
-    // a plain `natural` activation, not the degrade path (the picker FAILING is the degrade path, surfaced as a
-    // warning by the caller).
+    // `smartPicker` is the Utility arbiter): the turn verb routes every Smart round there unless a forced
+    // `@mention` schedules, which returns above before any policy, and a narrator room cannot hold `smart` at
+    // all. This arm is the safe total case for the union: a plain `natural` activation, not the degrade path (the
+    // picker FAILING is the degrade path, surfaced as a warning by the caller).
     case "smart":
       return naturalOrder(pool, state.mentionedIds, rng);
     // `list` — roster order, all of them, every round (no rotation: that is `pooled`).
@@ -382,18 +381,27 @@ export const MAX_SMART_RESPONDERS = 3;
  *  there. "Rook, your move." to the player Rook is an address to the human; "Rook the Bard" is the character. A
  *  whole name made only of a human's words ("Grace" for the player Grace, "Bran" for the player Bran Stark) could
  *  be either, so it shields nothing and the picker decides. */
-function humanWordIndices(rawText: readonly string[], speakerCandidates: readonly SpeakerCandidate[], humanNames: readonly string[]): Set<number> {
+function humanWordIndices(
+  rawText: readonly string[],
+  speakerCandidates: readonly SpeakerCandidate[],
+  humanNames: readonly string[],
+): { readonly indices: Set<number>; readonly ambiguous: boolean } {
   const text = rawText.map((w) => w.toLowerCase());
   const human = new Set(humanNames.flatMap((n) => rawWordsOf(n).map((w) => w.toLowerCase())).filter((w) => !isNonNaming(w)));
   const characterSpans = new Set<number>();
+  let ambiguous = false;
   for (const c of speakerCandidates) {
     const nameWords = rawWordsOf(c.name).map((w) => w.toLowerCase());
-    const at = nameWords.every((w) => human.has(w)) ? -1 : phraseAt(text, nameWords);
+    const at = phraseAt(text, nameWords);
+    if (at !== -1 && nameWords.every((w) => human.has(w))) {
+      ambiguous = true;
+      continue;
+    }
     for (let k = 0; at !== -1 && k < nameWords.length; k += 1) {
       characterSpans.add(at + k);
     }
   }
-  return new Set(text.flatMap((w, i) => (human.has(w) && !characterSpans.has(i) ? [i] : [])));
+  return { indices: new Set(text.flatMap((w, i) => (human.has(w) && !characterSpans.has(i) ? [i] : []))), ambiguous };
 }
 
 /**
@@ -401,18 +409,20 @@ function humanWordIndices(rawText: readonly string[], speakerCandidates: readonl
  * {@link NameMention} that is `strong`), whoever wrote it, as ordered groups. Characters named by overlapping
  * words compete for one address: the most fully named win the group ("The Black Knight" over "The Knight"),
  * and a tie is an ambiguous group the caller settles. A word a human player's name occupies addresses the human,
- * not a character. A muted or departed character is dropped, and a speaker naming itself is no address.
+ * not a character; a whole character name that is also a human's ("Grace" for the player Grace) marks the line
+ * `humanAmbiguous`. A muted or departed character is dropped, and a speaker naming itself is no address.
  */
 export function addressedGroups(
   line: TranscriptLine,
   candidates: readonly ArbiterCandidate[],
   speakerCandidates: readonly SpeakerCandidate[],
   humanNames: readonly string[],
-): CharacterId[][] {
+): LineAddress {
   const eligible = new Set(candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled })).map((c) => speakerKey(c.ref)));
   const rawText = rawWordsOf(line.text);
   const named = speakerCandidates.filter((c) => c.ref.characterId !== line.characterId && eligible.has(speakerKey(c.ref)));
-  const hits = mentionHits(rawText, named, humanWordIndices(rawText, named, humanNames)).filter((m) => m.strong);
+  const human = humanWordIndices(rawText, named, humanNames);
+  const hits = mentionHits(rawText, named, human.indices).filter((m) => m.strong);
   const groups: MentionHit[][] = [];
   for (const hit of hits) {
     const overlapping = groups.find((g) => g.some((other) => other.words.some((w) => hit.words.includes(w))));
@@ -422,10 +432,13 @@ export function addressedGroups(
       overlapping.push(hit);
     }
   }
-  return groups.map((group) => {
-    const best = Math.max(...group.map((m) => m.hits));
-    return group.filter((m) => m.hits === best).map((m) => m.id);
-  });
+  return {
+    groups: groups.map((group) => {
+      const best = Math.max(...group.map((m) => m.hits));
+      return group.filter((m) => m.hits === best).map((m) => m.id);
+    }),
+    humanAmbiguous: human.ambiguous,
+  };
 }
 
 /** The human players' names as the arbiter and the mention check read them: the room's personas plus every named

@@ -204,7 +204,7 @@ describe("selectSpeakers — natural activation (mentions, talkativeness rolls, 
     expect(keys(out)).toEqual(keys([charRef("a"), charRef("b"), charRef("c")]));
   });
 
-  test("the smart arm reached without the side-LLM (narrator room) activates exactly like natural", () => {
+  test("the smart arm, reached without a picker, activates exactly like natural", () => {
     const rolls = [...IN_ORDER, 0.4, 0.6, 0.5] as const;
     const natural = selectSpeakers({ candidates: trio, policy: "natural", lastSpeaker: null, mentionedIds: [cid("b")], rng: scripted(...rolls) });
     const smart = selectSpeakers({ candidates: trio, policy: "smart", lastSpeaker: null, mentionedIds: [cid("b")], rng: scripted(...rolls) });
@@ -534,12 +534,18 @@ describe("addressedGroups — who a line addresses, for the Smart pickers", () =
   ];
 
   test("a word a human player's name shares addresses the human, not the character", () => {
-    expect(addressedGroups(byBryn("Rook, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual([]);
+    expect(addressedGroups(byBryn("Rook, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual({ groups: [], humanAmbiguous: false });
   });
 
   test("the character's whole name, or a word no human shares, still addresses it", () => {
-    expect(addressedGroups(byBryn("Rook the Bard, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual([[cid("bard")]]);
-    expect(addressedGroups(byBryn("Bard, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual([[cid("bard")]]);
+    expect(addressedGroups(byBryn("Rook the Bard, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual({
+      groups: [[cid("bard")]],
+      humanAmbiguous: false,
+    });
+    expect(addressedGroups(byBryn("Bard, your move."), [seat("bard"), seat("bryn")], rook, ["Rook"])).toEqual({
+      groups: [[cid("bard")]],
+      humanAmbiguous: false,
+    });
   });
 
   test("a whole name spelled out wins its words: the longest whole name, never the shorter one inside it", () => {
@@ -548,9 +554,9 @@ describe("addressedGroups — who a line addresses, for the Smart pickers", () =
       { ref: charRef("bk"), name: "The Black Knight" },
     ];
     const seats = [seat("k"), seat("bk")];
-    expect(addressedGroups(byBryn("The Black Knight, hold the gate."), seats, knights, [])).toEqual([[cid("bk")]]);
+    expect(addressedGroups(byBryn("The Black Knight, hold the gate."), seats, knights, [])).toEqual({ groups: [[cid("bk")]], humanAmbiguous: false });
     // A bare shared word stays ambiguous, for the picker to settle.
-    expect(addressedGroups(byBryn("Knight, hold the gate."), seats, knights, [])).toEqual([[cid("k"), cid("bk")]]);
+    expect(addressedGroups(byBryn("Knight, hold the gate."), seats, knights, [])).toEqual({ groups: [[cid("k"), cid("bk")]], humanAmbiguous: false });
   });
 
   test("a whole name made only of a human's words could be either, so nobody short-circuits", () => {
@@ -560,16 +566,19 @@ describe("addressedGroups — who a line addresses, for the Smart pickers", () =
     ];
     const seats = [seat("grace"), seat("bryn")];
     // Human "Grace" and character "Grace": the bare name is ambiguous.
-    expect(addressedGroups(byBryn("Grace, help me lift this."), seats, grace, ["Grace"])).toEqual([]);
+    expect(addressedGroups(byBryn("Grace, help me lift this."), seats, grace, ["Grace"])).toEqual({ groups: [], humanAmbiguous: true });
     const bran = [
       { ref: charRef("bran"), name: "Bran" },
       { ref: charRef("bryn"), name: "Bryn" },
     ];
     // Human "Bran Stark" and character "Bran", addressed as "Bran": also ambiguous.
-    expect(addressedGroups(byBryn("Bran, your move."), [seat("bran"), seat("bryn")], bran, ["Bran Stark"])).toEqual([]);
+    expect(addressedGroups(byBryn("Bran, your move."), [seat("bran"), seat("bryn")], bran, ["Bran Stark"])).toEqual({ groups: [], humanAmbiguous: true });
     // With no such human, the same lines still address the character.
-    expect(addressedGroups(byBryn("Grace, help me lift this."), seats, grace, ["Sam"])).toEqual([[cid("grace")]]);
-    expect(addressedGroups(byBryn("Bran, your move."), [seat("bran"), seat("bryn")], bran, ["Sam"])).toEqual([[cid("bran")]]);
+    expect(addressedGroups(byBryn("Grace, help me lift this."), seats, grace, ["Sam"])).toEqual({ groups: [[cid("grace")]], humanAmbiguous: false });
+    expect(addressedGroups(byBryn("Bran, your move."), [seat("bran"), seat("bryn")], bran, ["Sam"])).toEqual({
+      groups: [[cid("bran")]],
+      humanAmbiguous: false,
+    });
   });
 
   test("Natural's mention read is unchanged: a bare shared word still names the character there", () => {

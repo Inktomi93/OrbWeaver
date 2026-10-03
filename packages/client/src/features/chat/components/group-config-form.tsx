@@ -11,6 +11,7 @@ import {
   GROUP_POLICIES,
   GROUP_POLICY_LABELS,
   MEMBER_CARD_VISIBILITY_LEVELS,
+  narratorPolicyOf,
   SMART_PICKER_LABELS,
   SMART_UTILITY_SWITCH_LABEL,
 } from "@orb/contracts/chat";
@@ -39,11 +40,25 @@ type RerankModel = ReturnType<typeof useRerankModel>;
 // Smart picks with the reranker by default, so it needs no Utility model; only its opt-in upgrade does.
 const POLICY_ITEMS: SelectItems<string> = GROUP_POLICIES.map((value) => ({ value, label: GROUP_POLICY_LABELS[value] }));
 
+/** Why a Narrator room cannot pick Smart, shown under the disabled option. */
+const NARRATOR_SMART_REASON = "Not in Narrator: one message voices everyone, so there is no next speaker to pick.";
+
+/** A Narrator room cannot hold Smart (the contract heals it to Natural), so the option is disabled and says why. */
+const NARRATOR_POLICY_ITEMS: SelectItems<string> = GROUP_POLICIES.map((value) =>
+  value === "smart"
+    ? { value, label: GROUP_POLICY_LABELS[value], disabled: true, description: NARRATOR_SMART_REASON }
+    : { value, label: GROUP_POLICY_LABELS[value] },
+);
+
+function policyItemsFor(output: GroupOutput): SelectItems<string> {
+  return output === "narrator" ? NARRATOR_POLICY_ITEMS : POLICY_ITEMS;
+}
+
 const RERANKER_SMART_HELP = `Smart ranks the characters against the last message with your ${SMART_PICKER_LABELS.reranker}. A character plainly named in that message replies first; when several share the name, Smart ranks only those. If no ${SMART_PICKER_LABELS.reranker} is available, Natural picks and you're told once per session.`;
 
 // The help under each control states what the server does with it (`engine/select-speakers.ts`,
-// `engine/round.ts`), per policy and per output mode, so the Rooms guide never has to restate it. Smart's
-// help depends on the Utility model and the output mode, so it is `smartHelp` instead.
+// `engine/round.ts`), per policy, so the Rooms guide never has to restate it. Smart's help depends on the
+// Utility model, so it is `smartHelp` instead.
 const POLICY_HELP: Record<Exclude<GroupPolicy, "smart">, string> = {
   natural:
     "Characters you name in your message reply, even one who just spoke. Each other character replies by chance, set by their talkativeness, and if nobody would, one of them does. When characters reply to each other, whoever spoke last sits out unless a character may reply to itself.",
@@ -52,10 +67,7 @@ const POLICY_HELP: Record<Exclude<GroupPolicy, "smart">, string> = {
   manual: "Nobody replies on their own. Mention a character with @, or pick one from Generate reply. A Narrator room still narrates every message.",
 };
 
-function smartHelp(utility: UtilityModel, output: GroupOutput, usesUtility: boolean): string {
-  if (output === "narrator") {
-    return "One message voices everyone in a Narrator room, so Smart makes no extra call here and picks like Natural.";
-  }
+function smartHelp(utility: UtilityModel, usesUtility: boolean): string {
   if (!usesUtility) {
     return RERANKER_SMART_HELP;
   }
@@ -71,18 +83,18 @@ function smartHelp(utility: UtilityModel, output: GroupOutput, usesUtility: bool
   return `${SMART_POLICY_COST_SENTENCE} If it can't decide, Natural picks and you're told once per session.`;
 }
 
-function policyHelp(policy: GroupPolicy, utility: UtilityModel, output: GroupOutput, usesUtility: boolean): string {
-  return policy === "smart" ? smartHelp(utility, output, usesUtility) : POLICY_HELP[policy];
+function policyHelp(policy: GroupPolicy, utility: UtilityModel, usesUtility: boolean): string {
+  return policy === "smart" ? smartHelp(utility, usesUtility) : POLICY_HELP[policy];
 }
 
 // The Utility door is the fix only when this room's Smart actually picks with the Utility model.
-function needsUtilityDoor(policy: GroupPolicy, utility: UtilityModel, output: GroupOutput, usesUtility: boolean): boolean {
-  return policy === "smart" && output === "per-speaker" && usesUtility && (utility.kind === "unset" || utility.kind === "blocked");
+function needsUtilityDoor(policy: GroupPolicy, utility: UtilityModel, usesUtility: boolean): boolean {
+  return policy === "smart" && usesUtility && (utility.kind === "unset" || utility.kind === "blocked");
 }
 
 // The Rerank door is the fix when Smart picks with the Rerank model (the default) and none is running.
-function needsRerankDoor(policy: GroupPolicy, rerank: RerankModel, output: GroupOutput, usesUtility: boolean): boolean {
-  return policy === "smart" && output === "per-speaker" && !usesUtility && (rerank.kind === "unset" || rerank.kind === "blocked");
+function needsRerankDoor(policy: GroupPolicy, rerank: RerankModel, usesUtility: boolean): boolean {
+  return policy === "smart" && !usesUtility && (rerank.kind === "unset" || rerank.kind === "blocked");
 }
 
 /** The speaker-order control. Mounted only when Advanced opens, so the role reads run only then. */
@@ -169,6 +181,10 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                       const output = next as GroupOutput;
                       field.handleChange(output);
                       form.setFieldValue("speakerTags", defaultSpeakerTags(output));
+                      // A Narrator room cannot hold Smart: it becomes Natural, and switching back does not restore it.
+                      if (output === "narrator") {
+                        form.setFieldValue("policy", narratorPolicyOf(form.getFieldValue("policy")));
+                      }
                     }
                   }}
                   aria-label="How the characters reply"
@@ -218,15 +234,15 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                                   <Stack gap="field">
                                     <field.SelectField
                                       label="Who speaks each round"
-                                      items={POLICY_ITEMS}
-                                      description={policyHelp(field.state.value, utility, output, usesUtility)}
+                                      items={policyItemsFor(output)}
+                                      description={policyHelp(field.state.value, utility, usesUtility)}
                                     />
-                                    {needsUtilityDoor(field.state.value, utility, output, usesUtility) ? (
+                                    {needsUtilityDoor(field.state.value, utility, usesUtility) ? (
                                       <Row>
                                         <UtilityModelDoor />
                                       </Row>
                                     ) : null}
-                                    {needsRerankDoor(field.state.value, rerank, output, usesUtility) ? (
+                                    {needsRerankDoor(field.state.value, rerank, usesUtility) ? (
                                       <Row>
                                         <RerankModelDoor />
                                       </Row>
@@ -241,8 +257,8 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                     )}
                   </PolicyField>
 
-                  {/* The upgrade inside Smart. A Narrator room buys no pick, so there it has nothing to switch. */}
-                  <form.Subscribe selector={(state): boolean => state.values.policy === "smart" && state.values.output === "per-speaker"}>
+                  {/* The upgrade inside Smart, which only a per-speaker room can hold. */}
+                  <form.Subscribe selector={(state): boolean => state.values.policy === "smart"}>
                     {(picks): ReactElement | null =>
                       picks ? (
                         <form.AppField name="smartUsesUtility">

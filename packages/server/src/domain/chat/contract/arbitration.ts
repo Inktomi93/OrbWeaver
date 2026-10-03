@@ -59,6 +59,14 @@ export interface SpeakerArbiter {
   readonly contextTokens: number;
 }
 
+/** What a canon line addresses, for both Smart pickers: the ordered groups of characters it names (a group of
+ *  several is one ambiguous name), and whether any name in it could be a human player's as well as a character's.
+ *  Either ambiguity sends the line to the picker instead of short-circuiting it. */
+export interface LineAddress {
+  readonly groups: readonly (readonly CharacterId[])[];
+  readonly humanAmbiguous: boolean;
+}
+
 /** One canon line as the speaker pick reads it: the text, its speaker's display name (null for an unnamed
  *  row) and the character who wrote it (null for a human or an unattributed row). */
 export interface TranscriptLine {

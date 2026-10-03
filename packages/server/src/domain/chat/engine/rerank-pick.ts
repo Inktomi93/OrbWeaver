@@ -1,8 +1,8 @@
 // domain/chat/engine/rerank-pick — Smart's default speaker pick over the funder's bound RERANK role. The
 // last line is the query and each eligible character's `Name: line` is a document. Every character the line
-// addresses as a name answers, ordered by rank, and a name several characters answer to is settled by rank among
-// them; else the top-ranked one does, with the last speaker out when the round bans it. Picks by RANK ORDER within the one call: scores are family-specific (logits, [0,1], anything),
-// so no threshold is ever compared. An unbound or failing role degrades with `degraded:true`, which the turn
+// addresses as a name answers, ordered by rank; a line with an ambiguous name, or one naming nobody, gets one
+// top-ranked pick, with the last speaker out when the round bans it. Picks by RANK ORDER within the one call:
+// scores are family-specific (logits, [0,1], anything), so no threshold is ever compared. An unbound or failing role degrades with `degraded:true`, which the turn
 // verb surfaces as a warning.
 
 import type { SpeakerRef } from "@orb/contracts/chat";
@@ -87,22 +87,14 @@ async function rankKeys(params: RerankPickParams, line: TranscriptLine, named: r
 
 const refOf = (characterId: CharacterId): SpeakerRef => ({ kind: "character", characterId });
 
-/** The addressed responders: one per name group (the best-ranked of an ambiguous group), ordered by rank. With
- *  no ranking (`null`) they keep mention order and an ambiguous group takes its first member. */
-function orderAddressed(groups: readonly (readonly CharacterId[])[], ranked: readonly string[] | null, banned: CharacterId | null): SpeakerRef[] {
+/** The addressed characters (each named unambiguously), ordered by rank. With no ranking (`null`) they keep
+ *  mention order: `toSorted` is stable and every rank is then equal. */
+function orderAddressed(addressed: readonly CharacterId[], ranked: readonly string[] | null): SpeakerRef[] {
   const rankOf = (id: CharacterId): number => {
     const at = ranked?.indexOf(speakerKey(refOf(id))) ?? -1;
     return at === -1 ? Number.POSITIVE_INFINITY : at;
   };
-  const chosen = groups.flatMap((group) => {
-    // An ambiguous name ("Captain, ...") narrows the field rather than choosing, so the round's ban on the last
-    // speaker holds inside it unless it would leave nobody. One unambiguous name wins even the last speaker.
-    const unbanned = group.length > 1 ? group.filter((id) => id !== banned) : group;
-    const best = (unbanned.length > 0 ? unbanned : group).toSorted((a, b) => rankOf(a) - rankOf(b))[0];
-    return best === undefined ? [] : [best];
-  });
-  // `toSorted` is stable, so unranked ids (and a null ranking) keep mention order.
-  return chosen
+  return addressed
     .toSorted((a, b) => rankOf(a) - rankOf(b))
     .slice(0, MAX_SMART_RESPONDERS)
     .map(refOf);
@@ -142,15 +134,10 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
     return natural(false);
   }
 
-  // Being addressed is the strongest signal a line carries, so the named characters answer, even the last
-  // speaker. One unambiguous name needs no ranking at all.
-  const groups = addressedGroups(line, params.candidates, params.speakerCandidates, params.humanNames);
-  const addressedIds = new Set(groups.flat());
-  const banned = params.lastSpeaker === null || params.banLast === false ? null : params.lastSpeaker.characterId;
-  if (groups.length === 1 && addressedIds.size === 1) {
-    return { speakers: orderAddressed(groups, null, banned), degraded: false, aborted: false };
+  const { addressed, pool } = fieldOf(params, line, named);
+  if (addressed.length === 1) {
+    return { speakers: orderAddressed(addressed, null), degraded: false, aborted: false };
   }
-  const pool = addressedIds.size > 0 ? named.filter((c) => addressedIds.has(c.ref.characterId)) : named;
 
   let ranked: readonly string[] | null;
   // @orb-waive caught-failure-ownership(catch): an unbound, refused or failing rerank role is the documented
@@ -166,13 +153,33 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
   if (cancelled()) {
     return CANCELLED;
   }
-  if (addressedIds.size > 0) {
+  if (addressed.length > 0) {
     // A failed ranking still answers the addressed characters, in mention order; the warning says why the
-    // order (or an ambiguous name's pick) came from the line rather than the model.
-    return { speakers: orderAddressed(groups, ranked, banned), degraded: ranked === null, aborted: false };
+    // order came from the line rather than the model.
+    return { speakers: orderAddressed(addressed, ranked), degraded: ranked === null, aborted: false };
   }
-  const pick = ranked === null ? undefined : topAllowed(params, named, ranked);
+  const pick = ranked === null ? undefined : topAllowed(params, pool, ranked);
   return pick === undefined ? natural(true) : { speakers: [pick], degraded: false, aborted: false };
+}
+
+/**
+ * Who the line leaves in play. Being addressed is the strongest signal a line carries, so characters it names
+ * unambiguously all answer (`addressed`), even the last speaker. Any ambiguous name sends the WHOLE line to the
+ * ranking for one pick (`addressed` empty): its `pool` is the named characters, or everyone when a human player
+ * shares a name in it. A line naming nobody pools everyone too.
+ */
+function fieldOf(
+  params: RerankPickParams,
+  line: TranscriptLine,
+  named: readonly NamedCandidate[],
+): { readonly addressed: readonly CharacterId[]; readonly pool: readonly NamedCandidate[] } {
+  const { groups, humanAmbiguous } = addressedGroups(line, params.candidates, params.speakerCandidates, params.humanNames);
+  if (humanAmbiguous) {
+    return { addressed: [], pool: named };
+  }
+  const ids = new Set(groups.flat());
+  const pool = ids.size > 0 ? named.filter((c) => ids.has(c.ref.characterId)) : named;
+  return { addressed: groups.some((g) => g.length > 1) ? [] : [...ids], pool };
 }
 
 /** The best-ranked character, the last speaker out when the round bans it (restored if that empties it). */

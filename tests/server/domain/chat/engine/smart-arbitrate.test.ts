@@ -1,8 +1,9 @@
 // engine/smart-arbitrate — Smart's Utility-model pick over a FAKE structured arbiter. Pins what the model is told
-// (the human players, one capped line per candidate, how often each spoke, talkativeness, the scene, a clipped
-// history with the last line whole), the response schema (an enum of the round's candidate names only, within every
-// wire's limits), the short-circuits that spend no call (a lone eligible character, names in the last line), how a
-// payload maps to refs, and the `natural` fallback with `degraded:true` the turn verb turns into a warning (D41).
+// (the human players, one capped line per candidate under its round label, how often each spoke, talkativeness, the
+// scene, a history with older lines clipped and the last capped to the window), the response schema (an enum of the
+// round's candidate labels only, within every wire's limits), the short-circuits that spend no call (a lone eligible
+// character, unambiguous names in the last line), how a payload maps to refs, and the `natural` fallback with
+// `degraded:true` the turn verb turns into a warning (D41).
 // Plus CANCELLATION: the turn's AbortSignal reaches the call, and an abort is `aborted:true`, never a degrade.
 
 import type { SpeakerRef } from "@orb/contracts/chat";
@@ -252,6 +253,50 @@ describe("smartArbitrate — the structured reply", () => {
     expect(prompt).toMatch(/^- Ann \(spoke/mu);
     expect(prompt).toMatch(/^- Ann \(2\) \(spoke/mu);
   });
+
+  const annRoster = [
+    { ref: charRef("aria"), name: "Ann" },
+    { ref: charRef("bran"), name: "Ann" },
+    { ref: charRef("cara"), name: "Bo" },
+  ];
+
+  test("Spoke last names the second Ann by her own label, not the first Ann's name", async () => {
+    // a2 spoke last but a human spoke after, so she stays a candidate.
+    const structured = arbiterAnswering({ responders: ["Bo"] });
+    await arbitrate({ structured, speakerCandidates: annRoster, transcript: [said("bran", "Hm."), human("Sam", "and then?")], lastSpeaker: charRef("bran") });
+    expect(promptOf(structured)).toMatch(/^Spoke last: Ann \(2\)$/mu);
+  });
+
+  test("a label is fixed for the round: ban-last removing the second Ann leaves no one relabelled", async () => {
+    // a2 replying to her own line is banned; the first Ann stays "Ann" and a2 is still "Ann (2)" in Spoke last.
+    const structured = arbiterAnswering({ responders: ["Ann"] });
+    const out = await arbitrate({ structured, speakerCandidates: annRoster, transcript: [said("bran", "Hm.")], lastSpeaker: charRef("bran") });
+    const prompt = promptOf(structured);
+    expect(prompt).toMatch(/^Spoke last: Ann \(2\)$/mu);
+    expect(prompt).not.toMatch(/^- Ann \(2\)/mu);
+    const enums = nodesOf(callOf(structured)[1].responseFormat.schema).flatMap((n) => (Array.isArray(n["enum"]) ? [n["enum"]] : []));
+    expect(enums).toEqual([["Ann", "Bo"]]);
+    expect(out.speakers).toEqual([charRef("aria")]);
+  });
+
+  test("labels never collide with a name that already reads like one: Ann, a literal 'Ann (2)', Ann are all pickable", async () => {
+    const roster = [
+      { ref: charRef("aria"), name: "Ann" },
+      { ref: charRef("bran"), name: "Ann (2)" },
+      { ref: charRef("cara"), name: "Ann" },
+    ];
+    for (const [label, key] of [
+      ["Ann", "aria"],
+      ["Ann (2)", "bran"],
+      ["Ann (3)", "cara"],
+    ] as const) {
+      const structured = arbiterAnswering({ responders: [label] });
+      const out = await arbitrate({ structured, speakerCandidates: roster });
+      expect(out.speakers, label).toEqual([charRef(key)]);
+      const enums = nodesOf(callOf(structured)[1].responseFormat.schema).flatMap((n) => (Array.isArray(n["enum"]) ? [n["enum"]] : []));
+      expect(enums).toEqual([["Ann", "Ann (2)", "Ann (3)"]]);
+    }
+  });
 });
 
 describe("smartArbitrate — the line being answered fits the bound model", () => {
@@ -363,6 +408,18 @@ describe("smartArbitrate — short-circuits (no model call)", () => {
     const toBard = await arbitrate({ structured, speakerCandidates: rook, humanNames: ["Rook"], transcript: [said("bran", "Rook the Bard, your move.")] });
     expect(toBard).toEqual({ speakers: [charRef("aria")], degraded: false, aborted: false });
     expect(structured).toHaveBeenCalledTimes(1);
+  });
+
+  test("one ambiguous name sends the whole line to the model, the clear names in it included", async () => {
+    const grace = [
+      { ref: charRef("aria"), name: "Grace" },
+      { ref: charRef("bran"), name: "Bryn" },
+      { ref: charRef("cara"), name: "Cara" },
+    ];
+    const structured = arbiterAnswering({ responders: ["Cara"] });
+    const out = await arbitrate({ structured, speakerCandidates: grace, humanNames: ["Grace"], transcript: [said("cara", "Grace, Bryn, help me.")] });
+    expect(structured).toHaveBeenCalledTimes(1);
+    expect(out.speakers).toEqual([charRef("cara")]);
   });
 });
 

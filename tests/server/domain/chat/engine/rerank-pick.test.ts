@@ -161,6 +161,30 @@ describe("rerankPick — an ambiguous or common-word name does not win outright"
     expect(scores.sent[0]).toHaveLength(4);
   });
 
+  test("one ambiguous name sends the whole line to the ranking for one pick, the clear names in it included", async () => {
+    const scores = fakeReranker({ hale: 1, rook: 9, will: 50, aria: 100 });
+    // A shared title beside a clear name: one pick within the characters the line names.
+    const named = await castPick(scores.op, "Captain, Will, report.");
+    expect(named.speakers).toEqual([ref("will")]);
+    expect(scores.sent.at(-1)?.map((d) => d.text?.split(":")[0])).toEqual(["Captain Hale", "Captain Rook", "Will"]);
+    // A name a human player shares beside a clear name: one pick over everyone.
+    const cast = [
+      { ref: ref("hale"), name: "Grace" },
+      { ref: ref("rook"), name: "Bryn" },
+      { ref: ref("will"), name: "Will" },
+      { ref: ref("aria"), name: "Aria" },
+    ];
+    const human = await pick({
+      reranker: scores.op,
+      candidates: CastKeys.map(candidate),
+      speakerCandidates: cast,
+      humanNames: ["Grace"],
+      lastLine: line("Grace, Bryn, help me."),
+    });
+    expect(human.speakers).toEqual([ref("aria")]);
+    expect(scores.sent.at(-1)).toHaveLength(4);
+  });
+
   test("the last speaker sits out of an ambiguous name's field when the round bans it", async () => {
     const scores = fakeReranker({ hale: 1, rook: 9, will: 0, aria: 0 });
     const out = await pick({

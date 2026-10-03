@@ -6,7 +6,7 @@
 // re-derives the coupled speakerTags default), the scopedCards↔cardScope mapping seam, the narrator arm
 // omits cardScope, and the Advanced disclosure reveals policy / member-visibility / auto-mode.
 
-import { DEFAULT_GROUP_CONFIG, GROUP_POLICY_LABELS, SMART_UTILITY_SWITCH_LABEL } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, GROUP_POLICY_LABELS, groupConfigSchema, SMART_UTILITY_SWITCH_LABEL } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES, utilityBindings, withRunningRerank } from "../../../../support/node/utility-role.ts";
@@ -148,9 +148,27 @@ test("with a running Rerank model Smart can be chosen, and the choice saves", as
   await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toHaveCount(0);
 });
 
+test("switching a Smart room to Narrator saves Natural and disables Smart; switching back does not restore it", async ({ mount, page }) => {
+  await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": withRunningRerank(utilityBindings("running")) });
+  const component = await mount(<GroupConfigFormStory config={groupConfigSchema.parse({ output: "per-speaker", policy: "smart" })} />);
+
+  await component.getByRole("button", { name: "Narrator" }).click();
+  await expect(component.locator(SAVED)).toContainText('"output":"narrator"');
+  await expect(component.locator(SAVED)).toContainText('"policy":"natural"');
+
+  await component.getByRole("button", { name: "Advanced" }).click();
+  await component.getByRole("combobox", POLICY_COMBOBOX).click();
+  await expect(page.getByRole("option", SMART_OPTION)).toBeDisabled();
+  await page.keyboard.press("Escape");
+
+  await component.getByRole("button", { name: "Per-speaker" }).click();
+  await expect(component.locator(SAVED)).toContainText('"output":"per-speaker"');
+  await expect(component.locator(SAVED)).toContainText('"policy":"natural"');
+});
+
 test("Smart's default Rerank picker with no Rerank model bound offers the door to Model roles", async ({ mount, page }) => {
   await routeTrpc(page, UTILITY_RUNNING_ROUTES);
-  const component = await mount(<GroupConfigFormStory config={{ ...DEFAULT_GROUP_CONFIG, policy: "smart" }} />);
+  const component = await mount(<GroupConfigFormStory config={groupConfigSchema.parse({ output: "per-speaker", policy: "smart" })} />);
 
   await component.getByRole("button", { name: "Advanced" }).click();
   await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toBeVisible();
@@ -158,7 +176,7 @@ test("Smart's default Rerank picker with no Rerank model bound offers the door t
 
 test("a per-speaker room already on Smart's Utility opt-in with no Utility model offers the door to Model roles", async ({ mount, page }) => {
   await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": utilityBindings("unset") });
-  const component = await mount(<GroupConfigFormStory config={{ ...DEFAULT_GROUP_CONFIG, policy: "smart", smartPicker: "utility" }} />);
+  const component = await mount(<GroupConfigFormStory config={groupConfigSchema.parse({ output: "per-speaker", policy: "smart", smartPicker: "utility" })} />);
 
   await component.getByRole("button", { name: "Advanced" }).click();
   await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toBeVisible();

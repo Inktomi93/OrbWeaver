@@ -32,6 +32,17 @@ test("raw and parsed group schemas retain the same discriminated field populatio
   );
 });
 
+test("a narrator room cannot hold Smart: a write or a stored blob with it reads back as Natural", () => {
+  expect(groupConfigSchema.parse({ output: "narrator", policy: "smart" }).policy).toBe("natural");
+  expect(storedGroupConfigSchema.parse({ output: "narrator", policy: "smart", smartPicker: "utility" })).toMatchObject({
+    output: "narrator",
+    policy: "natural",
+  });
+  // A per-speaker room keeps it, and a narrator room keeps every other policy.
+  expect(groupConfigSchema.parse({ output: "per-speaker", policy: "smart" }).policy).toBe("smart");
+  expect(groupConfigSchema.parse({ output: "narrator", policy: "manual" }).policy).toBe("manual");
+});
+
 // ═══ groupConfigSchema — memberCardVisibility default sheet (D22) ════════════════
 
 test("groupConfigSchema fills memberCardVisibility to 'sheet' by default (D22)", () => {

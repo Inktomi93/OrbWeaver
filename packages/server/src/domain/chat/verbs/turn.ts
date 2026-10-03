@@ -931,15 +931,11 @@ async function arbitrate(
 ): Promise<ArbitrationOutcome> {
   const forced = args.forcedIds ?? [];
   let refs: readonly SpeakerRef[];
-  // NARRATOR SHORT-CIRCUIT: a narrator round voices all the seated characters in ONE
-  // generation authored by the synthetic group character and consumes NO arbitrated speaker (`round.ts`
-  // ignores `speakers` on that arm), so buying the side-LLM arbiter there costs a real model call for a
-  // verdict nothing reads — and its degrade would warn the room about a decision that governs nothing. The
-  // deterministic sampler still runs: the auto-chain's continue/stop probe reads its nominee (a nominee
-  // exists ⇒ narrate again), which is the ONLY thing a narrator round takes from arbitration.
-  // An `@mention` of only muted or departed seats forces nobody, so the picker runs as if none was typed.
+  // A narrator room never reaches the Smart picker: its contract cannot hold `smart` (a narrator round voices
+  // everyone in one generation and consumes no arbitrated speaker). An `@mention` of only muted or departed seats
+  // forces nobody, so the picker runs as if none was typed.
   const forcesSomeone = args.candidates.some((c) => forced.includes(c.ref.characterId) && isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }));
-  if (args.group.policy === "smart" && !forcesSomeone && args.group.output !== "narrator") {
+  if (args.group.policy === "smart" && !forcesSomeone) {
     const smart = await smartPick(ctx, deps, args);
     if (smart.aborted) {
       return { speakers: [], aborted: true, forcedOverride: false };

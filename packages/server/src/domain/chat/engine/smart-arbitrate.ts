@@ -1,6 +1,6 @@
 // domain/chat/engine/smart-arbitrate — Smart's opt-in Utility-model pick, structured output only: the reply is
-// constrained to an enum of the round's candidate names, so a human, a muted character or a typo cannot be
-// emitted. An unbound or unservable Utility row, a failed call or an invalid payload degrades LOUDLY to `natural`
+// constrained to an enum of the round's candidate labels (each candidate's name, numbered when names repeat), so a
+// human, a muted character or a typo cannot be emitted. An unbound or unservable Utility row, a failed call or an invalid payload degrades LOUDLY to `natural`
 // (`degraded:true` → the turn verb's warning, D41). An abort is `aborted:true`, never a degrade.
 
 import type { AssembleContext, SpeakerRef } from "@orb/contracts/chat";
@@ -66,25 +66,33 @@ interface SmartArbitrateParams {
   readonly signal?: AbortSignal | undefined;
 }
 
+/** A candidate as the model sees it, under its round `label`. */
 interface Named {
   readonly ref: SpeakerRef;
-  readonly name: string;
+  readonly label: string;
   readonly talkativeness: number;
 }
 
-/** A candidate as the model sees it: its `label` is its name, numbered in roster order when two candidates share
- *  one ("Ann", "Ann (2)"), so the response enum can name each of them and map back to exactly one ref. */
-interface Labeled extends Named {
-  readonly label: string;
-}
-
-function labeled(choices: readonly Named[]): Labeled[] {
-  const seen = new Map<string, number>();
-  return choices.map((c) => {
-    const nth = (seen.get(c.name) ?? 0) + 1;
-    seen.set(c.name, nth);
-    return { ...c, label: nth === 1 ? c.name : `${c.name} (${nth})` };
-  });
+/**
+ * Each roster seat's label for the round, keyed by `speakerKey`: its name, or, when an earlier seat already holds
+ * that name, the name numbered "(2)", "(3)" and on to the first label no seat's name or label uses. Computed once
+ * over the whole roster in roster order, before mute and ban-last, so a character keeps one label all round and
+ * the response enum maps each label back to exactly one ref.
+ */
+function rosterLabels(speakerCandidates: readonly SpeakerCandidate[]): ReadonlyMap<string, string> {
+  const names = new Set(speakerCandidates.map((c) => c.name));
+  const used = new Set<string>();
+  const labels = new Map<string, string>();
+  for (const c of speakerCandidates) {
+    let label = c.name;
+    // A numbered label another seat already carries as its own name is taken too.
+    for (let n = 2; used.has(label) || (label !== c.name && names.has(label)); n += 1) {
+      label = `${c.name} (${n})`;
+    }
+    used.add(label);
+    labels.set(speakerKey(c.ref), label);
+  }
+  return labels;
 }
 
 /** The cancelled arbitration: no speaker, no degrade (`aborted ⇒ [] + degraded:false`). */
@@ -103,11 +111,11 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
   if (cancelled()) {
     return CANCELLED;
   }
-  const nameByKey = new Map(params.speakerCandidates.map((n) => [speakerKey(n.ref), n.name] as const));
+  const labels = rosterLabels(params.speakerCandidates);
   const eligible: Named[] = params.candidates
     .filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }))
-    .map((c) => ({ ref: c.ref, name: nameByKey.get(speakerKey(c.ref)) ?? "", talkativeness: c.talkativeness }))
-    .filter((c) => c.name.length > 0);
+    .map((c) => ({ ref: c.ref, label: labels.get(speakerKey(c.ref)) ?? "", talkativeness: c.talkativeness }))
+    .filter((c) => c.label.length > 0);
   if (eligible.length <= 1) {
     return picked(eligible.map((c) => c.ref));
   }
@@ -130,12 +138,12 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
     aborted: false,
   });
 
-  const choices = labeled(modelChoices(params, eligible));
-  const [first, ...rest] = choices.map((c) => c.label);
+  const [first, ...rest] = modelChoices(params, eligible);
   if (first === undefined) {
     return fallback();
   }
-  let labels: readonly string[];
+  const choices: readonly [Named, ...Named[]] = [first, ...rest];
+  let chosen: readonly string[];
   // @orb-waive caught-failure-ownership(catch): classified by signal state — a settled signal returns CANCELLED
   // (the user stopped it); an unservable row, a failed call or an invalid payload after the one bounded retry
   // degrades to the visible `fallback()`, the arbiter's documented best-effort contract.
@@ -144,7 +152,7 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
     if (arbiter === null) {
       return cancelled() ? CANCELLED : fallback();
     }
-    labels = await askArbiter(params, arbiter, choices, [first, ...rest]);
+    chosen = await askArbiter(params, arbiter, choices, labels);
   } catch {
     return cancelled() ? CANCELLED : fallback();
   }
@@ -153,7 +161,7 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
   }
   // Lenient on length: a wire that strips the array bounds may send more than the cap, which is trimmed rather
   // than spent on a retry. Only an empty answer degrades.
-  const refs = [...new Set(labels)].flatMap((label) => choices.find((c) => c.label === label)?.ref ?? []).slice(0, MAX_SMART_RESPONDERS);
+  const refs = [...new Set(chosen)].flatMap((label) => choices.find((c) => c.label === label)?.ref ?? []).slice(0, MAX_SMART_RESPONDERS);
   return refs.length === 0 ? fallback() : picked(refs);
 }
 
@@ -161,19 +169,19 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
 async function askArbiter(
   params: SmartArbitrateParams,
   arbiter: SpeakerArbiter,
-  choices: readonly Labeled[],
-  labels: readonly [string, ...string[]],
+  choices: readonly [Named, ...Named[]],
+  roster: ReadonlyMap<string, string>,
 ): Promise<readonly string[]> {
   // The enum of the candidates' labels is what fits every wire and keeps anything off the roster from being
   // emitted. The array bounds ride for the wires that enforce them; others strip them, so the reply is read
   // without them and trimmed by the caller.
-  const responders = z.array(z.enum(labels));
+  const responders = z.array(z.enum([choices[0].label, ...choices.slice(1).map((c) => c.label)]));
   const responseFormat: ResponseFormat = {
     name: RESPONSE_NAME,
     schema: projectJsonSchema(z.object({ responders: responders.min(1).max(MAX_SMART_RESPONDERS) })),
   };
   const systemPrompt = resolveProseText("chat.arbiter.system", params.prose);
-  const userPrompt = buildArbiterPrompt(params, choices, arbiter.contextTokens);
+  const userPrompt = buildArbiterPrompt(params, choices, roster, arbiter.contextTokens);
   const reply = await runStructuredTurn({
     payloadSchema: z.object({ responders }),
     run: async (correction) => {
@@ -203,15 +211,16 @@ function modelChoices(params: SmartArbitrateParams, eligible: readonly Named[]):
   return unbanned.length > 0 ? unbanned : eligible;
 }
 
-/** The eligible characters the last line names, in mention order; null when it names none, or when one word
- *  names several characters at once (the model reads the line and settles which one was meant). */
+/** The eligible characters the last line names, in mention order; null when it names none, or when any name in it
+ *  is ambiguous (one word naming several characters, or a name a human player shares), so the model reads the line. */
 function addressedInLastLine(params: SmartArbitrateParams): SpeakerRef[] | null {
   const line = params.transcript.at(-1);
   if (line === undefined) {
     return null;
   }
-  const groups = addressedGroups(line, params.candidates, params.speakerCandidates, params.humanNames);
-  if (groups.length === 0 || groups.some((g) => g.length > 1)) {
+  const { groups, humanAmbiguous } = addressedGroups(line, params.candidates, params.speakerCandidates, params.humanNames);
+  // Any ambiguous name sends the WHOLE line to the model, other names in it included.
+  if (humanAmbiguous || groups.length === 0 || groups.some((g) => g.length > 1)) {
     return null;
   }
   return groups
@@ -221,10 +230,12 @@ function addressedInLastLine(params: SmartArbitrateParams): SpeakerRef[] | null 
 }
 
 /** The arbiter's user prompt: the scene, the human players, each candidate with its line, how often it spoke and
- *  how talkative it is, the last speaker, then the conversation with every line but the last clipped. */
+ *  how talkative it is, the last speaker, then the conversation: every line but the last clipped short, the last
+ *  capped at its share of the bound model's window with its end kept. */
 function buildArbiterPrompt(
   params: Pick<SmartArbitrateParams, "transcript" | "room" | "humanNames" | "characterLines" | "lastSpeaker" | "speakerCandidates">,
-  choices: readonly Labeled[],
+  choices: readonly Named[],
+  roster: ReadonlyMap<string, string>,
   contextTokens: number,
 ): string {
   const { transcript } = params;
@@ -239,8 +250,8 @@ function buildArbiterPrompt(
     const facts = `spoke ${spoke.get(c.ref.characterId) ?? 0} of the last ${transcript.length} lines, talkativeness ${Math.round(c.talkativeness * PERCENT)}%`;
     return `- ${c.label}${who.length > 0 ? `: ${who}` : ""} (${facts})`;
   });
-  const lastKey = params.lastSpeaker === null ? null : speakerKey(params.lastSpeaker);
-  const last = params.speakerCandidates.find((s) => speakerKey(s.ref) === lastKey)?.name;
+  // The last speaker keeps its round label even when ban-last or a mute left it out of the candidates.
+  const last = params.lastSpeaker === null ? undefined : roster.get(speakerKey(params.lastSpeaker));
   const scene = arbiterScene(params.room);
   const history = transcript.map((line, i) => {
     const text =

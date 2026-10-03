@@ -1343,11 +1343,10 @@ describe("send — narrator output (group character authors the turn)", () => {
 });
 
 // A NARRATOR round voices every seated character in ONE generation authored by the synthetic group character — it
-// never consumes an arbitrated speaker. So the `smart` side-LLM turn arbiter must not run there: it costs a
-// real model call whose verdict is discarded, and its degrade would warn the room about a decision that
-// governs nothing. `policy` STAYS on the narrator arm (a mode toggle round-trips the host's choice) — it just
-// never buys a arbiter call.
-describe("send — narrator × smart: the arbiter is short-circuited (its verdict governs nothing)", () => {
+// never consumes an arbitrated speaker, so a narrator room cannot hold `smart`. These rooms are seeded straight into
+// the column as narrator × smart (as an old room or an ST import would be): the stored read heals them to Natural,
+// so no arbiter is called and no warning is raised about a decision that governs nothing.
+describe("send — a stored narrator × smart room reads as Natural: no arbiter call", () => {
   test("a narrator round makes ZERO side-LLM arbiter calls and still commits the character turn", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility", output: "narrator" });
     const groupCharacterId = await seedCharacter(db, host, "group");

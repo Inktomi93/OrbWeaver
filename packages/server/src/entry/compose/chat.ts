@@ -761,10 +761,6 @@ export function createGeneratePictureOp(generatePicture: ImageryService["generat
 }
 
 /**
- * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
- * collaborator. Returns the service AND the bus emit.
- */
-/**
  * Smart's Utility arbiter on the funder's bound row, or null when that row cannot answer it. The arbiter is
  * structured output only, so the row must serve a vehicle: schema-constrained output, or a forced named tool on a
  * model that takes `tools[]` at all. Null is the round's visible degrade, never a free-text call. The vehicle
@@ -785,6 +781,10 @@ export async function speakerArbiterFor(roles: Pick<RoleClientsWithSignal, "reso
   return { structured: (inputs, opts) => roles.structured(inputs, opts), contextTokens: generation.context.window };
 }
 
+/**
+ * Construct the chat `ChatService` + its bus, wiring every {@link ChatContext} op + {@link ChatServiceDeps}
+ * collaborator. Returns the service AND the bus emit.
+ */
 export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const { db, now, emitChatEvent } = input;
 
