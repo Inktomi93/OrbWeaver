@@ -99,6 +99,8 @@ export type {
   SignupUserStatementOp,
 } from "./contract/signup.ts";
 export type { ChatWorkloadDeps } from "./contract/workloads.ts";
+// The room identity rule imagery's chat-scoped preview runs under (D298): the host funds and runs as.
+export { resolveTurnIdentity } from "./engine/turn-identity.ts";
 export { requireAuthorOrHost, requireHost, requireParticipant } from "./guard.ts";
 export { generateDigests } from "./memory/generate/digests.ts";
 export { generateSegments } from "./memory/generate/segments.ts";

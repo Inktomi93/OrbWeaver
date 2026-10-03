@@ -106,6 +106,9 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
     newGenerationId: (): ImageryGenerationId => castId<ImageryGenerationId>(ids.next("imagery_generation")),
     newCallId: (): ImageryCallId => castId<ImageryCallId>(ids.next("imagery_call")),
     resolveGenerateImage: () => Promise.resolve({ connection, capability: generationOf(connection) }),
+    resolveRunAs: (runAsUserId) => Promise.resolve(principal(runAsUserId)),
+    // By default the caller hosts the room it previews in.
+    resolveRoomRunAs: (caller) => Promise.resolve(caller),
     generateImage: (req) => {
       generateCalls.push(req.n ?? 1);
       generateRequests.push(req);

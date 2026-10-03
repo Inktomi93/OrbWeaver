@@ -20,9 +20,10 @@ export function createCaptionAvatar(ctx: ImageryContext): CaptionAvatar {
       return null;
     }
     const { bytes, mime } = await ctx.readAsset(args.caller, card.avatarAssetId);
-    // The caption instruction is the caller's per-mode override ⊕ the shipped catalog default (⑫).
-    const instruction = await ctx.resolveCaptionInstruction(args.caller, args.mode);
-    const { text, costUsd } = await ctx.captionImage({ caller: args.caller, bytes, mime, instruction });
+    // The card and avatar read under the caller; the instruction and the spend are the run-as principal's
+    // (D298). The instruction is its per-mode override ⊕ the shipped catalog default (⑫).
+    const instruction = await ctx.resolveCaptionInstruction(args.runAs, args.mode);
+    const { text, costUsd } = await ctx.captionImage({ runAs: args.runAs, bytes, mime, instruction });
     const prompt = processReply(text);
     if (prompt.length === 0) {
       throw new PromptExtractionFailedError(`imagery: the vision caption for mode "${args.mode}" produced no usable keywords`);

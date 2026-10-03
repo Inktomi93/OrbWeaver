@@ -855,6 +855,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     characterOwned,
     character,
     roleClientsFor,
+    // D298: a room picture runs as the present host, loaded with its real role.
+    resolveChatHostUserId,
+    resolveHostPrincipal: resolveFunderPrincipal,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
     resolveViewerVisibility: (chatId, userId) => resolveViewerVisibility(chatId, userId),
     resolveUserPresetParams,

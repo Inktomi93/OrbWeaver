@@ -16,7 +16,12 @@ describe("createCaptionAvatar", () => {
     const owner = await seedOwner(db, castId<Handle>("owner"));
     const h = makeHarness(db);
 
-    const result = await createCaptionAvatar(h.ctx)({ caller: principal(owner), mode: "character_multimodal", subjectCharacterId: castId("character_aria") });
+    const result = await createCaptionAvatar(h.ctx)({
+      caller: principal(owner),
+      runAs: principal(owner),
+      mode: "character_multimodal",
+      subjectCharacterId: castId("character_aria"),
+    });
 
     expect(h.readAssetCalls).toHaveLength(1);
     expect(h.captionInstructions).toHaveLength(1);
@@ -28,7 +33,12 @@ describe("createCaptionAvatar", () => {
     const owner = await seedOwner(db, castId<Handle>("owner"));
     const h = makeHarness(db);
 
-    const result = await createCaptionAvatar(h.ctx)({ caller: principal(owner), mode: "face_multimodal", subjectCharacterId: undefined });
+    const result = await createCaptionAvatar(h.ctx)({
+      caller: principal(owner),
+      runAs: principal(owner),
+      mode: "face_multimodal",
+      subjectCharacterId: undefined,
+    });
 
     expect(result).toBeNull();
     expect(h.captionInstructions).toHaveLength(0);
@@ -39,7 +49,12 @@ describe("createCaptionAvatar", () => {
     const owner = await seedOwner(db, castId<Handle>("owner"));
     const h = makeHarness(db, { getCard: () => Promise.resolve(fakeCard(null)) });
 
-    const result = await createCaptionAvatar(h.ctx)({ caller: principal(owner), mode: "character_multimodal", subjectCharacterId: castId("character_aria") });
+    const result = await createCaptionAvatar(h.ctx)({
+      caller: principal(owner),
+      runAs: principal(owner),
+      mode: "character_multimodal",
+      subjectCharacterId: castId("character_aria"),
+    });
 
     expect(result).toBeNull();
     expect(h.readAssetCalls).toHaveLength(0);
@@ -51,7 +66,7 @@ describe("createCaptionAvatar", () => {
     const h = makeHarness(db, { captionImage: () => Promise.resolve({ text: "()[]{}", costUsd: 0.001 }) });
 
     await expect(
-      createCaptionAvatar(h.ctx)({ caller: principal(owner), mode: "face_multimodal", subjectCharacterId: castId("character_aria") }),
+      createCaptionAvatar(h.ctx)({ caller: principal(owner), runAs: principal(owner), mode: "face_multimodal", subjectCharacterId: castId("character_aria") }),
     ).rejects.toThrow();
   });
 });

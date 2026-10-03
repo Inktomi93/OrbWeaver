@@ -11,10 +11,11 @@
 //     older gate was membership-only, which let a `from-join`-clamped member read a summary of canon their
 //     own `listMessages` withholds. Both halves are pinned, including that the side-LLM is never reached on
 //     the refusal path.
-//   • THE ⑫ FOREIGN-INPUTS SEAM. Every per-mode template / caption instruction / negative base resolves off
-//     the CALLER's own `UserSettings`, never the room host's — one human's request about their own settings.
+//   • THE ROOM RUN-AS (D298). A chat-scoped preview runs as the room host: the per-mode template,
+//     caption instruction, sampling preset and Utility funder are the host's, resolved only after the
+//     caller passes the visibility gate. The viewer the extractor clamps to stays the caller.
 //   • EC-B: the avatar byte read is OWNER-GATED on the caller (`readOwnedAssetBytes(caller, …)`), so the
-//     caption lane cannot be pointed at somebody else's asset.
+//     caption lane cannot be pointed at somebody else's asset — the host's included.
 //
 // The caption ladder is driven end-to-end through `extractPrompt` in a multimodal mode (every op on that
 // path is one this seam wired), and the chat-bound lane through an extraction mode.
@@ -22,6 +23,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { UserSettings } from "@orb/contracts/settings";
 import { parseUserSettings } from "@orb/contracts/settings";
+import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Mock } from "vitest";
@@ -29,10 +31,13 @@ import { describe, vi } from "vitest";
 import { imageryToolDefinitions } from "../../../../packages/server/src/domain/imagery/index.ts";
 import type { ImageryComposeDeps } from "../../../../packages/server/src/entry/compose/imagery.ts";
 import { buildImagery } from "../../../../packages/server/src/entry/compose/imagery.ts";
+import { freshDb } from "../../../support/db.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 const CALLER = principal(castId<UserId>("usr_caller"), { handle: castId<Handle>("caller") });
+const HOST = castId<UserId>("usr_host");
 const CHAT = castId<ChatId>("chat_room");
 const SUBJECT = castId<CharacterId>("chr_subject");
 const AVATAR = castId<AssetId>("ast_avatar");
@@ -50,14 +55,21 @@ interface Fakes {
   readonly characterGet: Mock<(args: { principal: Principal; characterId: CharacterId }) => Promise<{ avatarAssetId: AssetId | null }>>;
   readonly readOwnedAssetBytes: Mock<(caller: Principal, assetId: AssetId) => Promise<{ bytes: Uint8Array; mime: string }>>;
   readonly register: Mock<(def: { name: string }) => void>;
+  readonly roleClientsFor: Mock<(funderUserId: UserId) => Promise<{ summarize: Fakes["summarize"] }>>;
+  readonly resolveChatHostUserId: Mock<(chatId: ChatId) => Promise<UserId | null>>;
 }
 
 function fakes(): Fakes {
+  const summarize = vi.fn<(...args: readonly unknown[]) => Promise<{ items: readonly { text: string; usage: { costUsd: number | null } }[] }>>(() =>
+    Promise.resolve({ items: [{ text: "  a lantern, rain  ", usage: { costUsd: 0.25 } }] }),
+  );
   return {
+    summarize,
+    // The per-FUNDER role-client binder (§8.5b) — only `summarize` is read on this seam.
+    roleClientsFor: vi.fn<(funderUserId: UserId) => Promise<{ summarize: Fakes["summarize"] }>>(() => Promise.resolve({ summarize })),
+    // By default the caller hosts the room, so the run-as is the caller.
+    resolveChatHostUserId: vi.fn<(chatId: ChatId) => Promise<UserId | null>>(() => Promise.resolve(CALLER.userId)),
     resolveViewerVisibility: vi.fn<(chatId: ChatId, userId: UserId) => Promise<Visibility>>(() => Promise.resolve({ historyFloorSeq: 42 })),
-    summarize: vi.fn<(...args: readonly unknown[]) => Promise<{ items: readonly { text: string; usage: { costUsd: number | null } }[] }>>(() =>
-      Promise.resolve({ items: [{ text: "  a lantern, rain  ", usage: { costUsd: 0.25 } }] }),
-    ),
     loadUserSettings: vi.fn<(userId: UserId) => Promise<UserSettings>>(() => Promise.resolve(DEFAULT_SETTINGS)),
     resolveUserPresetParams: vi.fn<(userId: UserId) => Promise<Record<string, never>>>(() => Promise.resolve({})),
     characterGet: vi.fn<(args: { principal: Principal; characterId: CharacterId }) => Promise<{ avatarAssetId: AssetId | null }>>(() =>
@@ -70,21 +82,22 @@ function fakes(): Fakes {
   };
 }
 
-function build(f: Fakes): ReturnType<typeof buildImagery> {
+function build(f: Fakes, db: Db | Record<string, never> = {}): ReturnType<typeof buildImagery> {
   // @orb-waive no-test-fabrication(unknown): inert structural stand-ins for the db/connection/executor/assets front doors this Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // seam threads; only the ops the pins below drive are ever called.
   const deps = {
-    db: {},
+    db,
     now: () => 1000,
     connection: { resolveRole: vi.fn() },
     executor: { generateImage: vi.fn() },
     assets: { store: vi.fn(), readOwnedAssetBytes: f.readOwnedAssetBytes },
     character: { getCard: vi.fn(), get: f.characterGet },
-    // The per-FUNDER role-client binder (§8.5b) — only `summarize` is read on this seam.
-    roleClientsFor: (_funderUserId: UserId) => Promise.resolve({ summarize: f.summarize }),
+    roleClientsFor: f.roleClientsFor,
+    resolveChatHostUserId: f.resolveChatHostUserId,
+    resolveHostPrincipal: (userId: UserId) => Promise.resolve(principal(userId)),
     resolveUserPresetParams: f.resolveUserPresetParams,
     resolveChatPresetParams: vi.fn(() => Promise.resolve({})),
-    resolveUserMacroDefs: vi.fn(() => Promise.resolve({})),
+    resolveUserMacroDefs: vi.fn(() => Promise.resolve({ preset: [], game: [] })),
     loadUserSettings: f.loadUserSettings,
     maxImageBytes: () => 1024,
     resolveViewerVisibility: f.resolveViewerVisibility,
@@ -130,8 +143,9 @@ describe("buildImagery — the extractQuiet gate is membership AND the history f
 
     await expect(build(f).extractPrompt({ caller: CALLER, chatId: CHAT, mode: "character" })).rejects.toThrow();
 
-    // The template read is the caller's own settings (cheap, caller-scoped); the ROOM read never happens.
-    expect(order.at(-1)).toBe("resolveViewerVisibility");
+    // A refused caller reaches neither the host's settings nor the host row.
+    expect(order).toEqual(["resolveViewerVisibility"]);
+    expect(f.resolveChatHostUserId).not.toHaveBeenCalled();
     expect(f.summarize).not.toHaveBeenCalled();
   });
 
@@ -141,7 +155,7 @@ describe("buildImagery — the extractQuiet gate is membership AND the history f
   // seam. (An earlier revision of this file asserted it here and compiled only because the value was forced.)
 });
 
-describe("buildImagery — the caption lane reads the CALLER's own asset and the CALLER's own settings", () => {
+describe("buildImagery — the caption lane reads the CALLER's own asset", () => {
   test("captions the subject's avatar under the caller, trims the model's reply and carries its cost", async () => {
     const f = fakes();
 
@@ -200,6 +214,51 @@ describe("buildImagery — the caption lane reads the CALLER's own asset and the
     });
     expect(f.resolveViewerVisibility).toHaveBeenCalledWith(CHAT, CALLER.userId);
     expect(f.readOwnedAssetBytes).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildImagery — a member's preview in a host's room runs as the host (D298)", () => {
+  test("a caller the room does not admit cannot caption on the host's connection", async () => {
+    const f = fakes();
+    f.resolveChatHostUserId.mockResolvedValue(HOST);
+    f.resolveViewerVisibility.mockResolvedValue(null);
+
+    await expect(build(f).extractPrompt({ caller: CALLER, chatId: CHAT, mode: "character_multimodal", subjectCharacterId: SUBJECT })).rejects.toMatchObject({
+      name: "DomainNotFoundError",
+    });
+    expect(f.resolveChatHostUserId).not.toHaveBeenCalled();
+    expect(f.roleClientsFor).not.toHaveBeenCalled();
+  });
+
+  test("a caption reads the subject under the member, and takes the host's instruction, preset and Utility funder", async () => {
+    const f = fakes();
+    f.resolveChatHostUserId.mockResolvedValue(HOST);
+
+    await build(f).extractPrompt({ caller: CALLER, chatId: CHAT, mode: "character_multimodal", subjectCharacterId: SUBJECT });
+
+    expect(f.resolveViewerVisibility).toHaveBeenCalledWith(CHAT, CALLER.userId);
+    expect(f.characterGet).toHaveBeenCalledWith({ principal: CALLER, characterId: SUBJECT });
+    expect(f.readOwnedAssetBytes).toHaveBeenCalledWith(CALLER, AVATAR);
+    expect(f.loadUserSettings.mock.calls).toEqual([[HOST]]);
+    expect(f.resolveUserPresetParams.mock.calls).toEqual([[HOST]]);
+    expect(f.roleClientsFor.mock.calls).toEqual([[HOST]]);
+  });
+
+  test("an extraction spends the host's Utility connection under the member's own history floor", async () => {
+    const db = await freshDb();
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "room");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "member", userId: member, role: "member" });
+    const f = fakes();
+    f.resolveChatHostUserId.mockResolvedValue(host);
+
+    await build(f, db).extractPrompt({ caller: principal(member), chatId, mode: "scenario" });
+
+    expect(f.resolveViewerVisibility.mock.calls.every(([room, viewer]) => room === chatId && viewer === member)).toBe(true);
+    expect(f.loadUserSettings.mock.calls).toEqual([[host]]);
+    expect(f.roleClientsFor.mock.calls).toEqual([[host]]);
   });
 });
 

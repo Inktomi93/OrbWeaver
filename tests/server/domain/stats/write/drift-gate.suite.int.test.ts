@@ -529,7 +529,7 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
   // test too, and fans out to two pictures so the rebuild must count one priced generation of two images.
   test("Recompute keeps image and compaction spend: the rebuild re-derives what the live writers recorded", async () => {
     await applyLiveCanonWithImageConnection();
-    await runGeneration(imageryAt(T0 + DAY, 2), IMAGE_REQ, { ...IMAGE_PROV, caller: imageryPrincipal(ownerId) });
+    await runGeneration(imageryAt(T0 + DAY, 2), IMAGE_REQ, { ...IMAGE_PROV, owner: imageryPrincipal(ownerId) });
 
     // The compose-root wrappers: the chat op type erases the batch to `unknown`.
     const chatCtx = makeChatContext(db, {
@@ -574,8 +574,8 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
   test("two same-millisecond, same-cost generations stay two priced calls through Recompute", async () => {
     await applyLiveCanonWithImageConnection();
     const imagery = imageryAt(T0 + DAY, 1);
-    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, caller: imageryPrincipal(ownerId) });
-    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, caller: imageryPrincipal(ownerId) });
+    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, owner: imageryPrincipal(ownerId) });
+    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, owner: imageryPrincipal(ownerId) });
 
     const live = await snapshotRollups(db, ownerId);
     await reconcileStats(db, { ownerId, now: createFrozenClock(T0 + 5 * DAY).now });

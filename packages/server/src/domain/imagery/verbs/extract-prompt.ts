@@ -17,7 +17,8 @@ import { extractionFallbackFor, isMultimodalMode } from "../substrate/mode.ts";
 import { processReply } from "../substrate/process-reply.ts";
 
 /** The text-extraction branch: chat's quiet shaper reads recent canon under the mode's template, then normalize.
- *  The instruction is the caller's per-mode override ⊕ the shipped catalog default (⑫).
+ *  The instruction is the run-as principal's per-mode override ⊕ the shipped catalog default (⑫); the shaper
+ *  clamps the canon to the caller's view and spends the run-as principal's Utility connection.
  *
  *  IT IS THE CHAT-BOUND HALF of this dispatch and says so out loud (C5): the prompt IS a reading of a room's
  *  recent messages, so a caller with no chat has nothing to extract FROM. That refusal used to live one frame
@@ -28,6 +29,7 @@ async function extractText(
   ctx: ImageryContext,
   args: {
     readonly caller: Principal;
+    readonly runAs: Principal;
     readonly chatId: ChatId | undefined;
     readonly mode: ExtractionMode;
     readonly subjectCharacterId: CharacterId | undefined;
@@ -38,9 +40,10 @@ async function extractText(
   if (chatId === undefined) {
     throw new ImageryNotConfiguredError(`imagery: mode "${args.mode}" builds its prompt from a chat's recent messages, and this request has no chat`);
   }
-  const instruction = await ctx.resolvePromptTemplate(args.caller, args.mode);
+  const instruction = await ctx.resolvePromptTemplate(args.runAs, args.mode);
   const { text, costUsd } = await ctx.extractQuiet({
     caller: args.caller,
+    funderUserId: args.runAs.userId,
     chatId,
     instruction,
     ...(args.subjectCharacterId !== undefined ? { subjectCharacterId: args.subjectCharacterId } : {}),
@@ -58,12 +61,13 @@ async function extractText(
 export function createResolvePrompt(ctx: ImageryContext, deps: { readonly captionAvatar: CaptionAvatar }): ResolvePrompt {
   return async (args) => {
     if (isMultimodalMode(args.mode)) {
-      const captioned = await deps.captionAvatar({ caller: args.caller, mode: args.mode, subjectCharacterId: args.subjectCharacterId });
+      const captioned = await deps.captionAvatar({ caller: args.caller, runAs: args.runAs, mode: args.mode, subjectCharacterId: args.subjectCharacterId });
       if (captioned !== null) {
         return { prompt: captioned.prompt, source: "captioned", costUsd: captioned.costUsd };
       }
       const fell = await extractText(ctx, {
         caller: args.caller,
+        runAs: args.runAs,
         chatId: args.chatId,
         mode: extractionFallbackFor(args.mode),
         subjectCharacterId: args.subjectCharacterId,
@@ -73,6 +77,7 @@ export function createResolvePrompt(ctx: ImageryContext, deps: { readonly captio
     }
     const extracted = await extractText(ctx, {
       caller: args.caller,
+      runAs: args.runAs,
       chatId: args.chatId,
       mode: args.mode,
       subjectCharacterId: args.subjectCharacterId,
@@ -82,10 +87,11 @@ export function createResolvePrompt(ctx: ImageryContext, deps: { readonly captio
   };
 }
 
-export function createExtractPrompt(_ctx: ImageryContext, deps: { readonly resolvePrompt: ResolvePrompt }): ImageryService["extractPrompt"] {
+export function createExtractPrompt(ctx: ImageryContext, deps: { readonly resolvePrompt: ResolvePrompt }): ImageryService["extractPrompt"] {
   return async (p: ExtractPromptParams): Promise<ExtractedPrompt> => {
     const resolved = await deps.resolvePrompt({
       caller: p.caller,
+      runAs: await ctx.resolveRoomRunAs(p.caller, p.chatId),
       chatId: p.chatId,
       mode: p.mode,
       subjectCharacterId: p.subjectCharacterId,

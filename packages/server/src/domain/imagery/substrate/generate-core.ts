@@ -69,7 +69,7 @@ async function storeImage(
   // `enforceMagic` re-checks against. On the unrecognized sentinel, fall back to the provider mediaType then PNG.
   const sniffed = sniffMime(gen.img.bytes);
   const mime = sniffed === OCTET_STREAM ? (gen.img.mediaType ?? DEFAULT_IMAGE_MIME) : sniffed;
-  const stored = await ctx.storeAsset(prov.caller, gen.img.bytes, "generated", mime);
+  const stored = await ctx.storeAsset(prov.owner, gen.img.bytes, "generated", mime);
   const generationId = ctx.newGenerationId();
   const provenance = insertGenerationStatement(ctx.db, {
     id: generationId,
@@ -130,7 +130,7 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
     stmts,
     ctx.db,
     imageGenerationSpendDelta({
-      ownerId: prov.caller.userId,
+      ownerId: prov.owner.userId,
       model,
       provider: req.connection.providerId,
       costUsd: result.usage.costUsd,

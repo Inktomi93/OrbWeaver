@@ -896,12 +896,14 @@ describe("createGeneratePictureOp — chat's generatePicture op over imagery", (
         warnings: [{ code: "image_edit_dropped", detail: "dropped" }],
       });
     });
-    const caller = principalOf(castId<UserId>("user_host"));
+    const caller = principalOf(castId<UserId>("user_member"));
+    const hostId = castId<UserId>("user_host");
     const chatId = castId<ChatId>("chat_room");
     const subjectCharacterId = castId<CharacterId>("character_aria");
 
     const result = await op({
       caller,
+      runAsUserId: hostId,
       chatId,
       mode: "free",
       prompt: "a dragon",
@@ -912,7 +914,17 @@ describe("createGeneratePictureOp — chat's generatePicture op over imagery", (
     });
 
     expect(calls).toEqual([
-      { caller, chatId, mode: "free", prompt: "a dragon", n: 2, size: "portrait", gallery: { subjectCharacterId }, timeZone: UTC_TIME_ZONE },
+      {
+        caller,
+        runAsUserId: hostId,
+        chatId,
+        mode: "free",
+        prompt: "a dragon",
+        n: 2,
+        size: "portrait",
+        gallery: { subjectCharacterId },
+        timeZone: UTC_TIME_ZONE,
+      },
     ]);
     expect(result).toEqual({ images: [{ assetId: "asset_one" }], warnings: [{ code: "image_edit_dropped", detail: "dropped" }] });
   });

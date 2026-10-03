@@ -58,7 +58,7 @@ describe("runGeneration", () => {
         Promise.resolve({ images: [{ base64, mediaType: "image/png", url: undefined }], model: "   ", usage: { costUsd: null }, warnings: [] }),
     });
 
-    await expect(runGeneration(ctx, REQ, { ...PROV, caller: principal(owner) })).rejects.toThrow();
+    await expect(runGeneration(ctx, REQ, { ...PROV, owner: principal(owner) })).rejects.toThrow();
     expect(await db.select().from(imageryGenerations)).toEqual([]);
   });
 
@@ -76,7 +76,7 @@ describe("runGeneration", () => {
       fetchImage: () => Promise.resolve(null),
     });
 
-    await expect(runGeneration(ctx, REQ, { ...PROV, caller: principal(owner) })).rejects.toThrow(GenerationFailedError);
+    await expect(runGeneration(ctx, REQ, { ...PROV, owner: principal(owner) })).rejects.toThrow(GenerationFailedError);
   });
 
   test("a fanned-out (n>1) generation shares ONE createdAt and ONE call id across every provenance row", async () => {
@@ -96,7 +96,7 @@ describe("runGeneration", () => {
         }),
     });
 
-    const outcome = await runGeneration(ctx, REQ, { ...PROV, caller: principal(owner) });
+    const outcome = await runGeneration(ctx, REQ, { ...PROV, owner: principal(owner) });
 
     expect(outcome.images).toHaveLength(2);
     const rows = await db
