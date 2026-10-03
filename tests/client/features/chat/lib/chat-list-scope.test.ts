@@ -14,16 +14,24 @@ import {
   phoneFiltersLabel,
   searchEmptyDescription,
 } from "../../../../../packages/client/src/features/chat/lib/chat-list-scope.ts";
+import { timeLib } from "../../../../../packages/client/src/lib/time.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("char_aria");
 const SOLA = castId<CharacterId>("char_sola");
 const UNSCOPED = { beforeRecencyAt: null, characterId: null, search: "" };
 
-test("the month bound is the first UTC instant of the FOLLOWING month, rolling December into January", () => {
-  expect(monthExclusiveUpperBound("2020-06")).toBe(Date.UTC(2020, 6, 1));
-  expect(monthExclusiveUpperBound("2020-12")).toBe(Date.UTC(2021, 0, 1));
-  expect(monthExclusiveUpperBound("2020-01")).toBe(Date.UTC(2020, 1, 1));
+test("the month bound is the viewer's first instant of the FOLLOWING month, rolling December into January", () => {
+  // Asserted on the viewer's own calendar, so it holds in whatever zone the suite runs in.
+  for (const [value, lastDay, firstDay] of [
+    ["2020-06", "2020-06-30", "2020-07-01"],
+    ["2020-12", "2020-12-31", "2021-01-01"],
+    ["2020-01", "2020-01-31", "2020-02-01"],
+  ] as const) {
+    const bound = monthExclusiveUpperBound(value) ?? Number.NaN;
+    expect(timeLib.calendarPosition(bound - 1).day).toBe(lastDay);
+    expect(timeLib.calendarPosition(bound)).toMatchObject({ day: firstDay, hour: 0 });
+  }
 });
 
 test("the December LABEL stays in the selected year — only the bound crosses it", () => {

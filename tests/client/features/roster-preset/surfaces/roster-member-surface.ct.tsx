@@ -1,13 +1,14 @@
 // The saved-roster EDITOR (the library's content half) — the side-eye 2026-08-29 pins (#812/#813): the
 // MEMBERS/RULES groupings are real headings (the editor had exactly ONE heading, so heading navigation
 // gave an SR user one stop in a two-section surface), a member's talkativeness is spelled the way the
-// ROOM's own Members tab spells it (`0.5` here vs "talks at level 50 of 100" there was one concept with
+// ROOM's own Members tab spells it (`0.5` here vs a dial level there was one concept with
 // two scales and two vocabularies), each stored rule shows the resolved KNOBS that distinguish two rosters
 // carrying the same preset, and the editor's Start door reports what it applied + names the room.
 //
 // The write semantics (full-replace rename echoing members AND rules) are the server tier's —
 // tests/server/domain/roster-preset — a CT fixture cannot honestly reach them.
 
+import { talkativenessReadout } from "@orb/client/lib";
 import type { RulePresetView } from "@orb/contracts/automation";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { measureContentColumn } from "../../../../support/browser/measure-content-column.ts";
@@ -58,8 +59,8 @@ test("the editor's groupings are real headings, its rules show their resolved kn
   await expect(page.getByRole("heading", { level: 3, name: "Characters" })).toBeVisible();
   await expect(page.getByRole("heading", { level: 3, name: "Rules" })).toBeVisible();
 
-  // ONE talkativeness spelling with the room's Members tab: the 0–100 dial, the word "Talks", no percent.
-  await expect(page.getByText("Talks 50", { exact: true })).toBeVisible();
+  // ONE talkativeness spelling with the room's Members tab: the shared percent readout, never the raw 0.5.
+  await expect(page.getByText(talkativenessReadout(0.5), { exact: true })).toBeVisible();
   await expect(page.getByText("0.5", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Muted", { exact: true })).toBeVisible();
 

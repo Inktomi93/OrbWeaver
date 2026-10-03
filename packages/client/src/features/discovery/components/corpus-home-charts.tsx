@@ -1,7 +1,7 @@
 // The Corpus overview's ANALYSIS SUB-SECTIONS — split out of corpus-home-surface so the surface stays under
 // the god-component cap: the keyword explorer (`topKeywords` → `cooccurringKeywords`) and story-time theme
-// drift (`themeDrift`, scene↔arc). Each level/keyword switch is a plain refetching query (no whole-overview
-// re-suspend).
+// drift (`themeDrift`, scene↔arc, folded into the viewer's months). Each level/keyword switch is a plain
+// refetching query (no whole-overview re-suspend).
 //
 // TWO BLOCKS LEFT THIS FILE ON 2026-08-18 (corpus forensics R4), and neither is coming back as a chart:
 // "All story themes" was a bar list of the same clusters the overview's theme ROWS carry — the rows are
@@ -34,9 +34,10 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId } from "#lib";
+import { testId, timeLib } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { chartLabelWithDenominator, chartSpread, toBarItems, topRanked } from "../lib/corpus-charts.ts";
+import { localThemeDrift } from "../lib/story-time-folds.ts";
 import { ParamSelect, ParamToggle } from "./corpus-controls.tsx";
 
 type TopKeyword = inferOutput<Trpc["discovery"]["topKeywords"]>[number];
@@ -218,15 +219,16 @@ function StoryThemeDriftBody({
   if (drift.data.length === 0) {
     return null;
   }
+  const months = localThemeDrift(drift.data, timeLib.calendarPosition);
   return (
     <Section kicker="Story-theme drift" level={2}>
       <Stack gap="block">
         <ParamToggle label="Level" onValueChange={(next): void => onLevelChange(next as ThemeLevel)} options={LEVEL_OPTIONS} value={level} />
         <Stack gap="row">
-          {drift.data.map((bucket) => (
-            <Row align="center" className="flex-wrap" gap="field" key={bucket.bucket}>
-              <Text voice="kicker">{bucket.bucket}</Text>
-              {bucket.themes.map((t) => (
+          {months.map(({ month, themes }) => (
+            <Row align="center" className="flex-wrap" gap="field" key={month.key}>
+              <Text voice="kicker">{timeLib.formatMonthYear(month.start)}</Text>
+              {themes.map((t) => (
                 <Badge intent="neutral" key={t.clusterIdx} size="sm">
                   {t.themeName ?? "Unnamed"} ({t.count})
                 </Badge>

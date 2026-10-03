@@ -8,35 +8,67 @@ import type { GroupConfig, GroupPolicy, MemberCardVisibility } from "@orb/contra
 import { DEFAULT_GROUP_CONFIG, GROUP_OUTPUT_LABELS, GROUP_POLICIES, GROUP_POLICY_LABELS, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { UtilityModelDoor, useUtilityModel } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
+import { SMART_POLICY_COST_SENTENCE } from "#lib";
 import { useSetGroupConfig } from "../hooks/use-context-panel-mutations.ts";
 import type { GroupConfigFormValues } from "../lib/group-config-model.ts";
 import { defaultSpeakerTags, fromGroupConfigForm, GROUP_CONFIG_ENTITY_PREFIX, toGroupConfigForm } from "../lib/group-config-model.ts";
 
 type GroupOutput = GroupConfig["output"];
 
-const POLICY_ITEMS: SelectItems<string> = GROUP_POLICIES.map((value) => ({
-  value,
-  label: GROUP_POLICY_LABELS[value],
-}));
+type UtilityModel = ReturnType<typeof useUtilityModel>;
+
+// Smart is offered only while a Utility model runs: its whole cost is a call on that model every round.
+function policyItems(utility: UtilityModel): SelectItems<string> {
+  return GROUP_POLICIES.map((value) => {
+    if (value !== "smart") {
+      return { value, label: GROUP_POLICY_LABELS[value] };
+    }
+    const ready = utility.kind === "ready";
+    return { value, label: GROUP_POLICY_LABELS[value], description: ready ? SMART_POLICY_COST_SENTENCE : "Needs a running Utility model.", disabled: !ready };
+  });
+}
 
 // The help under each control states what the server does with it (`engine/select-speakers.ts`,
-// `engine/round.ts`), per policy and per output mode, so the Rooms guide never has to restate it.
-const POLICY_HELP: Record<GroupPolicy, string> = {
-  natural: "Every character who can speak replies, in a shuffled order that favors the more talkative ones. Whoever spoke last sits out.",
-  list: "Every character who can speak replies, in the order they joined. Whoever spoke last sits out.",
+// `engine/round.ts`), per policy and per output mode, so the Rooms guide never has to restate it. Smart's
+// help depends on the Utility model and the output mode, so it is `smartHelp` instead.
+const POLICY_HELP: Record<Exclude<GroupPolicy, "smart">, string> = {
+  natural:
+    "Characters you name in your message reply, even one who just spoke. Each other character replies by chance, set by their talkativeness, and if nobody would, one of them does. When characters reply to each other, whoever spoke last sits out unless a character may reply to itself.",
+  list: "Every character who can speak replies, in the order they joined. Whoever spoke last sits out unless a character may reply to itself.",
   pooled: "Every character who can speak replies, starting with the one after whoever spoke last.",
   manual: "Nobody replies on their own. Mention a character with @, or pick one from Generate reply. A Narrator room still narrates every message.",
-  smart: "Your Utility model picks the one character who should reply. If it can't, one is picked by talkativeness and you're told.",
 };
+
+function smartHelp(utility: UtilityModel, output: GroupOutput): string {
+  if (output === "narrator") {
+    return "One message voices everyone in a Narrator room, so Smart makes no extra call here and picks like Natural.";
+  }
+  if (utility.kind === "ready") {
+    return `${SMART_POLICY_COST_SENTENCE} It runs on ${utility.label}. If it can't decide, Natural picks and you're told.`;
+  }
+  if (utility.kind === "unset") {
+    return `${SMART_POLICY_COST_SENTENCE} No Utility model is set, so Natural picks every round and you're told.`;
+  }
+  if (utility.kind === "blocked") {
+    return `${SMART_POLICY_COST_SENTENCE} Your Utility model is set but not running: ${utility.cause}. Until it runs, Natural picks and you're told.`;
+  }
+  return `${SMART_POLICY_COST_SENTENCE} If it can't decide, Natural picks and you're told.`;
+}
+
+/** The speaker-order control. Mounted only when Advanced opens, so the Utility read runs only then. */
+function PolicyField({ children }: { readonly children: (utility: UtilityModel) => ReactElement }): ReactElement {
+  return children(useUtilityModel());
+}
 
 const SPEAKER_TAGS_HELP: Record<GroupOutput, string> = {
   narrator: "Asks the model to mark who says each line, so every character's lines get their own color.",
@@ -151,11 +183,34 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
               <AccordionTrigger>Advanced</AccordionTrigger>
               <AccordionPanel>
                 <Stack gap="section" className="pt-block">
-                  <form.AppField name="policy">
-                    {(field): ReactElement => (
-                      <field.SelectField label="Who speaks each round" items={POLICY_ITEMS} description={POLICY_HELP[field.state.value]} />
+                  <PolicyField>
+                    {(utility): ReactElement => (
+                      <form.Subscribe selector={(state): GroupOutput => state.values.output}>
+                        {(output): ReactElement => (
+                          <form.AppField name="policy">
+                            {(field): ReactElement => {
+                              const policy = field.state.value;
+                              const needsDoor = policy === "smart" && output === "per-speaker" && (utility.kind === "unset" || utility.kind === "blocked");
+                              return (
+                                <Stack gap="field">
+                                  <field.SelectField
+                                    label="Who speaks each round"
+                                    items={policyItems(utility)}
+                                    description={policy === "smart" ? smartHelp(utility, output) : POLICY_HELP[policy]}
+                                  />
+                                  {needsDoor ? (
+                                    <Row>
+                                      <UtilityModelDoor />
+                                    </Row>
+                                  ) : null}
+                                </Stack>
+                              );
+                            }}
+                          </form.AppField>
+                        )}
+                      </form.Subscribe>
                     )}
-                  </form.AppField>
+                  </PolicyField>
 
                   <form.Subscribe selector={(state): GroupOutput => state.values.output}>
                     {(output): ReactElement | null =>
@@ -203,14 +258,22 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                                 <field.SliderField label="Delay between turns" min={DELAY_MS_MIN} max={DELAY_MS_MAX} step={DELAY_MS_STEP} />
                               )}
                             </form.AppField>
-                            <form.AppField name="allowSelfResponses">
-                              {(field): ReactElement => <field.SwitchField label="Let a character reply to itself" />}
-                            </form.AppField>
                           </Stack>
                         ) : null
                       }
                     </form.Subscribe>
                   </Stack>
+
+                  {/* Not an auto-mode knob: `verbs/turn.ts::banLastFor` reads it on every round the app picks
+                      speakers for. The form mounts only in a room with more than one character. */}
+                  <form.AppField name="allowSelfResponses">
+                    {(field): ReactElement => (
+                      <field.SwitchField
+                        label="Let a character reply to itself"
+                        description="Off, whoever spoke last sits out of every round the app picks speakers for. Under Natural, a character you name can always answer."
+                      />
+                    )}
+                  </form.AppField>
                 </Stack>
               </AccordionPanel>
             </AccordionItem>

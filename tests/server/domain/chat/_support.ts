@@ -39,6 +39,7 @@ import type {
   ChatStreamEventId,
   ChatStreamGenerationId,
   ChatTurnId,
+  CompactionSpendId,
   EmbedGenerationId,
   Handle,
   MessageAssetId,
@@ -473,6 +474,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     newInviteId: mint<ChatInviteId>("chat_invite"),
     newPendingTurnId: mint<PendingTurnId>("pending_turn"),
     newChatTurnId: mint<ChatTurnId>("chat_turn"),
+    newCompactionSpendId: mint<CompactionSpendId>("compaction_spend"),
     hashToken: (token) => `h:${token}`,
     // D259 — a local deployment that mints signup invites; a suite overrides it to prove the refusing modes.
     signupInvites: { mode: "local", mintable: true },

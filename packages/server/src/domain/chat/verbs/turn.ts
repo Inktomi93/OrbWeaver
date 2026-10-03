@@ -97,7 +97,15 @@ import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsO
 import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
-import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
+import {
+  driveRoundVia,
+  resolveMentionsVia,
+  resolveNameMentionsVia,
+  resolveTurnIdentityVia,
+  runAutoModeVia,
+  selectSpeakersVia,
+  smartArbitrateVia,
+} from "../substrate/turn-access.ts";
 
 /** SEND USER_INPUT regex out-param sink: `buildAssembleContext` writes the post-regex user text here so the
  *  verb persists that (the haystack and the stored row never diverge). Also receives the round-level recall
@@ -876,10 +884,13 @@ async function arbitrate(
     readonly candidates: readonly ArbiterCandidate[];
     readonly speakerCandidates: readonly SpeakerCandidate[];
     readonly forcedIds?: readonly CharacterId[] | undefined;
+    /** Characters the human's message names as a plain word — `natural`'s soft activation (send only). */
+    readonly mentionedIds?: readonly CharacterId[] | undefined;
     readonly lastSpeaker: SpeakerRef | null;
-    /** Whether the last speaker is banned from this round's pool (the room's `allowSelfResponses`,
-     *  inverted). Default TRUE. It rides BESIDE `lastSpeaker` rather than nulling it because the two are
-     *  different questions: the ban is ELIGIBILITY, `lastSpeaker` is also the `pooled` ROTATION ORIGIN. */
+    /** Whether the last speaker is banned from this round's pool — {@link banLastFor} at the caller (the
+     *  trigger and the room's `allowSelfResponses`). Default TRUE. It rides BESIDE `lastSpeaker` rather than
+     *  nulling it because the two are different questions: the ban is ELIGIBILITY, `lastSpeaker` is also the
+     *  `pooled` ROTATION ORIGIN. */
     readonly banLast?: boolean | undefined;
     /** The trailing canon rows the `smart` arbiter reads; named into a transcript only on that arm. */
     readonly recentRows: readonly MessageView[];
@@ -909,6 +920,7 @@ async function arbitrate(
       recentHistory: await arbiterTranscript(ctx, args.recentRows),
       lastSpeaker: args.lastSpeaker,
       ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
+      mentionedIds: args.mentionedIds,
       rng: deps.prng,
       sampling: arbiterSampling,
       // PROSE-1 census 75 — the arbiter prompt is the room HOST's slot, resolved beside its sampling.
@@ -929,6 +941,7 @@ async function arbitrate(
       lastSpeaker: args.lastSpeaker,
       ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
       forcedIds: forced,
+      mentionedIds: args.mentionedIds,
       rng: deps.prng,
       maxSpeakers: args.maxSpeakers,
     });
@@ -945,6 +958,16 @@ async function arbitrate(
   const forcedKeys = new Set(forced.map((characterId) => speakerKey({ kind: "character", characterId })));
   const forcedOverride = speakers.some((c) => forcedKeys.has(speakerKey(c.ref)));
   return { speakers, aborted: false, forcedOverride };
+}
+
+/** Whether a round bans the last speaker. A `natural` round answering a live human message bans no one, so
+ *  the human can name the character who just spoke and get them. Every other round (the auto-chain, a drained
+ *  or requested turn, generate's Auto, any other policy) bans unless the room allows self-responses. */
+function banLastFor(group: GroupConfig, humanTriggered: boolean): boolean {
+  if (humanTriggered && group.policy === "natural") {
+    return false;
+  }
+  return !group.allowSelfResponses;
 }
 
 /** Coerces a room config to `per-speaker` for a single forced character, so a narrator room still forces a
@@ -1016,7 +1039,7 @@ async function runChain(
         // origin, or `pooled` (the "Round-robin" room) re-picks the first roster seat every beat and the
         // chain becomes one character monologuing under a control that promises a rotation.
         lastSpeaker: last,
-        banLast: !args.group.allowSelfResponses,
+        banLast: banLastFor(args.group, false),
         recentRows: facts.recentRows,
         maxSpeakers: 1,
         signal: args.signal,
@@ -1073,6 +1096,11 @@ async function runAiRound(
     /** Human `@mention` hard-override (send only). A drained turn re-arbitrates naturally — the pending row
      *  carries no message text to parse. */
     readonly forcedIds?: readonly CharacterId[] | undefined;
+    /** Characters the human's message names as a plain word (send only) — `natural`'s soft activation. */
+    readonly mentionedIds?: readonly CharacterId[] | undefined;
+    /** Whether the last speaker sits this round out — {@link banLastFor} at the call site, which alone knows
+     *  whether a live human message triggered the round. */
+    readonly banLast: boolean;
     /** Whether to run the auto-mode AI→AI chain after the human-triggered round. Absent/true for a human send
      *  or drain (the host's autoMode setting governs). A non-human `requestTurn` passes `false` — an autonomous
      *  trigger is ONE injected beat, never a chain (bounded spend; the room's autoMode is a human affordance). */
@@ -1104,7 +1132,9 @@ async function runAiRound(
     candidates: args.room.candidates,
     speakerCandidates: args.room.speakerCandidates,
     forcedIds: args.forcedIds,
+    mentionedIds: args.mentionedIds,
     lastSpeaker: facts.lastSpeaker,
+    banLast: args.banLast,
     recentRows: facts.recentRows,
     signal: args.signal,
   });
@@ -1637,6 +1667,8 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       room,
       signal: handle.signal,
       forcedIds: resolveMentionsVia(content, room.speakerCandidates),
+      mentionedIds: resolveNameMentionsVia(content, room.speakerCandidates),
+      banLast: banLastFor(group, true),
     });
     // §3.6 RETURN PROJECTION: the assistant reply in `round.messages` carries the model's hidden spans; a
     // NON-HOST member who ran this turn must not receive the truth bytes in the HTTP return (the bus + list
@@ -2354,10 +2386,11 @@ function requirePresentGenerateSpeaker(room: Room, chatId: ChatId, speakerCharac
   }
 }
 
-/** The speaker of a SPEAKERLESS `generate` ("Auto"): the room's own speaker policy, run exactly as a `send`
- *  round runs it ({@link arbitrate} — natural / in order / round-robin / smart with its visible natural
- *  fallback, mute and ban-last respected), capped to the ONE reply a generate commits. `null` speaker ⇒ the
- *  policy schedules nobody (`manual`, or every seat muted), which is the same answer a send gets. */
+/** The speaker of a SPEAKERLESS `generate` ("Auto"): the room's own speaker policy ({@link arbitrate} —
+ *  natural / in order / round-robin / smart with its visible natural fallback, mute respected), capped to the
+ *  ONE reply a generate commits. Unlike a `send` it carries no human message, so it has no name mentions and
+ *  bans the last speaker the way an AI-triggered round does ({@link banLastFor}). `null` speaker ⇒ the policy
+ *  schedules nobody (`manual`, or every seat muted). */
 async function arbitrateGenerateSpeaker(
   ctx: ChatContext,
   deps: TurnDeps,
@@ -2377,6 +2410,7 @@ async function arbitrateGenerateSpeaker(
     candidates: args.room.candidates,
     speakerCandidates: args.room.speakerCandidates,
     lastSpeaker: facts.lastSpeaker,
+    banLast: banLastFor(args.group, false),
     recentRows: facts.recentRows,
     maxSpeakers: 1,
     signal: args.signal,
@@ -2573,7 +2607,8 @@ async function runDeferredRound(
     respondsToLatestUserTurn: built.respondsToLatestUserTurn,
     signal: handle.signal,
   };
-  await runAiRound(ctx, deps, { base, group, room, signal: handle.signal });
+  // A drain answers a human send, but nobody is live to name a speaker: it bans like an AI-chained round.
+  await runAiRound(ctx, deps, { base, group, room, signal: handle.signal, banLast: banLastFor(group, false) });
 }
 
 /** Process ONE queued row: CLAIM it atomically (the exactly-once serializer), then RUN it · DROP it on a
@@ -2768,6 +2803,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
       group,
       room,
       signal: handle.signal,
+      banLast: banLastFor(group, false),
       chain: false,
       ...(speakerCharacterId !== undefined ? { forcedIds: [speakerCharacterId] } : {}),
     });
