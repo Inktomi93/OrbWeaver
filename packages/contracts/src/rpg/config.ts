@@ -131,8 +131,17 @@ export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
  *    • `terminal-declaration-collided` — a declared terminal tool re-spelled a REGISTRY tool's name (#1617).
  *      The registry owns the name, so the whole terminal channel was withheld for that turn: nothing about
  *      the wire or the model was wrong, and reporting `no-terminal-channel` for it pointed the reader at the
- *      connection instead of at the contributor that re-spelled a name. The server log names the collisions. */
-export const RPG_FOLD_FALLBACK_REASONS = ["no-terminal-channel", "local-engine-fold-guard", "no-terminal-calls", "terminal-declaration-collided"] as const;
+ *      connection instead of at the contributor that re-spelled a name. The server log names the collisions.
+ *    • `structured-unavailable` — not a fold cause: the game's `stateCaptureVehicle` asks for a structured round
+ *      and the room's model has no structured output, so its post-commit round runs as tool calls. A room-level
+ *      verdict the panel shows (`deriveEffectiveDelivery`); the per-turn trail is the round's own warn. */
+export const RPG_FOLD_FALLBACK_REASONS = [
+  "no-terminal-channel",
+  "local-engine-fold-guard",
+  "no-terminal-calls",
+  "terminal-declaration-collided",
+  "structured-unavailable",
+] as const;
 export type RpgFoldFallbackReason = (typeof RPG_FOLD_FALLBACK_REASONS)[number];
 
 /** The VEHICLE that produces a turn's state delta — the delivery axis as it actually LANDS, distinct from the

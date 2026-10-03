@@ -578,7 +578,12 @@ export function makeRpgService(
     },
     resolvePresetUserMacros: () => Promise.resolve(fakes.presetUserMacros),
     resolveStateDelivery: () =>
-      Promise.resolve({ trackersReadOnly: fakes.trackersReadOnly, foldGuarded: fakes.foldGuarded, canPopulate: !fakes.trackersReadOnly }),
+      Promise.resolve({
+        trackersReadOnly: fakes.trackersReadOnly,
+        foldGuarded: fakes.foldGuarded,
+        canPopulate: !fakes.trackersReadOnly,
+        structuredUnavailable: false,
+      }),
     runToolRound,
     buildFoldedTurn,
     foldTurnToolCalls,

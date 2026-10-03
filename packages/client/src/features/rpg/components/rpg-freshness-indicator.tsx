@@ -54,6 +54,9 @@ const ROUNDING_REASON: Readonly<Record<RpgFoldFallbackReason, string>> = {
   // contributor claimed a tool name this room's bookkeeping needs. Said in host words, without naming the
   // collided tools (the server log owns that detail; a name here would read as a setting the host can edit).
   "terminal-declaration-collided": "Another tool in this room claimed a name the state bookkeeping needs, so a second pass records the beat instead.",
+  // The host picked "Structured reply" on the Game tab and this room's model can't give one.
+  "structured-unavailable":
+    "This game asks for a structured reply, but this room's model has no structured output, so the pass records state with tool calls instead.",
 };
 const HOST_CHOSE_ROUNDING = "A dedicated pass records each beat's state after the turn commits — the delivery model you picked.";
 

@@ -62,8 +62,7 @@ export const EXTRACTION_CONTEXT_CONSEQUENCE: Readonly<Record<RpgExtractionContex
 export const STATE_CAPTURE_VEHICLE_CONSEQUENCE: Readonly<Record<RpgStateCaptureVehicle, string>> = {
   auto: "tool calls, or one structured reply where the model can't be made to call a tool but takes the whole tool set as structured output — a tool pass it ignores is retried once as a structured reply",
   tools: "tool calls — a pass the model ignores is retried once as a structured reply, but only where it can't be made to call a tool",
-  structured:
-    "one structured reply, in the shape the model's limits allow — a model with no structured output runs tool calls instead, and the server logs that it did",
+  structured: "one structured reply, in the shape the model's limits allow — a model with no structured output runs tool calls instead, and the panel says so",
 };
 
 /** The #9 date-mode consequence lines (the choice-behavior segmented-toggle precedent). */

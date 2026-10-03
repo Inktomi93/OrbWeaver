@@ -67,6 +67,7 @@ export {
   hasToolWriter,
   primaryStateRound,
   structuredShapeFits,
+  structuredVehicleUnavailable,
 } from "./substrate/readonly-axis.ts";
 // The extraction fold (§4.6) — converts a parsed `RpgExtraction` (arrays of cheap-mode tool args)
 // into the `RpgStateDelta` the accumulator flushes. Every vehicle's impl consumes it; the SAME appliers

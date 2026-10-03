@@ -3460,3 +3460,20 @@ test("0511: a structured round that skipped a named existing item runs the inven
     expect.objectContaining({ name: "Small brass key", location: "front hoodie pocket" }),
   ]);
 });
+
+test("0511: the panel's game read names a `structured` knob the room's model cannot honour; with structured output it does not", async ({ app, db }) => {
+  const toolsOnly = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] }, tools: { parallel: true } });
+  const unable = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: toolsOnly });
+  const a = await cheapGame(db, unable, "panel-unavailable", "structured");
+  expect((await unable.service.getGame({ principal: hostPrincipal(a.hostId), chatId: a.chatId })).effectiveDelivery).toEqual({
+    path: "tool-round",
+    fallbackReason: "structured-unavailable",
+  });
+
+  const able = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}" });
+  const b = await cheapGame(db, able, "panel-available", "structured");
+  expect((await able.service.getGame({ principal: hostPrincipal(b.hostId), chatId: b.chatId })).effectiveDelivery).toEqual({
+    path: "tool-round",
+    fallbackReason: null,
+  });
+});

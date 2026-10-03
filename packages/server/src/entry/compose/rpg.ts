@@ -129,6 +129,7 @@ import {
   reachableActorRefs,
   rpgToolDefinitions,
   structuredShapeFits,
+  structuredVehicleUnavailable,
 } from "#domain/rpg";
 import type { ToolUseService } from "#domain/tool-use";
 import { logger } from "#foundation/observability";
@@ -2197,7 +2198,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
  *  This mirrors the flush's F2 gate so the pill and the actual round-eligibility agree. */
 function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveStateDelivery"] {
   // Nothing resolved ⇒ no model write path AND no fold — the fail-closed verdict every degraded arm returns.
-  const closed = { trackersReadOnly: true, foldGuarded: true, canPopulate: false };
+  const closed = { trackersReadOnly: true, foldGuarded: true, canPopulate: false, structuredUnavailable: false };
   return async (chatId, viewerUserId) => {
     const game = await findGameByChat(deps.db, chatId);
     if (game === undefined) {
@@ -2222,6 +2223,7 @@ function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveSta
       trackersReadOnly: deriveTrackersReadOnly(game.config.extractionMode, capability),
       foldGuarded: !coEmitsProseWithTools(capability),
       canPopulate: hasStructuredWriter(capability),
+      structuredUnavailable: structuredVehicleUnavailable(game.config.stateCaptureVehicle, capability),
     };
   };
 }

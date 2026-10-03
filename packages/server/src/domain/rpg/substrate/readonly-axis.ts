@@ -57,7 +57,7 @@ export function deriveTrackersReadOnly(mode: RpgExtractionMode, capability: Gene
  *  one lie for another. */
 export function deriveEffectiveDelivery(
   mode: RpgExtractionMode,
-  verdicts: { readonly trackersReadOnly: boolean; readonly foldGuarded: boolean },
+  verdicts: { readonly trackersReadOnly: boolean; readonly foldGuarded: boolean; readonly structuredUnavailable: boolean },
 ): RpgEffectiveDelivery {
   if (verdicts.trackersReadOnly) {
     // No model write path at all — the flush returns before any vehicle runs (the F2 gate). Neither "Live" nor
@@ -67,7 +67,19 @@ export function deriveEffectiveDelivery(
   if (mode === "folded" && verdicts.foldGuarded) {
     return { path: "tool-round", fallbackReason: "local-engine-fold-guard" };
   }
-  return { path: mode === "folded" ? "folded" : "tool-round", fallbackReason: null };
+  if (mode === "folded") {
+    return { path: "folded", fallbackReason: null };
+  }
+  // The host's `structured` vehicle cannot run on this wire: the round they get is tool calls, and the panel
+  // says so rather than letting the knob read as honoured.
+  return { path: "tool-round", fallbackReason: verdicts.structuredUnavailable ? "structured-unavailable" : null };
+}
+
+/** Does the game's state-capture knob ask for a structured round this wire cannot give (no structured output)? The
+ *  room-level twin of the round's own `rpg.toolround.vehicle_fallback` warn: both read the same capability, and the
+ *  patch-list shape carries no optional or union-typed property, so structured output alone decides it. */
+export function structuredVehicleUnavailable(vehicle: RpgStateCaptureVehicle, capability: GenerationCapability | null): boolean {
+  return vehicle === "structured" && !hasStructuredWriter(capability);
 }
 
 /** Does this connection have the STRUCTURED-OUTPUT write path? The gate for the two vehicles that are NOT a
