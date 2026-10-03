@@ -6,7 +6,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { fakeLocalLightCache } from "@orb/tooling/seed";
 import { afterAll, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
@@ -28,7 +28,7 @@ const { createLifecycle } = await import("../../../packages/server/src/entry/lif
   throw error;
 });
 
-const lifecycle = createLifecycle({ listenPort: 0, providerSeams: { localLight: { cache: fakeLocalLightCache(EMBED_SPACE_DIMS) } } });
+const lifecycle = createLifecycle({ listenPort: 0, providerSeams: { localLight: { cache: fakeLocalLightCache(BUILT_IN_EMBED_DIMS) } } });
 
 afterAll(async () => {
   try {

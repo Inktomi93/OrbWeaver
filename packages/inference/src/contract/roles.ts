@@ -30,10 +30,8 @@ interface TaskRequestCommon<T extends RoleTask> {
 /** Text embedding. Empty/whitespace inputs filter to `null` in the result. */
 export interface EmbedRequest extends TaskRequestCommon<"embed"> {
   readonly input: string | readonly string[];
-  /** Output dimensionality (MRL models honour truncation); the funnel decides it from the capability. */
+  /** Output dimensionality an MRL model is asked for; the funnel decides it from the capability. */
   readonly dimensions?: number | undefined;
-  /** CLIENT-SIDE truncation to the space width (a wider non-MRL model); the funnel's other arm. */
-  readonly truncateTo?: number | undefined;
   readonly inputType?: "query" | "document" | undefined;
   readonly instruction?: string | undefined;
 }

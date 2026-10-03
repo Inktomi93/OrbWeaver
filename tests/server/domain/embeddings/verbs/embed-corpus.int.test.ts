@@ -91,6 +91,22 @@ describe("embedCorpus — the bulk card-text sweep", () => {
     expect(await db.select().from(characterEmbeddings)).toHaveLength(2);
   });
 
+  test("the sweep hands back each position, so an embedder switch's re-index shows N of M", async () => {
+    const db = await freshDb();
+    const seeded = await seedTwoCards(db);
+    const h = makeStoreHarness(db, { characterIds: seeded.ids, cardTexts: seeded.texts });
+    await seedHarnessConnection(db, seeded.owner, h);
+    const svc = createEmbeddingsService(h.ctx);
+    const progress: (readonly [number, number])[] = [];
+
+    await svc.embedCorpus({ ownerId: null, force: false, signal: signal(), onProgress: (done, total) => progress.push([done, total]) });
+
+    expect(progress).toEqual([
+      [1, 2],
+      [2, 2],
+    ]);
+  });
+
   test("RESUMABLE: a rerun is all content_hash noops — zero re-embeds, no extra rows", async () => {
     const db = await freshDb();
     const seeded = await seedTwoCards(db);

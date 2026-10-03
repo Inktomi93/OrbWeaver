@@ -83,8 +83,7 @@ export function createLocalLightEmbed(cache: LocalLightModelCache, spaceTag: (mo
           )
         : [];
     throwIfAborted(req.signal);
-    const dims = req.dimensions ?? req.truncateTo;
-    const vectors = scatter(inputs.length, kept, raw, (vec) => finalizeVector(vec, dims, modelId));
+    const vectors = scatter(inputs.length, kept, raw, (vec) => finalizeVector(vec, req.dimensions, modelId));
     return { vectors, model: spaceTag(modelId), usage: { promptTokens: null, totalTokens: null } };
   };
 }

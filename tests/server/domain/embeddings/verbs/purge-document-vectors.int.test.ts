@@ -10,7 +10,7 @@ import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { EMBED_DIM, EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
+import { EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
 const OLD_MODEL = "old-embed-model-v1";
 
@@ -28,9 +28,9 @@ describe("purgeDocumentVectors", () => {
     // the column records what the provider returned, which is the whole point of that fix.
     const fkRefs = { documentId, chunkIdx: 0, charStart: 0, charEnd: 11 };
     embedAs(harness, OLD_MODEL);
-    await svc.store({ kind: "document", lens: "chunk", content: "canon slice", model: OLD_MODEL, dim: EMBED_DIM, fkRefs, ownerId: owner });
+    await svc.store({ kind: "document", lens: "chunk", content: "canon slice", model: OLD_MODEL, fkRefs, ownerId: owner });
     embedAs(harness, EMBED_MODEL);
-    await svc.store({ kind: "document", lens: "chunk", content: "canon slice", model: EMBED_MODEL, dim: EMBED_DIM, fkRefs, ownerId: owner });
+    await svc.store({ kind: "document", lens: "chunk", content: "canon slice", model: EMBED_MODEL, fkRefs, ownerId: owner });
     expect(await db.select().from(documentChunks)).toHaveLength(1);
 
     const generation = await svc.resolveGeneration(owner, "embed");
@@ -54,7 +54,6 @@ describe("purgeDocumentVectors", () => {
       lens: "chunk",
       content: "a",
       model: EMBED_MODEL,
-      dim: EMBED_DIM,
       fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: 1 },
       ownerId: owner,
     });

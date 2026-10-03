@@ -419,7 +419,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     },
     funnel: {
       chat: resolveChat,
-      embed: (opts, capability) => resolveEmbed(opts, capability, deps.embedSpace.dims),
+      embed: resolveEmbed,
     },
     roleClientsFor,
     catalogs: {

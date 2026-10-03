@@ -1,7 +1,7 @@
 // The single vector write path — the only inserter into any vector table. Per lens arm: hash the content →
 // read the stored hash for the upsert key (identical ⇒ noop, skipping the expensive embed) → embed via the
-// injected role op → assert the produced vector's dim matches the declared space (else
-// `SpaceMismatchError`) → upsert (never touches `hub_score`).
+// injected role op → assert the produced vector's width matches the pinned generation's (the bound embedder's
+// stated `dims`, else `SpaceMismatchError`) → upsert (never touches `hub_score`).
 //
 // THE STAMPED TAG IS THE PROVIDER'S, NOT THE CALLER'S, and that is a recorded ruling (issue 724,
 // `0fed0b3ee`): a request-time snapshot can go stale between parameter construction and the live role call,
@@ -65,7 +65,7 @@ function firstVector(vectors: readonly (Float32Array | null)[], lens: string, mo
   return vector;
 }
 
-/** The store-time space tripwire: the produced vector must match the declared space `dim`. */
+/** The store-time space tripwire: the produced vector must be as wide as the generation it is written into. */
 function assertSpace(model: string, dim: number, vector: Float32Array): void {
   if (vector.length !== dim) {
     throw new SpaceMismatchError(model, dim, vector.length);
@@ -92,7 +92,7 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, gen
       ? await generation.connection.embed(p.content, { signal: p.signal })
       : { model: seeded.model, vectors: [seeded.vector] };
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
-  assertSpace(embedded.model, p.dim, vector);
+  assertSpace(embedded.model, generation.dims, vector);
   await upsertCharacterEmbedding(ctx.db, {
     id: ctx.newCharacterEmbeddingId(),
     characterId: p.characterId,
@@ -100,7 +100,7 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, gen
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
-    dim: p.dim,
+    dim: generation.dims,
     now: ctx.now(),
   });
   return {
@@ -187,7 +187,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     );
   }
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
-  assertSpace(embedded.model, p.dim, vector);
+  assertSpace(embedded.model, generation.dims, vector);
   await upsertImageEmbedding(ctx.db, {
     id: ctx.newImageEmbeddingId(),
     assetId: p.assetId,
@@ -198,7 +198,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
-    dim: p.dim,
+    dim: generation.dims,
     now: ctx.now(),
   });
   return {
@@ -238,7 +238,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
   }
   const embedded = await generation.connection.embed(p.text, { signal: p.signal });
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
-  assertSpace(embedded.model, p.dim, vector);
+  assertSpace(embedded.model, generation.dims, vector);
   await upsertChatDigest(ctx.db, {
     id: ctx.newChatDigestId(),
     chatId: p.chatId,
@@ -253,7 +253,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
-    dim: p.dim,
+    dim: generation.dims,
     now: ctx.now(),
     speakerCharacterIds: p.speakerCharacterIds,
   });
@@ -289,7 +289,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
   }
   const embedded = await generation.connection.embed(p.content, { signal: p.signal });
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
-  assertSpace(embedded.model, p.dim, vector);
+  assertSpace(embedded.model, generation.dims, vector);
   await upsertDocumentChunk(ctx.db, {
     id: ctx.newDocumentChunkId(),
     documentId: p.fkRefs.documentId,
@@ -301,7 +301,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
-    dim: p.dim,
+    dim: generation.dims,
     now: ctx.now(),
   });
   return {

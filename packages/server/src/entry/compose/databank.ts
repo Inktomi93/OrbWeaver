@@ -6,7 +6,7 @@
 // handles + sibling service front doors onto the `DatabankContext`.
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
-import { EMBED_SPACE_DIMS, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
+import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import type { RoleClientsWithSignal } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
@@ -122,7 +122,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     // databank surface must not give. During a transition "0 of N" is the truth and the progress signal.
     getActiveEmbedSpace: async (ownerId) => {
       const space = await (await deps.roleClientsFor(ownerId)).resolved("embed");
-      return space === null ? null : { model: embedSpaceOf(space.model, embedDtypeOf(space.capability)), dim: EMBED_SPACE_DIMS };
+      return space === null ? null : { model: embedSpaceOf(space.model, embedDtypeOf(space.capability)) };
     },
     // The OWNER's real databank settings (chunk params ingest uses + retrieval params gather passes to
     // search.documents) — the extracted binding (below), replacing the compose-stub-goes-stale 0-param stub.

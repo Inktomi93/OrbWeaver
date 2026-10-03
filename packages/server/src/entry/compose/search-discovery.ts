@@ -13,7 +13,6 @@
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { characters as charactersTable, personas as personasTable } from "@orb/db";
@@ -175,8 +174,6 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     loadCharacterOwner,
     loadAssetOwner,
-    embedDim: EMBED_SPACE_DIMS,
-    imageEmbedDim: EMBED_SPACE_DIMS,
   });
 
   const indexer = createEmbeddingsIndexer({
@@ -185,7 +182,6 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     loadCharacterOwner,
     roleClientsFor,
-    embedDim: EMBED_SPACE_DIMS,
   });
   // The subscription stays live so an admin save can enable indexing without rebuilding composition.
   eventBus.subscribe((event: DomainEvent): Promise<void> => {

@@ -45,6 +45,8 @@ interface FakeRoute {
   readonly match: string;
   readonly status?: number | undefined;
   readonly json?: unknown;
+  /** Answers from the request body instead of `json` — a fake server that honours what it was asked for. */
+  readonly reply?: ((body: string | null) => unknown) | undefined;
 }
 
 export interface HarnessOptions {
@@ -182,12 +184,14 @@ function urlOf(input: Parameters<typeof fetch>[0]): string {
 function fakeFetch(routes: readonly FakeRoute[], log: RecordedRequest[]): typeof fetch {
   return (input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> => {
     const url = urlOf(input);
-    log.push({ url, method: init?.method ?? "GET", headers: headersOf(init), body: typeof init?.body === "string" ? init.body : null });
+    const body = typeof init?.body === "string" ? init.body : null;
+    log.push({ url, method: init?.method ?? "GET", headers: headersOf(init), body });
     const route = routes.find((candidate) => url.includes(candidate.match));
     if (route === undefined) {
       return Promise.resolve(new Response(JSON.stringify({ error: "no route" }), { status: 404, headers: { "content-type": "application/json" } }));
     }
-    return Promise.resolve(new Response(JSON.stringify(route.json ?? {}), { status: route.status ?? 200, headers: { "content-type": "application/json" } }));
+    const json = route.reply === undefined ? (route.json ?? {}) : route.reply(body);
+    return Promise.resolve(new Response(JSON.stringify(json), { status: route.status ?? 200, headers: { "content-type": "application/json" } }));
   };
 }
 
@@ -236,7 +240,6 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     providerStore: ports.providerStore,
     agentSdk: { summarizeConcurrency: (): number => 1 },
     userRuntimeDir: (ownerId): string => `/tmp/orb-test/${ownerId}/claude`,
-    embedSpace: { dims: 1024 },
     ...(options.localLight === true
       ? {
           localLight: {

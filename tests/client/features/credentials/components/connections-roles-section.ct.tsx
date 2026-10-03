@@ -524,7 +524,7 @@ test("an UNJUDGED rail still states the requirement — a requirement the user c
   // Nothing resolves anywhere, so there is no capability to judge against — and the rail is still drawn.
   await expect(roles.getByText("prose", { exact: true })).toBeVisible();
   await expect(roles.getByText("structured JSON", { exact: true })).toBeVisible();
-  await expect(roles.getByText("1024-wide vectors", { exact: true }).first()).toBeVisible();
+  await expect(roles.getByText("image input", { exact: true }).first()).toBeVisible();
 });
 
 // P2, RE-DERIVED: this pane used to add a SECOND home and a second wording for "Saved" (a bare chip
@@ -584,7 +584,7 @@ const COPY_THAT_NEVER_CUTS = [
   "Unset falls back to the captioned-text lens.",
   // The badge rail is the row's one unbounded element and it WRAPS rather than truncating — a requirement
   // the user cannot see is the exact failure the badges exist to prevent.
-  "1024-wide vectors",
+  "structured JSON",
 ];
 
 /** How many rendered nodes escape the section's own right edge — the honest "does it fit" measure at a

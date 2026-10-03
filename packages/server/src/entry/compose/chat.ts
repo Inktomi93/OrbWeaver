@@ -9,7 +9,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy, SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
-import { EMBED_SPACE_DIMS, RERANK_FLOOR } from "@orb/contracts/inference";
+import { RERANK_FLOOR } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -1320,7 +1320,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         speakerCharacterIds: params.speakerCharacterIds,
         contentHash: params.contentHash,
         model: params.model,
-        dim: EMBED_SPACE_DIMS,
         signal: params.signal,
       });
       if (result.generationId === undefined || result.generationEpoch === undefined) {
@@ -1351,7 +1350,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
           text: p.text,
           contentHash: p.contentHash,
           model: p.model,
-          dim: EMBED_SPACE_DIMS,
         });
       }
       const results = rows.length === 0 ? [] : await input.embeddings.storeSegments(rows, signal);

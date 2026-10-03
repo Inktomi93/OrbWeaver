@@ -44,7 +44,6 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, LiveOnlyChatEventType } from "@orb/contracts/chat";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import { pluginGrantTasks } from "@orb/contracts/plugin";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EmbedResult } from "@orb/contracts/providers";
@@ -522,7 +521,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       ...(deps.providerSeams?.agentSdk ?? {}),
     },
     userRuntimeDir: (ownerId, tool) => userRuntimeDirs.dirFor(ownerId, tool),
-    embedSpace: { dims: EMBED_SPACE_DIMS },
     // THE PROVIDER TRANSPORT, read from the ambient api HERE and nowhere else (reviewed grant
     // `no-raw-egress:entry-compose-transport`): the root reads the platform's `fetch` once so every tier
     // below receives it INJECTED rather than reaching for the global — the `no-raw-clock:entry-lifecycle`
@@ -564,7 +562,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       connection: encoderConnection,
       input,
       ...(knobs.dimensions === undefined ? {} : { dimensions: knobs.dimensions }),
-      ...(knobs.truncateTo === undefined ? {} : { truncateTo: knobs.truncateTo }),
       ...(knobs.inputType === undefined ? {} : { inputType: knobs.inputType }),
       ...(knobs.instruction === undefined ? {} : { instruction: knobs.instruction }),
       ...(opts?.signal === undefined ? {} : { signal: opts.signal }),

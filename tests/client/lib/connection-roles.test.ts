@@ -160,13 +160,12 @@ test("the Utility rail is THREE clauses, judged per clause, each with what SKIPS
   expect(roleRequirementVerdicts(utility, null).map((verdict) => verdict.met)).toEqual([null, null, null]);
 });
 
-test("the vector rows judge width and image input through the same requirementMet the resolver uses", () => {
+test("the vector rows judge image input through the same requirementMet the resolver uses, and admit any width", () => {
   const imageEmbed = ROLE_ROWS_ORDERED.find((row) => row.task === "imageEmbed") as (typeof ROLE_ROWS_ORDERED)[number];
-  expect(imageEmbed.requirements.map((requirement) => requirement.label)).toEqual(["image input", "1024-wide vectors"]);
-  expect(roleRequirementVerdicts(imageEmbed, embedding()).map((verdict) => verdict.met)).toEqual([false, true]);
-  expect(roleRequirementVerdicts(imageEmbed, embedding({ input: ["text", "image"] })).map((verdict) => verdict.met)).toEqual([true, true]);
-  // A NARROWER model never fits — padding invents coordinates (#1635), so the clause must read false.
-  expect(roleRequirementVerdicts(imageEmbed, embedding({ dims: 768, input: ["text", "image"] })).map((verdict) => verdict.met)).toEqual([true, false]);
+  expect(imageEmbed.requirements.map((requirement) => requirement.label)).toEqual(["image input"]);
+  expect(roleRequirementVerdicts(imageEmbed, embedding()).map((verdict) => verdict.met)).toEqual([false]);
+  // The owner's space takes the bound embedder's width, so a narrower joint encoder meets every clause.
+  expect(roleRequirementVerdicts(imageEmbed, embedding({ dims: 768, input: ["text", "image"] })).map((verdict) => verdict.met)).toEqual([true]);
 });
 
 // THE ORACLE: the authored clause lists may say MORE than `TASK_DEFS` (captions are not their own task),

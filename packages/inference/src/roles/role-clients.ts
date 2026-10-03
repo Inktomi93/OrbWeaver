@@ -111,7 +111,6 @@ function embedRequestOf(conn: Resolved<"embed">, input: string | readonly string
     connection: conn,
     input,
     ...(knobs.dimensions !== undefined ? { dimensions: knobs.dimensions } : {}),
-    ...(knobs.truncateTo !== undefined ? { truncateTo: knobs.truncateTo } : {}),
     ...(knobs.inputType !== undefined ? { inputType: knobs.inputType } : {}),
     ...(knobs.instruction !== undefined ? { instruction: knobs.instruction } : {}),
   };
@@ -168,7 +167,7 @@ export function createRoleClientsFor(args: {
         if (conn.capability.kind !== "embedding") {
           throw new ProviderError({ kind: "invalid", retryable: false, message: "the embed binding resolved to a non-embedding model" });
         }
-        const knobs = resolveEmbed({ inputType: opts?.inputType, instruction: opts?.instruction }, conn.capability.embedding, deps.embedSpace.dims);
+        const knobs = resolveEmbed({ inputType: opts?.inputType, instruction: opts?.instruction }, conn.capability.embedding);
         return withStrikeOut(conn, () => executor.embed(embedRequestOf(conn, input, knobs)));
       },
       rerank: async (query: RerankQuery, documents: RerankDocument[], opts?: { instruction?: string }): Promise<RerankResult> => {

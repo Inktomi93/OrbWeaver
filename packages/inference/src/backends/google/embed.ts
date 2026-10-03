@@ -125,7 +125,7 @@ async function embedInputs(req: EmbedRequest, inputs: readonly (EmbeddingInput |
   }
   const capability = connection.capability.embedding;
   const label = `${connection.providerId} embed (${connection.model})`;
-  const dimension = req.dimensions ?? req.truncateTo ?? deps.embedSpaceDims;
+  const dimension = req.dimensions ?? capability.dims;
   const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(inputs.length).fill(null);
   const kept = keptInputs(req, inputs, deps, capability);
   if (kept.length === 0) {

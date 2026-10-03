@@ -231,7 +231,7 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
     label,
     secrets: resolvedScrubSet(connection),
     dimensions: isOpenRouter ? undefined : req.dimensions,
-    fitDim: req.dimensions ?? req.truncateTo,
+    fitDim: req.dimensions,
     vectors,
   };
   const usages: (number | undefined)[] = new Array(batches.length).fill(undefined);

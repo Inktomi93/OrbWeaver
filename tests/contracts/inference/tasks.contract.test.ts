@@ -6,17 +6,7 @@
 // `scope: "owner"` — an owner has ONE embedding space, so a rule's or a plugin's ref must not be able to
 // re-point it and silently split the corpus across two spaces.
 
-import {
-  bindingTaskOf,
-  EMBED_SPACE_DIMS,
-  isRoutableTask,
-  LOCAL_LIGHT_SEED_ROWS,
-  ROUTABLE_TASKS,
-  routableTaskSchema,
-  TASK_DEFS,
-  TASKS,
-  taskDef,
-} from "@orb/contracts/inference";
+import { bindingTaskOf, isRoutableTask, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS, routableTaskSchema, TASK_DEFS, TASKS, taskDef } from "@orb/contracts/inference";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("`ROUTABLE_TASKS`, the schema and the predicate are three readers of ONE flag", () => {
@@ -47,7 +37,6 @@ test("`bindingTaskOf` is the identity on a routable task", () => {
 test("the vector tasks are OWNER-scoped — one embedding space per owner, not per actor", () => {
   for (const task of ["embed", "imageEmbed"] as const) {
     expect(taskDef(task).scope, `${task} must ignore a rule's or a plugin's ref`).toBe("owner");
-    expect(taskDef(task).requires?.dims, "admission into the owner's space is a task requirement").toBe(EMBED_SPACE_DIMS);
   }
   expect(taskDef("chat").scope, "a chat turn runs under the ACTOR's pick").toBe("actor");
 });

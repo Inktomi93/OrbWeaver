@@ -14,7 +14,6 @@ import type { Capability, Task } from "@orb/contracts/inference";
 import type { ResolveArgs, ResolveOutcome } from "@orb/inference";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { resolveEmbed } from "../../../../../packages/inference/src/funnel/resolve-embed.ts";
 import { spacesDiffer, VECTOR_TASKS, vectorSpacesOf } from "../../../../../packages/server/src/domain/connection/substrate/embed-space.ts";
 import { principal } from "../../../../support/factories/principal.ts";
 import { makeResolved } from "../../../../support/factories/resolved-connection.ts";
@@ -39,20 +38,11 @@ function embedding(dtype?: string, dims = 1024, mrl = false): Capability {
 
 /** A runtime whose `resolve` answers per task from `spaces`; a task absent from the map REFUSES (the
  *  unbound/unservable reading the verb must fold to `null`). */
-function runtimeOver(
-  spaces: Partial<Record<Task, { readonly model: string; readonly dtype?: string; readonly dims?: number; readonly mrl?: boolean }>>,
-  servedDims = 1024,
-): {
-  readonly runtime: {
-    readonly resolve: (args: ResolveArgs) => Promise<ResolveOutcome>;
-    readonly funnel: {
-      readonly embed: (opts: Parameters<typeof resolveEmbed>[0], capability: Parameters<typeof resolveEmbed>[1]) => ReturnType<typeof resolveEmbed>;
-    };
-  };
+function runtimeOver(spaces: Partial<Record<Task, { readonly model: string; readonly dtype?: string; readonly dims?: number; readonly mrl?: boolean }>>): {
+  readonly runtime: { readonly resolve: (args: ResolveArgs) => Promise<ResolveOutcome> };
 } {
   return {
     runtime: {
-      funnel: { embed: (opts, capability) => resolveEmbed(opts, capability, servedDims) },
       resolve: ({ task }: ResolveArgs): Promise<ResolveOutcome> => {
         const row = spaces[task];
         if (row === undefined) {
@@ -112,10 +102,10 @@ test("a move on the IMAGE task alone fires — the condition is any vector task,
   expect(spacesDiffer(before, after)).toBe(true);
 });
 
-// The alternate width is a comparison-unit input, not a claim that production storage supports it.
-test("effective output width changes trigger reindex even with unchanged model and precision", async () => {
-  const before = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 3072, mrl: true } }, 1024), CALLER);
-  const after = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 3072, mrl: true } }, 768), CALLER);
+test("a stated width change triggers reindex even with unchanged model and precision", async () => {
+  const before = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 3072, mrl: true } }), CALLER);
+  const after = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 768, mrl: true } }), CALLER);
+  expect(after["embed"]).toMatchObject({ dim: 768 });
   expect(spacesDiffer(before, after)).toBe(true);
 });
 
@@ -125,9 +115,9 @@ test("native MRL dimension changes reindex because they change concrete encoder 
   expect(spacesDiffer(before, after)).toBe(true);
 });
 
-test("a model narrower than the fixed storage width remains refused", async () => {
+test("a narrower non-MRL model is a space at its own width, not a refusal", async () => {
   const before = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 1024 } }), CALLER);
   const after = await vectorSpacesOf(runtimeOver({ embed: { model: "same-encoder", dims: 768 } }), CALLER);
-  expect(after.embed).toBeNull();
+  expect(after.embed).toMatchObject({ dim: 768 });
   expect(spacesDiffer(before, after)).toBe(true);
 });

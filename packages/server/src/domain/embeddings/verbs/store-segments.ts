@@ -74,14 +74,14 @@ async function gate(
 }
 
 /** The produced vector for one pending item, or the typed failure: the family filtered the input (`null`), the
- *  flood came back short, or the vector does not match the declared width. `model` is THIS item's owner's
- *  answer, never the batch's — see `flood`. */
-function vectorFor(vector: Float32Array | null | undefined, p: SegmentStoreParams, model: string): Float32Array {
+ *  flood came back short, or the vector is not as wide as the owner's generation. `model` is THIS item's
+ *  owner's answer, never the batch's — see `flood`. */
+function vectorFor(vector: Float32Array | null | undefined, item: PendingSegment, model: string): Float32Array {
   if (vector === null || vector === undefined) {
-    throw new EmbedFailedError(p.lens, model);
+    throw new EmbedFailedError(item.params.lens, model);
   }
-  if (vector.length !== p.dim) {
-    throw new SpaceMismatchError(model, p.dim, vector.length);
+  if (vector.length !== item.generation.dims) {
+    throw new SpaceMismatchError(model, item.generation.dims, vector.length);
   }
   return vector;
 }
@@ -153,11 +153,11 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
         seqStart: p.seqStart,
         seqEnd: p.seqEnd,
         text: p.text,
-        embedding: vectorFor(embedded.vector, p, embedded.model),
+        embedding: vectorFor(embedded.vector, item, embedded.model),
         contentHash: p.contentHash,
         model: embedded.model,
         generationId: item.generation.id,
-        dim: p.dim,
+        dim: item.generation.dims,
         now: ctx.now(),
       });
       results[item.index] = { outcome: "written", contentHash: p.contentHash, model: embedded.model, ...receiptOf(item.generation) };

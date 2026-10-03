@@ -3,7 +3,7 @@
 // barrel-free, because node-side CT specs import it; the rendered row is `components/connection-role-slot.tsx`.
 
 import type { Capability, CapabilityRequirement, RoutableTask, Task, UnavailableCause } from "@orb/contracts/inference";
-import { bindingTaskOf, CONNECTION_LABEL_SEPARATOR, canFund, EMBED_SPACE_DIMS, requirementMet, taskDef } from "@orb/contracts/inference";
+import { bindingTaskOf, CONNECTION_LABEL_SEPARATOR, canFund, requirementMet, taskDef } from "@orb/contracts/inference";
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { stripLabelSuffix } from "@orb/kit/strings";
@@ -44,11 +44,6 @@ const NEEDS_VECTOR_INPUT: RoleRequirement = {
   label: "image input",
   requires: { input: ["image"] },
   unmet: "picture search falls back to the captioned-text lens",
-};
-const NEEDS_VECTOR_WIDTH: RoleRequirement = {
-  label: `${EMBED_SPACE_DIMS}-wide vectors`,
-  requires: { dims: EMBED_SPACE_DIMS },
-  unmet: "your index can't hold what it writes",
 };
 
 /** One Model-roles row's descriptor. */
@@ -104,7 +99,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     heading: "Text embedding",
     description: "Vectorizes text for search and memory. Changing it re-embeds your whole index.",
     optional: false,
-    requirements: [NEEDS_VECTOR_WIDTH],
+    requirements: [],
   },
   imageEmbed: {
     task: "imageEmbed",
@@ -112,7 +107,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     heading: "Image embedding",
     description: "A multimodal embedder for searching images directly. Unset falls back to the captioned-text lens.",
     optional: true,
-    requirements: [NEEDS_VECTOR_INPUT, NEEDS_VECTOR_WIDTH],
+    requirements: [NEEDS_VECTOR_INPUT],
   },
   rerank: {
     task: "rerank",

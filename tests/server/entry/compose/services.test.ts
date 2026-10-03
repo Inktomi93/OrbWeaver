@@ -8,7 +8,7 @@ import "../../../support/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
 import type { DomainEvent } from "@orb/contracts/events";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import {
   characterEmbeddings,
@@ -69,7 +69,7 @@ import { makeHarness as makeAssetsHarness, pngBytes, principal, seedUser } from 
 import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
 import { seedChat, seedCharacter as seedChatCharacter, seedParticipant } from "../../domain/chat/_support.ts";
 import { seedTurns } from "../../domain/chat/memory/_support.ts";
-import { EMBED_DIM, makeRoleClients, makeStoreHarness, seedUser as seedVectorOwner } from "../../domain/embeddings/_support.ts";
+import { makeRoleClients, makeStoreHarness, seedUser as seedVectorOwner } from "../../domain/embeddings/_support.ts";
 
 const SERVICE_KEYS = [
   "admin",
@@ -380,7 +380,6 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     loadCharacterOwner,
     roleClientsFor: (): Promise<ReturnType<typeof makeRoleClients>> => Promise.resolve(makeRoleClients()),
-    embedDim: EMBED_DIM,
   });
   function dispatch(event: DomainEvent): Promise<void> {
     switch (event.type) {
@@ -501,7 +500,7 @@ describe("embeddings indexer bus subscription", () => {
 // assert a card-text embedding row is persisted (ON) / never written (OFF). The tests/e2e default is OFF (vitest env CORPUS_AUTOINDEX=false); the
 // ON case flips it via a stored AppSettings override the boot reload resolves.
 
-function buildGatedGraph(db: Db, cache = fakeLocalLightCache(EMBED_SPACE_DIMS)): ReturnType<typeof createServices> {
+function buildGatedGraph(db: Db, cache = fakeLocalLightCache(BUILT_IN_EMBED_DIMS)): ReturnType<typeof createServices> {
   return createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
@@ -830,7 +829,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
   test("fresh seeded content indexes through events and catch-up without any seed inference", async () => {
     const db = await freshDb();
     await writeAppOverride(db, { corpusAutoindex: true, schemaVersion: 2 }, createFrozenClock().now());
-    const cache = fakeLocalLightCache(EMBED_SPACE_DIMS);
+    const cache = fakeLocalLightCache(BUILT_IN_EMBED_DIMS);
     const textCalls = vi.spyOn(cache, "embedTexts").mockRejectedValue(new Error("seed text reached inference"));
     const imageCalls = vi.spyOn(cache, "embedImages").mockRejectedValue(new Error("seed image reached inference"));
     const result = await buildGatedGraph(db, cache);
@@ -1020,11 +1019,11 @@ describe("search when the memory scope can build no digests (0215)", () => {
       seqStart: 1,
       seqEnd: 2,
       text: "an old-model memory chunk",
-      embedding: new Float32Array(EMBED_SPACE_DIMS),
+      embedding: new Float32Array(BUILT_IN_EMBED_DIMS),
       contentHash: "old",
       model: "old-embed-model-v0",
       generationId: oldGeneration,
-      dim: EMBED_SPACE_DIMS,
+      dim: BUILT_IN_EMBED_DIMS,
       now: RunAt,
     });
 

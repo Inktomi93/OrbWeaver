@@ -40,9 +40,15 @@ const PLUGIN_LOCAL_LIGHT_ROW = {
 /** Ids transformers.js would resolve on this host's disk or as a URL instead of as a Hub repo. */
 const PATH_SHAPED_MODEL_IDS = ["../../../etc", "/etc/orbweaver", "https://models.example/owner/repo", "C:\\models\\owner\\repo"];
 
-test("native dimension changes enqueue catch-up and the rebuilt corpus becomes readable", async () => {
+/** An MRL endpoint: one vector at the width it was asked for. */
+function mrlEmbeddings(body: string | null): unknown {
+  const request = JSON.parse(body ?? "{}") as { readonly dimensions?: number };
+  return { data: [{ embedding: Array.from({ length: request.dimensions ?? 1536 }, () => 1), index: 0 }] };
+}
+
+test("a stated width change enqueues catch-up and the rebuilt corpus becomes readable at the new width", async () => {
   const db = await freshDb();
-  const h = await makeHarness(db, { routes: [{ match: "/embeddings", json: { data: [{ embedding: Array.from({ length: 1024 }, () => 1), index: 0 }] } }] });
+  const h = await makeHarness(db, { routes: [{ match: "/embeddings", reply: mrlEmbeddings }] });
   const owner = await seedOwner(db);
   const row = await h.svc.create({
     principal: owner.principal,
@@ -61,7 +67,7 @@ test("native dimension changes enqueue catch-up and the rebuilt corpus becomes r
     return { ...resolved, api: resolved.api ?? "none", embed: clients.embed, imageEmbed: clients.imageEmbed };
   };
   const store = makeStoreHarness(db, { characterIds: [characterId], cardTexts: new Map([[characterId, "A lighthouse keeper"]]) });
-  const ctx = { ...store.ctx, embedDim: 1024, resolveEmbeddingConnection, roleClientsFor: async () => clients };
+  const ctx = { ...store.ctx, resolveEmbeddingConnection, roleClientsFor: async () => clients };
   const embeddings = createEmbeddingsService(ctx);
   const catchUp = async (): Promise<string> => {
     await embeddings.embedCorpus({ ownerId: owner.userId, force: false, signal: new AbortController().signal });
@@ -90,7 +96,7 @@ test("native dimension changes enqueue catch-up and the rebuilt corpus becomes r
   expect(await queryGeneration()).toBe(after);
   const vectors = await db.select().from(characterEmbeddings);
   expect(vectors).toHaveLength(1);
-  expect(vectors[0]).toMatchObject({ generationId: after, dim: 1024 });
+  expect(vectors[0]).toMatchObject({ generationId: after, dim: 3072 });
   expect(h.requests.filter((request) => request.url.includes("/embeddings"))).toHaveLength(2);
 });
 

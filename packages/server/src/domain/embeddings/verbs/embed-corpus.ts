@@ -45,7 +45,6 @@ async function embedOneCard(
     characterId,
     content: text,
     model: embedModel,
-    dim: ctx.embedDim,
     force: sweep.force,
     signal: sweep.signal,
   });
@@ -58,12 +57,13 @@ async function embedOneCard(
 }
 
 export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store: EmbeddingsService["store"] }): EmbeddingsService["embedCorpus"] {
-  return async ({ force, signal, ownerId }: EmbedPassParams): Promise<BulkEmbedResult> => {
+  return async ({ force, signal, ownerId, onProgress }: EmbedPassParams): Promise<BulkEmbedResult> => {
     let embedded = 0;
     let skipped = 0;
     // Every owner the sweep resolved, with the space it embedded into — the purge set.
     const receipts = new Map<UserId, StoreResult>();
-    for (const characterId of await ctx.listCharacterIds(ownerId)) {
+    const characterIds = await ctx.listCharacterIds(ownerId);
+    for (const characterId of characterIds) {
       if (signal.aborted) {
         break;
       }
@@ -72,6 +72,7 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
       } else {
         skipped += 1;
       }
+      onProgress?.(embedded + skipped, characterIds.length);
     }
     // Purge (reclaim each touched owner's old space) — only after a complete sweep, never on abort.
     // A no-op for an owner whose embed binding did not change since the last index.

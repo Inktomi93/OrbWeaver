@@ -108,7 +108,6 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: Abor
       ownerId: doc.ownerId,
       content: chunk.content,
       model: space.model,
-      dim: space.dim,
       fkRefs: { documentId: doc.id, chunkIdx: chunk.idx, charStart: chunk.start, charEnd: chunk.end },
       signal,
     });

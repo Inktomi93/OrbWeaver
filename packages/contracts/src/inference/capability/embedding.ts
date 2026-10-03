@@ -1,7 +1,8 @@
 // The EMBEDDING capability — the admission facts for a vector model. `dims` + `dtype` are what the space tag
 // `(model, dim[@dtype])` is derived from (`embeddings.ts:22-28`'s law: two providers serving the same
-// weights at the same dtype ARE one space, so there is deliberately no provider id here). `mrl` says a
-// longer vector may be TRUNCATED to `EMBED_SPACE_DIMS`; a shorter one is REFUSED, never padded (#1635).
+// weights at the same dtype ARE one space, so there is deliberately no provider id here). `dims` IS the
+// owner's space width: a vector is never padded, and only an MRL model's vector is ever shortened — it is
+// asked for exactly `dims`, which is how a declared shorter width is honoured.
 
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";

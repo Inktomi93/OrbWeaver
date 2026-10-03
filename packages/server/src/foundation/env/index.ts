@@ -43,7 +43,6 @@ export { parseTrustedPrivateRanges } from "./private-ranges.ts";
 
 const DEFAULT_PORT = 8788;
 // vLLM loopback engine ports (must match what the stack supervisor passes).
-// The unified text+image embedding space's output dimension (matches every F32_BLOB(1024) vector column).
 // The per-POST embed token ceiling (#187). DERIVED from a live measurement on the box's embed engine
 // (Qwen3-VL-Embedding-2B, max_model_len 8192): ~15.1k prompt-tokens/s aggregate under 4-way concurrency, and
 // 4.4k tok/s end-to-end for the request that queued behind three siblings. At 256k tokens a POST clears in

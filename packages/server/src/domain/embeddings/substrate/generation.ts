@@ -1,6 +1,6 @@
 // Immutable encoder generations and the authoritative per-owner migration target.
 
-import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
+import { embedDimsOf, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
@@ -44,6 +44,10 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt
   if (connection.connectionId !== current.connectionId || connectionFingerprint(connection) !== connectionFingerprint(current)) {
     connection = current;
   }
+  const dims = embedDimsOf(connection.capability);
+  if (dims === undefined) {
+    throw new Error(`the ${via} connection for an embedding generation resolved to a ${connection.capability.kind} model`);
+  }
   const fingerprint = vectorSpaceFingerprint(connection);
   const space = embedSpaceOf(connection.model, embedDtypeOf(connection.capability));
   const id = generationIdOf({ ownerId, task, via, connection, space });
@@ -83,5 +87,5 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt
     }
     throw new Error("embedding generation target kept changing while the sweep was starting");
   }
-  return { id, task, via, epoch: row.epoch, space, connection };
+  return { id, task, via, epoch: row.epoch, space, connection, dims };
 }

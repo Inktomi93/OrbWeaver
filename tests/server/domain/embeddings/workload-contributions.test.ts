@@ -68,9 +68,20 @@ describe("index contribution", () => {
   test("source=text drives ONLY the corpus pass and projects its counts", async () => {
     const { embeddings, index } = build();
     const result = await index.run(ctx, { source: "text", force: true }, vi.fn(), sig());
-    expect(embeddings.embedCorpus).toHaveBeenCalledWith({ ownerId: OWNER_ID, force: true, signal: expect.any(AbortSignal) });
+    expect(embeddings.embedCorpus).toHaveBeenCalledWith({ ownerId: OWNER_ID, force: true, signal: expect.any(AbortSignal), onProgress: expect.any(Function) });
     expect(embeddings.embedAssets).not.toHaveBeenCalled();
     expect(result).toEqual({ embedded: 3, skipped: 1 });
+  });
+
+  test("source=text turns the corpus pass's positions into progress rows", async () => {
+    const { embeddings, index } = build();
+    vi.mocked(embeddings.embedCorpus).mockImplementationOnce((params) => {
+      params.onProgress?.(1, 4);
+      return Promise.resolve({ embedded: 1, skipped: 0 });
+    });
+    const report = vi.fn();
+    await index.run(ctx, { source: "text" }, report, sig());
+    expect(report).toHaveBeenCalledWith(expect.objectContaining({ current: 1, total: 4 }));
   });
 
   test("source=image drives ONLY the asset pass; force defaults to false", async () => {

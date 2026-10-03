@@ -1,6 +1,8 @@
 // domain/search/persistence/nearest — the raw vector-scan reads. The ONE place vector_distance_cos SQL
 // appears (queries only, no business logic). Scan is exact (no ANN index); WHERE always double-belts
-// characters.ownerId (never a users read) AND character_embeddings.model (never cross-space compare).
+// characters.ownerId (never a users read) AND character_embeddings.model (never cross-space compare), and
+// every scan ranks only rows as wide as its query: libSQL throws on a cross-width distance, and widths
+// follow the embedder, so one table can hold several.
 
 import type { ReadOnlyDb } from "@orb/db";
 import { characterEmbeddings, characters, documentChunks, documents, embedGenerations, embedSpaceState } from "@orb/db";
@@ -46,6 +48,7 @@ export async function nearestCharacters(db: ReadOnlyDb, params: NearestCharacter
       and(
         eq(characters.ownerId, params.ownerId),
         eq(characterEmbeddings.model, params.model),
+        eq(characterEmbeddings.dim, params.queryVector.length),
         params.generationId === undefined ? undefined : eq(characterEmbeddings.generationId, params.generationId),
         params.excludeCharacterId === undefined ? undefined : ne(characterEmbeddings.characterId, params.excludeCharacterId),
       ),
@@ -78,15 +81,14 @@ interface NearestDocumentChunksParams {
    *  short-circuits earlier), never reached with `[]`. */
   readonly documentIds: readonly DocumentId[];
   readonly queryVector: Float32Array;
-  /** The `(model, dim)` space tag — same space the chunks were embedded in (invariant 6). */
+  /** The space tag — same space the chunks were embedded in (invariant 6). */
   readonly model: string;
   readonly generationId?: EmbedGenerationId | undefined;
   readonly generationFingerprint?: string | undefined;
-  readonly dim: number;
   readonly limit: number;
 }
 
-/** Top-`limit` document chunks (cosine) within the scope allowlist + the active `(model, dim)` space,
+/** Top-`limit` document chunks (cosine) within the scope allowlist + the active space at the query's width,
  *  ascending distance. Joins `documents` for the provenance name the slot renders. The scope predicate is a
  *  WHERE (never a post-filter), the ONLY belt this table needs — ownership already resolved into the id set. */
 export async function nearestDocumentChunks(db: ReadOnlyDb, params: NearestDocumentChunksParams): Promise<NearestDocumentChunk[]> {
@@ -122,7 +124,7 @@ export async function nearestDocumentChunks(db: ReadOnlyDb, params: NearestDocum
         inArray(documentChunks.documentId, [...params.documentIds]),
         eq(documentChunks.model, params.model),
         generationCondition,
-        eq(documentChunks.dim, params.dim),
+        eq(documentChunks.dim, params.queryVector.length),
       ),
     )
     .orderBy(distance)

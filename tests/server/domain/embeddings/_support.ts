@@ -300,8 +300,6 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     loadCardText,
     listImageAssetIds,
     loadAssetBytes,
-    embedDim: EMBED_DIM,
-    imageEmbedDim: EMBED_DIM,
   };
   return {
     ctx,
@@ -352,7 +350,6 @@ export function makeIndexerHarness(
     loadCardText,
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
     roleClientsFor: () => Promise.resolve(roleClients),
-    embedDim: EMBED_DIM,
   };
   return { ctx, roleClients, loadCardText, loadAssetMime, loadAssetBytes, store };
 }

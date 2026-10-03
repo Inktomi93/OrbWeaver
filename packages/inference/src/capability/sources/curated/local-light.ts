@@ -3,6 +3,7 @@
 // composition order (a later row refines an earlier one). Adding a model is a row here + the table test.
 
 import type { CapabilityOverrideInput } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 
 export const localLightRows = [
   {
@@ -12,7 +13,7 @@ export const localLightRows = [
     },
     kind: "embedding",
     embedding: {
-      dims: 1024,
+      dims: BUILT_IN_EMBED_DIMS,
       mrl: true,
       maxInputTokens: 8192,
       input: ["text", "image"],

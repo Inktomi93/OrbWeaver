@@ -12,7 +12,7 @@ import { describe, vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
-import { EMBED_DIM, EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
+import { EMBED_MODEL, embedAs, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
 const OLD_MODEL = "old-embed-model-v1";
 
@@ -30,7 +30,6 @@ function storeChunks(
         lens: "chunk",
         content: `chunk ${i} in ${model}`,
         model,
-        dim: EMBED_DIM,
         fkRefs: { documentId, chunkIdx: i, charStart: i, charEnd: i + 1 },
         ownerId,
       }),

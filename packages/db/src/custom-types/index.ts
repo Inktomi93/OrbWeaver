@@ -17,8 +17,8 @@
 import { customType } from "drizzle-orm/sqlite-core";
 
 /**
- * `F32_BLOB(dimensions)` ⇄ `Float32Array`. `dimensions` is REQUIRED (the libSQL type carries the dim,
- * and the `(model, dim)` space tag on the row must match it). Consumed only by db schema files.
+ * `F32_BLOB(dimensions)` ⇄ `Float32Array`. `dimensions` is only the declared DDL width: without a vector
+ * index libSQL stores any width, and the row's `dim` column is the stored one. Consumed only by db schema files.
  *
  * Wave-1 verification point: `fromDriver`'s `driverData` is typed `Uint8Array` per the alignment idiom;
  * the embeddings `.int.test` confirms the libSQL driver's actual blob read-back type round-trips here.

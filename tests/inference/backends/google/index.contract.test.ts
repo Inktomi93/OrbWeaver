@@ -30,7 +30,7 @@ function request(): GoogleChatRequest {
   };
 }
 function backend(fetchImpl: typeof fetch): ReturnType<typeof createGoogleBackend> {
-  return createGoogleBackend({ now: () => NOW, log: fakeDeps().log, fetch: fetchImpl, embedSpaceDims: 1024 });
+  return createGoogleBackend({ now: () => NOW, log: fakeDeps().log, fetch: fetchImpl });
 }
 function sse(parts: readonly object[], finishReason = "STOP"): Response {
   const chunks: object[] = parts.map((part) => ({ candidates: [{ content: { role: "model", parts: [part] } }] }));
@@ -100,8 +100,10 @@ test("native text embeddings retain slots, request exact width, normalize and pr
 test("embedding2 uses shared retrieval scaffolds and multimodal per-value parts without taskType", async () => {
   const bodies: Record<string, unknown>[] = [];
   const native = backend((_url, init) => {
-    bodies.push(z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body))));
-    return Promise.resolve(Response.json({ embedding: { values: [1, ...new Array(1023).fill(0)] } }));
+    const body = z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body)));
+    bodies.push(body);
+    const width = z.number().parse(body["outputDimensionality"]);
+    return Promise.resolve(Response.json({ embedding: { values: [1, ...new Array(width - 1).fill(0)] } }));
   });
   await native.embed({ connection: connection("embed", "gemini-embedding-2"), input: "red square", inputType: "query", dimensions: 1024 });
   await native.imageEmbed({
@@ -110,9 +112,10 @@ test("embedding2 uses shared retrieval scaffolds and multimodal per-value parts 
   });
   expect(bodies[0]).toMatchObject({ content: { parts: [{ text: "task: search result | query: red square" }] }, outputDimensionality: 1024 });
   expect(bodies[0]).not.toHaveProperty("taskType");
+  // A request that names no width is asked at the connection's stated width — the owner's space.
   expect(bodies[1]).toMatchObject({
     content: { parts: [{ text: "red square" }, { inlineData: { mimeType: "image/png", data: "AQID" } }] },
-    outputDimensionality: 1024,
+    outputDimensionality: 3072,
   });
   expect(bodies[1]).not.toHaveProperty("taskType");
 });

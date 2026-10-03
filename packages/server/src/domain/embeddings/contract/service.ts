@@ -68,6 +68,8 @@ export interface EmbeddingConnectionSnapshot {
 
 export interface PinnedGeneration extends GenerationReceipt {
   readonly connection: EmbeddingConnectionSnapshot;
+  /** The width every vector of this generation is written at — the bound embedder's, never the deployment's. */
+  readonly dims: number;
 }
 
 export type ResolveEmbeddingConnection = (
@@ -125,8 +127,6 @@ export interface EmbeddingsContext {
   /** The entity OWNER by id (the sweeps' funder read; the indexer context carries the same pair). */
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
   readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
-  readonly embedDim: number;
-  readonly imageEmbedDim: number;
 }
 
 export interface EmbeddingsService {
@@ -193,7 +193,6 @@ export interface EmbeddingsIndexerContext {
   readonly loadCardText: LoadCardText;
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
   readonly roleClientsFor: RoleClientsFor;
-  readonly embedDim: number;
 }
 
 /** The event subscription shape `entry/` binds onto the bus: `character.updated` re-embeds the card,

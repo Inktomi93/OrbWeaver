@@ -1,6 +1,6 @@
 // The rebuild trigger must agree with search's immutable-generation provenance check. A model/precision
-// tag alone misses native dimension and other resolved encoder changes: search refuses the old generation
-// even when served width stays 1024. Compare the SAME concrete connection fingerprint generationIdOf uses,
+// tag alone misses a width change and other resolved encoder changes, which search's generation check refuses.
+// Compare the SAME concrete connection fingerprint generationIdOf uses,
 // without changing its serialization or invalidating any unchanged stored generation.
 //
 // A task the principal has no binding for resolves to `null` — "no space", which compares correctly against
@@ -13,9 +13,8 @@ import { connectionFingerprint } from "#kit/embedding-generation";
 import type { EmbedSpace, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext } from "../contract/service.ts";
 
-/** Use the same width fold as the role caller: native MRL width is not the served output width. */
 interface SpaceResolveCtx {
-  readonly runtime: Pick<ConnectionContext["runtime"], "resolve"> & { readonly funnel: Pick<ConnectionContext["runtime"]["funnel"], "embed"> };
+  readonly runtime: Pick<ConnectionContext["runtime"], "resolve">;
 }
 
 /** The routable tasks whose binding defines a vector space. Both are `scope: "owner"` in `TASK_DEFS`. */
@@ -40,11 +39,10 @@ async function spaceFor(ctx: SpaceResolveCtx, principal: Principal, task: Routab
     if (resolved.capability.kind !== "embedding") {
       return null;
     }
-    const knobs = ctx.runtime.funnel.embed({}, resolved.capability.embedding);
     return {
       fingerprint: connectionFingerprint(resolved),
       model: embedSpaceOf(resolved.model, embedDtypeOf(resolved.capability)),
-      dim: knobs.dimensions ?? knobs.truncateTo ?? resolved.capability.embedding.dims,
+      dim: resolved.capability.embedding.dims,
     };
   } catch {
     return null;

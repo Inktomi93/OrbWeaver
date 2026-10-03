@@ -48,9 +48,7 @@ test.each([
   const connection = fakeResolved({ task: "imageEmbed", providerId, model, capability, baseUrl: "https://embed.test/v1" });
   const recorded: RecordedRequest[] = [];
   const fetch = scriptedJsonFetch([JSON.stringify({ data: [{ index: 0, embedding: Array.from({ length: EMBED_DIM }, () => 1) }] })], recorded);
-  h.roleClients.imageEmbed.mockImplementation((input) =>
-    runOpenAiCompatImageEmbed({ connection, input }, { fetch, normalize: passthroughImageNormalizer, spaceDims: EMBED_DIM }),
-  );
+  h.roleClients.imageEmbed.mockImplementation((input) => runOpenAiCompatImageEmbed({ connection, input }, { fetch, normalize: passthroughImageNormalizer }));
   const svc = createEmbeddingsService({
     ...h.ctx,
     resolveEmbeddingConnection: async (owner, task, id) => {
@@ -334,7 +332,6 @@ describe("embedAssets — the bulk image sweep", () => {
       assetId: seeded.assetId,
       content: IMG,
       model: IMAGE_EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: seeded.owner,
     });
 

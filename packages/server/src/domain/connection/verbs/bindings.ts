@@ -4,22 +4,10 @@
 // refusals the pane surfaces INLINE (§5.3a): a `spend: "background"` task on a row whose `allowBackground` is
 // off (`canFund`, F5 — resolve re-checks because the flag can flip after the binding is written), and a task
 // the row's kind cannot serve (`connectionTasks`). (§10-4) re-pointing `embed`/`imageEmbed` re-raises
-// the purge+reindex trigger. A vector task also refuses a row whose width does not fit the owner's space
-// (`spaceMisfitReason`), before a single document is indexed into it.
+// the purge+reindex trigger. Any embedder width is admitted: the owner's space takes the bound embedder's width.
 
-import type { Principal } from "@orb/contracts/identity";
 import type { ConnectionBinding, RoutableTask, UserConnection } from "@orb/contracts/inference";
-import {
-  CONNECTION_OP_CODES,
-  canFund,
-  connectionTasks,
-  EMBED_SPACE_DIMS,
-  isRoutableTask,
-  providerDisplayLabel,
-  ROUTABLE_TASKS,
-  spaceMisfitReason,
-  taskDef,
-} from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, canFund, connectionTasks, isRoutableTask, providerDisplayLabel, ROUTABLE_TASKS, taskDef } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
@@ -71,22 +59,6 @@ function requireServable(ctx: ConnectionContext, row: UserConnection, task: Rout
   if (!canFund(row, task)) {
     throw new DomainOperationError(CONNECTION_OP_CODES.backgroundRefused, `${task} runs unattended; allow background work on "${row.label}" first.`);
   }
-}
-
-/** Why this row cannot hold the owner's vectors, or `null` — read off the row's resolved capability, so a
- *  curated width, the server's own report and the user's declared width all count. Non-vector tasks pass. */
-async function vectorWidthRefusal(ctx: ConnectionContext, principal: Principal, row: UserConnection, task: RoutableTask): Promise<string | null> {
-  if (!VECTOR_TASKS.includes(task)) {
-    return null;
-  }
-  const read = await ctx.runtime.capabilities.for({ connectionId: row.id, principal });
-  if (read.capability.kind !== "embedding") {
-    return null;
-  }
-  const reason = spaceMisfitReason(read.capability.embedding, EMBED_SPACE_DIMS);
-  return reason === null
-    ? null
-    : `"${row.label}" can't be used here: ${reason}. Pick an embedder that makes ${String(EMBED_SPACE_DIMS)}-wide vectors, or keep the built-in embeddings.`;
 }
 
 function createListBindings(ctx: ConnectionContext): ConnectionService["listBindings"] {
@@ -157,10 +129,6 @@ function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding
         throw new ConnectionNotFoundError(params.connectionId);
       }
       requireServable(ctx, row, params.task);
-      const widthRefusal = await vectorWidthRefusal(ctx, params.principal, row, params.task);
-      if (widthRefusal !== null) {
-        throw new DomainOperationError(CONNECTION_OP_CODES.taskUnservable, widthRefusal);
-      }
     }
     const written = await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task: params.task, connectionId: params.connectionId });
     await ctx.audit(
@@ -189,14 +157,8 @@ function createUseForEverything(ctx: ConnectionContext): ConnectionService["useF
       throw new ConnectionNotFoundError(params.connectionId);
     }
     // Every routable task the row can serve AND fund: a background task on a row with the flag off is
-    // skipped (not refused — the user asked for "everything it can serve", and it cannot serve that), and so
-    // is a vector task whose width does not fit the owner's space.
-    const tasks: RoutableTask[] = [];
-    for (const task of servableTasks(ctx, row)) {
-      if ((taskDef(task).spend === "foreground" || row.allowBackground) && (await vectorWidthRefusal(ctx, params.principal, row, task)) === null) {
-        tasks.push(task);
-      }
-    }
+    // skipped (not refused — the user asked for "everything it can serve", and it cannot serve that).
+    const tasks = servableTasks(ctx, row).filter((task) => taskDef(task).spend === "foreground" || row.allowBackground);
     const actor: StoredActor = { actorKind: "user", actorId: userId };
     const written: ConnectionBinding[] = [];
     for (const task of tasks) {

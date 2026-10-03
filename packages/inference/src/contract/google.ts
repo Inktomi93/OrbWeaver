@@ -12,7 +12,6 @@ export interface GoogleBackendDeps {
   readonly captureWire?: InferenceDeps["captureWire"];
   readonly captureWireReply?: InferenceDeps["captureWireReply"];
   readonly imageToPng?: InferenceDeps["imageToPng"];
-  readonly embedSpaceDims: number;
 }
 
 export interface GoogleCall {

@@ -56,8 +56,17 @@ export function createEmbeddingsWorkloadContributions(deps: EmbeddingsWorkloadDe
           let embedded = 0;
           let skipped = 0;
           if (params.source === "text" || params.source === "all") {
-            report({ message: force ? "re-embedding corpus (force)" : "embedding corpus" });
-            const result = await deps.embeddings.embedCorpus({ ownerId: ctx.ownerId, force, signal });
+            const label = force ? "re-embedding corpus (force)" : "embedding corpus";
+            report({ message: label });
+            // An embedder switch re-embeds every card, so the corpus pass reports N of M like the avatar pass.
+            const result = await deps.embeddings.embedCorpus({
+              ownerId: ctx.ownerId,
+              force,
+              signal,
+              onProgress: (done, total) => {
+                report({ message: `${label} — ${done} of ${total}`, current: done, total });
+              },
+            });
             embedded += result.embedded;
             skipped += result.skipped;
           }

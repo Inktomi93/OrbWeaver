@@ -18,7 +18,7 @@
 import { rmSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import process from "node:process";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import {
   characterRegexScripts,
   chatBooks,
@@ -298,7 +298,7 @@ export async function runFullSeed(deps: RunFullSeedDeps): Promise<RunFullSeedRes
     // The seeded local-light rows embed through the scripted cache (the owner's rows come from the per-user
     // seed wired into `bootSessions` above — #2481; this seeder runs no boot sweep); there is
     // no chat connection, so the best-effort turns below log `no-connection` and keep the greeting transcript.
-    providerSeams: { localLight: { cache: fakeLocalLightCache(EMBED_SPACE_DIMS) } },
+    providerSeams: { localLight: { cache: fakeLocalLightCache(BUILT_IN_EMBED_DIMS) } },
   });
 
   for (const boundOwner of ownersBoundBeforeCompose) {

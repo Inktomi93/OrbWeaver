@@ -74,12 +74,11 @@ type EnsureChatHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;
  *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
 type EnsureChatMemberOp = (principal: Principal, chatId: ChatId) => Promise<void>;
 
-/** The active embed space `(model, dim)` the chunk-store arm tags rows with — PER OWNER (the owner's `embed`
- *  binding defines it, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed into,
- *  and every chunk-count read answers zero through {@link NO_EMBED_SPACE_MODEL}. */
+/** The active embed space tag the chunk-store arm tags rows with — PER OWNER (the owner's `embed` binding
+ *  defines it and its width, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed
+ *  into, and every chunk-count read answers zero through {@link NO_EMBED_SPACE_MODEL}. */
 interface ActiveEmbedSpace {
   readonly model: string;
-  readonly dim: number;
 }
 
 /** The model tag a count read uses when the owner has NO space: no stored chunk ever carries the empty tag, so

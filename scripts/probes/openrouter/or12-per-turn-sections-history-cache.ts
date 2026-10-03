@@ -286,7 +286,7 @@ function wireFor(spec: WireSpec, key: string, capture: Capture) {
     ["anthropic-messages" as const, createAnthropicBackend(shared)],
     [
       "openai-compat" as const,
-      createOpenAiCompatBackend({ ...shared, app: { name: "orbweaver-or12-probe", url: "http://127.0.0.1" }, embedSpaceDims: 0, snapshotStore: NO_SNAPSHOTS }).backend,
+      createOpenAiCompatBackend({ ...shared, app: { name: "orbweaver-or12-probe", url: "http://127.0.0.1" }, snapshotStore: NO_SNAPSHOTS }).backend,
     ],
   ]);
   const executor = createProviderExecutor({ registry, span: (_name, fn) => Promise.resolve(fn()) });
