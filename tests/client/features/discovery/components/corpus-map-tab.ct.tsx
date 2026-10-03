@@ -38,6 +38,9 @@ const POINTS = [
 const KEY_ROWS = ["Fantasy2", "Noir1", "Scifi1", "Romance1", "Other2"];
 /** The key's accessible name is the chart's own label plus "key" (the primitive composes it). */
 const KEY_NAME = "Corpus semantic map key";
+const RUN_JOB_DOOR = /Run a job/;
+/** The story's readout once `openConfigTo("workloads", "jobs")` has landed. */
+const JOBS_LANDING = "section:config target:workloads/jobs";
 
 test("the map carries a genre KEY, and every series in it is named", async ({ mount, page }) => {
   await routeTrpc(page, { "discovery.corpusProjection": POINTS });
@@ -103,4 +106,14 @@ test("no genre is named twice — the key cannot hand two rows the same swatch",
   const names = await rows.allInnerTexts();
   expect(new Set(names).size, "a repeated row would mean the ramp wrapped and two series share a colour").toBe(names.length);
   expect(names.length, "the series count is capped at the ramp's five stops, pool included").toBeLessThanOrEqual(5);
+});
+
+// The map is a projection of the card INDEX, so its empty state's one door opens Settings → Jobs, where the
+// index job runs. It used to open the Refinery, which rewrites a card's text and can never fill this map.
+test("an empty map's door lands on Settings → Jobs", async ({ mount, page }) => {
+  await routeTrpc(page, { "discovery.corpusProjection": [] });
+  const component = await mount(<CorpusMapTabStory />);
+
+  await component.getByRole("button", { name: RUN_JOB_DOOR }).click();
+  await expect(component.getByTestId("ct-door-landing")).toHaveText(JOBS_LANDING);
 });

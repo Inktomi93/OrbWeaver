@@ -29,6 +29,7 @@ import {
   useActiveChatId,
   useActiveSection,
   useChatMoment,
+  useConfigTarget,
   useSelectedCorpusDestination,
 } from "@orb/client/state";
 import type { CharacterId, ThemeClusterId } from "@orb/kit/ids";
@@ -83,6 +84,17 @@ function NavReadout(): ReactElement {
       <output data-testid="ct-source-readout">{moment === null ? "none" : JSON.stringify(moment.target)}</output>
       <output data-testid="ct-artifact-identity">{destination === null ? "none" : corpusDestinationIdentity(destination)}</output>
     </>
+  );
+}
+
+/** Where a corpus empty state's door landed: the config deep-link target and the active section, as text a
+ *  CT can assert (the nav store is module-private). Rides beside the empty-state mounts below. */
+function DoorLandingReadout(): ReactElement {
+  const target = useConfigTarget();
+  return (
+    <output data-testid="ct-door-landing">
+      section:{useActiveSection()} target:{target === null ? "none" : `${target.group}/${target.sub ?? "-"}`}
+    </output>
   );
 }
 
@@ -244,6 +256,7 @@ export function CorpusArchetypesTabStory(): ReactElement {
       <div style={{ height: 640, width: 420 }}>
         <CorpusArchetypesTab />
       </div>
+      <DoorLandingReadout />
     </CtDataProviders>
   );
 }
@@ -269,6 +282,7 @@ export function CorpusMapTabStory(): ReactElement {
       <div style={{ height: 640, width: 420 }}>
         <CorpusMapTab />
       </div>
+      <DoorLandingReadout />
     </CtDataProviders>
   );
 }
@@ -496,13 +510,17 @@ export function CorpusContentNarrowStory(): ReactElement {
 
 const DOSSIER_CHARACTER = castId<CharacterId>("char_aria");
 
-/** The Corpus CONTENT dossier over the real data layer — the ASK panel's provenance badge lives here. */
+/** The Corpus CONTENT dossier over the real data layer — the ASK panel's provenance badge lives here. Counts
+ *  `onBack` calls beside the door landing, so the unavailable state's two exits are both provable. */
 export function CorpusDossierSurfaceStory(): ReactElement {
+  const [backs, setBacks] = useState(0);
   return (
     <CtDataProviders>
       <div style={{ height: 640, width: 480 }}>
-        <CorpusDossierSurface characterId={DOSSIER_CHARACTER} onBack={(): void => undefined} />
+        <CorpusDossierSurface characterId={DOSSIER_CHARACTER} onBack={(): void => setBacks((n) => n + 1)} />
       </div>
+      <DoorLandingReadout />
+      <output data-testid="ct-dossier-backs">{backs}</output>
     </CtDataProviders>
   );
 }

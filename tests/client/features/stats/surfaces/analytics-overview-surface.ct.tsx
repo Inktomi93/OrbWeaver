@@ -345,7 +345,7 @@ test("a raced recompute (CONFLICT) renders the honest notice, not a failure", as
   await expect(component.getByRole("status")).toHaveText("A recompute is already running — it'll finish on its own.");
   // The dashboard is intact and the affordance is usable again — a refusal is not a broken surface.
   await expect(component.getByRole("button", { name: "Recompute now" })).toBeEnabled();
-  await expect(component.getByText("Year in review")).toBeVisible();
+  await expect(component.getByRole("heading", { name: "All-time totals" })).toBeVisible();
 });
 
 // THE CONTAINING-BLOCK PIN (phantom-scroll CLASS sweep, 2026-08-14). The overview dashboard owns its scroll axis (`h-full min-h-0 overflow-y-auto overscroll-contain`), as do the three analytics tabs beside it.
