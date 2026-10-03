@@ -19,6 +19,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ExportService } from "#domain/export";
+import type { SettleImportMemory } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
 import { allowedHostsInput, env, resolveAllowedHosts } from "#foundation/env";
 import type { MemoryRecallInspector, RpgTraceInspector } from "#foundation/observability";
@@ -199,6 +200,8 @@ export interface AppDeps {
   readonly cas: BlobCasPort;
   readonly character: ImportCharacterPort;
   readonly portability: PortabilityRegistry;
+  /** Closes a synchronous chat import's memory scope (the free segment pass + the offer's handle). */
+  readonly settleImportMemory: SettleImportMemory;
   readonly importWorldInfo: ImportWorldInfoPort;
   /** The card regex-script lift the Characters import dialog's door threads, so no door drops a card's scripts. */
   readonly importCardScripts: ImportCardScripts;
@@ -422,7 +425,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
   });
   registerExport(app, { export: deps.exportService, registry: deps.portability });
   registerImportBundle(app, { workloads: deps.services.workloads, stagingDir: env.IMPORT_STAGING_DIR });
-  registerImportChat(app, { registry: deps.portability });
+  registerImportChat(app, { registry: deps.portability, now: deps.now, settleImportMemory: deps.settleImportMemory });
   registerImportTree(app, { workloads: deps.services.workloads, registry: deps.portability, stagingDir: env.IMPORT_STAGING_DIR });
   registerAuthRoutes(plain, {
     sessions: deps.sessions,

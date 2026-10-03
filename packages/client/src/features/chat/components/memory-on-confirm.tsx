@@ -1,6 +1,7 @@
 // The confirm turning Memory on passes through: what it costs, which model pays, and what happens to existing chats
 // (each builds at its next reply, or all of them now through the Memory backfill job, sized by the server's own
-// count of its model calls; an import builds at once). Memory is off by default, so this moment is the place to say it.
+// count of its model calls; an import offers the same choice for its own chats). Memory is off by default, so this
+// moment is the place to say it.
 
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -11,7 +12,7 @@ import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_IMPORTED_CHATS_NOTE } from "../lib/m
 
 const BACKFILL_ESTIMATE = { input: { kind: "memory-backfill", params: {} }, mode: "singular" } as const;
 
-/** When summaries can run: an existing chat at its next reply, an imported one at once. */
+/** When summaries can run: an existing chat at its next reply, an imported one when its import's offer is taken. */
 const WHEN_CHATS_BUILD = `${MEMORY_EXISTING_CHATS_NOTE} ${MEMORY_IMPORTED_CHATS_NOTE}`;
 
 function utilitySentence(utility: ReturnType<typeof useUtilityModel>): string {

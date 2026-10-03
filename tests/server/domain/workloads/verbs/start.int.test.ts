@@ -504,3 +504,40 @@ describe("workloads.start — the owning domain's admission precondition", () =>
     expect((await s.get({ id, caller: principal("user_owner_box", "owner") })).ownerId).toBeNull();
   });
 });
+
+// ── memory-backfill's admission units ─────────────────────────────────────────────────────────────────
+// An import's free segment pass and its confirmed digest build are scoped to the import's span. Neither may hold
+// the slot a whole-corpus sweep needs (the model-change reindex starts one without adopting, and a conflict there
+// is only logged), and a second start of the SAME scoped build is the conflict the offer explains.
+describe("workloads.start — memory-backfill's admission units", () => {
+  const importWindow = { from: 1_700_000_000_000, to: 1_700_000_005_000 };
+
+  test("an import's scoped build and segment pass leave the whole-corpus sweep admissible", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const s = makeService(db, fakeContributions({ memoryEnabled: true }));
+    const caller = principal("user_alice");
+
+    await s.start({ input: { kind: "memory-backfill", params: { importWindow, segmentsOnly: true } }, caller, mode: "singular", ownerId: alice });
+    await s.start({ input: { kind: "memory-backfill", params: { importWindow } }, caller, mode: "singular", ownerId: alice });
+    const whole = await s.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "singular", ownerId: alice });
+
+    expect((await s.get({ id: whole.id, caller })).status).toBe("queued");
+    expect((await s.list({ caller })).map((row) => row.status)).toEqual(["queued", "queued", "queued"]);
+  });
+
+  test("a second start of the same scoped build is the conflict, and a new import's span is its own unit", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, "user_alice");
+    const s = makeService(db, fakeContributions({ memoryEnabled: true }));
+    const caller = principal("user_alice");
+    await s.start({ input: { kind: "memory-backfill", params: { importWindow } }, caller, mode: "singular", ownerId: alice });
+
+    await expect(s.start({ input: { kind: "memory-backfill", params: { importWindow } }, caller, mode: "singular", ownerId: alice })).rejects.toBeInstanceOf(
+      DomainConflictError,
+    );
+    const next = { from: importWindow.to + 1, to: importWindow.to + 9000 };
+    const { id } = await s.start({ input: { kind: "memory-backfill", params: { importWindow: next } }, caller, mode: "singular", ownerId: alice });
+    expect((await s.get({ id, caller })).status).toBe("queued");
+  });
+});

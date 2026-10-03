@@ -58,7 +58,7 @@ function ctxWith(importTheme: ImportProfileDeps["importTheme"]): ImportContext {
       personaByUserName: new Map(),
       bulkImportChats: unused,
       bulkImportPersonas: unused,
-      enqueueBackfill: () => Promise.resolve(true),
+      enqueueImportIndex: () => Promise.resolve(),
       reconcileStats: () => Promise.resolve(),
       ...(importTheme === undefined ? {} : { importTheme }),
     },

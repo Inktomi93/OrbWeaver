@@ -21,6 +21,8 @@ export type { FormDialogProps, FormDialogSubmit, FormSubmitButtonProps } from ".
 export { FormDialog, FormSubmitButton } from "./form-dialog.tsx";
 export type { GreetingStudioProps } from "./greeting-studio.tsx";
 export { GreetingStudio } from "./greeting-studio.tsx";
+export type { ImportedChatsMemoryOfferProps } from "./imported-chats-memory-offer.tsx";
+export { ImportedChatsMemoryOffer } from "./imported-chats-memory-offer.tsx";
 export type { LibraryRowActions, LibraryRowProps } from "./library-row.tsx";
 export { LibraryRow } from "./library-row.tsx";
 export type { LibraryListFrameProps, LibraryListLayoutProps, LibraryListRowsProps, LibrarySurfaceShellProps } from "./library-surface.tsx";

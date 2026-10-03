@@ -61,7 +61,7 @@ function ctxWith(importPreset: ImportProfileDeps["importPreset"], importPresetSc
       personaByUserName: new Map(),
       bulkImportChats: unused,
       bulkImportPersonas: unused,
-      enqueueBackfill: () => Promise.resolve(true),
+      enqueueImportIndex: () => Promise.resolve(),
       reconcileStats: () => Promise.resolve(),
       ...(importPreset === undefined ? {} : { importPreset }),
       ...(importPresetScripts === undefined ? {} : { importPresetScripts }),

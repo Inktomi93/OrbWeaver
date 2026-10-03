@@ -7,6 +7,7 @@
 // tRPC), so they're page.route-d directly. The import half is a TWO-STEP flow since #1099 F36 — a pick
 // stages, a confirm sends — and this file drives both steps.
 
+import type { ImportWindow } from "@orb/contracts/chat";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -21,6 +22,8 @@ import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socke
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
+import { PAID_RUN_ROUTES } from "../../../../support/node/utility-role.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
 // never answers them and they rode `routeTrpc`'s lenient null in every mount here. Imported from the bus's
@@ -130,7 +133,7 @@ test("import: a dropped .zip is STAGED first; confirming POSTs the bundle, tails
       workloadId: castId<WorkloadId>("workload_ct_import"),
       kind: "import-bundle",
       at: 1_750_000_002_000,
-      result: { imported: 12, skipped: 1, failed: 0, notes: [] },
+      result: { imported: 12, skipped: 1, failed: 0, notes: [], memoryScope: null },
     },
   ]);
 
@@ -177,7 +180,7 @@ test("import: a bundle workload's flattened notes render beside the count summar
       workloadId: castId<WorkloadId>("workload_ct_import_notes"),
       kind: "import-bundle",
       at: 1_750_000_002_000,
-      result: { imported: 1, skipped: 0, failed: 0, notes: ["book kept: primary already exists"] },
+      result: { imported: 1, skipped: 0, failed: 0, notes: ["book kept: primary already exists"], memoryScope: null },
     },
   ]);
 
@@ -192,6 +195,74 @@ test("import: a bundle workload's flattened notes render beside the count summar
   await expect(page.getByTestId("import-report")).toBeVisible();
   await expect(page.getByText("1 imported")).toBeVisible();
   await expect(page.getByText("book kept: primary already exists")).toBeVisible();
+});
+
+// ── AN IMPORT ENQUEUES NOTHING PAID; THE REPORT OFFERS THE MEMORY BUILD ─────────────────────────────────────
+// The finished `import-bundle` result carries the import's span (its scope handle). With Memory on, the report
+// offers to build those chats' memory, sized by the server's count for that span, and only the confirm's yes starts
+// the run; with Memory off there is no offer. The handle is two numbers however many chats the import wrote.
+const IMPORTED_SPAN: ImportWindow = { from: 1_750_000_000_000, to: 1_750_000_002_000 };
+async function finishImportWith(page: Page, memoryScope: ImportWindow): Promise<void> {
+  await page.route("**/api/import/bundle", async (route) => {
+    await route.fulfill({ status: 202, headers: { "content-type": "application/json" }, body: JSON.stringify({ workloadId: "workload_ct_import_chats" }) });
+  });
+  await routeImportWorkloadSocket(page, [
+    {
+      type: "succeeded",
+      workloadId: castId<WorkloadId>("workload_ct_import_chats"),
+      kind: "import-bundle",
+      at: 1_750_000_002_000,
+      result: { imported: 3, skipped: 0, failed: 0, notes: [], memoryScope },
+    },
+  ]);
+}
+
+async function importBackup(page: Page): Promise<void> {
+  await page.getByTestId("backup-import-dropzone").setInputFiles({ name: "backup.zip", mimeType: "application/zip", buffer: Buffer.from("PK") });
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  await expect(page.getByTestId("import-report")).toBeVisible();
+}
+
+test("import: with Memory on, the report offers a memory build scoped to the imported chats, behind the paid-run confirm", async ({ mount, page }) => {
+  const scoped = { input: { kind: "memory-backfill", params: { importWindow: IMPORTED_SPAN } }, mode: "singular" };
+  const trpc = await routeTrpc(page, {
+    ...HOST_VIEWER_ROUTE,
+    ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
+    "settings.getUserSettings": userSettingsView({ memory: { enabled: true } }),
+    "workloads.estimateModelCalls": { calls: 14 },
+    "workloads.start": { id: "workload_ct_imported_memory" },
+  });
+  await finishImportWith(page, IMPORTED_SPAN);
+
+  await mount(<BackupSettingsStory />);
+  await importBackup(page);
+
+  const offer = page.getByTestId("imported-chats-memory-offer");
+  await expect(offer).toBeVisible();
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a zero count after a settled barrier (the offer painted from the finished import); nothing but the offer's confirm can start a run, so a poll would pass at t=0 and prove less.
+  expect(trpc.count("workloads.start")).toBe(0);
+  await offer.getByRole("button").click();
+
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toBeVisible();
+  await expect.poll(() => trpc.lastInput("workloads.estimateModelCalls")).toEqual(scoped);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): a zero count after a settled barrier (the confirm painted from the landed count); its yes is the only start path and is not yet pressed, so a poll would pass at t=0 and prove less.
+  expect(trpc.count("workloads.start")).toBe(0);
+  await confirm.getByRole("button", { name: "Build memory", exact: true }).click();
+  await expect.poll(() => trpc.lastInput("workloads.start")).toEqual(scoped);
+});
+
+test("import: with Memory off, the report makes no memory offer for the chats it wrote", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { ...HOST_VIEWER_ROUTE, ...STREAM_MUTATION_ROUTES, "settings.getUserSettings": userSettingsView() });
+  await finishImportWith(page, IMPORTED_SPAN);
+
+  await mount(<BackupSettingsStory />);
+  await importBackup(page);
+
+  // SETTLED: the offer's own switch read landed before the absence is read.
+  await expect.poll(() => trpc.count("settings.getUserSettings")).toBeGreaterThan(0);
+  await expect(page.getByTestId("imported-chats-memory-offer")).toHaveCount(0);
 });
 
 // ── #980 F13 · THE INCLUDE CHECKBOXES ARE ATTACHED TO THEIR LABELS ───────────────────────────────────

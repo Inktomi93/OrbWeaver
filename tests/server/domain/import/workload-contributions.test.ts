@@ -38,9 +38,9 @@ function build(
   const deps: ImportWorkloadDeps = {
     stagingRoot,
     stProfileDir: join(stagingRoot, "..", "profiles"),
-    runProfileDirImport: vi.fn(async () => ({ scanned: 12, changed: 4, failed: 0 })),
-    runBundleImport: vi.fn(async () => ({ imported: 7, skipped: 1, failed: 0, notes: [] })),
-    runStagedDirImport: vi.fn(async () => ({ imported: 3, skipped: 0, failed: 0, notes: [] })),
+    runProfileDirImport: vi.fn(async () => ({ scanned: 12, changed: 4, failed: 0, memoryScope: null })),
+    runBundleImport: vi.fn(async () => ({ imported: 7, skipped: 1, failed: 0, notes: [], memoryScope: null })),
+    runStagedDirImport: vi.fn(async () => ({ imported: 3, skipped: 0, failed: 0, notes: [], memoryScope: null })),
     listTokenUsageCandidates: vi.fn(async () => []),
     compareAndSetTokenUsage: vi.fn(async () => true),
     reconcileImportStats: vi.fn(async () => undefined),
@@ -147,7 +147,7 @@ describe("import-st — staging containment", () => {
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[0].run(ctx, { stagedDir: VALID_TOKEN }, vi.fn(), sig());
     expect(vi.mocked(deps.runProfileDirImport).mock.calls[0]?.[0]?.profileRoot).toBe(stagedPath);
-    expect(result).toEqual({ scanned: 12, changed: 4, dryRun: false, failed: 0 });
+    expect(result).toEqual({ scanned: 12, changed: 4, dryRun: false, failed: 0, memoryScope: null });
     // Cleanup happened, but scoped INSIDE the root: the staged tree is gone, the root + sibling remain.
     expect(await exists(stagedPath)).toBe(false);
     expect(await exists(stagingRoot)).toBe(true);
@@ -192,9 +192,18 @@ describe("import-st — the run's own logic", () => {
     expect(result).toEqual({ scanned: 12, changed: 4, dryRun: true, failed: 0 });
   });
 
+  // The import enqueues no memory build; the result carries the chats it wrote, which the client offers to build.
+  test("a real run carries its memory scope for the offer; a dry run, which wrote nothing, carries none", async () => {
+    const { stagingRoot } = await makeStaging();
+    const memoryScope = { from: T0, to: T0 + 5000 };
+    const { contributions } = build(stagingRoot, { runProfileDirImport: vi.fn(async () => ({ scanned: 2, changed: 2, failed: 0, memoryScope })) });
+    expect((await contributions[0].run(ctx, {}, vi.fn(), sig())).memoryScope).toEqual(memoryScope);
+    expect(await contributions[0].run(ctx, { dryRun: true }, vi.fn(), sig())).not.toHaveProperty("memoryScope");
+  });
+
   test("a real run that changed NOTHING neither reconciles nor fans a refresh", async () => {
     const { stagingRoot } = await makeStaging();
-    const { deps, contributions } = build(stagingRoot, { runProfileDirImport: vi.fn(async () => ({ scanned: 3, changed: 0, failed: 0 })) });
+    const { deps, contributions } = build(stagingRoot, { runProfileDirImport: vi.fn(async () => ({ scanned: 3, changed: 0, failed: 0, memoryScope: null })) });
     await contributions[0].run(ctx, {}, vi.fn(), sig());
     expect(deps.reconcileImportStats).not.toHaveBeenCalled();
     expect(deps.emitLibraryChanged).not.toHaveBeenCalled();
@@ -231,7 +240,7 @@ describe("import-bundle — staging containment", () => {
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[2].run(ctx, { token: VALID_TOKEN, source: "dir" }, vi.fn(), sig());
     expect(vi.mocked(deps.runStagedDirImport).mock.calls[0]?.[0]?.stagedPath).toBe(stagedPath);
-    expect(result).toEqual({ imported: 3, skipped: 0, failed: 0, notes: [] });
+    expect(result).toEqual({ imported: 3, skipped: 0, failed: 0, notes: [], memoryScope: null });
     expect(await exists(stagedPath)).toBe(false);
     expect(await exists(stagingRoot)).toBe(true);
     expect(await exists(victim)).toBe(true);
@@ -244,7 +253,7 @@ describe("import-bundle — staging containment", () => {
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[2].run(ctx, { token: "import-bundle-abc.zip" }, vi.fn(), sig());
     expect(deps.runBundleImport).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ imported: 7, skipped: 1, failed: 0, notes: [] });
+    expect(result).toEqual({ imported: 7, skipped: 1, failed: 0, notes: [], memoryScope: null });
     expect(await exists(stagedPath)).toBe(false);
   });
 
@@ -265,7 +274,7 @@ describe("import-bundle — staging containment", () => {
     const emptyStaged = join(ownerRoot, `${VALID_TOKEN}-empty`);
     await mkdir(emptyStaged, { recursive: true });
     const { deps: emptyDeps, contributions: emptyContributions } = build(stagingRoot, {
-      runStagedDirImport: vi.fn(async () => ({ imported: 0, skipped: 4, failed: 0, notes: [] })),
+      runStagedDirImport: vi.fn(async () => ({ imported: 0, skipped: 4, failed: 0, notes: [], memoryScope: null })),
     });
     await emptyContributions[2].run(ctx, { token: `${VALID_TOKEN}-empty`, source: "dir" }, vi.fn(), sig());
     expect(emptyDeps.emitLibraryChanged).not.toHaveBeenCalled();
@@ -362,7 +371,7 @@ describe("staged handles are per-owner, not bearer tokens (#1534)", () => {
     const result = await contributions[2].run(ctx, { token: VALID_TOKEN }, vi.fn(), sig());
 
     expect(deps.runBundleImport).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({ imported: 7, skipped: 1, failed: 0, notes: [] });
+    expect(result).toEqual({ imported: 7, skipped: 1, failed: 0, notes: [], memoryScope: null });
     expect(await exists(join(aRoot, VALID_TOKEN))).toBe(false);
   });
 

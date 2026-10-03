@@ -134,6 +134,7 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     character: stub,
     exportService: stub,
     portability: [inertChatPortability],
+    settleImportMemory: stub,
     importWorldInfo: stub,
     importCardScripts: stub,
     sessions: stub,

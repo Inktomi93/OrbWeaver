@@ -114,6 +114,7 @@ export const TEST_IDS = {
   backupExportButton: "backup-export-button",
   backupImportDropzone: "backup-import-dropzone",
   importReport: "import-report",
+  importedChatsMemoryOffer: "imported-chats-memory-offer",
   runWorkloadDialog: "run-workload-dialog",
   runWorkloadSubmit: "run-workload-submit",
   workloadsSchedulesSection: "workloads-schedules-section",

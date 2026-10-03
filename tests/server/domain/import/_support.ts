@@ -207,7 +207,7 @@ export function makeHarness(): ImportHarness {
 // ── the PROFILE-wave harness (Option B): a `ctx.profile` over RECORDING FAKES — the chats/personas
 // verbs perform NO db access, they translate ST → the canonical bulk-import input and delegate the WRITE to
 // the injected `bulkImportChats`/`bulkImportPersonas` ops. The import VERB tests exercise the ST→input mapping
-// + the backfill gate against these fakes; the db-write correctness is pinned in the chat/persona
+// + the index gate against these fakes; the db-write correctness is pinned in the chat/persona
 // persistence mirror int-tests. No `freshDb` for import (import fabricates no db).
 
 /** A fixed clock for the profile harness (deterministic — no unseeded time under tests/). */
@@ -233,19 +233,19 @@ export interface ProfileHarness {
   readonly chatCalls: BulkChatsCall[];
   /** Every `bulkImportPersonas` call the verb issued. */
   readonly personaCalls: BulkPersonasCall[];
-  /** Every `enqueueBackfill` call (the backfill gate assertion surface). */
-  readonly backfills: { readonly ownerId: UserId }[];
+  /** Every `enqueueImportIndex` call (the post-import index gate assertion surface). */
+  readonly indexEnqueues: { readonly ownerId: UserId }[];
   /** Every inline `reconcileStats` call. */
   readonly reconciles: { readonly ownerId: UserId }[];
 }
 
 /** Build a profile-wave `ImportContext` over recording fakes, owned by `ownerId`. The fake `bulkImportChats`
- *  derives its counts from the mapped input (so the backfill gate — `realConversationWritten` — reflects the
+ *  derives its counts from the mapped input (so the memory scope — `realConversationsWritten` — reflects the
  *  verb's ST→canonical mapping); the fake `bulkImportPersonas` returns an `idByName` for every input name. */
 export function makeProfileHarness(ownerId: UserId): ProfileHarness {
   const chatCalls: BulkChatsCall[] = [];
   const personaCalls: BulkPersonasCall[] = [];
-  const backfills: { ownerId: UserId }[] = [];
+  const indexEnqueues: { ownerId: UserId }[] = [];
   const reconciles: { ownerId: UserId }[] = [];
   let personaSeq = 0;
 
@@ -254,7 +254,6 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
     personaByUserName: new Map<string, PersonaId>(),
     bulkImportChats: (args) => {
       chatCalls.push(args);
-      const realConversationWritten = args.chats.some((c) => c.isRealConversation);
       const identities = args.chats.map((c, i) => ({
         chatId: castId<ChatId>(`chat_stub_${i}`),
         messageIds: c.messages.map((_m, mi) => castId<MessageId>(`msg_stub_${i}_${mi}`)),
@@ -272,7 +271,7 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
         messagesImported: args.chats.reduce((n, c) => n + c.messages.length, 0),
         variantsImported: args.chats.reduce((n, c) => n + c.messages.reduce((v, m) => v + m.variants.length, 0), 0),
         branchesLinked: 0,
-        realConversationWritten,
+        realConversationsWritten: identities.flatMap((identity, i) => (args.chats[i]?.isRealConversation === true ? [identity.chatId] : [])),
         // The DOUBLE never dedups, so it never reaches the skip arm that heals — the real op's heal is proven
         // against a real db in `tests/server/domain/chat/persistence/import-write.int.test.ts`.
         chatsPersonaHealed: 0,
@@ -304,9 +303,9 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
         idByName,
       });
     },
-    enqueueBackfill: ({ ownerId: o }): Promise<boolean> => {
-      backfills.push({ ownerId: o });
-      return Promise.resolve(true);
+    enqueueImportIndex: ({ ownerId: o }): Promise<void> => {
+      indexEnqueues.push({ ownerId: o });
+      return Promise.resolve();
     },
     reconcileStats: ({ ownerId: o }): Promise<void> => {
       reconciles.push({ ownerId: o });
@@ -327,5 +326,5 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
     attachCardTag: inert,
     profile,
   };
-  return { ctx, profile, chatCalls, personaCalls, backfills, reconciles };
+  return { ctx, profile, chatCalls, personaCalls, indexEnqueues, reconciles };
 }

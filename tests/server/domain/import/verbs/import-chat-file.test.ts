@@ -74,13 +74,13 @@ describe("importChatFile", () => {
 
     const outcome = await h.verb({ filename: "aria/chat_2025.jsonl", bytes: transcript() });
 
-    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [], memoryChatIds: ["chat_stub_0"] });
     // The transcript landed against the handle's character — the directory IS the re-link key.
     expect(h.chatCalls).toHaveLength(1);
     expect(h.chatCalls[0]?.characterId).toBe(ARIA);
     expect(h.chatCalls[0]?.chats[0]?.importedFrom).toBe("aria/chat_2025.jsonl");
     // A real conversation was written ⇒ the downstream index sweep is enqueued.
-    expect(h.backfills).toEqual([{ ownerId: OWNER }]);
+    expect(h.indexEnqueues).toEqual([{ ownerId: OWNER }]);
   });
 
   // The seeded character is named "Elias Thorn" with handle `elias`; the bare upload door routes the
@@ -90,7 +90,7 @@ describe("importChatFile", () => {
 
     const outcome = await h.verb({ filename: "elias-thorn/chat.jsonl", bytes: transcript("Elias Thorn") });
 
-    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [] });
+    expect(outcome).toEqual({ ok: true, created: true, skippedOverlays: [], memoryChatIds: ["chat_stub_0"] });
     expect(h.chatCalls.map((call) => call.characterId)).toEqual([ELIAS]);
   });
 
