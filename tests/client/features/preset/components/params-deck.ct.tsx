@@ -15,12 +15,14 @@
 // its `aria-label`, which is `"<label> value"`; the SLIDER carries the bare `"<label>"` (the role is not part
 // of a name — F-27). The split is the 2026-08-19 P1-2 fix: the pair used to share one name exactly.
 
+import type { TokenizeResult, WordTokens } from "@orb/contracts/inference";
 import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav.ts";
 import { boxWithBeforeFloor, resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { clearNumber, setNumber } from "../../../../support/node/set-number.ts";
 import { CompactionTabDefaultsStory, CompactionTabSetStory } from "./_add-flow-stories.tsx";
 import {
@@ -30,7 +32,9 @@ import {
   ParamsDeckExplicitStory,
   ParamsDeckGhostStory,
   ParamsDeckLogitBiasSwitchStory,
+  ParamsDeckNoBansStory,
   ParamsDeckPendingCapabilityStory,
+  ParamsDeckStaleKoboldStory,
   ParamsDeckStaleStory,
 } from "./_params-deck-stories.tsx";
 
@@ -438,13 +442,13 @@ test("CAPABILITY ERROR (no tRPC data — a transport failure) — the band state
   await expect(deck.getByText(READ_HEADLINE_RE)).toBeVisible();
 });
 
-test("ADVANCED — the ONE collapsed disclosure; it opens onto the escape hatches", async ({ mount }) => {
+test("ADVANCED — the ONE collapsed disclosure; it opens onto the escape hatches", async ({ mount, page }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
 
-  await expect(deck.getByLabel("Logit bias", { exact: true })).toBeHidden();
-  await deck.getByRole("button", { name: "Advanced" }).click();
+  await expect(deck.getByRole("group", { name: "Logit bias", exact: true })).toBeHidden();
+  await openAdvanced(deck, page);
 
-  await expect(deck.getByLabel("Logit bias", { exact: true })).toBeVisible();
+  await expect(deck.getByRole("group", { name: "Logit bias", exact: true })).toBeVisible();
   await expect(deck.getByRole("switch", { name: "Parallel tool calls" })).toBeVisible();
   await expect(deck.getByText(CLAUDE_ENV_RE)).toBeVisible();
 });
@@ -804,16 +808,37 @@ test.describe("coarse pointer — every knob explainer clears the touch floor", 
   });
 });
 
-/** Open ADVANCED, where the logit-bias box lives. */
-async function openAdvanced(deck: Locator): Promise<void> {
+/** A word the story server cannot tokenize, so the editor's inline failure shows. */
+const UNTOKENIZABLE_WORD = "broken";
+
+function storyTokens(word: string): WordTokens {
+  return word === UNTOKENIZABLE_WORD
+    ? { ok: false, word, reason: "the tokenizer is offline" }
+    : { ok: true, word, ids: [1, 2], pieces: [word.slice(0, 1), word.slice(1)] };
+}
+
+/** Answer the logit-bias editor's word lookup: each word becomes its first letter and the rest, ids 1 and 2;
+ *  `available: false` is a server with no tokenize endpoint. */
+async function routeTokenize(page: Page, available: boolean): Promise<void> {
+  await routeTrpc(page, {
+    "connection.tokenizeWords": (input): TokenizeResult => ({
+      available,
+      words: available ? input.words.map(storyTokens) : [],
+    }),
+  });
+}
+
+/** Open ADVANCED, where the logit-bias editor lives; it reads the word lookup as it mounts. */
+async function openAdvanced(deck: Locator, page: Page, tokenizes = true): Promise<void> {
+  await routeTokenize(page, tokenizes);
   await deck.getByRole("button", { name: "Advanced" }).click();
 }
 
 // PARALLEL TOOL CALLS can be turned OFF. Unset is the model's own default (most allow parallel calls), so the
 // switch reads on; off writes `false`, which every wire that has the control sends; on clears the field again.
-test("PARALLEL TOOL CALLS — off saves false, and on clears the field back to the model default", async ({ mount }) => {
+test("PARALLEL TOOL CALLS — off saves false, and on clears the field back to the model default", async ({ mount, page }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
-  await openAdvanced(deck);
+  await openAdvanced(deck, page);
 
   const toggle = deck.getByRole("switch", { name: "Parallel tool calls" });
   await expect(toggle).toBeChecked();
@@ -841,54 +866,98 @@ test("REPLY PICTURES — on stores text+image in the preset, and off clears the 
   await expect.poll(() => saved(deck).textContent(), savePoll()).not.toContain("replyMedia");
 });
 
-// ── #1570 item 3 · THE BOX ALWAYS SHOWS WHAT THE PRESET HOLDS, IN BOTH DIRECTIONS ────────────────
-// The field's own ruling is "a blur re-mounts with the CANONICAL serialization of what was actually stored
-// — the honest answer to 'invalid JSON is ignored'". Keyed on the stored serialization ALONE that was true
-// in one direction only: blurring invalid text OVER a stored map moves the value to `undefined`, so the key
-// changes and the box clears; blurring the SAME text with NO stored map moves nothing, so the key does not
-// change and the box keeps text that looks saved and is not. One input, two behaviours — this is the arm
-// that had none, and the arm below is the one that already worked, pinned so the epoch cannot regress it.
-const INVALID_BIAS = "{not json";
+// ── LOGIT BIAS: rows keyed by a token id or a word; a word shows what the chat connection's server makes of it ──
+function biasKey(deck: Locator): Locator {
+  return deck.getByRole("textbox", { name: "Token id or word to bias", exact: true });
+}
 
-test("LOGIT BIAS — invalid text over an EMPTY map clears on blur, exactly as it does over a stored one (#1570)", async ({ mount, page }) => {
+test("LOGIT BIAS — a token id and a bias add one entry, and removing it clears the map", async ({ mount, page }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
-  await openAdvanced(deck);
+  await openAdvanced(deck, page);
 
-  const box = deck.getByRole("textbox", { name: "Logit bias" });
-  await expect(box).toHaveValue("");
-  await box.fill(INVALID_BIAS);
-  // Blur is the commit: the field is uncontrolled by design (a controlled value would eat a half-typed brace).
-  await page.keyboard.press("Tab");
+  await biasKey(deck).fill("7");
+  await setNumber(deck.getByRole("textbox", { name: "Bias", exact: true }), "50");
+  await deck.getByRole("button", { name: "Add", exact: true }).click();
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('logitBias:{"7":50}');
 
-  await expect(box).toHaveValue("");
+  await deck.getByRole("button", { name: "Remove logit bias 7" }).click();
+  await expect.poll(() => saved(deck).textContent(), savePoll()).not.toContain("logitBias");
 });
 
-test("LOGIT BIAS — a VALID map survives its own blur (#1570, the other direction)", async ({ mount, page }) => {
+test("LOGIT BIAS — a word is stored as the word and shows the tokens the server makes of it", async ({ mount, page }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
-  await openAdvanced(deck);
+  await openAdvanced(deck, page);
 
-  const box = deck.getByRole("textbox", { name: "Logit bias" });
-  await box.fill('{"7":50}');
-  await page.keyboard.press("Tab");
-
-  // Canonical serialization of what was STORED — not the raw text, and not an empty box.
-  await expect(box).toHaveValue('{"7":50}');
+  await biasKey(deck).fill("Elara");
+  await biasKey(deck).press("Enter");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('logitBias:{"Elara":-100}');
+  await expect(deck.getByText('2 tokens: "E" 1 · "lara" 2')).toBeVisible();
 });
 
-// #1502's ORIGINAL invariant, pinned here because the #1570 epoch change touched this field's key and the
-// property it was protecting had no test of its own: the box is UNCONTROLLED, so React applies its
-// `defaultValue` at mount and never again — without the stored serialization in the key, switching presets
-// left the previous preset's JSON in the box AND the next blur wrote that stale text over the new preset's
-// map (a two-writer bug, not a display glitch). A green-before FENCE, stated as one: it passes with or
-// without the epoch, and exists so a later "simplify the key" cannot pass.
-test("LOGIT BIAS — switching presets REPLACES the box, it never leaves the previous preset's map (#1502)", async ({ mount }) => {
+test("LOGIT BIAS — a word the server cannot look up says why inline and is still stored", async ({ mount, page }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+  await openAdvanced(deck, page);
+
+  await biasKey(deck).fill(UNTOKENIZABLE_WORD);
+  await biasKey(deck).press("Enter");
+  await expect(deck.getByText("skipped: the tokenizer is offline")).toBeVisible();
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain(`logitBias:{"${UNTOKENIZABLE_WORD}":-100}`);
+});
+
+test("LOGIT BIAS — on a server that cannot look words up, a word is refused and a token id is taken", async ({ mount, page }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+  await openAdvanced(deck, page, false);
+
+  const idOnly = deck.getByRole("textbox", { name: "Token id to bias", exact: true });
+  await idOnly.fill("Elara");
+  await idOnly.press("Enter");
+  await expect(deck.getByRole("alert")).toContainText("takes token ids only");
+  await expect(saved(deck)).not.toContainText("logitBias");
+
+  await idOnly.fill("13");
+  await idOnly.press("Enter");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('logitBias:{"13":-100}');
+});
+
+test("LOGIT BIAS — switching presets replaces the rows with the new preset's map", async ({ mount, page }) => {
   const deck = await mount(<ParamsDeckLogitBiasSwitchStory />);
-  await openAdvanced(deck);
+  await openAdvanced(deck, page);
 
-  const box = deck.getByRole("textbox", { name: "Logit bias" });
-  await expect(box).toHaveValue('{"7":50}');
-
+  await expect(deck.getByRole("button", { name: "Remove logit bias 7" })).toBeVisible();
   await deck.getByRole("button", { name: "Switch the preset" }).click();
+  await expect(deck.getByRole("button", { name: "Remove logit bias 9" })).toBeVisible();
+  await expect(deck.getByRole("button", { name: "Remove logit bias 7" })).toHaveCount(0);
+});
 
-  await expect(box).toHaveValue('{"9":-10}');
+test("STALENESS — a dropped sampler is named as the target server spells it", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckStaleKoboldStory />);
+  await expect(deck.getByText(/Set but not honored by this model: typical 0\.9/u)).toBeVisible();
+});
+
+// ── OUTPUT: the phrase ban and the EOS ban, each shown only where the model's server takes it ──
+test("OUTPUT — banned phrases add as chips and clearing the last one unsets the list", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+  const addBox = deck.getByRole("textbox", { name: "Add banned phrase", exact: true });
+  await addBox.fill("shivers down");
+  await addBox.press("Enter");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain('bannedStrings:["shivers down"]');
+
+  await deck.getByRole("button", { name: "Remove banned phrase shivers down" }).click();
+  await expect.poll(() => saved(deck).textContent(), savePoll()).not.toContain("bannedStrings");
+});
+
+test("OUTPUT — Ban end of reply on stores true, and off clears the field", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+  const toggle = deck.getByRole("switch", { name: "Ban end of reply" });
+  await toggle.click();
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("banEos:true");
+  await toggle.click();
+  await expect.poll(() => saved(deck).textContent(), savePoll()).not.toContain("banEos");
+});
+
+test("OUTPUT — a model whose server takes neither ban shows neither control", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckNoBansStory />);
+  await expect(deck.getByRole("switch", { name: "Reply pictures" })).toBeVisible();
+  await expect(deck.getByRole("group", { name: "Banned phrases" })).toHaveCount(0);
+  await expect(deck.getByRole("switch", { name: "Ban end of reply" })).toHaveCount(0);
 });

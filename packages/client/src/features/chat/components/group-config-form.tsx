@@ -23,7 +23,7 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { UtilityModelDoor, useUtilityModel } from "#components";
+import { RerankModelDoor, UtilityModelDoor, useRerankModel, useUtilityModel } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { SMART_POLICY_COST_SENTENCE } from "#lib";
@@ -34,11 +34,12 @@ import { defaultSpeakerTags, fromGroupConfigForm, GROUP_CONFIG_ENTITY_PREFIX, to
 type GroupOutput = GroupConfig["output"];
 
 type UtilityModel = ReturnType<typeof useUtilityModel>;
+type RerankModel = ReturnType<typeof useRerankModel>;
 
 // Smart picks with the reranker by default, so it needs no Utility model; only its opt-in upgrade does.
 const POLICY_ITEMS: SelectItems<string> = GROUP_POLICIES.map((value) => ({ value, label: GROUP_POLICY_LABELS[value] }));
 
-const RERANKER_SMART_HELP = `Smart ranks the characters against the last message with your ${SMART_PICKER_LABELS.reranker}. A character named in that message replies first. If no ${SMART_PICKER_LABELS.reranker} is available, Natural picks and you're told.`;
+const RERANKER_SMART_HELP = `Smart ranks the characters against the last message with your ${SMART_PICKER_LABELS.reranker}. A character plainly named in that message replies first; when several share the name, Smart ranks only those. If no ${SMART_PICKER_LABELS.reranker} is available, Natural picks and you're told once per session.`;
 
 // The help under each control states what the server does with it (`engine/select-speakers.ts`,
 // `engine/round.ts`), per policy and per output mode, so the Rooms guide never has to restate it. Smart's
@@ -59,15 +60,15 @@ function smartHelp(utility: UtilityModel, output: GroupOutput, usesUtility: bool
     return RERANKER_SMART_HELP;
   }
   if (utility.kind === "ready") {
-    return `${SMART_POLICY_COST_SENTENCE} It runs on ${utility.label}. If it can't decide, Natural picks and you're told.`;
+    return `${SMART_POLICY_COST_SENTENCE} It runs on ${utility.label}. If it can't decide, Natural picks and you're told once per session.`;
   }
   if (utility.kind === "unset") {
-    return `${SMART_POLICY_COST_SENTENCE} No Utility model is set, so Natural picks every round and you're told.`;
+    return `${SMART_POLICY_COST_SENTENCE} No Utility model is set, so Natural picks every round and you're told once per session.`;
   }
   if (utility.kind === "blocked") {
-    return `${SMART_POLICY_COST_SENTENCE} Your Utility model is set but not running: ${utility.cause}. Until it runs, Natural picks and you're told.`;
+    return `${SMART_POLICY_COST_SENTENCE} Your Utility model is set but not running: ${utility.cause}. Until it runs, Natural picks and you're told once per session.`;
   }
-  return `${SMART_POLICY_COST_SENTENCE} If it can't decide, Natural picks and you're told.`;
+  return `${SMART_POLICY_COST_SENTENCE} If it can't decide, Natural picks and you're told once per session.`;
 }
 
 function policyHelp(policy: GroupPolicy, utility: UtilityModel, output: GroupOutput, usesUtility: boolean): string {
@@ -79,9 +80,14 @@ function needsUtilityDoor(policy: GroupPolicy, utility: UtilityModel, output: Gr
   return policy === "smart" && output === "per-speaker" && usesUtility && (utility.kind === "unset" || utility.kind === "blocked");
 }
 
-/** The speaker-order control. Mounted only when Advanced opens, so the Utility read runs only then. */
-function PolicyField({ children }: { readonly children: (utility: UtilityModel) => ReactElement }): ReactElement {
-  return children(useUtilityModel());
+// The Rerank door is the fix when Smart picks with the Rerank model (the default) and none is running.
+function needsRerankDoor(policy: GroupPolicy, rerank: RerankModel, output: GroupOutput, usesUtility: boolean): boolean {
+  return policy === "smart" && output === "per-speaker" && !usesUtility && (rerank.kind === "unset" || rerank.kind === "blocked");
+}
+
+/** The speaker-order control. Mounted only when Advanced opens, so the role reads run only then. */
+function PolicyField({ children }: { readonly children: (utility: UtilityModel, rerank: RerankModel) => ReactElement }): ReactElement {
+  return children(useUtilityModel(), useRerankModel());
 }
 
 const SPEAKER_TAGS_HELP: Record<GroupOutput, string> = {
@@ -202,7 +208,7 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
               <AccordionPanel>
                 <Stack gap="section" className="pt-block">
                   <PolicyField>
-                    {(utility): ReactElement => (
+                    {(utility, rerank): ReactElement => (
                       <form.Subscribe selector={(state): GroupOutput => state.values.output}>
                         {(output): ReactElement => (
                           <form.Subscribe selector={(state): boolean => state.values.smartUsesUtility}>
@@ -218,6 +224,11 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                                     {needsUtilityDoor(field.state.value, utility, output, usesUtility) ? (
                                       <Row>
                                         <UtilityModelDoor />
+                                      </Row>
+                                    ) : null}
+                                    {needsRerankDoor(field.state.value, rerank, output, usesUtility) ? (
+                                      <Row>
+                                        <RerankModelDoor />
                                       </Row>
                                     ) : null}
                                   </Stack>

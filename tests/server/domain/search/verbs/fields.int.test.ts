@@ -28,6 +28,20 @@ describe("fields", () => {
     expect(result.coverage).toEqual({ requestLimit: 1, indexedCharacters: 3, matchingCharacters: 2 });
     expect(result.hits).toHaveLength(1);
   });
+  test("a user with a group room searching 'group' gets no synthetic hit, and the counts leave it out", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("fields_synthetic") });
+    await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId: owner, name: "Wizard" });
+    await seedCharacter(db, { id: mintTypeId(ID_PREFIX.character), ownerId: owner, name: "Group", synthetic: true });
+    const svc = makeSearch(db);
+
+    const result = await svc.fields({ ownerId: owner, query: "group", topN: 5 });
+
+    expect(result.hits).toEqual([]);
+    expect(result.coverage).toEqual({ requestLimit: 5, indexedCharacters: 1, matchingCharacters: 0 });
+    expect(await svc.suggest({ ownerId: owner, query: "gro", limit: 5 })).toEqual([]);
+  });
+
   // The client renders these straight onto the row, so a hit on any card the owner holds keeps its name and
   // destination however large the library is. A card deleted inside the index TTL drops out rather than
   // surfacing as an id with no card behind it.

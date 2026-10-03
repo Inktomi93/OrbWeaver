@@ -685,6 +685,7 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
       loadReasoningParts: () => Promise.reject(new Error("loadReasoningParts must not be reached")),
       loadCues: () => Promise.reject(new Error("loadCues must not be reached")),
       assembleContext: {
+        timezone: UTC_TIME_ZONE,
         character: { name: "Aria", description: "a knight" },
         promptConfig: DEFAULT_PROMPT_CONFIG,
         activePersona: { name: "Alex", description: "the user" },

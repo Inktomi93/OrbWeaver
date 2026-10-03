@@ -32,7 +32,7 @@ interface GalleryCuration {
 }
 
 /** `generatePicture` — the orchestrator's params. `caller` is the requesting human: the extraction viewer and
- *  the subject-card reader. The run-as principal (`runAsUserId`, else `caller`) funds, styles and owns the
+ *  the reader of the subject card for the reuse and avatar-reference gates. The run-as principal (`runAsUserId`, else `caller`) funds, styles and owns the
  *  picture. `chatId` is provenance + the extraction-shaper's history scope (REQUIRED unless `mode:"free"`
  *  with a `prompt`); `prompt` present OR `mode:"free"` skips extraction (used verbatim);
  *  `subjectCharacterId` focuses the char macro / picks the avatar for character/face + multimodal modes. */
@@ -99,7 +99,7 @@ export type EditImageSource = { readonly assetId: AssetId } | { readonly bytes: 
 
 /** `editImage` — explicit edit of an existing owned image (doc 02 §4). `instruction` is the edit prompt used
  *  VERBATIM (no template, no extraction — an edit instruction is not keyword soup); `chatId` is provenance
- *  only. Throws `ImageEditUnsupportedError` when the resolved model lacks `input.imageEdit` (the asymmetric
+ *  only, recorded when the caller is a participant of that chat. Throws `ImageEditUnsupportedError` when the resolved model lacks `input.imageEdit` (the asymmetric
  *  posture — doc 01 §3.4). Edits are never reuse-gated (mode recorded `"free"`, `identityHash` null). */
 export interface EditImageParams {
   readonly caller: Principal;

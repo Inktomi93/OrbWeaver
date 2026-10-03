@@ -3,15 +3,18 @@
 // spending on a generation. Dispatches multimodal → caption, else → text extraction; never generates or stores.
 
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
+import { assets, characters } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone } from "@orb/kit/time";
 import { createImageryService, PromptExtractionFailedError } from "@orb/server/domain/imagery";
+import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { fakeCard, makeHarness, PNG_BYTES, principal, seedOwner } from "../_support.ts";
+import { makeHarness, PNG_BYTES, principal, seedOwner } from "../_support.ts";
 
 const CHAT = castId<ChatId>("chat_room");
 
@@ -101,10 +104,16 @@ describe("extractPrompt — a member's /imagine preview runs as the room host (D
     expect(extraction).toEqual([{ viewer: member, funder: host }]);
   });
 
-  test("a caption reads the subject under the member, but uses the host's instruction and Utility funder", async () => {
+  // The reads are the owner-scoped ones the character and assets domains enforce (a character and its avatar
+  // belong to the host alone), so a read made as the member finds nothing.
+  test("a member's caption reads the host's subject card and avatar as the host, and funds as the host", async () => {
     const db = await freshDb();
     const host = await seedOwner(db, castId<Handle>("host"));
     const member = await seedOwner(db, castId<Handle>("member"));
+    const avatar = castId<AssetId>("asset_host_avatar");
+    const subject = castId<CharacterId>("character_aria");
+    await db.insert(assets).values({ id: avatar, ownerId: host, kind: "avatar", mime: "image/png", size: PNG_BYTES.length, hash: "host_avatar" });
+    await db.insert(characters).values(makeCharacter({ id: subject, ownerId: host, avatarAssetId: avatar }));
     const reads: { readonly card: UserId[]; readonly avatar: UserId[]; readonly instruction: UserId[]; readonly funder: UserId[] } = {
       card: [],
       avatar: [],
@@ -113,13 +122,27 @@ describe("extractPrompt — a member's /imagine preview runs as the room host (D
     };
     const { ctx } = makeHarness(db, {
       resolveRoomRunAs: () => Promise.resolve(principal(host)),
-      getCard: (caller) => {
+      getCard: async (caller, characterId) => {
         reads.card.push(caller.userId);
-        return Promise.resolve(fakeCard(castId<AssetId>("asset_avatar")));
+        const [row] = await db
+          .select()
+          .from(characters)
+          .where(and(eq(characters.id, characterId), eq(characters.ownerId, caller.userId)));
+        if (row === undefined) {
+          throw new Error("character not found");
+        }
+        return row;
       },
-      readAsset: (caller) => {
+      readAsset: async (caller, assetId) => {
         reads.avatar.push(caller.userId);
-        return Promise.resolve({ bytes: PNG_BYTES, mime: "image/png" });
+        const [row] = await db
+          .select({ id: assets.id })
+          .from(assets)
+          .where(and(eq(assets.id, assetId), eq(assets.ownerId, caller.userId)));
+        if (row === undefined) {
+          throw new Error("asset not found");
+        }
+        return { bytes: PNG_BYTES, mime: "image/png" };
       },
       resolveCaptionInstruction: (runAs, mode) => {
         reads.instruction.push(runAs.userId);
@@ -131,13 +154,14 @@ describe("extractPrompt — a member's /imagine preview runs as the room host (D
       },
     });
 
-    await createImageryService(ctx).extractPrompt({
+    const preview = await createImageryService(ctx).extractPrompt({
       caller: principal(member),
       chatId: CHAT,
       mode: "face_multimodal",
-      subjectCharacterId: castId<CharacterId>("character_aria"),
+      subjectCharacterId: subject,
     });
 
-    expect(reads).toEqual({ card: [member], avatar: [member], instruction: [host], funder: [host] });
+    expect(preview.source).toBe("captioned");
+    expect(reads).toEqual({ card: [host], avatar: [host], instruction: [host], funder: [host] });
   });
 });

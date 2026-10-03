@@ -129,7 +129,7 @@ test("OR sonnet-5.5 is mandatory whatever the catalog says: reasoning off clamps
   const reasoning = { mandatory: false, defaultEnabled: true, supportedEfforts: CLAUDE_LADDER, defaultEffort: "high" };
   const gen = viaOpenRouterCatalog(orReasoningEntry("anthropic/claude-sonnet-5.5", reasoning), "anthropic");
   expect(gen.reasoning.mandatory).toBe(true);
-  expect(gen.tools?.forcedChoice).toBe(false);
+  expect(gen.tools).toMatchObject({ requiredChoice: false, namedChoice: false });
   const off = resolveChat({ effort: "none" }, gen);
   expect(off.reasoning).toMatchObject({ mode: "adaptive", enabled: true, effort: "low" });
   expect(off.warnings.map((w) => [w.code, w.appliedEffort])).toEqual([["reasoning_mandatory_clamp", "low"]]);

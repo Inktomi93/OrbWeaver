@@ -294,7 +294,7 @@ export interface MacroContext {
   model?: string | undefined; // → {{model}}
   chatId?: ChatId | undefined; // → {{chatId}}
   // IANA timezone (e.g. "America/New_York") for {{time}}/{{date}} — supplied per-request by the
-  // browser (Intl.DateTimeFormat().resolvedOptions().timeZone). Absent/invalid → server-local.
+  // browser (Intl.DateTimeFormat().resolvedOptions().timeZone). Absent/invalid → UTC.
   timezone?: string | undefined;
   // Fixed clock for {{time}}/{{date}}, as epoch-ms UTC. Absent → the live wall clock — the
   // deterministic-clock seam (tests, replay, scheduled re-renders).

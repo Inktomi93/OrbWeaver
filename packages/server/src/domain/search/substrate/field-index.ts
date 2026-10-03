@@ -44,19 +44,26 @@ const cache = new Map<UserId, IndexCacheEntry>();
 // omnibox fires `fields` and `suggest` on the same keystroke — so the misses arrive TOGETHER by construction,
 // each doing the whole job and then racing to publish the same index. Keyed by owner: two owners' rebuilds are
 // unrelated work and must not queue behind each other.
-const inFlight = new Map<UserId, Promise<MiniSearch<CardDoc>>>();
-
-// Bumped by every eviction. A build publishes only if its owner's epoch is unchanged, so a build that loaded
-// the cards before a delete cannot republish the deleted card after the eviction.
-const epochs = new Map<UserId, number>();
+//
+// An eviction marks the owner's running build `stale`, so a build that loaded the cards before a delete cannot
+// republish the deleted card after the eviction. The flag lives on the build itself, so nothing outlives the
+// build and no per-owner map grows with the owner count.
+interface FieldIndexBuild {
+  readonly promise: Promise<MiniSearch<CardDoc>>;
+  readonly flag: { stale: boolean };
+}
+const inFlight = new Map<UserId, FieldIndexBuild>();
 
 /** Drop the owner's index after a card write, so the next search rebuilds over the live card set (its hits
  *  and its coverage counts). The rebuild stays lazy: an import that writes many cards evicts many times and
  *  builds once. */
 export function evictFieldIndex(ownerId: UserId): void {
   cache.delete(ownerId);
-  inFlight.delete(ownerId);
-  epochs.set(ownerId, (epochs.get(ownerId) ?? 0) + 1);
+  const running = inFlight.get(ownerId);
+  if (running !== undefined) {
+    running.flag.stale = true;
+    inFlight.delete(ownerId);
+  }
 }
 
 function buildIndex(docs: readonly CardDoc[]): MiniSearch<CardDoc> {
@@ -97,19 +104,22 @@ export async function getOrBuildFieldIndex(ownerId: UserId, nowMs: number, load:
   }
   const running = inFlight.get(ownerId);
   if (running !== undefined) {
-    return await running;
+    return await running.promise;
   }
-  const epoch = epochs.get(ownerId) ?? 0;
-  const build = (async (): Promise<MiniSearch<CardDoc>> => {
-    const entry: IndexCacheEntry = { index: buildIndex(await load()), builtAtMs: nowMs };
-    if ((epochs.get(ownerId) ?? 0) === epoch) {
-      touchAndEvict(ownerId, entry);
-    }
-    return entry.index;
-  })();
+  const flag: FieldIndexBuild["flag"] = { stale: false };
+  const build: FieldIndexBuild = {
+    flag,
+    promise: (async (): Promise<MiniSearch<CardDoc>> => {
+      const entry: IndexCacheEntry = { index: buildIndex(await load()), builtAtMs: nowMs };
+      if (!flag.stale) {
+        touchAndEvict(ownerId, entry);
+      }
+      return entry.index;
+    })(),
+  };
   inFlight.set(ownerId, build);
   try {
-    return await build;
+    return await build.promise;
   } finally {
     if (inFlight.get(ownerId) === build) {
       inFlight.delete(ownerId);

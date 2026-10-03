@@ -13,7 +13,7 @@ import { workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
-import { isAdmin, requireOwner } from "../../../../packages/server/src/domain/admin/guard.ts";
+import { isAdmin, isOwner, requireOwner } from "../../../../packages/server/src/domain/admin/guard.ts";
 import { createAssetsWorkloadContributions } from "../../../../packages/server/src/domain/assets/workload-contributions.ts";
 import { createChatWorkloadContributions } from "../../../../packages/server/src/domain/chat/workload-contributions.ts";
 import { createConnectionWorkloadContributions } from "../../../../packages/server/src/domain/connection/workload-contributions.ts";
@@ -154,6 +154,7 @@ export function makeService(db: Db, contributions: WorkloadContributions = fakeC
     newScheduleId,
     requireOwner,
     isAdmin,
+    isOwner,
   });
 }
 

@@ -138,21 +138,36 @@ function formatOf(responseFormat: unknown): unknown {
   return responseFormat["type"] === "json_schema" && isRecord(responseFormat["json_schema"]) ? responseFormat["json_schema"]["schema"] : undefined;
 }
 
-/** `reasoning_effort` as Ollama's `think`: off for `none`, on for any level. */
-function thinkOf(effort: unknown): boolean | undefined {
-  return typeof effort === "string" ? effort !== REASONING_OFF : undefined;
+/** `reasoning_effort` as Ollama's `think`: off for `none`. A model whose capability names effort levels (gpt-oss:
+ *  low/medium/high) takes the level itself, which Ollama's harmony renderer reads; any other model takes `true`. */
+function thinkOf(effort: unknown, namedLevels: boolean): boolean | string | undefined {
+  if (typeof effort !== "string") {
+    return;
+  }
+  if (effort === REASONING_OFF) {
+    return false;
+  }
+  return namedLevels ? effort : true;
 }
 
 /**
  * The OpenAI chat body the SDK built (after `extras` and `includeBody`) as an `/api/chat` body. `numCtx` is the
  * resolved window, sent as `options.num_ctx` so the server runs the window the capability states.
- * `samplerKeys` are the body keys the sampler seam spells for this row; each moves into `options` as is. Keys
+ * `samplerKeys` are the body keys the sampler seam spells for this row; each moves into `options` as is.
+ * `keepAlive` and `numBatch` are the connection's own (`features.keepAlive`, `features.numBatch`). Keys
  * this file does not know pass through unchanged, so a native field set in `includeBody` reaches the server,
  * and an `options` object set there wins over the translated one key by key.
  */
 export function toOllamaChat(
   body: Json,
-  args: { readonly numCtx: number | undefined; readonly samplerKeys: ReadonlySet<string>; readonly label: string },
+  args: {
+    readonly numCtx: number | undefined;
+    readonly samplerKeys: ReadonlySet<string>;
+    readonly label: string;
+    readonly namedThinkLevels?: boolean | undefined;
+    readonly keepAlive?: string | undefined;
+    readonly numBatch?: number | undefined;
+  },
 ): Json {
   const options: Json = {};
   const rest: Json = {};
@@ -166,7 +181,7 @@ export function toOllamaChat(
     }
   }
   const format = formatOf(body["response_format"]);
-  const think = thinkOf(body["reasoning_effort"]);
+  const think = thinkOf(body["reasoning_effort"], args.namedThinkLevels === true);
   return {
     ...rest,
     // `/api/chat` streams unless told otherwise, and the SDK's non-streaming generate sends no `stream` key.
@@ -174,7 +189,13 @@ export function toOllamaChat(
     messages: nativeMessages(body["messages"], args.label),
     ...(format !== undefined ? { format } : {}),
     ...(think !== undefined ? { think } : {}),
-    options: { ...options, ...(args.numCtx !== undefined ? { ["num_ctx"]: args.numCtx } : {}), ...(isRecord(body["options"]) ? body["options"] : {}) },
+    ...(args.keepAlive !== undefined ? { ["keep_alive"]: args.keepAlive } : {}),
+    options: {
+      ...options,
+      ...(args.numCtx !== undefined ? { ["num_ctx"]: args.numCtx } : {}),
+      ...(args.numBatch !== undefined ? { ["num_batch"]: args.numBatch } : {}),
+      ...(isRecord(body["options"]) ? body["options"] : {}),
+    },
   };
 }
 
@@ -300,19 +321,25 @@ function sseFromNdjson(body: ReadableStream<Uint8Array>, label: string): Readabl
     }
   };
   return new ReadableStream<Uint8Array>({
+    // A pull that enqueues nothing is never retried, so keep reading until a line lands or the body ends.
     async pull(controller): Promise<void> {
-      const next = await reader.read();
-      if (next.done) {
-        emit(controller, buffer + decoder.decode());
-        controller.enqueue(encoder.encode(SSE_DONE_LINE));
-        controller.close();
-        return;
-      }
-      buffer += decoder.decode(next.value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        emit(controller, line);
+      for (;;) {
+        const next = await reader.read();
+        if (next.done) {
+          emit(controller, buffer + decoder.decode());
+          controller.enqueue(encoder.encode(SSE_DONE_LINE));
+          controller.close();
+          return;
+        }
+        buffer += decoder.decode(next.value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          emit(controller, line);
+        }
+        if (lines.some((line) => line.trim() !== "")) {
+          return;
+        }
       }
     },
     async cancel(reason): Promise<void> {

@@ -118,6 +118,18 @@ test("#2575 (control): a model that can switch reasoning off keeps the side-gene
   }
 });
 
+test("D299: a role preset's effort governs side-generation reasoning in place of the off posture", async () => {
+  const recorded: RecordedRequest[] = [];
+  const lines: LogLine[] = [];
+  await runAnthropicSummarize(
+    { connection: connectionFor("summarize", "claude-opus-5"), inputs: INPUTS, effort: "high", signal: undefined },
+    batchDeps(recorded, lines),
+  );
+  const body = recorded[0]?.body ?? {};
+  expect(body["thinking"]).not.toEqual({ type: "disabled" });
+  expect(body["output_config"]).toMatchObject({ effort: "high" });
+});
+
 test("a model whose off is `between_tools` keeps the side-generation posture off with that spelling, never a clamp", async () => {
   const { body, lines } = await summarizeBody("claude-sonnet-5-5");
   expect(body["thinking"]).toEqual({ type: "between_tools" });

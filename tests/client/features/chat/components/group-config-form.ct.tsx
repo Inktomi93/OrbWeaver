@@ -9,7 +9,7 @@
 import { DEFAULT_GROUP_CONFIG, GROUP_POLICY_LABELS, SMART_UTILITY_SWITCH_LABEL } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { UTILITY_RUNNING_ROUTES, utilityBindings } from "../../../../support/node/utility-role.ts";
+import { UTILITY_RUNNING_ROUTES, utilityBindings, withRunningRerank } from "../../../../support/node/utility-role.ts";
 import { CommittedGroupConfigTabStory, GroupConfigFormStory, GroupConfigSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="group-config-saved"]';
@@ -122,7 +122,7 @@ const POLICY_COMBOBOX = { name: "Who speaks each round" };
 const UTILITY_UPGRADE = { name: SMART_UTILITY_SWITCH_LABEL };
 
 test("Smart can be chosen with no Utility model, and offers no door until the Utility opt-in is on", async ({ mount, page }) => {
-  await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": utilityBindings("unset") });
+  await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": withRunningRerank(utilityBindings("unset")) });
   const component = await mount(<GroupConfigFormStory />);
 
   await component.getByRole("button", { name: "Advanced" }).click();
@@ -136,8 +136,8 @@ test("Smart can be chosen with no Utility model, and offers no door until the Ut
   await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toBeVisible();
 });
 
-test("with a running Utility model Smart can be chosen, and the choice saves", async ({ mount, page }) => {
-  await routeTrpc(page, UTILITY_RUNNING_ROUTES);
+test("with a running Rerank model Smart can be chosen, and the choice saves", async ({ mount, page }) => {
+  await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": withRunningRerank(utilityBindings("running")) });
   const component = await mount(<GroupConfigFormStory />);
 
   await component.getByRole("button", { name: "Advanced" }).click();
@@ -146,6 +146,14 @@ test("with a running Utility model Smart can be chosen, and the choice saves", a
   await expect(component.locator(SAVED)).toContainText('"policy":"smart"');
   // Ready: nothing to fix, so no door.
   await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toHaveCount(0);
+});
+
+test("Smart's default Rerank picker with no Rerank model bound offers the door to Model roles", async ({ mount, page }) => {
+  await routeTrpc(page, UTILITY_RUNNING_ROUTES);
+  const component = await mount(<GroupConfigFormStory config={{ ...DEFAULT_GROUP_CONFIG, policy: "smart" }} />);
+
+  await component.getByRole("button", { name: "Advanced" }).click();
+  await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toBeVisible();
 });
 
 test("a per-speaker room already on Smart's Utility opt-in with no Utility model offers the door to Model roles", async ({ mount, page }) => {

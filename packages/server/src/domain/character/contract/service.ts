@@ -82,7 +82,7 @@ type ResolveGreetingTemplateOp = (args: {
 /** The bounded side-LLM completion the greeting-studio verbs await (the imagery `captionImage` precedent —
  *  the summarize lane at compose). ONE prompt in, `{text, costUsd}` out; the caller's connection is resolved
  *  at compose (the caller IS the request owner — every studio verb is owner-gated). The sampling posture is
- *  resolved at compose through the side-gen ladder (`greeting_studio` floor ← the caller's preset params) —
+ *  resolved at compose: the caller's Utility-role preset over the `greeting_studio` posture —
  *  the same for BOTH studio kinds, so the op carries no `kind` (per-template sampling was deleted, owner
  *  ruling 2026-08-01; `kind` still selects the TEMPLATE, on `resolveGreetingTemplate`). */
 type GenerateGreetingTextOp = (args: { readonly caller: Principal; readonly prompt: string }) => Promise<GeneratedGreeting>;

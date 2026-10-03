@@ -555,7 +555,6 @@ test("SIDE_GEN_POSTURES: every kind carries today's exact floor values (byte-ide
   // The floor catalog IS the byte-identical encoding of the OLD hardcoded consts — a user with no preset params
   // gets exactly these values. Caption's EMPTY posture is the honest encoding of a call
   // that historically passed nothing.
-  expect(SIDE_GEN_POSTURES.arbiter).toEqual({ temperature: 0.2, maxOutputTokens: 24 });
   expect(SIDE_GEN_POSTURES.quiet_generate).toEqual({ temperature: 0.3, maxOutputTokens: 1024 });
   expect(SIDE_GEN_POSTURES.extract_quiet).toEqual({ temperature: 0.4, maxOutputTokens: 320 });
   expect(SIDE_GEN_POSTURES.compaction).toEqual({ temperature: 0.3 });
@@ -566,6 +565,10 @@ test("SIDE_GEN_POSTURES: every kind carries today's exact floor values (byte-ide
   expect(SIDE_GEN_POSTURES.rule_analysis).toEqual({ temperature: 0.3, maxOutputTokens: 1024 });
   expect(SIDE_GEN_POSTURES.caption).toEqual({ temperature: 0.2, maxOutputTokens: 512 });
   expect(SIDE_GEN_POSTURES.theme_name).toEqual({ temperature: 0.3, maxOutputTokens: 24 });
+});
+
+test("the arbiter posture leaves room for one name plus a margin, so a verbose model does not return empty (#492)", () => {
+  expect(SIDE_GEN_POSTURES.arbiter).toEqual({ temperature: 0.2, maxOutputTokens: 128 });
 });
 
 test("greeting_rewrite default carries the {{base}} token; greeting_new does not (audit §3)", () => {

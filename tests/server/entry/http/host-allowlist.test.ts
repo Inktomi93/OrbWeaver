@@ -1,6 +1,7 @@
 // entry/http/host-allowlist — the refusal the middleware sends. The refused host is attacker-chosen and echoed back,
 // so the page escapes it; a refused request never reaches a route; the fix named follows the install shape.
 
+import { HOST_NETWORK_OVERLAY } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { hostAllowlist } from "@orb/server/entry/http";
 import { settingInstruction } from "@orb/server/foundation/env";
@@ -116,6 +117,8 @@ describe("hostAllowlist", () => {
         expect(body, String(inContainer)).toContain(`${line.trim()}</p>`);
       }
       expect(body, String(inContainer)).not.toContain(lead(!inContainer));
+      // The overlay sets sign-in keys, not ALLOWED_HOSTS, so its sentence is never part of this fix.
+      expect(body, String(inContainer)).not.toContain(HOST_NETWORK_OVERLAY);
     }
   });
 });

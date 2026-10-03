@@ -16,6 +16,7 @@ import type { ModelId, UserConnectionId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { z } from "zod";
 import type { Capability, ProviderId } from "#inference";
+import type { RolePresetParams } from "#preset";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "#providers";
 
 /** WHICH WIRE VEHICLE a structured-output request rides on a backend that has more than one. Minted here
@@ -123,28 +124,10 @@ export interface SummarizeInput {
   images?: ImageInput[] | undefined;
 }
 
-/** Per-call sampling overrides for `summarize` — applied uniformly to every input; runners that can't
- *  honor a knob drop it silently (cross-family summarize is fire-and-forget for these). The penalty/nucleus
- *  set MIRRORS the generate path's sampler knobs so a summarize request can carry the
- *  SAME loop-controls a chat request does — critically `presencePenalty`, which the memory build defaults to a
- *  loop-stopping value for repetition_penalty=1.0 models (Qwen3-VL). A family that can't honor a knob drops it. */
-export interface SummarizeOptions {
-  /** The output cap, in the `userIntentSchema` / side-gen posture vocabulary so a resolved posture passes as-is. */
-  maxOutputTokens?: number | undefined;
-  temperature?: number | undefined;
-  /** Nucleus top-p (vLLM / OpenAI-compatible families). */
-  topP?: number | undefined;
-  /** Top-k truncation (vLLM family). */
-  topK?: number | undefined;
-  /** OpenAI-style frequency penalty. */
-  frequencyPenalty?: number | undefined;
-  /** OpenAI-style presence penalty — the summarize loop-guard for repetition_penalty=1.0 models (Qwen3-VL). */
-  presencePenalty?: number | undefined;
-  /** Multiplicative repetition penalty (vLLM family; 1 = no penalty). */
-  repetitionPenalty?: number | undefined;
-  /** Min-p nucleus floor (vLLM family). */
-  minP?: number | undefined;
-}
+/** Per-call sampling for `summarize` and `structured`, applied to every input: the generation params a
+ *  non-chat role takes from its preset (D299), already folded over the task's posture. A runner drops a knob
+ *  the resolved model does not state, with a warning. */
+export type SummarizeOptions = RolePresetParams;
 
 /** The options a `structured` call takes: the summarize sampling PLUS the REQUIRED schema constraint (D79 —
  *  the wire enforces it: vLLM guided decoding, OpenAI/OR `response_format`, the agent-sdk `outputFormat`, or the

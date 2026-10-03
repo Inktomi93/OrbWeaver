@@ -1,6 +1,6 @@
 // The INERT card — the Tier-A presentation of an `html-card` block.
 //
-// WHY THIS EXISTS. D294 §12.2 splits card rendering in two: Tier B (a trusted author, or a room that turned
+// WHY THIS EXISTS. docs/law/UI-Theming-and-Content.md §12.2 splits card rendering in two: Tier B (a trusted author, or a room that turned
 // immersive HTML on) is the sandboxed `SandboxFrame` mini-UI with the card's own CSS; Tier A is the inert
 // sanitized allowlist in the main DOM for every other row, and it FORBIDS `<style>` and inline `style=`. So a Tier-A card is a card whose
 // styling has been discarded by law — structurally intact, visually nothing.

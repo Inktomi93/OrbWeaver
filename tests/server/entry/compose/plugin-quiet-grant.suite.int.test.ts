@@ -81,7 +81,7 @@ describe("plugin llm.quiet resolves the plugin-grant summarize binding", () => {
 
     const quiet = buildPluginQuietLlm({
       roleClientsFor: app.roleClientsFor,
-      resolveUserPresetParams: () => Promise.resolve({}),
+      resolveUtilityPresetParams: () => Promise.resolve({}),
       assets: app.services.assets,
       resolveOwnerPrincipal: () => Promise.resolve(principal(OWNER_USER_ID)),
     });

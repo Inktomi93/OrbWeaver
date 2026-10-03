@@ -56,12 +56,10 @@ export const logLevelSchema = z.enum(LOG_LEVELS) satisfies z.ZodType<LogLevel>;
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 9;
+export const APP_SETTINGS_SCHEMA_VERSION = 10;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
-const TEMPERATURE_FLOOR = 0;
-const TEMPERATURE_CEIL = 2;
 
 // The per-knob numeric BOUNDS — the ONE home the schema below AND the admin surface's clamp both read, so a
 // clamped client value always passes the schema (no silent-wipe path: an out-of-range send fails the inner
@@ -143,46 +141,6 @@ export const DEFAULT_MEMORY_DEFAULTS: ResolvedMemoryDefaults = {
   keywordMatch: true,
 };
 
-// The memory summarizer's OWN sampler knobs (owner ruling 2026-08-08 — summarize keeps its own gen params,
-// NOT coupled to chat presets). Mirrors the generate path's sampler set so a summarize request carries the
-// SAME loop-controls a chat request does. `presencePenalty`/`frequencyPenalty` ride the OpenAI wire range
-// (-2..2); `topP`/`minP` are the 0..1 nucleus knobs; `topK` a positive int; `repetitionPenalty` a positive
-// multiplier (1 = no penalty). All optional — an absent knob falls to the engine default, EXCEPT the memory
-// build defaults `presencePenalty` to a loop-stopping value (see DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY).
-const REPETITION_PENALTY_FLOOR = 0;
-const NUCLEUS_FLOOR = 0;
-const NUCLEUS_CEIL = 1;
-// OpenAI presence_penalty / frequency_penalty wire range, used only by the summarizer's own knobs here.
-export const GEN_PRESENCE_PENALTY_MIN = -2;
-export const GEN_PRESENCE_PENALTY_MAX = 2;
-export const memorySummarizerSchema = z.object({
-  maxTokens: z.number().int().positive().optional(),
-  temperature: z.number().min(TEMPERATURE_FLOOR).max(TEMPERATURE_CEIL).optional(),
-  topP: z.number().min(NUCLEUS_FLOOR).max(NUCLEUS_CEIL).optional(),
-  topK: z.number().int().positive().optional(),
-  frequencyPenalty: z.number().min(GEN_PRESENCE_PENALTY_MIN).max(GEN_PRESENCE_PENALTY_MAX).optional(),
-  presencePenalty: z.number().min(GEN_PRESENCE_PENALTY_MIN).max(GEN_PRESENCE_PENALTY_MAX).optional(),
-  repetitionPenalty: z.number().gt(REPETITION_PENALTY_FLOOR).optional(),
-  minP: z.number().min(NUCLEUS_FLOOR).max(NUCLEUS_CEIL).optional(),
-});
-export type MemorySummarizerConfig = z.infer<typeof memorySummarizerSchema>;
-
-// The memorySummarizer maxTokens FLOOR — the ONE home for the digest-output reserve. The server's
-// `DEFAULT_OUTPUT_RESERVE_TOKENS` (domain/chat/memory .../token-guard.ts) DERIVES from this, and the admin
-// surface shows it beneath the override, so the displayed floor and the reserve the summarize request uses
-// can't diverge. `temperature` has no fixed floor — unset ⇒ the summarizer provider's own default (the
-// surface shows "provider default", never a fabricated number), so it is omitted here.
-export const DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS = 1024;
-
-// The memory summarizer's DEFAULT presence penalty — the loop-fix (owner ruling 2026-08-08). The default gen
-// model Qwen3-VL ships generation_config.json repetition_penalty=1.0 (no repeat penalty), and the summarize
-// wire (engine/chat-completion) does NOT ride the vLLM chat surface's per-request presence default, so a
-// summarize turn with no presence penalty degenerates into a loop that runs to maxTokens / the request cut.
-// 1.5 is the Qwen3-VL-8B-Instruct model-card value (huggingface.co/Qwen/Qwen3-VL-8B-Instruct). Applied by the
-// memory build's summarizerOpts EVEN WHEN memorySummarizer.presencePenalty is unset — presence MUST default to
-// a loop-stopping value. An admin override (including a deliberate 0) wins. OpenAI presence range is -2..2.
-export const DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY = 1.5;
-
 // Per-window request-cap bounds (a security control — see domain/settings/effective-config/layer.ts +
 // entry/rate-limit-gate.ts). MIN keeps an admin from setting a self-locking absurd-low cap (a cap of 1/min
 // would DoS the deployment); MAX keeps a fat-fingered/hostile value from being an effectively-uncapped hole.
@@ -211,18 +169,8 @@ export function clampRateLimit(raw: number): number | null {
   return Math.min(RATE_LIMIT_CAP_MAX, Math.max(RATE_LIMIT_CAP_MIN, Math.round(raw)));
 }
 
-/** Clamp a raw memorySummarizer maxTokens to its schema bounds (positive integer), `null` for non-finite —
- *  same silent-wipe guard as the others (an invalid value would trip `memorySummarizer.catch(undefined)`). */
-export function clampMemorySummarizerMaxTokens(raw: number): number | null {
-  if (!Number.isFinite(raw)) {
-    return null;
-  }
-  return Math.max(1, Math.round(raw));
-}
-
 // The agent-sdk summarize concurrency (Q6): the max in-flight summarize calls the agent-sdk backend runs.
-// DISTINCT from vllmConcurrency.summarize (a vLLM engine policy, floor 32) — this caps the Claude-Agent-SDK
-// subprocess fan-out (floor 4, byte-identical to the former hardcoded SUMMARIZE_CONCURRENCY). Positive int.
+// It caps the Claude-Agent-SDK subprocess fan-out (floor 4, byte-identical to the former hardcoded SUMMARIZE_CONCURRENCY). Positive int.
 export const AGENT_SDK_CONCURRENCY_MAX = 32;
 export const agentSdkConcurrencySchema = z.object({
   summarize: z.number().int().positive().max(AGENT_SDK_CONCURRENCY_MAX).optional(),
@@ -241,13 +189,7 @@ const imageVariantQualitySchema = (): z.ZodOptional<z.ZodNumber> => z.number().i
 // model-catalog success-refresh cadence (floor 24h). A value ≤0 / non-finite drops at parse → the floor governs.
 const durationMs = (): z.ZodOptional<z.ZodNumber> => z.number().int().positive().optional();
 
-// The vLLM engine LAUNCH-config override tier (#14): the per-engine serve flags an admin can retune on
-// another box (models / context windows / gpu-util fractions / vision max_pixels) and apply via the admin
-// Engines section's "restart to apply" affordance. Every field optional — unset falls to the env floor
-// (foundation/env) resolved by resolveEngineLaunchConfig. Mostly a LAUNCH tier (applies on engine restart),
-// distinct from vllmConcurrency (a HOT policy, applies on next use) — with TWO deliberate hot leaves that ride
-
-// the retired FINAL-Auth-Modes-and-Onboarding design set §9 — runtime-flippable, so AppSettings not ENV.
+// The retired FINAL-Auth-Modes-and-Onboarding design set §9 — runtime-flippable, so AppSettings not ENV.
 export const DEFAULT_LOCAL_MULTI_USER = false;
 export const DEFAULT_DISCREET_LOGIN = false;
 
@@ -331,7 +273,6 @@ const appSettingsShape = {
   // revokes it everywhere. See `@orb/contracts/chat::DeploymentRenderPolicy`.
   allowInteractiveCards: z.boolean().nullable().optional().catch(undefined),
   memoryDefaults: memoryDefaultsSchema.nullable().optional().catch(undefined),
-  memorySummarizer: memorySummarizerSchema.nullable().optional().catch(undefined),
   rateLimits: rateLimitsSchema.nullable().optional().catch(undefined),
   agentSdkConcurrency: agentSdkConcurrencySchema.nullable().optional().catch(undefined),
   // The non-owner local-compute budget WINDOW (ms) — the cap's sibling (compose read it hardcoded at 24h).
@@ -425,6 +366,13 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   },
   // v8→v9: `ipCertificate` (D275) is purely additive/optional — an absent field reads back as off.
   8: (config) => ({ ...config, schemaVersion: 9 }),
+  // v9→v10: the admin summarizer sampling override is deleted (each model role picks its own preset), and the
+  // engine-launch and vLLM-concurrency sections left with the in-server fleet. Dropping the keys rewrites
+  // the stored blob clean at the next write instead of carrying unaddressable residue.
+  9: (config) => {
+    const { memorySummarizer: _summarizer, engineLaunch: _engineLaunch, vllmConcurrency: _vllmConcurrency, ...rest } = config;
+    return { ...rest, schemaVersion: 10 };
+  },
 };
 
 export const appSettingsConfig = defineVersionedConfig<AppSettings>({
@@ -447,7 +395,17 @@ export function parseAppSettings(raw: unknown): AppSettings {
 // `connection_bindings` rows (`actorKind: "user"`), never `roleDefaults.<task>` leaves here; the source lists
 // (`INFERENCE_SOURCES` …) that mirrored the firewall are gone with the axis. v8 → v9 DROPS the `routing`
 // section outright (no lift, pre-launch posture).
-export const USER_SETTINGS_SCHEMA_VERSION = 9;
+export const USER_SETTINGS_SCHEMA_VERSION = 10;
+
+/** How the Utility role picks its preset. Absent (`null`) is task defaults: each background task runs at its
+ *  own posture with no preset params. `same-as-chat` follows the active preset; `preset` names one. */
+export const ROLE_PRESET_CHOICE_KINDS = { sameAsChat: "same-as-chat", preset: "preset" } as const;
+export const rolePresetChoiceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.sameAsChat) }),
+  // @orb-waive no-raw-id(presetId): lenient UserSettings tier — a stale/unowned id degrades to task defaults at consumption, so it stays plain.
+  z.object({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.preset), presetId: z.string().min(1) }),
+]);
+export type RolePresetChoice = z.infer<typeof rolePresetChoiceSchema>;
 
 const SCAN_DEPTH_MIN = 1;
 const SCAN_DEPTH_MAX = 200;
@@ -504,6 +462,7 @@ const seedsSchema = z
     welcomeAssistantCharacterId: z.string().nullable().catch(null).default(null),
     // @orb-waive no-raw-id(defaultPresetId): lenient UserSettings tier — a stale/unowned id degrades to the system-default preset at consumption, so it stays plain.
     defaultPresetId: z.string().nullable().catch(null).default(null),
+    summarizePreset: rolePresetChoiceSchema.nullable().catch(null).default(null),
   })
   .prefault({});
 
@@ -933,6 +892,8 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
     const { routing: _dropped, ...rest } = c;
     return rest;
   },
+  // v9→v10: `seeds.summarizePreset` is additive; an absent field reads back as task defaults.
+  9: (c) => ({ ...c }),
 };
 
 export const userSettingsConfig = defineVersionedConfig<UserSettings>({
@@ -963,9 +924,6 @@ export interface ResolvedAgentSdkConcurrency {
   summarize: number;
 }
 
-/** The RESOLVED vLLM engine launch config (env floor ⊕ admin override), every field present. The server's
- *  engine spawner consumes this to build the serve argv (structurally the infra `EngineLaunchConfig`, minus
- *  the env-only ports the spawner reads directly). Applied on engine RESTART, not next-use. */
 export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
   importSkipCharacters: string[];
@@ -974,7 +932,6 @@ export interface EffectiveAppConfig {
   trustHtml: boolean;
   allowInteractiveCards: boolean;
   memoryDefaults: MemoryDefaults;
-  memorySummarizer: MemorySummarizerConfig;
   rateLimits: ResolvedRateLimits;
   agentSdkConcurrency: ResolvedAgentSdkConcurrency;
   privateEndpointAllowlist: string[];
@@ -1059,7 +1016,6 @@ export const effectiveAppConfigSchema = z.strictObject({
   trustHtml: z.boolean(),
   allowInteractiveCards: z.boolean(),
   memoryDefaults: memoryDefaultsSchema.strict(),
-  memorySummarizer: memorySummarizerSchema.strict(),
   rateLimits: resolvedRateLimitsSchema,
   agentSdkConcurrency: resolvedAgentSdkConcurrencySchema,
   privateEndpointAllowlist: z.array(z.string()),
@@ -1078,7 +1034,6 @@ export const effectiveAppConfigSchema = z.strictObject({
 // Read producers already normalize configuration; wire envelopes reject typed additions without re-healing objects.
 const appSettingsOutputSchema = appSettingsSchema.strict().extend({
   memoryDefaults: memoryDefaultsSchema.strict().nullable().optional(),
-  memorySummarizer: memorySummarizerSchema.strict().nullable().optional(),
   rateLimits: rateLimitsSchema.strict().nullable().optional(),
   agentSdkConcurrency: agentSdkConcurrencySchema.strict().nullable().optional(),
 });

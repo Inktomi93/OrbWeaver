@@ -15,6 +15,7 @@ import {
   EFFORT_LEVELS,
   reasoningOffModeOf,
   reasoningReplayOf,
+  SAMPLER_KNOB_STAGES,
   SAMPLING_RANGE_KNOBS,
   survivesPrefixEdit,
 } from "@orb/contracts/inference";
@@ -244,18 +245,29 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
   return wanted;
 }
 
-/** THE SIDE-GENERATION REASONING POSTURE (#2575) — what a `summarize` / `structured` call runs. The posture is
- *  "reasoning OFF" (a summary is not worth thinking tokens), resolved through the SAME on/off decision and
- *  mandatory clamp a chat turn takes, never spelled `disabled` straight at the wire: a model whose reasoning is
- *  mandatory (Fable, Opus 5.5) 400s that, so it runs at its minimum effort or budget with `reasoning_mandatory_clamp`.
- *  No display is resolved — a batch reads only the reply text. */
-export function resolveSideGenReasoning(capability: GenerationCapability, warnings: ResolvedWarning[]): ResolvedReasoning {
+/** THE SIDE-GENERATION REASONING — what a `summarize` / `structured` call runs. When the role's preset sets
+ *  effort or a thinking budget (D299), those govern. Otherwise the posture is "reasoning OFF" (a summary is not
+ *  worth thinking tokens). Both resolve through the SAME on/off decision and mandatory clamp a chat turn takes,
+ *  never spelled `disabled` straight at the wire: a model whose reasoning is mandatory (Fable, Opus 5.5) 400s
+ *  that, so it runs at its minimum effort or budget with `reasoning_mandatory_clamp`. No display is resolved —
+ *  a batch reads only the reply text. */
+export function resolveSideGenReasoning(
+  capability: GenerationCapability,
+  warnings: ResolvedWarning[],
+  wanted: Pick<TaskSampling, "effort" | "thinkingBudgetTokens" | "maxTokens"> = {},
+): ResolvedReasoning {
   const r = capability.reasoning;
-  const params: UserIntent = {
-    effort: EFFORT_OFF,
-    ...(r.mode === "budget" && r.mandatory === true && r.budgetRange !== undefined ? { thinkingBudgetTokens: r.budgetRange.min } : {}),
-  };
-  const { display: _display, ...resolved } = resolveReasoning(params, capability, undefined, warnings);
+  const presetGoverns = wanted.effort !== undefined || wanted.thinkingBudgetTokens !== undefined;
+  const params: UserIntent = presetGoverns
+    ? {
+        ...(wanted.effort !== undefined ? { effort: wanted.effort } : {}),
+        ...(wanted.thinkingBudgetTokens !== undefined ? { thinkingBudgetTokens: wanted.thinkingBudgetTokens } : {}),
+      }
+    : {
+        effort: EFFORT_OFF,
+        ...(r.mode === "budget" && r.mandatory === true && r.budgetRange !== undefined ? { thinkingBudgetTokens: r.budgetRange.min } : {}),
+      };
+  const { display: _display, ...resolved } = resolveReasoning(params, capability, presetGoverns ? wanted.maxTokens : undefined, warnings);
   return resolved;
 }
 
@@ -349,32 +361,57 @@ function resolveSampling(params: UserIntent, capability: GenerationCapability, w
   const logitBias = resolveFlag("logitBias", params.logitBias, s.logitBias, warnings);
   const stop = resolveFlag("stop", params.stop, s.stop, warnings);
   const drySequenceBreakers = resolveFlag("drySequenceBreakers", params.drySequenceBreakers, s.drySequenceBreakers, warnings);
-  const samplerOrder = resolveSamplerOrder(params.samplerOrder, s.samplerOrder, warnings);
+  const bannedStrings = resolveFlag("bannedStrings", params.bannedStrings, s.bannedStrings, warnings);
+  const banEos = resolveFlag("banEos", params.banEos, s.banEos, warnings);
+  const samplerOrder = resolveSamplerOrder(params.samplerOrder, s.samplerOrder, warnings) ?? stageOrderFor(ranged, s.samplerOrder);
   const gated: ResolvedSampling = {
     ...ranged,
     ...(seed !== undefined ? { seed } : {}),
     ...(logitBias !== undefined ? { logitBias } : {}),
     ...(stop !== undefined ? { stop } : {}),
     ...(drySequenceBreakers !== undefined ? { drySequenceBreakers } : {}),
+    ...(bannedStrings !== undefined ? { bannedStrings } : {}),
+    ...(banEos !== undefined ? { banEos } : {}),
     ...(samplerOrder !== undefined ? { samplerOrder } : {}),
   };
   return dropExclusive(gated, s.exclusive, warnings);
+}
+
+/** The server's own default order, when a set knob acts only where its stage runs and the preset stores no
+ *  order (`SAMPLER_KNOB_STAGES`): llama.cpp's adaptive-P needs `adaptive_p` in `samplers`. */
+function stageOrderFor(
+  ranged: { readonly [K in SamplingRangeKnob]?: number },
+  orderable: readonly SamplerStage[] | undefined,
+): readonly SamplerStage[] | undefined {
+  if (orderable === undefined) {
+    return;
+  }
+  const needsStage = SAMPLING_RANGE_KNOBS.some((knob) => {
+    const stage = SAMPLER_KNOB_STAGES[knob];
+    return ranged[knob] !== undefined && stage !== undefined && orderable.includes(stage);
+  });
+  return needsStage ? orderable : undefined;
 }
 
 /** A summarize/structured call's sampling through the chat turn's own gate: a knob the capability does not
  *  state drops with `sampling_knob_dropped`, a stated one is clamped into its range. The output cap stays the
  *  caller's. Side generation and chat therefore send the same knobs to the same model. */
 export function resolveTaskSampling(sampling: TaskSampling, capability: GenerationCapability, warnings: ResolvedWarning[]): TaskSampling {
+  // Reasoning is not a sampler: the wire resolves it through `resolveSideGenReasoning`, so it passes through.
+  const { maxTokens, effort, thinkingBudgetTokens, stop, drySequenceBreakers, bannedStrings, samplerOrder, ...knobs } = sampling;
   const params: UserIntent = {
-    ...(sampling.temperature !== undefined ? { temperature: sampling.temperature } : {}),
-    ...(sampling.topP !== undefined ? { topP: sampling.topP } : {}),
-    ...(sampling.topK !== undefined ? { topK: sampling.topK } : {}),
-    ...(sampling.frequencyPenalty !== undefined ? { frequencyPenalty: sampling.frequencyPenalty } : {}),
-    ...(sampling.presencePenalty !== undefined ? { presencePenalty: sampling.presencePenalty } : {}),
-    ...(sampling.repetitionPenalty !== undefined ? { repetitionPenalty: sampling.repetitionPenalty } : {}),
-    ...(sampling.minP !== undefined ? { minP: sampling.minP } : {}),
+    ...knobs,
+    ...(stop !== undefined ? { stop: [...stop] } : {}),
+    ...(drySequenceBreakers !== undefined ? { drySequenceBreakers: [...drySequenceBreakers] } : {}),
+    ...(bannedStrings !== undefined ? { bannedStrings: [...bannedStrings] } : {}),
+    ...(samplerOrder !== undefined ? { samplerOrder: [...samplerOrder] } : {}),
   };
-  return { ...resolveSampling(params, capability, warnings), ...(sampling.maxTokens !== undefined ? { maxTokens: sampling.maxTokens } : {}) };
+  return {
+    ...resolveSampling(params, capability, warnings),
+    ...(maxTokens !== undefined ? { maxTokens } : {}),
+    ...(effort !== undefined ? { effort } : {}),
+    ...(thinkingBudgetTokens !== undefined ? { thinkingBudgetTokens } : {}),
+  };
 }
 
 /** The order this server runs for the preset's (`completeSamplerOrder`, D295). A stage the server cannot

@@ -19,6 +19,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { createInferenceRuntime } from "@orb/inference";
 import type { AssetId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { DeliveredCue } from "../../../packages/server/src/domain/chat/contract/results.ts";
 import { runTurnPipeline } from "../../../packages/server/src/domain/chat/engine/pipeline.ts";
 import { buildCommittedMessageView } from "../../../packages/server/src/domain/chat/persistence/canon-write.ts";
@@ -110,6 +111,7 @@ function canonWith(factSeq: number | null): MessageView[] {
 }
 
 const assembleContext: AssembleContext = {
+  timezone: UTC_TIME_ZONE,
   character: { name: "Mara", description: "Mara is a ledger keeper at the salt weirs." },
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Alex", description: "A traveller." },

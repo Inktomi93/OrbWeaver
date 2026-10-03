@@ -15,13 +15,14 @@ export function createCaptionAvatar(ctx: ImageryContext): CaptionAvatar {
     if (args.subjectCharacterId === undefined) {
       return null;
     }
-    const card = await ctx.getCard(args.caller, args.subjectCharacterId);
+    const card = await ctx.getCard(args.runAs, args.subjectCharacterId);
     if (card.avatarAssetId === null) {
       return null;
     }
-    const { bytes, mime } = await ctx.readAsset(args.caller, card.avatarAssetId);
-    // The card and avatar read under the caller; the instruction and the spend are the run-as principal's
-    // (D298). The instruction is its per-mode override ⊕ the shipped catalog default (⑫).
+    const { bytes, mime } = await ctx.readAsset(args.runAs, card.avatarAssetId);
+    // The card, avatar, instruction and spend are all the run-as principal's (D298): the host owns a room's
+    // characters, and `character.get` is owner-only, so a member's own principal would never find them.
+    // The instruction is its per-mode override ⊕ the shipped catalog default (⑫).
     const instruction = await ctx.resolveCaptionInstruction(args.runAs, args.mode);
     const { text, costUsd } = await ctx.captionImage({ runAs: args.runAs, bytes, mime, instruction });
     const prompt = processReply(text);

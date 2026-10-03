@@ -5,7 +5,7 @@
 import type { ModelCallEstimate, WorkloadEvent, WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
-import type { IsAdmin, RequireOwner } from "#domain/admin";
+import type { IsAdmin, IsOwner, RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
 import type { WorkloadContributions } from "./contribution.ts";
 import type {
@@ -42,6 +42,8 @@ export interface WorkloadServiceContext {
   /** MODE authz seam: `requireOwner` gates a BULK run (owner-only); `isAdmin` chooses the read scope. */
   readonly requireOwner: RequireOwner;
   readonly isAdmin: IsAdmin;
+  /** The non-throwing owner test, for a read that must answer a non-owner exactly as it answers a missing row. */
+  readonly isOwner: IsOwner;
   /** The domain-owned lifecycle publisher; service.ts wires the engine bus so verbs never bypass it. */
   readonly emitEvent: (event: WorkloadEvent) => void;
 }

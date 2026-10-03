@@ -277,6 +277,11 @@ function samplingDropDescription(knob: AdjustedKnob | undefined): string {
     case "dynatempExponent":
     case "smoothingFactor":
     case "smoothingCurve":
+    case "adaptiveTarget":
+    case "adaptiveDecay":
+    case "minKeep":
+    case "bannedStrings":
+    case "banEos":
     case "seed":
     case "logitBias":
     case "stop":
@@ -300,6 +305,10 @@ function assertNeverKnob(knob: never): never {
  *  imported because a client feature may not import another feature's internals at runtime; the mapped
  *  `Record` is the exhaustiveness enforcer (a new `ADJUSTED_KNOBS` member fails `tsc` here). */
 const KNOB_LABELS: Record<AdjustedKnob, string> = {
+  adaptiveDecay: "Adaptive-P decay",
+  adaptiveTarget: "Adaptive-P target",
+  banEos: "Ban end of reply",
+  bannedStrings: "Banned phrases",
   carryReasoning: "Reasoning carry",
   dryAllowedLength: "DRY allowed length",
   dryBase: "DRY base",
@@ -310,6 +319,7 @@ const KNOB_LABELS: Record<AdjustedKnob, string> = {
   dynatempRange: "Dynamic temperature range",
   frequencyPenalty: "Frequency penalty",
   logitBias: "Logit bias",
+  minKeep: "Min keep",
   minP: "Min-P",
   mirostatEta: "Mirostat eta",
   mirostatMode: "Mirostat",

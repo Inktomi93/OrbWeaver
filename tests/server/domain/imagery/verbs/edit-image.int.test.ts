@@ -13,6 +13,7 @@ import { createImageryService, ImageEditUnsupportedError } from "@orb/server/dom
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
+import { seedChat } from "../../../../support/factories/chat.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, PNG_BYTES, principal, resolutionWith, seedGenerationOwner } from "../_support.ts";
 
@@ -84,6 +85,28 @@ describe("editImage — the edit path (doc 02 §4)", () => {
     expect(rows[0]?.subjectCharacterId).toBeNull();
     const assetRows = await db.select().from(assets).where(eq(assets.ownerId, owner));
     expect(assetRows[0]?.kind).toBe("generated");
+  });
+
+  test("a chat id is recorded as provenance only for a chat the caller takes part in; any other is dropped", async () => {
+    const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
+    const mine = (await seedChat(db)).id;
+    const strangers = (await seedChat(db)).id;
+    const { ctx } = makeHarness(db, {
+      resolveGenerateImage: resolutionWith(true),
+      callerInChat: (_caller, chatId) => Promise.resolve(chatId === mine),
+    });
+    const imagery = createImageryService(ctx);
+
+    await imagery.editImage({ caller: principal(owner), chatId: mine, source: { bytes: PNG_BYTES, mime: "image/png" }, instruction: "in my room" });
+    await imagery.editImage({ caller: principal(owner), chatId: strangers, source: { bytes: PNG_BYTES, mime: "image/png" }, instruction: "in theirs" });
+
+    const rows = await db.select().from(imageryGenerations);
+    expect(rows.map((row) => [row.prompt, row.chatId])).toEqual(
+      expect.arrayContaining([
+        ["in my room", mine],
+        ["in theirs", null],
+      ]),
+    );
   });
 
   test("an upload-bytes source is used directly — readAsset is never called; a mask rides the edit payload", async () => {

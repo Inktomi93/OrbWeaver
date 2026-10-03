@@ -85,7 +85,7 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
     const session = sessionViewOf(row);
     const [overrides, presetParams, priorRewriteRow] = await Promise.all([
       ctx.resolveUserProse(ownerId),
-      ctx.resolveUserPresetParams(ownerId),
+      ctx.resolveUtilityPresetParams(ownerId),
       latestRunRowOf(ctx.db, sessionId, "rewrite"),
     ]);
     const priorRewrite = priorRewriteRow === undefined ? null : REFINERY_STAGE_PAYLOADS.rewrite.safeParse(priorRewriteRow.payload);

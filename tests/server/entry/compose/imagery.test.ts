@@ -51,7 +51,7 @@ interface Fakes {
   readonly resolveViewerVisibility: Mock<(chatId: ChatId, userId: UserId) => Promise<Visibility>>;
   readonly summarize: Mock<(...args: readonly unknown[]) => Promise<{ items: readonly { text: string; usage: { costUsd: number | null } }[] }>>;
   readonly loadUserSettings: Mock<(userId: UserId) => Promise<UserSettings>>;
-  readonly resolveUserPresetParams: Mock<(userId: UserId) => Promise<Record<string, never>>>;
+  readonly resolveUtilityPresetParams: Mock<(userId: UserId) => Promise<Record<string, never>>>;
   readonly characterGet: Mock<(args: { principal: Principal; characterId: CharacterId }) => Promise<{ avatarAssetId: AssetId | null }>>;
   readonly readOwnedAssetBytes: Mock<(caller: Principal, assetId: AssetId) => Promise<{ bytes: Uint8Array; mime: string }>>;
   readonly register: Mock<(def: { name: string }) => void>;
@@ -73,7 +73,7 @@ function fakes(): Fakes {
     resolveChatHostUserId: vi.fn<(chatId: ChatId) => Promise<UserId | null>>(() => Promise.resolve(CALLER.userId)),
     resolveViewerVisibility: vi.fn<(chatId: ChatId, userId: UserId) => Promise<Visibility>>(() => Promise.resolve({ historyFloorSeq: 42 })),
     loadUserSettings: vi.fn<(userId: UserId) => Promise<UserSettings>>(() => Promise.resolve(DEFAULT_SETTINGS)),
-    resolveUserPresetParams: vi.fn<(userId: UserId) => Promise<Record<string, never>>>(() => Promise.resolve({})),
+    resolveUtilityPresetParams: vi.fn<(userId: UserId) => Promise<Record<string, never>>>(() => Promise.resolve({})),
     characterGet: vi.fn<(args: { principal: Principal; characterId: CharacterId }) => Promise<{ avatarAssetId: AssetId | null }>>(() =>
       Promise.resolve({ avatarAssetId: AVATAR }),
     ),
@@ -100,8 +100,7 @@ function build(f: Fakes, db: Db | Record<string, never> = {}): ReturnType<typeof
     resolveChatHostUserId: f.resolveChatHostUserId,
     isCharacterSeated: f.isCharacterSeated,
     resolveHostPrincipal: (userId: UserId) => Promise.resolve(principal(userId)),
-    resolveUserPresetParams: f.resolveUserPresetParams,
-    resolveChatPresetParams: vi.fn(() => Promise.resolve({})),
+    resolveUtilityPresetParams: f.resolveUtilityPresetParams,
     resolveUserMacroDefs: vi.fn(() => Promise.resolve({ preset: [], game: [] })),
     loadUserSettings: f.loadUserSettings,
     maxImageBytes: () => 1024,
@@ -175,7 +174,7 @@ describe("buildImagery — the caption lane reads the CALLER's own asset", () =>
     // ⑫: the per-mode caption instruction resolves off the CALLER's settings.
     expect(f.loadUserSettings).toHaveBeenCalledWith(CALLER.userId);
     // The side-gen sampling ladder's middle rung is the CALLER's default-preset params.
-    expect(f.resolveUserPresetParams).toHaveBeenCalledWith(CALLER.userId);
+    expect(f.resolveUtilityPresetParams).toHaveBeenCalledWith(CALLER.userId);
   });
 
   test("the vision call carries the avatar BYTES as multimodal content and the resolved instruction", async () => {
@@ -235,17 +234,17 @@ describe("buildImagery — a member's preview in a host's room runs as the host 
     expect(f.roleClientsFor).not.toHaveBeenCalled();
   });
 
-  test("a caption reads the subject under the member, and takes the host's instruction, preset and Utility funder", async () => {
+  test("a caption reads the subject and avatar as the host, and takes the host's instruction, preset and Utility funder", async () => {
     const f = fakes();
     f.resolveChatHostUserId.mockResolvedValue(HOST);
 
     await build(f).extractPrompt({ caller: CALLER, chatId: CHAT, mode: "character_multimodal", subjectCharacterId: SUBJECT });
 
     expect(f.resolveViewerVisibility).toHaveBeenCalledWith(CHAT, CALLER.userId);
-    expect(f.characterGet).toHaveBeenCalledWith({ principal: CALLER, characterId: SUBJECT });
-    expect(f.readOwnedAssetBytes).toHaveBeenCalledWith(CALLER, AVATAR);
+    expect(f.characterGet).toHaveBeenCalledWith({ principal: principal(HOST), characterId: SUBJECT });
+    expect(f.readOwnedAssetBytes).toHaveBeenCalledWith(principal(HOST), AVATAR);
     expect(f.loadUserSettings.mock.calls).toEqual([[HOST]]);
-    expect(f.resolveUserPresetParams.mock.calls).toEqual([[HOST]]);
+    expect(f.resolveUtilityPresetParams.mock.calls).toEqual([[HOST]]);
     expect(f.roleClientsFor.mock.calls).toEqual([[HOST]]);
   });
 
@@ -270,6 +269,7 @@ describe("buildImagery — a member's preview in a host's room runs as the host 
 describe("buildImagery — a room preview's subject comes from the room roster", () => {
   async function seedRoom(): Promise<{
     readonly db: Db;
+    readonly host: UserId;
     readonly member: UserId;
     readonly chatId: ChatId;
     readonly seated: CharacterId;
@@ -284,7 +284,7 @@ describe("buildImagery — a room preview's subject comes from the room roster",
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "member", userId: member, role: "member" });
     await seedParticipant(db, { chatId, key: "seated", characterId: seated });
-    return { db, member, chatId, seated, offRoom };
+    return { db, host, member, chatId, seated, offRoom };
   }
 
   function roomFakes(db: Db): Fakes {
@@ -306,6 +306,16 @@ describe("buildImagery — a room preview's subject comes from the room roster",
       expect(f.summarize).not.toHaveBeenCalled();
     });
   }
+
+  test("the host previewing one of their own characters that is not seated is not refused", async () => {
+    const room = await seedRoom();
+    const f = roomFakes(room.db);
+    f.resolveChatHostUserId.mockResolvedValue(room.host);
+
+    await build(f, room.db).extractPrompt({ caller: principal(room.host), chatId: room.chatId, mode: "character", subjectCharacterId: room.offRoom });
+
+    expect(f.summarize).toHaveBeenCalledTimes(1);
+  });
 
   test("a subject seated in the room still previews", async () => {
     const room = await seedRoom();

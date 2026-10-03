@@ -42,70 +42,8 @@ export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwner
 export { parseTrustedPrivateRanges } from "./private-ranges.ts";
 
 const DEFAULT_PORT = 8788;
-// vLLM loopback engine ports (must match what the stack supervisor passes).
-// The unified text+image embedding space's output dimension (matches every F32_BLOB(1024) vector column).
-// The per-POST embed token ceiling (#187). DERIVED from a live measurement on the box's embed engine
-// (Qwen3-VL-Embedding-2B, max_model_len 8192): ~15.1k prompt-tokens/s aggregate under 4-way concurrency, and
-// 4.4k tok/s end-to-end for the request that queued behind three siblings. At 256k tokens a POST clears in
-// ~60s at that worst-case rate — back inside the latency class the 120s default was written for — while four
-// in flight bound any OTHER caller's queue wait to ~68s (a small POST measured 72.8s behind just two
-// unbounded flood POSTs). Not a throttle: the whole flood still goes out, in schedulable units.
-// The gen engine's --max-model-len. ONE home for the window so the launcher's
-// serve flag and the resolved ModelCapability.context.window can't drift (parity-tested + engine-self-report
-// outranks it for capability truth). The engine's OWN /v1/models max_model_len wins at runtime.
-// 65_536 on a 262_144-native checkpoint (no rope scaling involved): at gen util 0.6 the KV pool is
-// ~296k tokens, so 64k/request floors concurrency at ~4.5x — the owner-picked depth/parallelism trade
-// (2026-08-18, for dense video analysis; 32k was 9x).
-// The embed + rerank pooling engines' --max-model-len. ONE home for the 8192 that was hand-copied into the
-// shell script's embed/rerank arms AND the character embed-text char budget AND the local-light capability
-// window. The engines self-report these too (extend-of the gen-window seam); the env is the launch flag +
-// the absence-degrade floor when the engine is warming/disabled.
-// Per-engine --gpu-memory-utilization floors. RETUNED 2026-08-13 for the 27B-THINKING swap (W8A8-int8,
-// TP=2): pooling engines squeezed to 0.1 each and moved to --enforce-eager (no CUDA-graph buffers — the
-// graph overshoot is what the 08-10 measurements below caught), rerank re-homed to GPU1 so each card
-// carries exactly ONE pooling tenant beside its gen half. Topology: GPU0 = embed(0.1)+gen(0.8) · GPU1 =
-// gen(0.8)+rerank(0.1) — 0.9/card sum, deliberate. ⚠ UNVERIFIED until the first boot on this config.
-// GEN HISTORY (keep — each number is paid tuition): 0.28 was the ComfyUI-coexistence floor (1.38x
-// concurrency = ONE in-flight request; ComfyUI left, gen took the VRAM). 0.60 then OOM'd on vLLM 0.26
-// during gen's CUDA-graph capture — died asking 2 MiB with 29 MiB free; measured residency: embed
-// 7.68 GiB (0.14 budget → 0.162 actual), rerank 8.67 (0.16 → 0.183), gen 30.49 (0.60 → 0.643) — every
-// engine overshoots its fraction ~2-4% ON GRAPHS, so 0.90-sum WITH graphs was fatal. gpu-memory-utilization
-// is PER-INSTANCE (weights+KV), it reserves nothing for co-tenants. 2026-08-13, 27B swap: gen NEEDS 0.8
-// for the int8 weights + usable KV; the 0.9/card sum is bought back by pooling going enforce-eager (kills
-// the graph overshoot arm on the small engines). If first boot OOMs: drop gen 0.8 → 0.75 before touching
-// the pooling floors, and re-measure — that retune IS the verification step.
-// --mm-processor-kwargs max_pixels caps: pooling engines (embed/rerank) at the reference 1.84M-px vision
-// regime; the gen VL engine at its 4.2M-px cap. ONE home for the two literals the shell hand-carried.
-// Gen video sampling density — LAUNCH-TIME ONLY knobs (vLLM 0.26's per-request media/processor kwargs
-// never reach the video sampler; probed live 2026-08-18). fps 4 doubles the Qwen3VL class default
-// (temporal_patch_size 2 → the model sees fps×duration/2 timestamped steps); raise the env for
-// frame-to-frame motion judgment, at ~2× vision tokens per fps step. max_frames caps one clip's
-// token bill so a long video can't fill the whole context window (512 ≈ 2min @ fps 4).
-// The gen engine's chunked-prefill step budget (--max-num-batched-tokens). 8_192 (vLLM's own
-// chunked-prefill default) — NOT the old 2_096: one max-size image at VLLM_GEN_MAX_PIXELS is ~4_096
-// vision tokens, and vLLM sizes the ENCODER CACHE off this budget, so 2_096 left the encoder window
-// at one-image-at-a-time and multi-image prompts crawled (~90 tok/s prefill measured 2026-08-18 —
-// reads as a hang). 8_192 holds two max-size images resident. Accepted trade: bigger prefill bites
-// share steps with decode, so concurrent streams can get slightly chunkier under load.
-// The gen engine's default repetition_penalty, applied PER REQUEST by the vLLM chat surface when a preset is
-// silent (#23; the per-request move landed 2026-08-14). It was a `--override-generation-config` LAUNCH flag
-// while the sampler-less agent-sdk /v1/messages wire existed — that wire carried no per-request penalty, so a
-// 1.0-penalty model could loop to the output cap with no way to self-correct. The agent-sdk×vllm pairing was
-// retired 2026-07-27 (roles/dispatch.ts fail-closes it) and every surviving vLLM surface sends samplers on
-// the request, so baking it at launch only meant silently outranking the checkpoint's own
-// generation_config.json on every call. 1.0 = the Qwen card value = no penalty (a preset value always wins;
-// the loop-guard the prose path actually uses is presence_penalty). ONE home for the literal; env-layered ⊕
-// AppSettings so an admin retune applies to the NEXT REQUEST — no engine restart.
-// The gen engine's default PRESENCE penalty applied per-REQUEST by the vLLM chat surface when a preset is
-// silent (Phase B ⑩ item 7). Env-layered ⊕ AppSettings override so an admin can retune the per-launched-model
-// default. OpenAI range -2..2.
-// 2026-08-10: 1.5 → 0.0 with the THINKING-checkpoint swap. 1.5 was the Qwen3-VL-Instruct card value (the
-// former hardcoded CARD_DEFAULT_PRESENCE_PENALTY) and it is Qwen's NON-THINKING number; the card gives
-// presence_penalty 0.0 for both thinking modes. A presence penalty punishes reusing tokens already in
-// context, which is exactly what a chain of thought does — restating constraints and repeating entity names
-// across reasoning steps — so 1.5 pushed a thinking model off its own scratchpad vocabulary.
 // The agent-sdk backend's max in-flight summarize calls (Phase B ⑩ item 1, Q6). 4 = the former hardcoded
-// SUMMARIZE_CONCURRENCY; env-layered ⊕ AppSettings override. DISTINCT from the vLLM engine's summarize floor.
+// SUMMARIZE_CONCURRENCY; env-layered ⊕ AppSettings override.
 const AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT = 4;
 const MIN_SESSION_SECRET_CHARS = 32;
 const MIN_PASSWORD_LENGTH = 8;
@@ -202,24 +140,31 @@ function loadEnvFileWithOverride(override: boolean): void {
 const LAUNCH_ONLY_ENV_KEYS = [
   {
     key: "AUTH_FALLBACK",
-    why: ".env's override:true would force it into every mode including dev (lockout risk). Leave it unset and it resolves per AUTH_MODE — 'owner' for single-user, 'deny' for local/oidc/forward-header; to override that, set it in the launcher's environment (`stack up prod` / `docker run -e`), never here.",
+    why: (): string =>
+      ".env's override:true would force it into every mode including dev (lockout risk). Leave it unset and it resolves per AUTH_MODE — 'owner' for single-user, 'deny' for local/oidc/forward-header; to override that, set it in the launcher's environment (`stack up prod` / `docker run -e`), never here.",
   },
   {
     key: "AUTH_FALLBACK_TRUSTED_PEERS",
-    why: `it widens who is the un-credentialed OWNER, and .env's override:true would carry that widening into every launch from this directory, including a dev or prod run that never meant to open it. A container takes it from its own env file, never the app's .env: ${settingInstruction(true, [["AUTH_FALLBACK_TRUSTED_PEERS", "<CIDR list>"]])}`,
+    why: (inContainer: boolean): string =>
+      `it widens who is the un-credentialed OWNER, and .env's override:true would carry that widening into every launch from this directory, including a dev or prod run that never meant to open it. ${
+        inContainer
+          ? `A container takes it from its own env file, never the app's .env: ${settingInstruction(true, [["AUTH_FALLBACK_TRUSTED_PEERS", "<CIDR list>"]])}`
+          : "On bare metal, export it in the environment of the shell or service that starts the server, never in .env."
+      }`,
   },
   {
     key: SUPERVISOR_ENV_KEY,
-    why: "pnpm start sets it on the server it supervises. In .env it would tell every launch that a supervisor will start it again, so an in-app restart would stop a server that nothing restarts. Delete the line.",
+    why: (): string =>
+      "pnpm start sets it on the server it supervises. In .env it would tell every launch that a supervisor will start it again, so an in-app restart would stop a server that nothing restarts. Delete the line.",
   },
 ] as const;
 
 /** The #301 refusal itself, lifted out of the superRefine so a THIRD launch-only knob costs one table row and
  *  no branch in the parse. Every declared key gets its own issue — an operator who pinned two sees two. */
-function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx): void {
+function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx, inContainer: boolean): void {
   for (const entry of LAUNCH_ONLY_ENV_KEYS) {
     if (envFileKeys.has(entry.key)) {
-      ctx.addIssue({ code: "custom", path: [entry.key], message: `${entry.key} must not be set in .env — ${entry.why}` });
+      ctx.addIssue({ code: "custom", path: [entry.key], message: `${entry.key} must not be set in .env — ${entry.why(inContainer)}` });
     }
   }
 }
@@ -701,7 +646,7 @@ const envSchema = z
     // GENERALIZED: the rule is now a TABLE (`LAUNCH_ONLY_ENV_KEYS`) rather than one predicate, because
     // `AUTH_FALLBACK_TRUSTED_PEERS` is launch-only for the same reason with a different consequence — each
     // key carries its own operator sentence, and a third knob is a row, not a second copy of this block.
-    refuseLaunchOnlyEnvFileKeys(ctx);
+    refuseLaunchOnlyEnvFileKeys(ctx, runsInContainer(val.ORB_CONTAINER));
     // THE WIDENED FALLBACK PEER SET × BREAK-GLASS (docs/law/container-deployment-security.md).
     // Same fail-fast family as the blocks above, and the one combination the widening may never enter.
     // `AUTH_BREAK_GLASS=true` exists to unlock ONE thing: a brief, on-box, proxy-off recovery session in an

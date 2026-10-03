@@ -127,7 +127,8 @@ interface ShapeInput {
   historySystemRows?: boolean;
   /** The preset message-handling knob (`params.advanced.roleHandling`); clamped against the floor. */
   roleHandling?: RoleHandling | undefined;
-  /** The model's message-handling floor. Unset ⇒ `strict`. SHAPE runs the stricter of floor + knob. */
+  /** The floor the knob is clamped against (`turnsLevelFor`): the model's stated floor, or the knob itself where
+   *  no tier measured the model. Unset ⇒ `strict`. SHAPE runs the stricter of floor + knob. */
   roleHandlingFloor?: RoleHandling | undefined;
   /** The turn caches by explicit block markers (`@orb/inference` `cachesByAnthropicMarkers`): a merging level
    *  keeps each stored row of a same-role run its own row (see the file header). Absent ⇒ the run joins. */

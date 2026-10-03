@@ -103,6 +103,64 @@ describe("rerankPick — the rules over injected scores", () => {
   });
 });
 
+describe("rerankPick — an ambiguous or common-word name does not win outright", () => {
+  const CastKeys = ["hale", "rook", "will", "aria"] as const;
+  const Cast = [
+    { ref: ref("hale"), name: "Captain Hale" },
+    { ref: ref("rook"), name: "Captain Rook" },
+    { ref: ref("will"), name: "Will" },
+    { ref: ref("aria"), name: "Aria" },
+  ];
+  const castPick = (reranker: () => Promise<SpeakerReranker | null>, text: string): ReturnType<typeof rerankPick> =>
+    pick({
+      reranker,
+      candidates: CastKeys.map(candidate),
+      speakerCandidates: Cast,
+      personas: new Map(CastKeys.map((k) => [cid(k), `${k} persona`] as const)),
+      lastLine: line(text),
+    });
+
+  test("a title shared by two characters reranks within those two, not first-match", async () => {
+    const scores = fakeReranker({ hale: 1, rook: 9, will: 100, aria: 100 });
+    const out = await castPick(scores.op, "Captain, what do we do now?");
+    expect(out.speakers).toEqual([ref("rook")]);
+    expect(scores.sent).toHaveLength(1);
+    expect(scores.sent[0]?.map((d) => d.text?.split(":")[0])).toEqual(["Captain Hale", "Captain Rook"]);
+  });
+
+  test("a word written as an ordinary lowercase word does not break a tie between characters addressed by another word", async () => {
+    const crew = [
+      { ref: ref("hook"), name: "Captain Hook" },
+      { ref: ref("nemo"), name: "Captain Nemo" },
+      { ref: ref("smee"), name: "Smee" },
+    ];
+    const scores = fakeReranker({ hook: 1, nemo: 9, smee: 100 });
+    const out = await pick({
+      reranker: scores.op,
+      candidates: ["hook", "nemo", "smee"].map(candidate),
+      speakerCandidates: crew,
+      personas: new Map(["hook", "nemo", "smee"].map((k) => [cid(k), `${k} persona`] as const)),
+      lastLine: line("Captain, grab the hook."),
+    });
+    expect(out.speakers).toEqual([ref("nemo")]);
+    expect(scores.sent[0]?.map((d) => d.text?.split(":")[0])).toEqual(["Captain Hook", "Captain Nemo"]);
+  });
+
+  test("the fuller name still wins outright, and so does a unique capitalised name", async () => {
+    const scores = fakeReranker({ hale: 0, rook: 9, will: 9, aria: 9 });
+    expect((await castPick(scores.op, "Captain Hale, what now?")).speakers).toEqual([ref("hale")]);
+    expect((await castPick(scores.op, "Will, come here.")).speakers).toEqual([ref("will")]);
+    expect(scores.sent).toHaveLength(0);
+  });
+
+  test("a name that is also a lowercase common word does not win; the whole cast is reranked", async () => {
+    const scores = fakeReranker({ hale: 1, rook: 2, will: 3, aria: 9 });
+    const out = await castPick(scores.op, "we will find it together");
+    expect(out.speakers).toEqual([ref("aria")]);
+    expect(scores.sent[0]).toHaveLength(4);
+  });
+});
+
 describe("rerankPick — documents fit the bound model's window", () => {
   test("a small window clips each persona and keeps the name; a large one sends it whole", async () => {
     const small = fakeReranker({ aria: 1 }, { maxInputTokens: 64, input: ["text"], instructionAware: false });
@@ -118,6 +176,18 @@ describe("rerankPick — documents fit the bound model's window", () => {
 });
 
 describe("rerankPick — cancellation and persona text", () => {
+  test("a turn aborted while the role is unbound is cancelled, not degraded to a natural pick", async () => {
+    const controller = new AbortController();
+    const out = await pick({
+      reranker: () => {
+        controller.abort();
+        return Promise.resolve(null);
+      },
+      signal: controller.signal,
+    });
+    expect(out).toEqual({ speakers: [], degraded: false, aborted: true });
+  });
+
   test("an already-aborted turn picks nobody, even when the last line names a character", async () => {
     const scores = fakeReranker({ aria: 1 });
     const out = await pick({ reranker: scores.op, lastLine: line("Cara, your turn."), signal: AbortSignal.abort() });

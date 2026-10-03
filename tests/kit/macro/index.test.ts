@@ -12,6 +12,7 @@ import {
   SimpleMacroRegistry,
   stripComments,
 } from "@orb/kit/macro";
+import { vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 // A fixed epoch so every clock assertion is deterministic — 2021-01-02T03:04:05Z (literal ms so no
@@ -282,13 +283,18 @@ test("datetimeformat applies a Luxon format string against the pinned clock", ()
   expect(processMacros("{{datetimeformat::yyyy/MM/dd HH:mm}}", fixed)).toBe("2021/01/02 03:04");
 });
 
-test("an invalid timezone falls back to the server-local clock and warns", () => {
+test("an absent or invalid timezone reads UTC, never the host's zone, and an invalid one warns", () => {
   const warnings: string[] = [];
-  // Invalid zone ⇒ same rendering as supplying no zone at all (both use the server-local default),
-  // which keeps the assertion deterministic regardless of the test runner's TZ.
-  const withBadZone = processMacros("{{isodate}}", opts({ nowMs: FIXED_NOW_MS, timezone: "Not/AZone", onWarn: (m) => warnings.push(m) }));
-  const serverLocal = processMacros("{{isodate}}", opts({ nowMs: FIXED_NOW_MS }));
-  expect(withBadZone).toBe(serverLocal);
+  // A host zone west of UTC would render 2021-01-01 19:04 here, so a server-local fallback cannot pass.
+  vi.stubEnv("TZ", "America/Los_Angeles");
+  try {
+    const withBadZone = processMacros("{{date}} {{time}}", opts({ nowMs: FIXED_NOW_MS, timezone: "Not/AZone", onWarn: (m) => warnings.push(m) }));
+    const withNoZone = processMacros("{{date}} {{time}}", opts({ nowMs: FIXED_NOW_MS }));
+    expect(withBadZone).toBe("2021-01-02 03:04:05");
+    expect(withNoZone).toBe("2021-01-02 03:04:05");
+  } finally {
+    vi.unstubAllEnvs();
+  }
   expect(warnings.some((w) => w.includes("invalid timezone"))).toBe(true);
 });
 

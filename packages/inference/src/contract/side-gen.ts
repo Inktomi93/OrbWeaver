@@ -1,9 +1,7 @@
-// The side-generation sampling posture: the three knobs the side-gen ladder folds (`funnel/resolve-side-gen.ts`).
+// The side-generation sampling vocabulary: what the fold in `funnel/resolve-side-gen.ts` reads and returns.
 
-/** One rung / the resolved result — the three knobs the ladder folds. Each optional; absent = "defer / the
- *  runner default stands". A superset object (e.g. a full `UserIntent`) satisfies this structurally. */
-export interface SideGenSampling {
-  readonly temperature?: number | undefined;
-  readonly topP?: number | undefined;
-  readonly maxOutputTokens?: number | undefined;
-}
+import type { RolePresetParams } from "@orb/contracts/preset";
+
+/** A role's preset params, a task posture, or the folded result: only the fields a non-chat role takes from a
+ *  preset (`ROLE_PRESET_FIELDS`). Each optional; absent means the next source or the runner default stands. */
+export type SideGenSampling = RolePresetParams;

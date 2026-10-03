@@ -20,6 +20,7 @@
 //   • `allowInlineData` ⇐ the participant's HTML-TRUST LADDER at or above `trusted`. This is the door:
 //     `data:` images for cards authored by a character that resolves at or above that step (the same step
 //     D294 uses to grant the tierB sandbox).
+//     Both media grants are re-resolved on every SERVE and only ever narrowed (see the GET below).
 //   • the SCRIPT POSTURE ⇐ the TOP step of that same ladder AND the deployment `allowInteractiveCards`
 //     ceiling (#111 legs 1+3) AND the viewer's own `chat.runCardScripts` consent — `interactive` only when
 //     ALL THREE say yes, `static` otherwise and on every selector failure. It selects which `CardFramePosture`
@@ -224,18 +225,16 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       styleTokens: undefined,
       fontFamily: body.fontFamily,
     });
-    // An interactive document keeps its selector and its script-free policy beside it, so a SERVE can
-    // withdraw the grant (see the GET below). `characterId` is non-null here: a null selector never
-    // resolves to the interactive posture.
-    const scriptGrant =
-      policy.posture === "interactive" && body.characterId !== null
-        ? { scriptGrant: { chatId: body.chatId, characterId: body.characterId, withdrawnCsp: buildCardFrameCsp(policy.media, "document", "static") } }
-        : {};
+    // A document minted for a named character keeps its selector and the grants it resolved beside it, so a
+    // SERVE can withdraw any of them (see the GET below). A null selector resolves to the floor, which has
+    // nothing left to withdraw.
+    const grant =
+      body.characterId === null ? {} : { grant: { chatId: body.chatId, characterId: body.characterId, media: policy.media, posture: policy.posture } };
     const id = store.put({
       userId: principal.userId,
       doc,
       csp: buildCardFrameCsp(policy.media, "document", policy.posture),
-      ...scriptGrant,
+      ...grant,
       expiresAt: deps.now() + FRAME_HANDLE_TTL_MS,
     });
     return c.json({
@@ -256,14 +255,19 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       return c.body(MISS_DOC, NOT_FOUND, frameHeaders(FLOOR_CSP));
     }
     // THE REVOCATION. The client memoizes a handle per card body for the tab's life, so a grant decided
-    // only at mint would outlive an admin switching interactive cards off, a host moving the character
-    // to a lower rung, the viewer leaving the room, or the viewer turning card scripts off. An interactive
-    // document is therefore re-resolved on every serve, through the same membership-gated read as the mint,
-    // and served script-free unless it would still mint interactive. A serve can only withdraw the grant, never add one.
-    if (entry.scriptGrant !== undefined) {
-      const current = await resolvePolicy(deps, principal, entry.scriptGrant);
-      const csp = current.posture === "interactive" ? entry.csp : entry.scriptGrant.withdrawnCsp;
-      return c.body(entry.doc, OK, frameHeaders(csp));
+    // only at mint would outlive an admin switching interactive cards or external media off, a host moving
+    // the character to a lower rung or forbidding its media, the viewer leaving the room, or the viewer
+    // turning card scripts off. A named-character document is therefore re-resolved on every serve, through
+    // the same membership-gated read as the mint, and served under the narrower of what it was minted with
+    // and what it would mint now. A serve can only withdraw a grant, never add one.
+    if (entry.grant !== undefined) {
+      const current = await resolvePolicy(deps, principal, entry.grant);
+      const media: CardFrameMediaPolicy = {
+        allowExternalMedia: entry.grant.media.allowExternalMedia && current.media.allowExternalMedia,
+        allowInlineData: entry.grant.media.allowInlineData && current.media.allowInlineData,
+      };
+      const posture: CardFramePosture = entry.grant.posture === "interactive" && current.posture === "interactive" ? "interactive" : "static";
+      return c.body(entry.doc, OK, frameHeaders(buildCardFrameCsp(media, "document", posture)));
     }
     return c.body(entry.doc, OK, frameHeaders(entry.csp));
   });

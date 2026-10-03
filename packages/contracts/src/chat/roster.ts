@@ -1,6 +1,6 @@
 // @orb/contracts/chat/roster — the unified-roster wire (D16/D22/D80): the participant roster read-model, the
 // seat-knob one-home vocabulary + the roster-member spec, the membership-gated level-clamped member card
-// (D22), invites + the membership chokepoint, the resolved per-participant render policy (D294 §12.2), the
+// (D22), invites + the membership chokepoint, the resolved per-participant render policy (docs/law/UI-Theming-and-Content.md §12.2), the
 // join-history visibility clamp + its resolved `HistoryFloorSeq` brand, and the phase-independent
 // carried appearance (the true-solo composition both takeovers gate on). The
 // LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
@@ -105,7 +105,7 @@ export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMem
 /** @public future: founding character sets and saved-rosters v2 (unbuilt — the union's own header) */
 export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
 
-/** The RESOLVED per-participant content-render policy (D294 §12.2/§12.3). The chat domain resolves each
+/** The RESOLVED per-participant content-render policy (docs/law/UI-Theming-and-Content.md §12.2/§12.3). The chat domain resolves each
  *  character's tri-state overrides against the deployment effective config at roster-build time (the ONE
  *  resolution home — {@link resolveRenderPolicy}, never re-resolved client-side); the client READS these to
  *  pick the markdown render trust tier + gate external media for content THIS participant authored. Every
@@ -116,7 +116,7 @@ export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
  *
  *   `untrusted`   — the D21 safe default. Sanitized markdown; a card renders in the inert tierA seal.
  *   `trusted`     — rich HTML render (still SANITIZED — no script/iframe/style/`on*`), and a
- *                   card gets the sandboxed tierB frame (D294 §12.2).
+ *                   card gets the sandboxed tierB frame (docs/law/UI-Theming-and-Content.md §12.2).
  *   `interactive` — everything `trusted` has, PLUS the card frame is built under the `interactive`
  *                   {@link https://github.com/Inktomi93/orbweaver/issues/111} posture, which since leg 3's
  *                   security pass RUNS the card's own scripts inside that sandbox.
@@ -209,7 +209,7 @@ export interface RenderPolicyOverride {
  *    "interactive implies trusted" becomes unrepresentable-otherwise (owner ruling 2026-08-16):
  *      – the RENDER step keeps `override ?? deployment`, unchanged. Its deployment value is a DEFAULT, not
  *        a block: the floor is the strict end (`untrusted`), and an explicit per-character step IS the
- *        designed escalation path (D294 §12.2); an admin-global `true` likewise stays overridable DOWN by a
+ *        designed escalation path (docs/law/UI-Theming-and-Content.md §12.2); an admin-global `true` likewise stays overridable DOWN by a
  *        card. An inheriting card lands on this step only while the interactive ceiling below is down.
  *      – the INTERACTIVE step is an AND under the deployment `allowInteractiveCards` CEILING, the
  *        `forbidExternalMedia` shape rather than the render step's: no per-character answer reaches the
@@ -227,8 +227,9 @@ export interface RenderPolicyOverride {
  *        a direct API write, never by the single ladder control — resolves to `interactive`, and no
  *        consumer ever sees "runs scripts but renders untrusted". When the CEILING vetoes, that same card
  *        falls back to its own stored render answer (`untrusted` here), never to a rung it did not store.
- *  • `override === null` is NO CARD (a human seat, an unreadable row), not an inheriting card: it keeps the
- *    fail-closed render floor and never reaches the interactive rung.
+ *  • `override === null` is NO CARD (a human seat, an unreadable row), not an inheriting card: it takes the
+ *    deployment's render default (`trustHtml`, whose floor is `untrusted`), so it resolves `trusted` while the
+ *    deployment trusts HTML, and it never reaches the interactive rung.
  */
 export function resolveRenderPolicy(deployment: DeploymentRenderPolicy, override: RenderPolicyOverride | null): RenderPolicy {
   const trusted = override?.trustHtml ?? deployment.trustHtml;
@@ -294,7 +295,7 @@ export interface ParticipantView {
    *  renderable `<img src>`; `null` when `avatarAssetId` is null OR the asset row is gone. Kept a SIBLING
    *  field (never derived client-side — the client has no id→hash resolver, #67). */
   avatarHash: string | null;
-  /** The RESOLVED content-render policy for content THIS participant authored (D294 §12.2 — see
+  /** The RESOLVED content-render policy for content THIS participant authored (docs/law/UI-Theming-and-Content.md §12.2 — see
    *  {@link RenderPolicy}). ALWAYS server-populated on the `getChat`/roster read; declared OPTIONAL so a
    *  partial/legacy payload or a not-yet-migrated test literal fails CLOSED at the client (absent ⇒ the
    *  untrusted + gate-external safe floor), never fails open. */

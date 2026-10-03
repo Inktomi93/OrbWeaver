@@ -50,6 +50,8 @@ function quietPrompt(systemPrompt: string): AssembledPrompt {
   };
 }
 
+const QUIET_PRESET_KNOBS = ["temperature", "topP", "maxOutputTokens"] as const satisfies readonly (keyof UserIntent)[];
+
 /** The span text as one user-role wire message (a single text part — a quiet generation never carries images).
  *  The part literal is inferred through the `TurnMessage` shape — this seam never imports `ChatContentPart` (D51:
  *  the multimodal part TYPE lives only at the engine request seam; a quiet generation's lone trusted text needs no
@@ -59,16 +61,24 @@ function quietHistory(userText: string): readonly TurnMessage[] {
   return [{ role: "user", content: [{ type: "text", text: userText }] }];
 }
 
-/** Resolve the quiet generation's sampling through the side-gen ladder: the `quiet_generate` floor (temp 0.3,
- *  1024 out — a summary is not creative writing) ← the chat host's default-preset params, with the CALLER's
- *  `intent` (compaction's code-pinned low temp, sourced from `SIDE_GEN_POSTURES.compaction`) merged over the
- *  params rung. The merge — not a third ladder rung — is deliberate: the ladder carries exactly two rungs
- *  since the per-template sampling override was deleted, and this is an
- *  INTERNAL per-pass intent, never a user-facing override. The resolved sampling is spread OVER the caller's
- *  intent so its other fields (e.g. `compaction`) survive, then temperature/maxOutputTokens carry the answer. */
+/** Resolve the quiet generation's sampling: the chat host's active-preset params (a quiet generation runs on the
+ *  chat connection, so on the Chat role's preset) over the `quiet_generate` posture (temp 0.3, 1024 out — a
+ *  summary is not creative writing), with the CALLER's `intent` (compaction's code-pinned low temp, sourced from
+ *  `SIDE_GEN_POSTURES.compaction`) merged over the preset params. That merge is an INTERNAL per-pass intent,
+ *  never a user-facing override. The resolved sampling is spread OVER the caller's intent so its other fields
+ *  (e.g. `compaction`) survive. */
 function quietIntent(intent: UserIntent | undefined, chatParams: SideGenSampling): UserIntent {
-  const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, { ...chatParams, ...intent });
-  return { ...intent, ...sampling };
+  const merged: UserIntent = { ...chatParams, ...intent };
+  // Only these knobs cross from the host's preset: a marker pass must not inherit the host's reasoning effort or
+  // thinking budget (a budget above this pass's output cap) or its sampler chain. D299's role allowlist governs
+  // Utility-role tasks; quiet generation runs on the chat connection and keeps this narrower set.
+  const carried: UserIntent = {};
+  for (const knob of QUIET_PRESET_KNOBS) {
+    if (merged[knob] !== undefined) {
+      carried[knob] = merged[knob];
+    }
+  }
+  return { ...intent, ...resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, carried) };
 }
 
 export function createQuietGenerate(deps: QuietGenerateDeps): QuietGenerate {

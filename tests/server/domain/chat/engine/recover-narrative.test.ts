@@ -12,6 +12,7 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { Resolved } from "@orb/inference";
 import type { AssetId, ChatId, ChatTurnId, MessageId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import type { DeliveredCue, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline.ts";
@@ -64,6 +65,7 @@ function userRow(content: string): MessageView {
 
 function ctxOf(): AssembleContext {
   return {
+    timezone: UTC_TIME_ZONE,
     character: { name: "Aria", description: "a bold knight" },
     promptConfig: DEFAULT_PROMPT_CONFIG,
     activePersona: { name: "Alex", description: "the user" },

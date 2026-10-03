@@ -134,3 +134,82 @@ test("a failed warm's reason is scrubbed of the dialing secret, and a coalesced 
   expect(reason).toMatch(/HTTP 401/u);
   expect(reason).not.toContain(dialingSecret);
 });
+
+test("a warm in flight when the mirror is invalidated does not publish its stale answer, and the next warm fetches fresh", async () => {
+  let release: ((value: string[]) => void) | undefined;
+  let markStarted: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  const writes: string[] = [];
+  const mirror = createMirror({
+    key: "models",
+    schema: rowsSchema,
+    deps: {
+      now: () => 5000,
+      snapshotStore: {
+        read: () => Promise.resolve(null),
+        write: (_key, value) => {
+          writes.push(value);
+          return Promise.resolve();
+        },
+        deletePrefix: () => Promise.resolve(),
+      },
+      warn: () => undefined,
+    },
+  });
+  const stale = mirror.warm(() => {
+    markStarted?.();
+    return new Promise<string[]>((resolve) => {
+      release = resolve;
+    });
+  }, NO_PROVIDER_SECRETS);
+  await started;
+  mirror.invalidate();
+  // A warm after the invalidate must not coalesce onto the one that will not publish.
+  expect(await mirror.warm(() => Promise.resolve(["fresh"]), NO_PROVIDER_SECRETS)).toEqual({ ok: true, value: ["fresh"] });
+  release?.(["stale"]);
+  await stale;
+  expect(mirror.get()).toEqual(["fresh"]);
+  expect(writes).toEqual([JSON.stringify({ fetchedAt: 5000, value: ["fresh"] })]);
+});
+
+test("a snapshot write still in flight when the mirror is invalidated is taken back, so a later failed fetch cannot serve it", async () => {
+  const stored = new Map<string, string>();
+  let finishWrite: (() => void) | undefined;
+  let markWriting: (() => void) | undefined;
+  const writing = new Promise<void>((resolve) => {
+    markWriting = resolve;
+  });
+  const snapshotStore = {
+    read: (key: string): Promise<string | null> => Promise.resolve(stored.get(key) ?? null),
+    // The write lands only when released, as a slow store would.
+    write: (key: string, value: string): Promise<void> =>
+      new Promise<void>((resolve) => {
+        markWriting?.();
+        finishWrite = (): void => {
+          stored.set(key, value);
+          resolve();
+        };
+      }),
+    deletePrefix: (prefix: string): Promise<void> => {
+      for (const key of [...stored.keys()]) {
+        if (key.startsWith(prefix)) {
+          stored.delete(key);
+        }
+      }
+      return Promise.resolve();
+    },
+  };
+  const mirror = createMirror({ key: "models", schema: rowsSchema, deps: { now: () => 5000, snapshotStore, warn: () => undefined } });
+
+  const warm = mirror.warm(() => Promise.resolve(["stale"]), NO_PROVIDER_SECRETS);
+  await writing;
+  // The invalidation and its snapshot delete both run before the in-flight write lands.
+  mirror.invalidate();
+  await snapshotStore.deletePrefix("models");
+  finishWrite?.();
+  await warm;
+
+  expect(stored.has("models")).toBe(false);
+});

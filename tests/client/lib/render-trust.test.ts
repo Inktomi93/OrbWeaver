@@ -1,5 +1,5 @@
 // Unit: the render-trust resolver (client lib/render-trust) — the ONE place the per-message render
-// trust tier + external-media gate are decided (D294 §12.2). Pins the exact rule that replaced the pre-#25
+// trust tier + external-media gate are decided (docs/law/UI-Theming-and-Content.md §12.2). Pins the exact rule that replaced the pre-#25
 // hardcoded `trust="trusted"`: trusted ONLY for the viewer's own input OR a character whose resolved step is
 // at or above `trusted`; everything else untrusted; fail-CLOSED when no resolved policy is present.
 
@@ -136,7 +136,7 @@ test("colorQuotes OFF is carried through verbatim (the knob really reaches the r
   expect(r.colorQuotes).toBe(false);
 });
 
-// ── The CARD TIER (D294 §12.2) — TWO independent consent axes ─────────────────────────────────────
+// ── The CARD TIER (docs/law/UI-Theming-and-Content.md §12.2) — TWO independent consent axes ─────────────────────────────────────
 // tierB is the sandboxed ImmersiveCard (card CSS applied); tierA is the inert allowlist, which
 // forbids `<style>` and therefore cannot render a card AS a card. The mapping was inverted until
 // 2026-08-04 — trusted rows were sent to tierA — so these pin the direction explicitly.

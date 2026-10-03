@@ -109,9 +109,9 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
     const instruction = processMacros(p.instruction, macroOptions, await resolveUserMacroRegistry(deps, p.chatId));
 
     const scene = recent.length > 0 ? recent : "(the conversation is just starting)";
-    // The side-gen sampling ladder: the `extract_quiet` floor (temp 0.4, 320 out — near-deterministic keyword
-    // extraction) ← the chat host's default-preset params (extract-quiet is chat-scoped).
-    const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.extract_quiet, await deps.resolveChatPresetParams(p.chatId));
+    // The funder's Utility-role preset over the `extract_quiet` posture (temp 0.4, 320 out — near-deterministic
+    // keyword extraction): this runs on the funder's summarize connection.
+    const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.extract_quiet, await deps.resolveUtilityPresetParams(p.funderUserId));
     const res = await deps.summarize(p.funderUserId, [{ systemPrompt: instruction, userPrompt: `Recent conversation:\n${scene}` }], posture);
     const item = res.items[0];
     return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };

@@ -30,6 +30,8 @@ import { languageModelFor } from "./model.ts";
 import { wireSampling } from "./sampling.ts";
 
 const OPENROUTER_KEY = "openrouter";
+// A side-generation batch on this wire sends no reasoning field, so a role preset's effort or budget cannot apply.
+const SIDE_GEN_REASONING_UNSENT = "effort ignored: side generation on this connection sends no reasoning setting";
 
 export interface BatchDeps {
   readonly now: () => number;
@@ -97,6 +99,9 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
       ? structuredOptions(req, req.responseFormat, connection.capability.generation, warnings)
       : { options: {}, openRouterChat: undefined };
   const sampling = wireSampling(req.sampling, connection.features, connection.provider.dialect ?? "openai-compatible", warnings);
+  if (req.sampling.effort !== undefined || req.sampling.thinkingBudgetTokens !== undefined) {
+    warnings.push({ code: "effort_dropped", message: SIDE_GEN_REASONING_UNSENT });
+  }
   const call: ModelCall = {
     connection,
     deps: deps.transport,
@@ -104,6 +109,8 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
     api: req.task,
     plan: null,
     prefillAllowed: false,
+    // Side generation runs with reasoning off (the funnel's side-gen posture), so the template is told too.
+    thinkingOff: true,
     foldSameRole: false,
     replyImages: false,
     warnings: [],

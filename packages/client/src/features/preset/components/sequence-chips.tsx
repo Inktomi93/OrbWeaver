@@ -1,4 +1,5 @@
-// The string chip lists — `params.stop` and `params.drySequenceBreakers`, each capability-gated by its caller.
+// The string chip lists — `params.stop`, `params.drySequenceBreakers` and `params.bannedStrings`, each
+// capability-gated by its caller.
 // One anatomy for both; the #1587/#1620 accessible-name ruling below holds for each. A chip reads and is typed
 // in its escaped form (`lib/sequence-escapes.ts`), so a newline breaker is visible.
 
@@ -19,11 +20,12 @@ type AppForm = AppFormInstance<PromptConfig>;
 /** The stop-sequence group's hover hint — hoisted out of the JSX so the legend row and the `subject` it
  *  names read as one decision. */
 const STOP_SEQUENCE_HINT = "The model stops generating when it would emit one of these. Type a sequence and press Enter; \\n is a newline.";
+const BANNED_PHRASE_HINT = "The model never writes any of these words or phrases. Type one and press Enter; \\n is a newline.";
 const DRY_BREAKER_HINT = "DRY never counts a repeat across one of these, so names and formatting can recur. Type one and press Enter; \\n is a newline.";
 
 interface SequenceChipsProps {
   readonly form: AppForm;
-  readonly name: "params.stop" | "params.drySequenceBreakers";
+  readonly name: "params.stop" | "params.drySequenceBreakers" | "params.bannedStrings";
   readonly legend: string;
   readonly hint: string;
   /** The singular noun the add box and each remove button name ("stop sequence"). */
@@ -49,6 +51,11 @@ export function DrySequenceBreakers({ form }: { readonly form: AppForm }): React
       unsetWhenEmpty={true}
     />
   );
+}
+
+/** The phrases the server bans outright — the preset refuses an empty list, so clearing the last one unsets it. */
+export function BannedPhrases({ form }: { readonly form: AppForm }): ReactElement {
+  return <SequenceChips form={form} hint={BANNED_PHRASE_HINT} legend="Banned phrases" name="params.bannedStrings" noun="banned phrase" unsetWhenEmpty={true} />;
 }
 
 /** No chip-input primitive exists in the seal and none is needed: Badge chips + a ghost × + an add Input is

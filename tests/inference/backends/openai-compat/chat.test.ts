@@ -29,7 +29,7 @@ import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { openRouterCatalogFetch } from "../../_openrouter-catalog.ts";
-import { fakeApiKeySecret, fakeConnection, fakeDeps, fakeResolved, memoryStores, newUserId } from "../../_support.ts";
+import { fakeApiKeySecret, fakeConnection, fakeDeps, fakeResolved, memoryStores, memoryTokenLexicon, newUserId } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability, openAiTextStream, openRouterReasoningToolStream, scriptedSseFetch } from "../_hosted-support.ts";
 
@@ -45,7 +45,7 @@ function silentLog(): Parameters<typeof runOpenAiCompatChatTurn>[1]["log"] {
 }
 
 function turnDeps(fetchImpl: typeof fetch): Parameters<typeof runOpenAiCompatChatTurn>[1] {
-  return { now: () => NOW, log: silentLog(), transport: { fetch: fetchImpl, app: APP } };
+  return { now: () => NOW, log: silentLog(), transport: { fetch: fetchImpl, app: APP }, tokens: memoryTokenLexicon() };
 }
 
 type OpenAiCompatRequestOverrides = Partial<Omit<OpenAiCompatChatRequest, "chatId" | "onDelta">> & ChatDeltaSubscription;

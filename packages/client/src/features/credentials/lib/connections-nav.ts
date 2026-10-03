@@ -5,12 +5,13 @@
 // role references), Model roles, then the saved-key reuse view (inference program §5.3a).
 
 import type { RoutableTask } from "@orb/contracts/inference";
-import { ADD_CONNECTION_DOOR, CHAT_ROLE_DOOR, MODEL_ROLES_SUBCATEGORY_ID, UTILITY_ROLE_DOOR } from "#lib";
+import { ADD_CONNECTION_DOOR, CHAT_ROLE_DOOR, MODEL_ROLES_SUBCATEGORY_ID, RERANK_ROLE_DOOR, UTILITY_ROLE_DOOR } from "#lib";
 import type { ConfigSubcategory } from "#state";
 
 const CHAT_MODEL_SETTING = CHAT_ROLE_DOOR.setting;
 const UTILITY_MODEL_SETTING = UTILITY_ROLE_DOOR.setting;
 const EMBED_MODEL_SETTING = "embed-model";
+const RERANK_MODEL_SETTING = RERANK_ROLE_DOOR.setting;
 /** The Connections list's add-flow leaf; its section stamps the add verb with this leaf's control id. */
 export const ADD_CONNECTION_SETTING = ADD_CONNECTION_DOOR.setting;
 
@@ -19,6 +20,7 @@ export const ROLE_SETTING_IDS: Readonly<Partial<Record<RoutableTask, string>>> =
   chat: CHAT_MODEL_SETTING,
   summarize: UTILITY_MODEL_SETTING,
   embed: EMBED_MODEL_SETTING,
+  rerank: RERANK_MODEL_SETTING,
 };
 
 export const CONNECTIONS_LIST_SUBCATEGORY: ConfigSubcategory = {
@@ -78,6 +80,15 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
       teach: {
         summary: "The model that turns text into vectors — memory recall, search and the corpus analyses all read from what it wrote.",
         affects: ["memory recall, search and corpus analysis quality", "the whole index: changing it means re-embedding"],
+      },
+    },
+    {
+      id: RERANK_MODEL_SETTING,
+      label: "Rerank model",
+      keywords: ["rerank", "relevance", "smart", "speaker", "order", "ranking"],
+      teach: {
+        summary: "Reorders retrieved results by relevance, and ranks the characters when a room's Smart speaker order picks who replies.",
+        affects: ["who Smart picks to reply", "the order of retrieved results"],
       },
     },
   ],

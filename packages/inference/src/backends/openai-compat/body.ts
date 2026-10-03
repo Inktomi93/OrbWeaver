@@ -11,6 +11,8 @@
 //   5. the prefill pair (`continue_final_message` + `add_generation_prompt: false`) when the row's folded
 //      `features.prefill` is `continue-final-message`, the capability says `assistantPrefill`, and the array
 //      actually ends on an assistant row; `prefillSuppressesThinking` strips the thinking toggle then.
+//   5b. `chat_template_kwargs.enable_thinking: false` on a reasoning-off turn when `features.thinkingOff` names
+//      the kwarg, merged into whatever kwargs extras or `includeBody` set.
 //   6. `modalities: ["text","image"]` when the funnel resolved `replyImages` (§6.7).
 //   7. the effort spelling: `features.effort: "none"` strips the SDK's `reasoning_effort` with `effort_dropped`.
 //   8. the output-cap spelling: `features.outputCapField: "max_completion_tokens"` renames the SDK's `max_tokens`
@@ -75,6 +77,8 @@ export interface ShapeArgs {
   /** Rule 10 runs: the turn caches by explicit Anthropic block markers (`cachesByAnthropicMarkers`). */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
+  /** The turn runs with reasoning chosen off, so rule 5b may tell the template not to think. */
+  readonly thinkingOff: boolean;
   readonly imageDetail?: ImageDetail | undefined;
   readonly warnings: ResolvedWarning[];
 }
@@ -178,6 +182,15 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs): Record<st
   return out;
 }
 
+/** Rule 5b: the template-level off switch, kept beside the user's own kwargs. */
+function applyThinkingOff(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
+  if (!args.thinkingOff || args.features.thinkingOff !== CHAT_TEMPLATE_KWARGS_KEY) {
+    return body;
+  }
+  const kwargs = body[CHAT_TEMPLATE_KWARGS_KEY];
+  return { ...body, [CHAT_TEMPLATE_KWARGS_KEY]: { ...(isRecord(kwargs) ? kwargs : {}), [ENABLE_THINKING_KEY]: false } };
+}
+
 /** Rule 7: an effort the SDK spelled onto a server whose row says it has no effort field. */
 function applyEffortSpelling(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
   if (args.dialect === "openrouter" || args.features.effort === "reasoning_effort" || body[REASONING_EFFORT_KEY] === undefined) {
@@ -278,7 +291,7 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
     body = reattachRows(body, args.plan, args.warnings);
   }
   body = applyImageDetail(body, args.imageDetail);
-  body = applyPrefill(body, args);
+  body = applyThinkingOff(applyPrefill(body, args), args);
   if (args.replyImages) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }
