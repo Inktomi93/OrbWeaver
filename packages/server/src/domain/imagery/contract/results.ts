@@ -19,7 +19,8 @@ export interface ReuseRow {
  *  stored image), consumed by the shared generation tail (`substrate/generate-core`). `generatePicture` fills
  *  subject/identityHash on the portrait path; `editImage` sets `mode:"free"`, `edited:true`, nulls both. */
 export interface GenerationProvenanceInput {
-  readonly caller: Principal;
+  /** Owns the stored bytes and the spend: the run-as principal (the room host in a room, D298). */
+  readonly owner: Principal;
   readonly chatId: ChatId | null;
   readonly mode: PromptTemplateMode;
   readonly subjectCharacterId: CharacterId | null;

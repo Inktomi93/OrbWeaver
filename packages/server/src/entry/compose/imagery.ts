@@ -15,15 +15,17 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { UserSettings } from "@orb/contracts/settings";
 import { resolveImageryCaption, resolveImageryTemplate } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import { chatParticipants } from "@orb/db";
 import type { ProviderExecutor, Resolved, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
 import { generationOf, resolveSideGenSampling } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { and, eq, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { ChatUserMacroDefs, ResolveViewerVisibility } from "#domain/chat";
-import { createExtractQuiet } from "#domain/chat";
+import { createExtractQuiet, resolveTurnIdentity } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { ImageryService, ImageryWarning } from "#domain/imagery";
 import { createImageryService, imageryToolDefinitions } from "#domain/imagery";
@@ -53,10 +55,16 @@ export interface ImageryComposeDeps {
   /** The owner-scoped character read the gallery add verb gates on — imagery's auto-add gate reads the same one. */
   readonly characterOwned: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
   readonly character: Pick<CharacterService, "getCard" | "get">;
-  /** The per-FUNDER role-client binder (§8.5b): the caption + extract-quiet side calls spend the caller's /
-   *  the trigger's own `summarize` row. */
+  /** The per-FUNDER role-client binder (§8.5b): the caption + extract-quiet side calls spend the run-as
+   *  principal's own `summarize` row. */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "summarize">>;
-  /** The caller's default-preset generation params (the side-gen sampling ladder's middle rung — caption). */
+  /** The chat's present host: the room a preview runs as (D298). */
+  readonly resolveChatHostUserId: (chatId: ChatId) => Promise<UserId | null>;
+  /** Is the character a present character seat of the chat? A preview's subject must be (`createCharacterSeated`). */
+  readonly isCharacterSeated: (chatId: ChatId, characterId: CharacterId) => Promise<boolean>;
+  /** The row-derived host Principal (`createHostPrincipalResolver`), so a run-as principal carries its real role. */
+  readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
+  /** The run-as principal's default-preset generation params (the side-gen sampling ladder's middle rung — caption). */
   readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
   /** The chat host's default-preset params (the side-gen ladder's middle rung — extract-quiet is chat-scoped). */
   readonly resolveChatPresetParams: (chatId: ChatId) => Promise<SideGenSampling>;
@@ -64,14 +72,33 @@ export interface ImageryComposeDeps {
    *  BOTH homes, so an imagery mode template resolves `{{house_style}}` the way a turn does. Deref'd only at
    *  request time inside `extractQuiet`, exactly like `resolveViewerVisibility` below. */
   readonly resolveUserMacroDefs: (chatId: ChatId) => Promise<ChatUserMacroDefs>;
-  /** ⑫ — the caller's UserSettings read (the FOREIGN-inputs seam) for the per-mode prompt-template/caption
-   *  overrides. Imagery resolves `override ?? shipped-catalog-default` off this. */
+  /** ⑫ — the run-as principal's UserSettings read (the FOREIGN-inputs seam) for the per-mode
+   *  prompt-template/caption overrides. Imagery resolves `override ?? shipped-catalog-default` off this. */
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
   readonly maxImageBytes: () => number;
   /** Late-bound: chat's `resolveViewerVisibility` (built after chat). Deref'd only at request time inside the
    *  `extractQuiet` gate — never during boot. */
   readonly resolveViewerVisibility: ResolveViewerVisibility;
   readonly toolUse: Pick<ToolUseService, "register">;
+}
+
+/** Is `characterId` a present character seat of `chatId`? The roster a room preview's subject must come from. */
+export function createCharacterSeated(db: Db): (chatId: ChatId, characterId: CharacterId) => Promise<boolean> {
+  return async (chatId, characterId) => {
+    const rows = await db
+      .select({ id: chatParticipants.id })
+      .from(chatParticipants)
+      .where(
+        and(
+          eq(chatParticipants.chatId, chatId),
+          eq(chatParticipants.kind, "character"),
+          eq(chatParticipants.characterId, characterId),
+          isNull(chatParticipants.leftSeq),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  };
 }
 
 export function buildImagery(deps: ImageryComposeDeps): ImageryService {
@@ -87,8 +114,8 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     now,
     newGenerationId: minter(ID_PREFIX.imageryGeneration),
     newCallId: minter(ID_PREFIX.imageryCall),
-    resolveGenerateImage: async (caller, actor) => {
-      const { resolved } = await connection.resolve({ task: "generateImage", principal: caller, ...(actor !== undefined ? { actor } : {}) });
+    resolveGenerateImage: async (runAs, actor) => {
+      const { resolved } = await connection.resolve({ task: "generateImage", principal: runAs, ...(actor !== undefined ? { actor } : {}) });
       return { connection: resolved as Resolved<"generateImage">, capability: generationOf(resolved) };
     },
     generateImage: async (req) => {
@@ -109,7 +136,27 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // flows through the imagery `fetchImage(url)` port today (it can't ride the zod wire params); threading
     // a per-turn signal is a follow-up in the imagery/chat contracts.
     fetchImage: (url) => fetchImageBytes(url, deps.maxImageBytes()),
-    storeAsset: (caller, bytes, kind, mime) => assets.store({ principal: caller, bytes, kind, mime, enforceMagic: true }),
+    resolveRunAs: (runAsUserId) => deps.resolveHostPrincipal(runAsUserId),
+    // D298: a preview runs as the room host. The visibility gate runs first, so a caller the room does
+    // not admit reaches no host read and spends nothing of the host's; the turn identity is the one home of
+    // "the host funds and runs as".
+    resolveRoomRunAs: async (caller, chatId, subjectCharacterId) => {
+      if ((await deps.resolveViewerVisibility(chatId, caller.userId)) === null) {
+        throw new DomainNotFoundError("chat", chatId);
+      }
+      // The host's card reads and Utility spend follow the subject, so it must be one of this room's
+      // characters: otherwise a member could name, or caption, any character the host owns.
+      if (subjectCharacterId !== undefined && !(await deps.isCharacterSeated(chatId, subjectCharacterId))) {
+        throw new DomainNotFoundError("character", subjectCharacterId);
+      }
+      const hostUserId = await deps.resolveChatHostUserId(chatId);
+      if (hostUserId === null) {
+        throw new Error(`imagery: chat ${chatId} has no host to run the preview as`);
+      }
+      const { runAsUserId } = resolveTurnIdentity({ principalUserId: caller.userId, hostUserId });
+      return runAsUserId === caller.userId ? caller : await deps.resolveHostPrincipal(runAsUserId);
+    },
+    storeAsset: (owner, bytes, kind, mime) => assets.store({ principal: owner, bytes, kind, mime, enforceMagic: true }),
     // The chat-owned quiet extraction shaper (imagery I1, doc 02 §2): chat windows recent canon + resolves
     // {{char}}/{{user}}, then runs the summarize side-LLM. getCard adapts the ownerId shape via a synthetic
     // host principal (the chat.ts hostPrincipal precedent — cards read under the room host's ownership).
@@ -137,29 +184,29 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
         if (visibility === null) {
           throw new DomainNotFoundError("chat", rest.chatId);
         }
-        return base({ ...rest, funderUserId: caller.userId, historyFloorSeq: visibility.historyFloorSeq });
+        return base({ ...rest, historyFloorSeq: visibility.historyFloorSeq });
       };
     })(),
     // The ONE vision caption op (D45/D47-6): the multimodal template + the avatar bytes over the summarize
     // lane (IC-B: runSummarize forwards images as multimodal content parts).
-    captionImage: async ({ caller, instruction, bytes }): Promise<{ text: string; costUsd: number | null }> => {
+    captionImage: async ({ runAs, instruction, bytes }): Promise<{ text: string; costUsd: number | null }> => {
       // The side-gen sampling ladder: the `caption` floor (temperature 0.2, maxOutputTokens 512) ← the
-      // caller's default-preset params. A user with no preset params gets the floor; a user WITH preset
-      // params overrides it through the ladder.
-      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.caption, await deps.resolveUserPresetParams(caller.userId));
-      const rc = await roleClientsFor(caller.userId);
+      // run-as principal's default-preset params. A user with no preset params gets the floor; a user WITH
+      // preset params overrides it through the ladder.
+      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.caption, await deps.resolveUserPresetParams(runAs.userId));
+      const rc = await roleClientsFor(runAs.userId);
       const res = await rc.summarize([{ systemPrompt: instruction, userPrompt: "Describe the attached image.", images: [bytes] }], posture);
       const item = res.items[0];
       return { text: (item?.text ?? "").trim(), costUsd: item?.usage.costUsd ?? null };
     },
-    // ⑫ — the caller's per-mode prompt-template / caption-instruction: their UserSettings.imagery override ⊕
-    // the shipped `@orb/contracts/imagery` catalog default (the FOREIGN-inputs seam — imagery delegates the
-    // settings read). Unset ⇒ byte-identical to the shipped default.
-    resolvePromptTemplate: async (caller, mode) => resolveImageryTemplate((await deps.loadUserSettings(caller.userId)).imagery, mode),
-    resolveCaptionInstruction: async (caller, mode) => resolveImageryCaption((await deps.loadUserSettings(caller.userId)).imagery, mode),
-    // PROSE-1 census 88 — the negative-prompt base off the caller's `UserSettings.prose` (same seam, same
-    // caller scoping as its template siblings). No override ⇒ the shipped catalog bytes.
-    resolveNegativeBase: async (caller) => resolveProseText(IMAGERY_NEGATIVE_SLOT_ID, (await deps.loadUserSettings(caller.userId)).prose),
+    // ⑫ — the run-as principal's per-mode prompt-template / caption-instruction: its UserSettings.imagery
+    // override ⊕ the shipped `@orb/contracts/imagery` catalog default (the FOREIGN-inputs seam — imagery
+    // delegates the settings read). Unset ⇒ byte-identical to the shipped default.
+    resolvePromptTemplate: async (runAs, mode) => resolveImageryTemplate((await deps.loadUserSettings(runAs.userId)).imagery, mode),
+    resolveCaptionInstruction: async (runAs, mode) => resolveImageryCaption((await deps.loadUserSettings(runAs.userId)).imagery, mode),
+    // PROSE-1 census 88 — the negative-prompt base off the run-as principal's `UserSettings.prose` (same
+    // seam, same scoping as its template siblings). No override ⇒ the shipped catalog bytes.
+    resolveNegativeBase: async (runAs) => resolveProseText(IMAGERY_NEGATIVE_SLOT_ID, (await deps.loadUserSettings(runAs.userId)).prose),
     // EC-B owner-gated byte read (the caller owns the asset it references).
     readAsset: (caller, assetId) => assets.readOwnedAssetBytes(caller, assetId),
 
@@ -168,10 +215,10 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // CharacterNotFoundError on missing/foreign; imagery does not re-gate.
     getCard: (caller, characterId) => character.get({ principal: caller, characterId }),
     ownsCharacter: deps.characterOwned,
-    // The picture is the caller's own asset (stored under the caller above), so the add runs under the
-    // caller's principal and lands in the caller's gallery only.
-    addToGallery: async (caller, assetId, subjectCharacterId): Promise<void> => {
-      await assets.addToGallery({ principal: caller, assetId, subjectCharacterId });
+    // The picture is its owner's asset (stored under the run-as principal above), so the add runs under that
+    // principal and lands in that principal's gallery only.
+    addToGallery: async (owner, assetId, subjectCharacterId): Promise<void> => {
+      await assets.addToGallery({ principal: owner, assetId, subjectCharacterId });
     },
     applyStatsDelta,
   });

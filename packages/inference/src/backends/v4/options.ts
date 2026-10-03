@@ -24,8 +24,8 @@ export function wireEffortOf(effort: EffortLevel): WireEffort {
   return effort === "max" ? "xhigh" : effort;
 }
 
-/** The standardized V4 sampler fields off the resolved sampling. The knobs V4 does NOT model (repetition
- *  penalty, min-p, top-a, logit bias) are the wire's to spell — `samplingExtras` hands them over snake-cased. */
+/** The standardized V4 sampler fields off the resolved sampling. The knobs V4 does NOT model are the wire's to
+ *  spell (the openai-compat wire's `wireSampling`); a wire whose capability states none of them sends none. */
 export function standardSampling(sampling: ResolvedSampling, maxOutputTokens: number | undefined): Partial<LanguageModelV4CallOptions> {
   return {
     ...(sampling.temperature !== undefined ? { temperature: sampling.temperature } : {}),
@@ -36,16 +36,6 @@ export function standardSampling(sampling: ResolvedSampling, maxOutputTokens: nu
     ...(sampling.seed !== undefined ? { seed: sampling.seed } : {}),
     ...(sampling.stop !== undefined ? { stopSequences: [...sampling.stop] } : {}),
     ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
-  };
-}
-
-/** The OpenAI-dialect spellings of the knobs V4 leaves to the wire. */
-export function samplingExtras(sampling: ResolvedSampling): Record<string, unknown> {
-  return {
-    ...(sampling.repetitionPenalty !== undefined ? { repetition_penalty: sampling.repetitionPenalty } : {}),
-    ...(sampling.minP !== undefined ? { min_p: sampling.minP } : {}),
-    ...(sampling.topA !== undefined ? { top_a: sampling.topA } : {}),
-    ...(sampling.logitBias !== undefined ? { logit_bias: sampling.logitBias } : {}),
   };
 }
 

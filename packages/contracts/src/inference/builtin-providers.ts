@@ -106,6 +106,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     features: {
       prefill: "none",
+      samplerKeys: { repetitionPenalty: "repeat_penalty" },
     },
     catalog: "url",
     metered: false,
@@ -124,6 +125,8 @@ export const BUILTIN_PROVIDER_ROWS = [
       effort: "reasoning_effort",
       modelInfoApi: "ollama",
       nativeChat: "ollama",
+      // The `/api/chat` `options` spelling (api/types.go `Options`).
+      samplerKeys: { repetitionPenalty: "repeat_penalty" },
     },
     catalog: "url",
     metered: false,
@@ -142,6 +145,8 @@ export const BUILTIN_PROVIDER_ROWS = [
     features: {
       prefill: "none",
       modelInfoApi: "llama-cpp",
+      samplerKeys: { repetitionPenalty: "repeat_penalty" },
+      samplerOrder: "llama-cpp",
     },
     catalog: "url",
     metered: false,
@@ -157,6 +162,9 @@ export const BUILTIN_PROVIDER_ROWS = [
     features: {
       prefill: "none",
       modelInfoApi: "koboldcpp",
+      // The OpenAI route overwrites `mirostat` with `mirostat_mode` (koboldcpp.py:4690).
+      samplerKeys: { typicalP: "typical", topNSigma: "nsigma", repetitionPenaltyRange: "rep_pen_range", mirostatMode: "mirostat_mode" },
+      samplerOrder: "koboldcpp",
     },
     catalog: "url",
     metered: false,

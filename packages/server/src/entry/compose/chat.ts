@@ -9,7 +9,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy, SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { EMBED_SPACE_DIMS, RERANK_FLOOR } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -741,6 +741,7 @@ export function createGeneratePictureOp(generatePicture: ImageryService["generat
   return async (p) => {
     const picture = await generatePicture({
       caller: p.caller,
+      runAsUserId: p.runAsUserId,
       chatId: p.chatId,
       mode: p.mode,
       ...(p.prompt !== undefined ? { prompt: p.prompt } : {}),
@@ -1192,6 +1193,16 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Every summarize call names its FUNDER (§8.5b): the arbiter and extract-quiet spend the round's trigger,
     // the digests the trigger under `allowBackground` — never a box owner's bundle.
     summarize: async (funderUserId, ...args) => (await input.roleClientsFor(funderUserId)).summarize(...args),
+    resolveSpeakerReranker: async (funderUserId) => {
+      const roles = await input.roleClientsFor(funderUserId);
+      const view = await roles.resolved("rerank");
+      if (view === null) {
+        return null;
+      }
+      // A rerank binding always carries a rerank capability; the floor stands in only if one ever does not.
+      const capability = view.capability.kind === "rerank" ? view.capability.rerank : RERANK_FLOOR;
+      return { capability, rerank: (query, documents, opts) => roles.rerank(query, documents, opts) };
+    },
     summarizerContextTokens: taskWindows.summarize,
     summarizeAvailability: async (funderUserId) => await input.connection.availability({ task: "summarize", principal: await realHostPrincipal(funderUserId) }),
     // The embed model's input cap off the resolved EMBEDDING capability (was the vLLM launch window) — the

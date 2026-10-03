@@ -7,7 +7,7 @@
 // `null` fails the inner schema and trips that SECTION field's `.catch(undefined)` — silently dropping the
 // section's entire override set (every sibling knob), though OTHER sections' overrides survive
 // (empirically verified 2026-07-26; the one exception is a leaf explicitly `.nullable()` in the schema,
-// which is how `engineLaunch.genPresencePenalty` clears alone). Per-leaf null-clear is therefore generally
+// which then clears alone). Per-leaf null-clear is therefore generally
 // broken, so `AdminOverrideResetRow` resets a section's OWN claimed keys — the whole nested override for a
 // nested section (`{ <section>: null }`), the flat keys for a section of top-level scalars (SET-SEAMS stage
 // 4). Per-field overridden indicators still show which knobs are off-floor.

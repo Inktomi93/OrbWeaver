@@ -12,7 +12,7 @@
 // Read-only: no write, no audit, no event.
 
 import type { GenerationCapability } from "@orb/contracts/inference";
-import { requireGenerationCapability } from "@orb/contracts/inference";
+import { requireGenerationCapability, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, parsePromptConfig, QUALITY_EFFORT, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs } from "@orb/inference";
@@ -28,10 +28,14 @@ import type {
   EffectiveProvenance,
   QualityMapping,
   QualityMappingEntry,
+  StaleCollectionKnob,
   StaleKnob,
 } from "../contract/views.ts";
-import { EFFECTIVE_KNOBS } from "../contract/views.ts";
+import { EFFECTIVE_KNOBS, STALE_COLLECTION_KNOBS } from "../contract/views.ts";
 import { readablePreset } from "../persistence/queries.ts";
+
+const LOGIT_BIAS_UNIT = "tokens";
+const STAGE_JOINER = " → ";
 
 /** The `replyMedia` value that asks the model for pictures beside its prose. */
 const REPLY_MEDIA_IMAGE = "text+image" satisfies UserIntent["replyMedia"];
@@ -107,10 +111,50 @@ function provenanceOf(probe: KnobProbe, resolved: number | string): EffectivePro
   return "modelDefault";
 }
 
+/** The value a sampler runs at when the preset leaves it unset, where the server advertised one — only for a
+ *  knob the model states, since an unstated knob has no row to show it on. */
+function serverDefaultOf(knob: EffectiveKnob, capability: GenerationCapability): number | undefined {
+  const sampler = SAMPLING_RANGE_KNOBS.find((candidate) => candidate === knob);
+  return sampler === undefined || capability.sampling[sampler] === undefined ? undefined : capability.samplingDefaults?.[sampler];
+}
+
+/** What the deck shows for one knob: the funnel's value, else the engine floor, else the server's own default
+ *  (an unset knob is not sent, so the server runs that). `undefined` when nothing is known. */
+function readingOf(knob: EffectiveKnob, probe: KnobProbe, capability: GenerationCapability): EffectiveKnobReading | undefined {
+  if (probe.resolved !== undefined) {
+    return { value: probe.resolved, provenance: provenanceOf(probe, probe.resolved) };
+  }
+  if (probe.floor !== undefined) {
+    return { value: probe.floor, provenance: "floor" };
+  }
+  const serverDefault = serverDefaultOf(knob, capability);
+  return serverDefault === undefined ? undefined : { value: serverDefault, provenance: "serverDefault" };
+}
+
+/** The display form of a stored list the deck names as not honored. */
+function listValue(items: readonly string[]): string {
+  return items.map((item) => JSON.stringify(item)).join(" ");
+}
+
+/** The stored COLLECTION knobs (no slider row, so not in `EFFECTIVE_KNOBS`) the funnel dropped for this model,
+ *  so the deck's not-honored line names them beside the scalar ones. */
+function staleCollections(params: UserIntent, sampling: ResolvedChatKnobs["sampling"]): StaleKnob[] {
+  const values: Record<StaleCollectionKnob, string | undefined> = {
+    stop: params.stop === undefined || sampling.stop !== undefined ? undefined : listValue(params.stop),
+    logitBias: params.logitBias === undefined || sampling.logitBias !== undefined ? undefined : `${Object.keys(params.logitBias).length} ${LOGIT_BIAS_UNIT}`,
+    drySequenceBreakers:
+      params.drySequenceBreakers === undefined || sampling.drySequenceBreakers !== undefined ? undefined : listValue(params.drySequenceBreakers),
+    samplerOrder: params.samplerOrder === undefined || sampling.samplerOrder !== undefined ? undefined : params.samplerOrder.join(STAGE_JOINER),
+  };
+  return STALE_COLLECTION_KNOBS.flatMap((knob) => {
+    const value = values[knob];
+    return value === undefined ? [] : [{ knob, value }];
+  });
+}
+
 /** The per-knob probe table. EXHAUSTIVE over `EFFECTIVE_KNOBS` (a `Record`, not a switch — house dispatch
  *  discipline): a new knob in the tuple fails `tsc` here until it names its three rungs. */
-function probeKnobs(params: UserIntent, capability: GenerationCapability): Record<EffectiveKnob, KnobProbe> {
-  const resolved = resolveChat(params, capability);
+function probeKnobs(params: UserIntent, capability: GenerationCapability, resolved: ResolvedChatKnobs): Record<EffectiveKnob, KnobProbe> {
   const { sampling, reasoning } = resolved;
   const quality = params.quality;
   // Safe to index: `params` reached here through `parsePromptConfig`, whose `.catch({})` drops the WHOLE
@@ -127,6 +171,22 @@ function probeKnobs(params: UserIntent, capability: GenerationCapability): Recor
     frequencyPenalty: { explicit: params.frequencyPenalty, resolved: sampling.frequencyPenalty },
     presencePenalty: { explicit: params.presencePenalty, resolved: sampling.presencePenalty },
     repetitionPenalty: { explicit: params.repetitionPenalty, resolved: sampling.repetitionPenalty },
+    repetitionPenaltyRange: { explicit: params.repetitionPenaltyRange, resolved: sampling.repetitionPenaltyRange },
+    typicalP: { explicit: params.typicalP, resolved: sampling.typicalP },
+    topNSigma: { explicit: params.topNSigma, resolved: sampling.topNSigma },
+    xtcProbability: { explicit: params.xtcProbability, resolved: sampling.xtcProbability },
+    xtcThreshold: { explicit: params.xtcThreshold, resolved: sampling.xtcThreshold },
+    dryMultiplier: { explicit: params.dryMultiplier, resolved: sampling.dryMultiplier },
+    dryBase: { explicit: params.dryBase, resolved: sampling.dryBase },
+    dryAllowedLength: { explicit: params.dryAllowedLength, resolved: sampling.dryAllowedLength },
+    dryPenaltyLastN: { explicit: params.dryPenaltyLastN, resolved: sampling.dryPenaltyLastN },
+    mirostatMode: { explicit: params.mirostatMode, resolved: sampling.mirostatMode },
+    mirostatTau: { explicit: params.mirostatTau, resolved: sampling.mirostatTau },
+    mirostatEta: { explicit: params.mirostatEta, resolved: sampling.mirostatEta },
+    dynatempRange: { explicit: params.dynatempRange, resolved: sampling.dynatempRange },
+    dynatempExponent: { explicit: params.dynatempExponent, resolved: sampling.dynatempExponent },
+    smoothingFactor: { explicit: params.smoothingFactor, resolved: sampling.smoothingFactor },
+    smoothingCurve: { explicit: params.smoothingCurve, resolved: sampling.smoothingCurve },
     seed: { explicit: params.seed, resolved: sampling.seed },
     effort: { explicit: params.effort, quality: qualityEffort, resolved: effortResolved },
     thinkingBudgetTokens: {
@@ -158,25 +218,24 @@ export function createResolveEffective(ctx: PresetContext): Pick<PresetService, 
     const { model } = resolved;
     const capability = requireGenerationCapability(resolved.capability);
     const intent = parsePromptConfig(row.config).params;
-    const probes = probeKnobs(intent, capability);
+    const turn = resolveChat(intent, capability);
+    const probes = probeKnobs(intent, capability, turn);
 
     const knobs: Partial<Record<EffectiveKnob, EffectiveKnobReading>> = {};
     const stale: StaleKnob[] = [];
     for (const knob of EFFECTIVE_KNOBS) {
       const probe = probes[knob];
-      if (probe.resolved !== undefined) {
-        knobs[knob] = { value: probe.resolved, provenance: provenanceOf(probe, probe.resolved) };
-        continue;
-      }
       // Nothing on the wire for this knob. A STORED value here is the F7 case: the capability does not honor
       // it, so it is dropped at the funnel and invisible in both directions until the deck names it.
-      if (probe.explicit !== undefined) {
+      if (probe.resolved === undefined && probe.explicit !== undefined) {
         stale.push({ knob, value: probe.explicit });
       }
-      if (probe.floor !== undefined) {
-        knobs[knob] = { value: probe.floor, provenance: "floor" };
+      const reading = readingOf(knob, probe, capability);
+      if (reading !== undefined) {
+        knobs[knob] = reading;
       }
     }
+    stale.push(...staleCollections(intent, turn.sampling));
     return { presetId: params.id, model, knobs, stale, qualityMapping: qualityMappingOf(intent.quality, capability) };
   }
   return { resolveEffective };

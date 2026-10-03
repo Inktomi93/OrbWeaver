@@ -80,6 +80,7 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { ActiveTurns } from "./active-turns.ts";
+import type { SpeakerReranker } from "./arbitration.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryEmbedSpace, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
@@ -365,7 +366,7 @@ type ReadReactionDefaultsOp = (userId: UserId) => Promise<Pick<ChatBehaviorInput
  *  cards resolve under the chat HOST's ownership, and imagery already gated the caller's chat membership. */
 export interface ExtractQuietParams {
   readonly chatId: ChatId;
-  /** The CALLER — whose summarize connection the extraction spends (§8.5b: the human who triggered the image). */
+  /** Whose summarize connection the extraction spends: the run-as principal, the room host in a room (D298). */
   readonly funderUserId: UserId;
   /** The mode template with its char/user macros unresolved — chat resolves them. */
   readonly instruction: string;
@@ -1044,13 +1045,17 @@ type GmSeatHolderKind = { readonly kind: "human" } | { readonly kind: "agent"; r
 /** The injected image-generation op. Chat holds message-write authority; imagery is caller-blind (returns
  *  blocks, never posts). */
 export type GeneratePictureOp = (p: {
+  /** The requesting member: the extraction viewer and the message author. */
   readonly caller: Principal;
+  /** The room host the picture runs as (D298): its connection, templates, negative base, Utility
+   *  funder, asset store and gallery. */
+  readonly runAsUserId: UserId;
   readonly chatId: ChatId;
   readonly mode: PromptTemplateMode;
   readonly prompt?: string | undefined;
   readonly n?: number | undefined;
   readonly size?: SizePresetName | undefined;
-  /** The character whose gallery each picture joins; imagery adds it only when the caller owns that character. */
+  /** The character whose gallery each picture joins; imagery adds it only when the run-as host owns it. */
   readonly gallery?: { readonly subjectCharacterId: CharacterId } | undefined;
   /** The viewer's zone an extraction template's time macros read; absent ⇒ UTC. */
   readonly timeZone?: IanaTimeZone | undefined;
@@ -1445,6 +1450,9 @@ export interface ChatContext {
   /** Version-only rebuild fence for canon writes that have no exact incremental rollup delta. */
   readonly bumpStatsCanonVersion: BumpStatsCanonVersionOp;
   readonly summarize: SummarizeOp;
+  /** The FUNDER's bound rerank role for Smart's default speaker pick, or null when the role is unbound. Resolved
+   *  per call through `roleClientsFor(funder)`, so whatever model the user bound is what ranks. */
+  readonly resolveSpeakerReranker: (funderUserId: UserId) => Promise<SpeakerReranker | null>;
   /** The FUNDER's summarize model's context window (tokens) — the memory build's token-guard fits each
    *  summarizer call to the actual context. Resolved PER CALL through `roleClientsFor(funder).resolved("summarize")`
    *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder whose summarize task

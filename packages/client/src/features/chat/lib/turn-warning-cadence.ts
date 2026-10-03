@@ -24,6 +24,7 @@ function cadenceOf(code: ChatWarningCode): Cadence {
       return "turn-grouped";
     case "background_task_degraded":
     case "smart_arbitration_degraded":
+    case "speaker_rerank_unavailable":
       return "once-per-session";
     case "memory_build_failed":
     case "memory_rerank_unavailable":

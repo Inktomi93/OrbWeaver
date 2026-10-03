@@ -3,9 +3,10 @@
 // `![alt](asset:<id>)` refs (D51 — a message body is stored as a STRING; render blocks are PARSED at render,
 // never stored) + one `generated-post` structural link per picture in the SAME append → emit
 // `messageCommitted` → return the view. Authorship is the INITIATING principal (§2.2 —
-// a user post that happens to contain media; attribution-truthful under D19). Imagery is caller-blind — it
-// returns blocks + warnings; chat holds the message-write authority. Reuses the persist/emit pattern of
-// `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
+// a user post that happens to contain media; attribution-truthful under D19). The picture itself runs as the
+// room host (D298): the turn identity's run-as funds, styles and owns it, exactly as for a text turn.
+// Imagery is caller-blind — it returns blocks + warnings; chat holds the message-write authority. Reuses the
+// persist/emit pattern of `turn.ts` `persistUserMessage` (the D26 canon-write dance + the durable-first bus emit).
 
 import type { ChatWarningCode, DurableChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { ChatContext } from "../context.ts";
@@ -18,6 +19,7 @@ import { firstCharacterIdOf } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { userMessageDelta } from "../substrate/stats-delta.ts";
+import { resolveTurnIdentityVia } from "../substrate/turn-access.ts";
 
 type PictureParams = Parameters<ChatContext["generatePicture"]>[0];
 
@@ -56,11 +58,13 @@ export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): 
       if (hostUserId === null) {
         throw new Error(`generateImage: chat ${chatId} has no host to own the committed message economics`);
       }
+      const identity = resolveTurnIdentityVia({ principalUserId: principal.userId, hostUserId });
       // The picture joins the gallery of the character it was generated for — the room's subject, one
-      // character, never every member. Imagery adds it only when the caller owns that character.
+      // character, never every member. Imagery adds it only when the run-as host owns that character.
       const galleryCharacterId = gallery === false ? null : firstCharacterIdOf(participants);
       const picture = await ctx.generatePicture({
         caller: principal,
+        runAsUserId: identity.runAsUserId,
         chatId,
         mode,
         ...(prompt !== undefined ? ({ prompt } satisfies Pick<PictureParams, "prompt">) : {}),

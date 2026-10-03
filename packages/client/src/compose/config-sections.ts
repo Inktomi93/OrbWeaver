@@ -136,7 +136,7 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
 // S2 — the key partition (SET-SEAMS §2.3). N sections patching ONE UserSettings namespace (or the ONE
 // AppSettings blob) is safe only while their claims are DISJOINT — the server merges per key and serializes
 // the write, so disjoint patches commute. THROWS here, at the door's assembly sibling, on an overlap
-// (including a claim NESTED inside another section's, e.g. two owners of one `engineLaunch`) or on an
+// (including a claim NESTED inside another section's, e.g. two owners of one `rateLimits`) or on an
 // uneditable knob inside a claimed user namespace.
 assertSettingsKeyPartition(configSections, DEFAULT_USER_SETTINGS);
 

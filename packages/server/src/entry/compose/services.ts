@@ -137,7 +137,7 @@ import type { EffectiveConfigWiring } from "./effective-config.ts";
 import { createEffectiveConfigWiring } from "./effective-config.ts";
 import type { DomainEventBus } from "./event-bus.ts";
 import { createDomainEventBus } from "./event-bus.ts";
-import { buildImagery } from "./imagery.ts";
+import { buildImagery, createCharacterSeated } from "./imagery.ts";
 import { createStoreInlineReplyImage } from "./inline-reply-image.ts";
 import { minter } from "./minter.ts";
 import type { PortabilityRunnerComposeResult } from "./portability-runner.ts";
@@ -855,6 +855,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     characterOwned,
     character,
     roleClientsFor,
+    // D298: a room picture runs as the present host, loaded with its real role.
+    resolveChatHostUserId,
+    isCharacterSeated: createCharacterSeated(db),
+    resolveHostPrincipal: resolveFunderPrincipal,
     maxImageBytes: () => effectiveConfig.getEffectiveConfig().maxImageBytes,
     resolveViewerVisibility: (chatId, userId) => resolveViewerVisibility(chatId, userId),
     resolveUserPresetParams,

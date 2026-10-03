@@ -16,6 +16,7 @@ import { expect, test } from "../../../../support/fixtures.ts";
 const NARRATOR: GroupConfig = {
   output: "narrator",
   policy: "natural",
+  smartPicker: "reranker",
   speakerTags: true,
   groupNudge: true,
   autoMode: false,

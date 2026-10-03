@@ -24,9 +24,10 @@ import type { InferenceLog } from "../../deps.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import type { BatchRequest } from "../v4/batch.ts";
 import { batchRequestOf, runV4Batch, STRUCTURED_TOOL_DESCRIPTION } from "../v4/batch.ts";
-import { functionTools, jsonResponseFormat, samplingExtras, servableToolChoice, standardSampling, toolChoiceOf } from "../v4/options.ts";
+import { functionTools, jsonResponseFormat, servableToolChoice, standardSampling, toolChoiceOf } from "../v4/options.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
 import { languageModelFor } from "./model.ts";
+import { wireSampling } from "./sampling.ts";
 
 const OPENROUTER_KEY = "openrouter";
 
@@ -95,6 +96,7 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
     req.responseFormat !== undefined
       ? structuredOptions(req, req.responseFormat, connection.capability.generation, warnings)
       : { options: {}, openRouterChat: undefined };
+  const sampling = wireSampling(req.sampling, connection.features, connection.provider.dialect ?? "openai-compatible", warnings);
   const call: ModelCall = {
     connection,
     deps: deps.transport,
@@ -105,13 +107,13 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
     foldSameRole: false,
     replyImages: false,
     warnings: [],
-    extraBody: samplingExtras(req.sampling),
+    extraBody: sampling.body,
     openRouterChat: structured.openRouterChat,
   };
   return runV4Batch({
     req,
     model: languageModelFor(call),
-    options: { ...standardSampling(req.sampling, req.sampling.maxTokens), ...structured.options },
+    options: { ...standardSampling(sampling.v4, req.sampling.maxTokens), ...structured.options },
     label,
     concurrency: connection.features.concurrency?.summarize ?? 1,
     now: deps.now,

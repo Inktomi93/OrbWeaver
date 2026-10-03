@@ -14,7 +14,9 @@ import {
   qualityFromSelect,
   qualitySelectValue,
   reasoningControlFor,
+  samplerStagesFor,
   samplingKnobsFor,
+  supportsDrySequenceBreakers,
   supportsSeed,
   verbosityLevelsFor,
 } from "../../../../../packages/client/src/features/preset/lib/capability-panel-model.ts";
@@ -50,6 +52,19 @@ test("only the LISTED sampling knobs render, each with the descriptor's Range", 
   // The slider bounds come from the descriptor Range, not a hardcoded default.
   const temp = knobs.find((k) => k.field === "params.temperature");
   expect(temp?.range).toEqual(R(0, 2));
+});
+
+test("the local-server samplers render only where the target states them, and the two list controls follow their flags", () => {
+  const llama = capability({
+    sampling: { temperature: R(0, 5), dryMultiplier: R(0, 5), xtcProbability: R(0, 1), drySequenceBreakers: true, samplerOrder: ["penalties", "temperature"] },
+  });
+  const ollama = capability({ sampling: { temperature: R(0, 5), topP: R(0, 1) } });
+  expect(samplingKnobsFor(llama).map((k) => k.key)).toEqual(["temperature", "xtcProbability", "dryMultiplier"]);
+  expect(samplingKnobsFor(ollama).map((k) => k.key)).toEqual(["temperature", "topP"]);
+  expect(supportsDrySequenceBreakers(llama)).toBe(true);
+  expect(supportsDrySequenceBreakers(ollama)).toBe(false);
+  expect(samplerStagesFor(llama)).toEqual(["penalties", "temperature"]);
+  expect(samplerStagesFor(ollama)).toBeUndefined();
 });
 
 test("seed is a descriptor BOOLEAN flag, not a Range slider knob", () => {

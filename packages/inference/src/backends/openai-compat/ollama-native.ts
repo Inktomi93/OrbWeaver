@@ -20,24 +20,10 @@ const PART_SEPARATOR = "\n\n";
 const ERROR_BODY_LIMIT = 65_536;
 const REASONING_OFF = "none";
 
-/** OpenAI body keys whose Ollama spelling lives in `options`. The 0498 sampler seam owns which knobs a row
- *  emits; this table only moves what the body already carries. */
-const OPTION_KEYS: Readonly<Record<string, string>> = {
-  temperature: "temperature",
-  ["top_p"]: "top_p",
-  ["top_k"]: "top_k",
-  ["min_p"]: "min_p",
-  ["typical_p"]: "typical_p",
-  ["repeat_penalty"]: "repeat_penalty",
-  ["repetition_penalty"]: "repeat_penalty",
-  ["repeat_last_n"]: "repeat_last_n",
-  ["presence_penalty"]: "presence_penalty",
-  ["frequency_penalty"]: "frequency_penalty",
-  seed: "seed",
-  stop: "stop",
-  ["max_tokens"]: "num_predict",
-  ["max_completion_tokens"]: "num_predict",
-};
+/** The output cap's OpenAI spellings, which `/api/chat` reads as `options.num_predict`. The samplers move into
+ *  `options` under the keys the sampler seam already spelled for this row (`samplerBodyKeys`). */
+const OUTPUT_CAP_KEYS: ReadonlySet<string> = new Set(["max_tokens", "max_completion_tokens"]);
+const NUM_PREDICT = "num_predict";
 /** OpenAI-only keys `/api/chat` has no field for; translated above or below, or meaningless here. */
 const DROPPED_KEYS: ReadonlySet<string> = new Set([
   "messages",
@@ -159,17 +145,22 @@ function thinkOf(effort: unknown): boolean | undefined {
 
 /**
  * The OpenAI chat body the SDK built (after `extras` and `includeBody`) as an `/api/chat` body. `numCtx` is the
- * resolved window, sent as `options.num_ctx` so the server runs the window the capability states. Keys this
- * file does not know pass through unchanged, so a native field set in `includeBody` reaches the server, and an
- * `options` object set there wins over the translated one key by key.
+ * resolved window, sent as `options.num_ctx` so the server runs the window the capability states.
+ * `samplerKeys` are the body keys the sampler seam spells for this row; each moves into `options` as is. Keys
+ * this file does not know pass through unchanged, so a native field set in `includeBody` reaches the server,
+ * and an `options` object set there wins over the translated one key by key.
  */
-export function toOllamaChat(body: Json, args: { readonly numCtx: number | undefined; readonly label: string }): Json {
+export function toOllamaChat(
+  body: Json,
+  args: { readonly numCtx: number | undefined; readonly samplerKeys: ReadonlySet<string>; readonly label: string },
+): Json {
   const options: Json = {};
   const rest: Json = {};
   for (const [key, value] of Object.entries(body)) {
-    const option = OPTION_KEYS[key];
-    if (option !== undefined) {
-      options[option] = value;
+    if (args.samplerKeys.has(key)) {
+      options[key] = value;
+    } else if (OUTPUT_CAP_KEYS.has(key)) {
+      options[NUM_PREDICT] = value;
     } else if (!DROPPED_KEYS.has(key) && key !== "options") {
       rest[key] = value;
     }

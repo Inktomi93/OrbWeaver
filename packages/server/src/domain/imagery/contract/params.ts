@@ -6,7 +6,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ExtractionMode as CatalogExtractionMode, MultimodalCaptionMode, PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
 import type { BindingActor } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 
 // The mode SUBSETS home in `@orb/contracts/imagery` (the canonical `EXTRACTION_MODES`/`MULTIMODAL_MODES`
@@ -25,19 +25,22 @@ export type PortraitMode = Extract<PromptTemplateMode, "character" | "face" | Mu
 export type ReusePolicy = "prefer" | "never";
 
 // Auto-curation of a generation: the character whose gallery each returned picture joins. The picture's
-// owner is always the caller (the generator), so the item lands in the caller's gallery only, and only when
-// the caller owns this character; a character someone else owns keeps no gallery for the caller.
+// owner is the run-as principal, so the item lands in that principal's gallery only, and only when it owns
+// this character; a character someone else owns gets no gallery row.
 interface GalleryCuration {
   readonly subjectCharacterId: CharacterId;
 }
 
-/** `generatePicture` — the orchestrator's params. `caller` is the triggeredBy for
- *  spend + the CAS owner; `chatId` is provenance + the extraction-shaper's history scope (REQUIRED unless
- *  `mode:"free"` with a `prompt`); `prompt` present OR `mode:"free"` skips extraction (used verbatim);
- *  `subjectCharacterId` focuses the char macro / picks the avatar for character/face + multimodal modes.
- *  (`negative`/`size`/`useAvatarReference`/`reuse` land with I2/I3 — doc 05 FORK 2 + the reuse gate.) */
+/** `generatePicture` — the orchestrator's params. `caller` is the requesting human: the extraction viewer and
+ *  the subject-card reader. The run-as principal (`runAsUserId`, else `caller`) funds, styles and owns the
+ *  picture. `chatId` is provenance + the extraction-shaper's history scope (REQUIRED unless `mode:"free"`
+ *  with a `prompt`); `prompt` present OR `mode:"free"` skips extraction (used verbatim);
+ *  `subjectCharacterId` focuses the char macro / picks the avatar for character/face + multimodal modes. */
 export interface GeneratePictureParams {
   readonly caller: Principal;
+  /** The room host a room picture runs as (D298), resolved by chat through the turn identity. Absent
+   *  outside a room: the caller funds, styles and owns its own picture. */
+  readonly runAsUserId?: UserId | undefined;
   /** The binding actor whose own generateImage binding is folded before the caller's (an automation rule's). */
   readonly actor?: BindingActor | undefined;
   readonly chatId?: ChatId | undefined;
@@ -63,7 +66,7 @@ export interface GeneratePictureParams {
    *  supersedes this). Absent ⇒ the provenance `identityHash` stays null (the additive-only guarantee — the
    *  existing free/scenario/edit paths are byte-identical). rpg reads it back via `readProvenance`. */
   readonly identityHash?: string | undefined;
-  /** Join every returned picture to the caller's gallery under this character. Absent = no auto-add. Kept
+  /** Join every returned picture to the run-as principal's gallery under this character. Absent = no auto-add. Kept
    *  apart from `subjectCharacterId`, which also drives the portrait reuse gate and the extraction subject. */
   readonly gallery?: GalleryCuration | undefined;
   /** The initiating viewer's zone for an extraction template's time macros. Absent ⇒ UTC: automation, a
@@ -79,7 +82,8 @@ export interface ReadProvenanceParams {
 }
 
 /** `extractPrompt` — the standalone step-1 preview surface (review the prompt before spending on a
- *  generation). `free` is excluded at the type level (nothing to extract); multimodal modes caption. */
+ *  generation). `free` is excluded at the type level (nothing to extract); multimodal modes caption. Always
+ *  chat-scoped, so it always runs as the room host (D298). */
 export interface ExtractPromptParams {
   readonly caller: Principal;
   readonly chatId: ChatId;

@@ -11,6 +11,7 @@
 
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { ChatApi, EffortLevel, ProviderId } from "#inference";
+import { SAMPLER_KNOBS } from "#inference";
 import type { WiBusEvent } from "#world-info";
 import type { ChatReasoningPart, MessageView } from "./messages.ts";
 import type { ReactionEmoji } from "./reactions.ts";
@@ -136,6 +137,10 @@ export const PLAIN_CHAT_WARNING_CODES = [
   // order fell back to the deterministic `natural` arbitration. Emitted from the turn
   // verb's arbitrate step: the round still happens, but the user is told the MATH picked, not the model.
   "smart_arbitration_degraded",
+  // The `smart` policy's default pick (the funder's bound rerank role) was unusable this round — the role is
+  // unbound or refused, the call threw, or it ranked nobody eligible — so `natural` picked instead. The
+  // reranker sibling of `smart_arbitration_degraded`: the fix is a Reranker binding, not a Utility model.
+  "speaker_rerank_unavailable",
   // A BACKGROUND task (summaries, captions, digests) could not run for this turn's funder — no binding, or the
   // bound row has `allowBackground` off (inference program §5.3a: the background tasks share ONE degrade
   // notice so "nothing ran" is never the whole signal). The turn itself is unaffected.
@@ -241,17 +246,9 @@ export type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
  *  BY CONSTRUCTION: the bus's raw-string pin admits exactly two anchored free-text keys and this is not one
  *  of them — the `ReactionEmoji`/`MemoryRecallPhase` precedent. One home; the union derives from it. */
 export const ADJUSTED_KNOBS = [
-  "temperature",
-  "topP",
-  "topK",
-  "frequencyPenalty",
-  "presencePenalty",
-  "repetitionPenalty",
-  "minP",
-  "topA",
-  "seed",
-  "logitBias",
-  "stop",
+  // Every sampler, from its one home, and the stage order a server may run them in.
+  ...SAMPLER_KNOBS,
+  "samplerOrder",
   // The quality DIAL (not a sampling knob): dropped when the stored value is not a known quality level.
   "quality",
   // The reasoning token budget, dropped on an effort-mode model that has no budget field.

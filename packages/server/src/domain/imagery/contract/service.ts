@@ -25,7 +25,10 @@ interface CaptionResult {
   readonly costUsd: number | null;
 }
 interface CaptionAvatarArgs {
+  /** Reads the subject's card and avatar: a caption never reaches a character the caller cannot read. */
   readonly caller: Principal;
+  /** Styles and funds the caption (the instruction, the Utility connection). */
+  readonly runAs: Principal;
   readonly mode: MultimodalMode;
   readonly subjectCharacterId: CharacterId | undefined;
 }
@@ -39,7 +42,10 @@ interface ResolvedPrompt {
   readonly costUsd: number | null;
 }
 interface ResolvePromptArgs {
+  /** The requesting human: the extraction viewer and the subject-card reader. */
   readonly caller: Principal;
+  /** The principal the prompt is styled and funded as: the room host in a room (D298), else the caller. */
+  readonly runAs: Principal;
   /** ABSENT for a chat-less caller (the owner-global automation lane, C5). Only the CAPTION modes can
    *  resolve without one — they read the subject's avatar — and `extractText` refuses typed when an
    *  EXTRACTION mode arrives with no chat, because its prompt comes from chat's quiet shaper reading the
@@ -86,7 +92,7 @@ export interface ImageGenerateRequest {
   readonly connection: Resolved<"generateImage">;
   readonly model: ModelId;
   readonly prompt: string;
-  /** The generation owner (the caller's user id) — the widened twin of the infra `ImageGenerateRequest.owner`. */
+  /** The generation owner (the run-as user id) — the widened twin of the infra `ImageGenerateRequest.owner`. */
   readonly owner?: UserId | undefined;
   readonly n?: number | undefined;
   readonly systemPrompt?: string | undefined;
@@ -132,40 +138,49 @@ export interface ImageryContext {
   readonly now: () => number;
   readonly newGenerationId: () => ImageryGenerationId;
   readonly newCallId: () => ImageryCallId;
-  readonly resolveGenerateImage: (caller: Principal, actor?: BindingActor) => Promise<ResolvedGenerateImage>;
+  /** The `generateImage` connection of the run-as principal (the funder). */
+  readonly resolveGenerateImage: (runAs: Principal, actor?: BindingActor) => Promise<ResolvedGenerateImage>;
+  /** The run-as Principal for a room picture's `runAsUserId`, read from its row so the role is real. Chat
+   *  resolved the id; this op only loads it. */
+  readonly resolveRunAs: (runAsUserId: UserId) => Promise<Principal>;
+  /** The principal a chat-scoped preview runs as: the room host (D298). Refuses a caller the room does
+   *  not admit, and a subject that is not a present character seat of the room, with the leak-free
+   *  not-found BEFORE any host read, card read or spend. */
+  readonly resolveRoomRunAs: (caller: Principal, chatId: ChatId, subjectCharacterId: CharacterId | undefined) => Promise<Principal>;
   /** The sealed `infra/providers` generateImage executor role (bound at compose). */
   readonly generateImage: (req: ImageGenerateRequest) => Promise<ImageGenerateResult>;
   /** Download a provider-returned generated-image URL to bytes through the SSRF-safe egress wrapper. `null`
    *  on any SSRF block/non-2xx/size-cap/network failure — the caller drops that image. */
   readonly fetchImage: (url: string) => Promise<Uint8Array | null>;
-  /** `assets.store` — the per-user CAS write. `kind` is always `"generated"` from this domain. */
-  readonly storeAsset: (caller: Principal, bytes: Uint8Array, kind: AssetKind, mime: string) => Promise<StoredAsset>;
+  /** `assets.store` — the per-user CAS write under the run-as principal. `kind` is always `"generated"` from this domain. */
+  readonly storeAsset: (owner: Principal, bytes: Uint8Array, kind: AssetKind, mime: string) => Promise<StoredAsset>;
   /** The chat-owned quiet extraction shaper (over the `summarize` role — doc 02 §2): chat windows its own
    *  recent history + resolves the char/user macros against ITS MacroContext (imagery passes the raw mode
-   *  template). Never persisted; spend attributed to `caller` as triggeredBy. Wired at compose to chat. */
+   *  template). Never persisted. `caller` is the viewer the room gate and history floor apply to;
+   *  `funderUserId` is the run-as principal whose Utility connection pays. Wired at compose to chat. */
   readonly extractQuiet: (p: {
     readonly caller: Principal;
+    readonly funderUserId: UserId;
     readonly chatId: ChatId;
     readonly instruction: string;
     readonly subjectCharacterId?: CharacterId | undefined;
     readonly timeZone?: IanaTimeZone | undefined;
   }) => Promise<{ readonly text: string; readonly costUsd: number | null }>;
-  /** ⑫ — the caller's per-mode EXTRACTION instruction: `UserSettings.imagery.templates[mode]` override ⊕ the
-   *  shipped `@orb/contracts/imagery` catalog default (unset ⇒ byte-identical). Wired at compose off
-   *  `settings.loadUserSettings` (the FOREIGN-inputs seam — imagery delegates the settings read). */
-  readonly resolvePromptTemplate: (caller: Principal, mode: ExtractionMode) => Promise<string>;
-  /** ⑫ — the caller's per-mode MULTIMODAL caption instruction (override ⊕ catalog default). */
-  readonly resolveCaptionInstruction: (caller: Principal, mode: MultimodalMode) => Promise<string>;
-  /** PROSE-1 census 88 — the caller's negative-prompt BASE: `UserSettings.prose["imagery.negative.base"]`
-   *  override ⊕ the shipped catalog default (unset ⇒ byte-identical). CALLER-scoped, not room-host-scoped,
-   *  matching its `resolvePromptTemplate`/`resolveCaptionInstruction` siblings: an image generation is a
-   *  request one human makes with their own connection, not a room-level side generation. Wired at compose
+  /** ⑫ — the run-as principal's per-mode EXTRACTION instruction: `UserSettings.imagery.templates[mode]`
+   *  override ⊕ the shipped `@orb/contracts/imagery` catalog default (unset ⇒ byte-identical). Wired at compose
    *  off `settings.loadUserSettings` (the FOREIGN-inputs seam — imagery delegates the settings read). */
-  readonly resolveNegativeBase: (caller: Principal) => Promise<string>;
+  readonly resolvePromptTemplate: (runAs: Principal, mode: ExtractionMode) => Promise<string>;
+  /** ⑫ — the run-as principal's per-mode MULTIMODAL caption instruction (override ⊕ catalog default). */
+  readonly resolveCaptionInstruction: (runAs: Principal, mode: MultimodalMode) => Promise<string>;
+  /** PROSE-1 census 88 — the run-as principal's negative-prompt BASE: `UserSettings.prose["imagery.negative.base"]`
+   *  override ⊕ the shipped catalog default (unset ⇒ byte-identical). In a room that is the host, like its
+   *  `resolvePromptTemplate`/`resolveCaptionInstruction` siblings (D298). */
+  readonly resolveNegativeBase: (runAs: Principal) => Promise<string>;
   /** The D45/D47-6 vision caption op — the ONE captioner (over `summarize`-with-images at compose; a
    *  §9-reject to duplicate). `instruction` is the multimodal template; the image IS the subject. */
   readonly captionImage: (p: {
-    readonly caller: Principal;
+    /** Funds the caption and supplies its sampling preset. */
+    readonly runAs: Principal;
     readonly bytes: Uint8Array;
     readonly mime: string;
     readonly instruction: string;
@@ -181,13 +196,13 @@ export interface ImageryContext {
   /** stats' rollup upsert, pushed into the batch that writes the provenance rows: those rows are the canon the
    *  stats rebuild re-derives image spend from, so the two commit together or neither does. */
   readonly applyStatsDelta: ApplyStatsDelta<BatchStmt[], Db>;
-  /** Does `ownerId` own `characterId`? The auto-curation gate, read before any spend so a picture made in a
-   *  shared room never targets another principal's character. Wired to the same owner-scoped `characters`
-   *  read the gallery add verb gates on. */
+  /** Does `ownerId` own `characterId`? The auto-curation gate, read before any spend so a picture never
+   *  targets a character its owner does not hold. Wired to the same owner-scoped `characters` read the
+   *  gallery add verb gates on. */
   readonly ownsCharacter: (ownerId: UserId, characterId: CharacterId) => Promise<boolean>;
-  /** `assets.addToGallery` under the caller's principal: join an owned picture to the caller's gallery as
-   *  this character's. Idempotent on `(assetId, subjectCharacterId)`. */
-  readonly addToGallery: (caller: Principal, assetId: AssetId, subjectCharacterId: CharacterId) => Promise<void>;
+  /** `assets.addToGallery` under the picture owner's principal: join an owned picture to that owner's
+   *  gallery as this character's. Idempotent on `(assetId, subjectCharacterId)`. */
+  readonly addToGallery: (owner: Principal, assetId: AssetId, subjectCharacterId: CharacterId) => Promise<void>;
 }
 
 /** The imagery surface — the orchestrator + the standalone extraction preview. */

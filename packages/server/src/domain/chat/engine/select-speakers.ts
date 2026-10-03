@@ -324,8 +324,9 @@ function phraseAt(words: readonly string[], seq: readonly string[]): number {
 }
 
 /**
- * Characters a human-authored trigger text names — `natural`'s mention activation (the caller must pass a
- * human post's body, never an AI reply). A character is named when any word of the text equals a non-stopword
+ * Characters a trigger text names. `natural`'s mention activation passes a human post's body only; Smart's
+ * reranker pick (`rerank-pick.ts`) passes the last line whoever wrote it, since a character handing the floor
+ * to another by name is exactly the address it reads. A character is named when any word of the text equals a non-stopword
  * word of their display name, case-insensitive, so "Aria" and "stormborn" both name `Aria Stormborn`, "knight"
  * names `The Knight` and "the" does not, and one word shared by two names names both. One-letter words never
  * name, so "I don't" does not name `T'Pol`. A name made only of {@link NAME_STOPWORDS} and one-letter words is
