@@ -126,12 +126,16 @@ export interface SearchDiscoveryComposeResult {
   readonly discovery: DiscoveryService;
   readonly notifications: NotificationsService;
   readonly workloads: WorkloadService;
-  /** Enqueue the embed-space sweeps: `null` for every owner (a binding change), a `UserId` for that owner (a seed).
-   *  Settles once every enqueue has; never rejects, because a failed enqueue is logged in its own span. */
+  /** Enqueue the embed-space sweeps: `null` for every owner, a `UserId` for that owner (a seed). Settles once
+   *  every enqueue has; never rejects, because a failed enqueue is logged in its own span. */
   readonly enqueueEmbedReindex: (scope: UserId | null) => Promise<void>;
   /** {@link SearchDiscoveryComposeResult.enqueueEmbedReindex} for a trigger that must not wait on it: the same
    *  sweeps, started detached. */
   readonly detachEmbedReindex: (scope: UserId | null) => void;
+  /** An owner's binding or connection write moved their embed space: that owner's sweeps, forced, started
+   *  detached. Their generations are theirs alone, so nobody else's index is touched, and the jobs are theirs to
+   *  read under Jobs. */
+  readonly detachRepointReindex: (ownerId: UserId) => void;
   /** Boot's catch-up: the same sweeps for every owner whose stored generation is no longer the one their
    *  binding resolves to, started detached. No user action raised the trigger, so autoindex does not gate it. */
   readonly detachStaleSpaceReindex: () => void;
@@ -379,6 +383,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     requireOwner,
     isOwner,
     isAdmin,
+    emitUserEvent: publishUserEvent,
   });
 
   // The memory receipt for an owner a sweep covers but builds no space for. Only completable when memory is OFF
@@ -407,13 +412,14 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
 
   // THE EMBED-SPACE SWEEPS: `index` for card/image vectors, `databank-reindex` for document chunks and the memory
   // sweep for chat segments/digests, so every scope lands in the new target and search reads it.
-  //   • `null` — an embed binding change: three GLOBAL BULK sweeps (`ownerId: null` spans every owner), the index
-  //     pass FORCED, because a non-forced one no-ops on rows whose text hash still matches the old space.
+  //   • `null` — three GLOBAL BULK sweeps (`ownerId: null` spans every owner), the index pass FORCED, because a
+  //     non-forced one no-ops on rows whose text hash still matches the old space.
   //   • a `UserId` — a seed bound that owner's encoder outside the binding verb: that owner's SINGULAR sweeps. None
   //     with the autoindex off: then nothing embeds in the background, no target is pinned, and search reads the
   //     live space with no migration to wait on.
-  //   • a `UserId` with `embedderChanged` — boot found the owner's stored generation stale: their SINGULAR sweeps,
-  //     the index pass forced, whatever the autoindex says, because the sweep's generation switch empties their index.
+  //   • a `UserId` with `embedderChanged` — the owner re-pointed an embed role, or boot found their stored generation
+  //     stale: their SINGULAR sweeps, the index pass forced, whatever the autoindex says, because the sweep's
+  //     generation switch empties their index.
   // `caller: null` is the trusted-system mode-gate bypass. Each enqueue runs in its own root span, and a duplicate
   // run (a kind already active → DomainConflictError) or any enqueue failure is logged there, never thrown at the
   // write that triggered it.
@@ -454,6 +460,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
       superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
     }
   };
+  const detachRepointReindex = (ownerId: UserId): void => {
+    for (const s of embedSweeps(ownerId, true)) {
+      superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
+    }
+  };
 
   const detachStaleSpaceReindex = (): void => {
     superviseDetached("embeddings.staleGeneration.reindex", EMBED_REINDEX_SPAN, { workloadKind: "index" }, async () => {
@@ -490,6 +501,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     workloads,
     enqueueEmbedReindex,
     detachEmbedReindex,
+    detachRepointReindex,
     detachStaleSpaceReindex,
     vacuousMemoryReceipt,
     listCorpusOwners: () => distinctCorpusOwners(db),

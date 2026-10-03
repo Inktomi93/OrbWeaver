@@ -2,6 +2,7 @@
 // the two explicit DI bundles, and the injected-op type aliases; `context.ts` is the builder for these types.
 // workloads sideways-imports NO sibling runtime — every cross-feature capability is an injected op wired at entry/.
 
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { ModelCallEstimate, WorkloadEvent, WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
@@ -46,6 +47,8 @@ export interface WorkloadServiceContext {
   readonly isOwner: IsOwner;
   /** The domain-owned lifecycle publisher; service.ts wires the engine bus so verbs never bypass it. */
   readonly emitEvent: (event: WorkloadEvent) => void;
+  /** The per-user freshness plane: a system-started owned row announces `workloadsChanged` to its owner. */
+  readonly emitUserEvent: EmitUserEvent;
 }
 
 /** What entry supplies; the domain service adds its own event publisher at its composition root. */

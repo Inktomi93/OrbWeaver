@@ -1,5 +1,5 @@
 // The Connections pane's mutations, one createEntityMutation per verb. The connection verbs emit
-// `connectionsChanged` on the user bus (the map refetches `connection.*` and the job list), and the credential
+// `connectionsChanged` on the user bus (the invalidation map refetches `connection.*`), and the credential
 // verbs emit `credentialsChanged`; each still names its own invalidates so a dropped bus stream never leaves
 // the pane stale. The secret never round-trips: `credentials.add` takes the plaintext key, list returns the
 // redacted view.

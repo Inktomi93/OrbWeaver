@@ -9,6 +9,7 @@ import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
 import type { DomainEvent } from "@orb/contracts/events";
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import {
   characterEmbeddings,
@@ -62,6 +63,7 @@ import { readGeneration } from "../../../../packages/server/src/domain/search/pe
 import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { subscribeChatEvents } from "../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
 import { subscribeNotifications } from "../../../../packages/server/src/transport/trpc/notifications-bus.ts";
+import { subscribeUserEvents } from "../../../../packages/server/src/transport/trpc/user-events-bus.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -764,29 +766,43 @@ describe("persona.remove seed re-point (owner invariant)", () => {
 // — a bulk `databank-reindex` (document chunks live in `document_chunks`, which `index` never touches). A model
 // change that enqueued only `index` would strand every document chunk in the OLD space. This drives the REAL
 // settings → trigger → `workloads.start` seam through the full graph (no faked enqueue) and asserts BOTH rows.
+const WORKLOADS_CHANGED = "workloadsChanged" satisfies UserBusEvent["type"];
+
 describe("embed-model change reindex trigger (DBK-B(b))", () => {
-  test("changing the embed model enqueues all three bulk embed-space sweeps", async () => {
+  // A re-point moves only the re-pointing user's generations, so the rebuild is THEIR job: a plain member must be
+  // able to read it back through `workloads.list` (which pins a member to their own rows), and their live user
+  // channel must hear that it was queued, because the binding write's own tick lands before the detached insert.
+  test("a member's embed re-point queues their own forced rebuild, readable and announced to them", async () => {
     const db = await freshDb();
     const result = await buildGraph(db); // vLLM-disabled full graph
-    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-
-    // No bulk reindex work exists before the change (causation control).
-    const before = await db.select().from(workloads);
-    expect(before.filter((r) => r.mode === "bulk" && (r.kind === "index" || r.kind === "databank-reindex" || r.kind === "memory-backfill"))).toHaveLength(0);
-
-    await result.services.connection.setBinding({
-      principal: principal(owner),
-      task: "embed",
-      connectionId: null,
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
+    const abort = new AbortController();
+    onTestFinished(() => {
+      abort.abort();
     });
+    // Everything the member's channel carries up to the first job announcement.
+    const announced = (async (): Promise<UserBusEvent[]> => {
+      const heard: UserBusEvent[] = [];
+      for await (const event of subscribeUserEvents(member, abort.signal)) {
+        heard.push(event);
+        if (event.type === WORKLOADS_CHANGED) {
+          break;
+        }
+      }
+      return heard;
+    })();
 
-    // The trigger is supervised detached work; flush the IO queue deterministically.
+    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: null });
+    const heard = await announced;
     await drain(() => false);
 
-    const bulkKinds = new Set((await db.select().from(workloads)).filter((r) => r.mode === "bulk").map((r) => r.kind));
-    expect(bulkKinds.has("index")).toBe(true); // character/image/memory chunks
-    expect(bulkKinds.has("databank-reindex")).toBe(true); // document chunks
-    expect(bulkKinds.has("memory-backfill")).toBe(true); // chat memory
+    const rows = await db.select().from(workloads);
+    expect(rows.filter((row) => row.mode === "bulk")).toHaveLength(0);
+    const index = rows.find((row) => row.kind === "index");
+    expect(index).toMatchObject({ ownerId: member, mode: "singular", params: { source: "all", force: true, embedderChanged: true } });
+    const listed = await result.services.workloads.list({ caller: principal(member), kind: "index" });
+    expect(listed.map((row) => row.id)).toEqual([index?.id]);
+    expect(heard).toContainEqual({ type: WORKLOADS_CHANGED });
   });
 
   // B4: a release that moves generation identity leaves owners whose stored target no user action will ever
@@ -846,7 +862,9 @@ describe("embed-model change reindex trigger (DBK-B(b))", () => {
       expect.arrayContaining([
         expect.objectContaining({ err: enqueueFailure, workloadKind: "index", spanName: "embeddings.modelChangeReindex" }),
         expect.objectContaining({ err: enqueueFailure, workloadKind: "databank-reindex", spanName: "embeddings.modelChangeReindex" }),
-        expect.objectContaining({ err: enqueueFailure, workloadKind: "memory-backfill", spanName: "embeddings.modelChangeReindex" }),
+        // The owner's memory sweep reads their generation first, and with the embedder just unbound that read
+        // is what fails; it is logged in the same span all the same.
+        expect.objectContaining({ workloadKind: "memory-backfill", spanName: "embeddings.modelChangeReindex" }),
       ]),
     );
     expect(failures.every((call) => call[1] === "detached operation failed")).toBe(true);

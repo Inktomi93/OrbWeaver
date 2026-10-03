@@ -22,7 +22,6 @@ import {
   allRpgGameFilters,
   chatCanonReads,
   chatReads,
-  connectionWriteReads,
   corpusRecomputeReads,
   hiddenRevealRead,
   promptPreviewReads,
@@ -359,8 +358,9 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // entries on a poke is cheap and correct. NOT `listSurfaces` — a state change never moves the registration set
   // (that rides enable/disable, a different write).
   pluginSurfaceStateChanged: (_e, trpc) => [trpc.plugin.getSurfaceState.pathFilter()],
-  // Another device's re-point can enqueue an embed rebuild, so this tick carries the job list with the rows.
-  connectionsChanged: (_e, trpc) => [...connectionWriteReads(trpc), trpc.chat.getNextTurnConnection.pathFilter()],
+  // A re-point's rebuild is queued after this tick, so the job list rides `workloadsChanged` instead.
+  connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter(), trpc.chat.getNextTurnConnection.pathFilter()],
+  workloadsChanged: (_e, trpc) => [trpc.workloads.list.pathFilter()],
 };
 
 /** The viewer triple: the server identity (`sessions.me`) plus the two reads a composed

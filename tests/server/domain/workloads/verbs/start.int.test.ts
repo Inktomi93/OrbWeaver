@@ -2,10 +2,11 @@
 // security core): a SINGULAR run is any authed caller (owned by self); a BULK run is BOX-OWNER-only; an
 // unsupported mode / a missing bulk-create target / a bad target are typed errors.
 
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import { DomainConflictError, DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, makeService, principal, seedUser, seedWorkloadRow } from "../_support.ts";
@@ -79,6 +80,33 @@ describe("workloads.start — enqueue + conflict", () => {
         ownerId: null,
       }),
     ).rejects.toThrow();
+  });
+});
+
+// A system start has no client mutation to refresh the owner's job list, so the verb announces it on their
+// user channel. A person's own start refreshes through its mutation, and an owner-less sweep has no channel.
+describe("workloads.start — the owner hears a system-started job", () => {
+  test("a system start of an owned row tells that owner their job list changed, once", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_member");
+    const emit = vi.fn<EmitUserEvent>();
+    const s = makeService(db, fakeContributions(), emit);
+
+    await s.start({ input: { kind: "index", params: { source: "all", force: true, embedderChanged: true } }, caller: null, mode: "singular", ownerId: owner });
+
+    expect(emit.mock.calls).toEqual([[owner, { type: "workloadsChanged" }]]);
+  });
+
+  test("a person's own start and an owner-less sweep announce nothing", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_member");
+    const emit = vi.fn<EmitUserEvent>();
+    const s = makeService(db, fakeContributions(), emit);
+
+    await s.start({ input: { kind: "index", params: { source: "text" } }, caller: principal(owner), mode: "singular", ownerId: owner });
+    await s.start({ input: { kind: "reconcile-stats", params: {} }, caller: null, mode: "bulk", ownerId: null });
+
+    expect(emit).not.toHaveBeenCalled();
   });
 });
 

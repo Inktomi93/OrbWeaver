@@ -287,7 +287,7 @@ const DOMAIN_FRESHNESS: Readonly<Record<string, FreshnessRow>> = {
   workloads: {
     plane: "workload-events",
     roomReach: { lane: "none", why: "workload rows are per-user execution state with a durable progress bus of their own; no chat-anchored table FKs them." },
-    why: "the engine runner/reaper emit six WorkloadEvent members on the progress bus, with `workloads.progress` as the durable reconnect truth (D118).",
+    why: "the engine runner/reaper emit six WorkloadEvent members on the progress bus, with `workloads.progress` as the durable reconnect truth (D118); a system-started owned row also announces `workloadsChanged` on its owner's user bus (verbs/start.ts).",
   },
   "world-info": {
     plane: "user-bus:worldInfoChanged",

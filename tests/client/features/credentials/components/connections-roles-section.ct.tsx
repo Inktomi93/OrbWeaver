@@ -59,6 +59,9 @@ const CHAT_CONNECTION_ID = "user_connection_ctroles00001";
 const UTILITY_CONNECTION_ID = "user_connection_ctroles00002";
 const EMBED_CONNECTION_ID = "user_connection_ctroles00003";
 const LOCAL_CHAT_CONNECTION_ID = "user_connection_ctroles00004";
+// A plain member, not the box owner: `workloads.list` pins a member to their own rows, so an owner viewer would
+// hide a rebuild queued for nobody in particular.
+const VIEWER_ID = "user_ct_connections";
 
 /** A `connection.list` row — `UserConnection` plus the two derived fields the pane renders beside it
  *  (`ConnectionView`: the provider's label and the tasks this row may be bound to). */
@@ -70,7 +73,7 @@ type CredentialRow = TrpcWireOutput<"credentials.list">[number];
 function connectionRow(over: Partial<ConnectionRow>): ConnectionRow {
   return {
     id: CHAT_CONNECTION_ID,
-    ownerId: "user_ct_connections",
+    ownerId: VIEWER_ID,
     label: "OpenRouter · Claude Sonnet 5",
     providerId: "openrouter",
     providerLabel: "OpenRouter",
@@ -127,7 +130,7 @@ function bindingView(task: BindingView["task"], over: Partial<BindingView> = {})
 }
 
 function binding(task: ConnectionBinding["task"], connectionId: string | null): ConnectionBinding {
-  return { id: `connection_binding_ct${task}`, actorKind: "user", userId: "user_ct_connections", ruleId: null, pluginId: null, task, connectionId };
+  return { id: `connection_binding_ct${task}`, actorKind: "user", userId: VIEWER_ID, ruleId: null, pluginId: null, task, connectionId };
 }
 
 /** A view whose binding RESOLVES — what a turn runs on today. */
@@ -177,7 +180,7 @@ async function stubPane(
   } = {},
 ): Promise<RolesStub> {
   const recorder = await routeTrpc(page, {
-    "sessions.me": () => ({ userId: "user_ct_connections", handle: "owner", globalRole: "owner" }),
+    "sessions.me": () => ({ userId: VIEWER_ID, handle: "member", globalRole: "user" }),
     "connection.list": () => opts.connections ?? [CHAT_ROW, UTILITY_ROW, EMBED_ROW],
     "connection.listBindings": () => opts.bindings ?? UNBOUND,
     // Saved keys turns a credential's registry id into the provider's user-facing LABEL through the
@@ -493,15 +496,15 @@ test("dismissing the rebuild confirm returns focus to the role's picker", async 
   await expect(roleSelect(page, "Text embedding")).toBeFocused();
 });
 
-/** One embedder-change rebuild row as `workloads.list` returns it. */
+/** The viewer's own embedder-change rebuild as `workloads.list` returns it: a re-point queues it for its owner. */
 function rebuildRow(status: TrpcWireOutput<"workloads.list">[number]["status"]): TrpcWireOutput<"workloads.list">[number] {
   return {
     id: "workload_01jct0rebuild000000000000000",
     kind: "index",
     status,
-    mode: "bulk",
+    mode: "singular",
     lane: "sweep",
-    ownerId: null,
+    ownerId: VIEWER_ID,
     dependsOn: null,
     error: status === "failed" ? "embeddings.store: vector dim mismatch for model 'm' — declared space dim 512, embedder returned 1024" : null,
     progress: null,

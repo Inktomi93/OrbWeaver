@@ -7,6 +7,7 @@
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { WorkloadKind, WorkloadLane, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
@@ -135,7 +136,11 @@ export function contributionsWith<K extends WorkloadKind>(kind: K, run: Workload
 }
 
 /** A `WorkloadService` over a real db with the frozen clock + a deterministic sequential id minter. */
-export function makeService(db: Db, contributions: WorkloadContributions = fakeContributions()): WorkloadService {
+export function makeService(
+  db: Db,
+  contributions: WorkloadContributions = fakeContributions(),
+  emitUserEvent: EmitUserEvent = () => undefined,
+): WorkloadService {
   let n = 0;
   const newWorkloadId = (): WorkloadId => {
     n += 1;
@@ -155,6 +160,7 @@ export function makeService(db: Db, contributions: WorkloadContributions = fakeC
     requireOwner,
     isAdmin,
     isOwner,
+    emitUserEvent,
   });
 }
 

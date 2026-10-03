@@ -390,9 +390,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
   // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
   // boot. Until then it is an inert no-op.
-  let embedReindex: Pick<SearchDiscoveryComposeResult, "enqueueEmbedReindex" | "detachEmbedReindex" | "detachStaleSpaceReindex"> = {
+  let embedReindex: Pick<SearchDiscoveryComposeResult, "enqueueEmbedReindex" | "detachEmbedReindex" | "detachRepointReindex" | "detachStaleSpaceReindex"> = {
     enqueueEmbedReindex: () => Promise.resolve(),
     detachEmbedReindex: () => undefined,
+    detachRepointReindex: () => undefined,
     detachStaleSpaceReindex: () => undefined,
   };
   // chat's memory-enabled read for the search-discovery seam, which composes before chat. Bound once chat exists.
@@ -633,8 +634,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     recordProbeOutcome: credentials.recordProbeOutcome,
     // The late-bound holder above, derefed at request time.
     countOwnedVectors: (ownerId) => countOwnedVectors(ownerId),
-    onEmbedSpaceChanged: () => {
-      embedReindex.detachEmbedReindex(null);
+    onEmbedSpaceChanged: (ownerId) => {
+      embedReindex.detachRepointReindex(ownerId);
     },
     emitUserEvent: publishUserEvent,
   };

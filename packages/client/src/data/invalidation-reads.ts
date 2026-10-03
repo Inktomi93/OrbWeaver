@@ -4,7 +4,7 @@
 // The seam is real, not arithmetic: a row in the map answers "what does THIS event stale", and a set here
 // answers "which reads are that", which is the thing several rows share.
 //
-// Every export is consumed by `invalidation.ts` alone, except `connectionWriteReads`, which the connection
+// Every export is consumed by `invalidation.ts` alone, except `connectionWriteReads`, the set the connection
 // mutations share through `#data`. Nothing here calls `invalidateQueries` — the seam's chokepoint stays in the
 // map file (gate `no-inline-invalidate-outside-seam`).
 
@@ -32,7 +32,8 @@ export function corpusRecomputeReads(trpc: Trpc): readonly InvalidateFilter[] {
 }
 
 /** What a connection write moves: the `connection.*` reads, and the job list, because a write that changes the
- *  owner's embed space enqueues an index rebuild the vector role rows only start polling once they see it. */
+ *  owner's embed space enqueues an index rebuild the vector role rows only start polling once they see it. The
+ *  rebuild is queued detached, so `workloadsChanged` is what reliably lands it; this read is the same-tab try. */
 export function connectionWriteReads(trpc: Trpc): readonly InvalidateFilter[] {
   return [trpc.connection.pathFilter(), trpc.workloads.list.pathFilter()];
 }

@@ -493,7 +493,7 @@ const USER_TRACKED_KEYS = [
   // `pluginSurfaceStateChanged` it had no driver — `staleTime:Infinity` would freeze a rendered surface at its
   // first fetch; the member path-invalidates the read so `host.ui.setState` reaches the installer's own client.
   "pluginSurfaceState",
-  // The job list the vector role rows read their embed rebuild from; a connection write can enqueue one.
+  // The job list the vector role rows read their embed rebuild from.
   "workloadList",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
@@ -541,9 +541,11 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // A plugin surface published new state: path-invalidates the surface-state read so
   // the installer's own client refetches. Coarse by design — NOT `listSurfaces` (registration is unmoved).
   pluginSurfaceStateChanged: ["pluginSurfaceState"],
-  // It path-invalidates the WHOLE connection router, so the capability read under it goes stale too, plus the
-  // job list, because the write may have enqueued an embed rebuild.
-  connectionsChanged: ["connection", "chatCapability", "workloadList"],
+  // It path-invalidates the WHOLE connection router, so the capability read under it goes stale too. NOT the job
+  // list: a re-point's rebuild is queued after this tick and announces itself through `workloadsChanged`.
+  connectionsChanged: ["connection", "chatCapability"],
+  // A system-started job of yours: the job list and nothing else.
+  workloadsChanged: ["workloadList"],
 };
 
 // The user events carry no chatId EXCEPT `chatsChanged` (which reads it for the getChat branch). A `chatId`
