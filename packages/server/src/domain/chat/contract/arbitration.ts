@@ -7,6 +7,10 @@
 // the assembly per-speaker card selection consumes them off `AssembleContext`, not just arbitration. Consumers
 // import them straight from the contract.
 import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
+import type { RerankCapability } from "@orb/contracts/inference";
+import type { RerankResult } from "@orb/contracts/providers";
+import type { RerankDocument } from "@orb/contracts/role-clients";
+import type { CharacterId } from "@orb/kit/ids";
 
 /** One candidate the 7a/7b arbitration ranks — a present AI-driven `chat_participants` row's
  *  arbitration-relevant fields (the caller maps `loadParticipants` rows; `isAiDriven` gates the set). Humans are
@@ -27,6 +31,21 @@ export interface ArbiterCandidate {
 export interface SpeakerCandidate {
   readonly ref: SpeakerRef;
   readonly name: string;
+}
+
+/** The funder's bound rerank role as Smart's default pick reads it: the bound model's own capability (its
+ *  window sizes the query and persona documents) and the role call itself. Whatever the user bound runs. */
+export interface SpeakerReranker {
+  readonly capability: RerankCapability;
+  readonly rerank: (query: string, documents: RerankDocument[], opts?: { readonly instruction: string }) => Promise<RerankResult>;
+}
+
+/** One canon line as the speaker pick reads it: the text, its speaker's display name (null for an unnamed
+ *  row) and the character who wrote it (null for a human or an unattributed row). */
+export interface TranscriptLine {
+  readonly speakerName: string | null;
+  readonly text: string;
+  readonly characterId: CharacterId | null;
 }
 
 /** The 7b (`smart`) arbitration outcome: WHO speaks, plus whether the side-LLM actually decided it. Shared

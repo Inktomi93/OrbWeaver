@@ -120,7 +120,10 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     features: {
       prefill: "none",
+      // Ollama reads `reasoning_effort` as `think` on both chat routes (off for `none`).
+      effort: "reasoning_effort",
       modelInfoApi: "ollama",
+      nativeChat: "ollama",
     },
     catalog: "url",
     metered: false,
@@ -135,7 +138,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     // The reader states tools from `/props` `chat_template_caps`, which the server reports even under
     // `--no-jinja` while refusing `tools[]` with "tools param requires --jinja flag"; the chat backend maps
-    // that refusal to a readable error, and the user can set tool calls to no under Advanced.
+    // that refusal to a readable error, and the user overrides tool calls to no under Advanced.
     features: {
       prefill: "none",
       modelInfoApi: "llama-cpp",

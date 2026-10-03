@@ -7,6 +7,7 @@ import {
   memberCardVisibilitySchema,
   openingPolicySchema,
   roomOverridesSchema,
+  storedGroupConfigSchema,
 } from "@orb/contracts/chat";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
@@ -37,6 +38,13 @@ test("groupConfigSchema fills memberCardVisibility to 'sheet' by default (D22)",
   const parsed = groupConfigSchema.parse({ output: "per-speaker", policy: "natural" });
   expect(parsed.memberCardVisibility).toBe("sheet");
   expect(DEFAULT_GROUP_CONFIG.memberCardVisibility).toBe("sheet");
+});
+
+test("a stored Smart room from before the picker existed reads as the reranker; the Utility choice survives", () => {
+  const stored = { output: "per-speaker", policy: "smart", cardScope: "merged" };
+  expect(storedGroupConfigSchema.parse(stored)).toMatchObject({ policy: "smart", smartPicker: "reranker" });
+  expect(storedGroupConfigSchema.parse({ output: "narrator", policy: "smart", smartPicker: "utility" })).toMatchObject({ smartPicker: "utility" });
+  expect(storedGroupConfigSchema.parse({ ...stored, smartPicker: "oracle" })).toMatchObject({ smartPicker: "reranker" });
 });
 
 test("memberCardVisibility levels are the four D22 levels (floor → full)", () => {

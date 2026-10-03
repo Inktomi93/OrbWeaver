@@ -51,6 +51,12 @@ Per arm, in order:
 
 Evidence: `results/<arm>.jsonl`, one row per step, append-only.
 
+`node scripts/probes/local-servers/ollama-window.ts [--server-ctx=<n>]` runs the Ollama window through the
+app's own path: the connection's capability as the editor reads it, then a chat turn through the real turn
+pipeline. A fact rides the oldest history message the fit keeps, and the probe records whether the model
+still recalls it at the window the editor shows. Its header lists the arms; evidence is
+`results/ollama-window.jsonl`.
+
 ## Limits the reader cannot see
 
 - llama.cpp server reports `chat_template_caps` even when started with `--no-jinja`, and then refuses

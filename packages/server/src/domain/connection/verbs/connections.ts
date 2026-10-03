@@ -145,8 +145,12 @@ function createCreate(ctx: ConnectionContext): ConnectionService["create"] {
       { actorUserId: ownerId, action: "connection.create", entityType: "connection", entityId: id, metadata: { providerId: provider.id, model } },
       now,
     );
+    const created = await requireOwnedRow(ctx, ownerId, id);
+    // A new row asks the server again too: a model pulled since its mirror was warmed is absent from it, and
+    // an absent model reads the generic floor instead of what its server states.
+    await ctx.runtime.catalogs.invalidateEndpoint(created);
     ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
-    return toView(ctx, await requireOwnedRow(ctx, ownerId, id));
+    return toView(ctx, created);
   };
 }
 

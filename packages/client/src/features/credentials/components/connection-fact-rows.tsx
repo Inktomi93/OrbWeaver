@@ -154,6 +154,9 @@ function FactEditControl({
   if (edit.kind === "enum") {
     return <FactSelect items={edit.options.map((option) => ({ label: option, value: option }))} label={label} onChange={onChange} value={value} />;
   }
+  if (edit.kind === "choice") {
+    return <FactSelect items={edit.choices.map((choice) => ({ label: choice.label, value: choice.label }))} label={label} onChange={onChange} value={value} />;
+  }
   return (
     <Field label={label}>
       <Input

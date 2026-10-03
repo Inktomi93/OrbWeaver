@@ -80,6 +80,7 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { ActiveTurns } from "./active-turns.ts";
+import type { SpeakerReranker } from "./arbitration.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "./foreign.ts";
 import type { MemoryEmbedSpace, MemoryLog, MemoryRecallPhaseEmitter, MemoryRecallSink } from "./memory.ts";
 import type { ResolvedMediaRef, TurnKind, TurnRequest, TurnStreamChunk } from "./results.ts";
@@ -1449,6 +1450,9 @@ export interface ChatContext {
   /** Version-only rebuild fence for canon writes that have no exact incremental rollup delta. */
   readonly bumpStatsCanonVersion: BumpStatsCanonVersionOp;
   readonly summarize: SummarizeOp;
+  /** The FUNDER's bound rerank role for Smart's default speaker pick, or null when the role is unbound. Resolved
+   *  per call through `roleClientsFor(funder)`, so whatever model the user bound is what ranks. */
+  readonly resolveSpeakerReranker: (funderUserId: UserId) => Promise<SpeakerReranker | null>;
   /** The FUNDER's summarize model's context window (tokens) — the memory build's token-guard fits each
    *  summarizer call to the actual context. Resolved PER CALL through `roleClientsFor(funder).resolved("summarize")`
    *  (inference program §7.5-1b: `capability.context.window`, no bespoke getter); a funder whose summarize task

@@ -50,9 +50,20 @@ function metadataFor(group: CollectedGroup): ChatMetadata {
   // it is built from the knobs BOTH arms share — destructured off the canonical default rather than re-spelled,
   // so a new shared knob is a compile error here instead of a silently-defaulted room. `speakerTags` is the
   // narrator arm's OWN default (true), which differs from the per-speaker arm's.
-  const { policy, groupNudge, autoMode, autoModeMaxTurns, autoModeDelayMs, memberCardVisibility } = DEFAULT_GROUP_CONFIG;
+  const { policy, smartPicker, groupNudge, autoMode, autoModeMaxTurns, autoModeDelayMs, memberCardVisibility } = DEFAULT_GROUP_CONFIG;
   return {
-    group: { output: "narrator", policy, speakerTags: true, groupNudge, autoMode, autoModeMaxTurns, autoModeDelayMs, memberCardVisibility, allowSelfResponses },
+    group: {
+      output: "narrator",
+      policy,
+      smartPicker,
+      speakerTags: true,
+      groupNudge,
+      autoMode,
+      autoModeMaxTurns,
+      autoModeDelayMs,
+      memberCardVisibility,
+      allowSelfResponses,
+    },
   };
 }
 

@@ -63,6 +63,7 @@ const GROUP_OF_ONE: GroupConfig = {
 const NARRATOR_OF_ONE: GroupConfig = {
   output: "narrator",
   policy: DEFAULT_GROUP_CONFIG.policy,
+  smartPicker: DEFAULT_GROUP_CONFIG.smartPicker,
   speakerTags: true,
   groupNudge: DEFAULT_GROUP_CONFIG.groupNudge,
   autoMode: DEFAULT_GROUP_CONFIG.autoMode,

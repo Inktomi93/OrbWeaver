@@ -4,7 +4,7 @@
 
 import type { Capability, DeclaredCapability } from "@orb/contracts/inference";
 import { REASONING_MODES } from "@orb/contracts/inference";
-import type { FactLeaf, FactRow } from "./connection-fact-model.ts";
+import type { FactChoice, FactLeaf, FactRow } from "./connection-fact-model.ts";
 import { draftOf, formatLeaf, NOT_STATED, readPath, tokens, unsetRow } from "./connection-fact-model.ts";
 
 /** The source line for a capability row this client cannot attribute per field. Deliberately NOT one of the
@@ -14,6 +14,19 @@ const CAPABILITY_SOURCE = "what this server and model report";
 const ASSUMED_SOURCE = "assumed, because the server doesn't report it. Override it with your server's real value.";
 const UNSTATED_SOURCE = "nobody has stated it, so it counts as no. Override it if your server supports it.";
 const ASSUMED_SUFFIX = " (assumed)";
+
+function toolsWith(parallel: boolean): (value: unknown) => boolean {
+  return (value): boolean => readPath(value, "parallel") === parallel;
+}
+
+/** `tools` present means "accepts tools[]" and `parallel` is its one required field, so each yes writes the
+ *  whole block. The no writes `null`, the declared absence that beats a server's reported yes (a llama.cpp
+ *  server without `--jinja` reports tools it refuses). The first answer seeds an unstated row. */
+const TOOL_CALL_CHOICES: readonly FactChoice[] = [
+  { label: "yes, one at a time", writes: { parallel: false }, matches: toolsWith(false) },
+  { label: "yes, several at once", writes: { parallel: true }, matches: toolsWith(true) },
+  { label: "no", writes: null, matches: (value): boolean => value === null || value === undefined },
+];
 
 const GENERATION_LEAVES: readonly FactLeaf[] = [
   {
@@ -37,14 +50,7 @@ const GENERATION_LEAVES: readonly FactLeaf[] = [
   { path: "generation.reasoning.enabled", name: "thinking", edit: { kind: "boolean" } },
   { path: "generation.reasoning.mode", name: "thinking dial", edit: { kind: "enum", options: REASONING_MODES } },
   { path: "generation.output.structured", name: "structured output", edit: { kind: "boolean" }, unset: NOT_STATED },
-  // `tools` present means "accepts tools[]", and `parallel` is its one required field, so declaring this leaf
-  // is declaring tool calls. Both answers are a yes; the absence is the no.
-  {
-    path: "generation.tools.parallel",
-    name: "tool calls",
-    edit: { kind: "boolean", labels: { yes: "yes, several at once", no: "yes, one at a time" } },
-    unset: NOT_STATED,
-  },
+  { path: "generation.tools", name: "tool calls", edit: { kind: "choice", choices: TOOL_CALL_CHOICES }, unset: NOT_STATED },
 ];
 
 const EMBEDDING_LEAVES: readonly FactLeaf[] = [
@@ -78,12 +84,8 @@ function leavesOf(capability: Capability): readonly FactLeaf[] {
   return RERANK_LEAVES;
 }
 
-/** An overridden row restates the baseline's value — "not stated" when the baseline lacks the leaf — and
- *  says only "your override" when no baseline was handed in. */
-function overriddenCapabilitySource(leaf: FactLeaf, baseline: Capability | undefined): string {
-  if (baseline === undefined) {
-    return "your override";
-  }
+/** An overridden row restates the baseline's value, "not stated" when the baseline lacks the leaf. */
+function overriddenCapabilitySource(leaf: FactLeaf, baseline: Capability): string {
   const prior = readPath(baseline, leaf.path);
   return `your override — it was ${prior === undefined ? NOT_STATED : formatLeaf(leaf, prior)}`;
 }
@@ -92,11 +94,7 @@ function overriddenCapabilitySource(leaf: FactLeaf, baseline: Capability | undef
 function statedCapabilityRow(
   leaf: FactLeaf,
   value: unknown,
-  {
-    capability,
-    declared,
-    baseline,
-  }: { readonly capability: Capability; readonly declared: DeclaredCapability | null; readonly baseline: Capability | undefined },
+  { capability, declared, baseline }: { readonly capability: Capability; readonly declared: DeclaredCapability | null; readonly baseline: Capability },
 ): FactRow {
   const overridden = readPath(declared, leaf.path) !== undefined;
   const estimated = !overridden && leaf.estimatedBy !== undefined && readPath(capability, leaf.estimatedBy) === true;
@@ -135,14 +133,15 @@ function siblingsFor(path: string, capability: Capability): Readonly<Record<stri
 /**
  * "What this server accepts" — the same row grammar as the quirks, over the FOLDED capability.
  *
- * `baseline` is the same synthesis computed WITHOUT the row's `declared`: with it, every overridden row
- * restates the value it replaced, exactly as the quirks do; without it the source line says "your override"
- * with no invented prior. A declarable leaf the fold leaves unstated renders as {@link NOT_STATED}.
+ * `baseline` is the same synthesis computed WITHOUT the row's `declared` (`connection.capabilities` always
+ * returns it), so every overridden row restates the value it replaced, exactly as the quirks do. A declarable
+ * leaf the fold leaves unstated renders as {@link NOT_STATED}.
  */
-export function capabilityFactRows(capability: Capability, declared: DeclaredCapability | null, baseline?: Capability): readonly FactRow[] {
+export function capabilityFactRows(capability: Capability, declared: DeclaredCapability | null, baseline: Capability): readonly FactRow[] {
   const rows: FactRow[] = [];
   for (const leaf of leavesOf(capability)) {
-    const value = readPath(capability, leaf.path);
+    // A declared `null` (tool calls: no) folds to an absent leaf; the row still states the override.
+    const value = readPath(declared, leaf.path) === null ? null : readPath(capability, leaf.path);
     if (value === undefined) {
       if (leaf.unset !== undefined) {
         rows.push(unsetRow(leaf.path, leaf, leaf.unset, UNSTATED_SOURCE));

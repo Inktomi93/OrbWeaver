@@ -79,6 +79,29 @@ test("the window is estimated when no tier above the floor states one", () => {
   expect(gen.context.window).toBe(GENERATION_FLOOR.context.window);
 });
 
+// A llama.cpp server without `--jinja` reports tools it refuses; the connection's declared no is the fix.
+test("a declared no to tool calls removes a reported yes, and the family floor does not add it back", () => {
+  const declared = { generation: { tools: null } };
+  const local = generationOf(synthesizeCapability("generation", "qwen", { advertised: { tools: { parallel: true } }, declared }).capability);
+  expect(local.tools).toBeUndefined();
+  const claude = generationOf(synthesizeCapability("generation", "anthropic", { curated: [curated], declared }).capability);
+  expect(claude.tools).toBeUndefined();
+  // PLANTED CONTROL: without the declaration the floor and the advertised yes both state tools.
+  expect(generationOf(synthesizeCapability("generation", "anthropic", {}).capability).tools).toEqual({ parallel: true });
+});
+
+// An Ollama model with no pinned `num_ctx`: the server's default floor replaces both the generic floor and a
+// curated trained maximum, because that is what the server runs, and it stays a guess until something states it.
+test("a server's assumed window wins the fold but stays estimated, and a later tier's stated window clears the mark", () => {
+  const assumed = { context: { window: 4096, windowEstimated: true } };
+  const gen = generationOf(synthesizeCapability("generation", "other", { curated: [curated], advertised: assumed }).capability);
+  expect(gen.context).toEqual({ window: 4096, windowEstimated: true });
+  const declared = generationOf(
+    synthesizeCapability("generation", "other", { advertised: assumed, declared: { generation: { context: { window: 16_384 } } } }).capability,
+  );
+  expect(declared.context).toEqual({ window: 16_384 });
+});
+
 // The own-server case: a local model no tier knows (the kind floor states no tools and no structured output),
 // and the user's box is the truth about the user's box. Without this the model can serve neither the agent
 // nor the structured task, and a game on it has no write path.
