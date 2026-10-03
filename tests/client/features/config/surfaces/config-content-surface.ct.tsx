@@ -144,6 +144,8 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "connection.list": [],
   "connection.listBindings": [],
   "connection.providersAvailable": [],
+  // Model roles' Utility preset Select (D299) lists the reader's presets; unfed, the Model roles section errors.
+  "preset.list": [],
   // The About group's version section suspends on the version identity.
   "settings.getVersion": { version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout", channel: "main" },
   "plugin.list": [],
