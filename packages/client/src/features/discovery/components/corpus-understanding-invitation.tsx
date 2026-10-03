@@ -28,6 +28,10 @@
 // completeness each one actually has. Printing them twice on one screen is the IA duplication the density
 // pass lists as its fourth habit, and the rail is the better home because a stage there can say "3 of 10".
 //
+// THE PASS RUNS ON THE UTILITY MODEL, AND SAYS SO BEFORE IT RUNS. Built-in embeddings make the rest of Corpus work
+// with no setup, which hides that distilling cards and summarizing chats need a Utility model. With none ready the
+// door is disabled and explained beside the Model roles door, instead of enqueuing a pass that can only fail.
+//
 // "THEMES" IS ALWAYS "STORY THEMES" on this surface — the discovery domain's distillation output, not the
 // app's colour themes. The two share a word and the owner has been caught by it once.
 
@@ -39,9 +43,11 @@ import { Progress } from "@orb/ui/progress";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import { ModelRunConfirmDialog, useUtilityModel } from "#components";
 import { openConfigTo } from "#state";
 import type { UnderstandingPassView } from "../hooks/use-understanding-pass.ts";
-import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
+import { RUN_PASS_LABEL, useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
+import { UnderstandingPassUtilityNote } from "./understanding-pass-utility-note.tsx";
 
 /** The rationed accent glow on the sanctioned ::before carrier (the hearth-hero precedent: a chromatic glow
  *  on an element's OWN box-shadow is the generated-UI tell `design-audit-checks.ts` classifies).
@@ -60,7 +66,10 @@ const PERCENT = 100;
 
 export function CorpusUnderstandingInvitation(): ReactElement {
   const titleId = useId();
+  const utilityNoteId = useId();
   const pass = useUnderstandingPass();
+  const utility = useUtilityModel();
+  const utilityMissing = utility.kind === "unset" || utility.kind === "blocked";
   // The live tail for whichever run currently holds the floor; a null id detaches the room.
   useUnderstandingPassTail(pass.liveRunId, pass.onLiveProgress);
   return (
@@ -84,14 +93,21 @@ export function CorpusUnderstandingInvitation(): ReactElement {
             <Text className="max-w-(--reading-measure-prose)" voice="reading">
               {passProse(pass)}
             </Text>
+            {pass.running ? null : <UnderstandingPassUtilityNote id={utilityNoteId} utility={utility} />}
             {pass.memoryDisabled ? <MemoryOffNote /> : null}
             <UnderstandingPassProgress pass={pass} />
           </Stack>
           <Stack className="shrink-0" gap="tight">
             {pass.running ? null : (
-              <Button data-slot="understanding-pass-run" disabled={pass.starting} intent="primary" onClick={pass.start}>
+              <Button
+                aria-describedby={utilityMissing ? utilityNoteId : undefined}
+                data-slot="understanding-pass-run"
+                disabled={pass.starting || utilityMissing}
+                intent="primary"
+                onClick={pass.start}
+              >
                 <Icon icon={Sparkles} size="sm" />
-                {pass.failure === null ? "Run the understanding pass" : "Try the understanding pass again"}
+                {pass.failure === null ? RUN_PASS_LABEL : "Try the understanding pass again"}
               </Button>
             )}
             {/* The full runs console is still one click away — it just is not where the work starts any more. */}
@@ -101,6 +117,7 @@ export function CorpusUnderstandingInvitation(): ReactElement {
           </Stack>
         </Row>
       </Container>
+      <ModelRunConfirmDialog {...pass.confirm} />
     </Card>
   );
 }

@@ -36,10 +36,13 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { RECEDED_INK } from "@orb/ui/lib";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useId } from "react";
+import { ModelRunConfirmDialog, useUtilityModel } from "#components";
 import { QueryErrorState } from "#data";
 import { openConfigTo } from "#state";
 import { useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
 import type { CorpusReadinessStage } from "../lib/corpus-analysis-state.ts";
+import { UnderstandingPassUtilityNote } from "./understanding-pass-utility-note.tsx";
 
 export interface CorpusReadinessRailProps {
   readonly stages: readonly CorpusReadinessStage[];
@@ -121,6 +124,10 @@ export function CorpusReadinessRail({ stages, showRerun, queue }: CorpusReadines
 /** The re-run door — and, while a pass is live, that run's state in the rail's own register. */
 function CorpusReadinessRerun(): ReactElement {
   const pass = useUnderstandingPass();
+  const utility = useUtilityModel();
+  const utilityNoteId = useId();
+  // The re-run spends exactly what the first run did, so it is held to the same Utility gate and the same confirm.
+  const utilityMissing = utility.kind === "unset" || utility.kind === "blocked";
   useUnderstandingPassTail(pass.liveRunId, pass.onLiveProgress);
   if (pass.running) {
     return (
@@ -145,9 +152,17 @@ function CorpusReadinessRerun(): ReactElement {
           ONE primary, and it is never TWO: this rerun renders only while `showRerun` is true, which is
           exactly the phase in which the invitation (and its own `intent="primary"` door) is gone. CD3's
           focal budget is spent by the map island's ring, not by a control. */}
-      <Button disabled={pass.starting} intent="primary" onClick={pass.start} size="sm">
+      <Button
+        aria-describedby={utilityMissing ? utilityNoteId : undefined}
+        disabled={pass.starting || utilityMissing}
+        intent="primary"
+        onClick={pass.start}
+        size="sm"
+      >
         Run the passes again
       </Button>
+      {utilityMissing ? <UnderstandingPassUtilityNote id={utilityNoteId} utility={utility} /> : null}
+      <ModelRunConfirmDialog {...pass.confirm} />
       {/* A DIED run and a FAILED run are different sentences (issue #166 rider 3): `worker_died` carries no
           reason of its own, so quoting `pass.failure` printed "stopped: undefined" — a failure state that
           reads as a broken message rather than a run to retry.

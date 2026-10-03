@@ -17,6 +17,7 @@
 import {
   asStartWorkloadInput,
   cancelWorkloadResultSchema,
+  modelCallEstimateSchema,
   scheduleCadenceSchema,
   startWorkloadEnvelope,
   WORKLOAD_LIST_MAX_LIMIT,
@@ -61,6 +62,28 @@ export const workloadsRouter = t.router({
         ...(input.targetOwnerId !== undefined ? { targetOwnerId: input.targetOwnerId } : {}),
         ...(input.dependsOn !== undefined ? { dependsOn: input.dependsOn } : {}),
         ...(input.scheduledAt !== undefined ? { scheduledAt: input.scheduledAt } : {}),
+      });
+    }),
+
+  // The size of a run before a person confirms it: the same envelope and mode gate as `start`, read-only.
+  estimateModelCalls: authedProcedure
+    .output(modelCallEstimateSchema)
+    .input(
+      z.object({
+        input: startWorkloadEnvelope,
+        mode: workloadModeSchema.default("singular"),
+        targetOwnerId: brandedId<UserId>().optional(),
+      }),
+    )
+    .query(({ ctx, input }) => {
+      if (input.mode === "bulk") {
+        requireOwner(ctx.auth);
+      }
+      return ctx.services.workloads.estimateModelCalls({
+        input: asStartWorkloadInput(input.input),
+        caller: ctx.auth,
+        mode: input.mode,
+        ...(input.targetOwnerId !== undefined ? { targetOwnerId: input.targetOwnerId } : {}),
       });
     }),
 

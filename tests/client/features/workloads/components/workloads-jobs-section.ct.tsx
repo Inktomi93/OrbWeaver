@@ -21,14 +21,22 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/node/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/node/route-orb-socket.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`
 // never answers them and they rode `routeTrpc`'s lenient null in every mount here. Imported from the bus's
 // own fixture module rather than re-spelled, so the two directions of this feed cannot drift apart.
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
 import { WorkloadsJobsSectionStory } from "../_ct-stories.tsx";
+
+/** The paid-run confirm's reads (its Utility line and the server's call count), fed in every mount: a running Utility
+ *  model and a run that calls no model, so a job starts at once unless a test overrides the count. */
+const PAID_RUN_ROUTES: TrpcRoutes<"connection.list" | "connection.listBindings" | "workloads.estimateModelCalls"> = {
+  ...UTILITY_RUNNING_ROUTES,
+  "workloads.estimateModelCalls": { calls: 0 },
+};
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" } satisfies TrpcWireOutput<"sessions.me">;
 const OWNER_VIEWER = { userId: "user_ct_root", handle: "root", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
@@ -137,6 +145,7 @@ function routeWorkloadStream(page: Page, events: readonly WorkloadEvent[]): Prom
 test("lists the caller's own jobs with status badges; a plain user never fires admin.listUsers; tabs filter", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () =>
       workloadList(
         workloadRow(),
@@ -186,6 +195,7 @@ test("lists the caller's own jobs with status badges; a plain user never fires a
 test("run dialog: singular by default, params ride the kind, and a non-owner sees NO bulk affordances", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [],
     "sessions.me": () => USER_VIEWER,
     "workloads.start": () => ({ id: "workload_ct_new" }),
@@ -270,6 +280,7 @@ test("run dialog: singular by default, params ride the kind, and a non-owner see
 test("owner bulk create-kind: the Bulk switch + required target picker wire targetOwnerId", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [],
     "sessions.me": () => OWNER_VIEWER,
     "admin.listUsers": () => ADMIN_USERS,
@@ -334,6 +345,7 @@ test("owner bulk create-kind: the Bulk switch + required target picker wire targ
 test("owner maintenance kind: the Maintenance group offers refresh-model-catalog; it runs mode:bulk with NO target", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [],
     "sessions.me": () => OWNER_VIEWER,
     "admin.listUsers": () => ADMIN_USERS,
@@ -400,6 +412,7 @@ test("owner maintenance kind: the Maintenance group offers refresh-model-catalog
 test("a failed row shows the FRIENDLY message; the raw exception stays one disclosure away", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [
       workloadRow({
         status: "failed",
@@ -424,6 +437,7 @@ test("a failed row shows the FRIENDLY message; the raw exception stays one discl
 test("an UNMAPPED failure falls back to the raw string verbatim (no disclosure)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [workloadRow({ status: "failed", error: "runtime: something weirdly specific" })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -439,6 +453,7 @@ test("an UNMAPPED failure falls back to the raw string verbatim (no disclosure)"
 test("cancel is confirm-gated (AlertDialog) and retry fires on a failure terminal", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () =>
       workloadList(
         workloadRow(),
@@ -472,7 +487,7 @@ test("cancel is confirm-gated (AlertDialog) and retry fires on a failure termina
 });
 
 test("a LIVE progress event drives the row's determinate progress bar (row-local buffer)", async ({ mount, page }) => {
-  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "workloads.list": () => [workloadRow()], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, ...PAID_RUN_ROUTES, "workloads.list": () => [workloadRow()], "sessions.me": () => USER_VIEWER });
   await routeWorkloadStream(page, [
     {
       type: "progress",
@@ -499,6 +514,7 @@ const DEPENDENCY_FAILED_MESSAGE = "a dependency did not succeed (a non-success t
 test("run dialog: setting 'Run at' defers the run — start carries scheduledAt (epoch ms)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [],
     "sessions.me": () => USER_VIEWER,
     "workloads.start": () => ({ id: "workload_ct_new" }),
@@ -523,6 +539,7 @@ test("run dialog: setting 'Run at' defers the run — start carries scheduledAt 
 test("run dialog: 'Run after these complete' lists in-flight runs and wires dependsOn", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     // One in-flight run owned by the viewer → offered as a dependency candidate.
     "workloads.list": () => workloadList(distillWorkloadRow({ id: "workload_ct_dep", status: "running" })),
     "sessions.me": () => USER_VIEWER,
@@ -546,6 +563,7 @@ test("run dialog: 'Run after these complete' lists in-flight runs and wires depe
 test("list: a deferred (future-dated) queued row shows the Scheduled state, not a progress bar", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [
       workloadRow({
         status: "queued",
@@ -571,6 +589,7 @@ test("list: a deferred (future-dated) queued row shows the Scheduled state, not 
 test("list: rows in BOTH lanes render under their lane headings", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [
       ingestWorkloadRow({
         id: "workload_ct_ingest",
@@ -596,6 +615,7 @@ test("list: rows in BOTH lanes render under their lane headings", async ({ mount
 test("list: with every row in ONE lane the heading is dropped (a lone group label is noise)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [workloadRow(), themeWorkloadRow({ id: "workload_ct_2" })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -613,6 +633,7 @@ test("list: with every row in ONE lane the heading is dropped (a lone group labe
 test("list: a running row renders its DURABLE progress with no live event at all", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [workloadRow({ progress: { pct: 72, message: "Embedded 720 of 1000" } })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -632,6 +653,7 @@ test("list: a running row renders its DURABLE progress with no live event at all
 test("list: the Bulk badge is a NEUTRAL category chip, never a warning beside a green status", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [workloadRow({ status: "succeeded", mode: "bulk", result: { embedded: 12, skipped: 0 } })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -665,6 +687,7 @@ test("list: the Bulk badge is a NEUTRAL category chip, never a warning beside a 
 test("list: a POISON row is visible, flagged, and retryable", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () =>
       workloadList(poisonWorkloadRow({ status: "failed", error: "unrecognized or malformed workload kind: compute-themes", kind: "compute-themes" })),
     "sessions.me": () => USER_VIEWER,
@@ -684,6 +707,7 @@ test("list: a POISON row is visible, flagged, and retryable", async ({ mount, pa
 test("list: a queued row with dependsOn shows the Waiting-on-dependencies state", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [workloadRow({ status: "queued", dependsOn: ["workload_ct_a", "workload_ct_b"] })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -699,6 +723,7 @@ test("list: a queued row with dependsOn shows the Waiting-on-dependencies state"
 test("list: a dependency_failed terminal is labelled apart from a normal failure", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => [workloadRow({ status: "failed", error: DEPENDENCY_FAILED_MESSAGE })],
     "sessions.me": () => USER_VIEWER,
   });
@@ -718,6 +743,7 @@ test("a LIVE terminal event refetches the list — Running flips to Succeeded wi
   let listCalls = 0;
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => {
       listCalls += 1;
       // The seed read sees the running row; the terminal-event invalidate refetches the succeeded one.
@@ -752,6 +778,7 @@ test("THREE active rows attach THREE rooms over exactly ONE socket; a finished r
   let listCalls = 0;
   await routeTrpc(page, {
     ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
     "workloads.list": () => {
       listCalls += 1;
       const first = listCalls === 1 ? workloadRow() : workloadRow({ status: "succeeded", result: { embedded: 12, skipped: 0 } });
@@ -801,7 +828,7 @@ test("THREE active rows attach THREE rooms over exactly ONE socket; a finished r
 // not a dead end — the header's "Run a job…" is on screen directly above it, so a per-tab CTA was a second
 // simultaneous home for one verb. Only the ALL tab (genuinely nothing to read, ever) keeps its own.
 test("empty states: only the ALL tab carries a run CTA; a filtered tab's empty state has none", async ({ mount, page }) => {
-  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "workloads.list": () => [], "sessions.me": () => USER_VIEWER });
+  await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, ...PAID_RUN_ROUTES, "workloads.list": () => [], "sessions.me": () => USER_VIEWER });
   await routeWorkloadStream(page, []);
 
   await mount(<WorkloadsJobsSectionStory />);
@@ -817,4 +844,59 @@ test("empty states: only the ALL tab carries a run CTA; a filtered tab's empty s
 
   // The ONE surviving home is the section header's primary — never hidden per-tab (hiding it would flicker).
   await expect(page.getByTestId("workloads-run-button")).toBeVisible();
+});
+
+// ── a library-wide paid run confirms its size first (0451) ──────────────────────────────────────────────────
+// The count is the server's (`workloads.estimateModelCalls`); a job that calls no model (or none this time) starts
+// at once, which every test above already exercises through the unstubbed estimate.
+
+test("run dialog: a job that calls a model shows its count and starts only on yes", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
+    "workloads.list": () => [],
+    "sessions.me": () => USER_VIEWER,
+    "workloads.estimateModelCalls": { calls: 37 },
+    "workloads.start": () => ({ id: "workload_ct_new" }),
+  });
+  await routeWorkloadStream(page, []);
+
+  await mount(<WorkloadsJobsSectionStory />);
+  await page.getByTestId("workloads-run-button").click();
+  await page.getByRole("combobox", { name: "Job" }).click();
+  await page.getByRole("option", { name: WORKLOAD_KIND_LABELS["distill-characters"] }).click();
+  await page.getByTestId("run-workload-submit").click();
+
+  const confirm = page.getByRole("alertdialog", { name: `Run ${WORKLOAD_KIND_LABELS["distill-characters"]}?` });
+  await expect(confirm).toBeVisible();
+  await expect.poll(() => trpc.lastInput("workloads.estimateModelCalls")).toEqual({ input: { kind: "distill-characters", params: {} }, mode: "singular" });
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the confirm is open (settled above) and only its yes starts the run; a poll would pass at t=0 and prove less.
+  expect(trpc.count("workloads.start")).toBe(0);
+
+  await confirm.getByRole("button", { name: "Run job" }).click();
+  await expect(page.getByTestId("run-workload-dialog")).toHaveCount(0);
+  await expect.poll(() => (trpc.lastInput("workloads.start") as { input?: { kind?: unknown } }).input?.kind).toBe("distill-characters");
+});
+
+test("retry of a job that calls a model shows its count and re-runs only on yes", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
+    "workloads.list": () => workloadList(distillWorkloadRow({ id: "workload_ct_2", status: "failed", error: "runtime: boom" })),
+    "sessions.me": () => USER_VIEWER,
+    "workloads.estimateModelCalls": { calls: 8 },
+    "workloads.retry": () => ({ id: "workload_ct_clone" }),
+  });
+  await routeWorkloadStream(page, []);
+
+  await mount(<WorkloadsJobsSectionStory />);
+  await page.getByRole("button", { name: `Retry — ${WORKLOAD_KIND_LABELS["distill-characters"]}` }).click();
+
+  const confirm = page.getByRole("alertdialog", { name: `Retry ${WORKLOAD_KIND_LABELS["distill-characters"]}?` });
+  await expect(confirm).toBeVisible();
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the confirm is open (settled above) and only its yes retries; a poll would pass at t=0 and prove less.
+  expect(trpc.count("workloads.retry")).toBe(0);
+
+  await confirm.getByRole("button", { name: "Retry" }).click();
+  await expect.poll(() => (trpc.lastInput("workloads.retry") as { id?: unknown } | undefined)?.id).toBe("workload_ct_2");
 });

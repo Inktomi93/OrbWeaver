@@ -17,6 +17,9 @@
 // offers the box owner the editor's owner-only Admit control under it. The statement takes focus when it appears
 // (the submit may go disabled under the caret, and on a phone the statement is below the fold), and it is
 // withdrawn at the first edit, because it describes the draft that was submitted, not the one being typed.
+//
+// THE FIRST CONNECTION THAT CAN CHAT OPENS THE FIRST-MODEL STEP (`first-model-setup.tsx`) instead of closing: it
+// becomes the Chat model, and the step asks for the Utility model, which may be a second connection added here.
 
 import type { ModelCheck, ProviderDef } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
@@ -40,6 +43,7 @@ import { useAddCredentialOwned, useCreateConnectionOwned, useDraftCatalogModels 
 import { useSignInCheckAfterSave } from "../hooks/use-sign-in-check.ts";
 import type { AddConnectionFormValues } from "../lib/add-connection-form-model.ts";
 import {
+  ADD_DIALOG_COPY,
   acceptsKey,
   CONNECTION_FORM_COPY,
   draftKeyOf,
@@ -58,6 +62,7 @@ import { AddConnectionFailure } from "./add-connection-failure.tsx";
 import type { HeldKey } from "./add-connection-provider-fields.tsx";
 import { ProviderFields } from "./add-connection-provider-fields.tsx";
 import type { DraftListing } from "./draft-models-check.tsx";
+import { FirstModelSetup } from "./first-model-setup.tsx";
 import type { ModelPickerProps } from "./model-picker.tsx";
 
 type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
@@ -86,42 +91,98 @@ export interface AddConnectionDialogProps {
   readonly invalidation: Invalidation;
 }
 
+type ConnectionView = inferOutput<Trpc["connection"]["create"]>;
+
+/** What the dialog is doing: adding a connection, the first-model step, or adding the Utility model that step asked for. */
+type AddStep =
+  | { readonly kind: "add" }
+  | { readonly kind: "setup"; readonly chat: ConnectionView; readonly picked: ConnectionView["id"] | null }
+  | { readonly kind: "add-utility"; readonly chat: ConnectionView };
+
+const ADD_STEP: AddStep = { kind: "add" };
+
 export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation }: AddConnectionDialogProps): ReactElement {
+  const [step, setStep] = useState<AddStep>(ADD_STEP);
+  // Every close starts the next open at the add form.
+  const changeOpen = (next: boolean): void => {
+    if (!next) {
+      setStep(ADD_STEP);
+    }
+    onOpenChange(next);
+  };
+  const onSaved = (created: ConnectionView, firstChatModel: boolean): void => {
+    if (step.kind === "add-utility") {
+      setStep({ kind: "setup", chat: step.chat, picked: created.id });
+      return;
+    }
+    if (firstChatModel) {
+      setStep({ kind: "setup", chat: created, picked: null });
+      return;
+    }
+    changeOpen(false);
+  };
   return (
-    <FormDialog
-      description="One provider, one model. Keys are encrypted at rest and never shown again."
-      onOpenChange={onOpenChange}
-      open={open}
-      title="Add a connection"
-    >
+    <FormDialog description={ADD_DIALOG_COPY[step.kind].description} onOpenChange={changeOpen} open={open} title={ADD_DIALOG_COPY[step.kind].title}>
       {/* DELIBERATELY UNRESERVED (#1098): a dialog body sizes itself around its content. */}
       <QueryBoundary fallback={<WebSpinner label="Checking key storage…" />}>
-        <AddConnectionGate trpc={trpc} invalidation={invalidation} onDone={(): void => onOpenChange(false)} />
+        {step.kind === "setup" ? (
+          <FirstModelSetup
+            chat={step.chat}
+            invalidation={invalidation}
+            onAddUtility={(): void => setStep({ kind: "add-utility", chat: step.chat })}
+            onDone={(): void => changeOpen(false)}
+            picked={step.picked}
+            trpc={trpc}
+          />
+        ) : (
+          <AddConnectionGate
+            invalidation={invalidation}
+            key={step.kind}
+            onCancel={step.kind === "add-utility" ? (): void => setStep({ kind: "setup", chat: step.chat, picked: null }) : undefined}
+            onSaved={onSaved}
+            purpose={step.kind === "add-utility" ? "utility" : "connection"}
+            trpc={trpc}
+          />
+        )}
       </QueryBoundary>
     </FormDialog>
   );
 }
 
+/** Why the form is open: an ordinary add, or the Utility model the first-model step asked for, which is saved with
+ *  background work on because that role never runs without it. */
+type AddPurpose = "connection" | "utility";
+
+/** The Utility add's stand-in for the background switch: the role needs it on, so it is stated, not offered. */
+const UTILITY_BACKGROUND_NOTE = "Allow background work is on for this connection, so it can run your summaries, captions and extraction.";
+
+interface GateProps {
+  readonly trpc: Trpc;
+  readonly invalidation: Invalidation;
+  readonly purpose: AddPurpose;
+  /** Called once the row exists; `firstChatModel` = it is the first of the user's connections that can chat. */
+  readonly onSaved: (created: ConnectionView, firstChatModel: boolean) => void;
+  /** Replaces the footer's Cancel close with a step back, where the form is a step inside a longer flow. */
+  readonly onCancel: (() => void) | undefined;
+}
+
 /** CREDENTIAL-STORAGE-SILENT-FAIL — ASK BEFORE COLLECTING: the deployment's SecretBox capability is read
  *  first and the INPUT refused, never the save, so nobody types a live key into a form that cannot keep it.
  *  The refusal is per provider (`keyStorageBlocks`): a keyless own-server row needs no storage at all. */
-function AddConnectionGate({
-  trpc,
-  invalidation,
-  onDone,
-}: {
-  readonly trpc: Trpc;
-  readonly invalidation: Invalidation;
-  readonly onDone: () => void;
-}): ReactElement {
+function AddConnectionGate({ trpc, invalidation, purpose, onSaved, onCancel }: GateProps): ReactElement {
   const { data: storage } = useSuspenseQuery(trpc.credentials.storageStatus.queryOptions());
   const { data: available } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
+  const { data: connections } = useSuspenseQuery(trpc.connection.list.queryOptions());
+  // Read once, at open: the list refetches the moment this form's own row lands, and the question is about before.
+  const [hadChatModel] = useState(() => connections.some((connection) => connection.tasks.includes("chat")));
   const providers = new Map(available.map((row) => [row.provider.id as string, row.provider]));
   return (
     <AddConnectionFormBody
       trpc={trpc}
       invalidation={invalidation}
-      onDone={onDone}
+      purpose={purpose}
+      onSaved={(created): void => onSaved(created, !hadChatModel && created.tasks.includes("chat"))}
+      onCancel={onCancel}
       keyStorage={storage.enabled}
       pickerItems={providerPickerItems(available)}
       providerOf={(id): ProviderDef | undefined => providers.get(id)}
@@ -132,7 +193,9 @@ function AddConnectionGate({
 interface FormBodyProps {
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
-  readonly onDone: () => void;
+  readonly purpose: AddPurpose;
+  readonly onSaved: (created: ConnectionView) => void;
+  readonly onCancel: (() => void) | undefined;
   /** The deployment can store a secret; off ⇒ a provider that needs one cannot be added. */
   readonly keyStorage: boolean;
   readonly pickerItems: SelectItems<string>;
@@ -147,6 +210,7 @@ function connectionInput(args: {
   readonly values: AddConnectionFormValues;
   readonly credentialId: CredentialView["id"] | null;
   readonly modelCheck: ModelCheck;
+  readonly purpose: AddPurpose;
 }): CreateConnectionInput {
   const { provider, values } = args;
   const label = values.label.trim();
@@ -157,12 +221,12 @@ function connectionInput(args: {
     model: values.model.trim(),
     ...(label !== "" ? { label } : {}),
     ...(values.api === "auto" ? {} : { api: values.api as ProviderDef["apis"][number] }),
-    allowBackground: values.allowBackground,
+    allowBackground: args.purpose === "utility" || values.allowBackground,
     modelCheck: args.modelCheck,
   };
 }
 
-function AddConnectionFormBody({ trpc, invalidation, onDone, keyStorage, pickerItems, providerOf }: FormBodyProps): ReactElement {
+function AddConnectionFormBody({ trpc, invalidation, purpose, onSaved, onCancel, keyStorage, pickerItems, providerOf }: FormBodyProps): ReactElement {
   const deps = { trpc, invalidation };
   const addCredential = useAddCredentialOwned(deps);
   const createConnection = useCreateConnectionOwned(deps);
@@ -253,8 +317,9 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, keyStorage, pickerI
     // Read before the mint: the mint clears the key, which is half of the endpoint listing's draft key.
     const modelCheck = modelCheckOf(modelSourceFor(provider, values), values.model);
     const credential = await credentialFor(provider, values);
+    let created: ConnectionView;
     try {
-      const created = await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelCheck }));
+      created = await createConnection.mutateAsync(connectionInput({ provider, values, credentialId: credential?.id ?? null, modelCheck, purpose }));
       checkSignIn(provider, created.id);
     } catch (err) {
       if (URL_REFUSAL_CODES.has(trpcErrorReason(err))) {
@@ -266,7 +331,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, keyStorage, pickerI
     if (modelCheck === "listed") {
       pushRecentModel(provider.id, values.model.trim());
     }
-    onDone();
+    onSaved(created);
     return values;
   };
 
@@ -319,6 +384,7 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, keyStorage, pickerI
                   onUrlEdited={clearUrlRefusal}
                   refusedAuthority={refusedAuthority}
                   onAdmitted={onAdmitted}
+                  backgroundNote={purpose === "utility" ? UTILITY_BACKGROUND_NOTE : null}
                 />
               );
             }}
@@ -343,7 +409,13 @@ function AddConnectionFormBody({ trpc, invalidation, onDone, keyStorage, pickerI
               // A blocked pick's notice carries its own Close; this footer would only repeat it.
               return provider !== undefined && keyStorageBlocks(provider, keyStorage) ? null : (
                 <Row gap="field" justify="end">
-                  <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+                  {onCancel === undefined ? (
+                    <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+                  ) : (
+                    <Button intent="ghost" onClick={onCancel} type="button">
+                      Back
+                    </Button>
+                  )}
                   <form.SubmitButton>{CONNECTION_FORM_COPY.submit}</form.SubmitButton>
                 </Row>
               );

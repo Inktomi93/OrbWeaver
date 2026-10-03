@@ -9,7 +9,7 @@ import type { EmbeddingsContext } from "./context.ts";
 import type { AvatarAnalysis } from "./contract/results.ts";
 import type { EmbeddingsService } from "./contract/service.ts";
 import { analyzeAvatarImage } from "./indexer/caption.ts";
-import { createImageIndexer } from "./indexer/image.ts";
+import { createImageAnalysisCounter, createImageIndexer } from "./indexer/image.ts";
 import { resolveTargetGeneration } from "./substrate/generation.ts";
 import { createClearTable } from "./verbs/clear-table.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
@@ -41,6 +41,7 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     clearTable: createClearTable(ctx),
     embedCorpus: createEmbedCorpus(ctx, { store }),
     embedAssets: createEmbedAssets(ctx, { indexAsset }),
+    countAssetAnalysisCalls: createImageAnalysisCounter(ctx),
     purgeMemoryVectors: createPurgeMemoryVectors(ctx),
     pruneDocumentChunks: createPruneDocumentChunks(ctx),
     pruneMemoryBlocks: createPruneMemoryBlocks(ctx),

@@ -4,7 +4,7 @@
 // auth rule keys on mutable. The container's switch lives once, on the Share card's mode row below this panel.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import { SETUP_COMMAND } from "@orb/contracts/identity";
+import { SETUP_COMMAND, SETUP_FRIENDS_ANSWER } from "@orb/contracts/identity";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Kbd } from "@orb/ui/kbd";
 import { Stack } from "@orb/ui/layout";
@@ -37,7 +37,7 @@ const SHARING_POSTURE: Record<AuthMode, SharingPosture> = {
     posture: "Only this machine can use this server: single-user mode has no login, so the server listens on this machine only.",
     line: SETUP_COMMAND,
     lineNoun: "the command",
-    instruction: 'To let other devices sign in, stop the server, run this command and choose "people on my network".',
+    instruction: `To let other devices sign in, stop the server, run this command and choose "${SETUP_FRIENDS_ANSWER}".`,
   },
   local: {
     posture: "Other devices can sign in with a handle and password stored by this server.",

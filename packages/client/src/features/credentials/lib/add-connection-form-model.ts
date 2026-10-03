@@ -25,7 +25,15 @@ export const CLAUDE_SUBSCRIPTION_NOTICE = {
     "Past those limits, Anthropic may bill requests as usage credits at API rates if you have usage credits turned on. Check Settings > Usage on claude.ai before long sessions.",
   terms:
     "Anthropic's terms reserve subscription sign-ins for its own apps and ordinary individual use, and do not permit third-party developers to route requests through Free, Pro or Max plan credentials. Using your subscription here may fall outside those terms, and Anthropic can limit or end access. For predictable billing and terms, use an Anthropic API key instead.",
+  /** Why the first-model step does not put a subscription on background work by default (`first-model-setup.tsx`). */
+  utility: "This starts at Not now because background summaries on a subscription would draw on your plan's usage limits.",
 } as const;
+
+/** A Claude subscription row: the provider whose sign-in is a pasted `claude setup-token`. Every place that warns
+ *  about spending the plan's usage limits asks this, so the warnings cannot disagree about which rows they cover. */
+export function isClaudeSubscription(provider: Pick<ProviderDef, "auth">): boolean {
+  return provider.auth === "oauthToken";
+}
 
 /** What the setup-token copy button names as its subject: `Copy <this>`. */
 export const CLAUDE_SETUP_TOKEN_COPY_SUBJECT = `the command ${CLAUDE_SETUP_TOKEN_COMMAND}`;
@@ -166,6 +174,17 @@ export const CONNECTION_FORM_COPY = {
   submit: ADD_CONNECTION_PATH.leaf,
   submitFailed: "Couldn't submit the connection.",
 } as const;
+
+/** The add dialog's steps: an add, the first-model step a first chat-capable add opens, and the Utility add that
+ *  step can ask for (`add-connection-dialog.tsx`). */
+const ADD_DIALOG_STEPS = ["add", "setup", "add-utility"] as const;
+
+/** Each step's dialog title and description. */
+export const ADD_DIALOG_COPY: Record<(typeof ADD_DIALOG_STEPS)[number], { readonly title: string; readonly description: string }> = {
+  add: { title: "Add a connection", description: "One provider, one model. Keys are encrypted at rest and never shown again." },
+  setup: { title: "Set up your first model", description: "Pick the model background work runs on. You can change both under Model roles later." },
+  "add-utility": { title: "Add a Utility model", description: "One provider, one model, for background work. A cheaper model is fine." },
+};
 
 /** The draft a model-list answer is ABOUT (#1502: a verdict must carry the inputs it was taken for, so an
  *  edited provider, URL or key retires it in the same commit). The provider is part of it because the list is

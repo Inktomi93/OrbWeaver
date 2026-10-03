@@ -18,6 +18,7 @@ import type { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import {
   acceptsKey,
   CONNECTION_FORM_COPY,
+  isClaudeSubscription,
   KEY_STORAGE_OFF_COPY,
   keyStorageBlocks,
   listsOnDemand,
@@ -63,6 +64,8 @@ export interface ProviderFieldsProps {
   /** The endpoint authority the server refused as a private address this deployment does not admit, or `null`. */
   readonly refusedAuthority: string | null;
   readonly onAdmitted: () => void;
+  /** Stated in place of the background switch when the form's purpose already decides it (`null` = the switch). */
+  readonly backgroundNote: string | null;
 }
 
 /** The fields that depend on the PICKED provider's auth kind: URL and/or key, the model, the api control only
@@ -80,6 +83,7 @@ export function ProviderFields({
   onUrlEdited,
   refusedAuthority,
   onAdmitted,
+  backgroundNote,
 }: ProviderFieldsProps): ReactElement {
   const providerLabel = providerDisplayLabel(provider);
   if (keyStorageBlocks(provider, keyStorage)) {
@@ -121,7 +125,7 @@ export function ProviderFields({
       {needsBaseUrl(provider) && refusedAuthority !== null ? (
         <AdmitPrivateHost authority={refusedAuthority} invalidation={invalidation} onAdmitted={onAdmitted} trpc={trpc} />
       ) : null}
-      {provider.auth === "oauthToken" ? <ClaudeSubscriptionNotice /> : null}
+      {isClaudeSubscription(provider) ? <ClaudeSubscriptionNotice /> : null}
       {provider.auth === "oauthToken" && held === null ? <SetupTokenCommand /> : null}
       <KeyField form={form} provider={provider} held={held} keyStorage={keyStorage} />
       {listsOnDemand(provider) ? (
@@ -169,9 +173,15 @@ export function ProviderFields({
           <field.TextField label="Label" hint={CONNECTION_FORM_COPY.labelHint} placeholder={`${providerLabel} · …`} autoComplete="off" />
         )}
       </form.AppField>
-      <form.AppField name="allowBackground">
-        {(field): ReactElement => <field.SwitchField label={CONNECTION_FORM_COPY.backgroundLabel} description={CONNECTION_FORM_COPY.backgroundDescription} />}
-      </form.AppField>
+      {backgroundNote === null ? (
+        <form.AppField name="allowBackground">
+          {(field): ReactElement => <field.SwitchField label={CONNECTION_FORM_COPY.backgroundLabel} description={CONNECTION_FORM_COPY.backgroundDescription} />}
+        </form.AppField>
+      ) : (
+        <Text data-slot="add-connection-background-note" prose={true} voice="gloss">
+          {backgroundNote}
+        </Text>
+      )}
     </>
   );
 }

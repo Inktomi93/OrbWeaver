@@ -59,3 +59,24 @@ describe("workloads.start dependency TypeID boundary", () => {
     expect(start).not.toHaveBeenCalled();
   });
 });
+
+describe("workloads.estimateModelCalls", () => {
+  test("a bulk estimate is refused to a non-owner at the edge, before the domain counts anything", async () => {
+    const estimateModelCalls = vi.fn<WorkloadService["estimateModelCalls"]>(() => Promise.resolve({ calls: 3 }));
+    const call = caller(makeContext({ auth: principal("user"), services: { workloads: { estimateModelCalls } } }));
+
+    await expect(call.workloads.estimateModelCalls({ input: { kind: "distill-characters", params: {} }, mode: "bulk" })).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    expect(estimateModelCalls).not.toHaveBeenCalled();
+  });
+
+  test("a singular estimate reaches the domain as the caller's own, and returns its count", async () => {
+    const estimateModelCalls = vi.fn<WorkloadService["estimateModelCalls"]>(() => Promise.resolve({ calls: 3 }));
+    const auth = principal("user");
+    const call = caller(makeContext({ auth, services: { workloads: { estimateModelCalls } } }));
+
+    await expect(call.workloads.estimateModelCalls({ input: { kind: "distill-characters", params: {} } })).resolves.toEqual({ calls: 3 });
+    expect(estimateModelCalls).toHaveBeenCalledWith({ input: { kind: "distill-characters", params: {} }, caller: auth, mode: "singular" });
+  });
+});

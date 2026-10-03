@@ -66,6 +66,18 @@ export async function assertAdmissible<K extends WorkloadKind>(
   }
 }
 
+/** The OWNING domain's count of the Utility-model calls a run would make (`WorkloadContribution.modelCalls`);
+ *  `null` when the kind declares no estimator because it calls no generative model. */
+export async function countModelCalls<K extends WorkloadKind>(
+  contributions: WorkloadContributions,
+  kind: K,
+  params: WorkloadParamsByKind[K],
+  scope: { readonly ownerId: UserId | null; readonly funderUserId: UserId },
+): Promise<number | null> {
+  const estimate = contributions[kind].modelCalls;
+  return estimate === undefined ? null : await estimate({ ...scope, params });
+}
+
 /**
  * The single-active refusal, as a sentence the person who hit it can ACT on. The admission key means a
  * conflict is never "this kind is busy" any more — it is "this exact unit of work is already in flight", so

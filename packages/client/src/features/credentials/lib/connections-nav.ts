@@ -5,10 +5,11 @@
 // role references), Model roles, then the saved-key reuse view (inference program §5.3a).
 
 import type { RoutableTask } from "@orb/contracts/inference";
+import { MODEL_ROLES_ADDRESS, UTILITY_ROLE_DOOR } from "#lib";
 import type { ConfigSubcategory } from "#state";
 
 const CHAT_MODEL_SETTING = "chat-model";
-const UTILITY_MODEL_SETTING = "utility-model";
+const UTILITY_MODEL_SETTING = UTILITY_ROLE_DOOR.setting;
 const EMBED_MODEL_SETTING = "embed-model";
 /** The Connections list's add-flow leaf; its section stamps the add verb with this leaf's control id. */
 export const ADD_CONNECTION_SETTING = "add-connection";
@@ -42,7 +43,7 @@ export const CONNECTIONS_LIST_SUBCATEGORY: ConfigSubcategory = {
 };
 
 export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
-  id: "model-roles",
+  id: MODEL_ROLES_ADDRESS.sub,
   label: "Model roles",
   keywords: ["chat", "embed", "rerank", "summarize", "utility", "image", "model", "provider"],
   teach: {

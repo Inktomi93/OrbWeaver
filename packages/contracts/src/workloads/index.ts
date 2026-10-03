@@ -52,6 +52,8 @@ export type { BundleImportWorkloadResult, DeferredResult, ImportTokenUsageBackfi
 export {
   type CancelWorkloadResult,
   cancelWorkloadResultSchema,
+  type ModelCallEstimate,
+  modelCallEstimateSchema,
   type WorkloadRef,
   type WorkloadRowAnyKind,
   type WorkloadRunnableRow,

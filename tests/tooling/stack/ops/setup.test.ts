@@ -130,7 +130,7 @@ test("each answer boots under the server's own env schema and binds where the an
     const server = await serverEnvIn(dir);
     expect(server.env.AUTH_MODE).toBe(row.mode);
     expect(server.env.PORT).toBe(row.port);
-    // "people on my network" must be reachable from the LAN under `pnpm start`, and "just me" must not.
+    // "me and friends" must be reachable from the LAN under `pnpm start`, and "just me" must not.
     expect(server.resolveBindPosture(server.bindPostureInput()).publicBind).toBe(row.publicBind);
     expect(server.resolveAllowedHosts(server.allowedHostsInput())).toEqual(expect.arrayContaining([...row.hosts]));
   }

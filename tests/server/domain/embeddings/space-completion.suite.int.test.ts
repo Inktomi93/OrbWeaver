@@ -91,6 +91,7 @@ function chatDeps(
         generationEpoch: generation.epoch,
       })),
     })),
+    estimateMemoryBackfill: vi.fn(async () => 0),
     backfillGroupCharacters: vi.fn(async () => ({ scanned: 0, changed: 0 })),
     purgeMemoryVectors: async (spaces, enumerationScope): Promise<void> => {
       const swept = enumerationScope === null ? spaces : spaces.filter((space) => space.ownerId === enumerationScope);

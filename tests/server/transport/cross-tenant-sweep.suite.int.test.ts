@@ -2111,6 +2111,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // get/cancel/retry are PROBED above (owner-scoped, id-taking). start/list/subscribe below:
   "workloads.start": "self-scoped: a singular run stamps ownerId = caller (a bulk run requires the box owner); no foreign id",
   "workloads.list": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
+  "workloads.estimateModelCalls":
+    "self-scoped: the start scope rules, read-only — a singular estimate counts the caller's own library (a bulk one requires the box owner); no foreign id, and it returns a count, never a row",
   "workloads.createSchedule": "self-scoped: stamps ownerId = caller (a bulk schedule requires the box owner); no foreign id",
   "workloads.listSchedules": "self-scoped: a non-admin caller is forced to its own ownerId (no cross-tenant id)",
   "connection.refreshCatalog": "admin-gated: writes the deployment KV snapshot",

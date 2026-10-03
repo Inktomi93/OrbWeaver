@@ -21,6 +21,7 @@ import type { AnalyticsResult } from "@orb/contracts/discovery";
 import { computeThemesWorkloadParams, findDuplicatesWorkloadParams } from "@orb/contracts/discovery";
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
+import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { DistillStats } from "./contract/results.ts";
 import type { DiscoveryWorkloadDeps } from "./contract/service.ts";
@@ -56,6 +57,12 @@ async function announceCorpus(deps: DiscoveryWorkloadDeps, ctx: WorkloadRunConte
   }
 }
 
+/** The cluster count a themes pass runs with: the explicit per-run param, then the triggering user's knob, then the
+ *  domain floor. One home, so the call estimate clusters exactly as the run will. */
+async function themeK(deps: DiscoveryWorkloadDeps, userId: UserId, param: number | undefined): Promise<number> {
+  return param ?? (await deps.loadUserSettings(userId)).workloads.computeThemesK ?? DEFAULT_THEME_K;
+}
+
 type DiscoveryContributions = readonly [
   WorkloadContribution<"compute-themes">,
   WorkloadContribution<"distill-characters">,
@@ -72,11 +79,10 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       // Seconds-to-tens-of-seconds k-means over the digests — a bulk pass, not a user-facing wait.
       lane: "sweep",
       resume: "idempotent-restart",
+      modelCalls: async ({ ownerId, funderUserId, params }) => deps.discovery.countThemeNameCalls({ ownerId, k: await themeK(deps, funderUserId, params.k) }),
       run: async (ctx, params, report, _signal): Promise<AnalyticsResult> => {
         try {
-          // Precedence: explicit per-run param, then the triggering user's knob, then the domain floor.
-          const settings = await deps.loadUserSettings(ctx.userId);
-          const k = params.k ?? settings.workloads.computeThemesK ?? DEFAULT_THEME_K;
+          const k = await themeK(deps, ctx.userId, params.k);
           report({ message: `computing ${k} themes` });
           const stats = await deps.discovery.computeThemes({ k, ownerId: ctx.ownerId, funderUserId: ctx.userId });
           // THE INPUT PLANE IS MEMORY DIGESTS, NOT DISTILLED CARDS — and a digest-less run must SAY so
@@ -106,6 +112,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
     {
       kind: "distill-characters",
       params: emptyWorkloadParams,
+      modelCalls: ({ ownerId }) => deps.discovery.countDistillCalls(ownerId),
       // One LLM call per character — long by construction.
       lane: "sweep",
       resume: "idempotent-restart",

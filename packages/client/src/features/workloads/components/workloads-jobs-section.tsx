@@ -17,7 +17,7 @@ import { useSuspenseQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary } from "#components";
+import { ModelRunConfirmDialog, QueryBoundary, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
@@ -30,6 +30,7 @@ import {
   WORKLOAD_FILTER_EMPTY_COPY,
   WORKLOAD_FILTER_LABELS,
   WORKLOAD_FILTERS,
+  WORKLOAD_KIND_LABELS,
   WORKLOAD_LANE_LABELS,
   workloadFilterMatches,
 } from "../lib/workloads-model.ts";
@@ -74,6 +75,29 @@ function WorkloadsJobsBody(): ReactElement {
 
   const cancelWorkload = useCancelWorkload({ trpc, invalidation });
   const retryWorkload = useRetryWorkload({ trpc, invalidation });
+  const paidRetry = useModelRunConfirm();
+
+  // A retry re-runs the whole job, so a model-calling one confirms its size first. A POISON row's params cannot be
+  // read, so there is nothing to count: it is the repair path and retries as it always has.
+  const retry = (workload: WorkloadItem): void => {
+    if (workload.poison) {
+      retryWorkload.mutate({ id: workload.id });
+      return;
+    }
+    const run = async (): Promise<void> => {
+      await retryWorkload.mutateAsync({ id: workload.id });
+    };
+    // @orb-waive caught-failure-ownership(confirmThen): useRetryWorkload carries its errorToast, which is the surface for a
+    // failed retry; the estimate's own failure is owned inside `confirmThen`. Ends if that mutation drops its errorToast.
+    paidRetry
+      .confirmThen({
+        title: `Retry ${WORKLOAD_KIND_LABELS[workload.kind]}?`,
+        confirmLabel: "Retry",
+        estimates: [{ input: { kind: workload.kind, params: workload.params }, mode: workload.mode }],
+        run,
+      })
+      .catch(() => undefined);
+  };
 
   const [filter, setFilter] = useState<WorkloadFilter>("all");
   const [runOpen, setRunOpen] = useState(false);
@@ -132,7 +156,7 @@ function WorkloadsJobsBody(): ReactElement {
                       rows={rows}
                       ownerHandleFor={ownerHandleFor}
                       onCancel={(workloadId): void => cancelWorkload.mutate({ id: workloadId })}
-                      onRetry={(workloadId): void => retryWorkload.mutate({ id: workloadId })}
+                      onRetry={retry}
                     />
                   )}
                 </TabsPanel>
@@ -141,6 +165,7 @@ function WorkloadsJobsBody(): ReactElement {
           </Stack>
         </Tabs>
 
+        <ModelRunConfirmDialog {...paidRetry.dialog} />
         <RunWorkloadDialog
           open={runOpen}
           onOpenChange={setRunOpen}
@@ -171,7 +196,7 @@ function LaneGroups({
   readonly rows: readonly WorkloadItem[];
   readonly ownerHandleFor: (workload: WorkloadItem) => string | null;
   readonly onCancel: (id: WorkloadItem["id"]) => void;
-  readonly onRetry: (id: WorkloadItem["id"]) => void;
+  readonly onRetry: (workload: WorkloadItem) => void;
 }): ReactElement {
   const groups = groupWorkloadsByLane(rows);
   const showHeadings = groups.length > 1;
@@ -186,7 +211,7 @@ function LaneGroups({
               workload={workload}
               ownerHandle={ownerHandleFor(workload)}
               onCancel={(): void => onCancel(workload.id)}
-              onRetry={(): void => onRetry(workload.id)}
+              onRetry={(): void => onRetry(workload)}
             />
           ))}
         </Stack>

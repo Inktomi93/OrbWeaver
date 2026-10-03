@@ -20,6 +20,7 @@ import type { Page } from "@playwright/test";
 import type { TrpcFixtureOutput, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
+import { UTILITY_ROW, utilityBindings } from "../../../../support/node/utility-role.ts";
 import { CorpusUnderstandingInvitationStory } from "../_ct-stories.tsx";
 
 const VIEWER = { userId: "user_me", globalRole: "user", handle: "me" } satisfies TrpcWireOutput<"sessions.me">;
@@ -30,6 +31,8 @@ const RETRY_DOOR = /Try the understanding pass again/;
 const FAILURE_REASON = /the summarizer connection refused/;
 const MEMORY_OFF_NOTE = /Story themes need chat memory, which is off/;
 const MEMORY_SWITCH = /Turn on memory/;
+const MODEL_ROLES_DOOR = "Open Model roles";
+const PAID_CONFIRM = "Run the understanding pass?";
 
 /** A `workloads.list` row, in the shape the card reads it (id · kind · status · owner · progress · error). */
 type DistillRow = Extract<TrpcWireOutput<"workloads.list">[number], { readonly kind: "distill-characters" }>;
@@ -83,7 +86,13 @@ function settings(memoryEnabled: boolean): TrpcFixtureOutput<"settings.getUserSe
   return userSettingsView({ memory: { enabled: memoryEnabled } }, { userId: castId<UserId>(VIEWER.userId), updatedAt: 1 });
 }
 
-const INVITATION_OVERRIDE_PATHS = ["settings.getUserSettings", "workloads.list", "workloads.start"] as const;
+const INVITATION_OVERRIDE_PATHS = [
+  "settings.getUserSettings",
+  "workloads.list",
+  "workloads.start",
+  "connection.listBindings",
+  "workloads.estimateModelCalls",
+] as const;
 type InvitationOverridePath = (typeof INVITATION_OVERRIDE_PATHS)[number];
 
 async function stub(page: Page, routes: Partial<TrpcRoutes<InvitationOverridePath>> = {}): Promise<TrpcRecorder> {
@@ -91,6 +100,10 @@ async function stub(page: Page, routes: Partial<TrpcRoutes<InvitationOverridePat
     "sessions.me": VIEWER,
     "workloads.list": [],
     "settings.getUserSettings": settings(true),
+    // A running Utility model and a pass that calls none: the door is live and starts at once unless a test says otherwise.
+    "connection.list": [UTILITY_ROW],
+    "connection.listBindings": utilityBindings("running"),
+    "workloads.estimateModelCalls": { calls: 0 },
     ...routes,
   });
 }
@@ -185,4 +198,56 @@ test("a stopped pass says why, on the card, and offers another go", async ({ mou
 
   await expect(component.getByText(FAILURE_REASON)).toBeVisible();
   await expect(component.getByRole("button", { name: RETRY_DOOR })).toBeVisible();
+});
+
+// ── the Utility model the pass runs on (0408) and the confirm before it spends (0451) ───────────────────────────
+
+test("NO UTILITY MODEL: the door is disabled and explained beside the Model roles door", async ({ mount, page }) => {
+  await stub(page, { "connection.listBindings": utilityBindings("unset") });
+  const component = await mount(<CorpusUnderstandingInvitationStory />);
+
+  await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toBeVisible();
+  const door = component.getByRole("button", { name: RUN_DOOR });
+  await expect(door).toBeDisabled();
+  // The disabled door carries its reason as a description (the note beside the Model roles door), not a tooltip.
+  await expect(door).toHaveAccessibleDescription(/.+/);
+});
+
+test("WITH A RUNNING UTILITY MODEL there is no Model roles door, and the door is live", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<CorpusUnderstandingInvitationStory />);
+  // SETTLED: the Utility line has painted, so the door's absence is not a read still in flight.
+  await expect(component.locator('[data-slot="understanding-pass-utility"]')).toBeVisible();
+  await expect(component.getByRole("button", { name: MODEL_ROLES_DOOR })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: RUN_DOOR })).toBeEnabled();
+});
+
+test("A PASS THAT CALLS A MODEL confirms with its count first, and enqueues only on yes", async ({ mount, page }) => {
+  let minted = 0;
+  const recorder = await stub(page, {
+    "workloads.estimateModelCalls": { calls: 12 },
+    "workloads.start": () => {
+      minted += 1;
+      return { id: `workload_start_${minted}` };
+    },
+  });
+  const component = await mount(<CorpusUnderstandingInvitationStory />);
+
+  await component.getByRole("button", { name: RUN_DOOR }).click();
+  const confirm = page.getByRole("alertdialog", { name: PAID_CONFIRM });
+  await expect(confirm).toBeVisible();
+  // Every stage the chain will enqueue is counted.
+  await expect
+    .poll(() =>
+      recorder
+        .inputs("workloads.estimateModelCalls")
+        .map((input) => (input as { input: { kind: string } }).input.kind)
+        .toSorted(),
+    )
+    .toEqual(["compute-themes", "distill-characters", "memory-backfill"]);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the confirm is open (settled above) and only its yes enqueues; a poll would pass at t=0 and prove less.
+  expect(recorder.count("workloads.start")).toBe(0);
+
+  await confirm.getByRole("button", { name: RUN_DOOR }).click();
+  await expect.poll(() => recorder.count("workloads.start")).toBe(3);
 });

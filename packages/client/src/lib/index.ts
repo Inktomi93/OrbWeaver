@@ -51,11 +51,15 @@ export {
   connectionHost,
   connectionSummary,
   labelNamesModel,
+  MEMORY_COST_SENTENCE,
+  MODEL_ROLES_ADDRESS,
   ROLE_ROWS_ORDERED,
   ROLE_STATUS_LABELS,
   roleReadout,
   roleRequirementVerdicts,
   roleStatus,
+  UTILITY_ROLE_DOOR,
+  utilityReadsImages,
 } from "./connection-roles.ts";
 export type {
   CharacterDetailAnchor,

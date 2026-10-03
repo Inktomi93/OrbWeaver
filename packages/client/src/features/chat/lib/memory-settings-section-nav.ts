@@ -7,9 +7,18 @@ import type { ConfigSubcategory } from "#state";
 export const MEMORY_SETTINGS_SUBCATEGORY: ConfigSubcategory = {
   id: "memory",
   label: "Memory",
-  keywords: ["memory", "remember", "recall", "long", "digest", "history"],
+  keywords: ["memory", "remember", "recall", "long", "digest", "history", "summary", "utility"],
   teach: {
-    summary: "Per-chat memory: how the model recalls earlier conversation, digest depth and summarization behavior.",
-    affects: ["long-term recall quality and context usage in this chat"],
+    summary:
+      "One switch for your account: memory for every chat you host, off until you turn it on. It needs a Utility model, and while none is set its summaries wait.",
+    affects: ["recall of earlier events in long chats you host", "extra summary calls on your Utility model"],
   },
 };
+
+/** What happens to a chat that already exists when Memory goes on: the build every reply runs covers its history. */
+export const MEMORY_EXISTING_CHATS_NOTE = "A chat you already have builds its memory the next time it gets a reply.";
+
+/** What an import does while Memory is on: the server queues the Memory backfill job after each import, admitted
+ *  only for an owner with Memory on (`createEnqueueImportBackfill` in the server's portability runner), so the cost
+ *  lands at the import, not at a reply. */
+export const MEMORY_IMPORTED_CHATS_NOTE = "Chats you import while Memory is on build their memory right away, in the background.";
