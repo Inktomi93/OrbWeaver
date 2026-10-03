@@ -19,7 +19,7 @@
 // whose members ALL fail to resolve is skipped with a note. Neither aborts the wave.
 
 import type { BulkImportChatInput, ChatMetadata } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, narratorPolicyOf } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { ImportContext } from "../context.ts";
 import type { ImportGroupsResult } from "../contract/results.ts";
@@ -54,7 +54,7 @@ function metadataFor(group: CollectedGroup): ChatMetadata {
   return {
     group: {
       output: "narrator",
-      policy,
+      policy: narratorPolicyOf(policy),
       smartPicker,
       speakerTags: true,
       groupNudge,

@@ -7,7 +7,7 @@ import { resolveSideGenSampling } from "@orb/inference";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("task defaults (no preset params) run the posture alone", () => {
-  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name)).toEqual({ temperature: 0.3, maxOutputTokens: 24 });
+  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.theme_name)).toEqual({ temperature: 0.3, maxOutputTokens: 24, effort: "none" });
 });
 
 test("a preset knob wins; the posture fills only the knobs the preset leaves unset", () => {
@@ -55,4 +55,14 @@ test("a knob absent from both sources is omitted, never emitted as undefined", (
   const out = resolveSideGenSampling({ temperature: 0.3 }, {});
   expect(out).toEqual({ temperature: 0.3 });
   expect("maxOutputTokens" in out).toBe(false);
+});
+
+test("a posture's effort is a floor: it stands under task defaults, and a preset's effort or thinking budget replaces it", () => {
+  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter)).toEqual({ temperature: 0.2, maxOutputTokens: 128, effort: "none" });
+  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, { effort: "high" })).toMatchObject({ effort: "high" });
+  // A budget alone is a reasoning choice too: the posture's `none` must not switch it off.
+  const budgetOnly = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, { thinkingBudgetTokens: 2048 });
+  expect(budgetOnly).toEqual({ temperature: 0.2, maxOutputTokens: 128, thinkingBudgetTokens: 2048 });
+  // A preset that says nothing about reasoning keeps the floor.
+  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, { temperature: 0.5 })).toMatchObject({ temperature: 0.5, effort: "none" });
 });

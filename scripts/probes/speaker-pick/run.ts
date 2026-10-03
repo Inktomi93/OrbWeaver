@@ -13,13 +13,13 @@ import type { RerankOnnx } from "@orb/contracts/inference";
 import { modelIdSchema } from "@orb/contracts/inference";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { ResponseFormat, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { InferenceLog } from "@orb/inference";
 import { DEFAULT_RERANK_MODEL } from "../../../packages/inference/src/backends/local-light/index.ts";
 import { createModelCache } from "../../../packages/inference/src/backends/local-light/model-cache.ts";
 import { localLightRows } from "../../../packages/inference/src/capability/sources/curated/local-light.ts";
 import type { LocalLightRerankServing } from "../../../packages/inference/src/contract/local-light-worker.ts";
-import type { ArbiterCandidate, SpeakerCandidate } from "../../../packages/server/src/domain/chat/contract/arbitration.ts";
+import type { ArbiterCandidate, SpeakerCandidate, TranscriptLine } from "../../../packages/server/src/domain/chat/contract/arbitration.ts";
 import { resolveNameMentions, selectSpeakers } from "../../../packages/server/src/domain/chat/engine/select-speakers.ts";
 import { smartArbitrate } from "../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
 import { orCall, readEnvKey, totalSpend } from "../openrouter/_kit.ts";
@@ -42,6 +42,8 @@ const RNG_SEED = 24_601;
 const PM_MODULUS = 2_147_483_647;
 const PM_MULTIPLIER = 48_271;
 const ARBITER_SAMPLING: SummarizeOptions = SIDE_GEN_POSTURES.arbiter;
+/** Sonnet 5's context window, the cap the arbiter sizes the line it answers against. */
+const PROBE_CONTEXT_TOKENS = 200_000;
 const MEBIBYTE = 1_048_576;
 const PERCENT = 100;
 const P50 = 0.5;
@@ -54,6 +56,8 @@ interface Case {
   readonly room: Room;
   readonly cut: Cut;
   readonly transcript: string;
+  /** The same window as the canon lines `turn.ts` hands the arbiter: a human line carries no character. */
+  readonly lines: readonly TranscriptLine[];
   readonly trigger: { readonly speaker: string; readonly text: string };
   readonly lastSpeaker: RoomCharacter | null;
   readonly candidates: readonly ArbiterCandidate[];
@@ -113,6 +117,7 @@ function buildCases(): Case[] {
         room,
         cut,
         transcript: window.map((l) => `${l.speaker}: ${l.text}`).join("\n"),
+        lines: window.map((l) => ({ speakerName: l.speaker, text: l.text, characterId: room.characters.find((c) => c.name === l.speaker)?.id ?? null })),
         trigger,
         lastSpeaker: room.characters.find((c) => c.name === lastName) ?? null,
         candidates: room.characters.map((c) => ({ ref: characterRef(c), talkativeness: TALKATIVENESS_DEFAULT, disabled: false, leftSeq: null })),
@@ -235,7 +240,8 @@ interface CallStats {
   readonly serverGenMs?: number | null;
 }
 
-type Completion = (input: SummarizeInput, opts: SummarizeOptions) => Promise<CallStats>;
+/** One completion constrained to the arbiter's response schema, the way the production structured call sends it. */
+type Completion = (input: SummarizeInput, opts: SummarizeOptions, format: ResponseFormat) => Promise<CallStats>;
 
 function wireMessages(input: SummarizeInput): { role: string; content: string }[] {
   return [
@@ -252,8 +258,17 @@ function wireSampling(opts: SummarizeOptions): Record<string, number> {
 }
 
 function openRouterCompletion(model: string, key: string): Completion {
-  return async (input, opts) => {
-    const r = await orCall({ model, ...wireSampling(opts), messages: wireMessages(input) }, key);
+  return async (input, opts, format) => {
+    const r = await orCall(
+      {
+        model,
+        ...wireSampling(opts),
+        messages: wireMessages(input),
+        // The shape the production OpenRouter arm sends (`openai-compat/chat.ts`): no `strict`, no `require_parameters`.
+        response_format: { type: "json_schema", json_schema: { name: format.name, schema: format.schema } },
+      },
+      key,
+    );
     if (r.status !== HTTP_OK) {
       throw new Error(`openrouter ${r.status}: ${r.error ?? ""}`);
     }
@@ -274,12 +289,12 @@ interface LlamaCppResponse {
 }
 
 function llamaCppCompletion(base: string): Completion {
-  return async (input, opts) => {
+  return async (input, opts, format) => {
     const response = await fetch(`${base}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // Each round is a fresh classification; a reused KV prefix would flatter the latency of later cuts.
-      body: JSON.stringify({ ...wireSampling(opts), cache_prompt: false, messages: wireMessages(input) }),
+      body: JSON.stringify({ ...wireSampling(opts), cache_prompt: false, messages: wireMessages(input), json_schema: format.schema }),
     });
     if (!response.ok) {
       throw new Error(`llama.cpp ${response.status}: ${await response.text()}`);
@@ -304,18 +319,28 @@ async function runArbiter(all: readonly Case[], arm: string, completion: Complet
     const calls: CallStats[] = [];
     const started = performance.now();
     const result = await smartArbitrate({
-      summarize: async (inputs: readonly SummarizeInput[], opts?: SummarizeOptions): Promise<SummarizeResult> => {
-        const input = inputs[0];
-        if (input === undefined) {
-          throw new Error("smartArbitrate sent no input");
-        }
-        const stats = await completion(input, opts ?? {});
-        calls.push(stats);
-        return { items: [{ text: stats.reply, usage: { tokensIn: stats.tokensIn, tokensOut: stats.tokensOut, costUsd: stats.costUsd } }], model: arm };
-      },
+      arbiter: () =>
+        Promise.resolve({
+          contextTokens: PROBE_CONTEXT_TOKENS,
+          structured: async (
+            inputs: readonly SummarizeInput[],
+            opts: SummarizeOptions & { readonly responseFormat: ResponseFormat },
+          ): Promise<SummarizeResult> => {
+            const input = inputs[0];
+            if (input === undefined) {
+              throw new Error("smartArbitrate sent no input");
+            }
+            const stats = await completion(input, opts, opts.responseFormat);
+            calls.push(stats);
+            return { items: [{ text: stats.reply, usage: { tokensIn: stats.tokensIn, tokensOut: stats.tokensOut, costUsd: stats.costUsd } }], model: arm };
+          },
+        }),
       candidates: c.candidates,
       speakerCandidates: c.speakerCandidates,
-      recentHistory: c.transcript,
+      characterLines: new Map(c.room.characters.map((ch) => [ch.id, ch.persona] as const)),
+      transcript: c.lines,
+      humanNames: [c.room.user],
+      room: {},
       lastSpeaker: c.lastSpeaker === null ? null : characterRef(c.lastSpeaker),
       mentionedIds: c.humanMentions,
       rng,

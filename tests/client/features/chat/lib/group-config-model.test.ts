@@ -43,6 +43,11 @@ test("a narrator edit round-trips and the rebuild carries NO cardScope (the arm 
   expect("cardScope" in rebuilt).toBe(false);
 });
 
+test("a narrator rebuild never carries Smart: the form's Smart becomes Natural", () => {
+  const rebuilt = fromGroupConfigForm({ ...toGroupConfigForm(NARRATOR), policy: "smart" });
+  expect(rebuilt).toMatchObject({ output: "narrator", policy: "natural" });
+});
+
 test("the rebuild of BOTH arms passes the strict write boundary (no stray passthrough key)", () => {
   for (const config of [DEFAULT_GROUP_CONFIG, NARRATOR]) {
     const rebuilt = fromGroupConfigForm(toGroupConfigForm(config));

@@ -29,6 +29,11 @@ test("a generation row states exactly the facts its server reported", () => {
   expect(advertisedFromOpenAiCompat({ contextLength: null, embeddingDims: undefined, structured: false }, "generation", ROW)).toStrictEqual({});
 });
 
+test("a model the server says thinks reasons by a switch, so an off can be spelled; one it says nothing about stays unstated", () => {
+  expect(advertisedFromOpenAiCompat({ contextLength: null, thinks: true }, "generation", ROW)).toStrictEqual({ reasoning: { mode: "effort", enabled: true } });
+  expect(advertisedFromOpenAiCompat({ contextLength: null }, "generation", ROW)).toStrictEqual({});
+});
+
 test("an embedding row states its width and never a chat model's facts", () => {
   expect(advertisedFromOpenAiCompat({ contextLength: 2048, embeddingDims: 768, input: ["text"], tools: { parallel: false } }, "embedding", ROW)).toStrictEqual({
     dims: 768,

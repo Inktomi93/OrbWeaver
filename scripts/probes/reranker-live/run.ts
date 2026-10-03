@@ -376,6 +376,9 @@ function speakerReranker(
   };
 }
 
+/** The human player whose line the Smart cell scores; a name they share addresses them, never a character. */
+const SMART_HUMAN = "Rowan";
+
 /** Smart's speaker pick: `rerankPick` over four long personas, the human's line naming nobody, the last speaker banned. */
 async function runSmart(world: World, rc: RoleClientsWithSignal, rerank: RoleClients["rerank"]): Promise<CellResult> {
   const cast = PERSONA_TEXTS.map((p) => ({ name: p.key, ref: { kind: "character" as const, characterId: world.characters.get(p.key) ?? world.groupId } }));
@@ -384,8 +387,9 @@ async function runSmart(world: World, rc: RoleClientsWithSignal, rerank: RoleCli
     reranker: speakerReranker(rc, rerank),
     candidates: cast.map((c) => ({ ref: c.ref, talkativeness: TALKATIVENESS_DEFAULT, disabled: false, leftSeq: null })),
     speakerCandidates: cast,
-    personas,
-    lastLine: { speakerName: "Rowan", text: QUERIES.pick.text, characterId: null },
+    characterLines: personas,
+    lastLine: { speakerName: SMART_HUMAN, text: QUERIES.pick.text, characterId: null },
+    humanNames: [SMART_HUMAN],
     lastSpeaker: cast.find((c) => c.name === "Quill")?.ref ?? null,
     rng: () => FIXED_RNG,
   });
@@ -487,8 +491,9 @@ async function pickAtCut(
     reranker: speakerReranker(rc, rerank),
     candidates: cast.map((c) => ({ ref: c.ref, talkativeness: TALKATIVENESS_DEFAULT, disabled: false, leftSeq: null })),
     speakerCandidates: cast,
-    personas: new Map(room.characters.map((c) => [c.id, c.persona])),
+    characterLines: new Map(room.characters.map((c) => [c.id, c.persona])),
     lastLine: trigger === undefined ? null : { speakerName: trigger.speaker, text: trigger.text, characterId: speakerId },
+    humanNames: [room.user],
     lastSpeaker: cast.find((c) => c.name === lastName)?.ref ?? null,
     rng: () => FIXED_RNG,
   });

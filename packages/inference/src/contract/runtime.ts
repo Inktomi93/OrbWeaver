@@ -70,6 +70,9 @@ const endpointModelSchema = z.object({
   input: z.array(modalitySchema).optional(),
   /** The server states the model takes `tools[]`; `parallel` only where it states that too. Absent ⇒ not stated. */
   tools: z.object({ parallel: z.boolean() }).optional(),
+  /** The server states the model thinks before it answers, so its thinking can be switched (Ollama's `thinking`
+   *  capability, which `think` turns off). Absent ⇒ not stated. */
+  thinks: z.literal(true).optional(),
   /** The server's version is at or past the build that added JSON-schema constrained output. Absent ⇒ not stated. */
   structured: z.boolean().optional(),
   /** Which forced tool choices the SERVER honours: `required`, and a named function. The two map one-to-one onto

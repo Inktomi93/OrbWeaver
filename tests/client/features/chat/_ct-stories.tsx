@@ -3130,7 +3130,12 @@ export function ProviderAdjustmentWarningStory(): ReactElement {
  *  real toast outlet. Each button plays one turn on the same connection. */
 export function TurnWarningCadenceStory(): ReactElement {
   const [surface] = useState(() =>
-    createWarningSurface({ warn: (notice): void => notify.warn(notice), openConnections: { label: "Open Connections", onClick: (): void => undefined } }),
+    createWarningSurface({
+      warn: (notice): void => notify.warn(notice),
+      openConnections: { label: "Open Connections", onClick: (): void => undefined },
+      openUtilityModel: { label: "Open Model roles", onClick: (): void => undefined },
+      openRerankModel: { label: "Open Model roles", onClick: (): void => undefined },
+    }),
   );
   const busDeps: ChatBusDeps = { stream: chatStream, invalidate: (): void => undefined, ...surface };
   const playTurn = (adjustments: readonly ("effort_dropped" | "sampling_knob_dropped")[]): void => {

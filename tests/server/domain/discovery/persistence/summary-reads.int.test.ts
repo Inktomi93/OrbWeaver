@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { readOwnedCardFacets } from "../../../../../packages/server/src/domain/discovery/persistence/summary-reads.ts";
+import { readOwnedCardFacets, readOwnedDistillates } from "../../../../../packages/server/src/domain/discovery/persistence/summary-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedAsset, seedCharacter, seedUser } from "../_support.ts";
@@ -26,6 +26,25 @@ async function seedSummary(
     computedAt: FROZEN_AT,
   });
 }
+
+describe("readOwnedDistillates", () => {
+  test("returns the pitch and tags of the owner's distilled cards among the asked ids, and nothing else", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const other = await seedUser(db, "user_b");
+    const asked = await seedCharacter(db, { id: "character_asked", ownerId: owner, name: "Wren" });
+    const unasked = await seedCharacter(db, { id: "character_unasked", ownerId: owner, name: "Jay" });
+    const undistilled = await seedCharacter(db, { id: "character_undistilled", ownerId: owner, name: "Nobody" });
+    const foreign = await seedCharacter(db, { id: "character_foreign", ownerId: other, name: "F" });
+    await seedSummary(db, asked, { tags: ["airships"], elevatorPitch: "Maps the sky." });
+    await seedSummary(db, unasked, { elevatorPitch: "Not asked." });
+    await seedSummary(db, foreign, { elevatorPitch: "Someone else's." });
+
+    const rows = await readOwnedDistillates(db, owner, [asked, undistilled, foreign]);
+    expect(rows).toEqual([{ characterId: asked, elevatorPitch: "Maps the sky.", tags: ["airships"] }]);
+    expect(await readOwnedDistillates(db, owner, [])).toEqual([]);
+  });
+});
 
 describe("readOwnedCardFacets", () => {
   test("returns the owner's distilled cards with name + facets, owner-scoped", async () => {
