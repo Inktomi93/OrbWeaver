@@ -145,7 +145,7 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "connection.list": [],
   "connection.listBindings": [],
   "connection.providersAvailable": [],
-  // About (last at the `admin` anchor) suspends on the version identity.
+  // The About group's version section suspends on the version identity.
   "settings.getVersion": { version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout", channel: "main" },
   "plugin.list": [],
   "plugin.listDistributed": [],
@@ -423,6 +423,31 @@ test("a plain user never sees the Admin band", async ({ mount, page }) => {
 
   await expect(component.getByRole("button", { name: "Connections" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Admin" })).toHaveCount(0);
+});
+
+// The install version is any member's read: a plain user reaches the About group, reads the version line
+// and has its copy control, while the admin's update check and the Admin band stay hidden. The server verb
+// is authed-only either way; the gate here is presentation.
+test("a plain user reaches This install: the version line and its copy control render; no update check, no Admin band", async ({ mount, page }) => {
+  await stub(page, { "sessions.me": { userId: "user_plain", handle: "plain", globalRole: "user" } });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.getByRole("button", { name: "This install", exact: true }).click();
+  await expect(component.getByTestId("about-version-line")).toHaveText("0.4.1-dev+823d76f4343a");
+  await expect(component.getByRole("button", { name: "Copy version for a bug report" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Updates" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Check for updates" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Admin" })).toHaveCount(0);
+});
+
+test("an ADMIN sees the update check under This install, beside the same version line", async ({ mount, page }) => {
+  await stub(page, { "sessions.me": { userId: "user_admin", handle: "admin", globalRole: "admin" } });
+  const component = await mount(<ConfigHostStory />);
+
+  await component.getByRole("button", { name: "This install", exact: true }).click();
+  await expect(component.getByTestId("about-version-line")).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Updates" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Check for updates" })).toBeVisible();
 });
 
 // D147 — the OTHER side of the same gate: plugins are user-scoped, so a plain user must REACH this group.
@@ -879,11 +904,11 @@ test("no section row clips at the LIST column, in ANY group", async ({ mount, pa
   await expect(component.getByRole("button", { name: "Admin" })).toBeVisible();
 
   const bands = list.locator(BAND);
-  // The band roster is door-frozen: 12 groups, 9 of them settings-shaped — and since #1099 F5 a ZERO-member
-  // collection draws a band too (a selecting button, never a disclosure), so all 12 are here even with every
-  // library empty. The sweep still visits the nine settings-shaped ones; collections have no section rows.
+  // The band roster is door-frozen: 13 groups, 10 of them settings-shaped — and since #1099 F5 a ZERO-member
+  // collection draws a band too (a selecting button, never a disclosure), so all 13 are here even with every
+  // library empty. The sweep still visits the ten settings-shaped ones; collections have no section rows.
   // Read the ids ONCE off it (the Admin band above is the settle barrier), then sweep.
-  await expect(bands).toHaveCount(12);
+  await expect(bands).toHaveCount(13);
   const groupIds = await bands.evaluateAll((els) => els.map((el) => el.getAttribute("data-config-group") ?? ""));
   let swept = 0;
   for (const groupId of groupIds) {
@@ -906,7 +931,7 @@ test("no section row clips at the LIST column, in ANY group", async ({ mount, pa
       .toEqual([]);
     swept += 1;
   }
-  expect(swept).toBe(9);
+  expect(swept).toBe(10);
 });
 
 // ── AN EMPTY LIBRARY IS STILL A DOOR (#1099 F5) ───────────────────────────────────────────────────────

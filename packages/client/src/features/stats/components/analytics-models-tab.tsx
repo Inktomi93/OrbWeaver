@@ -32,6 +32,7 @@ import {
   formatMs,
   formatThroughput,
   formatTokens,
+  throughputProvenance,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
 import { LibraryScopeNotice } from "./library-scope-notice.tsx";
@@ -110,11 +111,9 @@ function ModelsBody(): ReactElement {
   );
 }
 
-/** One model's speed: time to first token and output throughput, each with its provenance. Throughput is
- *  output tokens over generation time, so a row with no recorded generation time has no throughput, and
- *  the server's `0` there is a division guard, not a measurement. */
+/** One model's speed: time to first token and output throughput, each with its provenance. */
 function ModelSpeed({ model }: { readonly model: ModelStatRow }): ReactElement {
-  const throughputOrigin = model.totalGenTimeMs > 0 ? model.tokensOutProvenance : "unrecorded";
+  const throughputOrigin = throughputProvenance(model.totalGenTimeMs, model.tokensOutProvenance);
   const throughput = throughputOrigin === "unrecorded" ? null : model.throughputTps;
   return (
     <Text voice="gloss">

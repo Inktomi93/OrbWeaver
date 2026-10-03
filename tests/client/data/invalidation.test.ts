@@ -485,6 +485,9 @@ const USER_TRACKED_KEYS = [
   // live client only on a full page reload. Tracked separately from `userSettings`/`persona` — the other two
   // legs of the viewer triple — because those two have their own members and would mask a missing row here.
   "sessionsMe",
+  // The lexical search (`search.fields`) names each hit with its card's name and avatar, so a card edit or
+  // delete is its driver.
+  "lexicalSearch",
   // A plugin UI surface's published state (`plugin.getSurfaceState` U1). Before
   // `pluginSurfaceStateChanged` it had no driver — `staleTime:Infinity` would freeze a rendered surface at its
   // first fetch; the member path-invalidates the read so `host.ui.setState` reaches the installer's own client.
@@ -497,7 +500,7 @@ type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // The character ROOT filter covers `character.get` too — which is why the sweep's terminal
   // `charactersChanged` fan repaints a stamped card's provenance as well as the library's score sort.
-  charactersChanged: ["character", "characterGet", "memberCard", "tag"],
+  charactersChanged: ["character", "characterGet", "memberCard", "lexicalSearch", "tag"],
   personasChanged: ["persona", "tag"],
   presetsChanged: ["preset", "presetEffective", "previewContextFit", "previewAssembly", "tag"],
   worldInfoChanged: ["worldInfo", "tag"],
@@ -598,6 +601,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         databank: trpc.databank.list.queryKey({}),
         discovery: trpc.discovery.home.queryKey(),
         similarArt: trpc.search.similarArt.queryKey({ characterId: CHARACTER_ID }),
+        lexicalSearch: trpc.search.fields.queryKey({ query: "retained evidence", topN: 20 }),
         searchQuery: trpc.search.search.queryKey({ query: "anything" }),
         sourceWindow: trpc.chat.getMessageWindow.queryKey({ chatId: CHAT_ID, target: { kind: "message", messageId: MESSAGE_ID } }),
         sessionsMe: trpc.sessions.me.queryKey(),

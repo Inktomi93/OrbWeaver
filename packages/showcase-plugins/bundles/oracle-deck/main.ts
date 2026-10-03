@@ -419,7 +419,7 @@ if (host.grants.includes("ui.surface")) {
 //  * `registerCommand` — the deck, from the composer or the Plugins wand menu. The app routes
 //    `/plugin oracle-deck draw` and a menu item to this handler; you never claim a top-level slash token, so
 //    two plugins can both have a `draw` and neither shadows the other (or a house command).
-//  * `ui.page` — a FULL-PAGE surface, listed in the app's one "Extensions" rail entry. This is the home for a
+//  * `ui.page` — a FULL-PAGE surface, listed in the app's one "Plugin pages" rail entry. This is the home for a
 //    plugin with more to show than a panel holds; the app draws the switcher and the attributed page band.
 //  * `dialog` — a house modal, opened ONLY from your own surface or command (`host.ui.openDialog`). There is
 //    no way to open one spontaneously, which is the point: a modal a plugin could raise unprompted is the

@@ -92,14 +92,6 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {
-    id: "query-freshness-coverage:search-fields",
-    policyId: "query-freshness-coverage",
-    subject: "search.fields",
-    operation: "uncovered-query-freshness",
-    why: "input-keyed BM25 lexical search (same surface) — the query string is part of the key; re-running the identical query inside gcTime correctly returns the same corpus answer.",
-    endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
-  },
-  {
     id: "query-freshness-coverage:search-suggest",
     policyId: "query-freshness-coverage",
     subject: "search.suggest",

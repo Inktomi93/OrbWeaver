@@ -37,7 +37,7 @@ const RESPONSE_GUIDED = "Guided generate reply";
 const SWIPE = "Try another reply";
 const CONTINUE = "Continue the reply";
 const IMPERSONATE = "Draft your line";
-const AUTO = "Auto (arbitrate)";
+const AUTO = "Let the room pick";
 
 /** A present character seat on the `chat.getChat` roster — what `filterCharacters` feeds the speaker menu. */
 type FixtureArrayElement<T, TKey extends PropertyKey> = T extends unknown
@@ -94,7 +94,7 @@ test("a MULTI-character room turns Response into a speaker menu: picking a name 
   expect(trpc.lastInput("chat.generate")).toMatchObject({ speakerCharacterId: "character_bolt" });
 });
 
-test("Auto (arbitrate) is a real row: it fires the generate with NO speaker (the server arbitrates)", async ({ mount, page }) => {
+test("Let the room pick is a real row: it fires the generate with NO speaker (the server arbitrates)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...CHAT_ROOM_ROUTES, "chat.getChat": () => GROUP_ROSTER, "chat.generate": () => EMPTY_TURN });
   const component = await mount(<ComposerStory />);
 

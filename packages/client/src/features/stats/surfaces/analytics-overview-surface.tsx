@@ -45,6 +45,7 @@ import {
   momentumBarItems,
   REASONING_LABEL,
   THROUGHPUT_LABEL,
+  throughputProvenance,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
 import { LEADERBOARD_ROW_ATTR } from "../lib/leaderboard-row-attr.ts";
@@ -195,7 +196,10 @@ function OverviewBody(): ReactElement {
             <StatFigure label="p50 gen" value={formatMs(overview.p50GenMs)} />
             <StatFigure label="p90 gen" value={formatMs(overview.p90GenMs)} />
             <StatFigure label="Avg TTFT" value={formatMs(overview.avgTtftMs)} />
-            <StatFigure label={THROUGHPUT_LABEL} value={formatThroughput(overview.throughputTps, overview.tokensOutProvenance)} />
+            <StatFigure
+              label={THROUGHPUT_LABEL}
+              value={formatThroughput(overview.throughputTps, throughputProvenance(overview.totalGenTimeMs, overview.tokensOutProvenance))}
+            />
             {/* THE DENOMINATOR IS IN THE LABEL (P1a/P3d). "Cache hits" alone read 100% on every backend
                 that reports cache READS but not cache WRITES — the old ratio's denominator was the two
                 cache columns, so it could only ever be 1 or 0. Against input tokens it answers the

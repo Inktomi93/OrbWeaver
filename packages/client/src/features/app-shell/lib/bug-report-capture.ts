@@ -22,6 +22,7 @@ import type { EvidenceSlice } from "@orb/kit/evidence-window";
 import { resolveEvidenceWindow, sliceByWindow, wholeSource } from "@orb/kit/evidence-window";
 import { coarsePointerNow, prefersReducedMotionNow } from "@orb/ui/lib";
 import { readAgentDebugHandle } from "../../../lib/agent-bridge.ts";
+import type { ThemeObservableRead } from "../../../lib/appearance-carrier-manifest.ts";
 import { APPEARANCE_CARRIER_OBSERVABLES, THEME_CARRIER_OBSERVABLES } from "../../../lib/appearance-carrier-manifest.ts";
 import type { BugReportClientBundle, BugReportEnvironment, BugReportRoute } from "../../../lib/bug-report-bundle.ts";
 import { bugReportRouteFrom, buildBugReportClientBundle, FLAGS_UNFILTERABLE_REASON, RENDERS_UNFILTERABLE_REASON } from "../../../lib/bug-report-bundle.ts";
@@ -61,25 +62,43 @@ function readRoute(shell: unknown): BugReportRoute {
   });
 }
 
-/** Every DOM-observable appearance carrier, read off the live document. DERIVED from the carrier manifest
- *  rather than hand-listed: a new appearance axis appears in a bug report the moment it is declared, which is
+/** One theme signal, read the way its observable declares. */
+const THEME_SIGNAL_READERS: Record<ThemeObservableRead, (element: HTMLElement, signal: string) => string | null> = {
+  attribute: (element, signal) => element.getAttribute(signal),
+  "computed-style": (element, signal) => getComputedStyle(element).getPropertyValue(signal).trim(),
+  "text-content": (element) => element.textContent,
+};
+
+/** Every DOM-observable appearance and theme carrier, read off the live document. DERIVED from the carrier
+ *  manifest rather than hand-listed: a new axis appears in a bug report the moment it is declared, which is
  *  the whole reason that manifest is the one home. `message-prop` carriers are skipped — they are per-message
- *  props, not the page-level appearance a rendered defect is a function of. */
-function readAppearanceCarriers(): Readonly<Record<string, string | null>> {
-  const observables = { ...APPEARANCE_CARRIER_OBSERVABLES, ...THEME_CARRIER_OBSERVABLES };
-  const out: Record<string, string | null> = {};
-  for (const [key, observable] of Object.entries(observables)) {
-    if (!("kind" in observable) || observable.kind === "message-prop") {
+ *  props, not the page-level appearance a rendered defect is a function of. A carrier whose element is not in
+ *  the document is listed in `absent` and contributes no value. */
+function readAppearanceCarriers(): Pick<BugReportEnvironment, "appearance" | "appearanceAbsent"> {
+  const appearance: Record<string, string | null> = {};
+  const absent: string[] = [];
+  for (const [key, observable] of Object.entries(APPEARANCE_CARRIER_OBSERVABLES)) {
+    if (observable.kind === "message-prop") {
       continue;
     }
     const element = document.querySelector<HTMLElement>(observable.selector);
     if (element === null) {
-      out[key] = null;
+      absent.push(key);
       continue;
     }
-    out[key] = observable.kind === "attribute" ? element.getAttribute(observable.signal) : element.style.getPropertyValue(observable.signal);
+    appearance[key] = observable.kind === "attribute" ? element.getAttribute(observable.signal) : element.style.getPropertyValue(observable.signal);
   }
-  return out;
+  for (const [key, observable] of Object.entries(THEME_CARRIER_OBSERVABLES)) {
+    const element = document.querySelector<HTMLElement>(observable.selector);
+    if (element === null) {
+      absent.push(key);
+      continue;
+    }
+    for (const signal of observable.signals) {
+      appearance[`${key}.${signal}`] = THEME_SIGNAL_READERS[observable.read](element, signal);
+    }
+  }
+  return { appearance, appearanceAbsent: absent };
 }
 
 /** The browser facts a rendered defect is usually a function of.
@@ -98,7 +117,7 @@ function readEnvironment(): BugReportEnvironment {
     maxTouchPoints: navigator.maxTouchPoints,
     pointerCoarse: coarsePointerNow(),
     prefersReducedMotion: prefersReducedMotionNow(),
-    appearance: readAppearanceCarriers(),
+    ...readAppearanceCarriers(),
   };
 }
 

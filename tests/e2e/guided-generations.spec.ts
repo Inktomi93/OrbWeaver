@@ -14,7 +14,7 @@
 //     guided one, and the icon's own accessible name flips with it ("Generate reply" → "Guided generate
 //     reply"). So typing the steer IS arming the guided fire — nothing opens a menu first.
 //   • Guided response = the ▶ icon. SOLO room ⇒ a plain button that fires on click. MULTI-character room
-//     ⇒ the same-named MenuTrigger whose popup is "Auto (arbitrate)" + one FLAT item per member (leg 4's
+//     ⇒ the same-named MenuTrigger whose popup is "Let the room pick" + one FLAT item per member (leg 4's
 //     speaker pick; it is no longer a hover-submenu under a "Guided response" parent).
 //   • Guided continue = the ⏩ icon, whose guided name is "Continue the reply with this direction".
 //   • Rewrite moved INTO the ✨ menu ("Message tools") as "Corrections…" — the modal it opens, and the
@@ -349,11 +349,11 @@ test.describe("guided generations on the live local stack", () => {
 
       await openChatByTitle(page, title);
       await typeSteer(page, "greet the party");
-      // Above the roster-of-2 floor the ▶ icon IS a menu trigger, and its popup is FLAT: "Auto (arbitrate)"
+      // Above the roster-of-2 floor the ▶ icon IS a menu trigger, and its popup is FLAT: "Let the room pick"
       // plus one item per member. One click opens it, one click picks BRAVO — the old hover-into-a-submenu
       // step is gone with the wand.
       await (await armedIcon(page, GUIDED_RESPONSE)).click();
-      await expect(page.getByRole("menuitem", { name: "Auto (arbitrate)" })).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole("menuitem", { name: "Let the room pick" })).toBeVisible({ timeout: 10_000 });
       await page.getByRole("menuitem", { name: DUO[1].name }).click();
 
       // SERVER TRUTH: exactly one assistant row committed and it is authored by the CHOSEN speaker (bravo),

@@ -1973,7 +1973,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "settings.importThemeFile": "self-scoped: takes file TEXT and no id — it writes only the caller's own theme library",
   "settings.promoteTheme": "self-scoped: mints an owned row from VALUES only (name + override) — no foreign id to reach through",
   "sessions.me": "self-scoped: projects the caller's own Principal",
-  "search.fields": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
+  "search.fields": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; hit names via the ownerId-filtered display read; query text, no id)",
   "search.suggest": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
   // Takes ids inside `scope`, but EVERY scope is owner-belted in the dispatch (digest scans carry the
   // characters.ownerId belt; the verbatim segments chat is gated against the owner's materialized chat

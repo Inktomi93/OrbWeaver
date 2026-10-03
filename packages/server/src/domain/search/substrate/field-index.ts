@@ -4,7 +4,7 @@
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import MiniSearch from "minisearch";
-import type { FieldSearchResult, SearchSuggestion } from "../contract/results.ts";
+import type { FieldIndexResult, SearchSuggestion } from "../contract/results.ts";
 
 /** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export const FIELD_INDEX_TTL_MS = 300_000;
@@ -46,6 +46,19 @@ const cache = new Map<UserId, IndexCacheEntry>();
 // unrelated work and must not queue behind each other.
 const inFlight = new Map<UserId, Promise<MiniSearch<CardDoc>>>();
 
+// Bumped by every eviction. A build publishes only if its owner's epoch is unchanged, so a build that loaded
+// the cards before a delete cannot republish the deleted card after the eviction.
+const epochs = new Map<UserId, number>();
+
+/** Drop the owner's index after a card write, so the next search rebuilds over the live card set (its hits
+ *  and its coverage counts). The rebuild stays lazy: an import that writes many cards evicts many times and
+ *  builds once. */
+export function evictFieldIndex(ownerId: UserId): void {
+  cache.delete(ownerId);
+  inFlight.delete(ownerId);
+  epochs.set(ownerId, (epochs.get(ownerId) ?? 0) + 1);
+}
+
 function buildIndex(docs: readonly CardDoc[]): MiniSearch<CardDoc> {
   const index = new MiniSearch<CardDoc>({
     idField: "id",
@@ -86,21 +99,26 @@ export async function getOrBuildFieldIndex(ownerId: UserId, nowMs: number, load:
   if (running !== undefined) {
     return await running;
   }
+  const epoch = epochs.get(ownerId) ?? 0;
   const build = (async (): Promise<MiniSearch<CardDoc>> => {
     const entry: IndexCacheEntry = { index: buildIndex(await load()), builtAtMs: nowMs };
-    touchAndEvict(ownerId, entry);
+    if ((epochs.get(ownerId) ?? 0) === epoch) {
+      touchAndEvict(ownerId, entry);
+    }
     return entry.index;
   })();
   inFlight.set(ownerId, build);
   try {
     return await build;
   } finally {
-    inFlight.delete(ownerId);
+    if (inFlight.get(ownerId) === build) {
+      inFlight.delete(ownerId);
+    }
   }
 }
 
 /** Run the BM25 query (fuzzy + prefix + field boosts), return the top `topN` card ids by score. */
-export function queryFields(index: MiniSearch<CardDoc>, query: string, topN: number): FieldSearchResult {
+export function queryFields(index: MiniSearch<CardDoc>, query: string, topN: number): FieldIndexResult {
   const matches = index.search(query);
   return {
     hits: matches.slice(0, topN).map((row) => ({ characterId: row.id as CharacterId, score: row.score })),

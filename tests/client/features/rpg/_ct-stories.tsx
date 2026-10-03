@@ -32,6 +32,7 @@ import { RpgGameDoor } from "../../../../packages/client/src/features/rpg/compon
 import { PackBody } from "../../../../packages/client/src/features/rpg/components/rpg-pack-rows.tsx";
 import { RpgCardLightbox, RpgSceneCards } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
 import { RpgTakeoverHeader } from "../../../../packages/client/src/features/rpg/components/rpg-takeover-header.tsx";
+import { RpgVeiledSection } from "../../../../packages/client/src/features/rpg/components/rpg-veiled-section.tsx";
 import { useUpdateConfig } from "../../../../packages/client/src/features/rpg/hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
@@ -514,5 +515,28 @@ export function RpgSceneCardsStory(): ReactElement {
         <RpgSceneCards chatId={CHAT_ID} enabled={true} />
       </div>
     </CtDataProviders>
+  );
+}
+
+/** The host's Veiled ledger alone, at the narrow context-panel width, with a control that re-reads the ledger
+ *  so a CT can change its rows under a revealed truth (the bus does this in the app). */
+export function RpgVeiledSectionStory({ width = 320 }: { readonly width?: number } = {}): ReactElement {
+  return (
+    <CtDataProviders>
+      <RpgVeiledSectionHarness width={width} />
+    </CtDataProviders>
+  );
+}
+
+function RpgVeiledSectionHarness({ width }: { readonly width: number }): ReactElement {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  return (
+    <div style={{ width }}>
+      <button type="button" onClick={(): void => void queryClient.invalidateQueries({ queryKey: trpc.rpg.revealHidden.queryKey({ chatId: CHAT_ID }) })}>
+        re-read the ledger
+      </button>
+      <RpgVeiledSection chatId={CHAT_ID} />
+    </div>
   );
 }

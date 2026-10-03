@@ -3,7 +3,7 @@
 // WHAT IT DOES. `/plugin keepsake-camera snapshot` reads the last few beats of the scene, asks the model —
 // privately, structured — for a title and a painting prompt, and sends the scene to the image pipeline. The
 // postcard is painted INTO THE ROOM, and every keepsake the camera catches also lands in its album page
-// (the Extensions rail), where you can revisit or discard them.
+// (the Plugin pages rail entry), where you can revisit or discard them.
 //
 // FOUR THINGS THIS ARCHETYPE TEACHES THAT NO OTHER SEEDED EXAMPLE DOES:
 //
@@ -344,7 +344,7 @@ async function loadMoments(): Promise<readonly (readonly [string, StoredMoment])
  *  cover `assetId` is state data the renderer format-checks and then resolves OWNER-SCOPED, exactly like a
  *  spec-declared image — a foreign id would paint nothing, never someone else's picture.
  *
- *  Published with NO chat handle: the album is a CROSS-ROOM roll-up, so every room (and the Extensions page)
+ *  Published with NO chat handle: the album is a CROSS-ROOM roll-up, so every room (and the album page under Plugin pages)
  *  shows the same publication — the deliberate contrast with the per-room `setState(…, chat)` the
  *  story-clocks and affinity examples use. Pick the scope that matches what the data is ABOUT. */
 async function publishAlbum(detail?: AlbumDetail): Promise<void> {
@@ -398,7 +398,7 @@ if (canShoot) {
   // A masterDetail page whose BROWSE stage is a BOUND grid (`tilesFrom`) — the tile count is DATA, so the
   // album grows one keepsake at a time with no ghost slots — and whose DETAIL stage is a BOUND image
   // (`assetFrom`) + bound text. Stage navigation is ordinary published state: `open` publishes the picked
-  // moment and flips `stage`; `back` flips it home. Leaving the Extensions section and returning lands on
+  // moment and flips `stage`; `back` flips it home. Leaving Plugin pages and returning lands on
   // the same stage — the state lives here, not in the mount.
   host.ui.register({
     id: "album_page",

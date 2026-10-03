@@ -55,7 +55,7 @@ Playwright CT (`.ct.tsx` under the `tests/ui` mirror — LIVE, `playwright-ct.co
 
 #### 6.3 Markdown + code → `@orb/ui/markdown` = Streamdown — BUILT
 
-- **Streamdown** is THE markdown renderer, used everywhere (chat AND static descriptions → one lib). It repairs incomplete/unterminated markdown mid-stream instead of flashing, does incremental DOM updates (react-markdown re-parses the whole message per token → ~O(n²) lag), and bundles **Shiki** + KaTeX + Mermaid + copy/download + security policies. Sealed as `@orb/ui/markdown` with **two trust policies** (`packages/ui/src/markdown/policy.ts`) + `toPlainText` (remark `strip-markdown` — previews/snippets/notifications). The concrete two-policy security spec: §11.6.
+- **Streamdown** is THE markdown renderer, used everywhere (chat AND static descriptions → one lib). It repairs incomplete/unterminated markdown mid-stream instead of flashing, does incremental DOM updates (react-markdown re-parses the whole message per token → ~O(n²) lag), and bundles copy/download + security policies; the seal supplies Shiki and KaTeX as plugins and no diagram plugin, so a mermaid fence renders as code. Sealed as `@orb/ui/markdown` with **two trust policies** (`packages/ui/src/markdown/policy.ts`) + `toPlainText` (remark `strip-markdown` — previews/snippets/notifications). The concrete two-policy security spec: §11.6.
 
 ##### 6.3.1 The streaming-reveal stack — the three layers, and who owns each (D43)
 

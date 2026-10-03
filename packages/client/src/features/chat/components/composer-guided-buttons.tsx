@@ -323,7 +323,7 @@ export function ResponseGuidedButton({
         <ControlDetail description={description} />
       </Tooltip>
       <MenuPopup>
-        <MenuItem onClick={(): void => onFire(null)}>Auto (arbitrate)</MenuItem>
+        <MenuItem onClick={(): void => onFire(null)}>Let the room pick</MenuItem>
         {characters.map((member) => (
           <MenuItem key={member.characterId} onClick={(): void => onFire(member.characterId)}>
             <Icon icon={Drama} size="sm" />

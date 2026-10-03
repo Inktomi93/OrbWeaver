@@ -158,17 +158,15 @@ test("the pane offers exactly ONE free-text search — the omnibox; the browse v
   await expect(component.locator("input[placeholder]:not([placeholder=''])")).toHaveCount(1);
 });
 
-test("the Text target runs the lexical fields search and names the hits from the card list", async ({ mount, page }) => {
+test("the Text target runs the lexical fields search and renders the hits it names", async ({ mount, page }) => {
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
     "discovery.browseCharacters": EMPTY_BROWSE,
     "search.suggest": [],
-    // fields returns bare id+score; the picker names it against character.list.
-    "search.fields": { hits: [{ characterId: "char_zed", score: 3.2 }], coverage: { requestLimit: 20, indexedCharacters: 1, matchingCharacters: 1 } },
-    "character.list": {
-      items: [{ id: "char_zed", name: "Zed the Lexeme", avatarHash: null }],
-      nextCursor: null,
+    "search.fields": {
+      hits: [{ characterId: "char_zed", score: 3.2, name: "Zed the Lexeme", avatarHash: null }],
+      coverage: { requestLimit: 20, indexedCharacters: 1, matchingCharacters: 1 },
     },
   });
   const component = await mount(<CorpusListSurfaceStory />);

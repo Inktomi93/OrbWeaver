@@ -75,7 +75,7 @@ const MESSAGE =
   "cannot resolve to an authored object literal, an unreadable or duplicate id, or a DORMANT doorway with " +
   "an empty reason or teaser or one that also declares an action.";
 const FIX =
-  "co-locate the tile at features/<owner>/lib/<name>-tile.tsx and write it as an authored object literal; give every tile a unique id; give a dormant doorway a real reason AND a real teaser and no action (a doorway has no controls). For a deliberate exception, write an adjacent `@orb-waive home-tile-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the tile (`buddyDormantTile`), never the `reason`/`teaser`/`action` field the message names.";
+  "co-locate the tile at features/<owner>/lib/<name>-tile.tsx and write it as an authored object literal; give every tile a unique id; give a dormant doorway a real reason AND a real teaser and no action (a doorway has no controls). For a deliberate exception, write an adjacent `@orb-waive home-tile-registry-completeness(<position>): <why + end condition>` — the position is the DECLARED NAME of the tile (for example `databankDocumentsTile`), never the `reason`/`teaser`/`action` field the message names.";
 
 interface Claim {
   readonly name: string;
@@ -298,10 +298,10 @@ export const gate = defineGate({
       mode: "types",
       files: {
         "packages/client/src/state/home-tile-contracts.ts": "export interface HomeTileContribution { readonly id: string }\n",
-        "packages/client/src/features/home/lib/buddy-tile.tsx":
-          'import type { HomeTileContribution } from "../../../state/home-tile-contracts.ts";\nexport const buddyDormantTile: HomeTileContribution = { id: "buddy", body: { dormant: { reason: "Not started yet, and there is no date to promise.", teaser: "Your companion." } } };\n',
+        "packages/client/src/features/home/lib/planned-tile.tsx":
+          'import type { HomeTileContribution } from "../../../state/home-tile-contracts.ts";\nexport const plannedDormantTile: HomeTileContribution = { id: "planned", body: { dormant: { reason: "Not started yet, and there is no date to promise.", teaser: "Your companion." } } };\n',
       },
-      why: "THE FOUNDING LEGAL DOORWAY (the live `buddy-tile.tsx` shape): a real reason, a real teaser, no controls — passes. It is the row that dies if the `action`, `reason` or `teaser` clause is cut open",
+      why: "A LEGAL DOORWAY: a real reason, a real teaser, no controls — passes. It is the row that dies if the `action`, `reason` or `teaser` clause is cut open",
     },
     {
       mode: "types",

@@ -1,5 +1,5 @@
 // verbs: getVersion + checkForUpdate (owner ask 2026-09-18) — the two deployment-global reads behind
-// Settings → About, through the real service assembly.
+// Settings → This install, through the real service assembly.
 //
 // Load-bearing here (the pure verdict tables themselves are pinned in tests/kit/version-identity):
 //   • `getVersion` reports the INJECTED identity verbatim — no re-derivation, no reshaping.

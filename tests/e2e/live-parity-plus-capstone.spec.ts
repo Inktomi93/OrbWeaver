@@ -27,6 +27,7 @@ import type { CharacterHandle, CharacterId, ChatId, MessageId } from "@orb/kit/i
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { revealActionName } from "../../packages/ui/src/lib/action-names.ts";
 import { openContextTab, openNewestChat } from "./support/chat-room.ts";
 import {
   createLiteGame,
@@ -139,8 +140,11 @@ test("P3 deception: a planted lie is host-revealed (eye + standing-lie inventory
     await openNewestChat(page);
     await openGamePanel(page);
     await openContextTab(page, "Status");
+    // The truth sits behind its reveal gate, out of the DOM until the host asks for it.
     const veiled = page.locator('[data-slot="rpg-veiled-section"]');
     await expect(veiled).toBeVisible({ timeout: 15_000 });
+    await expect(veiled).not.toContainText("he is the smuggler the guards seek");
+    await veiled.getByRole("button", { name: revealActionName("the truth for Thornwick") }).click();
     await expect(veiled).toContainText("he is the smuggler the guards seek", { timeout: 15_000 });
 
     // ── The trust-boundary floor (host side): the lie bytes ride the HOST's own canon read verbatim (the host

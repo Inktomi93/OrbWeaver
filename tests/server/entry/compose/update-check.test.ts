@@ -1,4 +1,4 @@
-// entry/compose/update-check — the per-channel upstream probes behind Settings → About's "check for updates".
+// entry/compose/update-check — the per-channel upstream probes behind Settings → This install's "check for updates".
 // Locks the REQUEST each makes and the failure-reason mapping without a live network:
 //   • the host allowlist is EXACT (this op can never become a general-purpose fetcher),
 //   • a User-Agent is sent (GitHub refuses anonymous requests without one — required, not polish),

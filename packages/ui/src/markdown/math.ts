@@ -1,5 +1,5 @@
-// The KaTeX math plugin for `<Streamdown plugins={{ math }}>`. Streamdown bundles Mermaid but not
-// KaTeX, so this seal supplies the whole math stack: remark-math (parse) -> rehype-katex (render) +
+// The KaTeX math plugin for `<Streamdown plugins={{ math }}>`. Streamdown bundles no math renderer,
+// so this seal supplies the whole math stack: remark-math (parse) -> rehype-katex (render) +
 // the stylesheet. `getStyles` is deliberately omitted — the bundler owns the CSS + font url() rewrites.
 import "katex/dist/katex.min.css";
 import rehypeKatex from "rehype-katex";

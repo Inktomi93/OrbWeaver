@@ -15,7 +15,8 @@
  *  groups share an `order`; the LIST paints `(shelf, order, id)`.
  *
  *  `plugins` is the ONE `extensions`-shelf group: a plugin's own settings ride its row inside it
- *  — the door never grows per install. `admin` stays `when`-gated on the def. */
+ *  — the door never grows per install. `admin` stays `when`-gated on the def; `about` is ungated, so a member
+ *  can read the install version. */
 export const CONFIG_GROUP_IDS = [
   // ── user ──
   "personas",
@@ -27,6 +28,7 @@ export const CONFIG_GROUP_IDS = [
   "connections",
   "automation",
   "admin",
+  "about",
   "regex",
   "worldInfo",
   "rosterPreset",

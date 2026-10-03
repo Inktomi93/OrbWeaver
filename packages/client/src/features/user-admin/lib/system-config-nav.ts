@@ -31,7 +31,7 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
     {
       id: "trust-html",
       label: "Render rich HTML as trusted",
-      keywords: ["html", "mermaid", "sanitize", "xss", "cards"],
+      keywords: ["html", "sanitize", "xss", "cards"],
       teach: {
         summary: "Renders rich HTML cards as trusted instead of sanitized \u2014 only for deployments where every author is trusted.",
         affects: ["every account's message rendering, deployment-wide"],

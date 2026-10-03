@@ -458,9 +458,9 @@ overrides:
   "@playwright/experimental-ct-core>vite": "6.4.3"
   # DEPLOCK 2026-08-14: streamdown@2.5.0 pins `mermaid: ^11.12.2`, resolved-stale at 11.16.0 —
   # 5 advisories fixed in 11.16.1 (prototype pollution x2, CSS injection, XY-chart + radar DoS).
-  # Mermaid renders untrusted MODEL OUTPUT (streamdown fences in chat), so this is the reachable
-  # arm of today's audit. mermaid's own `dompurify: ^3.3.3` range already covers the fixed 3.4.13
-  # (was resolved-stale at 3.4.11) — bumping mermaid alone drags dompurify along; no separate
+  # No diagram plugin is wired, so a mermaid fence in chat renders as inert code and this bump is
+  # defence in depth for the bundled dependency, not a reachable path. mermaid's own
+  # `dompurify: ^3.3.3` range already covers the fixed 3.4.13 (was resolved-stale at 3.4.11) — bumping mermaid alone drags dompurify along; no separate
   # dompurify override needed. Both ranges are satisfied by streamdown's own deps, so this is a
   # pure resolution-bump, not an API-incompatible major. Even after the mermaid bump, pnpm kept
   # resolving dompurify to the pre-fix 3.4.11 (satisfies mermaid's `^3.3.3` range but is not the

@@ -33,6 +33,9 @@ import type {
 import { EFFECTIVE_KNOBS } from "../contract/views.ts";
 import { readablePreset } from "../persistence/queries.ts";
 
+/** The `replyMedia` value that asks the model for pictures beside its prose. */
+const REPLY_MEDIA_IMAGE = "text+image" satisfies UserIntent["replyMedia"];
+
 /** The user-intent effort value that means "reasoning off" — the one string the funnel treats as a disable
  *  rather than a level (`resolve-chat`'s `EFFORT_OFF`). */
 const EFFORT_OFF = "none";
@@ -136,6 +139,12 @@ function probeKnobs(params: UserIntent, capability: GenerationCapability): Recor
     // read. That is the "floor" rung, and it is what the ghost row must show when the knob is unset.
     maxOutputTokens: { explicit: params.maxOutputTokens, resolved: resolved.maxOutputTokens, floor: DEFAULT_MAX_OUTPUT_TOKENS },
     verbosity: { explicit: params.verbosity, resolved: resolved.verbosity },
+    // Only the image ask is a knob: `text` is what every reply already is, so a stored `text` resolves to
+    // nothing and is never stale. A stored image ask the model cannot produce is dropped, so it reads stale.
+    replyMedia: {
+      explicit: params.replyMedia === REPLY_MEDIA_IMAGE ? REPLY_MEDIA_IMAGE : undefined,
+      resolved: resolved.replyImages ? REPLY_MEDIA_IMAGE : undefined,
+    },
   };
 }
 

@@ -34,6 +34,15 @@ test("#1358 FENCE: an unrenderable value paints an empty chip rather than advert
   await expect(swatch.locator('[data-slot="color-swatch-chip"]')).not.toHaveAttribute("style", NON_EMPTY);
 });
 
+test("ColorSwatch with NO colour paints its own unset state, not the input fill a dark colour could pass for", async ({ mount }) => {
+  const swatch = await mount(<ColorSwatch size="sm" value={null} />);
+  const chip = swatch.locator('[data-slot="color-swatch-chip"]');
+  await expect(chip).toHaveAttribute("data-unset", "");
+  await expect(chip).not.toHaveAttribute("style", NON_EMPTY);
+  await expect(chip).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(chip).toHaveCSS("border-top-style", "dashed");
+});
+
 test("ColorSwatch drops an unsafe value instead of applying it as a style", async ({ mount }) => {
   const swatch = await mount(<ColorSwatch value="url(evil.css)" />);
   const chip = swatch.locator('[data-slot="color-swatch-chip"]');
