@@ -26,8 +26,9 @@ const FORBID_EXTERNAL_MEDIA_FLOOR = true;
 const TRUST_HTML_FLOOR = false;
 // The html-trust ladder's TOP rung, deployment half. ON by owner ruling: interactive cards are the default
 // for every character, so this is both the ceiling and the rung an "Inherit default" card resolves to
-// (`resolveRenderPolicy`). An admin override of `false` is the revocation, and the only control over the
-// WebRTC/STUN beacon no CSP directive can close (`@orb/kit/card-frame` residual R1).
+// (`resolveRenderPolicy`). An admin override of `false` is the revocation, and the only box-wide control over
+// the WebRTC/STUN beacon no CSP directive can close (`@orb/kit/card-frame` residual R1). Each viewer can also
+// turn card scripts off for their own browser (`UserSettings.chat.runCardScripts`).
 const ALLOW_INTERACTIVE_CARDS_FLOOR = true;
 const MS_PER_HOUR = 3_600_000;
 const HOURS_PER_DAY = 24;

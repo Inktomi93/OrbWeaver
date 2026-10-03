@@ -150,6 +150,17 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
         affects: ["new chats you host"],
       },
     },
+    {
+      id: "run-card-scripts",
+      key: "runCardScripts",
+      label: "Run story-card scripts",
+      keywords: ["interactive", "card", "script", "privacy", "ip"],
+      teach: {
+        summary:
+          "Interactive story cards can run their own scripts in your browser, sandboxed away from your account. A card script can still reveal your IP address to whoever wrote the card. Off shows every card without its scripts, in every chat, including rooms other people host.",
+        affects: ["every interactive story card you view, on this account"],
+      },
+    },
   ],
 };
 
@@ -180,6 +191,9 @@ export const CHAT_MESSAGE_HANDLING_KEYS = [
   // reacting is opt-in — owner requirement).
   "reactionsEnabled",
   "charactersCanReact",
+  // The viewer's consent to run card scripts in their own browser, honored at the card-frame mint. A chat
+  // behavior for the `offerChoices` reason above; this pane is where a chat's per-user knobs live.
+  "runCardScripts",
 ] as const;
 
 export const AUTO_SWIPE_MIN_LENGTH_MIN = 0;
@@ -207,6 +221,7 @@ export interface ChatMessageHandlingForm {
   readonly offerChoices: boolean;
   readonly reactionsEnabled: boolean;
   readonly charactersCanReact: boolean;
+  readonly runCardScripts: boolean;
 }
 
 /** The section's WRITE shape, DERIVED from the `OWNS` tuple: exactly the owned keys, with `autoSwipe`
@@ -241,6 +256,7 @@ export function projectMessageHandlingForm(chat: ChatSettings): ChatMessageHandl
     offerChoices: chat.offerChoices,
     reactionsEnabled: chat.reactionsEnabled,
     charactersCanReact: chat.charactersCanReact,
+    runCardScripts: chat.runCardScripts,
   };
 }
 
@@ -261,5 +277,6 @@ export function toMessageHandlingPatch(form: ChatMessageHandlingForm): ChatMessa
     offerChoices: form.offerChoices,
     reactionsEnabled: form.reactionsEnabled,
     charactersCanReact: form.charactersCanReact,
+    runCardScripts: form.runCardScripts,
   };
 }

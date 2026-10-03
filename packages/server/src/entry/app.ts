@@ -393,6 +393,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // The deployment half of the html-trust ladder's TOP rung (#111 leg 3). Same live read the participant
     // resolver uses, applied a second time at the boundary that actually mints the policy.
     allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
+    viewerRunsCardScripts: async (viewer) => (await deps.services.settings.loadUserSettings(viewer.userId)).chat.runCardScripts,
     now: deps.now,
   });
 
