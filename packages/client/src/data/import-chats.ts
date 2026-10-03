@@ -4,6 +4,7 @@
 // isolation), so this helper hands back the real per-file outcome and the caller's summary derives from
 // THAT, never from the uploaded filenames. A non-200 (whole-batch rejection) throws.
 
+import type { ImportWindow } from "@orb/contracts/chat";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { throwHttpError } from "./http-error.ts";
 
@@ -26,6 +27,9 @@ interface FailedChatResult {
 export interface ChatImportResult {
   readonly imported: readonly ImportedChatResult[];
   readonly failed: readonly FailedChatResult[];
+  /** The span in which the batch wrote real conversations (null = none) — the "Build memory for imported chats"
+   *  offer's scope handle. */
+  readonly memoryScope: ImportWindow | null;
 }
 
 /** POST picked `.jsonl` transcripts to the chat-import route and return the server's real per-file result.

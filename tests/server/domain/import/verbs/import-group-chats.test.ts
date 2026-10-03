@@ -5,7 +5,7 @@
 // and isolation holds PER MEMBER and PER GROUP.
 
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CollectedGroup, ImportContext, ImportGroupsInput } from "@orb/server/domain/import";
 import { createImportService, importFileHash, parseStGroupFile } from "@orb/server/domain/import";
@@ -63,7 +63,12 @@ interface Written {
   readonly calls: { readonly characterId: CharacterId; readonly chats: readonly BulkImportChatInput[] }[];
 }
 
-function ctxWith(written: Written, opts: { readonly throws?: boolean } = {}): ImportContext {
+/** The chat id the fake write reports for the Nth room it wrote, when the run writes real conversations. */
+function writtenRoom(n: number): ChatId {
+  return castId<ChatId>(`chat_group_room_${String(n)}`);
+}
+
+function ctxWith(written: Written, opts: { readonly throws?: boolean; readonly realConversations?: boolean } = {}): ImportContext {
   const unused = (): never => {
     throw new Error("unexpected op call");
   };
@@ -93,12 +98,12 @@ function ctxWith(written: Written, opts: { readonly throws?: boolean } = {}): Im
           messagesImported: chats.reduce((n, c) => n + c.messages.length, 0),
           variantsImported: 0,
           branchesLinked: 0,
-          realConversationWritten: true,
+          realConversationsWritten: opts.realConversations === true ? [writtenRoom(written.calls.length)] : [],
           chatsPersonaHealed: 0,
         });
       },
       bulkImportPersonas: unused,
-      enqueueBackfill: () => Promise.resolve(true),
+      enqueueImportIndex: () => Promise.resolve(),
       reconcileStats: () => Promise.resolve(),
     },
   };
@@ -171,6 +176,16 @@ describe("importGroupChats", () => {
 
     // `original_avatar: "Eleni.png"` must seat the FIRST Eleni. A display-name match would seat ELENI_B here.
     expect(written.calls[0]?.chats[0]?.messages[0]?.characterId).toBe(ELENI_A);
+  });
+
+  test("the wave's memory scope is every room it wrote, in group order; a refused group adds none", async () => {
+    const written: Written = { calls: [] };
+    const service = createImportService(ctxWith(written, { realConversations: true }));
+
+    const result = await service.importGroupChats(input([group(["Aria.png", "Bryn.png"]), group(["Ghost.png"]), group(["Bryn.png", "Aria.png"])]));
+
+    expect(result.skippedGroups).toHaveLength(1);
+    expect(result.memoryChatIds).toEqual([writtenRoom(1), writtenRoom(2)]);
   });
 
   test("seats the whole cast and attributes each assistant slot to the character that voiced it", async () => {

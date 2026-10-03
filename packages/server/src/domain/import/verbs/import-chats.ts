@@ -31,9 +31,11 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
       chats,
     });
 
-    // (wired): a chat canon-write always OFFERS the downstream index sweep — the workloads door decides
-    // whether it is admissible (#156: memory off ⇒ refused, and the report says so rather than claiming a run).
-    const backfillEnqueued = counts.realConversationWritten && (await profile.enqueueBackfill({ ownerId }));
+    // A real conversation queues the free index pass; its memory build is the client's confirmed offer.
+    const memoryChatIds = counts.realConversationsWritten;
+    if (memoryChatIds.length > 0) {
+      await profile.enqueueImportIndex({ ownerId });
+    }
 
     return {
       characterId: input.characterId,
@@ -42,7 +44,7 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
       messagesImported: counts.messagesImported,
       variantsImported: counts.variantsImported,
       branchesLinked: counts.branchesLinked,
-      backfillEnqueued,
+      memoryChatIds,
       chatsPersonaHealed: counts.chatsPersonaHealed,
       // §5.7: the chat-bound persona picks that named nothing on this install. Computed over the SAME batch
       // the mapper consumed, so the report can never disagree with what was written.

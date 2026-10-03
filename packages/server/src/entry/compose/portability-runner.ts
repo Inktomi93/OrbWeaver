@@ -8,19 +8,19 @@
 // because the import brain was split between the portability descriptors and the god-hub. It is built ONCE
 // now and shared: the descriptors take it directly, and the import CONTRIBUTION takes the composed drivers.
 
+import type { ImportWindow } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
-import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
-import type { PersonaId, UserId, WorkloadId } from "@orb/kit/ids";
+import { DomainOperationError } from "@orb/kit/errors";
+import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
-import type { ImportWorkloadDeps } from "#domain/import";
+import type { ImportWorkloadDeps, SettleImportMemory } from "#domain/import";
 import { DEFAULT_IMPORT_STAGING_DIR } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import { findOwnedPersonaByName } from "#domain/persona";
@@ -40,6 +40,7 @@ import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "../..
 import { writeImportReport } from "../import/import-report.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import {
+  bundleImportMemoryChatIds,
   bundleImportNotes,
   createNodeFsImportPort,
   IMPORT_MAX_DECOMPRESSED_BYTES,
@@ -102,73 +103,66 @@ export interface PortabilityRunnerComposeDeps {
 export interface PortabilityRunnerComposeResult {
   readonly portability: PortabilityRegistry;
   readonly importWorkloads: ImportWorkloadDeps;
+  /** The synchronous chat-import route settles its scope through the same op the workload runs use. */
+  readonly settleImportMemory: SettleImportMemory;
 }
 
-/** The post-import embed DAG, shared by the zip-bundle portability descriptors AND the ST profile-directory
- *  importer — built ONCE. It runs in order and only AFTER the whole import: embed CHARACTERS (the corpus
- *  `index` pass) first, then embed CHATS (`memory-backfill`) gated on it via `dependsOn`. Chaining (not two
- *  independent enqueues) is deliberate — embeddings never run mid-import, and the chat memory pass does not
- *  compete with the character pass for the embed engine.
+/** The post-import index pass, shared by the zip-bundle portability descriptors AND the ST profile-directory
+ *  importer — built ONCE. It embeds the owner's text corpus AFTER the import and calls no Utility model.
  *
- *  RETURNS A COVERAGE CLAIM, not a queue count: `true` means a memory pass that WILL cover this import
- *  entered the queue behind this import's index pass. Two outcomes report `false` rather than throwing,
- *  because neither is an import failure — the workloads door REFUSING the pass (#156: this owner has memory
- *  off, so the sweep skips every one of their chats and could only land a vacuous 0/0 success), and a memory
- *  pass already being in flight for this owner (that run holds no edge to the index pass above and may
- *  already be past the rows just written, so it is not coverage for THIS import). The character `index` pass
- *  is unconditional — it is what memory recall would search, and it stands on its own.
+ *  THE INDEX PASS ADOPTS: any active run of the same admission unit is idempotent and hash-gated, so it
+ *  already covers the freshly imported rows, and a second enqueue would only conflict.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export function createEnqueueImportBackfill(workloads: Pick<WorkloadService, "start">): (args: { readonly ownerId: UserId }) => Promise<boolean> {
-  const startEmbed = async (
-    ownerId: UserId,
-    input: StartWorkloadInput,
-    options: { readonly adoptActive?: true; readonly dependsOnId?: WorkloadId } = {},
-  ): Promise<WorkloadId> => {
-    const { id } = await workloads.start({
-      input,
-      caller: null,
-      mode: "singular",
-      ownerId,
-      ...(options.adoptActive === true ? { adoptActive: true } : {}),
-      ...(options.dependsOnId !== undefined ? { dependsOn: [options.dependsOnId] } : {}),
-    });
-    return id;
+export function createEnqueueImportIndex(workloads: Pick<WorkloadService, "start">): (args: { readonly ownerId: UserId }) => Promise<void> {
+  return async ({ ownerId }: { readonly ownerId: UserId }): Promise<void> => {
+    await workloads.start({ input: { kind: "index", params: { source: "text" } }, caller: null, mode: "singular", ownerId, adoptActive: true });
   };
-  return async ({ ownerId }: { readonly ownerId: UserId }): Promise<boolean> => {
-    // THE INDEX PASS ADOPTS. It is a DEPENDENCY TARGET, and any active run of the same admission unit is
-    // exactly the thing to wait on — that run is idempotent + hash-gated, so it already covers the freshly
-    // imported rows, but the dependent still has to WAIT for it. Swallowing the conflict and losing the id
-    // (what this did before `adoptActive`) dropped the `dependsOn` edge on precisely that path, so the memory
-    // pass was enqueued as an INDEPENDENT root that could run before the index pass it must follow.
-    const embedChars = await startEmbed(ownerId, { kind: "index", params: { source: "text" } }, { adoptActive: true });
-    try {
-      // THE MEMORY PASS DOES NOT ADOPT, and the asymmetry is the point. This function's boolean is a COVERAGE
-      // CLAIM — the import report renders it as "the memory pass entered the queue for this import" — while
-      // an ADOPTED memory run was admitted under someone else's `dependsOn` (`workloads/contract/params.ts`:
-      // an adopted row necessarily drops the caller's). It carries no edge to the index pass above and may
-      // already be past the rows this import just wrote, so reporting `true` for it would make the report
-      // claim a coverage it cannot have. A conflict is reported as `false` — the same honest arm the #156
-      // memory-off refusal lands on, and the same answer this returned before adoption existed.
-      await startEmbed(ownerId, { kind: "memory-backfill", params: {} }, { dependsOnId: embedChars });
-      return true;
-    } catch (err) {
-      if (err instanceof DomainConflictError) {
-        return false;
-      }
-      if (err instanceof DomainOperationError && err.code === WORKLOAD_NOT_ADMISSIBLE) {
-        return false;
-      }
-      throw err;
+}
+
+/** The post-import memory step, the free half of the owner ruling that derived data an import makes runs on its
+ *  own. It closes the import's span and enqueues the segments-only `memory-backfill` over it: the verbatim-segment
+ *  embeddings, no digest, no Utility-model call. The paid digest build is never enqueued here; the client offers
+ *  it over the returned span behind the model-run confirm.
+ *
+ *  A memory-off owner's pass is refused at admission (it would derive nothing), and the span still returns: the
+ *  client decides the offer from the owner's switch. The pass ADOPTS a run already holding this span's unit.
+ * @public Test-anchored module surface; focused tests pin this production-local behavior.
+ */
+export function createSettleImportMemory(workloads: Pick<WorkloadService, "start">, now: () => number): SettleImportMemory {
+  return async ({ ownerId, from, memoryChatIds }: { readonly ownerId: UserId; readonly from: number; readonly memoryChatIds: readonly ChatId[] }) => {
+    if (memoryChatIds.length === 0) {
+      return null;
     }
+    // A clock that stepped back mid-import must not invert the span and fail an import that finished.
+    const importWindow: ImportWindow = { from, to: Math.max(from, now()) };
+    // @orb-waive caught-failure-ownership(err): the one absorbed failure is the memory-off admission refusal, a
+    // normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the
+    // import run. Ends if another refusal code is absorbed here.
+    try {
+      await workloads.start({
+        input: { kind: "memory-backfill", params: { importWindow, segmentsOnly: true } },
+        caller: null,
+        mode: "singular",
+        ownerId,
+        adoptActive: true,
+      });
+    } catch (err) {
+      // The ONE expected refusal: memory is off for this owner, so the pass has nothing to build (#156).
+      if (!(err instanceof DomainOperationError && err.code === WORKLOAD_NOT_ADMISSIBLE)) {
+        throw err;
+      }
+    }
+    return importWindow;
   };
 }
 
 export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): PortabilityRunnerComposeResult {
   const { db, now, workloads } = deps;
+  const settleImportMemory = createSettleImportMemory(workloads, now);
 
   type ImportOwnerOp = (args: { readonly ownerId: UserId }) => Promise<void>;
-  const enqueueImportBackfill = createEnqueueImportBackfill(workloads);
+  const enqueueImportIndex = createEnqueueImportIndex(workloads);
   const reconcileImportStats: ImportOwnerOp = async ({ ownerId }) => {
     await reconcileStats(db, { ownerId, now });
   };
@@ -183,7 +177,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     importCardScripts: deps.importCardScripts,
     bulkImportChats: deps.bulkImportChats,
     bulkImportPersonas: deps.bulkImportPersonas,
-    enqueueBackfill: enqueueImportBackfill,
+    enqueueImportIndex,
     reconcileImportStats,
     // R6 — the orb-native chat bundle's three cross-domain re-links (persona by name, the chat-tag overlay,
     // the rpg campaign). Shared by both consumers exactly like the rest of this slice.
@@ -230,6 +224,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     runProfileDirImport: async ({ profileRoot, ownerId, dryRun, signal }) =>
       await withQuietBulkFanout(async () => {
         const principal = await deps.resolveOwnerPrincipal(ownerId);
+        const from = now();
         const report = await runProfileDirImport({
           fs,
           profileRoot,
@@ -262,10 +257,17 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
         });
         // A real run writes the "what landed / what didn't" report to disk; a dry run writes nothing.
         const reportPath = dryRun ? undefined : await writeImportReport(report, now(), deps.importReportsDir);
-        return { scanned: report.scanned, changed: report.changed, failed: report.skippedCards.length, ...(reportPath !== undefined ? { reportPath } : {}) };
+        return {
+          scanned: report.scanned,
+          changed: report.changed,
+          failed: report.skippedCards.length,
+          memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: report.memoryChatIds }),
+          ...(reportPath !== undefined ? { reportPath } : {}),
+        };
       }),
     runBundleImport: async ({ archive, ownerId, stagingRoot: root, signal }) =>
       await withQuietBulkFanout(async () => {
+        const from = now();
         const report = await runBundleImport({
           registry: portability,
           ownerId,
@@ -275,12 +277,25 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
         });
         // #1710 — carry what #1688 already put on the report (a kept edited lorebook, a dropped overlay) into
         // the BACKGROUND workload's own result, not only the descriptor-level report a sync door would read.
-        return { imported: report.imported, skipped: report.skipped, failed: report.failed, notes: bundleImportNotes(report) };
+        return {
+          imported: report.imported,
+          skipped: report.skipped,
+          failed: report.failed,
+          notes: bundleImportNotes(report),
+          memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: bundleImportMemoryChatIds(report) }),
+        };
       }),
     runStagedDirImport: async ({ stagedPath, ownerId, signal }) =>
       await withQuietBulkFanout(async () => {
+        const from = now();
         const report = await importStagedArchive({ registry: portability, ownerId, staged: await stageDirectory(stagedPath), signal });
-        return { imported: report.imported, skipped: report.skipped, failed: report.failed, notes: bundleImportNotes(report) };
+        return {
+          imported: report.imported,
+          skipped: report.skipped,
+          failed: report.failed,
+          notes: bundleImportNotes(report),
+          memoryScope: await settleImportMemory({ ownerId, from, memoryChatIds: bundleImportMemoryChatIds(report) }),
+        };
       }),
     reconcileImportStats,
     // #23: the terminal "your library changed" fan for a background import. `chatsChanged` (chatId absent)
@@ -293,5 +308,5 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     },
   };
 
-  return { portability, importWorkloads };
+  return { portability, importWorkloads, settleImportMemory };
 }

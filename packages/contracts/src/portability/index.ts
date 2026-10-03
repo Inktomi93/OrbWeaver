@@ -3,7 +3,8 @@
 // a registry of descriptors it iterates — it knows nothing about any specific entity. Function seams
 // remain server-side types; import-outcome schemas also support outcomes exposed by transport.
 
-import type { UserId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
 /** The closed set of portable entity kinds. New entity = one member here + the union widens everywhere.
@@ -111,6 +112,9 @@ export interface PortableImportOutcome {
    *  verb's own record of that stopped at the descriptor seam: the bundle answered a bare `{ok:true}` and the
    *  loss was invisible to anyone reading the restore. Absent ⇒ nothing was skipped. */
   readonly notes?: readonly string[];
+  /** The real conversations this file WROTE (the `chat` entity only) — the scope of the client's memory-build
+   *  offer, since an import enqueues no memory build of its own. Absent ⇒ none. */
+  readonly memoryChatIds?: readonly ChatId[];
 }
 
 // A server-side descriptor, composed from each domain's export + import verbs and its serde. The
@@ -137,4 +141,5 @@ export const portableImportOutcomeSchema = z.strictObject({
   created: z.boolean().exactOptional(),
   error: z.string().exactOptional(),
   notes: z.array(z.string()).readonly().exactOptional(),
+  memoryChatIds: z.array(typeIdSchema(ID_PREFIX.chat)).readonly().exactOptional(),
 }) satisfies z.ZodType<PortableImportOutcome>;

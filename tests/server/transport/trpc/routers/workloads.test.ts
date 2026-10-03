@@ -80,3 +80,35 @@ describe("workloads.estimateModelCalls", () => {
     expect(estimateModelCalls).toHaveBeenCalledWith({ input: { kind: "distill-characters", params: {} }, caller: auth, mode: "singular" });
   });
 });
+
+// The list's OUTPUT schema runs over every stored row it returns, so one row from before a result field existed
+// would fail the whole Jobs list. A pre-scope `import-bundle` row reads as having no memory scope.
+describe("workloads.list over stored rows from before the import memory scope", () => {
+  test("a pre-scope import-bundle row lists, with no memory scope", async () => {
+    const stored = {
+      id: mintTypeId(ID_PREFIX.workload),
+      status: "succeeded",
+      mode: "singular",
+      lane: "sweep",
+      ownerId: null,
+      dependsOn: null,
+      error: null,
+      progress: null,
+      scheduledAt: 1,
+      createdAt: 1,
+      updatedAt: 2,
+      kind: "import-bundle",
+      params: { token: "import-bundle-old.zip" },
+      result: { imported: 2, skipped: 0, failed: 0, notes: [] },
+      poison: false,
+    } as const;
+    // @orb-waive no-test-fabrication(never): the stored row is the subject; the domain double hands it to the real output schema unchanged. Ends when the list verb can be driven over a seeded row here.
+    const list = vi.fn<WorkloadService["list"]>(() => Promise.resolve([stored] as never));
+    const call = caller(makeContext({ auth: principal("user"), services: { workloads: { list } } }));
+
+    const rows = await call.workloads.list({});
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.result).toEqual({ imported: 2, skipped: 0, failed: 0, notes: [], memoryScope: null });
+  });
+});

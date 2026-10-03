@@ -83,7 +83,7 @@ test("turning ON asks first: nothing is written until the confirm says yes, and 
   await expect(confirm).toBeVisible();
   // SETTLED: the opt-in has painted, so the estimate landed while nothing was written.
   await expect(confirm.getByRole("checkbox")).toBeVisible();
-  // The import path is a cost the yes also agrees to: an import while Memory is on queues the backfill at once.
+  // The import path is said here too: an import offers its own build for the chats it wrote, never runs one unasked.
   await expect(confirm.getByText(MEMORY_IMPORTED_CHATS_NOTE)).toBeVisible();
   // @orb-waive ct-no-oneshot-live-read-assert(expect): a zero count after a settled barrier (the opt-in painted from the landed estimate); the only write path is the confirm's yes, not yet pressed, so a poll would pass at t=0 and prove less.
   expect(trpc.count(UPDATE_PROC)).toBe(0);
