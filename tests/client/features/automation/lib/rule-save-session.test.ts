@@ -203,6 +203,7 @@ test("every write stamps the saver's zone as it is when the write leaves, and op
   let zone = "Asia/Kathmandu";
   const births: (string | undefined)[] = [];
   const updates: (string | undefined)[] = [];
+  const acknowledged: string[] = [];
   const queue = createRuleSaveSession({
     timeZone: () => zone,
     chatId,
@@ -217,7 +218,9 @@ test("every write stamps the saver's zone as it is when the write leaves, and op
       updates.push(input.timeZone);
       return Promise.resolve(row(body(input.name)));
     },
-    acknowledge: () => undefined,
+    acknowledge: (_row, sentZone) => {
+      acknowledged.push(sentZone);
+    },
   });
   queue.observe(row(body("Opened")));
   expect([births, updates]).toEqual([[], []]);
@@ -226,4 +229,6 @@ test("every write stamps the saver's zone as it is when the write leaves, and op
   await queue.save(body("Edited after travel"));
   expect(births).toEqual(["Asia/Kathmandu"]);
   expect(updates).toEqual(["America/New_York"]);
+  // Each acknowledgment names the zone its own write sent, so the editor can tell a UTC fallback apart.
+  expect(acknowledged).toEqual(["Asia/Kathmandu", "America/New_York"]);
 });

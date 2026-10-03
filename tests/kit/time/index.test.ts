@@ -6,10 +6,10 @@ import {
   epochToMs,
   groupByCalendarMonth,
   humanizeDuration,
-  ianaTimeZoneSchema,
   isoToMs,
   msToWallClock,
   parseIanaTimeZone,
+  reportedTimeZoneSchema,
   secondsToMs,
   UTC_TIME_ZONE,
   wallClockToMs,
@@ -351,12 +351,11 @@ test("parseIanaTimeZone canonicalizes a known zone and refuses an unknown name o
   expect(parseIanaTimeZone("")).toBeNull();
 });
 
-test("ianaTimeZoneSchema is the wire gate: it canonicalizes a zone and refuses anything else without echoing it", () => {
-  expect(ianaTimeZoneSchema.parse("asia/kathmandu")).toBe("Asia/Kathmandu");
-  const refused = ianaTimeZoneSchema.safeParse("+05:45");
-  expect(refused.success).toBe(false);
-  expect(refused.error?.issues.map((issue) => issue.message)).toEqual(["Unknown IANA time zone"]);
-  expect(ianaTimeZoneSchema.safeParse(42).success).toBe(false);
+test("reportedTimeZoneSchema canonicalizes a known zone and falls back to UTC rather than refusing a save", () => {
+  expect(reportedTimeZoneSchema.parse("asia/kathmandu")).toBe("Asia/Kathmandu");
+  expect(reportedTimeZoneSchema.parse("Etc/Unknown")).toBe(UTC_TIME_ZONE);
+  expect(reportedTimeZoneSchema.parse("+05:45")).toBe(UTC_TIME_ZONE);
+  expect(reportedTimeZoneSchema.safeParse(42).success).toBe(false);
 });
 
 test("formatMonthDay names the viewer's day, not UTC's: 02:00 UTC on Feb 1 is Jan 31 in New York", () => {

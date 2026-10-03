@@ -194,16 +194,11 @@ export function parseIanaTimeZone(value: string): IanaTimeZone | null {
   }
 }
 
-/** The wire form of an IANA zone: any string the platform resolves, canonicalized to its zone id. */
-export const ianaTimeZoneSchema: z.ZodType<IanaTimeZone, string> = z.string().transform((value, ctx): IanaTimeZone => {
-  const zone = parseIanaTimeZone(value);
-  if (zone === null) {
-    // A fixed message: the rejected value never reaches a log through a failed parse.
-    ctx.addIssue({ code: "custom", message: "Unknown IANA time zone" });
-    return z.NEVER;
-  }
-  return zone;
-});
+/** The wire form of a zone a browser reports: its canonical IANA id, or {@link UTC_TIME_ZONE} when this
+ *  platform does not know it (`Etc/Unknown`, a zone newer than the server's ICU, a fixed offset). It never
+ *  refuses, because a refusal would block every save from that browser; the caller sees the fallback by
+ *  reading the stored zone back. */
+export const reportedTimeZoneSchema: z.ZodType<IanaTimeZone, string> = z.string().transform((value): IanaTimeZone => parseIanaTimeZone(value) ?? UTC_TIME_ZONE);
 
 // ─── The DISPLAY half (the client edge) ────────────────────────────────────────────────────────────
 // Localization happens exactly ONCE, at the display edge, through this factory (UI-Gates §11.5 —

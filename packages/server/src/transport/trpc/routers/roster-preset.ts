@@ -5,7 +5,7 @@
 
 import { applyRosterPresetResultSchema, createRosterPresetSchema, rosterPresetSummarySchema, rosterPresetViewSchema } from "@orb/contracts/roster-preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { ianaTimeZoneSchema } from "@orb/kit/time";
+import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
@@ -35,7 +35,7 @@ export const rosterPresetRouter = t.router({
 
   applyToChat: authedProcedure
     .output(applyRosterPresetResultSchema)
-    .input(z.object({ presetId: typeIdSchema(ID_PREFIX.rosterPreset), chatId: typeIdSchema(ID_PREFIX.chat), timeZone: ianaTimeZoneSchema }))
+    .input(z.object({ presetId: typeIdSchema(ID_PREFIX.rosterPreset), chatId: typeIdSchema(ID_PREFIX.chat), timeZone: reportedTimeZoneSchema }))
     .mutation(({ ctx, input }) =>
       ctx.services.rosterPreset.applyToChat({ principal: ctx.auth, presetId: input.presetId, chatId: input.chatId, timeZone: input.timeZone }),
     ),

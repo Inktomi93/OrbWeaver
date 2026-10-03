@@ -29,7 +29,6 @@ import {
   SPEND_ARM_TYPES,
 } from "@orb/contracts/automation";
 import type { RoutableTask } from "@orb/contracts/inference";
-import type { IanaTimeZone } from "@orb/kit/time";
 import type { BadgeProps } from "@orb/ui/badge";
 import { timeLib } from "#lib";
 
@@ -215,9 +214,15 @@ export function lastRunLine(lastFiredAt: number | null): string {
 
 /** The editor's CLOCK line: which zone the rule's hours and dates read in, and whether the next save moves
  *  it to the viewer's. `stored` is `undefined` for a rule not yet created (its first save stamps the
- *  viewer's zone), `null` for a rule saved before rules carried a zone (it reads UTC until edited). */
-export function ruleClockLine(stored: IanaTimeZone | null | undefined, viewerZone: string): string {
+ *  viewer's zone), `null` for a rule saved before rules carried a zone (it reads UTC until edited).
+ *  `unknownZone` is the viewer's zone when this editor's last save found the server did not know it: that
+ *  save stored UTC, and promising a switch on the next edit would be false. */
+export function ruleClockLine(clock: { readonly stored: string | null | undefined; readonly viewerZone: string; readonly unknownZone: string | null }): string {
+  const { stored, viewerZone, unknownZone } = clock;
   const zone = stored === undefined ? viewerZone : automationRuleClockZone(stored);
+  if (unknownZone !== null) {
+    return `The server does not recognise your timezone, ${unknownZone}, so times in this rule use ${zone}.`;
+  }
   return zone === viewerZone
     ? `Times in this rule use your timezone, ${zone}.`
     : `Times in this rule use ${zone}. Your next edit switches them to your timezone, ${viewerZone}.`;

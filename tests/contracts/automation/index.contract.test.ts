@@ -496,7 +496,8 @@ describe("custom rule authored wire boundary", () => {
     expect(automationRuleUpdateSchema.safeParse({ ...editable, ruleId }).success).toBe(false);
     expect(automationRuleCreateSchema.parse({ ...birth, timeZone: "asia/kathmandu" }).timeZone).toBe("Asia/Kathmandu");
     expect(automationRuleUpdateSchema.parse({ ...editable, ruleId, timeZone: "America/New_York" }).timeZone).toBe("America/New_York");
-    expect(automationRuleUpdateSchema.safeParse({ ...editable, ruleId, timeZone: "+05:45" }).success).toBe(false);
+    // A zone the platform does not know stores UTC rather than blocking the save.
+    expect(automationRuleUpdateSchema.parse({ ...editable, ruleId, timeZone: "+05:45" }).timeZone).toBe("UTC");
     // The draft body an editor holds has no zone, so opening a rule can never dirty it with one.
     expect(automationRuleEditableSchema.safeParse({ ...editable, timeZone: "UTC" }).success).toBe(false);
   });

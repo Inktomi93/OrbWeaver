@@ -32,7 +32,8 @@ export function createRuleSaveSession(deps: {
   readonly timeZone: () => string;
   readonly create: (input: AutomationRuleCreateInput) => Promise<Rule>;
   readonly update: (input: AutomationRuleUpdateInput) => Promise<Rule>;
-  readonly acknowledge: (row: Rule) => void;
+  /** `sentZone` is the zone this write carried; a row whose zone differs is the server's UTC fallback. */
+  readonly acknowledge: (row: Rule, sentZone: string) => void;
 }): { readonly save: (body: AutomationRuleEditable) => Promise<void>; readonly observe: (row: Rule) => void } {
   let target = deps.ruleId;
   let confirmed: string | null = null;
@@ -46,18 +47,20 @@ export function createRuleSaveSession(deps: {
         if (deps.requestId === null) {
           throw new Error("A new rule needs its durable creation request.");
         }
-        const recovered = await deps.create({ ...snapshot, timeZone: deps.timeZone(), chatId: deps.chatId, creationRequestId: deps.requestId });
+        const birthZone = deps.timeZone();
+        const recovered = await deps.create({ ...snapshot, timeZone: birthZone, chatId: deps.chatId, creationRequestId: deps.requestId });
         deps.assertOwner();
         target = recovered.id;
-        deps.acknowledge(recovered);
+        deps.acknowledge(recovered, birthZone);
         confirmed = stableStringify(editableRule(recovered));
       }
       if (confirmed !== fingerprint) {
         deps.assertOwner();
-        const updated = await deps.update({ ...snapshot, timeZone: deps.timeZone(), ruleId: target });
+        const editZone = deps.timeZone();
+        const updated = await deps.update({ ...snapshot, timeZone: editZone, ruleId: target });
         deps.assertOwner();
         confirmed = stableStringify(editableRule(updated));
-        deps.acknowledge(updated);
+        deps.acknowledge(updated, editZone);
       }
     });
     // @orb-waive caught-failure-ownership(run): the original rejecting promise belongs to the canonical form status; this catch only permits the queue's next retry. Ends if callers receive the recovered chain instead.

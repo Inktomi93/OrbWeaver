@@ -24,6 +24,8 @@ export function useRuleAutosave(deps: {
 }): {
   readonly acknowledged: Rule | null;
   readonly failure: Error | null;
+  /** The zone this editor's last save sent that the server did not know, so the rule fell back to UTC. */
+  readonly unknownZone: string | null;
   readonly save: (values: RuleEditorValues) => Promise<void>;
 } {
   const trpc = useTRPC();
@@ -33,6 +35,7 @@ export function useRuleAutosave(deps: {
   const [acknowledged, setAcknowledged] = useState<Rule | null>(null);
   // One slot for the save, not a merge of the two mutations' sticky errors: a later successful save clears it.
   const [failure, setFailure] = useState<Error | null>(null);
+  const [unknownZone, setUnknownZone] = useState<string | null>(null);
   const [queue] = useState(() =>
     createRuleSaveSession({
       chatId: deps.chatId,
@@ -42,7 +45,8 @@ export function useRuleAutosave(deps: {
       timeZone: viewerTimeZone,
       create: (input) => create.mutateAsync({ cacheOwnerId: deps.owner, chatId: deps.chatId, input }),
       update: (input) => update.mutateAsync({ cacheOwnerId: deps.owner, chatId: deps.chatId, input }),
-      acknowledge: (row) => {
+      acknowledge: (row, sentZone) => {
+        setUnknownZone(row.timeZone === sentZone ? null : sentZone);
         if (deps.creation !== null) {
           acknowledgeRuleDraft(deps.creation.requestId, row.id, deps.owner, ruleEditorValues(editableRule(row), deps.creation.requestId));
         }
@@ -58,6 +62,7 @@ export function useRuleAutosave(deps: {
   return {
     acknowledged,
     failure,
+    unknownZone,
     save: async (values: RuleEditorValues): Promise<void> => {
       try {
         await queue.save(ruleEditable(values));

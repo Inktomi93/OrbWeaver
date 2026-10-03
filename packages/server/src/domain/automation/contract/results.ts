@@ -23,8 +23,6 @@ import {
 } from "@orb/contracts/automation";
 import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import type { IanaTimeZone } from "@orb/kit/time";
-import { ianaTimeZoneSchema } from "@orb/kit/time";
 import { z } from "zod";
 
 /** One host-authored automation rule, projected for the editor + list surfaces. `actions` is the
@@ -58,9 +56,11 @@ export interface RuleView {
   readonly suggestOnRefusal: boolean;
   readonly cooldownSeconds: number;
   readonly maxFiresPerHour: number;
-  /** The zone the rule's clock reads in, or NULL for a rule saved before rules carried one (it reads UTC —
-   *  `automationRuleClockZone`). The editor shows it; the next save replaces it with the saver's zone. */
-  readonly timeZone: IanaTimeZone | null;
+  /** The STORED zone the rule's clock reads in, or NULL for a rule saved before rules carried one (it reads
+   *  UTC — `automationRuleClockZone`). The editor shows it; the next save replaces it with the saver's zone.
+   *  Plain text on purpose: a stored zone the server's ICU stops knowing must still list, or the host could
+   *  never reopen the editor to re-save it. Saves are gated on input (`automationRuleTimeZoneSchema`). */
+  readonly timeZone: string | null;
   readonly lastError: string | null;
   readonly lastFiredAt: number | null;
   readonly createdAt: number;
@@ -128,7 +128,7 @@ export const ruleViewSchema = z.strictObject({
   suggestOnRefusal: z.boolean(),
   cooldownSeconds: z.number(),
   maxFiresPerHour: z.number(),
-  timeZone: ianaTimeZoneSchema.nullable(),
+  timeZone: z.string().nullable(),
   lastError: z.string().nullable(),
   lastFiredAt: z.number().nullable(),
   createdAt: z.number(),

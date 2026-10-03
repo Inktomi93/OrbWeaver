@@ -50,7 +50,7 @@ export function RuleEditor({
 }): ReactElement {
   const surface = useRef<HTMLDivElement>(null);
   useFocusOnSwap(surface);
-  const { save, acknowledged, failure } = useRuleAutosave({ owner, chatId, creation, ruleId, rule });
+  const { save, acknowledged, failure, unknownZone } = useRuleAutosave({ owner, chatId, creation, ruleId, rule });
   const [needsExistingRow] = useState(ruleId !== null);
   const [observedRow, setObservedRow] = useState(rule !== null);
   const [restoredDraft] = useState(() => {
@@ -95,7 +95,7 @@ export function RuleEditor({
             </Row>
             <RuleEditorSaveStatus session={session} error={failure} restored={restoredDraft && acknowledged === null} uncreated={confirmed === null} />
             <Text voice="gloss">Edits save automatically when complete. New rules start off; enable the rule separately when you are ready.</Text>
-            <Text voice="gloss">{ruleClockLine(confirmed?.timeZone, viewerTimeZone())}</Text>
+            <Text voice="gloss">{ruleClockLine({ stored: confirmed?.timeZone, viewerZone: viewerTimeZone(), unknownZone })}</Text>
             {rule === null || rule.rulePresetId === null ? null : (
               <Text voice="gloss">Editing makes this a custom rule and removes its rule-preset lineage.</Text>
             )}

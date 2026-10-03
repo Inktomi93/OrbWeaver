@@ -9,7 +9,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { IanaTimeZone } from "@orb/kit/time";
-import { ianaTimeZoneSchema, UTC_TIME_ZONE } from "@orb/kit/time";
+import { reportedTimeZoneSchema, UTC_TIME_ZONE } from "@orb/kit/time";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { ChatBusEvent } from "#chat";
@@ -811,8 +811,9 @@ export type AutomationCelClock = Pick<AutomationCelEnv, "now" | "timeZone">;
 export type AutomationCelPlanes = Omit<AutomationCelEnv, keyof AutomationCelClock>;
 
 /** The zone a rule's clock reads in. A rule saved before rules carried a zone has none and keeps reading
- *  UTC until its next save stamps the saver's zone; nothing migrates it silently. */
-export function automationRuleClockZone(timeZone: IanaTimeZone | null): IanaTimeZone {
+ *  UTC until its next save stamps the saver's zone; nothing migrates it silently. Generic because the rule
+ *  view carries the stored text unchecked, and the editor applies the same rule to it. */
+export function automationRuleClockZone<Zone extends string = IanaTimeZone>(timeZone: Zone | null): Zone | IanaTimeZone {
   return timeZone ?? UTC_TIME_ZONE;
 }
 
@@ -1063,8 +1064,9 @@ export type AutomationRuleEditable = z.infer<typeof automationRuleEditableSchema
 export type AutomationRuleEditableInput = z.input<typeof automationRuleEditableSchema>;
 
 /** The saver's browser zone, stamped on every create, update and preset mint: the rule's clock reads in it.
- *  It travels beside the authored body, never inside it, so opening an editor never dirties a draft. */
-export const automationRuleTimeZoneSchema = z.strictObject({ timeZone: ianaTimeZoneSchema });
+ *  It travels beside the authored body, never inside it, so opening an editor never dirties a draft. A zone
+ *  the server does not know is stored as UTC, never refused; the editor reports that from the saved row. */
+export const automationRuleTimeZoneSchema = z.strictObject({ timeZone: reportedTimeZoneSchema });
 
 export const automationRuleCreateSchema = automationRuleEditableSchema.extend({
   ...automationRuleTimeZoneSchema.shape,

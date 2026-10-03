@@ -43,7 +43,7 @@ test("owner-local global requests and reorder cannot recover or write another ow
   expect(await ownerCaller.automation.listOwnerRules()).toEqual([own]);
 });
 
-test("the rule's zone is gated at the wire: a known zone lands canonical, an offset or unknown name writes nothing", async ({ db, ownerCaller }) => {
+test("a save's zone lands canonical, and a zone the server does not know is stored as UTC instead of blocking the save", async ({ db, ownerCaller }) => {
   const chatId = await seedChat(db, "zones", { id: mintTypeId(ID_PREFIX.chat) });
   await seedParticipant(db, { chatId, key: "zones-host", userId: OWNER_USER_ID, role: "host" });
   const birth = (timeZone: string): Parameters<typeof ownerCaller.automation.createRule>[0] => ({
@@ -52,15 +52,29 @@ test("the rule's zone is gated at the wire: a known zone lands canonical, an off
     chatId,
     creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation),
   });
-  await expect(ownerCaller.automation.createRule(birth("+05:45"))).toThrowTRPCError("BAD_REQUEST");
-  await expect(ownerCaller.automation.createRule(birth("Mars/Olympus_Mons"))).toThrowTRPCError("BAD_REQUEST");
-  await expect(ownerCaller.automation.createRuleFromPreset({ chatId, presetId: "pacingNudge", timeZone: "+05:45" })).toThrowTRPCError("BAD_REQUEST");
-  expect(await db.select().from(automationRules).where(eq(automationRules.chatId, chatId))).toEqual([]);
+  expect((await ownerCaller.automation.createRule(birth("Etc/Unknown"))).timeZone).toBe("UTC");
+  expect((await ownerCaller.automation.createRule(birth("+05:45"))).timeZone).toBe("UTC");
+  const minted = await ownerCaller.automation.createRuleFromPreset({ chatId, presetId: "pacingNudge", timeZone: "Mars/Olympus_Mons" });
+  expect(minted.map((mintedRule) => mintedRule.timeZone)).toEqual(["UTC"]);
 
   const rule = await ownerCaller.automation.createRule(birth("asia/kathmandu"));
   expect(rule.timeZone).toBe("Asia/Kathmandu");
-  await expect(ownerCaller.automation.updateRule({ ...body, timeZone: "+05:45", ruleId: rule.id })).toThrowTRPCError("BAD_REQUEST");
-  expect((await ownerCaller.automation.listRules({ chatId }))[0]?.timeZone).toBe("Asia/Kathmandu");
+  expect((await ownerCaller.automation.updateRule({ ...body, timeZone: "Etc/Unknown", ruleId: rule.id })).timeZone).toBe("UTC");
+});
+
+test("a stored zone the server no longer knows still lists, so the host can reopen the rule and re-save it", async ({ db, ownerCaller }) => {
+  const chatId = await seedChat(db, "stale-zone", { id: mintTypeId(ID_PREFIX.chat) });
+  await seedParticipant(db, { chatId, key: "stale-zone-host", userId: OWNER_USER_ID, role: "host" });
+  const rule = await ownerCaller.automation.createRule({ ...body, chatId, creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation) });
+  // A zone this ICU never knew stands in for one a future ICU drops.
+  await db
+    .update(automationRules)
+    .set({ timeZone: "Mars/Olympus_Mons" as typeof automationRules.$inferSelect.timeZone })
+    .where(eq(automationRules.id, rule.id));
+
+  expect((await ownerCaller.automation.listRules({ chatId })).map((row) => row.timeZone)).toEqual(["Mars/Olympus_Mons"]);
+  const saved = await ownerCaller.automation.updateRule({ ...body, timeZone: "Asia/Kathmandu", ruleId: rule.id });
+  expect(saved.timeZone).toBe("Asia/Kathmandu");
 });
 
 test("strict mounted authoring creates disabled, updates losslessly without birth metadata, then reorders", async ({
