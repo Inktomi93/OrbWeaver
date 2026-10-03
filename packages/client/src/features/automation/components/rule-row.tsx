@@ -81,6 +81,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
@@ -108,6 +109,7 @@ import {
   ruleUnreadableLine,
   ruleUnreadableRunRefusal,
 } from "../lib/rule-refusal-copy.ts";
+import { ruleToolArgumentGuidance } from "../lib/rule-tool-arguments.ts";
 import { RuleConnections } from "./rule-connections.tsx";
 import { RuleFireLog } from "./rule-fire-log.tsx";
 
@@ -138,7 +140,7 @@ function armPreviewLine(arm: TestRunResult["arms"][number]): string {
 }
 
 interface TestResultViewProps {
-  readonly name: string;
+  readonly rule: Rule;
   readonly result: TestRunResult;
 }
 
@@ -148,22 +150,36 @@ interface TestResultViewProps {
  *  `role="status"` (side-eye #621 ARIA): the verdict appears asynchronously in response to a button press,
  *  so a screen-reader user pressing Test heard NOTHING at all. And the badge carries the verdict as a WORD,
  *  never intent colour alone. */
-function TestResultView({ name, result }: TestResultViewProps): ReactElement {
+function TestResultView({ rule, result }: TestResultViewProps): ReactElement {
+  const trpc = useTRPC();
+  const tools = useQuery(trpc.automation.listRuleTools.queryOptions(undefined, { enabled: rule.actions.some((action) => action.type === "run_tool") }));
   const verdict = predicateVerdict(result.predicate);
   return (
-    <Stack aria-label={`Test result for ${name}`} gap="tight" role="status">
+    <Stack aria-label={`Test result for ${rule.name}`} gap="tight" role="status">
       <Row gap="block" align="center">
         <Badge intent={verdict.intent} tone="soft" size="sm">
           {verdict.label}
         </Badge>
         <Text voice="gloss">{verdict.line}</Text>
       </Row>
-      {result.arms.map((arm) => {
+      {result.arms.map((arm, index) => {
         const line = armPreviewLine(arm);
+        const action = rule.actions[index];
+        const guidance =
+          action?.type === "run_tool" && arm.error === undefined && arm.renderedPreview !== undefined
+            ? ruleToolArgumentGuidance(
+                arm.renderedPreview,
+                tools.data?.find((tool) => tool.name === action.name),
+                true,
+              )
+            : null;
         return (
-          <Text key={line} voice="gloss">
-            {line}
-          </Text>
+          <Stack key={line} gap="tight">
+            <Text voice="gloss">{line}</Text>
+            {guidance === null ? null : (
+              <Text voice="gloss">{guidance} This is a preview; future event arguments can differ. No tool was invoked or result captured.</Text>
+            )}
+          </Stack>
         );
       })}
     </Stack>
@@ -174,6 +190,7 @@ export interface RuleRowProps {
   /** The rule's SCOPE — its chat, or `null` for an owner-global rule. Reaches the mutations only. */
   readonly chatId: ChatId | null;
   readonly rule: Rule;
+  readonly onEdit?: (trigger: HTMLButtonElement) => void;
 }
 
 /** WHY "Run now" cannot succeed on this rule, or `null` when it can — the row's ONE place to ask, so the
@@ -198,7 +215,7 @@ function runNowRefusal(rule: Rule): string | null {
 /** One rule: its name + what it does + when it last ran, the enable toggle, the free Test action, and the
  *  overflow menu carrying the two actions that are not free (Run now — it spends) and not reversible
  *  (Delete — behind the composite's confirm). Then the last dry-run verdict and the collapsible fire log. */
-export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
+export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetRuleEnabled({ trpc, invalidation });
@@ -206,7 +223,7 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
   const runNow = useRunRuleNow({ trpc, invalidation });
   const deleteRule = useDeleteRule({ trpc, invalidation });
   const setSuggestOnRefusal = useSetRuleSuggestOnRefusal({ trpc, invalidation });
-  const [testResult, setTestResult] = useState<TestRunResult | null>(null);
+  const [testResult, setTestResult] = useState<{ readonly result: TestRunResult; readonly rule: Rule } | null>(null);
   // CLOSED ON ARRIVAL, for every state. Unlike an injection row (a blank one opens itself, because the host
   // just pressed Add and the editor is what they came for), a rule arrives already configured — even the
   // unreadable one, whose whole verdict is on the closed face. The section's reserved box is sized to this.
@@ -242,7 +259,10 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
     // reason. Clearing FIRST also removes the window where a slow retest shows the old verdict as if it
     // were the new one.
     setTestResult(null);
-    testRule.mutateAsync({ ruleId: rule.id, chatId }).then(setTestResult, (): void => setTestResult(null));
+    testRule.mutateAsync({ ruleId: rule.id, chatId }).then(
+      (result) => setTestResult({ result, rule }),
+      (): void => setTestResult(null),
+    );
   };
   const onRunNow = (): void => {
     runNow.mutateAsync({ ruleId: rule.id, chatId }).then(
@@ -321,8 +341,12 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
         <CollapsiblePanel className="text-foreground">
           <Stack className="px-block pb-block" gap="field">
             <Row align="center" gap="field">
-              {/* The ONE in-cluster action, and the only free one: a dry run executes nothing. `secondary` (an
-                  edge + foreground ink) is what separates it from the ghost overflow trigger beside it. */}
+              {/* Test stays visually distinct from editing and the spending actions in the overflow menu. */}
+              {onEdit === undefined ? null : (
+                <Button intent="ghost" size="sm" aria-label={`Edit ${rule.name}`} onClick={(event): void => onEdit(event.currentTarget)}>
+                  Edit
+                </Button>
+              )}
               <Button intent="secondary" size="sm" aria-label={`Test ${rule.name}`} loading={testRule.isPending} onClick={onTest}>
                 Test
               </Button>
@@ -378,7 +402,7 @@ export function RuleRow({ chatId, rule }: RuleRowProps): ReactElement {
               </Stack>
             ) : null}
 
-            {testResult === null ? null : <TestResultView name={rule.name} result={testResult} />}
+            {testResult === null ? null : <TestResultView rule={testResult.rule} result={testResult.result} />}
 
             {/* Its own disclosure, so the two reads behind it run only when a host opens it; absent on a rule whose
                 arms spend nothing through a binding, and on an unreadable rule (its arms are unknown). */}

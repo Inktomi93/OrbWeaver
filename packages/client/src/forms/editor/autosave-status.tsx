@@ -1,23 +1,6 @@
-// The ONE live autosave status affordance (north-star §7 / D66 A4): "Saved / Saving… / Draft / Not saved / Save
-// failed — Retry", rendered where an editor's Save button used to be.
-//
-// THE `caption` PROP IS GONE (#104 item 2, owner-ruled 2026-08-16). D78 §6 gave `saved` an optional
-// reassurance line, and in practice every one of its 15 call sites passed the same string — "Synced across
-// your devices." — which is a SaaS promise a self-hosted single-user box does not make. With the line
-// killed the prop had zero production consumers, so it went with it rather than staying as a dead
-// affordance. "Saved" is the whole true statement; a future arm that needs a second clause should state
-// what it actually knows, not re-open a general slot. Fed by createAutosaveEntityForm's exposed
-// `saveState` + `retrySave` — never a per-surface hand-roll. The character editor is the first consumer;
-// presets + the settings panes adopt it next.
-// Compose-only: @orb/ui primitives, no raw intrinsics.
-//
-// EVERY LINE HERE IS THE `gloss` VOICE (side-eye F-21, 2026-08-03). It used to spell `size="micro"
-// tone="muted"` by hand, and `size="micro"` carries `tracking-micro` — the 0.08em micro-CAPS tracking —
-// so the header's "Saved" rendered at the gloss colour and the gloss step but 0.84px LOOSER than every
-// other gloss beside it. One tuple off by one axis, on the one word the header shows constantly. The
-// `voice` axis is the closed grammar that exists so a status line cannot be assembled by taste.
-
+// Canonical save status: failures are body-scale alerts; incomplete and pristine drafts are distinct.
 import { Button } from "@orb/ui/button";
+import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -25,22 +8,39 @@ import type { AutosaveSaveState } from "../create-autosave-entity-form-model.ts"
 
 export interface AutosaveStatusProps {
   /** `draft` is the caller-known pre-persistence arm: no row exists yet, so `saved` would be a lie. */
-  readonly state: AutosaveSaveState | "draft";
+  readonly state: AutosaveSaveState | "draft" | "restored";
   /** Re-run the pending save — wire to the factory's `retrySave`. */
   readonly onRetry: () => void;
+  /** A structured refusal cannot succeed unchanged; omit Retry without changing the factory lifecycle. */
+  readonly retryable?: boolean;
 }
 
 /** The shared live-save readout. On `error` the retry is a real affordance (a ghost button), never text. */
-export function AutosaveStatus({ state, onRetry }: AutosaveStatusProps): ReactElement {
+export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveStatusProps): ReactElement {
+  if (state === "restored") {
+    return (
+      <Row gap="field" align="center" data-slot="autosave-status" role="status" aria-live="polite">
+        <Text voice="gloss">Restored draft — not saved</Text>
+        <Button type="button" intent="ghost" size="sm" onClick={onRetry}>
+          Resume saving
+        </Button>
+      </Row>
+    );
+  }
   if (state === "error") {
     // A failed WRITE is urgent — assertive so a screen reader interrupts and announces it (role="alert"
     // = an implicit aria-live="assertive" live region; the retry stays a real focusable affordance).
     return (
       <Row gap="field" align="center" data-slot="autosave-status" role="alert">
-        <Text voice="gloss">Save failed —</Text>
-        <Button type="button" intent="ghost" size="sm" onClick={onRetry}>
-          Retry
-        </Button>
+        <Icon icon={AlertTriangle} size="sm" className="text-destructive" />
+        <Text voice="reading" className="text-destructive">
+          {retryable ? "Save failed —" : "Save failed"}
+        </Text>
+        {retryable ? (
+          <Button type="button" intent="ghost" size="sm" onClick={onRetry}>
+            Retry
+          </Button>
+        ) : null}
       </Row>
     );
   }
@@ -68,14 +68,14 @@ export function AutosaveStatus({ state, onRetry }: AutosaveStatusProps): ReactEl
         <Text className="text-destructive" voice="gloss">
           Not saved
         </Text>
-        <Text voice="gloss">Fix the highlighted field to save.</Text>
+        <Text voice="gloss">Review this form before saving.</Text>
       </Row>
     );
   }
   if (state === "draft") {
     return (
       <Text data-slot="autosave-status" voice="gloss" role="status" aria-live="polite">
-        Draft — edit to create
+        Not saved yet
       </Text>
     );
   }
