@@ -22,6 +22,7 @@ function args(overrides: Partial<ShapeArgs> = {}): ShapeArgs & { readonly warnin
     dialect: "openai-compatible",
     prefillAllowed: false,
     templateThinking: undefined,
+    reasoningMandatory: false,
     foldSameRole: false,
     replyImages: false,
     warnings: [],
@@ -268,6 +269,15 @@ test("rule 8: the cap rename never overwrites the user's own max_completion_toke
   // An excluded max_completion_tokens is not brought back by the rename.
   const excluded = shapeOutboundBody(capped, args({ features: MAX_COMPLETION, transport: { excludeBody: ["max_completion_tokens"] } }));
   expect(["max_completion_tokens" in excluded, "max_tokens" in excluded]).toEqual([false, false]);
+});
+
+test("rule 5: on a model whose reasoning is mandatory the interlock sends the prefill pair but never turns thinking off", () => {
+  const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
+  const a = args({ plan: ends, features: CONTINUE, prefillAllowed: true, reasoningMandatory: true });
+  const out = shapeOutboundBody(RAW, a);
+  expect([out["continue_final_message"], out["add_generation_prompt"]]).toEqual([true, false]);
+  expect(["chat_template_kwargs" in out, out["reasoning_effort"]]).toEqual([false, "high"]);
+  expect(a.warnings).toEqual([]);
 });
 
 test("rule 5: the prefill interlock turns the template off but keeps the user's own reasoning_effort", () => {

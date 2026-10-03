@@ -201,6 +201,31 @@ test("a think the user's own body sets stands over the computed one, on the Olla
   }
 });
 
+test("a think the user excluded stays absent, folded or chosen, on the Ollama row and on a Custom row detected as Ollama", async () => {
+  const thinking = capability({ reasoning: { mode: "effort", enabled: true } });
+  const ollama = fakeResolved({ task: "chat", providerId: "ollama", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL });
+  const custom = fakeResolved({ task: "chat", providerId: "custom-openai", model: "qwen3:0.6b", capability: thinking, baseUrl: BASE_URL });
+  const detected = { ...custom, features: foldFeatures(builtinProvider("custom-openai")?.features, builtinProvider("ollama")?.features) };
+  const turns = [
+    { params: {}, folded: true },
+    { params: { effort: "none" }, folded: false },
+    { params: { effort: "low" }, folded: false },
+  ] satisfies { params: UserIntent; folded: boolean }[];
+  for (const [row, base] of [
+    ["ollama", ollama],
+    ["detected", detected],
+  ] as const) {
+    for (const { params, folded } of turns) {
+      const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+        connection: { ...base, transport: { excludeBody: ["think"] } },
+        params,
+        ...(folded ? { terminalToolsAttached: true } : {}),
+      });
+      expect(Object.hasOwn(recorded[0]?.body ?? {}, "think"), `${row} ${JSON.stringify(params)} folded=${String(folded)}`).toBe(false);
+    }
+  }
+});
+
 test("a model whose reasoning is mandatory (gpt-oss) is never told off on a folded turn with reasoning unset", async () => {
   const mandatory = capability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], mandatory: true } });
   const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], {

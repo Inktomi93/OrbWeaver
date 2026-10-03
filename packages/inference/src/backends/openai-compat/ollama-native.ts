@@ -19,7 +19,7 @@ const DATA_URL_RE = /^data:[^;,]+;base64,(?<data>.*)$/su;
 const PART_SEPARATOR = "\n\n";
 const ERROR_BODY_LIMIT = 65_536;
 const REASONING_OFF = "none";
-const THINK_KEY = "think";
+export const THINK_KEY = "think";
 
 /** The output cap's OpenAI spellings, which `/api/chat` reads as `options.num_predict`. The samplers move into
  *  `options` under the keys the sampler seam already spelled for this row (`samplerBodyKeys`). */
@@ -151,6 +151,14 @@ function thinkOf(effort: unknown, namedLevels: boolean): boolean | string | unde
   return namedLevels ? effort : true;
 }
 
+// The user's own `think` (set or excluded) stands; otherwise it is translated from `reasoning_effort`.
+function translatedThink(
+  body: Json,
+  args: { readonly namedThinkLevels?: boolean | undefined; readonly thinkExcluded?: boolean | undefined },
+): boolean | string | undefined {
+  return THINK_KEY in body || args.thinkExcluded === true ? undefined : thinkOf(body["reasoning_effort"], args.namedThinkLevels === true);
+}
+
 /**
  * The OpenAI chat body the SDK built (after `extras` and `includeBody`) as an `/api/chat` body. `numCtx` is the
  * resolved window, sent as `options.num_ctx` so the server runs the window the capability states.
@@ -158,7 +166,8 @@ function thinkOf(effort: unknown, namedLevels: boolean): boolean | string | unde
  * `keepAlive` and `numBatch` are the connection's own (`features.keepAlive`, `features.numBatch`). Keys
  * this file does not know pass through unchanged, so a native field set in `includeBody` reaches the server,
  * and an `options` object set there wins over the translated one key by key. A `think` already in the body is
- * the user's own (extras or `includeBody`) and stands over the one translated from `reasoning_effort`.
+ * the user's own (extras or `includeBody`) and stands over the one translated from `reasoning_effort`; one the
+ * user excluded (`thinkExcluded`) stays absent.
  */
 export function toOllamaChat(
   body: Json,
@@ -167,6 +176,7 @@ export function toOllamaChat(
     readonly samplerKeys: ReadonlySet<string>;
     readonly label: string;
     readonly namedThinkLevels?: boolean | undefined;
+    readonly thinkExcluded?: boolean | undefined;
     readonly keepAlive?: string | undefined;
     readonly numBatch?: number | undefined;
   },
@@ -183,7 +193,7 @@ export function toOllamaChat(
     }
   }
   const format = formatOf(body["response_format"]);
-  const think = THINK_KEY in body ? undefined : thinkOf(body["reasoning_effort"], args.namedThinkLevels === true);
+  const think = translatedThink(body, args);
   return {
     ...rest,
     // `/api/chat` streams unless told otherwise, and the SDK's non-streaming generate sends no `stream` key.

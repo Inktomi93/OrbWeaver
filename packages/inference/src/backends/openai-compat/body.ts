@@ -84,6 +84,8 @@ export interface ShapeArgs {
   readonly replyImages: boolean;
   /** What rule 5b tells the template's thinking switch (`templateThinkingFor`); `undefined` sends nothing. */
   readonly templateThinking: boolean | undefined;
+  /** The model's reasoning is mandatory: it is never told off, so rule 5's interlock leaves thinking alone. */
+  readonly reasoningMandatory: boolean;
   readonly imageDetail?: ImageDetail | undefined;
   readonly warnings: ResolvedWarning[];
 }
@@ -189,7 +191,7 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: Rea
     return body;
   }
   const out: Record<string, unknown> = { ...body, [CONTINUE_FINAL_MESSAGE_KEY]: true, [ADD_GENERATION_PROMPT_KEY]: false };
-  if (args.features.prefillSuppressesThinking !== true || userDecidesThinking(out, args, owned)) {
+  if (args.features.prefillSuppressesThinking !== true || args.reasoningMandatory || userDecidesThinking(out, args, owned)) {
     return out;
   }
   const kwargs = out[CHAT_TEMPLATE_KWARGS_KEY];

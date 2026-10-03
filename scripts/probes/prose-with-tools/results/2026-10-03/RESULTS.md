@@ -120,8 +120,9 @@ Unsloth jinja, which is what rendered; Ollama reported `tools` and `thinking` ca
 Request bodies: thinking off in every cell, forced by the probe (vLLM through the launch default, llama.cpp
 through `chat_template_kwargs.enable_thinking: false`, KoboldCpp through `--jinjathink false`, Ollama through
 `reasoning_effort: "none"`). The app sends thinking off in three cases only: a folded turn whose preset leaves
-effort unset (never to a model whose reasoning is mandatory), a preset that chooses off, and vLLM's prefill
-interlock on a turn that continues an assistant prefill. The spelling is `chat_template_kwargs.enable_thinking:
+effort unset, a preset that chooses off, and vLLM's prefill interlock on a turn that continues an assistant
+prefill. None of them reaches a model whose reasoning is mandatory: its chosen off is clamped up to its lowest
+level, and the other two send nothing. The spelling is `chat_template_kwargs.enable_thinking:
 false` on vLLM, llama.cpp and KoboldCpp, and `think: false` on Ollama. The Ollama cells used `/v1/chat/completions`; the app's Ollama row talks to
 `/api/chat`, which runs the same model parser.
 

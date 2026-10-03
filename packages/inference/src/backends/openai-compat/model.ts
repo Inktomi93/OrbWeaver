@@ -23,7 +23,7 @@ import { wrapFetch } from "../v4/fetch.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import type { ShapeArgs } from "./body.ts";
 import { shapeOutboundBody } from "./body.ts";
-import { ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
+import { ollamaNativeFetch, THINK_KEY, toOllamaChat } from "./ollama-native.ts";
 import { samplerBodyKeys } from "./sampling.ts";
 import type { ReasoningTags } from "./think-tags.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
@@ -79,6 +79,7 @@ function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
     dialect,
     prefillAllowed: call.prefillAllowed,
     templateThinking: call.templateThinking,
+    reasoningMandatory: call.connection.capability.kind === "generation" && call.connection.capability.generation.reasoning.mandatory === true,
     foldSameRole: call.foldSameRole,
     replyImages: call.replyImages,
     imageDetail: call.imageDetail,
@@ -178,6 +179,7 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
       samplerKeys,
       label: call.label,
       namedThinkLevels: namedThinkLevels(call),
+      thinkExcluded: connection.transport?.excludeBody?.includes(THINK_KEY) === true,
       keepAlive: connection.features.keepAlive,
       numBatch: connection.features.numBatch,
     });
