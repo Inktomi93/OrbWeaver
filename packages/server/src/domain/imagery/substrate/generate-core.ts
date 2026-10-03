@@ -10,7 +10,7 @@ import { modelIdSchema } from "@orb/contracts/inference";
 import { imageGenerationSpendDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { AssetId, ModelId, UserConnectionId } from "@orb/kit/ids";
+import type { AssetId, ImageryCallId, ModelId, UserConnectionId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { GenerationFailedError } from "../contract/errors.ts";
 import type { GeneratedPictureImage, GenerationOutcome, GenerationProvenanceInput } from "../contract/results.ts";
@@ -61,6 +61,7 @@ async function storeImage(
     readonly connectionId: UserConnectionId;
     readonly costUsd: number | null;
     readonly createdAt: number;
+    readonly callId: ImageryCallId;
     readonly img: DecodedImage;
   },
 ): Promise<{ readonly image: GeneratedPictureImage; readonly provenance: BatchStmt }> {
@@ -72,6 +73,7 @@ async function storeImage(
   const generationId = ctx.newGenerationId();
   const provenance = insertGenerationStatement(ctx.db, {
     id: generationId,
+    callId: gen.callId,
     assetId: stored.assetId,
     chatId: prov.chatId,
     mode: prov.mode,
@@ -106,6 +108,7 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
   // Capture the clock ONCE so all n provenance rows share a `createdAt` — the reuse lookup groups a fanned-out
   // generation by that timestamp.
   const createdAt = ctx.now();
+  const callId = ctx.newCallId();
   const images: GeneratedPictureImage[] = [];
   const stmts: BatchStmt[] = [];
   for (const img of decoded) {
@@ -115,13 +118,14 @@ export async function runGeneration(ctx: ImageryContext, req: ImageGenerateReque
       connectionId: req.connection.connectionId,
       costUsd: result.usage.costUsd,
       createdAt,
+      callId,
       img,
     });
     images.push(stored.image);
     stmts.push(stored.provenance);
   }
   // THE SPEND DELTA IS BUILT FROM WHAT THE ROWS RECORD: the stats rebuild groups these rows by their shared
-  // `createdAt` and calls this same builder, so the live write and a "Recompute now" cannot disagree.
+  // `callId` and calls this same builder, so the live write and a "Recompute now" cannot disagree.
   ctx.applyStatsDelta(
     stmts,
     ctx.db,

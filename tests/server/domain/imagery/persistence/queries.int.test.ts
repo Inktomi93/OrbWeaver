@@ -8,7 +8,7 @@ import type { Db } from "@orb/db";
 import { assets, characters, imageryGenerations, userConnections, users } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import { handleKey } from "@orb/kit/handle-key";
-import type { AssetId, CharacterId, Handle, ImageryGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import {
@@ -64,6 +64,7 @@ describe("insertGenerationStatement", () => {
       batchMany([
         insertGenerationStatement(db, {
           id,
+          callId: castId<ImageryCallId>("imagery_call_1"),
           assetId,
           chatId: null,
           mode: "free",
@@ -108,6 +109,7 @@ describe("insertGenerationStatement", () => {
       batchMany([
         insertGenerationStatement(db, {
           id: castId<ImageryGenerationId>("imagery_generation_p"),
+          callId: castId<ImageryCallId>("imagery_call_p"),
           assetId,
           chatId: null,
           mode: "character",
@@ -159,6 +161,7 @@ async function seedGeneration(args: SeedArgs): Promise<void> {
     batchMany([
       insertGenerationStatement(db, {
         id: castId<ImageryGenerationId>(generationId),
+        callId: castId<ImageryCallId>(`imagery_call_${generationId}`),
         assetId,
         chatId: null,
         mode: MODE_CHARACTER,

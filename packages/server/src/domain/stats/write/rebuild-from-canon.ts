@@ -336,15 +336,19 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
   };
 }
 
-/** Rebuild ONLY the `daily_stats` timeline of every owner whose `owner_stats` row records activity but whose
- *  timeline is empty: the state a timeline re-grain migration leaves. The other rollups are left untouched,
+/** Rebuild ONLY the `daily_stats` timeline of every owner whose rollups record activity — a turn, a chat, any
+ *  spend, or a model row (an unpriced image generation) — but whose timeline is empty: the state a timeline
+ *  re-grain migration leaves. The other rollups are left untouched,
  *  because they can hold compaction spend recorded before its `compaction_spend` ledger existed, which no
- *  canon re-derives. A live write always lands both rows, so the predicate is idempotent. Returns the owners
- *  rebuilt. */
+ *  canon re-derives. A live write always lands both rows, so the predicate is idempotent — except for an owner
+ *  whose only activity is that pre-ledger compaction spend, who re-runs an empty (cheap) rebuild each boot.
+ *  Returns the owners rebuilt. */
 export async function reconcileOwnersMissingTimeline(db: Db, now: () => number): Promise<number> {
   const owners = await db.all<{ ownerId: string }>(sql`
     SELECT o.owner_id AS ownerId FROM owner_stats o
-    WHERE o.user_turns + o.assistant_turns + o.system_turns + o.chats > 0
+    WHERE (o.user_turns + o.assistant_turns + o.system_turns + o.chats > 0
+           OR o.cost_usd <> 0
+           OR EXISTS (SELECT 1 FROM model_stats m WHERE m.owner_id = o.owner_id))
       AND NOT EXISTS (SELECT 1 FROM daily_stats d WHERE d.owner_id = o.owner_id)
   `);
   const stamp = now();
@@ -717,9 +721,11 @@ function foldSpend(d: SpendDelta, a: Accums): void {
   }
 }
 
-/** The owner's image generations, one row per provider call: the pictures of one fanned-out call share
- *  `createdAt`, model, provider, connection and the call's total cost, so the group is the call and its row
- *  count is the picture count. Owner-scoped through the asset, which `imagery_generations` derives from. */
+/** The owner's image generations, one group per provider call: every picture of a fanned-out call carries
+ *  the call's `callId` (and shares its time, model, provider, connection and total cost, so those extra keys
+ *  never split a call), and the row count is the picture count. Rows written before `call_id` existed hold
+ *  NULL and group by the remaining key alone — best-effort for that legacy data: two such calls finishing in
+ *  the same millisecond at the same cost merge into one. Owner-scoped through the asset. */
 async function scanImageSpend(db: Db, ownerId: string, a: Accums): Promise<void> {
   const calls = await db
     .select({
@@ -732,7 +738,14 @@ async function scanImageSpend(db: Db, ownerId: string, a: Accums): Promise<void>
     .from(imageryGenerations)
     .innerJoin(assets, eq(assets.id, imageryGenerations.assetId))
     .where(eq(assets.ownerId, castId<UserId>(ownerId)))
-    .groupBy(imageryGenerations.createdAt, imageryGenerations.model, imageryGenerations.provider, imageryGenerations.connectionId, imageryGenerations.costUsd);
+    .groupBy(
+      imageryGenerations.callId,
+      imageryGenerations.createdAt,
+      imageryGenerations.model,
+      imageryGenerations.provider,
+      imageryGenerations.connectionId,
+      imageryGenerations.costUsd,
+    );
   for (const call of calls) {
     foldSpend(imageGenerationSpendDelta({ ownerId: castId<UserId>(ownerId), ...call, now: call.createdAt }), a);
   }

@@ -9,12 +9,13 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { assets, imageryGenerations } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
-import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
 import type { GenerationProvenance, ReuseRow } from "../contract/results.ts";
 
 interface InsertGenerationInput {
   readonly id: ImageryGenerationId;
+  readonly callId: ImageryCallId;
   readonly assetId: AssetId;
   readonly chatId: ChatId | null;
   readonly mode: PromptTemplateMode;
@@ -48,6 +49,7 @@ export function insertGenerationStatement(db: Db, input: InsertGenerationInput):
     costUsd: input.costUsd,
     edited: input.edited,
     createdAt: input.createdAt,
+    callId: input.callId,
   });
 }
 

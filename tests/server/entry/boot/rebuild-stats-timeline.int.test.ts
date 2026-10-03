@@ -5,18 +5,20 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { characterStats, createDb, dailyStats, modelStats, ownerStats, runMigrations } from "@orb/db";
-import type { DailyStatId } from "@orb/kit/ids";
+import { assets, characterStats, createDb, dailyStats, imageryGenerations, modelStats, ownerStats, runMigrations, userConnections } from "@orb/db";
+import type { AssetId, DailyStatId, ImageryCallId, ImageryGenerationId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { STATS_BUCKET_MS, statsBucketStart } from "@orb/kit/stats-tally";
 import { rebuildStatsTimelineOnBoot } from "@orb/server/entry/boot";
 import { eq, sql } from "drizzle-orm";
 import { freshDb, SHIPPED_MIGRATIONS, shippedChainThrough } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { testModelId, testProviderId } from "../../../support/inference-identities.ts";
 import { seedCharacter, seedCharacterStats, seedChat, seedMessage, seedModelStats, seedOwnerStats, seedUser, T0 } from "../../domain/stats/_support.ts";
 
 const PRE_REGRAIN_TAG = "0004_character-import-text-hash";
 const BOOT_NOW = (): number => T0 + 60_000;
+const IMAGE_COST = 0.25;
 
 test("an upgraded install's dropped timeline is rebuilt from canon at boot, once", async () => {
   const dir = mkdtempSync(join(tmpdir(), "orb-stats-timeline-boot-"));
@@ -61,6 +63,36 @@ test("an upgraded install's dropped timeline is rebuilt from canon at boot, once
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("rebuilds the timeline of an owner whose only activity is image spend", async () => {
+  // No chat, no turn: the owner's rollups hold one priced image generation and nothing else.
+  const db = await freshDb();
+  const ownerId = await seedUser(db);
+  await seedOwnerStats(db, ownerId, { costUsd: IMAGE_COST });
+  await seedModelStats(db, ownerId, { model: "image-model", provider: "openrouter", generations: 1, genSamples: 1, costUsd: IMAGE_COST });
+  const connectionId = castId<UserConnectionId>("user_connection_image");
+  await db
+    .insert(userConnections)
+    .values({ id: connectionId, ownerId, label: "image", providerId: testProviderId("openrouter"), model: testModelId("image-model") });
+  const assetId = castId<AssetId>("asset_image");
+  await db.insert(assets).values({ id: assetId, ownerId, kind: "generated", mime: "image/png", size: 8, hash: "image-hash" });
+  await db.insert(imageryGenerations).values({
+    id: castId<ImageryGenerationId>("imagery_generation_only"),
+    callId: castId<ImageryCallId>("imagery_call_only"),
+    assetId,
+    chatId: null,
+    mode: "free",
+    prompt: "a lighthouse",
+    model: testModelId("image-model"),
+    provider: testProviderId("openrouter"),
+    connectionId,
+    costUsd: IMAGE_COST,
+    createdAt: T0,
+  });
+
+  expect(await rebuildStatsTimelineOnBoot({ db, now: BOOT_NOW })).toBe(1);
+  expect((await db.select().from(dailyStats)).map((r) => [r.bucketStart, r.costUsd])).toEqual([[statsBucketStart(T0), IMAGE_COST]]);
 });
 
 test("leaves an owner with no recorded activity, and an owner whose timeline is intact, untouched", async () => {

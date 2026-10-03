@@ -82,6 +82,8 @@ export const ID_PREFIX = {
   compactionSpend: "compaction_spend",
   notification: "notification",
   imageryGeneration: "imagery_generation",
+  // One image-provider call: every picture a fanned-out call returns carries the same id (no table of its own).
+  imageryCall: "imagery_call",
   galleryItem: "gallery_item",
   // `global_variables` deliberately has NO TypeID — the natural key (ownerId, key) IS the identity.
   automationRule: "automation_rule",
@@ -184,6 +186,7 @@ export type RegexScriptId = TypeIdOf<"regex_script">;
 export type TagId = TypeIdOf<"tag">;
 export type AssetId = TypeIdOf<"asset">;
 export type ImageryGenerationId = TypeIdOf<"imagery_generation">;
+export type ImageryCallId = TypeIdOf<"imagery_call">;
 export type GalleryItemId = TypeIdOf<"gallery_item">;
 /** A saved party template (`roster_presets`, D61 B6) — library data, distinct from the generation
  *  `PresetId` one line up in spirit: this names a CAST, never params. */

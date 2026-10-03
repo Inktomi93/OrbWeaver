@@ -528,35 +528,8 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
   // the live plane left it. The image lands a day after the canon so the spend's timeline bucket is under
   // test too, and fans out to two pictures so the rebuild must count one priced generation of two images.
   test("Recompute keeps image and compaction spend: the rebuild re-derives what the live writers recorded", async () => {
-    await db.insert(userConnections).values({
-      id: TEST_CONNECTION_ID,
-      ownerId,
-      label: "image generator",
-      providerId: providerIdSchema.parse("openrouter"),
-      model: modelIdSchema.parse(IMAGE_MODEL),
-    });
-    const liveBatch: BatchStmt[] = [];
-    for (const delta of liveDeltas()) {
-      applyStatsDelta(liveBatch, db, delta);
-    }
-    await db.batch(batchMany(liveBatch));
-
-    const pixel = Buffer.from(PNG_BYTES).toString("base64");
-    const { ctx: imagery } = makeHarness(db, {
-      now: () => T0 + DAY,
-      generateImage: () =>
-        Promise.resolve({
-          images: [
-            { base64: pixel, mediaType: "image/png", url: undefined },
-            { base64: pixel, mediaType: "image/png", url: undefined },
-          ],
-          model: IMAGE_MODEL,
-          usage: { costUsd: IMAGE_COST },
-          warnings: [],
-        }),
-      applyStatsDelta,
-    });
-    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, caller: imageryPrincipal(ownerId) });
+    await applyLiveCanonWithImageConnection();
+    await runGeneration(imageryAt(T0 + DAY, 2), IMAGE_REQ, { ...IMAGE_PROV, caller: imageryPrincipal(ownerId) });
 
     // The compose-root wrappers: the chat op type erases the batch to `unknown`.
     const chatCtx = makeChatContext(db, {
@@ -594,4 +567,54 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     expect(await reconcileOwnersMissingTimeline(db, createFrozenClock(T0 + 6 * DAY).now)).toBe(1);
     expect((await snapshotRollups(db, ownerId)).days).toEqual(live.days);
   });
+
+  // TWO CALLS, ONE MILLISECOND. Two priced generations by one owner that land at the same instant with the
+  // same model, connection and cost share every column but their call id, so the rebuild must tell the
+  // calls apart by that id — grouping on the shared columns alone merges them and halves the spend.
+  test("two same-millisecond, same-cost generations stay two priced calls through Recompute", async () => {
+    await applyLiveCanonWithImageConnection();
+    const imagery = imageryAt(T0 + DAY, 1);
+    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, caller: imageryPrincipal(ownerId) });
+    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, caller: imageryPrincipal(ownerId) });
+
+    const live = await snapshotRollups(db, ownerId);
+    await reconcileStats(db, { ownerId, now: createFrozenClock(T0 + 5 * DAY).now });
+
+    expect(await snapshotRollups(db, ownerId)).toEqual(live);
+    expect(live.owner?.["costUsd"]).toBe(CHAR_ASSIST.costUsd + 2 * IMAGE_COST);
+    expect(live.models.find((m) => m["model"] === IMAGE_MODEL)).toMatchObject({ generations: 2, costUsd: 2 * IMAGE_COST });
+  });
 });
+
+/** The base canon applied through the live builders, plus the connection an image generation attributes to. */
+async function applyLiveCanonWithImageConnection(): Promise<void> {
+  await db.insert(userConnections).values({
+    id: TEST_CONNECTION_ID,
+    ownerId,
+    label: "image generator",
+    providerId: providerIdSchema.parse("openrouter"),
+    model: modelIdSchema.parse(IMAGE_MODEL),
+  });
+  const batch: BatchStmt[] = [];
+  for (const delta of liveDeltas()) {
+    applyStatsDelta(batch, db, delta);
+  }
+  await db.batch(batchMany(batch));
+}
+
+/** The real imagery spend tail at a fixed instant, wired to the real `applyStatsDelta`, whose provider call
+ *  returns `pictures` images for `IMAGE_COST`. */
+function imageryAt(at: number, pictures: number): Parameters<typeof runGeneration>[0] {
+  const pixel = Buffer.from(PNG_BYTES).toString("base64");
+  return makeHarness(db, {
+    now: () => at,
+    generateImage: () =>
+      Promise.resolve({
+        images: Array.from({ length: pictures }, () => ({ base64: pixel, mediaType: "image/png", url: undefined })),
+        model: IMAGE_MODEL,
+        usage: { costUsd: IMAGE_COST },
+        warnings: [],
+      }),
+    applyStatsDelta,
+  }).ctx;
+}

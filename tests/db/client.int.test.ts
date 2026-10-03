@@ -259,7 +259,7 @@ test("the 0004 migration gives characters a nullable import_text_hash beside imp
   ]);
 });
 
-test("the 0006 migration adds the compaction_spend ledger, owner-restricted and indexed on (owner, time)", async () => {
+test("the 0006 migration adds the compaction_spend ledger and the image provider-call id", async () => {
   const db = await createDb(":memory:");
   await runMigrations(db, MIGRATIONS_DIR);
   expect(await db.all(sql.raw("select name, type, \"notnull\" as required, pk from pragma_table_info('compaction_spend') order by cid"))).toEqual([
@@ -274,6 +274,10 @@ test("the 0006 migration adds the compaction_spend ledger, owner-restricted and 
   expect(await db.all(sql.raw("select name from pragma_index_info('compaction_spend_owner_idx') order by seqno"))).toEqual([
     { name: "owner_id" },
     { name: "created_at" },
+  ]);
+  // …and gives every image provenance row a nullable provider-call id (legacy rows hold NULL).
+  expect(await db.all(sql.raw("select name, type, \"notnull\" as required from pragma_table_info('imagery_generations') where name = 'call_id'"))).toEqual([
+    { name: "call_id", type: "TEXT", required: 0 },
   ]);
   await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
 });

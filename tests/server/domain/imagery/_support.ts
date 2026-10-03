@@ -12,7 +12,7 @@ import { assets, characters, userConnections, users } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import { handleKey } from "@orb/kit/handle-key";
-import type { AssetId, CharacterId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, Handle, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
 import { and, eq } from "drizzle-orm";
@@ -104,6 +104,7 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
     db,
     now: () => FROZEN_AT,
     newGenerationId: (): ImageryGenerationId => castId<ImageryGenerationId>(ids.next("imagery_generation")),
+    newCallId: (): ImageryCallId => castId<ImageryCallId>(ids.next("imagery_call")),
     resolveGenerateImage: () => Promise.resolve({ connection, capability: generationOf(connection) }),
     generateImage: (req) => {
       generateCalls.push(req.n ?? 1);

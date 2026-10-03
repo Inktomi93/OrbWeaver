@@ -12,7 +12,7 @@ import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { BindingActor, Resolved } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";
 
@@ -128,6 +128,7 @@ export interface ImageryContext {
   readonly db: Db;
   readonly now: () => number;
   readonly newGenerationId: () => ImageryGenerationId;
+  readonly newCallId: () => ImageryCallId;
   readonly resolveGenerateImage: (caller: Principal, actor?: BindingActor) => Promise<ResolvedGenerateImage>;
   /** The sealed `infra/providers` generateImage executor role (bound at compose). */
   readonly generateImage: (req: ImageGenerateRequest) => Promise<ImageGenerateResult>;
