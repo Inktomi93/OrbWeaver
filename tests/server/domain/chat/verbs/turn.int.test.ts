@@ -860,6 +860,40 @@ describe("send — the group round (N speakers via driveRound)", () => {
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1]]);
   });
+
+  // Ban-last follows the trigger: a natural round answering a live human bans no one, so the human can name
+  // the character who just spoke; the auto-chain's AI-triggered beats ban unless self-responses are allowed.
+  test("a natural send naming the character who just spoke gets that character", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn", "cara"]);
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hello" });
+    await seedMessage(db, chatId, 2, { role: "assistant", characterId: chars[0] as CharacterId, content: "aria answers" });
+    const h = harness(db, names, { prng: () => 0.99 });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "Aria, say more." });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[0]]);
+  });
+
+  test("a natural auto-chain beat still bans the character who just spoke", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"], { autoMode: true, autoModeMaxTurns: 1 });
+    const h = harness(db, names, { prng: () => 0.99 });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+
+    // Every roll fails: the human round's fallback draws bryn (index 1 of 2); the chain bans bryn, leaving aria.
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1], chars[0]]);
+  });
+
+  test("allowSelfResponses lifts the ban on a natural auto-chain beat", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"], { autoMode: true, autoModeMaxTurns: 1, allowSelfResponses: true });
+    const h = harness(db, names, { prng: () => 0.99 });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+
+    const canon = await loadCanonHistory(db, chatId);
+    expect(canon.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1], chars[1]]);
+  });
 });
 
 // The `smart` policy routes the round through the side-LLM turn arbiter (`engine/smart-arbitrate`) BEFORE
@@ -2027,6 +2061,15 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
     const outcome = await h.turn.generate({ principal: principal(host), chatId });
 
     expect(assistantsOf(outcome)).toEqual([chars[1]]);
+  });
+
+  test("Everyone, in order, with self-responses allowed: the last speaker may answer again", async () => {
+    const { host, chatId, chars, names } = await roomAfter("list", ["aria", "bryn"], { allowSelfResponses: true });
+    const h = harness(db, names);
+
+    const outcome = await h.turn.generate({ principal: principal(host), chatId });
+
+    expect(assistantsOf(outcome)).toEqual([chars[0]]);
   });
 
   test("Round-robin: the seat after the last speaker answers", async () => {

@@ -7,6 +7,7 @@
 
 import type { RulePresetView } from "@orb/contracts/automation";
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
+import { TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { RosterPresetView } from "@orb/contracts/roster-preset";
 import type { CharacterId, RosterPresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -21,7 +22,7 @@ import { useRef, useState } from "react";
 import { MemberDrillHeader, SettingSwitchRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { CollectionMemberView } from "#lib";
-import { talkativenessLevel, useFocusOnMount } from "#lib";
+import { talkativenessReadout, useFocusOnMount } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import { useRulePresetCatalogue } from "../hooks/use-saved-rosters.ts";
@@ -223,12 +224,11 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
                   Muted
                 </Text>
               ) : (
-                // ONE talkativeness spelling with the room's own Members tab (P2-5): the 0–100 dial, the
-                // word "Talks", no percent sign. The scale + wording live in `#lib` (a feature may not
-                // import another feature), so the roster can never drift from the room again. A seat that
-                // never had the knob touched carries `null` — the room's own default weight.
+                // ONE talkativeness spelling with the room's own Members tab: the readout lives in `#lib` (a
+                // feature may not import another feature), so the roster can never drift from the room. A
+                // seat that never had the knob touched carries `null` and applies the room default.
                 <Text as="span" voice="gloss">
-                  {member.talkativeness === null ? "Talks by default" : `Talks ${talkativenessLevel(member.talkativeness)}`}
+                  {member.talkativeness === null ? `${talkativenessReadout(TALKATIVENESS_DEFAULT)} (default)` : talkativenessReadout(member.talkativeness)}
                 </Text>
               )}
             </Row>

@@ -10,8 +10,9 @@
 //   2. Eligible set — present and not muted and a character (humans are not scheduled).
 //   3. Ban-last-speaker (soft) — drop the last speaker from the pool; if that empties it, restore (yield
 //      rather than empty). A solo roster falls out here: the pool empties → restores → re-speaks. SKIPPED
-//      when `banLast:false` (the room's `allowSelfResponses`): that toggle governs ELIGIBILITY only, and
-//      step 4 still reads `lastSpeaker` as its rotation origin.
+//      when `banLast:false` (the room's `allowSelfResponses`, or a `natural` round answering a live human —
+//      the caller decides, `verbs/turn.ts::banLastFor`): it governs ELIGIBILITY only, and step 4 still reads
+//      `lastSpeaker` as its rotation origin.
 //   4. Policy — order/subset the pool: `list` (roster order, all), `natural` (ACTIVATION: the pool members
 //      the human named as a plain word first, then every member whose talkativeness roll passes, in a
 //      shuffled order; nobody activated ⇒ one random member — see `naturalOrder`), `pooled` (ROUND-ROBIN —
@@ -267,21 +268,70 @@ function wordsOf(text: string): string[] {
   return text.toLowerCase().match(WORD) ?? [];
 }
 
+/** Name words that never name a character on their own. Nearly every message contains them, so a name like
+ *  "The Knight" or "Lady of the Lake" would otherwise answer every message. Lowercase, compared per word. */
+export const NAME_STOPWORDS = [
+  "a",
+  "an",
+  "the",
+  "and",
+  "or",
+  "but",
+  "of",
+  "to",
+  "in",
+  "on",
+  "at",
+  "for",
+  "from",
+  "with",
+  "by",
+  "as",
+  "is",
+  "it",
+  "i",
+  "me",
+  "my",
+  "you",
+  "your",
+  "we",
+  "our",
+  "he",
+  "his",
+  "she",
+  "her",
+  "they",
+  "their",
+  "its",
+] as const;
+
+function isStopword(word: string): boolean {
+  return NAME_STOPWORDS.some((s) => s === word);
+}
+
+/** Where `seq` first occurs as consecutive words of `words`, or -1. */
+function phraseAt(words: readonly string[], seq: readonly string[]): number {
+  if (seq.length === 0) {
+    return -1;
+  }
+  return words.findIndex((_, start) => seq.every((w, k) => words[start + k] === w));
+}
+
 /**
- * Characters a human-authored trigger text names as a plain word — `natural`'s mention activation (the
- * caller must pass a human post's body, never an AI reply). A character is named when any word of the text
- * equals any word of their display name, case-insensitive, so "Aria" and "stormborn" both name
- * `Aria Stormborn`, and one word shared by two names names both. Ordered by the first word that names each.
+ * Characters a human-authored trigger text names — `natural`'s mention activation (the caller must pass a
+ * human post's body, never an AI reply). A character is named when any word of the text equals a non-stopword
+ * word of their display name, case-insensitive, so "Aria" and "stormborn" both name `Aria Stormborn`, "knight"
+ * names `The Knight` and "the" does not, and one word shared by two names names both. A name made only of
+ * {@link NAME_STOPWORDS} is named by its whole name as a phrase. Ordered by where each is first named, then
+ * roster order.
  */
 export function resolveNameMentions(triggerText: string, candidates: readonly SpeakerCandidate[]): CharacterId[] {
-  const named = candidates.map((c) => ({ characterId: c.ref.characterId, words: new Set(wordsOf(c.name)) }));
-  const found: CharacterId[] = [];
-  for (const word of wordsOf(triggerText)) {
-    for (const member of named) {
-      if (member.words.has(word)) {
-        found.push(member.characterId);
-      }
-    }
-  }
-  return dedupeIds(found);
+  const text = wordsOf(triggerText);
+  const found = candidates.flatMap((c, rosterIdx) => {
+    const nameWords = wordsOf(c.name);
+    const keys = new Set(nameWords.filter((w) => !isStopword(w)));
+    const at = keys.size > 0 ? text.findIndex((w) => keys.has(w)) : phraseAt(text, nameWords);
+    return at === -1 ? [] : [{ id: c.ref.characterId, at, rosterIdx }];
+  });
+  return found.sort((a, b) => a.at - b.at || a.rosterIdx - b.rosterIdx).map((f) => f.id);
 }

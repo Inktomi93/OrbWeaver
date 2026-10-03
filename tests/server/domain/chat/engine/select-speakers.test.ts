@@ -8,7 +8,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { resolveMentions, resolveNameMentions, selectSpeakers } from "../../../../../packages/server/src/domain/chat/engine/select-speakers.ts";
+import { NAME_STOPWORDS, resolveMentions, resolveNameMentions, selectSpeakers } from "../../../../../packages/server/src/domain/chat/engine/select-speakers.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A seeded Park-Miller (MINSTD) LCG — the INJECTED PRNG stand-in (D46; no `Math.random`, no bitwise). */
@@ -227,6 +227,23 @@ describe("resolveNameMentions — a character named as a plain word (human-autho
   test("a repeated name counts once; no text, no mentions", () => {
     expect(resolveNameMentions("Bran! Bran!", characters)).toEqual([cid("bran")]);
     expect(resolveNameMentions("", characters)).toEqual([]);
+  });
+
+  test("a stopword in a name never names the character; its real name word does", () => {
+    const cast = [{ ref: charRef("knight"), name: "The Knight" }, ...characters];
+    expect(resolveNameMentions("Open the door.", cast)).toEqual([]);
+    expect(resolveNameMentions("Knight, open the door.", cast)).toEqual([cid("knight")]);
+    for (const stopword of NAME_STOPWORDS) {
+      expect(resolveNameMentions(`${stopword} ${stopword}`, [{ ref: charRef("lady"), name: "Lady of the Lake" }])).toEqual([]);
+    }
+  });
+
+  test("a name made only of stopwords is named by its whole name as a phrase", () => {
+    const cast = [{ ref: charRef("her"), name: "Her" }, { ref: charRef("you-two"), name: "You Two" }, ...characters];
+    expect(resolveNameMentions("Bran, ask her.", cast)).toEqual([cid("bran"), cid("her")]);
+    expect(resolveNameMentions("Nobody here.", cast)).toEqual([]);
+    // "You Two" has a real word, so only "two" names it — "you" alone never does.
+    expect(resolveNameMentions("Can you help?", cast)).toEqual([]);
   });
 
   test("Unicode names split into words the same way", () => {
