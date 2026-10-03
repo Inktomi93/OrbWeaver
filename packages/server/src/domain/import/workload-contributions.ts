@@ -208,7 +208,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
         // staging root (throws on any traversal attempt, before any fs read); absent ⇒ the configured root.
         const ownerRoot = stagedOwnerRoot(deps.stagingRoot, targetOwnerId);
         const profileRoot = params.stagedDir !== undefined ? await resolveStagedPath(ownerRoot, params.stagedDir) : deps.stProfileDir;
-        let result: { readonly scanned: number; readonly changed: number; readonly failed: number; readonly reportPath?: string };
+        let result: Awaited<ReturnType<ImportWorkloadDeps["runProfileDirImport"]>>;
         try {
           result = await deps.runProfileDirImport({ profileRoot, ownerId: targetOwnerId, dryRun, signal });
         } finally {
@@ -232,6 +232,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           dryRun,
           failed: result.failed,
           ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
+          ...(dryRun ? {} : { memoryScope: result.memoryScope }),
         };
       },
     },
@@ -278,7 +279,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           for (const note of report_.notes) {
             report({ message: note });
           }
-          return { imported: report_.imported, skipped: report_.skipped, failed: report_.failed, notes: report_.notes };
+          return report_;
         } finally {
           await rmContained(ownerRoot, stagedPath);
         }

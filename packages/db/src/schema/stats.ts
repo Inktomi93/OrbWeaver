@@ -6,7 +6,7 @@
 //
 // OWNERSHIP STAMP (ledger D23 — the one-FK-to-an-owned-parent test):
 //   • owner_stats / daily_stats / model_stats KEEP `ownerId` — they are PARENTLESS per-user aggregates
-//     (owner × {— | day | model×provider}); `ownerId` is the row's OWN key, not a redundant mirror.
+//     (owner × {— | quarter-hour bucket | model×provider}); `ownerId` is the row's OWN key, not a redundant mirror.
 //     FK users RESTRICT (a user with a rollup cannot be hard-deleted out from under it).
 //   • character_stats DROPS `ownerId` — it has a single owning parent (the character), so the owner is
 //     reachable by ONE FK (`characterId → characters.ownerId`); per-owner reads scope via
@@ -17,7 +17,7 @@
 // character_stats / daily_stats / model_stats carry
 // a TypeID `id` PK (minted in `domain/stats/write/*` via `ID_PREFIX.{characterStat,dailyStat,modelStat}`)
 // PLUS a UNIQUE on their natural business key — that unique is the live-delta UPSERT conflict target
-// (`character`, `(owner, day)`, `(owner, model, provider)`).
+// (`character`, `(owner, bucketStart)`, `(owner, model, provider)`).
 //
 // `model_stats.provider` is `NOT NULL DEFAULT '(unknown)'` — LOAD-BEARING (invariant #5): the
 // `(ownerId, model, provider)` unique-index upsert relies on it. SQLite treats SQL
@@ -184,9 +184,11 @@ export const characterStats = sqliteTable(
   ],
 );
 
-// daily_stats — per-(owner, day) timeseries, WIDE format. KEEPS `ownerId` (D23 parentless aggregate).
-// Daily credits the MESSAGE stream only (esoteric #1): a variant (swipe) bumps `swipes`/`genTimeMs` but
-// NOT `tokensIn`/`tokensOut` (the message delta sets those; the variant delta omits dailyTokensIn/Out).
+// daily_stats — the per-owner activity TIMELINE, WIDE format, one row per (owner, UTC quarter-hour bucket).
+// KEEPS `ownerId` (D23 parentless aggregate). It stores no calendar day: the day is the viewer's, folded
+// from the bucket on the client (`@orb/kit/stats-tally.STATS_BUCKET_MS` says why a quarter-hour).
+// The timeline credits the MESSAGE stream only (esoteric #1): a variant (swipe) bumps `swipes`/`genTimeMs`
+// but NOT `tokensIn`/`tokensOut` (the message delta sets those; the variant delta omits dailyTokensIn/Out).
 export const dailyStats = sqliteTable(
   "daily_stats",
   {
@@ -196,8 +198,8 @@ export const dailyStats = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
-    // The UTC 'YYYY-MM-DD' bucket (produced by `@orb/kit/stats-tally.utcDay`). Plain TEXT, NOT a date.
-    day: text("day").notNull(),
+    // The bucket's start, epoch-ms on a quarter-hour boundary (`@orb/kit/stats-tally.statsBucketStart`).
+    bucketStart: integer("bucket_start").notNull(),
     chatsCreated: integer("chats_created").notNull().default(0),
     userTurns: integer("user_turns").notNull().default(0),
     assistantTurns: integer("assistant_turns").notNull().default(0),
@@ -220,8 +222,8 @@ export const dailyStats = sqliteTable(
     computedAt: integer("computed_at").notNull().default(NOW_MS),
   },
   (table) => [
-    // owner × day — the live-delta UPSERT conflict target.
-    uniqueIndex("daily_stats_owner_day_unique").on(table.ownerId, table.day),
+    // owner × bucket — the live-delta UPSERT conflict target.
+    uniqueIndex("daily_stats_owner_bucket_unique").on(table.ownerId, table.bucketStart),
   ],
 );
 

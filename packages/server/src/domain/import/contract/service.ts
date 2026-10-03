@@ -86,11 +86,10 @@ type AttachImportedArt = (args: {
   readonly importHash: string;
 }) => Promise<boolean>;
 
-/** Enqueues one memory-backfill workload for the owner, once per import run when a chat was written. Returns
- *  whether a row actually entered the queue: the workloads door can REFUSE the enqueue (#156 — memory is off
- *  for this owner, so the sweep could only land a vacuous 0/0), and an already-active run is the benign
- *  conflict the op swallows. Either way the import succeeds; the caller reports the truth. */
-type EnqueueImportBackfill = (args: { readonly ownerId: UserId }) => Promise<boolean>;
+/** Enqueues the owner's post-import text `index` pass (embeds no chat memory and calls no Utility model).
+ *  An import never enqueues `memory-backfill`: the client offers that build over the result's `memoryChatIds`,
+ *  behind the model-run confirm, so an import spends nothing paid without a yes. */
+type EnqueueImportIndex = (args: { readonly ownerId: UserId }) => Promise<void>;
 
 /** Inline post-import stats rollup rebuild. */
 type ReconcileImportStats = (args: { readonly ownerId: UserId }) => Promise<void>;
@@ -127,7 +126,7 @@ export interface ImportProfileDeps {
   readonly personaByUserName: Map<string, PersonaId>;
   readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonasOp;
-  readonly enqueueBackfill: EnqueueImportBackfill;
+  readonly enqueueImportIndex: EnqueueImportIndex;
   readonly reconcileStats: ReconcileImportStats;
   // ── R6: the orb-native chat bundle's three cross-domain re-links. All OPTIONAL, on the
   // `importLorebook`/`importCardScripts` precedent: absent ⇒ that plane simply does not restore, which keeps

@@ -1,6 +1,6 @@
 // domain/import/contract/results — the verb result shapes.
 
-import type { CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, WorldBookId } from "@orb/kit/ids";
 import type {
   ImportAmbiguousSpeakerName,
   ImportPresetNote,
@@ -62,7 +62,7 @@ export type RestoreCharacterBookResult =
   | { readonly ok: true; readonly characterId: CharacterId; readonly worldBookId: WorldBookId; readonly entryCount: number; readonly replaced: boolean }
   | { readonly ok: false; readonly error: string };
 
-/** backfillEnqueued: whether the run enqueued a memory-backfill (only when ≥1 real_conversation chat was written).
+/** `memoryChatIds`: the real conversations this run wrote — the scope the import's memory-build offer covers.
  *  `unresolvedPinnedPersonas` is the honest half of §5.7: the chats whose ST chat-bound persona pick named
  *  nothing here. Always present (empty ⇒ every pick travelled), never a silent drop. */
 export interface ImportChatsResult {
@@ -72,7 +72,7 @@ export interface ImportChatsResult {
   readonly messagesImported: number;
   readonly variantsImported: number;
   readonly branchesLinked: number;
-  readonly backfillEnqueued: boolean;
+  readonly memoryChatIds: readonly ChatId[];
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
   /** Already-imported rooms this run back-filled persona attribution onto (the dedup-skip arm's HEAL — the
    *  write op's `chatsPersonaHealed`). NOT counted as `changed`: healing an existing room writes no new canon,
@@ -106,14 +106,14 @@ export interface ImportThemesResult {
 
 /** The ST group wave's tally. `groupsImported` counts rooms that actually WROTE a transcript — a second
  *  byte-identical run dedups every transcript by importHash and therefore reports zero, the same "net-new
- *  canon" line the preset wave draws. `backfillNeeded` mirrors `realConversationWritten` — the driver owns the
- *  ONE post-import enqueue, so this reports the need rather than acting on it. */
+ *  canon" line the preset wave draws. `memoryChatIds` is every real conversation the wave wrote, for the
+ *  driver's report. */
 export interface ImportGroupsResult {
   readonly groupsImported: number;
   readonly groupChatsImported: number;
   readonly skippedGroups: readonly ImportSkippedGroup[];
   readonly skippedMembers: readonly ImportSkippedGroupMember[];
-  readonly backfillNeeded: boolean;
+  readonly memoryChatIds: readonly ChatId[];
   /** Same §5.7 record as the solo wave's — a group transcript can carry a chat-bound pick too, and a
    *  wave-local report field is what keeps it from being the one arm that drops it silently. */
   readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
@@ -144,5 +144,5 @@ export interface ImportPersonasResult {
  *  here. Present even when EMPTY (the {@link ImportPresetNote} rule): "restored whole" must be legible apart
  *  from "never looked at". The chat itself always still imports — an overlay never un-writes canon. */
 export type ImportChatFileOutcome =
-  | { readonly ok: true; readonly created: boolean; readonly skippedOverlays: readonly string[] }
+  | { readonly ok: true; readonly created: boolean; readonly skippedOverlays: readonly string[]; readonly memoryChatIds: readonly ChatId[] }
   | { readonly ok: false; readonly error: string };

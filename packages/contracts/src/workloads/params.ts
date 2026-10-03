@@ -12,6 +12,7 @@
 // every kind validates uniformly.
 
 import { z } from "zod";
+import type { MemoryBackfillWorkloadParams } from "#chat";
 import { documentIdSchema, reindexModeSchema, reindexScopeSchema } from "#databank";
 import type { ComputeThemesWorkloadParams, FindDuplicatesWorkloadParams } from "#discovery";
 import type { RefineScoreSweepWorkloadParams } from "#refinery";
@@ -91,7 +92,7 @@ export interface WorkloadParamsByKind {
   index: z.infer<typeof indexWorkloadParams>;
   "distill-characters": NoWorkloadParams;
   "compute-themes": ComputeThemesWorkloadParams;
-  "memory-backfill": NoWorkloadParams;
+  "memory-backfill": MemoryBackfillWorkloadParams;
   "group-character-backfill": NoWorkloadParams;
   "compute-cooccurrence": NoWorkloadParams;
   "find-duplicates": FindDuplicatesWorkloadParams;

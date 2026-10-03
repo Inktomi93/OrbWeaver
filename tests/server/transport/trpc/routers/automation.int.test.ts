@@ -102,6 +102,7 @@ test("lost mounted HTTP response after real commit recovers one unchanged birth 
     cas: createCas(join(importStagingDir, "unhit-cas")),
     character: app.services.character,
     portability: app.portability,
+    settleImportMemory: app.settleImportMemory,
     importWorldInfo: app.importWorldInfo,
     importCardScripts: app.importCardScripts,
     exportService: app.exportService,

@@ -60,6 +60,9 @@ const DEFAULT_BUSY_POLL_INTERVAL_MS = 200;
 const DEFAULT_REAP_INTERVAL_MS = 60_000;
 // Workers per lane. ONE keeps each lane's dispatch sequential (the DB single-active indexes are the real
 // guard, but a second worker in the same lane only adds claim races). Widening is a dep, not a migration.
+// COUPLING: memory-backfill admits a whole sweep and an import's scoped runs as distinct units
+// (domain/chat/workload-contributions.ts `memoryAdmissionKey`), and relies on the `sweep` lane running them one
+// at a time. A sweep lane wider than one would let two of them summarize the same block and pay for it twice.
 const DEFAULT_LANE_CONCURRENCY = 1;
 
 // ── Injected op shapes (entry wires the real front-door fns; tests pass fakes). File-local: the structural

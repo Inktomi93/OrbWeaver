@@ -9,13 +9,14 @@
 
 import { z } from "zod";
 import type { FsckReport } from "#assets";
-import type { BackfillPassResult, MemoryBackfillResult } from "#chat";
+import type { BackfillPassResult, ImportWindow, MemoryBackfillResult } from "#chat";
 import type { IngestRunResult } from "#databank";
 import type { AnalyticsResult } from "#discovery";
 import type { EmbedPassResult } from "#embeddings";
 import type { CatalogRefreshResult } from "#inference";
 import type { RefineryScoreSweepResult } from "#refinery";
 import type { ReconcileStatsWorkloadResult } from "#stats";
+import { storedImportWindowSchema } from "../chat/backfill.ts";
 
 /** A maintenance pass's counts + the `dryRun` echo (assets backfill/gc, import-st). */
 export interface MaintenanceResult {
@@ -27,6 +28,8 @@ export interface MaintenanceResult {
   readonly failed?: number;
   /** import-st only: path to the written import report (what landed / what didn't). Absent on a dry run. */
   readonly reportPath?: string;
+  /** import-st only: see {@link BundleImportWorkloadResult.memoryScope}. Absent on a dry run. */
+  readonly memoryScope?: ImportWindow | null;
 }
 
 /** A portability bundle import's per-entity tallies. `notes` (#1710) is what a file that DID import still
@@ -38,6 +41,10 @@ export interface BundleImportWorkloadResult {
   readonly skipped: number;
   readonly failed: number;
   readonly notes: readonly string[];
+  /** The span in which this import wrote real conversations, or null when it wrote none (a deduped re-import
+   *  writes none). The import enqueues only the free segment pass over it; the client offers "Build memory for
+   *  imported chats" over it behind the model-run confirm, as a `memory-backfill` scoped by `importWindow`. */
+  readonly memoryScope: ImportWindow | null;
 }
 
 /** The auditable terminal census for import's variant token catch-up. Every non-write has a named bucket. */
@@ -87,11 +94,19 @@ export interface WorkloadResultByKind {
 }
 
 export const maintenanceResultSchema = z
-  .strictObject({ scanned: z.number(), changed: z.number(), dryRun: z.boolean(), failed: z.number().optional(), reportPath: z.string().optional() })
-  .transform(({ failed, reportPath, ...view }) => ({
+  .strictObject({
+    scanned: z.number(),
+    changed: z.number(),
+    dryRun: z.boolean(),
+    failed: z.number().optional(),
+    reportPath: z.string().optional(),
+    memoryScope: storedImportWindowSchema.nullable().optional(),
+  })
+  .transform(({ failed, reportPath, memoryScope, ...view }) => ({
     ...view,
     ...(failed !== undefined ? { failed } : {}),
     ...(reportPath !== undefined ? { reportPath } : {}),
+    ...(memoryScope !== undefined ? { memoryScope } : {}),
   })) satisfies z.ZodType<MaintenanceResult>;
 
 export const bundleImportWorkloadResultSchema = z.strictObject({
@@ -99,6 +114,8 @@ export const bundleImportWorkloadResultSchema = z.strictObject({
   skipped: z.number(),
   failed: z.number(),
   notes: z.array(z.string()).readonly(),
+  // A row stored before imports carried a scope reads as having none: it offers nothing, and still lists.
+  memoryScope: storedImportWindowSchema.nullable().default(null),
 }) satisfies z.ZodType<BundleImportWorkloadResult>;
 
 export const importTokenUsageBackfillResultSchema = z.strictObject({

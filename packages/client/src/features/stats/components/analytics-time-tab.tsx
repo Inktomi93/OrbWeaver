@@ -1,13 +1,10 @@
-// The Analytics CONTEXT "Time" tab — when activity happens. Reads `timeseries` (daily points → an
-// assistant-turn + output-token histogram), `temporal` (streaks / active days / busiest day + the
-// weekday activity vector as a bar-list), and `activityHeatmap` (the true 7×24 weekday×hour matrix as a
-// <Heatmap> with a VisualMap gradient + the peak cell). Read-only analytics.
+// The Analytics CONTEXT "Time" tab — when activity happens, on the VIEWER's calendar. One read, the
+// `timeseries` quarter-hour timeline, folded through the time seam into local days (the reply and token
+// histograms, the rhythm trio), weekdays (the bar-list) and weekday × hour (the <Heatmap>).
 //
-// SCOPE HONESTY (side-eye rail-analytics 2026-08-19 P1b). `daily_stats` is owner+day grain — no character
-// axis — so `timeseries` and `temporal` cannot narrow to the leaderboard-drilled character whose face the
-// CONTEXT band shows. The tab says so rather than passing library numbers off as that character's. The
-// heatmap alone COULD scope (it is a canon scan), but a scoped chart between two unscoped ones is a worse
-// lie than one honest statement over a uniform tab.
+// SCOPE HONESTY (side-eye rail-analytics 2026-08-19 P1b). The timeline is owner grain — no character axis —
+// so this tab cannot narrow to the leaderboard-drilled character whose face the CONTEXT band shows. The tab
+// says so rather than passing library numbers off as that character's.
 
 import { BarList } from "@orb/ui/bar-list";
 import { Heatmap } from "@orb/ui/heatmap";
@@ -18,7 +15,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
-import { testId } from "#lib";
+import { testId, timeLib } from "#lib";
 import {
   activityHeatmapMatrix,
   dailyTokenBuckets,
@@ -30,6 +27,7 @@ import {
   UNRECORDED_NOTE,
   weekdayBarItems,
 } from "../lib/analytics-view-model.ts";
+import { localTimeline, rhythmOf } from "../lib/local-calendar-folds.ts";
 import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 import { RhythmFigures } from "./rhythm-figures.tsx";
 
@@ -52,21 +50,19 @@ export function AnalyticsTimeTab(): ReactElement {
 
 function TimeBody(): ReactElement {
   const trpc = useTRPC();
-  const { data: points } = useSuspenseQuery(trpc.stats.timeseries.queryOptions());
-  const { data: temporal } = useSuspenseQuery(trpc.stats.temporal.queryOptions());
-  const { data: heatmap } = useSuspenseQuery(trpc.stats.activityHeatmap.queryOptions());
-  const peak = formatPeak(heatmap.peak);
-  const tokensOutProvenance = seriesTokenProvenance(points);
-  const tokenBuckets = dailyTokenBuckets(points);
+  const { data: buckets } = useSuspenseQuery(trpc.stats.timeseries.queryOptions());
+  const timeline = localTimeline(buckets, timeLib.calendarPosition);
+  const tokensOutProvenance = seriesTokenProvenance(timeline.days);
+  const tokenBuckets = dailyTokenBuckets(timeline.days);
 
   return (
     <Stack gap="section">
-      <LibraryScopeNotice reason="Daily activity is rolled up per day across every character, with no per-character breakdown to narrow to." />
+      <LibraryScopeNotice reason="Activity over time is rolled up across every character, with no per-character breakdown to narrow to." />
 
       {/* `formatCompact` on the value axis, like every figure beside it: the token histogram used to print
           raw digits while the stat rows printed "1.2M" — one surface, two number vocabularies (P2f). */}
       <Section heading="Daily replies">
-        <Histogram buckets={dailyTurnBuckets(points)} countFormatter={formatCompact} label="Assistant turns per day" />
+        <Histogram buckets={dailyTurnBuckets(timeline.days)} countFormatter={formatCompact} label="Assistant turns per day" />
       </Section>
 
       <Section heading="Daily tokens">
@@ -78,19 +74,19 @@ function TimeBody(): ReactElement {
         <Text voice="gloss">Aggregate only. Days with unrecorded output tokens are omitted. {UNRECORDED_NOTE}</Text>
       </Section>
 
-      <RhythmFigures temporal={temporal} />
+      <RhythmFigures rhythm={rhythmOf(timeline.days)} />
 
       <Section heading="By weekday">
-        <BarList items={weekdayBarItems(temporal.dayOfWeek)} label="Messages by weekday" valueFormatter={formatCompact} />
+        <BarList items={weekdayBarItems(timeline.weekdayActivity)} label="Messages by weekday" valueFormatter={formatCompact} />
       </Section>
 
       <Section heading="By weekday and hour">
-        {peak === null ? null : (
+        {timeline.peak === null ? null : (
           <Text voice="gloss">
-            Peak: {peak} ({formatCompact(heatmap.peak?.count ?? 0)})
+            Peak: {formatPeak(timeline.peak)} ({formatCompact(timeline.peak.count)})
           </Text>
         )}
-        <Heatmap countFormatter={formatCompact} label="Messages by weekday and hour (UTC)" matrix={activityHeatmapMatrix(heatmap.matrix)} />
+        <Heatmap countFormatter={formatCompact} label="Messages by weekday and hour" matrix={activityHeatmapMatrix(timeline.weekHourTurns)} />
       </Section>
     </Stack>
   );

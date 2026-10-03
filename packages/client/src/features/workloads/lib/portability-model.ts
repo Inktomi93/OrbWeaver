@@ -2,6 +2,8 @@
 // portable kind, the export-kind set the checkboxes drive, the export-href builder, and the report →
 // summary normalizers. No React, no I/O.
 
+import type { ImportWindow } from "@orb/contracts/chat";
+import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { CardImportResult, TreeImportPlan } from "#data";
@@ -58,6 +60,9 @@ export interface ImportSummary {
   readonly failed: number;
   readonly outcomes: readonly ImportOutcomeView[];
   readonly notes: readonly string[];
+  /** The import's scope handle — the "Build memory for imported chats" offer's scope; null when it wrote no
+   *  real conversation. */
+  readonly memoryScope: ImportWindow | null;
 }
 
 /** The counts + flattened notes a finished `import-bundle` workload reports (no per-file list — #1710's
@@ -67,6 +72,15 @@ export interface BundleCounts {
   readonly skipped: number;
   readonly failed: number;
   readonly notes: readonly string[];
+  readonly memoryScope: ImportWindow | null;
+}
+
+/** One span over both scopes; a missing side leaves the other as it is. */
+function mergeScopes(a: ImportWindow | null, b: ImportWindow | null): ImportWindow | null {
+  if (a === null || b === null) {
+    return a ?? b;
+  }
+  return mergeImportWindows(a, b);
 }
 
 /** Narrow an `unknown` workload-succeeded result into the bundle counts. An `import-st` run reports the
@@ -76,6 +90,7 @@ export function asBundleCounts(result: unknown): BundleCounts {
   const record = typeof result === "object" && result !== null ? (result as Record<string, unknown>) : {};
   const count = (value: unknown): number => (typeof value === "number" ? value : 0);
   const notes = record["notes"];
+  const memoryScope = importWindowSchema.safeParse(record["memoryScope"]);
   const failed = count(record["failed"]);
   const imported = record["imported"] === undefined ? count(record["changed"]) : count(record["imported"]);
   const skipped = record["skipped"] === undefined ? Math.max(0, count(record["scanned"]) - imported - failed) : count(record["skipped"]);
@@ -84,12 +99,19 @@ export function asBundleCounts(result: unknown): BundleCounts {
     skipped,
     failed,
     notes: Array.isArray(notes) ? notes.filter((note): note is string => typeof note === "string") : [],
+    memoryScope: memoryScope.success ? memoryScope.data : null,
   };
 }
 
 /** Sum two uploads' counts — a planned folder import is several sequential workloads reporting one result. */
 export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts {
-  return { imported: a.imported + b.imported, skipped: a.skipped + b.skipped, failed: a.failed + b.failed, notes: [...a.notes, ...b.notes] };
+  return {
+    imported: a.imported + b.imported,
+    skipped: a.skipped + b.skipped,
+    failed: a.failed + b.failed,
+    notes: [...a.notes, ...b.notes],
+    memoryScope: mergeScopes(a.memoryScope, b.memoryScope),
+  };
 }
 
 /** The plan's own lines, for the preflight AND the summary: what stays on your disk and why, and how many
@@ -125,6 +147,8 @@ export function summarizeCardImport(result: CardImportResult): ImportSummary {
     skipped: deduped.length,
     failed: result.failed.length,
     notes: [],
+    // A bare card writes no chat, so it offers no memory build.
+    memoryScope: null,
     outcomes: [
       ...created.map((card) => ({
         path: card.filename ?? UNNAMED_CARD,

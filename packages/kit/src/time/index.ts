@@ -204,9 +204,20 @@ export interface TimeLib {
    *  Use it where the phrase lives inside a sentence ("You left off 5m ago in …") whose whole job is
    *  elapsed-since; a column stamp keeps `formatRelativeCompact`. */
   readonly formatRelativeAgo: (epochMs: number) => string;
+  /** Where an instant falls on the viewer's calendar, in the SAME zone the formatters render in — the one
+   *  seam a chart buckets by day, weekday or hour through, so a bucket and its label never disagree. */
+  readonly calendarPosition: (epochMs: number) => CalendarPosition;
   /** Current epoch-ms from the SAME injected clock the formatters use — the sanctioned "now" read (a
    *  feature computing an elapsed-since a stored timestamp reads it here, never ambient `Date.now()`). */
   readonly now: () => number;
+}
+
+/** An instant's local calendar position: the `YYYY-MM-DD` day, the weekday (0 = Sunday … 6 = Saturday)
+ *  and the hour (0–23). */
+export interface CalendarPosition {
+  readonly day: string;
+  readonly weekday: number;
+  readonly hour: number;
 }
 
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
@@ -331,11 +342,18 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
     minute: "2-digit",
   });
   const relative = new Intl.RelativeTimeFormat(locale, { numeric: "auto", style: "narrow" });
+  // The formatters' own resolved zone, so a position always matches the label the same TimeLib prints.
+  const zone = date.resolvedOptions().timeZone;
 
   const formatDate = (epochMs: number): string => date.format(epochMs);
 
   return {
     now,
+    calendarPosition: (epochMs): CalendarPosition => {
+      const zoned = Temporal.Instant.fromEpochMilliseconds(Math.trunc(epochMs)).toZonedDateTimeISO(zone);
+      // Temporal's ISO weekday runs 1 = Monday … 7 = Sunday; the modulo folds Sunday to 0.
+      return { day: zoned.toPlainDate().toString(), weekday: zoned.dayOfWeek % DAYS_PER_WEEK, hour: zoned.hour };
+    },
     formatTime: (epochMs): string => time.format(epochMs),
     formatDate,
     formatMonthYear: (epochMs): string => monthYear.format(epochMs),

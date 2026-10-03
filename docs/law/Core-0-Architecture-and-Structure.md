@@ -209,7 +209,7 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 | **Regex** | a regex *library* + scope junctions (global/character/preset), assembled + executed by placement | the world-info pattern — one store, attached at scopes |
 | **World info** | one books/entries store + scope junctions | the canonical scope-junction pattern (regex reuses it) |
 | **Descriptive labels** | tags (one namespace + per-entity junctions); proposed = a *status*, not a parallel store | analytics facets (genre/tone/keywords/themes) are a SEPARATE concept (discovery) |
-| **Derived data** (digests/embeddings/themes) | an event-driven indexer (canon write → ContentChanged → coalesced workload) | "import just works"; no manual backfill scripts |
+| **Derived data** (digests/embeddings/themes) | an event-driven indexer (canon write → ContentChanged → coalesced workload) | free derived data runs on its own after an import: card embeddings always, chat-segment embeddings while Memory is on; paid derivation (memory digests) is offered behind the model-run confirm with its call count; no manual backfill scripts |
 | **Turn economics** (tokens/cost/cache/timing rollups) | `stats` — the four per-owner rollups; ZERO vector tables | economics and semantics NEVER share tables: `stats` (economics) vs `discovery` (semantics) are disjoint + type-enforced (`stats-no-vector-tables` dep-cruiser rule + disjoint `messages` projections) |
 | **Character cards** | the card IS a flat `characters` row (live identity + content); history = a standalone `character_snapshots` log that gates nothing | D28: no version table — git working-tree (`characters`) + commit-log (`character_snapshots`), browse + restore-in-place |
 

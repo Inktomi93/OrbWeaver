@@ -65,7 +65,7 @@ export interface PortabilityDeps {
   readonly findPersonaByName: NonNullable<ImportProfileDeps["findPersonaByName"]>;
   readonly attachChatTagByName: NonNullable<ImportProfileDeps["attachChatTagByName"]>;
   readonly importRpgGame: NonNullable<ImportProfileDeps["importRpgGame"]>;
-  readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<boolean>;
+  readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
 }
@@ -90,7 +90,7 @@ async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise
       personaByUserName: new Map(),
       bulkImportChats: deps.bulkImportChats,
       bulkImportPersonas: deps.bulkImportPersonas,
-      enqueueBackfill: deps.enqueueBackfill,
+      enqueueImportIndex: deps.enqueueImportIndex,
       reconcileStats: deps.reconcileImportStats,
       findPersonaByName: deps.findPersonaByName,
       attachChatTagByName: deps.attachChatTagByName,
@@ -354,7 +354,12 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
         // rpg campaign). The verb names each one it could not restore; forwarding them is what keeps a bundle
         // that dropped a campaign from reporting clean.
         return outcome.ok
-          ? { ok: true, created: outcome.created, ...(outcome.skippedOverlays.length > 0 ? { notes: outcome.skippedOverlays } : {}) }
+          ? {
+              ok: true,
+              created: outcome.created,
+              ...(outcome.skippedOverlays.length > 0 ? { notes: outcome.skippedOverlays } : {}),
+              ...(outcome.memoryChatIds.length > 0 ? { memoryChatIds: outcome.memoryChatIds } : {}),
+            }
           : { ok: false, error: outcome.error };
       } catch (err) {
         return errorOutcome(err);
