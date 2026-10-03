@@ -542,6 +542,8 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     applyStatsDelta: () => undefined,
     bumpStatsCanonVersion: () => undefined,
     summarize: notStubbed,
+    // No rerank role is bound by default, so a Smart room on the reranker picks like natural and warns.
+    resolveSpeakerReranker: () => Promise.resolve(null),
     summarizerContextTokens: () => Promise.resolve(32_000),
     summarizeAvailability: () => Promise.resolve({ available: true }),
     // The embed window the segment build measures each verbatim block against (#165). The production floor

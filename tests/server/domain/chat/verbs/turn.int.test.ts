@@ -6,7 +6,7 @@ import type { ChatContentPart, ChatReasoningPart } from "@orb/contracts/chat";
 // frozen clock, seeded prng, no-op delay (D46) — no ambient clock / RNG.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
+import type { AssemblePersona, ChatBusEvent, SmartPicker } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { Can, Principal } from "@orb/contracts/identity";
 import type { NormalizedFinishReason } from "@orb/contracts/inference";
@@ -209,6 +209,8 @@ function harness(
     /** The `smart` policy's side-LLM turn arbiter (default = the throwing `notStubbed` — every non-smart
      *  room must never reach it). The smart-policy pins script it (a pick, or an outage). */
     summarize?: ChatContext["summarize"];
+    /** The funder's bound rerank role, Smart's default pick (default = unbound). */
+    resolveSpeakerReranker?: ChatContext["resolveSpeakerReranker"];
     /** The injected rpg turn ops (default null = not wired, byte-identical). The R1 folded-extraction pin
      *  wires a stub whose gather contributes TERMINAL tools, to prove the whole gather→prep→wire→flush thread. */
     rpg?: ChatContext["rpg"];
@@ -265,6 +267,7 @@ function harness(
     ...(over.readPresence !== undefined ? { readPresence: over.readPresence } : {}),
     ...(over.resolveUserEnabled !== undefined ? { resolveUserEnabled: over.resolveUserEnabled } : {}),
     ...(over.summarize !== undefined ? { summarize: over.summarize } : {}),
+    ...(over.resolveSpeakerReranker !== undefined ? { resolveSpeakerReranker: over.resolveSpeakerReranker } : {}),
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
     ...(over.teaching !== undefined ? { teaching: over.teaching } : {}),
     ...(over.tools !== undefined ? { tools: over.tools } : {}),
@@ -342,6 +345,8 @@ async function seedRoom(
     allowSelfResponses?: boolean;
     /** Character keys seeded MUTED (`disabled: true`) — #29's force-turn-on-muted pin. */
     disabledKeys?: readonly string[];
+    /** What a Smart room picks with; absent ⇒ the stored default (the reranker). */
+    smartPicker?: SmartPicker;
   } = {},
 ): Promise<{ host: UserId; chatId: ChatId; chars: CharacterId[]; names: Record<string, string> }> {
   const host = await seedUser(db, castId<Handle>("host"));
@@ -350,6 +355,7 @@ async function seedRoom(
     policy,
     ...(opts.autoMode === true ? { autoMode: true, autoModeMaxTurns: opts.autoModeMaxTurns ?? 2, autoModeDelayMs: 0 } : {}),
     ...(opts.allowSelfResponses === true ? { allowSelfResponses: true } : {}),
+    ...(opts.smartPicker !== undefined ? { smartPicker: opts.smartPicker } : {}),
   };
   const chatId = await seedChat(db, "a", { metadata: { group } });
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -974,9 +980,65 @@ function arbiter(text: string): { op: ChatContext["summarize"]; calls: () => num
 
 const warnings = (events: readonly ChatBusEvent[]): readonly ChatBusEvent[] => events.filter((e) => e.type === "warning");
 
+/** A bound reranker that ranks `top` first and counts its calls; scores are logits, so they run negative. */
+function reranker(top: string): { op: ChatContext["resolveSpeakerReranker"]; calls: () => number } {
+  let calls = 0;
+  return {
+    op: () =>
+      Promise.resolve({
+        capability: { maxInputTokens: 512, input: ["text"], instructionAware: false },
+        rerank: (_query, documents) => {
+          calls += 1;
+          const hits = documents.map((d) => ({ id: d.id, score: d.text?.startsWith(`${top}:`) === true ? -0.5 : -7 }));
+          return Promise.resolve({ hits, model: "fake-rerank", usage: { totalTokens: null } });
+        },
+      }),
+    calls: () => calls,
+  };
+}
+
+describe("send — Smart's picker route (the reranker by default, the Utility model as the opt-in)", () => {
+  test("a Smart room with no picker set ranks with the bound reranker and never calls the Utility model", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const ranked = reranker("bryn");
+    const h = harness(db, names, { resolveSpeakerReranker: ranked.op });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1]]);
+    expect(ranked.calls()).toBe(1);
+    expect(warnings(h.events)).toHaveLength(0);
+  });
+
+  test("with the Utility-model sub-setting on, the arbiter picks and the reranker is never called", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
+    const ranked = reranker("aria");
+    const chosen = arbiter("bryn");
+    const h = harness(db, names, { resolveSpeakerReranker: ranked.op, summarize: chosen.op });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1]]);
+    expect(chosen.calls()).toBe(1);
+    expect(ranked.calls()).toBe(0);
+  });
+
+  test("an unbound rerank role picks like natural and says so", async () => {
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const h = harness(db, names);
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(chars).toContainEqual(assistants[0]?.characterId);
+    expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "speaker_rerank_unavailable" }]);
+  });
+});
+
 describe("send — the smart policy (side-LLM turn arbiter + its visible fallback)", () => {
   test("the side-LLM's pick is honored (the happy path still works)", async () => {
-    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const chosen = arbiter("bryn");
     const h = harness(db, names, { summarize: chosen.op });
 
@@ -992,7 +1054,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   // stored content alone cannot say who spoke. The arbiter must still read each line's speaker, resolved
   // from the row's own character or persona stamp.
   test("the arbiter reads each untagged line under its speaker's name", async () => {
-    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const hostPersona = await seedPersona(host, "host_pov");
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, personaId: hostPersona, content: "Anyone awake?" });
     await seedMessage(db, chatId, 2, { role: "assistant", characterId: chars[0] ?? null, content: "I never sleep." });
@@ -1014,7 +1076,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   });
 
   test("a THROWING arbiter (outage) still commits a turn, chosen by the natural math, with a warning", async () => {
-    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const h = harness(db, names, {
       summarize: () => Promise.reject(new Error("side-LLM down")),
     });
@@ -1030,7 +1092,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   // The small-hardware arm (plan-for-small-hardware): no summarize backend wired ⇒ the role dispatcher
   // fail-closes with a SYNCHRONOUS throw. Same outcome — the round happens and the user is told.
   test("an UNWIRED arbiter (sync fail-closed throw) degrades the same way", async () => {
-    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const h = harness(db, names, {
       summarize: () => {
         throw new Error('provider "vllm" is not wired for the "summarize" role');
@@ -1044,7 +1106,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   });
 
   test("a GARBLED / off-roster reply degrades to the math (never schedules a non-member)", async () => {
-    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const h = harness(db, names, { summarize: arbiter("Gandalf the Grey").op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
@@ -1056,7 +1118,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   });
 
   test("a human @mention hard-overrides smart entirely — the arbiter is never called", async () => {
-    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const chosen = arbiter("aria");
     const h = harness(db, names, { summarize: chosen.op });
 
@@ -1069,7 +1131,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   });
 
   test("a MUTED member named by the arbiter is never scheduled (untrusted model output)", async () => {
-    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { disabledKeys: ["cara"] });
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { smartPicker: "utility", disabledKeys: ["cara"] });
     const h = harness(db, names, { summarize: arbiter("cara").op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
@@ -1085,7 +1147,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
   // the summarize op, so the user's Stop cuts it — and a cancelled arbitration is NOT a degrade: the round
   // ends with nothing generated and no warning (nothing degraded — the user stopped it).
   test("an abort mid-arbitration ends the turn: no fallback speaker, no generation, no degrade warning", async () => {
-    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"]);
+    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     let generations = 0;
     let arbiterEntered: () => void = () => undefined;
     const arrived = new Promise<void>((resolve) => {
@@ -1159,7 +1221,7 @@ describe("send — narrator output (group character authors the turn)", () => {
 // never buys a arbiter call.
 describe("send — narrator × smart: the arbiter is short-circuited (its verdict governs nothing)", () => {
   test("a narrator round makes ZERO side-LLM arbiter calls and still commits the character turn", async () => {
-    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { output: "narrator" });
+    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility", output: "narrator" });
     const groupCharacterId = await seedCharacter(db, host, "group");
     let arbiterCalls = 0;
     const h = harness(db, names, {
@@ -1179,7 +1241,7 @@ describe("send — narrator × smart: the arbiter is short-circuited (its verdic
   });
 
   test("a DEAD arbiter box never warns a narrator room (nothing degraded — nothing was asked)", async () => {
-    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { output: "narrator" });
+    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility", output: "narrator" });
     const groupCharacterId = await seedCharacter(db, host, "group");
     const h = harness(db, names, {
       groupCharacterId,
@@ -1196,6 +1258,7 @@ describe("send — narrator × smart: the arbiter is short-circuited (its verdic
   // arbitration (a nominee exists ⇒ narrate again), never the side-LLM.
   test("the auto-chain still runs in a narrator×smart room, with no arbiter calls", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], {
+      smartPicker: "utility",
       output: "narrator",
       autoMode: true,
       autoModeMaxTurns: 2,
@@ -1306,10 +1369,7 @@ describe("send — auto-mode AI→AI chain", () => {
   // Stop mid-chain-arbitration cancels the chain, not just the current iteration.
   test("a hung chain arbitration mid-chain: Stop cancels the WHOLE chain (turnAborted lands, no further turn)", async () => {
     // A `smart` room so the chain's continuation arbitration calls the side-LLM arbiter each iteration.
-    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], {
-      autoMode: true,
-      autoModeMaxTurns: 3,
-    });
+    const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility", autoMode: true, autoModeMaxTurns: 3 });
     // The arbiter answers the FIRST arbitrations (human round → aria, chain iter 1 → bryn), then HANGS on the
     // next chain arbitration exactly like a non-responsive box — settling only when the turn signal fires.
     let calls = 0;
@@ -2152,7 +2212,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
   });
 
   test("Smart: the side-LLM's pick answers, with one arbiter call and no warning", async () => {
-    const { host, chatId, chars, names } = await roomAfter("smart", ["aria", "bryn", "cara"]);
+    const { host, chatId, chars, names } = await roomAfter("smart", ["aria", "bryn", "cara"], { smartPicker: "utility" });
     const chosen = arbiter("cara");
     const h = harness(db, names, { summarize: chosen.op });
 
@@ -2164,7 +2224,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
   });
 
   test("Smart fallback: a failing arbiter degrades to the natural pick and says so", async () => {
-    const { host, chatId, chars, names } = await roomAfter("smart", ["aria", "bryn"]);
+    const { host, chatId, chars, names } = await roomAfter("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const h = harness(db, names, { summarize: () => Promise.reject(new Error("side-LLM down")) });
 
     const outcome = await h.turn.generate({ principal: principal(host), chatId });
@@ -2186,7 +2246,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
   });
 
   test("an explicit speaker still bypasses the policy: no arbiter call, the named seat answers", async () => {
-    const { host, chatId, chars, names } = await roomAfter("smart", ["aria", "bryn"]);
+    const { host, chatId, chars, names } = await roomAfter("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const chosen = arbiter("bryn");
     const h = harness(db, names, { summarize: chosen.op });
 

@@ -5,7 +5,14 @@
 // speakerTags default so the legible default follows the mode.
 
 import type { GroupConfig, GroupPolicy, MemberCardVisibility } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, GROUP_OUTPUT_LABELS, GROUP_POLICIES, GROUP_POLICY_LABELS, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
+import {
+  DEFAULT_GROUP_CONFIG,
+  GROUP_OUTPUT_LABELS,
+  GROUP_POLICIES,
+  GROUP_POLICY_LABELS,
+  MEMBER_CARD_VISIBILITY_LEVELS,
+  SMART_PICKER_LABELS,
+} from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
 import { Row, Stack } from "@orb/ui/layout";
@@ -27,16 +34,10 @@ type GroupOutput = GroupConfig["output"];
 
 type UtilityModel = ReturnType<typeof useUtilityModel>;
 
-// Smart is offered only while a Utility model runs: its whole cost is a call on that model every round.
-function policyItems(utility: UtilityModel): SelectItems<string> {
-  return GROUP_POLICIES.map((value) => {
-    if (value !== "smart") {
-      return { value, label: GROUP_POLICY_LABELS[value] };
-    }
-    const ready = utility.kind === "ready";
-    return { value, label: GROUP_POLICY_LABELS[value], description: ready ? SMART_POLICY_COST_SENTENCE : "Needs a running Utility model.", disabled: !ready };
-  });
-}
+// Smart picks with the reranker by default, so it needs no Utility model; only its opt-in upgrade does.
+const POLICY_ITEMS: SelectItems<string> = GROUP_POLICIES.map((value) => ({ value, label: GROUP_POLICY_LABELS[value] }));
+
+const RERANKER_SMART_HELP = `Smart ranks the characters against the last message with your ${SMART_PICKER_LABELS.reranker}. A character named in that message replies first. If no ${SMART_PICKER_LABELS.reranker} is available, Natural picks and you're told.`;
 
 // The help under each control states what the server does with it (`engine/select-speakers.ts`,
 // `engine/round.ts`), per policy and per output mode, so the Rooms guide never has to restate it. Smart's
@@ -49,9 +50,12 @@ const POLICY_HELP: Record<Exclude<GroupPolicy, "smart">, string> = {
   manual: "Nobody replies on their own. Mention a character with @, or pick one from Generate reply. A Narrator room still narrates every message.",
 };
 
-function smartHelp(utility: UtilityModel, output: GroupOutput): string {
+function smartHelp(utility: UtilityModel, output: GroupOutput, usesUtility: boolean): string {
   if (output === "narrator") {
     return "One message voices everyone in a Narrator room, so Smart makes no extra call here and picks like Natural.";
+  }
+  if (!usesUtility) {
+    return RERANKER_SMART_HELP;
   }
   if (utility.kind === "ready") {
     return `${SMART_POLICY_COST_SENTENCE} It runs on ${utility.label}. If it can't decide, Natural picks and you're told.`;
@@ -63,6 +67,15 @@ function smartHelp(utility: UtilityModel, output: GroupOutput): string {
     return `${SMART_POLICY_COST_SENTENCE} Your Utility model is set but not running: ${utility.cause}. Until it runs, Natural picks and you're told.`;
   }
   return `${SMART_POLICY_COST_SENTENCE} If it can't decide, Natural picks and you're told.`;
+}
+
+function policyHelp(policy: GroupPolicy, utility: UtilityModel, output: GroupOutput, usesUtility: boolean): string {
+  return policy === "smart" ? smartHelp(utility, output, usesUtility) : POLICY_HELP[policy];
+}
+
+// The Utility door is the fix only when this room's Smart actually picks with the Utility model.
+function needsUtilityDoor(policy: GroupPolicy, utility: UtilityModel, output: GroupOutput, usesUtility: boolean): boolean {
+  return policy === "smart" && output === "per-speaker" && usesUtility && (utility.kind === "unset" || utility.kind === "blocked");
 }
 
 /** The speaker-order control. Mounted only when Advanced opens, so the Utility read runs only then. */
@@ -191,30 +204,43 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                     {(utility): ReactElement => (
                       <form.Subscribe selector={(state): GroupOutput => state.values.output}>
                         {(output): ReactElement => (
-                          <form.AppField name="policy">
-                            {(field): ReactElement => {
-                              const policy = field.state.value;
-                              const needsDoor = policy === "smart" && output === "per-speaker" && (utility.kind === "unset" || utility.kind === "blocked");
-                              return (
-                                <Stack gap="field">
-                                  <field.SelectField
-                                    label="Who speaks each round"
-                                    items={policyItems(utility)}
-                                    description={policy === "smart" ? smartHelp(utility, output) : POLICY_HELP[policy]}
-                                  />
-                                  {needsDoor ? (
-                                    <Row>
-                                      <UtilityModelDoor />
-                                    </Row>
-                                  ) : null}
-                                </Stack>
-                              );
-                            }}
-                          </form.AppField>
+                          <form.Subscribe selector={(state): boolean => state.values.smartUsesUtility}>
+                            {(usesUtility): ReactElement => (
+                              <form.AppField name="policy">
+                                {(field): ReactElement => (
+                                  <Stack gap="field">
+                                    <field.SelectField
+                                      label="Who speaks each round"
+                                      items={POLICY_ITEMS}
+                                      description={policyHelp(field.state.value, utility, output, usesUtility)}
+                                    />
+                                    {needsUtilityDoor(field.state.value, utility, output, usesUtility) ? (
+                                      <Row>
+                                        <UtilityModelDoor />
+                                      </Row>
+                                    ) : null}
+                                  </Stack>
+                                )}
+                              </form.AppField>
+                            )}
+                          </form.Subscribe>
                         )}
                       </form.Subscribe>
                     )}
                   </PolicyField>
+
+                  {/* The upgrade inside Smart. A Narrator room buys no pick, so there it has nothing to switch. */}
+                  <form.Subscribe selector={(state): boolean => state.values.policy === "smart" && state.values.output === "per-speaker"}>
+                    {(picks): ReactElement | null =>
+                      picks ? (
+                        <form.AppField name="smartUsesUtility">
+                          {(field): ReactElement => (
+                            <field.SwitchField label={`Use the ${SMART_PICKER_LABELS.utility} instead`} description={SMART_POLICY_COST_SENTENCE} />
+                          )}
+                        </form.AppField>
+                      ) : null
+                    }
+                  </form.Subscribe>
 
                   <form.Subscribe selector={(state): GroupOutput => state.values.output}>
                     {(output): ReactElement | null =>

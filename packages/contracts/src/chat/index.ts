@@ -218,6 +218,7 @@ export type {
   MemberCardVisibility,
   OpeningPolicy,
   RoomOverrides,
+  SmartPicker,
 } from "./metadata.ts";
 export {
   DEFAULT_GROUP_CONFIG,
@@ -237,6 +238,8 @@ export {
   resolveOfferChoices,
   resolveReactionsEnabled,
   roomOverridesSchema,
+  SMART_PICKER_LABELS,
+  SMART_PICKERS,
   storedGroupConfigSchema,
 } from "./metadata.ts";
 export type { NextTurnConnectionView } from "./next-turn-connection.ts";

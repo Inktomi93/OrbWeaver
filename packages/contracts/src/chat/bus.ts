@@ -136,6 +136,10 @@ export const PLAIN_CHAT_WARNING_CODES = [
   // order fell back to the deterministic `natural` arbitration. Emitted from the turn
   // verb's arbitrate step: the round still happens, but the user is told the MATH picked, not the model.
   "smart_arbitration_degraded",
+  // The `smart` policy's default pick (the funder's bound rerank role) was unusable this round — the role is
+  // unbound or refused, the call threw, or it ranked nobody eligible — so `natural` picked instead. The
+  // reranker sibling of `smart_arbitration_degraded`: the fix is a Reranker binding, not a Utility model.
+  "speaker_rerank_unavailable",
   // A BACKGROUND task (summaries, captions, digests) could not run for this turn's funder — no binding, or the
   // bound row has `allowBackground` off (inference program §5.3a: the background tasks share ONE degrade
   // notice so "nothing ran" is never the whole signal). The turn itself is unaffected.

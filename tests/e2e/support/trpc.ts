@@ -483,6 +483,7 @@ export interface RosterSeat {
 export interface GroupConfigView {
   readonly output: string;
   readonly policy: string;
+  readonly smartPicker: string;
   readonly cardScope?: string;
   readonly speakerTags: boolean;
   readonly groupNudge: boolean;
