@@ -296,7 +296,7 @@ export interface LeaderboardPage {
   total: number;
 }
 
-/** One `daily_stats` row: the owner's activity in one UTC quarter-hour (`STATS_BUCKET_MS`). The wire
+/** One `daily_stats` row: the owner's activity in one UTC quarter-hour (`@orb/kit/time.CALENDAR_BUCKET_MS`). The wire
  *  carries the bucket's start instant, never a calendar day: the viewer's days, weekdays and hours are
  *  derived from it at the display edge, in the viewer's zone. */
 export interface ActivityBucket {
@@ -371,7 +371,7 @@ export interface WrappedSummary {
   computedAt: number;
 }
 
-/** One character's replies in one UTC quarter-hour (`STATS_BUCKET_MS`) — the momentum timeline. The
+/** One character's replies in one UTC quarter-hour (`@orb/kit/time.CALENDAR_BUCKET_MS`) — the momentum timeline. The
  *  wire carries the bucket's start instant, never a month: the viewer's months are folded on the client. */
 export interface MomentumBucket {
   characterId: CharacterId;

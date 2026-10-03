@@ -13,30 +13,32 @@ import { timeLib } from "#lib";
 export const CHAT_LIST_SEARCH_DEBOUNCE_MS = 250;
 
 const MONTH_VALUE_RE = /^(?<year>\d{4})-(?<month>0[1-9]|1[0-2])$/u;
-const MID_MONTH_DAY = 15;
-const MIDDAY_UTC_HOUR = 12;
+const MONTHS_PER_YEAR = 12;
 
-/** The first UTC instant of the month AFTER `value` — an EXCLUSIVE ceiling, so the whole selected month
- *  is included without a locale-dependent local-midnight edge. `null` for anything not `YYYY-MM`.
- *  December is the one selection that crosses a year: `Date` normalizes month index 12 into January. */
-export function monthExclusiveUpperBound(value: string): number | null {
+/** The native month control's `YYYY-MM` as a 1-based year and month, or `null` for anything it cannot produce. */
+function parseMonthValue(value: string): { readonly year: number; readonly month: number } | null {
   const match = MONTH_VALUE_RE.exec(value);
   if (match?.groups === undefined) {
     return null;
   }
-  const boundary = new Date(0);
-  boundary.setUTCFullYear(Number(match.groups["year"]), Number(match.groups["month"]), 1);
-  return boundary.getTime();
+  return { year: Number(match.groups["year"]), month: Number(match.groups["month"]) };
+}
+
+/** The first instant of the month AFTER `value` on the viewer's calendar — an EXCLUSIVE ceiling, so the whole
+ *  selected month is included up to the viewer's own month boundary. `null` for anything not `YYYY-MM`.
+ *  December is the one selection that crosses a year. */
+export function monthExclusiveUpperBound(value: string): number | null {
+  const selected = parseMonthValue(value);
+  if (selected === null) {
+    return null;
+  }
+  return selected.month === MONTHS_PER_YEAR ? timeLib.monthStart(selected.year + 1, 1) : timeLib.monthStart(selected.year, selected.month + 1);
 }
 
 /** The selected month as the reader's own localized "June 2020" — never the raw `YYYY-MM`. */
 export function formatMonthLabel(value: string): string | null {
-  const match = MONTH_VALUE_RE.exec(value);
-  if (match?.groups === undefined) {
-    return null;
-  }
-  // Mid-month noon stays in the selected calendar month in every IANA zone while the display seam localizes it.
-  return timeLib.formatMonthYear(Date.UTC(Number(match.groups["year"]), Number(match.groups["month"]) - 1, MID_MONTH_DAY, MIDDAY_UTC_HOUR));
+  const selected = parseMonthValue(value);
+  return selected === null ? null : timeLib.formatMonthYear(timeLib.monthStart(selected.year, selected.month));
 }
 
 /** The phone Filters row's NEUTRAL name — the house word for a group of narrowing controls, not a new one.
