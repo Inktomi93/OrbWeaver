@@ -29,7 +29,8 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
   const store = createStore(ctx);
   const indexAsset = createImageIndexer(ctx, {
     store,
-    analyze: async (ownerId, bytes): Promise<AvatarAnalysis> => analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes),
+    analyze: async (ownerId, bytes): Promise<AvatarAnalysis> =>
+      analyzeAvatarImage(await ctx.roleClientsFor(ownerId), bytes, await ctx.resolveUtilityPresetParams(ownerId)),
   });
   return {
     purgeDisallowedImages: createPurgeDisallowedImages(ctx),

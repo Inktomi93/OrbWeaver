@@ -9,6 +9,7 @@
 // caller ends the turn instead of falling back and generating on a round nobody is waiting for.
 
 import type { SpeakerRef } from "@orb/contracts/chat";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RoleClientsWithSignal } from "@orb/inference";
@@ -48,9 +49,9 @@ const SPEAKER_CANDIDATES = [
   { ref: charRef("bran"), name: "Bran" },
   { ref: charRef("cara"), name: "Cara" },
 ];
-// The resolved arbiter posture (the `arbiter` floor mapped to the summarize seam) — the caller normally folds
-// the ladder; here it is passed literally since these tests exercise the pure `smartArbitrate` in isolation.
-const ARB_SAMPLING = { temperature: 0.2, maxOutputTokens: 24 } as const;
+// The arbiter posture under task defaults (`SIDE_GEN_POSTURES.arbiter`) — the caller normally folds the role
+// preset over it; these tests exercise the pure `smartArbitrate` in isolation.
+const ARB_SAMPLING = SIDE_GEN_POSTURES.arbiter;
 const CANDIDATES = [candidate("aria"), candidate("bran"), candidate("cara")];
 
 describe("smartArbitrate — the validated side-LLM pick", () => {

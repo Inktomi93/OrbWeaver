@@ -5,7 +5,7 @@
 // pasted message or a small-context main must NEVER silently truncate the block tail: degrade VISIBLY by
 // trimming oldest-within-block to fit, or skip-and-flag when even the newest single message overflows.
 
-import { DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS } from "@orb/contracts/settings";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 // The CANONICAL estimator (one home, §7.5). QuadChars counts each non-ASCII codepoint (CJK/emoji/accented) as
 // 1 token; a local `length/4` undercounts those ~4× and would let a CJK transcript silently overflow the
@@ -15,12 +15,9 @@ import type { MsgRow, SegmentChunk, SummarizerBudget } from "../../types.ts";
 import { renderRowLine, renderTranscript } from "./transcript.ts";
 
 /** The baseline tokens reserved for the digest OUTPUT + the prompt scaffold (the system prompt is subtracted
- *  separately). The EFFECTIVE reserve is `AppSettings.memorySummarizer.maxTokens ?? this` — the one home the
- *  summarize REQUEST's `max_tokens` and this fit-reserve both read, so they can't diverge (the
- *  `materializeOutputReserve` one-home rule). The VALUE is owned by `@orb/contracts/settings`
- *  (`DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS`) so the admin surface displays the same floor this reserve uses —
- *  derived, never re-hardcoded. */
-export const DEFAULT_OUTPUT_RESERVE_TOKENS = DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS;
+ *  separately). The EFFECTIVE reserve is the resolved summarize request's output cap — the funder's Utility
+ *  preset over the `memory_digest` posture, which this value is — so the fit and the request can't diverge. */
+export const DEFAULT_OUTPUT_RESERVE_TOKENS = SIDE_GEN_POSTURES.memory_digest.maxOutputTokens;
 
 /** The §10 config-time floor: below this resolved summarizer context, even a small block + output is risky →
  *  emit the soft-warning at build start (the degrade is visible, never silent). */

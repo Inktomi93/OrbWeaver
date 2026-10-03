@@ -18,7 +18,7 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#inference";
-import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, samplerOrderSchema, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
+import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, SAMPLER_KNOBS, samplerOrderSchema, userRoleHandlingSchema, VERBOSITY_LEVELS } from "#inference";
 import type { ProseOverrides, ProseSlotId } from "#prose-slot";
 import { hasProseToken, proseOverridesSchema, proseOverridesViewSchema } from "#prose-slot";
 import type { VersionedParseIssue } from "#versioned-config";
@@ -161,20 +161,13 @@ export const QUALITY_SAMPLING: Record<Quality, { readonly temperature?: number }
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// Side-generation postures — the FLOOR sampling catalog (the third rung of the side-gen sampling ladder).
+// Side-generation postures — each background task's own sampling (D299).
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// Every side-generation call site (arbitration, quiet generation, compaction, distillation, analysis,
-// greeting studio, /autobg, caption) used to hardcode its own `temperature`/`maxTokens` constants — a
-// buried const that the user's own generation params could never override. The ladder resolves each site's
-// posture right-to-left through `@orb/inference`'s `resolveSideGenSampling`:
-//   the caller's preset `params`  →  THIS floor.
-// There is no third rung: a per-TEMPLATE sampling override on the preset's guided actions was DELETED (owner
-// ruling 2026-08-01) — guided generations run at the preset's normal generation params like every other turn.
-// This catalog is the FLOOR — the last word, and the byte-identical encoding of the OLD hardcoded consts, so
-// a user with no preset params gets exactly today's behavior. The numbers are NOT
-// arbitrary — each entry carries the WHY from the const it replaced (a summary is not creative writing; a
-// name is not prose; etc.). To retune a floor, edit HERE (one home), never at a call site.
+// A side-generation call resolves its sampling through `@orb/inference`'s `resolveSideGenSampling`: the
+// role's preset params (`RolePresetParams`) win per knob, and this posture fills only the knobs they leave
+// unset. Under task defaults there are no preset params, so the posture is the whole answer. Each entry carries
+// its reason (a summary is not creative writing; a name is not prose). Retune a posture here, never at a call site.
 export const SIDE_GEN_KINDS = [
   "arbiter",
   "quiet_generate",
@@ -191,6 +184,7 @@ export const SIDE_GEN_KINDS = [
   "refine_analyze",
   "schema_forge",
   "theme_name",
+  "memory_digest",
 ] as const satisfies readonly string[];
 export type SideGenKind = (typeof SIDE_GEN_KINDS)[number];
 
@@ -204,9 +198,9 @@ export interface SideGenPosture {
 }
 
 export const SIDE_GEN_POSTURES = {
-  // Smart 7b arbitration: a deterministic-ish classify (pick ONE next speaker) — a tiny output budget
-  // because we want a name, not prose (the roster-validating parse + fallback cover the non-determinism).
-  arbiter: { temperature: 0.2, maxOutputTokens: 24 },
+  // Smart arbitration: a deterministic-ish classify (pick ONE next speaker). The budget is one name plus a margin:
+  // a reasoning or verbose model emptied out at 24 (the roster-validating parse + fallback stay strict).
+  arbiter: { temperature: 0.2, maxOutputTokens: 128 },
   // Quiet (non-canon) generation: near-deterministic + bounded — a summary/marker is not creative writing.
   quiet_generate: { temperature: 0.3, maxOutputTokens: 1024 },
   // Imagery quiet keyword-extraction: low temp for a near-deterministic extraction, a budget sized for a
@@ -236,8 +230,8 @@ export const SIDE_GEN_POSTURES = {
   // sentence plus sixteen short structured fields. Originally empty (backend defaults stood); the avatar
   // analysis call hardcoded its own floor — this IS that floor, promoted to its canonical home (#2243).
   caption: { temperature: 0.2, maxOutputTokens: 512 },
-  // ── Refinery stage floors (R1; study §5.3's values). The caller is
-  //    always the card owner, so the preset-params rung ALWAYS applies (no mixed-owner batch arm here). ──
+  // ── Refinery stage postures (R1; study §5.3's values). The caller is always the card owner, so the owner's
+  //    Utility-role preset always applies (no mixed-owner batch arm here). ──
   // Score: near-deterministic critique, budgeted for the per-field payload (bigger than distill's facets).
   refine_score: { temperature: 0.2, maxOutputTokens: 768 },
   // Rewrite: the one CREATIVE stage — card prose, the largest budget of the three.
@@ -252,6 +246,9 @@ export const SIDE_GEN_POSTURES = {
   schema_forge: { temperature: 0.2, maxOutputTokens: 2048 },
   // Theme-cluster naming (discovery): a two-to-four-word label for a keyword set — deterministic-ish, tiny.
   theme_name: { temperature: 0.3, maxOutputTokens: 24 },
+  // Memory digest and consolidation: a bounded summary. The token guard reserves this same output budget when
+  // it fits the input, so the request and the fit cannot disagree. Temperature stays the model's default.
+  memory_digest: { maxOutputTokens: 1024 },
 } as const satisfies Record<SideGenKind, SideGenPosture>;
 
 // The user-INTENT effort vocabulary (adds `none` = thinking-disabled) — derived from connection's
@@ -507,6 +504,45 @@ export const userIntentSchema = z.strictObject({
     .optional(),
 });
 export type UserIntent = z.infer<typeof userIntentSchema>;
+
+// What a non-chat model role takes from its preset (D299): generation params only, never prompt structure.
+// The two tuples partition `UserIntent`'s keys (pinned by `tests/contracts/preset/index.test-d.ts`),
+// so a new intent field reaches background tasks only after someone lists it here. Every sampler knob is a
+// role field, which keeps the sampler catalog the one place a new knob is declared.
+export const ROLE_PRESET_FIELDS = [
+  ...SAMPLER_KNOBS,
+  "samplerOrder",
+  "maxOutputTokens",
+  "effort",
+  "thinkingBudgetTokens",
+] as const satisfies readonly (keyof UserIntent)[];
+export type RolePresetField = (typeof ROLE_PRESET_FIELDS)[number];
+/** Chat-turn-only intent: reasoning display and carry, context and compaction policy, reply shape, and the
+ *  message-handling escape hatch. A background task never reads these. */
+export const CHAT_ONLY_INTENT_FIELDS = [
+  "quality",
+  "thinkingDisplay",
+  "carryReasoning",
+  "maxContextTokens",
+  "providerContextCompression",
+  "verbosity",
+  "replyMedia",
+  "compaction",
+  "advanced",
+] as const satisfies readonly (keyof UserIntent)[];
+export type ChatOnlyIntentField = (typeof CHAT_ONLY_INTENT_FIELDS)[number];
+export type RolePresetParams = Pick<UserIntent, RolePresetField>;
+
+/** Project a preset's `params` to the fields a non-chat role takes. Absent fields stay absent. */
+export function rolePresetParamsOf(params: UserIntent): RolePresetParams {
+  const out: Record<string, unknown> = {};
+  for (const field of ROLE_PRESET_FIELDS) {
+    if (params[field] !== undefined) {
+      out[field] = params[field];
+    }
+  }
+  return out as RolePresetParams;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Guided actions — the config half (the resolver + ZWSP neutralization live in `@orb/kit/guided`).

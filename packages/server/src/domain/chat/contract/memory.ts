@@ -159,7 +159,7 @@ export interface BlockSpan {
  *  `fitBlockToBudget`). Bundled because they are ONE budget read together — the transcript room is
  *  `contextTokens - systemPromptTokens - outputReserveTokens`, and three bare positional numbers at a call
  *  site are silently swappable. `outputReserveTokens` is the SAME `max_tokens` the summarize request sends
- *  (the one-home rule: the caller resolves `AppSettings.memorySummarizer.maxTokens ?? the default reserve`). */
+ *  (the one-home rule: the caller resolves the output cap of the funder's summarize options). */
 export interface SummarizerBudget {
   readonly contextTokens: number;
   readonly systemPromptTokens: number;

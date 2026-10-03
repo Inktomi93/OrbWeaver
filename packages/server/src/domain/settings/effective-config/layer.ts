@@ -108,7 +108,6 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     trustHtml: overrides.trustHtml ?? TRUST_HTML_FLOOR,
     allowInteractiveCards: overrides.allowInteractiveCards ?? ALLOW_INTERACTIVE_CARDS_FLOOR,
     memoryDefaults: overrides.memoryDefaults ?? {},
-    memorySummarizer: overrides.memorySummarizer ?? {},
     rateLimits: resolveRateLimits(overrides.rateLimits),
     agentSdkConcurrency: resolveAgentSdkConcurrency(overrides.agentSdkConcurrency),
     privateEndpointAllowlist: overrides.privateEndpointAllowlist ?? privateEndpointAllowlistFloor(),

@@ -12,8 +12,9 @@
 // mechanism, so a proven-stale digest (its hash mismatch is what queued the rebuild) stayed live in recall
 // for as long as the summarizer kept returning nothing — see `storeTier0`/`storeConsolidationTier`.
 
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
-import { DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS, DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY } from "@orb/contracts/settings";
+import { resolveSideGenSampling } from "@orb/inference";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -43,26 +44,11 @@ interface GenerateDigestsArgs {
   readonly embedOwnerId?: UserId | undefined;
 }
 
-/** The admin-resolved summarize call options (`AppSettings.memorySummarizer`) — passed onto every `summarize`
- *  call. The summarizer keeps its OWN sampler knobs (NOT coupled to chat presets):
- *  each admin-set knob rides; an unset knob falls to the engine default, EXCEPT `maxTokens` and
- *  `presencePenalty`, which ALWAYS ride at their memory-build defaults when unset. Both are the same loop fix:
- *  the summarize wire does NOT inherit the vLLM chat surface's per-request presence default, so a
- *  repetition_penalty=1.0 model with no presence penalty AND no max_tokens ceiling loops UNBOUNDED to the
- *  120s request timeout. `presencePenalty` discourages the loop; `maxTokens` hard-caps it (and is the SAME
- *  value `outputReserve` fits the input against — one home, see there). A deliberate admin override (incl 0) wins. */
-function summarizerOpts(ctx: ChatContext): SummarizeOptions {
-  const s = ctx.memorySummarizer();
-  return {
-    maxOutputTokens: s.maxTokens ?? DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS,
-    ...(s.temperature !== undefined ? { temperature: s.temperature } : {}),
-    ...(s.topP !== undefined ? { topP: s.topP } : {}),
-    ...(s.topK !== undefined ? { topK: s.topK } : {}),
-    ...(s.frequencyPenalty !== undefined ? { frequencyPenalty: s.frequencyPenalty } : {}),
-    presencePenalty: s.presencePenalty ?? DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY,
-    ...(s.repetitionPenalty !== undefined ? { repetitionPenalty: s.repetitionPenalty } : {}),
-    ...(s.minP !== undefined ? { minP: s.minP } : {}),
-  };
+/** The summarize call options for the FUNDER's memory build: their Utility-role preset params folded over the
+ *  `memory_digest` posture (D299). The posture always carries an output cap, which hard-caps a looping model and
+ *  is the SAME value `outputReserve` fits the input against. Read per call, so a changed choice applies next. */
+async function summarizerOpts(ctx: ChatContext, funderUserId: UserId): Promise<SummarizeOptions> {
+  return resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest, await ctx.resolveUtilityPresetParams(funderUserId));
 }
 
 /**
@@ -116,9 +102,9 @@ async function summarizeBatchIsolated(
 }
 
 /** The token-guard output reserve — the SAME `max_tokens` the summarize request sends (the one-home rule so
- *  the fit and the request can't diverge); unset ⇒ the baseline reserve. */
-function outputReserve(ctx: ChatContext): number {
-  return ctx.memorySummarizer().maxTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
+ *  the fit and the request can't diverge). */
+async function outputReserve(ctx: ChatContext, funderUserId: UserId): Promise<number> {
+  return (await summarizerOpts(ctx, funderUserId)).maxOutputTokens ?? DEFAULT_OUTPUT_RESERVE_TOKENS;
 }
 
 /** The mutable tier-0 pass accumulator (the observability counts the build trace reports). */
@@ -247,14 +233,12 @@ async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: reado
   return { written: total.written, skipped: total.skipped };
 }
 
-/** The ONE place both the live per-turn build and the corpus-wide backfill feed vLLM: a batched, per-item-
- *  isolated summarize of digest inputs with the admin summarizer opts. Index-aligned; `null` = per-item fail
+/** The ONE place both the live per-turn build and the corpus-wide backfill summarize: a batched, per-item-
+ *  isolated summarize of digest inputs with the funder's summarizer opts. Index-aligned; `null` = per-item fail
  *  (the content-hash self-heal retries it next pass). Length-sort the inputs before this for the big backfill
- *  batch — similar-length sequences pack with less ragged-batch padding waste.
- *  NOT `async` (nor its consolidation twin): it only composes the opts + the error tag and FORWARDS
- *  `summarizeBatchIsolated`'s promise, so an added `await` would just re-wrap it. Every caller awaits. */
-export function summarizeDigestBatch(ctx: ChatContext, funderUserId: UserId, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
-  return summarizeBatchIsolated(ctx, { funderUserId, opts: summarizerOpts(ctx) }, inputs, (i, err) =>
+ *  batch — similar-length sequences pack with less ragged-batch padding waste. */
+export async function summarizeDigestBatch(ctx: ChatContext, funderUserId: UserId, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
+  return summarizeBatchIsolated(ctx, { funderUserId, opts: await summarizerOpts(ctx, funderUserId) }, inputs, (i, err) =>
     getLog().error({ err, index: i }, "memory digest: block summarize FAILED (isolated — the block retries next pass)"),
   );
 }
@@ -317,6 +301,7 @@ async function collectTier0(
   const systemPrompt = digestSystemPrompt(await ctx.resolveChatProse(chatId));
   const systemPromptTokens = estimateTokens(systemPrompt);
   const summarizerContextTokens = await ctx.summarizerContextTokens(args.funderUserId);
+  const reserve = await outputReserve(ctx, args.funderUserId);
   const pending: Tier0Pending[] = [];
   for (const block of env.blocks) {
     args.signal?.throwIfAborted();
@@ -328,7 +313,7 @@ async function collectTier0(
     const fitted = fitBlockToBudget(block.rows, env.macroNames, {
       contextTokens: summarizerContextTokens,
       systemPromptTokens,
-      outputReserveTokens: outputReserve(ctx),
+      outputReserveTokens: reserve,
     });
     if (fitted === null) {
       skippedTokenGuard += 1;
@@ -516,7 +501,7 @@ async function consolidateOneTier(
   // so it uses `summarizeConsolidationBatch` (flat index). Same summaries, same opts — only the error tag differs.
   const texts = await summarizeBatchIsolated(
     ctx,
-    { funderUserId: args.funderUserId, opts: summarizerOpts(ctx) },
+    { funderUserId: args.funderUserId, opts: await summarizerOpts(ctx, args.funderUserId) },
     plan.pending.map((p) => p.input),
     (i, err) =>
       getLog().error(
@@ -566,7 +551,7 @@ export async function collectConsolidationTier(
   const consolidationBudget = {
     contextTokens: await ctx.summarizerContextTokens(args.funderUserId),
     systemPromptTokens: estimateTokens(consolidationSystem),
-    outputReserveTokens: outputReserve(ctx),
+    outputReserveTokens: await outputReserve(ctx, args.funderUserId),
   } as const;
   const pending: ConsPending[] = [];
   let skipped = 0;
@@ -607,8 +592,8 @@ export async function collectConsolidationTier(
 /** The consolidation summarize batch (per-item-isolated on failure) — same wire home as `summarizeDigestBatch`
  *  but its own error tag. In the corpus backfill the flat batch loses per-parent context, so the log carries
  *  only the flat index; the content-hash self-heal retries the dropped parent next pass regardless. */
-export function summarizeConsolidationBatch(ctx: ChatContext, funderUserId: UserId, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
-  return summarizeBatchIsolated(ctx, { funderUserId, opts: summarizerOpts(ctx) }, inputs, (i, err) =>
+export async function summarizeConsolidationBatch(ctx: ChatContext, funderUserId: UserId, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
+  return summarizeBatchIsolated(ctx, { funderUserId, opts: await summarizerOpts(ctx, funderUserId) }, inputs, (i, err) =>
     getLog().error({ err, index: i }, "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)"),
   );
 }

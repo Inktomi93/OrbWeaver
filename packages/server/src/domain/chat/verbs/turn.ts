@@ -995,9 +995,9 @@ async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs):
       lastLine: (await transcriptLines(ctx, args.recentRows.slice(-1))).at(-1) ?? null,
     });
   }
-  // The side-gen sampling ladder: the `arbiter` floor (temp 0.2, 24 out — a deterministic name pick) ← the
-  // chat host's default-preset params. The resolved posture is the summarize options as-is.
-  const arbiterSampling = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveChatPresetParams(args.chatId));
+  // The funder's Utility-role preset over the `arbiter` posture (temp 0.2, 128 out — one name plus a margin):
+  // the arbiter runs on the funder's summarize connection. The result is the summarize options as-is.
+  const arbiterSampling = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveUtilityPresetParams(args.funderUserId));
   return await smartArbitrateVia({
     ...shared,
     summarize: (inputs, opts) => ctx.summarize(args.funderUserId, inputs, opts),

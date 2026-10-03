@@ -11,6 +11,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { ROLE_ROWS_ORDERED } from "#lib";
 import { configAnchorId, configSettingControlId } from "#state";
 import { CONNECTIONS_ROLES_SUBCATEGORY, ROLE_SETTING_IDS } from "../lib/connections-nav.ts";
+import { UtilityPresetSelect } from "./utility-preset-select.tsx";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
@@ -49,15 +50,18 @@ function ModelRolesBody(): ReactElement {
       </Text>
       <Stack gap="block">
         {ROLE_ROWS_ORDERED.map((row) => (
-          <ConnectionRoleSlot
-            key={row.task}
-            row={row}
-            connections={connections}
-            view={bindings.find((view) => view.task === row.task) ?? null}
-            controlId={settingControlId(ROLE_SETTING_IDS[row.task])}
-            trpc={trpc}
-            invalidation={invalidation}
-          />
+          <Stack key={row.task} gap="field">
+            <ConnectionRoleSlot
+              row={row}
+              connections={connections}
+              view={bindings.find((view) => view.task === row.task) ?? null}
+              controlId={settingControlId(ROLE_SETTING_IDS[row.task])}
+              trpc={trpc}
+              invalidation={invalidation}
+            />
+            {/* Chat's preset is the active preset (the Presets pane); only Utility picks its own (D299). */}
+            {row.task === "summarize" ? <UtilityPresetSelect /> : null}
+          </Stack>
         ))}
       </Stack>
     </Section>

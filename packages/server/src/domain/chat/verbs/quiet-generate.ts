@@ -59,13 +59,12 @@ function quietHistory(userText: string): readonly TurnMessage[] {
   return [{ role: "user", content: [{ type: "text", text: userText }] }];
 }
 
-/** Resolve the quiet generation's sampling through the side-gen ladder: the `quiet_generate` floor (temp 0.3,
- *  1024 out — a summary is not creative writing) ← the chat host's default-preset params, with the CALLER's
- *  `intent` (compaction's code-pinned low temp, sourced from `SIDE_GEN_POSTURES.compaction`) merged over the
- *  params rung. The merge — not a third ladder rung — is deliberate: the ladder carries exactly two rungs
- *  since the per-template sampling override was deleted, and this is an
- *  INTERNAL per-pass intent, never a user-facing override. The resolved sampling is spread OVER the caller's
- *  intent so its other fields (e.g. `compaction`) survive, then temperature/maxOutputTokens carry the answer. */
+/** Resolve the quiet generation's sampling: the chat host's active-preset params (a quiet generation runs on the
+ *  chat connection, so on the Chat role's preset) over the `quiet_generate` posture (temp 0.3, 1024 out — a
+ *  summary is not creative writing), with the CALLER's `intent` (compaction's code-pinned low temp, sourced from
+ *  `SIDE_GEN_POSTURES.compaction`) merged over the preset params. That merge is an INTERNAL per-pass intent,
+ *  never a user-facing override. The resolved sampling is spread OVER the caller's intent so its other fields
+ *  (e.g. `compaction`) survive. */
 function quietIntent(intent: UserIntent | undefined, chatParams: SideGenSampling): UserIntent {
   const sampling = resolveSideGenSampling(SIDE_GEN_POSTURES.quiet_generate, { ...chatParams, ...intent });
   return { ...intent, ...sampling };

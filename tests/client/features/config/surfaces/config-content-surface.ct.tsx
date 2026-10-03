@@ -86,7 +86,6 @@ const APP_CONFIG = {
   trustHtml: false,
   allowInteractiveCards: false,
   memoryDefaults: {},
-  memorySummarizer: {},
   rateLimits: { login: 10, aiTurn: 10, publicIp: 50, authed: 200 },
   agentSdkConcurrency: { summarize: 4 },
   privateEndpointAllowlist: [],

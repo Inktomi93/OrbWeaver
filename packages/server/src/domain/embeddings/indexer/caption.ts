@@ -89,8 +89,8 @@ export async function avatarAnalysisCallsModel(roleClients: RoleClients): Promis
  * breakdown, in one call. Returns the skip shape (empty caption, facetless meta) when the structured turn
  * fails both attempts — the store verb then writes nothing and the next sweep tries the asset again.
  *
- * `presetParams` is the owner's default-preset sampling params (the top rung of the side-gen posture
- * ladder). Pass `undefined` when no preset context is available — the floor stands alone.
+ * `presetParams` is the owner's Utility-role preset params (D299). Pass `undefined` under task defaults or
+ * when no preset context is available — the `caption` posture stands alone.
  */
 export async function analyzeAvatarImage(roleClients: RoleClients, bytes: Uint8Array, presetParams?: SideGenSampling | undefined): Promise<AvatarAnalysis> {
   // The CAPTION lens is a `structured` call WITH an image input (inference program §7.5-1): it names its task

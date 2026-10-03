@@ -245,3 +245,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D295 | [Sampler order on the chat wire](0295-sampler-order-on-the-chat-wire.md) | active |
 | D296 | [Ollama chat rides its native route](0296-ollama-chat-rides-its-native-route.md) | active |
 | D298 | [A picture made in a room runs as the room host](0298-room-images-run-as-the-host.md) | active |
+| D299 | [Each model role picks its preset](0299-each-model-role-picks-its-preset.md) | active |

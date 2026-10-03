@@ -52,10 +52,9 @@ import type { ApplyAsCopyResult, ApplyFieldsResult, IterateResult, PreflightResu
  *  passes, `summarize` for prose — inference program §7.5-1). */
 type RoleClientsFor = (ownerId: UserId) => Promise<RoleClients>;
 
-/** The side-gen sampling ladder's middle rung — the card owner's default-preset params. The caller of
- *  every refinery verb IS the card owner, so this rung ALWAYS applies (no mixed-owner batch arm here,
- *  unlike distill's library sweep). */
-type ResolveUserPresetParams = (userId: UserId) => Promise<SideGenSampling>;
+/** The card owner's Utility-role preset params (D299), `undefined` under task defaults. The caller of every
+ *  refinery verb IS the card owner (no mixed-owner batch arm here, unlike distill's library sweep). */
+type ResolveUtilityPresetParams = (userId: UserId) => Promise<SideGenSampling | undefined>;
 
 /** The card owner's model-facing PROSE overrides — the 12 refinery slots resolve against these
  *  (PROSE-1 §4.3; the discovery caller-scoped precedent). */
@@ -70,7 +69,7 @@ export interface RefineryContext {
   readonly newRefineryRunId: () => RefineryRunId;
   readonly newRefinerySchemaId: () => RefinerySchemaId;
   readonly roleClientsFor: RoleClientsFor;
-  readonly resolveUserPresetParams: ResolveUserPresetParams;
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly resolveUserProse: ResolveUserProse;
   /**
    * The per-user freshness plane (`refineryChanged`) — injected, never a sideways reach at the bus
@@ -118,7 +117,7 @@ export type ScoreSweep = (opts: ScoreSweepOptions) => Promise<RefineryScoreSweep
  *  reads the library, asks the model, and stamps. */
 export interface RefineryWorkloadDeps {
   readonly roleClientsFor: RoleClientsFor;
-  readonly resolveUserPresetParams: ResolveUserPresetParams;
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly resolveUserProse: ResolveUserProse;
   /** The sweep's enumeration (injected character op — refinery reads no `characters` row itself). */
   readonly listRefineryScoreTargets: ListRefineryScoreTargetsOp;

@@ -59,7 +59,7 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
     now: ctx.now,
     newThemeClusterId: ctx.newThemeClusterId,
     roleClientsFor: ctx.roleClientsFor,
-    resolveUserPresetParams: ctx.resolveUserPresetParams,
+    resolveUtilityPresetParams: ctx.resolveUtilityPresetParams,
     tier0RangeOf: ctx.tier0RangeOf,
   };
   const coocDeps = {

@@ -48,7 +48,7 @@ export function createDistill(ctx: DiscoveryContext): DiscoveryService["distillC
         now: ctx.now,
         roleClientsFor: ctx.roleClientsFor,
         attachCardTagByName: ctx.attachCardTagByName,
-        resolveUserPresetParams: ctx.resolveUserPresetParams,
+        resolveUtilityPresetParams: ctx.resolveUtilityPresetParams,
         resolveUserProse: ctx.resolveUserProse,
       },
       opts,
@@ -158,11 +158,11 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
     return { scanned: targets.length, distilled: 0, failed: 0, skipped, tagsStaged: 0 };
   }
 
-  // The side-gen sampling ladder: the `distill` floor (temp 0.2, 512 out — near-deterministic guided decode)
-  // ← the card owner's default-preset params. The whole-library batch has no single owner (a mixed-owner run),
-  // so the preset rung applies ONLY to a per-owner narrow (`opts.ownerId`); the batch stays on the floor. The
-  // structured-output `responseFormat` is orthogonal to sampling and always rides.
-  const presetParams = opts.ownerId !== undefined ? await deps.resolveUserPresetParams(opts.ownerId) : undefined;
+  // The card owner's Utility-role preset over the `distill` posture (temp 0.2, 512 out — near-deterministic
+  // guided decode). The whole-library batch has no single owner (a mixed-owner run), so the preset applies ONLY
+  // to a per-owner narrow (`opts.ownerId`); the batch stays on the posture. The structured-output
+  // `responseFormat` is orthogonal to sampling and always rides.
+  const presetParams = opts.ownerId !== undefined ? await deps.resolveUtilityPresetParams(opts.ownerId) : undefined;
   const rc = await deps.roleClientsFor(opts.funderUserId);
   const resolved = await rc.resolved("structured");
   if (resolved === null) {
