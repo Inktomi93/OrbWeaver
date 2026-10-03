@@ -255,6 +255,9 @@ export const workloadScheduleRefSchema = z.strictObject({ id: typeIdSchema(ID_PR
 export type WorkloadScheduleRef = z.output<typeof workloadScheduleRefSchema>;
 export const cancelWorkloadResultSchema = z.strictObject({ status: workloadStatusSchema.extract(["cancelling", "cancelled"]).nullable() });
 export type CancelWorkloadResult = z.output<typeof cancelWorkloadResultSchema>;
+/** How many Utility-model calls a run would make over its scope; `calls: null` when the kind calls no such model. */
+export const modelCallEstimateSchema = z.strictObject({ calls: z.number().int().nonnegative().nullable() });
+export type ModelCallEstimate = z.output<typeof modelCallEstimateSchema>;
 /** Schedule params are stored objects, not clean run params; the start door validates them when fired. */
 export const workloadScheduleViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.workloadSchedule),

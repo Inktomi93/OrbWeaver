@@ -29,6 +29,12 @@ export interface StartWorkloadParams {
   readonly adoptActive?: boolean;
 }
 
+/** The call estimate asks about the same run `start` would admit, under the same mode and owner rules; the
+ *  caller is always a person, because the estimate exists for a confirm a person reads. */
+export interface EstimateModelCallsParams extends Pick<StartWorkloadParams, "input" | "mode" | "targetOwnerId"> {
+  readonly caller: Principal;
+}
+
 export interface CancelWorkloadParams {
   readonly id: WorkloadId;
   readonly caller: Principal | null;

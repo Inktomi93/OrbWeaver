@@ -103,6 +103,15 @@ export function createScoreSweep(deps: RefineryWorkloadDeps): ScoreSweep {
   return (opts) => runScoreSweep(deps, opts);
 }
 
+/** How many model calls a sweep over this scope would make: one per card it would score, from the same candidate
+ *  read and content floor the sweep runs. A card whose batch reply fails costs one retry more, which no read can
+ *  know in advance. */
+export function createCountScoreSweepCalls(
+  deps: Pick<RefineryWorkloadDeps, "listRefineryScoreTargets">,
+): (opts: Pick<ScoreSweepOptions, "ownerId" | "rescoreAll">) => Promise<number> {
+  return async ({ ownerId, rescoreAll }) => readyTargetsOf((await deps.listRefineryScoreTargets({ ownerId, unscoredOnly: !rescoreAll })).targets).length;
+}
+
 async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions): Promise<RefineryScoreSweepResult> {
   const { ownerId, funderUserId, rescoreAll, report, signal } = opts;
   signal?.throwIfAborted();

@@ -1,5 +1,5 @@
-// domain/workloads — COMPOSITION ROOT: wires the 5 verb factories over the verb-facing DI bundle. ZERO
-// logic. The tRPC `workloads.*` router's delegation target for start/cancel/retry/get/list; the catalog
+// domain/workloads — COMPOSITION ROOT: wires the verb factories over the verb-facing DI bundle. ZERO
+// logic. The tRPC `workloads.*` router's delegation target for start/estimate/cancel/retry/get/list; the catalog
 // scheduler also drives `list`/`start` through this. The ENGINE entry points (runWorkload/reaper/bus) are
 // NOT verbs — they're separate front-door exports the worker driver calls; this service is the verb surface.
 
@@ -9,6 +9,7 @@ import { emitWorkloadEvent } from "./engine/progress-bus.ts";
 import { createCancel } from "./verbs/cancel.ts";
 import { createCreateSchedule } from "./verbs/create-schedule.ts";
 import { createDeleteSchedule } from "./verbs/delete-schedule.ts";
+import { createEstimateModelCalls } from "./verbs/estimate-model-calls.ts";
 import { createGet } from "./verbs/get.ts";
 import { createList } from "./verbs/list.ts";
 import { createListSchedules } from "./verbs/list-schedules.ts";
@@ -21,6 +22,7 @@ export function createWorkloadService(deps: WorkloadServiceDeps): WorkloadServic
   const ctx = createWorkloadServiceContext({ ...deps, emitEvent: emitWorkloadEvent });
   return {
     ...createStart(ctx),
+    ...createEstimateModelCalls(ctx),
     ...createCancel(ctx),
     ...createRetry(ctx),
     ...createGet(ctx),

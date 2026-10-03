@@ -38,6 +38,7 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
         }
         return "Memory is turned off, so there is nothing to back fill — enable Memory in Settings, then run this again.";
       },
+      modelCalls: ({ ownerId, funderUserId }) => deps.estimateMemoryBackfill({ ownerId, funderUserId }),
       // Segment + digest LLM builds per chat × scope bucket — long by construction.
       lane: "sweep",
       // Hash-diff self-healing end to end; the signal aborts cooperatively between chats and at an embed's model wait.

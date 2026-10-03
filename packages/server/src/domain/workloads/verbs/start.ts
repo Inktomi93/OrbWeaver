@@ -6,43 +6,14 @@
 // so a "Run at" row stays out of the dispatch window until its instant.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
-import { WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
-import { DomainConflictError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { UserId, WorkloadId } from "@orb/kit/ids";
+import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
+import type { WorkloadId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "../contract/params.ts";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
 import { isActiveKindUniqueViolation, isOwnerForeignKeyViolation } from "../persistence/constraints.ts";
 import { findActiveAdmittedWorkloadId, findUnavailableWorkloadDependency, insertWorkload } from "../persistence/queries.ts";
+import { resolveRunOwner } from "../substrate/authorize.ts";
 import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey } from "../substrate/params.ts";
-
-/**
- * The MODE gate + the ROW OWNER (= runner enumeration scope) resolution, server-authoritative:
- *   1. the kind must support the requested mode (else BAD_REQUEST);
- *   2. a bulk run is BOX-OWNER-only (`requireOwner`) — a `null` caller is a trusted system trigger;
- *   3. singular → the caller's own id (or the system `ownerId`); bulk sweep-kind → `null` (all owners); bulk
- *      create-kind → the required `targetOwnerId` (BAD_REQUEST if absent — you can't mint ownerless rows).
- */
-function authorizeAndResolveOwner(ctx: WorkloadServiceContext, params: StartWorkloadParams, kind: WorkloadKind): UserId | null {
-  const mode = params.mode;
-  const policy = WORKLOAD_KIND_MODES[kind];
-  if ((mode === "singular" && !policy.singular) || (mode === "bulk" && !policy.bulk)) {
-    throw new DomainOperationError("unsupported_mode", `"${kind}" does not support ${mode} mode`);
-  }
-  if (mode === "singular") {
-    return params.caller !== null ? params.caller.userId : params.ownerId;
-  }
-  // bulk — BOX-OWNER only (a null caller is trusted system/scheduler/agent).
-  if (params.caller !== null) {
-    ctx.requireOwner(params.caller);
-  }
-  if (!policy.bulkRequiresTarget) {
-    return null;
-  }
-  if (params.targetOwnerId === undefined || params.targetOwnerId === null) {
-    throw new DomainOperationError("bulk_target_required", `a bulk "${kind}" run must designate a targetOwnerId (it mints owner-owned rows)`);
-  }
-  return params.targetOwnerId;
-}
 
 /** The row an admission attempt inserts, minus the id (a retry mints a fresh one). Derived from
  *  `insertWorkload`'s own parameter rather than re-spelled — one shape, one home. */
@@ -123,7 +94,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
   async function start(params: StartWorkloadParams): Promise<{ id: WorkloadId }> {
     const contributions = ctx.getContributions();
     const input = parseWorkloadInput(contributions, params.input);
-    const ownerId = authorizeAndResolveOwner(ctx, params, input.kind);
+    const ownerId = resolveRunOwner(ctx.requireOwner, params, input.kind);
     const dependsOn = params.dependsOn ?? [];
     const unavailableDependency = await findUnavailableWorkloadDependency(ctx.db, dependsOn, ownerId);
     if (unavailableDependency !== undefined) {

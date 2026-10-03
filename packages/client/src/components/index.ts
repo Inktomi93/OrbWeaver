@@ -31,6 +31,8 @@ export { ListPaneHeaderHost } from "./list-pane-header-host.tsx";
 export { ListSearch } from "./list-search.tsx";
 export type { MemberDrillBack, MemberDrillHeaderProps } from "./member-drill-header.tsx";
 export { MemberDrillHeader } from "./member-drill-header.tsx";
+export type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
+export { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
 export {
   CHIP_TOUCH_FLOOR_AT_COARSE,
   CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE,
@@ -118,7 +120,10 @@ export type { TrailingArrowProps } from "./trailing-arrow.tsx";
 export { TrailingArrow } from "./trailing-arrow.tsx";
 export type { ConfigLeafAddress, ConfigLeafReading, ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
+export { useModelRunConfirm } from "./use-model-run-confirm.ts";
+export { useUtilityModel } from "./use-utility-model.ts";
 export type { UserMacroEditorDialogProps, UserMacrosFormValues } from "./user-macro-editor-dialog.tsx";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";
+export { UtilityModelDoor } from "./utility-model-door.tsx";
 export type { WeaveGlyphProps } from "./weave-glyph.tsx";
 export { WeaveGlyph } from "./weave-glyph.tsx";

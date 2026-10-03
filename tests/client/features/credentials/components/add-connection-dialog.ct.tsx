@@ -13,6 +13,8 @@
 //   • THE SUBSCRIPTION STEP'S COMMAND is copyable by keyboard, with an accessible name and a spoken result.
 //   • THE PERSONAS: OpenRouter in one pass then "use for everything"; the subscription row refused inline by
 //     a background role; the endpoint listed or typed; the built-in keyless add.
+//   • THE FIRST CHAT MODEL opens the first-model step: Chat binds to it, and the Utility role takes it, another
+//     connection, a new one added with background work on, or nothing for now.
 //   • THE STATE MATRIX at 870, 486 and a phone: loading, empty, refusal, error, unavailable provider, and the
 //     typed fallback — each asserted as what the user sees, with the dialog inside the viewport.
 
@@ -23,6 +25,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import {
+  ADD_DIALOG_COPY,
   CLAUDE_SETUP_TOKEN_COMMAND,
   CLAUDE_SETUP_TOKEN_COPY_SUBJECT,
 } from "../../../../../packages/client/src/features/credentials/lib/add-connection-form-model.ts";
@@ -36,9 +39,11 @@ import {
   connectionRow,
   dialogNamed,
   expectInsideViewport,
+  firstModelSetup,
   openRowMenu,
   pickProvider,
   SUBSCRIPTION_RUNTIME_MISSING,
+  skipFirstModelSetup,
   stubConnectionsPane,
 } from "../_connection-fixtures.ts";
 import { ConnectionsAuthoringStory } from "../_ct-stories.tsx";
@@ -100,6 +105,8 @@ test("a full add mints the key, then creates the connection BY ID, and nothing h
   await submit(dialog);
 
   await expect(dialog).toBeHidden();
+  // The first add opens the first-model step; this test is about the add and the secret, so it leaves the step.
+  await skipFirstModelSetup(page);
   await expect.poll(() => trpc.inputs("credentials.add")).toEqual([{ provider: "openrouter", key: SECRET }]);
   await expect
     .poll(() => trpc.inputs("connection.create"))
@@ -513,6 +520,7 @@ test("OpenRouter in one pass: add the key and model, then point every role at it
   await dialog.getByRole("textbox", { name: "Model" }).fill(OPUS);
   await submit(dialog);
   await expect(dialog).toBeHidden();
+  await skipFirstModelSetup(page);
 
   await openRowMenu(page, `OpenRouter · ${OPUS}`);
   await page.getByRole("menuitem", { name: /Use this connection for everything it can serve/ }).click();
@@ -529,6 +537,7 @@ test("a subscription added with background work off is refused inline by the Uti
   await expect(dialog.getByRole("switch", { name: "Allow background work" })).not.toBeChecked();
   await submit(dialog);
   await expect(dialog).toBeHidden();
+  await skipFirstModelSetup(page);
 
   await page.getByRole("combobox", { name: "Utility model connection" }).click();
   const refused = page.getByRole("option", { name: "Claude subscription · sonnet" });
@@ -563,6 +572,7 @@ test("an endpoint lists its models and the pick is saved as listed; a failed lis
   await expect
     .poll(() => trpc.lastInput("connection.create"))
     .toMatchObject({ providerId: "vllm", baseUrl: VLLM_URL, model: "Qwen/Qwen3-8B", modelCheck: "listed" });
+  await skipFirstModelSetup(page);
 
   // The second endpoint's box is down: the reason is shown and the id is typed.
   const second = await openAddDialog(page);
@@ -830,3 +840,90 @@ for (const [url, authority] of [
     await expect(dialog.getByLabel("Server URL", { exact: true })).not.toHaveAttribute("aria-invalid", "true");
   });
 }
+
+// ── the first-model step (0405): the first connection that can chat asks for the Utility model ─────────────────
+
+/** Add an OpenRouter connection with the given model through the open add dialog. */
+async function addOpenRouter(page: Page, dialog: Locator, model: string): Promise<void> {
+  await pickProvider(page, dialog, "OpenRouter");
+  await dialog.getByLabel("API key", { exact: true }).fill(SECRET);
+  await dialog.getByRole("textbox", { name: "Model" }).fill(model);
+  await submit(dialog);
+}
+
+test("the first chat model: 'Use the same one' turns its background work on, then binds Chat and Utility to it", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  await addOpenRouter(page, await openAddDialog(page), OPUS);
+
+  const setup = firstModelSetup(page);
+  await expect(setup).toBeVisible();
+  await expect(setup.getByRole("radio", { name: /Use the same one/ })).toBeChecked();
+  await setup.getByRole("button", { name: "Finish" }).click();
+  await expect(setup).toBeHidden();
+
+  const created = "user_connection_ctcreated01";
+  // The bind refuses a background role on a row without background work, so the switch is written first.
+  await expect.poll(() => trpc.inputs("connection.update")).toEqual([{ connectionId: created, patch: { allowBackground: true } }]);
+  await expect
+    .poll(() => trpc.inputs("connection.setBinding"))
+    .toEqual([
+      { task: "chat", connectionId: created },
+      { task: "summarize", connectionId: created },
+    ]);
+});
+
+test("the first chat model: 'Not now' binds Chat alone and leaves the Utility role and background work untouched", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  await addOpenRouter(page, await openAddDialog(page), OPUS);
+  await skipFirstModelSetup(page);
+
+  await expect.poll(() => trpc.inputs("connection.setBinding")).toEqual([{ task: "chat", connectionId: "user_connection_ctcreated01" }]);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the step has closed, which happens only after its writes settled; "Not now" has no update to wait for, so a poll would pass at t=0 and prove less.
+  expect(trpc.count("connection.update")).toBe(0);
+});
+
+test("the first chat model: a separate Utility model is added with background work on, then picked for the role", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  await addOpenRouter(page, await openAddDialog(page), OPUS);
+
+  const setup = firstModelSetup(page);
+  await setup.getByRole("radio", { name: "Add a different model for it" }).click();
+  await setup.getByRole("button", { name: "Add a model" }).click();
+
+  const utilityAdd = dialogNamed(page, ADD_DIALOG_COPY["add-utility"].title);
+  await expect(utilityAdd).toBeVisible();
+  // The role needs background work, so the form states it instead of offering a switch that could break it.
+  await expect(utilityAdd.getByRole("switch", { name: "Allow background work" })).toHaveCount(0);
+  await addOpenRouter(page, utilityAdd, "openai/gpt-5-mini");
+
+  await expect(setup).toBeVisible();
+  await expect(setup.getByRole("radio", { name: "Use another connection" })).toBeChecked();
+  await setup.getByRole("button", { name: "Finish" }).click();
+  await expect(setup).toBeHidden();
+
+  await expect.poll(() => trpc.lastInput("connection.create")).toMatchObject({ model: "openai/gpt-5-mini", allowBackground: true });
+  await expect
+    .poll(() => trpc.inputs("connection.setBinding"))
+    .toEqual([
+      { task: "chat", connectionId: "user_connection_ctcreated01" },
+      { task: "summarize", connectionId: "user_connection_ctcreated02" },
+    ]);
+  // Saved with background work on, so nothing had to be switched afterwards.
+  await expect.poll(() => trpc.count("connection.update")).toBe(0);
+});
+
+test("a later connection, with a chat model already saved, closes as before and asks nothing", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page, { connections: [connectionRow()] });
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  const dialog = await openAddDialog(page);
+  await addOpenRouter(page, dialog, "openai/gpt-5-mini");
+
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => trpc.count("connection.create")).toBe(1);
+  await expect(firstModelSetup(page)).toHaveCount(0);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the dialog has closed after its one write; no step opened, so there is no role write to wait for and a poll would pass at t=0 and prove less.
+  expect(trpc.count("connection.setBinding")).toBe(0);
+});

@@ -1266,6 +1266,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       }
     },
     backfillMemory: (args) => chatCompose.backfill.memory(args),
+    estimateMemoryBackfill: (args) => chatCompose.backfill.estimateMemory(args),
     // The #156 admission gate's read — one hop to the ONE memory-config merge, never a second settings read.
     isMemoryEnabled: chatCompose.isMemoryEnabled,
     backfillGroupCharacters: (args) => chatCompose.backfill.groupCharacters(args),

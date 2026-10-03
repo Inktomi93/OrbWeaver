@@ -35,6 +35,20 @@ async function resolveImageSweepSpace(ctx: EmbeddingsContext, assetId: AssetId):
   return generation === null ? null : { ownerId, space, generation };
 }
 
+/** The image space an asset would be indexed into, or `null` when the indexer would not touch it at all: not an
+ *  image, not an embeddable kind, or no image space for its owner. The indexer and the call count both ask this. */
+async function indexableImageSpace(ctx: EmbeddingsContext, assetId: AssetId): Promise<ImageSweepSpace | null> {
+  const mime = await ctx.loadAssetMime(assetId);
+  if (mime === null || !mime.startsWith("image/")) {
+    return null;
+  }
+  const kind = await ctx.loadAssetKind(assetId);
+  if (kind === null || !EMBEDDABLE_ASSET_KINDS.some((allowed) => allowed === kind)) {
+    return null;
+  }
+  return await resolveImageSweepSpace(ctx, assetId);
+}
+
 async function indexAsset(
   ctx: EmbeddingsContext,
   deps: ImageIndexerDeps,
@@ -117,15 +131,7 @@ async function loadAdmittedAsset(ctx: EmbeddingsContext, assetId: AssetId, force
 export function createImageIndexer(ctx: EmbeddingsContext, deps: ImageIndexerDeps): EmbeddingsService["indexAsset"] {
   const inFlight = new Map<string, Promise<StoreResult | null>>();
   return async (assetId, options = {}) => {
-    const mime = await ctx.loadAssetMime(assetId);
-    if (mime === null || !mime.startsWith("image/")) {
-      return null;
-    }
-    const kind = await ctx.loadAssetKind(assetId);
-    if (kind === null || !EMBEDDABLE_ASSET_KINDS.some((allowed) => allowed === kind)) {
-      return null;
-    }
-    const resolved = await resolveImageSweepSpace(ctx, assetId);
+    const resolved = await indexableImageSpace(ctx, assetId);
     if (resolved === null) {
       return null;
     }
@@ -141,5 +147,27 @@ export function createImageIndexer(ctx: EmbeddingsContext, deps: ImageIndexerDep
     } finally {
       inFlight.delete(key);
     }
+  };
+}
+
+/**
+ * How many avatar analyses (one vision call each) an image sweep over `ownerId` (`null` = every owner) would make:
+ * every indexable asset with no skip record and no faceted analysis for its target generation, or every indexable
+ * asset under `force`. Reads only. Bytes are not hashed, so an asset re-uploaded under the same id is not counted.
+ */
+export function createImageAnalysisCounter(ctx: EmbeddingsContext): EmbeddingsService["countAssetAnalysisCalls"] {
+  return async ({ ownerId, force }) => {
+    let calls = 0;
+    for (const assetId of await ctx.listImageAssetIds(ownerId)) {
+      const resolved = await indexableImageSpace(ctx, assetId);
+      if (resolved === null || (!force && (await existingImageSkip(ctx.db, assetId)))) {
+        continue;
+      }
+      const captioned = await existingCaptionedRow(ctx.db, assetId, resolved.generation.id);
+      if (force || captioned === undefined || !captioned.hasFacets) {
+        calls += 1;
+      }
+    }
+    return calls;
   };
 }

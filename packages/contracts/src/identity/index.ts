@@ -39,6 +39,10 @@ export const authModeSchema = z.enum(AUTH_MODES) satisfies z.ZodType<AuthMode>;
  *  under it, and the server's refusals name it, so both read this one spelling. */
 export const SETUP_COMMAND = "pnpm start --setup";
 
+/** The setup answer that turns sign-in on, in the words the wizard prints. The sharing panel quotes it to a
+ *  single-user owner, so both read this one spelling. */
+export const SETUP_FRIENDS_ANSWER = "me and friends";
+
 /** The `environment:` lines of `docker-compose.yaml` that switch a container to the local sign-in mode, in print
  *  order. The shipped `docker/orbweaver.env` pairs single-user with the owner fallback and the bridge peers, which
  *  production refuses beside a login mode, so all three keys move. A server env test boots these over that file. */

@@ -2,7 +2,7 @@
 // lib/setup-plan.ts makes every decision; this file only reads lines, prints, and writes the file.
 import { writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
-import { SETUP_COMMAND } from "@orb/contracts/identity";
+import { SETUP_COMMAND, SETUP_FRIENDS_ANSWER, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY, machineHostNames, splitHostList } from "@orb/kit/allowed-hosts";
 import { applyEnvEdits } from "@orb/kit/env-file";
 import { refuseDirectInvocation } from "../../_shared/entrypoint.ts";
@@ -49,7 +49,7 @@ interface Menu<T extends string> {
 const AUDIENCE_MENU: Menu<SetupAudience> = {
   title: "Who will use orbweaver?",
   choices: SETUP_AUDIENCES,
-  labels: { "just-me": "just me, on this computer (no sign-in)", network: "people on my network (everyone signs in)" },
+  labels: { "just-me": "just me, on this computer (no sign-in)", network: `${SETUP_FRIENDS_ANSWER} (everyone signs in)` },
 };
 
 const LOGIN_MENU: Menu<SetupLogin> = {
@@ -63,6 +63,12 @@ const SSO_PENDING_LINES = [
   "Single sign-on needs your identity provider's settings, which setup does not ask for. Until they are set, people sign in with a password.",
   "To switch, set these in .env: AUTH_MODE=oidc, OIDC_ISSUER, OIDC_CLIENT_ID, OIDC_CLIENT_SECRET and OIDC_REDIRECT_URIS (or AUTH_MODE=forward-header behind a forward-auth proxy).",
   'Each key is described under "Login modes" in docker/README.md.',
+] as const;
+
+/** The next step for friends outside this network: the owner's Share card, which runs the relay. */
+const START_SHARING_LINES = [
+  "To invite friends from outside your network: open orbweaver on this computer, sign in as the owner,",
+  "then go to Settings > Admin > Multi-user and press Start sharing. It gives you a public link to send them.",
 ] as const;
 
 interface LineReader {
@@ -183,6 +189,8 @@ function summaryLines(opts: SetupRunOpts, values: SetupValues, removedBindHost: 
     ...(removedBindHost ? [`Removed ${BIND_HOST_KEY}, so the server listens where other devices can reach it.`] : []),
     ...(values.ssoPending ? SSO_PENDING_LINES : []),
     ...(shared ? reachLines(opts.machine, values.port) : []),
+    // Only a mode a relayed visitor can sign in under gets the Start sharing step; the others refuse to share.
+    ...(SHARE_MODE_REFUSAL[values.authMode] === null ? START_SHARING_LINES : []),
   ];
 }
 

@@ -13,18 +13,24 @@
 // the settings shell owns containment + focus-on-mount, so it is not itself a surface (extracted-fragment
 // precedent; client-structure + surface-a11y-focus therefore do not apply).
 
+import type { WorkloadId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ExternalLink, Icon } from "@orb/ui/icons";
-import { Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary, SettingSwitchRow } from "#components";
+import { useState } from "react";
+import { QueryBoundary, SettingSwitchRow, UtilityModelDoor, useUtilityModel } from "#components";
+import type { Trpc } from "#data";
 import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
+import { MEMORY_COST_SENTENCE } from "#lib";
 import type { SaveLifecycleState } from "#state";
 import { configAnchorId, openConfigTo } from "#state";
-import { MEMORY_SETTINGS_SUBCATEGORY } from "../lib/memory-settings-section-nav.ts";
+import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_SETTINGS_SUBCATEGORY } from "../lib/memory-settings-section-nav.ts";
+import { MemoryOnConfirm } from "./memory-on-confirm.tsx";
 
 interface MemoryPatchVars {
   readonly section: "memory";
@@ -34,6 +40,13 @@ const useSetMemoryEnabled = createEntityMutation<MemoryPatchVars, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
   errorToast: "Couldn't save your memory settings.",
+});
+
+/** The Memory backfill over the viewer's own chats, the opt-in the turn-on confirm offers. */
+const useStartMemoryBackfill = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, { readonly id: WorkloadId }>({
+  options: (trpc) => trpc.workloads.start.mutationOptions(),
+  invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
+  errorToast: "Memory is on, but the backfill over your existing chats didn't start. Run Memory backfill under Jobs.",
 });
 
 /** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
@@ -62,29 +75,49 @@ function MemorySettingsBody({ sectionId }: { readonly sectionId: string }): Reac
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const setEnabled = useSetMemoryEnabled({ trpc, invalidation });
+  const startBackfill = useStartMemoryBackfill({ trpc, invalidation });
+  const [confirmingOn, setConfirmingOn] = useState(false);
   useReportSaveStatus(sectionId, saveStateOf(setEnabled.isPending, setEnabled.error !== null));
+  const enabled = data.config.memory.enabled;
 
   return (
     <Section divider={true} heading={MEMORY_SETTINGS_SUBCATEGORY.label} id={configAnchorId("chat-behavior", MEMORY_SETTINGS_SUBCATEGORY.id)}>
       <Stack gap="field">
+        {/* TURNING IT ON ASKS FIRST; turning it off does not. On is the switch that spends: it is where the cost,
+            the model that pays and the fate of existing chats are said, and where the backfill is offered. */}
         <SettingSwitchRow
           label="Remember earlier in long chats"
-          description="Once a chat grows past its most recent messages, the assistant summarizes the older parts and recalls those summaries later — so it stays consistent across a long thread instead of losing the start. Summaries are built in the background as a chat grows, which spends extra model calls."
-          checked={data.config.memory.enabled}
-          onChange={(next): void => setEnabled.mutate({ section: "memory", patch: { enabled: next } })}
+          description={`One switch for your account, covering every chat you host. Once a chat grows past its most recent messages, your Utility model summarizes the older parts and the assistant recalls those summaries later, so it stays consistent across a long thread. ${MEMORY_COST_SENTENCE}`}
+          checked={enabled}
+          onChange={(next): void => {
+            if (next) {
+              setConfirmingOn(true);
+              return;
+            }
+            setEnabled.mutate({ section: "memory", patch: { enabled: false } });
+          }}
+        />
+        <MemoryOnConfirm
+          open={confirmingOn}
+          onOpenChange={setConfirmingOn}
+          onConfirm={async (buildExisting): Promise<void> => {
+            await setEnabled.mutateAsync({ section: "memory", patch: { enabled: true } });
+            if (buildExisting) {
+              await startBackfill.mutateAsync({ input: { kind: "memory-backfill", params: {} }, mode: "singular" });
+            }
+          }}
         />
         {/* THE NOTE IS PROSE, IN THE ROW'S OWN COLUMN (side-eye 2026-08-08 P2). It shipped at the `gloss`
             voice's bare `text-micro` (10.5px, tight leading) and ran the FULL section width (~140ch), while
             the switch description one line above it — the same kind of teaching sentence — sits at
             `text-label` (13px) inside the Field's label column (~95ch). Two voices and two measures for one
-            explanation, with the SMALLER type carrying the harder fact ("nothing changes right away").
-            `prose` is the sanctioned length modifier (it lifts the step + leading and changes nothing else),
-            and the end padding reserves the same gutter the Field's control column takes, so both
-            paragraphs break on the same column. */}
+            explanation, with the SMALLER type carrying the harder fact. `prose` is the sanctioned length
+            modifier (it lifts the step + leading and changes nothing else), and the end padding reserves the
+            same gutter the Field's control column takes, so both paragraphs break on the same column. */}
         <Stack className="pe-(--width-control-col) @max-md:pe-0" gap="field">
+          <MemoryUtilityStatus enabled={enabled} />
           <Text voice="gloss" prose={true}>
-            Turning this on affects new activity only — it doesn't reprocess chats you've already had, so nothing changes right away. To build memory for
-            existing chats, run the Memory backfill job.
+            {`${MEMORY_EXISTING_CHATS_NOTE} To build every chat now, run the Memory backfill job.`}
           </Text>
           {/* A cross-SURFACE pointer is a DOOR, not a sentence (side-eye 2026-08-08 P3): "run it under
               Settings → Jobs" named a place the reader then had to go find by hand. The `CarrierBody`
@@ -97,5 +130,31 @@ function MemorySettingsBody({ sectionId }: { readonly sectionId: string }): Reac
         </Stack>
       </Stack>
     </Section>
+  );
+}
+
+/** Whether memory is actually being built, and why not: the switch can be on while the Utility model it needs is
+ *  missing or stalled, which is the silent pause this line exists to name. With no Utility model ready the door to
+ *  Model roles rides beside it, whatever the switch says. Silent while the Utility read settles. */
+function MemoryUtilityStatus({ enabled }: { readonly enabled: boolean }): ReactElement | null {
+  const utility = useUtilityModel();
+  if (utility.kind === "unknown") {
+    return null;
+  }
+  if (utility.kind === "ready") {
+    return (
+      <Text data-slot="memory-utility-status" prose={true} voice="gloss">
+        {enabled ? `Summaries run on your Utility model, ${utility.label}.` : "Memory is off for your account, so no chat is summarized."}
+      </Text>
+    );
+  }
+  const reason = utility.kind === "unset" ? "no Utility model is set" : `your Utility model is set but not running: ${utility.cause}`;
+  return (
+    <Row align="center" className="flex-wrap" data-slot="memory-utility-status" gap="field">
+      <Text prose={true} voice="gloss">
+        {enabled ? `Summaries are paused: ${reason}.` : `Memory also needs a Utility model, and ${reason}.`}
+      </Text>
+      <UtilityModelDoor />
+    </Row>
   );
 }

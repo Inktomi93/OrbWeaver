@@ -50,7 +50,7 @@ import { hostUserIdOf } from "./participants-host.ts";
 
 /** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to
  *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. */
-async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null): Promise<ChatId[]> {
+export async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null): Promise<ChatId[]> {
   if (hostUserId === undefined || hostUserId === null) {
     const rows = await ctx.db.select({ id: chats.id }).from(chats);
     return rows.map((r) => r.id);

@@ -9,7 +9,7 @@ import type { RefineryScoreSweepResult } from "@orb/contracts/refinery";
 import { refineScoreSweepWorkloadParams } from "@orb/contracts/refinery";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { RefineryWorkloadDeps } from "./contract/service.ts";
-import { createScoreSweep } from "./verbs/score-sweep.ts";
+import { createCountScoreSweepCalls, createScoreSweep } from "./verbs/score-sweep.ts";
 
 /** The sweep's closing progress line — what landed, and what it declined to score. `skipped` cards are
  *  either already scored (the FILL arm's whole point) or have no card text to critique, so the line names
@@ -27,10 +27,12 @@ function sweepProgressMessage(result: RefineryScoreSweepResult, rescoreAll: bool
 
 export function createRefineryWorkloadContributions(deps: RefineryWorkloadDeps): readonly [WorkloadContribution<"refine-score-sweep">] {
   const scoreSweep = createScoreSweep(deps);
+  const countCalls = createCountScoreSweepCalls(deps);
   return [
     {
       kind: "refine-score-sweep",
       params: refineScoreSweepWorkloadParams,
+      modelCalls: ({ ownerId, params }) => countCalls({ ownerId, rescoreAll: params.rescoreAll ?? false }),
       // One model call per card — long by construction, exactly like `distill-characters`.
       lane: "sweep",
       // The stamp is an upsert of one derived scalar: a restarted pass converges on the same scores.

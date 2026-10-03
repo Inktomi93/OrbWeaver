@@ -25,6 +25,10 @@ type Contributions = ReturnType<typeof createDiscoveryWorkloadContributions>;
 
 /** A fake discovery service — every verb a `vi.fn` returning the domain's RICHER stats shape, so a test
  *  asserts the contribution's projection down to `AnalyticsResult`, not a pass-through. */
+/** What the fake passes say a run would spend on model calls. */
+const DISTILL_CALLS = 8;
+const THEME_NAME_CALLS = 5;
+
 function fakeDiscovery(planes: PlaneOverrides = {}): Discovery {
   const { distill = {}, themes = {}, cooccurrence = {}, embeddingPlane = {} } = planes;
   // The contributions read ONLY the counts fields off each verb's stats — a full DiscoveryService factory
@@ -35,6 +39,8 @@ function fakeDiscovery(planes: PlaneOverrides = {}): Discovery {
     // `undefined` path.
     computeThemes: vi.fn(async () => ({ digestsAssigned: 10, clustersWritten: 5, digestsRead: 10, soloDigestsRead: 10, ...themes })),
     distillCharacters: vi.fn(async () => ({ scanned: 8, distilled: 8, failed: 0, skipped: 0, tagsStaged: 0, ...distill })),
+    countDistillCalls: vi.fn(async () => DISTILL_CALLS),
+    countThemeNameCalls: vi.fn(async () => THEME_NAME_CALLS),
     computeCooccurrence: vi.fn(async () => ({ charKeywordsWritten: 6, pairsWritten: 4, digestsRead: 20, ...cooccurrence })),
     // `charactersScanned`/`chatsScanned`/`rowsScored` are the EMBEDDINGS-plane census (issue #561) — the two
     // passes below branch on them, so the fake carries them explicitly for the same reason the digest ones are
@@ -137,6 +143,15 @@ describe("compute-themes", () => {
     expect(discovery.computeThemes).toHaveBeenCalledWith({ ownerId: OWNER_ID, funderUserId: OWNER_ID, k: 3 });
   });
 
+  test("the call estimate clusters with the same k the run would use: per-run param, then the knob", async () => {
+    const { discovery, contributions } = build(withKnobs({ computeThemesK: 7 }));
+    await expect(contributions[0].modelCalls?.({ ownerId: OWNER_ID, funderUserId: OWNER_ID, params: {} })).resolves.toBe(THEME_NAME_CALLS);
+    expect(discovery.countThemeNameCalls).toHaveBeenLastCalledWith({ ownerId: OWNER_ID, k: 7 });
+    await contributions[0].modelCalls?.({ ownerId: null, funderUserId: OWNER_ID, params: { k: 3 } });
+    expect(discovery.countThemeNameCalls).toHaveBeenLastCalledWith({ ownerId: null, k: 3 });
+    expect(discovery.computeThemes).not.toHaveBeenCalled();
+  });
+
   // ── issue #166: a zero-input run STATES its reason instead of reporting a green nothing ────────────
   test("NO DIGESTS: the result carries `emptyReason`, not a bare 0-written success", async () => {
     // Observed live: `{scanned: 0, written: 0}` under a green Succeeded, rendered as "0 rows · 0 written".
@@ -180,6 +195,13 @@ describe("compute-themes", () => {
 });
 
 describe("distill-characters", () => {
+  test("the call estimate counts the run's own scope and never runs the pass", async () => {
+    const { discovery, contributions } = build();
+    await expect(contributions[1].modelCalls?.({ ownerId: null, funderUserId: OWNER_ID, params: {} })).resolves.toBe(DISTILL_CALLS);
+    expect(discovery.countDistillCalls).toHaveBeenCalledWith(null);
+    expect(discovery.distillCharacters).not.toHaveBeenCalled();
+  });
+
   test("distills and projects scanned/distilled", async () => {
     const { discovery, contributions } = build();
     const result = await contributions[1].run(ctx, {}, vi.fn(), sig());

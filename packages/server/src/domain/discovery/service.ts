@@ -16,13 +16,14 @@ import { readDuplicateCharacters, readDuplicateChats } from "./duplicates/retrie
 import { createImageAnalyticsFacets } from "./image-analytics/facets.ts";
 import { createImageAnalyticsRetrieve } from "./image-analytics/retrieve.ts";
 import { backfillMsgMidAt } from "./themes/backfill.ts";
-import { computeThemes as runComputeThemes } from "./themes/generate.ts";
+import { countThemeNameCalls, computeThemes as runComputeThemes } from "./themes/generate.ts";
 import { readThemes } from "./themes/retrieve.ts";
 import { createAnalyze } from "./verbs/analyze.ts";
 import { createArchetypes } from "./verbs/archetypes.ts";
 import { createBrowse } from "./verbs/browse.ts";
 import { createCatalog } from "./verbs/catalog.ts";
 import { createComputeHubScores } from "./verbs/compute-hub-scores.ts";
+import { createCountDistillCalls } from "./verbs/count-distill-calls.ts";
 import { createDistill } from "./verbs/distill.ts";
 import { createEconomicsInsights } from "./verbs/economics-insights.ts";
 import { createInsights } from "./verbs/insights.ts";
@@ -72,6 +73,7 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
     computeChatDuplicatePairs: (opts) => runComputeChatDuplicatePairs(ctx.db, chatDupDeps, opts),
     duplicateChats: (userId, opts) => readDuplicateChats(ctx.db, userId, opts),
     distillCharacters: createDistill(ctx),
+    ...createCountDistillCalls(ctx),
     ...createBrowse(ctx),
     ...createArchetypes(ctx),
     ...createProjection(ctx),
@@ -84,6 +86,7 @@ export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService 
     ...createSimilarChats(ctx),
     ...createViews(ctx, viewsDeps),
     computeThemes: (opts) => runComputeThemes(ctx.db, themeDeps, opts),
+    countThemeNameCalls: (opts) => countThemeNameCalls(ctx.db, opts),
     themes: (userId, level) => readThemes(ctx.db, userId, level),
     backfillDigestStoryTime: (ownerId) => backfillMsgMidAt(ctx.db, ctx.tier0RangeOf, ownerId),
     ...createInsights(ctx),

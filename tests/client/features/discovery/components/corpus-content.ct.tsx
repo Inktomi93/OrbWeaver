@@ -35,6 +35,7 @@ import { readPhantomScrollers } from "../../../../support/browser/scroll-contain
 import type { TrpcRecorder, TrpcRoutes } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import { CorpusContentInsetStory, CorpusContentNarrowStory, CorpusContentStory } from "../_ct-stories.tsx";
 
 /** The frozen page clock. Every stamp below is derived from it; no test here reads a wall clock. */
@@ -189,7 +190,8 @@ async function stub(page: Page, shape: TrpcRoutes): Promise<TrpcRecorder> {
   // #649 — the viewer-identity read the invitation's run-the-pass door resolves off. Unfed it answered
   // `routeTrpc`'s null, so this surface's viewer resolved through its no-data branch and nothing here
   // exercised the identity-dependent path. Listed FIRST, so a caller's own `shape` still wins.
-  return routeTrpc(page, { "sessions.me": { userId: "user_ct_corpus", handle: "ct_corpus", globalRole: "user" }, ...shape });
+  // The understanding pass's Utility note reads the viewer's Utility model: a running one, so the door stays live.
+  return routeTrpc(page, { "sessions.me": { userId: "user_ct_corpus", handle: "ct_corpus", globalRole: "user" }, ...UTILITY_RUNNING_ROUTES, ...shape });
 }
 
 test("UN-ANALYSED: the invitation holds the focal and the family map renders quiet beneath it", async ({ mount, page }) => {

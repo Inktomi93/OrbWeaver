@@ -156,6 +156,8 @@ export interface EmbeddingsService {
   /** Bulk image catch-up sweep: enumerate every image asset → re-read bytes → `store` both lenses. Caption
    *  generation only runs when a lens row is stale/missing (or `force`). Same resume/abort contract. */
   readonly embedAssets: (params: EmbedPassParams) => Promise<BulkEmbedResult>;
+  /** The avatar analyses (one vision call each) {@link embedAssets} would make over this scope. Reads only. */
+  readonly countAssetAnalysisCalls: (params: Pick<EmbedPassParams, "ownerId" | "force">) => Promise<number>;
   /** Reclaim the OLD chat-memory embed space — deletes `chat_segments`/`chat_digests` rows whose
    *  `model` differs from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's
    *  guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge. */
@@ -202,7 +204,7 @@ export interface EmbeddingsIndexer {
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the `index` kind) —
  *  this domain's own verbs, plus the freshness plane the sweep's terminal fans on. */
 export interface EmbeddingsWorkloadDeps {
-  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets">;
+  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets" | "countAssetAnalysisCalls">;
   /**
    * The per-user freshness plane (`corpusRecomputed`) — injected, never a sideways reach at the bus (D38).
    * The `index` sweep rewrites the vectors every `discovery.*` read and `search.similarArt` are derived from,

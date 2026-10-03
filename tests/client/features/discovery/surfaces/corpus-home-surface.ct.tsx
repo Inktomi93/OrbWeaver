@@ -35,6 +35,7 @@ import { corpusGroupingProvenance } from "../../../../support/node/corpus-source
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
+import { UTILITY_RUNNING_ROUTES } from "../../../../support/node/utility-role.ts";
 import {
   CorpusHomeDefaultPaneStory,
   CorpusHomeNarrowPaneStory,
@@ -79,8 +80,10 @@ const FAMILIES = [
  *  answered `routeTrpc`'s null, so this mount's viewer resolved through its no-data branch and nothing in
  *  thirty-three mounts exercised the identity-dependent path. The `userId` matches the settings row the
  *  route bags below already carry, so the two ambient reads describe ONE viewer rather than two. */
-const CORPUS_VIEWER_ROUTE: TrpcRoutes<"sessions.me"> = {
+const CORPUS_VIEWER_ROUTE: TrpcRoutes<"sessions.me" | "connection.list" | "connection.listBindings"> = {
   "sessions.me": { userId: "user_me", handle: "me", globalRole: "user" },
+  // The understanding pass's Utility note reads the viewer's Utility model: a running one, so the door stays live.
+  ...UTILITY_RUNNING_ROUTES,
 };
 
 /** A library with characters and a finished VISUAL pass only — the invitation holds the focal. */
