@@ -23,3 +23,5 @@ A mustFlag row with two swapped sections is flagged, the clean mirror passes, an
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Also: knip.ts patternList duplicates patternsOf in tooling/src/verify/ops/knip-negative-liveness.ts and a third copy in its test; tooling already imports config from knip.ts, so export one helper there and consume it.
