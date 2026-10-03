@@ -64,10 +64,8 @@ export interface ImageryComposeDeps {
   readonly isCharacterSeated: (chatId: ChatId, characterId: CharacterId) => Promise<boolean>;
   /** The row-derived host Principal (`createHostPrincipalResolver`), so a run-as principal carries its real role. */
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
-  /** The run-as principal's default-preset generation params (the side-gen sampling ladder's middle rung — caption). */
-  readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
-  /** The chat host's default-preset params (the side-gen ladder's middle rung — extract-quiet is chat-scoped). */
-  readonly resolveChatPresetParams: (chatId: ChatId) => Promise<SideGenSampling>;
+  /** A user's Utility-role preset params (D299), for caption and extract-quiet. */
+  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
   /** IMGMAC — late-bound (chat + rpg both compose after imagery): the chat's authored user-macro defs from
    *  BOTH homes, so an imagery mode template resolves `{{house_style}}` the way a turn does. Deref'd only at
    *  request time inside `extractQuiet`, exactly like `resolveViewerVisibility` below. */
@@ -171,7 +169,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
         now,
         summarize: async (funderUserId, ...args) => (await roleClientsFor(funderUserId)).summarize(...args),
         getCard: ({ ownerId, characterId }) => character.getCard({ principal: imageryCardPrincipal(ownerId), characterId }),
-        resolveChatPresetParams: deps.resolveChatPresetParams,
+        resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
         // IMGMAC — the user-macro plane the mode templates resolve against (late-bound: chat + rpg compose
         // after imagery, and this is only ever deref'd at request time).
         resolveUserMacroDefs: deps.resolveUserMacroDefs,
@@ -192,10 +190,9 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // The ONE vision caption op (D45/D47-6): the multimodal template + the avatar bytes over the summarize
     // lane (IC-B: runSummarize forwards images as multimodal content parts).
     captionImage: async ({ runAs, instruction, bytes }): Promise<{ text: string; costUsd: number | null }> => {
-      // The side-gen sampling ladder: the `caption` floor (temperature 0.2, maxOutputTokens 512) ← the
-      // run-as principal's default-preset params. A user with no preset params gets the floor; a user WITH
-      // preset params overrides it through the ladder.
-      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.caption, await deps.resolveUserPresetParams(runAs.userId));
+      // The run-as principal's Utility-role preset over the `caption` posture (temperature 0.2,
+      // maxOutputTokens 512). Under task defaults the posture alone applies.
+      const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.caption, await deps.resolveUtilityPresetParams(runAs.userId));
       const rc = await roleClientsFor(runAs.userId);
       const res = await rc.summarize([{ systemPrompt: instruction, userPrompt: "Describe the attached image.", images: [bytes] }], posture);
       const item = res.items[0];

@@ -8,7 +8,7 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { castId } from "@orb/kit/ids";
 import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
 import type { BatchDeps } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
-import { runOpenAiCompatStructured } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
+import { runOpenAiCompatStructured, runOpenAiCompatSummarize } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
@@ -101,4 +101,29 @@ test("#2575 (controls): Opus 5 on OpenRouter and a vLLM endpoint keep the forced
     expect(body["tool_choice"], connection.model).toMatchObject({ type: "function", function: { name: "row" } });
     expect(warnedCodes(lines), connection.model).toEqual([]);
   }
+});
+
+test("D299: a role preset's seed and stop reach a summarize body through the task gate; an unsendable effort is named", async () => {
+  const recorded: RecordedRequest[] = [];
+  const lines: LogLine[] = [];
+  const connection = fakeResolved({
+    task: "summarize",
+    providerId: "vllm",
+    model: "Qwen/Qwen3-8B",
+    capability: generationCapability({ sampling: { temperature: { min: 0, max: 2 }, seed: true, stop: true } }),
+    baseUrl: "http://127.0.0.1:8000/v1",
+  });
+  const deps: BatchDeps = {
+    now: () => NOW,
+    log: recordingLog(lines),
+    transport: { fetch: scriptedJsonFetch([COMPLETION], recorded), app: APP },
+    normalize: passthroughImageNormalizer,
+  };
+  await runOpenAiCompatSummarize(
+    { connection, inputs: INPUTS, temperature: 0.5, seed: 7, stop: ["END"], effort: "high", maxTokens: 64, signal: undefined },
+    deps,
+  );
+  const body = recorded[0]?.body ?? {};
+  expect(body).toMatchObject({ temperature: 0.5, seed: 7, stop: ["END"], max_tokens: 64 });
+  expect(warnedCodes(lines)).toEqual(["effort_dropped"]);
 });

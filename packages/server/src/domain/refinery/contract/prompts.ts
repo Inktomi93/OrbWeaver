@@ -134,12 +134,12 @@ export type StageEstimateSubject =
   | { readonly stage: Exclude<RefineryStage, "rewrite">; readonly card: CharacterCard; readonly selection: RefinerySelection }
   | { readonly stage: "rewrite"; readonly card: CharacterCard; readonly selection: RefinerySelection; readonly mode: RefineryRewriteMode };
 
-/** What deciding the RULED refusal needs: the payload's own need vs the ladder's top rung. Split out from
+/** What deciding the RULED refusal needs: the payload's own need vs the role preset's output cap. Split out from
  *  {@link StageSamplingArgs} because the verdict is prompt-independent — the engine refuses BEFORE it
  *  assembles anything, so a guaranteed-overrun run spends no decode at all. */
 export interface StageBudgetFitArgs {
   readonly subject: StageEstimateSubject;
-  /** The caller's resolved preset generation params — the ladder's TOP rung, unchanged by any of this. */
+  /** The caller's Utility-role preset params (D299), `undefined` under task defaults, unchanged by any of this. */
   readonly presetParams: SideGenSampling | undefined;
 }
 

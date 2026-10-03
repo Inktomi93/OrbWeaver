@@ -245,18 +245,29 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
   return wanted;
 }
 
-/** THE SIDE-GENERATION REASONING POSTURE (#2575) — what a `summarize` / `structured` call runs. The posture is
- *  "reasoning OFF" (a summary is not worth thinking tokens), resolved through the SAME on/off decision and
- *  mandatory clamp a chat turn takes, never spelled `disabled` straight at the wire: a model whose reasoning is
- *  mandatory (Fable, Opus 5.5) 400s that, so it runs at its minimum effort or budget with `reasoning_mandatory_clamp`.
- *  No display is resolved — a batch reads only the reply text. */
-export function resolveSideGenReasoning(capability: GenerationCapability, warnings: ResolvedWarning[]): ResolvedReasoning {
+/** THE SIDE-GENERATION REASONING — what a `summarize` / `structured` call runs. When the role's preset sets
+ *  effort or a thinking budget (D299), those govern. Otherwise the posture is "reasoning OFF" (a summary is not
+ *  worth thinking tokens). Both resolve through the SAME on/off decision and mandatory clamp a chat turn takes,
+ *  never spelled `disabled` straight at the wire: a model whose reasoning is mandatory (Fable, Opus 5.5) 400s
+ *  that, so it runs at its minimum effort or budget with `reasoning_mandatory_clamp`. No display is resolved —
+ *  a batch reads only the reply text. */
+export function resolveSideGenReasoning(
+  capability: GenerationCapability,
+  warnings: ResolvedWarning[],
+  wanted: Pick<TaskSampling, "effort" | "thinkingBudgetTokens" | "maxTokens"> = {},
+): ResolvedReasoning {
   const r = capability.reasoning;
-  const params: UserIntent = {
-    effort: EFFORT_OFF,
-    ...(r.mode === "budget" && r.mandatory === true && r.budgetRange !== undefined ? { thinkingBudgetTokens: r.budgetRange.min } : {}),
-  };
-  const { display: _display, ...resolved } = resolveReasoning(params, capability, undefined, warnings);
+  const presetGoverns = wanted.effort !== undefined || wanted.thinkingBudgetTokens !== undefined;
+  const params: UserIntent = presetGoverns
+    ? {
+        ...(wanted.effort !== undefined ? { effort: wanted.effort } : {}),
+        ...(wanted.thinkingBudgetTokens !== undefined ? { thinkingBudgetTokens: wanted.thinkingBudgetTokens } : {}),
+      }
+    : {
+        effort: EFFORT_OFF,
+        ...(r.mode === "budget" && r.mandatory === true && r.budgetRange !== undefined ? { thinkingBudgetTokens: r.budgetRange.min } : {}),
+      };
+  const { display: _display, ...resolved } = resolveReasoning(params, capability, presetGoverns ? wanted.maxTokens : undefined, warnings);
   return resolved;
 }
 
@@ -386,16 +397,21 @@ function stageOrderFor(
  *  state drops with `sampling_knob_dropped`, a stated one is clamped into its range. The output cap stays the
  *  caller's. Side generation and chat therefore send the same knobs to the same model. */
 export function resolveTaskSampling(sampling: TaskSampling, capability: GenerationCapability, warnings: ResolvedWarning[]): TaskSampling {
+  // Reasoning is not a sampler: the wire resolves it through `resolveSideGenReasoning`, so it passes through.
+  const { maxTokens, effort, thinkingBudgetTokens, stop, drySequenceBreakers, bannedStrings, samplerOrder, ...knobs } = sampling;
   const params: UserIntent = {
-    ...(sampling.temperature !== undefined ? { temperature: sampling.temperature } : {}),
-    ...(sampling.topP !== undefined ? { topP: sampling.topP } : {}),
-    ...(sampling.topK !== undefined ? { topK: sampling.topK } : {}),
-    ...(sampling.frequencyPenalty !== undefined ? { frequencyPenalty: sampling.frequencyPenalty } : {}),
-    ...(sampling.presencePenalty !== undefined ? { presencePenalty: sampling.presencePenalty } : {}),
-    ...(sampling.repetitionPenalty !== undefined ? { repetitionPenalty: sampling.repetitionPenalty } : {}),
-    ...(sampling.minP !== undefined ? { minP: sampling.minP } : {}),
+    ...knobs,
+    ...(stop !== undefined ? { stop: [...stop] } : {}),
+    ...(drySequenceBreakers !== undefined ? { drySequenceBreakers: [...drySequenceBreakers] } : {}),
+    ...(bannedStrings !== undefined ? { bannedStrings: [...bannedStrings] } : {}),
+    ...(samplerOrder !== undefined ? { samplerOrder: [...samplerOrder] } : {}),
   };
-  return { ...resolveSampling(params, capability, warnings), ...(sampling.maxTokens !== undefined ? { maxTokens: sampling.maxTokens } : {}) };
+  return {
+    ...resolveSampling(params, capability, warnings),
+    ...(maxTokens !== undefined ? { maxTokens } : {}),
+    ...(effort !== undefined ? { effort } : {}),
+    ...(thinkingBudgetTokens !== undefined ? { thinkingBudgetTokens } : {}),
+  };
 }
 
 /** The order this server runs for the preset's (`completeSamplerOrder`, D295). A stage the server cannot

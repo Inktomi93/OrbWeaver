@@ -127,10 +127,10 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
     return { scanned: inScope, scored: 0, skipped, failed: 0 };
   }
 
-  // The side-gen sampling ladder, distill's rung exactly: the `refine_score` floor ← the card owner's
-  // default-preset params. A per-owner narrow reads that host's rungs; the mixed-owner BULK pass has no
-  // single owner, so it stays on the floor and reads the shipped prose (`{}`).
-  const presetParams = ownerId === null ? undefined : await deps.resolveUserPresetParams(ownerId);
+  // Distill's rule exactly: the card owner's Utility-role preset over the `refine_score` posture. A per-owner
+  // narrow reads that owner's preset; the mixed-owner BULK pass has no single owner, so it stays on the posture
+  // and reads the shipped prose (`{}`).
+  const presetParams = ownerId === null ? undefined : await deps.resolveUtilityPresetParams(ownerId);
   const overrides = ownerId === null ? {} : await deps.resolveUserProse(ownerId);
   // The prompts come from the SAME pure builder a session's score stage uses — one prompt discipline, so a
   // sweep score and a session score are the same question asked of the same model. Assembled BEFORE the

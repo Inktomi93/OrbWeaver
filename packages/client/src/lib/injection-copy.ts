@@ -35,7 +35,7 @@ export const IMAGE_GEN_SPENDS_NOW = "Spends right away — your typed text is se
 export const IMAGINE_DOOR_HELPER = "Pick a mode, preview the prompt (and its price) before the image spend — the /imagine surface.";
 
 /** The shared-room sentence at the image doors: both post the generated picture into the chat, and the room's
- *  host owns the file and funds it (D299). */
+ *  host owns the file and funds it (D300). */
 export const ROOM_PICTURES_NOTE =
   "Pictures made here post to this chat, where everyone in it sees them. The room's host owns them and they join the host's gallery.";
 

@@ -48,7 +48,7 @@
 //     an auto-swipe) with no on-screen signal, where the loud refusal at least surfaces at the write. Ends if
 //     that tradeoff is re-judged the other way (then it takes the same `tolerantArray` move as its siblings).
 //     The object-valued `.catch(undefined)` override groups (`memoryDefaults`, `rateLimits`,
-//     `memorySummarizer`, `engineLaunch`, …) keep their documented whole-group self-heal — they are
+//     `agentSdkConcurrency`, …) keep their documented whole-group self-heal — they are
 //     re-enterable admin overrides, and the file states that tradeoff at `settings/index.ts:59,87,198`.
 //     Scalar `.catch()` leaves are unchanged: self-heal is right for a scalar.
 

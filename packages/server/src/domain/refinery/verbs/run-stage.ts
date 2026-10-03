@@ -98,7 +98,7 @@ interface StagePass {
   readonly contextTokens: number | null;
   /** The wire grammar this pass runs under (fixed contract or the custom schema's projection). */
   readonly responseFormat: ResponseFormat;
-  /** The ladder's TOP rung, carried unresolved: the output budget can only be sized once the arm has
+  /** The owner's Utility-role preset params, carried unresolved: the output budget can only be sized once the arm has
    *  assembled its prompt, so the fold happens at the call ({@link sampleOptsFor}), not here. */
   readonly presetParams: SideGenSampling | undefined;
   /** WHAT this pass will ask the model to produce (card + selection + the rewrite mode) — derived ONCE per
@@ -312,7 +312,7 @@ async function resolveStagePass(
 ): Promise<StagePass> {
   const { ownerId, sessionId, stage, session } = args;
   const overrides = await ctx.resolveUserProse(ownerId);
-  const presetParams = await ctx.resolveUserPresetParams(ownerId);
+  const presetParams = await ctx.resolveUtilityPresetParams(ownerId);
   const resolution = await resolveStageResolution(ctx, { ownerId, stage, session });
   const rc = await ctx.roleClientsFor(ownerId);
   const facts = await summarizerFactsOf(rc);

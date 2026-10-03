@@ -4,6 +4,7 @@
 // the pane stale. The secret never round-trips: `credentials.add` takes the plaintext key, list returns the
 // redacted view.
 
+import type { RolePresetChoice } from "@orb/contracts/settings";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -120,6 +121,18 @@ export const useAdmitPrivateEndpoint = createEntityMutation<
   options: (trpc) => trpc.settings.updateAppSettings.mutationOptions(),
   invalidates: (trpc) => [trpc.settings.pathFilter()],
   errorToast: "Couldn't admit that host — only the box owner can change the allowed endpoints.",
+});
+
+/** The Utility role's preset choice (D299) — a `seeds` section patch; `null` is task defaults. */
+export interface UtilityPresetPatchVars {
+  readonly section: "seeds";
+  readonly patch: { readonly summarizePreset: RolePresetChoice | null };
+}
+export const useSetUtilityPreset = createEntityMutation<UtilityPresetPatchVars, unknown>({
+  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
+  busDriven: true, // emits `settingsChanged` → USER_BUS_FILTERS covers getUserSettings.
+  echo: (trpc) => trpc.settings.getUserSettings.queryKey(),
+  errorToast: "Couldn't set the Utility preset.",
 });
 
 /** Remove a stored credential (deletes the row + its secret material); connections on it read `no-connection`. */
