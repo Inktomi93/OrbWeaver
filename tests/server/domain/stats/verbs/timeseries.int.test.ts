@@ -1,5 +1,6 @@
 import type { Db } from "@orb/db";
-import { STATS_BUCKET_MS, statsBucketStart } from "@orb/kit/stats-tally";
+import { statsBucketStart } from "@orb/kit/stats-tally";
+import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { beforeEach, describe } from "vitest";
 import { createStatsService } from "../../../../../packages/server/src/domain/stats/service.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -19,7 +20,7 @@ describe("stats.timeseries", () => {
   test("returns the timeline buckets from the window's start", async () => {
     const owner = await seedUser(db);
     const early = statsBucketStart(T0);
-    const late = early + STATS_BUCKET_MS;
+    const late = early + CALENDAR_BUCKET_MS;
     await seedDailyStats(db, owner, early, { userTurns: 1 });
     await seedDailyStats(db, owner, late, { userTurns: 2 });
     const svc = createStatsService(db, () => STATS_NOW);

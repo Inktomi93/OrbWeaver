@@ -8,7 +8,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
-import { chats } from "@orb/db";
+import { chats, compactionSpend } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -20,7 +20,7 @@ import { createCompaction } from "../../../../../packages/server/src/domain/chat
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
+import { FROZEN_AT, makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -272,14 +272,16 @@ describe("runCompaction — the injected core (chained-marker math)", () => {
     const costing: QuietGenerate = () => Promise.resolve({ text: "MARKER", costUsd: 0.042 });
     const compaction = createCompaction(ctx, { emit, quietGenerate: costing, resolveConnection });
 
-    await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+    await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: host });
 
-    // The compaction spend landed as a cost-only, character/model-less owner delta.
+    // The compaction spend landed as a cost-only, character/model-less owner delta…
     const costDelta = deltas.find((d) => d.costUsd === 0.042);
     expect(costDelta).toBeDefined();
-    expect(costDelta?.ownerId).toBe(OWNER);
+    expect(costDelta?.ownerId).toBe(host);
     expect(costDelta?.characterId).toBeNull();
     expect(costDelta?.model).toBeNull();
+    // …and its ledger row committed beside it, the canon a stats rebuild re-derives the spend from.
+    expect(await db.select().from(compactionSpend)).toEqual([{ id: expect.any(String), ownerId: host, costUsd: 0.042, createdAt: FROZEN_AT }]);
   });
 
   test("a NULL generation cost stamps NO cost delta (a local vLLM turn reports none)", async () => {
@@ -291,6 +293,7 @@ describe("runCompaction — the injected core (chained-marker math)", () => {
 
     await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
     expect(deltas).toHaveLength(0);
+    expect(await db.select().from(compactionSpend)).toEqual([]);
   });
 });
 

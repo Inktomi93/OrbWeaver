@@ -5,7 +5,8 @@ import type { Db } from "@orb/db";
 import { dailyStats } from "@orb/db";
 import type { DailyStatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { STATS_BUCKET_MS, statsBucketStart } from "@orb/kit/stats-tally";
+import { statsBucketStart } from "@orb/kit/stats-tally";
+import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { beforeEach, describe } from "vitest";
 import {
   readByModel,
@@ -159,8 +160,8 @@ describe("readCharacter / readLeaderboard owner-scoping (D23 — no ownerId on c
 describe("readTimeseries", () => {
   test("returns the buckets inside the inclusive [from, to] window of bucket starts, ascending", async () => {
     const first = statsBucketStart(T0);
-    const middle = first + STATS_BUCKET_MS;
-    const last = first + 2 * STATS_BUCKET_MS;
+    const middle = first + CALENDAR_BUCKET_MS;
+    const last = first + 2 * CALENDAR_BUCKET_MS;
     // Seeded out of order, so the ascending order is the read's, not the insert's.
     await seedDailyStats(db, ownerId, last, { userTurns: 3 });
     await seedDailyStats(db, ownerId, first, { userTurns: 1 });
@@ -182,7 +183,7 @@ describe("readTimeseries", () => {
   test("carries a bucket's token provenance: unrecorded tokens read null, estimates stay flagged", async () => {
     const bucket = statsBucketStart(T0);
     await seedDailyStats(db, ownerId, bucket, { assistantTurns: 1, tokensOut: 0 });
-    await seedDailyStats(db, ownerId, bucket + STATS_BUCKET_MS, {
+    await seedDailyStats(db, ownerId, bucket + CALENDAR_BUCKET_MS, {
       assistantTurns: 1,
       tokensOut: 40,
       tokensOutMeasuredSamples: 1,

@@ -1,7 +1,10 @@
 import {
+  CALENDAR_BUCKET_MS,
+  calendarBucketStart,
   calendarPositionIn,
   createTimeLib,
   epochToMs,
+  groupByCalendarMonth,
   humanizeDuration,
   ianaTimeZoneSchema,
   isoToMs,
@@ -215,6 +218,7 @@ const lib = createTimeLib({ now: () => NOW_MS, locale: "en-US", timeZone: "UTC" 
 test("display: absolute forms under en-US/UTC", () => {
   expect(lib.formatDate(NOW_MS)).toBe("Jul 3, 2026");
   expect(lib.formatMonthYear(NOW_MS)).toBe("July 2026");
+  expect(lib.formatMonthDay(NOW_MS)).toBe("Jul 3");
   expect(lib.formatTime(NOW_MS)).toBe("12:00 PM");
   expect(lib.formatDateTime(NOW_MS)).toBe("Jul 3, 2026, 12:00 PM");
 });
@@ -353,4 +357,64 @@ test("ianaTimeZoneSchema is the wire gate: it canonicalizes a zone and refuses a
   expect(refused.success).toBe(false);
   expect(refused.error?.issues.map((issue) => issue.message)).toEqual(["Unknown IANA time zone"]);
   expect(ianaTimeZoneSchema.safeParse(42).success).toBe(false);
+});
+
+test("formatMonthDay names the viewer's day, not UTC's: 02:00 UTC on Feb 1 is Jan 31 in New York", () => {
+  const instant = Date.UTC(2024, 1, 1, 2, 0);
+  expect(createTimeLib({ locale: "en-US", timeZone: "UTC" }).formatMonthDay(instant)).toBe("Feb 1");
+  expect(createTimeLib({ locale: "en-US", timeZone: "America/New_York" }).formatMonthDay(instant)).toBe("Jan 31");
+});
+
+test("monthStart is the viewer's own month edge, at half-hour and 45-minute offsets too", () => {
+  expect(createTimeLib({ timeZone: "UTC" }).monthStart(2020, 7)).toBe(Date.UTC(2020, 6, 1));
+  expect(createTimeLib({ timeZone: "America/New_York" }).monthStart(2020, 7)).toBe(Date.UTC(2020, 6, 1, 4, 0));
+  expect(createTimeLib({ timeZone: "Asia/Kolkata" }).monthStart(2020, 7)).toBe(Date.UTC(2020, 5, 30, 18, 30));
+  expect(createTimeLib({ timeZone: "Asia/Kathmandu" }).monthStart(2020, 7)).toBe(Date.UTC(2020, 5, 30, 18, 15));
+});
+
+test("monthStart takes the first existing instant when a DST jump skips the month's first midnight", () => {
+  // Asuncion sprang forward at 00:00 on 2023-10-01, so October began at 01:00 local (UTC-3).
+  expect(createTimeLib({ timeZone: "America/Asuncion" }).monthStart(2023, 10)).toBe(Date.UTC(2023, 9, 1, 4, 0));
+});
+
+test("calendarBucketStart floors to the quarter-hour that holds a +5:30 and a +5:45 midnight", () => {
+  const kolkataMidnight = Date.UTC(2024, 0, 31, 18, 30);
+  const kathmanduMidnight = Date.UTC(2024, 0, 31, 18, 15);
+  expect(calendarBucketStart(kolkataMidnight)).toBe(kolkataMidnight);
+  expect(calendarBucketStart(kathmanduMidnight)).toBe(kathmanduMidnight);
+  expect(calendarBucketStart(kolkataMidnight - 1)).toBe(kolkataMidnight - CALENDAR_BUCKET_MS);
+});
+
+test("groupByCalendarMonth groups by the viewer's month, each carrying its earliest instant", () => {
+  const rows = [
+    { id: "jan-15", at: Date.UTC(2024, 0, 15, 12, 0) },
+    // 02:00 UTC on Feb 1 is still Jan 31 in New York.
+    { id: "nyc-jan-31", at: Date.UTC(2024, 1, 1, 2, 0) },
+    { id: "feb-15", at: Date.UTC(2024, 1, 15, 12, 0) },
+    { id: "jan-02", at: Date.UTC(2024, 0, 2, 12, 0) },
+  ];
+  const group = (timeZone: string): [string, number, string[]][] =>
+    groupByCalendarMonth(rows, (row) => row.at, createTimeLib({ timeZone }).calendarPosition).map(({ month, rows: inMonth }) => [
+      month.key,
+      month.start,
+      inMonth.map((row) => row.id),
+    ]);
+  expect(group("UTC")).toEqual([
+    ["2024-01", Date.UTC(2024, 0, 2, 12, 0), ["jan-15", "jan-02"]],
+    ["2024-02", Date.UTC(2024, 1, 1, 2, 0), ["nyc-jan-31", "feb-15"]],
+  ]);
+  expect(group("America/New_York")).toEqual([
+    ["2024-01", Date.UTC(2024, 0, 2, 12, 0), ["jan-15", "nyc-jan-31", "jan-02"]],
+    ["2024-02", Date.UTC(2024, 1, 15, 12, 0), ["feb-15"]],
+  ]);
+});
+
+test("groupByCalendarMonth turns the month at a +5:30 and a +5:45 zone's own midnight", () => {
+  // Between Kathmandu's Feb 1 midnight (18:15 UTC) and Kolkata's (18:30 UTC).
+  const rows = [{ at: Date.UTC(2024, 0, 31, 18, 15) }];
+  const keyIn = (timeZone: string): string[] =>
+    groupByCalendarMonth(rows, (row) => row.at, createTimeLib({ timeZone }).calendarPosition).map(({ month }) => month.key);
+  expect(keyIn("Asia/Kathmandu")).toEqual(["2024-02"]);
+  expect(keyIn("Asia/Kolkata")).toEqual(["2024-01"]);
+  expect(keyIn("UTC")).toEqual(["2024-01"]);
 });

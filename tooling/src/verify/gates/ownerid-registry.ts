@@ -90,6 +90,9 @@ export const OWNERID_CLASSIFICATIONS: Readonly<Record<string, OwnershipClassific
   // PARENTLESS PER-USER AGGREGATES (D23 KEEP)
   owner_stats: { why: "D23 parentless per-user aggregate" },
   stats_canon_versions: { why: "D23 parentless per-user aggregate — monotonic rebuild ownership token" },
+  compaction_spend: {
+    why: "D23 owner unreachable by FK — the funding host's compaction spend, which outlives the chat it was spent in (no chat_id), so the stamp is the only owner the stats rebuild can fold it to",
+  },
   automation_owner_budgets: {
     why: "D23 parentless per-user aggregate + D46 — C5's owner-GLOBAL fire-rate ceiling: the scope belt for chat-less rules, which no chat can key. The owner IS the scope here — the row has no parent to derive one from — so the stamp is the identity, not a redundant denormalization",
   },

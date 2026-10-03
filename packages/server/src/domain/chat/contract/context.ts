@@ -59,6 +59,7 @@ import type {
   ChatStreamEventId,
   ChatStreamGenerationId,
   ChatTurnId,
+  CompactionSpendId,
   EmbedGenerationId,
   Handle,
   MessageAssetId,
@@ -1351,6 +1352,7 @@ export interface ChatContext {
   /** Mints the turn's ephemeral identity once per `executeTurn` (docs/plans/rpg/design.md) — threaded to the tool-exec
    *  frame + the rpg turn-end hooks so a turn-scoped registrant correlates a turn's tool writes to its flush. */
   readonly newChatTurnId: () => ChatTurnId;
+  readonly newCompactionSpendId: () => CompactionSpendId;
   /** Hashes an invite token before persistence — never stored raw. */
   readonly hashToken: (token: string) => string;
   /** D259 — whether this mode mints signup invites, and the mode every invite is stamped with. */

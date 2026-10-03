@@ -141,6 +141,23 @@ describe("smartArbitrate — the deterministic fallback", () => {
     expect([charRef("aria"), charRef("bran"), charRef("cara")]).toContainEqual(out.speakers[0]);
   });
 
+  test("the fallback answers the character the human named: a word mention leads the natural pick", async () => {
+    // rng 0.5 passes every 0.5-talkativeness roll, so without the mention the shuffled walk's first member
+    // would win; the named member is placed first, and the one-speaker cap keeps exactly it.
+    const out = await smartArbitrate({
+      summarize: summarizeReturning("Gandalf"),
+      candidates: CANDIDATES,
+      speakerCandidates: SPEAKER_CANDIDATES,
+      recentHistory: "...",
+      lastSpeaker: null,
+      mentionedIds: [cid("cara")],
+      rng,
+      sampling: ARB_SAMPLING,
+      prose: {},
+    });
+    expect(out).toEqual({ speakers: [charRef("cara")], degraded: true, aborted: false });
+  });
+
   test("an op throw degrades to the fallback, never throws", async () => {
     const summarize: RoleClientsWithSignal["summarize"] = vi.fn(() => Promise.reject(new Error("side-LLM down")));
     const out = await smartArbitrate({

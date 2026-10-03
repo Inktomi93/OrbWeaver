@@ -227,6 +227,8 @@ export interface TimeLib {
   readonly formatDate: (epochMs: number) => string;
   /** `July 2026` — calendar-month scope form. */
   readonly formatMonthYear: (epochMs: number) => string;
+  /** `Jul 3` — a day on an axis whose year is already stated. */
+  readonly formatMonthDay: (epochMs: number) => string;
   /** `Jul 3, 2026, 14:07` — audit/detail form. */
   readonly formatDateTime: (epochMs: number) => string;
   /** `3m ago` / `in 2h`; past ~7 days falls back to `formatDate` (relative loses meaning). */
@@ -245,6 +247,9 @@ export interface TimeLib {
   /** Where an instant falls on the viewer's calendar, in the SAME zone the formatters render in — the one
    *  seam a chart buckets by day, weekday or hour through, so a bucket and its label never disagree. */
   readonly calendarPosition: (epochMs: number) => CalendarPosition;
+  /** The first instant of the 1-based `month` of `year` on the viewer's calendar — the edge a month picker
+   *  scopes by, in the SAME zone {@link TimeLib.calendarPosition} places instants in. */
+  readonly monthStart: (year: number, month: number) => number;
   /** Current epoch-ms from the SAME injected clock the formatters use — the sanctioned "now" read (a
    *  feature computing an elapsed-since a stored timestamp reads it here, never ambient `Date.now()`). */
   readonly now: () => number;
@@ -256,6 +261,52 @@ export interface CalendarPosition {
   readonly day: string;
   readonly weekday: number;
   readonly hour: number;
+}
+
+/** The UTC grain an aggregate read ships for the client to fold onto the viewer's calendar: a quarter-hour.
+ *  Every current zone offset is a whole multiple of 15 minutes (+5:30, +5:45, +12:45) and every transition
+ *  since 2022 lands on a quarter-hour, so a bucket lies inside one local hour, day and month. Older
+ *  transitions off a quarter-hour (America/St_Johns before 2011, Gaza and Hebron in 2010-11,
+ *  Antarctica/Casey in 2020-22) can place one bucket's tail in the neighbouring local hour. */
+export const CALENDAR_BUCKET_MS = 900_000;
+
+/** The start (epoch-ms) of the {@link CALENDAR_BUCKET_MS} bucket an epoch-ms instant falls in. */
+export function calendarBucketStart(ms: number): number {
+  return Math.floor(ms / CALENDAR_BUCKET_MS) * CALENDAR_BUCKET_MS;
+}
+
+/** One of the viewer's calendar months: the `YYYY-MM` sort key, and the earliest grouped instant inside it so
+ *  the time seam can name it (`formatMonthYear`) — the key itself is never shown. */
+export interface CalendarMonth {
+  readonly key: string;
+  readonly start: number;
+}
+
+/** `YYYY-MM` is the first seven characters of a `YYYY-MM-DD` calendar day. */
+const MONTH_KEY_LENGTH = 7;
+
+/** Group instant-stamped rows by the viewer's calendar month, months ascending and rows in input order.
+ *  `position` is the time seam's `calendarPosition`, so the grouping and the month's label share one zone. */
+export function groupByCalendarMonth<Row>(
+  rows: readonly Row[],
+  instantOf: (row: Row) => number,
+  position: (epochMs: number) => CalendarPosition,
+): { readonly month: CalendarMonth; readonly rows: readonly Row[] }[] {
+  const months = new Map<string, { month: CalendarMonth; rows: Row[] }>();
+  for (const row of rows) {
+    const at = instantOf(row);
+    const key = position(at).day.slice(0, MONTH_KEY_LENGTH);
+    const group = months.get(key);
+    if (group === undefined) {
+      months.set(key, { month: { key, start: at }, rows: [row] });
+    } else {
+      group.rows.push(row);
+      if (at < group.month.start) {
+        group.month = { key, start: at };
+      }
+    }
+  }
+  return [...months.values()].toSorted((a, b) => a.month.key.localeCompare(b.month.key));
 }
 
 const MS_PER_MINUTE = 60 * MS_PER_SECOND;
@@ -383,6 +434,7 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
     year: "numeric",
     month: "long",
   });
+  const monthDay = new Intl.DateTimeFormat(locale, { ...tz, month: "short", day: "numeric" });
   const dateTime = new Intl.DateTimeFormat(locale, {
     ...tz,
     year: "numeric",
@@ -400,9 +452,13 @@ export function createTimeLib(config: TimeLibConfig = {}): TimeLib {
   return {
     now,
     calendarPosition: (epochMs): CalendarPosition => positionInZone(epochMs, zone),
+    // A plain date resolves to the zone's start of day, which is the first existing instant when a DST jump
+    // skips that zone's midnight.
+    monthStart: (year, month): number => Temporal.PlainDate.from({ year, month, day: 1 }, { overflow: "reject" }).toZonedDateTime(zone).epochMilliseconds,
     formatTime: (epochMs): string => time.format(epochMs),
     formatDate,
     formatMonthYear: (epochMs): string => monthYear.format(epochMs),
+    formatMonthDay: (epochMs): string => monthDay.format(epochMs),
     formatDateTime: (epochMs): string => dateTime.format(epochMs),
     formatRelative: (epochMs): string => {
       const deltaMs = epochMs - now();

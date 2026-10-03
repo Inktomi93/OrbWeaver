@@ -5,6 +5,7 @@
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createTimeLib } from "@orb/kit/time";
 import { describe } from "vitest";
 import {
   activityHeatmapMatrix,
@@ -135,17 +136,38 @@ describe("the nullable formatter family renders unrecorded as an em dash", () =>
   });
 });
 
-// A ~1,100-day axis wrapped `11-22 → 01-24` with nothing marking the year turning over (P2f).
+// The day forms a daily axis reads through, pinned to one locale and zone so the labels are deterministic.
+const UTC_DAYS = createTimeLib({ locale: "en-US", timeZone: "UTC" });
+
+/** A viewer-local day point: its `YYYY-MM-DD` key and an instant on it (noon UTC lies on that day in UTC). */
+function dayPoint(day: string): { day: string; start: number } {
+  return { day, start: Date.parse(`${day}T12:00:00Z`) };
+}
+
+// A ~1,100-day axis wraps `Nov 22 → Jan 24` with nothing marking the year turning over unless a crossing keeps it.
 describe("formatDayLabel keeps the year at a crossing", () => {
-  test("drops the YYYY- prefix within a year", () => {
-    expect(formatDayLabel("2026-07-13", "2026-07-12")).toBe("07-13");
-    expect(formatDayLabel("07-13", "07-12")).toBe("07-13");
+  test("names a day within a year by month and day only", () => {
+    expect(formatDayLabel(dayPoint("2026-07-13"), "2026-07-12", UTC_DAYS)).toBe("Jul 13");
   });
   test("the FIRST bucket of a series keeps its year (nothing precedes it to imply one)", () => {
-    expect(formatDayLabel("2026-07-13")).toBe("2026-07-13");
+    expect(formatDayLabel(dayPoint("2026-07-13"), undefined, UTC_DAYS)).toBe("Jul 13, 2026");
   });
   test("the first bucket of a NEW year keeps its year", () => {
-    expect(formatDayLabel("2027-01-02", "2026-12-31")).toBe("2027-01-02");
+    expect(formatDayLabel(dayPoint("2027-01-02"), "2026-12-31", UTC_DAYS)).toBe("Jan 2, 2027");
+  });
+  test("names the viewer's day, not UTC's, while the year crossing reads the viewer's day key", () => {
+    // 02:00 UTC on Jan 1 2027 is Dec 31 2026 in New York: the label and the crossing both follow the viewer.
+    const newYork = createTimeLib({ locale: "en-US", timeZone: "America/New_York" });
+    const point = { day: "2026-12-31", start: Date.UTC(2027, 0, 1, 2, 0) };
+    expect(formatDayLabel(point, "2026-12-30", newYork)).toBe("Dec 31");
+  });
+  test("+5:30 and +5:45 zones name the day their own midnight starts", () => {
+    // 18:20 UTC on Jan 1 is past Kathmandu's midnight (18:15) and short of Kolkata's (18:30).
+    const instant = Date.UTC(2026, 0, 1, 18, 20);
+    expect(formatDayLabel({ day: "2026-01-02", start: instant }, "2026-01-01", createTimeLib({ locale: "en-US", timeZone: "Asia/Kathmandu" }))).toBe("Jan 2");
+    expect(formatDayLabel({ day: "2026-01-01", start: instant }, "2025-12-31", createTimeLib({ locale: "en-US", timeZone: "Asia/Kolkata" }))).toBe(
+      "Jan 1, 2026",
+    );
   });
 });
 
@@ -242,29 +264,38 @@ describe("chart-family row adapters", () => {
     expect(items[0]).toEqual({ id: "p1", label: "Alex", value: 12 });
   });
   test("dailyTurnBuckets shortens the day label and carries the turn count", () => {
-    const buckets = dailyTurnBuckets([
-      { day: "2026-07-13", assistantTurns: 8 },
-      { day: "2026-07-14", assistantTurns: 3 },
-    ]);
+    const buckets = dailyTurnBuckets(
+      [
+        { ...dayPoint("2026-07-13"), assistantTurns: 8 },
+        { ...dayPoint("2026-07-14"), assistantTurns: 3 },
+      ],
+      UTC_DAYS,
+    );
     // The FIRST bucket anchors the series with its year; the rest ride the short form.
-    expect(buckets[0]).toEqual({ label: "2026-07-13", count: 8 });
-    expect(buckets[1]).toEqual({ label: "07-14", count: 3 });
+    expect(buckets[0]).toEqual({ label: "Jul 13, 2026", count: 8 });
+    expect(buckets[1]).toEqual({ label: "Jul 14", count: 3 });
   });
   test("the bucket builders pass the PREVIOUS day through, so a year crossing is marked mid-series", () => {
-    const buckets = dailyTokenBuckets([
-      { day: "2026-12-30", tokensOut: 1, tokensOutProvenance: "measured" },
-      { day: "2026-12-31", tokensOut: 2, tokensOutProvenance: "estimated" },
-      { day: "2027-01-01", tokensOut: 3, tokensOutProvenance: "measured" },
-    ]);
-    expect(buckets.map((b) => b.label)).toEqual(["2026-12-30", "12-31", "2027-01-01"]);
+    const buckets = dailyTokenBuckets(
+      [
+        { ...dayPoint("2026-12-30"), tokensOut: 1, tokensOutProvenance: "measured" },
+        { ...dayPoint("2026-12-31"), tokensOut: 2, tokensOutProvenance: "estimated" },
+        { ...dayPoint("2027-01-01"), tokensOut: 3, tokensOutProvenance: "measured" },
+      ],
+      UTC_DAYS,
+    );
+    expect(buckets.map((b) => b.label)).toEqual(["Dec 30, 2026", "Dec 31", "Jan 1, 2027"]);
   });
   test("dailyTokenBuckets omits unrecorded days instead of manufacturing zero-token bars", () => {
     expect(
-      dailyTokenBuckets([
-        { day: "2026-12-30", tokensOut: 99, tokensOutProvenance: "unrecorded" },
-        { day: "2027-01-01", tokensOut: 0, tokensOutProvenance: "measured" },
-      ]),
-    ).toEqual([{ label: "2027-01-01", count: 0 }]);
+      dailyTokenBuckets(
+        [
+          { ...dayPoint("2026-12-30"), tokensOut: 99, tokensOutProvenance: "unrecorded" },
+          { ...dayPoint("2027-01-01"), tokensOut: 0, tokensOutProvenance: "measured" },
+        ],
+        UTC_DAYS,
+      ),
+    ).toEqual([{ label: "Jan 1, 2027", count: 0 }]);
   });
 });
 

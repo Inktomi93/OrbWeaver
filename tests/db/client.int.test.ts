@@ -259,6 +259,29 @@ test("the 0004 migration gives characters a nullable import_text_hash beside imp
   ]);
 });
 
+test("the 0006 migration adds the compaction_spend ledger and the image provider-call id", async () => {
+  const db = await createDb(":memory:");
+  await runMigrations(db, MIGRATIONS_DIR);
+  expect(await db.all(sql.raw("select name, type, \"notnull\" as required, pk from pragma_table_info('compaction_spend') order by cid"))).toEqual([
+    { name: "id", type: "TEXT", required: 1, pk: 1 },
+    { name: "owner_id", type: "TEXT", required: 1, pk: 0 },
+    { name: "cost_usd", type: "REAL", required: 1, pk: 0 },
+    { name: "created_at", type: "INTEGER", required: 1, pk: 0 },
+  ]);
+  expect(await db.all(sql.raw('select "table", "from", "to", on_delete as onDelete from pragma_foreign_key_list(\'compaction_spend\')'))).toEqual([
+    { table: "users", from: "owner_id", to: "id", onDelete: "RESTRICT" },
+  ]);
+  expect(await db.all(sql.raw("select name from pragma_index_info('compaction_spend_owner_idx') order by seqno"))).toEqual([
+    { name: "owner_id" },
+    { name: "created_at" },
+  ]);
+  // …and gives every image provenance row a nullable provider-call id (legacy rows hold NULL).
+  expect(await db.all(sql.raw("select name, type, \"notnull\" as required from pragma_table_info('imagery_generations') where name = 'call_id'"))).toEqual([
+    { name: "call_id", type: "TEXT", required: 0 },
+  ]);
+  await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
+});
+
 test("the 0007 migration gives automation rules a nullable time_zone, so rules saved before it read as zone-less", async () => {
   const db = await createDb(":memory:");
   await runMigrations(db, MIGRATIONS_DIR);
