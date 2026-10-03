@@ -118,7 +118,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     task: "rerank",
     label: CONNECTION_ROLE_LABELS.rerank,
     heading: "Rerank",
-    description: "Reorders retrieved results by relevance.",
+    description: "Reorders retrieved results by relevance, and picks who replies in rooms set to Smart.",
     optional: false,
     requirements: [],
   },
@@ -181,9 +181,9 @@ export function utilityReadsImages(capability: Capability): boolean {
 /** What Memory costs, said wherever a person turns it on or picks the model it runs on. */
 export const MEMORY_COST_SENTENCE = `Memory makes about one extra summary call on your Utility model for every ${DEFAULT_MEMORY_DEFAULTS.blockSize} messages once a chat grows long.`;
 
-/** What the Smart speaker order costs, said wherever a host picks it. */
+/** What Smart's Utility-model picker costs, said under the switch that turns it on. */
 export const SMART_POLICY_COST_SENTENCE =
-  "Smart makes one extra call on your Utility model to pick who replies. The call is skipped when the last message names characters and every name is clear.";
+  "Turning this on adds one extra call on your Utility model each time Smart picks who replies. The call is skipped when the last message names characters and every name is clear.";
 
 /** The inline refusal a Model-roles row shows BEFORE writing a binding (§5.3a — the slot is the first
  *  enforcement point): a background task on a row with `allowBackground` off. `null` = bindable. */

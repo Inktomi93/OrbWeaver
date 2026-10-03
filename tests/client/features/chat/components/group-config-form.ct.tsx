@@ -152,15 +152,17 @@ test("with a running Rerank model Smart can be chosen, and the choice saves", as
 test("switching a Smart room to Narrator saves Natural and disables Smart; switching back does not restore it", async ({ mount, page }) => {
   await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": withRunningRerank(utilityBindings("running")) });
   const component = await mount(<GroupConfigFormStory config={groupConfigSchema.parse({ output: "per-speaker", policy: "smart" })} />);
-  const healed = component.locator(HEALED_STATUS);
-  await expect(healed).toHaveCount(0);
+  // The live region is mounted empty before the heal, so assistive tech is watching it when the text lands.
+  const healed = component.getByRole("status").and(component.locator(HEALED_STATUS));
+  await expect(healed).toHaveCount(1);
+  await expect(healed).toBeEmpty();
 
   await component.getByRole("button", { name: "Narrator" }).click();
   await expect(component.locator(SAVED)).toContainText('"output":"narrator"');
   await expect(component.locator(SAVED)).toContainText('"policy":"natural"');
   // The heal is said, not silent: a status line under the output toggle.
+  await expect(healed).not.toBeEmpty();
   await expect(healed).toBeVisible();
-  await expect(healed).toHaveAttribute("role", "status");
 
   await component.getByRole("button", { name: "Advanced" }).click();
   await component.getByRole("combobox", POLICY_COMBOBOX).click();
@@ -170,6 +172,8 @@ test("switching a Smart room to Narrator saves Natural and disables Smart; switc
   await component.getByRole("button", { name: "Per-speaker" }).click();
   await expect(component.locator(SAVED)).toContainText('"output":"per-speaker"');
   await expect(component.locator(SAVED)).toContainText('"policy":"natural"');
+  // Back on Per-speaker the heal no longer describes the room, so the status line clears.
+  await expect(healed).toBeEmpty();
 });
 
 test("Smart's default Rerank picker with no Rerank model bound offers the door to Model roles", async ({ mount, page }) => {

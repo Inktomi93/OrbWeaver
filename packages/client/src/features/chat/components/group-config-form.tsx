@@ -58,7 +58,7 @@ function policyItemsFor(output: GroupOutput): SelectItems<string> {
 // Clear names never need the picker model, so they still answer while it is missing.
 const NO_PICKER_FALLBACK = "named characters still answer, Natural makes any other pick, and you're told once per session.";
 
-const RERANKER_SMART_HELP = `Smart picks who replies with your ${SMART_PICKER_LABELS.reranker}. Characters the last message names clearly reply. When a name could mean more than one person, Smart picks one. If no ${SMART_PICKER_LABELS.reranker} is available, ${NO_PICKER_FALLBACK}`;
+const RERANKER_SMART_HELP = `Smart uses your ${SMART_PICKER_LABELS.reranker} to pick who replies. A character the last message names clearly always replies; when a name could mean more than one person, Smart picks one of them. With no ${SMART_PICKER_LABELS.reranker}, named characters still answer, Natural makes every other pick, and you're told once per session.`;
 
 /** Said once a switch to Narrator has turned this room's Smart into Natural; switching back does not restore it. */
 const NARRATOR_HEALED_SMART = "Smart needs Per-speaker, so this room now uses Natural.";
@@ -74,10 +74,12 @@ const POLICY_HELP: Record<Exclude<GroupPolicy, "smart">, string> = {
   manual: "Nobody replies on their own. Mention a character with @, or pick one from Generate reply. A Narrator room still narrates every message.",
 };
 
+const AUTO_MODE_LABEL = "Let characters reply to each other";
+const MAX_TURNS_LABEL = "Max turns in a row";
+
 // A Narrator room voices everyone in every message, so these policies pick no speaker there: they only keep a
 // chain of character replies going (`engine/auto-mode.ts` asks for one speaker per beat, and each always finds one).
-const NARRATOR_CHAIN_HELP =
-  "Narrator voices everyone in every message, so this only matters when characters reply to each other: the replies keep coming until the turn limit.";
+const NARRATOR_CHAIN_HELP = `Narrator voices everyone in every message, so this choice matters only with “${AUTO_MODE_LABEL}” on. ${GROUP_POLICY_LABELS.natural}, ${GROUP_POLICY_LABELS.list} and ${GROUP_POLICY_LABELS.pooled} then work the same: replies keep coming until “${MAX_TURNS_LABEL}”.`;
 const NARRATOR_POLICY_HELP: Record<Exclude<GroupPolicy, "smart">, string> = {
   natural: NARRATOR_CHAIN_HELP,
   list: NARRATOR_CHAIN_HELP,
@@ -198,6 +200,7 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
   const factorySave = (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
   // Which room's switch to Narrator turned Smart into Natural; keyed by room so a chat switch never carries it over.
   const [healedSmartIn, setHealedSmartIn] = useState<string | null>(null);
+  const noteHeal = (healed: boolean): void => setHealedSmartIn(healed ? entityId : null);
 
   return (
     <GroupConfigFormBoundary entityId={entityId} serverValues={toGroupConfigForm(config)} save={factorySave}>
@@ -216,11 +219,13 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                       field.handleChange(output);
                       form.setFieldValue("speakerTags", defaultSpeakerTags(output));
                       // A Narrator room cannot hold Smart: it becomes Natural, and switching back does not restore it.
+                      // The status line describes only the switch just made, so leaving Narrator clears it.
                       const policy = form.getFieldValue("policy");
-                      if (output === "narrator" && policy !== narratorPolicyOf(policy)) {
+                      const heals = output === "narrator" && policy !== narratorPolicyOf(policy);
+                      if (heals) {
                         form.setFieldValue("policy", narratorPolicyOf(policy));
-                        setHealedSmartIn(entityId);
                       }
+                      noteHeal(heals);
                     }
                   }}
                   aria-label="How the characters reply"
@@ -233,11 +238,10 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                     ? "One message voices everyone — you can't swipe individuals."
                     : "Each character replies in their own message — swipe them individually."}
                 </Text>
-                {healedSmartIn === entityId ? (
-                  <Text data-slot="narrator-healed-smart" role="status" voice="gloss">
-                    {NARRATOR_HEALED_SMART}
-                  </Text>
-                ) : null}
+                {/* Always mounted, so a screen reader is already watching the region when the heal fills it. */}
+                <Text data-slot="narrator-healed-smart" role="status" voice="gloss">
+                  {healedSmartIn === entityId ? NARRATOR_HEALED_SMART : ""}
+                </Text>
               </Stack>
             )}
           </form.AppField>
@@ -338,7 +342,7 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                     <form.AppField name="autoMode">
                       {(field): ReactElement => (
                         <field.SwitchField
-                          label="Let characters reply to each other"
+                          label={AUTO_MODE_LABEL}
                           description="They keep the conversation going on their own — each auto-turn is a full generation you pay for."
                         />
                       )}
@@ -348,7 +352,7 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                         autoMode ? (
                           <Stack gap="field">
                             <form.AppField name="autoModeMaxTurns">
-                              {(field): ReactElement => <field.SliderField label="Max turns in a row" min={MAX_TURNS_MIN} max={MAX_TURNS_MAX} step={1} />}
+                              {(field): ReactElement => <field.SliderField label={MAX_TURNS_LABEL} min={MAX_TURNS_MIN} max={MAX_TURNS_MAX} step={1} />}
                             </form.AppField>
                             <form.AppField name="autoModeDelayMs">
                               {(field): ReactElement => (
