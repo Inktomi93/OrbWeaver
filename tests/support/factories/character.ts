@@ -13,6 +13,7 @@ import { castId } from "@orb/kit/ids";
 // downward from a factory pulls `node:crypto` and two contracts, never a domain graph. D9 names this
 // subpath family canonical and 19 of them are already imported across `tests/server/**`.
 import { cardContentHash } from "@orb/server/kit/serde/card";
+import { sql } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../clock.ts";
 import { createSeededIds } from "../ids.ts";
 import { seedUser } from "./user.ts";
@@ -97,5 +98,18 @@ export async function seedCharacter(db: Db, overrides: Partial<CharacterRow> = {
   const ownerId = overrides.ownerId ?? (await seedUser(db)).id;
   const row = makeCharacter({ ...overrides, ownerId });
   await db.insert(characters).values(row);
+  return row;
+}
+
+/** `seedCharacter` for a db the migrator stopped at a PAST migration point. The drizzle insert names every
+ *  column of the LIVE schema, so it fails on a db that predates a later `ADD COLUMN`. This raw insert names
+ *  only the NOT NULL columns without a default, which every migration since `0000_baseline` carries; the
+ *  rest take their schema defaults. */
+export async function seedCharacterAtBaseline(db: Db, overrides: Partial<CharacterRow> = {}): Promise<CharacterRow> {
+  const ownerId = overrides.ownerId ?? (await seedUser(db)).id;
+  const row = makeCharacter({ ...overrides, ownerId });
+  await db.run(
+    sql`INSERT INTO characters (id, handle, owner_id, content_hash, name) VALUES (${row.id}, ${row.handle}, ${row.ownerId}, ${row.contentHash}, ${row.name})`,
+  );
   return row;
 }

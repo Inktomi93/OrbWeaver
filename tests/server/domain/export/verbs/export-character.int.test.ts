@@ -3,14 +3,14 @@
 //     cardFromJson IN adapter — the one-serde-core invariant);
 //   • owner-scoping (a foreign / missing character returns null — no existence leak);
 //   • accepted-only tags (pending suggestions are NOT serialized);
-//   • the book walk (attached books' entries ride into the card's character_book);
+//   • the book embed (only the PRIMARY book's entries ride into the card's character_book, D286);
 //   • avatar embedding (the avatar blob is the base; a non-PNG is transcoded via the injected op; a
 //     missing/absent avatar falls back to the placeholder via a SINGLE TOCTOU-safe cas.read).
 
 import { characterCardV3Schema } from "@orb/contracts/character";
 import { characterBooks } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, WorldBookId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { isPng, readCardChunk } from "@orb/kit/png-card-chunk";
 import { createExportService } from "@orb/server/domain/export";
 import { parseCardPng } from "@orb/server/domain/import";
@@ -97,27 +97,36 @@ describe("exportCharacter", () => {
     expect(card.data.tags).toEqual(["fantasy"]);
   });
 
-  test("walks attached books into the card's character_book (de-duped by entry)", async () => {
+  test("embeds the PRIMARY book as the card's character_book under its name; an auxiliary book is not merged in", async () => {
     const db = await freshDb();
     const svc = createExportService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
-    const book = await seedWorldBook(db, owner, "world_book_0000000000000000000000000c");
+    const primary = await seedWorldBook(db, owner, "world_book_0000000000000000000000000c");
+    const aux = await seedWorldBook(db, owner, "world_book_0000000000000000000000000d");
     await seedWorldEntry(db, {
-      worldBookId: book,
+      worldBookId: primary,
       title: "Dragons",
       content: "they breathe fire",
       keys: ["dragon"],
     });
-    await seedCharacterBook(db, character, book);
+    await seedWorldEntry(db, {
+      id: mintTypeId(ID_PREFIX.worldEntry),
+      worldBookId: aux,
+      title: "Elves",
+      content: "they live long",
+      keys: ["elf"],
+    });
+    await seedCharacterBook(db, character, primary, "primary");
+    await seedCharacterBook(db, character, aux, "auxiliary");
 
     const result = await svc.exportCharacter({
       principal: principal(owner),
       characterId: character,
     });
     const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
-    expect(card.data.character_book?.entries).toHaveLength(1);
-    expect(card.data.character_book?.entries[0]?.content).toBe("they breathe fire");
+    expect(card.data.character_book?.["name"]).toBe("Book");
+    expect(card.data.character_book?.entries.map((entry) => entry.content)).toEqual(["they breathe fire"]);
   });
 
   // ── attached-book REFERENCES (portability twin of the duplicate carry) ──────────────────────────────

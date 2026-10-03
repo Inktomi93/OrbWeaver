@@ -4,7 +4,14 @@
 // vocabulary (trigger/action shapes) lives in `@orb/contracts/automation`; these are server-internal call
 // shapes.
 
-import type { AutomationActionInput, AutomationRuleEditableInput, RulePresetId, RulePresetKnobValues, TriggerFact } from "@orb/contracts/automation";
+import type {
+  AutomationActionInput,
+  AutomationRuleEditableInput,
+  AutomationRuleReorder,
+  RulePresetId,
+  RulePresetKnobValues,
+  TriggerFact,
+} from "@orb/contracts/automation";
 import type { Principal } from "@orb/contracts/identity";
 import type { AutomationRuleCreationId, AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 import type { RulePresetKnobOverrides } from "./presets.ts";
@@ -103,10 +110,7 @@ export interface DeleteRuleParams extends AutomationActorParams {
   readonly ruleId: AutomationRuleId;
 }
 
-export interface ReorderRulesParams extends AutomationActorParams {
-  readonly chatId: ChatId | null;
-  readonly orderedIds: readonly AutomationRuleId[];
-}
+export interface ReorderRulesParams extends AutomationActorParams, Readonly<AutomationRuleReorder> {}
 
 export interface ListRulesParams extends AutomationActorParams {
   readonly chatId: ChatId;

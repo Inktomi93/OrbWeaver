@@ -8,6 +8,7 @@
 
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { ImportScriptFileResult } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ChatId, RegexScriptId } from "@orb/kit/ids";
@@ -122,7 +123,7 @@ export interface RegexService {
   readonly exportScript: (params: ExportScriptParams) => Promise<ExportedRegexScriptFile | null>;
   /** Throws `DomainOperationError("regex_script_unparseable", …)` with the serde's own reason for a file this
    *  build cannot read — the refusal reaches the user as words, never as "invalid file". */
-  readonly importScriptFile: (params: ImportScriptFileParams) => Promise<{ readonly created: boolean }>;
+  readonly importScriptFile: (params: ImportScriptFileParams) => Promise<ImportScriptFileResult>;
 
   /** Marks a script global (runs in every chat the owner hosts). Gate is plain script ownership. */
   readonly attachGlobal: (params: AttachGlobalParams) => Promise<void>;
