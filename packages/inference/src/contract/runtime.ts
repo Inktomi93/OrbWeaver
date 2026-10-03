@@ -4,7 +4,7 @@
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { BindingActorKind, ConnectionBinding, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
-import { modelCatalogEntrySchema } from "@orb/contracts/inference";
+import { modalitySchema, modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import type { AutomationRuleId, PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -61,6 +61,12 @@ const endpointModelSchema = z.object({
   maxCompletionTokens: modelCatalogEntrySchema.shape.maxCompletionTokens,
   /** An embedder's vector width, where the server's native model info states it. */
   embeddingDims: z.number().int().positive().optional(),
+  /** What a chat turn may carry, where the server's native model info states it (D292). Absent ⇒ not stated. */
+  input: z.array(modalitySchema).optional(),
+  /** The server states the model takes `tools[]`; `parallel` only where it states that too. Absent ⇒ not stated. */
+  tools: z.object({ parallel: z.boolean() }).optional(),
+  /** The server's version is at or past the build that added JSON-schema constrained output. Absent ⇒ not stated. */
+  structured: z.boolean().optional(),
 });
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
 export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.ZodType<EndpointModel[]>;

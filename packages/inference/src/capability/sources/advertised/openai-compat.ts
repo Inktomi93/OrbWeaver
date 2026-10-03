@@ -1,16 +1,33 @@
 // The ADVERTISED tier from an OpenAI-compatible `/v1/models` row: ids and, when the server reports one, a chat
-// model's context window (vLLM `max_model_len`, LM Studio `max_context_length`, Ollama's native `num_ctx`) or
-// an embedder's width (Ollama's native `embedding_length`). Everything else is curated or declared (§5.7, §6.3).
+// model's context window (vLLM `max_model_len`, LM Studio `max_context_length`, llama.cpp `meta.n_ctx`, Ollama's
+// native `num_ctx`), an embedder's width, and — where the row's native model-info API states them (D292) — the
+// modalities a turn may carry, whether the model takes `tools[]`, and schema-constrained output. Everything else
+// is curated or declared (§5.7, §6.3).
 
-import type { EmbeddingCapability, GenerationCapability, ModelKind } from "@orb/contracts/inference";
+import type { CapabilityOverride, EmbeddingCapability, ModelKind } from "@orb/contracts/inference";
 import type { EndpointModel } from "../../../contract/runtime.ts";
 
+type GenerationPatch = NonNullable<CapabilityOverride["generation"]>;
+
 export function advertisedFromOpenAiCompat(
-  entry: Pick<EndpointModel, "contextLength" | "embeddingDims">,
+  entry: Pick<EndpointModel, "contextLength" | "embeddingDims" | "input" | "tools" | "structured">,
   kind: ModelKind,
-): Partial<GenerationCapability> | Partial<EmbeddingCapability> {
+): GenerationPatch | Partial<EmbeddingCapability> {
   if (kind === "embedding") {
     return entry.embeddingDims === undefined ? {} : { dims: entry.embeddingDims };
   }
-  return kind === "generation" && entry.contextLength !== null ? { context: { window: entry.contextLength } } : {};
+  if (kind !== "generation") {
+    return {};
+  }
+  return {
+    ...(entry.contextLength !== null ? { context: { window: entry.contextLength } } : {}),
+    ...(entry.input === undefined ? {} : { input: [...entry.input] }),
+    ...(entry.tools === undefined ? {} : { tools: { parallel: entry.tools.parallel } }),
+    ...(entry.structured === true ? { output: { structured: true } } : {}),
+  };
+}
+
+/** Whether the advertised tier states what a turn may carry — the D292 bit the endpoint posture reads. */
+export function advertisedStatesInput(entry: Pick<EndpointModel, "input"> | undefined): boolean {
+  return entry?.input !== undefined;
 }

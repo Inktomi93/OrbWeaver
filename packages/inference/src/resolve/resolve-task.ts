@@ -33,7 +33,7 @@ import { detectModelFamily } from "../capability/families.ts";
 import { applyEndpointPosture } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
-import { advertisedFromOpenAiCompat } from "../capability/sources/advertised/openai-compat.ts";
+import { advertisedFromOpenAiCompat, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
 import { advertisedFromOpenRouter } from "../capability/sources/advertised/openrouter.ts";
 import { curatedKind, curatedRows } from "../capability/sources/curated/loader.ts";
 import { measuredRows } from "../capability/sources/measured/loader.ts";
@@ -99,15 +99,17 @@ function kindOf(
   let catalogKind: ModelKind | undefined;
   if (provider.dialect === "openrouter") {
     catalogKind = ctx.openRouterCatalog.get()?.find((entry) => entry.id === connection.model)?.kind;
-  } else if (provider.wire === "google-generative-ai") {
+  } else if (provider.wire === "google-generative-ai" || provider.wire === "openai-compat") {
+    // Native discovery (Google's method list, a local server's model-info API) states a kind the generic list lacks.
     const baseUrl = provider.baseUrl ?? connection.baseUrl;
+    const catalogId = provider.wire === "google-generative-ai" ? googleModelId(connection.model) : connection.model;
     catalogKind =
       baseUrl === null
         ? undefined
         : ctx
             .endpointModels(baseUrl)
             .get()
-            ?.find((entry) => entry.id === googleModelId(connection.model))?.kind;
+            ?.find((entry) => entry.id === catalogId)?.kind;
   }
   return (
     (args.includeDeclared === false ? undefined : connection.declared?.kind) ??
@@ -136,18 +138,27 @@ function advertisedFor(
     const entry = ctx.openRouterCatalog.get()?.find((candidate) => candidate.id === model);
     return entry === undefined ? undefined : advertisedFromOpenRouter(entry);
   }
-  const baseUrl = provider.wire === "openai-compat" || provider.wire === "google-generative-ai" ? (provider.baseUrl ?? connection.baseUrl) : null;
-  const entry =
-    baseUrl === null
-      ? undefined
-      : ctx
-          .endpointModels(baseUrl)
-          .get()
-          ?.find((candidate) => candidate.id === (provider.wire === "google-generative-ai" ? googleModelId(model) : model));
+  const entry = endpointEntryFor(ctx, { provider, connection, model });
   if (provider.wire === "google-generative-ai") {
     return googleAdvertised(entry, provider, model);
   }
   return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry, kind);
+}
+
+/** The endpoint mirror's row for this connection's model, on the two wires whose list the mirror holds. */
+function endpointEntryFor(
+  ctx: ResolverContext,
+  { provider, connection, model }: { readonly provider: ProviderDef; readonly connection: UserConnection; readonly model: ModelId },
+): EndpointModel | undefined {
+  const baseUrl = provider.wire === "openai-compat" || provider.wire === "google-generative-ai" ? (provider.baseUrl ?? connection.baseUrl) : null;
+  if (baseUrl === null) {
+    return;
+  }
+  const catalogId = provider.wire === "google-generative-ai" ? googleModelId(model) : model;
+  return ctx
+    .endpointModels(baseUrl)
+    .get()
+    ?.find((candidate) => candidate.id === catalogId);
 }
 
 function googleAdvertised(entry: EndpointModel | undefined, provider: ProviderDef, model: ModelId): Evidence["advertised"] {
@@ -307,8 +318,11 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     curated: curatedRows(rowQuery),
   };
   const synthesized = synthesizeCapability(kind, family, evidence);
+  // D292: the row's own declaration or its server's advertisement states what a turn may carry; only a row
+  // nobody described gets the permissive posture.
+  const advertisedInput = advertisedStatesInput(endpointEntryFor(ctx, { provider, connection, model }));
   const capability = withLocalLightEmbedDtype(
-    applyEndpointPosture(provider, synthesized.capability, declared?.generation?.input !== undefined),
+    applyEndpointPosture(provider, synthesized.capability, declared?.generation?.input !== undefined || advertisedInput),
     provider,
     declared?.embedding?.dtype,
     ctx.deps.localLight?.embedDtype,
@@ -324,7 +338,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
               declared: undefined,
               advertised: advertisedFor(ctx, { provider, connection, model, kind: baselineKind }),
             }).capability,
-            false,
+            advertisedInput,
           ),
           provider,
           undefined,

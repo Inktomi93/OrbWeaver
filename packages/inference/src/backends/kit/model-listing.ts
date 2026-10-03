@@ -4,7 +4,7 @@
 // list yields (an id, maybe a display name and a window, nothing else). Shared by every backend's `listModels`
 // and the runtime's catalog read.
 
-import type { ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
+import type { ModelCatalogEntry, ModelKind, ModelListing } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { redactSecretsFromText } from "./openai-body.ts";
@@ -12,12 +12,18 @@ import { sanitizeApiError } from "./sanitize.ts";
 
 const NO_MODELS_LISTED = "the provider listed no models";
 
-/** A catalog row from a list that carries only an id (plus, on some wires, a display name or a window):
- *  pricing, modalities and reasoning are unknown, never guessed. */
-export function bareCatalogEntry(args: { readonly id: string; readonly name?: string | undefined; readonly contextLength?: number | null }): ModelCatalogEntry {
+/** A catalog row from a list that carries only an id (plus, on some wires, a display name, a window, or the
+ *  kind a server's native model info states): pricing, modalities and reasoning are unknown, never guessed. */
+export function bareCatalogEntry(args: {
+  readonly id: string;
+  readonly name?: string | undefined;
+  readonly contextLength?: number | null;
+  readonly kind?: ModelKind | undefined;
+}): ModelCatalogEntry {
   return {
     id: args.id,
     name: args.name ?? args.id,
+    ...(args.kind === undefined ? {} : { kind: args.kind }),
     contextLength: args.contextLength ?? null,
     promptPrice: null,
     completionPrice: null,

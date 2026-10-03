@@ -170,6 +170,8 @@ stay sealed inside `@orb/inference`).
 | vllm endpoint | `vllm` | `chat-completions` | `openai-compat` |
 | lm studio endpoint | `lm-studio` | `chat-completions` | `openai-compat` |
 | ollama endpoint | `ollama` | `chat-completions` | `openai-compat` |
+| llama.cpp server endpoint | `llama-cpp` | `chat-completions` | `openai-compat` |
+| koboldcpp endpoint | `koboldcpp` | `chat-completions` | `openai-compat` |
 | custom byo endpoint | `custom-openai` | `chat-completions` | `openai-compat` |
 | built-in on this device | `local-light` | — (no chat api) | `local-light` |
 
