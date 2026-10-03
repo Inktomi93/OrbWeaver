@@ -910,3 +910,58 @@ test("fixed-retention caching exposes switches and depth without unsupported TTL
     .toEqual({ connectionId: CONNECTION_ID, patch: { promptCache: { ...SHIPPED, enabled: true, ttl: "5m" } } });
   await expect(body.getByRole("textbox")).toBeEnabled();
 });
+
+// ── a local server's reported capabilities read as reported, a guessed list as assumed (D292) ──────────────
+
+const LOCAL_SERVER_CAPABILITY: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
+  kind: "generation",
+  generation: {
+    reasoning: { mode: "none", enabled: false },
+    sampling: {},
+    input: ["text", "image"],
+    output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"], maxTokensEstimated: true, structured: true },
+    context: { window: 4096 },
+    tools: { parallel: false, silencesProse: true },
+  },
+};
+
+const WIDENED_CAPABILITY: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
+  kind: "generation",
+  generation: {
+    reasoning: { mode: "none", enabled: false },
+    sampling: {},
+    input: ["text", "image", "video"],
+    modalitiesEstimated: true,
+    output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"], maxTokensEstimated: true },
+    context: { window: 8192, windowEstimated: true },
+  },
+};
+
+test("a local server's stated tool calls and image input read as reported, with an Override and no assumed mark", async ({ mount, page }) => {
+  await stubEditor(page, {
+    capabilities: { capability: LOCAL_SERVER_CAPABILITY, baseline: LOCAL_SERVER_CAPABILITY, warnings: [], tasks: ["chat", "agent", "summarize", "structured"] },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Advanced").click();
+
+  const tools = component.locator('[data-fact="generation.tools.parallel"]');
+  await expect(tools).toHaveAttribute("data-overridden", "false");
+  await expect(tools.getByText("yes, one at a time", { exact: true })).toBeVisible();
+  await expect(tools.getByText("what this server and model report", { exact: true })).toBeVisible();
+  await expect(tools.getByRole("button", { name: "Override tool calls" })).toBeVisible();
+
+  const takes = component.locator('[data-fact="generation.input"]');
+  await expect(takes.getByText("text, image", { exact: true })).toBeVisible();
+  await expect(takes.getByText("what this server and model report", { exact: true })).toBeVisible();
+});
+
+test("a modality list the posture guessed reads assumed, never as something the server reported", async ({ mount, page }) => {
+  await stubEditor(page, { capabilities: { capability: WIDENED_CAPABILITY, baseline: WIDENED_CAPABILITY, warnings: [], tasks: ["chat", "summarize"] } });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Advanced").click();
+
+  const takes = component.locator('[data-fact="generation.input"]');
+  await expect(takes.getByText("text, image, video (assumed)", { exact: true })).toBeVisible();
+  await expect(takes.getByText("what this server and model report", { exact: true })).toHaveCount(0);
+  await expect(component.locator('[data-fact="generation.tools.parallel"]').getByText("not stated", { exact: true })).toBeVisible();
+});

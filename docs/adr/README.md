@@ -239,4 +239,5 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D289 | [The owner claim URL is read from a secrets file, never the log](0289-owner-claim-url-is-read-from-a-secrets-file.md) | active |
 | D290 | [Import identity and additive doors, across split uploads and art attach](0290-import-identity-keeps-its-keys-across-doors-and-uploads.md) | active |
 | D291 | [Plugin names the installable package and plugin page names a screen it contributes](0291-plugin-names-the-package-and-plugin-page-names-its-screen.md) | active |
+| D292 | [A local server that states its modalities is taken at its word](0292-local-server-stated-modalities.md) | active |
 | D293 | [Memory is off until each user turns it on, behind a cost confirm](0293-memory-is-off-until-each-user-turns-it-on.md) | active |

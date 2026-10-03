@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-03
 priority: P3
 area: client
+lane: wt/agent-aa1f129dce1d5c51b
 ---
 
 # Security and UI follow-ups from lanes C and E

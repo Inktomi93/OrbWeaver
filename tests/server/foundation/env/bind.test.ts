@@ -2,7 +2,7 @@
 // network, and single-user (no login) serves this machine only. The parse-time enforcement of `refusal` is
 // pinned in index.test.ts.
 
-import type { AuthMode } from "@orb/contracts/identity";
+import { ENVIRONMENT_BLOCK_WINS, HOST_NETWORK_OVERLAY, signInModeEnvLines } from "@orb/contracts/identity";
 import { bindPostureWarnings, loopbackCompanion, loopbackOrigin, resolveBindPosture, settingInstruction } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -122,9 +122,26 @@ describe("resolveBindPosture — single-user serves this machine only, in every 
   });
 
   test.each([true, false])("inContainer=%s: the notice and the refusal carry that install shape's fix", (inContainer) => {
-    const fix = settingInstruction(inContainer, "AUTH_MODE", "local" satisfies AuthMode);
+    const fix = settingInstruction(inContainer, signInModeEnvLines("local", inContainer ? "container" : "bare-metal"));
+    // A container must override the shipped no-login pair; bare metal must keep the launch-only key out of `.env`.
+    expect(fix.includes("AUTH_FALLBACK=deny")).toBe(inContainer);
     expect(resolveBindPosture({ ...SINGLE_USER, inContainer, nodeEnv: "production", bindHost: undefined }).notice).toContain(fix);
     expect(resolveBindPosture({ ...SINGLE_USER, inContainer, nodeEnv: "production", bindHost: "0.0.0.0" }).refusal).toContain(fix);
+    // Each env line stands alone on its own line, so pasting one never carries the next as part of its value.
+    const lines = signInModeEnvLines("local", inContainer ? "container" : "bare-metal");
+    for (const [key, value] of lines) {
+      expect(fix.split("\n").map((line) => line.trim())).toContain(`${key}=${value}`);
+    }
+  });
+
+  // The host-network overlay's own `environment:` block pins single-user and the owner fallback over every env file,
+  // so a container fix that only names the env file cannot take effect there; the message must say so.
+  test("a container's fix names the host-network overlay whose environment: lines win over the env file", () => {
+    const refusal = resolveBindPosture({ ...SINGLE_USER, inContainer: true, nodeEnv: "production", bindHost: "0.0.0.0" }).refusal ?? "";
+    expect(refusal).toContain(HOST_NETWORK_OVERLAY);
+    expect(refusal).toContain(ENVIRONMENT_BLOCK_WINS);
+    const bareMetal = resolveBindPosture({ ...SINGLE_USER, inContainer: false, nodeEnv: "production", bindHost: "0.0.0.0" }).refusal ?? "";
+    expect(bareMetal).not.toContain(HOST_NETWORK_OVERLAY);
   });
 
   test.each(["0.0.0.0", "::", "192.168.1.50"])("production + BIND_HOST=%s with no declared peer set → refusal naming the login mode", (bindHost) => {

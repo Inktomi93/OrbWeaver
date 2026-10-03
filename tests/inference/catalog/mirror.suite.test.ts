@@ -26,6 +26,7 @@ test("warm prefers a valid snapshot, caches it, and invalidate forces a live ref
           reads += 1;
           return Promise.resolve(stored);
         },
+        deletePrefix: () => Promise.resolve(),
         write: (_key, value) => {
           writes += 1;
           stored = value;
@@ -65,7 +66,7 @@ test("concurrent cold warms share one fetch, and a failed warm remains retryable
     schema: rowsSchema,
     deps: {
       now: () => 5000,
-      snapshotStore: { read: () => Promise.resolve(null), write: () => Promise.resolve() },
+      snapshotStore: { read: () => Promise.resolve(null), write: () => Promise.resolve(), deletePrefix: () => Promise.resolve() },
       warn: (fields) => warnings.push(fields),
     },
   });
@@ -109,7 +110,11 @@ test("a failed warm's reason is scrubbed of the dialing secret, and a coalesced 
   const mirror = createMirror({
     key: "daemon-models",
     schema: rowsSchema,
-    deps: { now: () => 5000, snapshotStore: { read: () => Promise.resolve(null), write: () => Promise.resolve() }, warn: () => undefined },
+    deps: {
+      now: () => 5000,
+      snapshotStore: { read: () => Promise.resolve(null), write: () => Promise.resolve(), deletePrefix: () => Promise.resolve() },
+      warn: () => undefined,
+    },
   });
   const pending = (): Promise<string[]> => {
     markFetchStarted?.();

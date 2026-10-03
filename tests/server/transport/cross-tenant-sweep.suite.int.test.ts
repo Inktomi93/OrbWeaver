@@ -2075,6 +2075,9 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // input is an address and two ports, never an id, so there is no foreign row to name.
   "share.enableIpCertificate": "owner-gated: role gate at the verb (input is an address and two ports; writes the owner-gated deployment setting)",
   "share.disableIpCertificate": "owner-gated: role gate at the verb (no input; clears the owner-gated deployment setting)",
+  // The sign-in helper's read: boot-fixed process facts (the mode, its source enum, the install shape) and the share
+  // refusal sentences, behind a strict parser; it reads no row and has no tenant axis.
+  "share.signInMode": "admin-gated: role gate at the verb (no input; boot-fixed sign-in facts, reads and returns no row)",
   // plugin (D46/D147) — RECLASSIFIED 2026-08-24. The five management verbs used to be exempt as "admin-gated:
   // the install-authority role gate precedes the pluginId ownership check". That classification is DEAD:
   // plugins are user-scoped, the `can(caller,"admin",{kind:"global"})` gate is gone from every verb, and the

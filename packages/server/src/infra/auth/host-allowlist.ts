@@ -11,8 +11,9 @@
 // let that page pass with `X-Forwarded-Host: localhost`. A proxy that rewrites `Host` to its upstream name
 // needs that name allowed too.
 
-import { ALLOWED_HOST_SUFFIX_MARK, isAlwaysAllowedHost, isHostname, withoutTrailingDot } from "@orb/kit/allowed-hosts";
+import { ALLOWED_HOST_SUFFIX_MARK, ALLOWED_HOSTS_KEY, isAlwaysAllowedHost, isHostname, withoutTrailingDot } from "@orb/kit/allowed-hosts";
 import { DomainOperationError } from "@orb/kit/errors";
+import { settingInstruction } from "#foundation/env";
 import { securityEvent } from "#foundation/observability";
 import { isTrustedHop } from "#infra/network";
 import type { AllowedHostsReader, HostNotAllowedNotice, RelayHostRegistry } from "./contract.ts";
@@ -128,24 +129,24 @@ export function allowedHostsReader(configured: readonly string[], relayHosts: Al
   };
 }
 
-/** The unthrottled line for one refused host. */
-export function reportHostNotAllowed(host: string): void {
+/** The unthrottled line for one refused host. The host rides in its own field, never in the message: the sender picks it. */
+export function reportHostNotAllowed(host: string, inContainer: boolean): void {
   securityEvent(
     "host_not_allowed",
     { host },
-    "security: refused a request for a host that is not localhost, an IP address, this machine's name or a name in ALLOWED_HOSTS. If the host is " +
-      "your own address, add it to ALLOWED_HOSTS and restart. A name you do not recognise is a page trying to reach this " +
-      "server through a visitor's browser (DNS rebinding); do not add it.",
+    "security: refused a request for a host that is not localhost, an IP address, this machine's name or a name in ALLOWED_HOSTS. " +
+      "A name you do not recognise is a page trying to reach this server through a visitor's browser (DNS rebinding); do not add it. " +
+      `If the host is your own address, ${settingInstruction(inContainer, [[ALLOWED_HOSTS_KEY, "<the host>"]])}`,
   );
 }
 
 /** One line per refused host per hour; the key map is bounded (`notice-throttle.ts`), because the sender picks the
  *  name. `now` is the composition root's clock. */
-export function createHostNotAllowedNotice(now: () => number): HostNotAllowedNotice {
+export function createHostNotAllowedNotice(now: () => number, inContainer: boolean): HostNotAllowedNotice {
   const throttle = createKeyedNoticeThrottle(now);
   return (host) => {
     throttle(host, () => {
-      reportHostNotAllowed(host);
+      reportHostNotAllowed(host, inContainer);
     });
   };
 }

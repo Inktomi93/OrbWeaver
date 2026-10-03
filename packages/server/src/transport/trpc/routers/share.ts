@@ -1,8 +1,8 @@
 // transport/trpc/routers/share — the owner's Share card surface (docs/law/Tier-4-Transport.md). Every procedure is
-// `adminProcedure` (layer 1, owner ∪ admin) and the verb re-checks `requireOwner` (layer 2), so an admin gets the same
-// codeless FORBIDDEN a user gets. The strict output parser keeps anything beyond the status shape off the wire.
+// `adminProcedure` (layer 1, owner ∪ admin); each verb re-checks `requireOwner` (layer 2) except `signInMode`, which
+// Multi-user shows an admin too and re-checks `requireAdmin`. The strict output parsers keep anything else off the wire.
 
-import { ipCertificateSettingSchema, shareStatusSchema } from "@orb/contracts/identity";
+import { ipCertificateSettingSchema, shareStatusSchema, signInModeViewSchema } from "@orb/contracts/identity";
 import { adminProcedure, t } from "../trpc.ts";
 
 export const shareRouter = t.router({
@@ -14,4 +14,5 @@ export const shareRouter = t.router({
     .output(shareStatusSchema)
     .mutation(({ ctx, input }) => ctx.services.share.enableIpCertificate({ principal: ctx.auth, setting: input })),
   disableIpCertificate: adminProcedure.output(shareStatusSchema).mutation(({ ctx }) => ctx.services.share.disableIpCertificate({ principal: ctx.auth })),
+  signInMode: adminProcedure.output(signInModeViewSchema).query(({ ctx }) => ctx.services.share.signInMode({ principal: ctx.auth })),
 });

@@ -29,6 +29,7 @@ const STATIC_SUBJECTS = [
   "settings.getVersion",
   "settings.checkForUpdate",
   "share.status",
+  "share.signInMode",
   "invites.listInvites",
   "rpg.listCheckpoints",
   "assets.listGallery",

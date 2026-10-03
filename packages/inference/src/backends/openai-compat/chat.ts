@@ -42,6 +42,10 @@ import type { ModelCall, TransportDeps } from "./model.ts";
 import { languageModelFor, providerOptionsKey } from "./model.ts";
 
 const MANDATORY_REASONING_RE = /reasoning is mandatory/iu;
+/** llama.cpp server refuses `tools[]` under `--no-jinja` while its `/props` still reports the template's tool
+ *  support, so the reader cannot see it coming; the 400 is the first signal and it must read as the fix. */
+const JINJA_TOOLS_RE = /requires --jinja flag/iu;
+const JINJA_TOOLS_MESSAGE = "this llama.cpp server runs without --jinja, so tool calls are off; start it with --jinja or set tool calls to no under Advanced";
 const CONTEXT_COMPRESSION_PLUGIN = "context-compression";
 const MIDDLE_OUT_ENGINE = "middle-out";
 const OPENROUTER_KEY = "openrouter";
@@ -87,6 +91,12 @@ function requireGeneration(connection: Resolved, label: string): GenerationCapab
 function isMandatoryReasoningRejection(error: unknown): boolean {
   const diag = extractHttpErrorDiagnostic(error, NO_PROVIDER_SECRETS);
   return MANDATORY_REASONING_RE.test(`${diag.body ?? ""} ${diag.cause ?? ""} ${errorMessage(error)}`);
+}
+
+// True when the upstream 400 is llama.cpp refusing `tools[]` on a server started without `--jinja`.
+function isJinjaToolsRefusal(error: unknown): boolean {
+  const diag = extractHttpErrorDiagnostic(error, NO_PROVIDER_SECRETS);
+  return JINJA_TOOLS_RE.test(`${diag.body ?? ""} ${diag.cause ?? ""} ${errorMessage(error)}`);
 }
 
 // ── cache placement (OpenRouter explicit-cache routes) ────────────────────────────────────────────────────────
@@ -547,7 +557,22 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   }
   const cache = placeCache({ plan, req, cachePlan, generation, log, anthropicRoute });
   const prompt = withMessageOptions(plan.prompt, OPENROUTER_KEY, cache.patches);
-  const classify = (err: unknown): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, label, secrets));
+  const classify = (err: unknown): ProviderError => {
+    if (err instanceof ProviderError) {
+      return err;
+    }
+    const classified = providerErrorFromHttp(err, label, secrets);
+    if (req.tools !== undefined && isJinjaToolsRefusal(err)) {
+      return new ProviderError({
+        kind: "invalid",
+        retryable: false,
+        message: `${label}: ${JINJA_TOOLS_MESSAGE}`,
+        ...(classified.apiErrorStatus !== undefined ? { apiErrorStatus: classified.apiErrorStatus } : {}),
+        cause: classified,
+      });
+    }
+    return classified;
+  };
   const retryOpts = {
     ...(req.signal !== undefined ? { signal: req.signal } : {}),
     now: deps.now,

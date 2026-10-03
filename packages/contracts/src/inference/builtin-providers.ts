@@ -127,6 +127,39 @@ export const BUILTIN_PROVIDER_ROWS = [
     docsUrl: "https://docs.ollama.com",
   },
   {
+    id: "llama-cpp",
+    label: "llama.cpp server",
+    wire: "openai-compat",
+    dialect: "openai-compatible",
+    auth: "endpoint",
+    apis: ["chat-completions"],
+    // The reader states tools from `/props` `chat_template_caps`, which the server reports even under
+    // `--no-jinja` while refusing `tools[]` with "tools param requires --jinja flag"; the chat backend maps
+    // that refusal to a readable error, and the user can set tool calls to no under Advanced.
+    features: {
+      prefill: "none",
+      modelInfoApi: "llama-cpp",
+    },
+    catalog: "url",
+    metered: false,
+    docsUrl: "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+  },
+  {
+    id: "koboldcpp",
+    label: "KoboldCpp",
+    wire: "openai-compat",
+    dialect: "openai-compatible",
+    auth: "endpoint",
+    apis: ["chat-completions"],
+    features: {
+      prefill: "none",
+      modelInfoApi: "koboldcpp",
+    },
+    catalog: "url",
+    metered: false,
+    docsUrl: "https://github.com/LostRuins/koboldcpp/wiki",
+  },
+  {
     id: "custom-openai",
     label: "Custom OpenAI-compatible",
     wire: "openai-compat",

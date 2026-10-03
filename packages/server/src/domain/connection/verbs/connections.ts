@@ -210,8 +210,11 @@ function createUpdate(ctx: ConnectionContext): ConnectionService["update"] {
     if (spacesDiffer(before, await vectorSpacesOf(ctx, params.principal))) {
       ctx.onEmbedSpaceChanged(ownerId);
     }
+    const saved = await requireOwnedRow(ctx, ownerId, row.id);
+    // A save is the user's "ask the server again": the row's advertised facts are re-read on its next resolve.
+    await ctx.runtime.catalogs.invalidateEndpoint(saved);
     ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
-    return toView(ctx, await requireOwnedRow(ctx, ownerId, row.id));
+    return toView(ctx, saved);
   };
 }
 
