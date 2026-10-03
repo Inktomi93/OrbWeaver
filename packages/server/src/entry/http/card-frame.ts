@@ -19,9 +19,9 @@
 //     `data:` images for cards authored by a character the HOST opted into (the same consent D44 uses to
 //     grant the tierB sandbox).
 //   • the SCRIPT POSTURE ⇐ the TOP step of that same ladder AND the deployment `allowInteractiveCards`
-//     ceiling (#111 legs 1+3) — `interactive` only when BOTH say yes, `static` otherwise and on every
-//     failure arm. It selects which `CardFramePosture` the response policy is built through and is echoed
-//     as `granted.interactive`. Since leg 3 this is a real capability: the interactive arm emits
+//     ceiling (#111 legs 1+3) AND the viewer's own `chat.runCardScripts` consent — `interactive` only when
+//     ALL THREE say yes, `static` otherwise and on every failure arm. It selects which `CardFramePosture`
+//     the response policy is built through and is echoed as `granted.interactive`. Since leg 3 this is a real capability: the interactive arm emits
 //     `script-src 'unsafe-inline'` and the card's own scripts execute inside the opaque-origin sandbox.
 //     What that does and does NOT reach — including residual R1, an unclosable WebRTC beacon — is measured
 //     and recorded in `@orb/kit/card-frame`.
@@ -89,10 +89,14 @@ export interface CardFrameDeps {
   /** The live app-tier INTERACTIVE-CARD ceiling (`effectiveConfig.allowInteractiveCards`, floor TRUE).
    *  Read here per mint for the same reason `allowExternalMedia` is: `resolveRenderPolicy` already folded
    *  it into the ladder, and this is the boundary that must still hold if that resolver is ever weakened.
-   *  It is the ONLY control over residual R1 (`@orb/kit/card-frame`), so it is read again on every SERVE
-   *  of an interactive document: switching it off withdraws card scripts from the next frame load, even
-   *  for a handle minted before the switch. */
+   *  It is the ONLY box-wide control over residual R1 (`@orb/kit/card-frame`), so it is read again on every
+   *  SERVE of an interactive document: switching it off withdraws card scripts from the next frame load,
+   *  even for a handle minted before the switch. */
   readonly allowInteractiveCards: () => boolean;
+  /** The VIEWER's own consent (`UserSettings.chat.runCardScripts`): may card scripts run in this caller's
+   *  browser? Read per mint and per serve of an interactive document, so turning it off reaches a handle
+   *  minted before the switch, exactly as the deployment ceiling does. */
+  readonly viewerRunsCardScripts: (viewer: Principal) => Promise<boolean>;
   readonly now: () => number;
 }
 
@@ -171,8 +175,11 @@ async function resolvePolicy(
     // predicate rather than a second boolean, off the server's own membership-gated roster value — the mint
     // body cannot name it (the request is a SELECTOR, never a policy, and `strictObject` rejects a smuggled
     // key outright). The deployment ceiling is re-applied HERE as well as inside `resolveRenderPolicy`, the
-    // `allowExternalMedia` shape exactly: two belts on the axis whose residual has no third one.
-    posture: deps.allowInteractiveCards() && allowsInteractiveCards(policy.htmlTrust) ? "interactive" : "static",
+    // `allowExternalMedia` shape exactly: two belts on the axis whose residual has no third one. The viewer's
+    // own consent is the third input: the host and the box decide whether a card MAY run scripts, and each
+    // viewer decides whether it runs them in their browser. It is read last, so a static card costs no read.
+    posture:
+      deps.allowInteractiveCards() && allowsInteractiveCards(policy.htmlTrust) && (await deps.viewerRunsCardScripts(principal)) ? "interactive" : "static",
   };
 }
 
@@ -248,9 +255,9 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
     }
     // THE REVOCATION. The client memoizes a handle per card body for the tab's life, so a grant decided
     // only at mint would outlive an admin switching interactive cards off, a host moving the character
-    // to a lower rung, or the viewer leaving the room. An interactive document is therefore re-resolved
-    // on every serve, through the same membership-gated read as the mint, and served script-free unless
-    // it would still mint interactive. A serve can only withdraw the grant, never add one.
+    // to a lower rung, the viewer leaving the room, or the viewer turning card scripts off. An interactive
+    // document is therefore re-resolved on every serve, through the same membership-gated read as the mint,
+    // and served script-free unless it would still mint interactive. A serve can only withdraw the grant, never add one.
     if (entry.scriptGrant !== undefined) {
       const current = await resolvePolicy(deps, principal, entry.scriptGrant);
       const csp = current.posture === "interactive" ? entry.csp : entry.scriptGrant.withdrawnCsp;

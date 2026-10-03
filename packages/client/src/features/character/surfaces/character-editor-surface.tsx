@@ -311,6 +311,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
               characterId={data.id}
               facetId={selectedFacetId as CharacterCardFacet["id"]}
               trusted={rendersTrustedHtml(previewPolicy.htmlTrust)}
+              allowExternalMedia={!previewPolicy.forbidExternalMedia}
               readOnly={{
                 importedFrom: data.importedFrom,
                 importHash: data.importHash,

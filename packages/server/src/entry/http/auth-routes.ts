@@ -131,7 +131,7 @@ const OIDC_PENDING_JOIN_SURFACE = "/login?pendingJoin=1";
 const OIDC_PENDING_PREVIEW_ROUTE = "/api/auth/oidc/pending/preview";
 const OIDC_PENDING_CONFIRM_ROUTE = "/api/auth/oidc/pending/confirm";
 const INVITE_PARAM = "invite";
-// The owner claim: the login URL the boot log prints carries the boot claim code under this name.
+// The owner claim: the login URL in the owner claim file carries the boot claim code under this name.
 const OWNER_CLAIM_PARAM = "ownerClaim";
 // A real invite token is 43 base64url chars. A longer param is carried as no invite, never hashed or stored.
 const INVITE_PARAM_MAX_CHARS = 128;
@@ -1056,7 +1056,7 @@ function configuredCallback(allowlist: readonly string[]): string | undefined {
   return allowlist.find((uri) => URL.canParse(uri) && WEB_PROTOCOLS.includes(new URL(uri).protocol));
 }
 
-/** The owner claim URL the boot log prints: the OIDC login route on the configured origin, carrying `code`. Null
+/** The owner claim URL the boot writes to the owner claim file: the OIDC login route on the configured origin, carrying `code`. Null
  *  when no http(s) callback URL is configured. */
 export function ownerClaimLoginUrl(allowlist: readonly string[], code: string): string | null {
   const callback = configuredCallback(allowlist);

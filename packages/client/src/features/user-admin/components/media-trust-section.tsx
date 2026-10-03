@@ -121,8 +121,9 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
           onSet={(next): void => write({ trustHtml: next })}
         />
         {/* The html-trust ladder's TOP rung, deployment half. ON by default (owner ruling) and deliberately
-            the loudest hint in this section: switching it off is the only control that exists over the
-            WebRTC beacon the grant opens, which no Content-Security-Policy directive can close. */}
+            the loudest hint in this section: switching it off is the only box-wide control over the WebRTC
+            beacon the grant opens, which no Content-Security-Policy directive can close. Each viewer can
+            also turn card scripts off for themselves (`UserSettings.chat.runCardScripts`). */}
         <AdminOverrideSwitch
           label="Let interactive cards run their own scripts"
           hint="On by default. While on, cards from every character on “Interactive” or “Inherit default” run their own JavaScript inside a locked-down frame — no cookies, no storage, no access to the app or to other cards, and no way to fetch anything. They CAN still beacon out over WebRTC, which no browser policy can block, so an interactive card can tell its author you looked at it, reveal your IP address, and capture anything you type inside the card itself. Turn this off to stop every card from running scripts; a card already on screen stops the next time it loads. One character's cards can be switched down to Render HTML on its Trust tab."

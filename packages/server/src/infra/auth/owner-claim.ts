@@ -1,5 +1,5 @@
 // The boot owner claim code (D258). Only its SHA-256 is held, and a presented code is compared in constant time, so neither
-// the process heap nor response timing hands out the code the operator's log printed.
+// the process heap nor response timing hands out the code the owner claim file holds.
 
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import type { OwnerClaimCode } from "./contract.ts";

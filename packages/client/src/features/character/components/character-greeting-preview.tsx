@@ -36,6 +36,8 @@ export interface CharacterGreetingPreviewProps {
    *  combined with this card's override (`usePreviewRenderPolicy`), never the raw `trustHtml` column: an
    *  INHERIT card takes the floor's answer, which is what the reader will actually get. */
   readonly trusted: boolean;
+  /** The resolved external-media verdict for this character's content, from the same combine as `trusted`. */
+  readonly allowExternalMedia: boolean;
   /** §6.1 spoiler eye — blurs the preview text (never the edit textarea). */
   readonly spoilerBlur: boolean;
   /** The greeting the hero is previewing (drives the §6.5 total token count — lifted to the body). */
@@ -74,6 +76,7 @@ export function CharacterGreetingPreview(props: CharacterGreetingPreviewProps): 
               editing={editing}
               baseGreeting={greetings[index]?.text ?? ""}
               trusted={props.trusted}
+              allowExternalMedia={props.allowExternalMedia}
               onActiveIndexChange={onActiveIndexChange}
               onToggleEdit={(): void => setEditing((e) => !e)}
               onStartAlternate={(nextIndex): void => {
@@ -156,6 +159,7 @@ function GreetingBody({
   form,
   themeOverride,
   trusted,
+  allowExternalMedia,
   spoilerBlur,
   index,
   editing,
@@ -197,7 +201,7 @@ function GreetingBody({
             {active.trim() === "" ? (
               <Text voice="quiet">No first message yet.</Text>
             ) : (
-              <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes}>
+              <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
                 {active}
               </Markdown>
             )}
@@ -217,6 +221,7 @@ function GreetingActions({
   editing,
   baseGreeting,
   trusted,
+  allowExternalMedia,
   onActiveIndexChange,
   onToggleEdit,
   onStartAlternate,
@@ -228,6 +233,7 @@ function GreetingActions({
   readonly editing: boolean;
   readonly baseGreeting: string;
   readonly trusted: boolean;
+  readonly allowExternalMedia: boolean;
   readonly onActiveIndexChange: (index: number) => void;
   readonly onToggleEdit: () => void;
   readonly onStartAlternate: (nextIndex: number) => void;
@@ -303,6 +309,7 @@ function GreetingActions({
             characterId={characterId}
             baseGreeting={baseGreeting}
             trusted={trusted}
+            allowExternalMedia={allowExternalMedia}
             onAccept={(text): void => {
               form.pushFieldValue("greetings", { text });
               onStartAlternate(greetingCount);

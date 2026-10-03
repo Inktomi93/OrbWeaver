@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import type { ServerOptions } from "node:http";
 import type { AddressInfo } from "node:net";
 import { hostname } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
@@ -27,6 +28,7 @@ import { createOidcStore, createSessionsService, isReservedSignupHandle, ownerHa
 import type { CertificateBootOutcome, CertificateController, ShareBootOutcome } from "#domain/share";
 import { createCertificateController, createRelayController } from "#domain/share";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
+import { OWNER_CLAIM_URL_FILE_NAME } from "#foundation/data-layout";
 import {
   bindPostureInput,
   bindPostureWarnings,
@@ -86,6 +88,7 @@ import {
   planLocalLightPrefetch,
   reactivatePluginsOnBoot,
   reclaimLocksOnBoot,
+  removeOwnerClaimFileOnSpend,
   repairStaleJoinSeqOnBoot,
   runBootMigrations,
   seedCasSchedules,
@@ -585,10 +588,11 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // OIDC LAZY-MINT (#1853): in OIDC mode the owner identity comes from the IdP, not from env config.
     // Don't seed a placeholder owner row at boot — the first OIDC login that claims the owner lazy-mints the
     // owner row via `provisionIdentity`: an OWNER_GROUP member, or an OWNER_HANDLES match with proof (a loopback
-    // callback or the boot claim code `announceOwnerClaim` prints). For every other mode (single-user, local,
+    // callback or the boot claim code `announceOwnerClaim` writes). For every other mode (single-user, local,
     // forward-header), seed the owner at boot as before.
     let ownerId: UserId | undefined;
-    const ownerClaim = createOwnerClaimCode();
+    const ownerClaimFile = join(env.DATA_LAYOUT.secrets, OWNER_CLAIM_URL_FILE_NAME);
+    const ownerClaim = removeOwnerClaimFileOnSpend(createOwnerClaimCode(), ownerClaimFile);
     if (env.AUTH_MODE === "oidc") {
       ownerId = await bootSessions.getOwnerUserId();
       if (ownerId !== undefined) {
@@ -596,7 +600,15 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       } else {
         log.info("boot(oidc): no owner row yet — the first owner-policy OIDC login will create it; owner-dependent boot seeds are deferred");
       }
-      await announceOwnerClaim({ log, sessions: bootSessions, ownerId, ownerClaim, redirectAllowlist: oidcRedirectAllowlist() });
+      await announceOwnerClaim({
+        log,
+        sessions: bootSessions,
+        ownerId,
+        ownerClaim,
+        redirectAllowlist: oidcRedirectAllowlist(),
+        claimUrlFile: ownerClaimFile,
+        inContainer: bindPostureInput().inContainer,
+      });
     } else {
       const handles = ownerHandles();
       // AUTH_MODE=local: seed the owner's first-boot form-login password so a non-local-origin deploy isn't

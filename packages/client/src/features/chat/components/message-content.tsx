@@ -41,7 +41,7 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     case "markdown":
       return (
         // Quote tinting rides the PROSE arm only — a card block owns its own styles.
-        <Markdown key={key} trust={trust} mode="static" colorQuotes={render.colorQuotes}>
+        <Markdown key={key} trust={trust} mode="static" colorQuotes={render.colorQuotes} allowExternalMedia={allowExternal}>
           {block.md}
         </Markdown>
       );
