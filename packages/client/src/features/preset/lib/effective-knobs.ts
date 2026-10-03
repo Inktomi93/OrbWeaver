@@ -45,6 +45,7 @@ const KNOB_LABELS: Readonly<Record<string, string>> = {
   maxOutputTokens: "max output",
   maxContextTokens: "context",
   verbosity: "verbosity",
+  replyMedia: "reply pictures",
 };
 
 /** {@link KNOB_LABELS} with the honest fallback. */

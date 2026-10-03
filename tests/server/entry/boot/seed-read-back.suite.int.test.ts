@@ -434,11 +434,12 @@ const presetSummaryFields = {
   kind: TYPED_ONLY,
   isSystemDefault: TYPED_ONLY,
   forkedFrom: TYPED_ONLY,
+  configUnreadable: TYPED_ONLY,
   createdAt: TYPED_ONLY,
   updatedAt: TYPED_ONLY,
 } as const;
 const presetSummaryPlan = view<PresetSummaryOut>(presetSummaryFields);
-const presetDetailPlan = view<PresetDetailOut>({ ...presetSummaryFields, config: promptConfigSchema, schemaVersion: TYPED_ONLY, configUnreadable: TYPED_ONLY });
+const presetDetailPlan = view<PresetDetailOut>({ ...presetSummaryFields, config: promptConfigSchema, schemaVersion: TYPED_ONLY });
 
 const pluginCapabilitiesSchema = z.array(z.enum(PLUGIN_CAPABILITIES));
 const pluginPlan = view<PluginOut>({

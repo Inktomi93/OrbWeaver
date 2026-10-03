@@ -140,6 +140,22 @@ describe("resolveEffective — the staleness list (F7)", () => {
   test("nothing stored, nothing stale", async () => {
     expect((await resolveWith({}, makeGenerationCapability(SAMPLING_CAPABLE))).stale).toStrictEqual([]);
   });
+
+  test("a stored picture ask on a text-only model is stale; on an image model it resolves; a stored `text` is neither", async () => {
+    const textOnly = makeGenerationCapability(SAMPLING_CAPABLE);
+    const dropped = await resolveWith({ replyMedia: "text+image" }, textOnly);
+    expect(dropped.stale).toStrictEqual([{ knob: "replyMedia", value: "text+image" }]);
+    expect(dropped.knobs.replyMedia).toBeUndefined();
+
+    const imageModel = makeGenerationCapability({ ...SAMPLING_CAPABLE, output: { ...textOnly.output, modalities: ["text", "image"] } });
+    const honored = await resolveWith({ replyMedia: "text+image" }, imageModel);
+    expect(honored.knobs.replyMedia).toStrictEqual({ value: "text+image", provenance: "explicit" });
+    expect(honored.stale).toStrictEqual([]);
+
+    const plain = await resolveWith({ replyMedia: "text" }, textOnly);
+    expect(plain.knobs.replyMedia).toBeUndefined();
+    expect(plain.stale).toStrictEqual([]);
+  });
 });
 
 describe("resolveEffective — a knob the model does not have is ABSENT, not clamped (side-eye F-14)", () => {

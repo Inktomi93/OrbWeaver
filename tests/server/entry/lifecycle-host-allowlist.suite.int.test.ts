@@ -111,7 +111,9 @@ test("the non-API refusal is a page carrying this install's fix for the refused 
   expect(res.status).toBe(MISDIRECTED);
   expect(res.contentType).toContain("text/html");
   // The page carries this install's fix for the refused host (the shape the booted server detected).
-  expect(res.body).toContain(settingInstruction(inContainer, ALLOWED_HOSTS_KEY, REBOUND_NAME));
+  for (const line of settingInstruction(inContainer, [[ALLOWED_HOSTS_KEY, REBOUND_NAME]]).split("\n")) {
+    expect(res.body).toContain(`${line.trim()}</p>`);
+  }
 });
 
 test("repeated requests for one refused name log one security line", async () => {

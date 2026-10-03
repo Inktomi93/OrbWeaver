@@ -168,7 +168,7 @@ export function validateAddConnection(value: AddConnectionFormValues): { fields:
 /** The copy every connection-writing form shares, so the add dialog and the saved-key dialog name the same
  *  fields and the same switch the same way. */
 export const CONNECTION_FORM_COPY = {
-  labelHint: "Optional — defaults to “provider · model”.",
+  labelHint: "Optional. Defaults to “provider · model”.",
   backgroundLabel: "Allow background work",
   backgroundDescription: "Let summaries, captions and memory digests run on this connection unattended.",
   submit: ADD_CONNECTION_PATH.leaf,
@@ -211,8 +211,8 @@ export function savedKeyName(label: string | null): string {
 export function submitFailureSentence(args: { readonly heldKeyLabel: string | null | undefined; readonly reason: string }): string {
   const reason = clauseOf(args.reason);
   if (args.heldKeyLabel === undefined) {
-    return `Nothing was saved — ${reason}.`;
+    return `Nothing was saved: ${reason}.`;
   }
   const key = args.heldKeyLabel === null ? "Your key (unnamed) was saved in Saved keys" : `Your key was saved as “${args.heldKeyLabel}” in Saved keys`;
-  return `${key}, but the connection wasn't created — ${reason}. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.`;
+  return `${key}, but the connection wasn't created: ${reason}. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.`;
 }

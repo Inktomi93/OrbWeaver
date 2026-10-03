@@ -33,7 +33,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
-import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CorpusFieldsSearchStory, CorpusListSurfaceNavStory, CorpusSearchToDossierStory } from "../_ct-stories.tsx";
 
@@ -694,35 +694,38 @@ test("a memory body reads as prose — flattened markdown, no raw syntax — and
   await expect(component.getByText("Selva said: the blue parcel They check it, and the list is complete.", { exact: true })).toHaveCount(1);
 });
 
-// ── #1500 · THE NAME MAP CAN FAIL ON ITS OWN ─────────────────────────────────────────────────────
-// The lexical branch's hits are bare ids; the NAMES come from a second read (`character.list`). When that
-// one failed, `byId` was empty and every row fell through to its `Character abc123` short-ref fallback — a
-// real result set wearing fabricated labels, with nothing on screen saying the names were the broken half.
-// The hits are still the answer, so they stay; what is added is the honest notice and a retry for exactly
-// the read that failed.
+// ── THE LEXICAL BRANCH NAMES ITS HITS FROM THE SEARCH ITSELF ──────────────────────────────────────────
+// The index searches every card the owner holds, so a hit can sit far past any one page of the card list.
+// The server names each hit in the same owner-scoped read, so the row carries its real name with no second
+// read to fail or to miss the card. The search's own failure keeps its notice and its Retry.
 const FIELDS_HIT_ID = "character_0000000000000000001";
+const FIELDS_RESULT = {
+  hits: [{ characterId: FIELDS_HIT_ID, score: 4.2, name: "The Crimson Court", avatarHash: null }],
+  coverage: { requestLimit: 20, indexedCharacters: 1, matchingCharacters: 1 },
+} satisfies TrpcWireOutput<"search.fields">;
 
-test("a FAILED name map says the rows are showing ids, and its Retry re-reads the names (#1500)", async ({ mount, page }) => {
+test("a lexical hit renders the name the search returned, with no card-list read behind it", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { "search.fields": () => FIELDS_RESULT });
+  const results = await mount(<CorpusFieldsSearchStory />);
+
+  await expect(results.getByText("The Crimson Court")).toBeVisible();
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the named row above is the settle; no page read may have fired before it.
+  expect(trpc.count("character.list")).toBe(0);
+});
+
+test("a FAILED text search says so, and its Retry re-runs the search", async ({ mount, page }) => {
   let attempts = 0;
   const trpc = await routeTrpc(page, {
-    "search.fields": () => ({
-      hits: [{ characterId: FIELDS_HIT_ID, score: 4.2 }],
-      coverage: { requestLimit: 20, indexedCharacters: 1, matchingCharacters: 1 },
-    }),
-    "character.list": () =>
-      attempts++ === 0
-        ? trpcError({ message: "name map read failed" })
-        : { items: [{ id: FIELDS_HIT_ID, name: "The Crimson Court", avatarHash: null }], nextCursor: null, totalCount: 1 },
+    "search.fields": () => (attempts++ === 0 ? trpcError({ message: "lexical search failed" }) : FIELDS_RESULT),
   });
   const results = await mount(<CorpusFieldsSearchStory />);
 
-  await expect(results.getByText("Couldn't load your card names — these rows show ids.")).toBeVisible();
+  await expect(results.getByText("Couldn't load the text search.")).toBeVisible();
   await results.getByRole("button", { name: "Retry" }).click();
 
-  await expect.poll(() => trpc.count("character.list"), { intervals: [20, 50, 100] }).toBe(2);
-  // The row is named now, and the notice about the missing half is gone with the cause.
+  await expect.poll(() => trpc.count("search.fields"), { intervals: [20, 50, 100] }).toBe(2);
   await expect(results.getByText("The Crimson Court")).toBeVisible();
-  await expect(results.getByText("Couldn't load your card names — these rows show ids.")).toHaveCount(0);
+  await expect(results.getByText("Couldn't load the text search.")).toHaveCount(0);
 });
 
 // ── THE AMBIENT FEED IS ITSELF PINNED (#2226) ────────────────────────────────────────────────────────

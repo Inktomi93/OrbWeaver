@@ -323,7 +323,7 @@ test("an ST-imported entry shows its inert activation fields as kept, not active
   await routeTrpc(page, {});
   await mount(<EntryEditorInertStory />);
 
-  const kept = page.getByRole("group", { name: "Kept from SillyTavern — not active yet" });
+  const kept = page.getByRole("group", { name: "Kept from SillyTavern, not active yet" });
   await expect(kept).toBeVisible();
   const items = kept.getByRole("listitem");
   await expect(items).toHaveText(['keysecondary: ["dock","pier"]', "probability: 50", "scanDepth: 3"]);
@@ -333,5 +333,5 @@ test("an entry carrying no inert activation fields renders no kept list", async 
   await routeTrpc(page, {});
   await mount(<EntryEditorStory />);
   await expect(page.getByRole("textbox", { name: "Title" })).toHaveValue("Eldoria");
-  await expect(page.getByRole("group", { name: "Kept from SillyTavern — not active yet" })).toHaveCount(0);
+  await expect(page.getByRole("group", { name: "Kept from SillyTavern, not active yet" })).toHaveCount(0);
 });

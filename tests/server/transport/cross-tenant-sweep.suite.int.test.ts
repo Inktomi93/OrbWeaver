@@ -857,6 +857,8 @@ const PROBES: readonly Probe[] = [
   // row a landed cancel moves `status` to `cancelled`, which the post-sweep pin reads.
   { path: "workloads.cancel", call: (c, i) => c.workloads.cancel({ id: i.queuedWorkloadId }) },
   { path: "workloads.retry", call: (c, i) => c.workloads.retry({ id: i.workloadId }) },
+  // A count carries no marker, so only the leak-free refusal proves the owner gate.
+  { path: "workloads.estimateRetryModelCalls", call: (c, i) => c.workloads.estimateRetryModelCalls({ id: i.workloadId }), requireNotFound: true },
   // ── workload SCHEDULES (F3 per-user owner-scoped; update/delete/setEnabled take a scheduleId) — a stranger
   //    must see leak-free NOT_FOUND on a foreign schedule (its `params` carries A's marker, so a broken gate
   //    that resolved A's row would leak it via the returned row). `create`/`list` are EXEMPT (self-scoped). ──
@@ -1977,7 +1979,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "settings.importThemeFile": "self-scoped: takes file TEXT and no id — it writes only the caller's own theme library",
   "settings.promoteTheme": "self-scoped: mints an owned row from VALUES only (name + override) — no foreign id to reach through",
   "sessions.me": "self-scoped: projects the caller's own Principal",
-  "search.fields": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
+  "search.fields": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; hit names via the ownerId-filtered display read; query text, no id)",
   "search.suggest": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
   // Takes ids inside `scope`, but EVERY scope is owner-belted in the dispatch (digest scans carry the
   // characters.ownerId belt; the verbatim segments chat is gated against the owner's materialized chat
@@ -2077,6 +2079,9 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // input is an address and two ports, never an id, so there is no foreign row to name.
   "share.enableIpCertificate": "owner-gated: role gate at the verb (input is an address and two ports; writes the owner-gated deployment setting)",
   "share.disableIpCertificate": "owner-gated: role gate at the verb (no input; clears the owner-gated deployment setting)",
+  // The sign-in helper's read: boot-fixed process facts (the mode, its source enum, the install shape) and the share
+  // refusal sentences, behind a strict parser; it reads no row and has no tenant axis.
+  "share.signInMode": "admin-gated: role gate at the verb (no input; boot-fixed sign-in facts, reads and returns no row)",
   // plugin (D46/D147) — RECLASSIFIED 2026-08-24. The five management verbs used to be exempt as "admin-gated:
   // the install-authority role gate precedes the pluginId ownership check". That classification is DEAD:
   // plugins are user-scoped, the `can(caller,"admin",{kind:"global"})` gate is gone from every verb, and the

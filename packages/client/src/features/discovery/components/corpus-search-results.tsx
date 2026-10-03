@@ -1,10 +1,8 @@
 // The Corpus omnibox dispatches typed search results into readable artifact destinations.
 // Disclosure comes from the response metadata; repeated prose retains every source occurrence.
 
-import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
-import { Button } from "@orb/ui/button";
 import { Icon, Search } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -24,12 +22,6 @@ type UnifiedResult = inferOutput<Trpc["search"]["search"]>;
 type UnifiedOver = Extract<ReturnType<typeof resolveSearchTarget>, { kind: "unified" }>["over"];
 
 const SKELETON_ROW_COUNT = 5;
-// The owner's cards up to the server's page CEILING — the lexical `fields` verb returns bare ids, so the
-// picker names them against this map. It asked for 200 and silently got 100 until 2026-08-09, so a hit on a
-// card past the hundredth rendered as a bare short ref; the ask is now the real bound and an over-bound one
-// is refused loudly. An id still outside the page degrades to its short ref, as before.
-const NAME_MAP_LIMIT = CHARACTER_LIST_MAX_LIMIT;
-const ID_REF_LEN = 6;
 
 export interface CorpusSearchResultsProps {
   readonly query: string;
@@ -156,7 +148,7 @@ function relevancesOf(data: UnifiedResult): number[] {
   return [];
 }
 
-/** The lexical BM25 surface (`search.fields`) — bare id+score hits named against a card-list map. */
+/** The lexical BM25 surface (`search.fields`) — each hit arrives named by the server's owner-scoped read. */
 function FieldsResults({
   query,
   label,
@@ -169,7 +161,6 @@ function FieldsResults({
   const trpc = useTRPC();
   const trimmed = query.trim();
   const hits = useQuery(trpc.search.fields.queryOptions({ query: trimmed, topN: CORPUS_SEARCH_TOP_N }, { enabled: trimmed !== "" }));
-  const catalog = useQuery(trpc.character.list.queryOptions({ limit: NAME_MAP_LIMIT }));
 
   if (hits.isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
@@ -188,24 +179,8 @@ function FieldsResults({
     );
   }
 
-  const byId = new Map((catalog.data?.items ?? []).map((card) => [card.id, card]));
   return (
     <>
-      {/* THE NAME MAP CAN FAIL ON ITS OWN (#1500). The hits are ids; the names come from a SECOND read, and
-          when that one failed every row fell through to `Character abc123` — a real result set wearing
-          fabricated labels, with nothing on screen saying the names were the part that broke. The hits are
-          still worth showing (they are the answer), so this states which half is missing and offers the
-          re-read of exactly that half. */}
-      {catalog.isError ? (
-        <Row align="center" gap="field">
-          <Text role="status" voice="gloss">
-            Couldn't load your card names — these rows show ids.
-          </Text>
-          <Button intent="ghost" onClick={(): void => void catalog.refetch()} size="sm" type="button">
-            Retry
-          </Button>
-        </Row>
-      ) : null}
       {/* The lexical branch is never "nearest only": BM25 is an unbounded per-query score, not a
           similarity, so there is no band to compare it against (the same reason its rows print no percent). */}
       <Text voice="gloss">
@@ -214,23 +189,20 @@ function FieldsResults({
       </Text>
       <ResultsStatus count={hits.data.hits.length} label={label} nearestOnly={false} />
       <CorpusResultsList label={label} retainFinderScroll={retainFinderScroll}>
-        {hits.data.hits.map((hit, index) => {
-          const card = byId.get(hit.characterId);
-          return (
-            <Stack key={hit.characterId} role="listitem">
-              <CharacterHitRow
-                characterId={hit.characterId}
-                name={card?.name ?? `Character ${hit.characterId.slice(-ID_REF_LEN)}`}
-                avatarHash={card?.avatarHash ?? null}
-                genre={null}
-                tone={null}
-                pitch={null}
-                rank={index + 1}
-                relevance={null}
-              />
-            </Stack>
-          );
-        })}
+        {hits.data.hits.map((hit, index) => (
+          <Stack key={hit.characterId} role="listitem">
+            <CharacterHitRow
+              characterId={hit.characterId}
+              name={hit.name}
+              avatarHash={hit.avatarHash}
+              genre={null}
+              tone={null}
+              pitch={null}
+              rank={index + 1}
+              relevance={null}
+            />
+          </Stack>
+        ))}
       </CorpusResultsList>
     </>
   );

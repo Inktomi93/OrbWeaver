@@ -1104,3 +1104,41 @@ test("measured OR Gemini 3.1 Pro prefill remains a final assistant prefix throug
   });
   expect(body["messages"]).toMatchObject([{ role: "system" }, { role: "user" }, { role: "assistant", content: "The answer is" }]);
 });
+
+// ── llama.cpp without --jinja: the server reports template tool support and refuses tools[] ─────────────
+// `/props` emits `chat_template_caps` even under `--no-jinja`, so the reader states tools; the server's 400 is
+// the first signal, and it must tell the user what to change rather than echo an upstream flag name.
+test("a llama.cpp 'tools param requires --jinja flag' 400 reaches the caller as a readable, typed refusal", async () => {
+  const fetchImpl: typeof fetch = () =>
+    Promise.resolve(
+      new Response(JSON.stringify({ error: { code: 400, message: "tools param requires --jinja flag", type: "invalid_request_error" } }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  const connection = fakeResolved({
+    task: "chat",
+    providerId: "llama-cpp",
+    model: "qwen2.5-0.5b",
+    capability: generationCapability({ tools: { parallel: true } }),
+    baseUrl: "http://127.0.0.1:8080/v1",
+    secret: fakeApiKeySecret("not-a-real-key"),
+  });
+  const failure = await runOpenAiCompatChatTurn(orRequest({ connection }), turnDeps(fetchImpl)).then(
+    () => null,
+    (err: unknown) => err,
+  );
+  expect(failure).toBeInstanceOf(ProviderError);
+  const error = failure as ProviderError;
+  expect(error.kind).toBe("invalid");
+  expect(error.retryable).toBe(false);
+  expect(error.message).toContain(
+    "this llama.cpp server runs without --jinja, so tool calls are off; start it with --jinja or set tool calls to no under Advanced",
+  );
+  // PLANTED CONTROL: the same 400 on a turn that carried no tools is an ordinary upstream refusal.
+  const bare = await runOpenAiCompatChatTurn(orRequest({ connection, tools: undefined }), turnDeps(fetchImpl)).then(
+    () => null,
+    (err: unknown) => err,
+  );
+  expect((bare as ProviderError).message).not.toContain("tool calls are off");
+});

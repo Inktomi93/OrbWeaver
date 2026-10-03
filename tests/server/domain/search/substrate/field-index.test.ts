@@ -6,6 +6,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import {
+  evictFieldIndex,
   FIELD_INDEX_TTL_MS,
   getOrBuildFieldIndex,
   queryFields,
@@ -82,6 +83,41 @@ describe("getOrBuildFieldIndex", () => {
 
     await expect(getOrBuildFieldIndex(owner, 0, load)).rejects.toThrow("db down");
     await expect(getOrBuildFieldIndex(owner, 0, load)).resolves.toBeDefined();
+
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("evictFieldIndex", () => {
+  test("an evicted fresh entry rebuilds on the next call", async () => {
+    const owner = castId<UserId>("user_field_index_evict");
+    const load = vi.fn(() => Promise.resolve([card("character_aria", "Aria")]));
+
+    await getOrBuildFieldIndex(owner, 0, load);
+    evictFieldIndex(owner);
+    await getOrBuildFieldIndex(owner, 0, load);
+
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  // A build that loaded its rows before the eviction must not publish them after it: that index would still
+  // hold the card the eviction was for.
+  test("a build in flight when the owner is evicted is not cached", async () => {
+    const owner = castId<UserId>("user_field_index_evict_in_flight");
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const load = vi.fn(async () => {
+      await gate;
+      return [card("character_aria", "Aria")];
+    });
+
+    const stale = getOrBuildFieldIndex(owner, 0, load);
+    evictFieldIndex(owner);
+    release();
+    await stale;
+    await getOrBuildFieldIndex(owner, 0, load);
 
     expect(load).toHaveBeenCalledTimes(2);
   });

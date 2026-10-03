@@ -194,7 +194,7 @@ describe("memory-backfill", () => {
   });
 
   // #156 (the vacuous-run family's ADMISSION half, owner-observed): an ST import auto-enqueued this sweep
-  // while memory was DISABLED, the sweep skipped every one of that host's chats (the D36 opt-out, honored on
+  // while memory was DISABLED, the sweep skipped every one of that host's chats (the D293 opt-out, honored on
   // the corpus sweep since #54), and the Jobs row read "0 segments · 0 digests" as a SUCCESS. The refusal is
   // at ADMISSION, so no row exists to read.
   test("REFUSES admission for a singular run whose owner has memory off, naming the reason and the remedy", async () => {

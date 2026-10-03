@@ -16,6 +16,11 @@ interface ImageIndexerDeps {
   readonly analyze: (ownerId: UserId, bytes: Uint8Array) => Promise<AvatarAnalysis>;
 }
 
+interface ImageAnalysisCounterDeps {
+  /** Whether this owner's analysis would reach a model at all; the analysis skips without a call when it would not. */
+  readonly analysisCallsModel: (ownerId: UserId) => Promise<boolean>;
+}
+
 interface ImageSweepSpace {
   readonly ownerId: UserId;
   readonly space: NonNullable<Awaited<ReturnType<typeof resolveImageSpace>>>;
@@ -152,22 +157,35 @@ export function createImageIndexer(ctx: EmbeddingsContext, deps: ImageIndexerDep
 
 /**
  * How many avatar analyses (one vision call each) an image sweep over `ownerId` (`null` = every owner) would make:
- * every indexable asset with no skip record and no faceted analysis for its target generation, or every indexable
- * asset under `force`. Reads only. Bytes are not hashed, so an asset re-uploaded under the same id is not counted.
+ * every indexable asset with no skip record whose faceted analysis for its target generation is missing or was
+ * made from other bytes, or every indexable asset under `force`; none for an owner whose analysis would make no
+ * call. Reads only. The stored asset hash is the CAS key, the sha-256 of the bytes, which is the hash the
+ * analysis row records, so a re-upload under the same id is found without reading its bytes.
  */
-export function createImageAnalysisCounter(ctx: EmbeddingsContext): EmbeddingsService["countAssetAnalysisCalls"] {
+export function createImageAnalysisCounter(ctx: EmbeddingsContext, deps: ImageAnalysisCounterDeps): EmbeddingsService["countAssetAnalysisCalls"] {
   return async ({ ownerId, force }) => {
+    const callsModel = new Map<UserId, boolean>();
+    const ownerCallsModel = async (owner: UserId): Promise<boolean> => {
+      const reaches = callsModel.get(owner) ?? (await deps.analysisCallsModel(owner));
+      callsModel.set(owner, reaches);
+      return reaches;
+    };
     let calls = 0;
     for (const assetId of await ctx.listImageAssetIds(ownerId)) {
       const resolved = await indexableImageSpace(ctx, assetId);
-      if (resolved === null || (!force && (await existingImageSkip(ctx.db, assetId)))) {
+      if (resolved === null || (!force && (await existingImageSkip(ctx.db, assetId))) || !(await ownerCallsModel(resolved.ownerId))) {
         continue;
       }
-      const captioned = await existingCaptionedRow(ctx.db, assetId, resolved.generation.id);
-      if (force || captioned === undefined || !captioned.hasFacets) {
+      if (force || !(await analysisCurrent(ctx, assetId, resolved.generation.id))) {
         calls += 1;
       }
     }
     return calls;
   };
+}
+
+/** Whether the asset's faceted analysis for this generation was made from the bytes it holds now. */
+async function analysisCurrent(ctx: EmbeddingsContext, assetId: AssetId, generationId: PinnedGeneration["id"]): Promise<boolean> {
+  const captioned = await existingCaptionedRow(ctx.db, assetId, generationId);
+  return captioned !== undefined && captioned.hasFacets && captioned.hash === (await ctx.loadAssetHash(assetId));
 }

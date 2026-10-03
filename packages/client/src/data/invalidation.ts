@@ -214,10 +214,12 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // dialog is closed (the read is `enabled: open`, so there is no cache entry to refetch).
   // + the regex attached-by rosters: a character RENAME must repaint its name in listScriptUsage
   // (REGROSTER's flagged gap — attach/detach ride regexChanged; renames ride only this event).
+  // + the lexical search: each hit carries its card's name and avatar, so a rename or a delete repaints it.
   charactersChanged: (_e, trpc) => [
     trpc.character.pathFilter(),
     trpc.chat.getMemberCard.pathFilter(),
     trpc.regex.listScriptUsage.pathFilter(),
+    trpc.search.fields.pathFilter(),
     trpc.tag.pathFilter(),
   ],
   personasChanged: (_e, trpc) => [trpc.persona.pathFilter(), trpc.tag.pathFilter()],

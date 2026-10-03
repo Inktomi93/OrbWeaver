@@ -4,6 +4,7 @@
 import { RevealGate } from "@orb/ui/reveal-gate";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { hideActionName, revealActionName } from "../../../../packages/ui/src/lib/action-names.ts";
 import { ControlledHarness } from "./reveal-gate.fixtures.tsx";
 
 test("before reveal the secret is not in the DOM at all", async ({ mount, page }) => {
@@ -107,6 +108,18 @@ test("revealing announces via an aria-live region", async ({ mount, page }) => {
 
   await page.getByRole("button", { name: "Hide" }).click();
   await expect(announcement).toHaveText("API key hidden");
+});
+
+test("a subject names both triggers and the announcement while the visible text stays Reveal and Hide", async ({ mount, page }) => {
+  await mount(<RevealGate subject="the truth for Sola">she pocketed the key</RevealGate>);
+
+  const reveal = page.getByRole("button", { name: revealActionName("the truth for Sola"), exact: true });
+  await expect(reveal).toHaveText("Reveal");
+  await reveal.click();
+
+  const hide = page.getByRole("button", { name: hideActionName("the truth for Sola"), exact: true });
+  await expect(hide).toHaveText("Hide");
+  await expect(page.locator('[data-slot="reveal-gate-announcement"]')).toHaveText("the truth for Sola revealed");
 });
 
 test("focus moves to the Hide trigger on reveal", async ({ mount, page }) => {

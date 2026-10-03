@@ -98,9 +98,13 @@ export interface BugReportEnvironment {
    *  pointer coarse right now. See `maxTouchPoints`'s doc for why both ship. */
   readonly pointerCoarse: boolean;
   readonly prefersReducedMotion: boolean;
-  /** The resolved appearance carriers ON `<html>` — theme/density/font-scale as they actually painted, which
-   *  is the only appearance read that cannot disagree with the pixels the owner is reporting. */
+  /** The resolved appearance and theme carriers as they actually painted, which is the only appearance read
+   *  that cannot disagree with the pixels the owner is reporting. A theme observable reports one key per
+   *  signal, `<observable>.<signal>`. A `null` value is a signal the element does not carry. */
   readonly appearance: Readonly<Record<string, string | null>>;
+  /** The carrier keys whose element was not in the document at capture, so their absence is a stated fact
+   *  rather than a `null` that reads like an unset attribute. */
+  readonly appearanceAbsent: readonly string[];
 }
 
 /** Everything the page contributes to one report. The server adds its own half and the build identity. */

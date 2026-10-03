@@ -50,6 +50,7 @@ test("an OAuth code/state/fragment token never reaches the serialized bundle", (
       pointerCoarse: false,
       prefersReducedMotion: false,
       appearance: {},
+      appearanceAbsent: [],
     },
     slices: {},
     checkpointTotals: { bridge: false },

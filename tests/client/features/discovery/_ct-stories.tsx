@@ -526,9 +526,8 @@ export function CorpusDossierSurfaceStory(): ReactElement {
 }
 
 /** The omnibox's LEXICAL branch (`search.fields`), mounted directly on the `fields` target. Direct rather
- *  than through the omnibox: the branch's own defect is that its rows are NAMED from a SECOND read
- *  (`character.list`), and driving the target through the surface's chip row would put four unrelated
- *  ambient reads between the test and that claim. */
+ *  than through the omnibox: driving the target through the surface's chip row would put four unrelated
+ *  ambient reads between the test and the branch's own naming and retry claims. */
 export function CorpusFieldsSearchStory({ query = "crimson" }: { readonly query?: string } = {}): ReactElement {
   return (
     <CtDataProviders>

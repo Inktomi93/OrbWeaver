@@ -26,15 +26,8 @@ export interface PresetSummary {
    *  (`ChatSummary.parentChatId`-style); the client resolves the NAME from the rows it already has and
    *  simply omits the lineage scent when the source is not among them. */
   readonly forkedFrom: PresetId | null;
-  readonly createdAt: number;
-  readonly updatedAt: number;
-}
-
-export interface PresetDetail extends PresetSummary {
-  readonly config: PromptConfig;
-  readonly schemaVersion: number;
   /**
-   * WHY THE `config` ABOVE MAY NOT BE THIS ROW'S (#1716) — `null` ⇒ the stored blob was read faithfully;
+   * WHY A DETAIL'S `config` MAY NOT BE THIS ROW'S (#1716) — `null` ⇒ the stored blob was read faithfully;
    * a failure kind ⇒ `config` is a STAND-IN (the schema default, or for `version-from-future` the stored
    * blob minus every field this build cannot represent) and the editor is looking at something the row
    * does not contain.
@@ -51,9 +44,16 @@ export interface PresetDetail extends PresetSummary {
    * `version-from-future` blob is intact data this build is too old to read (reset-to-default would DESTROY
    * a newer build's preset), while the rest are genuine corruption whose only way out IS reset/import.
    * Naming the kind is leak-free — it is a verdict about the blob, never its contents (the same posture the
-   * refusal message keeps).
+   * refusal message keeps). The summary carries it so the list row can mark the preset before it opens.
    */
   readonly configUnreadable: VersionedParseFailure | null;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+export interface PresetDetail extends PresetSummary {
+  readonly config: PromptConfig;
+  readonly schemaVersion: number;
 }
 
 /**
@@ -109,6 +109,7 @@ export const EFFECTIVE_KNOBS = [
   "thinkingDisplay",
   "maxOutputTokens",
   "verbosity",
+  "replyMedia",
 ] as const;
 export type EffectiveKnob = (typeof EFFECTIVE_KNOBS)[number];
 
@@ -162,13 +163,13 @@ export const presetSummarySchema = z.strictObject({
   kind: z.string(),
   isSystemDefault: z.boolean(),
   forkedFrom: typeIdSchema(ID_PREFIX.preset).nullable(),
+  configUnreadable: versionedParseFailureSchema.nullable(),
   createdAt: z.number(),
   updatedAt: z.number(),
 }) satisfies z.ZodType<PresetSummary>;
 export const presetDetailSchema = presetSummarySchema.extend({
   config: promptConfigViewSchema,
   schemaVersion: z.number(),
-  configUnreadable: versionedParseFailureSchema.nullable(),
 }) satisfies z.ZodType<PresetDetail>;
 export const presetUsageViewSchema = z.strictObject({
   isUserDefault: z.boolean(),

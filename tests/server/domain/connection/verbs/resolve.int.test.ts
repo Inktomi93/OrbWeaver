@@ -192,3 +192,40 @@ describe("capabilities", () => {
     expect(assumed.capability).toMatchObject({ kind: "generation", generation: { context: { windowEstimated: true } } });
   });
 });
+
+// ── a save or an endpoint inspection asks the server again ────────────────────────────────────────────────
+// The advertised facts sit in a mirror persisted for a week; a server restarted without its projector or
+// `--jinja` keeps its old answer until something forgets it. The two user actions that mean "ask again" do.
+describe("the endpoint mirror forgets on save and on inspection", () => {
+  const OllamaRoutes = [
+    { match: "/api/version", json: { version: "0.35.1" } },
+    { match: "/api/ps", json: { models: [] } },
+    { match: "/api/show", json: { capabilities: ["completion", "tools"], ["model_info"]: {} } },
+    { match: "/chat/completions", json: { choices: [{ message: { content: "pong" } }] } },
+    { match: "/models", json: { data: [{ id: "qwen2.5:0.5b" }] } },
+  ];
+  const showDials = (h: Awaited<ReturnType<typeof makeHarness>>): number => h.requests.filter((request) => request.url.endsWith("/api/show")).length;
+
+  test("a second capability read answers from the mirror; an inspection and a save each make the next read dial again", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, { routes: OllamaRoutes });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({ principal: owner.principal, providerId: OLLAMA, credentialId: null, baseUrl: OLLAMA_URL, model: "qwen2.5:0.5b" });
+    await h.svc.capabilities({ principal: owner.principal, connectionId: row.id });
+    const warm = showDials(h);
+    expect(warm).toBeGreaterThan(0);
+    // PLANTED CONTROL: a plain re-read is a mirror hit.
+    await h.svc.capabilities({ principal: owner.principal, connectionId: row.id });
+    expect(showDials(h)).toBe(warm);
+
+    await h.svc.inspectEndpoint({ principal: owner.principal, connectionId: row.id });
+    const afterInspect = showDials(h);
+    expect(afterInspect, "the inspection itself re-read the server").toBeGreaterThan(warm);
+    await h.svc.capabilities({ principal: owner.principal, connectionId: row.id });
+    expect(showDials(h), "and the mirror it re-warmed answers the next read").toBe(afterInspect);
+
+    await h.svc.update({ principal: owner.principal, connectionId: row.id, patch: { label: "renamed" } });
+    await h.svc.capabilities({ principal: owner.principal, connectionId: row.id });
+    expect(showDials(h), "a save forgets the mirror, so the next read dials").toBeGreaterThan(afterInspect);
+  });
+});

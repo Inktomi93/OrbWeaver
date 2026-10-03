@@ -142,7 +142,7 @@ function RunWorkloadFormBody({
             return isRunnableWorkloadKind(kind) && WORKLOAD_KIND_MODES[kind].bulk ? (
               <form.AppField name="bulk">
                 {(field): ReactElement => (
-                  <field.SwitchField label="Bulk mode" description="Owner only — runs across every user's data instead of just yours." />
+                  <field.SwitchField label="Bulk mode" description="Owner only. Runs across every user's data instead of just yours." />
                 )}
               </form.AppField>
             ) : null;
@@ -202,7 +202,7 @@ function RunWorkloadFormBody({
       </form.Subscribe>
       {start.error === null ? null : (
         <Text voice="label" className="text-destructive">
-          Couldn't start the workload — a run of that kind may already be active.
+          Couldn't start the workload. A run of that kind may already be active.
         </Text>
       )}
       <FormSubmitButton

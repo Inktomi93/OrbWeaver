@@ -1,7 +1,7 @@
 // The share preconditions as one ordered decision: a sign-in mode a relayed visitor can use, then (local only) a
 // claimed owner. The first failing one is the refusal, naming its fix; the relay binary refuses on its own at start.
 
-import type { ShareRefusal, ShareRefusalNotice } from "@orb/contracts/identity";
+import type { AuthMode, ShareRefusal, ShareRefusalNotice } from "@orb/contracts/identity";
 import { SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
 import type { ShareFacts } from "../contract/service.ts";
 
@@ -32,12 +32,22 @@ function refusal(code: ShareRefusal, facts: ShareFacts): ShareRefusalNotice {
   return { code, message: message(code, facts) };
 }
 
+/** The refusal a share would meet under `mode`, in the words a start answers with; null where a relayed visitor can
+ *  sign in. The running mode's public addresses describe only that mode, so another mode's sentence names none. */
+export function modeShareRefusal(mode: AuthMode, facts: ShareFacts): ShareRefusalNotice | null {
+  const code = SHARE_MODE_REFUSAL[mode];
+  if (code === null) {
+    return null;
+  }
+  return refusal(code, mode === facts.authMode ? facts : { ...facts, authMode: mode, publicAddresses: [] });
+}
+
 /** The first unmet precondition, or null when a share may start. `ownerNeedsPassword` is the pending read of the owner
  *  row; it is awaited only under `local`, the one mode with a first-run claim. */
 export async function shareRefusal(facts: ShareFacts): Promise<ShareRefusalNotice | null> {
-  const modeRefusal = SHARE_MODE_REFUSAL[facts.authMode];
+  const modeRefusal = modeShareRefusal(facts.authMode, facts);
   if (modeRefusal !== null) {
-    return refusal(modeRefusal, facts);
+    return modeRefusal;
   }
   if (facts.authMode === "local" && (await facts.ownerNeedsPassword())) {
     return refusal("share_owner_unclaimed", facts);

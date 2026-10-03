@@ -52,6 +52,14 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     endsWhen: "the version identity becomes hot-swappable within a running process (a live redeploy signal), or the query gains reachable seam coverage.",
   },
   {
+    id: "query-freshness-coverage:share-signinmode",
+    policyId: "query-freshness-coverage",
+    subject: "share.signInMode",
+    operation: "uncovered-query-freshness",
+    why: "the Multi-user sign-in helper (features/user-admin/components/sharing-posture.tsx) reads the sign-in mode, its source and the install shape, which foundation/env fixes once at process load; no write path in this process changes them, and switching the mode takes a server restart, so no invalidation row could ever fire.",
+    endsWhen: "the sign-in mode becomes changeable within a running process (a Settings write), or the query gains reachable seam coverage.",
+  },
+  {
     id: "query-freshness-coverage:share-status",
     policyId: "query-freshness-coverage",
     subject: "share.status",
@@ -81,14 +89,6 @@ export const REVIEWED_GRANTS_Z_TO_CITATIONS: readonly ReviewedGateGrant[] = [
     subject: "imagery.readProvenance",
     operation: "uncovered-query-freshness",
     why: "keyed by assetId over a WRITE-ONCE generation record (features/imagery/components/provenance-strip.tsx — the lightbox's prompt/model/mode/cost strip). The `imagery_generations` row is stamped at generation and never updated: `packages/server/src/` carries ZERO `update(imageryGenerations)` sites, and an EDIT mints a new asset with its own new row (`edited:true`), so a change produces a NEW key — the old key's answer stays true forever (the `chat.getVariantWire` argument, same shape). A non-generated or foreign asset resolves `null` through the owner join, which the strip renders as its typed no-details arm.",
-    endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
-  },
-  {
-    id: "query-freshness-coverage:search-fields",
-    policyId: "query-freshness-coverage",
-    subject: "search.fields",
-    operation: "uncovered-query-freshness",
-    why: "input-keyed BM25 lexical search (same surface) — the query string is part of the key; re-running the identical query inside gcTime correctly returns the same corpus answer.",
     endsWhen: "the query gains reachable seam coverage, is no longer consumed, or the cited independent driver changes",
   },
   {

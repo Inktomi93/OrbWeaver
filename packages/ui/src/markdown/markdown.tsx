@@ -6,7 +6,6 @@ import { cn, usePrefersReducedMotion } from "#lib";
 import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
 import { MARKDOWN_LIST_COMPONENTS } from "./list-components.tsx";
 import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
-import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid.tsx";
 import {
   MARKDOWN_REMARK_PLUGINS,
   ownOriginMediaOnly,
@@ -42,7 +41,7 @@ export interface MarkdownProps {
   /**
    * The render trust tier — untrusted by default. `untrusted` is the safe posture for anything the
    * box owner didn't author (LLM output, imported cards, other participants): the Tier-A element
-   * allowlist + url gate, no `<speaker>` passthrough, and Mermaid withheld. `trusted` is the
+   * allowlist + url gate and no `<speaker>` passthrough. `trusted` is the
    * explicit-opt-in escalation for the viewer's own input or an opted-in character/global — the
    * boundary is the caller's to resolve; never pick `trusted` for convenience.
    */
@@ -79,7 +78,7 @@ interface BoundaryState {
   readonly failed: boolean;
 }
 
-// Streamdown's lazy CodeBlock/Mermaid chunks can crash on a stale deploy hash — a class error
+// Streamdown's lazy CodeBlock chunks can crash on a stale deploy hash — a class error
 // boundary converts that white-screen into a graceful fallback (React error boundaries have no hook form).
 //
 // AND IT RETRIES, because the boundary wraps ONE message's `<Streamdown>` for that message's whole life:
@@ -118,12 +117,11 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
 /**
  * `@orb/ui/markdown` — the one markdown renderer, sealing Streamdown 2.5 behind a 4-prop API: both
- * `mode`s, the token-sourced Shiki `code` plugin, the KaTeX `math` + token-styled `mermaid`
- * plugins, `controls`, `linkSafety`, and (#42) the seal-owned streamed-word reveal fade
+ * `mode`s, the token-sourced Shiki `code` plugin, the KaTeX `math` plugin, `controls`, `linkSafety`, and (#42) the seal-owned streamed-word reveal fade
  * (`reveal-plugin.ts` + the `[data-orb-reveal]` CSS in ui globals) with the seal-owned caret
  * (the client's `ghost-stream-body` scope — Streamdown's `caret`/`animated` props are deliberately
  * unused, see the render comments). Two trust policies, untrusted by default: `untrusted` applies
- * the Tier-A element allowlist + url gate, drops `<speaker>`, and withholds Mermaid; `trusted`
+ * the Tier-A element allowlist + url gate and drops `<speaker>`; `trusted`
  * restores Streamdown's permissive defaults (and, having no streaming consumer, gets no reveal
  * fade — the `allowedTags` schema merge is identity-gated on the default rehype pipeline), minus
  * off-origin media unless `allowExternalMedia` admits it.
@@ -135,10 +133,8 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   const reducedMotion = usePrefersReducedMotion();
   const untrusted = trust === "untrusted";
   const ownOriginMedia = !(untrusted || allowExternalMedia);
-  // Withhold Mermaid under untrusted: a ```mermaid fence renders arbitrary diagram DSL through a
-  // heavy lazy engine (a resource-abuse surface), so it's passed only for trusted content. KaTeX
+  // No diagram plugin is supplied, so a ```mermaid fence renders as inert code under both policies. KaTeX
   // stays for both tiers — rehype-katex defaults trust:false, so it's math-only and inert.
-  const mermaidProp = untrusted ? {} : { mermaid: MARKDOWN_MERMAID_OPTIONS };
   // #42 word-reveal fade (D168): our reveal plugin replaces Streamdown's
   // `animated` arm (that knob was DEAD — its `streamdown/styles.css` was never imported — and its
   // duration-0 re-render machinery snaps every fade at this app's commit cadence). UNTRUSTED-streaming
@@ -236,7 +232,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   // WHAT THIS DOES *NOT* DO: it does not move `snap --deadcss`, which still reports the vendor's three
   // uncompiled literals (`text-sm`/`py-0.5`/`px-1.5`) because they stay in the class attribute — the
   // element is Streamdown's, and taking it over would mean re-implementing its whole fenced-code branch
-  // (Shiki plugin dispatch, mermaid, the control cluster) to own one inline span. Those three are the
+  // (Shiki plugin dispatch, the control cluster) to own one inline span. Those three are the
   // ruled-and-permanent cost of the unscanned dist, not a defect: the RENDER is what this fixes.
   //
   // `break-words` (overflow-wrap: break-word, inherited by every rendered block) is the ONE reading-surface
@@ -253,7 +249,6 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
         dir="auto"
         remarkPlugins={MARKDOWN_REMARK_PLUGINS}
         plugins={{ code: MARKDOWN_SHIKI_PLUGIN, math: MARKDOWN_MATH_PLUGIN }}
-        {...mermaidProp}
         // Incomplete-markdown repair is a streaming concern only; a settled body must render as-authored.
         parseIncompleteMarkdown={mode === "streaming"}
         // ALWAYS passed since #1085 — the seal owns the three list elements (`list-components.tsx`) and,

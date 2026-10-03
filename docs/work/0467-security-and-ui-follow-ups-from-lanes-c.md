@@ -23,3 +23,5 @@ Each sub-point fixed or declined with a reason in the evidence.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Partly built in 6754c7abde (merged 79476c40ee): mermaid option removed, ORBWEAVER_REPO_SLUG, Label each speaker disabled in per-speaker rooms, throughputProvenance, replyMedia knob, Plugin pages copy, Let the room pick. Still open: the phone topbar with Report a bug (side-eye); the home doorway fold (declined, owner-ruled FOLD not cut); the OWNER fork on interactive cards (off / opt-in / default ceiling instead of a boolean).

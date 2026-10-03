@@ -215,8 +215,8 @@ export const gate = defineGate({
         "packages/db/src/schema/chat.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { id: text("id").primaryKey() });\n',
       },
-      expect: { count: 32, messageIncludes: "classifies nothing" },
-      why: "THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling. `count` is `Object.keys(OWNERID_CLASSIFICATIONS).length` — 32 after `plugin_provider_claims` (D265) joined the registry. RE-DERIVED 2026-09-26 from the exported object keys and the object literal. It is EXACT on purpose: without it the row passed on ONE stale finding as readily as on all of them, so a stale sweep that silently shrank to a single row would still have looked green (#1968/#2001). It moves with the table, which is the coupling this arm is FOR.",
+      expect: { count: 33, messageIncludes: "classifies nothing" },
+      why: "THE STALE ARM, mode (B) of §4.4a: the barrel resolves so the schema is the production one, and every classified table is GONE — a classification that outlives its subject must RED rather than sit there looking like a ruling. `count` is `Object.keys(OWNERID_CLASSIFICATIONS).length` — 33 after `compaction_spend` joined the registry. RE-DERIVED 2026-10-03 from the exported object keys and the object literal. It is EXACT on purpose: without it the row passed on ONE stale finding as readily as on all of them, so a stale sweep that silently shrank to a single row would still have looked green (#1968/#2001). It moves with the table, which is the coupling this arm is FOR.",
     },
   ],
   mustPass: [

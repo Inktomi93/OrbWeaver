@@ -164,6 +164,12 @@ export const MODEL_ROLES_ADDRESS = { group: "connections", sub: MODEL_ROLES_SUBC
 /** Where a door to the Utility role lands: Model roles, at the Utility picker. */
 export const UTILITY_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "utility-model" } as const;
 
+/** Where a door to the Chat role lands: Model roles, at the Chat picker. */
+export const CHAT_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "chat-model" } as const;
+
+/** Settings → Connections → the Connections list's add flow, as `openConfigTo` addresses it. */
+export const ADD_CONNECTION_DOOR = { group: "connections", sub: "connections", setting: "add-connection" } as const;
+
 /** Whether a resolved Utility model reads pictures, which avatar analysis and picture families need. */
 export function utilityReadsImages(capability: Capability): boolean {
   return requirementMet(capability, NEEDS_CAPTION_INPUT.requires).ok;

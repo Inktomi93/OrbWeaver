@@ -55,14 +55,16 @@ function callCount(calls: number): string {
   return `about ${calls} model ${calls === 1 ? "call" : "calls"}`;
 }
 
-/** The sentence a paid-run confirm leads with: the size of the run, and whether a Utility model can take it. */
-export function modelRunCostSentence(calls: number, utility: UtilityModelState): string {
+/** The sentence a paid-run confirm leads with: the size of the run, and whether a Utility model can take it. A
+ *  `recurring` run is a schedule's, so the size is per run, counted over the library as it stands today. */
+export function modelRunCostSentence(calls: number, utility: UtilityModelState, recurring = false): string {
+  const subject = recurring ? "Each run of this schedule" : "This";
   if (utility.kind === "unset") {
-    return `This needs ${callCount(calls)} on a Utility model, and none is set, so nothing can run until you pick one.`;
+    return `${subject} needs ${callCount(calls)} on a Utility model, and none is set, so nothing can run until you pick one.`;
   }
   if (utility.kind === "blocked") {
-    return `This needs ${callCount(calls)} on your Utility model, which is set but not running: ${utility.cause}.`;
+    return `${subject} needs ${callCount(calls)} on your Utility model, which is set but not running: ${utility.cause}.`;
   }
   const model = utility.kind === "ready" ? `your Utility model, ${utility.label}` : "your Utility model";
-  return `This makes ${callCount(calls)} on ${model}. A hosted provider bills each one.`;
+  return `${subject} makes ${callCount(calls)} on ${model}. A hosted provider bills each one.`;
 }

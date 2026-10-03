@@ -31,6 +31,7 @@ import {
   formatThroughput,
   REASONING_LABEL,
   THROUGHPUT_LABEL,
+  throughputProvenance,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
 
@@ -162,7 +163,10 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
             {/* The reasoning WINDOW beside the reasoning RATE (#184) — the per-character half of the same
                 unrendered rollup column. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />
-            <StatFigure label={THROUGHPUT_LABEL} value={formatThroughput(stats.throughputTps, stats.tokensOutProvenance)} />
+            <StatFigure
+              label={THROUGHPUT_LABEL}
+              value={formatThroughput(stats.throughputTps, throughputProvenance(stats.totalGenTimeMs, stats.tokensOutProvenance))}
+            />
           </Grid>
           <Text voice="gloss">
             Cache hits is the share of the tokens you sent that the provider served from its prompt cache — it is not rolled up per character, so it reads as a

@@ -90,7 +90,8 @@ export function RuleActionFields({
       return (
         <Stack gap="block">
           <Text voice="gloss">
-            Use {"{{draft}}"} for the current text. Only other draft transformations can share this rule; its condition has no event value.
+            Write the new text. {"{{draft}}"} stands for the text being rewritten. Only other rewrites can share this rule, and its condition cannot read the
+            event.
           </Text>
           <form.AppField name={`actions[${index}].target`}>
             {(field): ReactElement => (
@@ -101,7 +102,7 @@ export function RuleActionFields({
             )}
           </form.AppField>
           <form.AppField name={`actions[${index}].template`}>
-            {(field): ReactElement => <field.MacroField label="Draft transformation template" suggestions={[]} />}
+            {(field): ReactElement => <field.MacroField label="Rewrite template" suggestions={[]} />}
           </form.AppField>
         </Stack>
       );

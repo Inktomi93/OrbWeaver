@@ -87,6 +87,12 @@ export const workloadsRouter = t.router({
       });
     }),
 
+  // The size of a retry before a person confirms it: the clone's own row and owner, under `retry`'s gates.
+  estimateRetryModelCalls: authedProcedure
+    .output(modelCallEstimateSchema)
+    .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))
+    .query(({ ctx, input }) => ctx.services.workloads.estimateRetryModelCalls({ id: input.id, caller: ctx.auth })),
+
   cancel: authedProcedure
     .output(cancelWorkloadResultSchema)
     .input(z.object({ id: typeIdSchema(ID_PREFIX.workload) }))

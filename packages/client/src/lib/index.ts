@@ -45,8 +45,10 @@ export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens
 export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "./config-search-tokens.ts";
 export type { RoleBindingView, RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
 export {
+  ADD_CONNECTION_DOOR,
   backgroundRepairs,
   bindRefusal,
+  CHAT_ROLE_DOOR,
   CONNECTION_ROLE_LABELS,
   connectionHost,
   connectionSummary,
@@ -246,7 +248,7 @@ export { bindSessionDocumentHost, sessionDocument } from "./session-document-hos
 export { settingGloss } from "./setting-gloss.ts";
 export { settingsValueAtPath, settingsValueDiffers } from "./settings-path.ts";
 export type { UnreadableConfigCause, UnreadableConfigCopy } from "./stored-config-unreadable-copy.ts";
-export { PRESET_UNREADABLE_COPY, SETTINGS_UNREADABLE_COPY, unreadableConfigCause } from "./stored-config-unreadable-copy.ts";
+export { PRESET_UNREADABLE_COPY, PRESET_UNREADABLE_ROW_MARKER, SETTINGS_UNREADABLE_COPY, unreadableConfigCause } from "./stored-config-unreadable-copy.ts";
 export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag-filter-state.ts";
 export { cycleTagFilterEntries, NEXT_TAG_FILTER_STATE, TAG_FILTER_STATES, tagFilterStateOf } from "./tag-filter-state.ts";
 export {

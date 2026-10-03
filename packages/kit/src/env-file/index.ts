@@ -69,3 +69,13 @@ export function applyEnvEdits(text: string | null, edits: readonly EnvEdit[], ne
   }
   return out;
 }
+
+/** The env key a launcher sets beside the `.env` values it restates on a child's environment: a comma list of those
+ *  keys. The server counts a listed key as the file's, because it came from the file even though it arrives as
+ *  process environment. */
+export const ENV_FROM_FILE_KEY = "ORB_ENV_FROM_FILE";
+
+/** The keys an {@link ENV_FROM_FILE_KEY} value lists; an absent or empty value lists none. */
+export function envFromFileKeys(raw: string | undefined): ReadonlySet<string> {
+  return new Set((raw ?? "").split(",").filter((key) => key.length > 0));
+}

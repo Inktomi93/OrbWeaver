@@ -1,6 +1,6 @@
 import { Field as BaseField } from "@base-ui/react/field";
 import type { PopoverRootProps as BasePopoverRootProps } from "@base-ui/react/popover";
-import type { ChangeEvent, ReactElement } from "react";
+import type { ChangeEvent, ComponentProps, ReactElement } from "react";
 import { useState } from "react";
 import { cn, isRenderableColor } from "#lib";
 import { Button } from "#primitives/button";
@@ -11,25 +11,27 @@ import { Popover, PopoverPopup, PopoverTrigger } from "#primitives/popover";
 import { WebSpinner } from "#primitives/spinner";
 import { colorFieldVariants } from "./variants.ts";
 
-export interface ColorSwatchProps {
+export interface ColorSwatchProps extends Omit<ComponentProps<"span">, "children" | "style"> {
   /**
    * The color to display. Rendered as inline `background-color` only when it passes
    * `isRenderableColor`; an unsafe or unrenderable value renders an empty chip rather than risk an
-   * injected style or advertise a colour the browser will drop.
+   * injected style or advertise a colour the browser will drop. `null` is NO colour set: the chip
+   * renders its own outlined, unfilled state (`data-unset`), distinct from any colour a user can pick.
    */
-  value: string;
+  value: string | null;
   /** Optional text beside the chip (e.g. the raw hex) — omit for a bare swatch. */
   label?: string;
-  className?: string;
+  /** `md` is the control-sized chip; `sm` is the inline dot a list row carries. @defaultValue "md" */
+  size?: "md" | "sm";
 }
 
 /** The read-only swatch — a plain color chip for list/summary contexts, no popover/edit affordance. */
-export function ColorSwatch({ value, label, className }: ColorSwatchProps): ReactElement {
-  const slots = colorFieldVariants();
-  const safe = isRenderableColor(value);
+export function ColorSwatch({ value, label, size = "md", className, ...rest }: ColorSwatchProps): ReactElement {
+  const slots = colorFieldVariants({ swatchSize: size });
+  const fill = value !== null && isRenderableColor(value) ? { backgroundColor: value } : undefined;
   return (
-    <span className={slots.root({ className })} data-slot="color-swatch">
-      <span className={slots.swatch()} data-slot="color-swatch-chip" style={safe ? { backgroundColor: value } : undefined} />
+    <span className={slots.root({ className })} data-slot="color-swatch" {...rest}>
+      <span className={slots.swatch()} data-slot="color-swatch-chip" data-unset={value === null ? "" : undefined} style={fill} />
       {label === undefined ? null : <span className={slots.hexText()}>{label}</span>}
     </span>
   );

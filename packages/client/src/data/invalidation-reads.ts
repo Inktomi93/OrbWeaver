@@ -26,6 +26,7 @@ export function corpusRecomputeReads(trpc: Trpc): readonly InvalidateFilter[] {
     trpc.search.search.pathFilter(),
     trpc.chat.getMessageWindow.pathFilter(),
     trpc.workloads.estimateModelCalls.pathFilter(),
+    trpc.workloads.estimateRetryModelCalls.pathFilter(),
   ];
 }
 

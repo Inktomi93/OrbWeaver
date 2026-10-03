@@ -16,7 +16,7 @@ import type { ChatBusEvent } from "#chat";
 import { PROMPT_TRANSFORM_POINTS } from "#chat";
 import type { DomainEventType } from "#events";
 import { generateImageActionArgsSchema } from "#imagery";
-import { NOTIFICATION_RECIPIENTS } from "#notifications";
+import { AUTOMATION_NOTICE_COOLDOWN_SECONDS, NOTIFICATION_RECIPIENTS } from "#notifications";
 import type { RoutableTask } from "../inference/tasks.ts";
 
 /** `ChatBusEvent` discriminators automation may trigger on — a subset of the frozen chat-bus union.
@@ -1061,6 +1061,51 @@ export const automationRuleEditableSchema = z.strictObject({
   maxFiresPerHour: z.number().int().min(0).max(AUTOMATION_RULE_MAX_FIRES_PER_HOUR).default(AUTOMATION_RULE_DEFAULT_MAX_FIRES_PER_HOUR),
 });
 export type AutomationRuleEditable = z.infer<typeof automationRuleEditableSchema>;
+
+/** The machine codes a rule write is refused with. The wire reason is `automation_rule_<code>` ({@link ruleRefusalReason}),
+ *  which the editor maps to field copy, so a new code fails `tsc` where the server throws it and where the editor reads it. */
+export const AUTOMATION_RULE_REFUSAL_CODES = [
+  "active_game",
+  "analysis_confirm_slots",
+  "analysis_no_routes",
+  "bad_action",
+  "bad_cel",
+  "cooldown_floor",
+  "cooldown_negative",
+  "fires_cap",
+  "global_arm_scope",
+  "global_predicate_scope",
+  "global_trigger_bus",
+  "name",
+  "preset_knob",
+  "preset_scope",
+  "rule_disabled",
+  "transform_mix",
+  "transform_not_runnable",
+  "transform_trigger",
+  "unattached_book",
+  "unknown_tool",
+] as const;
+export type AutomationRuleRefusalCode = (typeof AUTOMATION_RULE_REFUSAL_CODES)[number];
+
+const RULE_REFUSAL_PREFIX = "automation_rule_";
+
+/** The wire reason a rule refusal carries for `code`. */
+export function ruleRefusalReason(code: AutomationRuleRefusalCode): string {
+  return `${RULE_REFUSAL_PREFIX}${code}`;
+}
+
+/** The refusal code a wire reason names, or `null` when it is not a rule refusal. */
+export function ruleRefusalCodeOf(reason: string): AutomationRuleRefusalCode | null {
+  const code = reason.startsWith(RULE_REFUSAL_PREFIX) ? reason.slice(RULE_REFUSAL_PREFIX.length) : null;
+  return AUTOMATION_RULE_REFUSAL_CODES.find((member) => member === code) ?? null;
+}
+
+/** Whether a rule breaks the notice floor: a rule that posts a notice waits `AUTOMATION_NOTICE_COOLDOWN_SECONDS`
+ *  between runs. The server refuses such a write and the editor marks Cooldown before sending it, from this predicate. */
+export function noticeCooldownTooShort(rule: { readonly actions: readonly Pick<AutomationAction, "type">[]; readonly cooldownSeconds: number }): boolean {
+  return rule.actions.some((action) => action.type === "post_notification") && rule.cooldownSeconds < AUTOMATION_NOTICE_COOLDOWN_SECONDS;
+}
 export type AutomationRuleEditableInput = z.input<typeof automationRuleEditableSchema>;
 
 /** The saver's browser zone, stamped on every create, update and preset mint: the rule's clock reads in it.

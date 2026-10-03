@@ -3,6 +3,8 @@
 // not-found (`DomainNotFoundError` → NOT_FOUND). The DB CHECK is the ultimate guard for stored shapes; the
 // pre-validation here gives a clean, typed refusal before the write. The rule-lifecycle errors are added below.
 
+import type { AutomationRuleRefusalCode } from "@orb/contracts/automation";
+import { ruleRefusalReason } from "@orb/contracts/automation";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId } from "@orb/kit/ids";
 
@@ -28,8 +30,8 @@ export class AutomationReservedTriggerError extends DomainOperationError {
  *  drive under the existing rule-mint invariant. Carries a machine
  *  `code` for the editor's inline surface. */
 export class RuleValidationError extends DomainOperationError {
-  constructor(code: string, reason: string) {
-    super(`automation_rule_${code}`, reason);
+  constructor(code: AutomationRuleRefusalCode, reason: string) {
+    super(ruleRefusalReason(code), reason);
     this.name = this.constructor.name;
   }
 }

@@ -1,4 +1,4 @@
-import { AUTOMATION_RULE_NAME_MAX_CHARS, automationActionSchema, automationRuleEditableSchema } from "@orb/contracts/automation";
+import { AUTOMATION_RULE_NAME_MAX_CHARS, automationActionSchema, automationRuleEditableSchema, noticeCooldownTooShort } from "@orb/contracts/automation";
 import { AUTOMATION_NOTICE_COOLDOWN_SECONDS } from "@orb/contracts/notifications";
 import { z } from "zod";
 
@@ -80,7 +80,7 @@ export type RuleEditorValues = z.infer<typeof ruleEditorDraftSchema>;
 
 export const ruleEditorCommitSchema = ruleEditorDraftSchema.superRefine((values, context) => {
   const { actionIds: _actions, choiceIds: _choices, keywordIds: _keywords, ...body } = values;
-  if (body.actions.some((action) => action.type === "post_notification") && body.cooldownSeconds < AUTOMATION_NOTICE_COOLDOWN_SECONDS) {
+  if (noticeCooldownTooShort(body)) {
     context.addIssue({ code: "custom", path: ["cooldownSeconds"], message: RULE_NOTICE_COOLDOWN_ERROR });
   }
   const result = automationRuleEditableSchema.safeParse(body);

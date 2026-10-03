@@ -8,7 +8,7 @@ import { TooltipProvider } from "@orb/ui/tooltip";
 import { QueryClientProvider, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { AboutSection } from "../../../../packages/client/src/features/user-admin/components/about-section.tsx";
+import { AboutSection, AboutUpdatesSection } from "../../../../packages/client/src/features/user-admin/components/about-section.tsx";
 import { AdminApprovalsSection } from "../../../../packages/client/src/features/user-admin/components/admin-approvals-section.tsx";
 import { AdminLinkSsoSection } from "../../../../packages/client/src/features/user-admin/components/admin-link-sso-section.tsx";
 import { AdminCatalogSection, AdminEmbedCardSection } from "../../../../packages/client/src/features/user-admin/components/admin-ops-section.tsx";
@@ -157,9 +157,8 @@ export function GovernanceSectionsStory({ width = 720 }: { readonly width?: numb
   );
 }
 
-/** The About SECTION in isolation (owner ask 2026-09-18) — `settings.getVersion` on mount and, ONLY on the
- *  button, `settings.checkForUpdate`. Narrow on purpose (480px): the version line and the verdict row live
- *  in the config pane's right column, which is the tightest real mount they get. */
+/** The About version section in isolation — `settings.getVersion` on mount. Narrow on purpose (480px): the
+ *  version line lives in the config pane's right column, which is the tightest real mount it gets. */
 export function AboutSectionStory(): ReactElement {
   return (
     <CtDataProviders>
@@ -168,6 +167,18 @@ export function AboutSectionStory(): ReactElement {
           <AboutSection />
         </div>
       </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** The admin's update-check section in isolation — `settings.checkForUpdate` ONLY on the button, at the same
+ *  480px column as the version section. */
+export function AboutUpdatesSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ overflow: "visible", padding: 16, width: 480 }}>
+        <AboutUpdatesSection />
+      </div>
     </CtDataProviders>
   );
 }

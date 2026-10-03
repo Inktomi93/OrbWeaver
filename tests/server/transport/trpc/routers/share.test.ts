@@ -67,6 +67,29 @@ describe("share router", () => {
     await expect(share.status()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 
+  test("signInMode refuses a user at layer 1 and answers the owner and an admin", async () => {
+    await expect(shareCaller("user").signInMode()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    for (const role of ["owner", "admin"] as const) {
+      await expect(shareCaller(role).signInMode()).resolves.toMatchObject({ mode: "local", source: "env-file", install: "bare-metal" });
+    }
+  });
+
+  // The view names where the mode came from, never another env value: a service that spread the env into it fails.
+  test("the strict output parser refuses a sign-in view carrying an env secret", async () => {
+    const leaky = {
+      signInMode: () =>
+        Promise.resolve({
+          mode: "local" as const,
+          source: "env-file" as const,
+          install: "bare-metal" as const,
+          targets: [],
+          sessionSecret: "x".repeat(32),
+        }),
+    };
+    const share = caller(makeContext({ auth: principal("owner"), services: { share: leaky } })).share;
+    await expect(share.signInMode()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+  });
+
   test("the IP certificate procedures refuse a user at layer 1 and an admin at the owner gate, and store nothing", async () => {
     const setting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
     for (const role of ["user", "admin"] as const) {

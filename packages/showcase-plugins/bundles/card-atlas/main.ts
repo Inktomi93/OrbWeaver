@@ -11,7 +11,7 @@
 //    results are twelve tiles and three are three); the DETAIL stage is where the decision happens, so it
 //    gets the design: hero art, name, provenance, tags, the add-to-library decision above the fold, the
 //    description at reading width. Stage navigation is ordinary published state (`active: {$state:"stage"}`),
-//    so leaving the Extensions section and coming back lands you exactly where you were.
+//    so leaving Plugin pages and coming back lands you exactly where you were.
 //
 //  * ONE SOURCE SEAM, MANY HUBS. Every hub is ONE object in `SOURCES` emitting the same normalized row and
 //    declaring its own capability facts (`paging`, `rowTags`, `serverInclude`, `serverExclude`, `headers`,

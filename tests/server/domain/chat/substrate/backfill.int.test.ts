@@ -356,7 +356,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect(resolveMemoryEmbedSpace).not.toHaveBeenCalled();
   });
 
-  test("a memory-DISABLED host's chat is SKIPPED (D36 opt-out) while an enabled host's chat still builds", async () => {
+  test("a memory-DISABLED host's chat is SKIPPED (D293 opt-out) while an enabled host's chat still builds", async () => {
     // Two hosts, each hosting one group room. The resolver reports host_off as `mode:"off"` (memory disabled)
     // and host_on as enabled — the SAME opt-out the live turn path honors, now honored on the corpus sweep (#54).
     const hostOff = await seedUser(db, castId<Handle>("host_off"));

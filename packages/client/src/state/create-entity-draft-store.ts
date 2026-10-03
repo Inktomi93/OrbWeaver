@@ -17,6 +17,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import type { StateStorage } from "zustand/middleware";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { useStore } from "zustand/react";
+import { useShallow } from "zustand/react/shallow";
 import { createStore } from "zustand/vanilla";
 import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
 import type { DurableLocalPersistApi } from "./durable-local.ts";
@@ -66,6 +67,9 @@ export interface EntityDraftStore<TInput> {
    *  to `values`; does NOT baseline-gate (a live reactive observer, not the mount-seed gate). */
   readonly useDraft: (id: string) => Readonly<Partial<TInput>>;
   readonly useHasDraft: (id: string) => boolean;
+  /** Reactive: the ids among `ids`, in order, that hold a draft passing the model validator. A list that numbers
+   *  or counts its drafted rows reads this, so it follows every set and clear. */
+  readonly useDraftedIds: (ids: readonly string[]) => readonly string[];
   /**
    * Non-hook read for factory seeding (the autosave form seeds draft-over-server at mount). Returns the
    * draft ONLY when it validates against the model AND its stamped baseline matches `baselineHash`; a
@@ -199,6 +203,11 @@ export function createEntityDraftStore<TInput>(config: EntityDraftStoreConfig<TI
     useDraft: (id): Readonly<Partial<TInput>> =>
       useStore(store, (s) => (durableLocalWritesAllowed() && isCurrentEnvelope(s.drafts[id]) ? s.drafts[id].values : empty)),
     useHasDraft: (id): boolean => useStore(store, (s) => durableLocalWritesAllowed() && isCurrentEnvelope(s.drafts[id])),
+    useDraftedIds: (ids): readonly string[] =>
+      useStore(
+        store,
+        useShallow((s) => (durableLocalWritesAllowed() ? ids.filter((id) => validateEnvelope(s.drafts[id]) !== undefined) : [])),
+      ),
     readDraft,
     readDraftBaseline: (id): string | undefined => {
       if (!durableLocalWritesAllowed()) {

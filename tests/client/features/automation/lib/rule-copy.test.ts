@@ -7,9 +7,10 @@
 // outcome picks its notify CHANNEL (not "everything is a success toast"), and `FireView.detail` — never
 // rendered before — becomes the answer the Run-now toast promises is in the fire log.
 
-import { SPEND_ARM_TYPES } from "@orb/contracts/automation";
+import { AUTOMATION_ACTION_TYPES, AUTOMATION_ARM_SCOPE, SPEND_ARM_TYPES } from "@orb/contracts/automation";
 import { describe } from "vitest";
 import {
+  armGroups,
   armLabel,
   fireDetailLine,
   hasSpendArm,
@@ -190,6 +191,22 @@ describe("armLabel", () => {
     // The open-world arm is labelled by its ACT, not its payload: WHICH tool lives in the arm's `name` field,
     // and a label that leaked `run_tool` would put the wire discriminator on the one surface built to hide it.
     expect(armLabel("run_tool")).toBe("run a tool");
+  });
+});
+
+// The picker groups every arm exactly once, so no kind can drop out of the menu, and a scope that offers no arm of a
+// group (a library-wide rule has no chat arms) shows no empty group heading.
+describe("armGroups", () => {
+  test("places every arm in exactly one group", () => {
+    const placed = armGroups(AUTOMATION_ACTION_TYPES).flatMap((group) => group.types);
+    expect(placed.toSorted()).toEqual([...AUTOMATION_ACTION_TYPES].toSorted());
+  });
+
+  test("leaves out a group the offered arms do not reach", () => {
+    const libraryWide = AUTOMATION_ACTION_TYPES.filter((type) => AUTOMATION_ARM_SCOPE[type] === "chat-independent");
+    const groups = armGroups(libraryWide);
+    expect(groups.every((group) => group.types.length > 0)).toBe(true);
+    expect(groups.flatMap((group) => group.types).toSorted()).toEqual([...libraryWide].toSorted());
   });
 });
 

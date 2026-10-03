@@ -159,6 +159,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     precomputedEmbedding: (hash, space, kind, connection) => (connection.wire === "local-light" ? findSeedEmbedding(hash, space, kind) : null),
     loadAssetKind: async (assetId) => (await assets.assetCasRefById(assetId))?.kind ?? null,
     loadAssetMime: async (assetId) => (await assets.assetCasRefById(assetId))?.mime ?? null,
+    loadAssetHash: async (assetId) => (await assets.assetCasRefById(assetId))?.hash ?? null,
     db,
     roleClientsFor,
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,

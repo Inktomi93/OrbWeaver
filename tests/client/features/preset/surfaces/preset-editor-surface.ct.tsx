@@ -60,6 +60,7 @@ function presetSummary(detail: PresetDetailFixture): TrpcWireOutput<"preset.list
     kind: detail.kind,
     isSystemDefault: detail.isSystemDefault,
     forkedFrom: detail.forkedFrom,
+    configUnreadable: detail.configUnreadable,
     createdAt: detail.createdAt,
     updatedAt: detail.updatedAt,
   };

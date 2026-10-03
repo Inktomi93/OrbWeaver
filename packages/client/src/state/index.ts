@@ -385,7 +385,9 @@ export {
   beginRuleCreation,
   clearRuleRecoveryCheckpoint,
   forgetRuleCreation,
+  pruneCompletedRuleCreations,
   readRuleCreation,
+  ruleDraftOwnerCurrent,
   useRuleCreations,
 } from "./rule-creation-store.ts";
 export type { SectionId } from "./section-ids.ts";

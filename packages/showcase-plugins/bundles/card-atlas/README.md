@@ -52,7 +52,7 @@ each hub publishes exactly the orderings it honors, so the menu is per-hub truth
 The DETAIL stage is where a person decides, so it gets the design: hero art, the BOUND stat sheet
 (`rowsFrom` — provenance plus exactly the counters this hub returned), the add-to-library decision above
 the fold, the description at reading width. `active: {$state:"stage"}` makes navigation ordinary
-published state — leave the Extensions section and come back, and you are where you were.
+published state — leave Plugin pages and come back, and you are where you were.
 
 ## Sorting — mined menus, one comparator dialect
 

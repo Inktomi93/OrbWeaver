@@ -71,6 +71,7 @@ import { insightsContextTabs, insightsCorpusMode } from "@orb/client/features/st
 import { labelsContextTabs, labelsCorpusMode } from "@orb/client/features/tag";
 import {
   aboutSection,
+  aboutUpdatesSection,
   adminApprovalsSection,
   adminCatalogSection,
   adminEmbeddingsSection,
@@ -317,7 +318,7 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
   adminUsersSection,
   // A2/B5 — Approvals and Link-SSO follow Users at the door; they were MISSING here until 2026-09-20 and
   // the admin pane rendered three sections short in every shell CT (exactly the omission the note above
-  // warns about, realised). `aboutSection` is last at this anchor, by owner ask.
+  // warns about, realised).
   adminApprovalsSection,
   adminLinkSsoSection,
   adminCatalogSection,
@@ -326,7 +327,9 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
   rateLimitsSection,
   systemTuningSection,
   structuredOutputSection,
+  // about ← the version (every member), then the admin's update check.
   aboutSection,
+  aboutUpdatesSection,
   // workloads ← the DECOMPOSED pane (SET-SEAMS stage 3), in the door's render order.
   workloadsJobsSection,
   workloadsSchedulesSection,

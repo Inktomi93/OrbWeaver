@@ -157,7 +157,7 @@ test("a partial failure says the key IS saved and the connection is NOT, and the
   const notice = dialog.getByRole("alert").filter({ hasText: "was saved in Saved keys" });
   // No label was typed, so the key is unnamed — whatever default the server files it under.
   await expect(notice).toHaveText(
-    "Your key (unnamed) was saved in Saved keys, but the connection wasn't created — the provider refused the model id. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.",
+    "Your key (unnamed) was saved in Saved keys, but the connection wasn't created: the provider refused the model id. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.",
   );
   // Secret-free from the moment the row exists: the paste field is gone, replaced by the saved row's name.
   await expect(dialog.getByLabel("API key", { exact: true })).toHaveCount(0);
@@ -242,7 +242,7 @@ test("a failed key mint leaves the key in the field only, and says nothing was s
   await dialog.getByLabel("API key", { exact: true }).fill(SECRET);
   await dialog.getByRole("textbox", { name: "Model" }).fill(OPUS);
   await submit(dialog);
-  await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveText("Nothing was saved — bad key.");
+  await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveText("Nothing was saved: bad key.");
   await expect(dialog.getByLabel("API key", { exact: true })).toHaveValue(SECRET);
   await expect(component.getByTestId("held-secrets")).toHaveText("0");
 });
@@ -290,7 +290,7 @@ test("a refused Server URL is an error on that field, and editing the URL clears
   // One inline statement of the failure, with the doubled period stripped.
   await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveCount(1);
   await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveText(
-    'Nothing was saved — "10.0.0.5:8000" is a private address this deployment does not admit.',
+    'Nothing was saved: "10.0.0.5:8000" is a private address this deployment does not admit.',
   );
   // The refused URL disables the submit under the caret; focus goes to the statement, never the document.
   await expect(dialog.getByRole("button", { name: "Add connection" })).toBeDisabled();
@@ -352,7 +352,7 @@ test("an admission after a refused submit withdraws the failure statement, and t
   await submit(dialog);
 
   const failure = dialog.locator('[data-slot="add-connection-failure"]');
-  await expect(failure).toHaveText(`Nothing was saved — ${LAN_REFUSAL}`);
+  await expect(failure).toHaveText(`Nothing was saved: ${LAN_REFUSAL}`);
   await dialog.getByRole("button", { name: `Admit ${LAN_AUTHORITY}` }).click();
   await expect(failure).toHaveCount(0);
   await submit(dialog);
@@ -783,7 +783,7 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await dialog.getByRole("textbox", { name: "Model" }).fill("gpt-6");
       await submit(dialog);
       const notice = dialog.getByRole("alert").filter({ hasText: "was saved in Saved keys" });
-      await expect(notice).toContainText("but the connection wasn't created — the provider refused the model id.");
+      await expect(notice).toContainText("but the connection wasn't created: the provider refused the model id.");
       // Stated once, inline — the dialog's mutations raise no toast behind the scrim.
       await expect(dialog.locator('[data-slot="add-connection-failure"]')).toHaveCount(1);
       // It takes focus, which brings it on screen — on a phone it lands below the fold otherwise.

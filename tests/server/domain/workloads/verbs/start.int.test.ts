@@ -455,7 +455,7 @@ describe("workloads.start — the per-(kind, owner, source) singular lock", () =
 
 // ── The OWNING DOMAIN's admission precondition (#156) ─────────────────────────────────────────────
 // Owner-observed: an ST import auto-enqueued `memory-backfill` while memory was DISABLED, the sweep skipped
-// every one of that host's chats (the D36 opt-out), and Jobs showed "0 segments · 0 digests" as a SUCCESS.
+// every one of that host's chats (the D293 opt-out), and Jobs showed "0 segments · 0 digests" as a SUCCESS.
 // The queue spells no domain's vocabulary, so chat declares the precondition and the door enforces it —
 // ADMISSION, never execution: a job that structurally cannot produce anything gets no row at all.
 describe("workloads.start — the owning domain's admission precondition", () => {

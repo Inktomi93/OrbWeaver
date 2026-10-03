@@ -241,7 +241,7 @@ function InertActivationList({ metadata }: { readonly metadata: EntryView["metad
   if (kept.length === 0) {
     return null;
   }
-  const title = "Kept from SillyTavern — not active yet";
+  const title = "Kept from SillyTavern, not active yet";
   return (
     <Stack aria-label={title} data-slot="inert-activation" gap="tight" role="group">
       <Text voice="label">{title}</Text>

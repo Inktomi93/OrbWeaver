@@ -35,6 +35,12 @@ export interface EstimateModelCallsParams extends Pick<StartWorkloadParams, "inp
   readonly caller: Principal;
 }
 
+/** The call estimate for a retry: the row a retry would clone, counted under that row's own scope. */
+export interface EstimateRetryModelCallsParams {
+  readonly id: WorkloadId;
+  readonly caller: Principal;
+}
+
 export interface CancelWorkloadParams {
   readonly id: WorkloadId;
   readonly caller: Principal | null;

@@ -877,7 +877,7 @@ test("retry of a job that calls a model shows its count and re-runs only on yes"
     ...PAID_RUN_ROUTES,
     "workloads.list": () => workloadList(distillWorkloadRow({ id: "workload_ct_2", status: "failed", error: "runtime: boom" })),
     "sessions.me": () => USER_VIEWER,
-    "workloads.estimateModelCalls": { calls: 8 },
+    "workloads.estimateRetryModelCalls": { calls: 8 },
     "workloads.retry": () => ({ id: "workload_ct_clone" }),
   });
   await routeWorkloadStream(page, []);
@@ -887,6 +887,10 @@ test("retry of a job that calls a model shows its count and re-runs only on yes"
 
   const confirm = page.getByRole("alertdialog", { name: `Retry ${WORKLOAD_KIND_LABELS["distill-characters"]}?` });
   await expect(confirm).toBeVisible();
+  // The count is the row's own (its owner and params), asked by id, never re-derived from the caller's start scope.
+  await expect.poll(() => trpc.lastInput("workloads.estimateRetryModelCalls")).toEqual({ id: "workload_ct_2" });
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the confirm is open, so its one count has settled; a poll would pass at t=0 and prove less.
+  expect(trpc.count("workloads.estimateModelCalls")).toBe(0);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the confirm is open (settled above) and only its yes retries; a poll would pass at t=0 and prove less.
   expect(trpc.count("workloads.retry")).toBe(0);
 

@@ -7,9 +7,11 @@
 // installed here because `main.tsx`, which installs it in the app, never runs in a CT.
 import type { BugReportServerFacts } from "@orb/client/lib";
 import { installSafeErrorRing } from "@orb/client/lib";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { BugReportButton } from "../../../../../packages/client/src/features/app-shell/components/bug-report-button.tsx";
+import { CustomThemeStyle } from "../../../../../packages/client/src/features/app-shell/components/custom-theme-style.tsx";
 
 installSafeErrorRing();
 
@@ -33,6 +35,34 @@ export const DevBugReportButton = (): ReactElement => <BugReportButton devCaptur
 
 /** The form as a production build shows it: the public outputs only. */
 export const PublicBugReportButton = (): ReactElement => <BugReportButton devCapture={false} loadServerFacts={loadServerFacts} />;
+
+/** The live carriers a themed page holds, built from the real producers: the root seed attribute and an ordinary
+ *  appearance value on `<html>`, the app ThemeScope over `.shell-grid` with a carried room scope inside it, and
+ *  the owner's custom CSS. No portal root is mounted, so the capture must report that carrier absent. */
+export const BugReportOverThemedPageFixture = (): ReactElement => {
+  useLayoutEffect((): (() => void) => {
+    const root = document.documentElement;
+    root.setAttribute("data-theme", "ct-seed");
+    root.style.setProperty("--font-scale", "1.25");
+    return (): void => {
+      root.removeAttribute("data-theme");
+      root.style.removeProperty("--font-scale");
+    };
+  }, []);
+  return (
+    <>
+      <CustomThemeStyle css=":root { --ct-owner-marker: 1; }" />
+      <ThemeScope tokens={{ background: "#202830" }}>
+        <div className="shell-grid" data-elevation="raised">
+          <ThemeScope tokens={{ background: "#f4f1ea" }}>
+            <span>room</span>
+          </ThemeScope>
+        </div>
+      </ThemeScope>
+      <BugReportButton devCapture={true} loadServerFacts={loadServerFacts} />
+    </>
+  );
+};
 
 const PAGE_CONTROL_STYLE = { position: "fixed", insetInline: 0, bottom: 0, height: "180px", width: "100%" } as const;
 

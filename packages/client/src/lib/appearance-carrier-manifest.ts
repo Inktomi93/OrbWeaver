@@ -238,25 +238,39 @@ export const APPEARANCE_CARRIER_OBSERVABLES = {
   messageActions: { kind: "message-prop", selector: LIVE_MESSAGE_ROW_SELECTOR, signal: "messageActions" },
 } as const satisfies AppearanceCarrierObservableManifest;
 
+/** How a theme observable's signals are read off its element: an attribute, the computed style (a custom
+ *  property or a CSS property, inherited or inline), or the element's text. */
+const THEME_OBSERVABLE_READS = ["attribute", "computed-style", "text-content"] as const;
+export type ThemeObservableRead = (typeof THEME_OBSERVABLE_READS)[number];
+
+interface ThemeCarrierObservable {
+  readonly selector: string;
+  readonly read: ThemeObservableRead;
+  readonly signals: readonly string[];
+  readonly lifecycle: AppearanceLifecycle;
+}
+
 /** Theme selection is adjacent to Appearance but is not one of its 41 schema leaves. These rendered
  * observables are what #953 must read after applying a theme request: an intercepted settings envelope
  * proves neither the palette that painted nor the polarity/custom-CSS planes that won. Nested scopes stay
  * independently observable because room/card overrides intentionally do not flatten into the app scope. */
 export const THEME_CARRIER_OBSERVABLES = {
-  seedRoot: { selector: "html", signals: ["data-theme"], lifecycle: "prepaint-and-hydrated" },
+  seedRoot: { selector: "html", read: "attribute", signals: ["data-theme"], lifecycle: "prepaint-and-hydrated" },
   activeScope: {
     selector: '[data-slot="theme-scope"]:has(.shell-grid)',
+    read: "computed-style",
     signals: ["--color-background", "color-scheme"],
     lifecycle: "hydrated",
   },
-  portalRoot: { selector: '[data-slot="portal-root"]', signals: ["--color-background", "color-scheme"], lifecycle: "hydrated" },
+  portalRoot: { selector: '[data-slot="portal-root"]', read: "computed-style", signals: ["--color-background", "color-scheme"], lifecycle: "hydrated" },
   carriedScope: {
     selector: '[data-slot="theme-scope"]:has(.shell-grid) [data-slot="theme-scope"]',
+    read: "computed-style",
     signals: ["--color-background", "color-scheme"],
     lifecycle: "hydrated",
   },
-  ownerCustomCss: { selector: "style[data-orb-theme-css]", signals: ["textContent"], lifecycle: "hydrated" },
-} as const;
+  ownerCustomCss: { selector: "style[data-orb-theme-css]", read: "text-content", signals: ["textContent"], lifecycle: "hydrated" },
+} as const satisfies Record<string, ThemeCarrierObservable>;
 
 export interface AppearanceMatrixContractRow {
   readonly key: AppearanceCarrierKey;

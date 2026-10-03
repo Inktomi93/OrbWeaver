@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, messages, messageVariants } from "@orb/db";
 import { projectBodyForSummary } from "@orb/kit/content";
 import type { CharacterId, ChatDigestId, ChatId, EmbedGenerationId } from "@orb/kit/ids";
-import { and, asc, count, eq, inArray, lte, max, min } from "drizzle-orm";
+import { and, asc, eq, inArray, lte, max, min } from "drizzle-orm";
 import type { DigestRow, MsgRow, WitnessInterval } from "../types.ts";
 
 /** The chat's canon head (`max(messages.seq)`, 0 when empty) — the build cutoff (`maxSeq − verbatimWindow`)
@@ -89,32 +89,6 @@ export async function loadCanonThroughSeq(db: Db, chatId: ChatId, throughSeq: nu
     .where(canonThroughSeq(chatId, throughSeq))
     .orderBy(asc(messages.seq));
   return rows.map((r) => ({ ...r, content: projectBodyForSummary(r.content) }));
-}
-
-/** How many canon rows `loadCanonThroughSeq` would return, without reading their bodies — the call estimate's
- *  block count (`floor(rows / blockSize)`), from the same ingest predicate and the same selected-variant join. */
-export async function countCanonThroughSeq(db: Db, chatId: ChatId, throughSeq: number): Promise<number> {
-  const rows = await db
-    .select({ rows: count() })
-    .from(messages)
-    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(canonThroughSeq(chatId, throughSeq));
-  return rows.at(0)?.rows ?? 0;
-}
-
-/** The stored digests per tier for one scope bucket in one embed generation — the call estimate's "already
- *  built" side. A row from another generation does not count: a generation change rebuilds every digest. */
-export async function countDigestsByTier(
-  db: Db,
-  chatId: ChatId,
-  scopedCharacterId: CharacterId,
-  generationId: EmbedGenerationId,
-): Promise<readonly { readonly tier: number; readonly rows: number }[]> {
-  return await db
-    .select({ tier: chatDigests.tier, rows: count() })
-    .from(chatDigests)
-    .where(and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId), eq(chatDigests.generationId, generationId)))
-    .groupBy(chatDigests.tier);
 }
 
 /** The `(tier:blockIdx) → content_hash` map for one scope bucket (the digest staleness gate — re-summarize a

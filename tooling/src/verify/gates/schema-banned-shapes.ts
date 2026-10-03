@@ -1,4 +1,4 @@
-// The SCHEMA partition of the ledger's rejected shapes (D18/D25/D26/D27/D28/D36/D58), judged on the shared
+// The SCHEMA partition of the ledger's rejected shapes (D18/D25/D26/D27/D28/D293/D58), judged on the shared
 // Drizzle fact: tables by SQL name, columns by the identity the authored schema object declares. The fact
 // owns builder/alias/import/spread resolution, so an imported columns object or a shorthand member is the
 // same obligation as an inline property. The contract partition is `contract-banned-shapes`; the D12 import
@@ -161,7 +161,7 @@ export const gate = defineGate({
         "packages/db/src/schema/chat.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const chats = sqliteTable("chats", { ["memoryEnabled"]: text("memory_enabled") });\n',
       },
-      expect: { count: 1, token: "memoryEnabled", messageIncludes: "D36" },
+      expect: { count: 1, token: "memoryEnabled", messageIncludes: "D293" },
       why: "a COMPUTED-KEY column member is the same declared identity — a dot-only reader would answer 'not my subject' (the #1506 respelling class)",
     },
     {

@@ -356,5 +356,5 @@ export type MemoryBackfillSweepCounts = MemoryBackfillCounts & {
  *  `UserSettings.memory.enabled === false → mode:"off"`), extracted to ONE home so the sweep and the turn
  *  can't drift. Injected into {@link backfillMemory} (NOT `ChatContext` — there is no settings-read op there,
  *  engine.ts header): the sweep resolves it off each chat's HOST and SKIPS a `mode:"off"` host's chats
- *  entirely (D36 opt-out honored on the corpus sweep, not just the live turn — #54). */
+ *  entirely (D293 opt-out honored on the corpus sweep, not just the live turn — #54). */
 export type ResolveBackfillMemoryConfig = (hostUserId: UserId) => Promise<MemoryConfig>;
