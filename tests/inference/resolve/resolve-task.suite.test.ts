@@ -393,7 +393,7 @@ async function sharedServer(order: readonly ("ollama" | "custom-openai")[]): Pro
     out[providerId] = generationOf((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability);
   }
   expect([...stores.snapshotStore.entries.keys()].filter((key) => key.startsWith("catalog:endpoint:")).sort()).toEqual(
-    order.map((providerId) => `catalog:endpoint:${providerId === "ollama" ? "ollama" : "list"}:http://127.0.0.1:1/v1`).sort(),
+    order.map((providerId) => `catalog:endpoint:http://127.0.0.1:1/v1#${providerId === "ollama" ? "ollama" : "list"}`).sort(),
   );
   return out;
 }
@@ -431,4 +431,66 @@ test("a snapshot written under the old URL-only key carries no native facts and 
     "the reader dialed the server instead of trusting the old snapshot",
   ).toBe(true);
   expect(capability).toMatchObject({ input: ["text"], tools: { parallel: false } });
+});
+
+// ── invalidation outlives the process ────────────────────────────────────────────────────────────────────
+// A mirror that only forgot its cache reads the persisted row back on the next cold warm, so a refresh in one
+// process left the next process answering from the row the refresh meant to drop.
+
+function countingFetch(seen: string[]): typeof fetch {
+  return localServerFetch("ollama", {}, seen);
+}
+
+function showDials(seen: readonly string[]): number {
+  return seen.filter((url) => url.endsWith("/api/show")).length;
+}
+
+test("a catalog refresh in one runtime drops the persisted snapshot, so a later runtime on the same store dials the server", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  stores.connections.rows.set(row.id, row);
+  const seenA: string[] = [];
+  const runtimeA = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seenA) }));
+  await runtimeA.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  expect(showDials(seenA)).toBeGreaterThan(0);
+  expect([...stores.snapshotStore.entries.keys()]).toContain("catalog:endpoint:http://127.0.0.1:1/v1#ollama");
+
+  // PLANTED CONTROL: a fresh runtime on the same store answers from the snapshot with zero dials.
+  const seenB: string[] = [];
+  const runtimeB = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seenB) }));
+  await runtimeB.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  expect(showDials(seenB)).toBe(0);
+
+  await runtimeB.catalogs.refresh("ollama");
+  expect([...stores.snapshotStore.entries.keys()].filter((key) => key.startsWith("catalog:endpoint:"))).toEqual([]);
+  const seenC: string[] = [];
+  const runtimeC = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seenC) }));
+  await runtimeC.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  expect(showDials(seenC)).toBeGreaterThan(0);
+});
+
+test("invalidateEndpoint forgets ONE connection's (URL × reader) mirror in memory and in the store, and leaves a sibling reader's", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const ollama = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  const custom = fakeConnection({ ownerId, providerId: "custom-openai", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
+  stores.connections.rows.set(ollama.id, ollama);
+  stores.connections.rows.set(custom.id, custom);
+  const seen: string[] = [];
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seen) }));
+  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: ollama.id });
+  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: custom.id });
+  const listDials = seen.filter((url) => url.endsWith("/v1/models")).length;
+  const before = showDials(seen);
+  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: ollama.id });
+  expect(showDials(seen), "a warm mirror answers without a dial").toBe(before);
+
+  await runtime.catalogs.invalidateEndpoint(ollama);
+  expect(stores.snapshotStore.entries.has("catalog:endpoint:http://127.0.0.1:1/v1#ollama")).toBe(false);
+  expect(stores.snapshotStore.entries.has("catalog:endpoint:http://127.0.0.1:1/v1#list"), "the sibling reader's row stays").toBe(true);
+  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: ollama.id });
+  expect(showDials(seen), "the forgotten mirror dials again").toBeGreaterThan(before);
+  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: custom.id });
+  expect(seen.filter((url) => url.endsWith("/v1/models")).length - listDials, "the sibling's mirror was not touched: only the ollama re-warm listed").toBe(1);
 });

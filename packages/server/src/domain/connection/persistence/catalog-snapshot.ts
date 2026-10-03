@@ -1,11 +1,12 @@
 // domain/connection/persistence/catalog-snapshot — the runtime's `SnapshotStore`: a generic `key → json`
-// tenant in the shared `settings` table (`catalog:openrouter`, `catalog:agent-sdk`, `catalog:endpoint:<url>`).
-// The runtime parses what it reads through its own schema; this slot moves opaque strings. No HTTP here.
+// tenant in the shared `settings` table (`catalog:openrouter`, `catalog:agent-sdk`,
+// `catalog:endpoint:<url>#<reader>`). The runtime parses what it reads through its own schema; this slot moves
+// opaque strings. No HTTP here.
 
 import type { Db } from "@orb/db";
 import { settings } from "@orb/db";
 import type { SnapshotStore } from "@orb/inference";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export function createSnapshotStore(db: Db, now: () => number): SnapshotStore {
   return {
@@ -20,6 +21,10 @@ export function createSnapshotStore(db: Db, now: () => number): SnapshotStore {
         .insert(settings)
         .values({ key, value, updatedAt: at })
         .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: at } });
+    },
+    deletePrefix: async (prefix): Promise<void> => {
+      // A substring compare, not LIKE: a URL in the prefix may carry `_` or `%`, which LIKE would read as wildcards.
+      await db.delete(settings).where(sql`substr(${settings.key}, 1, ${prefix.length}) = ${prefix}`);
     },
   };
 }

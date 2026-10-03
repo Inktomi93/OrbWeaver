@@ -18,6 +18,7 @@ import type { InferenceDeps, InferenceLog } from "../../../packages/inference/sr
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { fakeApiKeySecret, fakeDeps, newUserId } from "../_support.ts";
+import { localServerFetch } from "./_local-servers-fetch.ts";
 
 const PLANTED = "sk-planted-0123456789abcdef0123456789abcdef";
 const OPENROUTER_BASE = "https://openrouter.ai/api/v1";
@@ -358,4 +359,33 @@ describe("refusals are thrown, not listed", () => {
       runtime.catalogs.models({ principal: s.alice, providerId: provider("no-such-provider"), secret: { credentialId: null }, baseUrl: null }),
     ).rejects.toBeInstanceOf(ProviderError);
   });
+});
+
+// ── an endpoint draft dials the provider row's reader, so what the picker lists carries the server's kind ──
+test("an Ollama draft lists its embedder as an embedder and its chat models kindless of nothing — the reader's kind rides the row", async () => {
+  const seen: string[] = [];
+  const ownerId = newUserId();
+  const runtime = await createInferenceRuntime(fakeDeps({ fetch: localServerFetch("ollama", {}, seen) }));
+  const listing = await runtime.catalogs.models({
+    principal: principal(ownerId),
+    providerId: provider("ollama"),
+    secret: { credentialId: null },
+    baseUrl: "http://127.0.0.1:1/v1",
+  });
+  expect(listing.listed).toBe(true);
+  const models = listing.listed ? listing.models : [];
+  expect(models.find((model) => model.id === "nomic-embed-text:latest")?.kind).toBe("embedding");
+  expect(models.find((model) => model.id === "qwen2.5:0.5b")?.kind).toBe("generation");
+  expect(
+    seen.some((url) => url.endsWith("/api/show")),
+    "the draft read dialed the native API",
+  ).toBe(true);
+  // PLANTED CONTROL: the same server through a row without a reader lists ids only.
+  const bare = await runtime.catalogs.models({
+    principal: principal(ownerId),
+    providerId: provider("custom-openai"),
+    secret: { credentialId: null },
+    baseUrl: "http://127.0.0.1:1/v1",
+  });
+  expect(bare.listed && bare.models.every((model) => model.kind === undefined)).toBe(true);
 });

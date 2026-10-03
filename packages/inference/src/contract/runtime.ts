@@ -104,6 +104,9 @@ export interface InferenceLog {
 export interface SnapshotStore {
   readonly read: (key: string) => Promise<string | null>;
   readonly write: (key: string, value: string) => Promise<void>;
+  /** Drop every persisted snapshot whose key starts with `prefix` — an invalidation that outlives the process,
+   *  since a mirror re-reads its snapshot on the next cold warm (a restart) and a stale row would answer. */
+  readonly deletePrefix: (prefix: string) => Promise<void>;
 }
 
 export interface ConnectionStore {

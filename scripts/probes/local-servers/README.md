@@ -56,8 +56,8 @@ Evidence: `results/<arm>.jsonl`, one row per step, append-only.
 - llama.cpp server reports `chat_template_caps` even when started with `--no-jinja`, and then refuses
   `tools[]` with "tools param requires --jinja flag". The reader states tools; the chat backend maps that
   refusal to a readable error, and the user sets tool calls to no under Advanced or restarts with `--jinja`.
-- The app keeps one mirror per server URL and reader (`catalog:endpoint:<reader>:<url>`), persisted for a
+- The app keeps one mirror per server URL and reader (`catalog:endpoint:<url>#<reader>`), persisted for a
   week. A server restarted without its projector, or without `--jinja`, keeps its earlier facts until the
-  mirror refreshes: an admin's catalog refresh (Admin → operations → refresh catalog) invalidates every mirror
-  on that provider, the daily refresh job re-reads on its cadence, and the week-old ceiling re-reads on its
-  own.
+  mirror forgets them. Two user actions do that for the connection, in memory and in the persisted row:
+  saving the connection (any field) and **Inspect endpoint** under its Diagnostics. The week-old ceiling
+  re-reads on its own. The admin catalog refresh button and the daily refresh job cover OpenRouter only.

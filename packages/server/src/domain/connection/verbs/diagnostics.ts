@@ -85,11 +85,19 @@ function createVerifyAuth(ctx: ConnectionContext): ConnectionService["verifyAuth
 }
 
 function createInspectEndpoint(ctx: ConnectionContext): ConnectionService["inspectEndpoint"] {
-  return async (params): Promise<EndpointInspection> =>
-    ctx.runtime.diagnostics.inspect({
+  return async (params): Promise<EndpointInspection> => {
+    const row = await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId);
+    if (row === null) {
+      throw new ConnectionNotFoundError(params.connectionId);
+    }
+    // "Inspect this endpoint" is the user asking the server again: forget its last advertisement BEFORE the
+    // resolve below, so the inspection and every later turn read what the server says now.
+    await ctx.runtime.catalogs.invalidateEndpoint(row);
+    return ctx.runtime.diagnostics.inspect({
       connection: await resolveRow(ctx, params.principal, params.connectionId),
       ...(params.signal !== undefined ? { signal: params.signal } : {}),
     });
+  };
 }
 
 /** The slice of `ConnectionService` this grouped file owns. */

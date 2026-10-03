@@ -203,6 +203,14 @@ export function memoryStores(): MemoryStores {
         entries.set(k, v);
         return Promise.resolve();
       },
+      deletePrefix: (prefix): Promise<void> => {
+        for (const entryKey of [...entries.keys()]) {
+          if (entryKey.startsWith(prefix)) {
+            entries.delete(entryKey);
+          }
+        }
+        return Promise.resolve();
+      },
     },
   };
 }
