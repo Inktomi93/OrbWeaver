@@ -64,15 +64,15 @@ export function deriveEffectiveDelivery(
     // "one beat behind" is true of a game nothing writes; the read-only pill is the honest label there.
     return { path: "none", fallbackReason: null };
   }
-  if (mode === "folded" && verdicts.foldGuarded) {
-    return { path: "tool-round", fallbackReason: "local-engine-fold-guard" };
-  }
-  if (mode === "folded") {
+  if (mode === "folded" && !verdicts.foldGuarded) {
     return { path: "folded", fallbackReason: null };
   }
-  // The host's `structured` vehicle cannot run on this wire: the round they get is tool calls, and the panel
-  // says so rather than letting the knob read as honoured.
-  return { path: "tool-round", fallbackReason: verdicts.structuredUnavailable ? "structured-unavailable" : null };
+  // A post-commit round runs. The host's explicit `structured` choice going unhonoured outranks the fold guard: it
+  // is the one the host acted on and cannot see otherwise (the guard keeps its own warn line).
+  if (verdicts.structuredUnavailable) {
+    return { path: "tool-round", fallbackReason: "structured-unavailable" };
+  }
+  return { path: "tool-round", fallbackReason: mode === "folded" ? "local-engine-fold-guard" : null };
 }
 
 /** Does the game's state-capture knob ask for a structured round this wire cannot give (no structured output)? The

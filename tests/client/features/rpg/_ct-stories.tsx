@@ -330,6 +330,12 @@ export function RpgFreshnessGuardedStory(): ReactElement {
   return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: "local-engine-fold-guard" }} pending={false} />;
 }
 
+/** 0511: the game asks for a structured reply the room's model cannot give, so its post-commit pass runs tool calls.
+ *  The lag label stands; the title names this cause, not the host-chose line and not the fold guard. */
+export function RpgFreshnessStructuredUnavailableStory(): ReactElement {
+  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: "structured-unavailable" }} pending={false} />;
+}
+
 /** No model write path at all — nothing delivers state, so the pill renders NOTHING (the band's Read-only pill
  *  is the honest word; a freshness claim beside it would be the lie again). */
 export function RpgFreshnessNoneStory(): ReactElement {

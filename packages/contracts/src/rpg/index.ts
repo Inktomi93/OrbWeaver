@@ -154,6 +154,7 @@ export type {
   RpgPopulateSheet,
   RpgRecordedToolCall,
   RpgToolCall,
+  RpgToolCallRefusal,
   RpgToolCallVerdict,
 } from "./extraction.ts";
 export {
@@ -294,7 +295,14 @@ export {
   rpgQuestSchema,
   rpgSnapshotStateSchema,
 } from "./snapshot.ts";
-export { describePatchFields, patchChangesToToolCalls, patchFieldPaths, patchToolsOnlyFields, stateRoundPatchSchema } from "./structured-patch.ts";
+export {
+  describePatchFields,
+  patchChangesToToolCalls,
+  patchFieldPaths,
+  patchToolsOnlyFields,
+  RPG_PATCH_INDEX_MAX,
+  stateRoundPatchSchema,
+} from "./structured-patch.ts";
 export type { RpgStateRoundTool, RpgStructuredChanges, RpgStructuredRoundShape } from "./structured-round.ts";
 export {
   RPG_STATE_CHANGES_FIELD,

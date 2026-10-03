@@ -109,6 +109,9 @@ test("openrouter anthropic/claude-sonnet-5.5 resolves the limits pointer: the un
   // An invented tool name is not a usable call: the round is retried, unless a real call rode beside it.
   expect(fallbackStateRound(sonnet, [{ name: "update_location", arguments: '{"location":"x"}' }], shapeFits(sonnet))).toBe("patch");
   expect(fallbackStateRound(sonnet, [{ name: "update_location", arguments: "{}" }, QUIET], shapeFits(sonnet))).toBeNull();
+  // A patch call whose every value was refused is a recorded drop, not a usable call: the round is still retried.
+  const refusedWhole = { name: "update_scene", arguments: "{}", refused: [{ field: "timeOfDay", sent: "Evening", message: "Invalid option" }] };
+  expect(fallbackStateRound(sonnet, [refusedWhole], shapeFits(sonnet))).toBe("patch");
 });
 
 test("a local no-force row takes the union round under `auto`; `tools` keeps it on tools; a forcible row never retries", () => {

@@ -4,7 +4,7 @@
 // a value the tool round would refuse. Values are decoded by declared type only; the reply is never parsed as JSON.
 
 import { z } from "zod";
-import type { RpgToolCall } from "./extraction.ts";
+import type { RpgToolCall, RpgToolCallRefusal } from "./extraction.ts";
 import { RPG_NO_CHANGES_TOOL } from "./extraction.ts";
 import type { RpgStateRoundTool, RpgStructuredChanges } from "./structured-round.ts";
 import { RPG_STATE_CHANGES_FIELD } from "./structured-round.ts";
@@ -16,6 +16,13 @@ const ITEM_KEY = "item";
 const VALUE_KEY = "value";
 /** A path segment's separator in `field` (`addCondition.name`, `presentUpsert.relationship.kind`). */
 const PATH_SEPARATOR = ".";
+/** The largest `call` / `item` id a reply may use: far beyond any real beat, and well inside safe integers. */
+export const RPG_PATCH_INDEX_MAX = 999;
+/** Why a patch value was refused, in the per-call parse's own vocabulary. */
+const ID_OUT_OF_RANGE = `Invalid input: call and item are whole numbers from 0 to ${RPG_PATCH_INDEX_MAX}`;
+const UNKNOWN_FIELD = "Unrecognized key";
+const UNKNOWN_TOOL = "Unrecognized tool";
+const REPEATED_FIELD = "Invalid input: this call already set this field";
 /** A strict decimal number: the only text a numeric field accepts. */
 const NUMERIC = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 
@@ -171,9 +178,9 @@ export function stateRoundPatchSchema(tools: readonly RpgStateRoundTool[]): z.Zo
     } else if (first !== undefined) {
       const entry = z.strictObject({
         [PLANE_KEY]: z.enum([tool.name]),
-        [CALL_KEY]: z.number().int(),
+        [CALL_KEY]: z.number().int().nonnegative().max(RPG_PATCH_INDEX_MAX),
         [FIELD_KEY]: z.enum([first, ...rest]),
-        [ITEM_KEY]: z.number().int(),
+        [ITEM_KEY]: z.number().int().nonnegative().max(RPG_PATCH_INDEX_MAX),
         [VALUE_KEY]: z.string(),
       });
       members.push(entry.describe(tool.description));
@@ -212,20 +219,26 @@ function decodeScalar(node: SchemaNode, raw: string): Decoded {
   return decoder?.(raw);
 }
 
-/** One patch entry as sent, with the grouping it names. */
+/** One patch entry as sent, with the grouping it names. `idValid` is false when its `call` or `item` is not a whole
+ *  number in range — such an entry cannot be placed and is refused by name. */
 interface RawPatch {
   readonly field: string;
   readonly item: number;
   readonly value: string;
+  readonly idValid: boolean;
 }
 
 interface ReadEntry {
   readonly plane: string;
-  readonly call: number;
+  readonly call: number | null;
   readonly patch: RawPatch | null;
 }
 
-/** Read one reply entry, or `null` when it is not a change at all. */
+function isPatchIndex(value: number): boolean {
+  return Number.isSafeInteger(value) && value >= 0 && value <= RPG_PATCH_INDEX_MAX;
+}
+
+/** Read one reply entry, or `null` when it is not a change at all. A `call` out of range reads as `null` call. */
 function readEntry(entry: unknown): ReadEntry | null {
   const plane = isRecord(entry) ? entry[PLANE_KEY] : undefined;
   if (!isRecord(entry) || typeof plane !== "string") {
@@ -238,7 +251,8 @@ function readEntry(entry: unknown): ReadEntry | null {
   if (typeof call !== "number" || typeof field !== "string" || typeof item !== "number" || typeof value !== "string") {
     return null;
   }
-  return { plane, call, patch: { field, item, value } };
+  const idValid = isPatchIndex(call) && isPatchIndex(item);
+  return { plane, call: isPatchIndex(call) ? call : null, patch: { field, item, value, idValid } };
 }
 
 /** The record at `cursor[segment]`, created when absent. */
@@ -298,26 +312,57 @@ function finishArrays(args: Args, leaves: Iterable<PatchLeaf>): Args {
   return args;
 }
 
-/** Build one call from its entries against ONE parameter branch: the args, and the `plane.field` names refused. */
-function buildCall(plane: string, patches: readonly RawPatch[], leaves: ReadonlyMap<string, PatchLeaf>): { readonly args: Args; readonly dropped: string[] } {
-  const args: Args = {};
-  const dropped: string[] = [];
-  for (const patch of patches) {
-    const leaf = leaves.get(patch.field);
-    const decoded = leaf === undefined ? undefined : decodeScalar(leaf.node, patch.value);
-    if (leaf === undefined || decoded === undefined || !place(args, leaf, patch.item, decoded.value)) {
-      dropped.push(`${plane}.${patch.field}`);
-    }
+/** What a leaf would have accepted, in the parse's own words, for a refused value's issue line. */
+function expectation(node: SchemaNode): string {
+  const arms = unionArms(node);
+  if (arms !== null) {
+    return "Invalid input";
   }
-  return { args: finishArrays(args, leaves.values()), dropped };
+  const allowed = node["enum"];
+  if (Array.isArray(allowed)) {
+    return `Invalid option: expected one of ${allowed.map((option) => JSON.stringify(option)).join("|")}`;
+  }
+  return `Invalid input: expected ${typeof node["type"] === "string" ? node["type"] : "a value"}, received string`;
 }
 
-/** Group the reply's entries into calls by `(plane, call)`, in first-seen order; count entries that are not a change. */
-function groupEntries(changes: readonly unknown[]): {
-  readonly groups: readonly { readonly plane: string; readonly patches: readonly RawPatch[] }[];
-  readonly unreadable: number;
-} {
-  const grouped = new Map<string, { readonly plane: string; readonly patches: RawPatch[] }>();
+/** Why one entry could not be placed in its call, or `null` once it is placed. */
+function placeEntry(args: Args, patch: RawPatch, leaves: ReadonlyMap<string, PatchLeaf>): string | null {
+  if (!patch.idValid) {
+    return ID_OUT_OF_RANGE;
+  }
+  const leaf = leaves.get(patch.field);
+  if (leaf === undefined) {
+    return UNKNOWN_FIELD;
+  }
+  const decoded = decodeScalar(leaf.node, patch.value);
+  if (decoded === undefined) {
+    return expectation(leaf.node);
+  }
+  return place(args, leaf, patch.item, decoded.value) ? null : REPEATED_FIELD;
+}
+
+/** Build one call from its entries against ONE parameter branch: the args, and every value refused with why. */
+function buildCall(patches: readonly RawPatch[], leaves: ReadonlyMap<string, PatchLeaf>): { readonly args: Args; readonly refused: RpgToolCallRefusal[] } {
+  const args: Args = {};
+  const refused: RpgToolCallRefusal[] = [];
+  for (const patch of patches) {
+    const message = placeEntry(args, patch, leaves);
+    if (message !== null) {
+      refused.push({ field: patch.field, sent: patch.value, message });
+    }
+  }
+  return { args: finishArrays(args, leaves.values()), refused };
+}
+
+interface PatchGroup {
+  readonly plane: string;
+  readonly patches: RawPatch[];
+}
+
+/** Group the reply's entries into calls by `(plane, call)`, in first-seen order; entries whose `call` is out of range
+ *  share one group per plane, where each is refused by name. Count entries that are not a change at all. */
+function groupEntries(changes: readonly unknown[]): { readonly groups: readonly PatchGroup[]; readonly unreadable: number } {
+  const grouped = new Map<string, PatchGroup>();
   let unreadable = 0;
   for (const entry of changes) {
     const read = readEntry(entry);
@@ -335,31 +380,53 @@ function groupEntries(changes: readonly unknown[]): {
   return { groups: [...grouped.values()], unreadable };
 }
 
-/** One group to its call (or none), against the branch of its tool that accepts the most entries. */
-function decodeGroup(
-  group: { readonly plane: string; readonly patches: readonly RawPatch[] },
-  branches: readonly ReadonlyMap<string, PatchLeaf>[] | undefined,
-): { readonly call: RpgToolCall | null; readonly dropped: readonly string[] } {
+/** The top-level closed fields whose allowed values differ between a tool's branches: the field that picks a branch
+ *  (`targetRef` across the per-actor tracker split). */
+function discriminators(branches: readonly ReadonlyMap<string, PatchLeaf>[]): ReadonlySet<string> {
+  const enumOf = (leaf: PatchLeaf | undefined): string => JSON.stringify(leaf?.node["enum"] ?? null);
+  const first = branches[0];
+  if (branches.length < 2 || first === undefined) {
+    return new Set();
+  }
+  const fields = [...first.entries()]
+    .filter(
+      ([path, leaf]) => leaf.segments.length === 1 && Array.isArray(leaf.node["enum"]) && branches.some((branch) => enumOf(branch.get(path)) !== enumOf(leaf)),
+    )
+    .map(([path]) => path);
+  return new Set(fields);
+}
+
+/** Rank a branch's build: first by whether it refused a branch-picking value (so the entity the model named keeps its
+ *  call), then by how much it refused. */
+function rankOf(built: { readonly refused: readonly RpgToolCallRefusal[] }, picks: ReadonlySet<string>): readonly [number, number] {
+  return [built.refused.filter((refusal) => picks.has(refusal.field)).length, built.refused.length];
+}
+
+/** One group to its call, built against the branch that keeps the named entity and refuses the least. A group with
+ *  nothing placed still yields a call, carrying its refusals, so the record names what was sent. */
+function decodeGroup(group: PatchGroup, branches: readonly ReadonlyMap<string, PatchLeaf>[] | undefined): RpgToolCall {
   if (group.plane === RPG_NO_CHANGES_TOOL) {
-    return { call: { name: RPG_NO_CHANGES_TOOL, arguments: "{}" }, dropped: [] };
+    return { name: RPG_NO_CHANGES_TOOL, arguments: "{}" };
   }
-  const built = (branches ?? []).map((leaves) => buildCall(group.plane, group.patches, leaves));
-  const best = built.reduce<(typeof built)[number] | undefined>(
-    (winner, next) => (winner === undefined || next.dropped.length < winner.dropped.length ? next : winner),
-    undefined,
-  );
-  if (best === undefined) {
-    return { call: null, dropped: group.patches.map((patch) => `${group.plane}.${patch.field}`) };
+  if (branches === undefined || branches.length === 0) {
+    return { name: group.plane, arguments: "{}", refused: group.patches.map((patch) => ({ field: patch.field, sent: patch.value, message: UNKNOWN_TOOL })) };
   }
-  return { call: Object.keys(best.args).length > 0 ? { name: group.plane, arguments: JSON.stringify(best.args) } : null, dropped: best.dropped };
+  const picks = discriminators(branches);
+  const built = branches.map((leaves) => buildCall(group.patches, leaves));
+  const best = built.reduce((winner, next) => {
+    const [a, b] = [rankOf(next, picks), rankOf(winner, picks)];
+    return a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]) ? next : winner;
+  });
+  return { name: group.plane, arguments: JSON.stringify(best.args), ...(best.refused.length > 0 ? { refused: best.refused } : {}) };
 }
 
 /**
  * Decode a patch-list reply into tool calls, or `null` when it is not a non-empty `changes` list. Entries group into
  * calls by `(plane, call)` and into array elements by `item`. Each value is decoded by its field's declared type and
  * checked against the round's own per-call enums; where a tool's parameters split per actor, the call is built against
- * the branch that accepts the most of its entries. Anything refused is DROPPED by name, never written, and the
- * assembled call then meets the same per-call salvage every tool call does.
+ * the branch that keeps the actor the model named. A refused value is never written: it rides its call as a refusal,
+ * so the turn's record marks that call salvaged (other fields kept) or dropped (nothing kept), exactly as the tool
+ * round's per-call salvage does.
  */
 export function patchChangesToToolCalls(value: unknown, tools: readonly RpgStateRoundTool[]): RpgStructuredChanges | null {
   const changes = isRecord(value) ? value[RPG_STATE_CHANGES_FIELD] : undefined;
@@ -368,14 +435,7 @@ export function patchChangesToToolCalls(value: unknown, tools: readonly RpgState
   }
   const byName = new Map(tools.map((tool) => [tool.name, toolBranches(tool).branches] as const));
   const { groups, unreadable } = groupEntries(changes);
-  const calls: RpgToolCall[] = [];
-  const dropped: string[] = [];
-  for (const group of groups) {
-    const decoded = decodeGroup(group, byName.get(group.plane));
-    dropped.push(...decoded.dropped);
-    if (decoded.call !== null) {
-      calls.push(decoded.call);
-    }
-  }
+  const calls = groups.map((group) => decodeGroup(group, byName.get(group.plane)));
+  const dropped = calls.flatMap((call) => (call.refused ?? []).map((refusal) => `${call.name}.${refusal.field}`));
   return { calls, unreadable, dropped };
 }

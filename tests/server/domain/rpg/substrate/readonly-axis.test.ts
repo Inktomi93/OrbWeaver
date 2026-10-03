@@ -120,4 +120,14 @@ test("0511: a `structured` knob on a wire with no structured output is named on 
     path: "folded",
     fallbackReason: null,
   });
+  // A fold-guarded room runs the post-commit round too, and the host's unhonoured choice is what the panel names
+  // there (the guard keeps its own warn line); without the knob the guard reason stands.
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: false, foldGuarded: true, structuredUnavailable: true })).toEqual({
+    path: "tool-round",
+    fallbackReason: "structured-unavailable",
+  });
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: false, foldGuarded: true, structuredUnavailable: false })).toEqual({
+    path: "tool-round",
+    fallbackReason: "local-engine-fold-guard",
+  });
 });

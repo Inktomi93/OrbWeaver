@@ -413,6 +413,24 @@ export const RPG_TOOL_ROUND_TOOL_NAMES = [
 export interface RpgToolCall {
   readonly name: string;
   readonly arguments: string;
+  /** Values a structured patch reply sent that the call's field would not take, refused BEFORE the args were
+   *  assembled (the tool round's twin is the per-call salvage below). They join the same verdicts: a call that
+   *  kept other fields is `salvaged`, one with nothing left is `dropped`, each naming the field and value sent. */
+  readonly refused?: readonly RpgToolCallRefusal[] | undefined;
+}
+
+/** One value refused at decode: the field path, the text the model sent, and why. */
+export interface RpgToolCallRefusal {
+  readonly field: string;
+  readonly sent: string;
+  readonly message: string;
+}
+
+/** Did decode refuse everything this call sent? Such a call writes nothing and is a recorded drop, never a quiet
+ *  no-op. */
+function refusedWhole(call: RpgToolCall, args: unknown): boolean {
+  const refused = call.refused ?? [];
+  return refused.length > 0 && (typeof args !== "object" || args === null || Object.keys(args).length === 0);
 }
 
 /** Parse a tool call's raw JSON args, or null on non-JSON (a malformed call is DROPPED — errors-as-data for
@@ -540,7 +558,7 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
   const out: RpgExtraction = { party: [], inventory: [], trackers: [], quests: [], journal: [] };
   for (const call of calls) {
     const args = parseToolCallArgs(call.arguments);
-    if (args === null) {
+    if (args === null || refusedWhole(call, args)) {
       continue;
     }
     if (call.name === "update_scene") {
@@ -891,6 +909,11 @@ function sentValueAtPath(root: unknown, path: readonly PropertyKey[]): string {
 export function malformedToolCallDetails(calls: readonly RpgToolCall[]): readonly RpgMalformedToolCall[] {
   const bad: RpgMalformedToolCall[] = [];
   for (const call of calls) {
+    const refusals = (call.refused ?? []).map(refusalIssue);
+    if (refusedWhole(call, parseToolCallArgs(call.arguments))) {
+      bad.push({ name: call.name, issues: refusals });
+      continue;
+    }
     const schema = call.name === "update_scene" ? updateSceneArgsSchema : TOOL_ROUND_ARRAY_ARMS.get(call.name)?.schema;
     if (schema === undefined) {
       continue; // `no_changes` / an unknown name — a no-op, never a malformed call
@@ -912,9 +935,12 @@ export function malformedToolCallDetails(calls: readonly RpgToolCall[]): readonl
     }
     bad.push({
       name: call.name,
-      issues: parsed.error.issues.map(
-        (issue) => `${issue.path.length > 0 ? issue.path.join(".") : "(root)"}: ${issue.message}${SENT_VALUE_MARKER}${sentValueAtPath(args, issue.path)}`,
-      ),
+      issues: [
+        ...parsed.error.issues.map(
+          (issue) => `${issue.path.length > 0 ? issue.path.join(".") : "(root)"}: ${issue.message}${SENT_VALUE_MARKER}${sentValueAtPath(args, issue.path)}`,
+        ),
+        ...refusals,
+      ],
     });
   }
   return bad;
@@ -936,14 +962,21 @@ export function salvagedToolCallFields(calls: readonly RpgToolCall[]): readonly 
       continue;
     }
     const salvaged = salvageArgs(schema, args);
-    if (salvaged === null) {
+    if (salvaged === null || refusedWhole(call, args)) {
       continue;
     }
-    for (const field of salvaged.dropped) {
+    for (const field of [...salvaged.dropped, ...(call.refused ?? []).map((refusal) => refusal.field)]) {
       out.push(`${call.name}.${field}`);
     }
   }
   return out;
+}
+
+/** A decode refusal as a drop issue: the same `<path>: <message> — sent <value>` line the per-call parse writes,
+ *  so a reader (and the member projection that re-renders the sent half) cannot tell the vehicles apart. */
+function refusalIssue(refusal: RpgToolCallRefusal): string {
+  const rendered = JSON.stringify(refusal.sent);
+  return `${refusal.field}: ${refusal.message}${SENT_VALUE_MARKER}${rendered.length > MALFORMED_VALUE_MAX ? `${rendered.slice(0, MALFORMED_VALUE_MAX)}…` : rendered}`;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

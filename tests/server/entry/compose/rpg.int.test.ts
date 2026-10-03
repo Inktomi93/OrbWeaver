@@ -3477,3 +3477,17 @@ test("0511: the panel's game read names a `structured` knob the room's model can
     fallbackReason: null,
   });
 });
+
+test("0511: a patch reply whose every value was refused is a recorded DROP naming the value sent — never a quiet beat", async ({ app, db }) => {
+  const reply = JSON.stringify({ changes: [{ plane: "update_scene", call: 0, field: "timeOfDay", item: 0, value: "Evening" }] });
+  const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: reply, cannedToolCalls: [] });
+  const { chatId, messageId, variantId } = await cheapGame(db, rpgCompose, "patch-refused");
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.claudeNoForce));
+
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+  const [record] = await findTurnToolCallsByVariant(db, variantId);
+  expect(record?.calls).toEqual([
+    expect.objectContaining({ name: "update_scene", verdict: "dropped", issues: [expect.stringMatching(/^timeOfDay: .* — sent "Evening"$/u)] }),
+  ]);
+});

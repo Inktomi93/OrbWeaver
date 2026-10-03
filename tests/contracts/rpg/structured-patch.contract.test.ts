@@ -8,9 +8,12 @@ import { structuredSchemaComplexity } from "@orb/contracts/inference";
 import type { ExtractionRefs, RpgStateRoundTool } from "@orb/contracts/rpg";
 import {
   constrainExtractionSchema,
+  malformedToolCalls,
   patchChangesToToolCalls,
   patchFieldPaths,
   patchToolsOnlyFields,
+  RPG_PATCH_INDEX_MAX,
+  recordToolCalls,
   rpgExtractionSchema,
   stateRoundPatchSchema,
   toolCallsToExtraction,
@@ -202,7 +205,10 @@ test("a boolean field takes only `true` or `false`", () => {
     [toggles],
   );
 
-  expect(argsOf(decoded)).toEqual([{ name: "toggle", args: { lit: true } }]);
+  expect(argsOf(decoded)).toEqual([
+    { name: "toggle", args: { lit: true } },
+    { name: "toggle", args: {} },
+  ]);
   expect(decoded?.dropped).toEqual(["toggle.lit"]);
 });
 
@@ -260,8 +266,120 @@ test("a repeated scalar in one call is refused, never silently overwritten; an u
 
   expect(argsOf(decoded)).toEqual([
     { name: "update_scene", args: { location: "the inn" } },
+    { name: "delete_world", args: {} },
     { name: "no_changes", args: {} },
   ]);
   expect(decoded?.dropped).toEqual(["update_scene.location", "delete_world.x"]);
+  // The unknown plane is a recorded drop naming what was sent, never a silent no-op.
+  expect(recordToolCalls(decoded?.calls ?? []).map((call) => [call.name, call.verdict])).toEqual([
+    ["update_scene", "salvaged"],
+    ["delete_world", "dropped"],
+    ["no_changes", "applied"],
+  ]);
   expect(patchChangesToToolCalls({ changes: [] }, TOOLS)).toBeNull();
+});
+
+// ── round 2: the patch vehicle's refusals reach the same record the tool round writes ──────────────────────────
+
+/** The disclosure a call set produces: verdict and issues per call, the parts a reader sees. */
+function disclosure(calls: readonly { readonly name: string; readonly arguments: string }[]): readonly unknown[] {
+  return recordToolCalls(calls).map((call) => ({ name: call.name, verdict: call.verdict, issues: call.issues }));
+}
+
+test("a partly refused patch call discloses exactly what the tool round discloses for the same intent: salvaged, naming the field", () => {
+  const patch = decode([
+    { plane: "update_scene", call: 0, field: "location", item: 0, value: "the inn" },
+    { plane: "update_scene", call: 0, field: "timeOfDay", item: 0, value: "Evening" },
+  ]);
+  const toolRound = [{ name: "update_scene", arguments: JSON.stringify({ location: "the inn", timeOfDay: "Evening" }) }];
+
+  expect(disclosure(patch?.calls ?? [])).toEqual(disclosure(toolRound));
+  expect(disclosure(toolRound)).toEqual([{ name: "update_scene", verdict: "salvaged", issues: ["update_scene.timeOfDay"] }]);
+  expect(toolCallsToExtraction(patch?.calls ?? [])).toEqual(toolCallsToExtraction(toolRound));
+});
+
+test("a wholly refused patch call is a recorded DROP naming the field and the value sent — exactly the tool round's line, never a quiet beat", () => {
+  const patch = decode([{ plane: "update_scene", call: 0, field: "timeOfDay", item: 0, value: "Evening" }]);
+  const toolRound = [{ name: "update_scene", arguments: JSON.stringify({ timeOfDay: "Evening" }) }];
+
+  expect(disclosure(patch?.calls ?? [])).toEqual(disclosure(toolRound));
+  expect(recordToolCalls(patch?.calls ?? [])[0]?.verdict).toBe("dropped");
+  expect(recordToolCalls(patch?.calls ?? [])[0]?.issues[0]).toMatch(/^timeOfDay: .* — sent "Evening"$/u);
+  // It writes nothing, and it is not a usable call (so a downgraded round would still be retried).
+  expect(toolCallsToExtraction(patch?.calls ?? []).scene).toBeUndefined();
+  expect(malformedToolCalls(patch?.calls ?? [])).toEqual(["update_scene"]);
+});
+
+test("a tie between per-actor branches keeps the actor the model named, and the record never claims it sent nothing", () => {
+  const tools = roundTools({
+    ...REFS,
+    trackerWriteGroups: [
+      { targetRefs: ["Mira"], deltaKeys: ["hp"], setKeys: [] },
+      { targetRefs: ["Corvin"], deltaKeys: ["mana"], setKeys: [] },
+    ],
+  });
+  const entries = [
+    { plane: "update_party", call: 0, field: "targetRef", item: 0, value: "Corvin" },
+    { plane: "update_party", call: 0, field: "trackerDeltas.key", item: 0, value: "hp" },
+    { plane: "update_party", call: 0, field: "trackerDeltas.delta", item: 0, value: "-2" },
+    { plane: "update_party", call: 0, field: "status", item: 0, value: "bloodied" },
+  ];
+  for (const changes of [entries, [...entries].reverse()]) {
+    const decoded = patchChangesToToolCalls({ changes }, tools);
+    const [record] = recordToolCalls(decoded?.calls ?? []);
+
+    expect(JSON.parse(decoded?.calls[0]?.arguments ?? "{}")).toMatchObject({ targetRef: "Corvin", status: "bloodied" });
+    expect(decoded?.calls[0]?.refused).toEqual([expect.objectContaining({ field: "trackerDeltas.key", sent: "hp" })]);
+    expect(record?.verdict).toBe("salvaged");
+    expect(record?.issues).toContain("update_party.trackerDeltas.key");
+    expect(JSON.stringify(record?.issues)).not.toContain("(absent)");
+    expect(toolCallsToExtraction(decoded?.calls ?? []).party).toEqual([{ targetRef: "Corvin", status: "bloodied" }]);
+  }
+});
+
+test("call and item ids are bounded whole numbers: the schema says so, and an out-of-range id is refused by name", () => {
+  const projected = projectJsonSchema(stateRoundPatchSchema(TOOLS));
+  const member = PROJECTED_PATCH_BOUNDS.parse(projected).properties.changes.items.anyOf[0];
+  expect(member?.properties.call).toMatchObject({ type: "integer", minimum: 0, maximum: RPG_PATCH_INDEX_MAX });
+  expect(member?.properties.item).toMatchObject({ type: "integer", minimum: 0, maximum: RPG_PATCH_INDEX_MAX });
+  expect(structuredSchemaComplexity(projected)).toEqual({ optionalProps: 0, unionProps: 0 });
+
+  const decoded = patchChangesToToolCalls(
+    {
+      changes: [
+        // `1e400` is what a JSON reply's out-of-range number parses to: Infinity.
+        { plane: "update_scene", call: Number.POSITIVE_INFINITY, field: "location", item: 0, value: "inf" },
+        { plane: "update_scene", call: -1, field: "location", item: 0, value: "neg" },
+        { plane: "update_scene", call: 0.5, field: "day", item: 0, value: "2" },
+        { plane: "update_scene", call: 2 ** 53, field: "recentEvent", item: 0, value: "huge" },
+        { plane: "update_scene", call: 0, field: "presentUpsert.name", item: 1e21, value: "far" },
+        { plane: "update_scene", call: 0, field: "location", item: 0, value: "the inn" },
+      ],
+    },
+    TOOLS,
+  );
+
+  expect(decoded?.dropped).toEqual([
+    "update_scene.location",
+    "update_scene.location",
+    "update_scene.day",
+    "update_scene.recentEvent",
+    "update_scene.presentUpsert.name",
+  ]);
+  expect(argsOf(decoded)).toEqual([
+    { name: "update_scene", args: {} },
+    { name: "update_scene", args: { location: "the inn" } },
+  ]);
+});
+
+const PROJECTED_PATCH_BOUNDS = z.object({
+  properties: z.object({
+    changes: z.object({
+      items: z.object({
+        anyOf: z.array(
+          z.object({ properties: z.object({ call: z.record(z.string(), z.unknown()).optional(), item: z.record(z.string(), z.unknown()).optional() }) }),
+        ),
+      }),
+    }),
+  }),
 });

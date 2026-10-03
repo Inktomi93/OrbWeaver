@@ -16,6 +16,7 @@ import {
   RpgFreshnessFoldedStory,
   RpgFreshnessGuardedStory,
   RpgFreshnessNoneStory,
+  RpgFreshnessStructuredUnavailableStory,
 } from "../_ct-stories.tsx";
 
 // The two title phrases that separate "the host chose the two-call arm" from "this room was downgraded" — the
@@ -60,6 +61,16 @@ test("EFF-3: a folded game that CANNOT fold reads the lag label with the reason 
   // host-chose-this line the plain two-call arm gets.
   await expect(component).toHaveAttribute("title", GUARD_REASON_RE);
   await expect(component).not.toHaveAttribute("title", HOST_CHOSE_RE);
+});
+
+test("0511: an unhonoured structured vehicle reads the lag label with its own reason — not the host-chose line, not the fold guard", async ({ mount }) => {
+  const component = await mount(<RpgFreshnessStructuredUnavailableStory />);
+  await expect(component.getByText("Last recorded beat")).toBeVisible();
+  await expect(component.getByText("Live")).toHaveCount(0);
+  // A reason is carried, and it is neither of the two existing sentences.
+  await expect(component).toHaveAttribute("title", /\S/u);
+  await expect(component).not.toHaveAttribute("title", HOST_CHOSE_RE);
+  await expect(component).not.toHaveAttribute("title", GUARD_REASON_RE);
 });
 
 test("no model write path: the pill renders NOTHING (the Read-only pill is the honest word)", async ({ mount }) => {
