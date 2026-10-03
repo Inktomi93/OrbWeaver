@@ -60,9 +60,10 @@ export const EXTRACTION_CONTEXT_CONSEQUENCE: Readonly<Record<RpgExtractionContex
 
 /** The state-capture vehicle consequence per arm — what the separate pass sends, and what it costs. */
 export const STATE_CAPTURE_VEHICLE_CONSEQUENCE: Readonly<Record<RpgStateCaptureVehicle, string>> = {
-  auto: "tool calls where the model can be made to call one, one structured reply where it can't — and a structured retry if a tool pass comes back empty",
-  tools: "always tool calls — still retried once as a structured reply if the model ignores the tools",
-  structured: "always one structured reply, in the shape the model's limits allow — no tool calls at all",
+  auto: "tool calls, or one structured reply where the model can't be made to call a tool but takes the whole tool set as structured output — a tool pass it ignores is retried once as a structured reply",
+  tools: "tool calls — a pass the model ignores is retried once as a structured reply, but only where it can't be made to call a tool",
+  structured:
+    "one structured reply, in the shape the model's limits allow — a model with no structured output runs tool calls instead, and the server logs that it did",
 };
 
 /** The #9 date-mode consequence lines (the choice-behavior segmented-toggle precedent). */

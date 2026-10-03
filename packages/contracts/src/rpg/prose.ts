@@ -739,13 +739,16 @@ For example, a three-line sign is enough:
   "rpg.extract.patchRoundFrame": {
     id: "rpg.extract.patchRoundFrame",
     home: "preset",
-    version: 1,
+    version: 2,
     text:
-      "Answer with ONE JSON object and nothing else. Its `changes` array holds one entry per field you change: " +
-      '`{"plane": <tool name>, "field": <one of that tool\'s arguments>, "value": <the value as text; JSON for a ' +
-      "number, list or object>}`. List one call's fields together, and name the tool again to start a second call " +
-      "(another character, another item). A field you leave out keeps its current value. A beat that changed " +
-      'NOTHING trackable is the single entry `{"plane": "no_changes"}`. The tools and their arguments:',
+      "Answer with ONE JSON object and nothing else. Its `changes` array holds one entry per value you set: " +
+      '`{"plane": <tool name>, "call": <number>, "field": <one of that tool\'s fields>, "item": <number>, "value": ' +
+      "<the value as text>}`. Every entry of ONE tool call shares its `call` number; give each further call of the " +
+      "same tool its own number (another character, another journal entry). A field that is a list of things (a " +
+      "present character, an inventory item, a tracker write) takes one `item` number per thing, shared by that " +
+      "thing's fields; everywhere else `item` is 0. A list of plain words takes one entry per word. Numbers are " +
+      "written as digits. A field you leave out keeps its current value. A beat that changed NOTHING trackable is " +
+      'the single entry `{"plane": "no_changes"}`. The tools and their fields:',
     macros: "none",
     requiredMacros: [],
     requiredTokens: [],

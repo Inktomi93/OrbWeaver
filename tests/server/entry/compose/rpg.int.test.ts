@@ -25,6 +25,7 @@ import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatApi, ProviderId } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import { STRUCTURED_OUTPUT_VEHICLES } from "@orb/contracts/role-clients";
@@ -391,6 +392,9 @@ function buildCannedRpgWithText(args: {
   readonly cannedToolCalls?: readonly { readonly name: string; readonly arguments: string }[];
   /** Optional second-pass answer when the round narrows its tools to Inventory + no_changes. */
   readonly inventoryAuditToolCalls?: readonly { readonly name: string; readonly arguments: string }[];
+  /** Successive replies of the `structured` role, in call order (a structured round and its follow-up pass);
+   *  past the end, every call answers `cannedText`. */
+  readonly structuredReplies?: readonly string[];
   /** Make the `structured` role REJECT — the provider-refusal arm (RESYNC-OR: an OpenRouter 400 on the
    *  structured request is what the host actually hit, and the round must report it, not swallow it). */
   readonly structuredThrows?: Error;
@@ -412,6 +416,7 @@ function buildCannedRpgWithText(args: {
   readonly chatArm?: NonNullable<Parameters<typeof buildRpg>[0]["executor"]["runChatTurn"]>;
 }): ReturnType<typeof buildRpg> {
   const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows, chatThrows, capability } = args;
+  const structuredReplies = [...(args.structuredReplies ?? [])];
   return buildRpg({
     db,
     now: () => FROZEN_AT,
@@ -451,7 +456,7 @@ function buildCannedRpgWithText(args: {
         spy.userPrompts.push(req.inputs[0]?.userPrompt ?? "");
         spy.signals.push(req.signal);
         return Promise.resolve({
-          items: [{ text: cannedText, usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
+          items: [{ text: structuredReplies.shift() ?? cannedText, usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
           model: "fake-chat-model",
         } satisfies SummarizeResult);
       },
@@ -3249,7 +3254,8 @@ test("0511: a downgraded Claude 5.5 round that comes back EMPTY is retried once 
   expect(spy.chatTurns).toHaveLength(1);
   expect(spy.vehicles).toEqual(["response-format"]);
   expect(JSON.stringify(spy.schemas[0])).toContain('"plane"');
-  expect(spy.systemPrompts[1]).toContain("`changes` array holds one entry per field");
+  expect(spy.systemPrompts[1]).toContain(resolveProseText("rpg.extract.patchRoundFrame", {}));
+  expect(spy.systemPrompts[1]).toContain("fields: location");
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("cave by the river");
   const [record] = await findTurnToolCallsByVariant(db, variantId);
@@ -3344,4 +3350,113 @@ test("0511: a host resync on a downgraded Claude 5.5 row that comes back empty t
   expect(spy.chatTurns).toHaveLength(1);
   expect(spy.vehicles).toEqual(["response-format"]);
   expect((await panelState(compose, hostId, chatId)).location).toBe("cave by the river");
+});
+
+// ── 0511 (verifier round 1) ─────────────────────────────────────────────────────────────────────────────────────
+
+test("0511: a patch reply naming a prototype key drops that field by name and still lands the rest — the round never throws", async ({ app, db }) => {
+  const warn = vi.spyOn(logger, "warn");
+  const reply = JSON.stringify({
+    changes: [
+      { plane: "update_scene", call: 0, field: "constructor", item: 0, value: "x" },
+      { plane: "update_scene", call: 0, field: "location", item: 0, value: "the inn" },
+    ],
+  });
+  const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: reply, cannedToolCalls: [] });
+  const { chatId, hostId, messageId, variantId } = await cheapGame(db, rpgCompose, "proto-field");
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.claudeNoForce));
+
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("the inn");
+  expect(warn.mock.calls.some(([line]) => JSON.stringify((line as { droppedFields?: unknown }).droppedFields) === '["update_scene.constructor"]')).toBe(true);
+  warn.mockRestore();
+});
+
+test("0511: a game asking for `structured` on a row with no structured output runs tool calls and WARNS with a named code", async ({ app, db }) => {
+  const warn = vi.spyOn(logger, "warn");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy,
+    cannedText: "{}",
+    cannedToolCalls: [{ name: "no_changes", arguments: "{}" }],
+  });
+  const { chatId, messageId, variantId } = await cheapGame(db, rpgCompose, "knob-unavailable", "structured");
+  const toolsOnly = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] }, tools: { parallel: true } });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(toolsOnly));
+
+  expect(spy.chatTurns).toHaveLength(1);
+  expect(spy.summarizeModels).toEqual([]);
+  expect(warn.mock.calls.map(([line]) => line as { event?: string; code?: string })).toContainEqual(
+    expect.objectContaining({ event: "rpg.toolround.vehicle_fallback", code: "structured-unavailable" }),
+  );
+  warn.mockRestore();
+});
+
+test("0511: a structured round that skipped a named existing item runs the inventory audit in its own structured shape", async ({ app, db }) => {
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy,
+    cannedText: "{}",
+    structuredReplies: [
+      JSON.stringify({ changes: [{ tool: "update_scene", args: { recentEvent: "Mira pocketed the small brass key" } }] }),
+      JSON.stringify({
+        changes: [{ tool: "update_inventory", args: { targetRef: "Mira", update: [{ name: "Small brass key", location: "front hoodie pocket" }] } }],
+      }),
+    ],
+  });
+  const seeded = await seedHostGameChat(db, "sr-audit");
+  const created = await rpgCompose.service.createGame({ principal: hostPrincipal(seeded.hostId), chatId: seeded.chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(seeded.hostId), chatId: seeded.chatId, extractionMode: "cheap" });
+  const base = await seedMessage(db, seeded.chatId, 1, { role: "assistant", content: "Mira eyes the key." });
+  const state: RpgSnapshotState = {
+    ...defaultSnapshotState(),
+    actorState: [
+      {
+        actorRef: { kind: "npc", npcKey: "mira" },
+        identity: { name: "Mira", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+        volatile: {
+          trackerValues: {},
+          conditions: [],
+          inventory: [{ id: "item_brass_key", name: "Small brass key", description: "a worn key", quantity: 1, location: "table", type: "key" }],
+          wallet: [],
+          status: "",
+        },
+      },
+    ],
+  };
+  expect(
+    (
+      await writeStagedSnapshot(db, state, {
+        id: castId("rpg_snapshot_sr_audit"),
+        gameId: created.gameId,
+        messageId: base.messageId,
+        variantId: base.variantId,
+        now: FROZEN_AT,
+      })
+    ).ok,
+  ).toBe(true);
+  await commitSnapshotForVariant(db, base.variantId);
+  const turn = await seedMessage(db, seeded.chatId, 2, { role: "assistant", content: "Mira slips the small brass key into her hoodie pocket." });
+
+  await rpgCompose.chatOps.onTurnCompleted(seeded.chatId, turn.messageId, turn.variantId, TURN, {
+    ...stateRoundTurn(STATE_ROUND_ROWS.local),
+    transcript: transcript([{ speaker: "Narrator", text: "Mira slips the small brass key into her hoodie pocket." }]),
+  });
+
+  expect(spy.chatTurns).toEqual([]);
+  expect(spy.summarizeModels).toHaveLength(2);
+  const audit = spy.schemas[1] as { properties: { changes: { items: { anyOf: { properties: { tool: { enum: string[] } } }[] } } } };
+  expect(audit.properties.changes.items.anyOf.map((member) => member.properties.tool.enum[0])).toEqual(["update_inventory", "no_changes"]);
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(seeded.hostId), chatId: seeded.chatId });
+  expect(view.actors.find((actor) => actor.name === "Mira")?.volatile?.inventory).toEqual([
+    expect.objectContaining({ name: "Small brass key", location: "front hoodie pocket" }),
+  ]);
 });

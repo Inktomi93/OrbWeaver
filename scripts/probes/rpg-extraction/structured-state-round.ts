@@ -30,6 +30,7 @@ import {
   rpgExtractionSchema,
   rpgGameConfigSchema,
   patchChangesToToolCalls,
+  describePatchFields,
   stateRoundChangesSchema,
   stateRoundPatchSchema,
   structuredChangesToToolCalls,
@@ -160,7 +161,7 @@ if (process.env["PROBE_PATCH"] === "1") {
     resolveProseText("rpg.extract.toolRoundHeader", {}),
     [
       resolveProseText("rpg.extract.patchRoundFrame", {}),
-      ...tools.map((tool) => `${tool.name}: ${tool.description}\n${JSON.stringify(tool.parameters["properties"] ?? {})}`),
+      ...tools.map((tool) => (tool.name === RPG_NO_CHANGES_TOOL ? `${tool.name}: ${tool.description}` : `${tool.name}: ${tool.description}\n  fields: ${describePatchFields(tool).join(", ")}`)),
     ].join("\n"),
   ].join("\n\n");
   const res = await fetch(OR_URL, {
@@ -181,7 +182,7 @@ if (process.env["PROBE_PATCH"] === "1") {
   const text = body.choices?.[0]?.message?.content ?? "";
   let decoded: unknown = null;
   try {
-    decoded = patchChangesToToolCalls(JSON.parse(text));
+    decoded = patchChangesToToolCalls(JSON.parse(text), tools);
   } catch {
     decoded = null;
   }

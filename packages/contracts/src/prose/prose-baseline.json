@@ -541,8 +541,8 @@
       "sha256": "9ba5896e6d0b9f94e4be4fa218ef9b7a15fbc53788287528d001c909fbcb46cb"
     },
     "rpg.extract.patchRoundFrame": {
-      "version": 1,
-      "sha256": "4d5302ebd5b046e4b2a75d046381daf9808fa6ed004855086ed8f6928c67e88e"
+      "version": 2,
+      "sha256": "fbca7970cd7bfd5a57dc018a285275cc0ff46d912c3b573266de68d863ed5720"
     },
     "rpg.extract.reconcilePass": {
       "version": 1,

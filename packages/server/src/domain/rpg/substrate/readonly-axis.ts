@@ -19,7 +19,7 @@
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { acceptsRequiredToolChoice, fitsEveryWire } from "@orb/contracts/inference";
 import type { RpgEffectiveDelivery, RpgExtractionMode, RpgStateCaptureVehicle, RpgStructuredRoundShape, RpgToolCall } from "@orb/contracts/rpg";
-import { malformedToolCalls, RPG_STRUCTURED_ROUND_SHAPES } from "@orb/contracts/rpg";
+import { malformedToolCalls, RPG_STRUCTURED_ROUND_SHAPES, RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
 
 /** The per-mode WRITER-capability predicate. A mapped Record, not a switch — a new `RpgExtractionMode` member
  *  without a row is a tsc error (§5.5 string-union dispatch discipline), so the honest-arms verdict can never
@@ -120,11 +120,17 @@ export function primaryStateRound(
   return !acceptsRequiredToolChoice(capability) && fittingShape(capability, fits) === "union" ? "union" : null;
 }
 
+/** A call the fold can use: a state tool (or `no_changes`) whose args parse. An invented tool name is not one. */
+function isUsableCall(call: RpgToolCall): boolean {
+  return (RPG_TOOL_ROUND_TOOL_NAMES as readonly string[]).includes(call.name) && malformedToolCalls([call]).length === 0;
+}
+
 /** The structured RETRY after a tool round, or `null`: only where the round's `required` went out as `auto` (the
- *  row cannot be forced) and it came back with no usable call, so state capture would otherwise hang on a model
- *  that chose not to call. Never after a real `no_changes`: that is the model answering, not ignoring. */
+ *  row cannot be forced) and it came back with no usable call — none, only malformed ones, or only names that are
+ *  not state tools — so state capture would otherwise hang on a model that chose not to call. Never after a real
+ *  `no_changes`: that is the model answering, not ignoring. */
 export function fallbackStateRound(capability: GenerationCapability, calls: readonly RpgToolCall[], fits: StructuredShapeFits): RpgStructuredRoundShape | null {
-  if (acceptsRequiredToolChoice(capability) || malformedToolCalls(calls).length < calls.length) {
+  if (acceptsRequiredToolChoice(capability) || calls.some(isUsableCall)) {
     return null;
   }
   return fittingShape(capability, fits);

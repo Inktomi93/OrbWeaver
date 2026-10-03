@@ -45,6 +45,7 @@ import type {
   RpgGameConfig,
   RpgSheet,
   RpgSnapshotState,
+  RpgStateCaptureVehicle,
   RpgStateRoundTool,
   RpgStructuredChanges,
   RpgStructuredRoundShape,
@@ -60,6 +61,7 @@ import {
   composePopulateTeaching,
   constrainExtractionSchema,
   constrainPopulateSchema,
+  describePatchFields,
   gameTrackerWriteKeys,
   healedJournalTypes,
   malformedToolCallDetails,
@@ -140,6 +142,9 @@ const EXTRACTION_SCHEMA_NAME = "rpg_state_extraction";
 /** The structured state round's `responseFormat.name`, and the vehicle name its logs and trace carry. */
 const STATE_CHANGES_SCHEMA_NAME = "rpg_state_changes";
 const STRUCTURED_ROUND_VEHICLE = "structured state round";
+/** The warn a game's unavailable structured vehicle raises, and the code that names why. */
+const STATE_VEHICLE_FALLBACK_EVENT = "rpg.toolround.vehicle_fallback";
+const STRUCTURED_UNAVAILABLE_CODE = "structured-unavailable";
 /** The host-facing reason a structured state round that answered outside its schema records. */
 const STRUCTURED_REPLY_UNREADABLE = "the model's state reply was not a list of changes";
 const INVENTORY_NAME_WHITESPACE = /\s+/u;
@@ -1253,9 +1258,10 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     const shapes = structuredShapes(generation, refs, wireTools);
     const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.fits);
     if (primary !== null) {
-      const structured = structuredRound(primary, shapes.schemas(), inputs, wireTools);
+      const structured = structuredRound(primary, shapes.schemas()[primary], wireTools, { lead: toolRoundSystem(inputs), prose });
       return await runStructuredStateRound(deps, { input, refs, round: structured, userPrompt, priorCalls: [] });
     }
+    warnIfStructuredUnavailable({ chatId, model: conn.model, api: conn.api, vehicle: config.stateCaptureVehicle });
     const round: ForcedToolRoundInput = {
       connection: conn,
       // The wire-capture correlation key (see `ExtractCtx.chatId`): without it the one round that writes the state
@@ -1292,7 +1298,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     const fallback = fallbackStateRound(generation, calls, shapes.fits);
     if (fallback !== null) {
       logStructuredFallback({ chatId, model: conn.model, api: conn.api, shape: fallback, calls: calls.length, event: "rpg.toolround.structured_fallback" });
-      const structured = structuredRound(fallback, shapes.schemas(), inputs, wireTools);
+      const structured = structuredRound(fallback, shapes.schemas()[fallback], wireTools, { lead: toolRoundSystem(inputs), prose });
       return await runStructuredStateRound(deps, { input, refs, round: structured, userPrompt, priorCalls: calls });
     }
     const audited = await withInventoryAudit({ deps, round, prose, wireTools, turnId, baseState, transcript: turnConnection.transcript, calls });
@@ -1334,18 +1340,27 @@ async function foldRoundCalls(
   return { ...delta, recordedToolCalls: recordToolCalls(calls) };
 }
 
-/** A built structured state round: the shape, what goes on the wire, and the prompt that frames it. */
+/** A built structured state round: the shape, the tools it stands for, what goes on the wire, and its prompt. */
 interface StructuredRound {
   readonly shape: RpgStructuredRoundShape;
+  readonly tools: readonly RpgStateRoundTool[];
   readonly format: ResponseFormat;
   readonly systemPrompt: string;
 }
 
-/** How each shape's reply decodes back to tool calls — a mapped Record, so a new shape without a decoder fails tsc. */
-const STRUCTURED_DECODERS: Readonly<Record<RpgStructuredRoundShape, (value: unknown) => RpgStructuredChanges | null>> = {
-  union: structuredChangesToToolCalls,
+/** How each shape's reply decodes back to tool calls — a mapped Record, so a new shape without a decoder fails tsc.
+ *  The patch list decodes against the round's own tools (their field paths, types and per-call enums). */
+const STRUCTURED_DECODERS: Readonly<Record<RpgStructuredRoundShape, (value: unknown, tools: readonly RpgStateRoundTool[]) => RpgStructuredChanges | null>> = {
+  union: (value) => structuredChangesToToolCalls(value),
   patch: patchChangesToToolCalls,
 };
+
+/** One shape's response schema for a set of round tools. */
+function shapeSchema(shape: RpgStructuredRoundShape, refs: ExtractionRefs, tools: readonly RpgStateRoundTool[]): WireReady {
+  return shape === "union"
+    ? stateRoundChangesSchema(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs), tools)
+    : projectJsonSchema(stateRoundPatchSchema(tools));
+}
 
 /** Each shape's frame slot: the union lists whole calls, the patch list single fields. */
 const STRUCTURED_FRAMES: Readonly<Record<RpgStructuredRoundShape, ProseSlotId>> = {
@@ -1362,33 +1377,52 @@ function structuredShapes(
 ): { readonly schemas: () => Readonly<Record<RpgStructuredRoundShape, WireReady>>; readonly fits: () => Readonly<Record<RpgStructuredRoundShape, boolean>> } {
   let schemas: Readonly<Record<RpgStructuredRoundShape, WireReady>> | undefined;
   const built = (): Readonly<Record<RpgStructuredRoundShape, WireReady>> => {
-    schemas ??= {
-      union: stateRoundChangesSchema(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs), tools),
-      patch: projectJsonSchema(stateRoundPatchSchema(tools)),
-    };
+    schemas ??= { union: shapeSchema("union", refs, tools), patch: shapeSchema("patch", refs, tools) };
     return schemas;
   };
   return { schemas: built, fits: () => structuredShapeFits(generation, built()) };
 }
 
-/** Build the structured round in `shape`. The system prompt is the tool round's own (header, plane teaching, refs)
- *  plus the shape's frame and every tool with its description — and, for the patch list, the argument shapes its
- *  values must take. They ride the prompt because a grammar-only wire (Ollama `format`) never shows the schema. */
+/** Build the structured round in `shape`. The system prompt is `lead` (the tool round's own header, plane teaching
+ *  and refs — or the inventory audit's plane) plus the shape's frame and every tool with its description and, for the
+ *  patch list, the field paths it may name. They ride the prompt because a grammar-only wire (Ollama `format`) never
+ *  shows the model the schema. */
 function structuredRound(
   shape: RpgStructuredRoundShape,
-  schemas: Readonly<Record<RpgStructuredRoundShape, WireReady>>,
-  inputs: PromptInputs,
+  schema: WireReady,
   tools: readonly RpgStateRoundTool[],
+  frame: { readonly lead: string; readonly prose: ProseOverrides },
 ): StructuredRound {
   const toolLines = tools.map((tool) =>
-    shape === "patch" ? `${tool.name}: ${tool.description}\n${JSON.stringify(tool.parameters["properties"] ?? {})}` : `${tool.name}: ${tool.description}`,
+    shape === "patch" && tool.name !== RPG_NO_CHANGES_TOOL
+      ? `${tool.name}: ${tool.description}\n  fields: ${describePatchFields(tool).join(", ")}`
+      : `${tool.name}: ${tool.description}`,
   );
-  const frame = [resolveProseText(STRUCTURED_FRAMES[shape], inputs.prose), ...toolLines].join("\n");
+  const framing = [resolveProseText(STRUCTURED_FRAMES[shape], frame.prose), ...toolLines].join("\n");
   return {
     shape,
-    format: { name: STATE_CHANGES_SCHEMA_NAME, schema: schemas[shape], vehicle: "response-format" },
-    systemPrompt: [toolRoundSystem(inputs), frame].join("\n\n"),
+    tools,
+    format: { name: STATE_CHANGES_SCHEMA_NAME, schema, vehicle: "response-format" },
+    systemPrompt: [frame.lead, framing].join("\n\n"),
   };
+}
+
+/** The game asked for a structured round (`stateCaptureVehicle: "structured"`) and the row cannot give one — no
+ *  structured output, or no shape fits its grammar — so the round runs as tool calls. LOUD, with a named code: the
+ *  host chose a vehicle and is not getting it. */
+function warnIfStructuredUnavailable(args: {
+  readonly chatId: ChatId;
+  readonly model: string;
+  readonly api: ChatApi | null;
+  readonly vehicle: RpgStateCaptureVehicle;
+}): void {
+  if (args.vehicle !== "structured") {
+    return;
+  }
+  logger.warn(
+    { event: STATE_VEHICLE_FALLBACK_EVENT, code: STRUCTURED_UNAVAILABLE_CODE, chatId: args.chatId, model: args.model, api: args.api },
+    "rpg state round: the game asks for a structured reply but this model cannot give one — running tool calls instead",
+  );
 }
 
 /** The structured-fallback line: a tool round whose `required` went out as `auto` came back with nothing usable,
@@ -1449,7 +1483,14 @@ async function requestStructuredCalls(
     logger.warn({ event: args.events.failed, ...line, err }, "rpg structured state round failed");
     return { kind: "failed", err };
   }
-  const changes = STRUCTURED_DECODERS[round.shape](safeJson(text));
+  let changes: RpgStructuredChanges | null;
+  // A decoder fault on model output is this round's warned `failed`, never an exception out of the flush.
+  try {
+    changes = STRUCTURED_DECODERS[round.shape](safeJson(text), round.tools);
+  } catch (err) {
+    logger.warn({ event: args.events.unparseable, ...line, err }, "rpg structured state round: the reply could not be decoded — nothing applied");
+    return { kind: "failed", err };
+  }
   if (changes === null) {
     logger.warn({ event: args.events.unparseable, ...line }, "rpg structured state round: the reply was not a list of changes — nothing applied");
     return { kind: "failed", err: new Error(STRUCTURED_REPLY_UNREADABLE) };
@@ -1492,8 +1533,39 @@ async function runStructuredStateRound(
     return { statePatch: {}, journal: [], failure: roundFailure(result.err) };
   }
   deps.trace?.({ phase: "tool", chatId, turnId, vehicle: STRUCTURED_ROUND_VEHICLE, calls: recordToolCalls(result.calls) });
-  const calls = [...args.priorCalls, ...result.calls];
+  const answered = [...args.priorCalls, ...result.calls];
+  const calls = needsInventoryAudit(baseState, turnConnection.transcript, answered)
+    ? [...answered, ...(await structuredInventoryAudit(deps, { input: args.input, refs: args.refs, round: args.round, userPrompt: args.userPrompt }))]
+    : answered;
   return await foldRoundCalls(deps, { chatId, conn, baseState, refs: args.refs, calls, vehicle: STRUCTURED_ROUND_VEHICLE });
+}
+
+/** The selective inventory pass ({@link needsInventoryAudit}) in the round's own structured shape: the same narrowed
+ *  tools and plane prompt the tool round's audit uses. Its failure costs only the audit, as on the tool round. */
+async function structuredInventoryAudit(
+  deps: RpgComposeDeps,
+  args: { readonly input: Parameters<RpgRunToolRound>[0]; readonly refs: ExtractionRefs; readonly round: StructuredRound; readonly userPrompt: string },
+): Promise<readonly RpgToolCall[]> {
+  const { chatId, turnId, turnConnection, signal } = args.input;
+  const prose = turnConnection.prose;
+  const tools = args.round.tools.filter((tool) => tool.name === "update_inventory" || tool.name === RPG_NO_CHANGES_TOOL);
+  const round = structuredRound(args.round.shape, shapeSchema(args.round.shape, args.refs, tools), tools, {
+    lead: resolveProseText("rpg.extract.plane.inventory", prose),
+    prose,
+  });
+  const result = await requestStructuredCalls(deps, {
+    conn: turnConnection.connection,
+    chatId,
+    signal,
+    userPrompt: args.userPrompt,
+    round,
+    events: { failed: "rpg.inventory-audit.failed", unparseable: "rpg.inventory-audit.unparseable" },
+  });
+  if (result.kind !== "calls") {
+    return [];
+  }
+  deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "structured inventory audit", calls: recordToolCalls(result.calls) });
+  return result.calls;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1649,9 +1721,11 @@ async function resyncViaToolRound(
   const generation = generationOf(conn);
   const shapes = structuredShapes(generation, refs, tools);
   const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.fits);
+  const lead = { lead: toolRoundSystem(inputs), prose };
   if (primary !== null) {
-    return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(primary, shapes.schemas(), inputs, tools), priorCalls: [] });
+    return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(primary, shapes.schemas()[primary], tools, lead), priorCalls: [] });
   }
+  warnIfStructuredUnavailable({ chatId, model: conn.model, api: conn.api, vehicle: config.stateCaptureVehicle });
   let calls: readonly RpgToolCall[];
   try {
     const result = await deps.executor.runChatTurn(
@@ -1674,7 +1748,7 @@ async function resyncViaToolRound(
   const fallback = fallbackStateRound(generation, calls, shapes.fits);
   if (fallback !== null) {
     logStructuredFallback({ chatId, model: conn.model, api: conn.api, shape: fallback, calls: calls.length, event: "rpg.resync.structured_fallback" });
-    return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(fallback, shapes.schemas(), inputs, tools), priorCalls: calls });
+    return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(fallback, shapes.schemas()[fallback], tools, lead), priorCalls: calls });
   }
   // The SAME loss log both in-turn tool vehicles run, in the resync's own event namespace.
   return { ok: true, delta: await foldRoundCalls(deps, { ...args, refs, calls, vehicle: "resync tool round", events: RESYNC_EVENTS }) };

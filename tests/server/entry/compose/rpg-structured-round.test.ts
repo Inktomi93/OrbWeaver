@@ -106,6 +106,9 @@ test("openrouter anthropic/claude-sonnet-5.5 resolves the limits pointer: the un
   expect(fallbackStateRound(sonnet, [], shapeFits(sonnet))).toBe("patch");
   expect(fallbackStateRound(sonnet, [MALFORMED], shapeFits(sonnet))).toBe("patch");
   expect(fallbackStateRound(sonnet, [QUIET], shapeFits(sonnet))).toBeNull();
+  // An invented tool name is not a usable call: the round is retried, unless a real call rode beside it.
+  expect(fallbackStateRound(sonnet, [{ name: "update_location", arguments: '{"location":"x"}' }], shapeFits(sonnet))).toBe("patch");
+  expect(fallbackStateRound(sonnet, [{ name: "update_location", arguments: "{}" }, QUIET], shapeFits(sonnet))).toBeNull();
 });
 
 test("a local no-force row takes the union round under `auto`; `tools` keeps it on tools; a forcible row never retries", () => {

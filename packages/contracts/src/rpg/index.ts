@@ -167,7 +167,6 @@ export {
   parseToolCallArgs,
   projectIssueSentValue,
   RPG_NO_CHANGES_TOOL,
-  RPG_STATE_TOOL_ARGS,
   RPG_TOOL_CALL_VERDICTS,
   RPG_TOOL_ROUND_TOOL_NAMES,
   recordToolCalls,
@@ -295,13 +294,12 @@ export {
   rpgQuestSchema,
   rpgSnapshotStateSchema,
 } from "./snapshot.ts";
+export { describePatchFields, patchChangesToToolCalls, patchFieldPaths, patchToolsOnlyFields, stateRoundPatchSchema } from "./structured-patch.ts";
 export type { RpgStateRoundTool, RpgStructuredChanges, RpgStructuredRoundShape } from "./structured-round.ts";
 export {
-  patchChangesToToolCalls,
   RPG_STATE_CHANGES_FIELD,
   RPG_STRUCTURED_ROUND_SHAPES,
   stateRoundChangesSchema,
-  stateRoundPatchSchema,
   structuredChangesToToolCalls,
 } from "./structured-round.ts";
 export type {
