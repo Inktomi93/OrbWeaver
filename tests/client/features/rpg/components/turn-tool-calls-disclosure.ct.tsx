@@ -117,6 +117,32 @@ test("a DROPPED call says so, and its reason is VISIBLE TEXT (never a hover-only
   await expect(component.getByText("update_scene.weather")).toBeVisible();
 });
 
+test("a call with several issues renders each on its own line, in order", async ({ mount, page }) => {
+  const issues = [
+    '(field): update_scene has no such field, so this value was dropped — sent {"field":"a","value":"x"}',
+    'timeOfDay: Invalid option — sent "Evening"',
+  ];
+  await routeTrpc(page, {
+    ...GAME_ROOM,
+    "rpg.listTurnToolCalls": () => [
+      {
+        variantId: "mv_ct_folded",
+        messageId: "msg_ct_folded",
+        createdAt: 1_700_000_000_000,
+        calls: [{ name: "update_scene", args: "[]", verdict: "dropped" as const, issues, withheld: null }],
+      },
+    ],
+  });
+
+  const component = await mount(<TurnToolCallsDisclosureStory />);
+  await component.getByRole("button", { name: RE_TRIGGER }).click();
+
+  const lines = component.locator('[data-slot="turn-tool-call-issues"] > *');
+  await expect(lines).toHaveCount(2);
+  const [first, second] = [await lines.nth(0).boundingBox(), await lines.nth(1).boundingBox()];
+  expect(second?.y ?? 0).toBeGreaterThanOrEqual((first?.y ?? 0) + (first?.height ?? 0));
+});
+
 test("an OVERRIDDEN call reads as the reader's own edit holding, and NAMES the locked path", async ({ mount, page }) => {
   // #77: the row used to badge this call `recorded` with no reason line at all — a durable claim that a write
   // landed which no state carries. The badge must not read as success, and the PATH must be on screen: on a

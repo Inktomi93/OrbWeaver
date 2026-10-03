@@ -63,14 +63,15 @@ test("EFF-3: a folded game that CANNOT fold reads the lag label with the reason 
   await expect(component).not.toHaveAttribute("title", HOST_CHOSE_RE);
 });
 
-test("0511: an unhonoured structured vehicle reads the lag label with its own reason — not the host-chose line, not the fold guard", async ({ mount }) => {
+test("0511: a fold-guarded room with an unhonoured structured vehicle carries BOTH reasons, never just one", async ({ mount }) => {
   const component = await mount(<RpgFreshnessStructuredUnavailableStory />);
   await expect(component.getByText("Last recorded beat")).toBeVisible();
   await expect(component.getByText("Live")).toHaveCount(0);
-  // A reason is carried, and it is neither of the two existing sentences.
-  await expect(component).toHaveAttribute("title", /\S/u);
+  // The fold guard's own reason stays, and a second sentence follows it.
+  await expect(component).toHaveAttribute("title", GUARD_REASON_RE);
   await expect(component).not.toHaveAttribute("title", HOST_CHOSE_RE);
-  await expect(component).not.toHaveAttribute("title", GUARD_REASON_RE);
+  const title = (await component.getAttribute("title")) ?? "";
+  expect(title.split(GUARD_REASON_RE)[1] ?? "").toMatch(/\.\s+\S.*\./u);
 });
 
 test("no model write path: the pill renders NOTHING (the Read-only pill is the honest word)", async ({ mount }) => {

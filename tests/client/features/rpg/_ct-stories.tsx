@@ -293,7 +293,7 @@ export function RpgTakeoverHeaderWhenLongStory({
         trackerOrbs={[]}
         viewerUserId="user_ct"
         trackersReadOnly={false}
-        delivery={{ path: "tool-round", fallbackReason: null }}
+        delivery={{ path: "tool-round", fallbackReason: null, structuredUnavailable: false }}
         dateMode="narrated"
         freshnessPending={false}
       />
@@ -308,32 +308,32 @@ export function RpgTakeoverHeaderWhenLongStory({
 
 /** The host picked the two-call arm, idle — the last successfully recorded state is named honestly. */
 export function RpgFreshnessCheapIdleStory(): ReactElement {
-  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null }} pending={false} />;
+  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null, structuredUnavailable: false }} pending={false} />;
 }
 
 /** The two-call arm with the post-commit round's window open — the transient "Updating…" (pulse aria-hidden).
  *  (`cheap` claimed "Live" from D108's inline-tools shape, which D109 replaced with a dedicated round.) */
 export function RpgFreshnessCheapStory(): ReactElement {
-  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null }} pending={true} />;
+  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null, structuredUnavailable: false }} pending={true} />;
 }
 
 /** The fold actually ran (R1) — the reply records its own state, so there is no post-commit call to wait on: a
  *  minimal "Live" affordance, never a fake lag label. `pending` is true to prove it does NOT flip to "Updating…". */
 export function RpgFreshnessFoldedStory(): ReactElement {
-  return <RpgFreshnessIndicator delivery={{ path: "folded", fallbackReason: null }} pending={false} />;
+  return <RpgFreshnessIndicator delivery={{ path: "folded", fallbackReason: null, structuredUnavailable: false }} pending={false} />;
 }
 
 /** THE EFF-3 ARM: a `folded` game on a wire that goes mute under tool attachment. It uses a fallback round, and
  *  before EFF-3 this exact room rendered "Live" (D112 (4)'s KNOWN GAP). The label is the lag; the title carries
  *  the reason. `pending` true proves the fallback arm still opens the honest transient. */
 export function RpgFreshnessGuardedStory(): ReactElement {
-  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: "local-engine-fold-guard" }} pending={false} />;
+  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: "local-engine-fold-guard", structuredUnavailable: false }} pending={false} />;
 }
 
 /** 0511: the game asks for a structured reply the room's model cannot give, so its post-commit pass runs tool calls.
- *  The lag label stands; the title names this cause, not the host-chose line and not the fold guard. */
+ *  On a fold-guarded room both causes apply, and the title states both. */
 export function RpgFreshnessStructuredUnavailableStory(): ReactElement {
-  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: "structured-unavailable" }} pending={false} />;
+  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: "local-engine-fold-guard", structuredUnavailable: true }} pending={false} />;
 }
 
 /** No model write path at all — nothing delivers state, so the pill renders NOTHING (the band's Read-only pill
@@ -343,7 +343,7 @@ export function RpgFreshnessNoneStory(): ReactElement {
   // hold a locator on — the wrapper is the anchor the "nothing here" assertion counts children against.
   return (
     <div data-testid="freshness-slot">
-      <RpgFreshnessIndicator delivery={{ path: "none", fallbackReason: null }} pending={true} />
+      <RpgFreshnessIndicator delivery={{ path: "none", fallbackReason: null, structuredUnavailable: false }} pending={true} />
     </div>
   );
 }

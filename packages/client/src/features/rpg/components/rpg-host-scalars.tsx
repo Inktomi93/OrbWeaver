@@ -21,7 +21,6 @@ import {
   RPG_RECENT_BEATS_KEEP_DEFAULT,
   RPG_RECONCILE_EVERY_BEATS_DEFAULT,
   RPG_RECONCILE_EVERY_BEATS_MAX,
-  RPG_STATE_CAPTURE_VEHICLES,
   RPG_STEERING_NOTE_MAX,
 } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
@@ -44,10 +43,9 @@ import {
   EXTRACTION_CONTEXT_CONSEQUENCE,
   EXTRACTION_CONTEXT_LABEL,
   EXTRACTION_MODE_LABEL,
-  STATE_CAPTURE_VEHICLE_CONSEQUENCE,
-  STATE_CAPTURE_VEHICLE_LABEL,
 } from "../lib/host-console-labels.ts";
 import { Kicker } from "./rpg-kicker.tsx";
+import { StateCaptureKnob } from "./rpg-state-capture-knob.tsx";
 
 // Every segmented toggle renders its options from the closed contracts tuple, so a new member cannot be
 // silently missing from its picker (a hardcoded pair once was, and the host had no way to reach the new arm).
@@ -63,8 +61,17 @@ const HostConsoleFormBoundary = createAutosaveEntityForm<HostConsoleFormValues>(
   defaultValues: EMPTY_HOST_CONSOLE_FORM,
 });
 
-/** The scalar autosave form — play style · hidden channels · steering note · delivery model. */
-export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId; readonly config: RpgConfigView }): ReactElement {
+/** The scalar autosave form — play style · hidden channels · steering note · delivery model. `structuredUnavailable`
+ *  is the room's effective-delivery verdict: the game asks for a structured reply its model cannot give. */
+export function HostConsoleScalars({
+  chatId,
+  config,
+  structuredUnavailable,
+}: {
+  readonly chatId: ChatId;
+  readonly config: RpgConfigView;
+  readonly structuredUnavailable: boolean;
+}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateConfig = useUpdateConfig({ trpc, invalidation });
@@ -281,7 +288,7 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                 a resting dropdown. */}
             <form.AppField name="extractionMode">
               {(field): ReactElement => (
-                <Row gap="block" align="center">
+                <Stack gap="field">
                   <ToggleGroup
                     aria-label="Delivery model"
                     value={[field.state.value]}
@@ -298,10 +305,8 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                       </Toggle>
                     ))}
                   </ToggleGroup>
-                  <Text voice="gloss" className="min-w-0 flex-1">
-                    {EXTRACTION_CONSEQUENCE[field.state.value]}
-                  </Text>
-                </Row>
+                  <Text voice="gloss">{EXTRACTION_CONSEQUENCE[field.state.value]}</Text>
+                </Stack>
               )}
             </form.AppField>
             {/* RECOMMEND, NEVER FORCE ([[gen-settings-are-preset-owned]]): generation params belong to the
@@ -319,34 +324,11 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
             </form.AppField>
           </Stack>
 
-          <Stack gap="field">
-            <Kicker>How the state is asked for</Kicker>
-            <form.AppField name="stateCaptureVehicle">
-              {(field): ReactElement => (
-                <Row gap="block" align="center">
-                  <ToggleGroup
-                    aria-label="State capture"
-                    value={[field.state.value]}
-                    onValueChange={(next): void => {
-                      const picked = pickOption(RPG_STATE_CAPTURE_VEHICLES, next[0]);
-                      if (picked !== null) {
-                        field.handleChange(picked);
-                      }
-                    }}
-                  >
-                    {RPG_STATE_CAPTURE_VEHICLES.map((vehicle) => (
-                      <Toggle key={vehicle} value={vehicle}>
-                        {STATE_CAPTURE_VEHICLE_LABEL[vehicle]}
-                      </Toggle>
-                    ))}
-                  </ToggleGroup>
-                  <Text voice="gloss" className="min-w-0 flex-1">
-                    {STATE_CAPTURE_VEHICLE_CONSEQUENCE[field.state.value]}
-                  </Text>
-                </Row>
-              )}
-            </form.AppField>
-          </Stack>
+          <form.AppField name="stateCaptureVehicle">
+            {(field): ReactElement => (
+              <StateCaptureKnob value={field.state.value} onChange={field.handleChange} structuredUnavailable={structuredUnavailable} />
+            )}
+          </form.AppField>
 
           {/* EXTRACTION DEPTH — the knobs that decide how much EVIDENCE the state round reads.
               Grouped under one kicker because they only make sense together: the context arm picks the shape,

@@ -58,12 +58,18 @@ export const EXTRACTION_CONTEXT_CONSEQUENCE: Readonly<Record<RpgExtractionContex
   full: "the whole thread — the most inference, and the largest prompt every single beat",
 };
 
-/** The state-capture vehicle consequence per arm — what the separate pass sends, and what it costs. */
+/** Which passes the state-capture knob governs: the folded reply records its own state and never reads it. */
+export const STATE_CAPTURE_SCOPE = "Used by the separate pass and by Resync from story.";
+
+/** The state-capture vehicle consequence per arm — what the separate pass sends, and when it falls back. */
 export const STATE_CAPTURE_VEHICLE_CONSEQUENCE: Readonly<Record<RpgStateCaptureVehicle, string>> = {
-  auto: "tool calls, or one structured reply where the model can't be made to call a tool but takes the whole tool set as structured output — a tool pass it ignores is retried once as a structured reply",
-  tools: "tool calls — a pass the model ignores is retried once as a structured reply, but only where it can't be made to call a tool",
-  structured: "one structured reply, in the shape the model's limits allow — a model with no structured output runs tool calls instead, and the panel says so",
+  auto: "Picks for you: tool calls where the model supports them, otherwise one structured reply. A pass the model skips is retried once as a structured reply.",
+  tools: "Always tool calls. A pass the model skips is retried once as a structured reply when the model can't be required to call tools.",
+  structured: "Always one structured reply. If this room's model can't give one, tool calls are used instead and the status pill says so.",
 };
+
+/** Shown under the knob while the room's model cannot give the structured reply the game asks for. */
+export const STATE_CAPTURE_UNAVAILABLE = "This room's model can't give a structured reply, so state is recorded with tool calls instead.";
 
 /** The #9 date-mode consequence lines (the choice-behavior segmented-toggle precedent). */
 export const DATE_MODE_CONSEQUENCE: Readonly<Record<RpgDateMode, string>> = {

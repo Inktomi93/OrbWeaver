@@ -3378,7 +3378,7 @@ test("0511: a patch reply naming a prototype key drops that field by name and st
       name: "update_scene",
       args: JSON.stringify([{ plane: "update_scene", call: 0, field: "constructor", item: 0, value: "x" }]),
       verdict: "dropped",
-      issues: ['(field): Unrecognized field: not one of update_scene\'s fields — sent {"field":"constructor","value":"x"}'],
+      issues: ['(field): update_scene has no such field, so this value was dropped — sent {"field":"constructor","value":"x"}'],
     },
   ]);
   warn.mockRestore();
@@ -3490,7 +3490,8 @@ test("0511: the panel's game read names a `structured` knob the room's model can
   const a = await cheapGame(db, unable, "panel-unavailable", "structured");
   expect((await unable.service.getGame({ principal: hostPrincipal(a.hostId), chatId: a.chatId })).effectiveDelivery).toEqual({
     path: "tool-round",
-    fallbackReason: "structured-unavailable",
+    fallbackReason: null,
+    structuredUnavailable: true,
   });
 
   const able = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}" });
@@ -3498,6 +3499,7 @@ test("0511: the panel's game read names a `structured` knob the room's model can
   expect((await able.service.getGame({ principal: hostPrincipal(b.hostId), chatId: b.chatId })).effectiveDelivery).toEqual({
     path: "tool-round",
     fallbackReason: null,
+    structuredUnavailable: false,
   });
 });
 

@@ -400,7 +400,7 @@ test("a boolean field shapes only `true` or `false`; any other text is kept for 
 
 /** What a reader of the record sees for an unassembled row: one issue per entry, naming its cause. The path half is
  *  a fixed schema label; every name the model sent rides in the sent half, the only half a member's view belts. */
-const NOT_A_SCENE_FIELD = "(field): Unrecognized field: not one of update_scene's fields";
+const NOT_A_SCENE_FIELD = "(field): update_scene has no such field, so this value was dropped";
 
 test("a prototype key never reaches a lookup: it is a recorded DROP naming the cause, carried as sent, beside the call that applied", () => {
   const unknown = [entry("update_scene", 0, "constructor", "x"), entry("update_scene", 0, "toString", "x"), entry("update_scene", 0, "__proto__", "y")];
@@ -449,15 +449,15 @@ test("a tool the round does not offer is a recorded DROP naming why, never a wri
       args: JSON.stringify(sent),
       verdict: "dropped",
       issues: [
-        '(tool): Unrecognized tool: not offered this round — sent {"plane":"set_tracker","field":"key","value":"gold"}',
-        '(tool): Unrecognized tool: not offered this round — sent {"plane":"set_tracker","field":"delta","value":"5"}',
+        '(tool): this pass offered no tool by that name, so these values were dropped — sent {"plane":"set_tracker","field":"key","value":"gold"}',
+        '(tool): this pass offered no tool by that name, so these values were dropped — sent {"plane":"set_tracker","field":"delta","value":"5"}',
       ],
     },
     {
       name: "delete_world",
       args: JSON.stringify([entry("delete_world", 0, "x", "1")]),
       verdict: "dropped",
-      issues: ['(tool): Unrecognized tool: not offered this round — sent {"plane":"delete_world","field":"x","value":"1"}'],
+      issues: ['(tool): this pass offered no tool by that name, so these values were dropped — sent {"plane":"delete_world","field":"x","value":"1"}'],
     },
   ]);
   expect(decoded?.dropped).toEqual(["set_tracker.key", "set_tracker.delta", "delete_world.x"]);

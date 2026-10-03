@@ -333,7 +333,13 @@ function placement(
 ): { readonly leaf: PatchLeaf } | { readonly refusal: RpgUnassembledValue } {
   const sent = { field: entry.field, value: entry.value };
   if (leaves === undefined) {
-    return { refusal: { path: UNASSEMBLED_PATH.tool, message: "Unrecognized tool: not offered this round", sent: { plane: entry.plane, ...sent } } };
+    return {
+      refusal: {
+        path: UNASSEMBLED_PATH.tool,
+        message: "this pass offered no tool by that name, so these values were dropped",
+        sent: { plane: entry.plane, ...sent },
+      },
+    };
   }
   if (!isPatchIndex(entry.call)) {
     return { refusal: { path: UNASSEMBLED_PATH.call, message: `Invalid call: ${ID_RANGE}, received ${String(entry.call)}`, sent } };
@@ -343,7 +349,9 @@ function placement(
   }
   const leaf = leaves.get(entry.field);
   // `entry.plane` is an offered tool's name here (it found leaves), so the message stays schema words.
-  return leaf !== undefined ? { leaf } : { refusal: { path: UNASSEMBLED_PATH.field, message: `Unrecognized field: not one of ${entry.plane}'s fields`, sent } };
+  return leaf !== undefined
+    ? { leaf }
+    : { refusal: { path: UNASSEMBLED_PATH.field, message: `${entry.plane} has no such field, so this value was dropped`, sent } };
 }
 
 /** Place one entry's shaped value in its call's arguments. A scalar set twice keeps the LATER value, as a tool call's

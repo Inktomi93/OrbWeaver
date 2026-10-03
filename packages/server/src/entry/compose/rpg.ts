@@ -42,7 +42,6 @@ import type {
   ExtractionRefs,
   RpgActorRef,
   RpgExtraction,
-  RpgFoldFallbackReason,
   RpgGameConfig,
   RpgRecordedToolCall,
   RpgSheet,
@@ -147,7 +146,7 @@ const STATE_CHANGES_SCHEMA_NAME = "rpg_state_changes";
 const STRUCTURED_ROUND_VEHICLE = "structured state round";
 /** The warn a game's unavailable structured vehicle raises, and the code that names why. */
 const STATE_VEHICLE_FALLBACK_EVENT = "rpg.toolround.vehicle_fallback";
-const STRUCTURED_UNAVAILABLE_CODE = "structured-unavailable" satisfies RpgFoldFallbackReason;
+const STRUCTURED_UNAVAILABLE_CODE = "structured-unavailable";
 /** The host-facing reason a structured state round that answered outside its schema records. */
 const STRUCTURED_REPLY_UNREADABLE = "the model's state reply was not a list of changes";
 const INVENTORY_NAME_WHITESPACE = /\s+/u;

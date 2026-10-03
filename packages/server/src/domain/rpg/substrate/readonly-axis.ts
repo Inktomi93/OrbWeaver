@@ -62,17 +62,17 @@ export function deriveEffectiveDelivery(
   if (verdicts.trackersReadOnly) {
     // No model write path at all — the flush returns before any vehicle runs (the F2 gate). Neither "Live" nor
     // "one beat behind" is true of a game nothing writes; the read-only pill is the honest label there.
-    return { path: "none", fallbackReason: null };
+    return { path: "none", fallbackReason: null, structuredUnavailable: false };
   }
   if (mode === "folded" && !verdicts.foldGuarded) {
-    return { path: "folded", fallbackReason: null };
+    return { path: "folded", fallbackReason: null, structuredUnavailable: false };
   }
-  // A post-commit round runs. The host's explicit `structured` choice going unhonoured outranks the fold guard: it
-  // is the one the host acted on and cannot see otherwise (the guard keeps its own warn line).
-  if (verdicts.structuredUnavailable) {
-    return { path: "tool-round", fallbackReason: "structured-unavailable" };
-  }
-  return { path: "tool-round", fallbackReason: mode === "folded" ? "local-engine-fold-guard" : null };
+  // A post-commit round runs: the fold guard and an unhonoured `structured` knob are independent facts, both shown.
+  return {
+    path: "tool-round",
+    fallbackReason: mode === "folded" ? "local-engine-fold-guard" : null,
+    structuredUnavailable: verdicts.structuredUnavailable,
+  };
 }
 
 /** Does the game's state-capture knob ask for a structured round this wire cannot give (no structured output)? The
