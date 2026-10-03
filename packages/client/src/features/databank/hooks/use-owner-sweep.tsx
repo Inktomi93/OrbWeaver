@@ -3,7 +3,9 @@
 // `primary`, never destructive: neither mode deletes anything, the canon is re-derived from bytes we hold.
 
 import type { ReindexMode } from "@orb/contracts/databank";
+import { reindexScopeSchema } from "@orb/contracts/databank";
 import { useToastManager } from "@orb/ui/toast";
+import { useMutationState } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
@@ -34,6 +36,11 @@ const SWEEP_COPY: Record<ReindexMode, SweepCopy> = {
   },
 };
 
+// The mutation cache types variables as `unknown`; a single-document reindex is not an owner-wide sweep.
+function isOwnerSweep(variables: unknown): boolean {
+  return typeof variables === "object" && variables !== null && "scope" in variables && reindexScopeSchema.safeParse(variables.scope).data?.kind === "owner";
+}
+
 export interface OwnerSweep {
   /** A sweep request is in flight; the doors that start one stay closed meanwhile. */
   readonly pending: boolean;
@@ -57,8 +64,15 @@ export function useOwnerSweep(): OwnerSweep {
     reindex.mutate({ scope: { kind: "owner" }, mode }, { onSuccess: (): void => void toast.add({ title: copy.started }) });
   };
 
+  // Every door holds its own mutation instance, so "a sweep is starting" is read from the shared mutation cache:
+  // the kebab and the banner both close while either one's owner-wide request is in flight.
+  const ownerSweepsInFlight = useMutationState({
+    filters: { mutationKey: trpc.databank.reindex.mutationKey(), status: "pending" },
+    select: (mutation) => isOwnerSweep(mutation.state.variables),
+  }).filter(Boolean).length;
+
   return {
-    pending: reindex.isPending,
+    pending: ownerSweepsInFlight > 0,
     ask: (next: ReindexMode): void => {
       setMode(next);
       setOpen(true);

@@ -1234,9 +1234,12 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
     const cut = await seedMessage(db, chatId, 2, { role: "user", authorUserId: member, personaId: mira });
     const theirs = await seedMessage(db, chatId, 3, { role: "user", authorUserId: host, personaId: hostPersona });
     const late = await seedMessage(db, chatId, 4, { role: "user", authorUserId: member, personaId: mira });
+    // A pinned anchor is the card's POV, not a line's stamp: the restamp never moves it.
+    await db.update(chats).set({ anchorPersonaId: hostPersona }).where(eq(chats.id, chatId));
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
 
     await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine", fromSeq: 2 }, personaId: zara });
+    expect((await db.select({ anchor: chats.anchorPersonaId }).from(chats).where(eq(chats.id, chatId)))[0]?.anchor).toBe(hostPersona);
 
     const byId = new Map((await db.select().from(messages).where(eq(messages.chatId, chatId))).map((r) => [r.id, r]));
     expect(byId.get(early.messageId)?.personaId).toBe(mira); // BELOW the floor — history, not a mistake

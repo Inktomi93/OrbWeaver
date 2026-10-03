@@ -9,21 +9,12 @@ import { Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { ConfirmDialog } from "#components";
-import type { Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useReattributePersona, useTRPC } from "#data";
 import type { ReattributeTarget } from "../hooks/use-reattribute-target.ts";
 import { MESSAGE_REATTRIBUTE_NAME } from "../lib/message-action-names.ts";
-
-// Bus-driven: the verb emits one `messageEdited` per restamped slot, which the open room's reads cover.
-const useReattributeFromHere = createEntityMutation<inferInput<Trpc["chat"]["reattributePersona"]>, unknown>({
-  options: (trpc) => trpc.chat.reattributePersona.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't reattribute those messages.",
-});
 
 const NO_PERSONA_REASON = "Pick a persona for this chat first.";
 
@@ -101,7 +92,7 @@ function ReattributeConfirmDialog({
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const reattribute = useReattributeFromHere({ trpc, invalidation });
+  const reattribute = useReattributePersona({ trpc, invalidation });
   const name = usePersonaName(message.chatId, personaId);
   return (
     <ConfirmDialog

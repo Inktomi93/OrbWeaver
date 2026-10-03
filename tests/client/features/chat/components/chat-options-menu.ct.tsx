@@ -221,12 +221,14 @@ test("a fork whose parent the viewer can open offers Back to parent chat, and it
 // D27: a fork grants no parent membership, so the lineage read omits a parent this viewer cannot open, and
 // the item is a permission omit rather than a door into a NOT_FOUND.
 test("a fork whose parent the lineage omits offers no Back to parent chat", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { ...FORK_ROOM, "chat.getChatLineage": { chain: [lineageRow(CHAT_ID)] } });
+  await routeTrpc(page, { ...FORK_ROOM, "chat.getChatLineage": { chain: [lineageRow(CHAT_ID)] } });
   const component = await mount(<ChatForkMenuStory />);
 
   await component.getByRole("button", { name: "Chat options", exact: true }).click();
+  // The lineage answer has rendered (the passive readout shares its cache entry), so the absence below is the
+  // settled verdict on a chain without the parent, not a read still in flight.
+  await expect(component.getByTestId("ct-lineage")).toHaveText("lineage=1");
   await expect(page.getByRole("menuitem", { name: "Rename", exact: true })).toBeVisible();
-  await expect.poll(() => trpc.count("chat.getChatLineage"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
   await expect(page.getByRole("menuitem", { name: BACK_TO_PARENT_CHAT_LABEL })).toHaveCount(0);
 });
 

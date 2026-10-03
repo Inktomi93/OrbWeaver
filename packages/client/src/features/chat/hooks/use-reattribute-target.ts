@@ -1,5 +1,7 @@
 // Whether a transcript row offers "Reattribute from here", and to which persona. The verb restamps only the
-// caller's own user lines, so the item exists only on those; the target is the viewer's current chat persona.
+// caller's own user lines, so the item exists only on those. The target is `viewerActivePersonaId`: the caller's
+// seat persona, the exact value a send stamps on their next line (`commitUserTurn` in the chat turn verbs). It
+// never falls back to the anchor, which is the card's POV, not a speaker's stamp.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { PersonaId } from "@orb/kit/ids";
