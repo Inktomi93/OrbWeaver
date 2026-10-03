@@ -8,7 +8,7 @@ import type { Modality } from "../modalities.ts";
 import type { CapabilityRequirement } from "../tasks.ts";
 import type { Capability } from "./capability.ts";
 import type { EmbeddingCapability } from "./embedding.ts";
-import type { GenerationCapability, ReasoningOffMode, ReasoningReplayMode, RoleHandling, SamplerStage, UserRoleHandling } from "./generation.ts";
+import type { EstimableTurn, GenerationCapability, ReasoningOffMode, ReasoningReplayMode, RoleHandling, SamplerStage, UserRoleHandling } from "./generation.ts";
 import { CACHE_MIN_FLOOR, REASONING_OFF_DEFAULT, REASONING_REPLAY_FLOOR, ROLE_HANDLING, TURNS_FLOOR, USER_ROLE_HANDLING } from "./generation.ts";
 import type { RerankCapability } from "./rerank.ts";
 
@@ -46,11 +46,22 @@ export function coEmitsProseWithTools(capability: GenerationCapability): boolean
   return capability.tools !== undefined && capability.tools.silencesProse !== true;
 }
 
-/** MAY a request FORCE a tool call (`required` / a named `tool`)? `tools.forcedChoice`, absent ⇒ true — the
- *  refusal is a documented per-model fact, never the default (the field's own doc says why). The wire's
- *  downgrade to `auto` and the structured-vehicle choice read this and nothing else. */
-export function acceptsForcedToolChoice(capability: GenerationCapability): boolean {
-  return capability.tools?.forcedChoice !== false;
+/** MAY a request force SOME tool call (`required`)? `tools.requiredChoice`, absent ⇒ true — the refusal is a
+ *  documented per-model or per-server fact, never the default (the field's own doc says why). The wire's
+ *  downgrade to `auto` reads this and nothing else. */
+export function acceptsRequiredToolChoice(capability: GenerationCapability): boolean {
+  return capability.tools?.requiredChoice !== false;
+}
+
+/** MAY a request force ONE NAMED tool? `tools.namedChoice`, absent ⇒ true. The wire's downgrade and the
+ *  structured-vehicle choice (the forced-tool vehicle names its tool) read this and nothing else. */
+export function acceptsNamedToolChoice(capability: GenerationCapability): boolean {
+  return capability.tools?.namedChoice !== false;
+}
+
+/** Whether a `turns` cell holds the floor's guess because no evidence tier stated it. */
+export function isTurnEstimated(capability: GenerationCapability, cell: EstimableTurn): boolean {
+  return capability.turnsEstimated?.includes(cell) === true;
 }
 
 /** MAY this wire carry `system` rows INSIDE the delivered history? Absent `turns` ⇒ floor ⇒ false. */
@@ -59,9 +70,10 @@ export function acceptsHistorySystemRows(capability: GenerationCapability): bool
 }
 
 /** MAY this wire continue a DELIVERED trailing-assistant row? The CAPABILITY half only — the assembler
- *  ANDs it with "no tools ride this turn", the transport with "the array actually ends on an assistant row". */
+ *  ANDs it with "no tools ride this turn", the transport with "the array actually ends on an assistant row".
+ *  An estimated cell (no tier measured it) does not block the user's continue: the server is the judge. */
 export function acceptsAssistantPrefill(capability: GenerationCapability): boolean {
-  return capability.turns?.assistantPrefill === true;
+  return capability.turns?.assistantPrefill === true || isTurnEstimated(capability, "assistantPrefill");
 }
 
 /** WHAT MAY RIDE BACK when the carry knob replays this model's own prior thinking (§8.8). The ONE spelling
@@ -109,6 +121,22 @@ export function isStricterRoleHandling(level: RoleHandling, than: RoleHandling):
 /** The level a turn runs: the stricter of the model floor and the preset knob. An unset knob runs the floor. */
 export function clampRoleHandling(floor: RoleHandling, knob: RoleHandling | undefined): RoleHandling {
   return knob !== undefined && isStricterRoleHandling(knob, floor) ? knob : floor;
+}
+
+/** What a turn's message handling runs on for this model and the preset's knob. A STATED floor clamps the knob
+ *  (stricter only) and the stated system-row cells gate delivery. An ESTIMATED floor (no tier measured this
+ *  model) clamps nothing: the knob runs as chosen, an unset knob still runs the fail-closed floor, and the
+ *  level alone decides where a system row may sit. The returned floor is what the assembler clamps against. */
+export function turnsLevelFor(
+  capability: GenerationCapability,
+  knob: RoleHandling | undefined,
+): { readonly roleHandlingFloor: RoleHandling; readonly midConversationSystem: boolean; readonly historySystemRows: boolean } {
+  const floor = roleHandlingFloorOf(capability);
+  return {
+    roleHandlingFloor: isTurnEstimated(capability, "roleHandlingFloor") ? (knob ?? floor) : floor,
+    midConversationSystem: acceptsMidConversationSystem(capability) || isTurnEstimated(capability, "midConversationSystem"),
+    historySystemRows: acceptsHistorySystemRows(capability) || isTurnEstimated(capability, "historySystemRows"),
+  };
 }
 
 /** The preset-knob levels a model with this floor can actually run: the user levels at or above it. */

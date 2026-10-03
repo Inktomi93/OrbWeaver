@@ -12,7 +12,7 @@ import type {
   SharedV4ProviderOptions,
 } from "@ai-sdk/provider";
 import type { EffortLevel, EndpointFeatures, GenerationCapability } from "@orb/contracts/inference";
-import { acceptsForcedToolChoice } from "@orb/contracts/inference";
+import { acceptsNamedToolChoice, acceptsRequiredToolChoice } from "@orb/contracts/inference";
 import type { ResponseFormat, ToolChoice, WireTool } from "../../contract/chat.ts";
 import { assertNever } from "../../contract/errors.ts";
 import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
@@ -93,12 +93,13 @@ export function toolChoiceOf(choice: ToolChoice): LanguageModelV4ToolChoice {
   return choice.mode === "tool" ? { type: "tool", toolName: choice.name } : { type: choice.mode };
 }
 
-/** THE FORCED-TOOL DOWNGRADE (#2575). A model whose capability says `tools.forcedChoice: false` answers a forced
- *  choice (`required` / a named `tool`) with a 400 — Claude Fable 5.1 / Mythos 5.1 / Opus 5.5 / Sonnet 5.5 on the Messages,
- *  Batches and count_tokens endpoints alike. The choice goes out as `auto` over the SAME tools (their `strict`
- *  flags untouched, so schema-valid arguments survive) and the drop is LOUD, because `auto` no longer guarantees
- *  a call and a caller that relied on the guarantee must be able to see why it lapsed. Keyed on the capability,
- *  never a model name: every model without the fact keeps its forced choice byte-for-byte. */
+/** THE FORCED-TOOL DOWNGRADE (#2575), per form. A capability whose `tools.requiredChoice` / `tools.namedChoice`
+ *  is `false` cannot have that form forced: Claude Fable 5.1 / Mythos 5.1 / Opus 5.5 / Sonnet 5.5 answer both
+ *  with a 400, llama.cpp runs a named choice as `auto`, Ollama and KoboldCpp take neither. The choice goes out
+ *  as `auto` over the SAME tools (their `strict` flags untouched, so schema-valid arguments survive) and the drop
+ *  is LOUD, because `auto` no longer guarantees a call and a caller that relied on the guarantee must be able to
+ *  see why it lapsed. Keyed on the capability, never a model name: every model without the fact keeps its
+ *  forced choice byte-for-byte. */
 export function servableToolChoice(choice: ToolChoice, generation: GenerationCapability, warnings: ResolvedWarning[]): ToolChoice {
   switch (choice.mode) {
     case "auto":
@@ -106,7 +107,7 @@ export function servableToolChoice(choice: ToolChoice, generation: GenerationCap
       return choice;
     case "required":
     case "tool":
-      if (acceptsForcedToolChoice(generation)) {
+      if (choice.mode === "required" ? acceptsRequiredToolChoice(generation) : acceptsNamedToolChoice(generation)) {
         return choice;
       }
       warnings.push({

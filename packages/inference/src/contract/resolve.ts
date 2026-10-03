@@ -34,8 +34,9 @@ export const WARNING_CODES = [
   "custom_parameters_ignored",
   // A history `tool-result` part carried `isError:true`, which the OpenAI-shaped wires cannot express.
   "tool_result_error_dropped",
-  // A forced tool choice (`required` / a named `tool`) went out as `auto`: the model rejects forced tool use
-  // with a 400 (`capability.tools.forcedChoice: false`). The tools still ride; only the forcing was withdrawn.
+  // A forced tool choice (`required` / a named `tool`) went out as `auto`: that form cannot be forced on this
+  // model or server (`capability.tools.requiredChoice` / `namedChoice: false`). The tools still ride; only the
+  // forcing was withdrawn.
   "tool_choice_downgraded",
   // A `conversation` reasoning carry ran as `tool-chain`: the model binds thinking to its prefix and this route
   // cannot keep a prefix edit from failing the turn (`capability.reasoning.prefixEditSafe`), so thinking rides

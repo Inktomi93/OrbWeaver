@@ -56,11 +56,11 @@ test("higher tiers override only the fields they state; nested objects merge one
 test("tools merges field by field: an advertised cell keeps a curated sub-fact", () => {
   const refusal: CapabilityOverride = {
     kind: "generation",
-    generation: { tools: { parallel: true, forcedChoice: false } },
+    generation: { tools: { parallel: true, requiredChoice: false, namedChoice: false } },
     evidence: { tier: "curated", dated: "2026-09-22", cite: "test" },
   };
   const gen = generationOf(synthesizeCapability("generation", "other", { curated: [refusal], advertised: { tools: { parallel: false } } }).capability);
-  expect(gen.tools).toEqual({ parallel: false, forcedChoice: false });
+  expect(gen.tools).toEqual({ parallel: false, requiredChoice: false, namedChoice: false });
 });
 
 test("declared over measured warns per field, never silently", () => {

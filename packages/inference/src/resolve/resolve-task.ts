@@ -32,7 +32,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { googleModelId } from "../backends/google/model.ts";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
-import { applyEndpointPosture, clampToTrainedWindow } from "../capability/floor.ts";
+import { applyEndpointPosture, applyServerToolChoice, clampToTrainedWindow } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
 import { advertisedFromOpenAiCompat, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
@@ -141,7 +141,7 @@ function advertisedFor(
   if (provider.wire === "google-generative-ai") {
     return googleAdvertised(entry, provider, model);
   }
-  return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry, kind);
+  return entry === undefined ? undefined : advertisedFromOpenAiCompat(entry, kind, behavedFeatures(provider, provider, connection));
 }
 
 /** The endpoint mirror's row for this connection's model, on the two wires whose list the mirror holds. */
@@ -349,9 +349,9 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   // D292: the row's own declaration or its server's advertisement states what a turn may carry; only a row
   // nobody described gets the permissive posture.
   const advertisedInput = advertisedStatesInput(entry);
-  // The server-side floors, after synthesis: the endpoint posture, then the trained clamp.
+  // The server-side floors, after synthesis: the endpoint posture, the server's tool-choice support, the trained clamp.
   const postured = (synthesizedCapability: Capability, inputStated: boolean): Capability =>
-    clampToTrainedWindow(applyEndpointPosture(behaved, synthesizedCapability, inputStated), entry?.contextTrained);
+    clampToTrainedWindow(applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated), entry?.toolChoice), entry?.contextTrained);
   const capability = withLocalLightEmbedDtype(
     postured(synthesized.capability, declared?.generation?.input !== undefined || advertisedInput),
     provider,

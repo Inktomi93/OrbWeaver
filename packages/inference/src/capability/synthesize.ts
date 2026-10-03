@@ -19,7 +19,7 @@ import type {
   ModelKind,
   RerankCapability,
 } from "@orb/contracts/inference";
-import { EMBEDDING_FLOOR, GENERATION_FLOOR, RERANK_FLOOR, TURNS_FLOOR } from "@orb/contracts/inference";
+import { EMBEDDING_FLOOR, ESTIMABLE_TURNS, GENERATION_FLOOR, RERANK_FLOOR, TURNS_FLOOR } from "@orb/contracts/inference";
 import { assertNever } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { ModelFamily } from "../contract/runtime.ts";
@@ -133,10 +133,24 @@ function synthesizeGeneration(family: ModelFamily, evidence: Evidence): Synthesi
     declared?.output?.maxTokens !== undefined;
   const { maxTokensEstimated: _priorCapFlag, ...output } = capability.output;
   capability = { ...capability, output: capStated ? output : { ...output, maxTokensEstimated: true } };
+  capability = withTurnsProvenance(capability, [
+    ...(evidence.curated ?? []).map((row) => row.generation?.turns),
+    (evidence.advertised as GenerationPatch | undefined)?.turns,
+    ...measuredRows.map((row) => row.turns),
+    declared?.turns,
+  ]);
   return {
     capability: { kind: "generation", generation: withDeclaredNoTools(applyFamilyFloor(family, capability), declared) },
     warnings: declaredOverridesMeasured(declared, measuredRows),
   };
+}
+
+/** The `turns` cells still on the floor's guess: a cell is STATED when any tier's patch names it (a patch that
+ *  opens `turns` is filled from the floor, so the merged block alone cannot tell). */
+function withTurnsProvenance(capability: GenerationCapability, patches: readonly (GenerationPatch["turns"] | undefined)[]): GenerationCapability {
+  const { turnsEstimated: _prior, ...rest } = capability;
+  const estimated = ESTIMABLE_TURNS.filter((cell) => !patches.some((patch) => patch?.[cell] !== undefined));
+  return estimated.length === 0 ? rest : { ...rest, turnsEstimated: [...estimated] };
 }
 
 /** The family floor ORs tools back in after the fold; a connection that declares its model takes none is the
