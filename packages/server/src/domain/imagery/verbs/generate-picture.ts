@@ -192,7 +192,7 @@ async function curate(ctx: ImageryContext, runAs: Principal, target: CharacterId
 }
 
 /** The principal the picture runs as (D298): the room host chat named, else the caller. It funds, styles
- *  and owns the picture; the caller stays the subject-card reader and the extraction viewer. The caller's own
+ *  and owns the picture; the caller stays the extraction viewer and, in this orchestrator, the reader of the subject card for the reuse and avatar-reference gates (the caption reads it as the run-as principal). The caller's own
  *  id skips the row read, so a host's own picture keeps its request Principal. */
 async function runAsFor(ctx: ImageryContext, p: GeneratePictureParams): Promise<Principal> {
   return p.runAsUserId === undefined || p.runAsUserId === p.caller.userId ? p.caller : await ctx.resolveRunAs(p.runAsUserId);

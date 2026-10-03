@@ -34,6 +34,16 @@ export interface SpeakerCandidate {
   readonly name: string;
 }
 
+/** One character a text names, with how firmly: `hits` counts the distinct name words the text carries (the
+ *  whole phrase for a name of only stopwords), and `strong` says a hit was written as a name rather than as an
+ *  ordinary word. A text word spelled with a capital is a name; a lowercase one is, only when the card spells
+ *  that name word lowercase too. So "Will, come here" is strong and "we will find it" is not. */
+export interface NameMention {
+  readonly id: CharacterId;
+  readonly hits: number;
+  readonly strong: boolean;
+}
+
 /** The funder's bound rerank role as Smart's default pick reads it: the bound model's own capability (its
  *  window sizes the query and persona documents) and the role call itself. Whatever the user bound runs. */
 export interface SpeakerReranker {

@@ -44,6 +44,9 @@ async function resolveOrThrow(ctx: ImageryContext, caller: Principal): Promise<R
 export function createEditImage(ctx: ImageryContext): ImageryService["editImage"] {
   return async (p: EditImageParams): Promise<GeneratedPicture> => {
     const imageBytes = await resolveSourceBytes(ctx, p.caller, p.source);
+    // `chatId` is the caller's claim about where the edit was made: it is recorded as provenance only for a chat the
+    // caller takes part in, and dropped otherwise (the edit itself is the caller's own asset either way).
+    const chatId = p.chatId !== undefined && (await ctx.callerInChat(p.caller, p.chatId)) ? p.chatId : null;
     const resolution = await resolveOrThrow(ctx, p.caller);
     // The capability gate — the asymmetric posture: an explicit edit on a non-edit model THROWS.
     if (!acceptsImageEdit(resolution.capability)) {
@@ -67,7 +70,7 @@ export function createEditImage(ctx: ImageryContext): ImageryService["editImage"
       },
       {
         owner: p.caller,
-        chatId: p.chatId ?? null,
+        chatId,
         mode: "free",
         subjectCharacterId: null,
         identityHash: null,

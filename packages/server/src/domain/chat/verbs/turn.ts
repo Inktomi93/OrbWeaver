@@ -1019,9 +1019,9 @@ async function smartPick(ctx: ChatContext, deps: TurnDeps, args: SmartPickArgs):
       lastLine: transcript.at(-1) ?? null,
     });
   }
-  // The side-gen sampling ladder: the `arbiter` floor ← the chat host's default-preset params. The resolved
-  // posture is the structured call's options as-is.
-  const arbiterSampling = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveChatPresetParams(args.chatId));
+  // The funder's Utility-role preset over the `arbiter` posture: the arbiter runs on the funder's Utility
+  // connection. The result is the structured call's options as-is.
+  const arbiterSampling = resolveSideGenSampling(SIDE_GEN_POSTURES.arbiter, await ctx.resolveUtilityPresetParams(args.funderUserId));
   return await smartArbitrateVia({
     ...shared,
     arbiter: () => ctx.resolveSpeakerArbiter(args.funderUserId),

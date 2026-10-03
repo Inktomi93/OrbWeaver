@@ -31,6 +31,7 @@ column. Its hand-judged column has no such inflation.
 | `natural`, mentions read from any speaker's line | 50% | 75% | 57% | n/a | 0 / 0 | under 1 | none | free |
 | Smart arbiter on Claude Sonnet 5 (shipped prompt and posture) | 76% | 97% | **88%** | 1 of 30 | 415 / 6 | 930 / 1,929 | none local | $0.000833 |
 | Smart arbiter on Claude Sonnet 5, persona-aware (work item 0492, see below) | 86% | 100% | **96%** | 2 of 30 | 658 / 6 (17 calls) | 1,013 / 1,813 | none local | $0.000797 |
+| Smart arbiter on Claude Sonnet 5, persona-aware, structured output | 86% | 100% | **100%** | 0 of 30 | 896 / 15 (17 calls) | 1,824 / 2,402 | none local | $0.001107 |
 | Smart arbiter on Qwen2.5-0.5B-Instruct Q4_K_M (llama.cpp, 4 CPU) | 14% | 63% | 23% | 0 | 281 / 4 | 2,481 / 3,980 (server: prompt 2,388, gen 73) | 239 MiB container | CPU only |
 | Smart arbiter on Qwen2.5-1.5B-Instruct Q4_K_M (llama.cpp, 4 CPU; above the sub-1B brief, for scale) | 38% | 73% | 46% | 5 of 30 | 281 / 3 | 4,291 / 10,537 (server: prompt 4,133, gen 150) | 974 MiB container | CPU only |
 | Reranker, query = the ten-line window | 10% | 70% | 27% | n/a | none | 4 threads 242 / 336; 1 thread 473 / 780 | about 200 MiB process RSS | free |
@@ -51,6 +52,7 @@ Hand-judged hit by cut kind (judged cuts only):
 | `natural`, mentions from any line | 34% | 34% | 100% | 67% |
 | Smart arbiter, Sonnet 5 | 70% | 100% | 100% | 100% |
 | Smart arbiter, Sonnet 5, persona-aware | 90% | 100% | 100% | 100% |
+| Smart arbiter, Sonnet 5, persona-aware, structured output | 100% | 100% | 100% | 100% |
 | Smart arbiter, Qwen2.5-0.5B | 40% | 0% | 0% | 33% |
 | Smart arbiter, Qwen2.5-1.5B | 40% | 0% | 67% | 67% |
 | Reranker, window | 50% | 0% | 0% | 33% |
@@ -137,6 +139,18 @@ counts, talkativeness and a clipped history, and may name several responders. Th
 - `cafe@15` returned empty content at the 24-token `arbiter` cap and degraded. Work item 0506 raises the cap.
 - Banning the last speaker from the model's candidates after a human line scored 23 of 26: three follow-ups
   to the last speaker degraded. The shipped arbiter bans the last speaker only when the last line is their own.
+
+### Structured output
+
+Evidence: `results/arbiter-claude-sonnet-5-0492-structured.jsonl`, $0.0332. The arbiter answers through a
+response schema whose enum holds only the round's candidate names, sent the way the production OpenRouter
+wire sends it, under the 128-token `arbiter` posture. It hit 26 of 26 hand-judged cuts and degraded on none.
+
+- `starship@16` resolves: the model can no longer name the human player, and picked Jett, a reference-plausible pick.
+- `cafe@15` no longer returns empty content.
+- The median call grew to 896 input and 15 output tokens; latency was 1,824 ms median and 2,402 ms max.
+- On OpenRouter, Sonnet 5 refuses a `response_format` request that also sets `provider.require_parameters`
+  (HTTP 404, no endpoint). The production wire does not set it, so it is not a live failure.
 
 ## What building the reranker mode would take
 

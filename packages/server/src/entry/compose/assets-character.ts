@@ -81,8 +81,8 @@ export interface AssetsCharacterComposeDeps {
   readonly newBackgroundEntryId: () => string;
   /** Request-time forward-ref: the preset service (composes after this seam) — the greeting-template resolver. */
   readonly getPreset: () => Pick<PresetService, "get">;
-  /** The caller's default-preset generation params (the side-gen sampling ladder's TOP rung). */
-  readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
+  /** The caller's Utility-role preset params (D299). */
+  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
   /** Request-time forward-ref: the persona service (composes after this seam) — the persona seeder's create
    *  plus the `list` its layer-2 artifact probe reads (`createPersonaSeedLatch`). */
   readonly getPersona: () => Pick<PersonaService, "create" | "list">;
@@ -358,10 +358,9 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
       }
     },
     generateGreetingText: async ({ caller, prompt }): Promise<{ text: string; costUsd: number | null }> => {
-      // The side-gen sampling ladder: the `greeting_studio` floor ← the caller's default-preset params (the
-      // ONE user-owned rung — there is no per-template override; owner ruling 2026-08-01). The resolved posture
-      // is the summarize options as-is; an absent knob is omitted (the backend default stands).
-      const presetParams = await deps.resolveUserPresetParams(caller.userId);
+      // The caller's Utility-role preset over the `greeting_studio` posture (there is no per-template override).
+      // The result is the summarize options as-is; an absent knob is omitted (the backend default stands).
+      const presetParams = await deps.resolveUtilityPresetParams(caller.userId);
       const posture = resolveSideGenSampling(SIDE_GEN_POSTURES.greeting_studio, presetParams);
       const rc = await roleClientsFor(caller.userId);
       const res = await rc.summarize([{ systemPrompt: prompt, userPrompt: "" }], posture);

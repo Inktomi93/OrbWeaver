@@ -14,6 +14,17 @@ import { fakeContributions, makeService, principal, seedUser, seedWorkloadRow } 
 const MEMORY_OFF_RE = /Memory is turned off/;
 
 describe("workloads.retry", () => {
+  test("an admin who is not the box owner is told a bulk row is not found, exactly as for a missing id", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_admin", "admin");
+    const s = makeService(db);
+    const bulk = await seedWorkloadRow(db, { id: "workload_bulk", kind: "compute-themes", status: "failed", mode: "bulk" });
+    const admin = principal("user_admin", "admin");
+
+    await expect(s.retry({ id: bulk, caller: admin })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(s.retry({ id: castId<WorkloadId>("workload_missing"), caller: admin })).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+
   test("clones a failed row into a fresh queued row (original untouched)", async () => {
     const db = await freshDb();
     const s = makeService(db);

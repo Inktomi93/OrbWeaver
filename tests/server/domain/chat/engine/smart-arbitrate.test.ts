@@ -6,6 +6,7 @@
 // Plus CANCELLATION: the turn's AbortSignal reaches the call, and an abort is `aborted:true`, never a degrade.
 
 import type { SpeakerRef } from "@orb/contracts/chat";
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { CharacterId } from "@orb/kit/ids";
@@ -59,8 +60,9 @@ const SPEAKER_CANDIDATES = [
   { ref: charRef("cara"), name: "Cara" },
   { ref: charRef("dov"), name: "Dov" },
 ];
-// The resolved arbiter posture, passed literally since these tests exercise the pure `smartArbitrate`.
-const ARB_SAMPLING = { temperature: 0.2, maxOutputTokens: 24 } as const;
+// The arbiter posture under task defaults (`SIDE_GEN_POSTURES.arbiter`) — the caller normally folds the role
+// preset over it; these tests exercise the pure `smartArbitrate` in isolation.
+const ARB_SAMPLING = SIDE_GEN_POSTURES.arbiter;
 const CANDIDATES = [candidate("aria"), candidate("bran"), candidate("cara")];
 const human = (name: string, text: string): TranscriptLine => ({ speakerName: name, text, characterId: null });
 const said = (k: string, text: string): TranscriptLine => ({

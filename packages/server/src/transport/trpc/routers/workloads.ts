@@ -73,6 +73,7 @@ export const workloadsRouter = t.router({
         input: startWorkloadEnvelope,
         mode: workloadModeSchema.default("singular"),
         targetOwnerId: brandedId<UserId>().optional(),
+        assumeAdmitted: z.boolean().optional(),
       }),
     )
     .query(({ ctx, input }) => {
@@ -83,6 +84,7 @@ export const workloadsRouter = t.router({
         input: asStartWorkloadInput(input.input),
         caller: ctx.auth,
         mode: input.mode,
+        ...(input.assumeAdmitted !== undefined ? { assumeAdmitted: input.assumeAdmitted } : {}),
         ...(input.targetOwnerId !== undefined ? { targetOwnerId: input.targetOwnerId } : {}),
       });
     }),

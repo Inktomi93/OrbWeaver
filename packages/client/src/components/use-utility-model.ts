@@ -1,22 +1,27 @@
 // The Utility role as the surfaces that depend on it state it: Memory, the Corpus understanding pass and the paid-run
 // confirm. Ready means a call would run now (the persisted resolve), never merely that a connection is picked: a
-// binding to a row that has since lost background work is "set, but not running", and says why.
+// binding to a row that has since lost background work is "set, but not running", and says why. The Rerank role
+// reads through the same persisted resolve (`useRerankModel`), for Smart's default picker.
 
+import type { Capability, RoutableTask } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
 import { connectionHost, connectionSummary, roleReadout, roleStatus, utilityReadsImages } from "#lib";
 
-/** What a surface can truthfully say about the Utility model: `unknown` while the read is pending or failed. */
-type UtilityModelState =
+/** What a surface can truthfully say about a role's model: `unknown` while the read is pending or failed. */
+type RoleModelState<Ready extends object = object> =
   | { readonly kind: "unknown" }
-  | { readonly kind: "ready"; readonly label: string; readonly readsImages: boolean }
+  | ({ readonly kind: "ready"; readonly label: string } & Ready)
   | { readonly kind: "unset" }
   | { readonly kind: "blocked"; readonly cause: string };
 
-/** The signed-in user's Utility model, from the same persisted resolve Model roles reads. Non-suspending, so a
- *  surface paints its own content first and never claims a state its read has not settled. */
-export function useUtilityModel(): UtilityModelState {
+type UtilityModelState = RoleModelState<{ readonly readsImages: boolean }>;
+
+/** A role's model from the same persisted resolve Model roles reads. Non-suspending, so a surface paints its own
+ *  content first and never claims a state its read has not settled. `capability` rides a ready state for the
+ *  caller that needs a fact of it. */
+function useRoleModel(task: RoutableTask): RoleModelState<{ readonly capability: Capability }> {
   const trpc = useTRPC();
   const bindings = useQuery(trpc.connection.listBindings.queryOptions());
   const connections = useQuery(trpc.connection.list.queryOptions());
@@ -26,7 +31,7 @@ export function useUtilityModel(): UtilityModelState {
   }
   const rows = connections.data ?? [];
   const rowOf = (connectionId: string): (typeof rows)[number] | undefined => rows.find((row) => row.id === connectionId);
-  const view = views.find((candidate) => candidate.task === "summarize") ?? null;
+  const view = views.find((candidate) => candidate.task === task) ?? null;
   const status = roleStatus(view);
   if (status === "unset") {
     return { kind: "unset" };
@@ -34,11 +39,7 @@ export function useUtilityModel(): UtilityModelState {
   const resolved = view?.resolved ?? null;
   if (status === "running" && resolved !== null) {
     const row = rowOf(resolved.connectionId);
-    return {
-      kind: "ready",
-      label: row === undefined ? modelDisplayName(resolved.model) : connectionSummary(row),
-      readsImages: utilityReadsImages(resolved.capability),
-    };
+    return { kind: "ready", label: row === undefined ? modelDisplayName(resolved.model) : connectionSummary(row), capability: resolved.capability };
   }
   const readout = roleReadout({
     view,
@@ -49,6 +50,18 @@ export function useUtilityModel(): UtilityModelState {
     },
   });
   return readout.kind === "blocked" ? { kind: "blocked", cause: readout.cause } : { kind: "unknown" };
+}
+
+/** The signed-in user's Utility model. */
+export function useUtilityModel(): UtilityModelState {
+  const state = useRoleModel("summarize");
+  return state.kind === "ready" ? { kind: "ready", label: state.label, readsImages: utilityReadsImages(state.capability) } : state;
+}
+
+/** The signed-in user's Rerank model, which Smart's default picker ranks the characters with. */
+export function useRerankModel(): RoleModelState {
+  const state = useRoleModel("rerank");
+  return state.kind === "ready" ? { kind: "ready", label: state.label } : state;
 }
 
 function callCount(calls: number): string {

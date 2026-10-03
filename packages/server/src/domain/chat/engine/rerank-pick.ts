@@ -1,7 +1,7 @@
 // domain/chat/engine/rerank-pick — Smart's default speaker pick over the funder's bound RERANK role. The
 // last line is the query and each eligible character's `Name: line` is a document. Every character the line
-// addresses by name answers, ordered by rank; else the top-ranked one does, with the last speaker out when the
-// round bans it. Picks by RANK ORDER within the one call: scores are family-specific (logits, [0,1], anything),
+// addresses as a name answers, ordered by rank, and a name several characters answer to is settled by rank among
+// them; else the top-ranked one does, with the last speaker out when the round bans it. Picks by RANK ORDER within the one call: scores are family-specific (logits, [0,1], anything),
 // so no threshold is ever compared. An unbound or failing role degrades with `degraded:true`, which the turn
 // verb surfaces as a warning.
 
@@ -89,13 +89,16 @@ const refOf = (characterId: CharacterId): SpeakerRef => ({ kind: "character", ch
 
 /** The addressed responders: one per name group (the best-ranked of an ambiguous group), ordered by rank. With
  *  no ranking (`null`) they keep mention order and an ambiguous group takes its first member. */
-function orderAddressed(groups: readonly (readonly CharacterId[])[], ranked: readonly string[] | null): SpeakerRef[] {
+function orderAddressed(groups: readonly (readonly CharacterId[])[], ranked: readonly string[] | null, banned: CharacterId | null): SpeakerRef[] {
   const rankOf = (id: CharacterId): number => {
     const at = ranked?.indexOf(speakerKey(refOf(id))) ?? -1;
     return at === -1 ? Number.POSITIVE_INFINITY : at;
   };
   const chosen = groups.flatMap((group) => {
-    const best = group.toSorted((a, b) => rankOf(a) - rankOf(b))[0];
+    // An ambiguous name ("Captain, ...") narrows the field rather than choosing, so the round's ban on the last
+    // speaker holds inside it unless it would leave nobody. One unambiguous name wins even the last speaker.
+    const unbanned = group.length > 1 ? group.filter((id) => id !== banned) : group;
+    const best = (unbanned.length > 0 ? unbanned : group).toSorted((a, b) => rankOf(a) - rankOf(b))[0];
     return best === undefined ? [] : [best];
   });
   // `toSorted` is stable, so unranked ids (and a null ranking) keep mention order.
@@ -143,8 +146,9 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
   // speaker. One unambiguous name needs no ranking at all.
   const groups = addressedGroups(line, params.candidates, params.speakerCandidates, params.humanNames);
   const addressedIds = new Set(groups.flat());
+  const banned = params.lastSpeaker === null || params.banLast === false ? null : params.lastSpeaker.characterId;
   if (groups.length === 1 && addressedIds.size === 1) {
-    return { speakers: orderAddressed(groups, null), degraded: false, aborted: false };
+    return { speakers: orderAddressed(groups, null, banned), degraded: false, aborted: false };
   }
   const pool = addressedIds.size > 0 ? named.filter((c) => addressedIds.has(c.ref.characterId)) : named;
 
@@ -165,7 +169,7 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
   if (addressedIds.size > 0) {
     // A failed ranking still answers the addressed characters, in mention order; the warning says why the
     // order (or an ambiguous name's pick) came from the line rather than the model.
-    return { speakers: orderAddressed(groups, ranked), degraded: ranked === null, aborted: false };
+    return { speakers: orderAddressed(groups, ranked, banned), degraded: ranked === null, aborted: false };
   }
   const pick = ranked === null ? undefined : topAllowed(params, named, ranked);
   return pick === undefined ? natural(true) : { speakers: [pick], degraded: false, aborted: false };

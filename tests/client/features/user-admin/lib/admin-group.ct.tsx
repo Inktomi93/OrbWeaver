@@ -83,7 +83,6 @@ const NAV_LABELS = [
 // they all mount at once, so ONE stub must satisfy all of them). Untyped route stubs, so a partial suffices.
 const RESOLVED_APP: Partial<EffectiveAppSettings> = {
   memoryDefaults: {},
-  memorySummarizer: {},
   rateLimits: { publicIp: 60, authed: 600, aiTurn: 30, login: 10 },
   agentSdkConcurrency: { summarize: 4 },
   promptTransformDeadlineMs: 250,

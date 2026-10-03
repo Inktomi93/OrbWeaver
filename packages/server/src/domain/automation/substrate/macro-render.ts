@@ -34,8 +34,7 @@ function armMacroOptions(input: ArmTemplateRender, diagnostics: MacroDiagnostic[
     scenario: "",
     env: input.macroEnv ?? {},
     nowMs: input.nowMs,
-    // `{{time}}`/`{{date}}` read the same clock as the rule's `now.hour`; absent, the macro engine would fall
-    // back to the server's zone.
+    // `{{time}}`/`{{date}}` read the same clock as the rule's `now.hour`.
     timezone: input.env.timeZone,
     random: input.prng,
     globalVars: input.env.global,

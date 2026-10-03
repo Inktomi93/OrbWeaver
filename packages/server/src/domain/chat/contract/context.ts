@@ -29,7 +29,6 @@ import type { ChoiceBlockSpec, UserIntent, UserMacroSpec } from "@orb/contracts/
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ChatRpgPointer, RpgActorRef, RpgGameTemplate } from "@orb/contracts/rpg";
 import type { BlockKey, MemoryQueryOptions, ResolveCorpusSourceState, ScoredBlock } from "@orb/contracts/search";
-import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { ApplyStatsDelta, BumpStatsCanonVersion } from "@orb/contracts/stats";
 import type { TagView } from "@orb/contracts/tag";
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
@@ -341,11 +340,13 @@ type BumpStatsCanonVersionOp = BumpStatsCanonVersion<unknown, Db>;
  *  @public Test-anchored module surface; the chat/memory test harnesses type their fake summarizers with it. */
 export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClientsWithSignal["summarize"]>) => Promise<SummarizeResult>;
 
-/** The side-gen sampling ladder's middle rung for a chat-scoped side-gen call — the chat host's default-preset
- *  generation params. Resolved at the entry root (chat never reads the preset domain); a hostless/stale room
- *  degrades to the system-default params. Consumed by extract-quiet (compaction/quiet-generate/arbiter read
- *  their own analogous injected resolver). */
+/** The chat host's active-preset generation params for a quiet generation, which runs on the CHAT connection
+ *  and so on the Chat role's preset. Resolved at the entry root (chat never reads the preset domain); a
+ *  hostless/stale room degrades to the system-default params. */
 type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling>;
+
+/** A user's Utility-role preset params (D299), `undefined` under task defaults. Resolved at the entry root. */
+type ResolveUtilityPresetParamsOp = (userId: UserId) => Promise<SideGenSampling | undefined>;
 
 /** The chat's app-tier PROSE overrides (PROSE-1 §4.3) — the ROOM HOST's `UserSettings.prose`, resolved at the
  *  entry root through the SAME `resolveChatHostUserId` seam `resolveChatPresetParams` uses. The host, not the
@@ -407,9 +408,8 @@ export interface ExtractQuietDeps {
   readonly now: () => number;
   readonly summarize: SummarizeOp;
   readonly getCard: GetCardOp;
-  /** The chat host's default-preset params (the side-gen sampling ladder's middle rung — extract-quiet is
-   *  chat-scoped). Wired at compose; a hostless/stale room degrades to the floor. */
-  readonly resolveChatPresetParams: ResolveChatPresetParamsOp;
+  /** The funder's Utility-role preset params: extract-quiet runs on the summarize connection. */
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParamsOp;
   /** IMGMAC (owner ruling: YES) — the two authoring homes' user-macro DEFS, so an imagery mode template
    *  resolves `{{house_style}}` exactly as a turn would. REQUIRED, not optional: an unwired composition root
    *  would silently re-open the "the settings UI offers a macro that never substitutes" hole this closed. */
@@ -444,9 +444,8 @@ export type QuietGenerate = (p: QuietGenerateParams) => Promise<QuietGenerateRes
  *  routing/credential resolution: the caller supplies the already-resolved connection). */
 export interface QuietGenerateDeps {
   readonly runChatTurn: RunChatTurnOp;
-  /** The chat host's default-preset params (the side-gen sampling ladder's middle rung — a quiet generation is
-   *  chat-scoped). Folded UNDER the caller's `intent` (compaction's per-pass override wins) and OVER the
-   *  `quiet_generate` floor; a hostless/stale room degrades to the floor. */
+  /** The chat host's active-preset params. Folded UNDER the caller's `intent` (compaction's per-pass override
+   *  wins) and OVER the `quiet_generate` posture; a hostless/stale room degrades to the system default. */
   readonly resolveChatPresetParams: ResolveChatPresetParamsOp;
 }
 
@@ -1387,8 +1386,8 @@ export interface ChatContext {
    *  blobs. Called with the turn's frozen `runAsUserId` (D19), so a member can never widen the set. */
   readonly resolveRegexSources: ResolveRegexSources;
   readonly runChatTurn: RunChatTurnOp;
-  /** The chat host's default-preset params (the side-gen sampling ladder's middle rung) — used by the
-   *  quiet-generate factory (compaction) and the smart-arbitrate seam. Wired at compose. */
+  /** The chat host's active-preset params — used by the quiet-generate factory (compaction), which runs on the
+   *  chat connection. Wired at compose. */
   readonly resolveChatPresetParams: ResolveChatPresetParamsOp;
   /** The room host's app-tier prose overrides — read by assembly (the anchor identity lead-in), the smart
    *  arbiter, compaction and the memory build. Empty ⇒ the shipped defaults. */
@@ -1470,12 +1469,9 @@ export interface ChatContext {
   /** The FUNDER's EMBED model's window (tokens) — the segment build's window guard. A verbatim block that
    *  cannot fit is SKIPPED AND RECORDED, never truncated (#165). Same per-call resolution as above. */
   readonly embedContextTokens: (funderUserId: UserId) => Promise<number>;
-  /** The admin-resolved memory-summarizer sampling (`AppSettings.memorySummarizer`) — the memory build passes
-   *  `{maxTokens, temperature}` onto every `summarize` call AND mirrors `maxTokens` into the token-guard's
-   *  output reserve (one home, so the fit and the request can't diverge). Both fields absent ⇒ the summarizer
-   *  runs on its own defaults + the token-guard's baseline reserve (byte-identical to pre-wire). Read per build,
-   *  so an admin's save reaches the next summarize call without a restart. */
-  readonly memorySummarizer: () => MemorySummarizerConfig;
+  /** The FUNDER's Utility-role preset params (D299), `undefined` under task defaults. The arbiter and the memory
+   *  build fold them over their task posture; read per call, so a changed choice reaches the next summarize. */
+  readonly resolveUtilityPresetParams: ResolveUtilityPresetParamsOp;
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
   readonly resolveUserEnabled: ResolveUserEnabledOp;

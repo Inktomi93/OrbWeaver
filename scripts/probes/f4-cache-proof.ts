@@ -30,6 +30,7 @@ import { rowIndexAtCacheDepth } from "@orb/inference";
 import type { AssetId, ChatId, MessageId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { estimateTokens } from "@orb/kit/tokens";
 import { execGit } from "@orb/tooling/_shared/git";
 import { SessionCache } from "../../packages/inference/src/backends/agent-sdk/session/store.ts";
@@ -171,6 +172,7 @@ async function runArm(arm: Arm): Promise<TurnRecord[]> {
         })(),
       resolveImageUrl: () => Promise.resolve(null),
       assembleContext: {
+        timezone: UTC_TIME_ZONE,
         character: { name: "Aria", description: "a bold knight" },
         promptConfig: DEFAULT_PROMPT_CONFIG,
         activePersona: { name: "Alex", description: "the user" },

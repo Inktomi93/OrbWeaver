@@ -31,7 +31,7 @@ const NO_DB = {} as unknown as Db;
 /** The EXACT dep set the workload half is allowed to close over (R4). */
 const WORKLOAD_KEYS = [
   "roleClientsFor",
-  "resolveUserPresetParams",
+  "resolveUtilityPresetParams",
   "resolveUserProse",
   "listRefineryScoreTargets",
   "stampRefinerySignals",
@@ -42,23 +42,23 @@ interface Harness {
   readonly deps: RefineryComposeDeps;
   readonly roleClientsFor: ReturnType<typeof vi.fn>;
   readonly loadUserSettings: ReturnType<typeof vi.fn>;
-  readonly resolveUserPresetParams: ReturnType<typeof vi.fn>;
+  readonly resolveUtilityPresetParams: ReturnType<typeof vi.fn>;
 }
 
 function harness(prose: UserSettings["prose"] = {}): Harness {
   const roleClientsFor = vi.fn<RefineryComposeDeps["roleClientsFor"]>();
   const loadUserSettings = vi.fn((userId: UserId) => Promise.resolve({ prose: userId === USER ? prose : {} }));
-  const resolveUserPresetParams = vi.fn(() => Promise.resolve({}));
+  const resolveUtilityPresetParams = vi.fn(() => Promise.resolve({}));
   // @orb-waive no-test-fabrication(unknown): the seam stores the character front door and the db and calls neither here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const deps = {
     db: NO_DB,
     now: () => 1000,
     roleClientsFor,
     character: { snapshot: vi.fn(), update: vi.fn(), get: vi.fn(), duplicate: vi.fn() },
-    resolveUserPresetParams,
+    resolveUtilityPresetParams,
     loadUserSettings,
   } as unknown as RefineryComposeDeps;
-  return { deps, roleClientsFor, loadUserSettings, resolveUserPresetParams };
+  return { deps, roleClientsFor, loadUserSettings, resolveUtilityPresetParams };
 }
 
 describe("buildRefinery — the queue's actor gets a SMALLER bundle than the service", () => {
@@ -94,7 +94,7 @@ describe("buildRefinery — the summarizer binding stays LIVE (a role re-point m
       now: () => 1000,
       roleClientsFor,
       character: { snapshot: vi.fn(), update: vi.fn(), get: vi.fn(), duplicate: vi.fn() },
-      resolveUserPresetParams: vi.fn(() => Promise.resolve({})),
+      resolveUtilityPresetParams: vi.fn(() => Promise.resolve({})),
       loadUserSettings: vi.fn(() => Promise.resolve({ prose: {} })),
     } as unknown as RefineryComposeDeps;
 
@@ -125,7 +125,7 @@ describe("buildRefinery — the prose resolver is caller-scoped and single-homed
     const h = harness();
     const { refineryWorkloads } = buildRefinery(h.deps);
 
-    expect(refineryWorkloads.resolveUserPresetParams).toBe(h.resolveUserPresetParams);
+    expect(refineryWorkloads.resolveUtilityPresetParams).toBe(h.resolveUtilityPresetParams);
   });
 });
 

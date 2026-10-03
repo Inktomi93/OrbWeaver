@@ -53,7 +53,7 @@ import { createProviderRegistry } from "./registry/providers.ts";
 import { checkAvailability, loadVerdict } from "./resolve/availability.ts";
 import { behaveAs, detectionUrl } from "./resolve/behave-as.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
-import { connectionNotFoundMessage, modelInfoApiOf, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
+import { connectionNotFoundMessage, endpointMirrorTenant, modelInfoApiOf, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
 import { createProviderDiagnostics } from "./roles/diagnostics.ts";
 import { createProviderExecutor } from "./roles/executor.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
@@ -110,6 +110,7 @@ export { runStructuredTurn } from "./roles/structured-turn.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
+
 export interface CapabilityRead extends SynthesizedCapability {
   /** The same evidence fold with this row's declaration omitted. */
   readonly baseline: Capability;
@@ -228,8 +229,8 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const openRouterCatalog = createMirror<ModelCatalogEntry[]>({ key: OPENROUTER_CATALOG_KEY, schema: z.array(modelCatalogEntrySchema), deps: mirrorDeps });
   const agentSdkCatalog = createMirror<AgentSdkModel[]>({ key: AGENT_SDK_CATALOG_KEY, schema: z.array(agentSdkModelSchema), deps: mirrorDeps });
   const endpointMirrors = new Map<string, { readonly baseUrl: string; readonly mirror: Mirror<EndpointModel[]> }>();
-  const endpointModels = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined): Mirror<EndpointModel[]> => {
-    const key = endpointCatalogKey(baseUrl, modelInfoApi);
+  const endpointModels = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined, tenant: string | null): Mirror<EndpointModel[]> => {
+    const key = endpointCatalogKey(baseUrl, modelInfoApi, tenant);
     const existing = endpointMirrors.get(key);
     if (existing !== undefined) {
       return existing.mirror;
@@ -275,8 +276,9 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       return;
     }
     const modelInfoApi = modelInfoApiOf({ detectedServer }, provider, connection);
-    endpointModels(baseUrl, modelInfoApi).invalidate();
-    await deps.snapshotStore.deletePrefix(endpointCatalogKey(baseUrl, modelInfoApi));
+    const tenant = endpointMirrorTenant(connection);
+    endpointModels(baseUrl, modelInfoApi, tenant).invalidate();
+    await deps.snapshotStore.deletePrefix(endpointCatalogKey(baseUrl, modelInfoApi, tenant));
     const detectUrl = detectionUrl(provider, connection);
     if (detectUrl !== null) {
       detectedServer(detectUrl).invalidate();
@@ -306,7 +308,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
     const modelInfoApi = modelInfoApiOf({ detectedServer }, provider, connection);
-    await endpointModels(baseUrl, modelInfoApi).warm(
+    await endpointModels(baseUrl, modelInfoApi, endpointMirrorTenant(connection)).warm(
       () =>
         provider.wire === "google-generative-ai"
           ? fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models" }, fetchImpl)

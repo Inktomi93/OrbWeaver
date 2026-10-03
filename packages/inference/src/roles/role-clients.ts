@@ -8,6 +8,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { Task, UnavailableCause } from "@orb/contracts/inference";
 import { acceptsNamedToolChoice, canFund } from "@orb/contracts/inference";
+import { rolePresetParamsOf } from "@orb/contracts/preset";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, ResponseFormat, SummarizeInput } from "@orb/contracts/role-clients";
 import type { UserId } from "@orb/kit/ids";
@@ -29,16 +30,8 @@ type DeriveTask = (typeof DERIVE_TASKS)[number];
 /** The caller's options onto the backend request. The role surface speaks `maxOutputTokens` (the posture
  *  vocabulary); the backend request keeps `maxTokens`, so this is the one place the name changes. */
 function samplerFields(opts: SummarizeCallOptions | undefined): TaskSampling {
-  return {
-    ...(opts?.maxOutputTokens !== undefined ? { maxTokens: opts.maxOutputTokens } : {}),
-    ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
-    ...(opts?.topP !== undefined ? { topP: opts.topP } : {}),
-    ...(opts?.topK !== undefined ? { topK: opts.topK } : {}),
-    ...(opts?.frequencyPenalty !== undefined ? { frequencyPenalty: opts.frequencyPenalty } : {}),
-    ...(opts?.presencePenalty !== undefined ? { presencePenalty: opts.presencePenalty } : {}),
-    ...(opts?.repetitionPenalty !== undefined ? { repetitionPenalty: opts.repetitionPenalty } : {}),
-    ...(opts?.minP !== undefined ? { minP: opts.minP } : {}),
-  };
+  const { maxOutputTokens, ...rest } = rolePresetParamsOf(opts ?? {});
+  return { ...rest, ...(maxOutputTokens !== undefined ? { maxTokens: maxOutputTokens } : {}) };
 }
 
 /** What the resolved capability says about the two vehicles — read once at the call site, never re-derived. */

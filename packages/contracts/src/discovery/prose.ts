@@ -8,7 +8,7 @@
 // resolver. Homing them here is what makes the registry's completeness arm true.
 //
 // HOME = per-USER, resolved against the CALLER — the card owner whose library is being analyzed (the
-// `resolveUserPresetParams` / imagery `resolvePromptTemplate` precedent, NOT the room-host rule: a distill
+// `resolveUtilityPresetParams` / imagery `resolvePromptTemplate` precedent, NOT the room-host rule: a distill
 // or a compare is one human's request about their own library, never a room-level side generation). The
 // whole-library batch distill has no single owner, so it resolves `{}` ⇒ the shipped defaults, exactly as
 // its sampling rung already degrades.

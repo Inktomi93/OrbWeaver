@@ -23,6 +23,7 @@ import { assets, messageAssets } from "@orb/db";
 import type { GeneratedImage } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -140,6 +141,7 @@ function prepOf(chatId: ChatId): TurnPrep {
   return {
     chatId,
     assembleContext: {
+      timezone: UTC_TIME_ZONE,
       character: { name: "Aria", description: "a bold knight" },
       promptConfig: { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, replyMedia: "text+image" } },
       activePersona: { name: "Alex", description: "the user" },

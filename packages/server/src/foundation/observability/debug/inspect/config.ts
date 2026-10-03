@@ -62,7 +62,7 @@ export interface RenderPolicyVerdict {
   /** The resolved policy the roster hands the client. Null when `deployment` is unavailable to resolve against. */
   resolved: RenderPolicy | null;
   /** Which card render tier the resolved policy selects — the answer the card investigation actually needs.
-   *  Per D294 §12.2: `tierB` = the sandboxed ImmersiveCard chrome for a trusted author; `tierA` = the inert seal. */
+   *  Per docs/law/UI-Theming-and-Content.md §12.2: `tierB` = the sandboxed ImmersiveCard chrome for a trusted author; `tierA` = the inert seal. */
   cardTier: "tierA" | "tierB" | null;
 }
 

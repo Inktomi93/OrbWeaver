@@ -120,7 +120,9 @@ test("turning ON with the opt-in checked writes memory on, THEN starts the backf
   await expect.poll(() => (trpc.lastInput("workloads.start") as { input?: { kind?: string } } | undefined)?.input?.kind).toBe("memory-backfill");
   await expect.poll(() => writesSeenByStart).toBe(1);
   await expect.poll(() => lastPatch(trpc)?.["enabled"]).toBe(true);
-  await expect.poll(() => trpc.lastInput("workloads.estimateModelCalls")).toEqual({ input: { kind: "memory-backfill", params: {} }, mode: "singular" });
+  await expect
+    .poll(() => trpc.lastInput("workloads.estimateModelCalls"))
+    .toEqual({ input: { kind: "memory-backfill", params: {} }, mode: "singular", assumeAdmitted: true });
 });
 
 test("a dismissed confirm writes nothing", async ({ mount, page }) => {

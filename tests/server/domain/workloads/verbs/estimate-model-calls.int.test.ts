@@ -3,7 +3,7 @@
 // owning domain, and answer `null` for a kind that calls no generative model.
 
 import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { WorkloadContributions } from "@orb/server/domain/workloads";
 import { describe, vi } from "vitest";
@@ -106,6 +106,47 @@ describe("workloads.estimateModelCalls", () => {
 
     await expect(s.estimateRetryModelCalls({ id, caller: principal("user_alice") })).resolves.toEqual({ calls: null });
     expect(modelCalls).not.toHaveBeenCalled();
+  });
+
+  test("a run the owning domain would refuse counts zero calls, unless the confirm asks to be counted as admitted", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_alice");
+    const { contributions, modelCalls } = withDistillEstimate();
+    const admit = vi.fn(() => Promise.resolve("Memory is turned off"));
+    const s = makeService(db, { ...contributions, "distill-characters": { ...contributions["distill-characters"], admit } });
+    const input = { kind: "distill-characters", params: {} } as const;
+    const caller = principal("user_alice");
+
+    await expect(s.estimateModelCalls({ input, caller, mode: "singular" })).resolves.toEqual({ calls: 0 });
+    expect(modelCalls).not.toHaveBeenCalled();
+    // The turn-on confirm counts before the switch that would admit the run.
+    await expect(s.estimateModelCalls({ input, caller, mode: "singular", assumeAdmitted: true })).resolves.toEqual({ calls: SINGULAR_CALLS });
+  });
+
+  test("a retry estimate of a row the owning domain would now refuse counts zero calls, as retry itself refuses it", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_alice");
+    const { contributions, modelCalls } = withDistillEstimate();
+    const s = makeService(db, {
+      ...contributions,
+      "distill-characters": { ...contributions["distill-characters"], admit: () => Promise.resolve("Memory is turned off") },
+    });
+    const id = await seedWorkloadRow(db, { id: "workload_alice", kind: "distill-characters", status: "failed", ownerId: castId<UserId>("user_alice") });
+
+    await expect(s.estimateRetryModelCalls({ id, caller: principal("user_alice") })).resolves.toEqual({ calls: 0 });
+    expect(modelCalls).not.toHaveBeenCalled();
+  });
+
+  test("an admin who is not the box owner is told a bulk row is not found, exactly as for a missing id", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_admin", "admin");
+    const { contributions } = withDistillEstimate();
+    const s = makeService(db, contributions);
+    const bulk = await seedWorkloadRow(db, { id: "workload_bulk", kind: "distill-characters", status: "failed", mode: "bulk" });
+    const admin = principal("user_admin", "admin");
+
+    await expect(s.estimateRetryModelCalls({ id: bulk, caller: admin })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(s.estimateRetryModelCalls({ id: castId<WorkloadId>("workload_missing"), caller: admin })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 
   test("a mode the kind does not support is refused before any count", async () => {

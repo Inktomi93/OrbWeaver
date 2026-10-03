@@ -32,7 +32,7 @@ export interface RefineryComposeDeps {
    *  the sweep's acting user's) own `summarize` binding. */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   readonly character: CharacterService;
-  readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
+  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
 }
 
@@ -53,7 +53,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     newRefineryRunId: minter(ID_PREFIX.refineryRun),
     newRefinerySchemaId: minter(ID_PREFIX.refinerySchema),
     roleClientsFor: deps.roleClientsFor,
-    resolveUserPresetParams: deps.resolveUserPresetParams,
+    resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
     resolveUserProse,
     emitUserEvent: publishUserEvent,
     loadOwnedCard: createLoadOwnedCard({ db: deps.db }),
@@ -68,7 +68,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     refinery,
     refineryWorkloads: {
       roleClientsFor: deps.roleClientsFor,
-      resolveUserPresetParams: deps.resolveUserPresetParams,
+      resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
       resolveUserProse,
       listRefineryScoreTargets: createListRefineryScoreTargets({ db: deps.db }),
       stampRefinerySignals,

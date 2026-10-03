@@ -253,7 +253,7 @@ describe("createChatService — assembly", () => {
     const charRow = roster.find((p) => p.characterId !== null);
     expect(hostRow?.role).toBe("host");
     expect(charRow?.displayName).toBe("aria"); // resolved via ctx.resolveSeatDeco
-    // D294 §12.2 — the RESOLVED render policy is threaded onto each ParticipantView (the client reads it,
+    // docs/law/UI-Theming-and-Content.md §12.2 — the RESOLVED render policy is threaded onto each ParticipantView (the client reads it,
     // never re-resolves): the character carries the policy this test's seat stub resolved (trusted); the
     // human seat the untrusted floor.
     expect(charRow?.renderPolicy).toEqual({ htmlTrust: "trusted", forbidExternalMedia: false });

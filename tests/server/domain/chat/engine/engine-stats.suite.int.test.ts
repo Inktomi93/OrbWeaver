@@ -20,6 +20,7 @@ import { batchMany } from "@orb/db/kit";
 import type { Resolved } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -52,6 +53,7 @@ const HOST = castId<UserId>("user_host");
 const CONNECTION: Resolved<"chat"> = makeResolved({ api: "chat-completions", model: castId<ModelId>("gpt"), capability: TEST_CAPABILITY });
 
 const ASSEMBLE_CTX: AssembleContext = {
+  timezone: UTC_TIME_ZONE,
   character: { name: "Aria", description: "a bold knight" },
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Alex", description: "the user" },
