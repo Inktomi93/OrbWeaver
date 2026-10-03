@@ -63,7 +63,7 @@ export type GroupPolicy = (typeof GROUP_POLICIES)[number];
  *  applied BEFORE the policy (and in a NARRATOR room it COERCES the round to per-speaker for the named
  *  character, like the other two forced doors). `smart` is LIVE: the side-LLM turn arbiter
  *  (`domain/chat/engine/smart-arbitrate`) picks the one next speaker, roster-validated; `natural` is its
- *  DEGRADE arm — a thrown/garbled/off-roster reply falls back to the weighted math and says so out loud
+ *  DEGRADE arm — a thrown/garbled/off-roster reply falls back to the natural pick and says so out loud
  *  (`smart_arbitration_degraded`, D41). A NARRATOR round never buys that arbiter call (see the arm below). */
 export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural") satisfies z.ZodType<GroupPolicy>;
 
@@ -74,7 +74,7 @@ export const GROUP_POLICY_LABELS: Record<GroupPolicy, string> = {
   list: "Everyone, in order",
   pooled: "Round-robin",
   manual: "Only when I pick",
-  smart: "Smart (side-LLM)",
+  smart: "Smart (Utility model)",
 };
 
 // Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (both arms are strict).

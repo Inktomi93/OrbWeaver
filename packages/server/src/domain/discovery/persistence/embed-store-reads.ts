@@ -3,6 +3,7 @@
 // through the injected `embeddings.writeHubScores` seam). Vector rows carry no ownerId — owner derives via
 // characters.ownerId, the present chat host (kind='human' AND role='host' AND leftSeq IS NULL), or assets.ownerId.
 
+import type { ThemeTimelineBucket } from "@orb/contracts/discovery";
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
 import {
@@ -21,6 +22,7 @@ import {
 import type { AssetId, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, ThemeClusterId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, max, min, notInArray, sql } from "drizzle-orm";
+import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
 import { ownedRealCharacters } from "./character-scope.ts";
 
 interface DigestKeywordRow {
@@ -558,11 +560,17 @@ export async function readThemeClusterMembers(
     .limit(limit);
 }
 
-/** A theme cluster's story-time timeline — assigned-digest count per `YYYY-MM` bucket, ascending. */
-export async function readThemeClusterTimeline(db: Db, ownerId: UserId, themeClusterId: ThemeClusterId): Promise<{ bucket: string; count: number }[]> {
-  const bucket = sql<string>`strftime('%Y-%m', ${digestThemeAssignments.msgMidAt} / 1000, 'unixepoch')`;
+/** An assignment's story-time UTC calendar bucket: the floor `calendarBucketStart` applies, in SQL. Story time
+ *  ships as buckets, never as a SQL-formatted month, so the client folds them into the viewer's months. */
+export function storyTimeBucketStart(): SQL<number> {
+  return calendarBucketStartSql(digestThemeAssignments.msgMidAt);
+}
+
+/** A theme cluster's story-time timeline — assigned-digest count per UTC calendar bucket, ascending. */
+export async function readThemeClusterTimeline(db: Db, ownerId: UserId, themeClusterId: ThemeClusterId): Promise<ThemeTimelineBucket[]> {
+  const bucket = storyTimeBucketStart();
   return await db
-    .select({ bucket, count: sql<number>`count(*)` })
+    .select({ bucketStart: bucket, count: sql<number>`count(*)` })
     .from(digestThemeAssignments)
     .innerJoin(themeClusters, ownedThemeCluster(ownerId, themeClusterId))
     .where(and(eq(digestThemeAssignments.themeClusterId, themeClusterId), isNotNull(digestThemeAssignments.msgMidAt)))

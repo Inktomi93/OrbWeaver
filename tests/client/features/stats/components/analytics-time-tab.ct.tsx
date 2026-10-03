@@ -43,8 +43,8 @@ test("both daily histograms carry their buckets as text, in the compact number v
   const component = await mount(<AnalyticsTimeTabStory />);
 
   const tokens = component.getByRole("table", { name: "Output tokens per day" });
-  // The first bucket keeps the year so a multi-year axis has an explicit starting frame.
-  await expect(tokens.getByRole("rowheader").first()).toHaveText("2026-07-01");
+  // The first bucket keeps the year so a multi-year axis has an explicit starting frame; the next rides the short form.
+  await expect(tokens.getByRole("rowheader")).toHaveText(["Jul 1, 2026", "Jul 2"]);
   // `formatCompact`, the voice every figure on this section uses — never a raw 1200000.
   await expect(tokens.getByRole("cell").first()).toHaveText("1.2M");
 
@@ -103,7 +103,7 @@ test.describe("in New York", () => {
   test("a 03:00 UTC bucket lands on the viewer's previous evening", async ({ mount, page }) => {
     await routeTime(page);
     const component = await mount(<AnalyticsTimeTabStory />);
-    await expect(component.getByRole("table", { name: "Assistant turns per day" }).getByRole("rowheader").first()).toHaveText("2026-06-30");
+    await expect(component.getByRole("table", { name: "Assistant turns per day" }).getByRole("rowheader").first()).toHaveText("Jun 30, 2026");
     const heatmap = component.getByRole("table", { name: "Messages by weekday and hour" });
     // Tue (row 3) at hour 23.
     await expect(heatmap.getByRole("row").nth(3).getByRole("cell").nth(23)).toHaveText("12");
@@ -115,7 +115,7 @@ test.describe("in Kathmandu", () => {
   test("a 45-minute offset puts the bucket in the viewer's 08:00 hour", async ({ mount, page }) => {
     await routeTime(page);
     const component = await mount(<AnalyticsTimeTabStory />);
-    await expect(component.getByRole("table", { name: "Assistant turns per day" }).getByRole("rowheader").first()).toHaveText("2026-07-01");
+    await expect(component.getByRole("table", { name: "Assistant turns per day" }).getByRole("rowheader").first()).toHaveText("Jul 1, 2026");
     const heatmap = component.getByRole("table", { name: "Messages by weekday and hour" });
     await expect(heatmap.getByRole("row").nth(4).getByRole("cell").nth(8)).toHaveText("12");
   });

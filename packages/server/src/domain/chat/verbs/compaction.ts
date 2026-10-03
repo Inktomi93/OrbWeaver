@@ -23,7 +23,8 @@ import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
-import { chats } from "@orb/db";
+import { compactionSpendDelta } from "@orb/contracts/stats";
+import { chats, compactionSpend } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { Resolved } from "@orb/inference";
@@ -39,7 +40,6 @@ import type { ChatService } from "../contract/service.ts";
 import { requireHost } from "../guard.ts";
 import { loadCanonHistoryAfter, loadChatRow } from "../persistence/queries.ts";
 import { isPromptEligible } from "../substrate/prompt-eligibility.ts";
-import { compactionCostDelta } from "../substrate/stats-delta.ts";
 
 /** `coveragePoint` = the seq through which the new marker covers (the fit/marker boundary the caller resolved).
  *  Absent ⇒ cover every committed turn. `connection` is the chat's resolved connection the quiet generation
@@ -141,9 +141,13 @@ async function buildMarker(
       .returning({ id: chats.id }),
   ];
   // COST VISIBILITY: the quiet marker generation's spend lands on the owner's + daily stats (the cost-visibility
-  // rule). A null/0 cost (a local vLLM turn, or a backend that reports none) is a benign no-op delta.
+  // rule), and its `compaction_spend` row rides the same batch — the marker is overwritten by the next pass, so
+  // that row is the only canon a stats rebuild can re-derive this spend from. A null/0 cost (a local vLLM turn,
+  // or a backend that reports none) spends nothing to record.
   if (result.costUsd !== null && result.costUsd > 0) {
-    ctx.applyStatsDelta(stmts, ctx.db, compactionCostDelta({ ownerId: env.ownerId, costUsd: result.costUsd, now: ctx.now() }));
+    const spentAt = ctx.now();
+    stmts.push(ctx.db.insert(compactionSpend).values({ id: ctx.newCompactionSpendId(), ownerId: env.ownerId, costUsd: result.costUsd, createdAt: spentAt }));
+    ctx.applyStatsDelta(stmts, ctx.db, compactionSpendDelta({ ownerId: env.ownerId, costUsd: result.costUsd, now: spentAt }));
   } else {
     ctx.bumpStatsCanonVersion(stmts, ctx.db, env.ownerId);
   }

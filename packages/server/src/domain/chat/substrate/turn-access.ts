@@ -15,7 +15,7 @@
 
 import { runAutoMode } from "../engine/auto-mode.ts";
 import { driveRound } from "../engine/round.ts";
-import { resolveMentions, selectSpeakers } from "../engine/select-speakers.ts";
+import { resolveMentions, resolveNameMentions, selectSpeakers } from "../engine/select-speakers.ts";
 import { smartArbitrate } from "../engine/smart-arbitrate.ts";
 import { resolveTurnIdentity } from "../engine/turn-identity.ts";
 
@@ -32,6 +32,11 @@ export function selectSpeakersVia(...args: Parameters<typeof selectSpeakers>): R
 /** Extract `@mention` targets from HUMAN-authored trigger text (only human text drives the override — §12 inv 6). */
 export function resolveMentionsVia(...args: Parameters<typeof resolveMentions>): ReturnType<typeof resolveMentions> {
   return resolveMentions(...args);
+}
+
+/** The characters HUMAN-authored trigger text names as a plain word — `natural`'s soft mention activation. */
+export function resolveNameMentionsVia(...args: Parameters<typeof resolveNameMentions>): ReturnType<typeof resolveNameMentions> {
+  return resolveNameMentions(...args);
 }
 
 /** 7b side-LLM arbitration (the `smart` policy) — one chosen speaker, roster-validating, with a `natural`

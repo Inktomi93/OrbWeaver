@@ -14,7 +14,7 @@ import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 export interface ArbiterCandidate {
   /** WHO this candidate is (character or agent) — the selection + attribution identity. */
   readonly ref: SpeakerRef;
-  /** 0–1 sampling weight for `natural` (default `TALKATIVENESS_DEFAULT` = 0.5). */
+  /** 0–1 chance this member speaks up on their own in a `natural` round (default `TALKATIVENESS_DEFAULT` = 0.5). */
   readonly talkativeness: number;
   /** Muted: still contributes cards/WI, but never arbiter-selected (`isArbiterEligible` — §1). */
   readonly disabled: boolean;

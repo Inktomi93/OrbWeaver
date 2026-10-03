@@ -21,9 +21,10 @@
 // founding seat. Any arm added here that touches the chat/character grains carries a second seat, or it
 // re-opens the blind spot.
 
+import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, chatParticipants, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { characterStats, chatParticipants, dailyStats, modelStats, ownerStats, userConnections } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
@@ -31,12 +32,20 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
-import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
-import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
+import { createCompaction } from "../../../../../packages/server/src/domain/chat/verbs/compaction.ts";
+import { runGeneration } from "../../../../../packages/server/src/domain/imagery/substrate/generate-core.ts";
+import { applyStatsDelta, bumpStatsCanonVersion } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { reconcileOwnersMissingTimeline, reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeResolved, TEST_CONNECTION_ID } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { seedCharacter, seedChat, seedMessage, seedPersona, seedUser, T0 } from "../_support.ts";
+import { makeChatContext, testConnection } from "../../chat/_support.ts";
+import { principal as imageryPrincipal, makeHarness, PNG_BYTES } from "../../imagery/_support.ts";
+import { DAY, seedCharacter, seedChat, seedMessage, seedPersona, seedUser, T0 } from "../_support.ts";
+
+/** The request shape `runGeneration` takes (the imagery spend tail's own parameter). */
+type GenerationRequest = Parameters<typeof runGeneration>[1];
 
 let db: Db;
 let ownerId: UserId;
@@ -94,6 +103,27 @@ const ESTIMATED_ASSIST = {
   tokensOut: 3,
   tokenProvenance: "estimated",
 } as const;
+// The non-canon spend arm: one fanned-out image generation and one priced compaction pass.
+const IMAGE_MODEL = "img-model";
+// Binary-exact costs, so the two writers' different summation orders cannot differ by a float ulp.
+const IMAGE_COST = 0.25;
+const COMPACTION_COST = 0.125;
+// @orb-waive no-test-fabrication(GenerationRequest): a minimal runGeneration request double — the spend tail reads only the connection's provider and id, never credential or capability internals. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+const IMAGE_REQ = {
+  connection: makeResolved({ task: "generateImage", providerId: "openrouter" }),
+  model: IMAGE_MODEL,
+  prompt: "p",
+  capability: {},
+} as GenerationRequest;
+const IMAGE_PROV = {
+  chatId: null,
+  mode: "free" as const,
+  subjectCharacterId: null,
+  identityHash: null,
+  prompt: "a dragon",
+  negativePrompt: null,
+  edited: false,
+};
 const USER_TEXT = "hello world";
 const SYSTEM_TEXT = "Room rule 🧭";
 // biome-ignore lint/style/useNamingConvention: the json_extract('$.reasoning_duration') read path key.
@@ -490,4 +520,101 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     expect(live.chars.map((c) => c["chats"])).toStrictEqual([1, 1]);
     expect(live.owner).toMatchObject({ chats: 1, characters: 2 });
   });
+
+  // SPEND OUTSIDE THE MESSAGE CANON. An image generation and a compaction pass both spend money without
+  // writing a message, so the canon arms above cannot see them. Both run through their REAL live writers
+  // here (the imagery spend-and-persist tail and the compaction core, each wired to the real
+  // `applyStatsDelta`), then "Recompute now" runs over the result: it must leave every rollup exactly as
+  // the live plane left it. The image lands a day after the canon so the spend's timeline bucket is under
+  // test too, and fans out to two pictures so the rebuild must count one priced generation of two images.
+  test("Recompute keeps image and compaction spend: the rebuild re-derives what the live writers recorded", async () => {
+    await applyLiveCanonWithImageConnection();
+    await runGeneration(imageryAt(T0 + DAY, 2), IMAGE_REQ, { ...IMAGE_PROV, caller: imageryPrincipal(ownerId) });
+
+    // The compose-root wrappers: the chat op type erases the batch to `unknown`.
+    const chatCtx = makeChatContext(db, {
+      applyStatsDelta: (batch, opDb, delta) => {
+        applyStatsDelta(batch as BatchStmt[], opDb, delta);
+      },
+      bumpStatsCanonVersion: (batch, opDb, owner) => {
+        bumpStatsCanonVersion(batch as BatchStmt[], opDb, owner);
+      },
+    });
+    const compaction = createCompaction(chatCtx, {
+      emit: () => Promise.resolve(),
+      quietGenerate: () => Promise.resolve({ text: "MARKER", costUsd: COMPACTION_COST }),
+      resolveConnection: () => Promise.resolve(testConnection()),
+    });
+    await compaction.runCompaction({ chatId, connection: testConnection(), ownerId });
+
+    const live = await snapshotRollups(db, ownerId);
+    // "Recompute now" — the same reconcile the stats page's button and the reconcile workload run.
+    await reconcileStats(db, { ownerId, now: createFrozenClock(T0 + 5 * DAY).now });
+    const recomputed = await snapshotRollups(db, ownerId);
+
+    expect(recomputed).toEqual(live);
+    // …and not vacuously: the live plane really holds both spends and the image model's row.
+    expect(live.owner?.["costUsd"]).toBe(CHAR_ASSIST.costUsd + IMAGE_COST + COMPACTION_COST);
+    expect(live.models.find((m) => m["model"] === IMAGE_MODEL)).toMatchObject({ generations: 2, genSamples: 2, costUsd: IMAGE_COST });
+    expect(live.days.map((d) => [d["costUsd"], d["costSamples"]])).toStrictEqual([
+      [CHAR_ASSIST.costUsd + COMPACTION_COST, 2],
+      [IMAGE_COST, 0],
+    ]);
+
+    // The timeline-only heal (the boot step after a re-grain empties `daily_stats`) folds the same spend
+    // into the same buckets.
+    await db.delete(dailyStats).where(eq(dailyStats.ownerId, ownerId));
+    expect(await reconcileOwnersMissingTimeline(db, createFrozenClock(T0 + 6 * DAY).now)).toBe(1);
+    expect((await snapshotRollups(db, ownerId)).days).toEqual(live.days);
+  });
+
+  // TWO CALLS, ONE MILLISECOND. Two priced generations by one owner that land at the same instant with the
+  // same model, connection and cost share every column but their call id, so the rebuild must tell the
+  // calls apart by that id — grouping on the shared columns alone merges them and halves the spend.
+  test("two same-millisecond, same-cost generations stay two priced calls through Recompute", async () => {
+    await applyLiveCanonWithImageConnection();
+    const imagery = imageryAt(T0 + DAY, 1);
+    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, caller: imageryPrincipal(ownerId) });
+    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, caller: imageryPrincipal(ownerId) });
+
+    const live = await snapshotRollups(db, ownerId);
+    await reconcileStats(db, { ownerId, now: createFrozenClock(T0 + 5 * DAY).now });
+
+    expect(await snapshotRollups(db, ownerId)).toEqual(live);
+    expect(live.owner?.["costUsd"]).toBe(CHAR_ASSIST.costUsd + 2 * IMAGE_COST);
+    expect(live.models.find((m) => m["model"] === IMAGE_MODEL)).toMatchObject({ generations: 2, costUsd: 2 * IMAGE_COST });
+  });
 });
+
+/** The base canon applied through the live builders, plus the connection an image generation attributes to. */
+async function applyLiveCanonWithImageConnection(): Promise<void> {
+  await db.insert(userConnections).values({
+    id: TEST_CONNECTION_ID,
+    ownerId,
+    label: "image generator",
+    providerId: providerIdSchema.parse("openrouter"),
+    model: modelIdSchema.parse(IMAGE_MODEL),
+  });
+  const batch: BatchStmt[] = [];
+  for (const delta of liveDeltas()) {
+    applyStatsDelta(batch, db, delta);
+  }
+  await db.batch(batchMany(batch));
+}
+
+/** The real imagery spend tail at a fixed instant, wired to the real `applyStatsDelta`, whose provider call
+ *  returns `pictures` images for `IMAGE_COST`. */
+function imageryAt(at: number, pictures: number): Parameters<typeof runGeneration>[0] {
+  const pixel = Buffer.from(PNG_BYTES).toString("base64");
+  return makeHarness(db, {
+    now: () => at,
+    generateImage: () =>
+      Promise.resolve({
+        images: Array.from({ length: pictures }, () => ({ base64: pixel, mediaType: "image/png", url: undefined })),
+        model: IMAGE_MODEL,
+        usage: { costUsd: IMAGE_COST },
+        warnings: [],
+      }),
+    applyStatsDelta,
+  }).ctx;
+}

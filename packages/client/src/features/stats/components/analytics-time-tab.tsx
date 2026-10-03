@@ -53,7 +53,7 @@ function TimeBody(): ReactElement {
   const { data: buckets } = useSuspenseQuery(trpc.stats.timeseries.queryOptions());
   const timeline = localTimeline(buckets, timeLib.calendarPosition);
   const tokensOutProvenance = seriesTokenProvenance(timeline.days);
-  const tokenBuckets = dailyTokenBuckets(timeline.days);
+  const tokenBuckets = dailyTokenBuckets(timeline.days, timeLib);
 
   return (
     <Stack gap="section">
@@ -62,7 +62,7 @@ function TimeBody(): ReactElement {
       {/* `formatCompact` on the value axis, like every figure beside it: the token histogram used to print
           raw digits while the stat rows printed "1.2M" — one surface, two number vocabularies (P2f). */}
       <Section heading="Daily replies">
-        <Histogram buckets={dailyTurnBuckets(timeline.days)} countFormatter={formatCompact} label="Assistant turns per day" />
+        <Histogram buckets={dailyTurnBuckets(timeline.days, timeLib)} countFormatter={formatCompact} label="Assistant turns per day" />
       </Section>
 
       <Section heading="Daily tokens">

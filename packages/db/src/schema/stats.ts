@@ -186,7 +186,7 @@ export const characterStats = sqliteTable(
 
 // daily_stats — the per-owner activity TIMELINE, WIDE format, one row per (owner, UTC quarter-hour bucket).
 // KEEPS `ownerId` (D23 parentless aggregate). It stores no calendar day: the day is the viewer's, folded
-// from the bucket on the client (`@orb/kit/stats-tally.STATS_BUCKET_MS` says why a quarter-hour).
+// from the bucket on the client (`@orb/kit/time.CALENDAR_BUCKET_MS` says why a quarter-hour).
 // The timeline credits the MESSAGE stream only (esoteric #1): a variant (swipe) bumps `swipes`/`genTimeMs`
 // but NOT `tokensIn`/`tokensOut` (the message delta sets those; the variant delta omits dailyTokensIn/Out).
 export const dailyStats = sqliteTable(

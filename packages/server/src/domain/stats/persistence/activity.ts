@@ -5,18 +5,16 @@
 import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { STATS_BUCKET_MS } from "@orb/kit/stats-tally";
 import { sql } from "drizzle-orm";
+import { calendarBucketStartSql } from "#kit/calendar-bucket-sql";
 import type { MomentumBucket } from "../contract/views.ts";
 import { ownerChatIds } from "../substrate/owner-chat-scope.ts";
 
 /** The owner's characters' assistant replies per (character, UTC quarter-hour), ascending by bucket. */
 export async function readMomentumBuckets(db: Db, ownerId: string): Promise<MomentumBucket[]> {
-  // The CAST keeps the division integral whatever numeric type the driver binds the width as — the same
-  // floor `statsBucketStart` applies to the rollup timeline.
   const rows = await db.all<{ characterId: string; name: string; bucketStart: number; replies: number }>(sql`
     SELECT m.character_id AS characterId, MIN(c.name) AS name,
-           CAST(m.created_at / ${STATS_BUCKET_MS} AS INTEGER) * ${STATS_BUCKET_MS} AS bucketStart, COUNT(*) AS replies
+           ${calendarBucketStartSql(sql`m.created_at`)} AS bucketStart, COUNT(*) AS replies
     FROM messages m
     JOIN characters c ON c.id = m.character_id
     WHERE c.owner_id = ${ownerId} AND m.role = 'assistant'

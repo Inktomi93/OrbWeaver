@@ -14,6 +14,7 @@
 import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { TimeLib } from "@orb/kit/time";
 import type { BarListItem } from "@orb/ui/bar-list";
 import type { HeatmapMatrix } from "@orb/ui/heatmap";
 import type { HistogramBucket } from "@orb/ui/histogram";
@@ -54,8 +55,8 @@ const COMPACT_PRECISION = 1;
 const HOURS_PER_DAY = 24;
 /** How many trailing id characters a duplicate-name disambiguator shows. */
 const SHORT_REF_LEN = 4;
-/** Length of the `YYYY-` prefix dropped to leave `MM-DD`. */
-const YEAR_PREFIX_LEN = 5;
+/** `YYYY` is the first four characters of a `YYYY-MM-DD` calendar day. */
+const YEAR_KEY_LENGTH = 4;
 const EM_DASH = "—";
 
 /** Shared legend for absent accounting and estimates; missing totals are not measured zeros. */
@@ -211,20 +212,27 @@ export function activityHeatmapMatrix(matrix: readonly (readonly number[])[]): H
   };
 }
 
-/** `2026-07-13` → `07-13`, EXCEPT the first bucket of a year, which keeps its full `2026-01-04` — a
- *  ~1,100-day axis otherwise wraps `11-22 → 01-24` with no mark that a year turned over (side-eye P2f).
- *  `prevDay` is the preceding point in series order; absent (the first bucket) counts as a crossing.
+/** The time seam's two day forms a daily axis label picks between. */
+type DayLabelFormat = Pick<TimeLib, "formatDate" | "formatMonthDay">;
+
+/** A viewer-local day as an axis label through the time seam: `Jul 13`, EXCEPT the first bucket of a year,
+ *  which keeps its year (`Jan 4, 2027`) — a ~1,100-day axis otherwise wraps `Nov 22 → Jan 24` with no mark
+ *  that a year turned over. `day` is the local `YYYY-MM-DD` key and `start` an instant on it; `prevDay` is
+ *  the preceding point's key in series order, and its absence (the first bucket) counts as a crossing.
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
-export function formatDayLabel(day: string, prevDay?: string): string {
-  const crossesYear = prevDay === undefined || day.slice(0, YEAR_PREFIX_LEN) !== prevDay.slice(0, YEAR_PREFIX_LEN);
-  return crossesYear || day.length <= YEAR_PREFIX_LEN ? day : day.slice(YEAR_PREFIX_LEN);
+export function formatDayLabel(point: { readonly day: string; readonly start: number }, prevDay: string | undefined, format: DayLabelFormat): string {
+  const crossesYear = prevDay === undefined || point.day.slice(0, YEAR_KEY_LENGTH) !== prevDay.slice(0, YEAR_KEY_LENGTH);
+  return crossesYear ? format.formatDate(point.start) : format.formatMonthDay(point.start);
 }
 
 /** Daily points → an assistant-turn histogram in date order. */
-export function dailyTurnBuckets(points: readonly { readonly day: string; readonly assistantTurns: number }[]): HistogramBucket[] {
+export function dailyTurnBuckets(
+  points: readonly { readonly day: string; readonly start: number; readonly assistantTurns: number }[],
+  format: DayLabelFormat,
+): HistogramBucket[] {
   return points.map((point, index) => ({
-    label: formatDayLabel(point.day, points[index - 1]?.day),
+    label: formatDayLabel(point, points[index - 1]?.day, format),
     count: point.assistantTurns,
   }));
 }
@@ -232,14 +240,15 @@ export function dailyTurnBuckets(points: readonly { readonly day: string; readon
 /** Daily points with recorded output usage → an output-token histogram in date order. Unrecorded days are
  *  omitted: a zero-height bar would turn missing accounting into a measured zero. */
 export function dailyTokenBuckets(
-  points: readonly { readonly day: string; readonly tokensOut: number | null; readonly tokensOutProvenance: TokenProvenance }[],
+  points: readonly { readonly day: string; readonly start: number; readonly tokensOut: number | null; readonly tokensOutProvenance: TokenProvenance }[],
+  format: DayLabelFormat,
 ): HistogramBucket[] {
   const recorded = points.filter(
-    (point): point is { readonly day: string; readonly tokensOut: number; readonly tokensOutProvenance: TokenProvenance } =>
+    (point): point is { readonly day: string; readonly start: number; readonly tokensOut: number; readonly tokensOutProvenance: TokenProvenance } =>
       point.tokensOut !== null && point.tokensOutProvenance !== "unrecorded",
   );
   return recorded.map((point, index) => ({
-    label: formatDayLabel(point.day, recorded[index - 1]?.day),
+    label: formatDayLabel(point, recorded[index - 1]?.day, format),
     count: point.tokensOut,
   }));
 }
