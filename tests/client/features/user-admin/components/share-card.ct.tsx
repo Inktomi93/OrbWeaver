@@ -15,7 +15,7 @@ import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { GovernanceSectionsStory } from "../_ct-stories.tsx";
 import type { EffectiveAppSettings } from "../app-settings-fixtures.ts";
 import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.ts";
-import { stubAuthConfig } from "../auth-config-fixtures.ts";
+import { signInModeView, stubAuthConfig } from "../auth-config-fixtures.ts";
 
 const OWNER = { userId: "user_owner", handle: "owner", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
 const DELEGATED_ADMIN = { userId: "user_admin", handle: "admin", globalRole: "admin" } satisfies TrpcWireOutput<"sessions.me">;
@@ -107,6 +107,8 @@ async function stubShare(page: Page, stub: ShareStub): Promise<ShareServer> {
     "admin.revokeUserSessions": () => ({ revoked: 1 }),
     "chat.listChats": () => ({ items: [{ id: ROOM_ID, title: "Tavern night", participantNames: [] }], nextCursor: null, totalCount: 1 }),
     "share.status": () => current,
+    // The sign-in panel above the card reads the same boot-fixed mode.
+    "share.signInMode": () => signInModeView(stub.mode),
     "share.stop": () => {
       current = OFF;
       return current;
@@ -166,10 +168,10 @@ test("single-user: every row renders with its verdict and fix, and Start sharing
   await expect(precondition(card, "owner")).toHaveAttribute("data-verdict", "waiting");
   await expect(precondition(card, "seating")).toHaveAttribute("data-verdict", "unmet");
   await expect(precondition(card, "relay")).toHaveAttribute("data-verdict", "unchecked");
-  // The mode row leads with its one action, the launcher command; the container's environment lines are operator
+  // The mode row leads with its one action, the launcher command; the container's env file lines are operator
   // detail, folded until asked for.
   await expect(precondition(card, "mode").getByRole("button", { name: copyActionName("the command pnpm start --share"), exact: true })).toBeVisible();
-  const containerLines = precondition(card, "mode").getByRole("button", { name: copyActionName("the docker-compose environment lines"), exact: true });
+  const containerLines = precondition(card, "mode").getByRole("button", { name: copyActionName("the container env file lines"), exact: true });
   await expect(containerLines).toHaveCount(0);
   // The command shows once, in its copy chip, not again in the sentence above it.
   await expect(precondition(card, "mode").locator("kbd")).toHaveCount(1);

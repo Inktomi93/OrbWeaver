@@ -6,6 +6,7 @@ import { createBootShare } from "./verbs/boot-share.ts";
 import { createDisableIpCertificate } from "./verbs/disable-ip-certificate.ts";
 import { createEnableIpCertificate } from "./verbs/enable-ip-certificate.ts";
 import { createResumeIpCertificate } from "./verbs/resume-ip-certificate.ts";
+import { createSignInMode } from "./verbs/sign-in-mode.ts";
 import { createStart } from "./verbs/start.ts";
 import { createStatus } from "./verbs/status.ts";
 import { createStop } from "./verbs/stop.ts";
@@ -20,5 +21,6 @@ export function createShareService(deps: ShareServiceDeps): ShareService {
     enableIpCertificate: createEnableIpCertificate(ctx),
     disableIpCertificate: createDisableIpCertificate(ctx),
     resumeIpCertificate: createResumeIpCertificate(ctx),
+    signInMode: createSignInMode(ctx),
   };
 }
