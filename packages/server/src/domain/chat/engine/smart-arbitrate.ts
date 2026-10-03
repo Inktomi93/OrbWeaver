@@ -39,8 +39,9 @@ interface SmartArbitrateParams {
   readonly recentHistory: string;
   /** The previous speaker (the fallback's ban-last AND its rotation origin). */
   readonly lastSpeaker: SpeakerRef | null;
-  /** Whether the fallback bans the last speaker (the room's `allowSelfResponses`, inverted). Default TRUE —
-   *  forwarded verbatim to `selectSpeakers`, which keeps the ban and the rotation origin separate. */
+  /** Whether the fallback bans the last speaker (the caller's decision from the trigger and the room's
+   *  `allowSelfResponses`). Default TRUE — forwarded verbatim to `selectSpeakers`, which keeps the ban and the
+   *  rotation origin separate. */
   readonly banLast?: boolean | undefined;
   /** Characters the human trigger text named as a plain word — forwarded to the `natural` fallback, so a
    *  degraded round still answers the character the human addressed. */

@@ -49,6 +49,7 @@
 // `PROSE_SLOTS`, so importing it here — even for a type — would close a `no-circular` cycle.
 
 import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
+import { GROUP_POLICY_LABELS } from "./metadata.ts";
 
 /** The tier-0 digest system prompt's three-part contract, authored line-by-line and joined — the shape it has
  *  always had, so the composed bytes are identical to the pre-PROSE-1 constant. */
@@ -104,7 +105,7 @@ export const CHAT_PROSE_SLOTS = {
     title: "Turn-arbiter prompt",
     // Editor copy is read as PLAIN TEXT (no markdown pass), so it carries no backticks and no internal
     // nouns — the room's own control label and the model-role slot name instead of "`smart` policy" / "rail".
-    fires: 'Every group round while the room\'s speaker order is "Smart (Utility model)" — the pick runs on the Utility model.',
+    fires: `Every group round while the room's speaker order is "${GROUP_POLICY_LABELS.smart}" — the pick runs on the Utility model.`,
   },
   "chat.compaction.system": {
     id: "chat.compaction.system",

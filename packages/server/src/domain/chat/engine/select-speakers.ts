@@ -34,12 +34,13 @@ interface SelectSpeakersParams {
   /** The full present roster's AI-driven candidates (character/agent), in roster (join) order. */
   readonly candidates: readonly ArbiterCandidate[];
   readonly policy: GroupConfig["policy"];
-  /** The previous speaker; null at round 1 / after a human turn. TWO independent jobs ride this one value —
+  /** The previous AI speaker; null before any character has spoken. TWO independent jobs ride this one value —
    *  the soft ban-last-speaker (step 3) and the `pooled` ROTATION ORIGIN (step 4) — which is why the ban is
    *  lifted by {@link SelectSpeakersParams.banLast}, never by nulling this. */
   readonly lastSpeaker: SpeakerRef | null;
   /** Whether the last speaker is banned from the pool this round (soft — see step 3). Default TRUE; the
-   *  room's `allowSelfResponses` toggle passes `false`. It is an ELIGIBILITY question and nothing else: a
+   *  caller passes `false` for a room that allows self-responses or a `natural` round answering a live human
+   *  (`verbs/turn.ts::banLastFor`). It is an ELIGIBILITY question and nothing else: a
    *  room that lets a character reply to itself still rotates, so lifting the ban must not cost the
    *  rotation origin (nulling `lastSpeaker` to lift it made `pooled` re-pick the first roster seat every
    *  beat — a "Round-robin" room in which one character monologued). */
@@ -261,11 +262,14 @@ export function resolveMentions(triggerText: string, candidates: readonly Speake
   return dedupeIds(found.sort((a, b) => a.at - b.at).map((f) => f.id));
 }
 
-/** One word: a run of the shared Unicode word class, so `Аня` and `結衣` split the way `Bran` does. */
+/** One word: a run of the shared Unicode word class, so `Аня` and `Chloé` split the way `Bran` does.
+ *  Splitting needs a separator: in unspaced text (Japanese, Chinese) a name glued to the next word, as in
+ *  `結衣さん`, is one longer word and does not name `結衣`. */
 const WORD = new RegExp(`[${UNICODE_WORD_CHARS}]+`, "gu");
 
+// NFC first, so a decomposed `Chloé` (e + combining accent) and a composed one are the same word.
 function wordsOf(text: string): string[] {
-  return text.toLowerCase().match(WORD) ?? [];
+  return text.normalize("NFC").toLowerCase().match(WORD) ?? [];
 }
 
 /** Name words that never name a character on their own. Nearly every message contains them, so a name like
@@ -305,8 +309,10 @@ export const NAME_STOPWORDS = [
   "its",
 ] as const;
 
-function isStopword(word: string): boolean {
-  return NAME_STOPWORDS.some((s) => s === word);
+// A one-letter name word never names on its own either: an apostrophe splits `T'Pol` into `t` + `pol` and
+// `don't` into `don` + `t`, so `t` would make every "don't" name T'Pol.
+function isNonNaming(word: string): boolean {
+  return [...word].length === 1 || NAME_STOPWORDS.some((s) => s === word);
 }
 
 /** Where `seq` first occurs as consecutive words of `words`, or -1. */
@@ -321,15 +327,15 @@ function phraseAt(words: readonly string[], seq: readonly string[]): number {
  * Characters a human-authored trigger text names — `natural`'s mention activation (the caller must pass a
  * human post's body, never an AI reply). A character is named when any word of the text equals a non-stopword
  * word of their display name, case-insensitive, so "Aria" and "stormborn" both name `Aria Stormborn`, "knight"
- * names `The Knight` and "the" does not, and one word shared by two names names both. A name made only of
- * {@link NAME_STOPWORDS} is named by its whole name as a phrase. Ordered by where each is first named, then
- * roster order.
+ * names `The Knight` and "the" does not, and one word shared by two names names both. One-letter words never
+ * name, so "I don't" does not name `T'Pol`. A name made only of {@link NAME_STOPWORDS} and one-letter words is
+ * named by its whole name as a phrase. Ordered by where each is first named, then roster order.
  */
 export function resolveNameMentions(triggerText: string, candidates: readonly SpeakerCandidate[]): CharacterId[] {
   const text = wordsOf(triggerText);
   const found = candidates.flatMap((c, rosterIdx) => {
     const nameWords = wordsOf(c.name);
-    const keys = new Set(nameWords.filter((w) => !isStopword(w)));
+    const keys = new Set(nameWords.filter((w) => !isNonNaming(w)));
     const at = keys.size > 0 ? text.findIndex((w) => keys.has(w)) : phraseAt(text, nameWords);
     return at === -1 ? [] : [{ id: c.ref.characterId, at, rosterIdx }];
   });

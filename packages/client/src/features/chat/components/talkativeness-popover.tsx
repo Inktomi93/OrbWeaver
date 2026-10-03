@@ -108,8 +108,8 @@ export function TalkativenessPopover({
           {/* When the chance applies is `engine/select-speakers.ts`: only the natural order and Smart's
               fallback roll it. */}
           <Text voice="gloss">
-            Counts in a Natural room, where anyone you name replies anyway. At 0% a character replies only when named, or when every character is at 0%. Smart
-            uses it only when it can't decide.
+            Counts in a Natural room, where anyone you name replies anyway. At 0% a character replies only when named, or when no one above 0% is left to pick.
+            Smart uses it only when it can't decide.
           </Text>
         </Stack>
       </PopoverPopup>

@@ -43,8 +43,8 @@ function policyItems(utility: UtilityModel): SelectItems<string> {
 // help depends on the Utility model and the output mode, so it is `smartHelp` instead.
 const POLICY_HELP: Record<Exclude<GroupPolicy, "smart">, string> = {
   natural:
-    "Characters you name in your message reply, even one who just spoke. Each other character replies by chance, set by their talkativeness, and if nobody would, one of them does. When characters reply to each other, whoever spoke last sits out.",
-  list: "Every character who can speak replies, in the order they joined. Whoever spoke last sits out.",
+    "Characters you name in your message reply, even one who just spoke. Each other character replies by chance, set by their talkativeness, and if nobody would, one of them does. When characters reply to each other, whoever spoke last sits out unless a character may reply to itself.",
+  list: "Every character who can speak replies, in the order they joined. Whoever spoke last sits out unless a character may reply to itself.",
   pooled: "Every character who can speak replies, starting with the one after whoever spoke last.",
   manual: "Nobody replies on their own. Mention a character with @, or pick one from Generate reply. A Narrator room still narrates every message.",
 };

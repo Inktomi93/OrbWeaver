@@ -887,9 +887,10 @@ async function arbitrate(
     /** Characters the human's message names as a plain word — `natural`'s soft activation (send only). */
     readonly mentionedIds?: readonly CharacterId[] | undefined;
     readonly lastSpeaker: SpeakerRef | null;
-    /** Whether the last speaker is banned from this round's pool (the room's `allowSelfResponses`,
-     *  inverted). Default TRUE. It rides BESIDE `lastSpeaker` rather than nulling it because the two are
-     *  different questions: the ban is ELIGIBILITY, `lastSpeaker` is also the `pooled` ROTATION ORIGIN. */
+    /** Whether the last speaker is banned from this round's pool — {@link banLastFor} at the caller (the
+     *  trigger and the room's `allowSelfResponses`). Default TRUE. It rides BESIDE `lastSpeaker` rather than
+     *  nulling it because the two are different questions: the ban is ELIGIBILITY, `lastSpeaker` is also the
+     *  `pooled` ROTATION ORIGIN. */
     readonly banLast?: boolean | undefined;
     /** The trailing canon rows the `smart` arbiter reads; named into a transcript only on that arm. */
     readonly recentRows: readonly MessageView[];
@@ -2385,10 +2386,11 @@ function requirePresentGenerateSpeaker(room: Room, chatId: ChatId, speakerCharac
   }
 }
 
-/** The speaker of a SPEAKERLESS `generate` ("Auto"): the room's own speaker policy, run exactly as a `send`
- *  round runs it ({@link arbitrate} — natural / in order / round-robin / smart with its visible natural
- *  fallback, mute and ban-last respected), capped to the ONE reply a generate commits. `null` speaker ⇒ the
- *  policy schedules nobody (`manual`, or every seat muted), which is the same answer a send gets. */
+/** The speaker of a SPEAKERLESS `generate` ("Auto"): the room's own speaker policy ({@link arbitrate} —
+ *  natural / in order / round-robin / smart with its visible natural fallback, mute respected), capped to the
+ *  ONE reply a generate commits. Unlike a `send` it carries no human message, so it has no name mentions and
+ *  bans the last speaker the way an AI-triggered round does ({@link banLastFor}). `null` speaker ⇒ the policy
+ *  schedules nobody (`manual`, or every seat muted). */
 async function arbitrateGenerateSpeaker(
   ctx: ChatContext,
   deps: TurnDeps,

@@ -912,6 +912,28 @@ describe("send — the group round (N speakers via driveRound)", () => {
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[0]]);
   });
 
+  test("with self-responses on, a list send includes the character who just spoke, in roster order", async () => {
+    const { host, chatId, chars, names } = await seedRoom("list", ["aria", "bryn"], { allowSelfResponses: true });
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hello" });
+    await seedMessage(db, chatId, 2, { role: "assistant", characterId: chars[0] as CharacterId, content: "aria answers" });
+    const h = harness(db, names);
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "again" });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[0], chars[1]]);
+  });
+
+  test("with self-responses on, a Round-robin send includes the character who just spoke, last in the rotation", async () => {
+    const { host, chatId, chars, names } = await seedRoom("pooled", ["aria", "bryn"], { allowSelfResponses: true });
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hello" });
+    await seedMessage(db, chatId, 2, { role: "assistant", characterId: chars[0] as CharacterId, content: "aria answers" });
+    const h = harness(db, names);
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "again" });
+
+    expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1], chars[0]]);
+  });
+
   test("a natural auto-chain beat still bans the character who just spoke", async () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"], { autoMode: true, autoModeMaxTurns: 1 });
     const h = harness(db, names, { prng: () => 0.99 });

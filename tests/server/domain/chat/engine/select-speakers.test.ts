@@ -238,6 +238,29 @@ describe("resolveNameMentions — a character named as a plain word (human-autho
     }
   });
 
+  test("a contraction never names an apostrophe name: one-letter name words do not name", () => {
+    const cast = [
+      { ref: charRef("tpol"), name: "T'Pol" },
+      { ref: charRef("dart"), name: "D'Artagnan" },
+    ];
+    expect(resolveNameMentions("I don't know.", cast)).toEqual([]);
+    expect(resolveNameMentions("I'd rather not.", cast)).toEqual([]);
+    expect(resolveNameMentions("Pol, and you, Artagnan?", cast)).toEqual([cid("tpol"), cid("dart")]);
+  });
+
+  test("a name made only of one-letter words is named by its whole name as a phrase", () => {
+    const cast = [{ ref: charRef("aj"), name: "A. J." }];
+    expect(resolveNameMentions("Ask a friend.", cast)).toEqual([]);
+    expect(resolveNameMentions("Ask A J about it.", cast)).toEqual([cid("aj")]);
+  });
+
+  test("a decomposed accent names the composed name, and the other way round (NFC)", () => {
+    const composed = "Chloé";
+    const decomposed = "Chloé";
+    expect(resolveNameMentions(`${decomposed}?`, [{ ref: charRef("acc"), name: composed }])).toEqual([cid("acc")]);
+    expect(resolveNameMentions(`${composed}?`, [{ ref: charRef("acc"), name: decomposed }])).toEqual([cid("acc")]);
+  });
+
   test("a name made only of stopwords is named by its whole name as a phrase", () => {
     const cast = [{ ref: charRef("her"), name: "Her" }, { ref: charRef("you-two"), name: "You Two" }, ...characters];
     expect(resolveNameMentions("Bran, ask her.", cast)).toEqual([cid("bran"), cid("her")]);
