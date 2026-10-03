@@ -240,6 +240,7 @@ export {
   roomOverridesSchema,
   SMART_PICKER_LABELS,
   SMART_PICKERS,
+  SMART_UTILITY_SWITCH_LABEL,
   storedGroupConfigSchema,
 } from "./metadata.ts";
 export type { NextTurnConnectionView } from "./next-turn-connection.ts";

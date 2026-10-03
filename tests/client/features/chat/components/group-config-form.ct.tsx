@@ -6,7 +6,7 @@
 // re-derives the coupled speakerTags default), the scopedCards↔cardScope mapping seam, the narrator arm
 // omits cardScope, and the Advanced disclosure reveals policy / member-visibility / auto-mode.
 
-import { DEFAULT_GROUP_CONFIG, GROUP_POLICY_LABELS, SMART_PICKER_LABELS } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, GROUP_POLICY_LABELS, SMART_UTILITY_SWITCH_LABEL } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { UTILITY_RUNNING_ROUTES, utilityBindings } from "../../../../support/node/utility-role.ts";
@@ -119,7 +119,7 @@ test("the self-response switch shows with auto mode off and saves", async ({ mou
 // opt-in inside Smart, and only that opt-in offers the door to Model roles when no Utility model runs.
 const SMART_OPTION = { name: GROUP_POLICY_LABELS.smart };
 const POLICY_COMBOBOX = { name: "Who speaks each round" };
-const UTILITY_UPGRADE = { name: `Use the ${SMART_PICKER_LABELS.utility} instead` };
+const UTILITY_UPGRADE = { name: SMART_UTILITY_SWITCH_LABEL };
 
 test("Smart can be chosen with no Utility model, and offers no door until the Utility opt-in is on", async ({ mount, page }) => {
   await routeTrpc(page, { ...UTILITY_RUNNING_ROUTES, "connection.listBindings": utilityBindings("unset") });

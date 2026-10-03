@@ -87,6 +87,8 @@ export const SMART_PICKER_LABELS: Record<SmartPicker, string> = {
   reranker: "Rerank model",
   utility: "Utility model",
 };
+/** The Group-tab switch that turns on Smart's Utility-model picker; the arbiter prompt's editor copy names it too. */
+export const SMART_UTILITY_SWITCH_LABEL = `Use the ${SMART_PICKER_LABELS.utility} instead`;
 // A stored blob from before the sub-setting existed parses to the default, so no migration is owed.
 const smartPickerField = {
   smartPicker: z.enum(SMART_PICKERS).catch("reranker").default("reranker"),

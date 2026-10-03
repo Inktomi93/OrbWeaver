@@ -10,6 +10,9 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { RerankHit } from "@orb/contracts/providers";
 import type { RerankDocument } from "@orb/contracts/role-clients";
 import type { CharacterId } from "@orb/kit/ids";
+import { processMacros } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate, SpeakerReranker, TranscriptLine } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
@@ -78,6 +81,24 @@ function topRanked(hits: readonly RerankHit[], allowed: readonly NamedCandidate[
   return null;
 }
 
+/** A card's persona text for the reranker: its description, or its personality when the description is blank,
+ *  with macros rendered against the card's own name so no `{{char}}` braces reach the model. Uncapped: the
+ *  bound model's window clips it in {@link fitRerankPair}. */
+export function personaSummaryOf(
+  card: { readonly name: string; readonly description: string | null; readonly personality: string | null } | null,
+  nowMs: number,
+): string {
+  if (card === null) {
+    return "";
+  }
+  // `?? ""` as well as the null type: a minimal card double (or a sparse import) can omit the field entirely.
+  const text = [card.description, card.personality].find((t): t is string => (t ?? "").trim().length > 0);
+  if (text === undefined) {
+    return "";
+  }
+  return processMacros(text, { char: card.name, user: DEFAULT_PERSONA_NAME, persona: "", scenario: "", timezone: UTC_TIME_ZONE, nowMs, env: {} });
+}
+
 // Being addressed is the strongest signal a line carries, so a named character wins outright, even the last
 // speaker, whoever wrote the line. The line's own speaker naming itself is not an address.
 function addressedIn(line: TranscriptLine, named: readonly NamedCandidate[]): SpeakerRef | null {
@@ -93,6 +114,12 @@ function addressedIn(line: TranscriptLine, named: readonly NamedCandidate[]): Sp
 
 /** Smart's reranker pick. One element on success, `[]` with no eligible character, CANCELLED on an abort. */
 export async function rerankPick(params: RerankPickParams): Promise<SmartArbitrationResult> {
+  // Read through a call: the signal flips asynchronously, so a narrowed property read would go stale. A turn
+  // already cancelled picks nobody, so no rule below (not even a name in the line) can schedule a speaker.
+  const cancelled = (): boolean => params.signal?.aborted === true;
+  if (cancelled()) {
+    return CANCELLED;
+  }
   const eligible = params.candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled }));
   const nameByKey = new Map(params.speakerCandidates.map((n) => [speakerKey(n.ref), n.name] as const));
   const named: NamedCandidate[] = eligible.map((c) => ({ ref: c.ref, name: nameByKey.get(speakerKey(c.ref)) ?? "" })).filter((c) => c.name.length > 0);
@@ -123,10 +150,6 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
     return { speakers: [addressed], degraded: false, aborted: false };
   }
 
-  const cancelled = (): boolean => params.signal?.aborted === true;
-  if (cancelled()) {
-    return CANCELLED;
-  }
   const lastKey = params.lastSpeaker === null || params.banLast === false ? null : speakerKey(params.lastSpeaker);
   const unbanned = named.filter((c) => speakerKey(c.ref) !== lastKey);
   const allowed = unbanned.length > 0 ? unbanned : named;

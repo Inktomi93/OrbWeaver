@@ -10,7 +10,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ArbiterCandidate, SpeakerReranker, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { rerankPick } from "../../../../../packages/server/src/domain/chat/engine/rerank-pick.ts";
+import { personaSummaryOf, rerankPick } from "../../../../../packages/server/src/domain/chat/engine/rerank-pick.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
@@ -114,5 +114,22 @@ describe("rerankPick — documents fit the bound model's window", () => {
     const wide = fakeReranker({ aria: 1 });
     await pick({ reranker: wide.op });
     expect(wide.sent[0]?.map((d) => d.text)).toEqual(KEYS.map((k, i) => `${SPEAKERS[i]?.name}: ${k} is a traveller with a long and winding story`));
+  });
+});
+
+describe("rerankPick — cancellation and persona text", () => {
+  test("an already-aborted turn picks nobody, even when the last line names a character", async () => {
+    const scores = fakeReranker({ aria: 1 });
+    const out = await pick({ reranker: scores.op, lastLine: line("Cara, your turn."), signal: AbortSignal.abort() });
+    expect(out).toEqual({ speakers: [], degraded: false, aborted: true });
+    expect(scores.sent).toHaveLength(0);
+  });
+
+  test("a blank description falls back to the personality, macros rendered against the card's name", () => {
+    const card = { name: "Aria", personality: "{{char}} is wry and patient" };
+    expect(personaSummaryOf({ ...card, description: "" }, 0)).toBe("Aria is wry and patient");
+    expect(personaSummaryOf({ ...card, description: "  \n " }, 0)).toBe("Aria is wry and patient");
+    expect(personaSummaryOf({ ...card, description: "A keeper of lights" }, 0)).toBe("A keeper of lights");
+    expect(personaSummaryOf({ name: "Aria", description: " ", personality: null }, 0)).toBe("");
   });
 });

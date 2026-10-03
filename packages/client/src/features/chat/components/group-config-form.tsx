@@ -12,6 +12,7 @@ import {
   GROUP_POLICY_LABELS,
   MEMBER_CARD_VISIBILITY_LEVELS,
   SMART_PICKER_LABELS,
+  SMART_UTILITY_SWITCH_LABEL,
 } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { Accordion, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
@@ -234,9 +235,7 @@ export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps
                     {(picks): ReactElement | null =>
                       picks ? (
                         <form.AppField name="smartUsesUtility">
-                          {(field): ReactElement => (
-                            <field.SwitchField label={`Use the ${SMART_PICKER_LABELS.utility} instead`} description={SMART_POLICY_COST_SENTENCE} />
-                          )}
+                          {(field): ReactElement => <field.SwitchField label={SMART_UTILITY_SWITCH_LABEL} description={SMART_POLICY_COST_SENTENCE} />}
                         </form.AppField>
                       ) : null
                     }

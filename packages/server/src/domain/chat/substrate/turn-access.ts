@@ -14,7 +14,7 @@
 // direct import (which would be RED).
 
 import { runAutoMode } from "../engine/auto-mode.ts";
-import { rerankPick } from "../engine/rerank-pick.ts";
+import { personaSummaryOf, rerankPick } from "../engine/rerank-pick.ts";
 import { driveRound } from "../engine/round.ts";
 import { resolveMentions, resolveNameMentions, selectSpeakers } from "../engine/select-speakers.ts";
 import { smartArbitrate } from "../engine/smart-arbitrate.ts";
@@ -44,6 +44,11 @@ export function resolveNameMentionsVia(...args: Parameters<typeof resolveNameMen
  *  fallback the result flags (`degraded`) so the caller can surface it. */
 export function smartArbitrateVia(...args: Parameters<typeof smartArbitrate>): ReturnType<typeof smartArbitrate> {
   return smartArbitrate(...args);
+}
+
+/** A card's persona text as Smart's reranker documents read it. PURE. */
+export function personaSummaryOfVia(...args: Parameters<typeof personaSummaryOf>): ReturnType<typeof personaSummaryOf> {
+  return personaSummaryOf(...args);
 }
 
 /** Smart's default pick over the funder's bound rerank role, with a `natural` fallback the result flags. */

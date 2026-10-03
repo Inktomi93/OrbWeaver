@@ -32,7 +32,6 @@ import type { BindingActor, Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, UserMacroDef } from "@orb/kit/macro";
-import { processMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
@@ -107,6 +106,7 @@ import { userMessageDelta } from "../substrate/stats-delta.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import {
   driveRoundVia,
+  personaSummaryOfVia,
   rerankPickVia,
   resolveMentionsVia,
   resolveNameMentionsVia,
@@ -292,7 +292,7 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, frozenHostUserId?: Use
     name: cards[i]?.name ?? "",
   }));
   const candidates: ArbiterCandidate[] = [...charCandidates];
-  const personas = new Map(charRows.map((r, i) => [r.characterId, personaSummaryOf(cards[i] ?? null, ctx.now())] as const));
+  const personas = new Map(charRows.map((r, i) => [r.characterId, personaSummaryOfVia(cards[i] ?? null, ctx.now())] as const));
   return {
     hostUserId,
     candidates,
@@ -353,19 +353,6 @@ async function transcriptLines(ctx: ChatContext, rows: readonly MessageView[]): 
 
 async function arbiterTranscript(ctx: ChatContext, rows: readonly MessageView[]): Promise<string> {
   return (await transcriptLines(ctx, rows)).map((line) => (line.speakerName === null ? line.text : `${line.speakerName}: ${line.text}`)).join("\n");
-}
-
-/** A card's persona text for the reranker: description, else personality, with its macros rendered against
- *  the card's own name so no `{{char}}` braces reach the model. The bound model's window caps it later. */
-function personaSummaryOf(
-  card: { readonly name: string; readonly description: string | null; readonly personality: string | null } | null,
-  nowMs: number,
-): string {
-  const text = card?.description ?? card?.personality ?? "";
-  if (card === null || text.length === 0) {
-    return "";
-  }
-  return processMacros(text, { char: card.name, user: DEFAULT_PERSONA_NAME, persona: "", scenario: "", timezone: UTC_TIME_ZONE, nowMs, env: {} });
 }
 
 /** The ban-last speaker ref for the last assistant row: its characterId or its authorUserId; null when there
