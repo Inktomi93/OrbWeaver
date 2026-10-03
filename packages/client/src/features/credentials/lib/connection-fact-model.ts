@@ -25,7 +25,16 @@
 // when stated, because a lone half would not parse at the verb.
 
 import type { DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
-import { EFFORT_SPELLINGS, foldFeatures, IMAGE_ARMS, MODEL_INFO_APIS, OUTPUT_CAP_FIELDS, PREFILL_MODES, STRICT_JSON_MODES } from "@orb/contracts/inference";
+import {
+  EFFORT_SPELLINGS,
+  foldFeatures,
+  IMAGE_ARMS,
+  MODEL_INFO_APIS,
+  NATIVE_CHAT_APIS,
+  OUTPUT_CAP_FIELDS,
+  PREFILL_MODES,
+  STRICT_JSON_MODES,
+} from "@orb/contracts/inference";
 
 /** Digit grouping for a COUNT. Deliberately not `toLocaleString`/`Intl`: these are token counts and vector
  *  widths, not dates or money, and the `no-raw-intl-time` gate exists because a bare `.toLocale*()` is Intl
@@ -275,6 +284,7 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   images: ["images"],
   rerankPath: ["rerankPath"],
   modelInfoApi: ["modelInfoApi"],
+  nativeChat: ["nativeChat"],
   sleep: ["sleep.isSleepingPath", "sleep.wakePath"],
   pricing: ["pricing.inputPerMTok", "pricing.outputPerMTok"],
   concurrency: ["concurrency.embed", "concurrency.imageEmbed", "concurrency.summarize"],
@@ -299,6 +309,7 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
   { path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS }, unset: "not set — no image generation" },
   { path: "rerankPath", name: "rerank path", edit: { kind: "text" }, unset: "not set — no reranking" },
   { path: "modelInfoApi", name: "model info API", edit: { kind: "enum", options: MODEL_INFO_APIS }, unset: NOT_SET },
+  { path: "nativeChat", name: "native chat route", edit: { kind: "enum", options: NATIVE_CHAT_APIS }, unset: "not set — chat uses /v1" },
   { path: "sleep.isSleepingPath", name: "sleep check path", edit: { kind: "text" } },
   { path: "sleep.wakePath", name: "wake path", edit: { kind: "text" } },
   { path: "pricing.inputPerMTok", name: "price in", edit: { kind: "number" }, format: perMillionTokens },

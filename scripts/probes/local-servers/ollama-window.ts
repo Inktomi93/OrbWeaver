@@ -6,10 +6,11 @@
 //
 //   node scripts/probes/local-servers/ollama-window.ts [--server-ctx=<n>]     against the `ollama` arm of rig.sh
 //
-// Arms: `stated` (no declaration: the window the editor shows), `overstated` (the window declared at the old 8192
-// floor: the control, which must lose the fact), `pinned` (a copy made on the rig with `num_ctx` set, which the
+// Arms: `stated` (no declaration: the window the editor shows), `declared` (8192 declared on the native route,
+// which sends it as `num_ctx`), `v1-control` (the same declaration with the native route turned off: `/v1` runs
+// the server default and must lose the fact), `pinned` (a copy made on the rig with `num_ctx` set, which the
 // reader states). `--server-ctx=<n>` (the arm started with `LOCAL_RIG_OLLAMA_CTX=<n>`) adds `server`: the window
-// declared at the server's `OLLAMA_CONTEXT_LENGTH`. Evidence: `results/ollama-window.jsonl`.
+// declared at the server's `OLLAMA_CONTEXT_LENGTH` over `/v1`. Evidence: `results/ollama-window.jsonl`.
 
 import process from "node:process";
 import type { AssembleContext, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
@@ -31,7 +32,7 @@ const ROOT = "http://127.0.0.1:28111";
 const MODEL = "qwen2.5:0.5b";
 const PINNED_MODEL = "qwen2.5-orb-window-probe-8k:latest";
 const PINNED_NUM_CTX = 8192;
-const OLD_ASSUMED_WINDOW = 8192;
+const DECLARED_WINDOW = 8192;
 const SECRET = "PINEAPPLE";
 const FACT = `Mara's secret word is ${SECRET}. `;
 /** Longer than any arm's window, and below 13 × 17 so every message's line pair is unique. */
@@ -228,7 +229,11 @@ async function arm(name: string, model: string, declared: DeclaredCapability | n
 await waitFor(`${ROOT}/api/version`, HEALTH_TRIES);
 const verdict: Record<string, boolean> = {};
 verdict["stated"] = await arm("stated", MODEL, null);
-verdict["overstated"] = await arm("overstated (old 8192 floor)", MODEL, { generation: { context: { window: OLD_ASSUMED_WINDOW } } });
+verdict["declared"] = await arm("declared 8192, native route", MODEL, { generation: { context: { window: DECLARED_WINDOW } } });
+verdict["v1-control"] = await arm("declared 8192, /v1 (control)", MODEL, {
+  features: { nativeChat: "none" },
+  generation: { context: { window: DECLARED_WINDOW } },
+});
 
 // The pin is the rig's own, made here on purpose and removed after: the app itself never creates a model.
 const created = await http(`${ROOT}/api/create`, { body: { model: PINNED_MODEL, from: MODEL, parameters: { num_ctx: PINNED_NUM_CTX }, stream: false } });
@@ -240,7 +245,10 @@ if (created.status === HTTP_OK) {
 
 const serverCtx = process.argv.find((arg) => arg.startsWith(SERVER_CTX_FLAG))?.slice(SERVER_CTX_FLAG.length);
 if (serverCtx !== undefined) {
-  verdict["server"] = await arm(`server OLLAMA_CONTEXT_LENGTH=${serverCtx}, declared`, MODEL, { generation: { context: { window: Number(serverCtx) } } });
+  verdict["server"] = await arm(`server OLLAMA_CONTEXT_LENGTH=${serverCtx}, declared, /v1`, MODEL, {
+    features: { nativeChat: "none" },
+    generation: { context: { window: Number(serverCtx) } },
+  });
 }
 log.row({ kind: "verdict", verdict });
 console.log(JSON.stringify({ verdict }));

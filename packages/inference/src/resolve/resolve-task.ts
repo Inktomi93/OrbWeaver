@@ -31,7 +31,7 @@ import type { ModelId } from "@orb/kit/ids";
 import { googleModelId } from "../backends/google/model.ts";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
-import { applyEndpointPosture } from "../capability/floor.ts";
+import { applyEndpointPosture, clampToTrainedWindow } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
 import { advertisedFromOpenAiCompat, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
@@ -319,9 +319,13 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   const synthesized = synthesizeCapability(kind, family, evidence);
   // D292: the row's own declaration or its server's advertisement states what a turn may carry; only a row
   // nobody described gets the permissive posture.
-  const advertisedInput = advertisedStatesInput(endpointEntryFor(ctx, { provider, connection, model }));
+  const entry = endpointEntryFor(ctx, { provider, connection, model });
+  const advertisedInput = advertisedStatesInput(entry);
   const capability = withLocalLightEmbedDtype(
-    applyEndpointPosture(provider, synthesized.capability, declared?.generation?.input !== undefined || advertisedInput),
+    clampToTrainedWindow(
+      applyEndpointPosture(provider, synthesized.capability, declared?.generation?.input !== undefined || advertisedInput),
+      entry?.contextTrained,
+    ),
     provider,
     declared?.embedding?.dtype,
     ctx.deps.localLight?.embedDtype,
@@ -330,14 +334,17 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     baselineKind === undefined
       ? undefined
       : withLocalLightEmbedDtype(
-          applyEndpointPosture(
-            provider,
-            synthesizeCapability(baselineKind, family, {
-              ...evidence,
-              declared: undefined,
-              advertised: advertisedFor(ctx, { provider, connection, model, kind: baselineKind }),
-            }).capability,
-            advertisedInput,
+          clampToTrainedWindow(
+            applyEndpointPosture(
+              provider,
+              synthesizeCapability(baselineKind, family, {
+                ...evidence,
+                declared: undefined,
+                advertised: advertisedFor(ctx, { provider, connection, model, kind: baselineKind }),
+              }).capability,
+              advertisedInput,
+            ),
+            entry?.contextTrained,
           ),
           provider,
           undefined,

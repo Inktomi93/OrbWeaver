@@ -255,4 +255,41 @@ describe("the endpoint mirror forgets on save and on inspection", () => {
     const read = requireGenerationCapability((await h.svc.capabilities({ principal: owner.principal, connectionId: pinned.id })).capability);
     expect(read.context).toEqual({ window: 16_384 });
   });
+
+  // The native route sends the window as `num_ctx`, and Ollama clamps it to the trained maximum at load, so a
+  // declared window above that maximum would budget the fit past what the server runs.
+  test("a declared Ollama window above the model's trained maximum resolves to the maximum", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, {
+      routes: [
+        { match: "/api/version", json: { version: "0.35.1" } },
+        { match: "/api/ps", json: { models: [] } },
+        { match: "/api/show", json: { capabilities: ["completion"], ["model_info"]: { ["llama.context_length"]: 8192 } } },
+        { match: "/models", json: { data: [{ id: "llama3:8b" }] } },
+      ],
+    });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: OLLAMA,
+      credentialId: null,
+      baseUrl: OLLAMA_URL,
+      model: "llama3:8b",
+      declared: { generation: { context: { window: 32_768 } } },
+    });
+    const read = await h.svc.capabilities({ principal: owner.principal, connectionId: row.id });
+    expect(requireGenerationCapability(read.capability).context.window).toBe(8192);
+    // PLANTED CONTROL: a declared window inside the maximum stands.
+    const inside = await h.svc.create({
+      principal: owner.principal,
+      providerId: OLLAMA,
+      credentialId: null,
+      baseUrl: OLLAMA_URL,
+      model: "llama3:8b",
+      declared: { generation: { context: { window: 6144 } } },
+    });
+    expect(requireGenerationCapability((await h.svc.capabilities({ principal: owner.principal, connectionId: inside.id })).capability).context.window).toBe(
+      6144,
+    );
+  });
 });

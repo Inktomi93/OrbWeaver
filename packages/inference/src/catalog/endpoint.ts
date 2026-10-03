@@ -204,12 +204,18 @@ function ollamaTrainedWindow(show: z.infer<typeof ollamaShowSchema> | null): num
 
 // Ollama clamps `num_ctx` to the trained maximum when it loads the runner, so neither a pin nor the default
 // floor can be a window above it.
-function ollamaWindow(show: z.infer<typeof ollamaShowSchema> | null, contextFloor: number): Pick<EndpointModel, "contextLength" | "contextFloor"> {
-  const trained = ollamaTrainedWindow(show) ?? Number.POSITIVE_INFINITY;
+function ollamaWindow(
+  show: z.infer<typeof ollamaShowSchema> | null,
+  contextFloor: number,
+): Pick<EndpointModel, "contextLength" | "contextFloor" | "contextTrained"> {
+  const stated = ollamaTrainedWindow(show);
+  const trained = stated ?? Number.POSITIVE_INFINITY;
   const pinned = show?.parameters === undefined ? undefined : NUM_CTX_RE.exec(show.parameters)?.[1];
-  return pinned === undefined
-    ? { contextLength: null, contextFloor: Math.min(contextFloor, trained) }
-    : { contextLength: Math.min(Number.parseInt(pinned, 10), trained) };
+  const window =
+    pinned === undefined
+      ? { contextLength: null, contextFloor: Math.min(contextFloor, trained) }
+      : { contextLength: Math.min(Number.parseInt(pinned, 10), trained) };
+  return { ...window, ...(stated === undefined ? {} : { contextTrained: stated }) };
 }
 
 function ollamaFacts(show: z.infer<typeof ollamaShowSchema> | null, contextFloor: number): Partial<EndpointModel> {

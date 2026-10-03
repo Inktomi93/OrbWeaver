@@ -99,10 +99,10 @@ test("an Ollama row states only a pinned window, and assumes the default floor f
     seen,
   );
   expect(rows).toEqual([
-    { id: "pinned:8b", contextLength: 16_384, structured: true },
-    { id: "loaded-wide:8b", contextLength: null, contextFloor: 4096, structured: true },
-    { id: "loaded-narrow:8b", contextLength: null, contextFloor: 2048, structured: true },
-    { id: "cold:8b", contextLength: null, contextFloor: 4096, structured: true },
+    { id: "pinned:8b", contextLength: 16_384, contextTrained: 131_072, structured: true },
+    { id: "loaded-wide:8b", contextLength: null, contextFloor: 4096, contextTrained: 131_072, structured: true },
+    { id: "loaded-narrow:8b", contextLength: null, contextFloor: 2048, contextTrained: 131_072, structured: true },
+    { id: "cold:8b", contextLength: null, contextFloor: 4096, contextTrained: 131_072, structured: true },
     { id: "nomic-embed-text:latest", contextLength: null, contextFloor: 4096, embeddingDims: 768, structured: true },
   ]);
   expect(seen).toContain("http://127.0.0.1:11434/api/ps");
@@ -122,9 +122,9 @@ test("an Ollama window, pinned or assumed, is clamped to a trained maximum below
     loaded: [],
   });
   expect(rows).toEqual([
-    { id: "pinned-past-trained:8b", contextLength: 8192, structured: true },
-    { id: "floor-past-trained:1b", contextLength: null, contextFloor: 2048, structured: true },
-    { id: "pinned-within-trained:8b", contextLength: 16_384, structured: true },
+    { id: "pinned-past-trained:8b", contextLength: 8192, contextTrained: 8192, structured: true },
+    { id: "floor-past-trained:1b", contextLength: null, contextFloor: 2048, contextTrained: 2048, structured: true },
+    { id: "pinned-within-trained:8b", contextLength: 16_384, contextTrained: 131_072, structured: true },
   ]);
 });
 
@@ -192,12 +192,21 @@ test("Ollama: each model's capabilities state its kind, modalities and tools; th
   await expect(rows).resolves.toEqual([
     // An embedder: its kind and width, nothing a chat model would state. Its Modelfile pins 8192, but the GGUF
     // was trained at 2048 (`nomic-bert.context_length`), and Ollama clamps the pin to that at load.
-    { id: "nomic-embed-text:latest", contextLength: 2048, kind: "embedding", embeddingDims: 768, structured: true },
+    { id: "nomic-embed-text:latest", contextLength: 2048, contextTrained: 2048, kind: "embedding", embeddingDims: 768, structured: true },
     // A vision model without tools: image input stated, tools absent (the server refuses `tools[]` for it). Its
     // trained 2048 (`phi2.context_length`) clamps the 4096 default floor.
-    { id: "moondream:latest", contextLength: null, contextFloor: 2048, kind: "generation", input: ["text", "image"], structured: true },
+    { id: "moondream:latest", contextLength: null, contextFloor: 2048, contextTrained: 2048, kind: "generation", input: ["text", "image"], structured: true },
     // A tool model without vision: text only, so the posture never offers it an image it would refuse.
-    { id: "qwen2.5:0.5b", contextLength: null, contextFloor: 4096, kind: "generation", input: ["text"], tools: { parallel: false }, structured: true },
+    {
+      id: "qwen2.5:0.5b",
+      contextLength: null,
+      contextFloor: 4096,
+      contextTrained: 32_768,
+      kind: "generation",
+      input: ["text"],
+      tools: { parallel: false },
+      structured: true,
+    },
   ]);
   expect(warnings).toEqual([]);
 });
@@ -208,7 +217,7 @@ test("Ollama: a build without `capabilities` states no kind, modalities or tools
     "api-show-qwen2.5-0.5b": { model_info: { "qwen2.context_length": 32_768, "qwen2.embedding_length": 896 } },
   });
   const qwen = (await rows).find((row) => row.id === "qwen2.5:0.5b");
-  expect(qwen).toEqual({ id: "qwen2.5:0.5b", contextLength: null, contextFloor: 2048, embeddingDims: 896, structured: false });
+  expect(qwen).toEqual({ id: "qwen2.5:0.5b", contextLength: null, contextFloor: 2048, contextTrained: 32_768, embeddingDims: 896, structured: false });
   // No version answer at all: structured stays unstated rather than false.
   const silent = await readArm("ollama", "ollama", { "api-version": undefined }).rows;
   expect(silent.find((row) => row.id === "qwen2.5:0.5b")?.structured).toBeUndefined();

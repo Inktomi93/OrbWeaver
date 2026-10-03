@@ -120,7 +120,10 @@ export const BUILTIN_PROVIDER_ROWS = [
     apis: ["chat-completions"],
     features: {
       prefill: "none",
+      // Ollama reads `reasoning_effort` as `think` on both chat routes (off for `none`).
+      effort: "reasoning_effort",
       modelInfoApi: "ollama",
+      nativeChat: "ollama",
     },
     catalog: "url",
     metered: false,

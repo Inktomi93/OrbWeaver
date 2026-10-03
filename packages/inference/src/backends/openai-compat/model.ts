@@ -2,7 +2,9 @@
 // resolved connection through the transport package its provider row names (`dialect`, §8.1). Per call, not
 // per connection: the `transformRequestBody` / `wrapFetch` hooks close over THIS call's plan, warnings sink,
 // chat id and capture context, and an SDK provider object is a handful of closures — there is nothing to
-// cache. The dialect `Record` is the exhaustive map (a third transport package is a compile error here).
+// cache. The dialect `Record` is the exhaustive map (a third transport package is a compile error here). A row
+// whose folded `features.nativeChat` names a server's own chat route keeps the transport and translates its
+// chat calls (`ollama-native.ts`).
 
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { EmbeddingModelV4, ImageModelV4, LanguageModelV4 } from "@ai-sdk/provider";
@@ -21,6 +23,7 @@ import { wrapFetch } from "../v4/fetch.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import type { ShapeArgs } from "./body.ts";
 import { shapeOutboundBody } from "./body.ts";
+import { ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
 import type { ReasoningTags } from "./think-tags.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
 
@@ -143,6 +146,33 @@ function openAiCompatibleProvider(call: ModelCall): ReturnType<typeof createOpen
   });
 }
 
+/** The window a native row sends as `num_ctx`: the resolved capability's, so the server runs what the fit
+ *  budgets against. */
+function nativeWindow(call: ModelCall): number | undefined {
+  const capability = call.connection.capability;
+  return capability.kind === "generation" ? capability.generation.context.window : undefined;
+}
+
+/** A row whose folded `features.nativeChat` is `ollama` (D296): the same SDK and the same body shaping, with
+ *  the request translated to `/api/chat` in `shapeBody` (so the capture holds the native body) and the reply
+ *  translated back underneath `wrapFetch`. */
+function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICompatible> {
+  const { connection, deps } = call;
+  const baseUrl = baseUrlOf(call);
+  const args = shapeArgs(call, "openai-compatible");
+  const withExtra = (body: Record<string, unknown>): Record<string, unknown> => shapeOutboundBody({ ...body, ...(call.extraBody ?? {}) }, args);
+  const toNative = (body: Record<string, unknown>): Record<string, unknown> => toOllamaChat(body, { numCtx: nativeWindow(call), label: call.label });
+  return createOpenAICompatible({
+    name: connection.providerId,
+    baseURL: openAiPath(baseUrl, ""),
+    headers: authHeaders(connection.credential.secret, connection.transport?.headers),
+    fetch: wrapFetch({ ...fetchArgs(call, toNative), fetch: ollamaNativeFetch(deps.fetch, { baseUrl, label: call.label }) }),
+    includeUsage: true,
+    supportsStructuredOutputs: connection.features.strictJson !== "never",
+    transformRequestBody: withExtra,
+  });
+}
+
 function openRouterProvider(call: ModelCall): ReturnType<typeof createOpenRouter> {
   const { connection, deps } = call;
   const args = shapeArgs(call, "openrouter");
@@ -177,7 +207,8 @@ const TRANSPORTS: Record<Dialect, Transport> = {
 };
 
 export function languageModelFor(call: ModelCall): LanguageModelV4 {
-  const model = TRANSPORTS[dialectOf(call)].language(call);
+  const model =
+    call.connection.features.nativeChat === "ollama" ? ollamaNativeProvider(call).chatModel(call.connection.model) : TRANSPORTS[dialectOf(call)].language(call);
   // The F-table "Adopt" row: a server with NO native reasoning field and an XML-shaped preset tag pair gets
   // the SDK's stream-time splitter. Empty list ⇒ the bare model, so every other row is byte-identical and
   // pays no wrapper (`wrapLanguageModel` with no middleware would still be a layer on every turn).

@@ -242,3 +242,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D292 | [A local server that states its modalities is taken at its word](0292-local-server-stated-modalities.md) | active |
 | D293 | [Memory is off until each user turns it on, behind a cost confirm](0293-memory-is-off-until-each-user-turns-it-on.md) | active |
 | D294 | [Rich content uses trust tiers, and interactive story cards are on by default](0294-interactive-story-cards-are-on-by-default.md) | active |
+| D296 | [Ollama chat rides its native route](0296-ollama-chat-rides-its-native-route.md) | active |

@@ -80,6 +80,21 @@ What the reader does with it (`withOllamaInfo` in `packages/inference/src/catalo
 version, lowered by a smaller loaded runner and never raised by one. The capability assumes the floor and marks
 it, so the editor shows "4,096 tokens (assumed)".
 
+## Ollama window on the native route (D296)
+
+The built-in Ollama row now sends chat to `/api/chat` with the resolved window as `options.num_ctx`
+(`packages/inference/src/backends/openai-compat/ollama-native.ts`), so a declared window is the window the
+server runs. The same probe, same server default (4096):
+
+| Arm | Window shown | Sent | Evaluated | Recalled |
+| - | - | - | - | - |
+| no declaration | 4096, assumed | 3592 | 3592 | yes |
+| 8192 declared, native route | 8192 | 6975 | 6975 | yes |
+| 8192 declared, `nativeChat: none` (`/v1`, the control) | 8192 | 6975 | 4089 | no |
+| copy pinned with `num_ctx 8192` | 8192, reported | 6975 | 6975 | yes |
+
+The tables below were measured on `/v1`, before the native route.
+
 ## Ollama window through the app's own path (`ollama-window.ts`)
 
 The real resolve (the capability the editor shows) and the real turn pipeline (assembly, the history fit

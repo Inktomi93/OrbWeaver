@@ -45,6 +45,12 @@ export const OUTPUT_CAP_FIELDS = ["max_tokens", "max_completion_tokens"] as cons
 export const MODEL_INFO_APIS = ["ollama", "llama-cpp", "koboldcpp"] as const;
 export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 
+/** A server's native chat route, sent instead of `/v1/chat/completions` (D296). `ollama` = `POST /api/chat`,
+ *  which takes `options.num_ctx` and the samplers the OpenAI route drops; `none` = `/v1`, the override that
+ *  turns a provider row's native route off. Embeddings stay on `/v1`. */
+export const NATIVE_CHAT_APIS = ["ollama", "none"] as const;
+export type NativeChatApi = (typeof NATIVE_CHAT_APIS)[number];
+
 export const endpointFeaturesSchema = z.object({
   prefill: z.enum(PREFILL_MODES).optional(),
   strictJson: z.enum(STRICT_JSON_MODES).optional(),
@@ -52,6 +58,7 @@ export const endpointFeaturesSchema = z.object({
   outputCapField: z.enum(OUTPUT_CAP_FIELDS).optional(),
   images: z.enum(IMAGE_ARMS).optional(),
   modelInfoApi: z.enum(MODEL_INFO_APIS).optional(),
+  nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
   /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
   rerankPath: z.string().optional(),
   /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads
