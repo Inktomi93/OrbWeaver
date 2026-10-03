@@ -83,6 +83,8 @@ interface Harness {
 function harness(
   overrides: {
     readonly deployExternal?: boolean;
+    /** A LIVE external-media ceiling read, for the revocation tests that flip it between a mint and a serve. */
+    readonly externalCeiling?: () => boolean;
     /** The deployment interactive-card ceiling. Defaults TRUE, its shipped floor; the ceiling's own tests
      *  pass it explicitly. */
     readonly deployInteractive?: boolean;
@@ -101,7 +103,7 @@ function harness(
   let actor: Principal | null = ALICE;
   const deps: CardFrameDeps = {
     participants: { listParticipants: overrides.roster ?? ((): Promise<readonly ParticipantView[]> => Promise.resolve(ROSTER)) },
-    allowExternalMedia: () => overrides.deployExternal ?? true,
+    allowExternalMedia: overrides.externalCeiling ?? ((): boolean => overrides.deployExternal ?? true),
     allowInteractiveCards: overrides.interactiveCeiling ?? ((): boolean => overrides.deployInteractive ?? true),
     viewerRunsCardScripts: (viewer) => Promise.resolve(overrides.viewerScripts?.(viewer) ?? true),
     now: () => 1_000_000,
@@ -478,6 +480,37 @@ describe("card-frame — revocation at serve", () => {
     expect(scriptSrcOf(await h.serve(url))).toBe("script-src 'unsafe-inline'");
     preference.runCardScripts = false;
     expect(scriptSrcOf(await h.serve(url))).toBe(staticScriptSrc);
+  });
+
+  const imgSrcOf = (res: Response): string | undefined =>
+    (res.headers.get("content-security-policy") ?? "").split("; ").find((directive) => directive.startsWith("img-src "));
+
+  test("an admin forbidding external media withdraws it from a handle minted while it was allowed", async () => {
+    const deployment = { external: true };
+    const h = harness({ externalCeiling: () => deployment.external });
+    const url = await mintUrl(h);
+    expect(imgSrcOf(await h.serve(url))).toBe("img-src 'self' data: https:");
+    deployment.external = false;
+    expect(imgSrcOf(await h.serve(url))).toBe("img-src 'self' data:");
+  });
+
+  test("a host forbidding the character's external media, or lowering it to untrusted, narrows the next serve", async () => {
+    let roster: readonly ParticipantView[] = ROSTER;
+    const h = harness({ roster: (): Promise<readonly ParticipantView[]> => Promise.resolve(roster) });
+    const url = await mintUrl(h);
+    roster = ROSTER.map((seat) => (seat.characterId === TRUSTED ? participant(TRUSTED, { htmlTrust: "trusted", forbidExternalMedia: true }) : seat));
+    expect(imgSrcOf(await h.serve(url))).toBe("img-src 'self' data:");
+    roster = ROSTER.map((seat) => (seat.characterId === TRUSTED ? participant(TRUSTED, { htmlTrust: "untrusted", forbidExternalMedia: true }) : seat));
+    expect(imgSrcOf(await h.serve(url))).toBe("img-src 'self'");
+  });
+
+  test("a serve never widens media either: a handle minted under the floor keeps it when the seat is later allowed", async () => {
+    let roster: readonly ParticipantView[] = ROSTER;
+    const h = harness({ roster: (): Promise<readonly ParticipantView[]> => Promise.resolve(roster) });
+    const url = await mintUrl(h, { ...CARD, characterId: UNTRUSTED });
+    const minted = imgSrcOf(await h.serve(url));
+    roster = ROSTER.map((seat) => (seat.characterId === UNTRUSTED ? participant(UNTRUSTED, { htmlTrust: "trusted", forbidExternalMedia: false }) : seat));
+    expect(imgSrcOf(await h.serve(url))).toBe(minted);
   });
 
   test("a serve can only withdraw: a handle minted STATIC is never promoted when the seat later resolves interactive", async () => {

@@ -3,6 +3,7 @@
 // 2026-08-22 (#428, the neo floor is obsolete), so THIS is now the ONLY home; it pins the orbweaver-side
 // invariants directly: the 3 breakpoint-undefined cases, the offset/clamp/floor math, the neo-quirk →
 // undefined divergence, and the no-if(isGroup) solo-byte-identical contract.
+
 import type { AssembleContext, ChatInjection, ChatReasoningPart, MessageView, ShapeFoldReason } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/inference";
 import { ROLE_HANDLING, SYSTEM_ROW_PLACEMENT } from "@orb/contracts/inference";
@@ -15,6 +16,7 @@ import { castId, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
@@ -586,6 +588,7 @@ describe("shape — the built-in preset delivers memory, databank and the guided
   /** Where each per-turn value sits in `text`, in the preset's order (-1 when absent). */
   const offsets = (text: string): number[] => perTurn.map((value) => text.indexOf(value));
   const assembled = assemblePrompt(DEFAULT_PROMPT_CONFIG, {
+    timezone: UTC_TIME_ZONE,
     character: { name: "Aria", description: "a bold knight" },
     promptConfig: DEFAULT_PROMPT_CONFIG,
     recentMessages: [],

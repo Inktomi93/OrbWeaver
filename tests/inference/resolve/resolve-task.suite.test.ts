@@ -5,10 +5,11 @@
 import type { Capability, GenerationCapability } from "@orb/contracts/inference";
 import { GENERATION_FLOOR, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, NoConnectionError } from "@orb/inference";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { openRouterCatalogFetch } from "../_openrouter-catalog.ts";
-import { FROZEN_NOW, fakeConnection, fakeDeps, memoryStores, newRuleId, newUserId } from "../_support.ts";
+import { FROZEN_NOW, fakeApiKeySecret, fakeConnection, fakeDeps, memoryStores, newRuleId, newUserId } from "../_support.ts";
 import { localServerFetch } from "../catalog/_local-servers-fetch.ts";
 
 test("structured resolves through the actor's summarize binding before the funder's summarize binding", async () => {
@@ -356,6 +357,14 @@ test("an Ollama tool model folds tools and text-only input from `/api/show`, and
   expect(moondream.tools).toBeUndefined();
 });
 
+test("an untagged Ollama model id finds its `:latest` catalog entry, so the server's stated facts reach the fold", async () => {
+  const bare = generationOf(await ollamaResolved("moondream", "chat"));
+  const tagged = generationOf(await ollamaResolved("moondream:latest", "chat"));
+  expect(bare.input).toEqual(["text", "image"]);
+  expect(bare.modalitiesEstimated).toBeUndefined();
+  expect(bare.context).toEqual(tagged.context);
+});
+
 test("an Ollama embedder resolves as an embedder from `/api/show` alone, with the width it states", async () => {
   await expect(ollamaResolved("nomic-embed-text:latest", "embed")).resolves.toMatchObject({ kind: "embedding", embedding: { dims: 768 } });
   // The kind is the server's statement, not the task's fallback: the same row cannot serve a chat turn.
@@ -493,4 +502,30 @@ test("invalidateEndpoint forgets ONE connection's (URL × reader) mirror in memo
   expect(showDials(seen), "the forgotten mirror dials again").toBeGreaterThan(before);
   await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: custom.id });
   expect(seen.filter((url) => url.endsWith("/v1/models")).length - listDials, "the sibling's mirror was not touched: only the ollama re-warm listed").toBe(1);
+});
+
+test("two credentials on one authenticated gateway keep their own model lists, and one save forgets only its own", async () => {
+  const stores = memoryStores();
+  const credA = mintTypeId(ID_PREFIX.userCredential);
+  const credB = mintTypeId(ID_PREFIX.userCredential);
+  const ownerA = newUserId();
+  const ownerB = newUserId();
+  const base = { providerId: "custom-openai", model: "listed-model", baseUrl: "http://gateway.test/v1" } as const;
+  const rowA = fakeConnection({ ...base, ownerId: ownerA, credentialId: credA });
+  const rowB = fakeConnection({ ...base, ownerId: ownerB, credentialId: credB });
+  stores.connections.rows.set(rowA.id, rowA);
+  stores.connections.rows.set(rowB.id, rowB);
+  const secrets = new Map([
+    [credA, fakeApiKeySecret("key-a")],
+    [credB, fakeApiKeySecret("key-b")],
+  ]);
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, secrets, fetch: idOnlyModelList() }));
+
+  await runtime.resolve({ task: "chat", principal: principal(ownerA), connectionId: rowA.id });
+  await runtime.resolve({ task: "chat", principal: principal(ownerB), connectionId: rowB.id });
+
+  const gatewayKeys = (): string[] => [...stores.snapshotStore.entries.keys()].filter((key) => key.startsWith("catalog:endpoint:")).sort();
+  expect(gatewayKeys()).toEqual([`catalog:endpoint:http://gateway.test/v1#@${credA}#list`, `catalog:endpoint:http://gateway.test/v1#@${credB}#list`].sort());
+  await runtime.catalogs.invalidateEndpoint(rowA);
+  expect(gatewayKeys()).toEqual([`catalog:endpoint:http://gateway.test/v1#@${credB}#list`]);
 });

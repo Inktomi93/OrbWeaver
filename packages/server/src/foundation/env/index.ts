@@ -202,24 +202,31 @@ function loadEnvFileWithOverride(override: boolean): void {
 const LAUNCH_ONLY_ENV_KEYS = [
   {
     key: "AUTH_FALLBACK",
-    why: ".env's override:true would force it into every mode including dev (lockout risk). Leave it unset and it resolves per AUTH_MODE — 'owner' for single-user, 'deny' for local/oidc/forward-header; to override that, set it in the launcher's environment (`stack up prod` / `docker run -e`), never here.",
+    why: (): string =>
+      ".env's override:true would force it into every mode including dev (lockout risk). Leave it unset and it resolves per AUTH_MODE — 'owner' for single-user, 'deny' for local/oidc/forward-header; to override that, set it in the launcher's environment (`stack up prod` / `docker run -e`), never here.",
   },
   {
     key: "AUTH_FALLBACK_TRUSTED_PEERS",
-    why: `it widens who is the un-credentialed OWNER, and .env's override:true would carry that widening into every launch from this directory, including a dev or prod run that never meant to open it. A container takes it from its own env file, never the app's .env: ${settingInstruction(true, [["AUTH_FALLBACK_TRUSTED_PEERS", "<CIDR list>"]])}`,
+    why: (inContainer: boolean): string =>
+      `it widens who is the un-credentialed OWNER, and .env's override:true would carry that widening into every launch from this directory, including a dev or prod run that never meant to open it. ${
+        inContainer
+          ? `A container takes it from its own env file, never the app's .env: ${settingInstruction(true, [["AUTH_FALLBACK_TRUSTED_PEERS", "<CIDR list>"]])}`
+          : "On bare metal, export it in the environment of the shell or service that starts the server, never in .env."
+      }`,
   },
   {
     key: SUPERVISOR_ENV_KEY,
-    why: "pnpm start sets it on the server it supervises. In .env it would tell every launch that a supervisor will start it again, so an in-app restart would stop a server that nothing restarts. Delete the line.",
+    why: (): string =>
+      "pnpm start sets it on the server it supervises. In .env it would tell every launch that a supervisor will start it again, so an in-app restart would stop a server that nothing restarts. Delete the line.",
   },
 ] as const;
 
 /** The #301 refusal itself, lifted out of the superRefine so a THIRD launch-only knob costs one table row and
  *  no branch in the parse. Every declared key gets its own issue — an operator who pinned two sees two. */
-function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx): void {
+function refuseLaunchOnlyEnvFileKeys(ctx: z.RefinementCtx, inContainer: boolean): void {
   for (const entry of LAUNCH_ONLY_ENV_KEYS) {
     if (envFileKeys.has(entry.key)) {
-      ctx.addIssue({ code: "custom", path: [entry.key], message: `${entry.key} must not be set in .env — ${entry.why}` });
+      ctx.addIssue({ code: "custom", path: [entry.key], message: `${entry.key} must not be set in .env — ${entry.why(inContainer)}` });
     }
   }
 }
@@ -701,7 +708,7 @@ const envSchema = z
     // GENERALIZED: the rule is now a TABLE (`LAUNCH_ONLY_ENV_KEYS`) rather than one predicate, because
     // `AUTH_FALLBACK_TRUSTED_PEERS` is launch-only for the same reason with a different consequence — each
     // key carries its own operator sentence, and a third knob is a row, not a second copy of this block.
-    refuseLaunchOnlyEnvFileKeys(ctx);
+    refuseLaunchOnlyEnvFileKeys(ctx, runsInContainer(val.ORB_CONTAINER));
     // THE WIDENED FALLBACK PEER SET × BREAK-GLASS (docs/law/container-deployment-security.md).
     // Same fail-fast family as the blocks above, and the one combination the widening may never enter.
     // `AUTH_BREAK_GLASS=true` exists to unlock ONE thing: a brief, on-box, proxy-off recovery session in an

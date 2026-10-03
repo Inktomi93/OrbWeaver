@@ -298,6 +298,31 @@ test("cancelling the translated stream cancels Ollama's stream, so an abort reac
   expect(cancelled).toBe(true);
 });
 
+test("a line split across three reads still streams to [DONE]", async () => {
+  const line = '{"message":{"role":"assistant","content":"hello"},"done":false}\n';
+  const cut = Math.floor(line.length / 3);
+  const parts = [line.slice(0, cut), line.slice(cut, cut * 2), line.slice(cut * 2)];
+  const encoder = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    start(controller): void {
+      for (const part of parts) {
+        controller.enqueue(encoder.encode(part));
+      }
+      controller.close();
+    },
+  });
+  const inner: typeof fetch = () => Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "application/x-ndjson" } }));
+  const res = await ollamaNativeFetch(inner, { baseUrl: BASE_URL, label: "t" })(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
+  const text = await Promise.race([
+    res.text(),
+    new Promise<string>((resolve) => {
+      setTimeout(() => resolve("HUNG"), 2000);
+    }),
+  ]);
+  expect(text).toContain('"content":"hello"');
+  expect(text.endsWith("data: [DONE]\n\n")).toBe(true);
+});
+
 test("a recorded error answer reaches the turn as the server's own message", async () => {
   const failed = turn([OLLAMA_NATIVE_RECORDINGS.missing]);
   await expect(failed).rejects.toThrow(/no-such-model:latest' not found/u);

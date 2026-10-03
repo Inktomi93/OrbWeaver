@@ -2,6 +2,7 @@
 // through the real turn pipeline and backend per wire. Mover: the arm (sections off, below Chat History as shipped,
 // or above it). OR12_WIRES / OR12_ARMS / OR12_TURNS narrow a run; OR12_CAP_USD stops it at an estimated spend.
 
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { randomUUID } from "node:crypto";
 import type { AssembleContext, ChatInjection, ChatReasoningPart, MessageView } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
@@ -316,6 +317,7 @@ async function runOne(args: {
     origin: "new-chat-marker",
   };
   const base: AssembleContext = {
+    timezone: UTC_TIME_ZONE,
     character: CHARACTER,
     promptConfig: config,
     activePersona: PERSONA,

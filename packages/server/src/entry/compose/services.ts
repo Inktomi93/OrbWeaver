@@ -417,7 +417,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     versionIdentity,
     // The manual update check's one GET. Wired here (never imported by the domain) so the egress belt stays
     // on this side of the tier line, exactly like `materializeBackground` above it.
-    probeUpstream: createUpstreamProbes({ localVersion: () => versionIdentity().version }),
+    probeUpstream: createUpstreamProbes({ localVersion: () => versionIdentity().version, now }),
     publishPrivateEndpointAllowlist,
   };
   // The workload contribution registry is assembled LAST (it spans every owning domain, chat included) but

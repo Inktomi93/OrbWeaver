@@ -1579,6 +1579,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       groupCharacters: (args) => backfillGroupCharacters(chatCtx, args),
       // A host asks for their own estimate BEFORE turning memory on (the switch's confirm), so the singular count
       // reads the admin defaults without the host's opt-out; the bulk count honours each host's switch, as the sweep does.
+      // A retry or a start is counted only if the workloads door would admit it (`admit` above), so only the
+      // switch's confirm sees this count while the host's switch is still off.
       estimateMemory: (args) =>
         estimateMemoryBackfillCalls(
           chatCtx,

@@ -22,7 +22,7 @@ import type { RoleClientsWithSignal } from "@orb/inference";
 import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
-import { can, isAdmin, requireOwner } from "#domain/admin";
+import { can, isAdmin, isOwner, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { MemoryEmbedSpace } from "#domain/chat";
@@ -377,6 +377,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newWorkloadId: minter(ID_PREFIX.workload),
     newScheduleId: minter(ID_PREFIX.workloadSchedule),
     requireOwner,
+    isOwner,
     isAdmin,
   });
 

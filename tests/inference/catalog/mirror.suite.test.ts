@@ -134,3 +134,42 @@ test("a failed warm's reason is scrubbed of the dialing secret, and a coalesced 
   expect(reason).toMatch(/HTTP 401/u);
   expect(reason).not.toContain(dialingSecret);
 });
+
+test("a warm in flight when the mirror is invalidated does not publish its stale answer, and the next warm fetches fresh", async () => {
+  let release: ((value: string[]) => void) | undefined;
+  let markStarted: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  const writes: string[] = [];
+  const mirror = createMirror({
+    key: "models",
+    schema: rowsSchema,
+    deps: {
+      now: () => 5000,
+      snapshotStore: {
+        read: () => Promise.resolve(null),
+        write: (_key, value) => {
+          writes.push(value);
+          return Promise.resolve();
+        },
+        deletePrefix: () => Promise.resolve(),
+      },
+      warn: () => undefined,
+    },
+  });
+  const stale = mirror.warm(() => {
+    markStarted?.();
+    return new Promise<string[]>((resolve) => {
+      release = resolve;
+    });
+  }, NO_PROVIDER_SECRETS);
+  await started;
+  mirror.invalidate();
+  // A warm after the invalidate must not coalesce onto the one that will not publish.
+  expect(await mirror.warm(() => Promise.resolve(["fresh"]), NO_PROVIDER_SECRETS)).toEqual({ ok: true, value: ["fresh"] });
+  release?.(["stale"]);
+  await stale;
+  expect(mirror.get()).toEqual(["fresh"]);
+  expect(writes).toEqual([JSON.stringify({ fetchedAt: 5000, value: ["fresh"] })]);
+});

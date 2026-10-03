@@ -156,7 +156,7 @@ function seededPrng(seed = 1): () => number {
 
 // A frozen {{roll:d20}} bakes to a literal number; the identity {{user}} stays raw (per-view at read).
 const FROZEN_ROLL_RE = /^I roll (\d+) and \{\{user\}\} smiles$/;
-// A frozen {{time}} bakes to the send-time clock (HH:mm:ss); server-local zone, so assert the SHAPE.
+// A frozen {{time}} bakes to the send-time clock (HH:mm:ss); UTC when no viewer zone is sent, so assert the SHAPE.
 const FROZEN_TIME_RE = /^the time is \d{2}:\d{2}:\d{2}$/;
 
 const PERSONAS: { anchor: AssemblePersona | null; active: AssemblePersona | null } = {

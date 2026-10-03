@@ -99,7 +99,7 @@ export type EditImageSource = { readonly assetId: AssetId } | { readonly bytes: 
 
 /** `editImage` — explicit edit of an existing owned image (doc 02 §4). `instruction` is the edit prompt used
  *  VERBATIM (no template, no extraction — an edit instruction is not keyword soup); `chatId` is provenance
- *  only. Throws `ImageEditUnsupportedError` when the resolved model lacks `input.imageEdit` (the asymmetric
+ *  only, recorded when the caller is a participant of that chat. Throws `ImageEditUnsupportedError` when the resolved model lacks `input.imageEdit` (the asymmetric
  *  posture — doc 01 §3.4). Edits are never reuse-gated (mode recorded `"free"`, `identityHash` null). */
 export interface EditImageParams {
   readonly caller: Principal;

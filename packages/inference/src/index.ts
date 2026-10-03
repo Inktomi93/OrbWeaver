@@ -48,7 +48,7 @@ import type { ProviderRegistry } from "./registry/providers.ts";
 import { createProviderRegistry } from "./registry/providers.ts";
 import { checkAvailability, loadVerdict } from "./resolve/availability.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
-import { connectionNotFoundMessage, modelInfoApiOf, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
+import { connectionNotFoundMessage, endpointMirrorTenant, modelInfoApiOf, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
 import { createProviderDiagnostics } from "./roles/diagnostics.ts";
 import { createProviderExecutor } from "./roles/executor.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
@@ -105,14 +105,16 @@ export { runStructuredTurn } from "./roles/structured-turn.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
-/** One mirror per (URL × reader): a native reader states facts the bare list lacks, so two rows on one URL
+/** One mirror per (URL × reader × tenant): a native reader states facts the bare list lacks, so two rows on one URL
  *  through different readers must never share a snapshot (the first warm would decide the other's kind,
- *  modalities and tools). URL first, reader last, so one URL's mirrors share a prefix an invalidation can
- *  delete. The `#` family is new on purpose: a snapshot written under the old URL-only key carries no native
- *  facts and is never read again. */
+ *  modalities and tools), and an authenticated row's list is its own credential's (`endpointMirrorTenant`).
+ *  URL first, reader last, so one URL's mirrors share a prefix an invalidation can delete; a tenant sits between
+ *  them, so no key is a prefix of another and one row's save deletes only its own snapshot. The `#` family is new
+ *  on purpose: a snapshot written under the old URL-only key carries no native facts and is never read again. */
 const ENDPOINT_CATALOG_PREFIX = "catalog:endpoint:";
 const endpointCatalogPrefix = (baseUrl: string): string => `${ENDPOINT_CATALOG_PREFIX}${baseUrl}#`;
-const endpointCatalogKey = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined): string => `${endpointCatalogPrefix(baseUrl)}${modelInfoApi ?? "list"}`;
+const endpointCatalogKey = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined, tenant: string | null): string =>
+  `${endpointCatalogPrefix(baseUrl)}${tenant === null ? "" : `@${tenant}#`}${modelInfoApi ?? "list"}`;
 
 export interface CapabilityRead extends SynthesizedCapability {
   /** The same evidence fold with this row's declaration omitted. */
@@ -226,8 +228,8 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const openRouterCatalog = createMirror<ModelCatalogEntry[]>({ key: OPENROUTER_CATALOG_KEY, schema: z.array(modelCatalogEntrySchema), deps: mirrorDeps });
   const agentSdkCatalog = createMirror<AgentSdkModel[]>({ key: AGENT_SDK_CATALOG_KEY, schema: z.array(agentSdkModelSchema), deps: mirrorDeps });
   const endpointMirrors = new Map<string, { readonly baseUrl: string; readonly mirror: Mirror<EndpointModel[]> }>();
-  const endpointModels = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined): Mirror<EndpointModel[]> => {
-    const key = endpointCatalogKey(baseUrl, modelInfoApi);
+  const endpointModels = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined, tenant: string | null): Mirror<EndpointModel[]> => {
+    const key = endpointCatalogKey(baseUrl, modelInfoApi, tenant);
     const existing = endpointMirrors.get(key);
     if (existing !== undefined) {
       return existing.mirror;
@@ -256,8 +258,9 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       return;
     }
     const modelInfoApi = modelInfoApiOf(provider, connection);
-    endpointModels(baseUrl, modelInfoApi).invalidate();
-    await deps.snapshotStore.deletePrefix(endpointCatalogKey(baseUrl, modelInfoApi));
+    const tenant = endpointMirrorTenant(connection);
+    endpointModels(baseUrl, modelInfoApi, tenant).invalidate();
+    await deps.snapshotStore.deletePrefix(endpointCatalogKey(baseUrl, modelInfoApi, tenant));
   };
 
   const openRouterBaseUrl = (): string => {
@@ -280,7 +283,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
     const modelInfoApi = modelInfoApiOf(provider, connection);
-    await endpointModels(baseUrl, modelInfoApi).warm(
+    await endpointModels(baseUrl, modelInfoApi, endpointMirrorTenant(connection)).warm(
       () =>
         provider.wire === "google-generative-ai"
           ? fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models" }, fetchImpl)

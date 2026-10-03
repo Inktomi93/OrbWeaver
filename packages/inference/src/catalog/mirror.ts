@@ -46,13 +46,16 @@ export function createMirror<T>(args: {
   let cache: { readonly at: number; readonly value: T } | null = null;
   let inFlight: Promise<MirrorWarm<T>> | null = null;
   let skipSnapshotOnce = false;
+  // Bumped by every invalidate. A warm publishes (cache + snapshot) only if the epoch it started under is still
+  // current, so a fetch that was in flight when the connection changed cannot re-seed what the invalidate dropped.
+  let epoch = 0;
 
   const get = (): T | null => (cache !== null && deps.now() - cache.at < ttl ? cache.value : null);
   const seed = (value: T, at: number): void => {
     cache = { at, value };
   };
 
-  const readSnapshot = async (): Promise<boolean> => {
+  const readSnapshot = async (startedAt: number): Promise<boolean> => {
     const raw = await deps.snapshotStore.read(key);
     if (raw === null) {
       return false;
@@ -65,20 +68,27 @@ export function createMirror<T>(args: {
     if (!value.success || deps.now() - parsed.data.fetchedAt >= ttl) {
       return false;
     }
+    if (epoch !== startedAt) {
+      return false;
+    }
     seed(value.data, parsed.data.fetchedAt);
     return true;
   };
 
   const warmOnce = async (fetch: () => Promise<T>, secrets: ProviderScrubSet): Promise<MirrorWarm<T>> => {
     try {
+      const startedAt = epoch;
       const readSnapshotFirst = !skipSnapshotOnce;
       skipSnapshotOnce = false;
-      const snapshot = readSnapshotFirst && (await readSnapshot()) ? get() : null;
+      const snapshot = readSnapshotFirst && (await readSnapshot(startedAt)) ? get() : null;
       if (snapshot !== null) {
         deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "snapshot" });
         return { ok: true, value: snapshot };
       }
       const value = await fetch();
+      if (epoch !== startedAt) {
+        return { ok: true, value };
+      }
       const at = deps.now();
       seed(value, at);
       await deps.snapshotStore.write(key, JSON.stringify({ fetchedAt: at, value }));
@@ -97,6 +107,9 @@ export function createMirror<T>(args: {
     invalidate: (): void => {
       cache = null;
       skipSnapshotOnce = true;
+      epoch += 1;
+      // The next warm must fetch under the new epoch, not coalesce onto a warm that will not publish.
+      inFlight = null;
     },
     warm: async (fetch, secrets): Promise<MirrorWarm<T>> => {
       const hit = get();
@@ -109,8 +122,10 @@ export function createMirror<T>(args: {
         deps.addSpanEvent?.("cache.warm.coalesced", { cache: key });
         return await inFlight;
       }
-      const run = warmOnce(fetch, secrets).finally(() => {
-        inFlight = null;
+      const run: Promise<MirrorWarm<T>> = warmOnce(fetch, secrets).finally(() => {
+        if (inFlight === run) {
+          inFlight = null;
+        }
       });
       inFlight = run;
       return await run;

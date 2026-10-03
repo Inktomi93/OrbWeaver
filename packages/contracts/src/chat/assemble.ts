@@ -655,8 +655,8 @@ export interface AssembleContext {
   // (the CEL degrade). Scalars/lists/maps only — NO functions (the `CelBindings` data-only contract). Absent ⇒
   // `{{expr}}` sees an empty binding (any field reference then errors → "" + an expr-error diagnostic).
   celBindings?: Readonly<Record<string, unknown>> | undefined;
-  /** IANA timezone for `{{time}}`/`{{date}}`. Absent ⇒ server-local. */
-  timezone?: string | undefined;
+  /** IANA timezone for `{{time}}`/`{{date}}`: the viewer's zone, or UTC for a turn with no viewer. */
+  timezone: string;
   /** Fixed clock for `{{time}}`/`{{date}}`, epoch-ms UTC. Absent ⇒ live wall clock. */
   nowMs?: number | undefined;
   /** The chat's compaction summary (the `{{compact_summary}}` marker). Null/absent ⇒ nothing rendered. */

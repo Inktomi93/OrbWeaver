@@ -14,6 +14,7 @@ import type { Db } from "@orb/db";
 import { chatDigests } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { MemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
@@ -36,6 +37,7 @@ const BUILD_CFG: MemoryConfig = { blockSize: 2, verbatimWindow: 0, mode: "mixC" 
 const OFF_CFG: MemoryConfig = { blockSize: 2, verbatimWindow: 0, mode: "off" };
 
 const ASSEMBLE_CTX: AssembleContext = {
+  timezone: UTC_TIME_ZONE,
   character: { name: "Aria", description: "a bold knight" },
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Alex", description: "the user" },

@@ -380,9 +380,8 @@ interface BuildAssembleContextInput {
   readonly variableValues: Record<string, string>;
   readonly generationType?: GenerationType | undefined;
   /** The IANA zone `{{time}}`/`{{date}}` read in: the viewer's per-request browser zone, not a stored setting.
-   *  The gather always sets it (UTC for a turn with no viewer); absent here, the macro engine reads the
-   *  server's zone. */
-  readonly timezone?: string | undefined;
+   *  UTC for a turn with no viewer. */
+  readonly timezone: string;
   readonly nowMs?: number | undefined;
   /** Seeded turn PRNG — never ambient Math.random; drives the SEND volatile-macro freeze so a committed
    *  row's baked value is deterministic + replayable. */
@@ -465,6 +464,7 @@ function buildBaseContext(
     // After the turn the engine flushes it to the produced variant's `variable_delta`.
     opLog: [],
     generationType: input.generationType ?? "normal",
+    timezone: input.timezone,
   };
   setIf(base, "roomOverrides", input.roomOverrides);
   setIf(base, "multiHuman", input.multiHuman);
@@ -472,7 +472,6 @@ function buildBaseContext(
   setIf(base, "lastUserMessage", input.lastUserMessage);
   setIf(base, "lastCharMessage", input.lastCharMessage);
   setIf(base, "currentInput", input.currentInput);
-  setIf(base, "timezone", input.timezone);
   setIf(base, "nowMs", input.nowMs);
   setIf(base, "memory", input.memory);
   setIf(base, "memoryTrace", input.memoryTrace);

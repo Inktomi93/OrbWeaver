@@ -1,6 +1,7 @@
 // assembly/assemble — the BUILD section walk (the chat design doc Part II §2 phase 3 + §3 rules 1/2/3). Pins: the
 // macro→frame order, render-ONCE {{original}} recovery (card + room override), the static/dynamic split, the
 // chat_history pivot → after-history injection, sendHistory, and the system-block chat-injection routing.
+
 import type { AssembleCharacter, AssembleContext, AssembledPrompt, ChatInjection } from "@orb/contracts/chat";
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
@@ -9,6 +10,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import { assemblePrompt, assemblePromptWithSlices, previewSection } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
 import { BEFORE_HISTORY_DEPTH } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
@@ -57,6 +59,7 @@ function configOf(sections: PromptSection[]): PromptConfig {
 
 function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
   return {
+    timezone: UTC_TIME_ZONE,
     character: { name: "Aria", description: "a bold knight", personality: "brave" },
     promptConfig: configOf([]),
     recentMessages: [],

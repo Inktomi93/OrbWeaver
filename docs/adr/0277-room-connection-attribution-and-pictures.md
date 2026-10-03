@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-09-29
+status: superseded
+updated: 2026-10-03
+superseded-by: docs/adr/0299-room-attribution-and-host-owned-pictures.md
 ---
 
 # Rooms attribute each reply and picture honestly without exposing another user's connection

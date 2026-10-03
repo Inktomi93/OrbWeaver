@@ -235,15 +235,15 @@ describe("buildImagery — a member's preview in a host's room runs as the host 
     expect(f.roleClientsFor).not.toHaveBeenCalled();
   });
 
-  test("a caption reads the subject under the member, and takes the host's instruction, preset and Utility funder", async () => {
+  test("a caption reads the subject and avatar as the host, and takes the host's instruction, preset and Utility funder", async () => {
     const f = fakes();
     f.resolveChatHostUserId.mockResolvedValue(HOST);
 
     await build(f).extractPrompt({ caller: CALLER, chatId: CHAT, mode: "character_multimodal", subjectCharacterId: SUBJECT });
 
     expect(f.resolveViewerVisibility).toHaveBeenCalledWith(CHAT, CALLER.userId);
-    expect(f.characterGet).toHaveBeenCalledWith({ principal: CALLER, characterId: SUBJECT });
-    expect(f.readOwnedAssetBytes).toHaveBeenCalledWith(CALLER, AVATAR);
+    expect(f.characterGet).toHaveBeenCalledWith({ principal: principal(HOST), characterId: SUBJECT });
+    expect(f.readOwnedAssetBytes).toHaveBeenCalledWith(principal(HOST), AVATAR);
     expect(f.loadUserSettings.mock.calls).toEqual([[HOST]]);
     expect(f.resolveUserPresetParams.mock.calls).toEqual([[HOST]]);
     expect(f.roleClientsFor.mock.calls).toEqual([[HOST]]);
@@ -270,6 +270,7 @@ describe("buildImagery — a member's preview in a host's room runs as the host 
 describe("buildImagery — a room preview's subject comes from the room roster", () => {
   async function seedRoom(): Promise<{
     readonly db: Db;
+    readonly host: UserId;
     readonly member: UserId;
     readonly chatId: ChatId;
     readonly seated: CharacterId;
@@ -284,7 +285,7 @@ describe("buildImagery — a room preview's subject comes from the room roster",
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "member", userId: member, role: "member" });
     await seedParticipant(db, { chatId, key: "seated", characterId: seated });
-    return { db, member, chatId, seated, offRoom };
+    return { db, host, member, chatId, seated, offRoom };
   }
 
   function roomFakes(db: Db): Fakes {
@@ -306,6 +307,16 @@ describe("buildImagery — a room preview's subject comes from the room roster",
       expect(f.summarize).not.toHaveBeenCalled();
     });
   }
+
+  test("the host previewing one of their own characters that is not seated is not refused", async () => {
+    const room = await seedRoom();
+    const f = roomFakes(room.db);
+    f.resolveChatHostUserId.mockResolvedValue(room.host);
+
+    await build(f, room.db).extractPrompt({ caller: principal(room.host), chatId: room.chatId, mode: "character", subjectCharacterId: room.offRoom });
+
+    expect(f.summarize).toHaveBeenCalledTimes(1);
+  });
 
   test("a subject seated in the room still previews", async () => {
     const room = await seedRoom();

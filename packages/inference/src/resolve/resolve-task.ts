@@ -65,7 +65,7 @@ export interface ResolverContext {
   readonly registry: ProviderRegistry;
   readonly openRouterCatalog: Mirror<ModelCatalogEntry[]>;
   /** The endpoint mirror for one (URL × reader) — a reader's facts never leak into another reader's rows. */
-  readonly endpointModels: (baseUrl: string, modelInfoApi: ModelInfoApi | undefined) => Mirror<EndpointModel[]>;
+  readonly endpointModels: (baseUrl: string, modelInfoApi: ModelInfoApi | undefined, tenant: string | null) => Mirror<EndpointModel[]>;
   readonly agentSdkCatalog: Mirror<AgentSdkModel[]>;
   readonly warmOpenRouter: () => Promise<void>;
   readonly warmEndpoint: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<void>;
@@ -149,10 +149,30 @@ function endpointEntryFor(
     return;
   }
   const catalogId = provider.wire === "google-generative-ai" ? googleModelId(model) : model;
+  const reader = modelInfoApiOf(provider, connection);
+  const sameId =
+    reader === "ollama" ? (id: string): boolean => withImplicitLatest(id) === withImplicitLatest(catalogId) : (id: string): boolean => id === catalogId;
   return ctx
-    .endpointModels(baseUrl, modelInfoApiOf(provider, connection))
+    .endpointModels(baseUrl, reader, endpointMirrorTenant(connection))
     .get()
-    ?.find((candidate) => candidate.id === catalogId);
+    ?.find((candidate) => sameId(candidate.id));
+}
+
+/** Ollama resolves an untagged name to `:latest`, so `llama3` and `llama3:latest` are one model. A `:` that
+ *  precedes a `/` is a registry port, not a tag. */
+function withImplicitLatest(id: string): string {
+  return /:[^/]*$/u.test(id) ? id : `${id}:latest`;
+}
+
+/** Whose list a row's endpoint mirror holds. A server that authenticates the caller may answer each credential with a
+ *  different model list, so an authenticated row keeps its own mirror, named by the credential row's id (never the
+ *  secret) or, for a row that authenticates only through its own headers, by the row. An anonymous server answers
+ *  everyone alike, so its rows share one mirror (`null`). */
+export function endpointMirrorTenant(connection: UserConnection): string | null {
+  if (connection.credentialId !== null) {
+    return connection.credentialId;
+  }
+  return Object.keys(connection.transport?.headers ?? {}).length > 0 ? connection.id : null;
 }
 
 /** The reader this row dials beside `/v1/models`: the folded `features.modelInfoApi` (wire ← provider ← declared). */

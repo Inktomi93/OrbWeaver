@@ -137,6 +137,7 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     // a per-turn signal is a follow-up in the imagery/chat contracts.
     fetchImage: (url) => fetchImageBytes(url, deps.maxImageBytes()),
     resolveRunAs: (runAsUserId) => deps.resolveHostPrincipal(runAsUserId),
+    callerInChat: async (caller, chatId) => (await deps.resolveViewerVisibility(chatId, caller.userId)) !== null,
     // D298: a preview runs as the room host. The visibility gate runs first, so a caller the room does
     // not admit reaches no host read and spends nothing of the host's; the turn identity is the one home of
     // "the host funds and runs as".
@@ -144,16 +145,17 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
       if ((await deps.resolveViewerVisibility(chatId, caller.userId)) === null) {
         throw new DomainNotFoundError("chat", chatId);
       }
-      // The host's card reads and Utility spend follow the subject, so it must be one of this room's
-      // characters: otherwise a member could name, or caption, any character the host owns.
-      if (subjectCharacterId !== undefined && !(await deps.isCharacterSeated(chatId, subjectCharacterId))) {
-        throw new DomainNotFoundError("character", subjectCharacterId);
-      }
       const hostUserId = await deps.resolveChatHostUserId(chatId);
       if (hostUserId === null) {
         throw new Error(`imagery: chat ${chatId} has no host to run the preview as`);
       }
       const { runAsUserId } = resolveTurnIdentity({ principalUserId: caller.userId, hostUserId });
+      // The host's card reads and Utility spend follow the subject, so a member's subject must be one of this
+      // room's characters: otherwise a member could name, or caption, any character the host owns. The host
+      // reads only their own characters (owner-checked at the card read), seated or not.
+      if (runAsUserId !== caller.userId && subjectCharacterId !== undefined && !(await deps.isCharacterSeated(chatId, subjectCharacterId))) {
+        throw new DomainNotFoundError("character", subjectCharacterId);
+      }
       return runAsUserId === caller.userId ? caller : await deps.resolveHostPrincipal(runAsUserId);
     },
     storeAsset: (owner, bytes, kind, mime) => assets.store({ principal: owner, bytes, kind, mime, enforceMagic: true }),

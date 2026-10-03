@@ -1,6 +1,7 @@
 // domain/chat/engine/rerank-pick — Smart's default speaker pick over the funder's bound RERANK role. The
 // last line is the query and each eligible character's `Name: persona` is a document; a character named in
-// that line wins outright, else the top-ranked one does, with the last speaker out when the round bans it.
+// that line wins outright when only one answers to it; several that do, or none, are ranked instead, with the
+// last speaker out when the round bans it.
 // Picks by RANK ORDER within the one call: scores are family-specific (logits, [0,1], anything), so no
 // threshold is ever compared. An unbound or failing role degrades to the `natural` pick with `degraded:true`,
 // which the turn verb surfaces as a warning.
@@ -16,7 +17,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import type { ArbiterCandidate, SmartArbitrationResult, SpeakerCandidate, SpeakerReranker, TranscriptLine } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
-import { resolveNameMentions, selectSpeakers } from "./select-speakers.ts";
+import { nameMentionsOf, selectSpeakers } from "./select-speakers.ts";
 
 // A cross-encoder spends a few tokens of its window on the pair's own markers ([CLS] q [SEP] d [SEP]).
 const PAIR_MARKER_TOKENS = 3;
@@ -99,17 +100,38 @@ export function personaSummaryOf(
   return processMacros(text, { char: card.name, user: DEFAULT_PERSONA_NAME, persona: "", scenario: "", timezone: UTC_TIME_ZONE, nowMs, env: {} });
 }
 
-// Being addressed is the strongest signal a line carries, so a named character wins outright, even the last
-// speaker, whoever wrote the line. The line's own speaker naming itself is not an address.
-function addressedIn(line: TranscriptLine, named: readonly NamedCandidate[]): SpeakerRef | null {
+// Being addressed is the strongest signal a line carries, so ONE character named as a name wins outright, even
+// the last speaker, whoever wrote the line. The line's own speaker naming itself is not an address. A name that
+// reads as an ordinary word ("we will find it") is no address, and a name several characters answer to
+// ("Captain, ...") narrows the field rather than choosing: the most fully named characters are returned, and
+// the caller reranks within them when there is more than one.
+function addressedIn(line: TranscriptLine, named: readonly NamedCandidate[]): readonly NamedCandidate[] {
   const ownKey = line.characterId === null ? null : speakerKey({ kind: "character", characterId: line.characterId });
-  for (const characterId of resolveNameMentions(line.text, named)) {
-    const match = named.find((c) => c.ref.characterId === characterId);
-    if (match !== undefined && speakerKey(match.ref) !== ownKey) {
-      return match.ref;
-    }
+  const strong = nameMentionsOf(line.text, named).filter((m) => m.strong);
+  const mentioned = strong.flatMap((m) => {
+    const match = named.find((c) => c.ref.characterId === m.id);
+    return match === undefined || speakerKey(match.ref) === ownKey ? [] : [{ match, hits: m.hits }];
+  });
+  const best = Math.max(0, ...mentioned.map((m) => m.hits));
+  return mentioned.filter((m) => m.hits === best).map((m) => m.match);
+}
+
+/** Who competes for the turn once the line is read: one character named as a name wins outright; several that
+ *  answer to the name are the field to rank; none leaves everyone in it. */
+function fieldFor(line: TranscriptLine, named: readonly NamedCandidate[]): { readonly winner: SpeakerRef | null; readonly field: readonly NamedCandidate[] } {
+  const addressed = addressedIn(line, named);
+  const [only] = addressed;
+  if (addressed.length === 1 && only !== undefined) {
+    return { winner: only.ref, field: addressed };
   }
-  return null;
+  return { winner: null, field: addressed.length > 1 ? addressed : named };
+}
+
+/** The field minus the last speaker when the round bans it, unless that would leave nobody. */
+function allowedIn(field: readonly NamedCandidate[], lastSpeaker: SpeakerRef | null, banLast: boolean | undefined): readonly NamedCandidate[] {
+  const lastKey = lastSpeaker === null || banLast === false ? null : speakerKey(lastSpeaker);
+  const unbanned = field.filter((c) => speakerKey(c.ref) !== lastKey);
+  return unbanned.length > 0 ? unbanned : field;
 }
 
 /** Smart's reranker pick. One element on success, `[]` with no eligible character, CANCELLED on an abort. */
@@ -145,14 +167,12 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
     return natural(false);
   }
 
-  const addressed = addressedIn(line, named);
-  if (addressed !== null) {
-    return { speakers: [addressed], degraded: false, aborted: false };
+  const { winner, field } = fieldFor(line, named);
+  if (winner !== null) {
+    return { speakers: [winner], degraded: false, aborted: false };
   }
 
-  const lastKey = params.lastSpeaker === null || params.banLast === false ? null : speakerKey(params.lastSpeaker);
-  const unbanned = named.filter((c) => speakerKey(c.ref) !== lastKey);
-  const allowed = unbanned.length > 0 ? unbanned : named;
+  const allowed = allowedIn(field, params.lastSpeaker, params.banLast);
 
   let picked: SpeakerRef | null;
   // @orb-waive caught-failure-ownership(catch): an unbound, refused or failing rerank role is the documented
@@ -160,13 +180,13 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
   try {
     const reranker = await params.reranker();
     if (reranker === null) {
-      return natural(true);
+      return cancelled() ? CANCELLED : natural(true);
     }
     const query = line.speakerName === null ? line.text : `${line.speakerName}: ${line.text}`;
     const fitted = fitRerankPair(
       reranker.capability.maxInputTokens,
       query,
-      named.map((c) => ({
+      field.map((c) => ({
         id: speakerKey(c.ref),
         name: c.name,
         persona: params.personas.get(c.ref.characterId) ?? "",

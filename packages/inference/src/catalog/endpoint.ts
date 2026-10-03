@@ -151,6 +151,8 @@ const NUM_CTX_RE = /^num_ctx\s+(\d+)\s*$/mu;
 /** `model_info` keys are prefixed with the architecture (`nomic-bert.embedding_length`). */
 const EMBEDDING_LENGTH_SUFFIX = ".embedding_length";
 const CONTEXT_LENGTH_SUFFIX = ".context_length";
+/** The `model_info` key naming the architecture whose prefix the model's own keys carry. */
+const ARCHITECTURE_KEY = "general.architecture";
 /** The release that added JSON-schema constrained output to the chat and OpenAI-compatible endpoints. */
 const OLLAMA_STRUCTURED_FLOOR = "0.5.0";
 /** The release that picks the default window from VRAM: 4096 below 24 GiB, 32768 to 48 GiB, 262144 above
@@ -195,9 +197,14 @@ function ollamaKind(capabilities: readonly string[] | undefined): ModelKind | un
   return capabilities.includes("completion") ? "generation" : undefined;
 }
 
-/** The model's trained maximum (`<arch>.context_length`), where `/api/show` states one. */
+/** The model's trained maximum (`<arch>.context_length`), where `/api/show` states one. A multimodal model carries
+ *  more than one `*.context_length` (a vision tower beside the text model), so the key under the model's own
+ *  `general.architecture` wins; only a model that names none falls back to the first match. */
 function ollamaTrainedWindow(show: z.infer<typeof ollamaShowSchema> | null): number | undefined {
-  const trained = Object.entries(show?.model_info ?? {}).find(([key]) => key.endsWith(CONTEXT_LENGTH_SUFFIX))?.[1];
+  const info = show?.model_info ?? {};
+  const architecture = info[ARCHITECTURE_KEY];
+  const own = typeof architecture === "string" ? info[`${architecture}${CONTEXT_LENGTH_SUFFIX}`] : undefined;
+  const trained = own ?? Object.entries(info).find(([key]) => key.endsWith(CONTEXT_LENGTH_SUFFIX))?.[1];
   const parsed = POSITIVE_INT.safeParse(trained);
   return parsed.success ? parsed.data : undefined;
 }

@@ -2,12 +2,14 @@
 // determinism seam). Pins: the AssembleContext → macro mapping ({{char}}/{{user}}/{{persona}}/{{scenario}}
 // room-override/{{group}}), {{original}} threading, the SHARED env (a setvar in one render is visible to the
 // next), and the injected clock (nowMs) → deterministic output.
+
 import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroStamps } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { describe } from "vitest";
 import {
   buildTurnMacroContext,
@@ -23,6 +25,7 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;
 
 function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
   return {
+    timezone: UTC_TIME_ZONE,
     character: { name: "Aria", description: "a bold knight", scenario: "the keep" },
     promptConfig: DEFAULT_PROMPT_CONFIG,
     recentMessages: [],

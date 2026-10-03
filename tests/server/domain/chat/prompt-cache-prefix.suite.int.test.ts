@@ -669,6 +669,7 @@ describe("F5 — keyword lore follows its entry's anchor, in the per-turn half",
     };
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("aria", "aria the innkeeper")) });
     const built = await buildAssembleContext(ctx, {
+      timezone: UTC_TIME_ZONE,
       chatId,
       ownerId: host,
       characterIds: [characterId],

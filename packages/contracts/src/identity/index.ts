@@ -95,10 +95,15 @@ export const CONTAINER_LOGIN_FALLBACK_ENV = [
   ["AUTH_FALLBACK_TRUSTED_PEERS", ""],
 ] as const satisfies readonly EnvLine[];
 
-/** Why a container switch can fail to take: any compose `environment:` block wins over the env files, an overlay's
- *  included. The server cannot see which compose files started it, so the overlay that pins the no-login pair is named
- *  outright. The server's container instructions and the Multi-user helper both print this sentence. */
-export const ENVIRONMENT_BLOCK_WINS = `A key in any compose environment: block wins over ${CONTAINER_ENV_FILE}: ${COMPOSE_FILE}, or an overlay such as ${HOST_NETWORK_OVERLAY}, whose environment: lines set ${AUTH_MODE_KEY}: single-user and ${CONTAINER_LOGIN_FALLBACK_ENV[0][0]}: owner. Remove those lines there, or start without that overlay.`;
+/** The keys the host-network overlay pins in its own `environment:` block, so the only keys a container fix can
+ *  find overridden there. */
+export const OVERLAY_PINNED_KEYS: readonly string[] = [AUTH_MODE_KEY, ...CONTAINER_LOGIN_FALLBACK_ENV.map(([key]) => key)];
+
+/** Why a container switch of {@link OVERLAY_PINNED_KEYS} can fail to take: any compose `environment:` block wins over
+ *  the env files, an overlay's included. The server cannot see which compose files started it, so the overlay that
+ *  pins the no-login set is named outright. The server's container instructions (for those keys only) and the
+ *  Multi-user helper both print this sentence. */
+export const ENVIRONMENT_BLOCK_WINS = `A key in any compose environment: block wins over ${CONTAINER_ENV_FILE}: ${COMPOSE_FILE}, or an overlay such as ${HOST_NETWORK_OVERLAY}, whose environment: lines set ${AUTH_MODE_KEY}: single-user, ${CONTAINER_LOGIN_FALLBACK_ENV[0][0]}: owner and ${CONTAINER_LOGIN_FALLBACK_ENV[1][0]}: empty. Remove those lines there, or start without that overlay.`;
 
 /** The env lines that switch an install to `mode`, in print order. A server env test boots every block. */
 export function signInModeEnvLines(mode: SignInTargetMode, install: InstallKind): readonly EnvLine[] {

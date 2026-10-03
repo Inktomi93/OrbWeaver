@@ -48,7 +48,7 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "media":
       return <MessageMediaBlock key={key} block={block} allowExternal={allowExternal} />;
-    // D294 §12.2, the TWO card tiers — see the `cardTrust` mapping in MessageSegment for which row gets which:
+    // docs/law/UI-Theming-and-Content.md §12.2, the TWO card tiers — see the `cardTrust` mapping in MessageSegment for which row gets which:
     //   tierB = the trusted-author tier — the ImmersiveCard chrome (§4.7 lifecycle: collapsed sandbox → expand
     //           lightbox → view-raw) around the sandboxed SandboxFrame (null-origin iframe + per-frame CSP),
     //           with the card's own CSS applied. The row's external-media verdict rides along: the sandbox

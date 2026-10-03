@@ -11,6 +11,7 @@ import type {
 import { chatInjectionInputSchema } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("chat injection ids reject malformed and wrong-prefix TypeIDs", () => {
@@ -67,6 +68,7 @@ test("the 8 assemble shapes pin (slim projections; AssembleContext refs PromptCo
     trace,
   };
   const ctx: AssembleContext = {
+    timezone: UTC_TIME_ZONE,
     character,
     promptConfig: DEFAULT_PROMPT_CONFIG,
     recentMessages: ["hi"],

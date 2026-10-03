@@ -16,6 +16,7 @@ import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, Pers
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { executeRegexScripts } from "@orb/kit/regex";
+import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { resolveImageRefToUrl } from "@orb/server/entry/compose";
 import { getLog } from "@orb/server/foundation/observability";
@@ -59,6 +60,7 @@ const FIXTURE_HUMAN = castId<UserId>("user_fixture_human");
 
 function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
   return {
+    timezone: UTC_TIME_ZONE,
     character: { name: "Aria", description: "a bold knight" },
     promptConfig: DEFAULT_PROMPT_CONFIG,
     activePersona: { name: "Alex", description: "the user" },
