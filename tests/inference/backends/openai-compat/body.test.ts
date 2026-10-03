@@ -1,10 +1,6 @@
-// backends/openai-compat/body — the outbound-body shaper's seven rules (§8.1, D143(b)/D156): a belt key or
-// a modelled collision in `extras` is DROPPED with `custom_parameters_ignored{key}` and a non-colliding key
-// reaches the wire (the H4 order pin); the openrouter transport drops everything but its two modelled keys;
-// a prototype-pollution key never lands (the Layer-2 merge); include/exclude apply AFTER extras; the
-// assistant-media + name re-attachment walks the plan by index and refuses on a length mismatch; the prefill
-// pair only when features + capability + array agree, with the measured thinking interlock; `modalities`
-// on replyImages; `reasoning_effort` stripped with `effort_dropped` when the row spells no effort.
+// backends/openai-compat/body — the outbound-body shaper's rules in the order `body.ts`'s header lists them (§8.1,
+// D143(b)/D156): the user's extras and includeBody/excludeBody merge first, and every later rule leaves a key
+// they settled as the user set it.
 
 import type { EndpointFeatures } from "@orb/contracts/inference";
 import { connectionExtrasSchema, WIRE_DEFAULT_FEATURES } from "@orb/contracts/inference";
