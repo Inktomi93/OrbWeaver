@@ -14,6 +14,10 @@ const CAPABILITY_SOURCE = "what this server and model report";
 const ASSUMED_SOURCE = "assumed, because the server doesn't report it. Override it with your server's real value.";
 const UNSTATED_SOURCE = "nobody has stated it, so it counts as no. Override it if your server supports it.";
 const ASSUMED_SUFFIX = " (assumed)";
+/** The resolver raised a declared number to a floor (a reranker window below its minimum), so the folded value is not
+ *  the one the user typed; the row says which one is in effect and why. */
+const RAISED_OVERRIDE_SOURCE = (asked: string, used: string, prior: string): string =>
+  `your override of ${asked} is below the minimum, so ${used} is used — it was ${prior}`;
 
 function toolsWith(parallel: boolean): (value: unknown) => boolean {
   return (value): boolean => readPath(value, "parallel") === parallel;
@@ -84,10 +88,15 @@ function leavesOf(capability: Capability): readonly FactLeaf[] {
   return RERANK_LEAVES;
 }
 
-/** An overridden row restates the baseline's value, "not stated" when the baseline lacks the leaf. */
-function overriddenCapabilitySource(leaf: FactLeaf, baseline: Capability): string {
+/** An overridden row restates the baseline's value, "not stated" when the baseline lacks the leaf. When the fold
+ *  raised the declared number, the row names both the typed value and the one in effect. */
+function overriddenCapabilitySource(leaf: FactLeaf, baseline: Capability, values: { readonly declared: unknown; readonly folded: unknown }): string {
   const prior = readPath(baseline, leaf.path);
-  return `your override — it was ${prior === undefined ? NOT_STATED : formatLeaf(leaf, prior)}`;
+  const priorText = prior === undefined ? NOT_STATED : formatLeaf(leaf, prior);
+  if (typeof values.declared === "number" && typeof values.folded === "number" && values.folded > values.declared) {
+    return RAISED_OVERRIDE_SOURCE(formatLeaf(leaf, values.declared), formatLeaf(leaf, values.folded), priorText);
+  }
+  return `your override — it was ${priorText}`;
 }
 
 /** One stated leaf's row. A declared value is never a floor guess, so only an un-overridden row can read assumed. */
@@ -100,7 +109,7 @@ function statedCapabilityRow(
   const estimated = !overridden && leaf.estimatedBy !== undefined && readPath(capability, leaf.estimatedBy) === true;
   let source = CAPABILITY_SOURCE;
   if (overridden) {
-    source = overriddenCapabilitySource(leaf, baseline);
+    source = overriddenCapabilitySource(leaf, baseline, { declared: readPath(declared, leaf.path), folded: value });
   } else if (estimated) {
     source = ASSUMED_SOURCE;
   }

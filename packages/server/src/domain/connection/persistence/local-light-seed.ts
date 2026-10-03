@@ -3,7 +3,7 @@
 
 import type { LocalLightSeedSlot, ProviderId, RoutableTask } from "@orb/contracts/inference";
 import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema, taskDef } from "@orb/contracts/inference";
-import { connectionBindings, userConnections, userSeedLedger } from "@orb/db";
+import { connectionBindings, userConnections } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull, notExists, or, sql } from "drizzle-orm";
@@ -64,55 +64,43 @@ async function adoptEarlierSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, n
   await db.batch(batchMany(adoptions));
 }
 
-/** The seed's one-shot record that it moved this owner's slot row off the earlier models onto `model`. It is a row
- *  in the account's seed ledger, so it goes with the account (the ledger cascades on the user), and it names the
- *  seed model, so the next default change gets a fresh one. */
-function movedLedgerKey(seed: (typeof LOCAL_LIGHT_SEED_ROWS)[number]): string {
-  return `local-light:moved:${seed.task}:${seed.model}`;
-}
-
-/** Move each slot row on a model an earlier release seeded onto today's seed model, ONCE per owner. Before this
- *  release the earlier model was the only built-in choice, so no row on it was a pick of it over today's, whatever its
- *  timestamps say. After the move the ledger row holds, so a later pick of the earlier model (still in the catalog)
- *  stays. The binding points at the row, so a bound role follows it. The row's declared rerank facts described the
- *  earlier model (a 512 window, say), so they are dropped with the move rather than constraining the new one. */
+/** Move each slot row still on the model the seed last gave it onto today's seed model, when that model is one an
+ *  earlier release seeded. `seed_model` records what the seed gave the row (NULL on rows from before the column, which
+ *  every earlier release wrote, when the earlier model was the only built-in choice). Once moved, the row records
+ *  today's model, so a later pick of the earlier model (still in the catalog) is the user's own and stays. The binding
+ *  points at the row, so a bound role follows it. The row's declared facts for the task described the earlier model
+ *  (a 512 window, say), so they are dropped with the move rather than constraining the new one. */
 async function moveSeedRowsOffEarlierModels(deps: LocalLightSeedDeps, ownerId: UserId, now: number): Promise<void> {
   const { db } = deps;
-  const moves = LOCAL_LIGHT_SEED_ROWS.flatMap((seed) => {
-    if (seed.earlierModels.length === 0) {
-      return [];
-    }
-    const itemKey = movedLedgerKey(seed);
-    const recorded = db
-      .select({ key: userSeedLedger.itemKey })
-      .from(userSeedLedger)
-      .where(and(eq(userSeedLedger.userId, ownerId), eq(userSeedLedger.itemKey, itemKey)));
-    return [
-      batchStmt(
-        db
-          .update(userConnections)
-          .set({
-            model: modelIdSchema.parse(seed.model),
-            // The capability block a declared override states facts under is named by the task's model kind.
-            declared: sql`json_remove(${userConnections.declared}, ${`$.${taskDef(seed.task).kind}`})`,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              eq(userConnections.ownerId, ownerId),
-              eq(userConnections.providerId, LOCAL_LIGHT_PROVIDER_ID),
-              eq(userConnections.seedSlot, seed.task),
-              inArray(
-                userConnections.model,
-                seed.earlierModels.map((model) => modelIdSchema.parse(model)),
+  const moves = LOCAL_LIGHT_SEED_ROWS.flatMap((seed) =>
+    seed.earlierModels.length === 0
+      ? []
+      : [
+          batchStmt(
+            db
+              .update(userConnections)
+              .set({
+                model: modelIdSchema.parse(seed.model),
+                seedModel: modelIdSchema.parse(seed.model),
+                // The capability block a declared override states facts under is named by the task's model kind.
+                declared: sql`json_remove(${userConnections.declared}, ${`$.${taskDef(seed.task).kind}`})`,
+                updatedAt: now,
+              })
+              .where(
+                and(
+                  eq(userConnections.ownerId, ownerId),
+                  eq(userConnections.providerId, LOCAL_LIGHT_PROVIDER_ID),
+                  eq(userConnections.seedSlot, seed.task),
+                  inArray(
+                    userConnections.model,
+                    seed.earlierModels.map((model) => modelIdSchema.parse(model)),
+                  ),
+                  or(isNull(userConnections.seedModel), eq(userConnections.seedModel, userConnections.model)),
+                ),
               ),
-              notExists(recorded),
-            ),
           ),
-      ),
-      batchStmt(db.insert(userSeedLedger).values({ userId: ownerId, itemKey, seededAt: now }).onConflictDoNothing()),
-    ];
-  });
+        ],
+  );
   await db.batch(batchMany(moves));
 }
 
@@ -135,6 +123,7 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
         credentialId: null,
         baseUrl: null,
         model: modelIdSchema.parse(seed.model),
+        seedModel: modelIdSchema.parse(seed.model),
         api: "auto" as const,
         declared: null,
         extras: null,

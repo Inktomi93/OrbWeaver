@@ -7,10 +7,10 @@
 
 import type { DeclaredCapability } from "@orb/contracts/inference";
 import { LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
-import { connectionBindings, userConnections, userSeedLedger, users } from "@orb/db";
+import { connectionBindings, userConnections, userSeedLedger } from "@orb/db";
 import type { ConnectionBindingId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, like } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { seedLocalLightConnections } from "../../../../../packages/server/src/domain/connection/persistence/local-light-seed.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -231,7 +231,7 @@ test("a user's own unbound row on the seed's model is never adopted or renamed",
 });
 
 /** Rewrite the seeded reranker row as a release that seeded an earlier reranker left it: on that model, last written at
- *  `updatedAt`, optionally from before seed slots existed, and with no move latch (that release never wrote one). */
+ *  `updatedAt`, optionally from before seed slots existed, and with no recorded seed model (that release had none). */
 async function asEarlierRelease(
   db: Awaited<ReturnType<typeof freshDb>>,
   owner: Awaited<ReturnType<typeof seedUser>>,
@@ -251,12 +251,12 @@ async function asEarlierRelease(
     .update(userConnections)
     .set({
       model: testModelId(reranker.earlierModels[0]),
+      seedModel: null,
       updatedAt: shape.updatedAt,
       ...(shape.preSlot === true ? { seedSlot: null, label: "local-light · reranker" } : {}),
       ...(shape.declared === undefined ? {} : { declared: shape.declared }),
     })
     .where(eq(userConnections.id, row.id));
-  await db.delete(userSeedLedger).where(and(eq(userSeedLedger.userId, owner), like(userSeedLedger.itemKey, "local-light:moved:%")));
   return row.id;
 }
 
@@ -338,16 +338,38 @@ test("the move drops declared rerank facts that described the earlier model, and
   expect(row?.declared).toEqual({ kind: "rerank" });
 });
 
-// The one-shot record is a row in the account's seed ledger, which cascades with the account, so a deleted user leaves
-// nothing behind in shared tables.
-test("the move's one-shot record goes with the account", async () => {
+// A fresh install's seeded row records today's model, so a user who later picks the earlier model keeps it.
+test("on a fresh install, a user's pick of the earlier model is never moved back", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, "user_a");
   await seedLocalLightConnections(seedDeps(db), owner);
-  const recorded = async (): Promise<number> => (await db.select().from(userSeedLedger).where(like(userSeedLedger.itemKey, "local-light:moved:%"))).length;
-  expect(await recorded()).toBe(1);
+  const [, reranker] = LOCAL_LIGHT_SEED_ROWS;
+  await db
+    .update(userConnections)
+    .set({ model: testModelId(reranker.earlierModels[0]), updatedAt: FROZEN_AT_MS + 1 })
+    .where(and(eq(userConnections.ownerId, owner), eq(userConnections.seedSlot, reranker.task)));
 
-  await db.delete(users).where(eq(users.id, owner));
+  await seedLocalLightConnections(seedDeps(db, 1), owner);
 
-  expect(await recorded()).toBe(0);
+  const row = (
+    await db
+      .select()
+      .from(userConnections)
+      .where(and(eq(userConnections.ownerId, owner), eq(userConnections.seedSlot, reranker.task)))
+  ).at(0);
+  expect(row?.model).toBe(reranker.earlierModels[0]);
+});
+
+// The account's seed ledger belongs to the content seeder, which reads a non-empty ledger as "a ledger pass already
+// ran" and skips mapping the legacy latches; a stray row there re-seeded cards the user had deleted. The connection
+// seed records its move on its own row and never writes the ledger.
+test("the seed and its upgrade move write nothing to the account's seed ledger", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, "user_a");
+  await seedLocalLightConnections(seedDeps(db), owner);
+  await asEarlierRelease(db, owner, { updatedAt: FROZEN_AT_MS });
+
+  await seedLocalLightConnections(seedDeps(db, 1), owner);
+
+  expect(await db.select().from(userSeedLedger).where(eq(userSeedLedger.userId, owner))).toEqual([]);
 });

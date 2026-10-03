@@ -7,7 +7,7 @@
 // line that is merely plausible is the defect.
 
 import type { Capability, DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
-import { declaredCapabilitySchema, EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { declaredCapabilitySchema, EMBED_SPACE_DIMS, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import { describe } from "vitest";
 import { capabilityFactRows } from "../../../../../packages/client/src/features/credentials/lib/connection-capability-fact-model.ts";
 import {
@@ -119,6 +119,18 @@ describe("the capability block is honest about what it cannot know", () => {
     const baseline: Capability = { kind: "generation", generation: { ...GENERATION.generation, context: { window: 32_768 } } };
     const rows = capabilityFactRows(GENERATION, declared, baseline);
     expect(rowFor(rows, "generation.context.window").source).toBe("your override — it was 32,768 tokens");
+  });
+
+  // A declared reranker window below the resolver's floor is raised; the row must not present the raised value as
+  // the number the user typed, nor restate the generic override line as if the typed value were in effect.
+  test("a declared value the fold raised to its floor is shown as raised, never as the user's own number", () => {
+    const baseline: Capability = { kind: "rerank", rerank: { maxInputTokens: 512, input: ["text"], instructionAware: false } };
+    const folded: Capability = { kind: "rerank", rerank: { ...baseline.rerank, maxInputTokens: RERANK_MIN_WINDOW_TOKENS } };
+    const row = rowFor(capabilityFactRows(folded, { rerank: { maxInputTokens: 2 } }, baseline), "rerank.maxInputTokens");
+    expect(row.overridden).toBe(true);
+    expect(row.value).toBe(rowFor(capabilityFactRows(folded, null, folded), "rerank.maxInputTokens").value);
+    const plain = rowFor(capabilityFactRows(folded, { rerank: { maxInputTokens: RERANK_MIN_WINDOW_TOKENS } }, baseline), "rerank.maxInputTokens");
+    expect(row.source).not.toBe(plain.source);
   });
 
   test("a row nobody declared says where the value comes from without claiming a tier it cannot prove", () => {

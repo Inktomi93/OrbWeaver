@@ -500,8 +500,13 @@ async function readRepoFile(
     // leave a half file that reads as cached.
     await mkdir(dirname(cached), { recursive: true });
     const partial = `${cached}.${String(process.pid)}.${randomUUID()}.part`;
-    await writeFile(partial, bytes);
-    await rename(partial, cached);
+    try {
+      await writeFile(partial, bytes);
+      await rename(partial, cached);
+    } finally {
+      // After a successful rename there is nothing at this path; after a failed write or rename this drops the stray.
+      await rm(partial, { force: true });
+    }
   }
   return bytes;
 }
