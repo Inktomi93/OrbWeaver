@@ -1015,6 +1015,8 @@ export function recordToolCalls(calls: readonly RpgToolCall[]): readonly RpgReco
 
 /** One thing the model sent that could not even be assembled into a call's arguments, with why. */
 export interface RpgUnassembledValue {
+  /** Schema words only, never model bytes: a member's view belts hidden spans out of the sent half alone, so any
+   *  name the model sent belongs in `sent`. */
   readonly path: string;
   readonly message: string;
   readonly sent: unknown;

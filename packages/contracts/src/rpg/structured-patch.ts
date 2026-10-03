@@ -23,13 +23,11 @@ const NUMERIC = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
  *  lib. It writes a number's digits into the arguments verbatim, so a value too large for a double parses to the same
  *  `Infinity` the tool round's `JSON.parse` sees, and the shared parse refuses it the same way. */
 const rawJson = (JSON as JSON & { readonly rawJSON: (text: string) => unknown }).rawJSON;
-/** Why an entry could not be assembled, in the per-call parse's own vocabulary. */
-const unassembled = {
-  call: (call: number): string => `Invalid call: expected a whole number from 0 to ${RPG_PATCH_INDEX_MAX}, received ${String(call)}`,
-  item: (item: number): string => `Invalid item: expected a whole number from 0 to ${RPG_PATCH_INDEX_MAX}, received ${String(item)}`,
-  field: (plane: string): string => `Unrecognized field: not one of ${plane}'s fields`,
-  tool: (plane: string): string => `Unrecognized tool: ${plane} is not offered this round`,
-} as const;
+/** Why an entry could not be assembled, in the per-call parse's own vocabulary. The path and message carry only
+ *  schema words and numbers: a member's view strips hidden spans from the sent half alone, so every name the model
+ *  sent (a field, a plane) rides in the sent value instead. */
+const ID_RANGE = `expected a whole number from 0 to ${RPG_PATCH_INDEX_MAX}`;
+const UNASSEMBLED_PATH = { tool: "(tool)", call: "(call)", item: "(item)", field: "(field)" } as const;
 
 type SchemaNode = Readonly<Record<string, unknown>>;
 type Args = Record<string, unknown>;
@@ -327,19 +325,25 @@ function leafOwner(args: Args, leaf: PatchLeaf, item: number): Args {
   return cursor;
 }
 
-/** Why an entry cannot form an argument of its call (a tool the round does not offer, an id out of range, a field the
- *  tool does not have), or `null`. */
-function unplaceable(entry: ReadEntry, leaves: ReadonlyMap<string, PatchLeaf> | undefined): string | null {
+/** The leaf an entry lands on, or why it cannot form an argument of its call (a tool the round does not offer, an id
+ *  out of range, a field the tool does not have). */
+function placement(
+  entry: ReadEntry,
+  leaves: ReadonlyMap<string, PatchLeaf> | undefined,
+): { readonly leaf: PatchLeaf } | { readonly refusal: RpgUnassembledValue } {
+  const sent = { field: entry.field, value: entry.value };
   if (leaves === undefined) {
-    return unassembled.tool(entry.plane);
+    return { refusal: { path: UNASSEMBLED_PATH.tool, message: "Unrecognized tool: not offered this round", sent: { plane: entry.plane, ...sent } } };
   }
   if (!isPatchIndex(entry.call)) {
-    return unassembled.call(entry.call);
+    return { refusal: { path: UNASSEMBLED_PATH.call, message: `Invalid call: ${ID_RANGE}, received ${String(entry.call)}`, sent } };
   }
   if (!isPatchIndex(entry.item)) {
-    return unassembled.item(entry.item);
+    return { refusal: { path: UNASSEMBLED_PATH.item, message: `Invalid item: ${ID_RANGE}, received ${String(entry.item)}`, sent } };
   }
-  return leaves.has(entry.field) ? null : unassembled.field(entry.plane);
+  const leaf = leaves.get(entry.field);
+  // `entry.plane` is an offered tool's name here (it found leaves), so the message stays schema words.
+  return leaf !== undefined ? { leaf } : { refusal: { path: UNASSEMBLED_PATH.field, message: `Unrecognized field: not one of ${entry.plane}'s fields`, sent } };
 }
 
 /** Place one entry's shaped value in its call's arguments. A scalar set twice keeps the LATER value, as a tool call's
@@ -412,20 +416,18 @@ export function patchChangesToToolCalls(value: unknown, tools: readonly RpgState
       drafts.set(RPG_NO_CHANGES_TOOL, { plane: RPG_NO_CHANGES_TOOL, args: {} });
       continue;
     }
-    const leaves = leavesByPlane.get(entry.plane);
-    const leaf = leaves?.get(entry.field);
-    const reason = unplaceable(entry, leaves);
-    if (reason !== null || leaf === undefined) {
+    const placed = placement(entry, leavesByPlane.get(entry.plane));
+    if ("refusal" in placed) {
       const own = unplaced.get(entry.plane) ?? { sent: [], values: [] };
       own.sent.push(entry.sent);
-      own.values.push({ path: entry.field, message: reason ?? unassembled.field(entry.plane), sent: entry.value });
+      own.values.push(placed.refusal);
       unplaced.set(entry.plane, own);
       dropped.push(`${entry.plane}.${entry.field}`);
       continue;
     }
     const key = JSON.stringify([entry.plane, entry.call]);
     const draft = drafts.get(key) ?? { plane: entry.plane, args: {} };
-    place(draft.args, entry, leaf);
+    place(draft.args, entry, placed.leaf);
     drafts.set(key, draft);
   }
   const calls: readonly RpgToolCall[] = [...drafts.values()].map((draft) => ({

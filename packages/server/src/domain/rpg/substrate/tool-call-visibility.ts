@@ -59,7 +59,8 @@ function projectToolCallForViewer(call: RpgRecordedToolCall, readsHidden: boolea
   }
   const args = stripHiddenInJson(call.args);
   return {
-    name: call.name,
+    // The name is the model's own bytes whenever it named a tool the round did not offer.
+    name: stripHiddenDeep(call.name),
     args: args ?? "",
     verdict: call.verdict,
     issues: call.issues.map(stripHiddenInIssue),

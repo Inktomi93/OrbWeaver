@@ -398,8 +398,9 @@ test("a boolean field shapes only `true` or `false`; any other text is kept for 
 
 // ── entries that cannot form an argument ────────────────────────────────────────────────────────────────────────
 
-/** What a reader of the record sees for an unassembled row: one issue per entry, naming its cause and the value. */
-const NOT_A_SCENE_FIELD = "Unrecognized field: not one of update_scene's fields";
+/** What a reader of the record sees for an unassembled row: one issue per entry, naming its cause. The path half is
+ *  a fixed schema label; every name the model sent rides in the sent half, the only half a member's view belts. */
+const NOT_A_SCENE_FIELD = "(field): Unrecognized field: not one of update_scene's fields";
 
 test("a prototype key never reaches a lookup: it is a recorded DROP naming the cause, carried as sent, beside the call that applied", () => {
   const unknown = [entry("update_scene", 0, "constructor", "x"), entry("update_scene", 0, "toString", "x"), entry("update_scene", 0, "__proto__", "y")];
@@ -412,7 +413,11 @@ test("a prototype key never reaches a lookup: it is a recorded DROP naming the c
       name: "update_scene",
       args: JSON.stringify(unknown),
       verdict: "dropped",
-      issues: [`constructor: ${NOT_A_SCENE_FIELD} — sent "x"`, `toString: ${NOT_A_SCENE_FIELD} — sent "x"`, `__proto__: ${NOT_A_SCENE_FIELD} — sent "y"`],
+      issues: [
+        `${NOT_A_SCENE_FIELD} — sent {"field":"constructor","value":"x"}`,
+        `${NOT_A_SCENE_FIELD} — sent {"field":"toString","value":"x"}`,
+        `${NOT_A_SCENE_FIELD} — sent {"field":"__proto__","value":"y"}`,
+      ],
     },
   ]);
   expect(toolCallsToExtraction(decoded?.calls ?? []).scene).toEqual({ location: "the inn" });
@@ -444,15 +449,15 @@ test("a tool the round does not offer is a recorded DROP naming why, never a wri
       args: JSON.stringify(sent),
       verdict: "dropped",
       issues: [
-        'key: Unrecognized tool: set_tracker is not offered this round — sent "gold"',
-        'delta: Unrecognized tool: set_tracker is not offered this round — sent "5"',
+        '(tool): Unrecognized tool: not offered this round — sent {"plane":"set_tracker","field":"key","value":"gold"}',
+        '(tool): Unrecognized tool: not offered this round — sent {"plane":"set_tracker","field":"delta","value":"5"}',
       ],
     },
     {
       name: "delete_world",
       args: JSON.stringify([entry("delete_world", 0, "x", "1")]),
       verdict: "dropped",
-      issues: ['x: Unrecognized tool: delete_world is not offered this round — sent "1"'],
+      issues: ['(tool): Unrecognized tool: not offered this round — sent {"plane":"delete_world","field":"x","value":"1"}'],
     },
   ]);
   expect(decoded?.dropped).toEqual(["set_tracker.key", "set_tracker.delta", "delete_world.x"]);
@@ -504,11 +509,11 @@ test("call and item ids are bounded whole numbers: the schema says so, and an ou
       args: JSON.stringify(outOfRange),
       verdict: "dropped",
       issues: [
-        `location: Invalid call: ${callRange}, received Infinity — sent "inf"`,
-        `location: Invalid call: ${callRange}, received -1 — sent "neg"`,
-        `day: Invalid call: ${callRange}, received 0.5 — sent "2"`,
-        `recentEvent: Invalid call: ${callRange}, received ${RPG_PATCH_INDEX_MAX + 1} — sent "over"`,
-        `presentUpsert.name: Invalid item: ${callRange}, received 1e+21 — sent "far"`,
+        `(call): Invalid call: ${callRange}, received Infinity — sent {"field":"location","value":"inf"}`,
+        `(call): Invalid call: ${callRange}, received -1 — sent {"field":"location","value":"neg"}`,
+        `(call): Invalid call: ${callRange}, received 0.5 — sent {"field":"day","value":"2"}`,
+        `(call): Invalid call: ${callRange}, received ${RPG_PATCH_INDEX_MAX + 1} — sent {"field":"recentEvent","value":"over"}`,
+        `(item): Invalid item: ${callRange}, received 1e+21 — sent {"field":"presentUpsert.name","value":"far"}`,
       ],
     },
   ]);

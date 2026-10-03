@@ -3378,7 +3378,7 @@ test("0511: a patch reply naming a prototype key drops that field by name and st
       name: "update_scene",
       args: JSON.stringify([{ plane: "update_scene", call: 0, field: "constructor", item: 0, value: "x" }]),
       verdict: "dropped",
-      issues: ['constructor: Unrecognized field: not one of update_scene\'s fields — sent "x"'],
+      issues: ['(field): Unrecognized field: not one of update_scene\'s fields — sent {"field":"constructor","value":"x"}'],
     },
   ]);
   warn.mockRestore();
