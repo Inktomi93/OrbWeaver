@@ -14,7 +14,7 @@
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { estimateTokens } from "@orb/kit/tokens";
+import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 
 /** One shaped history entry, as handed to the completion runners. File-local (the cross-boundary wire
  *  shape is the providers' ChatHistoryMessage; this is SHAPE's internal turn shape). */
@@ -57,11 +57,21 @@ interface FitResult {
   readonly ceilingTokens: number | null;
 }
 
-// Per-message wire overhead (role markers the estimator doesn't see) + estimator-slop headroom.
+// Per-message wire overhead: the role markers the estimator doesn't see.
 const PER_MESSAGE_OVERHEAD = 4;
-const SAFETY_MARGIN = 64;
 
-/** The trim chunk as a fraction of the history's room (`ceiling − reserveOutputTokens`).
+// The estimated tokens system + history may occupy. The model window is HARD (the server 400s or drops the oldest
+// kept rows past it) and the estimator's error is proportional, so the window's input room — what the output
+// reserve leaves, the reserve being an exact `max_tokens` — is discounted by `safeTokenWindow`. The soft cap is
+// the user's own working-set knob, measured in the same estimate the preview shows, so it is taken as stated.
+function inputRoom(budget: HistoryBudget): number {
+  const hardRoom = budget.windowTokens === undefined ? Number.POSITIVE_INFINITY : safeTokenWindow(budget.windowTokens - budget.reserveOutputTokens);
+  const softRoom = budget.softMaxTokens === undefined ? Number.POSITIVE_INFINITY : budget.softMaxTokens - budget.reserveOutputTokens;
+  return Math.min(hardRoom, softRoom);
+}
+
+/** The trim chunk as a fraction of the input room (system + history, after the output reserve and the hard
+ *  window's estimator discount).
  *
  *  @remarks The prompt cache is an exact prefix, so a fit that drops one row per turn rewrites the whole kept
  *  history every turn. The cut snaps to a grid of chunks counted from the history's start instead, so
@@ -73,9 +83,9 @@ const SAFETY_MARGIN = 64;
  */
 export const HISTORY_TRIM_CHUNK_FRACTION = 0.1;
 
-// The chunk the cut snaps to. Stable per chat: it reads only the ceiling and the output reserve.
-function trimChunkTokens(ceiling: number, reserveOutputTokens: number): number {
-  return Math.max(1, Math.round(HISTORY_TRIM_CHUNK_FRACTION * (ceiling - reserveOutputTokens)));
+// The chunk the cut snaps to. Stable per chat: it reads only the window, the soft cap and the output reserve.
+function trimChunkTokens(room: number): number {
+  return Math.max(1, Math.round(HISTORY_TRIM_CHUNK_FRACTION * room));
 }
 
 // The first row at or after `minimalCut` that starts on a chunk boundary, where a row's start is the summed cost
@@ -156,7 +166,8 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
     };
   }
 
-  const promptBudget = ceiling - budget.systemTokens - budget.reserveOutputTokens - SAFETY_MARGIN;
+  const room = inputRoom(budget);
+  const promptBudget = room - budget.systemTokens;
 
   // The irreducible-tail anchor: the newest id-bearing turn (falling back to the newest row when no row
   // carries an id — hand-built histories keep the old newest-row guarantee).
@@ -188,7 +199,7 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
     return { history: [...history], droppedCount: 0, earliestKeptMessageId: null, usedTokens: used, ceilingTokens: ceiling };
   }
   // The irreducible tail still wins over the grid: the cut never passes the newest id-bearing turn.
-  const cut = Math.min(chunkAlignedCut(history, keepFrom, trimChunkTokens(ceiling, budget.reserveOutputTokens)), irreducibleFrom);
+  const cut = Math.min(chunkAlignedCut(history, keepFrom, trimChunkTokens(room)), irreducibleFrom);
   const kept = history.slice(cut);
   return {
     history: kept,

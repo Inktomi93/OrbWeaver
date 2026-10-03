@@ -1597,3 +1597,73 @@ test("#1873 a capability warning raised mid-turn settles: the notice band reflow
   // — and the verdict SETTLED there, rather than alternating across it.
   await expect(component.locator(STUCK_NAME_ROW)).toHaveCount(1);
 });
+
+// A Tier-B card is a live frame document. A row that unmounts when it leaves the virtual window reloads its
+// frame and re-runs the card's scripts when it returns, so the transcript keeps live card rows mounted.
+const CARD_CHARACTER = castId<CharacterId>("char_card_keeper");
+const CARD_ROW_ID = castId<MessageId>("msg_card_row");
+
+test("a Tier-B card row scrolled out of the window and back keeps the same frame node", async ({ mount, page }) => {
+  const filler = Array.from({ length: 40 }, (_, i) =>
+    makeMessageView({ id: castId<MessageId>(`msg_card_filler_${i}`), role: i % 2 === 0 ? "user" : "assistant", content: TALL_BODY.slice(0, 600), seq: i + 1 }),
+  );
+  const card = makeMessageView({
+    id: CARD_ROW_ID,
+    role: "assistant",
+    characterId: CARD_CHARACTER,
+    content: ':::card title="Ledger"\n<div>Tally: 12 marks</div>\n:::',
+    seq: filler.length + 1,
+  });
+  // The roving tab stop keeps the LAST row mounted on its own, so the card sits just above the tail.
+  const tail = [1, 2].map((n) => makeMessageView({ id: castId<MessageId>(`msg_card_tail_${n}`), role: "user", content: `Tail ${n}`, seq: card.seq + n }));
+  await routeTrpc(page, {
+    ...CHAT_AMBIENT_ROUTES,
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": () => makeMessagesPage([...filler, card, ...tail], [{ kind: "character", id: CARD_CHARACTER, name: "Keeper", avatarHash: null }]),
+    "chat.getChat": (): TrpcFixtureOutput<"chat.getChat"> => ({
+      participants: [
+        {
+          id: "cp_card_keeper",
+          kind: "character",
+          characterId: CARD_CHARACTER,
+          displayName: "Keeper",
+          leftSeq: null,
+          avatarHash: null,
+          role: "member",
+          renderPolicy: { htmlTrust: "trusted", forbidExternalMedia: false },
+        },
+      ],
+      anchorPersonaId: null,
+      identities: [],
+      group: DEFAULT_GROUP_CONFIG,
+    }),
+  });
+  await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
+  const component = await mount(<MessageListSurfaceStory />);
+
+  const frame = component.locator(`[data-message-id="${CARD_ROW_ID}"] iframe[data-slot="sandbox-frame"]`);
+  await expect(frame).toBeVisible();
+  // The frame node rides a page global between evaluate calls; a later call compares it by identity.
+  await frame.evaluate((node) => Reflect.set(globalThis, "cardFrameNode", node));
+  const sameFrame = (): Promise<boolean> => frame.evaluate((node) => Reflect.get(globalThis, "cardFrameNode") === node);
+  const markedFrameConnected = (): Promise<boolean> =>
+    page.evaluate(() => {
+      const marked: unknown = Reflect.get(globalThis, "cardFrameNode");
+      return marked instanceof Element && marked.isConnected;
+    });
+
+  const scroller = component.locator(LIST_SCROLLER);
+  await scroller.evaluate((el: HTMLElement) => {
+    el.scrollTop = 0;
+  });
+  await expect(component.locator('[data-message-id="msg_card_filler_0"]')).toBeVisible();
+  // Scrolled a whole transcript away, the card row is outside the virtual window yet its frame stays attached.
+  await expect(frame).not.toBeInViewport();
+  expect(await markedFrameConnected()).toBe(true);
+
+  await scroller.evaluate((el: HTMLElement) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await expect(frame).toBeInViewport();
+  expect(await sameFrame()).toBe(true);
+});

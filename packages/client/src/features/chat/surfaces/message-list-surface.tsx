@@ -45,6 +45,7 @@ import { resolveRowAttribution } from "../lib/attribution.ts";
 import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
+import { liveCardRowIds } from "../lib/live-card-rows.ts";
 import { BG_PHOTO_ERROR_PLATE, BG_PHOTO_LOADING_PLATE } from "../lib/message-row-backing.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
@@ -237,6 +238,9 @@ function ChatThread({
   // Stepping a greeting is a host verb, and a member cannot read the host's cards: only the host reads them.
   const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen && chatDetail.viewerIsHost === true);
   const items = useMessageItems(messages, chatId);
+  const liveCardRows = liveCardRowIds(items, (view) =>
+    resolveRowRenderPolicy({ role: view.role, authorUserId: view.authorUserId, characterId: view.characterId, viewerUserId, participants, lenientHtmlCards }),
+  );
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
   // every scrollback, so "mounted" != "new".
   const newArrivalKeys = useNewArrivalKeys(items, chatId);
@@ -391,6 +395,7 @@ function ChatThread({
         items={items}
         getItemKey={messageItemKey}
         estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
+        keepMounted={(item): boolean => liveCardRows.has(messageItemKey(item))}
         renderItem={(item, index, meta): ReactNode => {
           const highlighted =
             item.kind === "message" &&
