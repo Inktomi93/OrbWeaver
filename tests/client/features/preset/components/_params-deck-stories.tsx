@@ -20,6 +20,7 @@ import { ParamsDeck } from "../../../../../packages/client/src/features/preset/c
 import { samplerSpellingOf } from "../../../../../packages/client/src/features/preset/lib/capability-panel-model.ts";
 import { validatePresetConfig } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
 import type { ReadFailure } from "../../../../../packages/client/src/features/preset/lib/resolve-failure.ts";
+import { CtDataProviders } from "../../../../support/browser/ct-data-providers.tsx";
 import { makeGenerationCapability } from "../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = "preset_deckstoryaaaa";
@@ -199,41 +200,14 @@ interface DeckHarnessProps {
   /** The capability read's THROWN error — passed WHOLE so the gate reads `data.code` (side-eye F-02 + the
    *  2026-08-08 earned-cause fix). `null` = PENDING. */
   readonly capabilityError?: ReadFailure | null;
-  /** Whether the chat connection's server can look words up (the logit-bias editor's word entries). */
-  readonly tokenizes?: boolean;
   readonly samplerSpelling?: Parameters<typeof ParamsDeck>[0]["samplerSpelling"];
-}
-
-/** A word the story tokenizer cannot look up, so the editor's inline failure shows. */
-export const UNTOKENIZABLE_WORD = "broken";
-
-/** The story's tokenize read: every word becomes its first letter and the rest, with ids 1 and 2. */
-function storyTokenize(available: boolean): Parameters<typeof ParamsDeck>[0]["tokenize"] {
-  return (words) =>
-    Promise.resolve({
-      available,
-      words: available
-        ? words.map((word) =>
-            word === UNTOKENIZABLE_WORD
-              ? { ok: false as const, word, reason: "the tokenizer is offline" }
-              : { ok: true as const, word, ids: [1, 2], pieces: [word.slice(0, 1), word.slice(1)] },
-          )
-        : [],
-    });
 }
 
 /** The shared harness: the REAL deck under the REAL autosave boundary, with the last-saved params KEY SET
  *  mirrored to an `<output>` (the key-minimal patch proof) plus the last-saved value of each knob. The header's REAL `AutosaveStatus` rides along: the
  *  editor's saved-truth arm is a claim about what that affordance says, so the story must render it rather
  *  than a stand-in. */
-function DeckHarness({
-  params,
-  effective,
-  capability = STORY_CAPABILITY,
-  capabilityError = null,
-  tokenizes = true,
-  samplerSpelling,
-}: DeckHarnessProps): ReactElement {
+function DeckHarness({ params, effective, capability = STORY_CAPABILITY, capabilityError = null, samplerSpelling }: DeckHarnessProps): ReactElement {
   const resolvedCapability = capability ?? undefined;
   const [saved, setSaved] = useState("keys=- ");
   const save = (values: PromptConfig): Promise<void> => {
@@ -244,40 +218,37 @@ function DeckHarness({
     return Promise.resolve();
   };
   const serverValues: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, params };
+  // The data providers are for the logit-bias editor's word lookup, which a CT answers with `routeTrpc`.
   return (
-    <StoryForm entityId={STORY_PRESET} save={save} serverValues={serverValues}>
-      {(session): ReactElement => (
-        <>
-          <output>{saved}</output>
-          <AutosaveStatus onRetry={session.retrySave} state={session.saveState} />
-          {/* THE `@container` IS PRODUCTION, NOT SCAFFOLDING: the editor mounts every view body inside one
+    <CtDataProviders>
+      <StoryForm entityId={STORY_PRESET} save={save} serverValues={serverValues}>
+        {(session): ReactElement => (
+          <>
+            <output>{saved}</output>
+            <AutosaveStatus onRetry={session.retrySave} state={session.saveState} />
+            {/* THE `@container` IS PRODUCTION, NOT SCAFFOLDING: the editor mounts every view body inside one
               (`preset-editor-surface.tsx`), and the KnobRow's narrow fold is a CONTAINER query. A story that
               omits it has no query root at all, so the fold would resolve to its default arm at every width
               and the width matrix would be measuring nothing. */}
-          <Container className="w-full">
-            <ParamsDeck
-              capability={resolvedCapability}
-              capabilityError={capabilityError}
-              effective={effective}
-              form={session.form as AppFormInstance<PromptConfig>}
-              samplerSpelling={samplerSpelling}
-              tokenize={storyTokenize(tokenizes)}
-            />
-          </Container>
-        </>
-      )}
-    </StoryForm>
+            <Container className="w-full">
+              <ParamsDeck
+                capability={resolvedCapability}
+                capabilityError={capabilityError}
+                effective={effective}
+                form={session.form as AppFormInstance<PromptConfig>}
+                samplerSpelling={samplerSpelling}
+              />
+            </Container>
+          </>
+        )}
+      </StoryForm>
+    </CtDataProviders>
   );
 }
 
 /** A LOGIT-BIAS map that CHANGES on a still-mounted form: the editor's rows belong to the preset, so a switch
  *  replaces them. Same reseed path as a preset reset (new `serverValues`, no remount key bump), because that is
  *  what a preset switch does to this subtree. */
-/** The deck on a chat connection whose server cannot look words up: the bias editor takes token ids only. */
-export function ParamsDeckIdOnlyBiasStory(): ReactElement {
-  return <DeckHarness effective={GHOST_EFFECTIVE} params={{}} tokenizes={false} />;
-}
-
 export function ParamsDeckLogitBiasSwitchStory(): ReactElement {
   const [switched, setSwitched] = useState(false);
   return (

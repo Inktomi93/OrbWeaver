@@ -36,7 +36,7 @@
 // mirror. A plain `useQuery`: the read fails when no chat connection resolves (the same condition that
 // hides the model-fed clusters), and that degrades to un-ghosted rows rather than an error boundary.
 
-import type { GenerationCapability, TokenizeResult } from "@orb/contracts/inference";
+import type { GenerationCapability } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
@@ -44,7 +44,7 @@ import type { PresetId } from "@orb/kit/ids";
 // `Container` is lane B's shared content-column ruling — the panel column measures the PANE through it.
 import { Container, Stack } from "@orb/ui/layout";
 import { Tabs, TabsPanel } from "@orb/ui/tabs";
-import { useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, StoredConfigUnreadableNotice } from "#components";
@@ -188,10 +188,6 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   // The ERROR goes down WHOLE (2026-08-08) so the gate discriminates on `data.code` — the routing verdict is
   // EARNED, never asserted. `null` = PENDING.
   const capabilityError = capabilityQuery.error;
-  // The logit-bias editor's word lookup, against the same chat-role connection the deck describes.
-  const queryClient = useQueryClient();
-  const tokenize = (words: readonly string[]): Promise<TokenizeResult> =>
-    queryClient.fetchQuery(trpc.connection.tokenizeWords.queryOptions({ words: [...words] }));
   // The staleness row names a dropped sampler under the target server's own spelling: its provider row, then the
   // connection's declared override, both already in the client's hands.
   const providersQuery = useQuery(trpc.connection.providersAvailable.queryOptions());
@@ -229,7 +225,6 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             onRename={(name): void => update.mutate({ id: presetId, name })}
             capability={capability}
             capabilityError={capabilityError}
-            tokenize={tokenize}
             samplerSpelling={samplerSpelling}
             effective={effectiveQuery.data ?? undefined}
             reset={reset}
@@ -269,7 +264,6 @@ interface PresetEditorBodyProps {
   readonly capability: GenerationCapability | undefined;
   /** The capability read's thrown error object, `null` while it is still PENDING (§F-02). */
   readonly capabilityError: ReadFailure | null;
-  readonly tokenize: ViewContentProps["tokenize"];
   readonly samplerSpelling: ViewContentProps["samplerSpelling"];
   readonly effective: EffectiveProfileRow | undefined;
   readonly reset: ReturnType<typeof useResetPreset>;
@@ -290,7 +284,6 @@ function PresetEditorBody({
   onRename,
   capability,
   capabilityError,
-  tokenize,
   samplerSpelling,
   effective,
   reset,
@@ -324,7 +317,6 @@ function PresetEditorBody({
     presetId,
     attachable: !isSystemDefault,
     onRevealSection,
-    tokenize,
     samplerSpelling,
   };
   // The ONE writer of the view axis; an unset store read resolves to the tuple's first view.

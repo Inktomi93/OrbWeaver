@@ -5,6 +5,7 @@ import type { ModelInfoApi } from "@orb/contracts/inference";
 
 export const ENDPOINT_CATALOG_PREFIX = "catalog:endpoint:";
 const TOKENS_SEGMENT = "tokens:";
+const TRAILING_SLASH_RE = /\/+$/u;
 
 export function endpointCatalogPrefix(baseUrl: string): string {
   return `${ENDPOINT_CATALOG_PREFIX}${baseUrl}#`;
@@ -17,9 +18,9 @@ export function endpointCatalogKey(baseUrl: string, modelInfoApi: ModelInfoApi |
   return `${endpointCatalogPrefix(baseUrl)}${modelInfoApi ?? "list"}`;
 }
 
-/** Every token lookup cached for one server URL. */
+/** Every token lookup cached for one server URL; `http://h` and `http://h/` are one server. */
 export function endpointTokensPrefix(baseUrl: string): string {
-  return `${endpointCatalogPrefix(baseUrl)}${TOKENS_SEGMENT}`;
+  return `${endpointCatalogPrefix(baseUrl.replace(TRAILING_SLASH_RE, ""))}${TOKENS_SEGMENT}`;
 }
 
 /** One model's token lookups on one server URL: a model change is a new key, so it resolves afresh. */

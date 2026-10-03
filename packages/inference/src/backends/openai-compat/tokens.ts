@@ -66,8 +66,11 @@ const TOKENIZE_SPECS: Readonly<Record<TokenizeApi, TokenizeSpec>> = {
   },
 };
 
-const cachedSchema = z.record(z.string(), z.object({ ids: z.array(TOKEN_ID), pieces: z.array(z.string()).optional() }));
-type Cached = z.infer<typeof cachedSchema>;
+const heldTokensSchema = z.object({ ids: z.array(TOKEN_ID), pieces: z.array(z.string()).optional() });
+// Persisted as entries and held as a Map: a word is user text, so `constructor` or `__proto__` must never
+// read as an object's inherited member.
+const persistedSchema = z.array(z.tuple([z.string(), heldTokensSchema]));
+type Cached = ReadonlyMap<string, z.infer<typeof heldTokensSchema>>;
 
 /** Where one connection's words are tokenized. */
 export interface TokenTarget {
@@ -111,8 +114,8 @@ export function createTokenLexicon(deps: { readonly fetch: typeof fetch; readonl
       return hit;
     }
     const raw = await deps.snapshotStore.read(key);
-    const parsed = raw === null ? null : cachedSchema.safeParse(JSON.parse(raw));
-    const cached: Cached = parsed?.success === true ? parsed.data : {};
+    const parsed = raw === null ? null : persistedSchema.safeParse(JSON.parse(raw));
+    const cached: Cached = new Map(parsed?.success === true ? parsed.data : []);
     held.set(key, cached);
     return cached;
   };
@@ -140,22 +143,22 @@ export function createTokenLexicon(deps: { readonly fetch: typeof fetch; readonl
     lookup: async (target, words): Promise<readonly WordTokens[]> => {
       const key = endpointTokensKey(target.baseUrl, target.model);
       const cached = await load(key);
-      const missing = [...new Set(words)].filter((word) => cached[word] === undefined);
+      const missing = [...new Set(words)].filter((word) => !cached.has(word));
       const asked = await Promise.all(missing.map((word) => ask(target, word)));
       const learned = asked.filter((answer) => answer.ok);
       if (learned.length > 0) {
         // Onto what is held now, so a lookup that finished meanwhile keeps its words.
-        const next: Cached = { ...(held.get(key) ?? cached) };
+        const next = new Map(held.get(key) ?? cached);
         for (const answer of learned) {
-          next[answer.word] = { ids: answer.ids, ...(answer.pieces !== undefined ? { pieces: answer.pieces } : {}) };
+          next.set(answer.word, { ids: answer.ids, ...(answer.pieces !== undefined ? { pieces: answer.pieces } : {}) });
         }
         held.set(key, next);
-        await deps.snapshotStore.write(key, JSON.stringify(next));
+        await deps.snapshotStore.write(key, JSON.stringify([...next]));
       }
       const failed = new Map(asked.filter((answer) => !answer.ok).map((answer) => [answer.word, answer]));
       const now = held.get(key) ?? cached;
       return words.map((word): WordTokens => {
-        const entry = now[word];
+        const entry = now.get(word);
         if (entry !== undefined) {
           return { ok: true, word, ids: entry.ids, ...(entry.pieces !== undefined ? { pieces: entry.pieces } : {}) };
         }

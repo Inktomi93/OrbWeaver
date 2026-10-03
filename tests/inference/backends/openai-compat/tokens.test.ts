@@ -216,3 +216,38 @@ test("forget drops one server's lookups in memory and in the store, and leaves a
   await lexicon.lookup(other, ["hi"]);
   expect(calls, "only the forgotten server is asked again").toHaveLength(3);
 });
+
+test("a word that names an object member (constructor, __proto__) is asked, cached and sent like any other", async () => {
+  const calls: RecordedRequest[] = [];
+  const chats: RecordedRequest[] = [];
+  const server = tokenizeServer(calls, chats);
+  const store = memoryStores().snapshotStore;
+  const lexicon = createTokenLexicon({ fetch: server, snapshotStore: store });
+  const params = {
+    logitBias: Object.fromEntries([
+      ["constructor", -5],
+      ["__proto__", -6],
+      ["toString", -7],
+    ]),
+  } satisfies UserIntent;
+
+  const turn = await biasTurn({ providerId: "vllm", params, fetch: server }, lexicon);
+  expect(droppedBias(turn)).toEqual([]);
+  expect(new Set(calls.map((call) => call.body["prompt"]))).toEqual(new Set(["__proto__", "constructor", "toString"]));
+  expect(chats[0]?.body["logit_bias"]).toMatchObject({ [String("constructor".codePointAt(0))]: -5 });
+
+  const restarted = createTokenLexicon({ fetch: server, snapshotStore: store });
+  expect((await restarted.lookup(target("vllm"), ["constructor", "__proto__"])).every((answer) => answer.ok)).toBe(true);
+  expect(calls, "the persisted entries read back without asking again").toHaveLength(3);
+});
+
+test("a server URL with and without a trailing slash shares its lookups, and forget clears both", async () => {
+  const calls: RecordedRequest[] = [];
+  const store = memoryStores().snapshotStore;
+  const lexicon = createTokenLexicon({ fetch: tokenizeServer(calls), snapshotStore: store });
+  await lexicon.lookup(target("vllm"), ["hi"]);
+  await lexicon.lookup({ ...target("vllm"), baseUrl: `${BASE_URL}/` }, ["hi"]);
+  expect(calls).toHaveLength(1);
+  await lexicon.forget(`${BASE_URL}/`);
+  expect([...store.entries.keys()]).toEqual([]);
+});

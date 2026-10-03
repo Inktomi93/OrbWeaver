@@ -3,9 +3,8 @@
 // the same cache this read fills, so a failed lookup here is a note, never a block.
 
 import type { TokenizeResult, WordTokens } from "@orb/contracts/inference";
-import { TOKEN_ID_KEY } from "@orb/contracts/inference";
+import { TOKEN_ID_KEY, TOKENIZE_WORD_CHARS_MAX, TOKENIZE_WORDS_MAX } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
-import { errorMessage } from "@orb/kit/error-message";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Fieldset, FieldsetLegend } from "@orb/ui/fieldset";
@@ -15,13 +14,14 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
 import { Text } from "@orb/ui/text";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { KeyboardEvent, ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 
 type AppForm = AppFormInstance<PromptConfig>;
 type Bias = Readonly<Record<string, number>>;
-type Tokenize = LogitBiasEditorProps["tokenize"];
 
 // The OpenAI-family bias scale every local server also takes: -100 bans a token, 100 all but forces it.
 const BIAS_MIN = -100;
@@ -35,38 +35,19 @@ type Lookup =
   | { readonly state: "failed"; readonly reason: string }
   | { readonly state: "done"; readonly result: TokenizeResult };
 
-const PENDING: Lookup = { state: "pending" };
-
-export interface LogitBiasEditorProps {
-  readonly form: AppForm;
-  /** Each word's tokens on the chat connection's server (`connection.tokenizeWords`). */
-  readonly tokenize: (words: readonly string[]) => Promise<TokenizeResult>;
-}
-
-export function LogitBiasEditor({ form, tokenize }: LogitBiasEditorProps): ReactElement {
+export function LogitBiasEditor({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <form.AppField name="params.logitBias">
       {(field): ReactElement => (
-        <BiasEntries
-          bias={field.state.value}
-          onChange={(next): void => field.handleChange(Object.keys(next).length === 0 ? undefined : { ...next })}
-          tokenize={tokenize}
-        />
+        <BiasEntries bias={field.state.value} onChange={(next): void => field.handleChange(Object.keys(next).length === 0 ? undefined : { ...next })} />
       )}
     </form.AppField>
   );
 }
 
-function BiasEntries({
-  bias,
-  onChange,
-  tokenize,
-}: {
-  readonly bias: Bias | undefined;
-  readonly onChange: (next: Bias) => void;
-  readonly tokenize: Tokenize;
-}): ReactElement {
-  const lookup = useWordLookup(bias, tokenize);
+function BiasEntries({ bias, onChange }: { readonly bias: Bias | undefined; readonly onChange: (next: Bias) => void }): ReactElement {
+  const words = wordKeysOf(bias);
+  const lookup = useWordLookup(words);
   const [draftKey, setDraftKey] = useState("");
   const [draftBias, setDraftBias] = useState<number | null>(BIAS_MIN);
   const [problem, setProblem] = useState<string | null>(null);
@@ -75,7 +56,7 @@ function BiasEntries({
   const takesWords = lookup.state !== "done" || lookup.result.available;
 
   const add = (): void => {
-    const refusal = draftRefusal(draftKey, draftBias, takesWords);
+    const refusal = draftRefusal(draftKey, draftBias, { takesWords, words: words.length });
     if (refusal !== null || draftBias === null) {
       setProblem(refusal);
       return;
@@ -141,12 +122,20 @@ function BiasEntries({
 }
 
 /** Why the draft entry cannot be added, or `null` when it can. */
-function draftRefusal(key: string, bias: number | null, takesWords: boolean): string | null {
+function draftRefusal(key: string, bias: number | null, held: { readonly takesWords: boolean; readonly words: number }): string | null {
   if (key === "") {
     return "Type a token id or a word first.";
   }
-  if (!(TOKEN_ID_KEY.test(key) || takesWords)) {
-    return "This connection's server can't look words up, so it takes token ids only.";
+  if (!TOKEN_ID_KEY.test(key)) {
+    if (!held.takesWords) {
+      return "This connection's server can't look words up, so it takes token ids only.";
+    }
+    if (key.length > TOKENIZE_WORD_CHARS_MAX) {
+      return `A word or phrase is at most ${String(TOKENIZE_WORD_CHARS_MAX)} characters.`;
+    }
+    if (held.words >= TOKENIZE_WORDS_MAX) {
+      return `A preset biases at most ${String(TOKENIZE_WORDS_MAX)} words.`;
+    }
   }
   if (bias === null || bias < BIAS_MIN || bias > BIAS_MAX) {
     return `Pick a bias from ${String(BIAS_MIN)} to ${String(BIAS_MAX)}.`;
@@ -154,38 +143,31 @@ function draftRefusal(key: string, bias: number | null, takesWords: boolean): st
   return null;
 }
 
-/** Each word key's tokens on the chat connection's server, asked again whenever the stored map changes; the
- *  server answers held words from its cache, so only a new word costs a tokenize call. An answer is kept with
- *  the map it was asked for, so a newer map reads as pending until its own answer lands. */
-function useWordLookup(bias: Bias | undefined, tokenize: Tokenize): Lookup {
-  const [answer, setAnswer] = useState<{ readonly bias: Bias | undefined; readonly lookup: Lookup } | null>(null);
-  useEffect(() => {
-    let live = true;
-    const words = Object.keys(bias ?? {}).filter((key) => !TOKEN_ID_KEY.test(key));
-    // @orb-waive caught-failure-ownership(tokenize): the rejection becomes the editor's lookup state, shown beside each word as "not looked up: <reason>"; the turn resolves words on the server regardless. Ends if this read moves to a query.
-    tokenize(words).then(
-      (result) => {
-        if (live) {
-          setAnswer({ bias, lookup: { state: "done", result } });
-        }
-      },
-      (err: unknown) => {
-        if (live) {
-          setAnswer({ bias, lookup: { state: "failed", reason: errorMessage(err) } });
-        }
-      },
-    );
-    return (): void => {
-      live = false;
-    };
-  }, [bias, tokenize]);
-  return answer !== null && answer.bias === bias ? answer.lookup : PENDING;
+/** The bias keys the lookup can ask: words within the route's caps (a stored map past them asks what fits). */
+function wordKeysOf(bias: Bias | undefined): string[] {
+  return Object.keys(bias ?? {})
+    .filter((key) => !TOKEN_ID_KEY.test(key) && key.length <= TOKENIZE_WORD_CHARS_MAX)
+    .slice(0, TOKENIZE_WORDS_MAX);
+}
+
+/** Each word key's tokens on the chat connection's server. The server answers held words from its cache, so a
+ *  new word costs one tokenize call; the previous answer stays on screen while a changed list is asked. */
+function useWordLookup(words: string[]): Lookup {
+  const trpc = useTRPC();
+  const query = useQuery({ ...trpc.connection.tokenizeWords.queryOptions({ words }), placeholderData: keepPreviousData });
+  if (query.isError) {
+    return { state: "failed", reason: query.error.message };
+  }
+  return query.data === undefined ? { state: "pending" } : { state: "done", result: query.data };
 }
 
 /** What one entry's key reads as beside it: nothing for a token id, the word's tokens or why there are none. */
 function readoutOf(key: string, lookup: Lookup): string {
   if (TOKEN_ID_KEY.test(key)) {
     return "";
+  }
+  if (key.length > TOKENIZE_WORD_CHARS_MAX) {
+    return `not looked up: longer than ${String(TOKENIZE_WORD_CHARS_MAX)} characters`;
   }
   if (lookup.state === "pending") {
     return "looking up…";

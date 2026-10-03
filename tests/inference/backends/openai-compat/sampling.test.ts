@@ -291,12 +291,16 @@ test("llama.cpp: banned phrases with no logit bias of the user's become the whol
   expect(body["logit_bias"]).toEqual({ Elara: false });
 });
 
-test("reasoning off reaches vLLM, llama.cpp, KoboldCpp and Custom as enable_thinking false; on or unset sends nothing new", async () => {
-  for (const providerId of ["vllm", "llama-cpp", "koboldcpp", "custom-openai"]) {
+test("reasoning off reaches vLLM, llama.cpp and KoboldCpp as enable_thinking false; on or unset sends nothing new", async () => {
+  for (const providerId of ["vllm", "llama-cpp", "koboldcpp"]) {
     expect((await turnBody(providerId, { effort: "none" })).body["chat_template_kwargs"], providerId).toEqual({ enable_thinking: false });
     expect((await turnBody(providerId, { effort: "high" })).body, providerId).not.toHaveProperty("chat_template_kwargs");
     expect((await turnBody(providerId, {})).body, providerId).not.toHaveProperty("chat_template_kwargs");
   }
+});
+
+test("reasoning off adds no template kwargs on Custom, which may front a strict proxy", async () => {
+  expect((await turnBody("custom-openai", { effort: "none" })).body).not.toHaveProperty("chat_template_kwargs");
 });
 
 test("reasoning off on Ollama's native route adds no template kwargs", async () => {

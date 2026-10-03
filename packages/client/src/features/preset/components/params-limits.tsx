@@ -39,7 +39,6 @@ import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
-import type { LogitBiasEditorProps } from "./logit-bias-editor.tsx";
 import { LogitBiasEditor } from "./logit-bias-editor.tsx";
 import { BannedPhrases, StopSequences } from "./sequence-chips.tsx";
 
@@ -49,17 +48,16 @@ export interface ParamsLimitsProps {
   readonly form: AppForm;
   readonly capability: GenerationCapability | undefined;
   readonly effective: EffectiveProfileRow | undefined;
-  readonly tokenize: LogitBiasEditorProps["tokenize"];
 }
 
-export function ParamsLimits({ form, capability, effective, tokenize }: ParamsLimitsProps): ReactElement {
+export function ParamsLimits({ form, capability, effective }: ParamsLimitsProps): ReactElement {
   return (
     <>
       {/* No capability ⇒ OUTPUT is absent with its two sibling clusters, under the deck's ONE gate note
           (side-eye F-02: three per-cluster notes printed the same sentence three times). */}
       {capability === undefined ? null : <OutputCluster capability={capability} effective={effective} form={form} />}
       <ContextCluster form={form} />
-      <AdvancedCluster form={form} tokenize={tokenize} />
+      <AdvancedCluster form={form} />
     </>
   );
 }
@@ -272,7 +270,7 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
 }
 
 /** ADVANCED (§4 cluster 6) — the deck's ONE collapsed disclosure: the genuinely rare escape hatches. */
-function AdvancedCluster({ form, tokenize }: { readonly form: AppForm; readonly tokenize: LogitBiasEditorProps["tokenize"] }): ReactElement {
+function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
   return (
     <Collapsible>
       {/* IT IS A CONTROL, NOT A KICKER (side-eye 2026-08-22 P2-4). `voice="kicker"` is the 10.5px SECTION
@@ -290,7 +288,7 @@ function AdvancedCluster({ form, tokenize }: { readonly form: AppForm; readonly 
       </CollapsibleTrigger>
       <CollapsiblePanel>
         <Stack gap="field">
-          <LogitBiasEditor form={form} tokenize={tokenize} />
+          <LogitBiasEditor form={form} />
           <SettingRowGroup>
             <SettingTrackRow>
               {/* Unset is the model's own default, which allows parallel calls on every wire that has the control, so

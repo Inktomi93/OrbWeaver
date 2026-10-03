@@ -9,7 +9,6 @@ import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { ActionsView } from "../components/actions-view.tsx";
-import type { LogitBiasEditorProps } from "../components/logit-bias-editor.tsx";
 import { ParamsDeck } from "../components/params-deck.tsx";
 import { PresetStructureTabs } from "../components/preset-structure-tabs.tsx";
 import { RegexTab } from "../components/regex-tab.tsx";
@@ -35,26 +34,16 @@ export interface ViewContentProps {
    *  cannot say different things about the same eight pipeline stages (side-eye 2026-08-07 P2). */
   readonly attachable: boolean;
   readonly onRevealSection?: (() => void) | undefined;
-  readonly tokenize: LogitBiasEditorProps["tokenize"];
   readonly samplerSpelling: StalenessRowProps["spelling"];
 }
 
 /** Render one VIEW's body. Params is the new deck; the other four are the landed bodies re-homed per the
  *  §3 map (Data and Transforms simply stack the leaves that used to be sub-tabs). */
 export function viewContent(id: PresetEditorView["id"], props: ViewContentProps): ReactElement {
-  const { form, capability, capabilityError, effective, presetId, attachable, onRevealSection, tokenize, samplerSpelling } = props;
+  const { form, capability, capabilityError, effective, presetId, attachable, onRevealSection, samplerSpelling } = props;
   switch (id) {
     case "params":
-      return (
-        <ParamsDeck
-          capability={capability}
-          capabilityError={capabilityError}
-          effective={effective}
-          form={form}
-          samplerSpelling={samplerSpelling}
-          tokenize={tokenize}
-        />
-      );
+      return <ParamsDeck capability={capability} capabilityError={capabilityError} effective={effective} form={form} samplerSpelling={samplerSpelling} />;
     case "prompt":
       // No `capability` here any more: the one cluster that read it (Collapsing's floor line) moved to
       // Transforms with the rest of the wire-shaping tail (O-17★).

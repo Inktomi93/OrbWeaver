@@ -197,8 +197,8 @@ export const BUILTIN_PROVIDER_ROWS = [
     dialect: "openai-compatible",
     auth: "endpoint",
     apis: ["chat-completions"],
-    // Most self-hosted servers behind this row are vLLM or llama.cpp, whose templates read the kwarg.
-    features: { thinkingOff: "chat_template_kwargs" },
+    // No `thinkingOff`: a Custom endpoint is likely a proxy, and a strict one refuses unknown fields such as
+    // `chat_template_kwargs`. A Custom connection recognized as a local server takes that server's row instead.
     catalog: "url",
     metered: false,
   },
