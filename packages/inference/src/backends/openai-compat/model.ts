@@ -22,8 +22,8 @@ import type { WrapFetchArgs } from "../v4/fetch.ts";
 import { wrapFetch } from "../v4/fetch.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import type { ShapeArgs } from "./body.ts";
-import { shapeOutboundBody } from "./body.ts";
-import { ollamaNativeFetch, THINK_KEY, toOllamaChat } from "./ollama-native.ts";
+import { shapeOutboundBody, userOwnedKeys } from "./body.ts";
+import { ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
 import { samplerBodyKeys } from "./sampling.ts";
 import type { ReasoningTags } from "./think-tags.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
@@ -173,13 +173,14 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
   const args = shapeArgs(call, "openai-compatible");
   const withExtra = (body: Record<string, unknown>): Record<string, unknown> => shapeOutboundBody({ ...body, ...(call.extraBody ?? {}) }, args);
   const samplerKeys = samplerBodyKeys(connection.features);
+  const userOwned = userOwnedKeys(args);
   const toNative = (body: Record<string, unknown>): Record<string, unknown> =>
     toOllamaChat(body, {
       numCtx: nativeWindow(call),
       samplerKeys,
       label: call.label,
       namedThinkLevels: namedThinkLevels(call),
-      thinkExcluded: connection.transport?.excludeBody?.includes(THINK_KEY) === true,
+      userOwned,
       keepAlive: connection.features.keepAlive,
       numBatch: connection.features.numBatch,
     });

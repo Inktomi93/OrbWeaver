@@ -226,6 +226,56 @@ test("a think the user excluded stays absent, folded or chosen, on the Ollama ro
   }
 });
 
+test("every native key the user's body sets or excludes is theirs over the wire: keep_alive, format, stream, options", async () => {
+  const ollama = fakeResolved({
+    task: "chat",
+    providerId: "ollama",
+    model: "qwen2.5:0.5b",
+    capability: capability(),
+    baseUrl: BASE_URL,
+    declaredFeatures: { keepAlive: "30m", numBatch: 256 },
+  });
+  const custom = fakeResolved({ task: "chat", providerId: "custom-openai", model: "qwen2.5:0.5b", capability: capability(), baseUrl: BASE_URL });
+  const detected = { ...custom, features: foldFeatures(builtinProvider("custom-openai")?.features, builtinProvider("ollama")?.features, { keepAlive: "30m" }) };
+  const schema = wireSchema({ type: "object", properties: { mood: { type: "string" } }, required: ["mood"], additionalProperties: false });
+  for (const [row, base] of [
+    ["ollama", ollama],
+    ["detected", detected],
+  ] as const) {
+    const set = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+      connection: { ...base, transport: { includeBody: { keep_alive: "5m", format: "json" } } },
+      responseFormat: { name: "mood", schema },
+    });
+    const sent = set.recorded[0]?.body ?? {};
+    expect([sent["keep_alive"], sent["format"]], row).toEqual(["5m", "json"]);
+    const dropped = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+      connection: { ...base, transport: { excludeBody: ["format", "stream", "options"] } },
+      responseFormat: { name: "mood", schema },
+    });
+    const bare = dropped.recorded[0]?.body ?? {};
+    expect(
+      ["format", "stream", "options"].filter((key) => Object.hasOwn(bare, key)),
+      row,
+    ).toEqual([]);
+  }
+});
+
+test("toOllamaChat: a user-owned key stands as set or stays excluded; a user options object takes ours under it", () => {
+  const args = { numCtx: WINDOW, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t", keepAlive: "30m", numBatch: 256 };
+  const theirs = [{ role: "user", content: [{ type: "image_url", image_url: { url: "https://cdn/x.png" } }] }];
+  const set = toOllamaChat(
+    { messages: theirs, stream: "yes", format: "json", ["keep_alive"]: "5m", options: { ["num_ctx"]: 2048 }, ["response_format"]: { type: "json_object" } },
+    { ...args, userOwned: new Set(["messages", "stream", "format", "keep_alive", "options"]) },
+  );
+  expect(set).toMatchObject({ messages: theirs, stream: "yes", format: "json", ["keep_alive"]: "5m" });
+  expect(set["options"]).toEqual({ ["num_ctx"]: 2048, ["num_batch"]: 256 });
+  const excluded = toOllamaChat(
+    { messages: [], ["reasoning_effort"]: "none", ["response_format"]: { type: "json_object" } },
+    { ...args, userOwned: new Set(["think", "format", "stream", "options", "keep_alive"]) },
+  );
+  expect(["think", "format", "stream", "options", "keep_alive"].filter((key) => Object.hasOwn(excluded, key))).toEqual([]);
+});
+
 test("a model whose reasoning is mandatory (gpt-oss) is never told off on a folded turn with reasoning unset", async () => {
   const mandatory = capability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], mandatory: true } });
   const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], {

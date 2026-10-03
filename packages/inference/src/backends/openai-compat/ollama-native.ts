@@ -19,7 +19,7 @@ const DATA_URL_RE = /^data:[^;,]+;base64,(?<data>.*)$/su;
 const PART_SEPARATOR = "\n\n";
 const ERROR_BODY_LIMIT = 65_536;
 const REASONING_OFF = "none";
-export const THINK_KEY = "think";
+const THINK_KEY = "think";
 
 /** The output cap's OpenAI spellings, which `/api/chat` reads as `options.num_predict`. The samplers move into
  *  `options` under the keys the sampler seam already spelled for this row (`samplerBodyKeys`). */
@@ -151,12 +151,48 @@ function thinkOf(effort: unknown, namedLevels: boolean): boolean | string | unde
   return namedLevels ? effort : true;
 }
 
-// The user's own `think` (set or excluded) stands; otherwise it is translated from `reasoning_effort`.
-function translatedThink(
+const STREAM_KEY = "stream";
+const MESSAGES_KEY = "messages";
+const FORMAT_KEY = "format";
+const KEEP_ALIVE_KEY = "keep_alive";
+const OPTIONS_KEY = "options";
+
+/** `options` as sent: the user's own object over ours key by key; one they set to a non-object, or excluded,
+ *  stands as they left it, so none of ours is sent. */
+function nativeOptions(body: Json, ours: Json, userOwned: ReadonlySet<string>): Json {
+  const theirs = body[OPTIONS_KEY];
+  if (isRecord(theirs)) {
+    return { [OPTIONS_KEY]: { ...ours, ...theirs } };
+  }
+  if (userOwned.has(OPTIONS_KEY)) {
+    return OPTIONS_KEY in body ? { [OPTIONS_KEY]: theirs } : {};
+  }
+  return { [OPTIONS_KEY]: ours };
+}
+
+/** The top-level keys this file computes, each skipped where the user's body settled it: a `messages` array
+ *  the user set rides as they wrote it, untranslated. Thunks, so a settled key's translation never runs. */
+function computedTopLevel(
   body: Json,
-  args: { readonly namedThinkLevels?: boolean | undefined; readonly thinkExcluded?: boolean | undefined },
-): boolean | string | undefined {
-  return THINK_KEY in body || args.thinkExcluded === true ? undefined : thinkOf(body["reasoning_effort"], args.namedThinkLevels === true);
+  args: { readonly label: string; readonly namedThinkLevels?: boolean | undefined; readonly keepAlive?: string | undefined },
+  userOwned: ReadonlySet<string>,
+): Json {
+  const computed: [string, () => unknown][] = [
+    // `/api/chat` streams unless told otherwise, and the SDK's non-streaming generate sends no `stream` key.
+    [STREAM_KEY, (): boolean => body[STREAM_KEY] === true],
+    [MESSAGES_KEY, (): Json[] => nativeMessages(body[MESSAGES_KEY], args.label)],
+    [FORMAT_KEY, (): unknown => formatOf(body["response_format"])],
+    [THINK_KEY, (): boolean | string | undefined => thinkOf(body["reasoning_effort"], args.namedThinkLevels === true)],
+    [KEEP_ALIVE_KEY, (): string | undefined => args.keepAlive],
+  ];
+  const out: Json = userOwned.has(MESSAGES_KEY) && MESSAGES_KEY in body ? { [MESSAGES_KEY]: body[MESSAGES_KEY] } : {};
+  for (const [key, value] of computed) {
+    const resolved = userOwned.has(key) ? undefined : value();
+    if (resolved !== undefined) {
+      out[key] = resolved;
+    }
+  }
+  return out;
 }
 
 /**
@@ -165,9 +201,10 @@ function translatedThink(
  * `samplerKeys` are the body keys the sampler seam spells for this row; each moves into `options` as is.
  * `keepAlive` and `numBatch` are the connection's own (`features.keepAlive`, `features.numBatch`). Keys
  * this file does not know pass through unchanged, so a native field set in `includeBody` reaches the server,
- * and an `options` object set there wins over the translated one key by key. A `think` already in the body is
- * the user's own (extras or `includeBody`) and stands over the one translated from `reasoning_effort`; one the
- * user excluded (`thinkExcluded`) stays absent.
+ * and an `options` object set there wins over the translated one key by key. `userOwned` is every top-level key
+ * the user's body set or excluded (`userOwnedKeys`): no key this file computes (`stream`, `messages`, `format`,
+ * `think`, `keep_alive`) is written over one of them, so a set key stands as the user wrote it, untranslated, and
+ * an excluded one stays absent.
  */
 export function toOllamaChat(
   body: Json,
@@ -176,7 +213,7 @@ export function toOllamaChat(
     readonly samplerKeys: ReadonlySet<string>;
     readonly label: string;
     readonly namedThinkLevels?: boolean | undefined;
-    readonly thinkExcluded?: boolean | undefined;
+    readonly userOwned?: ReadonlySet<string> | undefined;
     readonly keepAlive?: string | undefined;
     readonly numBatch?: number | undefined;
   },
@@ -188,26 +225,23 @@ export function toOllamaChat(
       options[key] = value;
     } else if (OUTPUT_CAP_KEYS.has(key)) {
       options[NUM_PREDICT] = value;
-    } else if (!DROPPED_KEYS.has(key) && key !== "options") {
+    } else if (!DROPPED_KEYS.has(key) && key !== OPTIONS_KEY) {
       rest[key] = value;
     }
   }
-  const format = formatOf(body["response_format"]);
-  const think = translatedThink(body, args);
+  const userOwned = args.userOwned ?? new Set<string>();
   return {
     ...rest,
-    // `/api/chat` streams unless told otherwise, and the SDK's non-streaming generate sends no `stream` key.
-    stream: body["stream"] === true,
-    messages: nativeMessages(body["messages"], args.label),
-    ...(format !== undefined ? { format } : {}),
-    ...(think !== undefined ? { [THINK_KEY]: think } : {}),
-    ...(args.keepAlive !== undefined ? { ["keep_alive"]: args.keepAlive } : {}),
-    options: {
-      ...options,
-      ...(args.numCtx !== undefined ? { ["num_ctx"]: args.numCtx } : {}),
-      ...(args.numBatch !== undefined ? { ["num_batch"]: args.numBatch } : {}),
-      ...(isRecord(body["options"]) ? body["options"] : {}),
-    },
+    ...computedTopLevel(body, args, userOwned),
+    ...nativeOptions(
+      body,
+      {
+        ...options,
+        ...(args.numCtx !== undefined ? { ["num_ctx"]: args.numCtx } : {}),
+        ...(args.numBatch !== undefined ? { ["num_batch"]: args.numBatch } : {}),
+      },
+      userOwned,
+    ),
   };
 }
 

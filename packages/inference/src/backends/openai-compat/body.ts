@@ -325,7 +325,7 @@ function applySameRoleFold(body: Record<string, unknown>, args: ShapeArgs): Reco
 /** The top-level keys the user's own body settles: an admitted `extras` key, an `includeBody` key, or an
  *  `excludeBody` key. The rules after the merge compute their keys first and
  *  leave every one of these as the user set it. */
-function userOwnedKeys(args: ShapeArgs): ReadonlySet<string> {
+export function userOwnedKeys(args: ShapeArgs): ReadonlySet<string> {
   const owned = new Set<string>([...Object.keys(args.transport?.includeBody ?? {}), ...(args.transport?.excludeBody ?? [])]);
   if (args.dialect !== "openrouter") {
     for (const key of Object.keys(args.extras ?? {})) {
