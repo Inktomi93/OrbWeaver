@@ -633,6 +633,11 @@ const chatSchema = z
     // (`resolveReactionsEnabled`, @orb/contracts/chat). SERVER-honored (the verb gate + the
     // `listReactions` verdict) and client-read only to seat the host's toggle.
     reactionsEnabled: z.boolean().catch(true).default(true),
+    // The VIEWER's consent to run interactive story-card scripts in this account's browsers. SERVER-honored at
+    // the card-frame mint and on every serve (`entry/http/card-frame.ts`): off serves every card script-free,
+    // whatever the character and the box allow. Default ON follows the box-wide default; an unreadable
+    // value reads OFF, because this switch is a consent and a damaged consent must not run scripts.
+    runCardScripts: z.boolean().catch(false).default(true),
   })
   .prefault({});
 

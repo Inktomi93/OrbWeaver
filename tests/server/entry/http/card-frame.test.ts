@@ -90,6 +90,9 @@ function harness(
      *  `deployInteractive` when present. */
     readonly interactiveCeiling?: () => boolean;
     readonly roster?: () => Promise<readonly ParticipantView[]>;
+    /** The viewer's own `chat.runCardScripts` preference, read live per mint and serve. Defaults TRUE, its
+     *  shipped default. */
+    readonly viewerScripts?: (viewer: Principal) => boolean;
     /** Mount the APP's own `securityHeaders` above the route, exactly as `entry/app.ts` does — the arm that
      *  proves the served document keeps ITS policy rather than the app's (added 2026-08-28 with #679 U7). */
     readonly withAppHeaders?: boolean;
@@ -100,6 +103,7 @@ function harness(
     participants: { listParticipants: overrides.roster ?? ((): Promise<readonly ParticipantView[]> => Promise.resolve(ROSTER)) },
     allowExternalMedia: () => overrides.deployExternal ?? true,
     allowInteractiveCards: overrides.interactiveCeiling ?? ((): boolean => overrides.deployInteractive ?? true),
+    viewerRunsCardScripts: (viewer) => Promise.resolve(overrides.viewerScripts?.(viewer) ?? true),
     now: () => 1_000_000,
   };
   const app = new Hono<PrincipalEnv>();
@@ -403,6 +407,21 @@ describe("card-frame — the interactive-card grant", () => {
     expect((await grantedFor(TRUSTED, true)).interactive).toBe(false);
     expect((await grantedFor(UNTRUSTED, true)).interactive).toBe(false);
   });
+
+  test("a viewer who opted out of card scripts is minted the static card; another member of the same room is not", async () => {
+    // Keyed on the MINTING principal: the preference is the viewer's own consent, never a room or box setting.
+    const h = harness({ viewerScripts: (viewer) => viewer.userId !== ALICE.userId });
+    const optedOut = await h.mint({ ...CARD, characterId: INTERACTIVE }, { as: ALICE });
+    const optedOutBody = (await optedOut.json()) as { url: string; granted: { interactive: boolean } };
+    expect(optedOutBody.granted.interactive).toBe(false);
+    const served = await h.serve(optedOutBody.url, ALICE);
+    expect(scriptSrcOf(served.headers.get("content-security-policy") ?? "")).toBe(`script-src ${CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH}`);
+    // The opt-out withdraws scripts only: the card is still a TRUSTED card, so its `data:` door stays open.
+    expect(served.headers.get("content-security-policy")).toContain("img-src 'self' data: https:");
+
+    const member = (await (await h.mint({ ...CARD, characterId: INTERACTIVE }, { as: MALLORY })).json()) as { granted: { interactive: boolean } };
+    expect(member.granted.interactive).toBe(true);
+  });
 });
 
 // ── THE REVOCATION REACHES A HANDLE ALREADY MINTED ───────────────────────────────────────────────────────
@@ -448,6 +467,15 @@ describe("card-frame — revocation at serve", () => {
     });
     const url = await mintUrl(h, { ...CARD, characterId: INTERACTIVE });
     viewer.member = false;
+    expect(scriptSrcOf(await h.serve(url))).toBe(staticScriptSrc);
+  });
+
+  test("a viewer turning card scripts off withdraws them from a handle minted while they were on", async () => {
+    const preference = { runCardScripts: true };
+    const h = harness({ viewerScripts: () => preference.runCardScripts });
+    const url = await mintUrl(h, { ...CARD, characterId: INTERACTIVE });
+    expect(scriptSrcOf(await h.serve(url))).toBe("script-src 'unsafe-inline'");
+    preference.runCardScripts = false;
     expect(scriptSrcOf(await h.serve(url))).toBe(staticScriptSrc);
   });
 

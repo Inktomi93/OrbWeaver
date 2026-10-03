@@ -1,6 +1,7 @@
 // verb: findByImportHash — the re-import dedup oracle: the caller's existing character that already carries
-// `importHash`, or `null`. Internal + import-injected (acts on the resolved `ownerId`, not a request
-// principal — the synthetic-find precedent). Owner-scoped in the query, so a different owner's same-hash card
+// `importHash`, as its import identity or as the art-less identity it kept when its PNG gave it art, or
+// `null`. Internal + import-injected (acts on the resolved `ownerId`, not a request principal — the
+// synthetic-find precedent). Owner-scoped in the query, so a different owner's same-hash card
 // is never returned. A read: no audit, no emit.
 
 import type { CharacterContext } from "../context.ts";

@@ -67,6 +67,9 @@ export interface GreetingStudioProps {
   readonly onAccept: (text: string) => void;
   /** Whether this character's own greeting content is render-trusted (§6.1) — drives the preview Markdown. */
   readonly trusted?: boolean;
+  /** Whether the preview may load off-origin media: this character's resolved external-media verdict. Off
+   *  when omitted, matching the markdown seal. */
+  readonly allowExternalMedia?: boolean;
 }
 
 /** The transform ids grouped by axis, derived BLIND from the contract catalog (no hardcoded lists). */
@@ -82,7 +85,7 @@ const AXIS_LABEL: Record<GreetingTransformAxis, string> = {
   gender: "Pronouns",
 };
 
-export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = true }: GreetingStudioProps): ReactElement {
+export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = true, allowExternalMedia = false }: GreetingStudioProps): ReactElement {
   const [selected, setSelected] = useState<readonly string[]>([]);
   const [instruction, setInstruction] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
@@ -121,7 +124,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
           Preview
         </Text>
         <Stack gap="row" className="rounded-base bg-ai-bubble p-block">
-          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes}>
+          <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
             {preview}
           </Markdown>
         </Stack>

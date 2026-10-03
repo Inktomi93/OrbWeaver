@@ -33,7 +33,7 @@ export type { AllowedHostsInput } from "./allowed-hosts.ts";
 export { machineHostnameFor, publicAddresses, resolveAllowedHosts } from "./allowed-hosts.ts";
 export type { BindPosture, BindPostureInput } from "./bind.ts";
 export { bindPostureWarnings, loopbackCompanion, loopbackOrigin, resolveBindPosture } from "./bind.ts";
-export { CONTAINER_MARKER_FILES, runsInContainer, settingInstruction } from "./container.ts";
+export { CONTAINER_MARKER_FILES, fileReadCommand, runsInContainer, settingInstruction } from "./container.ts";
 export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, OwnerFallbackCredentialInput } from "./diagnostics.ts";
 export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture, resolveOwnerFallbackCredential } from "./diagnostics.ts";
 export type { OwnerFallbackPeerInput, OwnerFallbackPeerPosture } from "./fallback-peers.ts";

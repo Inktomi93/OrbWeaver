@@ -59,6 +59,7 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
     backgroundOverride: null,
     importedFrom: null,
     importHash: null,
+    importTextHash: null,
     tokenSize: 0,
     name: "Test Character",
     description: null,

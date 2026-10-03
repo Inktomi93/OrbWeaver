@@ -17,7 +17,7 @@
 // locations, the preset NAME rule, and the never-throw envelope.
 //
 // Preset names are QUALIFIED (`Marinara's Spaghetti Recipe (OpenAI)`) because the preset import verb is
-// additive (D286: an equal preset is reused, a different same-named one lands under a numbered name). ST ships a
+// additive (D290: an equal preset is reused, a different same-named one lands under a numbered name). ST ships a
 // preset literally called `Default.json`; qualifying the name keeps SillyTavern's apart from an owner's own
 // preset of that name instead of numbering it "Default 2".
 

@@ -617,17 +617,20 @@ export async function findByOwnerName(db: Db, ownerId: UserId, name: string, cas
   return rows.map((row) => row.id);
 }
 
-/** Re-import dedup oracle: the id of the owner's character already carrying importHash, or undefined. */
+/** Re-import dedup oracle: the id of the owner's character carrying `importHash` as its import identity or as
+ *  the art-less identity it kept when it took its art ({@link attachArtIfMissing}), or undefined. Oldest wins. */
 export async function findByOwnerImportHash(db: Db, ownerId: UserId, importHash: string): Promise<CharacterId | undefined> {
   const rows = await db
     .select({ id: characters.id })
     .from(characters)
-    .where(and(eq(characters.ownerId, ownerId), eq(characters.importHash, importHash)))
+    .where(and(eq(characters.ownerId, ownerId), or(eq(characters.importHash, importHash), eq(characters.importTextHash, importHash))))
+    .orderBy(asc(characters.createdAt), asc(characters.id))
     .limit(LIMIT_ONE);
   return rows[0]?.id;
 }
 
-/** Give an art-less owned character its avatar and re-key its import identity in ONE conditional write. True
+/** Give an art-less owned character its avatar and re-key its import identity in ONE conditional write. The
+ *  identity it was found under moves to `importTextHash`, so the JSON card it landed from still finds it. True
  *  when the row took the art; false when it already had one (nothing written). */
 export async function attachArtIfMissing(
   db: Db,
@@ -641,7 +644,8 @@ export async function attachArtIfMissing(
 ): Promise<boolean> {
   const rows = await db
     .update(characters)
-    .set({ avatarAssetId, importHash, updatedAt: at })
+    // SQLite evaluates every SET expression against the pre-update row, so this copies the OLD import_hash.
+    .set({ avatarAssetId, importTextHash: sql`${characters.importHash}`, importHash, updatedAt: at })
     .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId), isNull(characters.avatarAssetId)))
     .returning({ id: characters.id });
   return rows.length > 0;

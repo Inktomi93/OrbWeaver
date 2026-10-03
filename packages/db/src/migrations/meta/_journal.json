@@ -29,6 +29,13 @@
       "when": 1790954942007,
       "tag": "0003_automation-rule-creation-request",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791000000000,
+      "tag": "0004_character-import-text-hash",
+      "breakpoints": true
     }
   ]
 }

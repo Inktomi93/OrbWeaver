@@ -249,6 +249,16 @@ test("the prelaunch baseline accepts Git provenance and rejects malformed commit
   await expect(assertReferentialIntegrity(db)).resolves.toBeUndefined();
 });
 
+test("the 0004 migration gives characters a nullable import_text_hash beside import_hash", async () => {
+  const db = await createDb(":memory:");
+  await runMigrations(db, MIGRATIONS_DIR);
+  const columns = await db.all<{ name: string; notnull: number }>(sql.raw("select name, \"notnull\" from pragma_table_info('characters')"));
+  expect(columns.filter((c) => c.name === "import_hash" || c.name === "import_text_hash")).toEqual([
+    { name: "import_hash", notnull: 0 },
+    { name: "import_text_hash", notnull: 0 },
+  ]);
+});
+
 test("runMigrations restores foreign_keys ON afterward (the finally-restore contract)", async () => {
   // runMigrations toggles FK enforcement OFF for the table-rebuild, then restores ON in finally. If a
   // future migration left it OFF, every subsequent write would bypass FK enforcement silently.

@@ -2,7 +2,7 @@
 // decomposed chat-behavior pane is built from. Drives the production autosave path: `getUserSettings` seeds
 // the projected form, each control change debounces then fires `updateUserSettingsSection("chat")`.
 //
-// P1 — PATCH MINIMALITY (SET-SEAMS §9): the wire payload carries EXACTLY this section's eleven owned keys, and
+// P1 — PATCH MINIMALITY (SET-SEAMS §9): the wire payload carries EXACTLY this section's owned keys, and
 // never the sibling Streaming section's. The expected key set is re-spelled here on purpose — importing the
 // section's own `OWNS` tuple would make the test agree with the code by construction and prove nothing.
 
@@ -27,6 +27,7 @@ const OWNED_KEYS = [
   "generateOnEmptySend",
   "offerChoices",
   "reactionsEnabled",
+  "runCardScripts",
   "tempChatTtlHours",
 ];
 
@@ -65,6 +66,18 @@ test("Send-continues-the-reply patches continueOnSend, still key-minimal", async
   await page.getByRole("switch", { name: "Send continues the reply" }).click();
 
   await expect.poll(() => lastPatch(trpc)?.["continueOnSend"], { intervals: [20, 50, 100] }).toBe(false);
+  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+});
+
+test("turning off story-card scripts patches the viewer's runCardScripts consent, still key-minimal", async ({ mount, page }) => {
+  // The card-frame mint reads this value for every card this account views, so the row must write it.
+  const trpc = await stub(page);
+  await mount(<ChatMessageHandlingSectionStory />);
+  const toggle = page.getByRole("switch", { name: "Run story-card scripts" });
+  await expect(toggle).toBeChecked();
+  await toggle.click();
+
+  await expect.poll(() => lastPatch(trpc)?.["runCardScripts"], { intervals: [20, 50, 100] }).toBe(false);
   expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });
 

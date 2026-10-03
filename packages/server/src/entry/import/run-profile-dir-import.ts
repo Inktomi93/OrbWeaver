@@ -33,7 +33,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
 import { inertActivationFields } from "@orb/kit/world-info";
 import type { BulkImportChats } from "#domain/chat";
@@ -528,14 +528,16 @@ function inertFieldCounts(book: CollectedWorld["book"]): ImportWorldNote["inertF
 }
 
 /** Import the collected standalone ST worlds as UNATTACHED owner library books, additively: an equal book is
- *  reused and a same-named different one lands under a free name. Returns the net-new count plus one note per
- *  book for the report. Aborts cleanly on signal. */
+ *  reused and a same-named different one lands under a free name. Returns the net-new count, one note per
+ *  book for the report, and the row each world landed as, keyed by the name the profile calls it — the map the
+ *  name-link wave binds by, since the landed row may carry another name. Aborts cleanly on signal. */
 async function importCollectedWorlds(
   deps: ProfileDirImportDeps,
   worlds: readonly CollectedWorld[],
-): Promise<{ readonly created: number; readonly notes: ImportWorldNote[] }> {
+): Promise<{ readonly created: number; readonly notes: ImportWorldNote[]; readonly landed: ReadonlyMap<string, WorldBookId> }> {
   let created = 0;
   const notes: ImportWorldNote[] = [];
+  const landed = new Map<string, WorldBookId>();
   for (const world of worlds) {
     if (deps.signal.aborted) {
       break;
@@ -543,6 +545,10 @@ async function importCollectedWorlds(
     const bookResult = await deps.importStandaloneLorebook({ ownerId: deps.principal.userId, book: world.book });
     if (bookResult.created) {
       created += 1;
+    }
+    // A multi-profile upload can carry one name twice; the first profile's book keeps it, as personas do.
+    if (!landed.has(world.book.name)) {
+      landed.set(world.book.name, bookResult.worldBookId);
     }
     notes.push({
       name: bookResult.name,
@@ -552,7 +558,7 @@ async function importCollectedWorlds(
       inertFields: inertFieldCounts(world.book),
     });
   }
-  return { created, notes };
+  return { created, notes, landed };
 }
 
 /** Assemble the import report from the merged collect results + the run's counts + the per-card skips. The
@@ -713,25 +719,26 @@ function liftGlobalScripts(lift: ImportGlobalScripts, ownerId: UserId, scripts: 
 }
 
 /** One character's world name-links, attached through the injected world-info op. `primary` is the card's
- *  own `extensions.world`; `extras` are the profile's `charLore` bindings for this card. Missing names come
- *  back per character for the report. */
+ *  own `extensions.world`; `extras` are the profile's `charLore` bindings for this card; `landed` is the
+ *  worlds wave's name → row map. Missing names come back per character for the report. */
 async function attachWorldLinksFor(args: {
   readonly attach: AttachOwnedBooksByName;
   readonly ownerId: UserId;
   readonly characterId: CharacterId;
   readonly bundle: CollectedCard;
   readonly extras: readonly string[];
+  readonly landed: ReadonlyMap<string, WorldBookId>;
 }): Promise<{ readonly attached: number; readonly missing: { character: string; book: string }[] }> {
-  const { attach, ownerId, characterId, bundle, extras } = args;
+  const { attach, ownerId, characterId, bundle, extras, landed } = args;
   const missing: { character: string; book: string }[] = [];
   let attached = 0;
   if (bundle.worldName !== null) {
-    const res = await attach({ ownerId, characterId, names: [bundle.worldName], role: "primary" });
+    const res = await attach({ ownerId, characterId, names: [bundle.worldName], role: "primary", landed });
     attached += res.linked;
     missing.push(...res.missing.map((book) => ({ character: bundle.cardName, book })));
   }
   if (extras.length > 0) {
-    const res = await attach({ ownerId, characterId, names: extras, role: "auxiliary" });
+    const res = await attach({ ownerId, characterId, names: extras, role: "auxiliary", landed });
     attached += res.linked;
     missing.push(...res.missing.map((book) => ({ character: bundle.cardName, book })));
   }
@@ -745,6 +752,7 @@ async function attachCollectedWorldLinks(
   deps: ProfileDirImportDeps,
   collected: Collected,
   characterIdByCardFilename: ReadonlyMap<string, CharacterId>,
+  landed: ReadonlyMap<string, WorldBookId>,
 ): Promise<{ readonly attached: number; readonly missing: { character: string; book: string }[]; readonly skippedReason: string | null }> {
   const attach = deps.attachBooksByName;
   const missing: { character: string; book: string }[] = [];
@@ -763,7 +771,7 @@ async function attachCollectedWorldLinks(
     if (attach === undefined || characterId === undefined) {
       continue;
     }
-    const result = await attachWorldLinksFor({ attach, ownerId: deps.principal.userId, characterId, bundle, extras });
+    const result = await attachWorldLinksFor({ attach, ownerId: deps.principal.userId, characterId, bundle, extras, landed });
     attached += result.attached;
     missing.push(...result.missing);
   }
@@ -1093,9 +1101,10 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   // The ST world NAME-LINKS, strictly AFTER both the standalone-world wave (the books the names resolve
   // against) and the character wave (the characters they attach to): a card's `extensions.world` names its
   // PRIMARY book (demoted by the attach op when the embedded `character_book` already took the seat) and
-  // `charLore` names per-character EXTRA books (`auxiliary`). Exact-name resolution only; a dangling name
-  // is a report row, never a near-match.
-  const worldLinks = await attachCollectedWorldLinks(deps, collected, bundleResult.characterIdByCardFilename);
+  // `charLore` names per-character EXTRA books (`auxiliary`). A name the worlds wave landed binds the row it
+  // landed or was reused as (an import is additive, so changed lore sits beside the stale book under a
+  // numbered name); any other name resolves by exact name. A dangling name is a report row, never a near-match.
+  const worldLinks = await attachCollectedWorldLinks(deps, collected, bundleResult.characterIdByCardFilename, worldResult.landed);
 
   // The ORPHAN wave — transcripts whose card is absent get a minted placeholder (evidence-only, tagged
   // `orphan import`) and then ride the ORDINARY chats verb. Runs after the card wave so a same-slug card

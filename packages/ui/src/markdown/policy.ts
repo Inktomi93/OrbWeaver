@@ -4,9 +4,14 @@
 // the permissive policy and `untrusted` tightens via an element allowlist + a url blocker.
 // "trusted" names the permissive policy, not a default render posture — render is untrusted by
 // default; the caller selects `trusted` only for the viewer's own input or an opted-in character/global.
+// External media is a separate axis: a trusted row that forbids it still drops off-origin media
+// (`ownOriginMediaOnly`), because the app CSP follows only the box-wide setting.
 import remarkGfm from "remark-gfm";
-import type { AllowedTags, StreamdownProps, UrlTransform } from "streamdown";
+import type { AllowElement, AllowedTags, StreamdownProps, UrlTransform } from "streamdown";
 import { defaultRemarkPlugins } from "streamdown";
+
+const IMAGE_TAG = "img";
+const SOURCE_TAG = "source";
 
 /**
  * The Tier-A element allowlist: structural + text-formatting + tables + details/summary + links +
@@ -49,7 +54,7 @@ export const TIER_A_ELEMENTS: readonly string[] = [
   "details",
   "summary",
   "a",
-  "img",
+  IMAGE_TAG,
 ];
 
 /**
@@ -58,7 +63,35 @@ export const TIER_A_ELEMENTS: readonly string[] = [
  * `urlTransform` does not intercept, so an untrusted external image would prefetch to the source
  * (a tracking-pixel exfil) even with the url gate — dropping `img` blocks that at the element level.
  */
-export const TIER_A_UNTRUSTED_ELEMENTS: readonly string[] = TIER_A_ELEMENTS.filter((tag) => tag !== "img");
+export const TIER_A_UNTRUSTED_ELEMENTS: readonly string[] = TIER_A_ELEMENTS.filter((tag) => tag !== IMAGE_TAG);
+
+// A base no request can reach: `.invalid` never resolves. Resolving against it is how the browser will
+// resolve the same url against the page, so `//host` and `/\host` land off it exactly as they would live.
+const OWN_ORIGIN_PROBE = new URL("https://own-origin.invalid");
+
+/** True when `url` resolves on the page's own origin (a path, a query or a fragment). A protocol-relative
+ *  or backslash-led url and every absolute url resolve elsewhere. */
+export function resolvesOnOwnOrigin(url: string): boolean {
+  return URL.canParse(url, OWN_ORIGIN_PROBE) && new URL(url, OWN_ORIGIN_PROBE).origin === OWN_ORIGIN_PROBE.origin;
+}
+
+/**
+ * The trusted-tier media gate for content whose row forbids external media. The trusted sanitize schema
+ * (rehype-sanitize's GitHub default) admits two fetching elements: `img[src]` and `picture > source[srcSet]`.
+ * An `img` stays only when its `src` resolves on the page's own origin. Every `source` is dropped, because a
+ * `srcSet` lists several urls and the browser picks one; its `picture` still falls back to the `img` inside.
+ * The app CSP cannot do this job: its `img-src` follows the box-wide setting, never the row's.
+ */
+export const ownOriginMediaOnly: AllowElement = (element) => {
+  if (element.tagName === SOURCE_TAG) {
+    return false;
+  }
+  if (element.tagName !== IMAGE_TAG) {
+    return true;
+  }
+  const src = element.properties["src"];
+  return typeof src === "string" && resolvesOnOwnOrigin(src);
+};
 
 // Protocols an untrusted link may use — everything else (javascript:, data:, vbscript:, …) is blocked.
 const SAFE_PROTOCOLS: readonly string[] = ["http:", "https:", "mailto:"];

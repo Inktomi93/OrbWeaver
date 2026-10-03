@@ -22,6 +22,8 @@ export const IP_CERTIFICATE_FILE_NAMES = {
   certificate: "ip_certificate.pem",
   certificateKey: "ip_certificate_key.pem",
 } as const;
+/** The `oidc` owner claim URL's file under `secrets/` (D289): written while the owner is unclaimed, removed once claimed. */
+export const OWNER_CLAIM_URL_FILE_NAME = "owner_claim_url";
 /** The generated boot secrets' legacy names at the root, before the layout moved them under `secrets/`. */
 export const LEGACY_SECRET_FILE_NAMES = { credentialsKey: ".credentials-key", sessionSecret: ".session-secret" } as const;
 /** The env key naming the legacy root entries a layout migration leaves in place, comma-separated. */

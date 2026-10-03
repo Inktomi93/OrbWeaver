@@ -1,7 +1,7 @@
 // Seal-level CT for @orb/ui/markdown (Streamdown 2.5). The two trust policies + the capability
 // surface the rebuild wired in full: the GFM singleTilde fix, the token-sourced Shiki plugin (RENDER
 // proof here; the TOKENS-value proof is deterministic in shiki-plugin.test.ts), the KaTeX math plugin,
-// the inert mermaid fence under both policies, the trusted-policy link/markup pins, the trusted `<speaker>` literal passthrough,
+// the inert mermaid fence under both policies, the trusted-policy link/markup pins, the trusted external-media gate, the trusted `<speaker>` literal passthrough,
 // and the large-block guard, plus the STREAMING-mode goldens (unterminated fence / torn emphasis /
 // mode diff / reduced-motion) in the second half of this file. The end-to-end torn-`<speaker>`
 // hold-back (a consumer-level concern — `holdTornSpeaker` runs in the ghost row, not the seal) stays
@@ -40,6 +40,64 @@ test("untrusted: an external image neither renders NOR prefetches (no img, no pr
   // <link rel=preload as=image> exfil (Streamdown emits that for markdown images; verified).
   await expect(cmp.locator(`img[src*="evil.test"]`)).toHaveCount(0);
   await expect(page.locator(`link[href*="evil.test"]`)).toHaveCount(0);
+});
+
+// A trusted row that forbids external media: the app CSP admits `https:` images whenever the box allows them,
+// so the seal's own gate is what keeps this row's off-origin media from loading.
+const TRACKER_HOST = "tracker.test";
+const TRACKER_ROUTE = `https://${TRACKER_HOST}/**`;
+const PIXEL_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
+const OFF_ORIGIN_MEDIA = [
+  `<img src="https://${TRACKER_HOST}/raw.png">`,
+  `![md](https://${TRACKER_HOST}/md.png)`,
+  `<img src="//${TRACKER_HOST}/protocol-relative.png">`,
+  `<img src="/\\${TRACKER_HOST}/backslash.png">`,
+  `<picture><source srcset="https://${TRACKER_HOST}/source.png"><img src="/own.png" alt="own"></picture>`,
+].join("\n\n");
+
+test("trusted, external media forbidden: off-origin media is dropped and never requested; an own-origin image stays", async ({ mount, page }) => {
+  const requested: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes(TRACKER_HOST)) {
+      requested.push(request.url());
+    }
+  });
+  const cmp = await mount(
+    <Markdown trust="trusted" mode="static">
+      {OFF_ORIGIN_MEDIA}
+    </Markdown>,
+  );
+  await expect(cmp.locator('img[alt="own"]')).toHaveCount(1);
+  await expect(cmp.locator(`img[src*="${TRACKER_HOST}"]`)).toHaveCount(0);
+  await expect(cmp.locator("source")).toHaveCount(0);
+  expect(requested).toEqual([]);
+});
+
+test("trusted, external media allowed: the same off-origin image renders (positive control)", async ({ mount, page }) => {
+  await page.route(TRACKER_ROUTE, (route) => route.fulfill({ contentType: "image/png", body: PIXEL_PNG }));
+  const cmp = await mount(
+    <Markdown trust="trusted" mode="static" allowExternalMedia={true}>
+      {OFF_ORIGIN_MEDIA}
+    </Markdown>,
+  );
+  await expect(cmp.locator(`img[src="https://${TRACKER_HOST}/raw.png"]`)).toHaveCount(1);
+});
+
+test("trusted: revoking external media on a settled body removes the off-origin image it already rendered", async ({ mount, page }) => {
+  await page.route(TRACKER_ROUTE, (route) => route.fulfill({ contentType: "image/png", body: PIXEL_PNG }));
+  const cmp = await mount(
+    <Markdown trust="trusted" mode="static" allowExternalMedia={true}>
+      {OFF_ORIGIN_MEDIA}
+    </Markdown>,
+  );
+  await expect(cmp.locator(`img[src="https://${TRACKER_HOST}/raw.png"]`)).toHaveCount(1);
+  await cmp.update(
+    <Markdown trust="trusted" mode="static" allowExternalMedia={false}>
+      {OFF_ORIGIN_MEDIA}
+    </Markdown>,
+  );
+  await expect(cmp.locator(`img[src*="${TRACKER_HOST}"]`)).toHaveCount(0);
+  await expect(cmp.locator('img[alt="own"]')).toHaveCount(1);
 });
 
 test("untrusted: a javascript: link href is neutralized", async ({ mount }) => {

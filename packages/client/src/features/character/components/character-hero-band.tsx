@@ -151,6 +151,7 @@ export function CharacterHeroBand({
         form={form}
         themeOverride={detail.themeOverride}
         trusted={rendersTrustedHtml(previewPolicy.htmlTrust)}
+        allowExternalMedia={!previewPolicy.forbidExternalMedia}
         spoilerBlur={spoilerBlur}
         activeIndex={activeGreetingIndex}
         onActiveIndexChange={onActiveGreetingIndexChange}

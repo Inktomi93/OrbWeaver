@@ -156,6 +156,9 @@ function MessageHandlingBody({ sectionId, session }: { readonly sectionId: strin
           <SettingRow settingId="character-reactions">
             <form.AppField name="charactersCanReact">{(field): ReactElement => <field.SwitchField label="Characters can react in new chats" />}</form.AppField>
           </SettingRow>
+          <SettingRow settingId="run-card-scripts">
+            <form.AppField name="runCardScripts">{(field): ReactElement => <field.SwitchField label="Run story-card scripts" />}</form.AppField>
+          </SettingRow>
           <SettingRow settingId="temp-chat-ttl">
             <form.AppField name="tempChatTtlHours">
               {(field): ReactElement => (

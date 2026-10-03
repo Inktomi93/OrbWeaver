@@ -50,12 +50,12 @@ export interface OidcTransaction {
 }
 
 /**
- * The one-time owner claim code: minted at boot while the owner is unclaimed, printed to the operator's log, and
- * presented once on an OIDC login. It lives in process memory only, so a restart mints a fresh code and forgets
- * every login it held.
+ * The one-time owner claim code: minted at boot while the owner is unclaimed, written to the owner claim file, and
+ * presented once on an OIDC login. Its verifier lives in process memory only, so a restart mints a fresh code and
+ * forgets every login it held.
  */
 export interface OwnerClaimCode {
-  /** Mint a fresh code, retiring the live one and every login it held. Returns the code for the boot log. */
+  /** Mint a fresh code, retiring the live one and every login it held. Returns the code for the owner claim file. */
   readonly issue: () => string;
   /** Tie an OIDC login's `state` to the live code when `presented` is that code. */
   readonly hold: (state: string, presented: string) => boolean;

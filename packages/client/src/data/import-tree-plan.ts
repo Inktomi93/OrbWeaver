@@ -4,11 +4,14 @@
 // presets, backups) beside the ones it does. So the browser skips what the server would only report, drops a
 // file over the per-file cap with its reason, and splits the rest into uploads under the total cap — each a
 // complete import on its own: a card travels with its chats, a group with its member cards and transcripts,
-// and `settings.json` rides in every upload so personas and tags resolve in each run. `secrets.json` is
+// and the planes other planes resolve against by name ride in every upload: `settings.json` (personas,
+// tags), the persona avatars (art is persona identity, so an art-less repeat would mint a twin) and the
+// world books (a card's name-link binds the book its own run landed). `secrets.json` is
 // never sent: the plan skips it, and `importTree` drops it regardless of its caller. Every other picked file
 // is sent or listed in `skipped` with its reason; a slug collision (two cards whose names slug alike) sends
 // both and the server disambiguates, as it does for a folder uploaded whole.
 
+import type { StProfileHandledEntry } from "@orb/contracts/import";
 import { chatDirCardCandidates, isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import { slugifyHandle } from "@orb/kit/slug";
 import { relativePathOf } from "./import-tree.ts";
@@ -42,6 +45,8 @@ const CHARACTERS_DIR = "characters";
 const CHATS_DIR = "chats";
 const GROUPS_DIR = "groups";
 const GROUP_CHATS_DIR = "group chats";
+const USER_AVATARS_DIR = "User Avatars" satisfies StProfileHandledEntry;
+const WORLDS_DIR = "worlds" satisfies StProfileHandledEntry;
 
 /** The reason a file over the per-file cap is left out. */
 export const OVER_FILE_CAP_REASON = "over the per-file size cap";
@@ -109,7 +114,7 @@ function commonWrapper(paths: readonly string[]): string | null {
   return paths.every((p) => p.startsWith(prefix)) ? prefix.slice(0, -1) : null;
 }
 
-const PROFILE_MARKERS: ReadonlySet<string> = new Set([ST_SETTINGS_FILE, CHARACTERS_DIR, CHATS_DIR, "User Avatars"]);
+const PROFILE_MARKERS: ReadonlySet<string> = new Set([ST_SETTINGS_FILE, CHARACTERS_DIR, CHATS_DIR, USER_AVATARS_DIR]);
 
 /** How many leading segments name the profile dir: 0 when the picked folder IS a profile, 1 when it holds
  *  profile subdirs (the `data/` root), null when the tree is not SillyTavern-shaped. */
@@ -237,7 +242,7 @@ function planGeneric(planned: readonly PlannedFile[], caps: TreeImportCaps): Tre
 /** Where one picked file belongs in the plan. */
 type FileRole =
   | { readonly kind: "skip"; readonly reason: string }
-  | { readonly kind: "settings" }
+  | { readonly kind: "shared" }
   | { readonly kind: "card"; readonly key: string }
   | { readonly kind: "chat"; readonly dirName: string }
   | { readonly kind: "group" }
@@ -259,6 +264,9 @@ function planeRole(top: string, second: string | undefined, tail: readonly strin
   if (top === GROUP_CHATS_DIR && leaf !== undefined && JSONL_EXT.test(leaf)) {
     return { kind: "groupChat", leaf: leaf.replace(JSONL_EXT, "") };
   }
+  if ((top === USER_AVATARS_DIR || top === WORLDS_DIR) && leaf !== undefined) {
+    return { kind: "shared" };
+  }
   return { kind: "base" };
 }
 
@@ -278,7 +286,7 @@ function roleOf(f: PlannedFile, caps: TreeImportCaps): FileRole {
     return { kind: "skip", reason: OVER_FILE_CAP_REASON };
   }
   if (top === ST_SETTINGS_FILE && second === undefined) {
-    return { kind: "settings" };
+    return { kind: "shared" };
   }
   return planeRole(top, second, tail);
 }
@@ -288,8 +296,8 @@ interface StClassification {
   readonly bundles: Map<string, Bundle>;
   readonly groupFiles: PlannedFile[];
   readonly groupChats: Map<string, PlannedFile>;
-  /** One per profile dir in the picked tree; every one rides in every upload. */
-  readonly settings: PlannedFile[];
+  /** Each profile's `settings.json`, persona avatars and world books; every one rides in every upload. */
+  readonly shared: PlannedFile[];
   readonly skipped: SkippedTreeFile[];
 }
 
@@ -305,7 +313,7 @@ function bundleFor(bundles: Map<string, Bundle>, key: string): Bundle {
 
 /** Sort each picked file into the base upload, a card bundle, a group, or the skip list. */
 function classifySt(planned: readonly PlannedFile[], caps: TreeImportCaps): StClassification {
-  const out: StClassification = { base: [], bundles: new Map(), groupFiles: [], groupChats: new Map(), settings: [], skipped: [] };
+  const out: StClassification = { base: [], bundles: new Map(), groupFiles: [], groupChats: new Map(), shared: [], skipped: [] };
   const chatDirs: { file: PlannedFile; dirName: string }[] = [];
   for (const f of planned) {
     const role = roleOf(f, caps);
@@ -313,8 +321,8 @@ function classifySt(planned: readonly PlannedFile[], caps: TreeImportCaps): StCl
       case "skip":
         out.skipped.push({ path: f.path, reason: role.reason });
         break;
-      case "settings":
-        out.settings.push(f);
+      case "shared":
+        out.shared.push(f);
         break;
       case "card":
         bundleFor(out.bundles, role.key).cards.push(f);
@@ -386,11 +394,11 @@ export async function planTreeImport(
   const classified = classifySt(inProfile, caps);
   const { groups, unclaimedGroupChats } = await groupUnits(classified, readText);
 
-  const always = classified.settings;
+  const always = classified.shared;
   const packer = new Packer(caps, always);
   const counted = new Set<PlannedFile>(always);
 
-  // Base plane first: worlds, presets, themes, backgrounds, avatars, orphan chats, unclaimed group chats.
+  // Base plane first: presets, themes, backgrounds, orphan chats, unclaimed group chats.
   for (const f of [...classified.base, ...unclaimedGroupChats]) {
     packer.add([], [f]);
     counted.add(f);
