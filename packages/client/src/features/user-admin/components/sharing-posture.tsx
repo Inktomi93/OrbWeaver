@@ -2,7 +2,7 @@
 // for each other mode the lines that switch this install to it, the file they go in and the restart. Nothing here
 // writes: a runtime switch would make the one boot invariant every auth rule keys on mutable.
 
-import type { AuthMode, AuthModeSource, EnvLine, InstallKind, ShareRefusalNotice, SignInTargetMode } from "@orb/contracts/identity";
+import type { AuthMode, AuthModeSource, InstallKind, ShareRefusalNotice, SignInTargetMode } from "@orb/contracts/identity";
 import {
   AUTH_MODE_KEY,
   BARE_METAL_ENV_FILE,
@@ -10,6 +10,7 @@ import {
   COMPOSE_UP_COMMAND,
   CONTAINER_ENV_FILE,
   CONTAINER_LOGIN_FALLBACK_ENV,
+  envFileText,
   SETUP_COMMAND,
   SETUP_FRIENDS_ANSWER,
   SIGN_IN_MODE_KEYS,
@@ -91,10 +92,6 @@ const CHANGE_STEP: Record<InstallKind, ReactNode> = {
     </>
   ),
 };
-
-function envFileText(lines: readonly EnvLine[]): string {
-  return lines.map(([key, value]) => `${key}=${value}`).join("\n");
-}
 
 function shareSentence(refusal: ShareRefusalNotice | null): string {
   return refusal === null ? "Start sharing works in this mode." : `Start sharing refuses this mode. ${refusal.message}`;

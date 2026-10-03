@@ -6,8 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { parseEnv } from "node:util";
-import type { EnvLine } from "@orb/contracts/identity";
-import { AUTH_MODES, CONTAINER_LOCAL_LOGIN_ENV, SIGN_IN_TARGET_MODES, signInModeEnvLines } from "@orb/contracts/identity";
+import { AUTH_MODES, envFileText, SIGN_IN_TARGET_MODES, signInModeEnvLines } from "@orb/contracts/identity";
 import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
 import { runsInContainer } from "../../../../packages/server/src/foundation/env/container.ts";
 import { APP_SECRET_ENV_KEYS } from "../../../../packages/server/src/foundation/env/index.ts";
@@ -320,14 +319,6 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
   test("prod + single-user + AUTH_FALLBACK=owner boots (single-user is not an SSO mode — its only credential IS the fallback)", async () => {
     const { env } = await reimportEnvWith({ NODE_ENV: "production", AUTH_MODE: "single-user", AUTH_FALLBACK: "owner" });
     expect(env.AUTH_MODE).toBe("single-user");
-  });
-
-  // The login switch the admin surfaces print for a container, applied over the shipped container env the way compose
-  // applies an `environment:` block over its `env_file`. The shipped file pairs single-user with the owner fallback.
-  test("prod + the shipped docker env + the printed container login switch boots in local mode", async () => {
-    const shipped = parseEnv(readFileSync(new URL("../../../../docker/orbweaver.env", import.meta.url), "utf8"));
-    const { env } = await reimportEnvWith({ ...shipped, ...Object.fromEntries(CONTAINER_LOCAL_LOGIN_ENV), NODE_ENV: "production" });
-    expect(env.AUTH_MODE).toBe("local");
   });
 
   // ── THE CONDITIONAL DEFAULT (#2406) — what SILENCE means, per mode ────────────────────────────────────
@@ -885,8 +876,6 @@ describe("the sign-in helper: AUTH_MODE's source and the printed switch lines", 
     vi.resetModules();
   });
 
-  const envText = (lines: readonly EnvLine[]): string => lines.map(([key, value]) => `${key}=${value}`).join("\n");
-
   test("a .env value is the env-file source, and it wins over a launcher's export", async () => {
     const dir = dirWithEnvFile("AUTH_MODE=local\n");
     const mod = await reimportEnvIn(dir, { AUTH_MODE: "single-user" }, { vitest: false });
@@ -911,7 +900,7 @@ describe("the sign-in helper: AUTH_MODE's source and the printed switch lines", 
   test.each(SIGN_IN_TARGET_MODES)("bare metal: the %s lines in .env boot a production server in that mode", async (mode) => {
     const lines = signInModeEnvLines(mode, "bare-metal");
     expect(lines.map(([key]) => key)).not.toContain("AUTH_FALLBACK");
-    const mod = await reimportEnvIn(dirWithEnvFile(envText(lines)), { NODE_ENV: "production" }, { vitest: false });
+    const mod = await reimportEnvIn(dirWithEnvFile(envFileText(lines)), { NODE_ENV: "production" }, { vitest: false });
     expect(mod.env.AUTH_MODE).toBe(mode);
     expect(mod.env.AUTH_FALLBACK).toBe("deny");
     expect(mod.authModeSource()).toBe("env-file");
@@ -920,7 +909,7 @@ describe("the sign-in helper: AUTH_MODE's source and the printed switch lines", 
   // Compose reads docker/orbweaver.local.env after the shipped file, so its lines override the shipped no-login pair.
   test.each(SIGN_IN_TARGET_MODES)("container: the %s lines over the shipped docker env boot a production server in that mode", async (mode) => {
     const shipped = parseEnv(readFileSync(new URL("../../../../docker/orbweaver.env", import.meta.url), "utf8"));
-    const local = parseEnv(envText(signInModeEnvLines(mode, "container")));
+    const local = parseEnv(envFileText(signInModeEnvLines(mode, "container")));
     const mod = await reimportEnvIn(
       EMPTY_DIR,
       { ...shipped, ...local, NODE_ENV: "production", BIND_HOST: "0.0.0.0", ORB_CONTAINER: "true" },

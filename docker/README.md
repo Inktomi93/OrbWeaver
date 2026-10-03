@@ -114,15 +114,16 @@ Under `oidc`, a box whose owner has not signed in yet writes a one-time owner cl
 
 The port is published on `127.0.0.1` only. To reach the app from your phone or another computer:
 
-1. Switch to a login: add these lines to the `environment:` block of `docker-compose.yaml`. Values there
-   override both env files, and the file is not hidden the way a dotfile is:
+1. Switch to a login: add these lines to `docker/orbweaver.local.env`. Settings > Admin > Multi-user, under
+   Who can sign in, shows the same lines for each mode with a copy button. An `AUTH_MODE` in the `environment:`
+   block of `docker-compose.yaml` wins over the file, so remove it there if you set it:
 
-   ```yaml
-       environment:
-         AUTH_MODE: local
-         AUTH_FALLBACK: deny
-         AUTH_FALLBACK_TRUSTED_PEERS: ""
-         ALLOWED_HOSTS: orb.home.lan    # only if people type a host name; an IP address needs no entry
+   ```ini
+   AUTH_MODE=local
+   AUTH_FALLBACK=deny
+   AUTH_FALLBACK_TRUSTED_PEERS=
+   # only if people type a host name; an IP address needs no entry
+   ALLOWED_HOSTS=orb.home.lan
    ```
 
    Then open the port: change both `127.0.0.1` defaults of `ORB_BIND` in `docker-compose.yaml` to `0.0.0.0`,
@@ -168,7 +169,7 @@ public address logs a security warning, and the login screen shows it in red.
 
 Do not forward a router port to this app: the login would cross the internet in plain http. A tunnel dials
 out from this machine and terminates TLS for you. Every tunnelled request carries forwarding headers, so
-single-user is never the owner through one. Switch to a login first with the `environment:`
+single-user is never the owner through one. Switch to a login first with the
 lines from step 1 of "LAN and HTTPS", but keep `ORB_BIND` on `127.0.0.1`: the tunnel does not need the port.
 
 ### Share with one press

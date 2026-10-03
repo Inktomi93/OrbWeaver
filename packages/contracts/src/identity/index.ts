@@ -99,8 +99,10 @@ export function signInModeEnvLines(mode: SignInTargetMode, install: InstallKind)
   return [[AUTH_MODE_KEY, mode], ...fallback, ...SIGN_IN_MODE_KEYS[mode]];
 }
 
-/** The `environment:` lines of `docker-compose.yaml` that switch a container to the local sign-in mode. */
-export const CONTAINER_LOCAL_LOGIN_ENV: readonly EnvLine[] = signInModeEnvLines("local", "container");
+/** Env lines as env-file text, one `KEY=value` per line, the form `.env` and compose env files both read. */
+export function envFileText(lines: readonly EnvLine[]): string {
+  return lines.map(([key, value]) => `${key}=${value}`).join("\n");
+}
 
 /** The modes that mint a session cookie, so they need the SESSION_SECRET pepper to authenticate anyone. */
 export const COOKIE_AUTH_MODES = ["local", "oidc"] as const satisfies readonly AuthMode[];

@@ -168,10 +168,10 @@ test("single-user: every row renders with its verdict and fix, and Start sharing
   await expect(precondition(card, "owner")).toHaveAttribute("data-verdict", "waiting");
   await expect(precondition(card, "seating")).toHaveAttribute("data-verdict", "unmet");
   await expect(precondition(card, "relay")).toHaveAttribute("data-verdict", "unchecked");
-  // The mode row leads with its one action, the launcher command; the container's environment lines are operator
+  // The mode row leads with its one action, the launcher command; the container's env file lines are operator
   // detail, folded until asked for.
   await expect(precondition(card, "mode").getByRole("button", { name: copyActionName("the command pnpm start --share"), exact: true })).toBeVisible();
-  const containerLines = precondition(card, "mode").getByRole("button", { name: copyActionName("the docker-compose environment lines"), exact: true });
+  const containerLines = precondition(card, "mode").getByRole("button", { name: copyActionName("the container env file lines"), exact: true });
   await expect(containerLines).toHaveCount(0);
   // The command shows once, in its copy chip, not again in the sentence above it.
   await expect(precondition(card, "mode").locator("kbd")).toHaveCount(1);
