@@ -6,7 +6,14 @@
 import type { GenerationCapability, ProviderId } from "@orb/contracts/inference";
 import { checkWireSchema, fitsEveryWire, structuredSchemaComplexity } from "@orb/contracts/inference";
 import type { ExtractionRefs, RpgToolCall } from "@orb/contracts/rpg";
-import { constrainExtractionSchema, rpgExtractionSchema, rpgGameConfigSchema, stateRoundChangesSchema, stateRoundPatchSchema } from "@orb/contracts/rpg";
+import {
+  constrainExtractionSchema,
+  patchChangesToToolCalls,
+  rpgExtractionSchema,
+  rpgGameConfigSchema,
+  stateRoundChangesSchema,
+  stateRoundPatchSchema,
+} from "@orb/contracts/rpg";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { detectModelFamily } from "../../../../packages/inference/src/capability/families.ts";
@@ -109,9 +116,10 @@ test("openrouter anthropic/claude-sonnet-5.5 resolves the limits pointer: the un
   // An invented tool name is not a usable call: the round is retried, unless a real call rode beside it.
   expect(fallbackStateRound(sonnet, [{ name: "update_location", arguments: '{"location":"x"}' }], shapeFits(sonnet))).toBe("patch");
   expect(fallbackStateRound(sonnet, [{ name: "update_location", arguments: "{}" }, QUIET], shapeFits(sonnet))).toBeNull();
-  // A patch call whose every value was refused is a recorded drop, not a usable call: the round is still retried.
-  const refusedWhole = { name: "update_scene", arguments: "{}", refused: [{ field: "timeOfDay", sent: "Evening", message: "Invalid option" }] };
-  expect(fallbackStateRound(sonnet, [refusedWhole], shapeFits(sonnet))).toBe("patch");
+  // A patch call whose every value its field refuses is a recorded drop, not a usable call: the round is still retried.
+  const tools = buildToolRoundWireTools(REFS, rpgGameConfigSchema.parse({}), {});
+  const refusedWhole = patchChangesToToolCalls({ changes: [{ plane: "update_scene", call: 0, field: "timeOfDay", item: 0, value: "Evening" }] }, tools);
+  expect(fallbackStateRound(sonnet, refusedWhole?.calls ?? [], shapeFits(sonnet))).toBe("patch");
 });
 
 test("a local no-force row takes the union round under `auto`; `tools` keeps it on tools; a forcible row never retries", () => {

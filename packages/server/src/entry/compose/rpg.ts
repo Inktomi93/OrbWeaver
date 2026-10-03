@@ -1451,7 +1451,7 @@ type StructuredCalls =
 
 /** Ask for one structured state reply and decode it to tool calls. A provider throw and a reply outside the shape
  *  are both `failed` (logged on the caller's own events); a cancel read off the signal is not a failure. Entries that
- *  were not a change and patch values their tool's schema refused are warned about by name and left out. */
+ *  were not a change, and patch entries that could not form an argument, are warned about by name. */
 async function requestStructuredCalls(
   deps: RpgComposeDeps,
   args: {
@@ -1494,7 +1494,7 @@ async function requestStructuredCalls(
     return { kind: "failed", err };
   }
   // A reply with no change in it at all (every entry unreadable) carries nothing to record: it is the round failing,
-  // never a quiet beat. A reply whose values were all refused still yields calls, each a recorded drop.
+  // never a quiet beat. A reply whose values were all refused still yields calls, which the shared record drops.
   if (changes === null || changes.calls.length === 0) {
     logger.warn({ event: args.events.unparseable, ...line }, "rpg structured state round: the reply was not a list of changes — nothing applied");
     return { kind: "failed", err: new Error(STRUCTURED_REPLY_UNREADABLE) };
@@ -1502,7 +1502,7 @@ async function requestStructuredCalls(
   if (changes.unreadable > 0 || changes.dropped.length > 0) {
     logger.warn(
       { event: args.events.unparseable, ...line, unreadableEntries: changes.unreadable, droppedFields: changes.dropped },
-      "rpg structured state round: entries that were not a change, or values their tool's schema refused, were DROPPED (every other change still applies)",
+      "rpg structured state round: entries that were not a change, or could not be placed in a call, were DROPPED (every other change still applies)",
     );
   }
   return { kind: "calls", calls: changes.calls };

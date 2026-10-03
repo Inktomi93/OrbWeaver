@@ -1,10 +1,9 @@
 // The PATCH-LIST shape of the structured state round: one entry per scalar value, `{plane, call, field, item, value}`,
-// for a grammar that caps optional and union-typed properties. Every field path, its declared type and its per-round
-// enum come from the round's OWN wire tools (the constrained projection), so the patch list can never offer or accept
-// a value the tool round would refuse. Values are decoded by declared type only; the reply is never parsed as JSON.
+// generated from the round's OWN wire tools for a grammar that caps optional and union-typed properties. The decoder
+// only ASSEMBLES raw tool-call arguments; the tool round's shared path validates them, so equal intent records equally.
 
 import { z } from "zod";
-import type { RpgToolCall, RpgToolCallRefusal } from "./extraction.ts";
+import type { RpgToolCall } from "./extraction.ts";
 import { RPG_NO_CHANGES_TOOL } from "./extraction.ts";
 import type { RpgStateRoundTool, RpgStructuredChanges } from "./structured-round.ts";
 import { RPG_STATE_CHANGES_FIELD } from "./structured-round.ts";
@@ -18,12 +17,7 @@ const VALUE_KEY = "value";
 const PATH_SEPARATOR = ".";
 /** The largest `call` / `item` id a reply may use: far beyond any real beat, and well inside safe integers. */
 export const RPG_PATCH_INDEX_MAX = 999;
-/** Why a patch value was refused, in the per-call parse's own vocabulary. */
-const ID_OUT_OF_RANGE = `Invalid input: call and item are whole numbers from 0 to ${RPG_PATCH_INDEX_MAX}`;
-const UNKNOWN_FIELD = "Unrecognized key";
-const UNKNOWN_TOOL = "Unrecognized tool";
-const REPEATED_FIELD = "Invalid input: this call already set this field";
-/** A strict decimal number: the only text a numeric field accepts. */
+/** A strict decimal number: the only text a numeric field shapes into a number. */
 const NUMERIC = /^-?(?:0|[1-9]\d*)(?:\.\d+)?$/u;
 
 type SchemaNode = Readonly<Record<string, unknown>>;
@@ -189,70 +183,71 @@ export function stateRoundPatchSchema(tools: readonly RpgStateRoundTool[]): z.Zo
   return z.strictObject({ [RPG_STATE_CHANGES_FIELD]: z.array(z.union(members)).min(1) });
 }
 
-type Decoded = { readonly value: unknown } | undefined;
-
-/** Each declared scalar type's text decoder: strict, so a field never receives a value of another type. */
-const SCALAR_DECODERS: Readonly<Record<string, (raw: string) => Decoded>> = {
-  number: (raw) => (NUMERIC.test(raw) ? { value: Number(raw) } : undefined),
-  integer: (raw) => (NUMERIC.test(raw) && Number.isInteger(Number(raw)) ? { value: Number(raw) } : undefined),
-  boolean: (raw) => (raw === "true" || raw === "false" ? { value: raw === "true" } : undefined),
-  string: (raw) => ({ value: raw }),
-};
-
-function isNumericArm(arm: SchemaNode): boolean {
-  return arm["type"] === "number" || arm["type"] === "integer";
-}
-
-/** One scalar decoded by its declared type, or `undefined` when the text is not a value of that type (or not in the
- *  per-round enum). A number|string union prefers the number, so `"5"` lands as `5` on every vehicle. */
-function decodeScalar(node: SchemaNode, raw: string): Decoded {
+/** Every declared scalar type a leaf may take, across its union arms. */
+function scalarTypes(node: SchemaNode): ReadonlySet<unknown> {
   const arms = unionArms(node);
-  if (arms !== null) {
-    const ordered = [...arms.filter(isNumericArm), ...arms.filter((arm) => !isNumericArm(arm))];
-    return ordered.map((arm) => decodeScalar(arm, raw)).find((decoded) => decoded !== undefined);
-  }
-  const allowed = node["enum"];
-  if (Array.isArray(allowed)) {
-    return allowed.includes(raw) ? { value: raw } : undefined;
-  }
-  const decoder = typeof node["type"] === "string" ? SCALAR_DECODERS[node["type"]] : undefined;
-  return decoder?.(raw);
+  return new Set(arms !== null ? arms.flatMap((arm) => [...scalarTypes(arm)]) : [node["type"]]);
 }
 
-/** One patch entry as sent, with the grouping it names. `idValid` is false when its `call` or `item` is not a whole
- *  number in range — such an entry cannot be placed and is refused by name. */
-interface RawPatch {
+/**
+ * Shape one value's text into what a tool call would carry: strict digits become a number where the field takes one
+ * (number first, so a number|string `"5"` lands as `5`), `true`/`false` a boolean where it takes one, and every other
+ * text stays the string sent. A SHAPING step only: a value its field will refuse is kept as sent, and the shared
+ * per-call parse refuses it exactly as it refuses that value in a tool call's arguments.
+ */
+function shapeValue(node: SchemaNode, raw: string): unknown {
+  const types = scalarTypes(node);
+  if ((types.has("number") || types.has("integer")) && NUMERIC.test(raw) && Number.isFinite(Number(raw))) {
+    return Number(raw);
+  }
+  if (types.has("boolean") && (raw === "true" || raw === "false")) {
+    return raw === "true";
+  }
+  return raw;
+}
+
+/** A tool's writable leaves by field path, across its per-actor branches (they share paths and types and differ only
+ *  in per-round enums, which the shared parse never sees). Map-keyed, so a model-sent `constructor` finds nothing. */
+function toolLeaves(tool: Pick<RpgStateRoundTool, "parameters">): ReadonlyMap<string, PatchLeaf> {
+  const leaves = new Map<string, PatchLeaf>();
+  for (const branch of toolBranches(tool).branches) {
+    for (const [path, leaf] of branch) {
+      if (!leaves.has(path)) {
+        leaves.set(path, leaf);
+      }
+    }
+  }
+  return leaves;
+}
+
+/** One reply entry that names a change: its plane and the rest as sent. */
+interface ReadEntry {
+  readonly plane: string;
+  readonly call: number;
   readonly field: string;
   readonly item: number;
   readonly value: string;
-  readonly idValid: boolean;
+  /** The entry as the model sent it, for the record of an entry that could not be placed. */
+  readonly sent: Args;
 }
 
-interface ReadEntry {
-  readonly plane: string;
-  readonly call: number | null;
-  readonly patch: RawPatch | null;
+/** Read one reply entry, or `null` when it is not a change at all (`no_changes` reads as its own plane). */
+function readEntry(entry: unknown): ReadEntry | null {
+  if (!isRecord(entry) || typeof entry[PLANE_KEY] !== "string") {
+    return null;
+  }
+  const { [PLANE_KEY]: plane, [CALL_KEY]: call, [FIELD_KEY]: field, [ITEM_KEY]: item, [VALUE_KEY]: value } = entry;
+  if (plane === RPG_NO_CHANGES_TOOL) {
+    return { plane, call: 0, field: "", item: 0, value: "", sent: entry };
+  }
+  if (typeof call !== "number" || typeof field !== "string" || typeof item !== "number" || typeof value !== "string") {
+    return null;
+  }
+  return { plane, call, field, item, value, sent: entry };
 }
 
 function isPatchIndex(value: number): boolean {
   return Number.isSafeInteger(value) && value >= 0 && value <= RPG_PATCH_INDEX_MAX;
-}
-
-/** Read one reply entry, or `null` when it is not a change at all. A `call` out of range reads as `null` call. */
-function readEntry(entry: unknown): ReadEntry | null {
-  const plane = isRecord(entry) ? entry[PLANE_KEY] : undefined;
-  if (!isRecord(entry) || typeof plane !== "string") {
-    return null;
-  }
-  if (plane === RPG_NO_CHANGES_TOOL) {
-    return { plane, call: 0, patch: null };
-  }
-  const { [CALL_KEY]: call, [FIELD_KEY]: field, [ITEM_KEY]: item, [VALUE_KEY]: value } = entry;
-  if (typeof call !== "number" || typeof field !== "string" || typeof item !== "number" || typeof value !== "string") {
-    return null;
-  }
-  const idValid = isPatchIndex(call) && isPatchIndex(item);
-  return { plane, call: isPatchIndex(call) ? call : null, patch: { field, item, value, idValid } };
 }
 
 /** The record at `cursor[segment]`, created when absent. */
@@ -278,11 +273,16 @@ function leafOwner(args: Args, leaf: PatchLeaf, item: number): Args {
   return cursor;
 }
 
-/** Place one decoded value. Returns false when the slot is already taken (a repeated scalar is refused, never
- *  silently overwritten). */
-function place(args: Args, leaf: PatchLeaf, item: number, value: unknown): boolean {
-  const owner = leafOwner(args, leaf, item);
+/** Place one entry's shaped value in its call's arguments. False when it cannot form an argument: an id out of range,
+ *  a field the tool does not have, or a scalar this call already set (never silently overwritten). */
+function place(args: Args, entry: ReadEntry, leaves: ReadonlyMap<string, PatchLeaf>): boolean {
+  const leaf = leaves.get(entry.field);
+  if (leaf === undefined || !isPatchIndex(entry.item)) {
+    return false;
+  }
+  const owner = leafOwner(args, leaf, entry.item);
   const key = leaf.segments.at(-1) ?? "";
+  const value = shapeValue(leaf.node, entry.value);
   if (leaf.append) {
     owner[key] = [...(Array.isArray(owner[key]) ? owner[key] : []), value];
     return true;
@@ -312,130 +312,60 @@ function finishArrays(args: Args, leaves: Iterable<PatchLeaf>): Args {
   return args;
 }
 
-/** What a leaf would have accepted, in the parse's own words, for a refused value's issue line. */
-function expectation(node: SchemaNode): string {
-  const arms = unionArms(node);
-  if (arms !== null) {
-    return "Invalid input";
-  }
-  const allowed = node["enum"];
-  if (Array.isArray(allowed)) {
-    return `Invalid option: expected one of ${allowed.map((option) => JSON.stringify(option)).join("|")}`;
-  }
-  return `Invalid input: expected ${typeof node["type"] === "string" ? node["type"] : "a value"}, received string`;
-}
-
-/** Why one entry could not be placed in its call, or `null` once it is placed. */
-function placeEntry(args: Args, patch: RawPatch, leaves: ReadonlyMap<string, PatchLeaf>): string | null {
-  if (!patch.idValid) {
-    return ID_OUT_OF_RANGE;
-  }
-  const leaf = leaves.get(patch.field);
-  if (leaf === undefined) {
-    return UNKNOWN_FIELD;
-  }
-  const decoded = decodeScalar(leaf.node, patch.value);
-  if (decoded === undefined) {
-    return expectation(leaf.node);
-  }
-  return place(args, leaf, patch.item, decoded.value) ? null : REPEATED_FIELD;
-}
-
-/** Build one call from its entries against ONE parameter branch: the args, and every value refused with why. */
-function buildCall(patches: readonly RawPatch[], leaves: ReadonlyMap<string, PatchLeaf>): { readonly args: Args; readonly refused: RpgToolCallRefusal[] } {
-  const args: Args = {};
-  const refused: RpgToolCallRefusal[] = [];
-  for (const patch of patches) {
-    const message = placeEntry(args, patch, leaves);
-    if (message !== null) {
-      refused.push({ field: patch.field, sent: patch.value, message });
-    }
-  }
-  return { args: finishArrays(args, leaves.values()), refused };
-}
-
-interface PatchGroup {
+/** One assembled call in the making: its plane and its raw arguments. */
+interface CallDraft {
   readonly plane: string;
-  readonly patches: RawPatch[];
-}
-
-/** Group the reply's entries into calls by `(plane, call)`, in first-seen order; entries whose `call` is out of range
- *  share one group per plane, where each is refused by name. Count entries that are not a change at all. */
-function groupEntries(changes: readonly unknown[]): { readonly groups: readonly PatchGroup[]; readonly unreadable: number } {
-  const grouped = new Map<string, PatchGroup>();
-  let unreadable = 0;
-  for (const entry of changes) {
-    const read = readEntry(entry);
-    if (read === null) {
-      unreadable += 1;
-      continue;
-    }
-    const key = JSON.stringify([read.plane, read.call]);
-    const group = grouped.get(key) ?? { plane: read.plane, patches: [] };
-    grouped.set(key, group);
-    if (read.patch !== null) {
-      group.patches.push(read.patch);
-    }
-  }
-  return { groups: [...grouped.values()], unreadable };
-}
-
-/** The top-level closed fields whose allowed values differ between a tool's branches: the field that picks a branch
- *  (`targetRef` across the per-actor tracker split). */
-function discriminators(branches: readonly ReadonlyMap<string, PatchLeaf>[]): ReadonlySet<string> {
-  const enumOf = (leaf: PatchLeaf | undefined): string => JSON.stringify(leaf?.node["enum"] ?? null);
-  const first = branches[0];
-  if (branches.length < 2 || first === undefined) {
-    return new Set();
-  }
-  const fields = [...first.entries()]
-    .filter(
-      ([path, leaf]) => leaf.segments.length === 1 && Array.isArray(leaf.node["enum"]) && branches.some((branch) => enumOf(branch.get(path)) !== enumOf(leaf)),
-    )
-    .map(([path]) => path);
-  return new Set(fields);
-}
-
-/** Rank a branch's build: first by whether it refused a branch-picking value (so the entity the model named keeps its
- *  call), then by how much it refused. */
-function rankOf(built: { readonly refused: readonly RpgToolCallRefusal[] }, picks: ReadonlySet<string>): readonly [number, number] {
-  return [built.refused.filter((refusal) => picks.has(refusal.field)).length, built.refused.length];
-}
-
-/** One group to its call, built against the branch that keeps the named entity and refuses the least. A group with
- *  nothing placed still yields a call, carrying its refusals, so the record names what was sent. */
-function decodeGroup(group: PatchGroup, branches: readonly ReadonlyMap<string, PatchLeaf>[] | undefined): RpgToolCall {
-  if (group.plane === RPG_NO_CHANGES_TOOL) {
-    return { name: RPG_NO_CHANGES_TOOL, arguments: "{}" };
-  }
-  if (branches === undefined || branches.length === 0) {
-    return { name: group.plane, arguments: "{}", refused: group.patches.map((patch) => ({ field: patch.field, sent: patch.value, message: UNKNOWN_TOOL })) };
-  }
-  const picks = discriminators(branches);
-  const built = branches.map((leaves) => buildCall(group.patches, leaves));
-  const best = built.reduce((winner, next) => {
-    const [a, b] = [rankOf(next, picks), rankOf(winner, picks)];
-    return a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]) ? next : winner;
-  });
-  return { name: group.plane, arguments: JSON.stringify(best.args), ...(best.refused.length > 0 ? { refused: best.refused } : {}) };
+  readonly args: Args;
 }
 
 /**
- * Decode a patch-list reply into tool calls, or `null` when it is not a non-empty `changes` list. Entries group into
- * calls by `(plane, call)` and into array elements by `item`. Each value is decoded by its field's declared type and
- * checked against the round's own per-call enums; where a tool's parameters split per actor, the call is built against
- * the branch that keeps the actor the model named. A refused value is never written: it rides its call as a refusal,
- * so the turn's record marks that call salvaged (other fields kept) or dropped (nothing kept), exactly as the tool
- * round's per-call salvage does.
+ * Assemble a patch-list reply into the tool calls it stands for, or `null` when it is not a non-empty `changes` list.
+ * Entries group into calls by `(plane, call)` and into array elements by `item`; each value is shaped by its field's
+ * declared type and placed at its path. Nothing here validates: every assembled call goes through the tool round's
+ * own per-call parse, salvage and record, so a value its field refuses is salvaged or dropped there, by the same zod
+ * message, at the same path, as in a tool call's arguments.
+ *
+ * An entry that cannot form an argument (an unknown plane or field, a prototype key, an id out of range, a repeated
+ * scalar) is kept out of the assembled call. Each plane's such entries ride ONE extra call carrying them as sent, so
+ * the same record functions mark it (a state tool's call is `dropped`; an unknown plane is recorded the way the tool
+ * round records an unknown tool name). `unreadable` counts entries that are not a change at all.
  */
 export function patchChangesToToolCalls(value: unknown, tools: readonly RpgStateRoundTool[]): RpgStructuredChanges | null {
   const changes = isRecord(value) ? value[RPG_STATE_CHANGES_FIELD] : undefined;
   if (!Array.isArray(changes) || changes.length === 0) {
     return null;
   }
-  const byName = new Map(tools.map((tool) => [tool.name, toolBranches(tool).branches] as const));
-  const { groups, unreadable } = groupEntries(changes);
-  const calls = groups.map((group) => decodeGroup(group, byName.get(group.plane)));
-  const dropped = calls.flatMap((call) => (call.refused ?? []).map((refusal) => `${call.name}.${refusal.field}`));
+  const leavesByPlane = new Map(tools.map((tool) => [tool.name, toolLeaves(tool)] as const));
+  const drafts = new Map<string, CallDraft>();
+  const unplaced = new Map<string, Args[]>();
+  const dropped: string[] = [];
+  let unreadable = 0;
+  for (const raw of changes) {
+    const entry = readEntry(raw);
+    if (entry === null) {
+      unreadable += 1;
+      continue;
+    }
+    if (entry.plane === RPG_NO_CHANGES_TOOL) {
+      drafts.set(RPG_NO_CHANGES_TOOL, { plane: RPG_NO_CHANGES_TOOL, args: {} });
+      continue;
+    }
+    const leaves = leavesByPlane.get(entry.plane);
+    const key = JSON.stringify([entry.plane, entry.call]);
+    const draft = drafts.get(key) ?? { plane: entry.plane, args: {} };
+    if (leaves !== undefined && isPatchIndex(entry.call) && place(draft.args, entry, leaves)) {
+      drafts.set(key, draft);
+      continue;
+    }
+    unplaced.set(entry.plane, [...(unplaced.get(entry.plane) ?? []), entry.sent]);
+    dropped.push(`${entry.plane}.${entry.field}`);
+  }
+  const calls: RpgToolCall[] = [...drafts.values()].map((draft) => ({
+    name: draft.plane,
+    arguments: JSON.stringify(finishArrays(draft.args, leavesByPlane.get(draft.plane)?.values() ?? [])),
+  }));
+  for (const [plane, entries] of unplaced) {
+    calls.push({ name: plane, arguments: JSON.stringify(entries) });
+  }
   return { calls, unreadable, dropped };
 }

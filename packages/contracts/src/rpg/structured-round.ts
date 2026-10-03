@@ -52,7 +52,7 @@ export function stateRoundChangesSchema<S extends Record<string, unknown>>(_proj
 }
 
 /** What a structured state reply decoded to: the calls, how many entries were not a change at all, and (patch
- *  list) the `plane.field` values the tool's own schema refused, which were dropped rather than written. */
+ *  list) the `plane.field` entries that could not form an argument, which ride their own recorded call instead. */
 export interface RpgStructuredChanges {
   readonly calls: readonly RpgToolCall[];
   readonly unreadable: number;

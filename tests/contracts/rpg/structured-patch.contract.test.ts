@@ -1,13 +1,14 @@
 // @orb/contracts/rpg structured-patch — the PATCH-LIST shape of the structured state round. Pinned: the schema is
-// generated from the round's own (constrained) wire tools and carries no optional and no union-typed property; every
-// value is decoded by its field's declared type and per-round enum, never parsed as JSON; `(plane, call)` groups calls
-// and `item` groups array elements, so a value can never attach to the wrong entity; a refused value — including a
-// prototype key — is dropped by name and never thrown.
+// generated from the round's own (constrained) wire tools and carries no optional and no union-typed property on any
+// wire; the decoder only assembles each call's raw arguments (shaped by declared type, never parsed as JSON), so a
+// patch reply and a tool call with the same intent leave the SAME record, verdict, issues and fold; `(plane, call)`
+// groups calls and `item` groups array elements; an entry that cannot form an argument rides its own recorded call.
 
-import { structuredSchemaComplexity } from "@orb/contracts/inference";
-import type { ExtractionRefs, RpgStateRoundTool } from "@orb/contracts/rpg";
+import { checkWireSchema, structuredSchemaComplexity, WIRE_SCHEMA_MODES } from "@orb/contracts/inference";
+import type { ExtractionRefs, RpgStateRoundTool, RpgToolCall } from "@orb/contracts/rpg";
 import {
   constrainExtractionSchema,
+  malformedToolCallDetails,
   malformedToolCalls,
   patchChangesToToolCalls,
   patchFieldPaths,
@@ -15,7 +16,9 @@ import {
   RPG_PATCH_INDEX_MAX,
   recordToolCalls,
   rpgExtractionSchema,
+  salvagedToolCallFields,
   stateRoundPatchSchema,
+  strippedToolCallKeys,
   toolCallsToExtraction,
 } from "@orb/contracts/rpg";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -28,6 +31,15 @@ const REFS: ExtractionRefs = {
   gameTrackerKeys: { deltaKeys: ["gold"], setKeys: ["omen"] },
   conditionNames: ["Bleeding"],
   establishScene: { location: false, timeOfDay: false, presentCast: false },
+};
+
+/** A per-actor tracker split: the party tool's parameters become one `oneOf` branch per actor group. */
+const SPLIT_REFS: ExtractionRefs = {
+  ...REFS,
+  trackerWriteGroups: [
+    { targetRefs: ["Mira"], deltaKeys: ["hp"], setKeys: [] },
+    { targetRefs: ["Corvin"], deltaKeys: ["mana"], setKeys: [] },
+  ],
 };
 
 /** The round's wire tools as the compose builds them: each plane lifted from ONE constrained projection. */
@@ -52,13 +64,33 @@ function roundTools(refs: ExtractionRefs): RpgStateRoundTool[] {
 }
 
 const TOOLS = roundTools(REFS);
+const SPLIT_TOOLS = roundTools(SPLIT_REFS);
 
-function decode(changes: readonly Record<string, unknown>[]): ReturnType<typeof patchChangesToToolCalls> {
-  return patchChangesToToolCalls({ changes }, TOOLS);
+type Entry = Readonly<Record<string, unknown>>;
+
+/** One patch entry at `item` 0, the id every field but a list of things takes; spread and override `item` for those. */
+function entry(plane: string, call: number, field: string, value: string): Entry {
+  return { plane, call, field, item: 0, value };
+}
+
+function decode(changes: readonly Entry[], tools: readonly RpgStateRoundTool[] = TOOLS): ReturnType<typeof patchChangesToToolCalls> {
+  return patchChangesToToolCalls({ changes }, tools);
 }
 
 function argsOf(decoded: ReturnType<typeof patchChangesToToolCalls>): readonly { readonly name: string; readonly args: unknown }[] {
   return (decoded?.calls ?? []).map((call) => ({ name: call.name, args: JSON.parse(call.arguments) as unknown }));
+}
+
+/** Everything the shared path derives from a call set: the full record (args, verdict, issues), the drop and salvage
+ *  lenses, the strip lens and the fold. Two vehicles with equal intent must agree on all of it. */
+function sharedView(calls: readonly RpgToolCall[]): unknown {
+  return {
+    record: recordToolCalls(calls),
+    malformed: malformedToolCallDetails(calls),
+    salvaged: salvagedToolCallFields(calls),
+    stripped: strippedToolCallKeys(calls),
+    fold: toolCallsToExtraction(calls),
+  };
 }
 
 const PROJECTED_PATCH = z.object({
@@ -89,24 +121,169 @@ test("the patch-list schema enumerates each tool's own field paths, every proper
   expect(TOOLS.flatMap((tool) => patchToolsOnlyFields(tool))).toEqual([]);
 });
 
-test("a prototype key as a field is DROPPED by name and never reaches a schema lookup", () => {
-  const decoded = decode([
-    { plane: "update_scene", call: 0, field: "constructor", item: 0, value: "x" },
-    { plane: "update_scene", call: 0, field: "toString", item: 0, value: "x" },
-    { plane: "update_scene", call: 0, field: "__proto__", item: 0, value: "x" },
-    { plane: "update_scene", call: 0, field: "location", item: 0, value: "the inn" },
-  ]);
-
-  expect(decoded?.dropped).toEqual(["update_scene.constructor", "update_scene.toString", "update_scene.__proto__"]);
-  expect(argsOf(decoded)).toEqual([{ name: "update_scene", args: { location: "the inn" } }]);
+test("the patch-list schema fits every wire mode under every mode's ceilings, flat or split per actor", () => {
+  for (const tools of [TOOLS, SPLIT_TOOLS]) {
+    const projected = projectJsonSchema(stateRoundPatchSchema(tools));
+    expect(structuredSchemaComplexity(projected)).toEqual({ optionalProps: 0, unionProps: 0 });
+    for (const mode of WIRE_SCHEMA_MODES) {
+      for (const limitsFrom of WIRE_SCHEMA_MODES) {
+        expect(checkWireSchema([projected], mode, limitsFrom)).toEqual({ fits: true, violations: [] });
+      }
+    }
+  }
 });
+
+// ── one validation path: equal intent leaves an equal record ────────────────────────────────────────────────────
+
+interface Intent {
+  readonly label: string;
+  readonly tools?: readonly RpgStateRoundTool[];
+  readonly entries: readonly Entry[];
+  readonly tool: RpgToolCall;
+}
+
+function scene(...entries: readonly (readonly [string, string])[]): readonly Entry[] {
+  return entries.map(([field, value]) => entry("update_scene", 0, field, value));
+}
+
+const INTENTS: readonly Intent[] = [
+  {
+    label: "a refused enum beside a kept field",
+    entries: scene(["location", "the inn"], ["timeOfDay", "Evening"]),
+    tool: { name: "update_scene", arguments: JSON.stringify({ location: "the inn", timeOfDay: "Evening" }) },
+  },
+  {
+    label: "a refused enum alone",
+    entries: scene(["timeOfDay", "Evening"]),
+    tool: { name: "update_scene", arguments: JSON.stringify({ timeOfDay: "Evening" }) },
+  },
+  {
+    label: "a refused nested enum beside a kept field",
+    entries: scene(["location", "inn"], ["weather.type", "plasma"]),
+    tool: { name: "update_scene", arguments: JSON.stringify({ location: "inn", weather: { type: "plasma" } }) },
+  },
+  {
+    label: "a refused nested enum beside its sibling",
+    entries: scene(["weather.type", "plasma"], ["weather.label", "odd"]),
+    tool: { name: "update_scene", arguments: JSON.stringify({ weather: { type: "plasma", label: "odd" } }) },
+  },
+  {
+    label: "text in a numeric field, alone",
+    entries: scene(["day", "abc"]),
+    tool: { name: "update_scene", arguments: JSON.stringify({ day: "abc" }) },
+  },
+  {
+    label: "text in a numeric field beside a kept field",
+    entries: scene(["location", "inn"], ["day", "abc"]),
+    tool: { name: "update_scene", arguments: JSON.stringify({ location: "inn", day: "abc" }) },
+  },
+  {
+    label: "a number below the field's minimum",
+    entries: scene(["day", "0"]),
+    tool: { name: "update_scene", arguments: JSON.stringify({ day: 0 }) },
+  },
+  {
+    label: "a refused value inside one element of a list of things",
+    entries: [
+      entry("update_scene", 0, "presentUpsert.name", "Oren"),
+      entry("update_scene", 0, "presentUpsert.relationship.kind", "frenemy"),
+      ...scene(["location", "inn"]),
+    ],
+    tool: { name: "update_scene", arguments: JSON.stringify({ presentUpsert: [{ name: "Oren", relationship: { kind: "frenemy" } }], location: "inn" }) },
+  },
+  {
+    label: "text in an element's numeric field",
+    entries: [
+      entry("update_inventory", 0, "targetRef", "Mira"),
+      entry("update_inventory", 0, "add.name", "rope"),
+      entry("update_inventory", 0, "add.quantity", "lots"),
+    ],
+    tool: { name: "update_inventory", arguments: JSON.stringify({ targetRef: "Mira", add: [{ name: "rope", quantity: "lots" }] }) },
+  },
+  {
+    label: "a target outside the round's actors",
+    entries: [entry("update_party", 0, "targetRef", "Zed"), entry("update_party", 0, "status", "x")],
+    tool: { name: "update_party", arguments: JSON.stringify({ targetRef: "Zed", status: "x" }) },
+  },
+  {
+    label: "a condition no actor carries",
+    entries: [entry("update_party", 0, "targetRef", "Mira"), entry("update_party", 0, "addCondition.name", "Poisoned")],
+    tool: { name: "update_party", arguments: JSON.stringify({ targetRef: "Mira", addCondition: { name: "Poisoned" } }) },
+  },
+  {
+    label: "a call with no target",
+    entries: [entry("update_party", 0, "status", "bloodied")],
+    tool: { name: "update_party", arguments: JSON.stringify({ status: "bloodied" }) },
+  },
+  {
+    label: "a tracker key the named actor does not carry, across a per-actor split",
+    tools: SPLIT_TOOLS,
+    entries: [
+      entry("update_party", 0, "targetRef", "Corvin"),
+      entry("update_party", 0, "trackerDeltas.key", "hp"),
+      entry("update_party", 0, "trackerDeltas.delta", "-2"),
+      entry("update_party", 0, "status", "bloodied"),
+    ],
+    tool: { name: "update_party", arguments: JSON.stringify({ targetRef: "Corvin", trackerDeltas: [{ key: "hp", delta: -2 }], status: "bloodied" }) },
+  },
+  {
+    label: "a long refused value",
+    entries: scene(["timeOfDay", "x".repeat(200)]),
+    tool: { name: "update_scene", arguments: JSON.stringify({ timeOfDay: "x".repeat(200) }) },
+  },
+];
+
+test("for every intent, the patch reply leaves the tool round's exact record: args as sent, verdict, issues, drops and fold", () => {
+  for (const intent of INTENTS) {
+    const decoded = decode(intent.entries, intent.tools);
+
+    expect({ label: intent.label, view: sharedView(decoded?.calls ?? []) }).toEqual({ label: intent.label, view: sharedView([intent.tool]) });
+    expect(decoded?.dropped).toEqual([]);
+  }
+});
+
+test("the record keeps the value the model sent, and a refused nested value reports the tool round's path and message", () => {
+  const [salvaged] = recordToolCalls(decode(scene(["location", "the inn"], ["timeOfDay", "Evening"]))?.calls ?? []);
+  expect(salvaged).toEqual({
+    name: "update_scene",
+    args: '{"location":"the inn","timeOfDay":"Evening"}',
+    verdict: "salvaged",
+    issues: ["update_scene.timeOfDay"],
+  });
+
+  expect(recordToolCalls(decode(scene(["location", "inn"], ["weather.type", "plasma"]))?.calls ?? [])[0]?.issues).toEqual(["update_scene.weather"]);
+  const [nested] = recordToolCalls(decode(scene(["weather.type", "plasma"], ["weather.label", "odd"]))?.calls ?? []);
+  expect(nested?.verdict).toBe("dropped");
+  expect(nested?.issues).toEqual([expect.stringMatching(/^weather\.type: Invalid option: .* — sent "plasma"$/u)]);
+
+  // The message is the shared parse's own: a text value in a numeric field reads "expected number".
+  const [numeric] = recordToolCalls(decode(scene(["day", "abc"]))?.calls ?? []);
+  expect(numeric?.issues).toEqual(['day: Invalid input: expected number, received string — sent "abc"']);
+});
+
+test("no issue line claims a value was absent when the model sent one", () => {
+  for (const intent of INTENTS.filter((candidate) => candidate.label !== "a call with no target")) {
+    const issues = recordToolCalls(decode(intent.entries, intent.tools)?.calls ?? []).flatMap((call) => call.issues);
+    expect({ label: intent.label, issues: issues.filter((issue) => issue.includes("(absent)")) }).toEqual({ label: intent.label, issues: [] });
+  }
+});
+
+test("a wholly refused patch call is a recorded DROP, writes nothing, and is not a usable call (a downgraded round still retries)", () => {
+  const calls = decode(scene(["timeOfDay", "Evening"]))?.calls ?? [];
+
+  expect(recordToolCalls(calls)[0]?.verdict).toBe("dropped");
+  expect(toolCallsToExtraction(calls).scene).toBeUndefined();
+  expect(malformedToolCalls(calls)).toEqual(["update_scene"]);
+});
+
+// ── assembly ────────────────────────────────────────────────────────────────────────────────────────────────────
 
 test("two journal entries stay two calls: `call` groups, so the second title never lands on the first entry", () => {
   const decoded = decode([
-    { plane: "add_journal_entry", call: 0, field: "type", item: 0, value: "combat" },
-    { plane: "add_journal_entry", call: 0, field: "content", item: 0, value: "Corvin wounds Mira." },
-    { plane: "add_journal_entry", call: 1, field: "title", item: 0, value: "The cave" },
-    { plane: "add_journal_entry", call: 1, field: "content", item: 0, value: "They reach the cave." },
+    entry("add_journal_entry", 0, "type", "combat"),
+    entry("add_journal_entry", 0, "content", "Corvin wounds Mira."),
+    entry("add_journal_entry", 1, "title", "The cave"),
+    entry("add_journal_entry", 1, "content", "They reach the cave."),
   ]);
 
   expect(argsOf(decoded)).toEqual([
@@ -117,12 +294,12 @@ test("two journal entries stay two calls: `call` groups, so the second title nev
 
 test("two actors stay two update_party calls, each with its own condition and status, whatever order the fields come in", () => {
   const decoded = decode([
-    { plane: "update_party", call: 0, field: "status", item: 0, value: "wounded" },
-    { plane: "update_party", call: 1, field: "targetRef", item: 0, value: "Corvin" },
-    { plane: "update_party", call: 0, field: "targetRef", item: 0, value: "Mira" },
-    { plane: "update_party", call: 0, field: "addCondition.name", item: 0, value: "Bleeding" },
-    { plane: "update_party", call: 1, field: "removeCondition", item: 0, value: "Bleeding" },
-    { plane: "update_party", call: 1, field: "status", item: 0, value: "grim" },
+    entry("update_party", 0, "status", "wounded"),
+    entry("update_party", 1, "targetRef", "Corvin"),
+    entry("update_party", 0, "targetRef", "Mira"),
+    entry("update_party", 0, "addCondition.name", "Bleeding"),
+    entry("update_party", 1, "removeCondition", "Bleeding"),
+    entry("update_party", 1, "status", "grim"),
   ]);
 
   expect(argsOf(decoded)).toEqual([
@@ -131,32 +308,29 @@ test("two actors stay two update_party calls, each with its own condition and st
   ]);
 });
 
-test("values decode by declared type: digits for numbers, words from the enum, text verbatim — never JSON", () => {
+test("values are shaped by declared type only: strict digits for numbers, every other text kept as sent — never JSON", () => {
   const decoded = decode([
-    { plane: "update_scene", call: 0, field: "day", item: 0, value: "3" },
-    { plane: "update_scene", call: 0, field: "plot.act", item: 0, value: "two" },
-    { plane: "update_scene", call: 0, field: "timeOfDay", item: 0, value: "dusk" },
-    { plane: "update_scene", call: 0, field: "weather.type", item: 0, value: "rain" },
-    { plane: "update_scene", call: 0, field: "location", item: 0, value: '{"a":1}' },
-    { plane: "update_inventory", call: 0, field: "targetRef", item: 0, value: "Mira" },
-    { plane: "update_inventory", call: 0, field: "add.name", item: 0, value: "rope" },
-    { plane: "update_inventory", call: 0, field: "add.quantity", item: 0, value: "1.5" },
-    { plane: "update_inventory", call: 0, field: "walletDeltas.delta", item: 0, value: "[5]" },
+    entry("update_scene", 0, "day", "3"),
+    entry("update_scene", 0, "plot.act", "two"),
+    entry("update_scene", 0, "location", '{"a":1}'),
+    entry("update_inventory", 0, "targetRef", "Mira"),
+    entry("update_inventory", 0, "add.name", "rope"),
+    entry("update_inventory", 0, "add.quantity", "1.5"),
+    entry("update_inventory", 0, "walletDeltas.delta", "[5]"),
   ]);
 
   expect(argsOf(decoded)).toEqual([
-    { name: "update_scene", args: { day: 3, weather: { type: "rain" }, location: '{"a":1}' } },
-    { name: "update_inventory", args: { targetRef: "Mira", add: [{ name: "rope" }] } },
+    { name: "update_scene", args: { day: 3, plot: { act: "two" }, location: '{"a":1}' } },
+    { name: "update_inventory", args: { targetRef: "Mira", add: [{ name: "rope", quantity: 1.5 }], walletDeltas: [{ delta: "[5]" }] } },
   ]);
-  expect(decoded?.dropped).toEqual(["update_scene.plot.act", "update_scene.timeOfDay", "update_inventory.add.quantity", "update_inventory.walletDeltas.delta"]);
 });
 
 test('a number|string field prefers the number, so `"5"` lands as 5 and folds exactly like the tool call that sent 5', () => {
   const decoded = decode([
-    { plane: "set_tracker", call: 0, field: "key", item: 0, value: "omen" },
-    { plane: "set_tracker", call: 0, field: "value", item: 0, value: "5" },
-    { plane: "set_tracker", call: 1, field: "key", item: 0, value: "omen" },
-    { plane: "set_tracker", call: 1, field: "value", item: 0, value: "crows at dawn" },
+    entry("set_tracker", 0, "key", "omen"),
+    entry("set_tracker", 0, "value", "5"),
+    entry("set_tracker", 1, "key", "omen"),
+    entry("set_tracker", 1, "value", "crows at dawn"),
   ]);
 
   expect(argsOf(decoded)).toEqual([
@@ -170,12 +344,12 @@ test('a number|string field prefers the number, so `"5"` lands as 5 and folds ex
 
 test("lists: plain words append one entry each; a list of things takes one `item` per thing, its fields grouped by item", () => {
   const decoded = decode([
-    { plane: "update_scene", call: 0, field: "presentRemove", item: 0, value: "Corvin" },
-    { plane: "update_scene", call: 0, field: "presentRemove", item: 0, value: "Mira" },
-    { plane: "update_scene", call: 0, field: "presentUpsert.name", item: 1, value: "Vesna" },
-    { plane: "update_scene", call: 0, field: "presentUpsert.name", item: 0, value: "Oren" },
-    { plane: "update_scene", call: 0, field: "presentUpsert.relationship.kind", item: 1, value: "ally" },
-    { plane: "update_scene", call: 0, field: "presentUpsert.mood", item: 0, value: "wary" },
+    entry("update_scene", 0, "presentRemove", "Corvin"),
+    entry("update_scene", 0, "presentRemove", "Mira"),
+    { ...entry("update_scene", 0, "presentUpsert.name", "Vesna"), item: 1 },
+    entry("update_scene", 0, "presentUpsert.name", "Oren"),
+    { ...entry("update_scene", 0, "presentUpsert.relationship.kind", "ally"), item: 1 },
+    entry("update_scene", 0, "presentUpsert.mood", "wary"),
   ]);
 
   expect(argsOf(decoded)).toEqual([
@@ -192,184 +366,66 @@ test("lists: plain words append one entry each; a list of things takes one `item
   ]);
 });
 
-test("a boolean field takes only `true` or `false`", () => {
+test("a boolean field shapes only `true` or `false`; any other text is kept for the parse to refuse", () => {
   const toggles: RpgStateRoundTool = { name: "toggle", description: "", parameters: { type: "object", properties: { lit: { type: "boolean" } } } };
 
-  const decoded = patchChangesToToolCalls(
-    {
-      changes: [
-        { plane: "toggle", call: 0, field: "lit", item: 0, value: "true" },
-        { plane: "toggle", call: 1, field: "lit", item: 0, value: "yes" },
-      ],
-    },
-    [toggles],
-  );
+  const decoded = patchChangesToToolCalls({ changes: [entry("toggle", 0, "lit", "true"), entry("toggle", 1, "lit", "yes")] }, [toggles]);
 
   expect(argsOf(decoded)).toEqual([
     { name: "toggle", args: { lit: true } },
-    { name: "toggle", args: {} },
+    { name: "toggle", args: { lit: "yes" } },
   ]);
-  expect(decoded?.dropped).toEqual(["toggle.lit"]);
 });
 
-test("the round's per-call enums bind at decode: a target, a condition or a tracker key outside them is DROPPED by name", () => {
+// ── entries that cannot form an argument ────────────────────────────────────────────────────────────────────────
+
+test("a prototype key never reaches a lookup: it rides its own recorded DROP, carried as sent, beside the assembled call", () => {
+  const unknown = [entry("update_scene", 0, "constructor", "x"), entry("update_scene", 0, "toString", "x"), entry("update_scene", 0, "__proto__", "x")];
+  const decoded = decode([...unknown, entry("update_scene", 0, "location", "the inn")]);
+
+  expect(decoded?.dropped).toEqual(["update_scene.constructor", "update_scene.toString", "update_scene.__proto__"]);
+  expect(decoded?.calls).toEqual([
+    { name: "update_scene", arguments: '{"location":"the inn"}' },
+    { name: "update_scene", arguments: JSON.stringify(unknown) },
+  ]);
+  expect(recordToolCalls(decoded?.calls ?? []).map((call) => call.verdict)).toEqual(["applied", "dropped"]);
+  expect(toolCallsToExtraction(decoded?.calls ?? []).scene).toEqual({ location: "the inn" });
+});
+
+test("a repeated scalar is never silently overwritten; an unknown plane is recorded as the tool round records an unknown tool", () => {
   const decoded = decode([
-    { plane: "update_party", call: 0, field: "targetRef", item: 0, value: "Nobody" },
-    { plane: "update_party", call: 0, field: "removeCondition", item: 0, value: "Poisoned" },
-    { plane: "update_party", call: 0, field: "status", item: 0, value: "lost" },
-    { plane: "set_tracker", call: 0, field: "key", item: 0, value: "invented" },
-    { plane: "set_tracker", call: 0, field: "delta", item: 0, value: "2" },
-  ]);
-
-  expect(decoded?.dropped).toEqual(["update_party.targetRef", "update_party.removeCondition", "set_tracker.key"]);
-  expect(argsOf(decoded)).toEqual([
-    { name: "update_party", args: { status: "lost" } },
-    { name: "set_tracker", args: { delta: 2 } },
-  ]);
-});
-
-test("a per-actor tracker split keeps each key on the actor who carries it", () => {
-  const tools = roundTools({
-    ...REFS,
-    trackerWriteGroups: [
-      { targetRefs: ["Mira"], deltaKeys: ["hp"], setKeys: [] },
-      { targetRefs: ["Corvin"], deltaKeys: ["mana"], setKeys: [] },
-    ],
-  });
-  const decoded = patchChangesToToolCalls(
-    {
-      changes: [
-        { plane: "update_party", call: 0, field: "targetRef", item: 0, value: "Corvin" },
-        { plane: "update_party", call: 0, field: "trackerDeltas.key", item: 0, value: "mana" },
-        { plane: "update_party", call: 0, field: "trackerDeltas.delta", item: 0, value: "-2" },
-        { plane: "update_party", call: 1, field: "targetRef", item: 0, value: "Corvin" },
-        { plane: "update_party", call: 1, field: "trackerDeltas.key", item: 0, value: "hp" },
-      ],
-    },
-    tools,
-  );
-
-  const calls = argsOf(decoded);
-  expect(calls[0]).toEqual({ name: "update_party", args: { targetRef: "Corvin", trackerDeltas: [{ key: "mana", delta: -2 }] } });
-  // Corvin carries no hp: whichever half survives, hp is never written onto him.
-  expect(JSON.stringify(calls[1]?.args)).not.toMatch(/Corvin.*hp|hp.*Corvin/u);
-  expect(decoded?.dropped).toHaveLength(1);
-});
-
-test("a repeated scalar in one call is refused, never silently overwritten; an unknown plane is dropped whole", () => {
-  const decoded = decode([
-    { plane: "update_scene", call: 0, field: "location", item: 0, value: "the inn" },
-    { plane: "update_scene", call: 0, field: "location", item: 0, value: "the road" },
-    { plane: "delete_world", call: 0, field: "x", item: 0, value: "1" },
+    entry("update_scene", 0, "location", "the inn"),
+    entry("update_scene", 0, "location", "the road"),
+    entry("delete_world", 0, "x", "1"),
     { plane: "no_changes" },
   ]);
 
+  expect(decoded?.dropped).toEqual(["update_scene.location", "delete_world.x"]);
   expect(argsOf(decoded)).toEqual([
     { name: "update_scene", args: { location: "the inn" } },
-    { name: "delete_world", args: {} },
     { name: "no_changes", args: {} },
+    { name: "update_scene", args: [entry("update_scene", 0, "location", "the road")] },
+    { name: "delete_world", args: [entry("delete_world", 0, "x", "1")] },
   ]);
-  expect(decoded?.dropped).toEqual(["update_scene.location", "delete_world.x"]);
-  // The unknown plane is a recorded drop naming what was sent, never a silent no-op.
-  expect(recordToolCalls(decoded?.calls ?? []).map((call) => [call.name, call.verdict])).toEqual([
-    ["update_scene", "salvaged"],
-    ["delete_world", "dropped"],
+  const record = recordToolCalls(decoded?.calls ?? []);
+  expect(record.map((call) => [call.name, call.verdict])).toEqual([
+    ["update_scene", "applied"],
     ["no_changes", "applied"],
+    ["update_scene", "dropped"],
+    ["delete_world", "applied"],
   ]);
+  const toolRoundUnknown = { name: "delete_world", arguments: JSON.stringify([entry("delete_world", 0, "x", "1")]) };
+  expect(record[3]).toEqual(recordToolCalls([toolRoundUnknown])[0]);
+  expect(toolCallsToExtraction(decoded?.calls ?? []).scene).toEqual({ location: "the inn" });
   expect(patchChangesToToolCalls({ changes: [] }, TOOLS)).toBeNull();
 });
 
-// ── round 2: the patch vehicle's refusals reach the same record the tool round writes ──────────────────────────
-
-/** The disclosure a call set produces: verdict and issues per call, the parts a reader sees. */
-function disclosure(calls: readonly { readonly name: string; readonly arguments: string }[]): readonly unknown[] {
-  return recordToolCalls(calls).map((call) => ({ name: call.name, verdict: call.verdict, issues: call.issues }));
-}
-
-test("a partly refused patch call discloses exactly what the tool round discloses for the same intent: salvaged, naming the field", () => {
-  const patch = decode([
-    { plane: "update_scene", call: 0, field: "location", item: 0, value: "the inn" },
-    { plane: "update_scene", call: 0, field: "timeOfDay", item: 0, value: "Evening" },
-  ]);
-  const toolRound = [{ name: "update_scene", arguments: JSON.stringify({ location: "the inn", timeOfDay: "Evening" }) }];
-
-  expect(disclosure(patch?.calls ?? [])).toEqual(disclosure(toolRound));
-  expect(disclosure(toolRound)).toEqual([{ name: "update_scene", verdict: "salvaged", issues: ["update_scene.timeOfDay"] }]);
-  expect(toolCallsToExtraction(patch?.calls ?? [])).toEqual(toolCallsToExtraction(toolRound));
-});
-
-test("a wholly refused patch call is a recorded DROP naming the field and the value sent — exactly the tool round's line, never a quiet beat", () => {
-  const patch = decode([{ plane: "update_scene", call: 0, field: "timeOfDay", item: 0, value: "Evening" }]);
-  const toolRound = [{ name: "update_scene", arguments: JSON.stringify({ timeOfDay: "Evening" }) }];
-
-  expect(disclosure(patch?.calls ?? [])).toEqual(disclosure(toolRound));
-  expect(recordToolCalls(patch?.calls ?? [])[0]?.verdict).toBe("dropped");
-  expect(recordToolCalls(patch?.calls ?? [])[0]?.issues[0]).toMatch(/^timeOfDay: .* — sent "Evening"$/u);
-  // It writes nothing, and it is not a usable call (so a downgraded round would still be retried).
-  expect(toolCallsToExtraction(patch?.calls ?? []).scene).toBeUndefined();
-  expect(malformedToolCalls(patch?.calls ?? [])).toEqual(["update_scene"]);
-});
-
-test("a tie between per-actor branches keeps the actor the model named, and the record never claims it sent nothing", () => {
-  const tools = roundTools({
-    ...REFS,
-    trackerWriteGroups: [
-      { targetRefs: ["Mira"], deltaKeys: ["hp"], setKeys: [] },
-      { targetRefs: ["Corvin"], deltaKeys: ["mana"], setKeys: [] },
-    ],
+test("entries that are not a change at all are counted, never guessed at", () => {
+  expect(patchChangesToToolCalls({ changes: [null, 5, { plane: 3 }, { plane: "update_scene", call: 0, field: "location" }] }, TOOLS)).toEqual({
+    calls: [],
+    unreadable: 4,
+    dropped: [],
   });
-  const entries = [
-    { plane: "update_party", call: 0, field: "targetRef", item: 0, value: "Corvin" },
-    { plane: "update_party", call: 0, field: "trackerDeltas.key", item: 0, value: "hp" },
-    { plane: "update_party", call: 0, field: "trackerDeltas.delta", item: 0, value: "-2" },
-    { plane: "update_party", call: 0, field: "status", item: 0, value: "bloodied" },
-  ];
-  for (const changes of [entries, [...entries].reverse()]) {
-    const decoded = patchChangesToToolCalls({ changes }, tools);
-    const [record] = recordToolCalls(decoded?.calls ?? []);
-
-    expect(JSON.parse(decoded?.calls[0]?.arguments ?? "{}")).toMatchObject({ targetRef: "Corvin", status: "bloodied" });
-    expect(decoded?.calls[0]?.refused).toEqual([expect.objectContaining({ field: "trackerDeltas.key", sent: "hp" })]);
-    expect(record?.verdict).toBe("salvaged");
-    expect(record?.issues).toContain("update_party.trackerDeltas.key");
-    expect(JSON.stringify(record?.issues)).not.toContain("(absent)");
-    expect(toolCallsToExtraction(decoded?.calls ?? []).party).toEqual([{ targetRef: "Corvin", status: "bloodied" }]);
-  }
-});
-
-test("call and item ids are bounded whole numbers: the schema says so, and an out-of-range id is refused by name", () => {
-  const projected = projectJsonSchema(stateRoundPatchSchema(TOOLS));
-  const member = PROJECTED_PATCH_BOUNDS.parse(projected).properties.changes.items.anyOf[0];
-  expect(member?.properties.call).toMatchObject({ type: "integer", minimum: 0, maximum: RPG_PATCH_INDEX_MAX });
-  expect(member?.properties.item).toMatchObject({ type: "integer", minimum: 0, maximum: RPG_PATCH_INDEX_MAX });
-  expect(structuredSchemaComplexity(projected)).toEqual({ optionalProps: 0, unionProps: 0 });
-
-  const decoded = patchChangesToToolCalls(
-    {
-      changes: [
-        // `1e400` is what a JSON reply's out-of-range number parses to: Infinity.
-        { plane: "update_scene", call: Number.POSITIVE_INFINITY, field: "location", item: 0, value: "inf" },
-        { plane: "update_scene", call: -1, field: "location", item: 0, value: "neg" },
-        { plane: "update_scene", call: 0.5, field: "day", item: 0, value: "2" },
-        { plane: "update_scene", call: 2 ** 53, field: "recentEvent", item: 0, value: "huge" },
-        { plane: "update_scene", call: 0, field: "presentUpsert.name", item: 1e21, value: "far" },
-        { plane: "update_scene", call: 0, field: "location", item: 0, value: "the inn" },
-      ],
-    },
-    TOOLS,
-  );
-
-  expect(decoded?.dropped).toEqual([
-    "update_scene.location",
-    "update_scene.location",
-    "update_scene.day",
-    "update_scene.recentEvent",
-    "update_scene.presentUpsert.name",
-  ]);
-  expect(argsOf(decoded)).toEqual([
-    { name: "update_scene", args: {} },
-    { name: "update_scene", args: { location: "the inn" } },
-  ]);
 });
 
 const PROJECTED_PATCH_BOUNDS = z.object({
@@ -382,4 +438,38 @@ const PROJECTED_PATCH_BOUNDS = z.object({
       }),
     }),
   }),
+});
+
+test("call and item ids are bounded whole numbers: the schema says so, and an out-of-range id rides its plane's recorded DROP", () => {
+  const projected = projectJsonSchema(stateRoundPatchSchema(TOOLS));
+  const member = PROJECTED_PATCH_BOUNDS.parse(projected).properties.changes.items.anyOf[0];
+  expect(member?.properties.call).toMatchObject({ type: "integer", minimum: 0, maximum: RPG_PATCH_INDEX_MAX });
+  expect(member?.properties.item).toMatchObject({ type: "integer", minimum: 0, maximum: RPG_PATCH_INDEX_MAX });
+
+  const outOfRange = [
+    // `1e400` is what a JSON reply's out-of-range number parses to: Infinity.
+    entry("update_scene", Number.POSITIVE_INFINITY, "location", "inf"),
+    entry("update_scene", -1, "location", "neg"),
+    entry("update_scene", 0.5, "day", "2"),
+    entry("update_scene", 2 ** 53, "recentEvent", "huge"),
+    entry("update_scene", RPG_PATCH_INDEX_MAX + 1, "recentEvent", "over"),
+    { ...entry("update_scene", 0, "presentUpsert.name", "far"), item: 1e21 },
+  ];
+  const decoded = decode([...outOfRange, { ...entry("update_scene", RPG_PATCH_INDEX_MAX, "location", "the inn"), item: RPG_PATCH_INDEX_MAX }]);
+
+  expect(decoded?.dropped).toEqual([
+    "update_scene.location",
+    "update_scene.location",
+    "update_scene.day",
+    "update_scene.recentEvent",
+    "update_scene.recentEvent",
+    "update_scene.presentUpsert.name",
+  ]);
+  expect(decoded?.calls).toEqual([
+    { name: "update_scene", arguments: '{"location":"the inn"}' },
+    { name: "update_scene", arguments: JSON.stringify(outOfRange) },
+  ]);
+  const record = recordToolCalls(decoded?.calls ?? []);
+  expect(record.map((call) => call.verdict)).toEqual(["applied", "dropped"]);
+  expect(record[1]?.args).toBe(JSON.stringify(outOfRange));
 });

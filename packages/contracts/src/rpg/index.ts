@@ -154,7 +154,6 @@ export type {
   RpgPopulateSheet,
   RpgRecordedToolCall,
   RpgToolCall,
-  RpgToolCallRefusal,
   RpgToolCallVerdict,
 } from "./extraction.ts";
 export {
