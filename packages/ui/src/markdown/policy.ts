@@ -2,8 +2,8 @@
 // allowedElements/disallowedElements + urlTransform (not allowedImagePrefixes/allowDataImages,
 // which don't exist). Streamdown runs rehype-sanitize + rehype-harden by default, so `trusted` is
 // the permissive policy and `untrusted` tightens via an element allowlist + a url blocker.
-// "trusted" names the permissive policy, not a default render posture — render is untrusted by
-// default; the caller selects `trusted` only for the viewer's own input or an opted-in character/global.
+// "trusted" names the permissive policy, which still sanitizes. The caller selects it for the viewer's own
+// input or a character resolved at or above `trusted` — every inheriting character by default (D294).
 // External media is a separate axis: a trusted row that forbids it still drops off-origin media
 // (`ownOriginMediaOnly`), because the app CSP follows only the box-wide setting.
 import remarkGfm from "remark-gfm";

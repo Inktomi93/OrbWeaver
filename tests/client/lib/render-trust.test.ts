@@ -1,7 +1,7 @@
 // Unit: the render-trust resolver (client lib/render-trust) — the ONE place the per-message render
-// trust tier + external-media gate are decided (D44 §12.0, UNTRUSTED BY DEFAULT). Pins the exact rule that
-// replaced the pre-#25 hardcoded `trust="trusted"`: trusted ONLY for the viewer's own input OR an opted-in
-// character; everything else untrusted; fail-CLOSED when no resolved policy is present.
+// trust tier + external-media gate are decided (D294 §12.2). Pins the exact rule that replaced the pre-#25
+// hardcoded `trust="trusted"`: trusted ONLY for the viewer's own input OR a character whose resolved step is
+// at or above `trusted`; everything else untrusted; fail-CLOSED when no resolved policy is present.
 
 import type { ParticipantView, RenderPolicy } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -57,7 +57,7 @@ test("ANOTHER human's user message is UNTRUSTED (authorUserId !== viewerUserId)"
   expect(r.trust).toBe("untrusted");
 });
 
-test("an assistant message with NO opt-in is UNTRUSTED (the safe default)", () => {
+test("an assistant message whose character resolved to the untrusted step is UNTRUSTED", () => {
   const r = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,
@@ -69,9 +69,10 @@ test("an assistant message with NO opt-in is UNTRUSTED (the safe default)", () =
   expect(r.allowExternal).toBe(false);
 });
 
-test("an assistant message whose character OPTED IN (resolved trustHtml=true) is trusted", () => {
-  // Covers BOTH the per-character override AND the deployment-global opt-in — both resolve server-side to
-  // the same `renderPolicy.trustHtml` the client reads here (the client never re-resolves).
+test("an assistant message whose character resolved to the trusted step is trusted", () => {
+  // Every server-side route to that step (an explicit per-character step, the deployment `trustHtml`
+  // default, or an inheriting character) lands as the same `renderPolicy.htmlTrust` the client reads here
+  // (the client never re-resolves).
   const r = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,
@@ -83,7 +84,7 @@ test("an assistant message whose character OPTED IN (resolved trustHtml=true) is
   expect(r.allowExternal).toBe(true);
 });
 
-test("a system message is UNTRUSTED (never own-input, never a character opt-in)", () => {
+test("a system message is UNTRUSTED (never own-input, and no character policy to read)", () => {
   const r = resolveRowRenderPolicy({
     role: "system",
     authorUserId: null,
@@ -135,8 +136,8 @@ test("colorQuotes OFF is carried through verbatim (the knob really reaches the r
   expect(r.colorQuotes).toBe(false);
 });
 
-// ── The CARD TIER (D44 §12.2) — TWO independent consent axes ──────────────────────────────────────
-// tierB is the sandboxed ImmersiveCard (card CSS applied); tierA is the default inert allowlist, which
+// ── The CARD TIER (D294 §12.2) — TWO independent consent axes ─────────────────────────────────────
+// tierB is the sandboxed ImmersiveCard (card CSS applied); tierA is the inert allowlist, which
 // forbids `<style>` and therefore cannot render a card AS a card. The mapping was inverted until
 // 2026-08-04 — trusted rows were sent to tierA — so these pin the direction explicitly.
 
@@ -152,7 +153,7 @@ test("an UNTRUSTED author in a non-game room gets tierA — the inert default", 
   expect(r.cardTier).toBe("tierA");
 });
 
-test("AXIS 1 — a per-character trustHtml opt-in grants tierB", () => {
+test("AXIS 1 — a character resolved to the trusted step gets tierB", () => {
   const r = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,
@@ -166,7 +167,7 @@ test("AXIS 1 — a per-character trustHtml opt-in grants tierB", () => {
 test("AXIS 2 — the ROOM's immersive-HTML switch grants tierB even to an UNTRUSTED author", () => {
   // Turning on immersive HTML is what makes the engine TEACH the model to emit `:::card` fences. A room
   // that asks for cards and then renders them inert is a toggle that lies, so the host flipping it IS the
-  // consent — independent of whether the authoring character opted in.
+  // consent — independent of the authoring character's resolved step.
   const r = resolveRowRenderPolicy({
     role: "assistant",
     authorUserId: null,

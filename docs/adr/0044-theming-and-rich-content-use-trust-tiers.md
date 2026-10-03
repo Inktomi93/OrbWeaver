@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-10-02
+status: superseded
+updated: 2026-10-03
+superseded-by: docs/adr/0294-interactive-story-cards-are-on-by-default.md
 ---
 
 # Theming and rich content use trust tiers

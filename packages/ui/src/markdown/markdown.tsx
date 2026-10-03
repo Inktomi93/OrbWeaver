@@ -39,10 +39,9 @@ const MAX_RENDER_LENGTH = 20_000;
 
 export interface MarkdownProps {
   /**
-   * The render trust tier — untrusted by default. `untrusted` is the safe posture for anything the
-   * box owner didn't author (LLM output, imported cards, other participants): the Tier-A element
-   * allowlist + url gate and no `<speaker>` passthrough. `trusted` is the
-   * explicit-opt-in escalation for the viewer's own input or an opted-in character/global — the
+   * The render trust tier. `untrusted` is the safe posture: the Tier-A element allowlist + url gate and
+   * no `<speaker>` passthrough. `trusted` is for the viewer's own input or a character the server resolved
+   * at or above `trusted` (every inheriting character by default, D294); it still sanitizes. The
    * boundary is the caller's to resolve; never pick `trusted` for convenience.
    */
   readonly trust: (typeof TRUSTS)[number];
@@ -120,7 +119,7 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
  * `mode`s, the token-sourced Shiki `code` plugin, the KaTeX `math` plugin, `controls`, `linkSafety`, and (#42) the seal-owned streamed-word reveal fade
  * (`reveal-plugin.ts` + the `[data-orb-reveal]` CSS in ui globals) with the seal-owned caret
  * (the client's `ghost-stream-body` scope — Streamdown's `caret`/`animated` props are deliberately
- * unused, see the render comments). Two trust policies, untrusted by default: `untrusted` applies
+ * unused, see the render comments). Two trust policies, picked by the caller (D294): `untrusted` applies
  * the Tier-A element allowlist + url gate and drops `<speaker>`; `trusted`
  * restores Streamdown's permissive defaults (and, having no streaming consumer, gets no reveal
  * fade — the `allowedTags` schema merge is identity-gated on the default rehype pipeline), minus
