@@ -10,7 +10,9 @@ const DATED = "2026-10-03";
 // Shared spans. A server that clamps nothing still needs a slider span; these are the spans the clamp holds.
 const PROBABILITY: Range = { min: 0, max: 1 };
 const PENALTY: Range = { min: -2, max: 2 };
-const REPETITION: Range = { min: 0, max: 2 };
+// A repetition penalty multiplies or divides logits: llama.cpp divides by it (src/llama-sampler.cpp), so 0 is a
+// division by zero, and vLLM refuses it (`> 0`). Every server's span starts just above.
+const REPETITION: Range = { min: 0.01, max: 2 };
 const LOCAL_TEMPERATURE: Range = { min: 0, max: 5 };
 const OPENAI_TEMPERATURE: Range = { min: 0, max: 2 };
 const TOP_K: Range = { min: 0, max: 200 };
@@ -25,9 +27,12 @@ const DYNATEMP_RANGE: Range = { min: 0, max: 5 };
 const DYNATEMP_EXPONENT: Range = { min: 0, max: 10 };
 const SMOOTHING_FACTOR: Range = { min: 0, max: 10 };
 const SMOOTHING_CURVE: Range = { min: 1, max: 10 };
-// vLLM refuses `top_p` 0 and a repetition penalty of 0 (`(0, 1]`, `> 0`), so its spans start just above.
+// Adaptive-P's EMA decay: llama.cpp hard-limits 0..0.99, KoboldCpp clamps to 0.01..0.99.
+const LLAMA_ADAPTIVE_DECAY: Range = { min: 0, max: 0.99 };
+const KOBOLD_ADAPTIVE_DECAY: Range = { min: 0.01, max: 0.99 };
+const MIN_KEEP: Range = { min: 0, max: 100 };
+// vLLM refuses `top_p` 0 (`(0, 1]`), so its span starts just above.
 const VLLM_TOP_P: Range = { min: 0.01, max: 1 };
-const VLLM_REPETITION: Range = { min: 0.01, max: 2 };
 
 /** The DRY, XTC, Mirostat and dynamic-temperature samplers both llama.cpp and KoboldCpp take. */
 const SHARED_LOCAL_SAMPLERS = {
@@ -52,6 +57,9 @@ const SHARED_LOCAL_SAMPLERS = {
   mirostatEta: PROBABILITY,
   dynatempRange: DYNATEMP_RANGE,
   dynatempExponent: DYNATEMP_EXPONENT,
+  adaptiveTarget: PROBABILITY,
+  bannedStrings: true,
+  banEos: true,
   seed: true,
   stop: true,
   logitBias: true,
@@ -63,7 +71,7 @@ const VLLM_SAMPLING = {
   topP: VLLM_TOP_P,
   topK: TOP_K,
   minP: PROBABILITY,
-  repetitionPenalty: VLLM_REPETITION,
+  repetitionPenalty: REPETITION,
   frequencyPenalty: PENALTY,
   presencePenalty: PENALTY,
   seed: true,
@@ -78,8 +86,11 @@ export const localServerRows = [
       sampling: {
         ...SHARED_LOCAL_SAMPLERS,
         frequencyPenalty: PENALTY,
-        // The server's default chain (common/common.h `samplers`).
-        samplerOrder: ["penalties", "dry", "topNSigma", "topK", "typicalP", "topP", "minP", "xtc", "temperature"],
+        adaptiveDecay: LLAMA_ADAPTIVE_DECAY,
+        minKeep: MIN_KEEP,
+        // The server's default chain (common/common.h `samplers`), then `adaptive_p`: it replaces the final
+        // draw only while `adaptive_target` is set (sampling.cpp, llama-sampler.cpp), so listing it is inert.
+        samplerOrder: ["penalties", "dry", "topNSigma", "topK", "typicalP", "topP", "minP", "xtc", "temperature", "adaptiveP"],
       },
     },
     evidence: {
@@ -98,6 +109,7 @@ export const localServerRows = [
         topA: PROBABILITY,
         smoothingFactor: SMOOTHING_FACTOR,
         smoothingCurve: SMOOTHING_CURVE,
+        adaptiveDecay: KOBOLD_ADAPTIVE_DECAY,
         // The default `sampler_order` [6, 0, 1, 3, 4, 2, 5] without tail-free sampling (3), which no preset knob sets.
         samplerOrder: ["penalties", "topK", "topA", "typicalP", "topP", "temperature"],
       },
@@ -118,7 +130,6 @@ export const localServerRows = [
         topP: PROBABILITY,
         topK: TOP_K,
         minP: PROBABILITY,
-        typicalP: PROBABILITY,
         repetitionPenalty: REPETITION,
         repetitionPenaltyRange: TOKEN_WINDOW,
         frequencyPenalty: PENALTY,
@@ -127,6 +138,7 @@ export const localServerRows = [
         stop: true,
       },
     },
+    // `typical_p` is left out: Ollama deprecated it (api/types.go:578) and only warns while passing it on.
     evidence: { tier: "curated", dated: DATED, cite: "ollama 42e911bc api/types.go Options (568-596) decoded by Options.FromMap (1022-1123)" },
   },
   {
@@ -152,7 +164,8 @@ export const localServerRows = [
   },
   {
     match: { model: ANY_MODEL, provider: "vllm" },
-    generation: { sampling: VLLM_SAMPLING },
+    // Beyond the Custom default: `bad_words` and `ignore_eos` (chat_completion/protocol.py), spelled on its row.
+    generation: { sampling: { ...VLLM_SAMPLING, bannedStrings: true, banEos: true } },
     evidence: {
       tier: "curated",
       dated: DATED,

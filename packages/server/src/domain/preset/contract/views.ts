@@ -115,8 +115,8 @@ export interface EffectiveKnobReading {
   readonly provenance: EffectiveProvenance;
 }
 
-/** The stored list knobs the deck's staleness row also names (no slider row of their own). */
-export const STALE_COLLECTION_KNOBS = ["stop", "logitBias", "drySequenceBreakers", "samplerOrder"] as const;
+/** The stored non-slider knobs (lists, the sampler order, the EOS ban) the deck's staleness row also names. */
+export const STALE_COLLECTION_KNOBS = ["stop", "logitBias", "drySequenceBreakers", "samplerOrder", "bannedStrings", "banEos"] as const;
 export type StaleCollectionKnob = (typeof STALE_COLLECTION_KNOBS)[number];
 
 /** A STORED explicit knob this model does not honor (redesign §4.2 / F7): the funnel dropped it, so it is

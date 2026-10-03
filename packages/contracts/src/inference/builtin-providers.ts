@@ -92,6 +92,11 @@ export const BUILTIN_PROVIDER_ROWS = [
       rerankPath: "/rerank",
       reasoningKeys: ["reasoning", "reasoning_content"],
       prefillSuppressesThinking: true,
+      // chat_completion/protocol.py: the phrase ban is `bad_words`; `/tokenize` and `thinking_token_budget`.
+      samplerKeys: { bannedStrings: "bad_words" },
+      tokenizeApi: "vllm",
+      reasoningBudgetField: "thinking_token_budget",
+      thinkingOff: "chat_template_kwargs",
     },
     catalog: "url",
     metered: false,
@@ -147,6 +152,11 @@ export const BUILTIN_PROVIDER_ROWS = [
       modelInfoApi: "llama-cpp",
       samplerKeys: { repetitionPenalty: "repeat_penalty" },
       samplerOrder: "llama-cpp",
+      bannedStrings: "logit-bias-ban",
+      tokenizeApi: "llama-cpp",
+      // server-common.cpp reads `reasoning_budget_tokens` or this alias on the chat route.
+      reasoningBudgetField: "thinking_budget_tokens",
+      thinkingOff: "chat_template_kwargs",
     },
     catalog: "url",
     metered: false,
@@ -163,8 +173,18 @@ export const BUILTIN_PROVIDER_ROWS = [
       prefill: "none",
       modelInfoApi: "koboldcpp",
       // The OpenAI route overwrites `mirostat` with `mirostat_mode` (koboldcpp.py:4690).
-      samplerKeys: { typicalP: "typical", topNSigma: "nsigma", repetitionPenaltyRange: "rep_pen_range", mirostatMode: "mirostat_mode" },
+      samplerKeys: {
+        typicalP: "typical",
+        topNSigma: "nsigma",
+        repetitionPenaltyRange: "rep_pen_range",
+        mirostatMode: "mirostat_mode",
+        banEos: "ban_eos_token",
+      },
       samplerOrder: "koboldcpp",
+      tokenizeApi: "koboldcpp",
+      reasoningBudgetField: "thinking_budget_tokens",
+      // koboldcpp.py transform_genparams merges `chat_template_kwargs` into the template's under `--jinja`.
+      thinkingOff: "chat_template_kwargs",
     },
     catalog: "url",
     metered: false,
@@ -177,6 +197,8 @@ export const BUILTIN_PROVIDER_ROWS = [
     dialect: "openai-compatible",
     auth: "endpoint",
     apis: ["chat-completions"],
+    // No `thinkingOff`: a Custom endpoint is likely a proxy, and a strict one refuses unknown fields such as
+    // `chat_template_kwargs`. A Custom connection recognized as a local server takes that server's row instead.
     features: { detectServer: true },
     catalog: "url",
     metered: false,

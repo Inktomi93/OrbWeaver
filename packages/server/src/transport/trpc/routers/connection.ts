@@ -25,6 +25,9 @@ import {
   providerIdSchema,
   resolvedConnectionViewSchema,
   routableTaskSchema,
+  TOKENIZE_WORD_CHARS_MAX,
+  TOKENIZE_WORDS_MAX,
+  tokenizeResultSchema,
 } from "@orb/contracts/inference";
 import { accountCreditsSchema, endpointInspectionSchema, generationCostSchema, verifyAuthResultSchema } from "@orb/contracts/providers";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -88,6 +91,14 @@ export const connectionRouter = t.router({
     .output(resolvedConnectionViewSchema)
     .query(({ ctx, input }) =>
       ctx.services.connection.resolveChatCapability({ principal: ctx.auth, ...(input?.target !== undefined ? { target: input.target } : {}) }),
+    ),
+
+  // The logit-bias editor's live display: what each word tokenizes to on the targeted connection's server.
+  tokenizeWords: authedProcedure
+    .input(z.object({ target: capabilityTargetSchema.optional(), words: z.array(z.string().min(1).max(TOKENIZE_WORD_CHARS_MAX)).max(TOKENIZE_WORDS_MAX) }))
+    .output(tokenizeResultSchema)
+    .query(({ ctx, input }) =>
+      ctx.services.connection.tokenizeWords({ principal: ctx.auth, words: input.words, ...(input.target !== undefined ? { target: input.target } : {}) }),
     ),
 
   capabilities: authedProcedure

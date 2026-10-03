@@ -21,6 +21,8 @@ import type { TransportDeps } from "./model.ts";
 import type { ReachabilityProber } from "./reachability.ts";
 import { createReachabilityProber } from "./reachability.ts";
 import { runOpenAiCompatRerank } from "./rerank.ts";
+import type { TokenLexicon } from "./tokens.ts";
+import { createTokenLexicon } from "./tokens.ts";
 
 export type { ReachabilityProber } from "./reachability.ts";
 
@@ -40,12 +42,16 @@ export interface OpenAiCompatBackendDeps {
   readonly app: InferenceDeps["app"];
   readonly imageToPng?: InferenceDeps["imageToPng"];
   readonly embedSpaceDims: number;
+  /** Where the tokenize lookups persist, beside the endpoint facts. */
+  readonly snapshotStore: InferenceDeps["snapshotStore"];
 }
 
 export interface OpenAiCompatBackend {
   readonly backend: ProviderBackend;
   /** The reachability probe the availability read consults for `auth: endpoint` rows (§4). */
   readonly reachability: ReachabilityProber;
+  /** The per-(server, model, word) tokenize cache: the turn's word-keyed logit bias and the editor's read. */
+  readonly tokens: TokenLexicon;
 }
 
 export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAiCompatBackend {
@@ -56,12 +62,14 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     ...(deps.captureWireReply !== undefined ? { captureWireReply: deps.captureWireReply } : {}),
   };
-  const chatDeps = { now: deps.now, random: deps.random, log: deps.log, addSpanEvent: deps.addSpanEvent, transport };
+  const tokens = createTokenLexicon({ fetch: deps.fetch, snapshotStore: deps.snapshotStore });
+  const chatDeps = { now: deps.now, random: deps.random, log: deps.log, addSpanEvent: deps.addSpanEvent, transport, tokens };
   const batchDeps = { now: deps.now, log: deps.log, transport, normalize };
   const diagnostics = { fetch: deps.fetch, now: deps.now };
   const reachability = createReachabilityProber({ fetch: deps.fetch, now: deps.now });
   return {
     reachability,
+    tokens,
     backend: {
       wire: "openai-compat",
       runChatTurn: (req): Promise<ChatResult> => {

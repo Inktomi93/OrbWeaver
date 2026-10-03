@@ -64,6 +64,7 @@ import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { ParamsLimits } from "./params-limits.tsx";
 import { SamplerOrder } from "./sampler-order.tsx";
 import { DrySequenceBreakers } from "./sequence-chips.tsx";
+import type { StalenessRowProps } from "./staleness-row.tsx";
 import { StalenessRow } from "./staleness-row.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
@@ -86,12 +87,14 @@ export interface ParamsDeckProps {
    *  at all, so the gate must print neither over the other. `ReadFailure | null`, never `unknown`: an
    *  `undefined` leaking in would select the gate's FAILED arm under a read that never failed. */
   readonly capabilityError: ReadFailure | null;
+  /** The target connection's sampler spellings, for the staleness row; `undefined` until they load. */
+  readonly samplerSpelling: StalenessRowProps["spelling"];
 }
 
 /** A knob row whose slider moves in whole steps — it also pages by a range-sized step. */
 const INTEGER_STEP = 1;
 
-export function ParamsDeck({ form, capability, effective, capabilityError }: ParamsDeckProps): ReactElement {
+export function ParamsDeck({ form, capability, effective, capabilityError, samplerSpelling }: ParamsDeckProps): ReactElement {
   return (
     <Surface tier="instrument">
       {/* THE DECK HAS ITS OWN MEASURE CAP (side-eye 2026-08-19 P2). The editor's content column BREATHES to
@@ -123,7 +126,7 @@ export function ParamsDeck({ form, capability, effective, capabilityError }: Par
           <CapabilityGate error={capabilityError} />
         ) : (
           <>
-            <SamplingCluster capability={capability} effective={effective} form={form} />
+            <SamplingCluster capability={capability} effective={effective} form={form} samplerSpelling={samplerSpelling} />
             <ReasoningCluster capability={capability} effective={effective} form={form} />
           </>
         )}
@@ -184,10 +187,12 @@ function SamplingCluster({
   form,
   capability,
   effective,
+  samplerSpelling,
 }: {
   readonly form: AppForm;
   readonly capability: GenerationCapability;
   readonly effective: EffectiveProfileRow | undefined;
+  readonly samplerSpelling: StalenessRowProps["spelling"];
 }): ReactElement {
   const knobs = samplingKnobsFor(capability);
   const stages = samplerStagesFor(capability);
@@ -235,7 +240,7 @@ function SamplingCluster({
       ) : null}
       {supportsDrySequenceBreakers(capability) ? <DrySequenceBreakers form={form} /> : null}
       {stages === undefined ? null : <SamplerOrder form={form} stages={stages} />}
-      <StalenessRow form={form} stale={effective?.stale ?? []} />
+      <StalenessRow form={form} spelling={samplerSpelling} stale={effective?.stale ?? []} />
     </Section>
   );
 }

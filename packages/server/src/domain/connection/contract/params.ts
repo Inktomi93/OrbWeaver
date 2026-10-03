@@ -39,6 +39,11 @@ export interface ResolveChatCapabilityParams extends ActorParams {
   readonly target?: CapabilityTarget | undefined;
 }
 
+/** `tokenizeWords` — the words a logit-bias editor holds, tokenized on the same target `resolveChatCapability` reads. */
+export interface TokenizeWordsParams extends ResolveChatCapabilityParams {
+  readonly words: readonly string[];
+}
+
 export interface ListConnectionsParams extends ActorParams {}
 
 export interface GetConnectionParams extends ActorParams {

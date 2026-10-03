@@ -360,7 +360,11 @@ test("ActivePresetConfig mirrors PromptConfig (the FE-layer round-trip read)", (
   pin<Subset<"type" | "name" | "role" | "trigger">>(keys<ActivePresetConfig["sections"][number], PromptConfig["sections"][number]>());
   pin<
     Subset<
+      | "adaptiveDecay"
+      | "adaptiveTarget"
       | "advanced"
+      | "banEos"
+      | "bannedStrings"
       // The §8.8 reasoning-CARRY rung. The FE-layer round-trip read exposes the knobs a spec drives; no e2e
       // spec drives the carry (its behaviour is pinned at the funnel, the convert seam and the wire bytes).
       | "carryReasoning"
@@ -375,6 +379,7 @@ test("ActivePresetConfig mirrors PromptConfig (the FE-layer round-trip read)", (
       | "effort"
       | "frequencyPenalty"
       | "logitBias"
+      | "minKeep"
       | "minP"
       | "mirostatEta"
       | "mirostatMode"

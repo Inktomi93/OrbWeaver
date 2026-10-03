@@ -60,6 +60,7 @@ import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog.
 import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
 import { useResetPreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
+import { samplerSpellingOf } from "../lib/capability-panel-model.ts";
 import { chatCapabilityOf } from "../lib/chat-capability.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { presetDraftStore } from "../lib/preset-draft-store.ts";
@@ -187,6 +188,18 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   // The ERROR goes down WHOLE (2026-08-08) so the gate discriminates on `data.code` — the routing verdict is
   // EARNED, never asserted. `null` = PENDING.
   const capabilityError = capabilityQuery.error;
+  // The staleness row names a dropped sampler under the target server's own spelling: its provider row, then the
+  // connection's declared override, both already in the client's hands.
+  const providersQuery = useQuery(trpc.connection.providersAvailable.queryOptions());
+  const connectionsQuery = useQuery(trpc.connection.list.queryOptions());
+  const target = capabilityQuery.data;
+  const samplerSpelling =
+    target === undefined
+      ? undefined
+      : samplerSpellingOf(
+          providersQuery.data?.find((entry) => entry.provider.id === target.providerId)?.provider.features,
+          connectionsQuery.data?.find((row) => row.id === target.connectionId)?.declared?.features,
+        );
 
   // #1716: the stored blob could not be read, so `preset.config` above is a STAND-IN and every config write
   // derived from it is refused server-side (`stored_config_unreadable`, the #1026 guard on
@@ -212,6 +225,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             onRename={(name): void => update.mutate({ id: presetId, name })}
             capability={capability}
             capabilityError={capabilityError}
+            samplerSpelling={samplerSpelling}
             effective={effectiveQuery.data ?? undefined}
             reset={reset}
             configUnreadable={configUnreadable}
@@ -250,6 +264,7 @@ interface PresetEditorBodyProps {
   readonly capability: GenerationCapability | undefined;
   /** The capability read's thrown error object, `null` while it is still PENDING (§F-02). */
   readonly capabilityError: ReadFailure | null;
+  readonly samplerSpelling: ViewContentProps["samplerSpelling"];
   readonly effective: EffectiveProfileRow | undefined;
   readonly reset: ReturnType<typeof useResetPreset>;
   /** #1716: the stored blob's read verdict — `null` = read faithfully, a failure kind = the body below is a
@@ -269,6 +284,7 @@ function PresetEditorBody({
   onRename,
   capability,
   capabilityError,
+  samplerSpelling,
   effective,
   reset,
   configUnreadable,
@@ -301,6 +317,7 @@ function PresetEditorBody({
     presetId,
     attachable: !isSystemDefault,
     onRevealSection,
+    samplerSpelling,
   };
   // The ONE writer of the view axis; an unset store read resolves to the tuple's first view.
   const view = usePresetEditorView() ?? PRESET_EDITOR_VIEWS[0]?.id;
