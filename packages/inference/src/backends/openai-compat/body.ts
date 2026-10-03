@@ -30,9 +30,9 @@
 //      part per row, each row's marker still on its own last part. SHAPE keeps the stored rows of a run apart on
 //      such a wire, so a marked row keeps its bytes and its end when the run grows; this fold keeps the wire
 //      alternating without joining their text. It adds and removes no row, so the tail is whatever SHAPE sent.
-// Rules 5 to 8 compute their keys after the user's own body (rules 1 and 2) and never over it: a top-level key
-// an admitted `extras` entry, `includeBody` or `excludeBody` settled stays as the user set it, and so does a
-// `chat_template_kwargs.enable_thinking` the user stated.
+// Rules 3 to 10 compute their keys after the user's own body (rules 1 and 2) and never over it: a top-level key
+// an admitted `extras` entry, `includeBody` or `excludeBody` settled stays as the user set it (a `messages` array
+// included, which no row rule rewrites), and so does a `chat_template_kwargs.enable_thinking` the user stated.
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
 import type { Dialect, EndpointFeatures, ImageDetail } from "@orb/contracts/inference";
@@ -57,6 +57,7 @@ const IMAGE_URL_TYPE = "image_url";
 const VIDEO_URL_TYPE = "video_url";
 const TEXT_TYPE = "text";
 const CACHE_CONTROL_KEY = "cache_control";
+const MESSAGES_KEY = "messages";
 
 /** The keys the `openrouter` transport MODELS off `extras` — everything else is dropped loudly.
  *
@@ -147,7 +148,7 @@ function patchRow(message: unknown, name: string | undefined, media: readonly Ou
  *  that ever merged or split a row would misalign every later index, so a mismatch applies NOTHING and warns
  *  rather than stamping a name or a picture on the wrong row. */
 function reattachRows(body: Record<string, unknown>, plan: WirePlan, warnings: ResolvedWarning[]): Record<string, unknown> {
-  const messages = body["messages"];
+  const messages = body[MESSAGES_KEY];
   if (!Array.isArray(messages) || (plan.names.size === 0 && plan.assistantMedia.size === 0)) {
     return body;
   }
@@ -193,7 +194,10 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: Rea
       message: "thinking disabled for this turn: a content prefill with thinking on yields an empty reply on this server",
     });
     out[CHAT_TEMPLATE_KWARGS_KEY] = { ...(isRecord(kwargs) ? kwargs : {}), [ENABLE_THINKING_KEY]: false };
-    delete out[REASONING_EFFORT_KEY];
+    // The user's own effort stays: vLLM's template kwarg outranks it, so the off still holds.
+    if (!owned.has(REASONING_EFFORT_KEY)) {
+      delete out[REASONING_EFFORT_KEY];
+    }
   }
   return out;
 }
@@ -228,13 +232,14 @@ function applyEffortSpelling(body: Record<string, unknown>, args: ShapeArgs, own
 }
 
 /** Rule 8: the output cap under the word the server takes. The SDK always writes `max_tokens`; a row that
- *  declares `max_completion_tokens` gets it renamed, nothing else is touched; a `max_tokens` the user's own body set stays. */
+ *  declares `max_completion_tokens` gets it renamed, nothing else is touched. A `max_tokens` the user's own body
+ *  set stays; a `max_completion_tokens` it set or excluded is the cap, and the SDK's `max_tokens` is dropped. */
 function applyOutputCapSpelling(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
   if (args.dialect === "openrouter" || args.features.outputCapField !== MAX_COMPLETION_TOKENS_KEY || !(MAX_TOKENS_KEY in body) || owned.has(MAX_TOKENS_KEY)) {
     return body;
   }
   const { [MAX_TOKENS_KEY]: cap, ...rest } = body;
-  return { ...rest, [MAX_COMPLETION_TOKENS_KEY]: cap };
+  return owned.has(MAX_COMPLETION_TOKENS_KEY) ? rest : { ...rest, [MAX_COMPLETION_TOKENS_KEY]: cap };
 }
 
 function isTextPart(part: unknown): part is Record<string, unknown> {
@@ -247,7 +252,7 @@ function isTextPart(part: unknown): part is Record<string, unknown> {
  *  still a valid cache entry (measured: gen-1790145899-YEYx8CfmJdExgPTOB9u4 dropped, gen-1790145901-ZwS0tawK8pqSw284khqj
  *  forwarded). A row that already carries a part marker absorbs a moved one; two never stack. */
 function applyCacheMarkerSpelling(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
-  const messages = body["messages"];
+  const messages = body[MESSAGES_KEY];
   if (args.dialect !== "openrouter" || !Array.isArray(messages)) {
     return body;
   }
@@ -293,7 +298,7 @@ function isPlainTurn(message: unknown): message is Record<string, unknown> {
 
 /** Rule 10: fold consecutive plain same-role rows into one message of parts, one text part per row. */
 function applySameRoleFold(body: Record<string, unknown>, args: ShapeArgs): Record<string, unknown> {
-  const messages = body["messages"];
+  const messages = body[MESSAGES_KEY];
   if (!(args.foldSameRole && Array.isArray(messages))) {
     return body;
   }
@@ -329,19 +334,23 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
   const owned = userOwnedKeys(args);
   let body = mergeExtras(raw, args);
   body = applyIncludeExclude(body, args.transport?.includeBody ?? null, args.transport?.excludeBody ?? null);
-  if (args.plan !== null) {
+  const rowsOwned = owned.has(MESSAGES_KEY);
+  if (args.plan !== null && !rowsOwned) {
     body = reattachRows(body, args.plan, args.warnings);
   }
-  body = applyImageDetail(body, args.imageDetail);
+  if (!rowsOwned) {
+    body = applyImageDetail(body, args.imageDetail);
+  }
   body = applyTemplateThinking(applyPrefill(body, args, owned), args, owned);
   if (args.replyImages && !owned.has(MODALITIES_KEY)) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }
-  return applySameRoleFold(applyCacheMarkerSpelling(applyOutputCapSpelling(applyEffortSpelling(body, args, owned), args, owned), args), args);
+  body = applyOutputCapSpelling(applyEffortSpelling(body, args, owned), args, owned);
+  return rowsOwned ? body : applySameRoleFold(applyCacheMarkerSpelling(body, args), args);
 }
 
 function applyImageDetail(body: Record<string, unknown>, detail: ImageDetail | undefined): Record<string, unknown> {
-  const messages = body["messages"];
+  const messages = body[MESSAGES_KEY];
   if (detail === undefined || !Array.isArray(messages)) {
     return body;
   }

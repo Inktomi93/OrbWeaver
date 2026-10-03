@@ -259,6 +259,83 @@ test("the user's own body outranks every computed key after the merge: the switc
   expect([capped["max_tokens"], capped["max_completion_tokens"]]).toEqual([50, undefined]);
 });
 
+// One pin per later rule that writes a key: a top-level key the user's own body settled (extras, includeBody or
+// excludeBody) leaves that rule's computed value off the wire.
+const MAX_COMPLETION: EndpointFeatures = { ...SPELLS_EFFORT, outputCapField: "max_completion_tokens" };
+
+test("rule 8: the cap rename never overwrites the user's own max_completion_tokens, and the preset's max_tokens does not ride beside it", () => {
+  const capped = { ...RAW, max_tokens: 512 };
+  const fromExtras = shapeOutboundBody(capped, args({ features: MAX_COMPLETION, extras: { max_completion_tokens: 4096 } }));
+  expect([fromExtras["max_completion_tokens"], "max_tokens" in fromExtras]).toEqual([4096, false]);
+  const fromInclude = shapeOutboundBody(capped, args({ features: MAX_COMPLETION, transport: { includeBody: { max_completion_tokens: 2048 } } }));
+  expect([fromInclude["max_completion_tokens"], "max_tokens" in fromInclude]).toEqual([2048, false]);
+  // An excluded max_completion_tokens is not brought back by the rename.
+  const excluded = shapeOutboundBody(capped, args({ features: MAX_COMPLETION, transport: { excludeBody: ["max_completion_tokens"] } }));
+  expect(["max_completion_tokens" in excluded, "max_tokens" in excluded]).toEqual([false, false]);
+});
+
+test("rule 5: the prefill interlock turns the template off but keeps the user's own reasoning_effort", () => {
+  const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
+  const fromExtras = args({ plan: ends, features: CONTINUE, prefillAllowed: true, extras: { reasoning_effort: "low" } });
+  const out = shapeOutboundBody(RAW, fromExtras);
+  expect(out["reasoning_effort"]).toBe("low");
+  expect(out["chat_template_kwargs"]).toEqual({ enable_thinking: false });
+  expect(fromExtras.warnings.map((w) => w.code)).toEqual(["reasoning_dropped_for_prefill"]);
+  const fromInclude = shapeOutboundBody(
+    RAW,
+    args({ plan: ends, features: CONTINUE, prefillAllowed: true, transport: { includeBody: { reasoning_effort: "medium" } } }),
+  );
+  expect(fromInclude["reasoning_effort"]).toBe("medium");
+});
+
+test("rule 5: the prefill pair leaves the user's own continue_final_message and add_generation_prompt", () => {
+  const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
+  const out = shapeOutboundBody(
+    RAW,
+    args({ plan: ends, features: CONTINUE, prefillAllowed: true, transport: { includeBody: { continue_final_message: false, add_generation_prompt: true } } }),
+  );
+  expect([out["continue_final_message"], out["add_generation_prompt"]]).toEqual([false, true]);
+  const excluded = shapeOutboundBody(
+    RAW,
+    args({ plan: ends, features: CONTINUE, prefillAllowed: true, transport: { excludeBody: ["continue_final_message"] } }),
+  );
+  expect(["continue_final_message" in excluded, excluded["add_generation_prompt"]]).toEqual([false, false]);
+});
+
+test("rule 6: modalities the user excluded stay off a replyImages turn", () => {
+  expect("modalities" in shapeOutboundBody(RAW, args({ replyImages: true, transport: { excludeBody: ["modalities"] } }))).toBe(false);
+});
+
+test("rule 7: the effort strip keeps a reasoning_effort the user's extras set", () => {
+  const a = args({ features: { ...WIRE_DEFAULT_FEATURES, effort: "none" }, extras: { reasoning_effort: "low" } });
+  expect(shapeOutboundBody(RAW, a)["reasoning_effort"]).toBe("low");
+  expect(a.warnings).toEqual([]);
+});
+
+// A `messages` array the user's includeBody set is theirs whole: no rule rewrites its rows.
+test("rule 9: a messages array the user set keeps its message-level marker", () => {
+  const marked = [{ role: "user", content: "b", cache_control: { type: "ephemeral" } }];
+  expect(shapeOutboundBody(RAW, args({ dialect: "openrouter", transport: { includeBody: { messages: marked } } }))["messages"]).toEqual(marked);
+});
+
+test("rules 3 and 4 and image detail: a messages array the user set gets no name, media or detail stamped on it", () => {
+  const theirs = [{ role: "user", content: [{ type: "image_url", image_url: { url: "https://cdn/u.png" } }] }];
+  const p = plan([{ role: "user", toolExchange: false, text: "" }], {
+    names: new Map([[0, "Alice"]]),
+    assistantMedia: new Map([[0, [{ kind: "image", url: "https://cdn/x.png" }]]]),
+  });
+  const out = shapeOutboundBody(RAW, { ...args({ plan: p, transport: { includeBody: { messages: theirs } } }), imageDetail: "high" });
+  expect(out["messages"]).toEqual(theirs);
+});
+
+test("rule 10: a messages array the user set is not folded", () => {
+  const plainRun = [
+    { role: "user", content: "a" },
+    { role: "user", content: "b" },
+  ];
+  expect(shapeOutboundBody(RAW, args({ foldSameRole: true, transport: { includeBody: { messages: plainRun } } }))["messages"]).toEqual(plainRun);
+});
+
 test("a reasoning-on turn tells the template to think, but never over an off already in the kwargs", () => {
   expect(shapeOutboundBody(RAW, args({ features: KWARGS_OFF, templateThinking: true }))["chat_template_kwargs"]).toEqual({ enable_thinking: true });
   // The user's own off (extras), like the prefill interlock's, outranks a preset that asks for thinking.
