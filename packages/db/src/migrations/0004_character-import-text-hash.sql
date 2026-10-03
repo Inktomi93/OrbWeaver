@@ -1,0 +1,1 @@
+ALTER TABLE `characters` ADD `import_text_hash` text;

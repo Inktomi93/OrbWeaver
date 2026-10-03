@@ -9,8 +9,8 @@
 // directive + note), `extensions` (residual `data.extensions.*` vendor keys), `residualData` (the
 // residual TOP-LEVEL `data.*` keys, `extensions`'s sibling), and `refinery` (derived pipeline signals) are
 // JSON columns read through the `@orb/db/kit` parse-seam. `greetings` is an ALWAYS-A-LIST column (default
-// `[]`, never null — the parseStringArray asymmetry). `importHash` (sha-256 of the whole imported file,
-// re-import dedup) is DISTINCT from `contentHash` (the semantic-fields hash); both live on the flat row.
+// `[]`, never null — the parseStringArray asymmetry). `importHash` (the card import identity, re-import
+// dedup) is DISTINCT from `contentHash` (the semantic-fields hash); both live on the flat row.
 //
 // A card's REGEX SCRIPTS are NOT a column (D121-E): they are library rows attached through the
 // `character_regex_scripts` junction (`schema/regex.ts`). The card WIRE still carries them — the import
@@ -84,8 +84,12 @@ export const characters = sqliteTable(
     // chat-set override; GC-rooted by the `asset-refs` JSON live-source (`asset` kind only). Client-resolved.
     backgroundOverride: text("background_override", { mode: "json" }).$type<ThemeBackground>(),
     importedFrom: text("imported_from"),
-    // sha-256 of the whole imported file (re-import dedup) — DISTINCT from `contentHash`. Null when authored.
+    // The card import identity (`cardImportHash`: parsed card, embedded book and art; the whole-file hash on
+    // a row imported before it) — DISTINCT from `contentHash`. Null when authored.
     importHash: text("import_hash"),
+    // The art-less identity a row that landed from a JSON card keeps once its PNG gives it art and `importHash`
+    // re-keys to the with-art identity, so the JSON still finds it (D286). Null on every other row.
+    importTextHash: text("import_text_hash"),
     // The semantic-fields hash (always present — computed at create/edit).
     contentHash: text("content_hash").notNull(),
     // Advisory card-heft estimate (the ONE `estimateTokens` QuadChars algo via `substrate/card-tokens`) —
