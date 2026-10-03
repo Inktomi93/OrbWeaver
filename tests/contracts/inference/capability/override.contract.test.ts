@@ -39,10 +39,10 @@ test("a partial cell's VALUES are still validated — partial widens the keys, n
 // `tools` PRESENT means "accepts tools[]", so a row stating a tools sub-fact must also state `parallel`: a
 // sub-fact alone describes no tool axis, and accepting it would leave the fold nothing honest to do with it.
 test("a `tools` cell is refused at parse unless it states `parallel` — in a row and in a declared block", () => {
-  expect(capabilityOverrideSchema.safeParse({ generation: { tools: { forcedChoice: false } } }).success).toBe(false);
+  expect(capabilityOverrideSchema.safeParse({ generation: { tools: { requiredChoice: false, namedChoice: false } } }).success).toBe(false);
   expect(declaredCapabilitySchema.safeParse({ generation: { tools: { silencesProse: true } } }).success).toBe(false);
   // PLANTED CONTROL: the same sub-fact beside `parallel` is a legal row.
-  expect(capabilityOverrideSchema.safeParse({ generation: { tools: { parallel: true, forcedChoice: false } } }).success).toBe(true);
+  expect(capabilityOverrideSchema.safeParse({ generation: { tools: { parallel: true, requiredChoice: false, namedChoice: false } } }).success).toBe(true);
 });
 
 test("a declared sampler order names each stage once — a repeat would put one token on the wire twice", () => {

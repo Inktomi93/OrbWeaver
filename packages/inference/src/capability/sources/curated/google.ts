@@ -22,6 +22,18 @@ export const googleRows = [
     },
   },
   {
+    match: { model: "^(google/|models/)?gemini-(?!embedding)" },
+    // Gemini takes a system message only as the leading system instruction, so a system row that ends or sits
+    // inside the history must fold, on every route (a Custom proxy relays it to the same refusal). The message-
+    // handling floor is not stated: nothing here documents whether adjacent same-role rows are refused.
+    generation: { turns: { midConversationSystem: false, historySystemRows: false } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-03",
+      cite: "@ai-sdk/google 4.0.87 dist/index.js:372: a system message after the first user or assistant message throws 'system messages are only supported at the beginning of the conversation'; https://ai.google.dev/gemini-api/docs/text-generation#system-instructions (a request's system instruction is one field beside contents)",
+    },
+  },
+  {
     match: { model: "^(google/|models/)?gemini-(?!embedding)(?!.*(image|transcribe|tts|live))" },
     generation: { tools: { parallel: true }, output: { structured: true } },
     evidence: {

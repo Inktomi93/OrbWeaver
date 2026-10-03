@@ -39,7 +39,7 @@ import type {
 import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { GenerationCapability, SendAvailability, UnavailableCause } from "@orb/contracts/inference";
-import { acceptsImageInput, acceptsVideoInput } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor } from "@orb/contracts/inference";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
 import {
   DEFAULT_FORMAT_STRINGS,
@@ -1170,8 +1170,10 @@ async function shapeNextTurn(
   const canon = await loadCanonHistory(ctx.db, chatId);
   const historyMacroNames: HistoryMacroNames = buildIdentityNameContext(await loadChatIdentityProducer(ctx.db, { messages: canon }));
   const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
-  const turns = inputs.capability?.turns;
   const params = assembleContext.promptConfig.params;
+  // The SAME turns reads the turn makes (`engine/pipeline.ts`): an estimated local floor lets the preset's level
+  // through and an estimated prefill cell continues, so a raw-floor read here would show folds the wire never has.
+  const level = inputs.capability === undefined ? undefined : turnsLevelFor(inputs.capability, params.advanced?.roleHandling);
   // The turn's cue replay, resolved the way `fitShapedHistory` resolves the carry; a capability-less preview
   // takes the `off` floor.
   const cueReplay =
@@ -1194,15 +1196,15 @@ async function shapeNextTurn(
     // The preview voices the primary's turn, with the cue a turn carries when its system block names no speaker.
     groupNudge: speakerCue(assembleContext, previewVoice(assembleContext, inputs.group.output)),
     cueReplay,
-    assistantPrefill: turns?.assistantPrefill === true,
+    assistantPrefill: inputs.capability !== undefined && acceptsAssistantPrefill(inputs.capability),
     convertsToEmptyWireRow,
     // The same two system-row facts the turn reads. The preview must show the SAME delivery the wire carries —
     // this read is what a host debugs the prompt with, so a divergence would make the trace lie about the role
     // sequence and the fold reasons.
-    midConversationSystem: turns?.midConversationSystem === true,
-    historySystemRows: turns?.historySystemRows === true,
+    midConversationSystem: level?.midConversationSystem === true,
+    historySystemRows: level?.historySystemRows === true,
     roleHandling: params.advanced?.roleHandling,
-    roleHandlingFloor: turns?.roleHandlingFloor,
+    roleHandlingFloor: level?.roleHandlingFloor,
     explicitCacheMarkers: inputs.explicitCacheMarkers,
     squashSystemMessages: params.advanced?.squashSystemMessages,
     prose: assembleContext.prose,

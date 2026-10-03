@@ -123,6 +123,10 @@ export const endpointFeaturesSchema = z.object({
   images: z.enum(IMAGE_ARMS).optional(),
   modelInfoApi: z.enum(MODEL_INFO_APIS).optional(),
   nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
+  /** Probe the connection's server for a known local server (KoboldCpp, llama.cpp, Ollama) and read the
+   *  matching built-in row's features and model-info API in place of this row's. A declared `modelInfoApi`
+   *  skips the probe; the connection's identity and credential stay this row's. */
+  detectServer: z.boolean().optional(),
   /** A rerank endpoint path relative to `baseUrl` (vLLM `/rerank`); absent ⇒ the wire serves no rerank. */
   rerankPath: z.string().optional(),
   /** The sleep/wake pair a server exposes (vLLM `/is_sleeping` + `/wake_up`). Set ⇒ a sleeping server reads

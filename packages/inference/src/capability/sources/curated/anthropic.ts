@@ -124,7 +124,8 @@ export const anthropicRows = [
       // A `tools` cell restates `parallel`: a sub-fact alone is refused at parse (the cell means "accepts tools[]").
       tools: {
         parallel: true,
-        forcedChoice: false,
+        requiredChoice: false,
+        namedChoice: false,
       },
     },
     evidence: {
@@ -289,7 +290,8 @@ export const anthropicRows = [
       // A `tools` cell restates `parallel`: a sub-fact alone is refused at parse (the cell means "accepts tools[]").
       tools: {
         parallel: true,
-        forcedChoice: false,
+        requiredChoice: false,
+        namedChoice: false,
       },
       turns: {
         cacheMinTokens: 512,
@@ -405,7 +407,8 @@ export const anthropicRows = [
       // A `tools` cell restates `parallel`: a sub-fact alone is refused at parse (the cell means "accepts tools[]").
       tools: {
         parallel: true,
-        forcedChoice: false,
+        requiredChoice: false,
+        namedChoice: false,
       },
     },
     evidence: {

@@ -27,6 +27,7 @@ import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "./backends/kit/sanitize.t
 import type { LocalLightBackend } from "./backends/local-light/index.ts";
 import { curatedKind } from "./capability/sources/curated/loader.ts";
 import type { SynthesizedCapability } from "./capability/synthesize.ts";
+import { detectServer } from "./catalog/detect.ts";
 import { fetchEndpointModels } from "./catalog/endpoint.ts";
 import { fetchGoogleModels } from "./catalog/google.ts";
 import { builtinCatalog, createCatalogListing } from "./catalog/listing.ts";
@@ -37,8 +38,8 @@ import type { ProviderExecutor } from "./contract/backend.ts";
 import type { ProviderDiagnostics } from "./contract/diagnostics.ts";
 import { ProviderError } from "./contract/errors.ts";
 import type { ResolvedChatKnobs, ResolvedEmbedKnobs } from "./contract/resolve.ts";
-import type { CatalogDraft, EndpointModel, MirrorWarm, ProviderOrigin, RoleClientsFor, SpawnIdentity } from "./contract/runtime.ts";
-import { endpointModelsSchema } from "./contract/runtime.ts";
+import type { CatalogDraft, DetectedServer, EndpointModel, MirrorWarm, ProviderOrigin, RoleClientsFor, SpawnIdentity } from "./contract/runtime.ts";
+import { detectedServerSchema, endpointModelsSchema } from "./contract/runtime.ts";
 import type { InferenceDeps } from "./deps.ts";
 import { resolveChat } from "./funnel/resolve-chat.ts";
 import type { EmbedOptions } from "./funnel/resolve-embed.ts";
@@ -47,6 +48,7 @@ import { buildBackends } from "./registry/backends.ts";
 import type { ProviderRegistry } from "./registry/providers.ts";
 import { createProviderRegistry } from "./registry/providers.ts";
 import { checkAvailability, loadVerdict } from "./resolve/availability.ts";
+import { behaveAs, detectionUrl } from "./resolve/behave-as.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
 import { connectionNotFoundMessage, modelInfoApiOf, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
 import { createProviderDiagnostics } from "./roles/diagnostics.ts";
@@ -113,6 +115,9 @@ const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
 const ENDPOINT_CATALOG_PREFIX = "catalog:endpoint:";
 const endpointCatalogPrefix = (baseUrl: string): string => `${ENDPOINT_CATALOG_PREFIX}${baseUrl}#`;
 const endpointCatalogKey = (baseUrl: string, modelInfoApi: ModelInfoApi | undefined): string => `${endpointCatalogPrefix(baseUrl)}${modelInfoApi ?? "list"}`;
+/** The per-URL detect answer sits beside the URL's reader mirrors, so a URL-wide invalidation forgets it too. */
+const DETECT_SUFFIX = "detect";
+const detectKey = (baseUrl: string): string => `${endpointCatalogPrefix(baseUrl)}${DETECT_SUFFIX}`;
 
 export interface CapabilityRead extends SynthesizedCapability {
   /** The same evidence fold with this row's declaration omitted. */
@@ -120,6 +125,9 @@ export interface CapabilityRead extends SynthesizedCapability {
   /** The tasks this row may serve (`connectionTasks`), so the pane's requirement badges and the Model-roles
    *  slots read one object. */
   readonly tasks: readonly Task[];
+  /** The built-in row a detecting row's server identified as (`features.detectServer`); absent when the row
+   *  reads as itself. The editor names it and lists that row's quirks. */
+  readonly detectedProviderId?: ProviderDef["id"] | undefined;
 }
 
 export interface InferenceRuntime {
@@ -236,28 +244,49 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     endpointMirrors.set(key, { baseUrl, mirror });
     return mirror;
   };
+  const detectMirrors = new Map<string, Mirror<DetectedServer>>();
+  const detectedServer = (baseUrl: string): Mirror<DetectedServer> => {
+    const existing = detectMirrors.get(baseUrl);
+    if (existing !== undefined) {
+      return existing;
+    }
+    const mirror = createMirror<DetectedServer>({ key: detectKey(baseUrl), schema: detectedServerSchema, deps: mirrorDeps });
+    detectMirrors.set(baseUrl, mirror);
+    return mirror;
+  };
 
-  /** Every reader's mirror on one URL (or every endpoint mirror), in memory AND in the store: a mirror that
-   *  only forgot its cache would read the persisted row back on the next restart. */
+  /** Every reader's mirror on one URL (or every endpoint mirror), and its detect answer, in memory AND in the
+   *  store: a mirror that only forgot its cache would read the persisted row back on the next restart. */
   const invalidateEndpointMirrors = async (baseUrl: string | undefined): Promise<void> => {
     for (const entry of endpointMirrors.values()) {
       if (baseUrl === undefined || entry.baseUrl === baseUrl) {
         entry.mirror.invalidate();
       }
     }
+    for (const [url, mirror] of detectMirrors) {
+      if (baseUrl === undefined || url === baseUrl) {
+        mirror.invalidate();
+      }
+    }
     await deps.snapshotStore.deletePrefix(baseUrl === undefined ? ENDPOINT_CATALOG_PREFIX : endpointCatalogPrefix(baseUrl));
   };
-  /** ONE connection's (URL × reader) mirror, in memory and in the store; a sibling reader's facts on the same
-   *  URL are another row's and stay. */
+  /** ONE connection's (URL × reader) mirror and its URL's detect answer, in memory and in the store; a sibling
+   *  reader's facts on the same URL are another row's and stay. The reader is read BEFORE the detect answer is
+   *  forgotten, so the mirror of the server it detected is the one dropped. */
   const invalidateEndpoint = async (connection: UserConnection): Promise<void> => {
     const provider = registry.get(connection.providerId, connection.ownerId);
     const baseUrl = provider?.baseUrl ?? connection.baseUrl;
     if (provider === undefined || baseUrl === null) {
       return;
     }
-    const modelInfoApi = modelInfoApiOf(provider, connection);
+    const modelInfoApi = modelInfoApiOf({ detectedServer }, provider, connection);
     endpointModels(baseUrl, modelInfoApi).invalidate();
     await deps.snapshotStore.deletePrefix(endpointCatalogKey(baseUrl, modelInfoApi));
+    const detectUrl = detectionUrl(provider, connection);
+    if (detectUrl !== null) {
+      detectedServer(detectUrl).invalidate();
+      await deps.snapshotStore.deletePrefix(detectKey(detectUrl));
+    }
   };
 
   const openRouterBaseUrl = (): string => {
@@ -279,7 +308,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       return;
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
-    const modelInfoApi = modelInfoApiOf(provider, connection);
+    const modelInfoApi = modelInfoApiOf({ detectedServer }, provider, connection);
     await endpointModels(baseUrl, modelInfoApi).warm(
       () =>
         provider.wire === "google-generative-ai"
@@ -291,6 +320,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
               headers: connection.transport?.headers,
               secrets,
               modelInfoApi,
+              probeModel: connection.model,
               warn: (message) => {
                 deps.log.warn({ providerId: provider.id }, message);
               },
@@ -309,8 +339,27 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const warmAgentSdk = async (identity: SpawnIdentity): Promise<void> => {
     await warmAgentSdkCatalog(identity);
   };
+  const warmDetect = async (connection: UserConnection, provider: ProviderDef, secret: string | null): Promise<void> => {
+    const baseUrl = detectionUrl(provider, connection);
+    if (baseUrl === null) {
+      return;
+    }
+    const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
+    await detectedServer(baseUrl).warm(() => detectServer({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers }), secrets);
+  };
 
-  const ctx: ResolverContext = { deps, registry, openRouterCatalog, endpointModels, agentSdkCatalog, warmOpenRouter, warmEndpoint, warmAgentSdk };
+  const ctx: ResolverContext = {
+    deps,
+    registry,
+    openRouterCatalog,
+    endpointModels,
+    agentSdkCatalog,
+    warmOpenRouter,
+    warmEndpoint,
+    warmAgentSdk,
+    detectedServer,
+    warmDetect,
+  };
   const executor = createProviderExecutor({ registry: built.registry, span: deps.span });
   const diagnostics = createProviderDiagnostics(built.registry);
   const roleClientsFor = createRoleClientsFor({ deps, ctx, executor });
@@ -348,8 +397,10 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       for: async ({ connectionId, principal }): Promise<CapabilityRead> => {
         const connection = await ownedConnection(connectionId, principal);
         const provider = requireProvider(registry.get(connection.providerId, connection.ownerId), connection.providerId);
-        const kind = connection.declared?.kind ?? curatedKind({ model: connection.model, providerId: provider.id, wire: provider.wire }) ?? "generation";
-        const tasks = connectionTasks(provider, kind);
+        // A cold detect cache reads the registered row here; the resolve below warms it.
+        const facts = behaveAs(ctx, provider, connection);
+        const kind = connection.declared?.kind ?? curatedKind({ model: connection.model, providerId: facts.id, wire: facts.wire }) ?? "generation";
+        const tasks = connectionTasks(facts, kind);
         const task = tasks[0];
         if (task === undefined) {
           throw new ProviderError({
@@ -359,7 +410,14 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
           });
         }
         const outcome = await resolveTaskWithBaseline(ctx, { task, principal, connectionId });
-        return { capability: outcome.resolved.capability, baseline: outcome.baseline, warnings: outcome.warnings, tasks };
+        const detected = behaveAs(ctx, provider, connection);
+        return {
+          capability: outcome.resolved.capability,
+          baseline: outcome.baseline,
+          warnings: outcome.warnings,
+          tasks,
+          ...(detected === provider ? {} : { detectedProviderId: detected.id }),
+        };
       },
     },
     funnel: {

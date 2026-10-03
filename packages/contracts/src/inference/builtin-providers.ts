@@ -177,6 +177,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     dialect: "openai-compatible",
     auth: "endpoint",
     apis: ["chat-completions"],
+    features: { detectServer: true },
     catalog: "url",
     metered: false,
   },

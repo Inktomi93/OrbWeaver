@@ -90,7 +90,8 @@ async function safeErrorBody(res: Response, secrets: ProviderScrubSet): Promise<
   return sanitizeApiError(redactSecretsFromText(raw, secrets).slice(0, ERROR_BODY_LIMIT));
 }
 
-function isRedirect(res: Response): boolean {
+/** HOST-PIN (#25): a 3xx, or the opaque redirect `redirect: "manual"` yields, is never followed. */
+export function isRedirect(res: Response): boolean {
   return res.type === "opaqueredirect" || (res.status >= REDIRECT_MIN && res.status <= REDIRECT_MAX);
 }
 
