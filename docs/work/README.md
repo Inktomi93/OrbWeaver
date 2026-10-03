@@ -115,6 +115,7 @@ None.
 - [0292](0292-let-local-light-query-embeds-run-ahead-of.md) P3 Let local-light query embeds run ahead of indexer embeds (owner)
 - [0415](0415-replace-the-stale-github-repository-description-and-set.md) P1 Replace the stale GitHub repository description and set its homepage (owner)
 - [0417](0417-run-the-launch-day-publish-sequence-for-the.md) P1 Run the launch-day publish sequence for the repo, SDK release, template repos and wiki (owner)
+- [0519](0519-rpg-state-tools-follow-anthropic-s-auto-tool.md) P2 RPG state tools follow Anthropic's auto tool-use guidance (on 511)
 
 ## Done
 
