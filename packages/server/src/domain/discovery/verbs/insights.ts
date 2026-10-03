@@ -1,5 +1,5 @@
 // domain/discovery/verbs/insights — pure-semantics insights (owner-scoped reads; live SQL): themeDrift
-// (per-month theme prevalence over story time) + unusedCharacters (collected but never played). The
+// (theme prevalence per UTC calendar bucket of story time) + unusedCharacters (collected but never played). The
 // economics-composed insights (forgottenGems, modelRouting) live in the sibling economics-insights.ts,
 // composing the injected stats economics op — this file stays the pure-semantics half.
 
@@ -11,8 +11,7 @@ import type { DiscoveryContext } from "../context.ts";
 import type { ThemeLevel } from "../contract/params.ts";
 import type { ThemeDriftBucket, ThemeDriftTheme, UnusedCharacter } from "../contract/results.ts";
 import type { DiscoveryService } from "../contract/service.ts";
-
-const THEME_DRIFT_TOP = 6;
+import { storyTimeBucketStart } from "../persistence/embed-store-reads.ts";
 
 export function createInsights(ctx: DiscoveryContext): Pick<DiscoveryService, "themeDrift" | "unusedCharacters"> {
   return {
@@ -21,9 +20,10 @@ export function createInsights(ctx: DiscoveryContext): Pick<DiscoveryService, "t
   };
 }
 
-/** Month bucket derives from the digest's msgMidAt; assignments without a stamp are skipped. */
+/** The bucket derives from the digest's msgMidAt; assignments without a stamp are skipped. Every theme of a
+ *  bucket ships: which themes lead a month is decided after the client folds buckets into the viewer's months. */
 async function themeDrift(db: Db, ownerId: UserId, level: ThemeLevel = "scene"): Promise<ThemeDriftBucket[]> {
-  const bucket = sql<string>`strftime('%Y-%m', ${digestThemeAssignments.msgMidAt} / 1000, 'unixepoch')`;
+  const bucket = storyTimeBucketStart();
   const count = sql<number>`count(*)`;
   const rows = await db
     .select({
@@ -36,9 +36,9 @@ async function themeDrift(db: Db, ownerId: UserId, level: ThemeLevel = "scene"):
     .innerJoin(themeClusters, eq(themeClusters.id, digestThemeAssignments.themeClusterId))
     .where(and(eq(themeClusters.ownerId, ownerId), eq(themeClusters.level, level), isNotNull(digestThemeAssignments.msgMidAt)))
     .groupBy(bucket, themeClusters.clusterIdx)
-    .orderBy(asc(bucket), desc(count));
+    .orderBy(asc(bucket), desc(count), asc(themeClusters.clusterIdx));
 
-  const byBucket = new Map<string, ThemeDriftTheme[]>();
+  const byBucket = new Map<number, ThemeDriftTheme[]>();
   for (const r of rows) {
     const list = byBucket.get(r.bucket);
     const theme = { clusterIdx: r.clusterIdx, themeName: r.themeName, count: r.count };
@@ -48,10 +48,7 @@ async function themeDrift(db: Db, ownerId: UserId, level: ThemeLevel = "scene"):
       list.push(theme);
     }
   }
-  return [...byBucket.entries()].map(([b, themes]) => ({
-    bucket: b,
-    themes: themes.slice(0, THEME_DRIFT_TOP),
-  }));
+  return [...byBucket.entries()].map(([bucketStart, themes]) => ({ bucketStart, themes }));
 }
 
 async function unusedCharacters(db: Db, ownerId: UserId): Promise<UnusedCharacter[]> {

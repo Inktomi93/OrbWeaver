@@ -5,12 +5,10 @@
 // PURE HALF ONLY: the `StatsDelta` payload type and the `applyStatsDelta` upsert (which touch the
 // stats db schema) live in the stats domain, NOT here — kit stays I/O-free.
 
-/** The `daily_stats` timeline grain: a UTC quarter-hour. Every current zone offset is a whole multiple of
- *  15 minutes (+5:30, +5:45, +12:45) and every transition since 2022 lands on a quarter-hour, so a bucket
- *  lies inside one local hour and day for the client's fold. Older transitions off a quarter-hour
- *  (America/St_Johns before 2011, Gaza and Hebron in 2010-11, Antarctica/Casey in 2020-22) can place one
- *  bucket's tail in the neighbouring local hour. */
-export const STATS_BUCKET_MS = 900_000;
+import { CALENDAR_BUCKET_MS, calendarBucketStart } from "#time";
+
+/** The `daily_stats` timeline grain: the calendar bucket the client folds onto the viewer's calendar. */
+export const STATS_BUCKET_MS = CALENDAR_BUCKET_MS;
 // Sentinel provider bucket when a model row carries no provider.
 /** The sole non-registry provider bucket, used only by the non-null `model_stats.provider` natural key. */
 export const MODEL_PROVIDER_UNKNOWN = "(unknown)" as const;
@@ -23,7 +21,7 @@ export function wordCount(s: string | null | undefined): number {
 /** The start (epoch-ms) of the {@link STATS_BUCKET_MS} bucket an epoch-ms instant falls in — the
  *  `daily_stats` key. */
 export function statsBucketStart(ms: number): number {
-  return Math.floor(ms / STATS_BUCKET_MS) * STATS_BUCKET_MS;
+  return calendarBucketStart(ms);
 }
 
 /** The model_stats group key — `(unknown)` provider bucket when a model has no provider. model null

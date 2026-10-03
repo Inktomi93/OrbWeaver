@@ -1,6 +1,7 @@
 import { blobIconUrl } from "@orb/contracts/assets";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
+import { Histogram } from "@orb/ui/histogram";
 import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
@@ -10,11 +11,13 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
+import { timeLib } from "#lib";
 import { clearCorpusSelection, resumeChat, selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { CorpusArtifactFrame } from "../components/corpus-artifact-frame.tsx";
 import { CompareResult } from "../components/corpus-compare-tab.tsx";
 import { CorpusSearchResults } from "../components/corpus-search-results.tsx";
 import { percent } from "../lib/corpus-vocabulary.ts";
+import { localThemeTimeline } from "../lib/story-time-folds.ts";
 import { CorpusDossierSurface } from "./corpus-dossier-surface.tsx";
 import { CorpusMomentSurface } from "./corpus-moment-surface.tsx";
 
@@ -99,11 +102,20 @@ function CorpusThemeBody({ destination }: { readonly destination: Extract<Corpus
   if (detail === null || detail.id !== destination.row.id) {
     return <Text role="status">This story theme was replaced by another analysis pass. Its selected identity is retained.</Text>;
   }
+  const timeline = localThemeTimeline(detail.timeline, timeLib.calendarPosition);
   return (
     <Stack gap="block">
       <Text>
         {detail.size} digests · {detail.level}
       </Text>
+      {timeline.length === 0 ? null : (
+        <Section heading="Story time">
+          <Histogram
+            buckets={timeline.map(({ month, count }) => ({ label: timeLib.formatMonthYear(month.start), count }))}
+            label="Digests per story-time month"
+          />
+        </Section>
+      )}
       <Section heading="Characters">
         {detail.members.map((member) => (
           <ListRow
