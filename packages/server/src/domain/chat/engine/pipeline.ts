@@ -33,15 +33,7 @@ import type {
   ToolCallRecord,
 } from "@orb/contracts/chat";
 import type { AttachmentQuality } from "@orb/contracts/inference";
-import {
-  acceptsAssistantPrefill,
-  acceptsHistorySystemRows,
-  acceptsImageInput,
-  acceptsMidConversationSystem,
-  acceptsVideoInput,
-  coEmitsProseWithTools,
-  roleHandlingFloorOf,
-} from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, coEmitsProseWithTools, turnsLevelFor } from "@orb/contracts/inference";
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -674,17 +666,15 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     groupNudge: cue,
     cueReplay: await cueReplayFor(generationOf(args.connection), carryReasoning, args.loadCues),
     // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
-    // against the model's roleHandlingFloor.
+    // against the floor `turnsLevelFor` hands back, which is the model's own only where a tier STATED it.
     assistantPrefill: prefillHonored,
-    // The two measured system-row facts SHAPE's delivery rule reads (`assembly/shape` deliverSystemRows): a run
-    // that ends the history needs `midConversationSystem`, a run inside it `historySystemRows`; the level
-    // decides whether a legal slot is also required. Read through the contract helpers — never a second
-    // spelling of the capability field. Neither touches narrator canon rows (owner ruling: group narration is
-    // the assistant's own voice).
-    midConversationSystem: acceptsMidConversationSystem(generationOf(args.connection)),
-    historySystemRows: acceptsHistorySystemRows(generationOf(args.connection)),
+    // The two system-row facts SHAPE's delivery rule reads (`assembly/shape` deliverSystemRows): a run that ends
+    // the history needs `midConversationSystem`, a run inside it `historySystemRows`; the level decides whether a
+    // legal slot is also required. On a model whose cells are estimated the level alone decides. Read through the
+    // contract helper — never a second spelling of the capability field. Neither touches narrator canon rows
+    // (owner ruling: group narration is the assistant's own voice).
+    ...turnsLevelFor(generationOf(args.connection), effectiveIntent.advanced?.roleHandling),
     roleHandling: effectiveIntent.advanced?.roleHandling,
-    roleHandlingFloor: roleHandlingFloorOf(generationOf(args.connection)),
     explicitCacheMarkers: cachesByAnthropicMarkers(args.connection, generationOf(args.connection)),
     squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
     // The room host's note frames (PROSE-1) rode onto the ctx at build; SHAPE frames the spliced injections.

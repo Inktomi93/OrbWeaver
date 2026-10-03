@@ -1237,6 +1237,39 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
     expect(assistantRows(result.request)).toHaveLength(1);
   });
 
+  // A model no tier measured runs the floor's GUESS (`turnsEstimated`): the preset's level goes out unclamped and
+  // decides where a system row may sit; an unset knob still runs the fail-closed floor. A STATED floor clamps.
+  const note: ChatInjection = { position: "in_chat", depth: 2, role: "system", content: "Author's note." };
+  const midHistory = [userRow("u1"), assistantRow("a1", ARIA), userRow("u2"), assistantRow("a2", ARIA), userRow("u3")];
+  const unmeasured: Resolved<"chat"> = {
+    ...CONNECTION,
+    capability: makeCapability({
+      ...CAPABILITY,
+      turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "strict", explicitPromptCache: false },
+      turnsEstimated: ["assistantPrefill", "midConversationSystem", "historySystemRows", "roleHandlingFloor"],
+    }),
+  };
+  const systemRows = (req: TurnRequest): TurnRequest["history"] => req.history.filter((h) => h.role === "system");
+  const noteTurn = (connection: Resolved<"chat">, promptConfig?: PromptConfig): Promise<PipelineResult> =>
+    runTurnPipeline(
+      baseArgs({ canon: midHistory, connection, assembleContext: ctxOf({ chatInjections: [note], ...(promptConfig === undefined ? {} : { promptConfig }) }) })
+        .args,
+    );
+
+  test("an unmeasured model with the preset at `none` sends the mid-history system row as a system row", async () => {
+    const result = await noteTurn(unmeasured, presetWith("none"));
+    expect(systemRows(result.request).map((row) => row.content.map((part) => (part.type === "text" ? part.text : "")).join(""))).toEqual(["Author's note."]);
+    expect(result.request.history.at(-1)?.role).toBe("user");
+  });
+
+  test("an unmeasured model with no preset level still runs the fail-closed floor: the note folds into user text", async () => {
+    expect(systemRows((await noteTurn(unmeasured)).request)).toHaveLength(0);
+  });
+
+  test("a STATED strict floor still clamps a preset `none`: the note folds", async () => {
+    expect(systemRows((await noteTurn(withFloor("strict"), presetWith("none"))).request)).toHaveLength(0);
+  });
+
   // The resolved connection decides whether SHAPE keeps a run's stored rows apart: explicit caching in the
   // capability AND an Anthropic model (`cachesByAnthropicMarkers`). The same `strict` cell on another family joins.
   const caching = (model: string): Resolved<"chat"> => ({

@@ -48,6 +48,13 @@ const MANDATORY_REASONING_RE = /reasoning is mandatory/iu;
 const JINJA_TOOLS_RE = /requires --jinja flag/iu;
 const JINJA_TOOLS_MESSAGE =
   "this llama.cpp server runs without --jinja, so tool calls are off; start it with --jinja, or under Advanced press Override on tool calls and choose no";
+/** A chat template refusing the conversation's message roles, in the words the common templates raise with
+ *  (Qwen's "System message must be at the beginning.", Llama/Mistral's "roles must alternate"). llama.cpp, vLLM
+ *  and Ollama's native mode all render the template server-side and hand the exception back, llama.cpp as a 500. */
+const TEMPLATE_ROLE_RE = /system message must be at the beginning|roles must alternate|unexpected message role|system role (?:is )?not supported/iu;
+/** The fix names the preset control that decides where a system row may sit (Prompt tab · Message handling). */
+const TEMPLATE_ROLE_MESSAGE =
+  "the model's chat template refused this conversation's message roles; in the preset's Prompt tab, set Message handling › Adjacent-role merging to a stricter level";
 const CONTEXT_COMPRESSION_PLUGIN = "context-compression";
 const MIDDLE_OUT_ENGINE = "middle-out";
 const OPENROUTER_KEY = "openrouter";
@@ -95,10 +102,33 @@ function isMandatoryReasoningRejection(error: unknown): boolean {
   return MANDATORY_REASONING_RE.test(`${diag.body ?? ""} ${diag.cause ?? ""} ${errorMessage(error)}`);
 }
 
+function upstreamText(error: unknown): string {
+  const diag = extractHttpErrorDiagnostic(error, NO_PROVIDER_SECRETS);
+  return `${diag.body ?? ""} ${diag.cause ?? ""} ${errorMessage(error)}`;
+}
+
 // True when the upstream 400 is llama.cpp refusing `tools[]` on a server started without `--jinja`.
 function isJinjaToolsRefusal(error: unknown): boolean {
-  const diag = extractHttpErrorDiagnostic(error, NO_PROVIDER_SECRETS);
-  return JINJA_TOOLS_RE.test(`${diag.body ?? ""} ${diag.cause ?? ""} ${errorMessage(error)}`);
+  return JINJA_TOOLS_RE.test(upstreamText(error));
+}
+
+/** The server's own text for a refusal this file re-voices, so a reader can still see what it said. */
+const TEMPLATE_DETAIL_LIMIT = 200;
+
+/** A template-role refusal as the fix it needs: not retryable (the same rows fail the same way), and naming the
+ *  preset control, with the matched refusal phrase quoted (not the server's whole message). */
+function templateRoleRefusal(error: unknown, label: string, classified: ProviderError): ProviderError | null {
+  const match = TEMPLATE_ROLE_RE.exec(upstreamText(error));
+  if (match === null) {
+    return null;
+  }
+  return new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: `${label}: ${TEMPLATE_ROLE_MESSAGE} (the server said: ${match[0].slice(0, TEMPLATE_DETAIL_LIMIT)})`,
+    ...(classified.apiErrorStatus !== undefined ? { apiErrorStatus: classified.apiErrorStatus } : {}),
+    cause: classified,
+  });
 }
 
 // ── cache placement (OpenRouter explicit-cache routes) ────────────────────────────────────────────────────────
@@ -581,7 +611,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
         cause: classified,
       });
     }
-    return classified;
+    return templateRoleRefusal(err, label, classified) ?? classified;
   };
   const retryOpts = {
     ...(req.signal !== undefined ? { signal: req.signal } : {}),

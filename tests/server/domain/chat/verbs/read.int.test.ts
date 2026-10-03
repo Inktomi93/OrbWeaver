@@ -3953,3 +3953,63 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     expect(view.personality).toBe("sly LEAK[TOP_SECRET_JAILBREAK]");
   });
 });
+
+// ── the preview delivers what the turn delivers (turnsLevelFor / acceptsAssistantPrefill) ────────────────
+// A local model nobody measured carries its turns floor as an ESTIMATE (`turnsEstimated`), and the turn then runs
+// the preset's level unclamped (`engine/pipeline.ts`). A preview reading the raw floor showed a depth system note
+// folded into user text while the turn sent it as a system row: the host's debugging surface lied about the role
+// sequence. A STATED floor (every hosted route) folds on both.
+describe("the shape preview follows the turn's turns rule", () => {
+  const Floor = {
+    assistantPrefill: false,
+    midConversationSystem: false,
+    historySystemRows: false,
+    roleHandlingFloor: "strict",
+    explicitPromptCache: false,
+  } as const;
+
+  async function traceRows(key: string, estimated: boolean): Promise<Awaited<ReturnType<ReturnType<typeof createRead>["getShapeTrace"]>>["rows"]> {
+    const me = await seedUser(db, castId<Handle>(key));
+    const chatId = await seedRoom(key, me);
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "u1" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "a1" });
+    await seedMessage(db, chatId, 3, { role: "user", authorUserId: me, content: "u2" });
+    await seedMessage(db, chatId, 4, { role: "assistant", content: "a2" });
+    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the preview path reaches only these three ops; it splices one depth-2 system row. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const rpg = {
+      gatherTurnContext: () =>
+        Promise.resolve({ macros: {}, injections: [{ position: "in_chat" as const, depth: 2, role: "system" as const, content: "AUTHOR NOTE" }], tools: [] }),
+      resolveUserMacros: () => Promise.resolve([]),
+      resolvePresetOverride: () => Promise.resolve(null),
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+    const generation = makeGenerationCapability({
+      turns: Floor,
+      ...(estimated ? { turnsEstimated: ["assistantPrefill", "midConversationSystem", "historySystemRows", "roleHandlingFloor"] } : {}),
+    });
+    const deps = makeDeps({
+      resolveConnection: () => Promise.resolve(makeResolved({ generation })),
+      resolveForeignInputs: () =>
+        Promise.resolve({
+          promptConfig: { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { roleHandling: "none" } } },
+          personas: { anchor: null, active: null },
+          globalRegexScripts: [],
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        }),
+    });
+    return (await createRead(makeChatContext(db, { rpg }), deps).getShapeTrace({ principal: principal(me), chatId })).rows;
+  }
+
+  test("an unmeasured local model with the preset at `none` previews the note as a system row, as the turn sends it", async () => {
+    const rows = await traceRows("preview_local_none", true);
+    // `none` merges nothing, so the new-chat marker stays a row of its own ahead of the first user turn.
+    expect(rows.map((row) => row.role)).toEqual(["user", "user", "assistant", "system", "user", "assistant"]);
+    expect(rows.some((row) => row.folded !== undefined)).toBe(false);
+  });
+
+  test("a stated floor (every hosted route) folds the note on the preview, as on the turn", async () => {
+    const rows = await traceRows("preview_hosted_none", false);
+    expect(rows.map((row) => row.role)).not.toContain("system");
+    expect(rows.some((row) => row.folded !== undefined)).toBe(true);
+  });
+});

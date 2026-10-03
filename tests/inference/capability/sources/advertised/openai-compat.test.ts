@@ -5,32 +5,36 @@
 import { advertisedFromOpenAiCompat, advertisedStatesInput } from "../../../../../packages/inference/src/capability/sources/advertised/openai-compat.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
+/** A row that spells every sampler the default way. */
+const ROW = {};
+
 test("a generation row states exactly the facts its server reported", () => {
   expect(
     advertisedFromOpenAiCompat(
       { contextLength: 4096, embeddingDims: 896, input: ["text", "image"], tools: { parallel: true }, structured: true },
       "generation",
+      ROW,
     ),
   ).toStrictEqual({ context: { window: 4096 }, input: ["text", "image"], tools: { parallel: true }, output: { structured: true } });
   // A row the native API never described states only its window; nothing about modalities, tools or output.
-  expect(advertisedFromOpenAiCompat({ contextLength: 32_768, embeddingDims: undefined }, "generation")).toStrictEqual({ context: { window: 32_768 } });
-  expect(advertisedFromOpenAiCompat({ contextLength: null, embeddingDims: undefined }, "generation")).toStrictEqual({});
+  expect(advertisedFromOpenAiCompat({ contextLength: 32_768, embeddingDims: undefined }, "generation", ROW)).toStrictEqual({ context: { window: 32_768 } });
+  expect(advertisedFromOpenAiCompat({ contextLength: null, embeddingDims: undefined }, "generation", ROW)).toStrictEqual({});
   // A server's default floor for a window it does not state is a guess the capability keeps marked; a stated
   // window wins over it.
-  expect(advertisedFromOpenAiCompat({ contextLength: null, contextFloor: 4096 }, "generation")).toStrictEqual({
+  expect(advertisedFromOpenAiCompat({ contextLength: null, contextFloor: 4096 }, "generation", ROW)).toStrictEqual({
     context: { window: 4096, windowEstimated: true },
   });
-  expect(advertisedFromOpenAiCompat({ contextLength: 16_384, contextFloor: 4096 }, "generation")).toStrictEqual({ context: { window: 16_384 } });
+  expect(advertisedFromOpenAiCompat({ contextLength: 16_384, contextFloor: 4096 }, "generation", ROW)).toStrictEqual({ context: { window: 16_384 } });
   // A server past the floor states structured output; one before it, or one that reported no version, states nothing.
-  expect(advertisedFromOpenAiCompat({ contextLength: null, embeddingDims: undefined, structured: false }, "generation")).toStrictEqual({});
+  expect(advertisedFromOpenAiCompat({ contextLength: null, embeddingDims: undefined, structured: false }, "generation", ROW)).toStrictEqual({});
 });
 
 test("an embedding row states its width and never a chat model's facts", () => {
-  expect(advertisedFromOpenAiCompat({ contextLength: 2048, embeddingDims: 768, input: ["text"], tools: { parallel: false } }, "embedding")).toStrictEqual({
+  expect(advertisedFromOpenAiCompat({ contextLength: 2048, embeddingDims: 768, input: ["text"], tools: { parallel: false } }, "embedding", ROW)).toStrictEqual({
     dims: 768,
   });
-  expect(advertisedFromOpenAiCompat({ contextLength: 2048, embeddingDims: undefined }, "embedding")).toStrictEqual({});
-  expect(advertisedFromOpenAiCompat({ contextLength: 2048, embeddingDims: 768 }, "rerank")).toStrictEqual({});
+  expect(advertisedFromOpenAiCompat({ contextLength: 2048, embeddingDims: undefined }, "embedding", ROW)).toStrictEqual({});
+  expect(advertisedFromOpenAiCompat({ contextLength: 2048, embeddingDims: 768 }, "rerank", ROW)).toStrictEqual({});
 });
 
 test("the posture reads whether the server stated an input list, not what it listed", () => {
@@ -38,4 +42,19 @@ test("the posture reads whether the server stated an input list, not what it lis
   expect(advertisedStatesInput({ input: [] })).toBe(true);
   expect(advertisedStatesInput({ input: undefined })).toBe(false);
   expect(advertisedStatesInput(undefined)).toBe(false);
+});
+
+test("the server's sampler defaults land per knob, read under the key this row spells each knob with", () => {
+  // llama.cpp's `/props` params: `repeat_penalty` is the llama-cpp row's spelling of the repetition penalty, and a
+  // value that is not a number (the `samplers` list) is not a knob default.
+  const llamaCpp = { samplerKeys: { repetitionPenalty: "repeat_penalty" } };
+  const defaults = { temperature: 0.8, ["top_k"]: 40, ["repeat_penalty"]: 1.1, ["repetition_penalty"]: 9, samplers: ["top_k"], seed: 4_294_967_295 };
+  expect(advertisedFromOpenAiCompat({ contextLength: 4096, serverDefaults: defaults }, "generation", llamaCpp)).toStrictEqual({
+    context: { window: 4096 },
+    samplingDefaults: { temperature: 0.8, topK: 40, repetitionPenalty: 1.1 },
+  });
+  // The same values on a row that spells the penalty the default way read `repetition_penalty` instead.
+  expect(advertisedFromOpenAiCompat({ contextLength: null, serverDefaults: defaults }, "generation", ROW)).toStrictEqual({
+    samplingDefaults: { temperature: 0.8, topK: 40, repetitionPenalty: 9 },
+  });
 });
