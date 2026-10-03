@@ -42,7 +42,7 @@
 // a gap. The pct derivation (`toProgressView`) stays the Jobs pane's, which renders EVERY kind.
 
 import type { StreamRoomRef } from "@orb/contracts/stream";
-import type { WorkloadKind, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadProgress, WorkloadRef, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { errorMessage } from "@orb/kit/error-message";
 import type { WorkloadId } from "@orb/kit/ids";
@@ -71,7 +71,7 @@ const STAGE_LABELS: Record<PassKind, string> = {
 
 /** Enqueue one run. The realistic refusal is the engine's single-active-per-kind lock (`CONFLICT`) — which
  *  the card's own dedupe read normally prevents reaching, so the toast is the race-loser's backstop. */
-const useStartUnderstandingRun = createEntityMutation<StartWorkloadWire, { readonly id: WorkloadId }>({
+const useStartUnderstandingRun = createEntityMutation<StartWorkloadWire, WorkloadRef>({
   options: (trpc) => trpc.workloads.start.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
   // The server's own sentence (an admission refusal, a run already going) is the reason; a fixed guess is not.

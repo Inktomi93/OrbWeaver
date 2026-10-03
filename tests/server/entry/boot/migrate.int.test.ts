@@ -10,7 +10,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "@orb/server/entry/boot";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { seedCharacter } from "../../../support/factories/character.ts";
+import { seedCharacterAtBaseline } from "../../../support/factories/character.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedHostChat, seedUser } from "../../domain/automation/_support.ts";
 
@@ -50,7 +50,7 @@ test("0003 preserves a populated actual 0002 chain, all prior rule/child bytes a
     const owner = await seedUser(db);
     const other = await seedUser(db, "migration-other");
     const chatId = await seedHostChat(db, owner);
-    const character = await seedCharacter(db, { ownerId: owner });
+    const character = await seedCharacterAtBaseline(db, { ownerId: owner });
     const ruleId = mintTypeId(ID_PREFIX.automationRule);
     const legacyId = mintTypeId(ID_PREFIX.automationRule);
     const actions = ' [ { "type":"run_tool", "name":"plugin_old", "argsTemplate":"{}", "resultVar":"keep", "resultScope":"chat" } ] ';

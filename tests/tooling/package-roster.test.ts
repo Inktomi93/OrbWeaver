@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import process from "node:process";
-import knipConfig from "../../knip.ts";
+import { config as knipConfig } from "../../knip.ts";
 import { WORKSPACE_PACKAGES } from "../../tooling/src/ast/lib/root.ts";
 import { PACKAGE_RESOURCE_PATHS } from "../../tooling/src/verify/contract/resource-config.ts";
 import { readPolicyRepositoryInventory, readPolicyWorkspacePackages } from "../../tooling/src/verify/lib/policy-repo-inventory.ts";

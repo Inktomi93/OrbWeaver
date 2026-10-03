@@ -26,6 +26,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
+import type { WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorkloadId } from "@orb/kit/ids";
@@ -222,7 +223,7 @@ describe("createEnqueueImportBackfill — the dependency edge, including on the 
     return {
       calls,
       workloads: {
-        start: (params: StartWorkloadParams): Promise<{ id: WorkloadId }> => {
+        start: (params: StartWorkloadParams): Promise<WorkloadRef> => {
           calls.push(params);
           if (params.input.kind === "index" && activeIndexId !== null) {
             if (params.adoptActive !== true) {
@@ -271,7 +272,7 @@ describe("createEnqueueImportBackfill — the dependency edge, including on the 
     // FAITHFUL to the real door on BOTH arms: a caller that asks to adopt GETS the active run's id (which is
     // precisely how reporting `true` for it became possible), and one that does not gets the conflict.
     const door: Pick<WorkloadService, "start"> = {
-      start: (params: StartWorkloadParams): Promise<{ id: WorkloadId }> => {
+      start: (params: StartWorkloadParams): Promise<WorkloadRef> => {
         calls.push(params);
         if (params.input.kind !== "memory-backfill") {
           return Promise.resolve({ id: castId<WorkloadId>("wl_index") });

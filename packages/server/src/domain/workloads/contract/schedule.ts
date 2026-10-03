@@ -4,9 +4,9 @@
 // their own ownerId unless admin; a bulk schedule requires the box owner.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ScheduleCadence, StartWorkloadInput, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
+import type { ScheduleCadence, StartWorkloadInput, WorkloadKind, WorkloadMode, WorkloadRef, WorkloadScheduleRef } from "@orb/contracts/workloads";
 import type { Db, workloadSchedules } from "@orb/db";
-import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
+import type { UserId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "./params.ts";
 
 /** The `workload_schedules` row, DERIVED — never re-spelled (AGENTS.md "Type homes and unions": a DB row shape's one home is `db`,
@@ -50,7 +50,7 @@ export interface ListSchedulesParams {
 }
 
 export interface WorkloadScheduleService {
-  readonly createSchedule: (params: CreateScheduleParams) => Promise<{ id: WorkloadScheduleId }>;
+  readonly createSchedule: (params: CreateScheduleParams) => Promise<WorkloadScheduleRef>;
   readonly updateSchedule: (params: UpdateScheduleParams) => Promise<WorkloadScheduleRow>;
   readonly deleteSchedule: (params: DeleteScheduleParams) => Promise<void>;
   readonly setScheduleEnabled: (params: SetScheduleEnabledParams) => Promise<WorkloadScheduleRow>;
@@ -61,5 +61,5 @@ export interface WorkloadScheduleService {
 export interface ScheduleTickDeps {
   readonly db: Db;
   readonly now: () => number;
-  readonly start: (params: StartWorkloadParams) => Promise<{ id: WorkloadId }>;
+  readonly start: (params: StartWorkloadParams) => Promise<WorkloadRef>;
 }

@@ -521,4 +521,5 @@ export const rpgCheckpointViewSchema = z.strictObject({
   trigger: rpgCheckpointTriggerSchema,
   createdAt: z.number(),
 });
+/** @public twin: rpgCheckpointViewSchema */
 export type RpgCheckpointView = z.output<typeof rpgCheckpointViewSchema>;
