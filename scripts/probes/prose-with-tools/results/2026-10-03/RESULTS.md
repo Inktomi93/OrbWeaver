@@ -1,6 +1,9 @@
 # Prose with tool calls, 2026-10-03
 
-Ten folded RPG turns per cell and stream mode, built as the [probe README](../../README.md) describes. The raw
+> \[!WARNING]
+> This run used the hand-built `probe.ts` request, not what the app sends, and forced thinking off where the app does not. [INVESTIGATION.md](INVESTIGATION.md) replaces its verdict.
+
+Ten folded RPG turns per cell and stream mode, built with `probe.ts`. The raw
 turns are in `<cell>.<mode>.r<rep>.json`, the per-run summaries in `cells.jsonl`. The table is
 `node scripts/probes/prose-with-tools/summarize.ts` over this directory.
 
