@@ -201,12 +201,73 @@ test.describe("the flank anchor", () => {
     await expect(flank).toBeVisible();
     // THE IMPERSONATION WALL (§4.8): the surface is inside first-party chrome that names its author, and the
     // body is a labelled group region carrying "«plugin» — «title»".
-    await expect(flank.getByText(PLUGIN_NAME)).toBeVisible();
+    // `exact`: the narrow-room disclosure toggle (hidden at this width) also spells the plugin's name.
+    await expect(flank.getByText(PLUGIN_NAME, { exact: true })).toBeVisible();
     await expect(flank.getByRole("group", { name: `${PLUGIN_NAME} — Warmth` })).toBeVisible();
     // …and the spec's bound values resolved against the PUBLISHED state, not their fallbacks.
     await expect(component.getByText("Your latest warmth reading, 7 of 10.")).toBeVisible();
     // The room still loaded (a flank widget must never cost the transcript its scroll window — #680).
     await expect(page.locator(SCROLLER)).toBeVisible();
+  });
+
+  test("phone: tall flank surfaces fold behind one disclosure, and opened they never take the transcript's column", async ({ mount, page }) => {
+    // The phone the defect was found on (iPhone 14 Pro Max CSS size). Two unbound surfaces that render on sight:
+    // a board taller than the room (the game-frame case) and a second widget under it (the clock-board case
+    // that was pushed under the composer).
+    await page.setViewportSize({ width: 430, height: 740 });
+    const tallSpec: NonNullable<PluginSurfaceRow["spec"]> = {
+      kind: "stack",
+      gap: "field",
+      children: Array.from({ length: 40 }, (_, i) => ({ kind: "text" as const, value: `board row ${i}` })),
+    };
+    const clockSpec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "text", value: "clock face" };
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...ROOM_ROUTES,
+      "plugin.list": () => [pluginRow("enabled")],
+      "plugin.listSurfaces": () => [surfaceRow("chat-flank", "board", "Board", tallSpec), surfaceRow("chat-flank", "clocks", "Clocks", clockSpec)],
+      "plugin.getSurfaceState": () => null,
+    });
+
+    const component = await mount(<PluginChatFlankRoomStory registered={true} />);
+    const scroller = page.locator(SCROLLER);
+    const toggle = page.getByRole("button", { name: "Plugin panels (2)", exact: true });
+    await expect(scroller).toBeVisible();
+    // Folded: the transcript has the room, and the one control that reveals the surfaces is on screen.
+    await expect(toggle).toBeInViewport();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(component.getByText("board row 0")).toBeHidden();
+    await expect(component.getByText("clock face")).toBeHidden();
+    const viewportHeight = 740;
+    expect((await scroller.boundingBox())?.height ?? 0).toBeGreaterThan(viewportHeight / 4);
+
+    // Opened: both surfaces are reachable inside the flank's own scroll, and the transcript keeps its column.
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(component.getByText("board row 0")).toBeVisible();
+    await component.getByText("clock face").scrollIntoViewIfNeeded();
+    await expect(component.getByText("clock face")).toBeInViewport();
+    await expect(scroller).toBeVisible();
+    const row = (await page.locator('[data-slot="chat-room-flank-row"]').boundingBox())?.height ?? 0;
+    const flank = (await page.locator(FLANK_SLOT).boundingBox())?.height ?? Number.POSITIVE_INFINITY;
+    const transcript = (await scroller.boundingBox())?.height ?? 0;
+    // The flank is capped at half the row; the transcript keeps the other half (less the gap between them).
+    expect(flank).toBeLessThanOrEqual(row / 2 + 1);
+    expect(transcript).toBeGreaterThan(row / 3);
+  });
+
+  test("desktop: chat-flank surfaces show beside the transcript with no disclosure", async ({ mount, page }) => {
+    await page.setViewportSize(FLANK_ARMS[0].viewport);
+    await routeTrpc(page, {
+      ...CHAT_AMBIENT_ROUTES,
+      ...ROOM_ROUTES,
+      "plugin.list": () => [pluginRow("enabled")],
+      "plugin.listSurfaces": () => [surfaceRow("chat-flank", "affinity_flank", "Warmth", FLANK_SPEC)],
+      "plugin.getSurfaceState": () => FLANK_STATE,
+    });
+    const component = await mount(<PluginChatFlankRoomStory registered={true} />);
+    await expect(component.getByText("Your latest warmth reading, 7 of 10.")).toBeVisible();
+    await expect(page.getByRole("button", { name: `${PLUGIN_NAME} — Warmth`, exact: true })).toBeHidden();
   });
 
   test("§4.9: a BOUND flank surface with nothing published stays silent — no blank meter in the room", async ({ mount, page }) => {

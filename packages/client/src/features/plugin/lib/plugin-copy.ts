@@ -428,3 +428,13 @@ export function pluginModelReadout(label: string, runnable: boolean): string {
 export function pluginModelBackgroundRefused(label: string): string {
   return `${label} isn't allowed to run unattended. Turn on background work for it under Connections.`;
 }
+
+/** The narrow-room disclosure that holds the chat-flank plugin surfaces: one surface is named (once, like its
+ *  frame title), several are counted. */
+export function flankDisclosureLabel(surfaces: readonly { readonly pluginName: string; readonly title: string }[]): string {
+  const only = surfaces.length === 1 ? surfaces[0] : undefined;
+  if (only !== undefined) {
+    return only.title === only.pluginName ? only.pluginName : `${only.pluginName} — ${only.title}`;
+  }
+  return `Plugin panels (${surfaces.length})`;
+}

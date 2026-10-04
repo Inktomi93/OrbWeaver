@@ -493,6 +493,14 @@ module.exports = {
       from: { path: `${CLIENT}state/` },
       to: { path: `${CLIENT}components/` },
     },
+    {
+      name: "plugin-ui-guest-worker-no-react",
+      comment:
+        "The Tier-C plugin guest Worker has no window. Any React module in its graph gets vite's dev react-refresh preamble, which reads `window` at load, so every scripted plugin surface crashes on boot in dev and the crash feeds the three-strike auto-disable. The client `#lib` barrel re-exports React components, so the worker imports the wire leaf (`lib/plugin-ui-guest-protocol.ts`) directly, never the barrel, through any chain.",
+      severity: "error",
+      from: { path: `${CLIENT}features/plugin/lib/ui-guest/ui-guest\\.worker\\.ts$` },
+      to: { path: [`${CLIENT}lib/index\\.ts$`, "\\.tsx$"], reachable: true },
+    },
 
     // ════════════════════ The server tier order (entry>transport>domain>infra>foundation>kit) ═══════
     {

@@ -68,6 +68,7 @@ transcript row is a permanent no).
 * **State dies on remount.** No storage of any kind reaches an opaque-origin frame; a scroll away and back is
   a fresh board. For a fidget toy that is fine; for anything with progress it is not — that thing wants the
   declarative plane or the server half.
-* **Keyboard focus is a click away.** An iframe only hears keys while focused; the board autofocuses on load
-  and refocuses on click, but a person who clicked elsewhere must click the board again. The on-screen pad is
-  the always-works input.
+* **Keyboard focus is a click away.** An iframe only hears keys while focused, and the host never lets a frame
+  take focus as it loads: a frame that focuses itself on load has focus handed straight back to the page. So the
+  person clicks the board (or Tabs into the frame) before the arrow keys work, and the board refocuses on every
+  click. The on-screen pad is the always-works input.

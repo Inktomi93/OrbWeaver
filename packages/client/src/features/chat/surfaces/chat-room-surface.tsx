@@ -183,7 +183,15 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                   island would be the clamp leaking into the arm it was never for. A contributor bounding
                   only ITSELF was the rejected arm: it leaves the house's own future widgets unprotected
                   and puts layout in a contribution, which is exactly what §6c forbids. */}
-                  <Stack gap="block" className="empty:hidden max-w-(--width-sidebar-sm) @max-lg:max-w-none" data-slot="chat-thread-flank">
+                  {/* …and on the stacked arm the column is bounded to HALF the row and scrolls inside itself:
+                  stacked under the thread, a tall tenant (an opened plugin frame) would otherwise take the
+                  whole column and leave the transcript a zero box, the #680 silent arm reached from the
+                  other side. The transcript always keeps at least half the room. */}
+                  <Stack
+                    gap="block"
+                    className="empty:hidden max-w-(--width-sidebar-sm) relative @max-lg:max-h-1/2 @max-lg:max-w-none @max-lg:overflow-y-auto"
+                    data-slot="chat-thread-flank"
+                  >
                     {flankContributions.map((c) => (
                       <Fragment key={c.id}>{c.node}</Fragment>
                     ))}

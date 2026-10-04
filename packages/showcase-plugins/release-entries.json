@@ -2,25 +2,25 @@
   "format": 1,
   "bundles": {
     "affinity-tracker": {
-      "main.js": "18f7bed361575e06383b5704ec27979496c2e041eaa4fd7333538271949c25ad",
-      "manifest.json": "f3548f68dd670f7c63cc5d6c67fe48fe009af0103d55bd7f2ef1b83187ec606a",
+      "main.js": "adaee875f0537e1fb6b80ce9a2a1b8a10f70832c26037fae1b00e0ede46c1117",
+      "manifest.json": "00011638ce8d1eb7ead892003e773b243879f6dc9dfd39a8dbcf629b3f431721",
       "ui.js": "ca1df2a0b2126ba3dddde9df181a065b2b9e948c656619687f4d86a1dc4f7f36"
     },
     "card-atlas": {
-      "main.js": "d4329349a71ffd75c4347535a4c6a2e29853ac8cf9f815c617c40dbe2cacc3a8",
-      "manifest.json": "b753467bf2c9ecfd6389b31990fc80509feb0539fd4c484fd6e8332b641a2e49"
+      "main.js": "ccf8e27d96a74d2a9a5232c7fe0306331c4e400673c5b84208cb952ee26ddeaf",
+      "manifest.json": "acd1e271a574bec37e028d84f6e2312599c4512b8fc78dd05716a3aafc556e69"
     },
     "draft-polish": {
       "main.js": "57922b280ec0f678fdebf7421240ebebe78f8723b3ed25d8d76d3920490fb27e",
       "manifest.json": "3cb85dbd6c2796a91e004398610b0b0fa580da145e0aa7c1ef6d19847823bb73"
     },
     "keepsake-camera": {
-      "main.js": "5e21a38245b92bb3dd50faef41a0b5babd46a7ef959eec13dae711dd3e06b0e4",
-      "manifest.json": "81e58c0550d1af875c7b291601f84c65ed9e6d57c77b65030850004b3c847584"
+      "main.js": "a370be64877d00caed17fa321de1d51e71ba642fae602de32fd8687ffa1408ed",
+      "manifest.json": "31c479ff02f6fb62951dcc811dc25f4db58f150640e457def180925d7722c44d"
     },
     "oracle-deck": {
-      "main.js": "6c89d332aed9fa9698a923d1a35bbbd580a6322b959df0f50eaf0fd99bab38fb",
-      "manifest.json": "251ce8e85dab9c3e4153bdec3c6eb1d850d9f3b128864ffadeb73830a17a7209"
+      "main.js": "9837ed80342267c72d76cd3edc51e1272dc8d5a38b13a4907be3c7d620aed8b0",
+      "manifest.json": "f42346f0c96bbbddfce68be4b839d5385de278a5354aeb2318d5fb79d2002fb5"
     },
     "pocket-arcade": {
       "main.js": "d942527aef5d969d07163f7545ce26d476f7f3bd6da1ae2afb3f9b9a08e78694",

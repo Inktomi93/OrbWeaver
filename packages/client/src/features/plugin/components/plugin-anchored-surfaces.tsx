@@ -26,12 +26,17 @@
 
 import type { PluginCapability, PluginSurfaceAnchor, PluginSurfaceSpec } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
+import { ChevronDown, ChevronUp, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useId, useState } from "react";
 import type { Trpc } from "#data";
 import { useTRPC } from "#data";
+import { cn } from "#lib";
+import { flankDisclosureLabel } from "../lib/plugin-copy.ts";
 import { specBindsState } from "../lib/plugin-surface-bindings.ts";
 import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginScriptedSurface } from "./plugin-scripted-surface.tsx";
@@ -167,12 +172,14 @@ export function PluginAnchoredSurfaces({ anchor, chatId }: PluginAnchoredSurface
   const visible = candidates.filter(
     (candidate, index) => candidate.tier !== "static" || !specBindsState(candidate.spec) || (states[index]?.data ?? null) !== null,
   );
+  const panelId = useId();
+  const [flankOpen, setFlankOpen] = useState(false);
 
   if (visible.length === 0) {
     return null;
   }
-  return (
-    <Stack gap="block">
+  const surfacesStack = (
+    <Stack gap="block" id={panelId} className={cn(anchor === "chat-flank" && !flankOpen && "@max-lg:hidden")}>
       {visible.map((surface) => {
         // The U7 FRAME arm draws its OWN shell (`plugin-frame.tsx`: an un-minted frame must render nothing at
         // all, chrome included, and the §4.8 label must have no opt-out). The `scripted` (U4) and `static` arms
@@ -213,6 +220,32 @@ export function PluginAnchoredSurfaces({ anchor, chatId }: PluginAnchoredSurface
           </PluginSurfaceShell>
         );
       })}
+    </Stack>
+  );
+  if (anchor !== "chat-flank") {
+    return surfacesStack;
+  }
+  // THE NARROW ROOM. Below the room's `lg` container step the flank stacks under the transcript, and a plugin
+  // surface there is a third party's content competing with the conversation for one column: a game board
+  // took the whole room on a phone and a clock board was pushed under the composer. So on a narrow room the
+  // surfaces fold behind ONE closed disclosure and the transcript keeps the column; on a wide room the
+  // toggle is hidden and the surfaces show as before. Both arms are container queries on the room's own
+  // `Container`, so a docked panel narrowing a wide screen folds them too. A hidden surface stays mounted:
+  // opening the disclosure shows it instantly instead of re-minting a frame.
+  return (
+    <Stack gap="row" data-slot="plugin-flank">
+      <Button
+        aria-controls={panelId}
+        aria-expanded={flankOpen}
+        className="justify-between @lg:hidden"
+        intent="outline"
+        onClick={(): void => setFlankOpen(!flankOpen)}
+        size="sm"
+      >
+        {flankDisclosureLabel(visible)}
+        <Icon icon={flankOpen ? ChevronUp : ChevronDown} size="sm" />
+      </Button>
+      {surfacesStack}
     </Stack>
   );
 }

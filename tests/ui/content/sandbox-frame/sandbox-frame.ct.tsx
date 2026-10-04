@@ -613,6 +613,33 @@ test("LEG 3 — an interactive card CAN forge the height message, and the clamp 
   expect(await frameHeight(cmp)).toBe(CARD_FRAME_MAX_HEIGHT_PX);
 });
 
+// ── FOCUS ON MOUNT ────────────────────────────────────────────────────────────────────────────────────
+// A framed document that focuses itself as it loads (a game board, an autofocused input) would otherwise take
+// the page's keyboard focus every time the frame mounts: a room opening drops a keyboard or screen-reader user
+// inside a third party's document with no announcement.
+
+/** A card script that focuses its own control at parse time, then stamps the body so the test can tell it ran. */
+const FOCUS_GRAB = ["<scr", 'ipt>document.getElementById("grab").focus();document.body.setAttribute("data-card-ran","1");', "</scr", "ipt>"].join("");
+
+test("a frame that focuses itself on load does not take the page's focus — it stays where it was", async ({ mount, page }) => {
+  await serveRoutedCardUnder(page, `<button id="grab">play</button>${FOCUS_GRAB}`, INTERACTIVE_CARD_CSP);
+  await page.evaluate(() => {
+    const input = document.createElement("input");
+    input.id = "outside";
+    document.body.prepend(input);
+    input.focus();
+  });
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="grabby card" src={ROUTED_URL} />);
+  const frame = await (await cmp.elementHandle())?.contentFrame();
+  if (frame === null || frame === undefined) {
+    throw new Error("routed iframe has no content frame — the navigation never completed");
+  }
+  // Positive control: the grab really ran inside the frame.
+  await expect(frame.locator("body")).toHaveAttribute("data-card-ran", "1");
+  await settle(page);
+  await expect.poll(async () => await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName)).toBe("outside");
+});
+
 test("LEG 3 — meta refresh is unchanged by the grant: still refused, and it never needed a script", async ({ page }) => {
   // Re-run of the leg-2 today-vector under the GRANTED policy, because "the grant changes nothing here" is
   // a claim about the interactive posture and leg 2 only measured the static one.
