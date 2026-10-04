@@ -85,6 +85,14 @@ test("the plan preview reads only the facts already cached, so a dead endpoint i
   expect(dials).toBe(0);
 });
 
+test("a model with no way to return a structured answer is named as the problem, not the schema", async () => {
+  const plain = bound({
+    providerId: "anthropic",
+    capability: makeCapability(makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] } })),
+  });
+  expect(await planOn(plain)).toEqual({ outcome: "no-structured", model: "test-model" });
+});
+
 test("a bound model whose connection withholds background work is named as such, not as unbound", async () => {
   const local = bound({
     allowBackground: false,

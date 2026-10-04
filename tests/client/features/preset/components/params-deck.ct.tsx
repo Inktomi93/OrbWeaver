@@ -30,6 +30,7 @@ import {
   ParamsDeckCapabilityErrorStory,
   ParamsDeckCapabilityNonRoutingStory,
   ParamsDeckCapabilityTransportFailureStory,
+  ParamsDeckContextOverWindowStory,
   ParamsDeckExplicitStory,
   ParamsDeckGhostStory,
   ParamsDeckLogitBiasSwitchStory,
@@ -231,14 +232,16 @@ test("MIROSTAT + ORDER — adaptive-P shows fixed after the movable stages, and 
   const deck = await mount(<ParamsDeckMirostatStory />);
 
   const order = deck.getByRole("list", { name: "Sampler order", exact: true });
-  await expect(order.getByRole("listitem")).toHaveCount(4);
-  await expect(order.getByText("Adaptive-P", { exact: true })).toHaveCount(0);
-  // The stored order leads with temperature and top-k; the token-picking stage sits after every movable row.
-  await expect(order.getByRole("listitem").first()).toContainText("Temperature");
-  const fixed = deck.locator('[data-fixed-stage="adaptiveP"]');
-  await expect(fixed).toBeVisible();
-  const listBottom = await order.evaluate((node) => node.getBoundingClientRect().bottom);
-  await expect.poll(() => fixed.evaluate((node) => node.getBoundingClientRect().top)).toBeGreaterThanOrEqual(listBottom);
+  const items = order.getByRole("listitem");
+  // Four movable stages and the token-picking stage, all one list; the fixed stage is its last item and has no grip.
+  await expect(items).toHaveCount(5);
+  await expect(items.first()).toContainText("Temperature");
+  const fixed = items.last();
+  await expect(fixed.locator('[data-fixed-stage="adaptiveP"]')).toBeVisible();
+  await expect(fixed.getByRole("button")).toHaveCount(0);
+  // Its label starts at the same x as every movable row's, past the grip column.
+  const labelLeft = (item: Locator): Promise<number> => item.locator('[data-slot="sortable-content"]').evaluate((node) => node.getBoundingClientRect().left);
+  await expect.poll(() => labelLeft(fixed)).toBe(await labelLeft(items.first()));
 
   // Top-p and top-k are skipped while Mirostat is on, and their rows carry the note; temperature still runs.
   for (const label of ["Top-P", "Top-K"]) {
@@ -348,6 +351,13 @@ test("OUTPUT — on a route that sends the window, Max context reaches the train
 
   await setNumber(box, "999999");
   await expect(box).toHaveValue("32768");
+});
+
+test("OUTPUT — a stored Max context past this connection's window carries a note on its row, not a silent pin", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckContextOverWindowStory />);
+  await expect(deck.getByRole("textbox", { name: "Max context tokens value", exact: true })).toHaveValue("131072");
+  const glossId = await deck.getByRole("slider", { name: "Max context tokens", exact: true }).getAttribute("aria-describedby");
+  await expect(deck.locator(`#${glossId ?? "missing-gloss"}`)).toBeVisible();
 });
 
 test("OUTPUT — the stop-sequence chip list adds and removes, and the add box carries its OWN name (G2, #1620)", async ({ mount }) => {

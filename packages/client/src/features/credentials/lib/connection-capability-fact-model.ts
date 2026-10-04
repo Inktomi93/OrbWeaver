@@ -18,6 +18,9 @@ const ASSUMED_SUFFIX = " (assumed)";
  *  the one the user typed; the row says which one is in effect and why. */
 const RAISED_OVERRIDE_SOURCE = (asked: string, floor: string, prior: string): string =>
   `Your override of ${asked} is under the ${floor}-token minimum, so ${floor} is used. It was ${prior}.`;
+/** A route whose request sends the window runs the preset's Max context, so that is the window's one home. */
+const WINDOW_PATH = "generation.context.window";
+const PRESET_WINDOW_SOURCE = (max: string): string => `Set per preset: Max context tokens (up to ${max})`;
 
 function toolsWith(parallel: boolean): (value: unknown) => boolean {
   return (value): boolean => readPath(value, "parallel") === parallel;
@@ -34,7 +37,7 @@ const TOOL_CALL_CHOICES: readonly FactChoice[] = [
 
 const GENERATION_LEAVES: readonly FactLeaf[] = [
   {
-    path: "generation.context.window",
+    path: WINDOW_PATH,
     name: "context window",
     edit: { kind: "number" },
     format: tokens,
@@ -116,10 +119,15 @@ function statedCapabilityRow(
   { capability, declared, baseline }: { readonly capability: Capability; readonly declared: DeclaredCapability | null; readonly baseline: Capability },
 ): FactRow {
   const overridden = readPath(declared, leaf.path) !== undefined;
-  const estimated = !overridden && leaf.estimatedBy !== undefined && readPath(capability, leaf.estimatedBy) === true;
+  // An override already stored keeps its Reset, so the row can be cleared back to the preset's home.
+  const settableMax = leaf.path === WINDOW_PATH && capability.kind === "generation" ? capability.generation.context.settable?.max : undefined;
+  const setElsewhere = !overridden && settableMax !== undefined;
+  const estimated = !(overridden || setElsewhere) && leaf.estimatedBy !== undefined && readPath(capability, leaf.estimatedBy) === true;
   let source = CAPABILITY_SOURCE;
   if (overridden) {
     source = overriddenCapabilitySource(leaf, baseline, { declared: readPath(declared, leaf.path), folded: value });
+  } else if (settableMax !== undefined) {
+    source = PRESET_WINDOW_SOURCE(grouped(settableMax));
   } else if (estimated) {
     source = ASSUMED_SOURCE;
   }
@@ -129,6 +137,7 @@ function statedCapabilityRow(
     value: estimated ? `${formatLeaf(leaf, value)}${ASSUMED_SUFFIX}` : formatLeaf(leaf, value),
     source,
     overridden,
+    setElsewhere,
     edit: leaf.edit,
     draft: draftOf(leaf.edit, value),
     siblings: siblingsFor(leaf.path, capability),

@@ -106,6 +106,8 @@ test("the preflight names what the bound Utility model would do with the draft, 
   await expect(plan).toHaveAttribute("data-plan", "refused");
   await expect(plan).toContainText("claude-sonnet-5-5");
   await expect(plan).toContainText("30 optional fields");
+  // A verdict that runs will fail is announced, not only painted.
+  await expect(page.getByRole("status").getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "refused");
   await expect.poll(() => trpc.lastInput("refinery.schemaPlan")).toMatchObject({ stage: "score", schema: PLAIN_SCHEMA });
 });
 
@@ -149,7 +151,7 @@ test("a plan ask that fails says the draft could not be checked instead of dropp
   await mount(<SchemaEditorStory />);
 
   await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(PLAIN_SCHEMA));
-  await expect(page.getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unchecked");
+  await expect(page.getByRole("status").getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unchecked");
 });
 
 test("the preflight stays SILENT when there is nothing to warn about, and disappears on an unparseable draft", async ({ mount, page }) => {

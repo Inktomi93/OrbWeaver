@@ -40,6 +40,8 @@ export interface SortableListProps<T> {
   /** Names the `<ul>` root, the `VirtualList` twin — a rack among sibling racks is otherwise an unnamed
    *  list in the a11y tree. Omit it when a heading directly above already names the group. */
   readonly "aria-label"?: string;
+  /** Rows that end the list and never move (a stage that always runs last): items of the same list, with no grip. */
+  readonly fixedTail?: readonly { readonly key: SortableItemKey; readonly content: ReactNode }[];
 }
 
 interface SortableItemProps {
@@ -230,8 +232,11 @@ export function SortableList<T>({
   disabled = false,
   className,
   "aria-label": ariaLabel,
+  fixedTail = [],
 }: SortableListProps<T>): ReactElement {
   const keys = items.map((item) => getItemKey(item));
+  const count = items.length + fixedTail.length;
+  const slots = sortableVariants();
 
   const handleDragEnd = (event: DragEndEvent): void => {
     if (event.canceled) {
@@ -251,10 +256,10 @@ export function SortableList<T>({
           `<ul>`/`<li>` rather than roles (tailwind preflight strips the marker/indent, so the skin is
           unchanged and no suppression is owed). The rank rides each item as `aria-posinset`, which is also
           the only channel a list with no VISIBLE rank has for saying where a row sits. */}
-      <ul aria-label={ariaLabel} className={cn(sortableVariants().root(), className)} data-slot="sortable-root">
+      <ul aria-label={ariaLabel} className={cn(slots.root(), className)} data-slot="sortable-root">
         {items.map((item, index) => (
           <SortableItem
-            count={items.length}
+            count={count}
             disabled={disabled}
             handle={handle}
             id={getItemKey(item)}
@@ -264,6 +269,14 @@ export function SortableList<T>({
           >
             {renderItem(item, index)}
           </SortableItem>
+        ))}
+        {fixedTail.map((row, index) => (
+          <li aria-posinset={items.length + index + 1} aria-setsize={count} className={slots.item()} data-slot="sortable-fixed-item" key={row.key}>
+            {handle ? <span aria-hidden={true} className={slots.handleSpacer()} /> : null}
+            <div className={slots.content()} data-slot="sortable-content">
+              {row.content}
+            </div>
+          </li>
         ))}
       </ul>
     </DragDropProvider>

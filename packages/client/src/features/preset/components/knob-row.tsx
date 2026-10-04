@@ -56,9 +56,13 @@ const UNKNOWN_DEFAULT_PLACEHOLDER = "default";
  *  Two arms, exactly like the visible placeholder beside it: with a funnel reading, the number is real but it
  *  is the RESOLVED one and not this preset's, so it is announced as what it is; with none, there is no number
  *  at all and the thumb's `min` position is an artefact of having to park it somewhere. Both spell "default
- *  (model decides)" so the two arms of one state read as one state. */
+ *  (model decides)" so the two arms of one state read as one state — except a default the request sends itself
+ *  (`modelDecides: false`), which the model does not pick. */
 function inheritedValueText(ghost: KnobGhost | null): string {
-  return ghost === null ? "default (model decides)" : `${String(ghost.value)} — default (model decides)`;
+  if (ghost === null) {
+    return "default (model decides)";
+  }
+  return `${String(ghost.value)} — ${ghost.modelDecides ? "default (model decides)" : "default"}`;
 }
 
 export interface KnobRowProps {

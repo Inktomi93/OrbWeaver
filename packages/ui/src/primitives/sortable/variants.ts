@@ -15,6 +15,8 @@ export const sortableVariants = tv({
       FOCUS_RING,
       DISABLED_STATE_NATIVE,
     ],
+    // A fixed row's empty grip column, so its content starts where every movable row's does.
+    handleSpacer: "h-control-sm w-control-sm shrink-0",
     content: "min-w-0 flex-1",
   },
 });

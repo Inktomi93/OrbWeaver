@@ -1030,6 +1030,31 @@ test("a modality list the posture guessed reads assumed, never as something the 
   await expect(component.locator('[data-fact="generation.tools"]').getByText("not stated", { exact: true })).toBeVisible();
 });
 
+// A route that sends the window (Ollama's native num_ctx) runs the preset's Max context, so the window has one home.
+const SETTABLE_WINDOW_CAPABILITY: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
+  kind: "generation",
+  generation: {
+    reasoning: { mode: "none", enabled: false },
+    sampling: {},
+    input: ["text"],
+    output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"], maxTokensEstimated: true },
+    context: { window: 4096, windowEstimated: true, settable: { max: 131_072 } },
+  },
+};
+
+test("on a route that sends the window, the window row offers no Override; other rows keep theirs", async ({ mount, page }) => {
+  await stubEditor(page, {
+    capabilities: { capability: SETTABLE_WINDOW_CAPABILITY, baseline: SETTABLE_WINDOW_CAPABILITY, warnings: [], tasks: ["chat", "summarize"] },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Advanced").click();
+
+  const windowRow = component.locator('[data-fact="generation.context.window"]');
+  await expect(windowRow).toHaveAttribute("data-overridden", "false");
+  await expect(windowRow.getByRole("button")).toHaveCount(0);
+  await expect(component.locator('[data-fact="generation.output.maxTokens.max"]').getByRole("button", { name: "Override max output" })).toBeVisible();
+});
+
 // ── an override restates the reported value it replaced (the capabilities baseline) ───────────────────────
 
 test("an overridden window shows the reported value it replaced, and Reset writes only that override away", async ({ mount, page }) => {

@@ -15,6 +15,8 @@ export const refinerySchemaPlanSchema = z.discriminatedUnion("outcome", [
   z.strictObject({ outcome: z.literal("background-refused"), model: z.string() }),
   z.strictObject({ outcome: z.literal("sends"), model: z.string(), carrier: z.enum(REFINERY_SCHEMA_CARRIERS) }),
   z.strictObject({ outcome: z.literal("refused"), model: z.string(), reasons: z.array(z.string()) }),
+  // The model has no way to return a structured answer at all, whatever the schema.
+  z.strictObject({ outcome: z.literal("no-structured"), model: z.string() }),
 ]);
 export type RefinerySchemaPlan = z.infer<typeof refinerySchemaPlanSchema>;
 
@@ -55,20 +57,30 @@ export function schemaPlanReasonOf(violation: WireSchemaViolation): string {
 }
 
 /** The line the editor shows when the plan could not be asked (the server or the network failed). */
-export const REFINERY_SCHEMA_PLAN_UNCHECKED_LINE = "Couldn't check this shape against your Utility model just now. It will still save.";
+export const REFINERY_SCHEMA_PLAN_UNCHECKED_LINE = "Couldn't check this against your Utility model right now. It still saves.";
 
-/** The one line the editor shows for a plan. */
+/** The plan outcomes under which a refinery run on this schema would fail. */
+export const REFINERY_SCHEMA_PLAN_FAILING: ReadonlySet<RefinerySchemaPlan["outcome"]> = new Set<RefinerySchemaPlan["outcome"]>([
+  "refused",
+  "background-refused",
+  "no-structured",
+]);
+
+/** The one line the editor shows for a plan; each leads with its verdict. */
 export function refinerySchemaPlanLine(plan: RefinerySchemaPlan): string {
   if (plan.outcome === "unbound") {
-    return "Whether this fits depends on the model bound to Utility in Model roles, and none is bound yet. It will still save.";
+    return "No Utility model is set in Model roles, so this can't be checked yet. It still saves.";
   }
   if (plan.outcome === "background-refused") {
-    return `Your Utility model (${plan.model}) is on a connection that doesn't allow background work, so refinery runs can't use it — allow background work for it in Connections. It will still save.`;
+    return `Won't run: your Utility model (${plan.model}) doesn't allow background work. Turn it on in Connections. It still saves.`;
+  }
+  if (plan.outcome === "no-structured") {
+    return `Won't run: your Utility model (${plan.model}) can't return structured answers. Pick another Utility model in Model roles. It still saves.`;
   }
   if (plan.outcome === "refused") {
-    return `Your Utility model (${plan.model}) cannot take this shape, so refinery runs with it would fail: ${plan.reasons.join("; ")}. It will still save.`;
+    return `Won't run on your Utility model (${plan.model}): ${plan.reasons.join("; ")}. It still saves.`;
   }
   return plan.carrier === "native"
-    ? `Your Utility model (${plan.model}) takes this shape and is held to it as it writes.`
-    : `Your Utility model (${plan.model}) cannot be held to this shape as it writes, so it fills it in through a tool call; the answer is checked when it comes back.`;
+    ? `Fits your Utility model (${plan.model}): it follows this shape exactly.`
+    : `Fits your Utility model (${plan.model}) through a tool call; the answer is checked when it comes back.`;
 }

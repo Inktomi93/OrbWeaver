@@ -6,7 +6,7 @@
 // like, so nothing here can lose a keystroke.
 
 import type { RefinerySchemaStage } from "@orb/contracts/refinery";
-import { REFINERY_SCHEMA_PLAN_UNCHECKED_LINE, refinerySchemaAdvisoryOf, refinerySchemaPlanLine } from "@orb/contracts/refinery";
+import { REFINERY_SCHEMA_PLAN_FAILING, REFINERY_SCHEMA_PLAN_UNCHECKED_LINE, refinerySchemaAdvisoryOf, refinerySchemaPlanLine } from "@orb/contracts/refinery";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -15,12 +15,15 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { testId } from "#lib";
+import { cn, testId } from "#lib";
 import { useRefinerySchemaPlan, useTestRefinerySchema } from "../hooks/use-refinery-schemas.ts";
 import type { buildRenderPlan } from "../lib/render-plan.ts";
 import { CharacterDoor } from "./character-door.tsx";
 import { PayloadView } from "./payload-view.tsx";
 import { RefineryChip } from "./refinery-chip.tsx";
+
+/** The plan line is a sentence to read, so it takes the prose measure, not the dialog's width. */
+const PLAN_LINE_MEASURE = "max-w-(--reading-measure-prose)";
 
 /** The raw door's PREFLIGHT (the third tier — see `@orb/contracts/refinery/schema-advisory`'s header).
  *  Tier 1 is `RefusalNote` (the belt's verbatim refusal, unchanged); tier 2 is this, and it NEVER
@@ -38,16 +41,25 @@ export function PreflightNote({ schema, stage }: { schema: Record<string, unknow
       <Text data-testid={testId("refinerySchemaStats")} voice="gloss">
         {stats.properties} fields · {stats.optionalFields} optional · {stats.enums} choice lists · {stats.anyOfBlocks} unions · {stats.maxDepth} levels deep
       </Text>
-      {plan === null ? null : (
-        <Text data-plan={plan.outcome} data-testid={testId("refinerySchemaPlan")} voice="gloss">
-          {refinerySchemaPlanLine(plan)}
-        </Text>
-      )}
-      {read.state === "failed" ? (
-        <Text data-plan="unchecked" data-testid={testId("refinerySchemaPlan")} voice="gloss">
-          {REFINERY_SCHEMA_PLAN_UNCHECKED_LINE}
-        </Text>
-      ) : null}
+      {/* Polite status: the line only changes after the draft settles, and a failing verdict must reach a screen reader. */}
+      <Stack role="status">
+        {plan === null ? null : (
+          <Text
+            className={cn(PLAN_LINE_MEASURE, REFINERY_SCHEMA_PLAN_FAILING.has(plan.outcome) && "text-warning")}
+            data-plan={plan.outcome}
+            data-testid={testId("refinerySchemaPlan")}
+            prose={true}
+            voice="gloss"
+          >
+            {refinerySchemaPlanLine(plan)}
+          </Text>
+        )}
+        {read.state === "failed" ? (
+          <Text className={PLAN_LINE_MEASURE} data-plan="unchecked" data-testid={testId("refinerySchemaPlan")} prose={true} voice="gloss">
+            {REFINERY_SCHEMA_PLAN_UNCHECKED_LINE}
+          </Text>
+        ) : null}
+      </Stack>
       {/* The advisories need a CLASS above them or they read as a second, longer stats line — measured
           on the rendered dialog: same voice, same tint, no separation, no way to tell that one is an
           accounting and the other is a warning. The kicker is the cheapest honest separator, and it

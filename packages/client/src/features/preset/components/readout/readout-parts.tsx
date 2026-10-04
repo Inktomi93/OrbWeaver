@@ -72,6 +72,9 @@ export function DatumRow({ label, value, suffix, valueTitle }: DatumRowProps): R
  *  a value bar on one text-height line, stacked on `tight`), so pending and settled are the same box. */
 const PENDING_ROWS = 4;
 
+/** The `capability.sampling` keys that state a fact about other knobs rather than naming a knob of their own. */
+const SAMPLING_FACT_KEYS: ReadonlySet<string> = new Set(["exclusive", "mirostatSkips"]);
+
 // A knob the server skips this turn says so in place of the rung that produced its value.
 function readingSuffix(knob: string, reading: EffectiveProfileRow["knobs"][string], skipped: ReadonlySet<string> | undefined): string | null {
   if (skipped?.has(knob) === true) {
@@ -104,6 +107,7 @@ export function EffectiveProfile({
   error,
   onRetry,
   contextWindow,
+  contextSetByPreset = false,
   subject,
   skipped,
 }: {
@@ -126,6 +130,8 @@ export function EffectiveProfile({
    *  what the next turn will do. It came from the capability read, exactly as the deck's own ghost does
    *  (side-eye F-13: the value existed and had no row). */
   readonly contextWindow?: number | undefined;
+  /** The preset's Max context set that window (a route whose window the request sends), so the row says so. */
+  readonly contextSetByPreset?: boolean;
 }): ReactElement {
   if (effective === undefined) {
     if (error === null) {
@@ -155,7 +161,9 @@ export function EffectiveProfile({
           {rows.map(([knob, reading]) => (
             <DatumRow key={knob} label={knobLabel(knob)} suffix={readingSuffix(knob, reading, skipped)} value={formatKnobValue(reading?.value)} />
           ))}
-          {contextWindow === undefined ? null : <DatumRow label={knobLabel("maxContextTokens")} suffix="window" value={formatKnobValue(contextWindow)} />}
+          {contextWindow === undefined ? null : (
+            <DatumRow label={knobLabel("maxContextTokens")} suffix={contextSetByPreset ? "preset" : "window"} value={formatKnobValue(contextWindow)} />
+          )}
         </Stack>
       )}
       <Text voice="gloss">
@@ -217,7 +225,9 @@ export function CapabilityCard({
   if (capability === undefined) {
     return null;
   }
-  const honored = Object.keys(capability.sampling).map((knob) => knobLabel(knob));
+  const honored = Object.keys(capability.sampling)
+    .filter((key) => !SAMPLING_FACT_KEYS.has(key))
+    .map((knob) => knobLabel(knob));
   const modelName = model === undefined ? undefined : modelDisplayName(model);
   return (
     <Section kicker="Capability">

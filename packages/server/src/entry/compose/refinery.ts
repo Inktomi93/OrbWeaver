@@ -87,6 +87,10 @@ export function createPlanSchema(
     if (preview.ok) {
       return { outcome: "sends", model: connection.model, carrier: preview.native ? "native" : "tool" };
     }
+    // No vehicle is a fact about the model, not the schema, so the author is not sent to rewrite the shape.
+    if (preview.violations.some((violation) => violation.kind === "no-vehicle")) {
+      return { outcome: "no-structured", model: connection.model };
+    }
     return { outcome: "refused", model: connection.model, reasons: preview.violations.map(schemaPlanReasonOf) };
   };
 }

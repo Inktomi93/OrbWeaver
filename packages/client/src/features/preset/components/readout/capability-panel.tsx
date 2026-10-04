@@ -3,6 +3,7 @@
 // view state only; the panel still writes nothing (the readout's read-only pin).
 
 import type { CapabilityTarget } from "@orb/contracts/inference";
+import { windowForPreset } from "@orb/contracts/inference";
 import type { PresetId } from "@orb/kit/ids";
 import { Section } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
@@ -40,7 +41,11 @@ export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): Rea
   );
   const capability = useQuery(trpc.connection.resolveChatCapability.queryOptions({ target }));
   const effective = useQuery(trpc.preset.resolveEffective.queryOptions({ id: presetId, target }));
+  const preset = useQuery(trpc.preset.get.queryOptions({ id: presetId }));
   const inView = capability.data === undefined ? undefined : connections.data?.find((row) => row.id === capability.data.connectionId);
+  const generation = chatCapabilityOf(capability.data);
+  // The window the turn sends: on a route whose window the request sets, the preset's Max context is it.
+  const turnGeneration = generation === undefined ? undefined : windowForPreset(generation, preset.data?.config.params.maxContextTokens);
 
   return (
     <>
@@ -81,16 +86,17 @@ export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): Rea
       {/* The resolve's ERROR rides alongside its data (F-02): absent + no error is PENDING, absent + error is a
           settled failure, and the band discriminates on the structured code. */}
       <EffectiveProfile
-        contextWindow={chatCapabilityOf(capability.data)?.context.window}
+        contextSetByPreset={turnGeneration !== generation}
+        contextWindow={turnGeneration?.context.window}
         effective={effective.data ?? undefined}
         error={effective.error}
         onRetry={(): void => {
           effective.refetch().catch(() => undefined); // The query's error state owns the retry failure.
         }}
-        skipped={mirostatSkipped(effective.data ?? undefined, chatCapabilityOf(capability.data)?.sampling.mirostatSkips)}
+        skipped={mirostatSkipped(effective.data ?? undefined, generation?.sampling.mirostatSkips)}
         subject={subjectOf(target)}
       />
-      <CapabilityCard capability={chatCapabilityOf(capability.data)} model={effective.data?.model} />
+      <CapabilityCard capability={generation} model={effective.data?.model} />
       {footer?.(effective.data ?? undefined)}
     </>
   );

@@ -115,6 +115,8 @@ export interface FactRow {
   /** `true` ⇒ the row's own `declared` block states this field: a colour change and `Reset` instead of
    *  `Override`. */
   readonly overridden: boolean;
+  /** `true` ⇒ the value is set somewhere else, which `source` names, so the row offers no `Override`. */
+  readonly setElsewhere?: boolean;
   readonly edit: FactEdit;
   /** What the Override control opens seeded with — the resolved value in the control's own spelling. */
   readonly draft: string;

@@ -72,6 +72,9 @@ const CAUSELESS_FAILURE_RE = /generation profile couldn't be resolved/i;
 const MODEL_ROLES_PATH_RE = /Settings → Connections → Model roles/;
 /** The model line the SETTLED arm signs its numbers with (`resolvedForLabel` + the readout's `· chat role`). */
 const RESOLVED_FOR_RE = /resolved for qwen3-32b · chat role/;
+/** The capability card's honored-knob line, and the raw schema key it must never list. */
+const HONORS_RE = /^honors /;
+const MIROSTAT_SKIPS_KEY_RE = /mirostatSkips/;
 
 // ── ARMS ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -361,6 +364,43 @@ test("WIRING — a SETTLED resolve renders the funnel's rows through the real re
   await expect(probe.getByText(FAILURE_RE)).toHaveCount(0);
   await expect(probe.getByText(CHAT_MODEL_CLAIM_RE)).toHaveCount(0);
   await expect(probe.getByText(CONNECT_INVITATION_RE)).toHaveCount(0);
+});
+
+/** An Ollama-native-shaped chat row: a 4096 floor the request sends, settable up to the trained maximum, on a server
+ *  whose Mirostat branch skips top-p. */
+const SETTABLE_CAPABILITY = makeResolvedView({
+  capability: makeCapability(
+    makeGenerationCapability({
+      sampling: { temperature: { min: 0, max: 2 }, topP: { min: 0, max: 1 }, mirostatSkips: ["topP"] },
+      context: { window: 4096, windowEstimated: true, settable: { max: 131_072 } },
+    }),
+  ),
+});
+const PRESET_WINDOW = 65_536;
+
+function settableRoutes(): ReturnType<typeof readoutRoutes> {
+  return {
+    ...readoutRoutes(settledResolve),
+    "preset.get": () => ({ ...PRESET_DETAIL, config: { ...DEFAULT_PROMPT_CONFIG, params: { maxContextTokens: PRESET_WINDOW } } }),
+    "connection.resolveChatCapability": () => SETTABLE_CAPABILITY,
+  };
+}
+
+test("on a route that sends the window, the effective context is the preset's Max context, not the connection's floor", async ({ mount, page }) => {
+  await routeTrpc(page, settableRoutes());
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  // Rows are label · (value · suffix); the value is the first element after the label.
+  const contextValue = probe.getByText("context", { exact: true }).locator("xpath=following-sibling::*[1]/*[1]");
+  await expect(contextValue).toHaveText("65,536");
+});
+
+test("the capability card lists knobs only, never a sampling fact's schema key", async ({ mount, page }) => {
+  await routeTrpc(page, settableRoutes());
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  await expect(probe.getByText(HONORS_RE)).toBeVisible();
+  await expect(probe.getByText(MIROSTAT_SKIPS_KEY_RE)).toHaveCount(0);
 });
 
 // P3-3 (side-eye 2026-08-22): the staleness line was the ONE piece of jargon on an otherwise jargon-free

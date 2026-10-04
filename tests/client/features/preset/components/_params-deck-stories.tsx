@@ -110,6 +110,11 @@ export function ParamsDeckSettableWindowStory(): ReactElement {
   return <DeckHarness capability={capability} effective={GHOST_EFFECTIVE} params={{}} />;
 }
 
+/** A Max context stored on a wider connection, read on this one's 32768 window, which it cannot send past. */
+export function ParamsDeckContextOverWindowStory(): ReactElement {
+  return <DeckHarness effective={GHOST_EFFECTIVE} params={{ maxContextTokens: 131_072 }} />;
+}
+
 /** The deck with an EXPLICIT repetition penalty the model clamps + a `quality` dial — the clamp gloss and
  *  the quality-mapping gloss both come off the resolver, never a client re-derivation. */
 export function ParamsDeckExplicitStory(): ReactElement {

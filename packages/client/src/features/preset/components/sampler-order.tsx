@@ -1,7 +1,7 @@
 // The sampler-order list (D295) — `params.samplerOrder`, shown only where the target server orders stages. It
 // lists the order the server will run (`completeSamplerOrder`, the funnel's own call), so a dragged row is the
-// order sent. A stage that picks the token runs last whatever the list says, so it is shown fixed below the
-// movable rows. Unset, it shows the server's default order and sends nothing.
+// order sent. A stage that picks the token runs last whatever the list says, so it is the list's fixed last
+// row, with no grip. Unset, it shows the server's default order and sends nothing.
 
 import type { SamplerStage } from "@orb/contracts/inference";
 import { completeSamplerOrder, TERMINAL_SAMPLER_STAGES } from "@orb/contracts/inference";
@@ -47,13 +47,16 @@ export function SamplerOrder({ form, stages }: { readonly form: AppFormInstance<
               items={movable}
               onReorder={(keys): void => field.handleChange(keys.flatMap((key) => movable.filter((stage) => stage === key)))}
               renderItem={(stage: SamplerStage): ReactElement => <Text voice="label">{SAMPLER_STAGE_LABELS[stage]}</Text>}
+              fixedTail={fixed.map((stage) => ({
+                key: stage,
+                content: (
+                  <Row align="baseline" data-fixed-stage={stage} gap="field">
+                    <Text voice="label">{SAMPLER_STAGE_LABELS[stage]}</Text>
+                    <Text voice="gloss">{FIXED_LAST_GLOSS}</Text>
+                  </Row>
+                ),
+              }))}
             />
-            {fixed.map((stage) => (
-              <Row align="baseline" data-fixed-stage={stage} gap="field" key={stage}>
-                <Text voice="label">{SAMPLER_STAGE_LABELS[stage]}</Text>
-                <Text voice="gloss">{FIXED_LAST_GLOSS}</Text>
-              </Row>
-            ))}
             {stored === undefined ? <Text voice="gloss">server default order</Text> : null}
           </Fieldset>
         );

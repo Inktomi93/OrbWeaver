@@ -155,7 +155,7 @@ export function purposeNotes(capability: Capability, ownServer: boolean): readon
     notes.push(
       generation.context.settable === undefined
         ? `This server doesn't report its context size, so we assume ${grouped(generation.context.window)} tokens. If the server's real size is smaller, long chats lose their start; set the context window under Advanced.`
-        : `This server runs ${grouped(generation.context.window)} tokens of context by default. To use more, set Max context tokens in your chat preset.`,
+        : `Chats here use ${grouped(generation.context.window)} tokens of context. To use more, raise Max context tokens in your preset (Presets › Params), up to ${grouped(generation.context.settable.max)}.`,
     );
   }
   return notes;

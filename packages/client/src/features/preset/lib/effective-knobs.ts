@@ -79,7 +79,13 @@ export interface KnobGhost {
   readonly value: number;
   /** The terse provenance line under the track — `null` when there is nothing non-obvious to say. */
   readonly gloss: string | null;
+  /** `false` when the request sends this default itself, so the model does not pick it. */
+  readonly modelDecides: boolean;
 }
+
+/** The client-supplied rung for Max context on a route whose window the request sends: unset, the resolved window
+ *  is the value sent, so it is a plain default rather than the model's full window. */
+export const SENT_WINDOW_PROVENANCE = "sentWindow";
 
 /** The clamp gloss for an EXPLICIT knob the capability moved — decision-load-bearing, so it stays VISIBLE
  *  (never behind a hover hint, §4.1). `null` when the stored value survived the funnel intact. */
@@ -104,7 +110,7 @@ export function knobGhost(effective: EffectiveKnobRow | undefined, quality: stri
   if (effective === undefined || typeof effective.value !== "number") {
     return null;
   }
-  return { value: effective.value, gloss: ghostGloss(effective.provenance, quality) };
+  return { value: effective.value, gloss: ghostGloss(effective.provenance, quality), modelDecides: effective.provenance !== SENT_WINDOW_PROVENANCE };
 }
 
 /** The provenance line, keyed by the server's rung vocabulary. An unknown rung reads as no gloss rather
@@ -116,7 +122,7 @@ function ghostGloss(provenance: string, quality: string | undefined): string | n
   if (provenance === "modelDefault") {
     return "model default";
   }
-  if (provenance === "floor") {
+  if (provenance === "floor" || provenance === SENT_WINDOW_PROVENANCE) {
     return "default";
   }
   // Not sent: the server runs its own advertised value for an unset knob.
