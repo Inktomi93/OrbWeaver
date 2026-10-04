@@ -146,8 +146,8 @@ export interface InferenceRuntime {
   /** The kind a saved row's model is, as the resolver reads it: the row's declaration, its server's or catalog's
    *  stated kind (warmed first), the curated rows, else `generation`. `cachedFacts` reads only the facts already held,
    *  in memory or persisted, and dials nothing, for a read that lists rows or previews a change. `coldAs` is the kind
-   *  such a read answers when no evidence states one and a warm still could: a preview that must err toward the
-   *  change that asks the user first. */
+   *  such a read answers while a warm could still change it (anything short of the row's own declaration): a preview
+   *  that must err toward the change that asks the user first. */
   readonly modelKind: (
     connection: UserConnection,
     options?: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined },
@@ -452,7 +452,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
         return (await discoveredKind(ctx, connection)) ?? DEFAULT_MODEL_KIND;
       }
       const { kind, held } = await cachedKind(ctx, connection);
-      return kind ?? (held ? DEFAULT_MODEL_KIND : (options.coldAs ?? DEFAULT_MODEL_KIND));
+      return (held ? undefined : options.coldAs) ?? kind ?? DEFAULT_MODEL_KIND;
     },
     executor,
     capabilities: {

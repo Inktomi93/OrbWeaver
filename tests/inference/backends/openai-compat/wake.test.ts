@@ -28,12 +28,14 @@ interface Engine {
   wakeLag: number;
 }
 
-/** A vLLM engine that may be in sleep mode: it refuses work until `/wake_up` is posted and its sleep read says awake.
- *  Records each request as `METHOD path`. */
-/** What an awake engine answers. */
-function awakeAnswer(path: string): Response {
+/** What the engine answers outside its sleep pair. Its model list names vLLM as the owner, as vLLM's does, and is
+ *  served asleep or awake. */
+function engineAnswer(path: string, sleeping: boolean): Response {
   if (path === "/v1/models") {
-    return Response.json({ object: "list", data: [{ id: MODEL, object: "model", max_model_len: 8192 }] });
+    return Response.json({ object: "list", data: [{ id: MODEL, object: "model", ["owned_by"]: "vllm", ["max_model_len"]: 8192 }] });
+  }
+  if (sleeping) {
+    return new Response("the engine is sleeping", { status: 503 });
   }
   if (path === "/v1/chat/completions") {
     const body = `${chunk({ role: "assistant", content: "awake and answering" }, null)}${chunk({}, "stop")}data: [DONE]\n\n`;
@@ -42,6 +44,8 @@ function awakeAnswer(path: string): Response {
   return new Response("not found", { status: 404 });
 }
 
+/** A vLLM engine that may be in sleep mode: it refuses work until `/wake_up` is posted and its sleep read says awake.
+ *  Records each request as `METHOD path`. */
 function engine(sleeping: boolean): Engine {
   let waking = false;
   const sleepAnswer = (path: string): Response | null => {
@@ -57,7 +61,7 @@ function engine(sleeping: boolean): Engine {
       state.sleeping = state.wakeLag > 0;
       return new Response(null, { status: 200 });
     }
-    return state.sleeping ? new Response("the engine is sleeping", { status: 503 }) : null;
+    return null;
   };
   const state: Engine = {
     sleeping,
@@ -67,7 +71,7 @@ function engine(sleeping: boolean): Engine {
       const url = new URL(input instanceof Request ? input.url : String(input));
       const method = init?.method ?? (input instanceof Request ? input.method : "GET");
       state.requests.push(`${method} ${url.pathname}`);
-      return Promise.resolve(sleepAnswer(url.pathname) ?? awakeAnswer(url.pathname));
+      return Promise.resolve(sleepAnswer(url.pathname) ?? engineAnswer(url.pathname, state.sleeping));
     },
   };
   return state;
@@ -77,12 +81,14 @@ interface BoundEngine {
   readonly runtime: Awaited<ReturnType<typeof createInferenceRuntime>>;
   readonly asker: ReturnType<typeof principal>;
   readonly turn: (signal?: AbortSignal) => Promise<ChatResult>;
+  readonly resolved: Resolved<"chat">;
 }
 
-async function boundEngine(eng: Engine, now?: () => number): Promise<BoundEngine> {
+async function boundEngine(eng: Engine, options: { readonly now?: () => number; readonly providerId?: string } = {}): Promise<BoundEngine> {
+  const { now, providerId = "vllm" } = options;
   const stores = memoryStores();
   const ownerId = newUserId();
-  const row = fakeConnection({ ownerId, providerId: "vllm", model: MODEL, baseUrl: BASE_URL });
+  const row = fakeConnection({ ownerId, providerId, model: MODEL, baseUrl: BASE_URL });
   stores.connections.rows.set(row.id, row);
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "chat", connectionId: row.id });
   const runtime = await createInferenceRuntime({ ...fakeDeps({ stores, fetch: eng.fetch }), ...(now === undefined ? {} : { now }) });
@@ -100,7 +106,7 @@ async function boundEngine(eng: Engine, now?: () => number): Promise<BoundEngine
       history: [{ role: "user", content: [{ type: "text", text: "Are you there?" }] }],
       ...(signal === undefined ? {} : { signal }),
     });
-  return { runtime, asker, turn };
+  return { runtime, asker, turn, resolved };
 }
 
 test("a sleeping engine reads available, and the turn wakes it before sending, then answers", async () => {
@@ -121,7 +127,7 @@ test("a sleeping engine reads available, and the turn wakes it before sending, t
 test("an engine that falls asleep after an availability read is asked again, and woken, before the turn", async () => {
   const eng = engine(false);
   let clock = 1_700_000_000_000;
-  const { runtime, asker, turn } = await boundEngine(eng, () => clock);
+  const { runtime, asker, turn } = await boundEngine(eng, { now: () => clock });
   expect(await runtime.availability({ task: "chat", principal: asker })).toEqual({ available: true });
   eng.sleeping = true;
   clock += 5000;
@@ -152,4 +158,36 @@ test("a cancel while the engine wakes stops the turn at once with an aborted err
   expect(performance.now() - started).toBeLessThan(500);
   expect(eng.requests).toContain("POST /wake_up");
   expect(eng.requests).not.toContain(CHAT_PATH);
+});
+
+// Nothing outside the app tells it a server is vLLM: a Custom connection learns it from the server itself.
+test("a vLLM server added as a Custom connection is detected as vLLM and carries its sleep pair", async () => {
+  const { resolved } = await boundEngine(engine(false), { providerId: "custom-openai" });
+
+  expect(resolved.features.sleep).toEqual({ isSleepingPath: "/is_sleeping", wakePath: "/wake_up" });
+});
+
+test("a sleeping vLLM server added as a Custom connection is woken before the turn is sent", async () => {
+  const eng = engine(true);
+  const { turn } = await boundEngine(eng, { providerId: "custom-openai" });
+
+  const answer = await turn();
+
+  expect(answer.reply).toBe("awake and answering");
+  const wake = eng.requests.indexOf("POST /wake_up");
+  expect(wake, "the turn posted the wake path").toBeGreaterThanOrEqual(0);
+  expect(eng.requests.indexOf(CHAT_PATH)).toBeGreaterThan(wake);
+});
+
+test("concurrent turns on one sleeping engine share one wake, and each is sent once it is awake", async () => {
+  const eng = engine(true);
+  eng.wakeLag = 1;
+  const { turn } = await boundEngine(eng);
+  eng.requests.length = 0;
+
+  const answers = await Promise.all([turn(), turn(), turn()]);
+
+  expect(answers.map((answer) => answer.reply)).toEqual(["awake and answering", "awake and answering", "awake and answering"]);
+  expect(eng.requests.filter((request) => request === "POST /wake_up")).toHaveLength(1);
+  expect(eng.requests.filter((request) => request === CHAT_PATH)).toHaveLength(3);
 });

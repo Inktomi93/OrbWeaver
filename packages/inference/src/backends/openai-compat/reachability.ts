@@ -1,7 +1,7 @@
 // The endpoint REACHABILITY probe + the wake slice (§8.1, §4). Every `auth: endpoint` row alike: a cached
 // `GET <baseUrl>/v1/models` says `up | down`; when the row's folded `features.sleep` names the pair, the
 // `isSleepingPath` read says `asleep`. Before each task the backend asks `asleep` afresh and, when it is, `wake` POSTs
-// `wakePath` and polls until the server answers awake — nothing here knows the word vLLM. The `up | down` cache is per
+// `wakePath` once per server and polls until it answers awake — nothing here knows the word vLLM. The `up | down` cache is per
 // base URL with a short TTL so a burst of availability reads (every composer render) shares one probe.
 
 import { setTimeout as sleep } from "node:timers/promises";
@@ -95,6 +95,52 @@ async function probeOnce(deps: ReachabilityDeps, target: ProbeTarget, signal?: A
   }
 }
 
+interface WakeFlight {
+  readonly controller: AbortController;
+  readonly run: Promise<boolean>;
+  waiters: number;
+}
+
+/** Wait on a shared wake under this task's own cancel: a cancel rejects this task at once and leaves the wake running
+ *  for the others; the last task to leave stops it. */
+function joinWake(flight: WakeFlight, signal: AbortSignal | undefined): Promise<boolean> {
+  if (signal?.aborted === true) {
+    return Promise.reject(wakeAborted());
+  }
+  flight.waiters += 1;
+  return new Promise<boolean>((resolve, reject) => {
+    let left = false;
+    // A task that cancelled has already left; the shared wake settling later must not count it out again.
+    const leave = (): void => {
+      if (left) {
+        return;
+      }
+      left = true;
+      signal?.removeEventListener("abort", onAbort);
+      flight.waiters -= 1;
+    };
+    const onAbort = (): void => {
+      leave();
+      if (flight.waiters === 0) {
+        flight.controller.abort();
+      }
+      reject(wakeAborted());
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
+    // @orb-waive caught-failure-ownership(flight.run): the rejection is forwarded to this task's own promise, which its caller awaits. Ends if the handler stops rejecting with the error.
+    flight.run.then(
+      (woke) => {
+        leave();
+        resolve(woke);
+      },
+      (err: unknown) => {
+        leave();
+        reject(err);
+      },
+    );
+  });
+}
+
 export interface ReachabilityProber {
   readonly probe: (target: ProbeTarget) => Promise<Reachability>;
   /** Whether the server says it is asleep right now. Never cached: a server is put to sleep from outside the app at
@@ -146,7 +192,7 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
     }
   };
 
-  const wake = async (target: SleepTarget, signal: AbortSignal | undefined): Promise<boolean> => {
+  const wakeOnce = async (target: SleepTarget, signal: AbortSignal): Promise<boolean> => {
     invalidate(target.baseUrl);
     const post = deadlineSignal(signal, SERVER_READ_TIMEOUT_MS);
     // @orb-waive caught-failure-ownership(fetch): wake POST failure falls through to the bounded probe loop, whose final false is the wake verdict. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the following loop stops deciding success or timeout.
@@ -162,18 +208,40 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
     const deadline = deps.now() + WAKE_TIMEOUT_MS;
     while (deps.now() < deadline) {
       const state = await probeOnce(deps, target, signal);
-      if (signal?.aborted === true) {
+      if (signal.aborted) {
         throw wakeAborted();
       }
       cache.set(target.baseUrl, { at: deps.now(), state });
       if (state === "up") {
         return true;
       }
-      await sleep(WAKE_POLL_MS, undefined, signal === undefined ? undefined : { signal }).catch((err: unknown) => {
+      await sleep(WAKE_POLL_MS, undefined, { signal }).catch((err: unknown) => {
         throw wakeAborted(err);
       });
     }
     return false;
+  };
+
+  // One wake per server: concurrent tasks on one sleeping engine share its POST and its poll. Each task keeps its own
+  // cancel; the shared wake stops only when every task waiting on it has cancelled.
+  const wakes = new Map<string, WakeFlight>();
+  const wake = async (target: SleepTarget, signal: AbortSignal | undefined): Promise<boolean> => {
+    let flight = wakes.get(target.baseUrl);
+    if (flight === undefined || flight.controller.signal.aborted) {
+      const controller = new AbortController();
+      const started: WakeFlight = { controller, waiters: 0, run: wakeOnce(target, controller.signal) };
+      // @orb-waive caught-failure-ownership(started.run): map cleanup only; every waiting task receives the wake's rejection through joinWake. Ends if the cleanup grows work of its own.
+      void started.run
+        .catch(() => undefined)
+        .finally(() => {
+          if (wakes.get(target.baseUrl) === started) {
+            wakes.delete(target.baseUrl);
+          }
+        });
+      wakes.set(target.baseUrl, started);
+      flight = started;
+    }
+    return await joinWake(flight, signal);
   };
 
   return { probe, asleep, wake, invalidate };

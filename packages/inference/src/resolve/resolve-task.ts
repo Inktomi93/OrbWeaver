@@ -399,7 +399,8 @@ function kindFactsHeld(ctx: ResolverContext, registered: ProviderDef, behaved: P
     return false;
   }
   const entry = endpointEntryFor(ctx, { provider: behaved, connection, model: connection.model });
-  return entry === undefined || reader === undefined || entry.probed === true;
+  // Only a native reader's probe can state a kind, and only where the list did not.
+  return entry === undefined || reader === undefined || entry.probed === true || entry.kind !== undefined;
 }
 
 /** The kind a row's model is, as the resolver will read it: the catalog warmed first, then the declaration, the catalog
@@ -413,8 +414,9 @@ export async function discoveredKind(ctx: ResolverContext, connection: UserConne
   return statedKind(ctx, { provider: await warmedOrCached(ctx, provider, connection), connection });
 }
 
-/** {@link discoveredKind} over the persisted facts only, dialing nothing. `held` is false when no evidence states a kind
- *  yet a warm could still read one (a catalog or detect answer never persisted, a listed model not yet probed). */
+/** {@link discoveredKind} over the persisted facts only, dialing nothing. `held` is false when a warm could still change
+ *  the kind (a catalog or detect answer never persisted, a listed model not yet probed): the server's own answer
+ *  outranks a curated row, so only the row's declaration settles the kind without it. */
 export async function cachedKind(ctx: ResolverContext, connection: UserConnection): Promise<{ readonly kind: ModelKind | undefined; readonly held: boolean }> {
   const provider = ctx.registry.get(connection.providerId, connection.ownerId);
   if (provider === undefined) {
@@ -422,7 +424,7 @@ export async function cachedKind(ctx: ResolverContext, connection: UserConnectio
   }
   const behaved = await heldFacts(ctx, provider, connection);
   const kind = statedKind(ctx, { provider: behaved, connection });
-  return { kind, held: kind !== undefined || kindFactsHeld(ctx, provider, behaved, connection) };
+  return { kind, held: connection.declared?.kind !== undefined || kindFactsHeld(ctx, provider, behaved, connection) };
 }
 
 // A kind read gathers evidence and never refuses: a revoked key or a server that does not answer leaves the facts the

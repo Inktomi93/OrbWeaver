@@ -9,10 +9,10 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ConnectionBinding, RoutableTask, UserConnection } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, canFund, providerDisplayLabel, ROUTABLE_TASKS } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, canFund, providerDisplayLabel, ROUTABLE_TASKS, taskDef } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import { ConnectionNotFoundError } from "../contract/errors.ts";
+import { ConnectionNotFoundError, EmbedUnreachableError } from "../contract/errors.ts";
 import type { BindingActorInput, SetBindingParams, StoredActor } from "../contract/params.ts";
 import type { BindingView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
@@ -50,7 +50,12 @@ async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: Bin
 
 async function requireServable(ctx: ConnectionContext, row: UserConnection, task: RoutableTask): Promise<void> {
   // Only a vector role can move the owner's index, so only its write waits on the server for the freshest kind.
-  if (!(await servableTasks(ctx, row, { cachedFacts: !VECTOR_TASKS.includes(task) })).includes(task)) {
+  const vector = VECTOR_TASKS.includes(task);
+  if (!(await servableTasks(ctx, row, { cachedFacts: !vector })).includes(task)) {
+    // A server that did not answer left the kind unknown; that is the refusal, not a claim about what the model is.
+    if (vector && (await servableTasks(ctx, row, { cachedFacts: true, coldAs: taskDef(task).kind })).includes(task)) {
+      throw new EmbedUnreachableError();
+    }
     throw new DomainOperationError(CONNECTION_OP_CODES.taskUnservable, `"${row.label}" cannot serve ${task}.`);
   }
   if (!canFund(row, task)) {

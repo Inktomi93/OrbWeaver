@@ -4,7 +4,7 @@
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { BindingActorKind, ConnectionBinding, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
-import { MODEL_INFO_APIS, modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
+import { modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
 import type { AutomationRuleId, PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { SessionEntryWriter } from "./agent.ts";
@@ -97,9 +97,12 @@ const endpointModelSchema = z.object({
 });
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
 
+/** The local servers a detecting row can identify, each named by the id of the built-in row that reads it. */
+export const DETECTED_SERVERS = ["koboldcpp", "llama-cpp", "ollama", "vllm"] as const;
+
 /** A detecting row's cached server probe: the server it identified as, or `null` for a server that answered
  *  and is none of the known local servers. */
-export const detectedServerSchema = z.object({ modelInfoApi: z.enum(MODEL_INFO_APIS).nullable() });
+export const detectedServerSchema = z.object({ server: z.enum(DETECTED_SERVERS).nullable() });
 export type DetectedServer = z.infer<typeof detectedServerSchema>;
 export const endpointModelsSchema = z.array(endpointModelSchema) satisfies z.ZodType<EndpointModel[]>;
 

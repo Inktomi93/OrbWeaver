@@ -71,19 +71,19 @@ const probed = (seen: readonly string[], path: string): number => seen.filter((u
 test("detection asks KoboldCpp first, so a KoboldCpp box that also answers Ollama's version route reads as KoboldCpp", async () => {
   const fetchFor = (arm: LocalServerArm, overrides?: Record<string, unknown>): typeof fetch => localServerFetch(arm, overrides);
   await expect(detectServer({ fetch: fetchFor("kobold-chat", KOBOLD_FAKE_OLLAMA_VERSION), baseUrl: BASE_URL, secret: null })).resolves.toEqual({
-    modelInfoApi: "koboldcpp",
+    server: "koboldcpp",
   });
-  await expect(detectServer({ fetch: fetchFor("llamacpp-chat"), baseUrl: BASE_URL, secret: null })).resolves.toEqual({ modelInfoApi: "llama-cpp" });
-  await expect(detectServer({ fetch: fetchFor("ollama"), baseUrl: BASE_URL, secret: null })).resolves.toEqual({ modelInfoApi: "ollama" });
+  await expect(detectServer({ fetch: fetchFor("llamacpp-chat"), baseUrl: BASE_URL, secret: null })).resolves.toEqual({ server: "llama-cpp" });
+  await expect(detectServer({ fetch: fetchFor("ollama"), baseUrl: BASE_URL, secret: null })).resolves.toEqual({ server: "ollama" });
   // KoboldCpp's `/props` is not llama.cpp's: with its version route gone it falls through to the fake Ollama version.
   await expect(
     detectServer({ fetch: fetchFor("kobold-chat", { ...KOBOLD_FAKE_OLLAMA_VERSION, "api-extra-version": undefined }), baseUrl: BASE_URL, secret: null }),
-  ).resolves.toEqual({ modelInfoApi: "ollama" });
+  ).resolves.toEqual({ server: "ollama" });
 });
 
 test("a server that answers no probe is none of them, and one that answers nothing at all stays undecided", async () => {
   const notFound = ((): Promise<Response> => Promise.resolve(Response.json({ error: "no route" }, { status: 404 }))) as typeof fetch;
-  await expect(detectServer({ fetch: notFound, baseUrl: BASE_URL, secret: null })).resolves.toEqual({ modelInfoApi: null });
+  await expect(detectServer({ fetch: notFound, baseUrl: BASE_URL, secret: null })).resolves.toEqual({ server: null });
   const refused = ((): Promise<Response> => Promise.reject(new TypeError("fetch failed"))) as typeof fetch;
   await expect(detectServer({ fetch: refused, baseUrl: BASE_URL, secret: null })).rejects.toThrow("fetch failed");
 });
@@ -138,7 +138,7 @@ test("the detect answer is cached per URL and persisted; forgetting the endpoint
   await b.runtime.resolve({ task: "chat", principal: b.alice });
   await b.runtime.resolve({ task: "chat", principal: b.alice });
   expect(probed(b.seen, "/api/extra/version")).toBe(1);
-  expect(JSON.parse(b.snapshots.get(DETECT_KEY) ?? "{}")).toMatchObject({ value: { modelInfoApi: "ollama" } });
+  expect(JSON.parse(b.snapshots.get(DETECT_KEY) ?? "{}")).toMatchObject({ value: { server: "ollama" } });
   // The models mirror keys on the detected reader.
   expect(b.snapshots.has(`catalog:endpoint:${BASE_URL}#ollama`)).toBe(true);
   expect(b.snapshots.has(`catalog:endpoint:${BASE_URL}#list`)).toBe(false);

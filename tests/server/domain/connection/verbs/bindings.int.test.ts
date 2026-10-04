@@ -103,6 +103,31 @@ describe("setBinding", () => {
     expect(performance.now() - started).toBeLessThan(8000);
   }, 30_000);
 
+  // Nothing known says what the model is because its server did not answer: that is the refusal, not a capability claim.
+  test("binding an embedder nothing describes yet, on a host that never answers, refuses as unreachable", async () => {
+    const db = await freshDb();
+    const silent = (_url: string, init: RequestInit | undefined): Promise<Response> =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+    const h = await makeHarness(db, { intercept: silent });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "acme-embedder",
+      allowBackground: true,
+    });
+
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.embedUnreachable,
+    });
+  }, 30_000);
+
   test("re-points an existing task in place — one row per (actor, task), never a second", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
