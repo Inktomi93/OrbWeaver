@@ -393,6 +393,7 @@ export function PluginInstallCard(): ReactElement {
           <Stack gap="block">
             <Text voice="label">What it's asking for</Text>
             <PluginGrantList
+              roleScope={{ kind: "installer" }}
               capabilitiesLabel="What it's asking for"
               declared={state.manifest.capabilities}
               granted={state.manifest.capabilities}

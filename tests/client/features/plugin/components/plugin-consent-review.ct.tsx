@@ -95,14 +95,16 @@ test("a single permission reads Approve and several read Approve all, each namin
   await expect(page.getByRole("button", { name: "Approve all for Pair Plugin", exact: true })).toBeVisible();
 });
 
-test("the alarm pill marks reach that leaves the machine, not a plugin that only edits or restyles messages", async ({ mount, page }) => {
+test("the alarm pill marks writes and reach that leaves the machine, not a plugin that only restyles messages", async ({ mount, page }) => {
   await stub(page, [
     waitingRow("polish", "Polish Plugin", { declaredCapabilities: ["chat.transform"] }),
     waitingRow("fetcher", "Fetcher Plugin", { declaredCapabilities: ["net.fetch"], netHosts: ["api.fetcher.example"] }),
+    waitingRow("writer", "Writer Plugin", { declaredCapabilities: ["worldinfo.write"] }),
   ]);
   await mount(<PluginsSurfaceStory />);
 
   await expect(ask(page, "Fetcher Plugin").getByText("Reaches further", { exact: true })).toHaveCount(1);
+  await expect(ask(page, "Writer Plugin").getByText("Reaches further", { exact: true })).toHaveCount(1);
   await expect(ask(page, "Polish Plugin")).toBeVisible();
   await expect(ask(page, "Polish Plugin").getByText("Reaches further", { exact: true })).toHaveCount(0);
 });
@@ -131,8 +133,46 @@ test.describe("a long host list", () => {
   });
 });
 
-test.describe("a spend permission whose model role is unset", () => {
+/** A role that resolves to a model — what the fold answers once a plugin's own or the installer's binding is set. */
+const RESOLVED_IMAGE = {
+  task: "generateImage",
+  connectionId: "user_connection_ctreview01",
+  providerId: "openrouter",
+  wire: "openai-compat",
+  api: "chat-completions",
+  model: "image-model",
+  capability: {
+    kind: "generation",
+    generation: {
+      reasoning: { mode: "none", enabled: false },
+      sampling: {},
+      input: ["text"],
+      output: { maxTokens: { min: 1, max: 4096 }, modalities: ["image"] },
+      context: { window: 8192, windowEstimated: true },
+      turns: {
+        assistantPrefill: false,
+        midConversationSystem: false,
+        historySystemRows: false,
+        roleHandlingFloor: "none",
+        explicitPromptCache: false,
+        cacheMinTokens: 1024,
+      },
+    },
+  },
+  requirement: { ok: true },
+} satisfies NonNullable<BindingView["resolved"]>;
+
+test.describe("a spend permission whose model role resolves to nothing", () => {
   const painter = waitingRow("painter", "Painter Plugin", { declaredCapabilities: ["imagery.generate"] });
+  const clearedBinding: NonNullable<BindingView["binding"]> = {
+    id: "connection_binding_ctreview",
+    actorKind: "plugin-grant",
+    userId: null,
+    ruleId: null,
+    pluginId: painter.id,
+    task: "generateImage",
+    connectionId: null,
+  };
 
   test("says no model is set up yet", async ({ mount, page }) => {
     await stub(page, [painter], [{ task: "generateImage", binding: null, resolved: null, unavailableCause: null }]);
@@ -141,26 +181,29 @@ test.describe("a spend permission whose model role is unset", () => {
     await expect(page.getByText(NO_IMAGE_MODEL_NOTE, { exact: true })).toBeVisible();
   });
 
-  test("stays quiet once the person has picked a model for that role", async ({ mount, page }) => {
-    const picked: BindingView = {
-      task: "generateImage",
-      binding: {
-        id: "connection_binding_ctreview",
-        actorKind: "user",
-        userId: USER_VIEWER.userId,
-        ruleId: null,
-        pluginId: null,
-        task: "generateImage",
-        connectionId: "user_connection_ctreview01",
-      },
-      resolved: null,
-      unavailableCause: null,
-    };
-    await stub(page, [painter], [picked]);
+  test("still says so when a binding row exists but was cleared", async ({ mount, page }) => {
+    await stub(page, [painter], [{ task: "generateImage", binding: clearedBinding, resolved: null, unavailableCause: null }]);
+    await mount(<PluginsSurfaceStory />);
+
+    await expect(page.getByText(NO_IMAGE_MODEL_NOTE, { exact: true })).toBeVisible();
+  });
+
+  test("stays quiet when the plugin's own model resolves, even with the installer's role unset", async ({ mount, page }) => {
+    // The plugin-scoped read is the fold's own answer: its binding first, the installer's after.
+    const recorder = await routeTrpc(page, {
+      "plugin.list": () => [painter],
+      "plugin.getLog": () => [],
+      "plugin.listSurfaces": () => [],
+      "sessions.me": () => USER_VIEWER,
+      "connection.listBindings": () => [
+        { task: "generateImage", binding: { ...clearedBinding, connectionId: "user_connection_ctreview01" }, resolved: RESOLVED_IMAGE, unavailableCause: null },
+      ],
+    });
     await mount(<PluginsSurfaceStory />);
 
     await expect(ask(page, "Painter Plugin")).toBeVisible();
     await expect(page.getByText(NO_IMAGE_MODEL_NOTE, { exact: true })).toHaveCount(0);
+    await expect.poll(() => recorder.lastInput("connection.listBindings")).toEqual({ actor: { kind: "plugin-grant", pluginId: painter.id } });
   });
 });
 

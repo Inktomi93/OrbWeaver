@@ -270,6 +270,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           compute it; see plugin-grant-list.tsx's header). `netHosts` is passed ungated on purpose: this
           screen is showing reach, including reach that is not granted yet. */}
       <PluginGrantList
+        roleScope={{ kind: "plugin", pluginId: plugin.id }}
         addedCapabilities={newCapabilities}
         addedNetHosts={plugin.widenedNetHosts}
         capabilitiesLabel={`What ${plugin.name} asks for`}

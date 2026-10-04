@@ -305,7 +305,7 @@ function FormLeaf({
 }): ReactElement {
   if (node.kind === "textField") {
     return (
-      <Field description={node.placeholder} label={node.label}>
+      <Field label={node.label}>
         <Input onValueChange={(next: string): void => setValue(node.name, next)} placeholder={node.placeholder} value={values[node.name] ?? ""} />
       </Field>
     );

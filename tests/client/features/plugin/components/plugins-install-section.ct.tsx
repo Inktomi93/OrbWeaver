@@ -1430,9 +1430,8 @@ test("a re-consent row's checkbox name is exactly its label, with no badge run-o
   await expect(notice.getByText("Not granted", { exact: true })).toHaveCount(1);
   // Both pills are still on the screen and still in the a11y tree as plain text; they are simply not a NAME.
   await expect(notice.getByText("New", { exact: true })).toHaveCount(1);
-  // `net.fetch` wears the same mark, so this counts 2 — the claim is that the pill still RENDERS, not that
-  // this row is the only risky one.
-  await expect(notice.getByText("Reaches further", { exact: true }).first()).toBeVisible();
+  // The newly-asked `worldinfo.write` (a write) and `net.fetch` (network) each wear the mark.
+  await expect(notice.getByText("Reaches further", { exact: true })).toHaveCount(2);
   // The visible label never repeats what the badge beside it already says.
   await expect(notice.getByText("(new in this update)", { exact: false })).toHaveCount(0);
 });

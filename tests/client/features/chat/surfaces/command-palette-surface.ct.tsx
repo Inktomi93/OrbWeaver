@@ -131,7 +131,7 @@ for (const label of ["Insights", "Labels", "Analytics"]) {
     await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
     const component = await mount(<CommandPaletteSurfaceStory corpus={true} />);
     await component.getByRole("combobox").fill(label);
-    await expect(component.getByRole("option").first()).toHaveText(`${label === "Analytics" ? "Insights" : label}Corpus`);
+    await expect(component.getByRole("option").first()).toHaveText(`${label === "Analytics" ? "Insights" : label} — Corpus`);
     await expect(component.getByRole("option").first()).toHaveAttribute("aria-selected", "true");
     await test.info().attach(`0314-palette-${label}`, { body: await component.screenshot(), contentType: "image/png" });
   });

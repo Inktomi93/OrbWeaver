@@ -31,11 +31,10 @@
 // security one — the belt is enforced server-side either way — but a bound a person cannot see is a bound
 // they cannot weigh.
 //
-// `risk` marks the capabilities that can leave the machine: the open internet (`net.fetch`,
-// `net.fetch_asset`) and an isolated frame that can send data out over channels no policy closes (`ui.frame`).
-// Its pill ("Reaches further") is an alarm, so it is reserved for that class; spend carries its own "Costs
-// money" mark, and every other capability is described by its consequence line alone. A capability that
-// rewrites or stores state inside the person's own account does not wear it.
+// `risk` marks every capability that WRITES (room or personal state, your library, the tools the app runs
+// for you) or can send data out (the open internet, a frame's unclosed channels). Its pill ("Reaches
+// further") is the alarm for that class. Reads, spend (which has its own "Costs money" mark) and a pure
+// display pass such as `chat.transform` do not wear it.
 
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { PluginBuiltAgainst, PluginCapability, PluginGrantTask, PluginStatus } from "@orb/contracts/plugin";
@@ -49,8 +48,7 @@ export interface CapabilityCopy {
   readonly consequence: string;
   /** SPEND class: using it draws on your model/image budget. */
   readonly spends?: true;
-  /** RISK class: can send data out of the app (the open internet, or a frame's unclosed channels) — see
-   *  the file header for the line this draws. */
+  /** RISK class: writes state or can send data out of the app — see the file header for the line this draws. */
   readonly risk?: true;
 }
 
@@ -63,6 +61,7 @@ export const CAPABILITY_COPY_ROWS = [
   },
   {
     id: "chat.variables.write",
+    risk: true,
     label: "Change room variables",
     consequence: "Writes the counters and flags that rules and macros read. Only in rooms you host.",
   },
@@ -87,11 +86,13 @@ export const CAPABILITY_COPY_ROWS = [
   },
   {
     id: "worldinfo.write",
+    risk: true,
     label: "Write world book entries",
     consequence: "Adds and updates entries in world books already attached to the room, up to 64 entries.",
   },
   {
     id: "global_vars",
+    risk: true,
     label: "Use your global variables",
     consequence: "Reads and writes your personal global-variable namespace — yours only, never another person's.",
   },
@@ -166,6 +167,7 @@ export const CAPABILITY_COPY_ROWS = [
   {
     // U8 seam 15. NOT `spends`: it touches no paid model/image budget — only the box's own local indexing compute.
     id: "databank.ingest",
+    risk: true,
     label: "Add documents to your Data Bank",
     consequence: "Saves text documents into your own Data Bank and indexes them for search — your library only, never another person's.",
   },
@@ -173,6 +175,7 @@ export const CAPABILITY_COPY_ROWS = [
     // U8 seam 17 — the `databank.ingest` sibling, same consent grammar and the same not-`spends`
     // classification (a canon write into your own character library, no paid budget).
     id: "character.ingest",
+    risk: true,
     label: "Add characters to your library",
     consequence: "Imports character cards into your own character library — your library only, never another person's.",
   },
@@ -182,9 +185,10 @@ export const CAPABILITY_COPY_ROWS = [
     // consequence names the two walls a person should be able to see: it is namespaced to the plugin (never
     // another plugin's data) and inert (it does not change what the character says or does).
     id: "character.card_state",
+    risk: true,
     label: "Store its own data on your characters",
     consequence:
-      "Saves and reads its own private data on your character cards — its own data only, never another plugin's — and it never changes what the character says.",
+      "Saves and reads its own private data on your character cards — its own data only, never another plugin's — and it never changes what the character says. That data leaves with the card when you export it.",
   },
   {
     id: "events.subscribe",
@@ -200,6 +204,7 @@ export const CAPABILITY_COPY_ROWS = [
   },
   {
     id: "tools.register",
+    risk: true,
     label: "Add tools",
     consequence: "Registers tools a character or a rule can call. They run with your permissions, never more.",
   },

@@ -760,7 +760,7 @@ test("each auto-disabled plugin gets its own notice naming it, with a door to th
   await expect(rows.filter({ hasText: "Affinity Tracker" })).toHaveCount(1);
   await expect(rows.filter({ hasText: "Draft Polish" })).toHaveCount(1);
 
-  await page.getByRole("button", { name: "Open Draft Polish in Plugins" }).click();
+  await page.getByRole("button", { name: "Open Plugins — Draft Polish" }).click();
   await expect(destination).toHaveText("config/plugins");
 });
 

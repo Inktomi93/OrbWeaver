@@ -226,7 +226,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
           </Button>
         ) : null}
         {disabledPluginName === undefined ? null : (
-          <Button aria-label={`Open ${disabledPluginName} in Plugins`} type="button" disabled={isPending} intent="secondary" size="sm" onClick={onOpenPlugins}>
+          <Button aria-label={`Open Plugins — ${disabledPluginName}`} type="button" disabled={isPending} intent="secondary" size="sm" onClick={onOpenPlugins}>
             Open Plugins
           </Button>
         )}

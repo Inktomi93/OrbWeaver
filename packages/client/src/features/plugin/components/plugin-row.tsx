@@ -218,13 +218,21 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                     }}
                     label={`More actions for ${plugin.name}`}
                   >
-                    <MenuItem onClick={open}>Install a bundle from a file…</MenuItem>
+                    <MenuItem disabled={upgrade.isPending} onClick={open}>
+                      Install a bundle from a file…
+                    </MenuItem>
                   </RowActionsMenu>
                 )}
               </FileTrigger>
             </Row>
           </Row>
         </Stack>
+
+        {upgrade.isPending ? (
+          <Text prose={true} role="status" voice="gloss">
+            Installing the new bundle…
+          </Text>
+        ) : null}
 
         {uploadError === null ? null : (
           <Text className="text-destructive" prose={true} role="alert">
@@ -235,7 +243,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
         {/* U8 2b — the auto update-check + one-click upgrade, mounted only when the SERVER says something can
           serve a newer version for this row (`updateSource`, #1740): a remembered `url` source, or the showcase
           copy this build ships for a SEEDED example. A hand-uploaded plugin is neither and keeps only the manual
-          "Update" bundle upload above. The gate is the server's field and not `origin` on purpose — a seeded
+          bundle upload in the ⋯ menu above. The gate is the server's field and not `origin` on purpose — a seeded
           example arrives as an `upload` and is indistinguishable from a hand upload by origin alone, and the
           shipped slug set is not something this surface may re-spell. The one-click rides the SAME server
           upgrade verb either way, so a reach-widening update lands `disabled` and the ReConsentNotice below
@@ -317,6 +325,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 // can reach" is a false claim for a paranoid owner who declined `net.fetch` itself: the plugin
                 // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
                 <PluginGrantList
+                  roleScope={{ kind: "plugin", pluginId: plugin.id }}
                   capabilitiesLabel={`What it's allowed to do — ${plugin.name}`}
                   declared={plugin.declaredCapabilities}
                   granted={plugin.grantedCapabilities}

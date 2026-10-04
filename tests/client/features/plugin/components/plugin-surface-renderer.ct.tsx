@@ -686,3 +686,22 @@ test("hub v1.3: a LIVE toggle (`actionId`) fires its action on flip with the fre
     .poll(() => recorder.lastInput("plugin.invokeUiAction"))
     .toEqual({ pluginId: AFFINITY_ID, surfaceId: "atlas", actionId: "search", values: { sfw: "true" } });
 });
+
+test("a text field's hint is drawn once, as its placeholder", async ({ mount, page }) => {
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
+    kind: "stack",
+    children: [{ kind: "textField", name: "tags", label: "Tags", placeholder: "comma, separated" }],
+  };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Affinity Tracker")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "affinity_summary", spec)],
+    "plugin.getSurfaceState": () => null,
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+
+  await expect(page.getByPlaceholder("comma, separated")).toBeVisible();
+  await expect(page.getByText("comma, separated", { exact: true })).toHaveCount(0);
+});
