@@ -81,6 +81,7 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
       ownerId: host,
       characterIds: [charId],
       personaIds: [personaId],
+      memberPersonaLore: true,
     });
     const contents = pool.map((e) => e.content).sort();
     expect(contents).toEqual(["char lore", "chat lore", "global lore", "persona lore"]);
@@ -120,6 +121,7 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
       ownerId: host,
       characterIds: [charId],
       personaIds: [],
+      memberPersonaLore: true,
     });
     expect(pool.filter((e) => e.content === "shared lore")).toHaveLength(1);
   });
@@ -132,6 +134,7 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
       ownerId: host,
       characterIds: [],
       personaIds: [],
+      memberPersonaLore: true,
     });
     expect(pool).toEqual([]);
   });
@@ -153,7 +156,7 @@ describe("loadWorldInfoPool — the attachment arms are owner-belted at the DB b
     const foreignBook = await seedBook(other, "foreignchar", { content: "foreign character lore" });
     await db.insert(characterBooks).values({ characterId: charId, worldBookId: foreignBook, role: "auxiliary", createdAt: FROZEN_AT });
 
-    const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [charId], personaIds: [] });
+    const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [charId], personaIds: [], memberPersonaLore: true });
 
     expect(pool.map((e) => e.content)).not.toContain("foreign character lore");
     expect(pool).toEqual([]);
@@ -168,7 +171,7 @@ describe("loadWorldInfoPool — the attachment arms are owner-belted at the DB b
     const foreignBook = await seedBook(other, "foreignpers", { content: "foreign persona lore" });
     await db.insert(personaBooks).values({ personaId, worldBookId: foreignBook, createdAt: FROZEN_AT });
 
-    const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [], personaIds: [personaId] });
+    const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [], personaIds: [personaId], memberPersonaLore: true });
 
     expect(pool.map((e) => e.content)).not.toContain("foreign persona lore");
     expect(pool).toEqual([]);
@@ -185,8 +188,24 @@ describe("loadWorldInfoPool — the attachment arms are owner-belted at the DB b
     const memberBook = await seedBook(member, "memberpers", { content: "member persona lore" });
     await db.insert(personaBooks).values({ personaId, worldBookId: memberBook, createdAt: FROZEN_AT });
 
-    const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [], personaIds: [personaId] });
+    const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [], personaIds: [personaId], memberPersonaLore: true });
 
     expect(pool.map((e) => e.content)).toEqual(["member persona lore"]);
+  });
+
+  test("with the host's member-persona-lore switch OFF, only the host's own persona book enters the pool", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "a");
+    const hostPersona = await seedPersona(host, "hostnyx");
+    const memberPersona = await seedPersona(member, "membernyx");
+    const hostBook = await seedBook(host, "hostpers", { content: "host persona lore" });
+    const memberBook = await seedBook(member, "memberpers", { content: "member persona lore" });
+    await db.insert(personaBooks).values({ personaId: hostPersona, worldBookId: hostBook, createdAt: FROZEN_AT });
+    await db.insert(personaBooks).values({ personaId: memberPersona, worldBookId: memberBook, createdAt: FROZEN_AT });
+
+    const pool = await loadWorldInfoPool(db, { chatId, ownerId: host, characterIds: [], personaIds: [hostPersona, memberPersona], memberPersonaLore: false });
+
+    expect(pool.map((e) => e.content)).toEqual(["host persona lore"]);
   });
 });

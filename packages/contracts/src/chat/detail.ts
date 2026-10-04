@@ -93,6 +93,10 @@ export interface ChatDetail {
    *  (`ChatReactionsView.reactionsEnabled`) — the read the pills and picker doors already consume. WRITE:
    *  `chat.setReactionsEnabled` (host-gated). */
   readonly reactionsEnabled: boolean | null;
+  /** Whether members' persona-attached world-info books join this room's prompt (`metadata.memberPersonaLore`,
+   *  absent ⇒ `true`). WRITE: `chat.setMemberPersonaLore` (host-gated). Room-public — a member may see
+   *  why their persona's lore is not reaching the story. */
+  readonly memberPersonaLore: boolean;
   /** BG-C — the host-set per-chat carried BACKGROUND source (parsed `metadata.background`), or `null` when
    *  unset. Applied at the app-root background layer in a TRUE-SOLO room, above the card-carried twin; INERT
    *  for every viewer in any other composition (client-resolved). */
@@ -147,6 +151,7 @@ export const chatDetailSchema = z.strictObject({
   offerChoices: z.boolean().nullable(),
   charactersCanReact: z.boolean().nullable(),
   reactionsEnabled: z.boolean().nullable(),
+  memberPersonaLore: z.boolean(),
   // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.
   background: themeBackgroundSchema.nullable(),
   // Lenient on purpose: strips and heals a stale stored blob so it cannot fail a committed join; no secrets here.

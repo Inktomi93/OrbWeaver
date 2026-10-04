@@ -25,6 +25,7 @@ const CHAT_DETAIL = {
   viewerIsHost: true,
   toolRecurseLimit: 7,
   hostDisplayScripts: false,
+  memberPersonaLore: true,
   roomOverrides: {},
   participants: [],
 } satisfies TrpcFixtureOutput<"chat.getChat">;
@@ -294,6 +295,7 @@ test("committed host + group: the Group-behavior section shows a skeleton (never
 
 test("committed non-host: Group behavior is ABSENT, Field overrides persists (read-only)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "worldInfo.listForChat": () => ROOM_BOOKS,
@@ -377,6 +379,7 @@ test("⑦ host: editing the cap fires chat.setToolRecurseLimit with the new limi
 
 test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member sees no control)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "worldInfo.listForChat": () => ROOM_BOOKS,
@@ -487,6 +490,7 @@ test("host: toggling the switch fires chat.setHostDisplayScripts with the new st
 
 test("member: the display-scripts switch is ABSENT (host-only omit — a member sees no control)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "worldInfo.listForChat": () => ROOM_BOOKS,
@@ -558,6 +562,7 @@ test("host: toggling the offer-choices switch fires chat.setOfferChoices with th
 
 test("member: the offer-choices switch is ABSENT (host-only omit — this key steers the room's model)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "worldInfo.listForChat": () => ROOM_BOOKS,
@@ -573,6 +578,82 @@ test("member: the offer-choices switch is ABSENT (host-only omit — this key st
   await expect(component.getByText("Ashfall Canon")).toBeVisible();
   await expect(component.getByRole("switch", OFFER_CHOICES_SWITCH)).toHaveCount(0);
 });
+
+// The host's member-persona-lore switch (Storytelling, host band): seated from `ChatDetail.memberPersonaLore`,
+// writes `chat.setMemberPersonaLore`, and is omitted for a member like every prompt-steering knob here.
+const UPDATE_MEMBER_PERSONA_LORE = "chat.setMemberPersonaLore";
+const MEMBER_PERSONA_LORE_SWITCH = { name: "Members' persona lore" } as const;
+
+function stubMemberPersonaLore(page: Page, memberPersonaLore: boolean): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
+    "chat.getChat": () => ({ ...CHAT_DETAIL, memberPersonaLore }),
+    [UPDATE_MEMBER_PERSONA_LORE]: () => memberPersonaLore,
+  });
+}
+
+for (const seated of [true, false] as const) {
+  test(`host: the member-persona-lore switch seats ${seated ? "ON" : "OFF"} from the room`, async ({ mount, page }) => {
+    await stubMemberPersonaLore(page, seated);
+    const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+    await openContextSections(component, HOST_BAND);
+    const control = component.getByRole("switch", MEMBER_PERSONA_LORE_SWITCH);
+    await expect(control).toBeVisible();
+    await expect(control).toHaveAttribute("aria-checked", String(seated));
+  });
+}
+
+test("host: turning member persona lore off fires chat.setMemberPersonaLore with false", async ({ mount, page }) => {
+  const trpc = await stubMemberPersonaLore(page, true);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND);
+  await component.getByRole("switch", MEMBER_PERSONA_LORE_SWITCH).click();
+  await expect.poll(() => (trpc.lastInput(UPDATE_MEMBER_PERSONA_LORE) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(false);
+});
+
+test("member: the member-persona-lore switch is ABSENT (host-only omit)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.getChat": () => CHAT_DETAIL,
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+  await openContextSections(component, "World books");
+  await expect(component.getByText("Ashfall Canon")).toBeVisible();
+  await expect(component.getByRole("switch", MEMBER_PERSONA_LORE_SWITCH)).toHaveCount(0);
+});
+
+// The member-side notice under World books: present only for a member in a room whose host turned the switch off.
+const MEMBER_PERSONA_LORE_NOTICE = '[data-slot="member-persona-lore-off"]';
+
+for (const arm of [
+  { isHost: false, memberPersonaLore: false, shown: 1, label: "member, switch off ⇒ the notice shows" },
+  { isHost: false, memberPersonaLore: true, shown: 0, label: "member, switch on ⇒ no notice" },
+  { isHost: true, memberPersonaLore: false, shown: 0, label: "host, switch off ⇒ no notice (the host has the switch)" },
+] as const) {
+  test(`member-persona-lore notice — ${arm.label}`, async ({ mount, page }) => {
+    await stubMemberPersonaLore(page, arm.memberPersonaLore);
+    const component = await mount(<CommittedSettingsTabStory isHost={arm.isHost} showGroup={arm.isHost} />);
+    await openContextSections(component, "World books");
+    // Barrier on the settled World books rows, then on the getChat read the notice keys off.
+    await expect(component.getByText("Ashfall Canon")).toBeVisible();
+    await expect(component.locator(MEMBER_PERSONA_LORE_NOTICE)).toHaveCount(arm.shown);
+  });
+}
 
 // B7 — the two reaction switches (the Reactions section of the host band): the plane's master
 // (`reactionsEnabled`, per-user default ON) + the react-tool opt-in (`charactersCanReact`, per-user
@@ -659,6 +740,7 @@ test("host: each reaction switch fires ITS OWN verb with the new state", async (
 
 test("member: NEITHER reaction switch exists (host-only omit — one gates their writes, one the room's prompt)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "worldInfo.listForChat": () => ROOM_BOOKS,
@@ -883,6 +965,7 @@ test("BG-C: a room with NO carried background gets no provenance gloss (never an
 
 test("D-1: a member's tab has no Host controls group at all (PERMISSION-omit, never an empty group)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "worldInfo.listForChat": () => ROOM_BOOKS,
@@ -930,6 +1013,7 @@ test("D-4: the Documents section renders directly after Injections, for a host A
 
 test("D-4: a MEMBER gets the Documents section too (member-readable), with no add affordance", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "worldInfo.listForChat": () => ROOM_BOOKS,
@@ -1031,6 +1115,7 @@ test("#640 host: the row's overflow menu detaches THIS book from THIS room", asy
 
 test("#640 member: the rows are visible, and there is NO attach and NO detach (permission-OMIT, not disabled)", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "worldInfo.listForChat": () => ROOM_BOOKS,
@@ -1355,6 +1440,7 @@ test("#830: the trigger IS the kicker — a real button, named by the kicker tex
 
 test("#830 member: the permission-OMIT layout is unchanged — five doors, and no host band", async ({ mount, page }) => {
   await routeTrpc(page, {
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.setRoomOverrides": () => ({}),
     "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "worldInfo.listForChat": () => ROOM_BOOKS,

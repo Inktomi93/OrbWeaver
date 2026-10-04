@@ -272,6 +272,9 @@ export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
 export const variantMetadataSchema = z.object({
   [VARIANT_METADATA_REASONING_MS_KEY]: z.number().optional(),
   [VARIANT_METADATA_TOKEN_COUNT_KEY]: z.number().optional(),
+  /** The estimated cost of the system prompt the generating turn sent (agent-sdk turns only). The next turn's
+   *  pre-turn managed-compaction check prices it before its own prompt is assembled. */
+  systemTokens: z.number().optional(),
   providerMetadata: variantProviderMetadataSchema.optional(),
   contentSignatures: contentSignaturesSchema.optional(),
   importResidue: jsonValueSchema.optional(),

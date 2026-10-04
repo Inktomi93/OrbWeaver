@@ -100,6 +100,7 @@ import {
   loadInlineReplyAssetIds,
   loadMaxMessageSeq,
   loadMessageView,
+  loadRecordedSystemTokens,
   loadSlotTarget,
   loadVariableDeltas,
 } from "../persistence/queries.ts";
@@ -262,6 +263,7 @@ function liveVariantMetadata(result: Awaited<ReturnType<typeof runTurnPipeline>>
   const images = [...(result.imageSignatures ?? [])];
   const sidecar: VariantMetadata = {
     ...(result.reasoningMs === null ? {} : { [VARIANT_METADATA_REASONING_MS_KEY]: result.reasoningMs }),
+    ...(result.systemTokens === null ? {} : { systemTokens: result.systemTokens }),
     ...(text.length === 0 && images.length === 0 ? {} : { contentSignatures: { content: result.content, text, images } }),
     ...(providerMetadata === null || providerMetadata === undefined ? {} : { providerMetadata }),
   };
@@ -954,22 +956,23 @@ function resolveCoveragePoint(
 
 /** The context the next dispatch would carry, priced as the turn's fit prices it, against the fit's ceiling — what
  *  the pre-turn compaction trigger reads. `used` = the prompt-eligible rows above the current coverage plus the
- *  output reserve. The system prompt is not assembled yet and no per-chat figure is recorded, so it counts as zero:
- *  this trigger fires later than the post-turn one by the system prompt's cost. `null` ⇒ no window or soft cap
- *  bounds the context. */
+ *  output reserve plus the system prompt. This turn's prompt is not assembled yet, so the system prompt is priced at
+ *  what the newest reply's turn recorded (0 before any turn recorded one). `null` ⇒ no window or soft cap bounds the
+ *  context. */
 function preTurnFitUsage(args: {
   readonly connection: Resolved<"chat">;
   readonly maxContextTokens: number | undefined;
   readonly maxOutputTokens: number | undefined;
   readonly canonAll: readonly MessageView[];
   readonly currentCoverage: number;
+  readonly systemTokens: number;
 }): { readonly used: number; readonly ceiling: number } | null {
   const generation = generationOf(args.connection);
   const budget = buildHistoryBudget({
     windowTokens: generation.context.window,
     maxContextTokens: args.maxContextTokens,
     maxOutputTokens: args.maxOutputTokens,
-    systemTokens: 0,
+    systemTokens: args.systemTokens,
     outputCeiling: generation.output.maxTokens.max,
   });
   const ceiling = fitCeiling(budget);
@@ -977,7 +980,7 @@ function preTurnFitUsage(args: {
     return null;
   }
   const eligible = args.canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > args.currentCoverage);
-  return { used: eligible.reduce((sum, m) => sum + historyTurnTokens(m), 0) + budget.reserveOutputTokens, ceiling };
+  return { used: eligible.reduce((sum, m) => sum + historyTurnTokens(m), 0) + args.systemTokens + budget.reserveOutputTokens, ceiling };
 }
 
 /** The PRE-TURN managed-compaction decision (the wedge-state fix): estimate the CUMULATIVE prompt-eligible token
@@ -993,6 +996,7 @@ function preTurnCoveragePoint(args: {
   readonly maxOutputTokens: number | undefined;
   readonly canonAll: readonly MessageView[];
   readonly currentCoverage: number;
+  readonly systemTokens: number;
 }): number | undefined {
   const pct = args.compaction.thresholdPct ?? MANAGED_COMPACT_DEFAULT_PCT;
   const usage = preTurnFitUsage(args);
@@ -1053,7 +1057,15 @@ async function preTurnCompactionPlan(
   const currentCoverage = chat?.compactedAtSeq ?? 0;
   const coveragePoint =
     compaction.mode === "managed" && prep.connection.api === "agent-sdk"
-      ? preTurnCoveragePoint({ compaction, connection: prep.connection, maxContextTokens, maxOutputTokens, canonAll, currentCoverage })
+      ? preTurnCoveragePoint({
+          compaction,
+          connection: prep.connection,
+          maxContextTokens,
+          maxOutputTokens,
+          canonAll,
+          currentCoverage,
+          systemTokens: await loadRecordedSystemTokens(ctx.db, prep.chatId),
+        })
       : undefined;
   return { coveragePoint, currentCoverage, instructions: compaction.instructions ?? DEFAULT_COMPACT_INSTRUCTIONS };
 }

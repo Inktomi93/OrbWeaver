@@ -85,6 +85,7 @@ export function toChatDetail({ chat, participants, identities, viewerUserId, vie
     // B7 — the same tri-state shape as offerChoices (absent = inherit the host's per-user default).
     charactersCanReact: chat.metadata.charactersCanReact ?? null,
     reactionsEnabled: chat.metadata.reactionsEnabled ?? null,
+    memberPersonaLore: chat.metadata.memberPersonaLore !== false,
     background: chat.metadata.background ?? null,
     rpg: chat.metadata.rpg ?? null,
     opening: chat.metadata.opening ?? null,

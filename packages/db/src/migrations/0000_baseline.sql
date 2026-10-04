@@ -480,6 +480,7 @@ CREATE TABLE `pending_turns` (
 	`chat_id` text NOT NULL,
 	`triggered_by` text NOT NULL,
 	`run_as_user_id` text NOT NULL,
+	`time_zone` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`triggered_by`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,

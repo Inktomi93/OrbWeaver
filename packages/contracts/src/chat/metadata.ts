@@ -387,6 +387,11 @@ export interface ChatMetadata {
    *  dropping after would let a switched-off tier swallow a script that another tier still runs). Schema is
    *  `regexTierAllowSchema` — the `databankVisibility` id-keyed sub-blob precedent. */
   regexTiers?: RegexTierAllow;
+  /** Whether the world-info books attached to a MEMBER's persona join this room's shared prompt. Absent ⇒
+   *  ON (member lore joins). `false` keeps every persona book not owned by the host out of the pool
+   *  (`assembly/world-info/pool.ts`); the host's own persona books and every other scope are untouched.
+   *  Host-set (`chat.setMemberPersonaLore`); room-public on the read. */
+  memberPersonaLore?: boolean;
 }
 
 /** THE PRECEDENCE, one home: **the room's explicit choice wins; an absent room value inherits the host's

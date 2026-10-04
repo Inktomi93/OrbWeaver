@@ -657,6 +657,12 @@ export interface SetReactionsEnabledParams extends ChatScopedParams {
   readonly enabled: boolean;
 }
 
+/** `setMemberPersonaLore` — host-only write of `chatMetadata.memberPersonaLore`: whether members'
+ *  persona-attached world-info books join the shared prompt. Prompt content for everyone, so host authority. */
+export interface SetMemberPersonaLoreParams extends ChatScopedParams {
+  readonly enabled: boolean;
+}
+
 /** `setToolRecurseLimit` — host-only write of the per-chat tool-call recursion cap
  *  (`chatMetadata.toolRecurseLimit`, 1..20). Bounds how many times a turn may re-enter the engine on a
  *  `finishReason:"tool"` before it stops. */

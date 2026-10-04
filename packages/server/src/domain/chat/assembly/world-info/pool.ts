@@ -52,6 +52,8 @@ interface WorldInfoPoolTarget {
   readonly characterIds: readonly CharacterId[];
   /** The present members' seat personas (`memberPersonaIdsOf`). Empty ⇒ no persona-scope books. */
   readonly personaIds: readonly PersonaId[];
+  /** The host's room switch (`ChatMetadata.memberPersonaLore`). False ⇒ only the host's own persona books join. */
+  readonly memberPersonaLore: boolean;
 }
 
 /** One book-expansion row — the uniform shape across all four scopes (the shared SELECT projection). */
@@ -152,7 +154,14 @@ export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Pr
           .innerJoin(worldEntries, eq(personaBooks.worldBookId, worldEntries.worldBookId))
           .innerJoin(worldBooks, eq(worldBooks.id, personaBooks.worldBookId))
           .innerJoin(personas, eq(personas.id, personaBooks.personaId))
-          .where(and(inArray(personaBooks.personaId, personaIds), eq(worldBooks.ownerId, personas.ownerId), eq(worldEntries.enabled, true))),
+          .where(
+            and(
+              inArray(personaBooks.personaId, personaIds),
+              eq(worldBooks.ownerId, personas.ownerId),
+              eq(worldEntries.enabled, true),
+              target.memberPersonaLore ? undefined : eq(personas.ownerId, target.ownerId),
+            ),
+          ),
   ]);
 
   const chat = { source: "chat" } as const;

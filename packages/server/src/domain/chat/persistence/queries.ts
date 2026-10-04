@@ -687,6 +687,19 @@ export async function loadInlineReplyAssetIds(db: Db, chatId: ChatId): Promise<R
   return out;
 }
 
+/** The system-prompt cost the newest reply's turn recorded (`VariantMetadata.systemTokens`), or 0 when it recorded
+ *  none — the pre-turn managed-compaction check prices it before this turn's prompt is assembled. */
+export async function loadRecordedSystemTokens(db: Db, chatId: ChatId): Promise<number> {
+  const [row] = await db
+    .select({ metadata: messageVariants.metadata })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "assistant")))
+    .orderBy(desc(messages.seq))
+    .limit(1);
+  return parseVariantMetadata(row?.metadata).systemTokens ?? 0;
+}
+
 /** Selected-variant replay provenance stays behind the host's generation path, outside MessageView. */
 export async function loadCanonContentSignatures(db: Db, chatId: ChatId): Promise<ReadonlyMap<MessageId, ContentSignatures>> {
   const rows = await db
