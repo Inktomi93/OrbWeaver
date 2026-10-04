@@ -22,11 +22,14 @@ import { Popover, PopoverPopup, PopoverTitle, PopoverTrigger } from "@orb/ui/pop
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { CHIP_TOUCH_WIDTH_FLOOR_AT_COARSE } from "#components";
-import { useTRPC } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import type { RecallState } from "#state";
 import { useRecallState } from "#state";
+import { useSetMemoryEnabled, useStartMemoryBackfill } from "../hooks/use-memory-mutations.ts";
+import { MemoryOnConfirm } from "./memory-on-confirm.tsx";
 import { MemoryRecallDetail } from "./memory-recall-detail.tsx";
 
 export interface ChatRecallIndicatorProps {
@@ -61,9 +64,47 @@ function iconClass(recall: RecallState | null): string {
   return recall === null ? "opacity-60" : "";
 }
 
+/** Whether Memory is off for the host's account, and how to open the turn-on confirm. A member's chip carries none. */
+interface MemoryDoor {
+  readonly off: boolean;
+  readonly onTurnOn: () => void;
+}
+
+const NO_MEMORY_DOOR: MemoryDoor = { off: false, onTurnOn: (): void => undefined };
+
 /** The stable topbar memory slot — the brain glyph, its state carried in the accessible name + (when recalled)
  *  a count digit, click-opening the recall popover. Always rendered (a stable slot beside the members chip). */
-export function ChatRecallIndicator({ chatId, viewerIsHost, wordy = false }: ChatRecallIndicatorProps): ReactElement {
+export function ChatRecallIndicator(props: ChatRecallIndicatorProps): ReactElement {
+  return props.viewerIsHost ? <HostRecallIndicator {...props} /> : <RecallIndicatorBody {...props} memory={NO_MEMORY_DOOR} />;
+}
+
+/** The host's chip: Memory is one switch on the account and only the host's account feeds the room, so only the
+ *  host is offered it. The confirm lives here, outside the popover, so closing the popover cannot unmount it. */
+function HostRecallIndicator(props: ChatRecallIndicatorProps): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const setEnabled = useSetMemoryEnabled({ trpc, invalidation });
+  const startBackfill = useStartMemoryBackfill({ trpc, invalidation });
+  const [confirmingOn, setConfirmingOn] = useState(false);
+  const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
+  return (
+    <>
+      <RecallIndicatorBody {...props} memory={{ off: settings?.config.memory.enabled === false, onTurnOn: (): void => setConfirmingOn(true) }} />
+      <MemoryOnConfirm
+        open={confirmingOn}
+        onOpenChange={setConfirmingOn}
+        onConfirm={async (buildExisting): Promise<void> => {
+          await setEnabled.mutateAsync({ section: "memory", patch: { enabled: true } });
+          if (buildExisting) {
+            await startBackfill.mutateAsync({ input: { kind: "memory-backfill", params: {} }, mode: "singular" });
+          }
+        }}
+      />
+    </>
+  );
+}
+
+function RecallIndicatorBody({ chatId, viewerIsHost, wordy = false, memory }: ChatRecallIndicatorProps & { readonly memory: MemoryDoor }): ReactElement {
   const recall = useRecallState(chatId);
   const count = recall?.phase === "recalled" ? recall.count : null;
   const phase: RecallState["phase"] | "idle" = recall === null ? "idle" : recall.phase;
@@ -127,11 +168,23 @@ export function ChatRecallIndicator({ chatId, viewerIsHost, wordy = false }: Cha
       <PopoverPopup side="bottom" align="end">
         <Stack gap="block" className="min-w-56">
           <PopoverTitle>Memory recall</PopoverTitle>
-          <RecallSummary recall={recall} />
+          {memory.off ? <MemoryOffSummary onTurnOn={memory.onTurnOn} /> : <RecallSummary recall={recall} />}
           {viewerIsHost && recall !== null ? <RecallHostDetail chatId={chatId} /> : null}
         </Stack>
       </PopoverPopup>
     </Popover>
+  );
+}
+
+/** Memory off: say so, and offer the switch behind the same cost confirm Settings uses. */
+function MemoryOffSummary({ onTurnOn }: { readonly onTurnOn: () => void }): ReactElement {
+  return (
+    <Stack gap="field">
+      <Text voice="gloss">Chat memory is off.</Text>
+      <Button className="self-start" intent="secondary" onClick={onTurnOn} size="sm" type="button">
+        Turn on
+      </Button>
+    </Stack>
   );
 }
 

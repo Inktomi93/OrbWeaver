@@ -676,6 +676,37 @@ test("list: the Bulk badge is a NEUTRAL category chip, never a warning beside a 
   expect(bulkColor).toBe(neutral);
 });
 
+// THE ROW IS ONE BLOCK: a result sentence sits under the title at the title's own inset (it was a loose line
+// outside the row), a success is the quiet outline rather than a filled pill, and an owner reading a job that
+// is not theirs sees whose it is even when that account's handle did not resolve.
+test("list: a success is quiet, its result sits inside the row, and a foreign job names its owner", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    ...PAID_RUN_ROUTES,
+    "workloads.list": () => [
+      workloadRow({ status: "succeeded", ownerId: "user_ct_root", result: { embedded: 12, skipped: 0 } }),
+      workloadRow({ id: "workload_ct_2", status: "succeeded", ownerId: "user_ct_gone", result: { embedded: 3, skipped: 0 } }),
+    ],
+    "sessions.me": () => OWNER_VIEWER,
+    "admin.listUsers": () => ADMIN_USERS,
+  });
+  await routeWorkloadStream(page, []);
+  await mount(<WorkloadsJobsSectionStory />);
+
+  const rows = page.locator('[data-slot="workload-row"]');
+  await expect(rows).toHaveCount(2);
+  const own = rows.nth(0);
+  // The result is part of the row's own block, not a sibling line outside its inset.
+  await expect(own.locator('[data-slot="list-row-root"]')).toContainText("12 embedded");
+  // The success badge paints no fill — a green pill on every healthy row is the loudest thing in the list.
+  await expect
+    .poll(() => own.locator('[data-slot="workload-status"] [data-slot="badge"]').evaluate((el: HTMLElement): string => getComputedStyle(el).backgroundColor))
+    .toBe("rgba(0, 0, 0, 0)");
+  // A job whose owner the user list cannot name still reads as someone else's.
+  await expect(rows.nth(1)).toContainText("for another user");
+  await expect(own).not.toContainText("for ");
+});
+
 // A row whose stored params no longer parse used to VANISH from this list. It is now visibly broken here.
 test("list: a POISON row is visible, flagged, and retryable", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

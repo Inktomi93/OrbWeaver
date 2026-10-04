@@ -48,6 +48,7 @@ function pluginRow(id: PluginId, slug: string, name: string, lifecycle: Partial<
     reconsentPending: false,
     widenedNetHosts: [],
     builtAgainst: null,
+    description: "A fixture plugin.",
     lastError: null,
     installedAt: A_PAST_INSTANT,
     updatedAt: A_PAST_INSTANT,
@@ -249,8 +250,8 @@ test.describe("the teaching empty names WHICH emptiness", () => {
 
     await component.getByRole("button", { name: "Scene Chips", exact: true }).click();
 
-    await expect(content.getByRole("button", { name: /Approve all for Scene Chips/u })).toBeVisible();
-    await expect(content.getByRole("button", { name: /Approve all/u })).toHaveCount(1);
+    await expect(content.getByRole("button", { name: /Approve for Scene Chips/u })).toBeVisible();
+    await expect(content.getByRole("button", { name: /Approve/u })).toHaveCount(1);
     await expect(content.getByRole("button", { name: /Oracle Deck/u })).toHaveCount(0);
   });
 
@@ -273,7 +274,7 @@ test.describe("the teaching empty names WHICH emptiness", () => {
     const content = component.getByTestId("ct-extensions-content");
 
     await component.getByRole("button", { name: "Scene Chips", exact: true }).click();
-    await content.getByRole("button", { name: /Approve all for Scene Chips/u }).click();
+    await content.getByRole("button", { name: /Approve for Scene Chips/u }).click();
 
     // SETTLED: the picked plugin leaves the waiting group once the server says it is approved and on.
     await expect(component.getByRole("button", { name: "Scene Chips", exact: true })).toHaveCount(0);
@@ -283,6 +284,47 @@ test.describe("the teaching empty names WHICH emptiness", () => {
     ]);
   });
 
+  test("approving a plugin that brings a page selects and opens that page", async ({ mount, page }) => {
+    let approved = false;
+    await routeTrpc(page, {
+      "plugin.list": () => [
+        approved ? pluginRow(CHIPS_ID, "scene-chips", "Scene Chips") : pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", SEEDED_AWAITING_CONSENT),
+      ],
+      "plugin.listSurfaces": () => (approved ? [pageRow(CHIPS_ID, "chips_page", "Chips", CHIPS_SPEC)] : []),
+      "plugin.getLog": () => [],
+      "plugin.getSurfaceState": () => ({}),
+      "plugin.setGrant": () => {
+        approved = true;
+        return pluginRow(CHIPS_ID, "scene-chips", "Scene Chips");
+      },
+    });
+    const component = await mount(<ExtensionsSectionStory />);
+    const content = component.getByTestId("ct-extensions-content");
+
+    await component.getByRole("button", { name: "Scene Chips", exact: true }).click();
+    await content.getByRole("button", { name: /Approve for Scene Chips/u }).click();
+
+    // The pane leaves the review for the page the plugin just added, and the list row is the selected one.
+    await expect(content.getByText("Scene chips live here.")).toBeVisible();
+    await expect(page.getByTestId("plugin-page-attribution")).toContainText("Scene Chips");
+    await expect(component.locator('[aria-current="true"]')).toContainText("Scene Chips");
+  });
+
+  test("the waiting group lists plugins by name, whatever order the server sent them in", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      "plugin.list": () => [
+        pluginRow(CHIPS_ID, "zeta-chips", "Zeta Chips", SEEDED_AWAITING_CONSENT),
+        pluginRow(ORACLE_ID, "alpha-deck", "Alpha Deck", SEEDED_AWAITING_CONSENT),
+      ],
+      "plugin.listSurfaces": () => [],
+    });
+    const component = await mount(<ExtensionsSwitcherStory />);
+
+    const rows = component.getByRole("button", { name: /Alpha Deck|Zeta Chips/u });
+    await expect(rows).toHaveCount(2);
+    await expect(rows.first()).toHaveAccessibleName(/Alpha Deck/u);
+  });
+
   test("the waiting landing's one action opens the first waiting plugin's approval in place, inset", async ({ mount, page }) => {
     await routeTrpc(page, AWAITING_CONSENT);
     const component = await mount(<ExtensionsSectionStory />);
@@ -290,7 +332,7 @@ test.describe("the teaching empty names WHICH emptiness", () => {
 
     await content.getByRole("button", { name: "Review plugins" }).click();
 
-    const approve = content.getByRole("button", { name: /Approve all for Oracle Deck/u });
+    const approve = content.getByRole("button", { name: /Approve for Oracle Deck/u });
     await expect(approve).toBeVisible();
     // The standard content inset: the review card does not touch the CONTENT region's start edge.
     const regionBox = await content.boundingBox();

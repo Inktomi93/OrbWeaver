@@ -92,12 +92,17 @@ function WorkloadRowBody({
   if (ownerHandle !== null) {
     subtitleParts.push(`for ${ownerHandle}`);
   }
+  // The result rides the row's own subtitle so it sits under the title at the title's inset.
+  if (resultSummary !== null) {
+    subtitleParts.push(resultSummary);
+  }
 
   return (
     <Stack gap="field" data-slot="workload-row">
       <ListRow
         title={kindLabel}
         subtitle={subtitleParts.join(" · ")}
+        subtitleWrap={true}
         actions={
           <Row align="center" gap="row">
             {/* NEUTRAL, not warning (side-eye 2026-08-06 P3): `bulk` is the run's CATEGORY, not its health,
@@ -108,7 +113,10 @@ function WorkloadRowBody({
             {workload.poison ? <Badge intent="danger">Unreadable</Badge> : null}
             <QueueStateBadges deferred={deferred} waiting={waiting} />
             <Row aria-live="polite" data-slot="workload-status">
-              <Badge intent={depFailed ? "warning" : WORKLOAD_STATUS_INTENT[workload.status]}>{statusLabel}</Badge>
+              {/* A success is the expected state, so it takes the quiet outline while every other state keeps its fill. */}
+              <Badge intent={depFailed ? "warning" : WORKLOAD_STATUS_INTENT[workload.status]} tone={workload.status === "succeeded" ? "ghost" : "solid"}>
+                {statusLabel}
+              </Badge>
             </Row>
             {active ? (
               <Button type="button" intent="ghost" size="sm" aria-label={`Cancel — ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>
@@ -126,7 +134,6 @@ function WorkloadRowBody({
       <WorkloadProgressLine workload={workload} live={progress} processing={active && !deferred && !waiting} />
       <WorkloadWaitDetail workload={workload} deferred={deferred} waiting={waiting} />
       <WorkloadPoisonDetail workload={workload} />
-      {resultSummary === null ? null : <Text voice="gloss">{resultSummary}</Text>}
       <WorkloadFailureDetail workload={workload} />
 
       <ConfirmDialog

@@ -87,7 +87,7 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
     // AND IT SAYS ITS ONE FACT ONCE. It used to state the accepted formats THREE times in a 250px dialog
     // with one control — the description, the dropzone's instruction and the dropzone's hint. The
     // INSTRUCTION is the one a user acts on, so it carries the formats; the other two stand down.
-    <FormDialog dismissLabel="Cancel" onOpenChange={onOpenChange} open={open} title="Import a character card">
+    <FormDialog closeButton={true} dismissLabel="Cancel" onOpenChange={onOpenChange} open={open} title="Import a character card">
       <FileDropzone
         accept={CARD_ACCEPT}
         instructions="Drop a SillyTavern character card (PNG or JSON), or click to browse"

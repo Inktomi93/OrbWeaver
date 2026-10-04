@@ -13,41 +13,22 @@
 // the settings shell owns containment + focus-on-mount, so it is not itself a surface (extracted-fragment
 // precedent; client-structure + surface-a11y-focus therefore do not apply).
 
-import type { WorkloadRef } from "@orb/contracts/workloads";
 import { Button } from "@orb/ui/button";
 import { ExternalLink, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, SettingSwitchRow, UtilityModelDoor, useUtilityModel } from "#components";
-import type { Trpc } from "#data";
-import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { MEMORY_COST_SENTENCE } from "#lib";
 import type { SaveLifecycleState } from "#state";
 import { configAnchorId, openConfigTo } from "#state";
+import { useSetMemoryEnabled, useStartMemoryBackfill } from "../hooks/use-memory-mutations.ts";
 import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_SETTINGS_SUBCATEGORY } from "../lib/memory-settings-section-nav.ts";
 import { MemoryOnConfirm } from "./memory-on-confirm.tsx";
-
-interface MemoryPatchVars {
-  readonly section: "memory";
-  readonly patch: { readonly enabled: boolean };
-}
-const useSetMemoryEnabled = createEntityMutation<MemoryPatchVars, unknown>({
-  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
-  busDriven: true, // updateUserSettingsSection emits settingsChanged → USER_BUS covers getUserSettings.
-  errorToast: "Couldn't save your memory settings.",
-});
-
-/** The Memory backfill over the viewer's own chats, the opt-in the turn-on confirm offers. */
-const useStartMemoryBackfill = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, WorkloadRef>({
-  options: (trpc) => trpc.workloads.start.mutationOptions(),
-  invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
-  errorToast: "Memory is on, but the backfill over your existing chats didn't start. Run Memory backfill under Jobs.",
-});
 
 /** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
  *  its own save affordance still REPORTS, so the shell's aggregate footer + the nav marker see its failure. */

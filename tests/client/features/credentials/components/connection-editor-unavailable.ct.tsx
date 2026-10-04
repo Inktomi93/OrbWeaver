@@ -121,6 +121,7 @@ async function stubLifecycle(page: Page, options: LifecycleStubOptions = {}): Pr
     reconsentPending: pendingReconsent(),
     widenedNetHosts: [],
     builtAgainst: null,
+    description: "A fixture plugin.",
     lastError: pluginStatus === "errored" ? "relay boot failed" : null,
     installedAt: 0,
     updatedAt: 0,
@@ -249,7 +250,7 @@ test("a failed re-consent reactivation refreshes the warmed provider connection 
   await expect.poll(() => recorder.count("connection.capabilities")).toBe(1);
   await component.getByRole("button", { name: "Back to Connections" }).click();
 
-  await component.getByRole("button", { name: "Approve all" }).click();
+  await component.getByRole("button", { name: "Approve for", exact: false }).click();
   await expect(component.getByText("Stopped after an error", { exact: true })).toBeVisible();
   await expect(component.getByText("Provider unavailable", { exact: true })).toBeVisible();
   await expect.poll(() => recorder.count("connection.providersAvailable")).toBeGreaterThan(1);

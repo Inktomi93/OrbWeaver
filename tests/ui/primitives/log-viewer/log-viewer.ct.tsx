@@ -394,3 +394,35 @@ test("a clipboard rejection offers the visible lines selected for a manual copy"
   await expect(field).toHaveValue("alpha\nbeta");
   await expect(component.getByRole("status")).not.toBeEmpty();
 });
+
+// Prose lines wrap at word boundaries; only a token longer than the line itself may be split.
+test("a narrow log wraps whole words, and an over-long token still stays inside the panel", async ({ mount }) => {
+  const token = "x".repeat(120);
+  const component = await mount(
+    <div style={{ width: 160 }}>
+      <LogViewer lines={["the character description follows", token]} />
+    </div>,
+  );
+  const wordLines = (): Promise<number[]> =>
+    component
+      .locator("[data-log-line]")
+      .first()
+      .evaluate((line) => {
+        const text = line.querySelector("span");
+        const node = text?.firstChild;
+        if (text === null || node === null || node === undefined) {
+          throw new Error("the log line has no text node");
+        }
+        const lineText = text.textContent ?? "";
+        return ["character", "description", "follows"].map((word) => {
+          const range = document.createRange();
+          const start = lineText.indexOf(word);
+          range.setStart(node, start);
+          range.setEnd(node, start + word.length);
+          return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+        });
+      });
+  await expect.poll(wordLines).toEqual([1, 1, 1]);
+
+  await expect.poll(() => component.getByRole("log").evaluate((scroll) => scroll.scrollWidth - scroll.clientWidth)).toBeLessThanOrEqual(0);
+});

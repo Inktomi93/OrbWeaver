@@ -16,8 +16,11 @@ export const logViewerVariants = tv({
     // tabIndex=0 (WCAG 2.1.1 keyboard-scrollable) needs a visible focus ring; `ring-inset` keeps it
     // inside the root's own `overflow-hidden` boundary instead of getting clipped.
     scroll: `relative flex-1 overflow-y-auto overscroll-contain p-block outline-none ${FOCUS_RING_INSET}`,
-    line: "flex items-start gap-field whitespace-pre-wrap break-all text-foreground",
+    line: "flex items-start gap-field whitespace-pre-wrap break-words text-foreground",
     glyph: "shrink-0",
+    // `min-w-0` lets the flex item shrink below its longest word so `break-words` can split an over-long token
+    // while ordinary words wrap whole.
+    text: "min-w-0",
   },
   variants: {
     level: {

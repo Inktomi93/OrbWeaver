@@ -332,6 +332,21 @@ test("P2-6 the hero has NO thumbnail strip and NO recency stamp — one characte
   await expect(hero.getByText(SHORT_CREDIT_LINE)).toBeVisible();
 });
 
+// A chat that keeps its default title is NAMED for its characters, so the credit line would read the title back.
+test("a default-titled room names its character once: no credit line repeats the title, and Resume stays at the far edge", async ({ mount, page }) => {
+  const room = makeChatSummary({ id: "chat_default_title", title: null, participantNames: ["Marisol Quint"] });
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([room]) });
+
+  const home = await mount(<ChatRecentsTileStory />);
+  const hero = home.locator('[data-home-hearth="chat_default_title"]');
+
+  await expect(hero.getByText("Marisol Quint", { exact: true })).toHaveCount(1);
+  await expect(hero.locator('[data-voice="credit"]', { hasText: "Marisol Quint" })).toHaveCount(0);
+  // With nothing before it in the row, the hint still sits at the column's far edge, well clear of the title.
+  const [titleBox, resumeBox] = await Promise.all([hero.getByText("Marisol Quint", { exact: true }).boundingBox(), hero.getByText("Resume").boundingBox()]);
+  expect(resumeBox?.x ?? 0).toBeGreaterThan((titleBox?.x ?? 0) + (titleBox?.width ?? 0) + 100);
+});
+
 // ── RED-FIRST (rail sweep P3-17): "Resume" is a hint on the card, not a link beside it ──────────────
 // The whole island is the control, and this label rendered in `text-primary` — link ink — so the eye read
 // "the link is over there" and the 700px of card beside it as inert. Asserted against the RESOLVED primary

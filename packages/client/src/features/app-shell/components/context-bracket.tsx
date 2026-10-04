@@ -201,7 +201,7 @@ export function ContextBracket({ view, band, empty, railLabel, dismissLabel, onD
           // rails announcing as toolbars there is no tab in the document for a tabpanel to belong to.
           role="region"
           aria-labelledby={cellDomId(tab.id)}
-          className="relative min-h-0 flex-initial overflow-y-auto overscroll-contain px-row py-row"
+          className={`relative min-h-0 flex-initial overflow-y-auto overscroll-contain px-row py-row ${tab.opaque ? "bg-sidebar" : ""}`}
         >
           {visited.has(tab.id) ? tab.node : null}
         </TabsPanel>

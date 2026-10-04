@@ -145,7 +145,7 @@ test("an EMPTY bank says go make one — and offers the only action a modal can 
   await expect(page.getByText("Your bank is empty")).toBeVisible();
   await expect(page.getByText("Add one in Databank", { exact: false })).toBeVisible();
   // The arm must not be a dead end: a real, enabled control, not just Esc and the backdrop.
-  await expect(page.getByRole("button", { name: "Close" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Close" }).first()).toBeEnabled();
 });
 
 test("a bank that ALREADY reaches this room in full is a success state, said differently", async ({ mount, page }) => {
@@ -156,7 +156,7 @@ test("a bank that ALREADY reaches this room in full is a success state, said dif
   await expect(page.getByText("Nothing left to add")).toBeVisible();
   await expect(page.getByText("Your bank is empty")).toHaveCount(0);
   await expect(page.getByText("Every document you own already reaches this chat", { exact: false })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Close" }).first()).toBeEnabled();
 });
 
 // THE PICKER SEARCHES THE BANK, ON THE SERVER (2026-08-14 — the paged-list-lens ruling applied to a picker).

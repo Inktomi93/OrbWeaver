@@ -57,6 +57,24 @@ async function bottomOf(locator: Locator): Promise<number> {
   return box.y + box.height;
 }
 
+// A setup view (a tab declared `opaque`) sits on an opaque panel surface, so chat art behind a translucent pane
+// cannot show through its dense form; every other tab keeps the pane's own surface.
+test("an `opaque` tab's panel paints an opaque fill and an ordinary tab's panel paints none", async ({ mount }) => {
+  const component = await mount(<ContextTabStripStory width={480} opaqueSettings={true} />);
+  const panel = (name: string): Locator => component.getByRole("region", { name });
+  const fillOf = (name: string): Promise<string> => panel(name).evaluate((el) => getComputedStyle(el).backgroundColor);
+  const alphaOf = (fill: string): number => {
+    const channels = fill.match(/[\d.]+/gu)?.map(Number) ?? [];
+    return fill.startsWith("rgba") ? (channels[3] ?? 1) : 1;
+  };
+
+  await expect(panel("Members")).toBeVisible();
+  expect(await fillOf("Members"), "an ordinary tab's panel keeps the pane's own surface").toBe(TRANSPARENT);
+  await cell(foot(component), "Settings").click();
+  await expect(panel("Settings")).toBeVisible();
+  expect(alphaOf(await fillOf("Settings")), "the setup view's panel is opaque").toBe(1);
+});
+
 // ── #860 RED-FIRST: the meta rail is a TOOLBAR at the FOOT, not a tablist at the head ────────────────────
 
 test("#860: a normal pane has NO tablist at its head — its meta tabs are a toolbar named by the section, cells carrying aria-current", async ({ mount }) => {

@@ -78,7 +78,7 @@ export function RelationManagerSection<TId extends string>({
               title={item.title}
               {...subtitleProp(item)}
               actions={
-                <Button intent="ghost" onClick={(): void => onRemove(item)}>
+                <Button aria-label={`${removeLabel} ${item.title}`} intent="ghost" onClick={(): void => onRemove(item)}>
                   {removeLabel}
                 </Button>
               }
@@ -101,7 +101,7 @@ export function RelationManagerSection<TId extends string>({
                     title={item.title}
                     {...subtitleProp(item)}
                     actions={
-                      <Button intent="ghost" onClick={(): void => onAdd(item)}>
+                      <Button aria-label={`${addLabel} ${item.title}`} intent="ghost" onClick={(): void => onAdd(item)}>
                         {addLabel}
                       </Button>
                     }

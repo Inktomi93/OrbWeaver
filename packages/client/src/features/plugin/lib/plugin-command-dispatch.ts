@@ -9,6 +9,7 @@
 
 import type { PluginCommandArgSpec } from "@orb/contracts/plugin";
 import type { SlashArgOffer } from "#lib";
+import { humanizeId } from "./plugin-command-copy.ts";
 
 /** A parsed `/plugin` invocation. Every field may be empty — the runner decides what an incomplete line means,
  *  because "what do I tell the person" is a surface decision and this is a parser. */
@@ -160,7 +161,7 @@ export function pluginCommandArgOffers(specs: readonly PluginCommandArgSpec[], p
     }
     return (spec.enumValues ?? [])
       .filter((value) => value.startsWith(partialVal))
-      .map((value) => ({ id: `${argName}=${value}`, label: value, describe: `${argName} value`, insert: compose(`${argName}=${value}`) }));
+      .map((value) => ({ id: `${argName}=${value}`, label: humanizeId(value), describe: `${argName} value`, insert: compose(`${argName}=${value}`) }));
   }
 
   // Otherwise offer ARG NAMES not yet named in the HEAD (the partial being typed is NOT counted — the person is

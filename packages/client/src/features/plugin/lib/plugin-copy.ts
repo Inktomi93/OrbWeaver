@@ -31,17 +31,12 @@
 // security one — the belt is enforced server-side either way — but a bound a person cannot see is a bound
 // they cannot weigh.
 //
-// `risk` marks the capabilities that reach BEYOND the plugin's own sandbox in a way that outlasts or leaves
-// the room the person is looking at: rewriting what THEY send before it is committed, mutating shared room
-// or personal global state rather than the plugin's own private store, or leaving the sandbox to the open
-// internet. It is what P2-9 (side-eye #650) named "danger gradation" — every row rendered at identical
-// weight regardless of what it actually does, so `chat.transform` (silently editing an outgoing message)
-// read no louder than `storage.kv` (a private key/value box only the plugin itself can see). This is a
-// judgment call, not a formula — `chat.quick_reply`, `notify` and `events.subscribe` all touch a room too,
-// but only by SUGGESTING or WATCHING, never by silently rewriting what the person themselves said or by
-// leaving the sandbox. `ui.frame` (U7) is `risk` and `ui.surface` is not, and that pair is the clearest
-// statement of where the line sits: both draw, but only one of them can leave.
+// `risk` marks every capability that WRITES (room or personal state, your library, the tools the app runs
+// for you) or can send data out (the open internet, a frame's unclosed channels). Its pill ("Reaches
+// further") is the alarm for that class. Reads, spend (which has its own "Costs money" mark) and a pure
+// display pass such as `chat.transform` do not wear it.
 
+import type { RoutableTask } from "@orb/contracts/inference";
 import type { PluginBuiltAgainst, PluginCapability, PluginGrantTask, PluginStatus } from "@orb/contracts/plugin";
 
 /** One capability as the consent screen speaks it. */
@@ -53,8 +48,7 @@ export interface CapabilityCopy {
   readonly consequence: string;
   /** SPEND class: using it draws on your model/image budget. */
   readonly spends?: true;
-  /** RISK class: reaches past the plugin's own sandbox into shared/personal state, your own outgoing
-   *  words, or the open internet — see the file header for the line this draws. */
+  /** RISK class: writes state or can send data out of the app — see the file header for the line this draws. */
   readonly risk?: true;
 }
 
@@ -67,9 +61,9 @@ export const CAPABILITY_COPY_ROWS = [
   },
   {
     id: "chat.variables.write",
+    risk: true,
     label: "Change room variables",
     consequence: "Writes the counters and flags that rules and macros read. Only in rooms you host.",
-    risk: true,
   },
   {
     id: "chat.quick_reply",
@@ -78,9 +72,9 @@ export const CAPABILITY_COPY_ROWS = [
   },
   {
     id: "chat.transform",
-    label: "Rewrite your outgoing messages",
-    consequence: "Edits your draft after you press send, before it is committed, in rooms you host.",
-    risk: true,
+    label: "Change your messages and how they look",
+    consequence:
+      "Can rewrite your message as you send it, before it is committed, in rooms you host; change how messages look on your screen; or add its own {{macro}} tokens. A plugin may use only some of these.",
   },
   {
     // #788 F12 — the read symmetry of `worldinfo.write` below. BENIGN band (neither spend nor risk): a read of
@@ -92,15 +86,15 @@ export const CAPABILITY_COPY_ROWS = [
   },
   {
     id: "worldinfo.write",
+    risk: true,
     label: "Write world book entries",
     consequence: "Adds and updates entries in world books already attached to the room, up to 64 entries.",
-    risk: true,
   },
   {
     id: "global_vars",
+    risk: true,
     label: "Use your global variables",
     consequence: "Reads and writes your personal global-variable namespace — yours only, never another person's.",
-    risk: true,
   },
   {
     id: "storage.kv",
@@ -116,12 +110,12 @@ export const CAPABILITY_COPY_ROWS = [
     consequence: "Reads back the contents of files in your own storage it has an id for — yours only, never another person's.",
   },
   {
-    // #788 F1 — the result is owner-scoped, but query embedding may use the installer's hosted provider.
+    // #788 F1 — the result is owner-scoped, but query embedding may use the installer's hosted provider, so it
+    // is a `spends` row.
     id: "search.query",
     label: "Search your library",
     consequence: "Searches your own documents. Each query may go to your configured embedding provider and cost money, at most 120 queries an hour per plugin.",
     spends: true,
-    risk: true,
   },
   {
     id: "notify",
@@ -171,34 +165,30 @@ export const CAPABILITY_COPY_ROWS = [
     spends: true,
   },
   {
-    // U8 seam 15. `risk`, on the `global_vars`/`worldinfo.write` precedent: it writes durable PERSONAL state
-    // (your own library), which is the reaches-past-its-own-sandbox line the header draws. NOT `spends`: it
-    // touches no paid model/image budget — only the box's own local indexing compute.
+    // U8 seam 15. NOT `spends`: it touches no paid model/image budget — only the box's own local indexing compute.
     id: "databank.ingest",
+    risk: true,
     label: "Add documents to your Data Bank",
     consequence: "Saves text documents into your own Data Bank and indexes them for search — your library only, never another person's.",
-    risk: true,
   },
   {
-    // U8 seam 17 — the `databank.ingest` sibling, same consent grammar and the same `risk`/not-`spends`
+    // U8 seam 17 — the `databank.ingest` sibling, same consent grammar and the same not-`spends`
     // classification (a canon write into your own character library, no paid budget).
     id: "character.ingest",
+    risk: true,
     label: "Add characters to your library",
     consequence: "Imports character cards into your own character library — your library only, never another person's.",
-    risk: true,
   },
   {
-    // U8 D148 — per-card plugin state. `risk`, on the `global_vars` / ingest-pair precedent: it writes durable
-    // PERSONAL state (data saved ON your character cards, which travels with the card when you export it), which
-    // is the reaches-past-its-own-private-store line the header draws — distinct from `storage.kv`'s invisible
-    // plugin-only box. NOT `spends` (no paid budget — a local metadata write). The consequence names the two walls
-    // a person should be able to see: it is namespaced to the plugin (never another plugin's data) and inert (it
-    // does not change what the character says or does).
+    // U8 D148 — per-card plugin state: data saved ON your character cards, which travels with the card when you
+    // export it, so the consequence names it. NOT `spends` (no paid budget — a local metadata write). The
+    // consequence names the two walls a person should be able to see: it is namespaced to the plugin (never
+    // another plugin's data) and inert (it does not change what the character says or does).
     id: "character.card_state",
+    risk: true,
     label: "Store its own data on your characters",
     consequence:
-      "Saves and reads its own private data on your character cards — its own data only, never another plugin's — and it never changes what the character says.",
-    risk: true,
+      "Saves and reads its own private data on your character cards — its own data only, never another plugin's — and it never changes what the character says. That data leaves with the card when you export it.",
   },
   {
     id: "events.subscribe",
@@ -214,9 +204,9 @@ export const CAPABILITY_COPY_ROWS = [
   },
   {
     id: "tools.register",
+    risk: true,
     label: "Add tools",
     consequence: "Registers tools a character or a rule can call. They run with your permissions, never more.",
-    risk: true,
   },
   {
     id: "net.fetch",
@@ -276,8 +266,35 @@ export function grantSummaryLine(granted: readonly PluginCapability[]): string |
     return `Granting ${permissions}.`;
   }
   const notableWord = notable === 1 ? "1 of them reaches" : `${notable} of them reach`;
-  return `Granting ${permissions} — ${notableWord} past the sandbox or spends your budget.`;
+  const spendVerb = notable === 1 ? "spends" : "spend";
+  return `Granting ${permissions} — ${notableWord} past the sandbox or ${spendVerb} your budget.`;
 }
+
+/** The approve button's label: "all" only when there is more than one permission to approve. */
+export function approveLabel(pluginName: string, permissionCount: number): string {
+  return `${permissionCount > 1 ? "Approve all" : "Approve"} for ${pluginName}`;
+}
+
+/** The plain sentence a plugin card shows in place of its raw error text; the raw text rides a Copy control. */
+export const PLUGIN_ERROR_SENTENCE = "Something went wrong the last time it ran. Turn it off and on again, or check for an update.";
+/** What the Copy control on that sentence copies, as the tail of its accessible name. */
+export const PLUGIN_ERROR_COPY_SUBJECT = "the error details";
+
+/** The note under a spend permission whose model role has nothing behind it yet. */
+export const NO_IMAGE_MODEL_NOTE = "You have no image model set up yet — this plugin can't paint until you add one under Connections.";
+
+/** The capabilities whose spend runs on a model role the person has to set up, and that role's routable task. A
+ *  capability absent here either runs on a model the app always has or has no single role to name. */
+export const SPEND_ROLE_TASKS = { "imagery.generate": "generateImage" } as const satisfies Partial<Record<PluginCapability, RoutableTask>>;
+
+/** The disclosure that holds a long host list: its count is what the person sees before opening it. */
+export function hostsDisclosureLabel(count: number): string {
+  return `Show all ${count} hosts`;
+}
+
+/** At or above this many hosts the list collapses behind {@link hostsDisclosureLabel}, so the decision button
+ *  stays in view. */
+export const HOSTS_COLLAPSE_AT = 5;
 
 /**
  * The lifecycle status as a row's state line — never the raw wire word. `reconsentPending` (#650 P1-1) is

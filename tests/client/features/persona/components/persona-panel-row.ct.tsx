@@ -56,6 +56,22 @@ test("the dense row renders the persona's whole name and subtitle — neither is
     .toEqual([]);
 });
 
+// The name is a padded button and the subtitle plain text, so the subtitle used to start one padding step left of
+// the name's first letter.
+test("the subtitle starts under the name's first letter", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory />);
+  const left = await component.locator('[data-slot="persona-row-name"]').evaluate((column: HTMLElement): readonly [number, number] => {
+    const nameText = column.querySelector<HTMLElement>("button .truncate");
+    const subtitle = column.querySelector<HTMLElement>("[data-voice='gloss']");
+    if (nameText === null || subtitle === null) {
+      throw new Error("the row has no name or subtitle");
+    }
+    const inset = (el: HTMLElement): number => el.getBoundingClientRect().left + Number.parseFloat(getComputedStyle(el).paddingLeft);
+    return [inset(nameText), inset(subtitle)];
+  });
+  expect(Math.abs(left[0] - left[1])).toBeLessThanOrEqual(1);
+});
+
 test("both trailing clusters occupy the same cell — the strip is as wide as the WIDER one, not their sum", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowDenseStory />);
   const name = component.locator('[data-slot="persona-row-name"]');
