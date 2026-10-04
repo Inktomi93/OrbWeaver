@@ -8,13 +8,12 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { ProviderError } from "../../contract/errors.ts";
 import type { Reachability } from "../../contract/runtime.ts";
 import { deadlineSignal } from "../kit/abort-flatten.ts";
-import { authHeaders, fetchJson, openAiPath, SERVER_READ_TIMEOUT_MS } from "../kit/fetch-json.ts";
+import { authHeaders, fetchJson, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../kit/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../kit/sanitize.ts";
 
 const PROBE_TTL_MS = 10_000;
 const WAKE_POLL_MS = 1000;
 const WAKE_TIMEOUT_MS = 120_000;
-const TRAILING_SLASH_RE = /\/$/u;
 
 export interface ReachabilityDeps {
   readonly fetch: typeof fetch;
@@ -39,8 +38,9 @@ interface CacheEntry {
   readonly state: Reachability;
 }
 
+// vLLM serves its sleep pair at the server root, never under `/v1`.
 function sleepUrl(baseUrl: string, path: string): string {
-  return `${baseUrl.replace(TRAILING_SLASH_RE, "")}${path}`;
+  return `${serverRootOf(baseUrl)}${path}`;
 }
 
 /** vLLM answers `{ "is_sleeping": true }`; any truthy `is_sleeping`/`sleeping` reads asleep. */
@@ -222,11 +222,13 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
     return false;
   };
 
-  // One wake per server: concurrent tasks on one sleeping engine share its POST and its poll. Each task keeps its own
-  // cancel; the shared wake stops only when every task waiting on it has cancelled.
+  // One wake per server, keyed on its root so every spelling of its base URL shares it: concurrent tasks on one
+  // sleeping engine share its POST and its poll. Each task keeps its own cancel; the shared wake stops only when every
+  // task waiting on it has cancelled.
   const wakes = new Map<string, WakeFlight>();
   const wake = async (target: SleepTarget, signal: AbortSignal | undefined): Promise<boolean> => {
-    let flight = wakes.get(target.baseUrl);
+    const server = serverRootOf(target.baseUrl);
+    let flight = wakes.get(server);
     if (flight === undefined || flight.controller.signal.aborted) {
       const controller = new AbortController();
       const started: WakeFlight = { controller, waiters: 0, run: wakeOnce(target, controller.signal) };
@@ -234,11 +236,11 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
       void started.run
         .catch(() => undefined)
         .finally(() => {
-          if (wakes.get(target.baseUrl) === started) {
-            wakes.delete(target.baseUrl);
+          if (wakes.get(server) === started) {
+            wakes.delete(server);
           }
         });
-      wakes.set(target.baseUrl, started);
+      wakes.set(server, started);
       flight = started;
     }
     return await joinWake(flight, signal);

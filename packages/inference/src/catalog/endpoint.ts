@@ -15,7 +15,7 @@ import { deadlineSignal } from "../backends/kit/abort-flatten.ts";
 import type { FetchJsonArgs } from "../backends/kit/fetch-json.ts";
 import { authHeaders, fetchJson, isRedirect, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/kit/fetch-json.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
-import { assertNever } from "../contract/errors.ts";
+import { assertNever, ProviderError } from "../contract/errors.ts";
 import type { EndpointModel } from "../contract/runtime.ts";
 
 const rowSchema = z
@@ -291,18 +291,35 @@ async function withOllamaInfo(args: EndpointFetchArgs, rows: readonly EndpointMo
   const loaded = await nativeRead(args, () => read("/api/ps").then((json) => ollamaPsSchema.parse(json).models));
   const out: EndpointModel[] = [];
   for (const row of rows) {
-    const show = await nativeRead(args, () => readOllamaShow(args, row.id));
+    const { show, answered } = await ollamaShowRead(args, row.id);
     const loadedContext = loaded?.find((model) => model.name === row.id || model.model === row.id)?.context_length;
     const contextFloor = Math.min(defaultFloor, loadedContext ?? defaultFloor);
     const listed = withStated(row, { ...ollamaShowFacts(show, contextFloor), structured });
     // Only `/api/show` says what a model is: one it did not answer for stays unprobed, so the next warm asks again.
-    out.push(isProbeModel(args, row.id) && show !== null ? withStated(listed, await ollamaModelFacts(args, listed)) : listed);
+    out.push(isProbeModel(args, row.id) && answered ? withStated(listed, await ollamaModelFacts(args, listed)) : listed);
   }
   return out;
 }
 
 function readOllamaShow(args: EndpointFetchArgs, model: string): Promise<z.infer<typeof ollamaShowSchema>> {
   return nativeReader(args)("/api/show", { model }).then((json) => ollamaShowSchema.parse(json));
+}
+
+/** `/api/show` for one model. An error status (a proxy exposing only `/v1`, a model it will not describe) is the
+ *  server's answer and states nothing, as llama.cpp's probe status is; only a server that did not answer at all
+ *  leaves `answered` false, so the model is asked again. */
+async function ollamaShowRead(
+  args: EndpointFetchArgs,
+  model: string,
+): Promise<{ readonly show: z.infer<typeof ollamaShowSchema> | null; readonly answered: boolean }> {
+  let refused = false;
+  const show = await nativeRead(args, () =>
+    readOllamaShow(args, model).catch((err: unknown) => {
+      refused = err instanceof ProviderError && err.apiErrorStatus !== undefined;
+      throw err;
+    }),
+  );
+  return { show, answered: show !== null || refused };
 }
 
 /** What `/api/show` states about one model, or the window floor alone where it did not answer. */
@@ -318,14 +335,14 @@ async function ollamaModelFacts(args: EndpointFetchArgs, row: EndpointModel): Pr
 }
 
 /** A listed model's own facts on its first resolve. A model that states no kind may be one whose `/api/show` did not
- *  answer the list read, so it is asked again; until it answers, the model stays unprobed. */
+ *  answer the list read, so it is asked again; until the server answers, even with an error, the model stays unprobed. */
 async function ollamaLateFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
   if (row.kind !== undefined) {
     return await ollamaModelFacts(args, row);
   }
-  const show = await nativeRead(args, () => readOllamaShow(args, row.id));
+  const { show, answered } = await ollamaShowRead(args, row.id);
   if (show === null) {
-    return {};
+    return answered ? await ollamaModelFacts(args, row) : {};
   }
   const shown = ollamaShowFacts(show, row.contextFloor ?? OLLAMA_LEGACY_FLOOR);
   return { ...shown, ...(await ollamaModelFacts(args, withStated(row, shown))) };

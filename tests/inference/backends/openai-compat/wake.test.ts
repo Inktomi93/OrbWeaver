@@ -3,6 +3,8 @@
 
 import type { ChatResult, Resolved } from "@orb/inference";
 import { createInferenceRuntime } from "@orb/inference";
+import { createReachabilityProber } from "../../../../packages/inference/src/backends/openai-compat/reachability.ts";
+import { createFrozenClock } from "../../../support/clock.ts";
 import { principal } from "../../../support/factories/principal.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { fakeConnection, fakeDeps, memoryStores, newUserId } from "../../_support.ts";
@@ -84,11 +86,17 @@ interface BoundEngine {
   readonly resolved: Resolved<"chat">;
 }
 
-async function boundEngine(eng: Engine, options: { readonly now?: () => number; readonly providerId?: string } = {}): Promise<BoundEngine> {
-  const { now, providerId = "vllm" } = options;
+interface BindOptions {
+  readonly now?: () => number;
+  readonly providerId?: string;
+  readonly baseUrl?: string;
+}
+
+async function boundEngine(eng: Engine, options: BindOptions = {}): Promise<BoundEngine> {
+  const { now, providerId = "vllm", baseUrl = BASE_URL } = options;
   const stores = memoryStores();
   const ownerId = newUserId();
-  const row = fakeConnection({ ownerId, providerId, model: MODEL, baseUrl: BASE_URL });
+  const row = fakeConnection({ ownerId, providerId, model: MODEL, baseUrl });
   stores.connections.rows.set(row.id, row);
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "chat", connectionId: row.id });
   const runtime = await createInferenceRuntime({ ...fakeDeps({ stores, fetch: eng.fetch }), ...(now === undefined ? {} : { now }) });
@@ -190,4 +198,33 @@ test("concurrent turns on one sleeping engine share one wake, and each is sent o
   expect(answers.map((answer) => answer.reply)).toEqual(["awake and answering", "awake and answering", "awake and answering"]);
   expect(eng.requests.filter((request) => request === "POST /wake_up")).toHaveLength(1);
   expect(eng.requests.filter((request) => request === CHAT_PATH)).toHaveLength(3);
+});
+
+// vLLM serves its sleep pair at the server root only; a base URL typed with `/v1` must still reach it.
+for (const providerId of ["vllm", "custom-openai"]) {
+  test(`a sleeping ${providerId} row whose base URL ends in /v1 is woken at the server root before the turn`, async () => {
+    const eng = engine(true);
+    const { turn } = await boundEngine(eng, { providerId, baseUrl: `${BASE_URL}/v1` });
+    eng.requests.length = 0;
+
+    const answer = await turn();
+
+    expect(answer.reply).toBe("awake and answering");
+    expect(eng.requests.slice(0, 2)).toEqual(["GET /is_sleeping", "POST /wake_up"]);
+    expect(eng.requests.at(-1)).toBe(CHAT_PATH);
+  });
+}
+
+test("one server's base URL spellings share one wake", async () => {
+  const eng = engine(true);
+  eng.wakeLag = 1;
+  const prober = createReachabilityProber({ fetch: eng.fetch, now: createFrozenClock().now });
+  const spellings = [BASE_URL, `${BASE_URL}/`, `${BASE_URL}/v1`];
+
+  const woke = await Promise.all(
+    spellings.map((baseUrl) => prober.wake({ baseUrl, secret: null, headers: undefined, sleepPath: "/is_sleeping", wakePath: "/wake_up" }, undefined)),
+  );
+
+  expect(woke).toEqual([true, true, true]);
+  expect(eng.requests.filter((request) => request === "POST /wake_up")).toHaveLength(1);
 });

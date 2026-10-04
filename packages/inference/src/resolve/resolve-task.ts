@@ -186,15 +186,16 @@ function endpointEntryFor(
 }
 
 /** The window the server runs where the row's chat route sends none (`nativeChat: none` turns a native route that sends
- *  one off, D296): the one its reader states, or its default floor, which stays an estimate. */
-function servedWindowOf(features: EndpointFeatures, entry: EndpointModel | undefined): ServedWindow | undefined {
+ *  one off, D296): the one its reader states, or its default floor, which stays an estimate. A floor is only a lower
+ *  bound on what the server runs, so a window the user declared beats it; a stated window beats the declaration. */
+function servedWindowOf(features: EndpointFeatures, entry: EndpointModel | undefined, windowDeclared: boolean): ServedWindow | undefined {
   if (features.nativeChat !== "none" || entry === undefined) {
     return;
   }
   if (entry.contextLength !== null) {
     return { window: entry.contextLength, estimated: false };
   }
-  return entry.contextFloor === undefined ? undefined : { window: entry.contextFloor, estimated: true };
+  return entry.contextFloor === undefined || windowDeclared ? undefined : { window: entry.contextFloor, estimated: true };
 }
 
 /** Whose list a row's endpoint mirror holds. A server that authenticates the caller may answer each credential with a
@@ -505,13 +506,13 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   const advertisedInput = advertisedStatesInput(entry);
   // The server-side floors, after synthesis: the endpoint posture, the server's tool-choice support, the trained
   // clamp, and the window a route that sends none runs.
-  const postured = (synthesizedCapability: Capability, inputStated: boolean): Capability =>
+  const postured = (synthesizedCapability: Capability, inputStated: boolean, windowDeclared: boolean): Capability =>
     clampToServedWindow(
       clampToTrainedWindow(applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated), entry?.toolChoice), entry?.contextTrained),
-      servedWindowOf(features, entry),
+      servedWindowOf(features, entry, windowDeclared),
     );
   const capability = withLocalLightEmbedDtype(
-    postured(synthesized.capability, declared?.generation?.input !== undefined || advertisedInput),
+    postured(synthesized.capability, declared?.generation?.input !== undefined || advertisedInput, declared?.generation?.context?.window !== undefined),
     provider,
     declared?.embedding?.dtype,
     ctx.deps.localLight?.embedDtype,
@@ -527,6 +528,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
               advertised: advertisedFor(ctx, { provider: behaved, registered: provider, connection, model, kind: baselineKind }),
             }).capability,
             advertisedInput,
+            false,
           ),
           provider,
           undefined,

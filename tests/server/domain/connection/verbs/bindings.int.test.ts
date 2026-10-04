@@ -186,6 +186,29 @@ describe("setBinding", () => {
     });
   }, 30_000);
 
+  // A 404 on `/api/show` (a proxy exposing only `/v1`) is the server's answer: the model is unstated, not unreachable,
+  // and it is not asked again on every bind.
+  test("binding an Ollama model whose /api/show answers 404 refuses as unservable, asking the server once", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, { routes: OLLAMA_HOUSE_EMBEDDER_ROUTES });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: "ollama",
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "house-embedder:latest",
+      allowBackground: true,
+    });
+
+    for (const _attempt of [1, 2, 3]) {
+      await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).rejects.toMatchObject({
+        code: CONNECTION_OP_CODES.taskUnservable,
+      });
+    }
+    expect(h.requests.filter((request) => request.url.endsWith("/api/show"))).toHaveLength(1);
+  });
+
   test("re-points an existing task in place — one row per (actor, task), never a second", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);

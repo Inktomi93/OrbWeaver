@@ -264,8 +264,12 @@ test("Ollama: turning the native route off leaves only the knobs /v1 carries and
   );
   // `/v1/chat/completions` (openai.go) takes no window and no native-only sampler.
   expect(Object.keys(compat.sampling).toSorted()).toEqual(["frequencyPenalty", "presencePenalty", "seed", "stop", "temperature", "topP"]);
-  // It runs the server's default for an unpinned model, which only the server's floor bounds.
-  expect(compat.context).toMatchObject({ window: 4096, windowEstimated: true });
+  // The server's floor is a lower bound, not what it runs (`OLLAMA_CONTEXT_LENGTH`, VRAM tiers): the user's window holds.
+  expect(compat.context.window).toBe(16_384);
+  expect(compat.context.windowEstimated).toBeUndefined();
+  const undeclared = generationOf(await resolvedFor({ providerId: "ollama", model, fetch: fetchImpl, declared: { features: { nativeChat: "none" } } }));
+  // With no window declared, it runs the server's default for an unpinned model, which only the server's floor bounds.
+  expect(undeclared.context).toMatchObject({ window: 4096, windowEstimated: true });
   const turn = resolveChat({ topK: 40, minP: 0.1, temperature: 0.7 }, compat);
   expect(turn.warnings.filter((w) => w.code === "sampling_knob_dropped").map((w) => w.knob)).toEqual(["topK", "minP"]);
   expect(turn.sampling).toEqual({ temperature: 0.7 });
