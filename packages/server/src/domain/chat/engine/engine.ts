@@ -917,7 +917,7 @@ function resolveEffectiveCompaction(prep: TurnPrep): {
  *  ≈ 2 after the first turn), so `tokensIn/window` never crosses the pct there. Provider usage is used ONLY as a
  *  corroborating BUMP — if the backend reports a bigger cumulative usage than we estimated (a full-prompt stateless
  *  send), that wins. So the pct arm bites correctly on both paths; the reactive fit-drop arm is the backstop the
- *  hosted stateful path relies on (its fit ceiling = min(window, maxContextTokens) still trims the full canon). */
+ *  hosted stateful path relies on (its fit ceiling still trims the full canon). */
 function compactionTriggered(compaction: NonNullable<UserIntent["compaction"]>, result: Awaited<ReturnType<typeof runTurnPipeline>>): boolean {
   const pct = compaction.thresholdPct ?? MANAGED_COMPACT_DEFAULT_PCT;
   const ceiling = result.fitCeilingTokens;

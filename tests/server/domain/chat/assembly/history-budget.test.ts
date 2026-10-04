@@ -93,6 +93,24 @@ describe("fitHistoryToWindow", () => {
     expect(capped.droppedCount).toBeGreaterThan(0);
   });
 
+  // A preview with no resolved capability passes an infinite window: that is no hard window, not a crash.
+  test("a non-finite window is no hard window: the soft cap governs and is the reported ceiling", () => {
+    const h = Array.from({ length: 6 }, (_, i) => turn(`${"q".repeat(40)}${i}`));
+    const fit = fitHistoryToWindow(h, { windowTokens: Number.POSITIVE_INFINITY, softMaxTokens: 60, reserveOutputTokens: 10, systemTokens: 10 });
+    expect(fit.droppedCount).toBeGreaterThan(0);
+    expect(fit.ceilingTokens).toBe(60 - 10);
+  });
+
+  // The preview bar and the divider divide by `ceilingTokens`, so it is the room the fit trims at.
+  test("the reported ceiling is the room the fit packs system + history into", () => {
+    const h = Array.from({ length: 200 }, (_, i) => turn(`${"p".repeat(200)}${i}`));
+    const budget = { windowTokens: 8192, reserveOutputTokens: 1024, systemTokens: 300 };
+    const fit = fitHistoryToWindow(h, budget);
+    expect(fit.ceilingTokens).toBe(safeTokenWindow(8192 - 1024));
+    expect(fit.droppedCount).toBeGreaterThan(0);
+    expect(fit.usedTokens + budget.systemTokens).toBeLessThanOrEqual(fit.ceilingTokens ?? 0);
+  });
+
   // The prompt cache is an exact prefix, so the trim snaps to a chunk grid instead of dropping one row per turn.
   describe("the chunked trim", () => {
     const budget = { windowTokens: 2000, reserveOutputTokens: 200, systemTokens: 300 };

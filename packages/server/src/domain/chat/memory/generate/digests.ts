@@ -182,10 +182,6 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "mode off" });
     return null;
   }
-  const summarizerContextTokens = await ctx.summarizerContextTokens(args.funderUserId);
-  if (summarizerContextTokens < SUMMARIZER_CONTEXT_FLOOR) {
-    logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "summarizer context below floor" });
-  }
   const macroNames = args.macroNames ?? EMPTY_MACRO_NAMES;
 
   const { maxSeq } = await loadChatMeta(ctx.db, chatId);
@@ -193,6 +189,12 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
   if (cutoff < cfg.blockSize) {
     logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "no aged-out block" });
     return null;
+  }
+  // Read only once a block has aged out: a funder with no Utility model has no window, and a pass with
+  // nothing to digest must still complete.
+  const summarizerContextTokens = await ctx.summarizerContextTokens(args.funderUserId);
+  if (summarizerContextTokens < SUMMARIZER_CONTEXT_FLOOR) {
+    logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "summarizer context below floor" });
   }
   const embedSpace = args.embedSpace ?? (await ctx.resolveMemoryEmbedSpace(args.embedOwnerId ?? args.funderUserId));
 

@@ -349,7 +349,8 @@ export interface AssemblySectionCost {
 }
 
 /** The next turn's context accounting (`previewAssembly`) — the stacked budget bar + its per-source breakdown.
- *  `ceilingTokens` = the SAME `min(capability window, preset maxContextTokens)` the engine's history fit uses,
+ *  `ceilingTokens` = the SAME room the engine's history fit packs system + history into and trims at (the
+ *  window after the output reserve and the estimator headroom, or the soft cap less the reserve, the smaller),
  *  `0` ⇒ unbounded (no capability window and no soft cap — the bar then renders proportions with no ratio).
  *  `totalTokens` = Σ `sources[].tokens`, so the segments always partition the bar exactly. */
 export interface AssemblyBudgetPreview {
@@ -459,7 +460,7 @@ export interface ShapeTrace {
  *  changes live. Computed by the SAME `fitHistoryToWindow` + kit estimator the engine's turn pipeline
  *  runs, so `boundaryMessageId` equals the `contextBoundaryMessageId` the next real turn would stamp on canon.
  *  `boundaryMessageId` is the earliest KEPT message id (null = everything fits / no id-bearing kept row).
- *  `usedTokens` = the kept history's estimated cost; `ceilingTokens` = min(window, maxContextTokens);
+ *  `usedTokens` = the kept history's estimated cost; `ceilingTokens` = the fit's system + history room (see {@link AssemblyBudgetPreview});
  *  `reserveOutputTokens` = the materialized output reserve; `droppedCount` = oldest turns trimmed. */
 export interface ContextFitPreview {
   boundaryMessageId: MessageId | null;

@@ -52,8 +52,9 @@ interface FitResult {
   /** The kept history's estimated token cost (message content + per-message overhead) — the "N used" the
    *  preview budget renders. Zero when there is no history. */
   readonly usedTokens: number;
-  /** The effective ceiling the fit resolved against — `min(window, softMax)`, or `null` when neither is
-   *  finite (no trustworthy ceiling ⇒ no trim). */
+  /** The room the fit packs system + history into, the number it trims at: the hard window's input room after
+   *  the output reserve and the estimator discount, or the soft cap less the reserve, whichever is smaller.
+   *  `null` when neither is finite (no trustworthy ceiling ⇒ no trim). */
   readonly ceilingTokens: number | null;
 }
 
@@ -64,10 +65,22 @@ const PER_MESSAGE_OVERHEAD = 4;
 // kept rows past it) and the estimator's error is proportional, so the window's input room — what the output
 // reserve leaves, the reserve being an exact `max_tokens` — is discounted by `safeTokenWindow`. The soft cap is
 // the user's own working-set knob, measured in the same estimate the preview shows, so it is taken as stated.
+// A non-finite window (a preview with no resolved capability) is no hard window at all.
+function hardWindowOf(budget: HistoryBudget): number | undefined {
+  return budget.windowTokens !== undefined && Number.isFinite(budget.windowTokens) ? budget.windowTokens : undefined;
+}
+
 function inputRoom(budget: HistoryBudget): number {
-  const hardRoom = budget.windowTokens === undefined ? Number.POSITIVE_INFINITY : safeTokenWindow(budget.windowTokens - budget.reserveOutputTokens);
+  const window = hardWindowOf(budget);
+  const hardRoom = window === undefined ? Number.POSITIVE_INFINITY : safeTokenWindow(window - budget.reserveOutputTokens);
   const softRoom = budget.softMaxTokens === undefined ? Number.POSITIVE_INFINITY : budget.softMaxTokens - budget.reserveOutputTokens;
   return Math.min(hardRoom, softRoom);
+}
+
+// The reported room never drops below one token: `0` is the wire's "unbounded", and a reserve that eats the whole
+// window is the opposite.
+function reportedRoom(room: number): number {
+  return Math.max(1, room);
 }
 
 /** The trim chunk as a fraction of `ceiling − reserveOutputTokens`, before the hard window's estimator discount:
@@ -152,7 +165,8 @@ export function buildHistoryBudget(args: {
  * and leave the preview's boundary unnameable (no kept row carries an id).
  */
 export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: HistoryBudget): FitResult {
-  const ceiling = Math.min(budget.windowTokens ?? Number.POSITIVE_INFINITY, budget.softMaxTokens ?? Number.POSITIVE_INFINITY);
+  const ceiling = Math.min(hardWindowOf(budget) ?? Number.POSITIVE_INFINITY, budget.softMaxTokens ?? Number.POSITIVE_INFINITY);
+  const room = inputRoom(budget);
   const cost = historyTurnTokens;
   // No trustworthy ceiling → don't trim (e.g. custom-openai with no knob set). Still report the full cost so
   // a preview shows honest usage even when nothing can be dropped.
@@ -166,7 +180,6 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
     };
   }
 
-  const room = inputRoom(budget);
   const promptBudget = room - budget.systemTokens;
 
   // The irreducible-tail anchor: the newest id-bearing turn (falling back to the newest row when no row
@@ -196,7 +209,7 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
   }
 
   if (keepFrom === 0) {
-    return { history: [...history], droppedCount: 0, earliestKeptMessageId: null, usedTokens: used, ceilingTokens: ceiling };
+    return { history: [...history], droppedCount: 0, earliestKeptMessageId: null, usedTokens: used, ceilingTokens: reportedRoom(room) };
   }
   // The irreducible tail still wins over the grid: the cut never passes the newest id-bearing turn.
   const cut = Math.min(chunkAlignedCut(history, keepFrom, trimChunkTokens(ceiling, budget.reserveOutputTokens)), irreducibleFrom);
@@ -206,6 +219,6 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
     droppedCount: cut,
     earliestKeptMessageId: kept.find((t) => t.messageId !== undefined)?.messageId ?? null,
     usedTokens: kept.reduce((sum, t) => sum + cost(t), 0),
-    ceilingTokens: ceiling,
+    ceilingTokens: reportedRoom(room),
   };
 }

@@ -254,7 +254,7 @@ interface TurnPipelineResult {
    *  managed-compaction trigger reads this against `fitCeilingTokens` to decide whether usage crossed the
    *  threshold (mirrors what the fit reserved, so "85% used" means the same thing to both). */
   readonly fitUsedTokens: number;
-  /** The effective context ceiling the fit resolved against (`min(window, maxContextTokens)`), or null when
+  /** The effective context ceiling the fit trims at — its system + history room plus the output reserve — or null when
    *  neither is finite (no trustworthy ceiling ⇒ managed compaction can't threshold ⇒ fit-drop only). */
   readonly fitCeilingTokens: number | null;
 }
@@ -769,7 +769,8 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,
     fitUsedTokens,
-    fitCeilingTokens: fitted.ceilingTokens,
+    // `fitUsedTokens` counts the reserve, so the ceiling it is read against does too.
+    fitCeilingTokens: fitted.ceilingTokens === null ? null : fitted.ceilingTokens + budget.reserveOutputTokens,
     imageDropped,
     videoDropped,
     // Records from the pipeline's own recurse loop (an array wire) and from the offer's `execute` callback (a

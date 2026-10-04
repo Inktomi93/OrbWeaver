@@ -45,6 +45,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseIanaTimeZone } from "@orb/kit/time";
+import { safeTokenWindow } from "@orb/kit/tokens";
 import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { createTurnPersonaResolver, resolveImageRefToUrl, voicePersonaFor } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
@@ -1862,7 +1863,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
   test("previewAssembly's BUDGET partitions the next turn's context by source (D-4)", async () => {
     // The host preview's honesty contract: `Σ sources[].tokens === totalTokens`, every source's `text` is
-    // text the model actually receives, the ceiling is the SAME `min(window, maxContextTokens)` the fit uses,
+    // text the model actually receives, the ceiling is the SAME system + history room the fit trims at,
     // and a PLAIN chat carries no `game-state` row.
     const me = await seedUser(db, castId<Handle>("budget_host"));
     const chatId = await seedRoom("budget", me);
@@ -1878,7 +1879,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     expect(budget.sources.reduce((sum, s) => sum + s.tokens, 0)).toBe(budget.totalTokens);
     expect(budget.totalTokens).toBeGreaterThan(0);
-    expect(budget.ceilingTokens).toBe(8192);
+    expect(budget.ceilingTokens).toBe(safeTokenWindow(8192 - DEFAULT_MAX_OUTPUT_TOKENS));
     // The preset sections land in `system`, and the drill-in body is the assembled text VERBATIM (the panel
     // shows what the wire carries, never a re-derivation).
     const system = budget.sources.find((s) => s.source === "system");
@@ -2078,7 +2079,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const small = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] }, context: { window: 40_960 } });
     const { previewAssembly } = createRead(makeChatContext(db), makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: small })) }));
     const known = await previewAssembly({ principal: principal(me), chatId });
-    expect(known.budget.ceilingTokens).toBe(40_960);
+    expect(known.budget.ceilingTokens).toBe(safeTokenWindow(40_960 - DEFAULT_MAX_OUTPUT_TOKENS));
     expect(known.budget.ceilingEstimated).toBe(false);
 
     // The SAME window, but the capability marks it a guess (cold catalog): the number still drives the fit,
@@ -2092,7 +2093,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: guessed })) }),
     );
     const unknown = await previewGuessed({ principal: principal(me), chatId });
-    expect(unknown.budget.ceilingTokens).toBe(200_000);
+    expect(unknown.budget.ceilingTokens).toBe(safeTokenWindow(200_000 - DEFAULT_MAX_OUTPUT_TOKENS));
     expect(unknown.budget.ceilingEstimated).toBe(true);
   });
 
@@ -2122,7 +2123,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     const preview = await previewAssembly({ principal: principal(me), chatId });
 
-    expect(preview.budget.ceilingTokens).toBe(16_000);
+    expect(preview.budget.ceilingTokens).toBe(16_000 - DEFAULT_MAX_OUTPUT_TOKENS);
     expect(preview.budget.ceilingEstimated).toBe(false);
   });
 
@@ -3128,7 +3129,8 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     expect(fit.droppedCount).toBeGreaterThan(0);
     expect(fit.droppedCount).toBeLessThan(11);
     expect(fit.boundaryMessageId).toBe(castId(`message_${chatId}_${fit.droppedCount + 1}`));
-    expect(fit.ceilingTokens).toBe(400); // min(window, ∞) — no soft cap set
+    // The reserve outgrows this window, so the fit's room is its one-token floor (`0` is the wire's unbounded).
+    expect(fit.ceilingTokens).toBe(1);
     expect(fit.reserveOutputTokens).toBe(DEFAULT_MAX_OUTPUT_TOKENS); // no preset maxOutputTokens ⇒ the default reserve
     expect(fit.usedTokens).toBeGreaterThan(0);
   });
@@ -3155,7 +3157,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     // uncounted as a drop), and the boundary NAMES the survivor — the newest seeded row.
     expect(fit.droppedCount).toBe(5);
     expect(fit.boundaryMessageId).toBe(castId(`message_${chatId}_6`));
-    expect(fit.ceilingTokens).toBe(200);
+    expect(fit.ceilingTokens).toBe(1);
   });
 
   test("everything fits under a wide window ⇒ null boundary, zero dropped", async () => {
@@ -3171,7 +3173,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
 
     expect(fit.droppedCount).toBe(0);
     expect(fit.boundaryMessageId).toBeNull();
-    expect(fit.ceilingTokens).toBe(1_000_000);
+    expect(fit.ceilingTokens).toBe(safeTokenWindow(1_000_000 - DEFAULT_MAX_OUTPUT_TOKENS));
   });
 
   // COMPACTION-COVERED shrinkage (#9 verifier fix): a chat with a marker covering through seq N excludes seq

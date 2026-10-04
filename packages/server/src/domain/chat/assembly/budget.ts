@@ -215,7 +215,7 @@ export function buildAssemblyBudget(args: {
   readonly history: HistoryBudgetInput;
   /** The inspected preset's rack, in order — the join key set for the per-SECTION partition. */
   readonly sections: readonly PromptSection[];
-  /** `min(capability window, preset maxContextTokens)`; 0 when neither bounds the context. */
+  /** The history fit's system + history room (its `ceilingTokens`); 0 when neither the window nor the soft cap bounds the context. */
   readonly ceilingTokens: number;
   /** The ceiling came from a GUESSED model window (`capability.context.windowEstimated`) — carried through so
    *  the surface can refuse to draw a ratio against it. */
