@@ -147,15 +147,20 @@ function BoundText({
   readonly voice: "body" | "gloss" | "label" | undefined;
   readonly state: Record<string, unknown>;
 }): ReactElement {
+  // Capped at the reading measure so a panel's prose does not run the full width of its card.
   const text = resolveString(value, state);
   if (voice === "gloss" || voice === "label") {
     return (
-      <Text prose={true} voice={voice}>
+      <Text className="max-w-(--reading-measure-prose)" prose={true} voice={voice}>
         {text}
       </Text>
     );
   }
-  return <Text prose={true}>{text}</Text>;
+  return (
+    <Text className="max-w-(--reading-measure-prose)" prose={true}>
+      {text}
+    </Text>
+  );
 }
 
 /** The seven DISPLAY leaves (no form state). An if-chain, not a switch: each guard narrows `node`, and the
@@ -300,7 +305,7 @@ function FormLeaf({
 }): ReactElement {
   if (node.kind === "textField") {
     return (
-      <Field description={node.placeholder} label={node.label}>
+      <Field label={node.label}>
         <Input onValueChange={(next: string): void => setValue(node.name, next)} placeholder={node.placeholder} value={values[node.name] ?? ""} />
       </Field>
     );

@@ -460,6 +460,7 @@ const pluginPlan = view<PluginOut>({
   reconsentPending: TYPED_ONLY,
   widenedNetHosts: z.array(pluginNetHostSchema),
   builtAgainst: pluginBuiltAgainstSchema.nullable(),
+  description: TYPED_ONLY,
   lastError: TYPED_ONLY,
   installedAt: TYPED_ONLY,
   updatedAt: TYPED_ONLY,

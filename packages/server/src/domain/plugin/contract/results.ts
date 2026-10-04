@@ -124,6 +124,9 @@ export interface PluginView {
    *  mark at all — and this field is what makes the mark derivable instead of invented. */
   readonly widenedNetHosts: readonly string[];
   readonly builtAgainst: PluginBuiltAgainst | null;
+  /** The manifest's own one-paragraph description, written for the person deciding — what the consent review
+   *  shows under the plugin's name. */
+  readonly description: string;
   readonly lastError: string | null;
   readonly installedAt: number;
   readonly updatedAt: number;
@@ -387,6 +390,7 @@ export const pluginViewSchema = z.strictObject({
   reconsentPending: z.boolean(),
   widenedNetHosts: z.array(pluginNetHostSchema).readonly(),
   builtAgainst: pluginBuiltAgainstSchema.nullable(),
+  description: z.string(),
   lastError: z.string().nullable(),
   installedAt: z.number(),
   updatedAt: z.number(),

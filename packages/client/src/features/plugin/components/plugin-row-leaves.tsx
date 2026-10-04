@@ -19,6 +19,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import {
   abbreviateSourceCommit,
+  approveLabel,
   CHECK_FOR_UPDATES_LABEL,
   consentAskKind,
   firstConsentLine,
@@ -269,6 +270,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           compute it; see plugin-grant-list.tsx's header). `netHosts` is passed ungated on purpose: this
           screen is showing reach, including reach that is not granted yet. */}
       <PluginGrantList
+        roleScope={{ kind: "plugin", pluginId: plugin.id }}
         addedCapabilities={newCapabilities}
         addedNetHosts={plugin.widenedNetHosts}
         capabilitiesLabel={`What ${plugin.name} asks for`}
@@ -283,7 +285,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
         {/* THE ACTION NAMES ITS PLUGIN: several of these notices can share a screen, and an unnamed
             "Approve all" is how one plugin's permissions were granted to another. */}
         <Button intent="primary" loading={allowing} onClick={(): void => onAllow(plugin.declaredCapabilities)} size="sm">
-          Approve all for {plugin.name}
+          {approveLabel(plugin.name, plugin.declaredCapabilities.length)}
         </Button>
         <ConfirmDialog
           confirmLabel="Remove plugin"
@@ -291,7 +293,8 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           onConfirm={onRemove}
           title={`Remove "${plugin.name}"?`}
           trigger={
-            <Button intent="destructive" loading={removing} size="sm">
+            // Outlined, not filled: Remove is the escape beside the one decision, so it must weigh less than Approve.
+            <Button intent="secondary" loading={removing} size="sm">
               Remove {plugin.name}
             </Button>
           }

@@ -27,6 +27,7 @@ const VIEW: PluginView = {
   reconsentPending: false,
   widenedNetHosts: [],
   builtAgainst: null,
+  description: "A fixture plugin.",
   lastError: null,
   installedAt: 1_750_000_000_000,
   updatedAt: 1_750_000_000_000,

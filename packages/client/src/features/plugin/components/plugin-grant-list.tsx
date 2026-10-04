@@ -101,15 +101,24 @@
 
 import type { PluginCapability } from "@orb/contracts/plugin";
 import { NET_HOSTS_MAX } from "@orb/contracts/plugin";
+import type { PluginId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Checkbox } from "@orb/ui/checkbox";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { CAPABILITY_COPY_ROWS, capabilityCopy } from "../lib/plugin-copy.ts";
+import { useTRPC } from "#data";
+import { CAPABILITY_COPY_ROWS, capabilityCopy, HOSTS_COLLAPSE_AT, hostsDisclosureLabel, NO_IMAGE_MODEL_NOTE, SPEND_ROLE_TASKS } from "../lib/plugin-copy.ts";
+
+/** Whose model roles a spend permission is judged against: an installed plugin's own fold, or the installer's. */
+type PluginGrantRoleScope = { readonly kind: "installer" } | { readonly kind: "plugin"; readonly pluginId: PluginId };
 
 export interface PluginGrantListProps {
+  /** Which model roles to check a spend permission against. Omit it where no honest answer exists. */
+  readonly roleScope?: PluginGrantRoleScope;
   /** What the manifest DECLARES — the full ask. */
   readonly declared: readonly PluginCapability[];
   /** The exact hosts `net.fetch` may reach, straight off the manifest. */
@@ -149,13 +158,36 @@ function unexplainedCount(declared: readonly PluginCapability[]): number {
   return declared.filter((capability) => capabilityCopy(capability) === undefined).length;
 }
 
+/** The declared capabilities whose spend role resolves to no model. The read follows the inference fold: for an
+ *  installed plugin its own binding is tried first and the installer's after, and for a bundle not yet installed
+ *  (or no scope at all, as on the admin's distribute screen, whose bindings are not the recipient's) it is the
+ *  installer's alone. Reads only when a declared capability names a role, so a plugin that spends nothing costs
+ *  no request. */
+function useUnsetSpendRoles(declared: readonly PluginCapability[], scope: PluginGrantRoleScope | undefined): ReadonlySet<PluginCapability> {
+  const trpc = useTRPC();
+  const roleCapabilities = declared.filter((capability): capability is keyof typeof SPEND_ROLE_TASKS => capability in SPEND_ROLE_TASKS);
+  const input = scope?.kind === "plugin" ? { actor: { kind: "plugin-grant" as const, pluginId: scope.pluginId } } : undefined;
+  const { data: bindings } = useQuery({ ...trpc.connection.listBindings.queryOptions(input), enabled: scope !== undefined && roleCapabilities.length > 0 });
+  if (!Array.isArray(bindings)) {
+    return new Set<PluginCapability>();
+  }
+  return new Set<PluginCapability>(
+    roleCapabilities.filter((capability) => {
+      const view = bindings.find((candidate) => candidate.task === SPEND_ROLE_TASKS[capability]);
+      return view !== undefined && view.resolved === null;
+    }),
+  );
+}
+
 interface GrantRowProps {
   readonly capability: PluginCapability;
   readonly checked: boolean;
   readonly isNew: boolean;
+  /** The capability spends on a model role that is not set up yet. */
+  readonly roleUnset: boolean;
 }
 
-function GrantRow({ capability, checked, isNew }: GrantRowProps): ReactElement | null {
+function GrantRow({ capability, checked, isNew, roleUnset }: GrantRowProps): ReactElement | null {
   const nameId = useId();
   const newMarkId = useId();
   const consequenceId = useId();
@@ -195,11 +227,9 @@ function GrantRow({ capability, checked, isNew }: GrantRowProps): ReactElement |
             Costs money
           </Badge>
         ) : null}
-        {/* The elevated-risk mark (side-eye P2-9): a capability that mutates YOUR outgoing content, room
-            state or global state, registers code the app will run for you, or leaves the sandbox entirely.
-            `ghost` keeps it quieter than the two solid-tint marks above (a new/spend fact is more urgent
-            than "this one reaches further than most"), while still breaking the otherwise-uniform weight
-            every row shared regardless of what it actually does. */}
+        {/* The elevated-risk mark: a capability that writes state or can send data out (see `risk` in
+            plugin-copy.ts). `ghost` keeps it quieter than the two solid-tint marks above (a new/spend fact is
+            more urgent than "this one reaches further than most"). */}
         {copy.risk === true ? (
           <Badge intent="danger" size="sm" tone="ghost">
             Reaches further
@@ -215,6 +245,11 @@ function GrantRow({ capability, checked, isNew }: GrantRowProps): ReactElement |
       <Text className="max-w-(--reading-measure-prose)" id={consequenceId} prose={true} voice="gloss">
         {copy.consequence}
       </Text>
+      {roleUnset ? (
+        <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
+          {NO_IMAGE_MODEL_NOTE}
+        </Text>
+      ) : null}
     </Stack>
   );
   return (
@@ -244,12 +279,14 @@ export function PluginGrantList({
   addedNetHosts,
   netHostsHeading = "Hosts it can reach",
   capabilitiesLabel,
+  roleScope,
 }: PluginGrantListProps): ReactElement {
   const grantedSet = new Set<PluginCapability>(granted);
   const addedSet = new Set<PluginCapability>(addedCapabilities ?? []);
   const addedHostSet = new Set<string>(addedNetHosts ?? []);
   const rows = orderedDeclared(declared);
   const unexplained = unexplainedCount(declared);
+  const unsetRoles = useUnsetSpendRoles(declared, roleScope);
   // The host list rides `netHosts` alone (DECLARED, not granted) — this component shows what a screen is
   // ASKING about or has ASKED about, checked or not, same as every other capability row. A caller whose
   // screen instead means "what is CONFIRMED" (the durable disclosure — past tense, not a live confirm) is
@@ -257,6 +294,20 @@ export function PluginGrantList({
   // passing it in; doing that gate HERE would hide the host list from the re-consent notice's own newly-
   // asked, not-yet-granted `net.fetch` case, which is exactly the reach a person needs to see to decide.
   const showHosts = netHosts.length > 0;
+  const hostList = (
+    <Stack gap="tight" role="list">
+      {netHosts.map((host) => (
+        <Row key={host} align="center" gap="field" role="listitem">
+          <Text voice="datumMono">{host}</Text>
+          {addedHostSet.has(host) ? (
+            <Badge intent="info" size="sm" tone="soft">
+              New
+            </Badge>
+          ) : null}
+        </Row>
+      ))}
+    </Stack>
+  );
 
   return (
     <Stack gap="block">
@@ -270,7 +321,13 @@ export function PluginGrantList({
         // threaded through rather than re-spelled, so the two can never drift apart.
         <Stack aria-label={capabilitiesLabel} gap="block" role="group">
           {rows.map((capability) => (
-            <GrantRow key={capability} capability={capability} checked={grantedSet.has(capability)} isNew={addedSet.has(capability)} />
+            <GrantRow
+              key={capability}
+              capability={capability}
+              checked={grantedSet.has(capability)}
+              isNew={addedSet.has(capability)}
+              roleUnset={unsetRoles.has(capability)}
+            />
           ))}
         </Stack>
       )}
@@ -307,18 +364,18 @@ export function PluginGrantList({
               name, and the same word, never a colour. Marked hosts are exactly `addedNetHosts` and nothing
               is inferred here: the whole list still renders, because consent to an exact-host allowlist is
               consent to the SET, and the mark only says which members of it are new. */}
-          <Stack gap="tight" role="list">
-            {netHosts.map((host) => (
-              <Row key={host} align="center" gap="field" role="listitem">
-                <Text voice="datumMono">{host}</Text>
-                {addedHostSet.has(host) ? (
-                  <Badge intent="info" size="sm" tone="soft">
-                    New
-                  </Badge>
-                ) : null}
-              </Row>
-            ))}
-          </Stack>
+          {netHosts.length < HOSTS_COLLAPSE_AT ? (
+            hostList
+          ) : (
+            // A long list pushes the decision button below the fold, so the count stays on screen and the hosts sit
+            // behind it. It opens by default when the update added a host, so a new destination is never hidden.
+            <Collapsible defaultOpen={addedHostSet.size > 0}>
+              <CollapsibleTrigger size="control">
+                <Text voice="label">{hostsDisclosureLabel(netHosts.length)}</Text>
+              </CollapsibleTrigger>
+              <CollapsiblePanel>{hostList}</CollapsiblePanel>
+            </Collapsible>
+          )}
         </Stack>
       ) : null}
     </Stack>

@@ -101,11 +101,11 @@ test("a held invocation keeps the modal pending, and a rejected invocation prese
 
   await expect(run).toBeDisabled();
   await expect(component.getByRole("button", { name: "Cancel" })).toBeDisabled();
-  await expect(suit).toHaveAccessibleName("suit *");
+  await expect(suit).toHaveAccessibleName("Suit *");
   firstInvocation.release(trpcError({ code: "INTERNAL_SERVER_ERROR", message: "the guest rejected the command" }));
 
   await expect(run).toBeEnabled();
-  await expect(suit).toHaveText("wands");
+  await expect(suit).toHaveText("Wands");
   await run.click();
   await expect(component.getByText("No command selected.", { exact: true })).toBeVisible();
 });

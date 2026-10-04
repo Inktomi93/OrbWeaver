@@ -71,6 +71,14 @@ test("a plugin command is a FIRST-CLASS, plugin-labelled palette row (one per co
   await expect(component.getByText("Oracle Deck (scene-chips)", { exact: true })).toBeVisible();
 });
 
+test("a plugin command row's accessible name separates the command from its plugin attribution", async ({ mount, page }) => {
+  await routeTrpc(page, TWO_COMMANDS);
+  await mount(<PluginCommandPaletteStory />);
+
+  // The badge is painted at the far edge, so its text must not run into the label in the accessible name.
+  await expect(page.getByRole("option", { name: /^Run draw\s\S+\sOracle Deck \(oracle-deck\)$/u })).toBeVisible();
+});
+
 test("the palette search matches a plugin command by name (cmdk scores it like any row)", async ({ mount, page }) => {
   await routeTrpc(page, TWO_COMMANDS);
 
