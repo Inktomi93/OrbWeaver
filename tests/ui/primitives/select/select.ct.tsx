@@ -318,6 +318,39 @@ test("a glossed field popup keeps to its trigger's width, so long descriptions w
   expect(geometry.descLines, "the long description wraps").toBeGreaterThan(1);
 });
 
+// A content-width trigger (the library sort: `w-auto`, showing only the selected label) is narrower than its
+// other options. The popup grows to the longest label, so no option name wraps.
+const SORTS = [
+  { label: "Recent", value: "recent" },
+  { label: "Name (A–Z)", value: "name" },
+  { label: "Most chatted with recently", value: "chatted" },
+  { label: "Recently imported", value: "imported" },
+];
+
+test("a content-width trigger's popup grows to its longest label, one line each", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mount(
+    <div style={{ display: "flex" }}>
+      <Select aria-label="Sort" className="w-auto" items={SORTS} value="recent" />
+    </div>,
+  );
+  const trigger = page.getByRole("combobox", { name: "Sort" });
+  await trigger.click();
+  const popup = page.locator('[data-slot="select-popup"]');
+  await expect(popup).toHaveCSS("opacity", "1");
+  const triggerWidth = (await trigger.boundingBox())?.width ?? 0;
+  const geometry = await popup.evaluate((element) => ({
+    width: element.getBoundingClientRect().width,
+    wrapped: [...element.querySelectorAll('[data-slot="select-item-label"]')]
+      .filter((label) => label.getBoundingClientRect().height > Number.parseFloat(getComputedStyle(label).lineHeight) * 1.5)
+      .map((label) => label.textContent),
+  }));
+  expect(geometry.width, "the popup is never narrower than its trigger").toBeGreaterThanOrEqual(triggerWidth - 1);
+  expect(geometry.width, "the longest label widens the popup past the content-width trigger").toBeGreaterThan(triggerWidth + 1);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the popup's open transition settled (opacity 1) before this one atomic geometry snapshot.
+  expect(geometry.wrapped).toEqual([]);
+});
+
 // A disabled option's description is the only place that says WHY it is disabled, so only the label dims;
 // the reason keeps the muted-foreground ink at full opacity and clears the WCAG text floor in every seed.
 test("a disabled option dims its label only; its reason stays readable in dark and light", async ({ mount, page }) => {

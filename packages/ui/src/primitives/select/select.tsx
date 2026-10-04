@@ -249,7 +249,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
           side={side}
           sideOffset={sideOffset}
         >
-          <BaseSelect.Popup className={slots.popup({ layout })} data-slot="select-popup" style={POPUP_STYLE}>
+          <BaseSelect.Popup className={slots.popup()} data-slot="select-popup" style={POPUP_STYLE}>
             {arrow ? <BaseSelect.Arrow className={slots.arrow()} data-slot="select-arrow" /> : null}
             {scrollArrows ? (
               <BaseSelect.ScrollUpArrow className={cn(slots.scrollArrow(), "top-0")} data-slot="select-scroll-up-arrow">
