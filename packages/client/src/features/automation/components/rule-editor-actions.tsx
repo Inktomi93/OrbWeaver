@@ -54,7 +54,8 @@ export function RuleEditorActions({
             <SortableList
               items={values.actionIds}
               getItemKey={(id): string => id}
-              handle={true}
+              // The grip sits in each card's header row, so the card keeps the pane's full width.
+              handle="inline"
               // The bare noun the primitive asks for: a position here would go stale the moment the row moves.
               itemLabel={(id): string => {
                 const action = values.actions[values.actionIds.indexOf(id)];
@@ -77,7 +78,7 @@ export function RuleEditorActions({
                 );
                 form.setFieldValue("actionIds", ids.map(String));
               }}
-              renderItem={(_id, index): ReactElement | null => {
+              renderItem={(_id, index, grip): ReactElement | null => {
                 const action = values.actions[index];
                 if (action === undefined) {
                   return null;
@@ -85,8 +86,9 @@ export function RuleEditorActions({
                 return (
                   <Card>
                     <Stack gap="block">
-                      <Row gap="field" align="center" className="justify-between">
-                        <Text>
+                      <Row gap="field" align="center">
+                        {grip}
+                        <Text className="min-w-0 flex-1">
                           {index + 1}. {armTitle(action.type)}
                         </Text>
                         <Button

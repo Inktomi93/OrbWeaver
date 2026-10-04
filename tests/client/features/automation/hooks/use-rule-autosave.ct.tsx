@@ -27,6 +27,7 @@ const initial: Parameters<typeof editableRule>[0] = {
   predicateCel: null,
   actions: [{ type: "set_variable", scope: "chat", key: "score", op: "set", value: "1" }],
   actionsCorrupt: false,
+  autoDisabled: false,
   rulePresetId: null,
   rulePresetKnobs: null,
   matchAutomationEvents: false,
@@ -140,17 +141,24 @@ test("an older exact list read cannot overwrite the response echo after its dela
     "automation.updateRule": () => committed,
   };
   await routeTrpc(page, routes);
-  await mount(<RuleMutationEchoStory {...props} row={initial} />);
+  await mount(<RuleMutationEchoStory {...props} row={initial} holdReconciliation={true} />);
   await expect(page.getByLabel("First chat rules")).toHaveText(JSON.stringify([sibling, initial]));
   await page.getByRole("button", { name: "Refresh scope", exact: true }).click();
   await older.requested;
   await page.getByRole("button", { name: "Save rule", exact: true }).click();
   await expect(page.getByLabel("Settled cache")).toHaveText(JSON.stringify([sibling, committed]));
-  await expect(page.getByLabel("Cancellation")).toContainText('"exact":true');
+  await expect(page.getByRole("button", { name: "Release reconciliation", exact: true })).toBeEnabled();
+  // The settle refetch is held, so only the exact cancellation can stop these bytes. An idle read means
+  // they were either dropped or already applied.
   older.release([sibling, initial]);
-  await confirm.requested;
+  await expect(page.getByLabel("First chat read")).toHaveText("idle");
   await expect(page.getByLabel("First chat rules")).toHaveText(JSON.stringify([sibling, committed]));
+  await expect(page.getByLabel("Cancellation")).toContainText('"exact":true');
+  await page.getByRole("button", { name: "Release reconciliation", exact: true }).click();
+  await confirm.requested;
   confirm.release([sibling, committed]);
+  await expect(page.getByLabel("First chat read")).toHaveText("idle");
+  await expect(page.getByLabel("First chat rules")).toHaveText(JSON.stringify([sibling, committed]));
 });
 
 test("a late old-owner response neither cancels nor seeds the rebound owner's global cache", async ({ mount, page }) => {

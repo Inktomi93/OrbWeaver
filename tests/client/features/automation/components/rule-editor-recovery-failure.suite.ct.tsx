@@ -36,6 +36,7 @@ for (const newerInvalidEdit of [false, true]) {
           enabled: false,
           position: 0,
           actionsCorrupt: false,
+          autoDisabled: false,
           rulePresetId: null,
           rulePresetKnobs: null,
           suggestOnRefusal: true,

@@ -20,25 +20,43 @@ interface RuleEchoProps {
   readonly creating?: boolean;
   readonly cold?: boolean;
   readonly holdCancellation?: boolean;
+  /** Hold every reconciliation that starts after the save is pressed, so a test can deliver an older read's
+   *  bytes before the settle refetch could cancel that read itself. */
+  readonly holdReconciliation?: boolean;
+}
+
+interface EchoTiming {
+  readonly holdCancellation: boolean;
+  readonly holdReconciliation: boolean;
 }
 
 const OBSERVATION_KEY = ["rule-echo-observation"] as const;
 const INITIAL_OBSERVATION: {
   readonly cancelled: string;
   readonly reconciliations: number;
+  readonly saving: boolean;
   readonly release: (() => void) | null;
-} = { cancelled: "none", reconciliations: 0, release: null };
+  readonly releaseReconciliation: (() => void) | null;
+} = { cancelled: "none", reconciliations: 0, saving: false, release: null, releaseReconciliation: null };
 
-function configureRuleEchoClient(queryClient: QueryClient, holdCancellation: boolean): void {
+function configureRuleEchoClient(queryClient: QueryClient, timing: EchoTiming): void {
   queryClient.setQueryData(OBSERVATION_KEY, INITIAL_OBSERVATION);
   const cancel = queryClient.cancelQueries.bind(queryClient);
   const invalidate = queryClient.invalidateQueries.bind(queryClient);
-  queryClient.invalidateQueries = (filters, options): Promise<void> => {
+  queryClient.invalidateQueries = async (filters, options): Promise<void> => {
     queryClient.setQueryData<typeof INITIAL_OBSERVATION>(OBSERVATION_KEY, (old) => ({
       ...(old ?? INITIAL_OBSERVATION),
       reconciliations: (old?.reconciliations ?? 0) + 1,
     }));
-    return invalidate(filters, options);
+    if (timing.holdReconciliation && queryClient.getQueryData<typeof INITIAL_OBSERVATION>(OBSERVATION_KEY)?.saving === true) {
+      await new Promise<void>((resolve) => {
+        queryClient.setQueryData<typeof INITIAL_OBSERVATION>(OBSERVATION_KEY, (old) => ({
+          ...(old ?? INITIAL_OBSERVATION),
+          releaseReconciliation: resolve,
+        }));
+      });
+    }
+    await invalidate(filters, options);
   };
   queryClient.cancelQueries = async (filters, options): Promise<void> => {
     queryClient.setQueryData<typeof INITIAL_OBSERVATION>(OBSERVATION_KEY, (old) => ({
@@ -46,7 +64,7 @@ function configureRuleEchoClient(queryClient: QueryClient, holdCancellation: boo
       cancelled: JSON.stringify(filters),
     }));
     await cancel(filters, options);
-    if (holdCancellation) {
+    if (timing.holdCancellation) {
       await new Promise<void>((resolve) => {
         queryClient.setQueryData<typeof INITIAL_OBSERVATION>(OBSERVATION_KEY, (old) => ({
           ...(old ?? INITIAL_OBSERVATION),
@@ -75,7 +93,11 @@ export function RuleMutationEchoStory(props: RuleEchoProps): ReactElement {
     );
   }
   return (
-    <CtDataProviders configureQueryClient={(client): void => configureRuleEchoClient(client, props.holdCancellation ?? false)}>
+    <CtDataProviders
+      configureQueryClient={(client): void =>
+        configureRuleEchoClient(client, { holdCancellation: props.holdCancellation ?? false, holdReconciliation: props.holdReconciliation ?? false })
+      }
+    >
       {ready ? <RuleMutationEchoInner {...props} /> : <p>Binding owner</p>}
     </CtDataProviders>
   );
@@ -101,7 +123,7 @@ function RuleMutationEchoInner(props: RuleEchoProps): ReactElement {
   const [owner, setOwner] = useState("First");
   const [settled, setSettled] = useState("idle");
   const { data: observation } = useQuery({ queryKey: OBSERVATION_KEY, enabled: false, initialData: INITIAL_OBSERVATION });
-  const { cancelled, reconciliations, release } = observation;
+  const { cancelled, reconciliations, release, releaseReconciliation } = observation;
   const readTarget = (): string => {
     const rows = queryClient.getQueryData<readonly Parameters<typeof editableRule>[0][]>(targetKey);
     return rows === undefined ? "absent" : JSON.stringify(rows);
@@ -110,6 +132,7 @@ function RuleMutationEchoInner(props: RuleEchoProps): ReactElement {
     <div>
       <output aria-label="Global rules">{global.data === undefined ? "absent" : JSON.stringify(global.data)}</output>
       <output aria-label="First chat rules">{first.data === undefined ? "absent" : JSON.stringify(first.data)}</output>
+      <output aria-label="First chat read">{first.fetchStatus}</output>
       <output aria-label="Second chat rules">{second.data === undefined ? "absent" : JSON.stringify(second.data)}</output>
       <output aria-label="Settled cache">{settled}</output>
       <output aria-label="Cancellation">{cancelled}</output>
@@ -118,6 +141,7 @@ function RuleMutationEchoInner(props: RuleEchoProps): ReactElement {
       <button
         type="button"
         onClick={(): void => {
+          queryClient.setQueryData<typeof INITIAL_OBSERVATION>(OBSERVATION_KEY, (old) => ({ ...(old ?? INITIAL_OBSERVATION), saving: true }));
           const body = { ...editableRule(props.row), name: "Committed B" };
           void session
             .save(ruleEditorValues(body, creation?.requestId ?? props.row.id))
@@ -154,6 +178,9 @@ function RuleMutationEchoInner(props: RuleEchoProps): ReactElement {
       </button>
       <button type="button" disabled={release === null} onClick={(): void => release?.()}>
         Release cancellation
+      </button>
+      <button type="button" disabled={releaseReconciliation === null} onClick={(): void => releaseReconciliation?.()}>
+        Release reconciliation
       </button>
       <button type="button" onClick={(): void => setSettled(readTarget())}>
         Read cache

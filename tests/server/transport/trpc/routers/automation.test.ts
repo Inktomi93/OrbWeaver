@@ -39,6 +39,7 @@ const RULE: RuleView = {
   actions: [{ type: "set_variable", scope: "chat", key: "greeted", op: "set", value: "1" }],
   // #1422 — the arms parsed; `true` here would be a fixture claiming a corrupt blob it does not have.
   actionsCorrupt: false,
+  autoDisabled: false,
   rulePresetId: null,
   rulePresetKnobs: null,
   matchAutomationEvents: false,

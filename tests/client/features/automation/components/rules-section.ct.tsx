@@ -66,6 +66,7 @@ const RULE = {
   predicateCel: "int(chat.messageCount) % 10 == 0",
   actions: [{ type: "generate_image", mode: "scenario", n: 1, useAvatarReference: false, reuse: "prefer", quiet: false, confirmFirst: false }],
   actionsCorrupt: false,
+  autoDisabled: false,
   rulePresetId: "illustrateScenes",
   rulePresetKnobs: null,
   matchAutomationEvents: false,
@@ -1452,6 +1453,7 @@ const UNREADABLE_RULE = {
   description: null,
   actions: [],
   actionsCorrupt: true,
+  autoDisabled: false,
   enabled: true,
   lastError: "actions: invalid discriminator value",
 } satisfies TrpcWireOutput<"automation.listRules">[number];
@@ -1465,6 +1467,7 @@ const ARMLESS_RULE = {
   description: null,
   actions: [],
   actionsCorrupt: false,
+  autoDisabled: false,
   enabled: false,
   lastError: null,
 } satisfies TrpcWireOutput<"automation.listRules">[number];
@@ -1518,6 +1521,38 @@ test("an unreadable rule offers no enable door — the switch refuses and setRul
   await working.click();
   await expect.poll(() => trpc.count("automation.setRuleEnabled")).toBe(1);
   await expect.poll(() => trpc.lastInput("automation.setRuleEnabled")).toMatchObject({ ruleId: "automationrule_ct_armless", enabled: true });
+});
+
+/** A rule the dispatch turned off at the error ceiling: off, never fired successfully, errors on record. */
+const AUTO_DISABLED_RULE = {
+  ...RULE,
+  id: "automationrule_ct_autooff",
+  name: "Broken counter",
+  description: null,
+  actions: [{ type: "set_variable", scope: "chat", key: "count", op: "inc", value: "one" }],
+  enabled: false,
+  autoDisabled: true,
+  lastError: "auto-disabled: consecutive error ceiling",
+  lastFiredAt: null,
+} satisfies TrpcWireOutput<"automation.listRules">[number];
+
+test("a rule the system turned off reads apart from one nobody turned on", async ({ mount, page }) => {
+  await stub(page, { rules: [AUTO_DISABLED_RULE, ARMLESS_RULE] });
+  await mount(<RulesSectionStory chatId={CHAT} />);
+  await expect(page.getByText("Broken counter", { exact: true })).toBeVisible();
+  await expect(page.getByText("Empty watcher", { exact: true })).toBeVisible();
+
+  // Error anatomy on exactly the auto-disabled row: a danger badge plus its own notice.
+  const notice = page.locator('[data-slot="rule-auto-disabled"]');
+  await expect(notice).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /Broken counter/u }).locator('[data-slot="badge"][data-intent="danger"]')).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /Empty watcher/u }).locator('[data-slot="badge"]')).toHaveCount(0);
+  // Neither rule has a successful run, but only one has failed runs, so their state lines differ.
+  const states = page.locator('[data-slot="rule-last-run"]');
+  await expect(states).toHaveCount(2);
+  await expect.poll(async () => (await states.nth(0).textContent()) === (await states.nth(1).textContent())).toBe(false);
+  // Both switches are off and both still work: the notice informs, it does not lock the rule.
+  await expect(page.getByRole("switch", { name: "Enable Broken counter", exact: true })).toHaveAttribute("aria-checked", "false");
 });
 
 // ── #1655 — the OTHER door on the same rule ─────────────────────────────────────────────────────────────
@@ -1590,6 +1625,7 @@ const TRANSFORM_RULE = {
   description: null,
   actions: [{ type: "transform_draft", target: "user_input", template: "{{draft}}" }],
   actionsCorrupt: false,
+  autoDisabled: false,
   enabled: true,
   lastError: null,
 } satisfies TrpcWireOutput<"automation.listRules">[number];

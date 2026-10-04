@@ -400,6 +400,52 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     expect(rules.find((r) => r.id === ruleId)?.enabled).toBe(false);
   });
 
+  test("re-enabling an auto-disabled rule restarts its error budget and keeps the last error visible", async () => {
+    const failDispatch: ArmDispatch = () => Promise.resolve({ ok: false as const, kind: "arm_error" as const, detail: "always fails" });
+    const f = await setup({ runArm: failDispatch });
+    const p = principal(f.host);
+    const ruleId = await armRule(f, { name: "flaky" });
+    const autoDisabled = async (): Promise<boolean | undefined> =>
+      (await f.svc.listRules({ principal: p, chatId: f.chatId })).find((r) => r.id === ruleId)?.autoDisabled;
+    await fireOpenedN(f, 19);
+    // A host switching off a failing rule is not an auto-disable.
+    await f.svc.setRuleEnabled({ principal: p, ruleId, enabled: false });
+    expect(await autoDisabled()).toBe(false);
+    await f.svc.setRuleEnabled({ principal: p, ruleId, enabled: true });
+    await fireOpenedN(f, 20);
+    expect(await autoDisabled()).toBe(true);
+
+    await f.svc.setRuleEnabled({ principal: p, ruleId, enabled: true });
+    expect(await autoDisabled()).toBe(false);
+    const [reEnabled] = await f.db.select().from(automationRules).where(eq(automationRules.id, ruleId));
+    expect(reEnabled).toMatchObject({ enabled: true, consecutiveErrors: 0 });
+    expect(reEnabled?.lastError).not.toBeNull();
+
+    // One failure after the re-enable is one error, not the twenty-first.
+    await fireOpenedN(f, 1);
+    const [afterOne] = await f.db.select().from(automationRules).where(eq(automationRules.id, ruleId));
+    expect(afterOne).toMatchObject({ enabled: true, consecutiveErrors: 1 });
+
+    // The restarted budget still ends at the same ceiling.
+    await fireOpenedN(f, 19);
+    const autoDisables = f.events.filter((e) => e.type === "ruleAutoDisabled");
+    expect(autoDisables).toHaveLength(2);
+    const rules = await f.svc.listRules({ principal: p, chatId: f.chatId });
+    expect(rules.find((r) => r.id === ruleId)?.enabled).toBe(false);
+  });
+
+  test("enabling a rule that is already on leaves its error count alone", async () => {
+    const failDispatch: ArmDispatch = () => Promise.resolve({ ok: false as const, kind: "arm_error" as const, detail: "always fails" });
+    const f = await setup({ runArm: failDispatch });
+    const ruleId = await armRule(f, { name: "flaky" });
+    await fireOpenedN(f, 3);
+
+    await f.svc.setRuleEnabled({ principal: principal(f.host), ruleId, enabled: true });
+
+    const [row] = await f.db.select().from(automationRules).where(eq(automationRules.id, ruleId));
+    expect(row).toMatchObject({ enabled: true, consecutiveErrors: 3 });
+  });
+
   test("records authority_refused (never fires) when the author lost host authority since creating the rule", async () => {
     const f = await setup();
     const ruleId = await armRule(f, { name: "ex-host rule" });

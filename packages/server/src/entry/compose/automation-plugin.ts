@@ -292,6 +292,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         n: req.n,
         useAvatarReference: req.useAvatarReference,
         reuse: req.reuse,
+        timeZone: req.timeZone,
         ...(req.prompt !== undefined ? { prompt: req.prompt } : {}),
         ...(req.negative !== undefined ? { negative: req.negative } : {}),
         ...(req.size !== undefined ? { size: req.size } : {}),

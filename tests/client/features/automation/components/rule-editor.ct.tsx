@@ -24,6 +24,7 @@ function createdRule(input: ReturnType<typeof automationRuleCreateSchema.parse>)
     enabled: false,
     position: 0,
     actionsCorrupt: false,
+    autoDisabled: false,
     rulePresetId: null,
     rulePresetKnobs: null,
     suggestOnRefusal: true,
