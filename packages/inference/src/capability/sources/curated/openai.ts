@@ -59,7 +59,8 @@ export const openaiRows = [
     },
   },
   // The ids the hosted family sweep reached. A trailing assistant row is plain history there: the model restarts or
-  // continues from call to call, so a continue keeps its cue.
+  // continues from call to call, so a continue keeps its cue. The `none` floor lets a history open on the assistant's
+  // greeting with no user row first, measured separately (cite).
   {
     match: {
       model:
@@ -76,7 +77,7 @@ export const openaiRows = [
     evidence: {
       tier: "curated",
       dated: "2026-10-03",
-      cite: "scripts/probes/hosted-families/RESULTS.md, OpenAI direct and OpenRouter openai: a mid-history system row (c1) and a trailing system row (c2) 200 and obeyed on every id, kept in place upstream on OpenRouter; user,user (c3, first turn kept) and assistant,assistant (c4) 200 everywhere; a trailing assistant row (c5) restarted on most ids and continued on gpt-4o-mini, gpt-5.1, gpt-5.2, gpt-6-sol direct and gpt-4o, gpt-5.1, gpt-5.4 through OpenRouter, so a continue cannot rely on it",
+      cite: "scripts/probes/hosted-families/RESULTS.md, OpenAI direct and OpenRouter openai: a mid-history system row (c1) and a trailing system row (c2) 200 and obeyed on every id, kept in place upstream on OpenRouter; user,user (c3, first turn kept) and assistant,assistant (c4) 200 everywhere; a trailing assistant row (c5) restarted on most ids and continued on gpt-4o-mini, gpt-5.1, gpt-5.2, gpt-6-sol direct and gpt-4o, gpt-5.1, gpt-5.4 through OpenRouter, so a continue cannot rely on it. Opening on the assistant (measured by the orchestrator 2026-10-04, history [system, assistant greeting, user]): 200 with an in-character reply on direct gpt-4.1, gpt-4o-mini, gpt-5-mini and OpenRouter openai/gpt-4.1, openai/gpt-5-mini",
     },
   },
   // Each reasoning row lists the efforts its model page documents. `none` is the off switch (`enabled`), never a level;

@@ -13,6 +13,10 @@ const SYSTEM_ROW_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1
  *  opus-4-8 return 200 and ignore the row's instruction, so their trailing system rows fold to user text. */
 const TAIL_SYSTEM_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1)?|sonnet-5[-.]5)$";
 
+/** The Claude ids that continue a trailing assistant row: 4.5 and older, optionally a dated snapshot or an OpenRouter
+ *  `:variant`. 4.6 and later refuse it with a 400 and stay on the family cell. */
+const PREFILL_MODELS = "^(anthropic/)?claude[-/](sonnet-4([-.]5)?|opus-4[-.][15]|haiku-4[-.]5)(-20[0-9]{6})?(:[a-z-]+)?$";
+
 /** The Claude generations released before preserved thinking became the rule for new models, which run no prefix
  *  check: an exact generation, optionally a snapshot dated before 2026-10-01 and an OpenRouter `:variant`. Every
  *  other Claude id is prefix-bound by the row that reads this, so a later release fails closed to `drop_block`.
@@ -55,10 +59,8 @@ export const anthropicRows = [
         replay: "signed",
       },
       turns: {
-        // False on every Claude id and route. The newer ids 400 a trailing assistant row; the 4.5 ids accept it
-        // but answer a continue (the finished reply as the prefill) with three tokens of nothing — OpenRouter
-        // haiku-4.5 gen-1790137541-jdHgdXhju27JwK4tK9XH, opus-4.5 gen-1790141538-eBRpWlikU1TqDrHB1EWH, direct
-        // haiku-4-5 req_011CfKpkas4tLck9X6hodkK7.
+        // False on the family: 4.6 and later 400 a trailing assistant row. The PREFILL_MODELS rows below turn it on
+        // for the 4.5-and-older ids, which continue one.
         assistantPrefill: false,
         midConversationSystem: false,
         historySystemRows: false,
@@ -642,6 +644,39 @@ export const anthropicRows = [
       tier: "curated",
       dated: "2026-09-23",
       cite: "owner ruling on the SHAPING-MATRIX follow-up: opus-5 fails a mid-array system row on OpenRouter; the tail row stands",
+    },
+  },
+  // The Claude runtime builds its own requests and carries no prefill, so only the two request-building routes take it.
+  {
+    match: {
+      model: PREFILL_MODELS,
+      wire: "anthropic-messages",
+    },
+    generation: {
+      turns: {
+        assistantPrefill: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-04",
+      cite: "owner ruling 2026-10-04 on the hosted family sweep (scripts/probes/hosted-families/RESULTS.md, OpenRouter anthropic c5: the assistant tail 'A B C D E' CONTINUES on sonnet-4, sonnet-4.5, opus-4.1, opus-4.5 and haiku-4.5, passed upstream as a trailing assistant turn; 400 'This model does not support assistant message prefill' on 4.6 and later). Direct: claude-opus-4-5 accepts a trailing assistant row (2026-09-19, backends/anthropic-messages/chat.ts refusePrefill), and direct haiku-4-5 returned 200 (req_011CfKpkas4tLck9X6hodkK7). The ruling overrides the earlier concern that a continue of a FINISHED reply comes back nearly empty (OpenRouter haiku-4.5 gen-1790137541-jdHgdXhju27JwK4tK9XH, opus-4.5 gen-1790141538-eBRpWlikU1TqDrHB1EWH)",
+    },
+  },
+  {
+    match: {
+      model: PREFILL_MODELS,
+      provider: "openrouter",
+    },
+    generation: {
+      turns: {
+        assistantPrefill: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-04",
+      cite: "owner ruling 2026-10-04 on scripts/probes/hosted-families/RESULTS.md, OpenRouter anthropic c5: CONTINUES on sonnet-4, sonnet-4.5, opus-4.1, opus-4.5 and haiku-4.5 (echoed upstream body: last=assistant)",
     },
   },
   {
