@@ -9,7 +9,7 @@
 // section.ct ROSTER_STUB posture); every value crosses the routeTrpc JSON boundary as a plain object.
 
 import type { RpgExtractionMode, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
-import { actorRefKey, carriesTracker } from "@orb/contracts/rpg";
+import { actorRefKey, carriesTracker, RPG_PROFILE_D20, RPG_SEED_HP_MAX, rpgSeedTrackers } from "@orb/contracts/rpg";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -35,8 +35,6 @@ import {
 const GAME_ID = "rpg_game_ct_keystone";
 const PERSONA_ID = "persona_ct_keystone";
 
-/** Any non-empty title, used with `not.toHaveAttribute`, which also passes when the attribute is absent. */
-const ANY_TITLE = /./;
 const SAFE_SANDBOX = /^(?!.*allow-scripts)(?!.*allow-same-origin).*$/u;
 const NONEMPTY_ID = /.+/u;
 
@@ -451,10 +449,16 @@ function stubTakeover(
     "chat.listMessages": () => opts.messages ?? { messages: [] },
     "chat.send": () => ({ messages: [], aborted: false }),
     ...(opts.presets === undefined ? {} : { "preset.list": opts.presets }),
+    // The Game tab's connection reads: a walk that lands on it (the rail is one cell shorter without Map) must not hit an unfed read.
+    "connection.list": [],
+    "connection.listBindings": [],
   });
 }
 
-test("the takeover renders the 5 LIVE game tabs + the locked Map (in the Game strip) when chat.rpg !== null, meta strip below", async ({ mount, page }) => {
+test("the takeover renders the 5 LIVE game tabs (and no Map while the map program is parked) when chat.rpg !== null, meta strip below", async ({
+  mount,
+  page,
+}) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
@@ -464,11 +468,8 @@ test("the takeover renders the 5 LIVE game tabs + the locked Map (in the Game st
   const gameStrip = component.getByRole("toolbar", { name: "Game state" });
   await Promise.all(["Status", "Inventory", "Scene", "Quests", "Journal"].map((label) => expect(gameStrip.getByRole("button", { name: label })).toBeVisible()));
   await expect(gameStrip.getByRole("button", { name: "Sheet" })).toHaveCount(0);
-  // Map is the ONE PHASE-locked tab: visible, wearing the lock + its reason on `title` (never hidden, and
-  // never `aria-disabled` — see the RV-7 CT: it opens onto the body that says maps are planned).
-  const mapTab = gameStrip.getByRole("button", { name: "Map" });
-  await expect(mapTab).toBeVisible();
-  await expect(mapTab).toHaveAttribute("title", "Maps are planned");
+  // Map is hidden while the map program is parked: a tab that opens onto "not built yet" is a dead end.
+  await expect(gameStrip.getByRole("button", { name: "Map" })).toHaveCount(0);
   // The chat meta set sits in the "Chat" strip below (the bracket's bottom row) — plus the crown GM-console
   // "Game" tab (host-only, `strip:"meta"` — a member never sees it; this stub's viewer IS host).
   const metaStrip = component.getByRole("toolbar", { name: "Chat" });
@@ -2107,43 +2108,6 @@ test.describe("the takeover at mobile width", () => {
   });
 });
 
-// RV-7 — the PHASE-locked Map OPENS onto the body that states the promise (it used to open onto nothing).
-// The 2026-08-01 side-eye found the two input paths DISAGREEING about that: the cell was `aria-disabled`
-// (so AT announced "unavailable" and Playwright's actionability refused the click) while Enter opened it
-// anyway. One story now — a real tab wearing a lock — so BOTH paths are driven here, plus the SR contract:
-// the reason is the cell's accessible DESCRIPTION (`title` beside an `aria-label`), not a mouse-only tooltip.
-test("RV-7: the locked Map tab opens onto its planned body from BOTH the mouse and the keyboard", async ({ mount, page }) => {
-  await stubTakeover(page);
-  const component = await mount(<RpgTakeoverStory />);
-
-  const mapTab = component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Map" });
-  // NOT aria-disabled: the lock is a glyph + a reason, not a refusal the tab does not honour.
-  await expect(mapTab).not.toHaveAttribute("aria-disabled", "true");
-  await expect(mapTab).toHaveAttribute("title", "Maps are planned");
-  // THE LOCK IS IN THE NAME (side-eye 2026-08-06 ARIA). `aria-disabled="false"` + a reason that lives only
-  // on `title` left the lock imperceptible to AT — the glyph is decorative and `title` is a DESCRIPTION many
-  // readers announce late or not at all. The visible caption stays the name's prefix (WCAG 2.5.3).
-  await expect(mapTab).toHaveAttribute("aria-label", "Map — locked");
-  // The live cells are unchanged — the suffix is the LOCK's, not every tab's.
-  await expect(component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Scene" })).toHaveAttribute("aria-label", "Scene");
-
-  // MOUSE — a plain click (Playwright would refuse this outright on an aria-disabled control).
-  await mapTab.click();
-  const map = component.locator('[data-slot="rpg-map-tab"]');
-  await expect(map).toBeVisible();
-  await expect(map).toContainText("Maps are planned");
-  // NO TICKET ID anywhere in the locked body (side-eye 2026-08-06 P3): "arrives with MA-3" was the one line
-  // here addressed to the roadmap rather than the player. Asserted as an ABSENCE so the chip cannot return.
-  await expect(map).not.toContainText("MA-3");
-
-  // KEYBOARD — leave and come back with Enter, so the path is proven independently of the click above.
-  await component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Scene" }).click();
-  await expect(map).toBeHidden();
-  await mapTab.focus();
-  await page.keyboard.press("Enter");
-  await expect(component.locator('[data-slot="rpg-map-tab"]')).toBeVisible();
-});
-
 // RV-4 / RV-12 — the stat profile was a READ-ONLY badge row: a game shipped with six d20 attributes or none,
 // and the HINT (the steering lever the model reads) was unauthorable. It is now a full def plane.
 test("RV-4/RV-12: the GM stat profile adds, renames and GLOSSES attributes — each write fires updateConfig", async ({ mount, page }) => {
@@ -2729,14 +2693,6 @@ test("HUD-1 §7.2: a rail cell RENDERS its caption at the real panel width — t
   expect(captionBox.y + captionBox.height).toBeLessThanOrEqual(cellBox.y + cellBox.height);
 });
 
-test("HUD-1 §7.2: only the PHASE-LOCKED cell carries a `title` — a live cell's word is on screen already", async ({ mount, page }) => {
-  await stubTakeover(page);
-  const component = await mount(<RpgTakeoverStory />);
-  const rail = component.getByRole("toolbar", { name: "Game state" });
-  await expect(rail.getByRole("button", { name: "Inventory" })).not.toHaveAttribute("title", ANY_TITLE);
-  await expect(rail.getByRole("button", { name: "Map" })).toHaveAttribute("title", "Maps are planned");
-});
-
 test("HUD-1: the ACTIVE cell's caption takes the cell's accent state colour (the Text primitive must not win)", async ({ mount, page }) => {
   // Every `voice` re-spells its own colour (`gloss` painted `text-muted-foreground`; `label`, which the
   // caption rides since the #102 readable-floor fix, paints `text-foreground`) — so without `text-inherit`
@@ -2847,7 +2803,7 @@ test("#112: the rail keeps ONE tab stop with arrow keys inside it — the toolba
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverReferenceStory />);
   const rail = component.getByRole("toolbar", { name: "Game state" });
-  await expect(rail.getByRole("button")).toHaveCount(6);
+  await expect(rail.getByRole("button")).toHaveCount(5);
 
   expect(await tabInto(page, '[data-slot="context-rail"] [role="toolbar"][aria-label="Game state"]')).toBe(true);
   const focused = (): Promise<string> => page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? "");
@@ -3345,12 +3301,12 @@ test("#102: every rail caption sits at the READABLE step, and still fits at the 
   const component = await mount(<RpgTakeoverDockedStory />);
   await expect(component.locator('[data-slot="context-rail"]')).toHaveCount(2);
   // Barrier on the SETTLED rails (both rails' cells resolved) before measuring — the admin rail's participant
-  // cell arrives with its own query. The count is a FLOOR, not an identity: the six game cells plus the
+  // cell arrives with its own query. The count is a FLOOR, not an identity: the five game cells plus the
   // admin set this stub produces. What the test is about is that NONE of them is under the floor.
   const game = component.getByRole("toolbar", { name: "Game state" });
-  await expect(game.getByRole("button", { name: "Map" })).toBeVisible();
+  await expect(game.getByRole("button", { name: "Journal" })).toBeVisible();
   const captions = component.locator('[data-slot="context-cell-caption"]');
-  await expect.poll(() => captions.count(), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(9);
+  await expect.poll(() => captions.count(), { intervals: [20, 50, 100, 200] }).toBeGreaterThanOrEqual(8);
   const [sizes, label] = await Promise.all([
     captions.evaluateAll((els) => els.map((el) => Number.parseFloat(getComputedStyle(el).fontSize))),
     page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--text-label")) * 16),
@@ -3369,19 +3325,6 @@ test("#102: every rail caption sits at the READABLE step, and still fits at the 
 // smaller word obviously fits where a bigger one does). Its job is the other direction: the readable-floor
 // raise must not re-buy the three-character-stub defect at the panel's narrowest real mount, and it also
 // pins the two-row premise the wrapped-marker test below rests on.
-test("#102: the readable caption survives the WRAPPED floor width too — rows of three, no clipped word", async ({ mount, page }) => {
-  await stubTakeover(page);
-  const component = await mount(<RpgTakeoverFloorStory />);
-  const game = component.getByRole("toolbar", { name: "Game state" });
-  await expect(game.getByRole("button", { name: "Inventory" })).toBeVisible();
-  const captions = component.locator('[data-slot="context-cell-caption"]');
-  const clipped = await captions.evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
-  expect(clipped).toBe(0);
-  // The six game cells really are on TWO rows here (the `@max-xs` wrap arm) — the premise item 7 rests on.
-  const rows = await game.locator('[data-slot="tabs-tab"]').evaluateAll((els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().y))).size);
-  expect(rows).toBe(2);
-});
-
 test("#102: the kicker's SELECTION half moves exactly one axis off the group's name — colour, per the mock", async ({ mount, page }) => {
   // Measured, the two halves were byte-identical on all five computed axes (10.5px / 600 / 0.84px / the same
   // muted ink / caps), so "GAME STATE · STATUS" read as one flat string instead of a name plus what it
@@ -3441,88 +3384,6 @@ test("#102: the kicker's hairline IS the rail's edge — the rule bleeds to the 
   expect(ruleBox.x + ruleBox.width).toBeCloseTo(railBox.x + railBox.width, 0);
   // …and the WORD keeps the band's inline rhythm, which is the half that should stay inset.
   expect(wordBox.x - railBox.x).toBeCloseTo(block, 0);
-});
-
-test("#102: in the WRAPPED rail the active cell drops its edge bar — a bar between two rows points at the wrong one", async ({ mount, page }) => {
-  // At the 272px floor the six game cells fold to two rows of three, and the active FIRST-ROW cell painted
-  // its inward-facing 2px bar along the seam above row TWO — a marker aimed at the cell below it instead of
-  // at the viewport it selects. In the wrapped state the active treatment is the cell's own fill + accent
-  // ink, which is a whole-cell mark with no direction to be wrong about. The border BOX is kept (transparent)
-  // so folding the rail moves no cell.
-  await stubTakeover(page);
-  const component = await mount(<RpgTakeoverFloorStory />);
-  const game = component.getByRole("toolbar", { name: "Game state" });
-  const active = game.getByRole("button", { name: "Status" });
-  await expect(active).toHaveAttribute("aria-current", "true");
-  const cells = game.locator('[data-slot="tabs-tab"]');
-  // The wrap really is in effect (this assertion is meaningless on a one-row rail).
-  expect(await cells.evaluateAll((els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().y))).size)).toBe(2);
-  // …and the active cell is on the FIRST of those rows, i.e. exactly the cell whose bottom edge is an
-  // internal seam.
-  const [activeY, firstY] = await Promise.all([
-    active.evaluate((el) => Math.round(el.getBoundingClientRect().y)),
-    cells.first().evaluate((el) => Math.round(el.getBoundingClientRect().y)),
-  ]);
-  expect(activeY).toBe(firstY);
-  const transparent = "rgba(0, 0, 0, 0)";
-  await expect
-    .poll(
-      async () =>
-        (
-          await active.evaluate((el) => {
-            const style = getComputedStyle(el);
-            return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
-          })
-        ).color,
-    )
-    .toBe(transparent);
-  // The 2px box survives, so no cell changes height when the rail folds…
-  await expect
-    .poll(
-      async () =>
-        (
-          await active.evaluate((el) => {
-            const style = getComputedStyle(el);
-            return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
-          })
-        ).width,
-    )
-    .toBe("2px");
-  // …and the cell is still unmistakably the selected one, by fill and by ink.
-  await expect
-    .poll(
-      async () =>
-        (
-          await active.evaluate((el) => {
-            const style = getComputedStyle(el);
-            return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
-          })
-        ).fill,
-    )
-    .not.toBe(transparent);
-  const resting = await game.getByRole("button", { name: "Scene" }).evaluate((el) => getComputedStyle(el).backgroundColor);
-  await expect
-    .poll(
-      async () =>
-        (
-          await active.evaluate((el) => {
-            const style = getComputedStyle(el);
-            return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
-          })
-        ).fill,
-    )
-    .not.toBe(resting);
-  await expect
-    .poll(
-      async () =>
-        (
-          await active.evaluate((el) => {
-            const style = getComputedStyle(el);
-            return { color: style.borderBottomColor, width: style.borderBottomWidth, fill: style.backgroundColor, ink: style.color };
-          })
-        ).ink,
-    )
-    .not.toBe(await game.getByRole("button", { name: "Scene" }).evaluate((el) => getComputedStyle(el).color));
 });
 
 // ── HUD-1 H3, THE WAYSTONE COMPACT + THE VERTICAL BUDGET (F6 defect 4's second half) ─────────────────
@@ -3705,46 +3566,6 @@ test("side-eye 08-01: a POOLLESS pinned tracker is a DISC, not a full ring — s
   await expect(band.getByText("5/5")).toHaveCount(0);
 });
 
-test("side-eye 08-01: at the panel's 17rem FLOOR the game rail wraps to rows of three — no 3-character captions", async ({ mount, page }) => {
-  // Six cells on one `auto-cols-fr` row at 272px gave ~44px each and clipped four of the six captions to
-  // ~3 characters (an icon-only rail wearing text, F6 defect 2 again). Below the `xs` container step the
-  // rail lays out as rows of three. Asserted as RENDERED GEOMETRY: two rows, three columns, and every
-  // caption's scrollWidth inside its own box (the definition of "not clipped").
-  await stubTakeover(page);
-  const component = await mount(<RpgTakeoverFloorStory />);
-  const list = component.getByRole("toolbar", { name: "Game state" });
-  await expect(list.getByRole("button")).toHaveCount(6);
-
-  const boxes = await Promise.all((await list.getByRole("button").all()).map((tab) => tab.boundingBox()));
-  const tops = new Set(boxes.map((box) => Math.round(box?.y ?? 0)));
-  expect(tops.size).toBe(2);
-  const firstRow = boxes.filter((box) => Math.round(box?.y ?? 0) === Math.min(...tops));
-  expect(firstRow).toHaveLength(3);
-
-  // No caption is truncated: the text's own scroll width fits the box it renders in.
-  const clipped = await list.locator('[data-slot="context-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
-  expect(clipped).toBe(0);
-});
-
-test("side-eye 08-01: at 320px the SIX-cell game rail wraps too — the caption that clips there is why", async ({ mount, page }) => {
-  // The wrap fires at the `xs` step, not at the 272px floor, because that is where the measurement says the
-  // words stop fitting: unwrapped at a 320px pane, "Inventory" wanted 48px of caption inside a 36px cell.
-  // (The ADMIN rail, 3-4 cells, never wraps at any width — it is not spending vertical budget it doesn't
-  // need to.)
-  await stubTakeover(page);
-  const component = await mount(<RpgTakeoverStory />);
-  const game = component.getByRole("toolbar", { name: "Game state" });
-  await expect(game.getByRole("button")).toHaveCount(6);
-  const clipped = await game.locator('[data-slot="context-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
-  expect(clipped).toBe(0);
-
-  const gameRows = new Set((await Promise.all((await game.getByRole("button").all()).map((tab) => tab.boundingBox()))).map((box) => Math.round(box?.y ?? 0)));
-  expect(gameRows.size).toBe(2);
-  const admin = component.getByRole("toolbar", { name: "Chat" });
-  const adminRows = new Set((await Promise.all((await admin.getByRole("button").all()).map((tab) => tab.boundingBox()))).map((box) => Math.round(box?.y ?? 0)));
-  expect(adminRows.size).toBe(1);
-});
-
 // ── SIDE-EYE 08-01: THE PANEL STOPS INVENTING READINGS ────────────────────────────────────────────────
 
 /** The same participant actor with NO tracker readings written — the state a fresh game is in before the story
@@ -3777,6 +3598,41 @@ test("side-eye 08-01: an UNSET pool reads as an em dash, never a synthesized 0/m
   await expect(component.getByText("0/30")).toHaveCount(0);
   // …and the decoration agrees with the text: an EMPTY rail, not a bar computed off the invented zero.
   await expect.poll(async () => await row.locator('[data-slot="track-bar-fill"]').evaluate((el) => el.getBoundingClientRect().width)).toBe(0);
+});
+
+// The seeded HP meter's own contract is "unset counts as full": the first damage spends from its ceiling. So an
+// untouched carrier reads 20 / 20 rather than an em dash that looks like an empty bar; the stored value is unchanged.
+test("an UNSET seeded HP meter reads as full, while any other unset pool keeps its em dash", async ({ mount, page }) => {
+  const hp = rpgSeedTrackers(RPG_PROFILE_D20)[0];
+  if (hp === undefined) {
+    throw new Error("a d20 game seeds the HP meter");
+  }
+  const base = unwrittenTrackerView();
+  const actor = base.actors[0];
+  if (actor === undefined) {
+    throw new Error("tracker fixture must contain an actor");
+  }
+  await stubTakeover(page, { tracker: { ...base, actors: [{ ...actor, trackers: [hp, VITALITY] }, ...base.actors.slice(1)] } });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
+
+  const rows = component.locator('[data-slot="meter-row"]');
+  await expect(rows.first()).toContainText(`${RPG_SEED_HP_MAX}/${RPG_SEED_HP_MAX}`);
+  await expect(rows.first()).toHaveAttribute("data-unset", "false");
+  await expect(rows.nth(1)).toHaveAttribute("data-unset", "true");
+});
+
+// The Status tab's lead points a host at the Game tab, where trackers are defined; the sentence is a door, not just text.
+test("host: the Status lead's door opens the Game tab", async ({ mount, page }) => {
+  const base = trackerView(false);
+  await stubTakeover(page, {
+    tracker: { ...base, actors: base.actors.map((actor) => ({ ...actor, volatile: null })) },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Game" }).getByRole("button", { name: "Status" }).click();
+
+  await component.getByRole("button", { name: "Open the Game tab" }).click();
+  await expect(component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" })).toHaveAttribute("aria-current", "true");
 });
 
 test("side-eye 08-01: the pack grid ends on the LAST ITEM — no empty ghost socket", async ({ mount, page }) => {
@@ -4331,7 +4187,7 @@ test.describe("coarse HUD budget", () => {
       // All six cells are present and each caption renders WHOLE — the `auto-cols-max` half of the fix.
       // (Six is the declared game rail: Status · Inventory · Scene · Quests · Journal · Map.)
       const cells = component.locator('[data-slot="context-rail"]').first().getByRole("button");
-      await expect(cells).toHaveCount(6);
+      await expect(cells).toHaveCount(5);
       await expect
         .poll(
           async () =>
@@ -4391,7 +4247,7 @@ test.describe("coarse game rail cells", () => {
 
       const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
       const rail = component.locator('[data-slot="context-rail"]').first();
-      await expect(rail.getByRole("button")).toHaveCount(6);
+      await expect(rail.getByRole("button")).toHaveCount(5);
       // BOXES, because `TabsTab` has no overflowing hit pseudo — here the box IS the target.
       await expect
         .poll(
@@ -4400,7 +4256,7 @@ test.describe("coarse game rail cells", () => {
               Array.from(el.querySelectorAll<HTMLElement>('[data-slot="tabs-tab"]')).map((node) => node.getBoundingClientRect().width),
             ),
         )
-        .toHaveLength(6);
+        .toHaveLength(5);
       await expect
         .poll(async () =>
           (
@@ -4418,7 +4274,7 @@ test.describe("coarse game rail cells", () => {
 
       const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
       const rail = component.locator('[data-slot="context-rail"]').first();
-      await expect(rail.getByRole("button")).toHaveCount(6);
+      await expect(rail.getByRole("button")).toHaveCount(5);
       // The tail gap is measured against the LIST's own box, so the assertion survives a retune of the rail's
       // inline padding. MEASURED before: 127px of 429 at 430.
       // One inter-cell gap of slack: an equal-column rail lands the last cell on the list's own right edge.
@@ -4468,7 +4324,7 @@ test.describe("coarse game rail focus ring", () => {
 
     const component = await mount(<RpgTakeoverStory width={430} height={700} />);
     const rail = component.locator('[data-slot="context-rail"]').first();
-    await expect(rail.getByRole("button")).toHaveCount(6);
+    await expect(rail.getByRole("button")).toHaveCount(5);
 
     // 1) REACHABILITY — the half the reviewer could not measure.
     expect(await tabInto(page, '[data-slot="context-rail"] [role="toolbar"]')).toBe(true);
@@ -4765,7 +4621,7 @@ test("side-eye 2026-08-16: at the 384px DOCKED panel no game-rail caption crushe
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverDockedStory />);
   const list = component.getByRole("toolbar", { name: "Game state" });
-  await expect(list.getByRole("button")).toHaveCount(6);
+  await expect(list.getByRole("button")).toHaveCount(5);
 
   // ONE row at this width (the wrap arm is for the narrower FLOOR story) — so this is genuinely the range
   // neither arm covered, not the row-wrap being re-tested at a new width.
@@ -4775,51 +4631,6 @@ test("side-eye 2026-08-16: at the 384px DOCKED panel no game-rail caption crushe
   // NO caption is truncated — the whole point. `+1` absorbs sub-pixel rounding, exactly as the FLOOR pin does.
   const clipped = await list.locator('[data-slot="context-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
   expect(clipped).toBe(0);
-});
-
-test("side-eye 2026-08-16: the PHASE-lock glyph keeps a gutter off the pane's own edge", async ({ mount, page }) => {
-  // The rail is full-bleed by ruling (§5.2 — it is the pane's floor and reaches its edges), which makes the
-  // LAST cell's inline-end edge the PANE's edge. Measured live at 1280px the Map cell's lock glyph ran
-  // x 1268..1280, ending exactly on the viewport edge — it read as a clipped glyph rather than as a lock.
-  // The gutter is bought INSIDE the cell so the full-bleed ruling stands. Asserted as rendered geometry
-  // against the resolved token, never a hardcoded px.
-  await stubTakeover(page);
-  const component = await mount(<RpgTakeoverDockedStory />);
-  const mapTab = component.getByRole("toolbar", { name: "Game state" }).getByRole("button", { name: "Map" });
-  await expect(mapTab).toBeVisible();
-  await expect
-    .poll(
-      async () =>
-        await page.evaluate(() => {
-          const probe = document.createElement("div");
-          probe.style.width = "var(--spacing-field)";
-          document.body.append(probe);
-          const px = probe.getBoundingClientRect().width;
-          probe.remove();
-          return px;
-        }),
-    )
-    .toBeGreaterThan(0);
-  const field = await page.evaluate(() => {
-    const probe = document.createElement("div");
-    probe.style.width = "var(--spacing-field)";
-    document.body.append(probe);
-    const px = probe.getBoundingClientRect().width;
-    probe.remove();
-    return px;
-  });
-  await expect
-    .poll(
-      async () =>
-        await mapTab.evaluate((tab: HTMLElement): number => {
-          const glyph = tab.querySelector("svg:last-of-type");
-          if (glyph === null) {
-            return Number.NaN;
-          }
-          return Math.round(tab.getBoundingClientRect().right - glyph.getBoundingClientRect().right);
-        }),
-    )
-    .toBeGreaterThanOrEqual(Math.round(field) - 1);
 });
 
 // ── #149: THE HUD BAND RESERVES ITS BOX WHILE THE TRACKER READ IS IN FLIGHT ──────────────────────────

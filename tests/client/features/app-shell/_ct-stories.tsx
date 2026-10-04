@@ -1012,7 +1012,7 @@ export function SectionContentKeepMountedStory(): ReactElement {
 /** A resolved-tab builder that fills the §4.11 defaults (strip "meta", no badge, enabled) so a story only
  *  spells the axis it exercises — mirrors `resolveContextTabs`'s own defaulting. */
 function resolvedTab(partial: Partial<ResolvedContextTab> & Pick<ResolvedContextTab, "id" | "label" | "node">): ResolvedContextTab {
-  return { strip: "meta", crown: false, badge: null, disabledReason: null, defaultTab: false, ...partial };
+  return { strip: "meta", crown: false, opaque: false, badge: null, disabledReason: null, defaultTab: false, ...partial };
 }
 
 const CTX_STRIP_TABS: readonly ResolvedContextTab[] = [
@@ -1038,6 +1038,8 @@ export interface ContextTabStripStoryProps {
   readonly withBand?: boolean;
   /** Seat the floating pane's own way out (overlay mode) — a dismiss the story counts. @defaultValue false */
   readonly withDismiss?: boolean;
+  /** Mark the Settings tab as a setup view that sits on an opaque panel surface. @defaultValue false */
+  readonly opaqueSettings?: boolean;
 }
 
 export function ContextTabStripStory({
@@ -1047,9 +1049,10 @@ export function ContextTabStripStory({
   withIconless = false,
   withBand = false,
   withDismiss = false,
+  opaqueSettings = false,
 }: ContextTabStripStoryProps): ReactElement {
   const [dismissed, setDismissed] = useState(0);
-  const tabs: ResolvedContextTab[] = [...CTX_STRIP_TABS];
+  const tabs: ResolvedContextTab[] = CTX_STRIP_TABS.map((tab) => (opaqueSettings && tab.id === "settings" ? { ...tab, opaque: true } : tab));
   if (showTrackers) {
     tabs.push(CTX_TRACKERS_TAB);
   }

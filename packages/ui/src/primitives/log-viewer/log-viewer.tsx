@@ -58,7 +58,7 @@ function LogLineRow({ line, slots }: LogLineRowProps): ReactElement {
       {level === undefined ? null : (
         <Icon icon={LEVEL_GLYPH[level]} size="sm" label={LEVEL_LABEL[level]} className={slots.glyph()} data-slot="log-viewer-glyph" />
       )}
-      <span>{textOf(line)}</span>
+      <span className={slots.text()}>{textOf(line)}</span>
     </div>
   );
 }

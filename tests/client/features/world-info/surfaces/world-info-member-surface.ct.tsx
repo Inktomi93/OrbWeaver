@@ -27,14 +27,14 @@ const BOOK_ROW = {
   usage: { characters: 0, personas: 0, chats: 0, global: false, total: 0 },
 };
 
-function entry(id: string, title: string, priority: number): TrpcWireOutput<"worldInfo.listEntries">[number] {
+function entry(id: string, title: string, priority: number, keys: string[] = []): TrpcWireOutput<"worldInfo.listEntries">[number] {
   return {
     id,
     worldBookId: BOOK_ID,
     title,
     description: null,
     content: `${title} lore`,
-    keys: [],
+    keys,
     enabled: true,
     priority,
     ignoreBudget: false,
@@ -113,10 +113,11 @@ test("drag-reorders an entry and persists the new order via applyEntryOrder", as
 // different weight (the same class as the transparent toggle chips the report groups it with). The pin is
 // PAINT, not a variant name: a resting background or a resting border, plus the primary still outranking it.
 test("the editor's secondary verb reads as a control at rest, and the primary still outranks it", async ({ mount, page }) => {
+  const withBlankKeyed: TrpcFixtureOutput<"worldInfo.listEntries"> = [...ENTRIES, entry("world_entry_reorder0d", "", 0, ["harbor"])];
   await routeTrpc(page, {
     "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
     "worldInfo.getBook": () => ({ id: BOOK_ID, name: "Reorder Book", description: "a book with three entries", createdAt: 1 }),
-    "worldInfo.listEntries": () => ENTRIES,
+    "worldInfo.listEntries": () => withBlankKeyed,
   });
 
   const surface = await mount(<WorldInfoMemberStory />);
@@ -138,4 +139,19 @@ test("the editor's secondary verb reads as a control at rest, and the primary st
     .first()
     .evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor);
   expect(primaryBackground, "the primary and the secondary do not paint the same fill").not.toBe(painted.background);
+});
+
+// "Backfill titles" fills a blank title from the entry's keys, so it is offered only while such an entry exists.
+test("Backfill titles shows only when a blank-titled entry has keys to fill it from", async ({ mount, page }) => {
+  const entries: TrpcFixtureOutput<"worldInfo.listEntries"> = [...ENTRIES, entry("world_entry_reorder0d", "", 0)];
+  await routeTrpc(page, {
+    "worldInfo.listBooksWithUsage": () => [BOOK_ROW],
+    "worldInfo.getBook": () => ({ id: BOOK_ID, name: "Reorder Book", description: "a book with three entries", createdAt: 1 }),
+    "worldInfo.listEntries": () => entries,
+  });
+
+  const surface = await mount(<WorldInfoMemberStory />);
+  await expect(surface.getByText("4 entries")).toBeVisible();
+  // A blank title with no keys is left blank by the verb, and every other title is already set.
+  await expect(surface.getByRole("button", { name: "Backfill titles" })).toHaveCount(0);
 });

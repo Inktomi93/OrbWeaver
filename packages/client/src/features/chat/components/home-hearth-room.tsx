@@ -102,6 +102,8 @@ export function HomeHearthRoom({
   const scentId = useId();
   const creditId = useId();
   const credit = characterCredit(chat.participantNames);
+  // A default-titled chat is named for its characters, so the credit would read the title back verbatim.
+  const creditRepeatsTitle = credit.toLowerCase() === title.toLowerCase();
   return (
     <Card
       // THE NAME CARRIES THE VERB (side-eye 2026-08-16 F5). `aria-labelledby={titleId}` named the island
@@ -109,7 +111,7 @@ export function HomeHearthRoom({
       // and a screen-reader user had to infer that activating it resumed anything. `Resume <room>` is the
       // same promise the visible "Resume →" affordance makes, which is also what keeps voice control
       // working (WCAG 2.5.3: the spoken name contains the read label).
-      aria-describedby={`${scentId} ${creditId}`}
+      aria-describedby={creditRepeatsTitle ? scentId : `${scentId} ${creditId}`}
       aria-label={`Resume ${title}`}
       // A REAL BUTTON, not a `div[role=button]` (side-eye rail-home P3-4, 2026-08-22). The synthesized pair
       // was VERIFIED WORKING before the finding was filed — Enter and Space both resumed the room — so this
@@ -198,9 +200,11 @@ export function HomeHearthRoom({
               page, what the masthead sentence directly above the island already says ("You left off 2w ago
               in …"). One instant, one rendering — the masthead owns the sentence form (its own header
               carries the `formatRelativeAgo` ruling), and the hero owns the room. */}
-          <Text as="span" className="min-w-0 flex-1" id={creditId} voice="credit">
-            {credit}
-          </Text>
+          {creditRepeatsTitle ? null : (
+            <Text as="span" className="min-w-0 flex-1" id={creditId} voice="credit">
+              {credit}
+            </Text>
+          )}
           {/* NOT a nested button, and no longer dressed as one (rail sweep P3-17). The island IS the
               control; this was `text-primary` — link ink, inside a card whose whole surface is the
               affordance — so a user read it as "the link is over there" and the 700px of card beside it as
@@ -209,7 +213,7 @@ export function HomeHearthRoom({
               accessible name stays the verb phrase and not a glyph name. */}
           <Text
             as="span"
-            className="shrink-0 text-muted-foreground transition-colors duration-(--motion-fast) ease-out-expo group-hover:text-foreground"
+            className="ml-auto shrink-0 text-muted-foreground transition-colors duration-(--motion-fast) ease-out-expo group-hover:text-foreground"
             voice="credit"
           >
             Resume <TrailingArrow className="inline-block transition-transform duration-(--motion-fast) ease-out-expo group-hover:translate-x-tight" />

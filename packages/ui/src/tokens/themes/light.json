@@ -101,8 +101,7 @@
     "input": {
       "$value": {
         "colorSpace": "oklch",
-        "components": [0.2, 0.01, 60],
-        "alpha": 0.16
+        "components": [0.995, 0.003, 75]
       }
     },
     "input-border": {

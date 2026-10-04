@@ -171,6 +171,7 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
 
   return (
     <FormDialog
+      closeButton={true}
       // THE OUTCOME, not the mechanism (side-eye F-10): "the format is detected" tells you what the DIALOG
       // does; what a user needs before committing is what happens to their library — and the orb arm's
       // bundle semantics MERGE over a same-named preset, which is the one outcome this door must never

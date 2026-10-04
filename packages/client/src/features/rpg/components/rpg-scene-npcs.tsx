@@ -14,7 +14,7 @@
 // one NPC's mood edit and could only ever author the members this client could see.
 
 import type { RpgActorRef, RpgActorView, RpgNpcGuideField, RpgNpcRef, RpgRelationship, RpgTrackerDef, RpgTrackerEntry } from "@orb/contracts/rpg";
-import { RPG_NPC_GUIDE_FIELDS, trackerCeiling, trackerNumber, trackerReading } from "@orb/contracts/rpg";
+import { meterDisplayNumber, RPG_NPC_GUIDE_FIELDS, trackerCeiling, trackerReading } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { ChevronDown, ChevronRight, Icon, UserPlus, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -113,7 +113,7 @@ function SceneNpcCard({ actor, edit }: { readonly actor: RpgActorView; readonly 
                 // WHOSE meter — two npc cards on one tab otherwise offer two "Vitality value" buttons.
                 subject={actor.name}
                 // NULL stays null (side-eye 08-01): `?? 0` published "0/0" as this NPC's reading.
-                value={trackerNumber(m.value ?? undefined)}
+                value={meterDisplayNumber(m.def, m.value ?? undefined)}
                 // The EFFECTIVE ceiling (this carrier's override, else the def default) — one resolver.
                 max={trackerCeiling(m.def, m.value ?? undefined)}
                 // The def's own color, else the ordinal ramp — the SAME derivation the host-console

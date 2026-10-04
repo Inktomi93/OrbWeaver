@@ -135,6 +135,10 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
     ),
   );
   const homes = regexRowHomes(view.tiers);
+  // A tier with no scripts has nothing to switch and nothing to read. The room's own group stays for the host
+  // because it carries the Attach action, but its switch waits for a script like every other tier's.
+  const populated = view.tiers.filter((tier) => regexTierRows(tier, homes).length > 0);
+  const groups = view.tiers.filter((tier) => tier.scope === "chat" || populated.includes(tier));
   return (
     <Stack data-slot="regex-section" gap="block">
       {/* The two facts a debugger must know before touching anything, in the canvas's own words. */}
@@ -142,9 +146,9 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
         Prompt rules apply from the next reply; the switches below say <b>where they run here</b>. A row’s own switch is the script’s — <b>off everywhere</b>.
         What you see on screen is the last group.
       </Text>
-      <RegexLeverStrip chatId={chatId} enabled={view.enabled} homes={homes} labels={labels} tiers={view.tiers} />
+      <RegexLeverStrip chatId={chatId} enabled={view.enabled} homes={homes} labels={labels} tiers={populated} />
       <StageLegend />
-      {view.tiers.map((tier) => (
+      {groups.map((tier) => (
         <RegexTierGroup
           chatId={chatId}
           // #1755 — the room's whole run length: the SET each row's rank is a position in. The host's read

@@ -657,6 +657,32 @@ test("loading sets aria-busy and disables the button", async ({ mount }) => {
   await expect(button).toBeDisabled();
 });
 
+// A half-opacity accent fill reads as nearly enabled, so a disabled primary swaps to the neutral muted pair and
+// its CTA ring goes neutral with it. A busy (loading) button is working rather than unavailable and keeps its fill.
+test("a disabled primary paints the neutral muted fill and ring, while a loading primary keeps the accent", async ({ mount, page }) => {
+  await mount(
+    <div>
+      <Button>Enabled</Button>
+      <Button disabled={true}>Plain off</Button>
+      <Button focusableWhenDisabled={true} disabled={true}>
+        Soft off
+      </Button>
+      <Button loading={true}>Loading</Button>
+    </div>,
+  );
+  const fillOf = (name: string): Promise<string> => page.getByRole("button", { name }).evaluate((el) => getComputedStyle(el).backgroundColor);
+  const ringOf = (name: string): Promise<string> => page.getByRole("button", { name }).evaluate((el) => getComputedStyle(el, "::after").backgroundImage);
+  const accent = await fillOf("Enabled");
+  const muted = resolvedTokenColor("color.muted");
+
+  expect(await fillOf("Plain off")).toBe(muted);
+  expect(await fillOf("Soft off")).toBe(muted);
+  expect(await fillOf("Loading")).toBe(accent);
+  expect(await ringOf("Plain off")).toBe("none");
+  expect(await ringOf("Enabled")).not.toBe("none");
+  expect(await ringOf("Loading")).not.toBe("none");
+});
+
 test("plain disabled is removed from the tab order", async ({ mount, page }) => {
   await mount(
     <div>
