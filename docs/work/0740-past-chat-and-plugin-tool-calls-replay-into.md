@@ -20,7 +20,7 @@ If tool turns drop from history, every tool-using plugin and RPG round makes the
 
 ## Done when
 
-A turn after a tool turn carries that turn's tool call and result pairs from the active swipe on the wire; a swipe or regenerate swaps them; a tool declared not replayed and a deleted or hidden tool card are absent; fit trims pairs with their row; RPG prompts are unchanged; tests cover each case on the assembled history.
+A turn after a tool turn carries that turn's tool call and result pairs from the active swipe on the wire; a swipe or regenerate swaps them; a tool declared not replayed and a deleted or hidden tool card are absent; fit trims pairs with their row; RPG prompts are unchanged; tests cover each case on the assembled history. The plugin SDK's tools.register takes the replay opt-out and the SDK docs say what replays; the tool-using showcase plugins (packages/showcase-plugins/bundles/oracle-deck/main.ts, story-clocks/main.ts) are checked against replay and ship with the version bump, regenerated bundle and release-entries hashes; the author templates (~/homelab/development/orb-plugin-template src/main.ts, AUTHORING.md, README.md, and the AUTHORING.md of orb-plugin-template-scripted-ui) teach the same.
 
 ## Evidence
 
