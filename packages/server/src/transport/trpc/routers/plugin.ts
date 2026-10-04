@@ -200,9 +200,12 @@ export const pluginRouter = t.router({
   // caller's echo of the exact `PluginView.netHosts` it displayed — the anti-TOCTOU pin the service refuses on
   // when `net.fetch` is in the grant. Validated with the manifest's OWN hostname grammar (`pluginNetHostSchema`)
   // rather than a second hand-rolled host rule; NO default, because a silently-defaulted `[]` would make
-  // "the client forgot to send the echo" indistinguishable from "the owner saw an empty list".
+  // "the client forgot to send the echo" indistinguishable from "the owner saw an empty list". `enable` is the
+  // owner's approve-and-run, required so a caller states whether its consent act also starts the plugin.
   setGrant: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema, grant: grantSchema, acknowledgedNetHosts: z.array(pluginNetHostSchema).max(NET_HOSTS_MAX) }))
+    .input(
+      z.object({ pluginId: pluginIdSchema, grant: grantSchema, acknowledgedNetHosts: z.array(pluginNetHostSchema).max(NET_HOSTS_MAX), enable: z.boolean() }),
+    )
     .output(pluginViewSchema)
     .mutation(({ ctx, input }) =>
       ctx.services.plugin.setGrant({
@@ -210,6 +213,7 @@ export const pluginRouter = t.router({
         pluginId: input.pluginId,
         grant: input.grant,
         acknowledgedNetHosts: input.acknowledgedNetHosts,
+        enable: input.enable,
       }),
     ),
 

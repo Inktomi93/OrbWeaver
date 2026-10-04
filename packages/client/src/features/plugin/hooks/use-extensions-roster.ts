@@ -8,6 +8,8 @@ interface ExtensionsRoster {
   readonly pages: readonly PluginPageView[];
   readonly matching: readonly PluginPageView[];
   readonly census: number | string;
+  /** Does a plugin name match the finder? The waiting rows filter through the same query as the pages. */
+  readonly matchesName: (name: string) => boolean;
 }
 
 export function useExtensionsRoster(): ExtensionsRoster {
@@ -16,5 +18,5 @@ export function useExtensionsRoster(): ExtensionsRoster {
   const matching = pages.filter((page) => `${page.title} ${page.pluginName}`.toLocaleLowerCase().includes(query));
   // A filtered zero must not suppress the census and imply the underlying library disappeared.
   const census = matching.length === 0 && pages.length > 0 ? `0 of ${String(pages.length)}` : matching.length;
-  return { pages, matching, census };
+  return { pages, matching, census, matchesName: (name) => name.toLocaleLowerCase().includes(query) };
 }

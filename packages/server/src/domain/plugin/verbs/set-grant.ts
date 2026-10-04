@@ -14,18 +14,22 @@
 // un-consented capability was simply never granted), so this was a dead end plus a comment overstating a
 // security mechanism, never a hole. Both halves are closed here: the mechanism, and the comments.
 //
-// THE TWO INVERSIONS THIS VERB MUST NOT BECOME, stated because each is the obvious "simplification":
-//   1. ENABLE MUST NOT IMPLY RE-GRANT. Recomputing the grant inside `setEnabled` would close the loop with one
-//      fewer verb and would be a consent bug: turning a plugin back on would silently widen its authority to
-//      whatever the current manifest asks for. `setEnabled` still reads the STORED grant, untouched.
-//   2. RE-GRANT MUST NOT IMPLY ENABLE. A disabled plugin stays disabled here. The owner's decisions stay two
-//      separate acts — "you may have these powers" and "run" — because they answer different questions.
+// ENABLE MUST NOT IMPLY RE-GRANT. Recomputing the grant inside `setEnabled` would be a consent bug: turning a
+// plugin back on would silently widen its authority to whatever the current manifest asks for. `setEnabled`
+// still reads the STORED grant, untouched.
+//
+// APPROVAL MAY IMPLY ENABLE, AND ONLY WHEN THE CALLER SAYS SO (owner ruling, item 573). The owner's approval is
+// the act that runs the plugin, so `enable` activates on exactly the grant this call just wrote and withholds
+// the same unanswered hosts `setEnabled` would. It grants nothing `setGrant` followed by `setEnabled` could not,
+// and it stays on the owner-scoped row load, so it is the owner's own act under D147(b). Without `enable` a
+// disabled row stays disabled: the example seeder and the D147(d) fan-out call this verb to RAISE an ask, and a
+// covering empty grant on a capability-free bundle must not boot its guest under the recipient.
 //
 // THE RUNNING-INSTANCE INVARIANT: a resident guest's grants are fixed at activation (`createInstance({grants})`
 // → the membrane's `requireCapability` set), so a grant write while an instance is resident would leave the
 // running plugin enforcing the OLD subset — a NARROWING would not take effect until the next restart, which is
 // a consent bug wearing a race's clothes. So the resident is always torn down, and re-activated on the new
-// grant only if the row was `enabled` (the `upgrade` posture, verbatim).
+// grant if the row was `enabled` or the owner asked to enable it.
 
 import type { PluginCapability } from "@orb/contracts/plugin";
 import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNotFoundError } from "../contract/errors.ts";
@@ -60,8 +64,24 @@ function refusalAfterGrant(
   return { pending, hosts: pending ? prior.widenedNetHosts : [] };
 }
 
+// THE EGRESS ACKNOWLEDGEMENT. Every other capability is consented to BY NAME, so a manifest that moved under the
+// rendered screen cannot make the owner grant something they did not type. `net.fetch` is the exception — its
+// reach is `netHosts`, which the owner never names — so the caller echoes the host list it displayed and any
+// manifest host missing from that echo refuses. `widenedNetHosts` is the SAME fold the upgrade re-consent
+// trigger uses (case-insensitive, trailing-dot-literal), so the two can never disagree about what counts as a
+// new destination.
+function requireAcknowledgedHosts(grant: readonly PluginCapability[], manifestHosts: readonly string[], acknowledged: readonly string[]): void {
+  if (!grant.includes("net.fetch")) {
+    return;
+  }
+  const unacknowledged = widenedNetHosts(manifestHosts, acknowledged);
+  if (unacknowledged.length > 0) {
+    throw new PluginNetHostsUnacknowledgedError(unacknowledged);
+  }
+}
+
 export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): PluginService["setGrant"] {
-  return async ({ caller, pluginId, grant, acknowledgedNetHosts }: SetPluginGrantParams) => {
+  return async ({ caller, pluginId, grant, acknowledgedNetHosts, enable = false }: SetPluginGrantParams) => {
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
       throw new PluginNotFoundError(pluginId);
@@ -75,18 +95,7 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): Plugin
       throw new CapabilityNotGrantedError(ungrantable);
     }
 
-    // THE EGRESS ACKNOWLEDGEMENT. Every other capability is consented to BY NAME, so a manifest that moved
-    // under the rendered screen cannot make the owner grant something they did not type. `net.fetch` is the
-    // exception — its reach is `netHosts`, which the owner never names — so the caller echoes the host list it
-    // displayed and any manifest host missing from that echo refuses. `widenedNetHosts` is the SAME fold the
-    // upgrade re-consent trigger uses (case-insensitive, trailing-dot-literal), so the two can never disagree
-    // about what counts as a new destination.
-    if (grant.includes("net.fetch")) {
-      const unacknowledged = widenedNetHosts(existing.manifest.netHosts ?? [], acknowledgedNetHosts);
-      if (unacknowledged.length > 0) {
-        throw new PluginNetHostsUnacknowledgedError(unacknowledged);
-      }
-    }
+    requireAcknowledgedHosts(grant, existing.manifest.netHosts ?? [], acknowledgedNetHosts);
 
     const granted = normalizeGrant(declared, grant);
     const wasEnabled = existing.status === "enabled";
@@ -104,11 +113,11 @@ export function createSetGrant(ctx: PluginContext, deps: ActivationDeps): Plugin
       widenedNetHosts: refusal.hosts,
       updatedAt: ctx.now(),
     });
-    if (wasEnabled) {
-      // Re-activation is a RESTORE of the state the owner already chose, not an implicit enable: only a row
-      // that was `enabled` comes back up, and it comes back up under the grant just written. A contained
-      // activation failure lands `errored` + `last_error` on the row (activate's own posture) and surfaces in
-      // the returned view — the grant write stands either way, which is the honest outcome: consent was given.
+    if (wasEnabled || enable) {
+      // Either a RESTORE of the state the owner already chose or the owner's approve-and-run; both come up
+      // under the grant just written. A contained activation failure lands `errored` + `last_error` on the row
+      // (activate's own posture) and surfaces in the returned view — the grant write stands either way, which
+      // is the honest outcome: consent was given.
       //
       // WHILE A RE-CONSENT STILL STANDS, ITS HOSTS STAY WITHHELD FROM THE WALL — the SAME rule `setEnabled`
       // holds, at the SAME `refusal.hosts` set (empty on a COVERING grant → full reach restored; non-empty on

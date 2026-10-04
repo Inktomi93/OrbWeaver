@@ -171,9 +171,10 @@ export const useUpgradePluginFromShowcase = createEntityMutation<
  * asked-vs-allowed picture and sends back exactly what it displayed). This is what turns the re-consent
  * notice's escape into a real path instead of "remove and reinstall": before this verb existed, a widening
  * upgrade's un-granted capability was permanently un-grantable short of dropping the plugin's storage.
- * A running row is torn down and re-activated under the new grant; a contained re-activation failure returns
- * an `errored` row with its contributed providers absent. Reconcile the surface and command catalogs too: a
- * successful answer can reactivate a widened upgrade, while failure must remove every stale contribution.
+ * The row is torn down and activated under the new grant when it was running or when `enable` asks for it
+ * (the owner's approval turns the plugin on); a contained activation failure returns an `errored` row with its
+ * contributed providers absent. Reconcile the surface and command catalogs too: a successful answer can start
+ * the plugin, while failure must remove every stale contribution.
  */
 export const useSetPluginGrant = createEntityMutation<inferInput<Trpc["plugin"]["setGrant"]>, inferOutput<Trpc["plugin"]["setGrant"]>>({
   options: (trpc) => trpc.plugin.setGrant.mutationOptions(),

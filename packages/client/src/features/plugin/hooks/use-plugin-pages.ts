@@ -20,6 +20,14 @@ import { useTRPC } from "#data";
 import type { PluginPageKey } from "#state";
 import { pluginPageKey } from "#state";
 
+/** Not a surface id: `PLUGIN_SURFACE_ID_RE` refuses `#` at registration, so no page key can equal a review key. */
+const REVIEW_SURFACE = "#review";
+
+/** The Plugin pages drill key for reviewing ONE waiting plugin's ask in place, beside its pages' keys. */
+export function pluginReviewKey(pluginId: PluginId): PluginPageKey {
+  return pluginPageKey(pluginId, REVIEW_SURFACE);
+}
+
 /** One registered extension page as the switcher + the content pane read it. */
 export interface PluginPageView {
   /** The drill key the selection store holds (`<pluginId>:<surfaceId>`) — minted through the ONE seam. */

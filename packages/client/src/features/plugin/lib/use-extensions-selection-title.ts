@@ -12,19 +12,25 @@
 // count goes back with the noun that survives; it is the same `useExtensionsCensus` the band prints, over the
 // same two cache-first reads this file already makes.
 
+import { useQuery } from "@tanstack/react-query";
+import { useTRPC } from "#data";
 import { usePluginPageKey } from "#state";
 import { useExtensionsCensus } from "../hooks/use-extensions-census.ts";
-import { usePluginPages } from "../hooks/use-plugin-pages.ts";
+import { pluginReviewKey, usePluginPages } from "../hooks/use-plugin-pages.ts";
 import { EXTENSIONS_SECTION_LABEL } from "./extensions-section-label.ts";
 
 export function useExtensionsSelectionTitle(): string | null {
+  const trpc = useTRPC();
   const key = usePluginPageKey();
   const pages = usePluginPages();
+  const { data: plugins } = useQuery(trpc.plugin.list.queryOptions());
   // Unconditional, above the early return: this is a hook, and the shell calls THIS hook unconditionally for
   // exactly the same reason (`section-registry.ts`, `NO_SELECTION_TITLE`).
   const census = useExtensionsCensus();
   if (key !== null) {
-    return pages.find((page) => page.key === key)?.title ?? null;
+    // An in-place review is named by the plugin under review.
+    const reviewed = plugins?.find((plugin) => pluginReviewKey(plugin.id) === key);
+    return reviewed?.name ?? pages.find((page) => page.key === key)?.title ?? null;
   }
   // A ZERO CENSUS IS SUPPRESSED, in the band's own spelling (`ListPaneHeader`: "a zero census is noise, not
   // information") — with no pages registered the bar says `Extensions` and the pane's teaching empty explains
