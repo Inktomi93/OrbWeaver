@@ -385,7 +385,7 @@ test("ROUND-TRIP (the exec's replayed output): extraction JSON → delta → flu
       journal: [{ type: "combat", content: "Wounded by the troll as it swung its club." }],
     },
     { item: () => "item_x", quest: () => castId<RpgQuestId>("q_x"), objective: () => "obj_x" },
-    buildActorRefIndex([player]),
+    { participantIndex: buildActorRefIndex([player]), trackerDefs: [] },
   );
   const { chatId, h } = await seedLiteGame(db, { participants: [player], toolRoundDelta });
   await pinExtractionMode(h, chatId, "cheap");

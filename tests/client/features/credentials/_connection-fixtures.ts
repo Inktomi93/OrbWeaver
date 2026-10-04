@@ -186,8 +186,9 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     // The pane's Model roles section reads the Utility preset picker and the memory settings.
     "preset.list": () => [],
     "settings.getUserSettings": () => userSettingsView(),
-    // The embedding rows read the viewer's embedder rebuild from the job list.
+    // The embedding rows read the viewer's embedder rebuild from the job list, and whether search is paused for it.
     "workloads.list": () => [],
+    "search.spaceStatus": () => ({ paused: false, embed: false, imageEmbed: false }),
     // An embedder change first asks whether it would rebuild the index; by default these rows back no stored index.
     "connection.embedSpaceChangePreview": () =>
       opts.reindexPreview ?? { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },

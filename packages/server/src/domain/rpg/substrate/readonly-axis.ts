@@ -18,7 +18,14 @@
 
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { acceptsRequiredToolChoice, fitsEveryWire } from "@orb/contracts/inference";
-import type { RpgEffectiveDelivery, RpgExtractionMode, RpgStateCaptureVehicle, RpgStructuredRoundShape, RpgToolCall } from "@orb/contracts/rpg";
+import type {
+  RpgEffectiveDelivery,
+  RpgExtractionMode,
+  RpgStateCaptureVehicle,
+  RpgStateRoundOverflow,
+  RpgStructuredRoundShape,
+  RpgToolCall,
+} from "@orb/contracts/rpg";
 import { malformedToolCalls, RPG_STRUCTURED_ROUND_SHAPES, RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
 
 /** The per-mode WRITER-capability predicate. A mapped Record, not a switch — a new `RpgExtractionMode` member
@@ -57,21 +64,28 @@ export function deriveTrackersReadOnly(mode: RpgExtractionMode, capability: Gene
  *  one lie for another. */
 export function deriveEffectiveDelivery(
   mode: RpgExtractionMode,
-  verdicts: { readonly trackersReadOnly: boolean; readonly foldGuarded: boolean; readonly structuredUnavailable: boolean },
+  verdicts: {
+    readonly trackersReadOnly: boolean;
+    readonly foldGuarded: boolean;
+    readonly structuredUnavailable: boolean;
+    readonly stateRoundOverflow: RpgStateRoundOverflow | null;
+  },
 ): RpgEffectiveDelivery {
   if (verdicts.trackersReadOnly) {
     // No model write path at all — the flush returns before any vehicle runs (the F2 gate). Neither "Live" nor
     // "one beat behind" is true of a game nothing writes; the read-only pill is the honest label there.
-    return { path: "none", fallbackReason: null, structuredUnavailable: false };
+    return { path: "none", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null };
   }
   if (mode === "folded" && !verdicts.foldGuarded) {
-    return { path: "folded", fallbackReason: null, structuredUnavailable: false };
+    return { path: "folded", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null };
   }
-  // A post-commit round runs: the fold guard and an unhonoured `structured` knob are independent facts, both shown.
+  // A post-commit round runs: the fold guard, an unhonoured `structured` knob and a window too small for the round
+  // are independent facts, all shown.
   return {
     path: "tool-round",
     fallbackReason: mode === "folded" ? "local-engine-fold-guard" : null,
     structuredUnavailable: verdicts.structuredUnavailable,
+    stateRoundOverflow: verdicts.stateRoundOverflow,
   };
 }
 

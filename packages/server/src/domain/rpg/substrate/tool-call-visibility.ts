@@ -29,10 +29,25 @@
 
 import type { RpgRecordedToolCall, RpgToolCallDisclosure } from "@orb/contracts/rpg";
 import { parseToolCallArgs, projectIssueSentValue, RPG_STATE_ROUND_FAILED_SUMMARY } from "@orb/contracts/rpg";
+import { stripHiddenSpans } from "@orb/kit/content";
 import { stripHiddenDeep } from "./hidden-spans.ts";
 
-/** One JSON payload with every leaf string's hidden spans removed, re-encoded — or `null` when the input is
- *  not readable at all (the withhold arm; see the header).
+// KEYS ARE BELTED HERE, unlike `stripHiddenDeep`'s values-only walk: that walk spares keys because a state
+// plane's keys are ADDRESSES (`fieldLocks`), but a call's keys are whatever the model invented, so a hidden
+// span in one is model bytes like any value. Two keys that belt to one name collapse, the later winning, as a
+// repeated JSON key does.
+function stripHiddenKeysAndValues(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(stripHiddenKeysAndValues);
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => [stripHiddenSpans(key).content, stripHiddenKeysAndValues(entry)]));
+  }
+  return stripHiddenDeep(value);
+}
+
+/** One JSON payload with every key's and leaf string's hidden spans removed, re-encoded — or `null` when the
+ *  input is not readable at all (the withhold arm; see the header).
  *
  *  The decode is `parseToolCallArgs`, the SAME one the fold's own drop verdict uses — not a second
  *  `JSON.parse` + catch here, which would be a second, differently-owned answer to "is this payload
@@ -40,7 +55,7 @@ import { stripHiddenDeep } from "./hidden-spans.ts";
  *  nothing a reader can act on. */
 function stripHiddenInJson(raw: string): string | null {
   const parsed = parseToolCallArgs(raw);
-  return parsed === null ? null : JSON.stringify(stripHiddenDeep(parsed));
+  return parsed === null ? null : JSON.stringify(stripHiddenKeysAndValues(parsed));
 }
 
 /** One issue line with its model-SENT value re-rendered through the belt; a value that cannot be decoded

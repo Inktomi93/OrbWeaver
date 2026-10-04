@@ -77,6 +77,8 @@ import { ConnectionTransportEditor } from "./connection-transport-editor.tsx";
 
 export interface ConnectionEditorProps {
   readonly connectionId: UserConnectionId;
+  /** Land with the Advanced tier expanded: a door that sends the user to a stated fact (the context window). */
+  readonly advancedOpen?: boolean | undefined;
   /** Back out of the editor — the list section owns which view it shows. */
   readonly onDone: () => void;
   /** Return to the list after a successful removal, where the list restores focus to a live control. */
@@ -102,7 +104,7 @@ export function ConnectionEditor(props: ConnectionEditorProps): ReactElement {
   );
 }
 
-function ConnectionEditorBody({ connectionId, onDone, onRemoved, removalFinalFocus, trpc, invalidation }: ConnectionEditorProps): ReactElement {
+function ConnectionEditorBody({ connectionId, advancedOpen, onDone, onRemoved, removalFinalFocus, trpc, invalidation }: ConnectionEditorProps): ReactElement {
   const { data: connection } = useSuspenseQuery(trpc.connection.get.queryOptions({ connectionId }));
   const { data: available } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
   const provider = available.find((row) => row.provider.id === connection.providerId)?.provider;
@@ -122,6 +124,7 @@ function ConnectionEditorBody({ connectionId, onDone, onRemoved, removalFinalFoc
 
   return (
     <AvailableConnectionEditorBody
+      advancedOpen={advancedOpen}
       connection={connection}
       connectionId={connectionId}
       invalidation={invalidation}
@@ -134,6 +137,7 @@ function ConnectionEditorBody({ connectionId, onDone, onRemoved, removalFinalFoc
 }
 
 function AvailableConnectionEditorBody({
+  advancedOpen,
   connection,
   connectionId,
   onDone,
@@ -168,10 +172,9 @@ function AvailableConnectionEditorBody({
   const declared = connection.declared;
   const busy = update.isPending;
 
-  // A patch to an identity field of a row that backs the user's embedder can rebuild their index; the server says
-  // whether it would. Any other field (a label, a switch) cannot move a space and is written straight through.
-  // A fact row's Override or Reset button goes away with the change, so focus returns to the row (the confirm, when
-  // there is one, already does this). A write the server checks the embedder for says so where its refusal would land.
+  // A patch to an identity field of the user's embedder can rebuild their index, so the server is asked first; any other
+  // field is written straight through. A fact row's Override or Reset button goes away with the change, so focus returns
+  // to the row, and a write the server checks the embedder for says so where its refusal would land.
   const patch = (part: Parameters<typeof update.mutate>[0]["patch"], factPath: string | null = null): void => {
     const write = (checksEmbedder: boolean): void => {
       if (checksEmbedder) {
@@ -322,7 +325,7 @@ function AvailableConnectionEditorBody({
 
         <EditorTier
           badge={overrideBadge(declaredOverrideCount(declared))}
-          defaultOpen={false}
+          defaultOpen={advancedOpen === true}
           kicker="What this server accepts · Endpoint quirks"
           title="Advanced"
         >

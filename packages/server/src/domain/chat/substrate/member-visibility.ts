@@ -58,7 +58,7 @@
 // incl. `reasoningEdited`/`reasoningCleared`), the live `reasoning`-channel token DELTA, `reasoningStreamDone`,
 // and the fork copy (a non-host forker of a deception game must not launder a member→host reasoning leak).
 
-import type { ChatBusEvent, ChatDeltaEvent, MessageView } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatDeltaEvent, MemberCardView, MessageView } from "@orb/contracts/chat";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
 import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
@@ -149,6 +149,32 @@ export function stripMessagesForViewer<T extends { readonly messages: readonly M
     return outcome;
   }
   return { ...outcome, messages: outcome.messages.map((v) => projectViewForMember(v, reasoningHostOnly)) };
+}
+
+/** The §3.6 member projection of a card read (`getMemberCard`): every text field the level let through, with its
+ *  hidden spans removed. A card can carry a GM secret (a promoted game NPC's name and guides do) that the host and
+ *  the model keep, so the strip lives at this read, never on the stored card. Identity for the host. */
+export function stripMemberCardForViewer(view: MemberCardView, viewer: ViewerRole): MemberCardView {
+  if (viewerReadsHidden(viewer)) {
+    return view;
+  }
+  const strip = (text: string): string => stripHiddenSpans(text).content;
+  const stripNullable = (text: string | null): string | null => (text === null ? null : strip(text));
+  const stripList = (list: string[] | null): string[] | null => (list === null ? null : list.map(strip));
+  return {
+    ...view,
+    name: strip(view.name),
+    description: stripNullable(view.description),
+    personality: stripNullable(view.personality),
+    scenario: stripNullable(view.scenario),
+    greetings: stripList(view.greetings),
+    exampleMessages: stripNullable(view.exampleMessages),
+    tags: stripList(view.tags),
+    creatorNotes: stripNullable(view.creatorNotes),
+    lore: stripList(view.lore),
+    systemPrompt: stripNullable(view.systemPrompt),
+    postHistoryInstructions: stripNullable(view.postHistoryInstructions),
+  };
 }
 
 /**

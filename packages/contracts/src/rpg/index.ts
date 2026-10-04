@@ -381,6 +381,7 @@ export type {
   RpgRevealedSpan,
   RpgRevealView,
   RpgStandingLie,
+  RpgStateRoundOverflow,
   RpgToolCallDisclosure,
   RpgToolCallWithholdReason,
   RpgTrackerEntry,

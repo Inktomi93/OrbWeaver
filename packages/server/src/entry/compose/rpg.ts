@@ -52,6 +52,7 @@ import type {
   RpgStructuredRoundShape,
   RpgToolCall,
   RpgTrackerCarrier,
+  RpgTrackerDef,
 } from "@orb/contracts/rpg";
 import {
   actorRefKey,
@@ -129,6 +130,7 @@ import {
   publishRpgEvent,
   reachableActorRefs,
   rpgToolDefinitions,
+  stateRoundNeededTokens,
   structuredShapeFits,
   structuredVehicleUnavailable,
 } from "#domain/rpg";
@@ -196,9 +198,10 @@ export interface RpgComposeDeps {
    *  — the hidden-content posture + the D16 canon floor for one human over one chat. rpg's member-facing reads
    *  belt on it (#1528) and never re-derive either half. */
   readonly resolveViewerVisibility: RpgResolveViewerVisibility;
-  /** `resolve` — the runtime fold, for the READ-side `trackersReadOnly` pill and the two HOST doors (resync /
-   *  populate), each under the ACTING user's own chat binding (§8.4-3). The in-turn state ROUNDS re-resolve
-   *  NOTHING — they ride the character turn's already-resolved `input.turnConnection` threaded from the engine. */
+  /** `resolve` — the runtime fold, for the READ-side delivery verdicts (under the room funder's chat binding, the
+   *  one the next turn rides) and the two HOST doors (resync / populate, under the host's own). The in-turn state
+   *  ROUNDS re-resolve NOTHING — they ride the character turn's already-resolved `input.turnConnection` threaded
+   *  from the engine. */
   readonly connection: Pick<ConnectionService, "resolve">;
   /** The executor the state rounds call through `@orb/inference`'s neutral round helpers, which pick the method
    *  per backend (`runStructuredChat`, `toForcedToolRoundRequest`). */
@@ -743,7 +746,7 @@ function refEnumerationLines(inputs: PromptInputs): string {
  *  tool-less, so persisting the round's calls on the variant would lie to the transcript reader). The per-item provider log is the v1
  *  record (`provider.structured-item`; the agent-sdk arm's `provider.turn`) — see spec §10.1a. */
 function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
-  return async ({ chatId, baseState, turnConnection, reconcile, signal }) => {
+  return async ({ chatId, baseState, trackerDefs, turnConnection, reconcile, signal }) => {
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
     // CANCELLED BEFORE THE CALL — spend nothing, read nothing, return the empty delta (the same shape a failed
@@ -819,7 +822,12 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     // The participant index resolves an extracted party/inventory target NAME to its participant ref (F2 — the same
     // first-class resolution the cheap-mode tools use; a structured write on a party member must render too).
     const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
+    const delta = extractionToStateDelta(
+      baseState,
+      extraction,
+      { item: () => newId(), quest: () => newId(), objective: () => newId() },
+      { participantIndex, trackerDefs },
+    );
     // R3 — visibility: an extraction that parsed but resolves to ZERO renderable writes (all phantom mints /
     // no-ops) is a SIGNAL (mis-target or an empty beat), not a silent nothing. Log it with the ref context so
     // a dark panel is diagnosable from the provider trail.
@@ -1304,7 +1312,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
       return await runStructuredStateRound(deps, { input, refs, round: structured, userPrompt, priorCalls: calls });
     }
     const audited = await withInventoryAudit({ deps, round, prose, wireTools, turnId, baseState, transcript: turnConnection.transcript, calls });
-    return await foldRoundCalls(deps, { chatId, conn, baseState, refs, calls: audited, vehicle: "cheap tool round" });
+    return await foldRoundCalls(deps, { chatId, conn, baseState, refs, calls: audited, trackerDefs: input.trackerDefs, vehicle: "cheap tool round" });
   };
 }
 
@@ -1320,17 +1328,23 @@ async function foldRoundCalls(
     readonly baseState: RpgSnapshotState;
     readonly refs: ExtractionRefs;
     readonly calls: readonly RpgToolCall[];
+    readonly trackerDefs: readonly RpgTrackerDef[];
     /** A structured patch reply's entries that never formed a call: already `dropped` rows, recorded after the calls. */
     readonly unassembled?: readonly RpgRecordedToolCall[] | undefined;
     readonly vehicle: string;
     readonly events?: { readonly unparseable: string; readonly stripped: string } | undefined;
   },
 ): Promise<RpgStateDelta> {
-  const { chatId, conn, baseState, refs, calls } = args;
+  const { chatId, conn, baseState, refs, calls, trackerDefs } = args;
   logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: args.vehicle, events: args.events });
   const extraction = toolCallsToExtraction(calls);
   const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-  const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
+  const delta = extractionToStateDelta(
+    baseState,
+    extraction,
+    { item: () => newId(), quest: () => newId(), objective: () => newId() },
+    { participantIndex, trackerDefs },
+  );
   logExtractionOutcome({
     chatId,
     model: conn.model,
@@ -1551,6 +1565,7 @@ async function runStructuredStateRound(
     baseState,
     refs: args.refs,
     calls: [...answered, ...audit.calls],
+    trackerDefs: args.input.trackerDefs,
     unassembled: [...result.unassembled, ...audit.unassembled],
     vehicle: STRUCTURED_ROUND_VEHICLE,
   });
@@ -1632,7 +1647,7 @@ function buildFoldedTurnBuilder(deps: RpgComposeDeps): RpgContext["buildFoldedTu
  *  for these calls. Folds them through the SAME path the dedicated tool round folds its own calls through, so
  *  an equivalent set of calls produces a byte-identical delta on either delivery shape. */
 function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolCalls"] {
-  return async ({ chatId, turnId, baseState, turnConnection, toolCalls }) => {
+  return async ({ chatId, turnId, baseState, trackerDefs, turnConnection, toolCalls }) => {
     const conn = turnConnection.connection;
     // R-OBS: what the model CALLED and what survived the schema — the folded turn's tool traffic is otherwise
     // server-internal by D112 design, so this ring is the only place it is legible after the fact.
@@ -1655,7 +1670,12 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
     // genuinely needed (it resolves target names to participant refs and backs the ghost guard), and the log's
     // target-menu denominator derives from state we already hold.
     const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
+    const delta = extractionToStateDelta(
+      baseState,
+      extraction,
+      { item: () => newId(), quest: () => newId(), objective: () => newId() },
+      { participantIndex, trackerDefs },
+    );
     logExtractionOutcome({
       chatId,
       model: conn.model,
@@ -1767,7 +1787,10 @@ async function resyncViaToolRound(
     return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(fallback, shapes.schemas()[fallback], tools, lead), priorCalls: calls });
   }
   // The SAME loss log both in-turn tool vehicles run, in the resync's own event namespace.
-  return { ok: true, delta: await foldRoundCalls(deps, { ...args, refs, calls, vehicle: "resync tool round", events: RESYNC_EVENTS }) };
+  return {
+    ok: true,
+    delta: await foldRoundCalls(deps, { ...args, refs, calls, trackerDefs: config.trackers, vehicle: "resync tool round", events: RESYNC_EVENTS }),
+  };
 }
 
 /** The resync as ONE structured round (its primary vehicle, or the retry after an empty downgraded tool round). A
@@ -1795,6 +1818,7 @@ async function resyncViaStructuredRound(
     ...args,
     refs: args.inputs.refs,
     calls,
+    trackerDefs: args.inputs.config.trackers,
     unassembled: result.unassembled,
     vehicle: STRUCTURED_ROUND_VEHICLE,
     events: RESYNC_EVENTS,
@@ -1895,7 +1919,12 @@ async function resyncViaStructured(
   }
   logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "resync", event: "rpg.resync.stripped", stripped });
   const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-  const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
+  const delta = extractionToStateDelta(
+    baseState,
+    extraction,
+    { item: () => newId(), quest: () => newId(), objective: () => newId() },
+    { participantIndex, trackerDefs: inputs.config.trackers },
+  );
   logExtractionOutcome({
     chatId,
     model: conn.model,
@@ -2045,7 +2074,12 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
       );
     }
     const participantIndex = buildActorRefIndex(await deps.rpgChatOps.resolveRpgParticipants(chatId));
-    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, participantIndex);
+    const delta = extractionToStateDelta(
+      baseState,
+      extraction,
+      { item: () => newId(), quest: () => newId(), objective: () => newId() },
+      { participantIndex, trackerDefs: game?.config.trackers ?? [] },
+    );
     logExtractionOutcome({
       chatId,
       model: conn.model,
@@ -2105,7 +2139,10 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     copyPresetToUser: deps.copyPresetToUser,
     // The chat's active-preset macros (WAVE MU) — the injected chat op the GM console's shadow gloss reads.
     resolvePresetUserMacros: deps.rpgChatOps.resolvePromptUserMacros,
+    // The present host's role row, the same read the turn's funder is frozen from (`resolveTurnIdentity`).
+    resolveRoomFunder: deps.rpgChatOps.resolveHostUserId,
     resolveStateDelivery: buildResolveStateDelivery(deps),
+    resolveStateRoundFit: buildResolveStateRoundFit(deps),
     runToolRound: buildRunToolRound(deps),
     // R1 (`folded` mode) — the two halves of the ONE-CALL exchange: the gather's tool mount + the flush's fold.
     // Neither makes a model call; the character turn already paid for both.
@@ -2221,24 +2258,16 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
 function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveStateDelivery"] {
   // Nothing resolved ⇒ no model write path AND no fold — the fail-closed verdict every degraded arm returns.
   const closed = { trackersReadOnly: true, foldGuarded: true, canPopulate: false, structuredUnavailable: false };
-  return async (chatId, viewerUserId) => {
+  return async (chatId, funderUserId) => {
     const game = await findGameByChat(deps.db, chatId);
-    if (game === undefined) {
-      return closed; // no game — the verb caller resolves game-ness itself; a defensive readonly is harmless
+    if (game === undefined || funderUserId === null) {
+      return closed; // no game, or no host to fund a turn — a defensive readonly is harmless
     }
-    // The VIEWER's own chat connection (§8.4-3(b), verify9 H2): under `funderUserId` the round runs on the
-    // triggering member's row, so the pill must resolve under the same member or the D112 fold-guard verdict
-    // and the round diverge. A `no-connection` / requirement refusal is READONLY BY CONSTRUCTION — the same
-    // contract as the missing-game/missing-host arms above; anything else (a DB fault) RETHROWS.
-    const viewer = await deps.resolveHostPrincipal(viewerUserId);
-    let conn: Resolved<"chat">;
-    try {
-      conn = (await deps.connection.resolve({ task: "chat", principal: viewer })).resolved as Resolved<"chat">;
-    } catch (err) {
-      if (isUnresolvable(err)) {
-        return closed;
-      }
-      throw err;
+    // A `no-connection` / requirement refusal is READONLY BY CONSTRUCTION — the same contract as the
+    // missing-game/missing-host arm above.
+    const conn = await resolveFunderChat(deps, funderUserId);
+    if (conn === null) {
+      return closed;
     }
     const capability = generationOf(conn);
     return {
@@ -2247,5 +2276,65 @@ function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveSta
       canPopulate: hasStructuredWriter(capability),
       structuredUnavailable: structuredVehicleUnavailable(game.config.stateCaptureVehicle, capability),
     };
+  };
+}
+
+/** The FUNDER's chat connection, resolved the way the turn resolves its own (chat's `resolveChatFor`: the same
+ *  connection service, under the same real principal). A turn is funded by the room host whoever sends it
+ *  (`resolveTurnIdentity`), and the state round rides that turn's connection, so this is the connection a
+ *  delivery verdict describes. `null` on a `no-connection` / requirement refusal; anything else (a DB fault)
+ *  RETHROWS. */
+async function resolveFunderChat(deps: RpgComposeDeps, funderUserId: UserId): Promise<Resolved<"chat"> | null> {
+  const funder = await deps.resolveHostPrincipal(funderUserId);
+  try {
+    return (await deps.connection.resolve({ task: "chat", principal: funder })).resolved as Resolved<"chat">;
+  } catch (err) {
+    if (isUnresolvable(err)) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+/**
+ * The text the state round's first request carries on `conn`: its system prompt, its user prompt, and its tool or
+ * schema payload. The same vehicle choice and the same builders `buildRunToolRound` / `buildRunExtraction` send, so
+ * pricing this prices the round.
+ */
+export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInputs, userPrompt: string): readonly string[] {
+  const { refs, config, prose } = inputs;
+  if (!carriesForcedToolRound(conn)) {
+    return [extractionSystem(inputs), userPrompt, JSON.stringify(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs))];
+  }
+  const wireTools = buildToolRoundWireTools(refs, config, prose);
+  const generation = generationOf(conn);
+  const shapes = structuredShapes(generation, refs, wireTools);
+  const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.fits);
+  if (primary !== null) {
+    const round = structuredRound(primary, shapes.schemas()[primary], wireTools, { lead: toolRoundSystem(inputs), prose });
+    return [round.systemPrompt, userPrompt, JSON.stringify(round.format.schema)];
+  }
+  return [toolRoundSystem(inputs), userPrompt, JSON.stringify(wireTools)];
+}
+
+/** Build the `resolveStateRoundFit` op: price the round a turn would run on the funder's connection over `baseState`
+ *  and the room's own prompt, against that connection's window. The story slice and the latest beat vary per turn and
+ *  are left out, so an overflow here is one every turn pays. The window is never raised behind the host's back
+ *  (owner ruling); the verdict names the connection whose setting fixes it. */
+function buildResolveStateRoundFit(deps: RpgComposeDeps): RpgContext["resolveStateRoundFit"] {
+  return async (chatId, funderUserId, baseState) => {
+    const conn = await resolveFunderChat(deps, funderUserId);
+    if (conn === null) {
+      return null;
+    }
+    const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, false);
+    // A read has no turn to capture prose from, so this walks the ladder the next turn will (GM redirect, then the
+    // preset). It differs from the turn's captured bag only in user-homed slots, and every slot the round reads is
+    // preset-homed (`RPG_PROSE_SLOTS`), so the bytes priced are the bytes the round sends.
+    const prose = await deps.rpgChatOps.resolveChatPresetProse(chatId);
+    const inputs: PromptInputs = { config, refs, playerDisplayName, reconcile: false, prose };
+    const userPrompt = buildExtractionUserPrompt([], baseState, config, prose);
+    const windowTokens = generationOf(conn).context.window;
+    return stateRoundNeededTokens(stateRoundRequestText(conn, inputs, userPrompt)) > windowTokens ? { connectionId: conn.connectionId, windowTokens } : null;
   };
 }

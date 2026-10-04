@@ -34,9 +34,9 @@ import { castId } from "@orb/kit/ids";
  *  `effectiveDelivery` and wins. */
 function effectiveDeliveryOf(mode: RpgGameConfig["extractionMode"], trackersReadOnly: boolean): RpgEffectiveDelivery {
   if (trackersReadOnly) {
-    return { path: "none", fallbackReason: null, structuredUnavailable: false };
+    return { path: "none", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null };
   }
-  return { path: mode === "folded" ? "folded" : "tool-round", fallbackReason: null, structuredUnavailable: false };
+  return { path: mode === "folded" ? "folded" : "tool-round", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null };
 }
 
 /**

@@ -508,7 +508,7 @@ async function runMode(mode: Mode): Promise<TurnRow[]> {
       const reply = mode === "stream" ? await postStream(body) : await postNonStream(body);
       row = turnRow(index + 1, reply);
       // State moves with whatever the model wrote, so the next reminder reads like the app's would.
-      const delta = extractionToStateDelta(state, toolCallsToExtraction(reply.calls), mints, participantIndex);
+      const delta = extractionToStateDelta(state, toolCallsToExtraction(reply.calls), mints, { participantIndex, trackerDefs: config.trackers });
       prev = state;
       state = { ...state, ...(delta.statePatch as Partial<RpgSnapshotState>) };
     } catch (err) {

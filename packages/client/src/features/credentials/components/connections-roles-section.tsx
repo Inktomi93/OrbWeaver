@@ -12,8 +12,7 @@ import { ConnectionRoleSlot, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { CONNECTIONS_LIST_ADDRESS, ROLE_ROWS_ORDERED } from "#lib";
-import { configAnchorId, configSettingControlId, openConfigTo } from "#state";
-import { useRequestConnectionEditor } from "../lib/connection-editor-request-store.ts";
+import { configAnchorId, configSettingControlId, openConfigTo, requestConnectionEditor } from "#state";
 import { CONNECTIONS_ROLES_SUBCATEGORY, ROLE_SETTING_IDS } from "../lib/connections-nav.ts";
 import { UtilityPresetSelect } from "./utility-preset-select.tsx";
 
@@ -52,7 +51,6 @@ function BuiltinRerankerHint({
   readonly bindings: readonly BindingView[];
   readonly builtinProviderIds: ReadonlySet<string>;
 }): ReactElement | null {
-  const requestConnectionEditor = useRequestConnectionEditor();
   const boundId = bindings.find((view) => view.task === "rerank")?.binding?.connectionId ?? null;
   const row = connections.find((connection) => connection.id === boundId && builtinProviderIds.has(connection.providerId));
   if (row === undefined) {

@@ -140,9 +140,8 @@ export const RPG_SEED_HP_MAX = 20;
  *  the model's tool arm); `appliesTo:"everyone"` because an NPC bleeds like a party member; `pinned` so it
  *  rides the band orbs through the ordinary `trackerOrbs` path rather than a bespoke hp-orb arm.
  *
- *  The `hint` carries the ONE accepted semantic delta of the demotion (ruled): the retired `hpDelta` arm
- *  REFUSED a delta on a null-hp actor, where a tracker delta on a carried-but-unset meter starts from 0. Under
- *  the north star (steering, not simulation) that is the right trade — and the hint is where a host reads it. */
+ *  The `hint` states the unset rule, because an unset meter shows the model no reading: a delta on a
+ *  carried-but-unset meter spends from its ceiling, so an untouched carrier reads as full. */
 const SEEDED_HP_TRACKER: RpgTrackerDef = {
   key: "hp",
   label: "HP",
@@ -151,7 +150,7 @@ const SEEDED_HP_TRACKER: RpgTrackerDef = {
   subject: "actor",
   appliesTo: "everyone",
   max: RPG_SEED_HP_MAX,
-  hint: "physical health — damage lowers it, rest and care restore it; unset counts as 0",
+  hint: "physical health — damage lowers it, rest and care restore it; unset counts as full",
   color: null,
   icon: null,
   sort: 0,

@@ -56,7 +56,7 @@ import { findTurnToolCallsByVariant } from "../../../../packages/server/src/doma
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "../../../inference/backends/openai-compat/_ollama-native-recordings.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability, makeResolved, TEST_CONNECTION_ID } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import { ANTHROPIC_PATCH_ROUND_200 } from "./_structured-state-round-recordings.ts";
@@ -404,6 +404,9 @@ function buildCannedRpgWithText(args: {
   /** Override the resolved connection's capability — e.g. a STRUCTURED-only wire (no `tools`), which is what
    *  routes the resync down its structured degrade instead of the tool round. */
   readonly capability?: ReturnType<typeof makeGenerationCapability>;
+  /** Resolve a different connection per principal — the room's host and a member each binding their own — so a
+   *  pin can prove WHOSE connection a read prices. Wins over `capability`. */
+  readonly resolvedFor?: (userId: UserId) => ReturnType<typeof makeResolved>;
   /** The deployment's structured-output wire shape (D126) — the AppSettings knob the real composition root
    *  feeds off `getEffectiveConfig()`. Omitted ⇒ the shipped floor, so every existing pin drives the default. */
   readonly structuredOutputShape?: StructuredOutputShape;
@@ -428,16 +431,18 @@ function buildCannedRpgWithText(args: {
       // The READ-side `trackersReadOnly` pill resolves the ROOM connection via `resolveChat` (the F1 seam — the
       // per-chat-routing verb, not the host's global `resolveRole` default). The state ROUNDS re-resolve NOTHING;
       // they ride the `turnConnection` handed to `onTurnCompleted` below.
-      resolve: (): Promise<ResolveOutcome> =>
+      resolve: (req): Promise<ResolveOutcome> =>
         Promise.resolve({
-          resolved: makeResolved({
-            api,
-            model: castId<ModelId>("fake-chat-model"),
-            capability: makeCapability(
-              capability ??
-                makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, tools: { parallel: true } }),
-            ),
-          }),
+          resolved:
+            args.resolvedFor?.(req.principal.userId) ??
+            makeResolved({
+              api,
+              model: castId<ModelId>("fake-chat-model"),
+              capability: makeCapability(
+                capability ??
+                  makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, tools: { parallel: true } }),
+              ),
+            }),
           warnings: [],
         }),
     },
@@ -3510,6 +3515,7 @@ test("0511: the panel's game read names a `structured` knob the room's model can
     path: "tool-round",
     fallbackReason: null,
     structuredUnavailable: true,
+    stateRoundOverflow: null,
   });
 
   const able = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}" });
@@ -3518,7 +3524,119 @@ test("0511: the panel's game read names a `structured` knob the room's model can
     path: "tool-round",
     fallbackReason: null,
     structuredUnavailable: false,
+    stateRoundOverflow: null,
   });
+});
+
+// An unpinned Ollama model resolves to its lowest default window, and the round's own request does not fit it: state
+// capture would drop every turn. The game read names the viewer's connection instead of raising the window behind the
+// host's back; the same game on that connection with a larger declared window reads clean.
+test("0532: a state round that cannot fit the connection's window is named on the game read; a larger declared window clears it", async ({ app, db }) => {
+  const withWindow = (window: number): ReturnType<typeof makeGenerationCapability> =>
+    makeGenerationCapability({
+      output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] },
+      tools: { parallel: true },
+      context: { window },
+    });
+  const unpinned = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: withWindow(4096) });
+  const game = await cheapGame(db, unpinned, "window-unpinned");
+  const read = { principal: hostPrincipal(game.hostId), chatId: game.chatId };
+  expect((await unpinned.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toEqual({ connectionId: TEST_CONNECTION_ID, windowTokens: 4096 });
+
+  const declared = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: withWindow(16_384) });
+  expect((await declared.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toBeNull();
+
+  // A folding room runs no post-commit round, so there is nothing to fit even on the small window.
+  await unpinned.service.updateConfig({ ...read, extractionMode: "folded" });
+  expect((await unpinned.service.getGame(read)).effectiveDelivery).toMatchObject({ path: "folded", stateRoundOverflow: null });
+});
+
+/** A cheap game whose host and one member each bind their own chat connection: the host's from `host`, the
+ *  member's from `member`. Returns both read principals. */
+async function hostAndMemberGame(
+  args: { readonly app: ServicesResult; readonly db: Db },
+  key: string,
+  connections: { readonly host: ReturnType<typeof makeResolved>; readonly member: ReturnType<typeof makeResolved> },
+): Promise<{ readonly rpgCompose: ReturnType<typeof buildRpg>; readonly host: Principal; readonly member: Principal; readonly chatId: ChatId }> {
+  const memberId = await seedUser(args.db, castId<Handle>(`${key}_member`));
+  const rpgCompose = buildCannedRpgWithText({
+    ...args,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    resolvedFor: (userId) => (userId === memberId ? connections.member : connections.host),
+  });
+  const game = await cheapGame(args.db, rpgCompose, key);
+  await seedParticipant(args.db, { chatId: game.chatId, key: `${key}_member`, userId: memberId, role: "member", joinSeq: 1 });
+  return { rpgCompose, host: hostPrincipal(game.hostId), member: hostPrincipal(memberId), chatId: game.chatId };
+}
+
+function chatConnection(window: number, tools: boolean): ReturnType<typeof makeResolved> {
+  return makeResolved({
+    api: "chat-completions",
+    connectionId: mintTypeId(ID_PREFIX.userConnection),
+    capability: makeCapability(
+      makeGenerationCapability({
+        output: { maxTokens: { min: 1, max: 4096 }, structured: tools, modalities: ["text"] },
+        ...(tools ? { tools: { parallel: true } } : {}),
+        context: { window },
+      }),
+    ),
+  });
+}
+
+// The state round rides the turn's connection, and a turn is funded by the room's host whoever sends it. So the
+// read prices the HOST's connection and tells only the host: a member cannot change the host's window, and their
+// own connection never runs the round.
+test("0532: the overflow notice prices the host's connection and reaches only the host", async ({ app, db }) => {
+  const roomy = await hostAndMemberGame({ app, db }, "fit-roomy-host", { host: chatConnection(32_768, true), member: chatConnection(4096, true) });
+  expect((await roomy.rpgCompose.service.getGame({ principal: roomy.member, chatId: roomy.chatId })).effectiveDelivery.stateRoundOverflow).toBeNull();
+  expect((await roomy.rpgCompose.service.getGame({ principal: roomy.host, chatId: roomy.chatId })).effectiveDelivery.stateRoundOverflow).toBeNull();
+
+  const hostConnection = chatConnection(4096, true);
+  const cramped = await hostAndMemberGame({ app, db }, "fit-cramped-host", { host: hostConnection, member: chatConnection(32_768, true) });
+  expect((await cramped.rpgCompose.service.getGame({ principal: cramped.host, chatId: cramped.chatId })).effectiveDelivery.stateRoundOverflow).toEqual({
+    connectionId: hostConnection.connectionId,
+    windowTokens: 4096,
+  });
+  expect((await cramped.rpgCompose.service.getGame({ principal: cramped.member, chatId: cramped.chatId })).effectiveDelivery.stateRoundOverflow).toBeNull();
+});
+
+// The delivery verdicts describe what the next turn does, and the next turn runs on the host's connection: a member
+// whose own connection has no write path still reads the room as writing its state.
+test("0532: a member's game and tracker reads carry the host connection's delivery verdict, not their own", async ({ app, db }) => {
+  const room = await hostAndMemberGame({ app, db }, "verdict-host", { host: chatConnection(32_768, true), member: chatConnection(32_768, false) });
+  const read = { principal: room.member, chatId: room.chatId };
+  expect((await room.rpgCompose.service.getGame(read)).trackersReadOnly).toBe(false);
+  expect((await room.rpgCompose.service.getTrackerView(read)).trackersReadOnly).toBe(false);
+});
+
+// An NPC key is an address every viewer receives, and the member belt rewrites values, not addresses: a hidden span
+// in a model-written name must be gone before the name becomes a key.
+test("0536: a hidden span in a model-written NPC name never reaches a member through the actor's key", async ({ app, db }) => {
+  // One word, so the slug's hyphenation cannot hide it from the byte check.
+  const truth = "informant";
+  const name = `Mara <lie truth="${truth}"/>`;
+  const memberId = await seedUser(db, castId<Handle>("npc_key_member"));
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    cannedToolCalls: [{ name: "update_scene", arguments: JSON.stringify({ presentUpsert: [{ name, mood: "calm" }] }) }],
+  });
+  const { chatId, hostId, messageId, variantId } = await cheapGame(db, rpgCompose, "npc-key-lie");
+  await seedParticipant(db, { chatId, key: "npc_key_member", userId: memberId, role: "member", joinSeq: 1 });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
+
+  const memberView = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(memberId), chatId });
+  const hostView = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(JSON.stringify(memberView)).not.toContain(truth);
+  // One address for every viewer; the host still reads the name the model wrote.
+  expect(memberView.cast).toEqual(["npc:mara"]);
+  expect(hostView.cast).toEqual(memberView.cast);
+  expect(hostView.actors.find((actor) => actor.actorRef.kind === "npc")).toMatchObject({ actorRef: { kind: "npc", npcKey: "mara" }, name });
 });
 
 test("0511: a patch reply whose every value was refused is a recorded DROP naming the value sent — never a quiet beat", async ({ app, db }) => {

@@ -11,14 +11,14 @@ import { SaveStatusHostContext } from "@orb/client/forms";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
-import { useActiveConfigGroup, useAggregateSaveStatus } from "@orb/client/state";
+import { requestConnectionEditor, useActiveConfigGroup, useAggregateSaveStatus } from "@orb/client/state";
 import type { CredRevokedReason } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ConnectionEditor } from "../../../../packages/client/src/features/credentials/components/connection-editor.tsx";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
 import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
@@ -221,6 +221,30 @@ function ConnectionsPaneInner(): ReactElement {
         refetch settings
       </button>
     </div>
+  );
+}
+
+/** The pane after a door elsewhere (a game's context-window notice) asked for one row's editor on its Advanced tier. */
+export function ConnectionsSettingsRequestedStory({ connectionId }: { readonly connectionId: string }): ReactElement {
+  useEffect(() => {
+    requestConnectionEditor(castId<UserConnectionId>(connectionId), { openAdvanced: true });
+  }, [connectionId]);
+  return <ConnectionsSettingsStory />;
+}
+
+/** The pane with one row's editor already open (a plain door), plus a control that sends a second door to the SAME
+ *  row asking for its Advanced tier. */
+export function ConnectionsSettingsReRequestedStory({ connectionId }: { readonly connectionId: string }): ReactElement {
+  useEffect(() => {
+    requestConnectionEditor(castId<UserConnectionId>(connectionId));
+  }, [connectionId]);
+  return (
+    <>
+      <button type="button" onClick={(): void => requestConnectionEditor(castId<UserConnectionId>(connectionId), { openAdvanced: true })}>
+        door to Advanced
+      </button>
+      <ConnectionsSettingsStory />
+    </>
   );
 }
 

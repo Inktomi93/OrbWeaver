@@ -30,6 +30,7 @@
 // names that drop out loud; a host who learns it afterwards learns it as a bug.
 
 import { actorRefKey, clampActorCardName, rpgPromotedCardDescription } from "@orb/contracts/rpg";
+import { stripHiddenSpans } from "@orb/kit/content";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
@@ -60,7 +61,9 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
       // parsed blob: an identity-less npc row would otherwise mint a nameless card.
       return { ok: false, reason: `"${fromKey}" carries no identity of its own — there is nothing to mint a card from` };
     }
-    const rawName = identity.name.trim();
+    // The card's name and handle are what every member of the room sees of a seated character, and the handle is
+    // an address: a hidden span in the story's name for her stays on the GM plane, never in either.
+    const rawName = stripHiddenSpans(identity.name).content.trim();
     // THE CARD-NAME BOUND (#1449) — clamped here, on the RECEIVING side's own terms, exactly like the handle
     // above (#1386): `rawName` is model-authored at the extraction boundary with no max, and
     // `cardFaceFields.name` caps at `CARD_FACE_LIMITS.nameMax`. A refusal here would drop a model-authored
