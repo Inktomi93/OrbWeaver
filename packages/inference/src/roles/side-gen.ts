@@ -102,7 +102,8 @@ function warningKey(warning: ResolvedWarning): string {
 /**
  * Run a summarize or structured batch: each item one chat turn on the connection's own wire, under the role preset's
  * window (`withPresetWindow`), at most `concurrency` at a time, in input order. A failed item stops the batch from
- * starting more; the items already running finish, and the first failure is thrown. Each distinct warning is one
+ * starting more; the items already running finish, and the first failure is thrown carrying the finished items
+ * (`partialItems`), so a caller re-sends only the rest. Each distinct warning is one
  * `provider.resolve-warning` line per batch, and each item one `provider.<task>-item` line.
  */
 export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps: SideGenDeps): Promise<SummarizeResult> {
@@ -168,6 +169,12 @@ export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps
     }
   };
   await Promise.all(Array.from({ length: Math.min(Math.max(deps.concurrency, 1), req.inputs.length) }, () => worker()));
+  if (state.failure instanceof ProviderError) {
+    throw state.failure.rewrap(
+      state.failure.message,
+      req.inputs.map((_, index) => items[index]),
+    );
+  }
   if (state.failure !== undefined) {
     throw state.failure;
   }

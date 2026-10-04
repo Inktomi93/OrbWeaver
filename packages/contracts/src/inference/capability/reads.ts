@@ -34,15 +34,20 @@ export function accepts(capability: GenerationCapability, side: "input" | "outpu
   return side === "input" ? capability.input.includes(modality) : capability.output.modalities.includes(modality);
 }
 
+/** The least window a preset's Max context sets on a route that sends it: the smallest default any Ollama release
+ *  runs, so a typo cannot shrink the server's window to nothing. */
+export const SETTABLE_WINDOW_FLOOR = 2048;
+
 /** The window a turn sends and budgets: on a route whose window the request sets, the preset's Max context tokens,
- *  up to the model's trained maximum, and stated rather than estimated. It beats a declared window, because it is
- *  the per-chat choice of what that route sends. Anywhere else, or with no preset window, the resolved one stands. */
+ *  at least {@link SETTABLE_WINDOW_FLOOR} and at most the model's trained maximum, and stated rather than estimated.
+ *  It beats a declared window, because it is the per-chat choice of what that route sends. Anywhere else, or with no
+ *  preset window, the resolved one stands. */
 export function windowForPreset(capability: GenerationCapability, maxContextTokens: number | undefined): GenerationCapability {
   const settable = capability.context.settable;
   if (settable === undefined || maxContextTokens === undefined) {
     return capability;
   }
-  return { ...capability, context: { window: Math.min(maxContextTokens, settable.max), settable } };
+  return { ...capability, context: { window: Math.min(Math.max(maxContextTokens, SETTABLE_WINDOW_FLOOR), settable.max), settable } };
 }
 
 export function acceptsImageInput(capability: GenerationCapability): boolean {

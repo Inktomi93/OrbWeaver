@@ -12,7 +12,7 @@ import process from "node:process";
 import { parseEnv } from "node:util";
 import type { AUTH_MODES, AuthModeSource, InstallKind } from "@orb/contracts/identity";
 import { authModeSchema, shareRelayKindSchema } from "@orb/contracts/identity";
-import { AGENT_SDK_CONCURRENCY_MAX, LOG_LEVELS } from "@orb/contracts/settings";
+import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { ENV_FROM_FILE_KEY, envFromFileKeys } from "@orb/kit/env-file";
 import { isSupervised, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
@@ -42,9 +42,6 @@ export { ownerFallbackPeerWarnings, parseOwnerFallbackTrustedPeers, resolveOwner
 export { parseTrustedPrivateRanges } from "./private-ranges.ts";
 
 const DEFAULT_PORT = 8788;
-// The agent-sdk backend's max in-flight summarize calls (Phase B ⑩ item 1, Q6). 4 = the former hardcoded
-// SUMMARIZE_CONCURRENCY; env-layered ⊕ AppSettings override.
-const AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT = 4;
 const MIN_SESSION_SECRET_CHARS = 32;
 const MIN_PASSWORD_LENGTH = 8;
 const RATE_LIMIT_WINDOW_MS_DEFAULT = 60_000;
@@ -412,9 +409,6 @@ const envSchema = z
     // never per principal. Unset ⇒ born `127.0.0.1,::1` under `AUTH_MODE=single-user` (one human, one box) and
     // EMPTY on a multi-user install (hosted providers only) — the DB override wins either way.
     PRIVATE_ENDPOINT_ALLOWLIST: z.string().optional(),
-
-    // The agent-sdk backend's max in-flight summarize calls (Phase B ⑩ item 1, Q6). Admin-layerable ⊕ override.
-    AGENT_SDK_SUMMARIZE_CONCURRENCY: z.coerce.number().int().positive().max(AGENT_SDK_CONCURRENCY_MAX).default(AGENT_SDK_SUMMARIZE_CONCURRENCY_DEFAULT),
 
     // Cross-chat corpus auto-indexing: embed completed raw-message blocks into the search corpus in the
     // background, post-turn. "false" pauses it to offload the GPU.

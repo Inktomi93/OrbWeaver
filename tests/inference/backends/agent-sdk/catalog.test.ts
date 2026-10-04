@@ -38,7 +38,7 @@ function backendWith(query: () => unknown): ReturnType<typeof createAgentSdkBack
     log: silentLog(),
     env: { claudeExecutable: "/usr/bin/claude", hostEnvAllowlist: () => ({ PATH: "/usr/bin", HOME: "/home/test" }) },
     userRuntimeDir: (ownerId, tool) => `/tmp/orb-test/${ownerId}/${tool}`,
-    agentSdk: { summarizeConcurrency: () => 1, query },
+    agentSdk: { query },
     // No real timer is armed: the discovery bound must never decide one of these arms.
     scheduleTimeout: () => (): void => undefined,
   });

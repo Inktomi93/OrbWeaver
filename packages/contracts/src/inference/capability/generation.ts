@@ -240,6 +240,11 @@ export const reasoningCapabilitySchema = z.object({
   /** How an off turn is spelled on this model ({@link REASONING_OFF_MODES}). Absent ⇒ `disabled`. A `mandatory`
    *  route never reaches it: its off clamps up first. */
   offMode: reasoningOffModeSchema.optional(),
+  /** The samplers the model takes only on a turn that sends reasoning off (OpenAI's GPT-5.1 and later refuse
+   *  `temperature` and `top_p` at any other effort). A turn that reasons, or leaves the effort unset, drops them
+   *  with `sampling_knob_dropped`. Kept here rather than in `sampling` so a tier that restates the sampler set
+   *  cannot erase the refusal. */
+  offOnlySamplers: z.array(z.enum(SAMPLER_KNOBS)).optional(),
   /** The catalog's own default (OpenRouter `default_enabled` / `default_effort`). It fills an unset effort only
    *  on a NON-adaptive model; an adaptive model takes the house default instead (`ADAPTIVE_DEFAULT_EFFORT`,
    *  `@orb/inference`'s resolve contract). */
@@ -308,6 +313,10 @@ export const generationCapabilitySchema = z.object({
    *  `PARAMETER` lines). Display only: an unset knob never rides the wire. Kept outside `sampling` because
    *  `sampling` is a stated set that replaces whole, and a tier that only knows defaults must not erase it. */
   samplingDefaults: z.partialRecord(z.enum(SAMPLING_RANGE_KNOBS), z.number()).optional(),
+  /** The value the route itself sends for a sampler the request leaves unset (Ollama's `/v1` sends `temperature`
+   *  and `top_p` 1.0), which the server then runs in place of its own default. Display only, like
+   *  `samplingDefaults`, and read before it: a server's advertised default never reaches a turn on this route. */
+  routeSamplingDefaults: z.partialRecord(z.enum(SAMPLING_RANGE_KNOBS), z.number()).optional(),
   verbosity: z.array(verbositySchema).optional(),
   /** What a chat turn may CARRY. `image` gates the multimodal send, `video` likewise (#317); `audio`/`file`
    *  are captured truth no consumer sends yet. */

@@ -3,6 +3,7 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, messages, messageVariants } from "@orb/db";
+import { ProviderError } from "@orb/inference";
 import type { CharacterId, ChatDigestId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
@@ -353,6 +354,39 @@ describe("memory/generate/digests", () => {
     expect(sum.batchSizes).toContain(4);
     expect(Math.max(...sum.batchSizes)).toBeGreaterThan(1);
     // all four blocks still built (batching preserves the per-block write + content-hash self-heal).
+    expect(store.digests.filter((d) => d.key.tier === 0).map((d) => d.key.blockIdx)).toEqual([0, 1, 2, 3]);
+  });
+
+  // A failed batch carries the items it finished; re-sending them would bill the user's key twice.
+  test("a failed tier-0 batch keeps the blocks it finished and re-sends only the failed and unstarted ones", async () => {
+    const chatId = await seedChat(db, "partial");
+    await seedTurns(db, chatId, aria, 8); // blockSize 2 → 4 tier-0 blocks in one batch
+    const sum = fakeSummarize();
+    const singles: string[] = [];
+    const store = fakeEmbeddingsStore(db);
+    const summarize = asSummarizeOp(async (inputs, opts) => {
+      const tier0 = inputs.every((input) => input.systemPrompt !== CONSOLIDATION_SYSTEM_PROMPT);
+      if (tier0 && inputs.length > 1) {
+        const finished = (await sum.fn([...inputs], opts)).items;
+        // Block 1 failed, block 3 never started; blocks 0 and 2 finished.
+        throw new ProviderError({
+          kind: "server",
+          retryable: true,
+          message: "summarize item 1 failed",
+          partialItems: [finished[0], undefined, finished[2], undefined],
+        });
+      }
+      if (tier0) {
+        singles.push(inputs[0]?.userPrompt ?? "");
+      }
+      return sum.fn([...inputs], opts);
+    });
+    const ctx = makeChatContext(db, { summarize, embeddingsStore: store.store, embeddingsStoreSegments: store.storeSegments });
+
+    await generateDigests(ctx, { scope: sharedScope(chatId), config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 }, funderUserId: owner });
+
+    const batchPrompts = sum.calls.slice(0, 4).map((call) => call.userPrompt);
+    expect(singles).toEqual([batchPrompts[1], batchPrompts[3]]);
     expect(store.digests.filter((d) => d.key.tier === 0).map((d) => d.key.blockIdx)).toEqual([0, 1, 2, 3]);
   });
 

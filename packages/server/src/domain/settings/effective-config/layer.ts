@@ -2,14 +2,7 @@
 // Two floor origins: env-mirrored fields read foundation/env, born-in-DB fields read a code floor only an
 // admin override moves. Pure (no I/O, no cache) — cache + reload live in cache.ts.
 
-import type {
-  AgentSdkConcurrency,
-  AppSettings,
-  EffectiveAppConfig,
-  RateLimits,
-  ResolvedAgentSdkConcurrency,
-  ResolvedRateLimits,
-} from "@orb/contracts/settings";
+import type { AppSettings, EffectiveAppConfig, RateLimits, ResolvedRateLimits } from "@orb/contracts/settings";
 import { DEFAULT_DISCREET_LOGIN, DEFAULT_LOCAL_MULTI_USER, DEFAULT_MAX_IMAGE_BYTES, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
 import { DATABANK_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import { env } from "#foundation/env";
@@ -34,10 +27,6 @@ const CATALOG_REFRESH_INTERVAL_MS_FLOOR = MS_PER_DAY;
 const IMAGE_VARIANT_QUALITY_FLOOR = 80;
 // The databank single-document upload cap (item 3) — the route belt; an override may only TIGHTEN below it.
 const MAX_DATABANK_BYTES_FLOOR = DATABANK_UPLOAD_MAX_BYTES;
-
-function resolveAgentSdkConcurrency(o: AgentSdkConcurrency | null | undefined): ResolvedAgentSdkConcurrency {
-  return { summarize: o?.summarize ?? env.AGENT_SDK_SUMMARIZE_CONCURRENCY };
-}
 
 /** The databank-upload cap: an admin override may only ever TIGHTEN below the route belt (the schema max IS
  *  the belt, so an over-belt value is impossible here; the `min` is belt-and-suspenders + documents intent). */
@@ -102,7 +91,6 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     allowInteractiveCards: overrides.allowInteractiveCards ?? ALLOW_INTERACTIVE_CARDS_FLOOR,
     memoryDefaults: overrides.memoryDefaults ?? {},
     rateLimits: resolveRateLimits(overrides.rateLimits),
-    agentSdkConcurrency: resolveAgentSdkConcurrency(overrides.agentSdkConcurrency),
     privateEndpointAllowlist: overrides.privateEndpointAllowlist ?? privateEndpointAllowlistFloor(),
     maxImageBytes: overrides.maxImageBytes ?? DEFAULT_MAX_IMAGE_BYTES,
     maxDatabankBytes: resolveMaxDatabankBytes(overrides.maxDatabankBytes),

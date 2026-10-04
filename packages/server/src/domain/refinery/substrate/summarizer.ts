@@ -3,15 +3,20 @@
 // `structured` rides the summarize binding, inference program §7.5-1). One read per verb call, never a
 // boot-frozen string: a run stamped with a model the owner has since moved off would be false provenance.
 
+import { windowForPreset } from "@orb/contracts/inference";
+import type { UserIntent } from "@orb/contracts/preset";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import { RefineryNotConfiguredError } from "../contract/errors.ts";
 import type { SummarizerFacts } from "../contract/results.ts";
 
-export async function summarizerFactsOf(rc: RoleClients): Promise<SummarizerFacts> {
+/** The window is the one the call sends: on a route whose window the request sets, the Utility preset's Max
+ *  context (`windowForPreset`), so the budget and the sent window agree. */
+export async function summarizerFactsOf(rc: RoleClients, presetParams: Pick<UserIntent, "maxContextTokens"> | undefined): Promise<SummarizerFacts> {
   const resolved = await rc.resolved("structured");
   if (resolved === null) {
     throw new RefineryNotConfiguredError();
   }
-  const contextTokens = resolved.capability.kind === "generation" ? resolved.capability.generation.context.window : null;
+  const contextTokens =
+    resolved.capability.kind === "generation" ? windowForPreset(resolved.capability.generation, presetParams?.maxContextTokens).context.window : null;
   return { model: resolved.model, contextTokens };
 }

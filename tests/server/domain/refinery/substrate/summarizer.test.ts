@@ -11,19 +11,35 @@ import { expect, test } from "../../../../support/fixtures.ts";
 
 test("reads the structured slot's model and its context window", async () => {
   const clients = makeFakeRoleClients({ summarizerContextTokens: 32_000 });
-  expect(await summarizerFactsOf(clients)).toEqual({ model: "test-summarize-model", contextTokens: 32_000 });
+  expect(await summarizerFactsOf(clients, undefined)).toEqual({ model: "test-summarize-model", contextTokens: 32_000 });
+});
+
+// The budget must fit the window the call sends: an Ollama native row sends the Utility preset's Max context.
+test("on a route whose window the request sets, the window is the Utility preset's Max context", async () => {
+  const clients = makeFakeRoleClients({ summarizerContextTokens: 32_000 });
+  const base = await clients.resolved("structured");
+  if (base?.capability.kind !== "generation") {
+    throw new Error("expected a generation slot");
+  }
+  const generation = { ...base.capability.generation, context: { window: 32_000, settable: { max: 131_072 } } };
+  const settable = {
+    ...clients,
+    resolved: (): ReturnType<typeof clients.resolved> => Promise.resolve({ ...base, capability: { kind: "generation", generation } }),
+  };
+  expect((await summarizerFactsOf(settable, { maxContextTokens: 16_384 })).contextTokens).toBe(16_384);
+  expect((await summarizerFactsOf(clients, { maxContextTokens: 16_384 })).contextTokens).toBe(32_000);
 });
 
 test("an UNBOUND structured slot refuses by type — never a defaulted model", async () => {
   const clients = makeFakeRoleClients({ unbound: ["structured"] });
-  await expect(summarizerFactsOf(clients)).rejects.toBeInstanceOf(RefineryNotConfiguredError);
+  await expect(summarizerFactsOf(clients, undefined)).rejects.toBeInstanceOf(RefineryNotConfiguredError);
 });
 
 test("the read happens per CALL — a model change between calls is visible immediately", async () => {
   const first = makeFakeRoleClients({ structuredModel: "model-a" });
   const second = makeFakeRoleClients({ structuredModel: "model-b" });
-  expect((await summarizerFactsOf(first)).model).toBe("model-a");
-  expect((await summarizerFactsOf(second)).model).toBe("model-b");
+  expect((await summarizerFactsOf(first, undefined)).model).toBe("model-a");
+  expect((await summarizerFactsOf(second, undefined)).model).toBe("model-b");
 });
 
 test("a NON-generation capability in the slot reports `null` tokens rather than inventing a window", async () => {
@@ -32,5 +48,5 @@ test("a NON-generation capability in the slot reports `null` tokens rather than 
     ...clients,
     resolved: (): ReturnType<typeof clients.resolved> => clients.resolved("embed"),
   };
-  expect(await summarizerFactsOf(embeddingSlot)).toMatchObject({ contextTokens: null });
+  expect(await summarizerFactsOf(embeddingSlot, undefined)).toMatchObject({ contextTokens: null });
 });

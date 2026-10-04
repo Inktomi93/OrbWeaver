@@ -142,7 +142,7 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
   // The funder's `summarize` binding answers every card — the sweep is one caller's workload, whoever's
   // cards it enumerates (§7.5-2); the model's window sizes the output cap exactly as a session run does.
   const rc = await deps.roleClientsFor(funderUserId);
-  const facts = await summarizerFactsOf(rc);
+  const facts = await summarizerFactsOf(rc, presetParams);
   const sampleOpts: StructuredOptions = {
     responseFormat: REFINERY_RESPONSE_FORMATS.score,
     ...sweepOutputSamplingOf(items, presetParams, facts.contextTokens),

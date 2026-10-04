@@ -252,7 +252,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     connections: ports.connections,
     bindings: ports.bindings,
     providerStore: ports.providerStore,
-    agentSdk: { summarizeConcurrency: (): number => 1 },
+    agentSdk: {},
     userRuntimeDir: (ownerId): string => `/tmp/orb-test/${ownerId}/claude`,
     ...(options.localLight === true
       ? {

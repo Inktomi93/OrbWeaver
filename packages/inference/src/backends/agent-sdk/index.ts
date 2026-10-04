@@ -6,7 +6,6 @@
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel, ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
-import { AGENT_SDK_CONCURRENCY_MAX } from "@orb/contracts/settings";
 import type { ZodRawShape } from "zod";
 import type { AgentToolServer, AgentTurnRequest } from "../../contract/agent.ts";
 import type { ProviderBackend } from "../../contract/backend.ts";
@@ -35,6 +34,8 @@ export type { SessionEntryWriter } from "./session/index.ts";
 
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
 const CLAUDE_TOOL = "claude";
+// The ceiling on a connection's `features.concurrency.summarize` here: each in-flight item is a Claude subprocess.
+const AGENT_SDK_SUMMARIZE_CONCURRENCY_MAX = 32;
 
 export interface AgentSdkBackendDeps {
   readonly now: () => number;
@@ -97,7 +98,6 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     ...(deps.agentSdk.sessionWriter !== undefined ? { sessionWriter: deps.agentSdk.sessionWriter } : {}),
     normalizeImageBytes,
     scheduleTimeout: deps.scheduleTimeout ?? realScheduleTimeout,
-    summarizeConcurrency: deps.agentSdk.summarizeConcurrency,
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     debug: deps.debug ?? false,
     childEnv,
@@ -112,15 +112,14 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
     }
     return runChatTurn(req, resolved, sessions, logFor(req.connection));
   };
-  // Read per batch so an admin retune applies to the next one.
   const sideGen = (req: SummarizeRequest | StructuredRequest): ReturnType<typeof runSideGen> => {
-    const concurrency = resolved.summarizeConcurrency();
-    if (!Number.isSafeInteger(concurrency) || concurrency <= 0 || concurrency > AGENT_SDK_CONCURRENCY_MAX) {
+    const concurrency = req.connection.features.concurrency?.summarize ?? 1;
+    if (concurrency > AGENT_SDK_SUMMARIZE_CONCURRENCY_MAX) {
       return Promise.reject(
         new ProviderError({
           kind: "invalid",
           retryable: false,
-          message: `agent-sdk: summarize concurrency must be a finite positive integer at most ${AGENT_SDK_CONCURRENCY_MAX}`,
+          message: `agent-sdk: utility calls at once must be at most ${AGENT_SDK_SUMMARIZE_CONCURRENCY_MAX}`,
           model: req.connection.model,
         }),
       );

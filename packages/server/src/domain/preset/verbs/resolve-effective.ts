@@ -111,11 +111,14 @@ function provenanceOf(probe: KnobProbe, resolved: number | string): EffectivePro
   return "modelDefault";
 }
 
-/** The value a sampler runs at when the preset leaves it unset, where the server advertised one — only for a
- *  knob the model states, since an unstated knob has no row to show it on. */
+/** The value a sampler runs at when the preset leaves it unset: the one the route sends in its place, else the one
+ *  the server advertised — only for a knob the model states, since an unstated knob has no row to show it on. */
 function serverDefaultOf(knob: EffectiveKnob, capability: GenerationCapability): number | undefined {
   const sampler = SAMPLING_RANGE_KNOBS.find((candidate) => candidate === knob);
-  return sampler === undefined || capability.sampling[sampler] === undefined ? undefined : capability.samplingDefaults?.[sampler];
+  if (sampler === undefined || capability.sampling[sampler] === undefined) {
+    return;
+  }
+  return capability.routeSamplingDefaults?.[sampler] ?? capability.samplingDefaults?.[sampler];
 }
 
 /** What the deck shows for one knob: the funnel's value, else the engine floor, else the server's own default

@@ -7,7 +7,7 @@
 // resolution, mandatory clamp included.
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
-import type { EffortLevel, GenerationCapability, Range, SamplerStage, SamplingRangeKnob, Verbosity, Wire } from "@orb/contracts/inference";
+import type { EffortLevel, GenerationCapability, Range, SamplerKnob, SamplerStage, SamplingRangeKnob, Verbosity, Wire } from "@orb/contracts/inference";
 import {
   bindsThinkingToPrefix,
   completeSamplerOrder,
@@ -65,6 +65,13 @@ function resolveFlag<T>(label: AdjustedKnob, value: T | undefined, supported: bo
     return;
   }
   return value;
+}
+
+/** A stated sampler the model takes only with reasoning off, on a turn that does not send reasoning off. */
+function dropWithheld(label: SamplerKnob, value: unknown, warnings: ResolvedWarning[]): undefined {
+  if (value !== undefined) {
+    warnings.push({ code: "sampling_knob_dropped", knob: label, message: `${label} ignored: this model takes ${label} only with reasoning off` });
+  }
 }
 
 // Effort-default precedence: explicit user > quality-derived > the house default for a model that supports
@@ -482,24 +489,28 @@ function dropExclusive(sampling: ResolvedSampling, pairs: readonly (readonly [st
   return out as ResolvedSampling;
 }
 
-function resolveSampling(params: UserIntent, capability: GenerationCapability, warnings: ResolvedWarning[]): ResolvedSampling {
+function resolveSampling(params: UserIntent, capability: GenerationCapability, reasoning: ResolvedReasoning, warnings: ResolvedWarning[]): ResolvedSampling {
   const s = capability.sampling;
   const quality = knownQuality(params.quality, warnings);
+  const withheld = new Set(reasoning.offChosen === true ? [] : (capability.reasoning.offOnlySamplers ?? []));
+  const flag = <T>(label: Exclude<SamplerKnob, SamplingRangeKnob>, value: T | undefined): T | undefined =>
+    s[label] === true && withheld.has(label) ? dropWithheld(label, value, warnings) : resolveFlag(label, value, s[label], warnings);
+  const numeric = (knob: SamplingRangeKnob, value: number | undefined): number | undefined =>
+    s[knob] !== undefined && withheld.has(knob) ? dropWithheld(knob, value, warnings) : resolveNumeric(knob, value, s[knob], warnings);
   // Every numeric knob takes the same gate-and-clamp; only temperature has a quality rung beneath it.
   const ranged: { [K in SamplingRangeKnob]?: number } = {};
   for (const knob of SAMPLING_RANGE_KNOBS) {
-    const wanted = knob === "temperature" ? effectiveSampling(params.temperature, quality, "temperature") : params[knob];
-    const value = resolveNumeric(knob, wanted, s[knob], warnings);
+    const value = numeric(knob, knob === "temperature" ? effectiveSampling(params.temperature, quality, "temperature") : params[knob]);
     if (value !== undefined) {
       ranged[knob] = value;
     }
   }
-  const seed = resolveFlag("seed", params.seed, s.seed, warnings);
-  const logitBias = resolveFlag("logitBias", params.logitBias, s.logitBias, warnings);
-  const stop = resolveFlag("stop", params.stop, s.stop, warnings);
-  const drySequenceBreakers = resolveFlag("drySequenceBreakers", params.drySequenceBreakers, s.drySequenceBreakers, warnings);
-  const bannedStrings = resolveFlag("bannedStrings", params.bannedStrings, s.bannedStrings, warnings);
-  const banEos = resolveFlag("banEos", params.banEos, s.banEos, warnings);
+  const seed = flag("seed", params.seed);
+  const logitBias = flag("logitBias", params.logitBias);
+  const stop = flag("stop", params.stop);
+  const drySequenceBreakers = flag("drySequenceBreakers", params.drySequenceBreakers);
+  const bannedStrings = flag("bannedStrings", params.bannedStrings);
+  const banEos = flag("banEos", params.banEos);
   const samplerOrder = resolveSamplerOrder(params.samplerOrder, s.samplerOrder, warnings) ?? stageOrderFor(ranged, s.samplerOrder);
   const gated: ResolvedSampling = {
     ...ranged,
@@ -603,7 +614,7 @@ export function resolveChat(params: UserIntent, capability: GenerationCapability
   const maxOutputTokens = sentOutputCap(capability, reasoning, sizing);
   // Where the wire refuses a chosen off and the model then reasons at its own default, the cap a replay sends.
   const replayMaxOutputTokens = reasoning.offChosen === true ? sentOutputCap(capability, { mode: reasoning.mode, enabled: true }, sizing) : maxOutputTokens;
-  const sampling = resolveSampling(intent, capability, warnings);
+  const sampling = resolveSampling(intent, capability, reasoning, warnings);
   const verbosity = resolveVerbosity(intent.verbosity, capability.verbosity, warnings);
   const replyImages = resolveReplyImages(intent, capability, warnings);
   const carryReasoning = resolveCarryReasoning(intent, capability, warnings);

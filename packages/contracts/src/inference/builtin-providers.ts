@@ -52,7 +52,8 @@ export const BUILTIN_PROVIDER_ROWS = [
     wire: "agent-sdk",
     auth: "oauthToken",
     apis: ["agent-sdk"],
-    features: { structuredMode: "anthropic-format" },
+    // Each utility call is its own Claude subprocess, so the fan-out stays below the wire default.
+    features: { structuredMode: "anthropic-format", concurrency: { summarize: 4 } },
     catalog: "url",
     metered: false,
     docsUrl: "https://docs.anthropic.com/en/docs/claude-code",

@@ -6,6 +6,7 @@
 // (`backends/kit/sanitize.ts`) is a backend concern.
 
 import type { WireSchemaViolation } from "@orb/contracts/inference";
+import type { SummarizeResultItem } from "@orb/contracts/providers";
 import type { AgentSdkSessionId } from "./identity.ts";
 
 declare const providerScrubSet: unique symbol;
@@ -68,6 +69,9 @@ export interface ProviderErrorInit {
   readonly width?: VectorWidthMismatch;
   /** A structured request the plan or the provider refused (`detail: "schema_rejected"`): every reason, as data. */
   readonly violations?: readonly WireSchemaViolation[];
+  /** A failed summarize or structured batch: the items that finished before it stopped, by input index. A hole
+   *  is an item that failed or never started, so a caller re-sends only those. */
+  readonly partialItems?: readonly (SummarizeResultItem | undefined)[];
   readonly cause?: unknown;
 }
 
@@ -89,6 +93,7 @@ export class ProviderError extends Error {
   readonly requestId: string | undefined;
   readonly width: VectorWidthMismatch | undefined;
   readonly violations: readonly WireSchemaViolation[] | undefined;
+  readonly partialItems: readonly (SummarizeResultItem | undefined)[] | undefined;
 
   constructor(init: ProviderErrorInit) {
     super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
@@ -104,6 +109,7 @@ export class ProviderError extends Error {
     this.requestId = init.requestId;
     this.width = init.width;
     this.violations = init.violations;
+    this.partialItems = init.partialItems;
   }
 
   /** Every carried field as its own log key. A field added to {@link ProviderErrorInit} MUST be mirrored
@@ -122,14 +128,16 @@ export class ProviderError extends Error {
       ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
       ...(this.width !== undefined ? { width: this.width } : {}),
       ...(this.violations !== undefined ? { violations: this.violations } : {}),
+      // The count only: an item's text is model output, never a log field.
+      ...(this.partialItems !== undefined ? { partialItems: this.partialItems.filter((item) => item !== undefined).length } : {}),
     };
   }
 
   /** Re-frame under a NEW message carrying EVERY classification/provenance field forward — THE ONE re-mint
    *  helper, because a hand-rolled `new ProviderError({ kind, retryable, message })` silently destroys
    *  `resetsAt`, `apiErrorStatus`, `model`, `requestId`, and a dropped field looks like a provider that never
-   *  sent one. */
-  rewrap(message: string): ProviderError {
+   *  sent one. A batch failure passes its own `partialItems`; every other re-mint carries the existing ones. */
+  rewrap(message: string, partialItems: ProviderErrorInit["partialItems"] = this.partialItems): ProviderError {
     return new ProviderError({
       kind: this.kind,
       retryable: this.retryable,
@@ -143,6 +151,7 @@ export class ProviderError extends Error {
       ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
       ...(this.width !== undefined ? { width: this.width } : {}),
       ...(this.violations !== undefined ? { violations: this.violations } : {}),
+      ...(partialItems !== undefined ? { partialItems } : {}),
       cause: this,
     });
   }

@@ -176,8 +176,34 @@ test("every OpenAI reasoning id OpenRouter lists carries the empty sampling set 
   for (const model of OPENROUTER_REASONING_IDS) {
     expect(cells(model), model).toEqual(OPEN_WEIGHT.test(model) ? { sampling: false, replay: undefined } : { sampling: true, replay: "signed" });
   }
-  for (const model of ["gpt-6-astra", "gpt-6-luna-2026-09-22", "gpt-5.1-codex-max", "o3-pro"]) {
+  for (const model of ["gpt-6-astra", "gpt-6-astra-2026-09-22", "gpt-5.1-codex-max", "o3-pro"]) {
     expect(cells(model), model).toEqual({ sampling: true, replay: "signed" });
+  }
+});
+
+// Measured on direct chat completions: these ids take temperature and top_p with reasoning_effort none and refuse
+// them at every other effort; OpenRouter strips both at every effort; gpt-5 and gpt-5-mini refuse them outright.
+test("direct OpenAI ids that take effort none send temperature and top_p only on an off turn", () => {
+  const knobs = { temperature: 0.7, topP: 0.9 } as const;
+  const dropped = (warnings: readonly { readonly code: string; readonly knob?: string | undefined }[]): readonly string[] =>
+    warnings.filter((warning) => warning.code === "sampling_knob_dropped").map((warning) => warning.knob ?? "");
+  for (const model of ["gpt-5.1", "gpt-5.2", "gpt-5.4-mini", "gpt-5.5", "gpt-5.5-2026-04-23", "gpt-6-sol"]) {
+    const capability = generation(model);
+    const off = resolveChat({ ...knobs, effort: "none" }, capability);
+    expect(off.sampling, model).toEqual(knobs);
+    expect(dropped(off.warnings), model).toEqual([]);
+    // A side-generation item runs reasoning off, so a summary keeps the role preset's temperature.
+    expect(resolveChat(knobs, capability, { posture: "side-gen" }).sampling, model).toEqual(knobs);
+    for (const params of [{ ...knobs, effort: "low" }, knobs] as const) {
+      const on = resolveChat(params, capability);
+      expect(on.sampling, model).toEqual({});
+      expect(dropped(on.warnings), model).toEqual(["temperature", "topP"]);
+    }
+  }
+  for (const model of ["openai/gpt-5.1", "openai/gpt-5.2", "openai/gpt-5.5", "gpt-5", "gpt-5-mini", "openai/gpt-5-mini"]) {
+    const resolved = resolveChat({ ...knobs, effort: "none" }, generation(model));
+    expect(resolved.sampling, model).toEqual({});
+    expect(dropped(resolved.warnings), model).toEqual(["temperature", "topP"]);
   }
 });
 

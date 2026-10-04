@@ -94,7 +94,6 @@ test("v3→v4 AppSettings lift is a no-op passthrough — the ⑩ admin fields a
   const liftedV3 = parseAppSettings({ schemaVersion: 3, maxImageBytes: 20_000_000 });
   expect(liftedV3.maxImageBytes).toBe(20_000_000);
   expect(liftedV3.imageVariantQuality).toBeUndefined();
-  expect(liftedV3.agentSdkConcurrency).toBeUndefined();
 });
 
 test("a stored blob carrying the deleted structured-output keys loses them at parse, and every sibling override survives", () => {
@@ -106,6 +105,11 @@ test("a stored blob carrying the deleted structured-output keys loses them at pa
     structuredOutputVehicle: "forced-tool",
   });
   expect(lifted).toEqual({ imageVariantQuality: 60 });
+});
+
+test("a stored blob carrying the retired agent-sdk concurrency override loses it at parse", () => {
+  // The fan-out cap lives on the agent-sdk connection now (`features.concurrency.summarize`).
+  expect(parseAppSettings({ schemaVersion: 10, agentSdkConcurrency: { summarize: 8 }, imageVariantQuality: 60 })).toEqual({ imageVariantQuality: 60 });
 });
 
 test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVERY other key forward (#321)", () => {
@@ -167,7 +171,7 @@ test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVER
   // override the v9→v10 lift deletes.
   expect(Object.keys(parsed)).not.toContain("memorySummarizer");
   expect(parsed.rateLimits).toEqual({ aiTurn: 60, login: 10 });
-  expect(parsed.agentSdkConcurrency).toEqual({ summarize: 4 });
+  expect(Object.keys(parsed)).not.toContain("agentSdkConcurrency");
   expect(parsed.logLevel).toBe("debug");
   expect(parsed.corpusAutoindex).toBe(true);
   expect(parsed.forbidExternalMedia).toBe(true);

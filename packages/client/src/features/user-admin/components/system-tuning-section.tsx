@@ -1,6 +1,5 @@
-// The System-tuning admin SECTION (Phase B ⑩) — the live scalar admin knobs for agent-sdk summarize
-// concurrency, prompt transforms, model-catalog refresh, image variants, databank uploads and prompt-cache
-// depth. Each shows its deployment floor + whether an override is active; Reset clears the section's
+// The System-tuning admin SECTION (Phase B ⑩) — the live scalar admin knobs for prompt transforms,
+// model-catalog refresh, image variants, databank uploads and prompt-cache depth. Each shows its deployment floor + whether an override is active; Reset clears the section's
 // overrides at once. Reads getAppSettingsWithOverrides for the floor-vs-override story and saves only the
 // moved fields through the admin-gated updateAppSettings path.
 //
@@ -38,16 +37,6 @@ interface KnobDescriptor {
 }
 
 const KNOBS: readonly KnobDescriptor[] = [
-  {
-    id: "agentSdkSummarizeConcurrency",
-    label: "Agent-SDK summarize concurrency",
-    hint: "Max in-flight summarize calls the Claude-Agent-SDK backend runs (distinct from the vLLM engine's).",
-    step: 1,
-    min: 1,
-    read: (r) => r.agentSdkConcurrency.summarize,
-    overridden: (o) => isOverridden(o.agentSdkConcurrency?.summarize),
-    patch: (v) => ({ agentSdkConcurrency: { summarize: v } }),
-  },
   {
     id: "promptTransformDeadlineMs",
     label: "Prompt-transform deadline (ms)",
@@ -159,7 +148,6 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
     save
       .mutateAsync({
         partial: {
-          agentSdkConcurrency: null,
           promptTransformDeadlineMs: null,
           catalogRefreshIntervalMs: null,
           imageVariantQuality: null,

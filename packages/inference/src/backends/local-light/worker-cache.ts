@@ -53,6 +53,7 @@ function providerFields(err: ProviderError): Omit<ProviderErrorInit, "kind" | "r
     ...(err.requestId !== undefined ? { requestId: err.requestId } : {}),
     ...(err.width !== undefined ? { width: err.width } : {}),
     ...(err.violations !== undefined ? { violations: err.violations } : {}),
+    ...(err.partialItems !== undefined ? { partialItems: err.partialItems } : {}),
   };
 }
 

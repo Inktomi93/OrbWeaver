@@ -10,6 +10,7 @@ import { curatedRows } from "../../../packages/inference/src/capability/sources/
 import { measuredRows } from "../../../packages/inference/src/capability/sources/measured/loader.ts";
 import { synthesizeCapability } from "../../../packages/inference/src/capability/synthesize.ts";
 import type { ProviderExecutor } from "../../../packages/inference/src/contract/backend.ts";
+import { ProviderError } from "../../../packages/inference/src/contract/errors.ts";
 import type { InferenceLog } from "../../../packages/inference/src/deps.ts";
 import { buildBackends } from "../../../packages/inference/src/registry/backends.ts";
 import { createProviderExecutor } from "../../../packages/inference/src/roles/executor.ts";
@@ -416,6 +417,42 @@ test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's 
   expect(controllers[0]?.signal.aborted).toBe(true);
 });
 
+// Each agent-sdk item is a Claude subprocess; the connection's 'utility calls at once' bounds how many run together.
+test("(3) agent-sdk side generation fans out to the connection's utility calls at once, 4 when it states none, refused above 32", async () => {
+  const model = "claude-opus-5";
+  const run = async (declaredFeatures: {
+    readonly concurrency?: { readonly summarize: number };
+  }): Promise<{ readonly peak: number; readonly outcome: unknown }> => {
+    let inFlight = 0;
+    let peak = 0;
+    const counting = (): AsyncGenerator<Record<string, unknown>> => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      return (async function* stream(): AsyncGenerator<Record<string, unknown>> {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        yield* agentFrames(model);
+        inFlight -= 1;
+      })();
+    };
+    const executor = executorWith({ agentSdkQuery: counting });
+    const connection = fakeResolved({
+      task: "summarize",
+      providerId: "claude-sub",
+      model,
+      capability: agentConnection("summarize", model).capability,
+      secret: fakeApiKeySecret("sk-ant-oat-not-a-real-token"),
+      declaredFeatures,
+    });
+    const outcome = await executor.summarize({ connection, inputs: Array.from({ length: 10 }, () => ITEM) }).catch((error: unknown) => error);
+    return { peak, outcome };
+  };
+  expect((await run({})).peak).toBe(4);
+  expect((await run({ concurrency: { summarize: 2 } })).peak).toBe(2);
+  const over = await run({ concurrency: { summarize: 33 } });
+  expect(over.outcome).toMatchObject({ kind: "invalid", retryable: false });
+  expect(over.peak).toBe(0);
+});
+
 // ── (8) word-keyed logit bias ──────────────────────────────────────────────────────────────────────────
 
 test("(8) a word-keyed logit bias resolves to token ids through the server's tokenizer", async () => {
@@ -535,6 +572,24 @@ test("0525: an item refused as mandatory-reasoning replays alone; an item that a
   });
   expect(result.items.map((item) => item.text)).toEqual(["done", "done"]);
   expect(recorded.filter((request) => userTextOf(request.body).includes("First item."))).toHaveLength(1);
+});
+
+test("a failed batch carries the items it finished, by input index, so a caller re-sends only the rest", async () => {
+  const executor = executorWith({
+    fetch: openAiServer([], (body) => (userTextOf(body).includes("Second item.") ? { status: 400, error: "bad item" } : { content: "done" })),
+  });
+  const connection = fakeResolved({
+    task: "summarize",
+    providerId: "vllm",
+    model: "m",
+    capability: NO_REASONING,
+    baseUrl: LOCAL_URL,
+    declaredFeatures: { concurrency: { summarize: 1 } },
+  });
+  const inputs = ["First item.", "Second item.", "Third item."].map((userPrompt) => ({ systemPrompt: "Summarize.", userPrompt }));
+  const failure = await executor.summarize({ connection, inputs }).catch((error: unknown) => error);
+  expect(failure).toBeInstanceOf(ProviderError);
+  expect((failure as ProviderError).partialItems?.map((item) => item?.text)).toEqual(["done", undefined, undefined]);
 });
 
 // ── one speller: the template switch is the off on a row that spells one ───────────────────────────────
