@@ -1,7 +1,16 @@
 // @orb/contracts/rpg/profile — the statProfile IS the compatibility promise (§2.3). Pins: the schema
 // parses the mechanical shape and preserves saved/custom vocabulary independently of live defaults.
 
-import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, RPG_PROFILE_MAX_ATTRIBUTES, rpgGameConfigSchema, rpgStatProfileSchema } from "@orb/contracts/rpg";
+import {
+  meterDisplayNumber,
+  RPG_PROFILE_D20,
+  RPG_PROFILE_FREEFORM,
+  RPG_PROFILE_MAX_ATTRIBUTES,
+  RPG_SEED_HP_MAX,
+  rpgGameConfigSchema,
+  rpgSeedTrackers,
+  rpgStatProfileSchema,
+} from "@orb/contracts/rpg";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("freeform is lite's empty-attribute default with an identity-ish modifier", () => {
@@ -49,6 +58,23 @@ test("the schema enforces the ≤12 attribute cap", () => {
 test("resolution rejects an unknown discriminant (the reserved single-arm union)", () => {
   const bad = { ...RPG_PROFILE_FREEFORM, resolution: { kind: "gurps" } };
   expect(rpgStatProfileSchema.safeParse(bad).success).toBe(false);
+});
+
+// The seeded HP def says "unset counts as full": its first delta spends from the ceiling. The reading a surface
+// SHOWS follows, and every other unset meter keeps showing no reading.
+test("an unset seeded HP shows its ceiling; a written value, a carrier override and any other pool are untouched", () => {
+  const hp = rpgSeedTrackers(RPG_PROFILE_D20)[0];
+  expect(hp).toBeDefined();
+  if (hp === undefined) {
+    return;
+  }
+  const unset = { value: null, items: null, max: null };
+  expect(meterDisplayNumber(hp, unset)).toBe(RPG_SEED_HP_MAX);
+  expect(meterDisplayNumber(hp, undefined)).toBe(RPG_SEED_HP_MAX);
+  expect(meterDisplayNumber(hp, { value: 7, items: null, max: null })).toBe(7);
+  expect(meterDisplayNumber(hp, { value: null, items: null, max: 34 })).toBe(34);
+  const other = { ...hp, key: "vitality" };
+  expect(meterDisplayNumber(other, unset)).toBeNull();
 });
 
 test("the public RPG contract does not publish a dormant template catalog", async () => {

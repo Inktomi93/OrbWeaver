@@ -9,7 +9,10 @@
 // `component` root (the portalled-surface rule).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RecallIndicatorStory } from "../_ct-stories.tsx";
+import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
+import { PAID_RUN_ROUTES } from "../../../../support/node/utility-role.ts";
+import { RecallIndicatorHostStory, RecallIndicatorStory } from "../_ct-stories.tsx";
 
 const TRIGGER = /^Memory/u;
 const MOTION_SAFE_PULSE = /motion-safe:animate-pulse/u;
@@ -64,4 +67,33 @@ test("clicking the trigger opens the popover with the current state's live summa
   await component.getByTestId("recall-recalled").click();
   await trigger.click();
   await expect(page.getByText("Retrieved 3 memories for this turn.")).toBeVisible();
+});
+
+// With Memory off for the account, "no memories recalled" is the wrong answer: nothing can be recalled until it
+// is on. The host's popover offers the switch behind the same cost confirm Settings uses, and writes the same patch.
+test("host: with Memory off the popover offers to turn it on through the cost confirm", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    ...PAID_RUN_ROUTES,
+    "settings.getUserSettings": () => userSettingsView(),
+    "settings.updateUserSettingsSection": () => userSettingsView({ memory: { enabled: true } }),
+    "workloads.estimateModelCalls": { calls: 0 },
+  });
+  const component = await mount(<RecallIndicatorHostStory />);
+
+  await component.getByRole("button", { name: TRIGGER }).click();
+  await expect(page.getByText("No memories recalled this turn.")).toHaveCount(0);
+  await page.getByRole("button", { name: "Turn on", exact: true }).click();
+  await page.getByRole("button", { name: "Turn on Memory" }).click();
+  await expect
+    .poll(() => trpc.lastInput("settings.updateUserSettingsSection"), { intervals: [20, 50, 100] })
+    .toMatchObject({ section: "memory", patch: { enabled: true } });
+});
+
+test("host: with Memory on the popover keeps the recall summary and offers no switch", async ({ mount, page }) => {
+  await routeTrpc(page, { ...PAID_RUN_ROUTES, "settings.getUserSettings": () => userSettingsView({ memory: { enabled: true } }) });
+  const component = await mount(<RecallIndicatorHostStory />);
+
+  await component.getByRole("button", { name: TRIGGER }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Turn on", exact: true })).toHaveCount(0);
 });

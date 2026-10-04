@@ -155,6 +155,14 @@ export class PluginDowngradeRefusedError extends DomainOperationError {
   }
 }
 
+/** A plugin's own UI-action handler threw. The owner's guest failed, not the host, so the caller gets a coded
+ *  refusal (BAD_REQUEST) carrying the guest's message instead of a bare server error. */
+export class PluginActionFailedError extends DomainOperationError {
+  constructor(message: string) {
+    super("plugin_action_failed", message);
+  }
+}
+
 /** The instance auto-disabled after the crash threshold. Maps to SERVICE_UNAVAILABLE. */
 export class PluginCrashedError extends DomainUnavailableError {}
 

@@ -108,6 +108,8 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
 
   return (
     <FormDialog
+      closeButton={true}
+      dismissLabel="Cancel"
       description="Drop chat files exported from orbweaver (.orb.json — the whole room) or transcripts from orbweaver or SillyTavern (.jsonl). Each lands on the character it names, so import that character's card first."
       onOpenChange={changeOpen}
       open={open}

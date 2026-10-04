@@ -105,6 +105,12 @@
         "alpha": 0.16
       }
     },
+    "field-fill": {
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.995, 0.003, 75]
+      }
+    },
     "input-border": {
       "$value": {
         "colorSpace": "oklch",

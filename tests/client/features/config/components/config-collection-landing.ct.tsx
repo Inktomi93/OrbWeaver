@@ -237,7 +237,7 @@ test("drilling into a member gets a Back to the library, and the member is named
 });
 
 // THE ROW IS ONE ROW (#1747) — boards 03/05/06 draw `← Back to <library>` · the NAME · the member's own
-// verbs together, and world info is the collection that has all three: Edit details · Backfill · New entry.
+// verbs together, and world info is the collection that has all three: Edit details · New entry (Backfill titles joins them only when a blank title can be filled).
 // Before this commit the Back sat alone in a host-drawn row and the name + the verbs were one row lower, on
 // the surface's own header. The fix is the member surface OWNING the whole row through its existing
 // `detail` render, so the pin is "the verbs are INSIDE the header", not merely "the verbs exist".
@@ -256,7 +256,6 @@ test("the drill row carries the member's own verbs beside its name (board 06)", 
   // The three verbs the board draws, in the row the board draws them in. `Edit details` is a NAMED button
   // here and was an icon-only pencil whose whole name lived in an `aria-label` — the board names it.
   await expect(header.getByRole("button", { name: "Edit details" })).toBeVisible();
-  await expect(header.getByRole("button", { name: "Backfill titles" })).toBeVisible();
   await expect(header.getByRole("button", { name: "New entry" })).toBeVisible();
   // Still no lifecycle chrome in a drilled header (D212, #271) — the row's kebab owns Delete.
   await expect(header.getByRole("button", { name: /Delete/ })).toHaveCount(0);

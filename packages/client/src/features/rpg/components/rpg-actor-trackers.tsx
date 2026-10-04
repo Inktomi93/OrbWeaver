@@ -27,7 +27,7 @@
 // pin.
 
 import type { RpgActorView, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
-import { RPG_TRACKER_VALUE_EMPTY, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
+import { meterDisplayNumber, RPG_TRACKER_VALUE_EMPTY, trackerCeiling } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
@@ -88,8 +88,9 @@ function ActorTrackerMeter({
   // NULLABLE ALL THE WAY DOWN (side-eye 08-01): a tracker the story has never written has no reading, and
   // `?? 0` published one — "0/40" beside an empty bar, announced as fact. The row draws the em-dash arm
   // instead. The CEILING stays whatever the resolver says (`value.max ?? def.max`), null included: a
-  // poolless tracker has no `/max` half rather than a fabricated one.
-  const reading = trackerNumber(value);
+  // poolless tracker has no `/max` half rather than a fabricated one. The one exception is the seeded HP meter,
+  // whose contract is "unset counts as full".
+  const reading = meterDisplayNumber(def, value);
   const max = trackerCeiling(def, value);
   const [note, setNote] = useState<string | null>(null);
   // Clear a stale note when the server value/max changes under us (a fresh render = the drag landed).

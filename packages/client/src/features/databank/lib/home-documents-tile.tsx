@@ -19,26 +19,9 @@
 // accent fill); temp chat is a secondary button. The ghost here is unchanged and now for a stronger
 // reason — nothing on the shelf may compete with the hearth.
 //
-// `sectionId` — RETRACTED 2026-08-17 (side-eye rail sweep, the IA finding), and the reasoning it replaces
-// is kept here because it was a RECORDED ruling this file cited as its reason:
-//
-//   ~~WHY DATABANK DECLARES IT AND CHAT'S THREE TILES DO NOT (side-eye 2026-08-08 P2-c). The jump grid is a
-//   NAV surface: a row per section, each teaching what lives there. This tile does that row's entire job
-//   and more — the section's name, its glyph, its live contents, its health and a door into it — so the two
-//   together are one destination twice, ten pixels apart.~~
-//
-// What that ruling did not survive is the SHAPE CHANGE under it. When it was written the jump grid was
-// seven fat teaching ROWS, and a duplicate row really was a duplicate block; program #102 replaced it with
-// a wrapping PILL RAIL under the band "Elsewhere in the house", whose whole promise is that every room in
-// the house is one skim away. Databank became the ONE section missing from that rail — measured on the
-// live surface: eight pills for nine sections — so the rail quietly stopped being an index, and the claim
-// that this tile "is a door into the section" was itself only true while the bank had rows in it (the
-// trailing action hides on an empty bank). The pill costs one line of a wrapping rail; the ruling was
-// paying for it with the surface's only complete map.
-//
-// THE MECHANISM IS UNTOUCHED: `HomeTileContribution.sectionId` and the rail's derived drop both stay
-// exactly as built. No tile claims a section today — this was the only claimer — and the field is what a
-// future tile that genuinely REPLACES a nav destination (a full-section-surface tile) would still declare.
+// `sectionId` is declared: this tile carries the section's name, glyph, live contents, health and a door into it, so
+// Elsewhere does not repeat Databank while the tile is on screen. The tile is unconditionally visible, which is what
+// keeps the claim safe (see `HomeTileContribution.sectionId`).
 
 import { Database } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#state";
@@ -68,8 +51,7 @@ export const databankDocumentsTile: HomeTileContribution = {
   icon: Database,
   order: DOCUMENTS_TILE_ORDER,
   region: "shelf",
-  // NO `sectionId` (see the header): this tile no longer suppresses Databank's pill in "Elsewhere in the
-  // house", because that rail is the surface's index of the house and databank was the one room missing.
+  sectionId: "databank",
   skeletonRows: DOCUMENTS_SKELETON_ROWS,
   // A COMPONENT, not a static node: it hides itself on an empty bank (P2-b).
   action: <HomeDocumentsTileAction />,

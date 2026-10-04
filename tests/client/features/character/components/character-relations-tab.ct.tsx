@@ -74,3 +74,21 @@ test("a FAILED CATALOGUE read fails the section too — the picker must not clai
   await expect(tab.getByText("No world books linked.")).toHaveCount(0);
   await expect(tab.getByRole("button", { name: "Link a book" })).toHaveCount(0);
 });
+
+test("each row's link/unlink/connect button names the item it acts on", async ({ mount, page }) => {
+  const other = { ...BOOK_CATALOGUE, id: "world_book_relations002", name: "The Saltmarsh Codex" };
+  await routeTrpc(page, {
+    "worldInfo.listForCharacter": () => [BOOK],
+    "worldInfo.listBooks": () => [BOOK_CATALOGUE, other],
+    "persona.listConnectedToCharacter": () => [],
+    "persona.list": () => [PERSONA],
+  });
+  const tab = await mount(<CharacterRelationsTabStory />);
+
+  await expect(tab.getByRole("button", { name: `Unlink ${BOOK.name}` })).toBeVisible();
+  await tab.getByRole("button", { name: "Link a book" }).click();
+  await expect(page.getByRole("button", { name: `Link ${other.name}` })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await tab.getByRole("button", { name: "Connect a persona" }).click();
+  await expect(page.getByRole("button", { name: `Connect ${PERSONA.name}` })).toBeVisible();
+});
