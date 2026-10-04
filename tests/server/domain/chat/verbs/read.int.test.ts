@@ -3176,6 +3176,28 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     expect(fit.ceilingTokens).toBe(safeTokenWindow(1_000_000 - DEFAULT_MAX_OUTPUT_TOKENS));
   });
 
+  // A run of same-role rows squashes into ONE delivered row on a merging level. The fit must still hold the
+  // request inside the window: the kept history never costs more than the room the preview reports, and the
+  // dropped count and boundary name the stored rows the turn leaves out.
+  test("a long run of consecutive user rows still fits the room", async () => {
+    const host = await seedUser(db, castId<Handle>("fit_host_run"));
+    const chatId = await seedRoom("fitrun", host);
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "greeting" });
+    await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        seedMessage(db, chatId, i + 2, { role: "user", authorUserId: host, content: `note ${i + 2} ${"word ".repeat(300)}` }),
+      ),
+    );
+    const eightK = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 8192 } });
+
+    const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(eightK));
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+
+    expect(fit.droppedCount).toBeGreaterThan(0);
+    expect(fit.usedTokens).toBeLessThanOrEqual(fit.ceilingTokens);
+    expect(fit.boundaryMessageId).toBe(castId(`message_${chatId}_${fit.droppedCount + 1}`));
+  });
+
   // COMPACTION-COVERED shrinkage (#9 verifier fix): a chat with a marker covering through seq N excludes seq
   // ≤ N from the shaped history, so previewFit's boundary is TRUE (> N) on BOTH the wide-window (no fit trim)
   // and the tiny-window (fit trims further) paths, and the memory fact is exposed.

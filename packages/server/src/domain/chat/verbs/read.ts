@@ -170,7 +170,7 @@ import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsO
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
-import { buildWireHistory, convertsToEmptyWireRow, fitWireHistory } from "../substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow, shapeConvertFit } from "../substrate/wire-history.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -1163,7 +1163,11 @@ async function shapeNextTurn(
     readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
     readonly assembled: AssembledPrompt;
   },
-): Promise<{ canon: readonly MessageView[]; shaped: ReturnType<typeof shapeTurn> }> {
+): Promise<{
+  canon: readonly MessageView[];
+  rows: ReturnType<typeof toShapeCanon>;
+  shape: (rows: ReturnType<typeof toShapeCanon>) => ReturnType<typeof shapeTurn>;
+}> {
   const { chatId, inputs, assembleContext, assembled } = args;
   // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
   // (client-display parity), exactly as the engine builds it for a real turn.
@@ -1181,39 +1185,41 @@ async function shapeNextTurn(
     inputs.capability === undefined
       ? undefined
       : await cueReplayFor(inputs.capability, resolveCarryReasoning(params, inputs.capability, []), () => loadCanonCues(ctx.db, chatId));
-  const shaped = shapeTurn({
-    canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs)) : [],
-    appendUserTurn: null,
-    injections: inChatInjections,
-    // The room's own output axis (see `buildPreviewContext`) — a narrator preview shapes its history as the
-    // narrator turn will. `cardScope`/`scopedTargetId` stay pinned (merged / no fold): narrator is always merged,
-    // and a shapeless peek makes no per-speaker scoped selection, so per-speaker rooms stay byte-identical.
-    output: inputs.group.output,
-    cardScope: "merged",
-    scopedTargetId: null,
-    namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
-    speakers: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, assistant: assembleContext.character.name },
-    multiHuman: assembleContext.multiHuman === true,
-    // The preview voices the primary's turn, with the cue a turn carries when its system block names no speaker.
-    groupNudge: speakerCue(assembleContext, previewVoice(assembleContext, inputs.group.output)),
-    cueReplay,
-    assistantPrefill: inputs.capability !== undefined && acceptsAssistantPrefill(inputs.capability),
-    convertsToEmptyWireRow,
-    // The same two system-row facts the turn reads. The preview must show the SAME delivery the wire carries —
-    // this read is what a host debugs the prompt with, so a divergence would make the trace lie about the role
-    // sequence and the fold reasons.
-    midConversationSystem: level?.midConversationSystem === true,
-    historySystemRows: level?.historySystemRows === true,
-    roleHandling: params.advanced?.roleHandling,
-    roleHandlingFloor: level?.roleHandlingFloor,
-    explicitCacheMarkers: inputs.explicitCacheMarkers,
-    squashSystemMessages: params.advanced?.squashSystemMessages,
-    prose: assembleContext.prose,
-  });
-  return { canon, shaped };
+  const rows = assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs)) : [];
+  const shape = (shapeRows: ReturnType<typeof toShapeCanon>): ReturnType<typeof shapeTurn> =>
+    shapeTurn({
+      canon: shapeRows,
+      appendUserTurn: null,
+      injections: inChatInjections,
+      // The room's own output axis (see `buildPreviewContext`) — a narrator preview shapes its history as the
+      // narrator turn will. `cardScope`/`scopedTargetId` stay pinned (merged / no fold): narrator is always merged,
+      // and a shapeless peek makes no per-speaker scoped selection, so per-speaker rooms stay byte-identical.
+      output: inputs.group.output,
+      cardScope: "merged",
+      scopedTargetId: null,
+      namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
+      speakers: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, assistant: assembleContext.character.name },
+      multiHuman: assembleContext.multiHuman === true,
+      // The preview voices the primary's turn, with the cue a turn carries when its system block names no speaker.
+      groupNudge: speakerCue(assembleContext, previewVoice(assembleContext, inputs.group.output)),
+      cueReplay,
+      assistantPrefill: inputs.capability !== undefined && acceptsAssistantPrefill(inputs.capability),
+      convertsToEmptyWireRow,
+      // The same two system-row facts the turn reads. The preview must show the SAME delivery the wire carries —
+      // this read is what a host debugs the prompt with, so a divergence would make the trace lie about the role
+      // sequence and the fold reasons.
+      midConversationSystem: level?.midConversationSystem === true,
+      historySystemRows: level?.historySystemRows === true,
+      roleHandling: params.advanced?.roleHandling,
+      roleHandlingFloor: level?.roleHandlingFloor,
+      explicitCacheMarkers: inputs.explicitCacheMarkers,
+      squashSystemMessages: params.advanced?.squashSystemMessages,
+      prose: assembleContext.prose,
+    });
+  return { canon, rows, shape };
 }
 
-/** Run the SAME CONVERT → FIT pair the engine's turn pipeline runs over an already-shaped history: the budget
+/** Run the SAME SHAPE → CONVERT → FIT sequence the engine's turn pipeline runs over the stored rows: the budget
  *  is the model window soft-capped by the preset's `maxContextTokens`, reserving the materialized output
  *  budget + the assembled system tokens. One home for the preview reads that need a boundary/ceiling.
  *
@@ -1231,7 +1237,8 @@ async function fitShapedHistory(args: {
   readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
   readonly assembled: AssembledPrompt;
   readonly capability: GenerationCapability | undefined;
-  readonly shaped: ReturnType<typeof shapeTurn>;
+  /** The stored rows and the turn's SHAPE over them ({@link shapeNextTurn}). */
+  readonly next: Pick<Awaited<ReturnType<typeof shapeNextTurn>>, "rows" | "shape">;
   /** The CONVERT env — the previews' twin of the turn's (`runTurnPipeline`), resolved under the HOST because
    *  every preview already is (`resolvePreviewInputs`: connection, preset, `{{user}}`). */
   readonly convert: {
@@ -1255,30 +1262,28 @@ async function fitShapedHistory(args: {
     systemTokens,
     outputCeiling: args.capability?.output.maxTokens.max,
   });
-  const converted = await buildWireHistory(
-    {
-      visionOk: args.capability !== undefined && acceptsImageInput(args.capability),
-      videoOk: args.capability !== undefined && acceptsVideoInput(args.capability),
-      resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref, quality: args.convert.quality }),
-      cardKeepLastX: args.convert.cardKeepLastX,
-      canon: args.convert.canon,
-      // §8.8: the preview prices the SAME rows the next turn sends, so it resolves the carry rung the way
-      // the turn will (`resolveCarryReasoning`, the one policy home) and reads the replay material only on
-      // the `conversation` rung. A capability-less preview (no resolved connection) cannot know the rung and
-      // takes the `off` floor rather than a guess that over-prices the window. Warnings are the TURN's to
-      // raise, so the sink is a throwaway here.
-      reasoningByMessage:
-        args.capability !== undefined && resolveCarryReasoning(params, args.capability, []) === "conversation"
-          ? await loadCanonReasoningParts(args.ctx.db, args.convert.chatId)
-          : new Map<MessageId, readonly ChatReasoningPart[]>(),
-      // §6.7: the SAME fence input the turn passes, from the SAME query — a preview that priced an
-      // assistant-row picture differently from the turn would put the transcript divider in the wrong place
-      // on exactly the chats this feature creates. LAZY: untouched on a history with no model-emitted image.
-      loadInlineReplyAssetIds: () => loadInlineReplyAssetIds(args.ctx.db, args.convert.chatId),
-    },
-    args.shaped.history,
-  );
-  return { fitted: fitWireHistory(converted, budget, args.shaped.newChatMarker).fitted, budget };
+  const convertEnv: Parameters<typeof buildWireHistory>[0] = {
+    visionOk: args.capability !== undefined && acceptsImageInput(args.capability),
+    videoOk: args.capability !== undefined && acceptsVideoInput(args.capability),
+    resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref, quality: args.convert.quality }),
+    cardKeepLastX: args.convert.cardKeepLastX,
+    canon: args.convert.canon,
+    // §8.8: the preview prices the SAME rows the next turn sends, so it resolves the carry rung the way
+    // the turn will (`resolveCarryReasoning`, the one policy home) and reads the replay material only on
+    // the `conversation` rung. A capability-less preview (no resolved connection) cannot know the rung and
+    // takes the `off` floor rather than a guess that over-prices the window. Warnings are the TURN's to
+    // raise, so the sink is a throwaway here.
+    reasoningByMessage:
+      args.capability !== undefined && resolveCarryReasoning(params, args.capability, []) === "conversation"
+        ? await loadCanonReasoningParts(args.ctx.db, args.convert.chatId)
+        : new Map<MessageId, readonly ChatReasoningPart[]>(),
+    // §6.7: the SAME fence input the turn passes, from the SAME query — a preview that priced an
+    // assistant-row picture differently from the turn would put the transcript divider in the wrong place
+    // on exactly the chats this feature creates. LAZY: untouched on a history with no model-emitted image.
+    loadInlineReplyAssetIds: () => loadInlineReplyAssetIds(args.ctx.db, args.convert.chatId),
+  };
+  const { fitted } = await shapeConvertFit({ canon: args.next.rows, shape: args.next.shape, convert: (rows) => buildWireHistory(convertEnv, rows), budget });
+  return { fitted, budget };
 }
 
 /** Is the fit's ceiling a GUESS rather than the connected model's real window? True only when the capability's
@@ -1340,12 +1345,12 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided, timeZone });
     const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
-    const { canon, shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
     const { fitted, budget: fitBudget } = await fitShapedHistory({
       assembleContext,
       assembled: prompt,
       capability: inputs.capability,
-      shaped,
+      next,
       convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
     });
@@ -1404,7 +1409,8 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
     const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
     // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
-    const { shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    const { rows, shape } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    const shaped = shape(rows);
     return buildShapeTrace(shaped.stages, shaped.cacheBreakpointFromEnd, shaped.breakpointDecision);
   };
 }
@@ -1506,14 +1512,14 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
-    const { canon, shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
-    // CONVERT → FIT — the same pair, in the same order, over the same rows the engine's turn pipeline runs
-    // (one home: `fitShapedHistory` → `substrate/wire-history`).
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    // SHAPE → CONVERT → FIT — the same sequence, in the same order, over the same rows the engine's turn pipeline
+    // runs (one home: `fitShapedHistory` → `substrate/wire-history` shapeConvertFit).
     const { fitted, budget } = await fitShapedHistory({
       assembleContext,
       assembled,
       capability: inputs.capability,
-      shaped,
+      next,
       convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
     });

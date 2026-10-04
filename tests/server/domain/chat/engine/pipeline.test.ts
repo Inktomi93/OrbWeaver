@@ -1,6 +1,7 @@
 // engine/pipeline — the per-turn execution pipeline: assemble→shape→fit→request→reduce. Pins the stream
 // reduce (deltas → final text + economics), the shaped request, the §8 fit, and ctx immutability.
 
+import { createHash } from "node:crypto";
 import type { AssembleContext, ChatDeltaEvent, ChatInjection, ChatReasoningPart, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import { CONTENT_CLASS_POLICY, contentSpansToBlocks } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
@@ -44,6 +45,7 @@ import { makeCapability, makeGenerationCapability, makeResolved } from "../../..
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
 import { wireSchema } from "../../../../support/wire-ready.ts";
+import fitGoldens from "./pipeline-fit.goldens.json" with { type: "json" };
 
 const CAPABILITY: GenerationCapability = makeGenerationCapability({
   output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
@@ -3302,5 +3304,196 @@ describe("runTurnPipeline — narrator round assembly", () => {
     // Card binding is unchanged on this arm: each card still says "me", and always did.
     expect(system).toContain("JFC is a foul-mouthed mechanic");
     expect(system).toContain("Charlotte is a tired archivist");
+  });
+});
+
+// ── The history fit holds a hard window when SHAPE squashes a same-role run ─────────────────────────────
+// A merging level on a wire that does not cache by explicit markers joins a run of stored rows into ONE row
+// carrying the first row's id. That row is the newest id-bearing row, so the post-shape fit can never cut it;
+// the stored rows are trimmed before SHAPE instead, and every request that already fit stays byte-identical.
+describe("runTurnPipeline — the history fit on a squashed run", () => {
+  const MergingLevels = ["semi-strict", "strict", "merge"] as const;
+  const AllLevels = ["none", ...MergingLevels] as const;
+  const Dense = "word ".repeat(300);
+  const Filler = "several words that spend tokens on every single row here";
+  const Authors = [ARIA, KAI] as const;
+
+  const storedRow = (seq: number, role: "user" | "assistant", content: string, characterId: CharacterId | null = null): MessageView =>
+    // @orb-waive no-test-fabrication(unknown): same slim-double judgment as seqRow/rowOf above, with the seq the compaction cut reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    ({
+      id: mintTypeId(ID_PREFIX.message),
+      seq,
+      role,
+      kind: "standard",
+      content,
+      excludedFromPrompt: false,
+      characterId,
+      personaId: null,
+      authorUserId: role === "user" ? FIXTURE_HUMAN : null,
+    }) as unknown as MessageView;
+
+  // `roleHandlingFloor: none` is a stated floor that lets the preset's own level through unclamped.
+  const wire = (providerId: string, model: string, explicitPromptCache: boolean, window: number): Resolved<"chat"> =>
+    makeResolved({
+      providerId,
+      model: castId<ModelId>(model),
+      capability: makeCapability({
+        ...CAPABILITY,
+        context: { window },
+        turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "none", explicitPromptCache },
+      }),
+    });
+  const Wires = {
+    local: (window: number) => wire("ollama", "qwen3:8b", false, window),
+    anthropic: (window: number) => wire("anthropic", "claude-sonnet-5", true, window),
+    openrouter: (window: number) => wire("openrouter", "anthropic/claude-sonnet-5", true, window),
+  } as const;
+
+  const presetAt = (roleHandling: (typeof AllLevels)[number]): PromptConfig => ({
+    ...DEFAULT_PROMPT_CONFIG,
+    params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { roleHandling } },
+  });
+  const groupCtx = (over: Partial<AssembleContext>): AssembleContext =>
+    ctxOf({
+      characters: [
+        { name: "Aria", description: "a bold knight" },
+        { name: "Kai", description: "a quiet scout" },
+      ],
+      characterIds: [ARIA, KAI],
+      ...over,
+    });
+
+  // Greeting-first, alternating, ending on the user's row.
+  const alternating = (rows: number): MessageView[] =>
+    Array.from({ length: rows }, (_, i) => storedRow(i + 1, i % 2 === 0 ? "assistant" : "user", `turn ${i + 1} ${Filler}`));
+  // Rounds of two or three characters answering one user row: same-role assistant runs from several authors.
+  const group = (rounds: number): MessageView[] => {
+    const rows: MessageView[] = [];
+    for (let round = 0; round < rounds; round += 1) {
+      rows.push(storedRow(rows.length + 1, "user", `round ${round} ${Filler}`));
+      for (let reply = 0; reply < 2 + (round % 2); reply += 1) {
+        rows.push(storedRow(rows.length + 1, "assistant", `reply ${round}.${reply} ${Filler}`, Authors[reply % 2] ?? ARIA));
+      }
+    }
+    rows.push(storedRow(rows.length + 1, "user", `final ${Filler}`));
+    return rows;
+  };
+
+  const text = (m: TurnRequest["history"][number] | undefined): string => (m?.content ?? []).map((p) => (p.type === "text" ? p.text : "")).join("");
+  const fits = (result: PipelineResult): boolean => result.fitCeilingTokens !== null && result.fitUsedTokens <= result.fitCeilingTokens;
+
+  describe("a run too large for the window is trimmed before SHAPE", () => {
+    test.each(MergingLevels)("20 consecutive user rows on an 8k window keep the request inside it at `%s`", async (level) => {
+      const canon = [storedRow(1, "assistant", "greeting"), ...Array.from({ length: 20 }, (_, i) => storedRow(i + 2, "user", `note ${i + 2} ${Dense}`))];
+      const result = await runTurnPipeline(baseArgs({ canon, connection: Wires.local(8192), assembleContext: ctxOf({ promptConfig: presetAt(level) }) }).args);
+
+      expect(fits(result)).toBe(true);
+      expect(result.droppedCount).toBeGreaterThan(0);
+      // The dropped count is in stored rows, and the boundary names the first stored row the request opens on.
+      const firstKept = canon[result.droppedCount];
+      expect(result.contextBoundaryMessageId).toBe(firstKept?.id);
+      expect(text(result.request.history[0]).startsWith(firstKept?.content ?? "∅")).toBe(true);
+      expect(historyText(result.request)).toContain("note 21 ");
+    });
+
+    test.each(MergingLevels)("a round of 20 replies from two characters on a local 8k window fits at `%s`", async (level) => {
+      const canon = [
+        storedRow(1, "user", "go"),
+        ...Array.from({ length: 20 }, (_, i) => storedRow(i + 2, "assistant", `reply ${i + 2} ${Dense}`, Authors[i % 2] ?? ARIA)),
+      ];
+      const result = await runTurnPipeline(
+        baseArgs({ canon, connection: Wires.local(8192), assembleContext: groupCtx({ promptConfig: presetAt(level) }) }).args,
+      );
+
+      expect(fits(result)).toBe(true);
+      expect(result.droppedCount).toBeGreaterThan(0);
+      expect(result.contextBoundaryMessageId).toBe(canon[result.droppedCount]?.id);
+      expect(historyText(result.request)).toContain("reply 21 ");
+    });
+  });
+
+  // Every case below fits its window (or its fit cuts whole rows), so it must reach the wire exactly as before
+  // the pre-trim existed: the goldens were recorded from the pipeline that had no pre-trim.
+  describe("a request that already fits is byte-identical", () => {
+    const Variants = {
+      plain: {},
+      marker: {
+        chatInjections: [
+          { position: "in_chat", depth: BEFORE_HISTORY_DEPTH, role: "user", content: "[Start a new chat]", origin: "new-chat-marker" },
+        ] satisfies ChatInjection[],
+      },
+      compacted: { compactSummary: "the story so far", compactedThroughSeq: 3 },
+    } as const;
+    const Cap = { maxContextTokens: 1500, maxOutputTokens: 128 } satisfies UserIntent;
+
+    interface FitCase {
+      readonly canon: readonly MessageView[];
+      readonly connection: Resolved<"chat">;
+      readonly ctx: AssembleContext;
+      readonly intent: UserIntent;
+    }
+    function cases(): Record<string, FitCase> {
+      const out: Record<string, FitCase> = {};
+      for (const level of AllLevels) {
+        for (const [wireName, wireAt] of Object.entries(Wires)) {
+          for (const [variant, over] of Object.entries(Variants)) {
+            const promptConfig = presetAt(level);
+            out[`alternating/${level}/${wireName}/${variant}/roomy`] = {
+              canon: alternating(9),
+              connection: wireAt(200_000),
+              ctx: ctxOf({ promptConfig, ...over }),
+              intent: {},
+            };
+            out[`group/${level}/${wireName}/${variant}/roomy`] = {
+              canon: group(3),
+              connection: wireAt(200_000),
+              ctx: groupCtx({ promptConfig, ...over }),
+              intent: {},
+            };
+            out[`alternating/${level}/${wireName}/${variant}/capped`] = {
+              canon: alternating(121),
+              connection: wireAt(200_000),
+              ctx: ctxOf({ promptConfig, ...over }),
+              intent: Cap,
+            };
+            out[`group/${level}/${wireName}/${variant}/capped`] = {
+              canon: group(28),
+              connection: wireAt(200_000),
+              ctx: groupCtx({ promptConfig, ...over }),
+              intent: Cap,
+            };
+          }
+        }
+      }
+      return out;
+    }
+
+    test("every level, wire and marker matches the goldens recorded before the pre-trim", async () => {
+      const seen: Record<string, { droppedCount: number; boundaryIndex: number; sha256: string }> = {};
+      const overflowing: string[] = [];
+      for (const [name, c] of Object.entries(cases())) {
+        const result = await runTurnPipeline(baseArgs({ canon: [...c.canon], connection: c.connection, assembleContext: c.ctx, intent: c.intent }).args);
+        if (!fits(result)) {
+          overflowing.push(name);
+        }
+        const wireBytes = JSON.stringify({
+          history: result.request.history,
+          breakpoint: result.request.cacheBreakpointFromEnd,
+          cue: result.cue,
+          fitUsedTokens: result.fitUsedTokens,
+          fitCeilingTokens: result.fitCeilingTokens,
+        });
+        seen[name] = {
+          droppedCount: result.droppedCount,
+          boundaryIndex: c.canon.findIndex((m) => m.id === result.contextBoundaryMessageId),
+          sha256: createHash("sha256").update(wireBytes).digest("hex"),
+        };
+      }
+      // The identity claim covers requests that fit; a case that overflowed would prove nothing here.
+      expect(overflowing).toEqual([]);
+      // The capped cases cut, so the identity includes the cut point and the chunk boundary it snaps to.
+      expect(Object.entries(seen).filter(([name, s]) => name.endsWith("/capped") && s.droppedCount === 0)).toEqual([]);
+      expect(seen).toEqual(fitGoldens);
+    });
   });
 });
