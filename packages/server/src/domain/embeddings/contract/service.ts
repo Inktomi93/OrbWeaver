@@ -23,7 +23,7 @@ import type {
   UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
-import type { GenerationReceipt, GenerationTask } from "./generation.ts";
+import type { EmbedWidthRefusal, GenerationReceipt, GenerationTask } from "./generation.ts";
 import type {
   ClearTableParams,
   CountDocumentChunksParams,
@@ -142,8 +142,17 @@ export interface EmbeddingsService {
   readonly resolveGeneration: (ownerId: UserId, task: GenerationTask, via?: GenerationTask) => Promise<PinnedGeneration | null>;
   /** Bring the owner's stored targets in line with what their vector bindings resolve to now, moving any that
    *  differ (which queues the rebuild through {@link EmbeddingsContext.onTargetGenerationMoved}). A binding that
-   *  cannot resolve yet moves nothing and does not throw: its first write after it can resolve moves it. */
-  readonly syncTargetGenerations: (ownerId: UserId) => Promise<void>;
+   *  cannot resolve yet moves nothing and does not throw: its first write after it can resolve moves it. Every move
+   *  is width-probed before any moves, so a refusal leaves both targets and their indexes as they were. */
+  readonly syncTargetGenerations: (ownerId: UserId) => Promise<EmbedWidthRefusal | null>;
+  /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
+   *  cannot resolve. Read-only, and the same rule a move is made by. */
+  readonly targetWouldMove: (args: {
+    readonly ownerId: UserId;
+    readonly task: GenerationTask;
+    readonly via: GenerationTask;
+    readonly connectionId: UserConnectionId;
+  }) => Promise<boolean | null>;
   /** Every stored target in scope (one owner, or every owner for `null`) as one comparable value: two equal
    *  snapshots mean no target in scope moved between them. Read-only. */
   readonly targetSnapshot: (ownerId: UserId | null) => Promise<string>;

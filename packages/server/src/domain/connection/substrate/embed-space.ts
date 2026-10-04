@@ -9,8 +9,9 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
-import type { UserConnectionId } from "@orb/kit/ids";
+import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { connectionFingerprint } from "#kit/embedding-generation";
+import { EmbedWidthUnmakeableError } from "../contract/errors.ts";
 import type { EmbedSpace, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext } from "../contract/service.ts";
 
@@ -81,4 +82,25 @@ export function spaceMoved(before: EmbedSpace | null | undefined, after: EmbedSp
  *  for a later re-bind (the preview's "clearing a role deletes nothing"). */
 export function spacesMayMoveTarget(before: EmbedSpaces, after: EmbedSpaces): boolean {
   return VECTOR_TASKS.some((task) => (after[task] ?? null) !== null && spaceMoved(before[task], after[task]));
+}
+
+/**
+ * Settle a written change that may have moved the owner's stored targets. The sync probes the new encoder before any
+ * target moves; a width it does not make runs `undo` and refuses the write, so the index and the binding stay as they
+ * were.
+ *
+ * @throws {@link EmbedWidthUnmakeableError} after `undo`, when the encoder does not make the width its connection states.
+ */
+export async function settleEmbedSpace(
+  ctx: Pick<ConnectionContext, "syncEmbedTargets">,
+  args: { readonly ownerId: UserId; readonly before: EmbedSpaces; readonly after: EmbedSpaces; readonly undo: () => Promise<void> },
+): Promise<void> {
+  if (!spacesMayMoveTarget(args.before, args.after)) {
+    return;
+  }
+  const refused = await ctx.syncEmbedTargets(args.ownerId);
+  if (refused !== null) {
+    await args.undo();
+    throw new EmbedWidthUnmakeableError(refused);
+  }
 }

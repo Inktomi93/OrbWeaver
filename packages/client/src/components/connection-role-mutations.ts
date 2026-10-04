@@ -5,6 +5,12 @@
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { connectionWriteReads, createEntityMutation } from "#data";
+import { embedWidthRefusalOf } from "#lib";
+
+/** The toast for a failed connection write, except a width refusal, which the control that made it says inline. */
+function unlessWidthRefusal(toast: string): (error: unknown) => string | null {
+  return (error) => (embedWidthRefusalOf(error) === null ? toast : null);
+}
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
 
@@ -12,7 +18,7 @@ type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
 export const useUpdateConnection = createEntityMutation<inferInput<Trpc["connection"]["update"]>, ConnectionView>({
   options: (trpc) => trpc.connection.update.mutationOptions(),
   invalidates: connectionWriteReads,
-  errorToast: "Couldn't save that connection.",
+  errorToast: unlessWidthRefusal("Couldn't save that connection."),
 });
 
 /** Write ONE binding for an actor — the caller's own `user` arm when `actor` is absent, else a rule's or a
@@ -20,5 +26,5 @@ export const useUpdateConnection = createEntityMutation<inferInput<Trpc["connect
 export const useSetBinding = createEntityMutation<inferInput<Trpc["connection"]["setBinding"]>, unknown>({
   options: (trpc) => trpc.connection.setBinding.mutationOptions(),
   invalidates: connectionWriteReads,
-  errorToast: "Couldn't change that role.",
+  errorToast: unlessWidthRefusal("Couldn't change that role."),
 });

@@ -132,10 +132,6 @@ export interface SearchDiscoveryComposeResult {
   /** {@link SearchDiscoveryComposeResult.enqueueEmbedReindex} for a trigger that must not wait on it: the same
    *  sweeps, started detached. */
   readonly detachEmbedReindex: (scope: UserId | null) => void;
-  /** An owner's binding or connection write may have moved their embed space: bring their stored targets in line,
-   *  detached. A target that moves queues that owner's forced rebuild through the embeddings resolver's own
-   *  trigger; one that already matches, or cannot resolve yet, moves nothing. */
-  readonly detachTargetSync: (ownerId: UserId) => void;
   /** Boot's catch-up: the same sweeps for every owner whose stored generation is no longer the one their
    *  binding resolves to, started detached. No user action raised the trigger, so autoindex does not gate it. */
   readonly detachStaleSpaceReindex: () => void;
@@ -484,11 +480,6 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
       superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
     }
   };
-  const detachTargetSync = (ownerId: UserId): void => {
-    superviseDetached(`embed-target-sync:${ownerId}:${String(now())}`, EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
-      embeddings.syncTargetGenerations(ownerId),
-    );
-  };
 
   const detachStaleSpaceReindex = (): void => {
     superviseDetached("embeddings.staleGeneration.reindex", EMBED_REINDEX_SPAN, { workloadKind: "index" }, async () => {
@@ -525,7 +516,6 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     workloads,
     enqueueEmbedReindex,
     detachEmbedReindex,
-    detachTargetSync,
     detachStaleSpaceReindex,
     vacuousMemoryReceipt,
     listCorpusOwners: () => distinctCorpusOwners(db),

@@ -35,6 +35,7 @@ import {
   CORPUS_SUGGEST_LIMIT,
   CORPUS_SUGGEST_SHOWN,
   CORPUS_TARGET_REST_HINTS,
+  CORPUS_TEXT_TARGET_ID,
   isCleanSuggestion,
   resolveSearchTarget,
 } from "../lib/corpus-search-targets.ts";
@@ -111,7 +112,16 @@ export function CorpusListSurface(): ReactElement {
       </ToggleGroup>
       <SearchOmnibox inputRef={omniboxRef} query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />
       <Stack className="min-h-0 flex-1">
-        {searching ? <CorpusSearchResults query={deferredQuery} targetId={targetId} retainFinderScroll={true} /> : <CorpusRestState targetId={targetId} />}
+        {searching ? (
+          <CorpusSearchResults
+            query={deferredQuery}
+            targetId={targetId}
+            retainFinderScroll={true}
+            onTextInstead={(): void => setCorpusSearchTarget(CORPUS_TEXT_TARGET_ID)}
+          />
+        ) : (
+          <CorpusRestState targetId={targetId} />
+        )}
       </Stack>
     </Stack>
   );

@@ -85,7 +85,12 @@ function storeBatch(batch: readonly KeptInput[], embeddings: readonly number[][]
   }
   for (const [index, vector] of embeddings.entries()) {
     if (capability.mrl && vector.length !== dimension) {
-      throw new ProviderError({ kind: "invalid", retryable: false, message: `${label}: embedding width ${vector.length} differs from requested ${dimension}` });
+      throw new ProviderError({
+        kind: "invalid",
+        retryable: false,
+        message: `${label}: embedding width ${vector.length} differs from requested ${dimension}`,
+        width: { stated: dimension, measured: vector.length },
+      });
     }
     const input = batch[index];
     if (input !== undefined) {

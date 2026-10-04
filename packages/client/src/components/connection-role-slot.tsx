@@ -2,13 +2,14 @@
 // `connection.setBinding` for an actor, beside what the role resolves to today from the persisted `listBindings`
 // view. Model roles renders one per task for the user; a rule's editor renders one per task its arms spend.
 
+import type { EmbedWidthRefusalDetail } from "@orb/contracts/inference";
 import { Badge } from "@orb/ui/badge";
+import { Button } from "@orb/ui/button";
 import { Check, Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import { useQueries, useQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
@@ -20,8 +21,9 @@ import {
   cn,
   connectionHost,
   connectionSummary,
-  EMBEDDER_REBUILD_KINDS,
-  embedderRebuildState,
+  embedWidthRefusalOf,
+  embedWidthRefusalText,
+  REBUILD_JOBS_LABEL,
   REBUILD_STATUS_COPY,
   ROLE_STATUS_LABELS,
   roleReadout,
@@ -29,13 +31,18 @@ import {
   roleStatus,
   VECTOR_ROLES,
 } from "#lib";
+import { openConfigTo } from "#state";
 import { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
 import { useReindexConfirm } from "./reindex-confirm.tsx";
+import { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 
 const UNSET_VALUE = "";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 const PROSE_MEASURE = "max-w-(--reading-measure-prose)";
+
+// Unbinding the text embedder queues nothing: the stored index stays, and search keeps answering from it.
+const TEXT_EMBEDDER_UNSET = "None set — search keeps using your last index until you pick an embedder.";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
@@ -131,7 +138,9 @@ export function ConnectionRoleSlot({
     return false;
   });
   const isVectorRole = actor === undefined && VECTOR_ROLES.includes(row.task);
-  const rebuild = useEmbedderRebuild(trpc, isVectorRole);
+  const rebuild = useEmbedderRebuild(trpc, isVectorRole, row.task);
+  // The last pick the server refused because the embedder does not make the width its connection states.
+  const [widthRefusal, setWidthRefusal] = useState<EmbedWidthRefusalDetail | null>(null);
   // The PICKER's draft — `undefined` until the user touches it, which is the only state that can never
   // diverge. It is never the readout's `{X}`; it is only the other half of the comparison.
   const [draft, setDraft] = useState<string | null | undefined>(undefined);
@@ -152,6 +161,8 @@ export function ConnectionRoleSlot({
     return connection === undefined ? null : { label: connectionSummary(connection), host: connectionHost(connection.baseUrl) };
   };
   const status = roleStatus(view);
+  // A failed rebuild leaves search paused, so the dot does not say the role is running.
+  const dot: RoleStatus = rebuild === "failed" && status === "running" ? "blocked" : status;
   const readout = roleReadout({ view, draftConnectionId: draft, factsOf });
   const verdicts = roleRequirementVerdicts(row, view?.resolved?.capability ?? null);
   const repairs = backgroundRepairs({ row, connections, status });
@@ -162,12 +173,12 @@ export function ConnectionRoleSlot({
     <Row gap="field" align="start" justify="between" className="flex-wrap" ref={slotRef}>
       <Row gap="field" align="start">
         <Badge
-          aria-label={ROLE_STATUS_LABELS[status]}
-          className={DOT_SKIN[status].className}
-          intent={DOT_SKIN[status].intent}
+          aria-label={ROLE_STATUS_LABELS[dot]}
+          className={DOT_SKIN[dot].className}
+          intent={DOT_SKIN[dot].intent}
           role="img"
           size="dot"
-          tone={DOT_SKIN[status].tone}
+          tone={DOT_SKIN[dot].tone}
         />
         <Stack gap="tight">
           <Text voice="label">{row.heading}</Text>
@@ -175,12 +186,9 @@ export function ConnectionRoleSlot({
             {description ?? row.description}
           </Text>
           {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
-          <ReadoutLine readout={readout} />
-          {rebuild === null ? null : (
-            <Text voice="gloss" data-rebuild={rebuild} className={cn(rebuild === "failed" ? READOUT_INK.blocked : READOUT_INK.divergent, PROSE_MEASURE)}>
-              {REBUILD_STATUS_COPY[rebuild]}
-            </Text>
-          )}
+          <ReadoutLine readout={readout} unsetSentence={isVectorRole && row.task === "embed" ? TEXT_EMBEDDER_UNSET : undefined} />
+          <WidthRefusalLine refusal={widthRefusal} />
+          {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
           {repairs.map((connection) => (
             <BackgroundRepair
               key={connection.id}
@@ -204,7 +212,11 @@ export function ConnectionRoleSlot({
           }
           const write = (): void => {
             setDraft(picked);
-            setBinding.mutate({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
+            setWidthRefusal(null);
+            setBinding.mutate(
+              { task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) },
+              { onError: rollBackOnWidthRefusal(setDraft, setWidthRefusal) },
+            );
           };
           // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
           if (isVectorRole) {
@@ -220,41 +232,55 @@ export function ConnectionRoleSlot({
   );
 }
 
-/** How often the vector rows re-read the rebuild while one runs; the run reports progress at about this pace. */
-const REBUILD_POLL_MS = 5000;
+/** A failed pick's handler: the server undid a write onto a width the embedder cannot make, so the picker goes back to
+ *  what is bound and the row says why. Any other failure keeps the draft, so the row says it is not applied yet. */
+function rollBackOnWidthRefusal(setDraft: (draft: undefined) => void, setWidthRefusal: (refusal: EmbedWidthRefusalDetail) => void): (error: unknown) => void {
+  return (error) => {
+    const width = embedWidthRefusalOf(error);
+    if (width !== null) {
+      setDraft(undefined);
+      setWidthRefusal(width);
+    }
+  };
+}
 
-/** The viewer's embedder rebuild, read only for their own vector roles. */
-function useEmbedderRebuild(trpc: Trpc, enabled: boolean): ReturnType<typeof embedderRebuildState> {
-  const viewer = useQuery({ ...trpc.sessions.me.queryOptions(), enabled });
-  // Search's own paused state decides whether there is a line at all; it re-reads while paused so it clears on promotion.
-  const space = useQuery({
-    ...trpc.search.spaceStatus.queryOptions(),
-    enabled,
-    refetchInterval: (query) => (query.state.data?.paused === true ? REBUILD_POLL_MS : false),
-  });
-  // One read per rebuild kind, each polling while it holds an active rebuild, so the line holds until the last scope lands.
-  const rows = useQueries({
-    queries: EMBEDDER_REBUILD_KINDS.map((kind) => ({
-      ...trpc.workloads.list.queryOptions({ kind }),
-      enabled,
-      refetchInterval: (query: { readonly state: { readonly data?: Parameters<typeof embedderRebuildState>[0] | undefined } }): number | false =>
-        embedderRebuildState(query.state.data ?? [], viewer.data?.userId ?? null, { paused: true }) === "running" ? REBUILD_POLL_MS : false,
-    })),
-  });
-  return enabled
-    ? embedderRebuildState(
-        rows.flatMap((query) => query.data ?? []),
-        viewer.data?.userId ?? null,
-        space.data,
-      )
-    : null;
+function WidthRefusalLine({ refusal }: { readonly refusal: EmbedWidthRefusalDetail | null }): ReactElement | null {
+  return refusal === null ? null : (
+    <Text voice="gloss" role="alert" data-refusal="embed-width" className={cn(READOUT_INK.blocked, PROSE_MEASURE)}>
+      {embedWidthRefusalText(refusal)}
+    </Text>
+  );
+}
+
+/** The vector row's rebuild line and its door to Jobs. The live region is mounted before it has anything to say, so
+ *  the rebuild starting and failing are both announced. */
+function RebuildLine({ rebuild }: { readonly rebuild: ReturnType<typeof useEmbedderRebuild> }): ReactElement {
+  return (
+    <Row role="status" gap="field" align="center" className="flex-wrap">
+      {rebuild === null ? null : (
+        <>
+          <Text
+            voice="gloss"
+            as="span"
+            data-rebuild={rebuild}
+            className={cn(rebuild === "failed" ? READOUT_INK.blocked : READOUT_INK.divergent, PROSE_MEASURE)}
+          >
+            {REBUILD_STATUS_COPY[rebuild]}
+          </Text>
+          <Button intent="ghost" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
+            {REBUILD_JOBS_LABEL}
+          </Button>
+        </>
+      )}
+    </Row>
+  );
 }
 
 /** The four sentences, one per arm — each spelled ONCE, so a fix lane restyling the steady arm cannot
  *  silently restyle the arm that is the opposite of steady. The running and blocked arms repeat the status
  *  dot's own accessible name, which is what makes the dot decidable without colour. No arm says "a turn":
  *  an embedder or a reranker runs for search and memory, never for a turn. */
-function ReadoutLine({ readout }: { readonly readout: RoleReadout }): ReactElement {
+function ReadoutLine({ readout, unsetSentence }: { readonly readout: RoleReadout; readonly unsetSentence?: string | undefined }): ReactElement {
   const className = cn(READOUT_INK[readout.kind], PROSE_MEASURE);
   if (readout.kind === "steady") {
     return (
@@ -275,7 +301,7 @@ function ReadoutLine({ readout }: { readonly readout: RoleReadout }): ReactEleme
   if (readout.kind === "unset") {
     return (
       <Text voice="gloss" className={className}>
-        Nothing — no connection is set.
+        {unsetSentence ?? "Nothing — no connection is set."}
       </Text>
     );
   }

@@ -27,10 +27,11 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useId, useState } from "react";
 import type { ExtraRow } from "../lib/connection-editor-model.ts";
-import { beltKeyGloss } from "../lib/connection-editor-model.ts";
+import { beltKeyGloss, extrasFromRows, rowsFromExtras } from "../lib/connection-editor-model.ts";
 
-export interface ConnectionExtrasEditorProps {
+interface ConnectionExtrasEditorProps {
   readonly rows: readonly ExtraRow[];
   readonly busy: boolean;
   readonly onChange: (rows: readonly ExtraRow[]) => void;
@@ -42,7 +43,7 @@ export interface ConnectionExtrasEditorProps {
   readonly mintRowId: () => string;
 }
 
-export function ConnectionExtrasEditor({ rows, busy, onChange, onCommit, mintRowId }: ConnectionExtrasEditorProps): ReactElement {
+function ConnectionExtrasEditor({ rows, busy, onChange, onCommit, mintRowId }: ConnectionExtrasEditorProps): ReactElement {
   const patch = (id: string, part: Partial<ExtraRow>): void => {
     onChange(rows.map((row) => (row.id === id ? { ...row, ...part } : row)));
   };
@@ -119,6 +120,41 @@ function ExtraRowView({
           {gloss}
         </Text>
       )}
+    </Stack>
+  );
+}
+
+/** The Diagnostics tier's extras block: its heading and gloss over the row editor, holding the rows it edits. */
+export function ConnectionExtrasBlock({
+  extras,
+  busy,
+  onCommit,
+}: {
+  readonly extras: Readonly<Record<string, unknown>> | null;
+  readonly busy: boolean;
+  readonly onCommit: (extras: Record<string, unknown> | null) => void;
+}): ReactElement {
+  const idPrefix = useId();
+  const [rows, setRows] = useState<readonly ExtraRow[]>(() => rowsFromExtras(extras, (index) => `${idPrefix}-${String(index)}`));
+  const [minted, setMinted] = useState(0);
+
+  return (
+    <Stack gap="tight">
+      <Text voice="label">Extra request fields</Text>
+      <Text voice="gloss">
+        Sent with every request on this connection, merged last. Use it for a field your server takes and we don't send. Sampling knobs belong to the preset,
+        not here.
+      </Text>
+      <ConnectionExtrasEditor
+        busy={busy}
+        mintRowId={(): string => {
+          setMinted((count) => count + 1);
+          return `${idPrefix}-new-${String(minted)}`;
+        }}
+        onChange={setRows}
+        onCommit={(): void => onCommit(extrasFromRows(rows))}
+        rows={rows}
+      />
     </Stack>
   );
 }

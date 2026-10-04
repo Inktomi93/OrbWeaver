@@ -54,7 +54,8 @@ function FactRowView({ row, busy, onOverride, onReset }: { readonly row: FactRow
     // source follow, and the action moves to a right-aligned line of its own. Measured on the mock at 486:
     // a 172px key basis + a mono value + a control-height button cannot share a 462px content line without
     // the source wrapping to three.
-    <Stack data-slot="connection-fact-row" data-fact={row.path} data-overridden={row.overridden} gap="tight">
+    // Focusable by script only: a confirm that closes over this row returns focus to the row, not to its first button.
+    <Stack data-slot="connection-fact-row" data-fact={row.path} data-overridden={row.overridden} gap="tight" tabIndex={-1}>
       <Row align="start" className="@max-lg:flex-col @max-lg:items-stretch" gap="field" justify="between">
         <Text className="shrink-0" voice="datum">
           {row.name}

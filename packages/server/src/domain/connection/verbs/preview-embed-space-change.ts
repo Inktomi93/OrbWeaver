@@ -1,7 +1,6 @@
-// verb: previewEmbedSpaceChange — would a pending embedder change move the caller to a new embedding generation,
-// and what would the rebuild cover? A new generation deletes the old index at once and re-embeds it, so the pane
-// asks before writing. Read-only: nothing here writes, resolves a secret into the answer, or touches another
-// owner's rows. Clearing a role moves no generation, so it deletes nothing; a row that cannot resolve yet still warns.
+// verb: previewEmbedSpaceChange — would a pending embedder change move the caller's stored embedding target, and what
+// would the rebuild cover? Read-only. A rebind is measured against the stored target as the sync after the write
+// measures it; clearing a role deletes nothing, and a row that cannot resolve yet still warns.
 
 import type { VectorScope } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
@@ -12,15 +11,14 @@ import type { UserConnectionId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { EmbedSpaceChange } from "../contract/params.ts";
-import type { EmbedSpace, EmbedSpaceChangePreview } from "../contract/results.ts";
+import type { EmbedSpaceChangePreview } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { lookupBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
-import { spaceMoved, VECTOR_TASKS, vectorResolutionOf } from "../substrate/embed-space.ts";
+import { VECTOR_TASKS, vectorResolutionOf } from "../substrate/embed-space.ts";
 import { everywhereTasks } from "../substrate/kind.ts";
 
 type VectorTask = keyof typeof VECTOR_SCOPES_BY_TASK;
-type Resolution = Awaited<ReturnType<typeof vectorResolutionOf>>;
 type UpdateChange = Extract<EmbedSpaceChange, { readonly kind: "update" }>;
 
 /** The rows a rebind would point vector roles at; `null` clears the role. */
@@ -38,13 +36,16 @@ async function requireOwnedRow(ctx: ConnectionContext, principal: Principal, con
   return row;
 }
 
-/** Where the owner's pictures are embedded: through `imageEmbed` when it embeds pixels, else their caption
- *  through the text role (embeddings' `resolveImageSpace`). The role is part of the image generation's id. */
-function imageSpaceOf(image: Resolution, text: Resolution): { readonly via: VectorTask; readonly space: EmbedSpace } | null {
-  if (image?.servesImages === true) {
-    return { via: "imageEmbed", space: image.space };
-  }
-  return text === null ? null : { via: "embed", space: text.space };
+/** Would the stored target for `task` move onto `connectionId` through `via`? The embeddings domain's own move rule.
+ *  A row that cannot resolve today still moves the target the moment it can, and that resolve deletes the old index
+ *  without asking, so it warns unless it is the row already in place. */
+async function targetMoves(
+  ctx: ConnectionContext,
+  principal: Principal,
+  move: { readonly task: VectorTask; readonly via: VectorTask; readonly connectionId: UserConnectionId; readonly inPlace: UserConnectionId | null },
+): Promise<boolean> {
+  const verdict = await ctx.targetWouldMove({ ownerId: principal.userId, task: move.task, via: move.via, connectionId: move.connectionId });
+  return verdict ?? move.connectionId !== move.inPlace;
 }
 
 async function rebindOf(ctx: ConnectionContext, principal: Principal, change: Exclude<EmbedSpaceChange, UpdateChange>): Promise<Rebind> {
@@ -62,41 +63,48 @@ async function rebindOf(ctx: ConnectionContext, principal: Principal, change: Ex
   return isVectorTask(change.task) ? new Map([[change.task, change.connectionId]]) : new Map();
 }
 
-/** The scopes a rebind rebuilds: a role whose resolved space changes to another real space. */
+interface RolePoint {
+  readonly now: UserConnectionId | null;
+  readonly after: UserConnectionId | null;
+}
+
+/** Would the rebind move the picture target? Pictures go through the image role when its row embeds pixels, else
+ *  through the text role as captions. */
+async function picturesMove(ctx: ConnectionContext, principal: Principal, roles: { readonly text: RolePoint; readonly image: RolePoint }): Promise<boolean> {
+  const { text, image } = roles;
+  const pixels = image.after === null ? null : await vectorResolutionOf(ctx, principal, "imageEmbed", image.after);
+  if (image.after !== null && pixels?.servesImages === true) {
+    return await targetMoves(ctx, principal, { task: "imageEmbed", via: "imageEmbed", connectionId: image.after, inPlace: image.now });
+  }
+  // An image row that cannot resolve yet may embed pixels once it can, which moves the picture target off the captions.
+  if (image.after !== null && pixels === null && image.after !== image.now) {
+    return true;
+  }
+  return text.after !== null && (await targetMoves(ctx, principal, { task: "imageEmbed", via: "embed", connectionId: text.after, inPlace: text.now }));
+}
+
+/** The scopes a rebind rebuilds: a stored target the re-pointed roles would move, measured as the target sync after the
+ *  write measures it (the stored target, not the previous binding). Clearing a role resolves to no space and moves
+ *  nothing. */
 async function rebindScopes(ctx: ConnectionContext, principal: Principal, rebind: Rebind): Promise<readonly VectorScope[]> {
   if (rebind.size === 0) {
     return [];
   }
-  const resolveAfter = async (task: VectorTask, now: Resolution): Promise<Resolution> => {
-    if (!rebind.has(task)) {
-      return now;
-    }
-    const connectionId = rebind.get(task) ?? null;
-    return connectionId === null ? null : await vectorResolutionOf(ctx, principal, task, connectionId);
-  };
-  // A row that cannot resolve today (a revoked or missing key) still moves the generation the moment it can, and that
-  // resolve deletes the old index without asking. So a re-point to such a row warns; only a true unbind may not.
-  const unresolvable = async (task: VectorTask, after: Resolution): Promise<boolean> => {
-    const connectionId = rebind.get(task) ?? null;
-    if (after !== null || connectionId === null) {
-      return false;
-    }
-    return (await lookupBinding(ctx.db, { actorKind: "user", actorId: principal.userId }, task))?.connectionId !== connectionId;
-  };
-  const textNow = await vectorResolutionOf(ctx, principal, "embed");
-  const imageNow = await vectorResolutionOf(ctx, principal, "imageEmbed");
-  const textAfter = await resolveAfter("embed", textNow);
-  const imageAfter = await resolveAfter("imageEmbed", imageNow);
-  const textUnknown = await unresolvable("embed", textAfter);
-  const imageUnknown = await unresolvable("imageEmbed", imageAfter);
+  const owner = { actorKind: "user", actorId: principal.userId } as const;
+  const inPlace = async (task: VectorTask): Promise<UserConnectionId | null> => (await lookupBinding(ctx.db, owner, task))?.connectionId ?? null;
+  const textNow = await inPlace("embed");
+  const imageNow = await inPlace("imageEmbed");
+  const textAfter = rebind.has("embed") ? (rebind.get("embed") ?? null) : textNow;
+  const imageAfter = rebind.has("imageEmbed") ? (rebind.get("imageEmbed") ?? null) : imageNow;
   const scopes: VectorScope[] = [];
-  if (textUnknown || (textAfter !== null && spaceMoved(textNow?.space, textAfter.space))) {
+  if (
+    rebind.has("embed") &&
+    textAfter !== null &&
+    (await targetMoves(ctx, principal, { task: "embed", via: "embed", connectionId: textAfter, inPlace: textNow }))
+  ) {
     scopes.push(...VECTOR_SCOPES_BY_TASK.embed);
   }
-  const picturesNow = imageSpaceOf(imageNow, textNow);
-  const picturesAfter = imageSpaceOf(imageAfter, textAfter);
-  const picturesUnknown = imageUnknown || (textUnknown && picturesAfter?.via !== "imageEmbed");
-  if (picturesUnknown || (picturesAfter !== null && (picturesNow?.via !== picturesAfter.via || spaceMoved(picturesNow.space, picturesAfter.space)))) {
+  if (await picturesMove(ctx, principal, { text: { now: textNow, after: textAfter }, image: { now: imageNow, after: imageAfter } })) {
     scopes.push(...VECTOR_SCOPES_BY_TASK.imageEmbed);
   }
   return scopes;
@@ -117,11 +125,8 @@ async function updateScopes(ctx: ConnectionContext, principal: Principal, change
   }
   const scopes: VectorScope[] = bound.flatMap((task) => [...VECTOR_SCOPES_BY_TASK[task]]);
   // Pictures embedded through the text role move with it.
-  if (bound.includes("embed") && !bound.includes("imageEmbed")) {
-    const pictures = imageSpaceOf(await vectorResolutionOf(ctx, principal, "imageEmbed"), await vectorResolutionOf(ctx, principal, "embed"));
-    if (pictures?.via === "embed") {
-      scopes.push(...VECTOR_SCOPES_BY_TASK.imageEmbed);
-    }
+  if (bound.includes("embed") && !bound.includes("imageEmbed") && (await vectorResolutionOf(ctx, principal, "imageEmbed"))?.servesImages !== true) {
+    scopes.push(...VECTOR_SCOPES_BY_TASK.imageEmbed);
   }
   return scopes;
 }

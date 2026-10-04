@@ -38,6 +38,7 @@
 // SAVED row invalidates its credential, its base URL, its model and its kind at once; a control that starts
 // that cascade and handles none of it is worse than no control. The row says so and points at the add flow.
 
+import type { EmbedWidthRefusalDetail } from "@orb/contracts/inference";
 import { EMBED_SPACE_FIELDS, providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -49,23 +50,14 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
-import { useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { QueryBoundary, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
+import { embedWidthRefusalOf, embedWidthRefusalText } from "#lib";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 import { capabilityFactRows, VECTOR_WIDTH_FACT_PATH } from "../lib/connection-capability-fact-model.ts";
-import type { ExtraRow } from "../lib/connection-editor-model.ts";
-import {
-  capabilityBadges,
-  declaredOverrideCount,
-  diagnosticsSetCount,
-  extrasFromRows,
-  hostLabel,
-  inferredKindOf,
-  purposeNotes,
-  rowsFromExtras,
-} from "../lib/connection-editor-model.ts";
+import { capabilityBadges, declaredOverrideCount, diagnosticsSetCount, hostLabel, inferredKindOf, purposeNotes } from "../lib/connection-editor-model.ts";
 
 import { withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
 import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-model.ts";
@@ -74,7 +66,7 @@ import { ConnectionAccount } from "./connection-account.tsx";
 import { ModelField, SavedTextField } from "./connection-editor-essential.tsx";
 import { CapabilityRail, KindVerdict, PurposeNotes } from "./connection-editor-purpose.tsx";
 import { ConnectionEditorHeader, ConnectionEditorUnavailable } from "./connection-editor-unavailable.tsx";
-import { ConnectionExtrasEditor } from "./connection-extras-editor.tsx";
+import { ConnectionExtrasBlock } from "./connection-extras-editor.tsx";
 import { FactRowList, QuirksBlock } from "./connection-fact-rows.tsx";
 import { ConnectionInspector } from "./connection-inspector.tsx";
 import { ConnectionPromptCache } from "./connection-prompt-cache.tsx";
@@ -150,13 +142,16 @@ function AvailableConnectionEditorBody({
 }: ConnectionEditorProps & { readonly connection: ConnectionView; readonly provider: ProviderDef; readonly providers: readonly ProviderDef[] }): ReactElement {
   const { data: capabilityView } = useSuspenseQuery(trpc.connection.capabilities.queryOptions({ connectionId }));
   const update = useUpdateConnection({ trpc, invalidation });
-  // The width editor closes as the confirm opens, so focus returns to the vector-width row, not the page.
+  // The width editor closes as the confirm opens, so focus returns to the vector-width row itself, not the page and
+  // not the row's first button (after a save that is Reset, one key press from undoing what was just saved).
   const factsRef = useRef<HTMLDivElement>(null);
   const reindex = useReindexConfirm(trpc, (): boolean => {
-    const widthRow = factsRef.current?.querySelector<HTMLElement>(`[data-fact="${VECTOR_WIDTH_FACT_PATH}"] button`) ?? null;
+    const widthRow = factsRef.current?.querySelector<HTMLElement>(`[data-fact="${VECTOR_WIDTH_FACT_PATH}"]`) ?? null;
     widthRow?.focus();
     return widthRow === null;
   });
+  // The last write the server refused because the embedder does not make the width it would state.
+  const [widthRefusal, setWidthRefusal] = useState<EmbedWidthRefusalDetail | null>(null);
   const providerLabel = providerDisplayLabel(provider);
   // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed.
   const detected = providers.find((row) => row.id === capabilityView.detectedProviderId);
@@ -168,7 +163,14 @@ function AvailableConnectionEditorBody({
   // A patch to an identity field of a row that backs the user's embedder can rebuild their index; the server says
   // whether it would. Any other field (a label, a switch) cannot move a space and is written straight through.
   const patch = (part: Parameters<typeof update.mutate>[0]["patch"]): void => {
-    const write = (): void => update.mutate({ connectionId, patch: part });
+    const write = (): void =>
+      update.mutate(
+        { connectionId, patch: part },
+        {
+          onSuccess: (): void => setWidthRefusal(null),
+          onError: (error): void => setWidthRefusal(embedWidthRefusalOf(error)),
+        },
+      );
     if (EMBED_SPACE_FIELDS.some((field) => part[field] !== undefined)) {
       reindex.guard({ kind: "update", connectionId, patch: part }, write);
     } else {
@@ -182,6 +184,11 @@ function AvailableConnectionEditorBody({
       <Stack data-slot="connection-editor" gap="block">
         <ConnectionEditorHeader label={connection.label} onDone={onDone} />
         {reindex.dialog}
+        {widthRefusal === null ? null : (
+          <Text className="text-warning" data-refusal="embed-width" role="alert" voice="gloss">
+            {embedWidthRefusalText(widthRefusal)}
+          </Text>
+        )}
 
         <EditorTier defaultOpen={true} title="Essential">
           <Stack gap="row">
@@ -325,7 +332,7 @@ function AvailableConnectionEditorBody({
           title="Diagnostics"
         >
           <Stack gap="block">
-            <ExtrasBlock busy={busy} extras={connection.extras} onCommit={(next): void => patch({ extras: next })} />
+            <ConnectionExtrasBlock busy={busy} extras={connection.extras} onCommit={(next): void => patch({ extras: next })} />
             {connection.baseUrl === null ? null : (
               <Stack gap="tight">
                 <Text voice="label">Request &amp; response shaping</Text>
@@ -408,38 +415,4 @@ function overrideBadge(count: number): string | undefined {
 /** Diagnostics reads "N set", never "overridden": an Extras row and a transport map are ADDITIONS. */
 function setBadge(count: number): string | undefined {
   return count === 0 ? undefined : `${String(count)} set`;
-}
-
-function ExtrasBlock({
-  extras,
-  busy,
-  onCommit,
-}: {
-  readonly extras: Readonly<Record<string, unknown>> | null;
-  readonly busy: boolean;
-  readonly onCommit: (extras: Record<string, unknown> | null) => void;
-}): ReactElement {
-  const idPrefix = useId();
-  const [rows, setRows] = useState<readonly ExtraRow[]>(() => rowsFromExtras(extras, (index) => `${idPrefix}-${String(index)}`));
-  const [minted, setMinted] = useState(0);
-
-  return (
-    <Stack gap="tight">
-      <Text voice="label">Extra request fields</Text>
-      <Text voice="gloss">
-        Sent with every request on this connection, merged last. Use it for a field your server takes and we don't send. Sampling knobs belong to the preset,
-        not here.
-      </Text>
-      <ConnectionExtrasEditor
-        busy={busy}
-        mintRowId={(): string => {
-          setMinted((count) => count + 1);
-          return `${idPrefix}-new-${String(minted)}`;
-        }}
-        onChange={setRows}
-        onCommit={(): void => onCommit(extrasFromRows(rows))}
-        rows={rows}
-      />
-    </Stack>
-  );
 }

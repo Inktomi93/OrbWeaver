@@ -21,7 +21,7 @@
 //     owner ruling), no per-chat/per-room override (F20).
 
 import type { USER_ROLES } from "@orb/contracts/identity";
-import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, EMBEDDING_FLOOR } from "@orb/contracts/inference";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 // Pure `.ts`, safe in a node-side CT spec.
@@ -131,6 +131,8 @@ async function stubEditor(
     readonly verifyAuth?: TrpcResponder<"connection.verifyAuth">;
     readonly inspectEndpoint?: TrpcResponder<"connection.inspectEndpoint">;
     readonly reindexPreview?: TrpcWireOutput<"connection.embedSpaceChangePreview">;
+    /** The update write's answer in place of saving, e.g. the server's width refusal. */
+    readonly updateAnswer?: () => ReturnType<typeof trpcError>;
   } = {},
 ): Promise<TrpcRecorder> {
   // The row the server holds: a saved model and check land on it, so the refetch after a save reads them.
@@ -150,7 +152,16 @@ async function stubEditor(
     "connection.embedSpaceChangePreview": () =>
       opts.reindexPreview ?? { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },
     "connection.update": ({ patch }) => {
-      row = { ...row, model: patch.model ?? row.model, modelCheck: patch.modelCheck ?? row.modelCheck };
+      const refused = opts.updateAnswer?.();
+      if (refused !== undefined) {
+        return refused;
+      }
+      row = {
+        ...row,
+        model: patch.model ?? row.model,
+        modelCheck: patch.modelCheck ?? row.modelCheck,
+        declared: patch.declared ?? row.declared,
+      };
       return row;
     },
     "connection.remove": opts.removeConnection ?? ((): undefined => undefined),
@@ -1096,5 +1107,51 @@ test("confirming a vector-width rebuild returns focus to the vector-width row", 
   await component.getByRole("button", { name: "Save your vector width" }).click();
   await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
 
-  await expect(component.getByRole("button", { name: "Override vector width" })).toBeFocused();
+  await expect(component.locator('[data-fact="embedding.dims"]')).toBeFocused();
+});
+
+/** A row backing an MRL embedder that is 1024 wide by default, with a stored index a width change would rebuild. */
+async function stubEmbedderEditor(page: Page, updateAnswer?: () => ReturnType<typeof trpcError>): Promise<TrpcRecorder> {
+  const embedding: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
+    kind: "embedding",
+    embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
+  };
+  return await stubEditor(page, {
+    capabilities: { capability: embedding, baseline: embedding, warnings: [], tasks: ["embed", "imageEmbed"] },
+    reindexPreview: { reindex: true, stored: { cards: 10, memory: 0, documents: 0, images: 0 }, embedCalls: 10, utilityModelSet: true },
+    ...(updateAnswer === undefined ? {} : { updateAnswer }),
+  });
+}
+
+async function saveVectorWidth(page: Page, component: Locator, width: string): Promise<void> {
+  await tier(page, "Advanced").click();
+  await component.getByRole("button", { name: "Override vector width" }).click();
+  await component.getByRole("textbox", { name: "vector width — your value" }).fill(width);
+  await component.getByRole("button", { name: "Save your vector width" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+}
+
+// After a saved width the row offers Reset; focus on it would make the next key press undo what was just saved.
+test("a saved vector width leaves focus on its row, not on the row's Reset", async ({ mount, page }) => {
+  await stubEmbedderEditor(page);
+  const component = await mount(<ConnectionEditorStory />);
+
+  await saveVectorWidth(page, component, "512");
+
+  await expect(component.getByRole("button", { name: "Reset vector width" })).toBeVisible();
+  await expect(component.locator('[data-fact="embedding.dims"]')).toBeFocused();
+});
+
+// The server refuses a width the embedder cannot make and keeps the row as it was; the editor says why.
+test("a vector width the embedder cannot make is refused in the editor with both widths", async ({ mount, page }) => {
+  const recorder = await stubEmbedderEditor(page, () =>
+    trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 2048, measured: 1024 } }),
+  );
+  const component = await mount(<ConnectionEditorStory />);
+
+  await saveVectorWidth(page, component, "2048");
+
+  await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(component.locator('[data-refusal="embed-width"]')).toHaveAttribute("role", "alert");
+  await expect(component.getByRole("button", { name: "Override vector width" })).toBeVisible();
 });

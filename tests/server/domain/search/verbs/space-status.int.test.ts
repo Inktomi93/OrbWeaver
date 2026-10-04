@@ -1,4 +1,5 @@
-// The role row's rebuild line reads this: search is paused while either vector target is mid-move, and only then.
+// The role rows' rebuild line reads this: search is paused while either vector target is mid-move, and only then; the
+// line sits on the row whose target moved.
 
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
@@ -37,18 +38,18 @@ async function complete(db: Db, ownerId: UserId, generation: GenerationReceipt, 
   }
 }
 
-test("search is paused while either target is mid-move, and not once both promote or before any exists", async () => {
+test("search is paused while either target is mid-move, names which one, and not once both promote or before any exists", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("space-status") });
   const status = createSpaceStatus({ db });
-  expect(await status({ ownerId: owner }), "no target yet").toEqual({ paused: false });
+  expect(await status({ ownerId: owner }), "no target yet").toEqual({ paused: false, embed: false, imageEmbed: false });
 
   const text = await seedTarget(db, owner, "embed");
   const image = await seedTarget(db, owner, "imageEmbed");
   await complete(db, owner, text, ["cards", "documents"]);
   await complete(db, owner, image);
-  expect(await status({ ownerId: owner }), "the text space still waits on memory").toEqual({ paused: true });
+  expect(await status({ ownerId: owner }), "the text space still waits on memory").toEqual({ paused: true, embed: true, imageEmbed: false });
 
   await complete(db, owner, text);
-  expect(await status({ ownerId: owner })).toEqual({ paused: false });
+  expect(await status({ ownerId: owner })).toEqual({ paused: false, embed: false, imageEmbed: false });
 });

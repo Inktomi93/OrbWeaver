@@ -7,6 +7,8 @@ import { groupThousands } from "@orb/kit/strings";
 /** A failure class → user-actionable copy; each entry pairs a lowercase substring matcher with its copy. */
 interface FailureClass {
   readonly match: readonly string[];
+  /** When present, the failure must also carry one of these. */
+  readonly also?: readonly string[];
   readonly friendly: string;
 }
 
@@ -15,6 +17,13 @@ const FAILURE_CLASSES: readonly FailureClass[] = [
     // Listed first so it wins over any coincidental substring in a normal runtime error.
     match: ["a dependency did not succeed", "dependency_failed"],
     friendly: "This job never ran — one of the jobs it depends on didn't succeed. Retry after its dependencies finish.",
+  },
+  {
+    // An embed call's own label (`<provider> embed (<model>)`, `image-embed`) beside a server that did not answer. Listed
+    // before the generic network class so a rebuild says which server to check.
+    match: [" embed (", "image-embed"],
+    also: ["econnrefused", "fetch failed", "socket hang up", "enotfound", "etimedout", "server", "unavailable", "bad gateway", "down"],
+    friendly: "The embedding server didn't answer, so this run stopped. Check that the server is running, then Retry.",
   },
   {
     match: ["model file", "model buffer", "onnx", "no model", "model not found", "model unavailable"],
@@ -71,7 +80,7 @@ export function friendlyWorkloadError(raw: string): string | null {
   }
   const haystack = raw.toLowerCase();
   for (const cls of FAILURE_CLASSES) {
-    if (cls.match.some((needle) => haystack.includes(needle))) {
+    if (cls.match.some((needle) => haystack.includes(needle)) && (cls.also?.some((needle) => haystack.includes(needle)) ?? true)) {
       return cls.friendly;
     }
   }

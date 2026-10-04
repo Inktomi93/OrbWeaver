@@ -4,8 +4,8 @@
 // endpoint row carries a URL (a hosted one does not), the URL parses and passes the F12 admission, the
 // credential is the caller's, and the label is unique per owner (auto-minted `<provider> · <model>`,
 // collision-suffixed).
-// (§10-4) a write that moves one of the caller's vector SPACES onto a space that can embed raises
-// `onEmbedSpaceChanged`, which syncs the owner's stored target and queues the rebuild if it moved. The
+// (§10-4) a write that moves one of the caller's vector SPACES onto a space that can embed awaits
+// `settleEmbedSpace`, which syncs the owner's stored target and queues the rebuild if it moved. The
 // filter is a before/after comparison of the resolved space tags (`substrate/embed-space.ts`), NOT a
 // column diff: the space is derived from the row's model AND its resolved capability, so a provider or
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
@@ -28,7 +28,7 @@ import {
   updateOwnedConnection,
 } from "../persistence/connections.ts";
 import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
-import { spacesMayMoveTarget, vectorSpacesOf } from "../substrate/embed-space.ts";
+import { settleEmbedSpace, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
 
 function requireLabel(raw: string): string {
@@ -190,6 +190,11 @@ async function validatedPatch(
   };
 }
 
+/** The row's own values for every column a patch writes: what undoing that patch writes back. */
+function priorColumns(row: UserConnection, patch: Partial<UserConnection>): Partial<UserConnection> {
+  return Object.fromEntries(Object.keys(patch).map((column) => [column, row[column as keyof UserConnection]]));
+}
+
 function createUpdate(ctx: ConnectionContext): ConnectionService["update"] {
   return async (params: UpdateConnectionParams): Promise<ConnectionView> => {
     const ownerId = params.principal.userId;
@@ -199,13 +204,18 @@ function createUpdate(ctx: ConnectionContext): ConnectionService["update"] {
     const before: EmbedSpaces = await vectorSpacesOf(ctx, params.principal);
     const now = ctx.now();
     await updateOwnedConnection(ctx.db, ownerId, row.id, { ...patch, updatedAt: now });
+    await settleEmbedSpace(ctx, {
+      ownerId,
+      before,
+      after: await vectorSpacesOf(ctx, params.principal),
+      undo: async () => {
+        await updateOwnedConnection(ctx.db, ownerId, row.id, { ...priorColumns(row, patch), updatedAt: row.updatedAt });
+      },
+    });
     await ctx.audit(
       { actorUserId: ownerId, action: "connection.update", entityType: "connection", entityId: row.id, metadata: { fields: Object.keys(params.patch) } },
       now,
     );
-    if (spacesMayMoveTarget(before, await vectorSpacesOf(ctx, params.principal))) {
-      ctx.onEmbedSpaceChanged(ownerId);
-    }
     const saved = await requireOwnedRow(ctx, ownerId, row.id);
     // A save is the user's "ask the server again": the row's advertised facts are re-read on its next resolve.
     await ctx.runtime.catalogs.invalidateEndpoint(saved);

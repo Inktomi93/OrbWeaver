@@ -9,6 +9,8 @@ import { readGeneration } from "../persistence/active-space.ts";
 export function createSpaceStatus(ctx: Pick<SearchContext, "db">): (params: { readonly ownerId: UserId }) => Promise<SearchSpaceStatus> {
   return async ({ ownerId }) => {
     const [text, image] = await Promise.all([readGeneration(ctx.db, ownerId, "embed"), readGeneration(ctx.db, ownerId, "imageEmbed")]);
-    return { paused: text.status === "moving" || image.status === "moving" };
+    const embed = text.status === "moving";
+    const imageEmbed = image.status === "moving";
+    return { paused: embed || imageEmbed, embed, imageEmbed };
   };
 }

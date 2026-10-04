@@ -27,6 +27,7 @@ export function fitToDim(vec: readonly number[], fit: VectorFit, prefix: string)
       kind: "invalid",
       retryable: false,
       message: `${prefix}: the model returned a ${vec.length}-wide vector, but the connection states ${fit.dims}${fit.mrl ? "" : " and the model cannot be shortened"}; set the vector width under Advanced to what the model makes`,
+      width: { stated: fit.dims, measured: vec.length },
     });
   }
   return l2Normalize(Float32Array.from(vec.length > fit.dims ? vec.slice(0, fit.dims) : vec)) as Float32Array<ArrayBuffer>;

@@ -28,10 +28,12 @@
 // an unsettled DOM and reports zeros; the settled barrier over there is `[data-corpus-focal]`. Same rule,
 // different surface — barrier on a node only the SETTLED arm can produce.
 
+import { SEARCH_SPACE_REINDEXING } from "@orb/contracts/search";
 import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { REBUILD_JOBS_LABEL, SEARCH_PAUSED_COPY } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
@@ -726,6 +728,69 @@ test("a FAILED text search says so, and its Retry re-runs the search", async ({ 
   await expect.poll(() => trpc.count("search.fields"), { intervals: [20, 50, 100] }).toBe(2);
   await expect(results.getByText("The Crimson Court")).toBeVisible();
   await expect(results.getByText("Couldn't load the text search.")).toHaveCount(0);
+});
+
+const PAUSED_VIEWER = "user_ct_corpus_paused";
+
+/** The viewer's embedder-change rebuild of their cards, as `workloads.list` returns it. */
+function cardRebuild(status: "running" | "failed"): TrpcWireOutput<"workloads.list">[number] {
+  return {
+    id: "workload_01jct0corpusrebuild000000000",
+    kind: "index",
+    status,
+    mode: "singular",
+    lane: "sweep",
+    ownerId: PAUSED_VIEWER,
+    dependsOn: null,
+    error: null,
+    progress: null,
+    scheduledAt: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    params: { source: "all", force: true, embedderChanged: true },
+    result: null,
+    poison: false,
+  };
+}
+
+/** Vector search refusing while the viewer's text target moves, with the rebuild in `status`. */
+async function pausedSearch(page: Page, status: "running" | "failed"): Promise<Awaited<ReturnType<typeof routeTrpc>>> {
+  return await routeTrpc(page, {
+    ...CORPUS_AMBIENT_ROUTES,
+    "sessions.me": { userId: PAUSED_VIEWER, handle: "member", globalRole: "user" },
+    "search.search": () => trpcError({ code: "BAD_REQUEST", reason: SEARCH_SPACE_REINDEXING }),
+    "search.spaceStatus": { paused: true, embed: true, imageEmbed: false },
+    "workloads.list": (input) => [cardRebuild(status)].filter((row) => input?.kind === undefined || row.kind === input.kind),
+    "search.fields": () => FIELDS_RESULT,
+  });
+}
+
+// The confirm promised "search pauses until the rebuild finishes": the surface says that pause, not a breakage, and
+// offers the two ways on — the rebuild's jobs, and the text search, which does not wait on the index.
+test("a search during a rebuild says it is paused and switches to the text search on request", async ({ mount, page }) => {
+  const trpc = await pausedSearch(page, "running");
+  const component = await mount(<CorpusListSurfaceNavStory />);
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("crimson");
+  const paused = component.locator('[data-slot="search-paused"]');
+
+  await expect(paused).toHaveAttribute("data-rebuild", "running");
+  await expect(component.getByRole("button", { name: "Retry" })).toHaveCount(0);
+  await paused.getByRole("button", { name: SEARCH_PAUSED_COPY.textInstead }).click();
+
+  await expect(component.getByText("The Crimson Court")).toBeVisible();
+  await expect.poll(() => trpc.count("search.fields"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+});
+
+test("a search after a failed rebuild says the rebuild failed and opens Jobs", async ({ mount, page }) => {
+  await pausedSearch(page, "failed");
+  const component = await mount(<CorpusListSurfaceNavStory />);
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("crimson");
+  const paused = component.locator('[data-slot="search-paused"]');
+
+  await expect(paused).toHaveAttribute("data-rebuild", "failed");
+  await paused.getByRole("button", { name: REBUILD_JOBS_LABEL }).click();
+
+  await expect(page.getByTestId("ct-nav-readout")).toContainText("section:config");
 });
 
 // ── THE AMBIENT FEED IS ITSELF PINNED (#2226) ────────────────────────────────────────────────────────

@@ -3,7 +3,15 @@
 // persisted read's words, and the `Needs:` rail and the background repair judge what the resolver judges.
 
 import type { Capability } from "@orb/contracts/inference";
-import { EMBEDDING_FLOOR, GENERATION_FLOOR, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS, TASKS, UNAVAILABLE_CAUSES } from "@orb/contracts/inference";
+import {
+  CONNECTION_OP_CODES,
+  EMBEDDING_FLOOR,
+  GENERATION_FLOOR,
+  LOCAL_LIGHT_SEED_ROWS,
+  ROUTABLE_TASKS,
+  TASKS,
+  UNAVAILABLE_CAUSES,
+} from "@orb/contracts/inference";
 import type { WorkloadStatus } from "@orb/contracts/workloads";
 import {
   backgroundRepairs,
@@ -21,6 +29,7 @@ import {
 import type { ReindexPreview } from "../../../packages/client/src/lib/embedder-rebuild.ts";
 import {
   embedderRebuildState,
+  embedWidthRefusalOf,
   REINDEX_CONFIRM_COPY,
   reindexConfirmDescription,
   reindexNeedsConfirm,
@@ -335,4 +344,13 @@ test("the role row says nothing once search answers, whatever an earlier rebuild
   expect(embedderRebuildState(cells, "user_me", { paused: true }), "search still refuses: the failure stands").toBe("failed");
   expect(embedderRebuildState([...cells, row("memory-backfill", "queued", 1_791_081_500_000)], "user_me", { paused: true })).toBe("running");
   expect(embedderRebuildState(cells, "user_me", undefined), "an unread status claims nothing").toBeNull();
+});
+
+// A refused embedder write is read off the wire's reason and detail, never its message: the picker rolls back on it.
+test("a width refusal is read from the refusal's code and its two stated widths", () => {
+  const refused = (reason: string, detail: unknown): unknown => ({ message: "irrelevant", data: { code: "BAD_REQUEST", reason, detail } });
+  expect(embedWidthRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 1024, measured: 768 }))).toEqual({ stated: 1024, measured: 768 });
+  expect(embedWidthRefusalOf(refused(CONNECTION_OP_CODES.notFound, { stated: 1024, measured: 768 })), "another refusal").toBeNull();
+  expect(embedWidthRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: "1024" })), "no numbers to say").toBeNull();
+  expect(embedWidthRefusalOf(new Error("This model makes 768-wide vectors")), "a message is never read").toBeNull();
 });

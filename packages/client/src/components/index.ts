@@ -124,6 +124,7 @@ export type { TrailingArrowProps } from "./trailing-arrow.tsx";
 export { TrailingArrow } from "./trailing-arrow.tsx";
 export type { ConfigLeafAddress, ConfigLeafReading, ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
+export { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 export { useModelRunConfirm } from "./use-model-run-confirm.ts";
 export { useRerankModel, useUtilityModel } from "./use-utility-model.ts";
 export type { UserMacroEditorDialogProps, UserMacrosFormValues } from "./user-macro-editor-dialog.tsx";

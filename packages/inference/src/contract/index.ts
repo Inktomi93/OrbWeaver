@@ -63,7 +63,7 @@ export type {
   ProviderDiagnostics,
   VerifyAuthRequest,
 } from "./diagnostics.ts";
-export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet } from "./errors.ts";
+export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";
 export { assertNever, PROVIDER_ERROR_KINDS, ProviderError } from "./errors.ts";
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 export type { AgentSdkSessionId } from "./identity.ts";

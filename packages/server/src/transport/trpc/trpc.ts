@@ -12,7 +12,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { requireAdmin } from "#domain/admin";
 import { getLog, securityEvent, setSpanAttrs, span } from "#foundation/observability";
 import type { Context } from "./context.ts";
-import { classifyDomainError, domainReason, providerFaultOf } from "./error-mapping.ts";
+import { classifyDomainError, domainDetail, domainReason, providerFaultOf } from "./error-mapping.ts";
 
 // SSE heartbeat (SSE-1 §8) — the deployment-wide subscription liveness policy, set once here because
 // `initTRPC.create` is the ONE home for it. tRPC ships ping DISABLED by default and no client inactivity
@@ -55,7 +55,8 @@ const SSE_RECONNECT_AFTER_INACTIVITY_MS = 45_000;
 const UNCLASSIFIED_FAULT_MESSAGE = "The server hit an unexpected error. It was logged server-side.";
 
 // The error formatter rides the honest domain reason code on `data.reason` (a DomainOperationError's
-// `.code`, or `provider_<kind>` for a classified provider failure — see domainReason). Additive:
+// `.code`, or `provider_<kind>` for a classified provider failure — see domainReason), and a coded refusal's
+// stated facts on `data.detail` (domainDetail). Additive:
 // `data.reason` is typed `string | undefined` end-to-end, so the inferred client error shape gains the
 // optional field; a codeless error serialises without the key.
 //
@@ -78,7 +79,7 @@ export const t = initTRPC.context<Context>().create({
     return {
       ...envelope,
       message: data.code === "INTERNAL_SERVER_ERROR" ? UNCLASSIFIED_FAULT_MESSAGE : onlyWhenClassified,
-      data: { ...data, reason: domainReason(error) },
+      data: { ...data, reason: domainReason(error), detail: domainDetail(error) },
     };
   },
   sse: {

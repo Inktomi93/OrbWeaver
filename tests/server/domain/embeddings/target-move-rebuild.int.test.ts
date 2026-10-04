@@ -4,6 +4,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, userCredentials } from "@orb/db";
@@ -97,9 +98,16 @@ async function drive(): Promise<Drive> {
       moved.push(ownerId);
     },
     roleClientsFor: roleClients,
-    resolveEmbeddingConnection: async (_ownerId, task) => {
+    // A named row resolves as if it were bound (the change preview asks that); embedding still runs through the bound role.
+    resolveEmbeddingConnection: async (_ownerId, task, connectionId) => {
       const rc = await roleClients();
-      const resolved = await rc.resolved(task);
+      const resolved =
+        connectionId === undefined
+          ? await rc.resolved(task)
+          : await h.runtime.resolve({ task, principal, connectionId }).then(
+              ({ resolved: row }) => ({ model: row.model, connectionId: row.connectionId, providerId: row.providerId, capability: row.capability }),
+              () => null,
+            );
       return resolved === null
         ? null
         : {
@@ -220,7 +228,7 @@ describe("an embedding target move queues the owner's rebuild", () => {
 
     const errorSpy = vi.spyOn(logger, "error");
 
-    await expect(d.svc.syncTargetGenerations(d.userId)).resolves.toBeUndefined();
+    await expect(d.svc.syncTargetGenerations(d.userId)).resolves.toBeNull();
 
     expect(errorSpy, "a revoked key is the expected unresolvable case, not an error").not.toHaveBeenCalled();
 
@@ -468,24 +476,110 @@ describe("a move that lands inside a running databank or memory sweep", () => {
   });
 });
 
-// Anything else a sync hits has no write waiting to report it, so it is logged rather than dropped.
-test("a sync whose embedder makes the wrong width keeps the target and logs why", async () => {
+// A move purges the old index, so a width the new encoder does not make is refused before either target moves.
+test("a sync whose embedder makes the wrong width returns the refusal and moves no target", async () => {
   const d = await drive();
   await sweep(d, false);
   await repointNarrow(d);
-  const errorSpy = vi.spyOn(logger, "error");
   const svc = createEmbeddingsService({
     ...d.ctx,
-    resolveEmbeddingConnection: async (ownerId, task) => {
-      const connection = await d.ctx.resolveEmbeddingConnection(ownerId, task);
+    resolveEmbeddingConnection: async (ownerId, task, connectionId) => {
+      const connection = await d.ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
       return connection === null
         ? null
         : { ...connection, embed: async (input, opts) => ({ ...(await connection.embed(input, opts)), vectors: [new Float32Array(7)] }) };
     },
   });
 
-  await svc.syncTargetGenerations(d.userId);
+  const refusal = await svc.syncTargetGenerations(d.userId);
 
-  expect(d.moved, "a width the embedder does not make keeps the old target").toEqual([]);
-  expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ ownerId: d.userId, task: "embed" }), expect.any(String));
+  expect(refusal).toEqual({ task: "embed", stated: 768, measured: 7 });
+  expect(d.moved, "a width the embedder does not make keeps both targets").toEqual([]);
+});
+
+/** A row on the narrow server that states `dims`; the server makes 768-wide vectors and cannot shorten them. */
+async function narrowStating(d: Drive, dims: number): Promise<UserConnectionId> {
+  d.key.revoked = false;
+  return (
+    await d.h.svc.create({
+      principal: d.principal,
+      providerId: BYO_PROVIDER,
+      model: NARROW_ENCODER,
+      baseUrl: NARROW_BASE_URL,
+      credentialId: d.credentialId,
+      allowBackground: true,
+      declared: { kind: "embedding", embedding: { dims, mrl: false } },
+    })
+  ).id;
+}
+
+/** The connection id the owner's text embedding role is bound to now. */
+async function boundEmbedder(d: Drive): Promise<unknown> {
+  return (await d.h.svc.listBindings({ principal: d.principal })).find((view) => view.task === "embed")?.binding?.connectionId;
+}
+
+// The pane's write waits on the move, so the width the embedder cannot make is that write's refusal: the write is
+// undone, nothing is rebuilt or deleted, and the refusal names both widths.
+describe("a connection write onto a width the embedder cannot make", () => {
+  test("binding a server that states 1024 but makes 768 is refused, and the old index keeps answering", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    d.h.useEmbeddings(d.svc);
+    const narrow = await narrowStating(d, 1024);
+
+    const write = d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: narrow });
+
+    await expect(write).rejects.toMatchObject({ code: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 1024, measured: 768 } });
+    expect(await boundEmbedder(d)).toBe(d.builtIn);
+    expect(d.moved).toEqual([]);
+    expect(await searchState(d)).toEqual(ALL_CARDS);
+  });
+
+  test("setting the built-in embedder's width past what it makes is refused, and the row keeps its width", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    d.h.useEmbeddings(d.svc);
+
+    const write = d.h.svc.update({
+      principal: d.principal,
+      connectionId: d.builtIn,
+      patch: { declared: { kind: "embedding", embedding: { dims: 2048 } } },
+    });
+
+    await expect(write).rejects.toMatchObject({ code: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 2048, measured: 1024 } });
+    expect((await d.h.svc.get({ principal: d.principal, connectionId: d.builtIn })).declared).toBeNull();
+    expect(d.moved).toEqual([]);
+    expect(await searchState(d)).toEqual(ALL_CARDS);
+  });
+
+  test("a width the server does make moves the target and queues the rebuild", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    d.h.useEmbeddings(d.svc);
+    const narrow = await narrowStating(d, 768);
+
+    await d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: narrow });
+
+    expect(await boundEmbedder(d)).toBe(narrow);
+    expect(d.moved).toContain(d.userId);
+  });
+});
+
+// The confirm says "deletes your search index" only when the write's sync will move a stored target.
+describe("the change preview measures against the stored target", () => {
+  test("re-binding the embedder the target already names, after an unbind, rebuilds nothing", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    d.h.useEmbeddings(d.svc);
+    await d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: null });
+
+    const rebind = await d.h.svc.previewEmbedSpaceChange({ principal: d.principal, change: { kind: "bind", task: "embed", connectionId: d.builtIn } });
+    const other = await d.h.svc.previewEmbedSpaceChange({
+      principal: d.principal,
+      change: { kind: "bind", task: "embed", connectionId: await narrowStating(d, 768) },
+    });
+
+    expect(rebind).toMatchObject({ reindex: false, embedCalls: 0 });
+    expect(other).toMatchObject({ reindex: true, stored: { cards: CARDS.length } });
+  });
 });

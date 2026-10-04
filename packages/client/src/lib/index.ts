@@ -121,10 +121,14 @@ export type { ReindexPreview } from "./embedder-rebuild.ts";
 export {
   EMBEDDER_REBUILD_KINDS,
   embedderRebuildState,
+  embedWidthRefusalOf,
+  embedWidthRefusalText,
+  REBUILD_JOBS_LABEL,
   REBUILD_STATUS_COPY,
   REINDEX_CONFIRM_COPY,
   reindexConfirmDescription,
   reindexNeedsConfirm,
+  SEARCH_PAUSED_COPY,
   VECTOR_ROLES,
 } from "./embedder-rebuild.ts";
 export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
@@ -289,7 +293,7 @@ export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export type { TrpcOpLogEntry } from "./trpc-devlog.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
-export { trpcErrorReason } from "./trpc-error-reason.ts";
+export { trpcErrorDetailNumber, trpcErrorReason } from "./trpc-error-reason.ts";
 export { isSilencedTurnAbort, TURN_LOCKED_COPY, TURN_STALE_ABORT_COPY, turnAbortNotice, turnMutationToast } from "./turn-abort-notice.ts";
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";

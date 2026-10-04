@@ -21,6 +21,7 @@ import { castId } from "@orb/kit/ids";
 import type { ConnectionContext, ConnectionService, EndpointAdmission } from "@orb/server/domain/connection";
 import { createConnectionPorts, createConnectionService } from "@orb/server/domain/connection";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import type { EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { countOwnedVectors } from "../../../../packages/server/src/domain/embeddings/persistence/owned-vector-counts.ts";
 import { fakeModelCache } from "../../../inference/_support.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -77,13 +78,19 @@ export interface HarnessOptions {
   readonly resolveCredential?: InferenceDeps["resolveCredential"] | undefined;
 }
 
+/** The two embeddings verbs the connection domain awaits or asks. */
+type EmbeddingTargetPorts = Pick<EmbeddingsService, "syncTargetGenerations" | "targetWouldMove">;
+
 export interface ConnectionHarness {
   readonly ctx: ConnectionContext;
   readonly svc: ConnectionService;
   readonly runtime: InferenceRuntime;
   readonly audits: AuditCall[];
-  /** Every `onEmbedSpaceChanged(ownerId)` the verbs raised (the embed-space purge+reindex trigger). */
+  /** Every `syncEmbedTargets(ownerId)` the verbs awaited (the embed-space purge+reindex trigger). */
   readonly embedSpaceChanges: UserId[];
+  /** Route the target sync and the move rule through a real embeddings service over the same db. Until called, the
+   *  sync moves nothing and every candidate row reads as one that cannot resolve yet. */
+  readonly useEmbeddings: (embeddings: EmbeddingTargetPorts) => void;
   /** Every `emitUserEvent(ownerId, event)` the verbs raised (the per-user freshness plane). */
   readonly emittedUserEvents: { readonly userId: UserId; readonly event: UserBusEvent }[];
   /** Every `recordProbeOutcome` the probe verb handed the credentials domain. */
@@ -214,6 +221,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
   const requests: RecordedRequest[] = [];
   const now = (): number => clock.now();
   const ports = createConnectionPorts({ db, now });
+  let embeddings: EmbeddingTargetPorts = { syncTargetGenerations: () => Promise.resolve(null), targetWouldMove: () => Promise.resolve(null) };
 
   const deps: InferenceDeps = {
     now,
@@ -272,9 +280,11 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
       return Promise.resolve(args.result);
     },
     countOwnedVectors: (ownerId) => countOwnedVectors(db, ownerId),
-    onEmbedSpaceChanged: (ownerId): void => {
+    syncEmbedTargets: (ownerId) => {
       embedSpaceChanges.push(ownerId);
+      return embeddings.syncTargetGenerations(ownerId);
     },
+    targetWouldMove: (args) => embeddings.targetWouldMove(args),
     emitUserEvent: (userId, event): void => {
       emittedUserEvents.push({ userId, event });
     },
@@ -286,6 +296,9 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     runtime,
     audits,
     embedSpaceChanges,
+    useEmbeddings: (wired): void => {
+      embeddings = wired;
+    },
     emittedUserEvents,
     probeRecords,
     requests,

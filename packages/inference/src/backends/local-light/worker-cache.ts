@@ -51,6 +51,7 @@ function providerFields(err: ProviderError): Omit<ProviderErrorInit, "kind" | "r
     ...(err.detail !== undefined ? { detail: err.detail } : {}),
     ...(err.sessionId !== undefined ? { sessionId: err.sessionId } : {}),
     ...(err.requestId !== undefined ? { requestId: err.requestId } : {}),
+    ...(err.width !== undefined ? { width: err.width } : {}),
   };
 }
 

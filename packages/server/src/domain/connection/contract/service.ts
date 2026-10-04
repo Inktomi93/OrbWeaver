@@ -8,7 +8,15 @@
 
 import type { VectorScope } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
-import type { ConnectionBinding, ModelListing, ResolvedConnectionView, RoutableTask, SendAvailability, TokenizeResult } from "@orb/contracts/inference";
+import type {
+  ConnectionBinding,
+  EmbedWidthRefusalDetail,
+  ModelListing,
+  ResolvedConnectionView,
+  RoutableTask,
+  SendAvailability,
+  TokenizeResult,
+} from "@orb/contracts/inference";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -82,9 +90,18 @@ export interface ConnectionContext {
     readonly result: CredentialHealth;
     readonly localEndpoint: boolean;
   }) => Promise<CredentialHealth>;
-  /** The embed-space trigger (§10-4): the caller's embed / imageEmbed space MAY have changed. The composition root
-   *  syncs the owner's stored targets against it; a target that moves queues their rebuild, one that matches does not. */
-  readonly onEmbedSpaceChanged: (ownerId: UserId) => void;
+  /** The embed-space trigger (§10-4): the caller's embed / imageEmbed space MAY have changed. Syncs the owner's stored
+   *  targets against it, awaited by the write: a target that moves queues their rebuild, one that matches does not, and
+   *  an encoder that does not make its stated width moves nothing and is returned for the write to undo and refuse. */
+  readonly syncEmbedTargets: (ownerId: UserId) => Promise<EmbedWidthRefusalDetail | null>;
+  /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
+   *  cannot resolve. The embeddings domain's own move rule, read-only, for the change preview. */
+  readonly targetWouldMove: (args: {
+    readonly ownerId: UserId;
+    readonly task: "embed" | "imageEmbed";
+    readonly via: "embed" | "imageEmbed";
+    readonly connectionId: UserConnectionId;
+  }) => Promise<boolean | null>;
   /** How many vectors the owner has stored per scope (the embeddings domain's count), for the change preview. */
   readonly countOwnedVectors: (ownerId: UserId) => Promise<Readonly<Record<VectorScope, number>>>;
   /** The per-user freshness plane (`connectionsChanged`) — injected, never a sideways reach at the bus

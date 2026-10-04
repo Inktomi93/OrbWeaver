@@ -126,4 +126,13 @@ export const CONNECTION_OP_CODES = {
   actorTaskUnrouted: "connection_actor_task_unrouted",
   /** The row cannot serve the task (`connectionTasks` — one connection = one model = one kind). */
   taskUnservable: "connection_task_unservable",
+  /** The embedder does not make vectors as wide as its connection states; the write that would rebuild the index
+   *  on it is undone. The refusal's detail carries {@link EmbedWidthRefusalDetail}. */
+  embedWidthUnmakeable: "connection_embed_width_unmakeable",
 } as const;
+
+/** The two widths an `embedWidthUnmakeable` refusal names: what the connection states, and what the model made. */
+export interface EmbedWidthRefusalDetail {
+  readonly stated: number;
+  readonly measured: number;
+}

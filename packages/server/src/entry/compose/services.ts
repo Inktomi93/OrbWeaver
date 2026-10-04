@@ -390,11 +390,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
   // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
   // boot. Until then it is an inert no-op.
-  let embedReindex: Pick<SearchDiscoveryComposeResult, "enqueueEmbedReindex" | "detachEmbedReindex" | "detachTargetSync" | "detachStaleSpaceReindex"> = {
+  let embedReindex: Pick<SearchDiscoveryComposeResult, "enqueueEmbedReindex" | "detachEmbedReindex" | "detachStaleSpaceReindex"> = {
     enqueueEmbedReindex: () => Promise.resolve(),
     detachEmbedReindex: () => undefined,
-    detachTargetSync: () => undefined,
     detachStaleSpaceReindex: () => undefined,
+  };
+  // A connection write awaits the owner's target sync, and the pane's change preview asks the same move rule; both are
+  // the embeddings domain's, which composes after the connection domain.
+  let embedTargets: Pick<EmbeddingsService, "syncTargetGenerations" | "targetWouldMove"> = {
+    syncTargetGenerations: () => Promise.reject(new Error("compose: syncTargetGenerations invoked before search-discovery wiring")),
+    targetWouldMove: () => Promise.reject(new Error("compose: targetWouldMove invoked before search-discovery wiring")),
   };
   // chat's memory-enabled read for the search-discovery seam, which composes before chat. Bound once chat exists.
   let isMemoryEnabled: (ownerId: UserId) => Promise<boolean> = () => Promise.reject(new Error("compose: isMemoryEnabled invoked before chat wiring"));
@@ -634,9 +639,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     recordProbeOutcome: credentials.recordProbeOutcome,
     // The late-bound holder above, derefed at request time.
     countOwnedVectors: (ownerId) => countOwnedVectors(ownerId),
-    onEmbedSpaceChanged: (ownerId) => {
-      embedReindex.detachTargetSync(ownerId);
-    },
+    syncEmbedTargets: (ownerId) => embedTargets.syncTargetGenerations(ownerId),
+    targetWouldMove: (args) => embedTargets.targetWouldMove(args),
     emitUserEvent: publishUserEvent,
   };
   const connection = createConnectionService(connectionCtx);
@@ -806,6 +810,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // Bind the embed-space sweep enqueue now that `workloads` exists.
   embedReindex = searchDiscovery;
   countOwnedVectors = searchDiscovery.embeddings.countOwnedVectors;
+  embedTargets = searchDiscovery.embeddings;
   await searchDiscovery.embeddings.purgeDisallowedImages();
   refreshAutoindex = searchDiscovery.refreshAutoindex;
 

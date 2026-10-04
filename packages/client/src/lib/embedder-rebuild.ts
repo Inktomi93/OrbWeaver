@@ -1,10 +1,12 @@
 // The embedder-change rebuild as the client speaks of it: the confirm's words before a change that rebuilds the
 // search index, and the vector role row's rebuild line after. Pure and barrel-free, because node-side CT specs import it.
 
-import type { RoutableTask } from "@orb/contracts/inference";
+import type { EmbedWidthRefusalDetail, RoutableTask } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { groupThousands } from "@orb/kit/strings";
+import { trpcErrorDetailNumber, trpcErrorReason } from "./trpc-error-reason.ts";
 
 /** The roles whose binding defines the owner's vector space; re-pointing the user's own one can rebuild the index. */
 export const VECTOR_ROLES: readonly RoutableTask[] = ["embed", "imageEmbed"];
@@ -78,10 +80,37 @@ export function reindexConfirmDescription(preview: ReindexPreview | null): strin
   ].join(" ");
 }
 
+/** The width refusal off a failed embedder write, or `null` when it failed for another reason. */
+export function embedWidthRefusalOf(error: unknown): EmbedWidthRefusalDetail | null {
+  if (trpcErrorReason(error) !== CONNECTION_OP_CODES.embedWidthUnmakeable) {
+    return null;
+  }
+  const stated = trpcErrorDetailNumber(error, "stated");
+  const measured = trpcErrorDetailNumber(error, "measured");
+  return stated === null || measured === null ? null : { stated, measured };
+}
+
+/** Why an embedder write was refused, and the width that would be accepted. */
+export function embedWidthRefusalText({ stated, measured }: EmbedWidthRefusalDetail): string {
+  const made = groupThousands(measured);
+  return `This model makes ${made}-wide vectors, not ${groupThousands(stated)}, so nothing changed. Set its vector width under Advanced to ${made}.`;
+}
+
 /** The vector role row's rebuild line while an embedder change re-indexes, and after one failed. */
 export const REBUILD_STATUS_COPY = {
-  running: "Re-indexing — search paused",
-  failed: "Rebuild failed — see Jobs",
+  running: "Re-indexing — search paused.",
+  failed: "Rebuild failed — search is paused until a retry finishes.",
+} as const;
+
+/** The control beside a rebuild line or a paused search that opens the rebuild's jobs. */
+export const REBUILD_JOBS_LABEL = "See Jobs";
+
+/** What a search surface says while the owner's index is moving: for the rebuild running, failed, or no rebuild found. */
+export const SEARCH_PAUSED_COPY = {
+  running: "Search is paused while your index rebuilds.",
+  failed: "The last rebuild failed, so search is paused. Retry it under Jobs.",
+  unknown: "Search is paused until your index is rebuilt.",
+  textInstead: "Search card text instead",
 } as const;
 type RebuildState = keyof typeof REBUILD_STATUS_COPY;
 

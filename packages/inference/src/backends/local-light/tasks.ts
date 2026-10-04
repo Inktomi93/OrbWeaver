@@ -43,6 +43,7 @@ function finalizeVector(vec: Float32Array, dimensions: number | undefined, model
       kind: "invalid",
       retryable: false,
       message: `local-light model "${modelId}" emits ${vec.length}-dim vectors; cannot expand to the requested ${dimensions}`,
+      width: { stated: dimensions, measured: vec.length },
     });
   }
   return normalizeVector(vec.slice(0, dimensions));

@@ -8,6 +8,7 @@ import type { RolePresetChoice } from "@orb/contracts/settings";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { connectionWriteReads, createEntityMutation } from "#data";
+import { embedWidthRefusalOf, embedWidthRefusalText } from "#lib";
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
 type DraftModelListing = inferOutput<Trpc["connection"]["draftCatalogModels"]>;
@@ -34,7 +35,11 @@ export const useRemoveConnection = createEntityMutation<inferInput<Trpc["connect
 export const useUseForEverything = createEntityMutation<inferInput<Trpc["connection"]["useForEverything"]>, unknown>({
   options: (trpc) => trpc.connection.useForEverything.mutationOptions(),
   invalidates: connectionWriteReads,
-  errorToast: "Couldn't apply that connection to your roles.",
+  // A width refusal is the one reason the row cannot say itself (the action lives in a menu that has closed).
+  errorToast: (error) => {
+    const width = embedWidthRefusalOf(error);
+    return width === null ? "Couldn't apply that connection to your roles." : embedWidthRefusalText(width);
+  },
 });
 
 /** The add dialog's model list for a draft that has no row yet (§7.4): an endpoint's SERVER-SIDE

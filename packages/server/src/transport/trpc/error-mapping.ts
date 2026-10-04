@@ -75,6 +75,7 @@
 
 import type { ProviderErrorKind } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
+import type { DomainOperationDetail } from "@orb/kit/errors";
 import {
   DomainConflictError,
   DomainError,
@@ -243,6 +244,12 @@ export function domainReason(error: { cause?: unknown }): string | undefined {
     return error.cause.code;
   }
   return error.cause instanceof ProviderError ? `${PROVIDER_REASON_PREFIX}${error.cause.kind}` : undefined;
+}
+
+/** The facts a coded refusal states beside its `reason` (`DomainOperationError.detail`), for a client that says them in
+ *  its own words. `undefined` for every other error, so nothing else reaches the wire. */
+export function domainDetail(error: { cause?: unknown }): DomainOperationDetail | undefined {
+  return error.cause instanceof DomainOperationError ? error.cause.detail : undefined;
 }
 
 /** The `ProviderError` a mapped `TRPCError` was built from, for the caller that owes it a log line — the

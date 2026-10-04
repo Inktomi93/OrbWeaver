@@ -4,7 +4,8 @@
 // refusals the pane surfaces INLINE (§5.3a): a `spend: "background"` task on a row whose `allowBackground` is
 // off (`canFund`, F5 — resolve re-checks because the flag can flip after the binding is written), and a task
 // the row's kind cannot serve (`connectionTasks`). (§10-4) re-pointing `embed`/`imageEmbed` re-raises
-// the purge+reindex trigger. Any embedder width is admitted: the owner's space takes the bound embedder's width.
+// the purge+reindex trigger. Any embedder width is admitted that the embedder makes; a stated width it does not make
+// undoes the write and refuses it.
 
 import type { ConnectionBinding, RoutableTask, UserConnection } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, canFund, providerDisplayLabel, ROUTABLE_TASKS } from "@orb/contracts/inference";
@@ -16,7 +17,7 @@ import type { BindingView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { listBindingsForActor, lookupBinding, upsertBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
-import { spacesMayMoveTarget, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
+import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { everywhereTasks, servableTasks } from "../substrate/kind.ts";
 import { toResolvedView } from "../substrate/resolved-view.ts";
 
@@ -124,7 +125,18 @@ function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding
     // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
     const movesSpace = actor.actorKind === "user" && VECTOR_TASKS.includes(params.task);
     const before = movesSpace ? await vectorSpacesOf(ctx, params.principal) : null;
+    const prior = movesSpace ? ((await lookupBinding(ctx.db, actor, params.task))?.connectionId ?? null) : null;
     const written = await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task: params.task, connectionId: params.connectionId });
+    if (before !== null) {
+      await settleEmbedSpace(ctx, {
+        ownerId: userId,
+        before,
+        after: await vectorSpacesOf(ctx, params.principal),
+        undo: async () => {
+          await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task: params.task, connectionId: prior });
+        },
+      });
+    }
     await ctx.audit(
       {
         actorUserId: userId,
@@ -135,9 +147,6 @@ function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding
       },
       ctx.now(),
     );
-    if (before !== null && spacesMayMoveTarget(before, await vectorSpacesOf(ctx, params.principal))) {
-      ctx.onEmbedSpaceChanged(userId);
-    }
     ctx.emitUserEvent(userId, { type: "connectionsChanged" });
     return written;
   };
@@ -153,14 +162,27 @@ function createUseForEverything(ctx: ConnectionContext): ConnectionService["useF
     const tasks = everywhereTasks(ctx, row);
     const actor: StoredActor = { actorKind: "user", actorId: userId };
     const before = tasks.some((task) => VECTOR_TASKS.includes(task)) ? await vectorSpacesOf(ctx, params.principal) : null;
+    const priors = new Map<RoutableTask, ConnectionBinding["connectionId"]>();
+    for (const task of tasks) {
+      priors.set(task, (await lookupBinding(ctx.db, actor, task))?.connectionId ?? null);
+    }
     const written: ConnectionBinding[] = [];
     for (const task of tasks) {
       written.push(await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task, connectionId: row.id }));
     }
-    await ctx.audit({ actorUserId: userId, action: "connection.bindAll", entityType: "connection", entityId: row.id, metadata: { tasks } }, ctx.now());
-    if (before !== null && spacesMayMoveTarget(before, await vectorSpacesOf(ctx, params.principal))) {
-      ctx.onEmbedSpaceChanged(userId);
+    if (before !== null) {
+      await settleEmbedSpace(ctx, {
+        ownerId: userId,
+        before,
+        after: await vectorSpacesOf(ctx, params.principal),
+        undo: async () => {
+          for (const [task, connectionId] of priors) {
+            await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task, connectionId });
+          }
+        },
+      });
     }
+    await ctx.audit({ actorUserId: userId, action: "connection.bindAll", entityType: "connection", entityId: row.id, metadata: { tasks } }, ctx.now());
     ctx.emitUserEvent(userId, { type: "connectionsChanged" });
     return written;
   };
