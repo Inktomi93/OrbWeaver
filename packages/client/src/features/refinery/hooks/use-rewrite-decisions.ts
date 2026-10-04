@@ -7,7 +7,7 @@ import { isAppendedRewrite } from "@orb/contracts/refinery";
 import type { RefineryRunId, RefinerySessionId } from "@orb/kit/ids";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import type { inferInput } from "@trpc/tanstack-react-query";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import type { ReviewEntry } from "../lib/review-entries.ts";
@@ -25,6 +25,49 @@ export interface RewriteDecisions {
   readonly decideEach: (indexes: readonly number[], decision: CompareDecision) => void;
 }
 
+/** One run's write queue: whether a write is out, and the newest sheet waiting behind it. */
+interface SheetQueue {
+  writing: boolean;
+  waiting: SheetWrite | null;
+}
+
+// MODULE-LEVEL, NOT COMPONENT STATE: a press made while a write is out must still be sent if the user leaves
+// the workbench before that write returns, and a component's callbacks die with it on unmount. Keyed per
+// session + run, because a sheet only ever replaces its own run's sheet.
+const sheetQueues = new Map<string, SheetQueue>();
+
+/** ONE WRITE IN FLIGHT, LATEST SHEET WINS: the whole sheet rides every press, and a press made while a write
+ *  is out waits, replacing any earlier waiting one — so writes land in press order and the last is complete.
+ *  Drained off the write's own promise, which settles whether or not the pressing component is still mounted. */
+function enqueueSheetWrite(sheetWrite: SheetWrite, write: (vars: SheetWrite) => Promise<unknown>, onRefused: () => void): void {
+  const key = `${sheetWrite.sessionId}:${sheetWrite.rewriteRunId}`;
+  const queue = sheetQueues.get(key) ?? { writing: false, waiting: null };
+  sheetQueues.set(key, queue);
+  if (queue.writing) {
+    queue.waiting = sheetWrite;
+    return;
+  }
+  queue.writing = true;
+  // @orb-waive caught-failure-ownership(write): useDecideRefineryRewrite's own errorToast surfaces the failure,
+  // and onRefused reverts the overlay to the server's copy. Ends if that mutation drops its errorToast.
+  write(sheetWrite).then(
+    (): void => {
+      queue.writing = false;
+      const next = queue.waiting;
+      queue.waiting = null;
+      if (next === null) {
+        sheetQueues.delete(key);
+        return;
+      }
+      enqueueSheetWrite(next, write, onRefused);
+    },
+    (): void => {
+      sheetQueues.delete(key);
+      onRefused();
+    },
+  );
+}
+
 export function useRewriteDecisions(args: {
   readonly sessionId: RefinerySessionId;
   readonly rewriteRunId: RefineryRunId | null;
@@ -36,9 +79,6 @@ export function useRewriteDecisions(args: {
   const invalidation = useInvalidation();
   const save = useDecideRefineryRewrite({ trpc, invalidation });
   const [pressedByRun, setPressedByRun] = useState<Readonly<Record<string, readonly CompareDecision[]>>>({});
-  // Touched only inside press handlers and mutation callbacks, never during render.
-  const writing = useRef(false);
-  const waiting = useRef<SheetWrite | null>(null);
   const sheet: readonly CompareDecision[] = rewriteRunId === null ? [] : (pressedByRun[rewriteRunId] ?? persisted[rewriteRunId] ?? []);
   const decided = entries.map((entry) => sheet[entry.payloadIndex] ?? null);
   const decideEach = (indexes: readonly number[], decision: CompareDecision): void => {
@@ -53,31 +93,11 @@ export function useRewriteDecisions(args: {
     setPressedByRun((prev) => ({ ...prev, [rewriteRunId]: next }));
     send({ sessionId, rewriteRunId, decisions: next });
   };
-  // ONE WRITE IN FLIGHT, LATEST SHEET WINS: the whole sheet rides every press, and a press made while a write
-  // is out waits and replaces any earlier waiting one — so writes land in press order and the last is
-  // complete. A refused write drops the overlay back to the server's copy, so no phantom decision shows.
-  const send = (sheetWrite: SheetWrite): void => {
-    if (writing.current) {
-      waiting.current = sheetWrite;
-      return;
-    }
-    writing.current = true;
-    save.mutate(sheetWrite, {
-      onSuccess: (): void => {
-        writing.current = false;
-        const next = waiting.current;
-        waiting.current = null;
-        if (next !== null) {
-          send(next);
-        }
-      },
-      onError: (): void => {
-        writing.current = false;
-        waiting.current = null;
-        setPressedByRun((prev) => Object.fromEntries(Object.entries(prev).filter(([runId]) => runId !== sheetWrite.rewriteRunId)));
-      },
-    });
-  };
+  const send = (sheetWrite: SheetWrite): void =>
+    enqueueSheetWrite(sheetWrite, save.mutateAsync, (): void =>
+      // A refused write drops the overlay back to the server's copy, so no phantom decision shows.
+      setPressedByRun((prev) => Object.fromEntries(Object.entries(prev).filter(([runId]) => runId !== sheetWrite.rewriteRunId))),
+    );
   return { decided, decide: (index, decision): void => decideEach([index], decision), decideEach };
 }
 

@@ -1,10 +1,11 @@
-// The two terminal acts (Apply onto the live card, Save as copy) as one hook, shared by the foot row's
-// buttons and the refused-apply recovery in the outcome panel, so both send the same request and report the
-// same outcome.
+// The two terminal acts (Apply onto the live card, Save as copy) as ONE hook instance per workbench, shared
+// by the foot row's buttons and the refused-apply recovery: one pending flag disables every terminal control,
+// and `run` refuses re-entry, so a double press can never send two writes (a copy has no server fence).
 
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
+import { useRef } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { setRefineryArmedRewrite } from "#state";
@@ -42,7 +43,17 @@ export function useTerminalActs(args: {
   const invalidation = useInvalidation();
   const apply = useApplyRefineryFields({ trpc, invalidation });
   const applyAsCopy = useApplyRefineryAsCopy({ trpc, invalidation });
+  // Set synchronously on the press: `isPending` only flips on the next render, so two clicks in one frame
+  // would both see it false. Touched only in handlers and mutation callbacks, never during render.
+  const inFlight = useRef(false);
   const run = (verb: TerminalVerb, accepts: readonly KeptAccept[]): void => {
+    if (inFlight.current) {
+      return;
+    }
+    inFlight.current = true;
+    const release = (): void => {
+      inFlight.current = false;
+    };
     const input = { sessionId, accepts: [...accepts], ...(armedRewriteId === null ? {} : { rewriteRunId: castId(armedRewriteId) }) };
     // The armed (older) rewrite stays armed through a refusal: the recovery re-applies THAT rewrite.
     const settle = (outcome: OutcomeState): void => {
@@ -61,11 +72,13 @@ export function useTerminalActs(args: {
             snapshotTaken: false,
             ...(result.character === null ? {} : { copyName: result.character.name }),
           }),
+        onSettled: release,
       });
       return;
     }
     apply.mutate(input, {
       onSuccess: (result): void => settle({ verb, applied: result.applied, dropped: result.dropped, snapshotTaken: result.snapshotId !== null }),
+      onSettled: release,
     });
   };
   return { run, pending: apply.isPending || applyAsCopy.isPending };

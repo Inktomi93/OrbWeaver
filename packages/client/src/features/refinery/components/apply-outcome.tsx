@@ -32,7 +32,15 @@ export interface ApplyOutcomeProps {
   readonly onDone: () => void;
   /** The recovery from an atomic refusal: discard the refused entries and run the same act on the rest.
    *  Null when nothing would remain to apply. */
-  readonly recovery: { readonly remaining: number; readonly refused: number; readonly onPress: () => void } | null;
+  readonly recovery: {
+    readonly remaining: number;
+    readonly refused: number;
+    /** The act that was refused — the recovery re-runs THAT act, so its label names it. */
+    readonly verb: "apply" | "copy";
+    /** A terminal act is in flight (this recovery or the foot row's) — the press would be a second write. */
+    readonly pending: boolean;
+    readonly onPress: () => void;
+  } | null;
 }
 
 /** The itemized row's target words. An APPEND names the act, not a slot — the new greeting's position is
@@ -118,8 +126,9 @@ function OutcomeActions({
   return (
     <Row className="flex-wrap" gap="row" justify="end">
       {recovery === null ? null : (
-        <Button intent="secondary" onClick={recovery.onPress} size="sm">
-          Discard the refused {recovery.refused === 1 ? "field" : "fields"} and apply the other {recovery.remaining}
+        <Button disabled={recovery.pending} intent="secondary" onClick={recovery.onPress} size="sm">
+          Discard the refused {recovery.refused === 1 ? "field" : "fields"} and{" "}
+          {recovery.verb === "copy" ? `save the other ${recovery.remaining} as a copy` : `apply the other ${recovery.remaining}`}
         </Button>
       )}
       <Button intent="secondary" onClick={onEditScope} size="sm">

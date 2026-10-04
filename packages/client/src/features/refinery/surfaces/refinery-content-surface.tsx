@@ -157,10 +157,13 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
   });
   const keptAccepts = keptAcceptsOf(rewriteEntries, decided);
   const acts = useTerminalActs({ sessionId, armedRewriteId, onOutcome: setOutcome });
-  const recovery = recoveryOf(outcome, rewriteEntries, decided, (refused, remaining): void => {
-    // Staged first, so the discard is visible and persists; then the same atomic act on what is left.
-    decideEach(refused, false);
-    acts.run(outcome?.verb ?? "apply", remaining);
+  const recovery = recoveryOf(outcome, rewriteEntries, decided, {
+    pending: acts.pending,
+    run: (refused, remaining): void => {
+      // Staged first, so the discard is visible and persists; then the same atomic act on what is left.
+      decideEach(refused, false);
+      acts.run(outcome?.verb ?? "apply", remaining);
+    },
   });
   const manualTargets = manualTargetsOf(view.selection, card);
   const backToLatest = (): void => setRefineryViewedRun(null);
@@ -282,13 +285,12 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
           apply={
             lanes.rewriteRun === null ? null : (
               <ApplyRow
+                // The SAME acts the outcome's recovery runs: one pending flag for every terminal control.
+                acts={acts}
                 armedRewrite={lanes.armedRewrite}
-                armedRewriteId={armedRewriteId}
                 // A completed session's rewrite already landed; running any stage re-opens it.
                 completed={view.status === "completed"}
                 keptAccepts={keptAccepts}
-                onOutcome={setOutcome}
-                sessionId={sessionId}
               />
             )
           }
@@ -352,8 +354,8 @@ function recoveryOf(
   outcome: OutcomeState | null,
   entries: ReturnType<typeof reviewEntriesOf>,
   decided: readonly CompareDecision[],
-  run: (refused: readonly number[], remaining: ReturnType<typeof keptAcceptsOf>) => void,
-): { remaining: number; refused: number; onPress: () => void } | null {
+  acts: { readonly pending: boolean; readonly run: (refused: readonly number[], remaining: ReturnType<typeof keptAcceptsOf>) => void },
+): { remaining: number; refused: number; verb: OutcomeState["verb"]; pending: boolean; onPress: () => void } | null {
   if (outcome === null || outcome.applied.length > 0 || outcome.dropped.length === 0) {
     return null;
   }
@@ -365,7 +367,7 @@ function recoveryOf(
   if (refused.length === 0 || remaining.length === 0) {
     return null;
   }
-  return { remaining: remaining.length, refused: refused.length, onPress: (): void => run(refused, remaining) };
+  return { remaining: remaining.length, refused: refused.length, verb: outcome.verb, pending: acts.pending, onPress: (): void => acts.run(refused, remaining) };
 }
 
 /** The reviewable entries for the chosen rewrite run (empty until one settles). */

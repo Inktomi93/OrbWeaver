@@ -1064,3 +1064,65 @@ test("a REFUSED decision write reverts the press — no phantom Keep is left on 
   await expect(page.getByTestId(testId("refineryQueueRow")).and(page.locator('[data-queue-state="kept"]'))).toHaveCount(0);
   await expect(page.getByRole("button", { name: ANY_APPLY_COUNT })).toBeDisabled();
 });
+
+// ── RECHECK ROUND (0575): one terminal write at a time, and queued decisions outlive the workbench ─────
+
+const RECOVER_COPY = "Discard the refused field and save the other 1 as a copy";
+
+/** The copy arm's atomic refusal: no character minted, the one refused entry itemized. */
+function refusedCopy(): TrpcWireOutput<"refinery.applyAsCopy"> {
+  return { applied: [], dropped: [{ field: "personality", reason: "diverged_since_session" }], character: null };
+}
+
+test("a DOUBLE press on a refused copy's recovery sends ONE copy, and every terminal control is disabled while it is out", async ({ mount, page }) => {
+  await freeze(page);
+  const copyInputs: TrpcInput<"refinery.applyAsCopy">[] = [];
+  const retry = trpcHold();
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.applyAsCopy": (input: TrpcInput<"refinery.applyAsCopy">) => {
+      copyInputs.push(input);
+      return copyInputs.length === 1 ? refusedCopy() : retry;
+    },
+  });
+  const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
+  await page.getByRole("button", { name: /^Keep personality$/ }).click();
+  await page.getByRole("button", { name: "Save as copy" }).click();
+
+  // The recovery names the act it re-runs — a copy, not an apply.
+  const recover = component.getByTestId(testId("refineryApplyOutcome")).getByRole("button", { name: RECOVER_COPY });
+  await expect(recover).toBeVisible();
+  await recover.dblclick();
+  await retry.requested;
+  // The press staged the discard, so the recovery has nothing left to offer: no enabled recovery remains.
+  await expect(recover.and(page.locator(":enabled"))).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Save as copy" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: ANY_APPLY_COUNT })).toBeDisabled();
+  retry.release(copyResult({ sessionId: SESSION_ID, accepts: [{ field: "description" }] }));
+  await expect(page.getByText('1 field written to the copy "Zephyrine Vale (refined)".')).toBeVisible();
+  // The refused first copy, then exactly ONE retry — never a second minted character.
+  expect(copyInputs.map((input) => input.accepts)).toEqual([[{ field: "description" }, { field: "personality" }], [{ field: "description" }]]);
+});
+
+test("a decision pressed while a write is out is still SENT after the workbench unmounts", async ({ mount, page }) => {
+  await freeze(page);
+  const decideInputs: TrpcInput<"refinery.decideRewrite">[] = [];
+  const firstWrite = trpcHold();
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.decideRewrite": (input: TrpcInput<"refinery.decideRewrite">) => {
+      decideInputs.push(input);
+      return decideInputs.length === 1 ? firstWrite : sessionWith({ rewriteDecisions: { [input.rewriteRunId]: input.decisions } });
+    },
+  });
+  const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
+  await firstWrite.requested;
+  await page.getByRole("button", { name: DISCARD_PERSONALITY }).click();
+  await expect(page.getByRole("button", { name: "Apply 1 kept" })).toBeEnabled();
+  // The user leaves before the first write returns.
+  await component.unmount();
+  firstWrite.release(sessionWith({ rewriteDecisions: { [REWRITE_RUN]: [true] } }));
+  await expect.poll(() => decideInputs.map((input) => input.decisions)).toEqual([[true], [true, false]]);
+});
