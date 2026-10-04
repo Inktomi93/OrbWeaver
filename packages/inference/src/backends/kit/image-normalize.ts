@@ -10,8 +10,11 @@
 // The magic-sniff is the SYNC gate: `@orb/kit/image-sniff`'s pure signature table (GIF87a/GIF89a) decides
 // BEFORE any async work, so the dominant non-gif path never allocates a second buffer.
 
+import type { ImageInput } from "@orb/contracts/role-clients";
 import { sniffMime } from "@orb/kit/image-sniff";
 
+const BASE64 = "base64";
+const DATA_URL_PREFIX = "data:";
 const PNG_MIME = "image/png";
 const JPEG_MIME = "image/jpeg";
 const WEBP_MIME = "image/webp";
@@ -54,3 +57,13 @@ export function createImageNormalizer(toPng: ImageToPng): NormalizeImageBytes {
 /** The label-only fallback used when no sharp transform is wired (a test/DI-less path): byte-identical
  *  passthrough with the same `image/png` label the runners historically emitted — no GIF decode. */
 export const passthroughImageNormalizer: NormalizeImageBytes = (bytes) => Promise.resolve({ bytes, mediaType: PNG_MIME });
+
+/** One image input → a URL a hosted wire accepts: a string passes through (URL / data-URL); raw bytes are
+ *  wire-normalized (GIF → first-frame PNG — MA-6) then base64 data-URL-encoded with the normalized mime. */
+export async function toImageUrl(image: ImageInput, normalize: NormalizeImageBytes): Promise<string> {
+  if (typeof image === "string") {
+    return image;
+  }
+  const { bytes, mediaType } = await normalize(image);
+  return `${DATA_URL_PREFIX}${mediaType};base64,${Buffer.from(bytes).toString(BASE64)}`;
+}

@@ -9,7 +9,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy, SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
-import { RERANK_FLOOR } from "@orb/contracts/inference";
+import { RERANK_FLOOR, windowForPreset } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -699,13 +699,15 @@ export function createRunChatTurnBridge(deps: {
 
 /** The two model-window FACTS memory reads off the funder's role clients (§7.5-1b): the summarize model's window
  *  sizes the digest token guard; the embed model's input cap bounds a segment. A task with no window is
- *  `NoConnectionError` — the honest refusal, never a default window.
+ *  `NoConnectionError` — the honest refusal, never a default window. The summarize window is the one the call sends:
+ *  on a route whose window the request sets, the Utility preset's Max context (`windowForPreset`).
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export function createTaskWindowReaders(deps: {
   readonly roleClientsFor: (funderUserId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>;
   readonly availability: ConnectionService["availability"];
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
+  readonly resolveUtilityPresetParams: (userId: UserId) => Promise<Pick<UserIntent, "maxContextTokens"> | undefined>;
 }): { readonly summarize: (funderUserId: UserId) => Promise<number>; readonly embed: (funderUserId: UserId) => Promise<number> } {
   // `resolved()` reads null for every reason the task cannot run; the availability verdict names the first one,
   // so the funder is told what to fix instead of always "nothing is bound".
@@ -722,7 +724,8 @@ export function createTaskWindowReaders(deps: {
       if (resolved.capability.kind !== "generation") {
         throw unavailableRefusal("summarize", "requirement-unmet");
       }
-      return resolved.capability.generation.context.window;
+      const preset = await deps.resolveUtilityPresetParams(funderUserId);
+      return windowForPreset(resolved.capability.generation, preset?.maxContextTokens).context.window;
     },
     embed: async (funderUserId): Promise<number> => {
       const resolved = await (await deps.roleClientsFor(funderUserId)).resolved("embed");
@@ -766,16 +769,23 @@ export function createGeneratePictureOp(generatePicture: ImageryService["generat
 /**
  * Smart's Utility arbiter on the funder's bound row, or null when that row cannot answer it. The arbiter is
  * structured output only, so the row must carry a structured payload at all (`carriesStructured`, the planner's
- * answer). Null is the round's visible degrade, never a free-text call. How it rides is the plan's.
+ * answer). Null is the round's visible degrade, never a free-text call. How it rides is the plan's. Its window is
+ * the one its call sends: the Utility preset's Max context on a route whose window the request sets.
  *
  * @public Test-anchored module surface; the three routes are pinned at `tests/server/entry/compose/speaker-arbiter.test.ts`.
  */
-export async function speakerArbiterFor(roles: Pick<RoleClientsWithSignal, "resolved" | "structured">): ReturnType<ChatContext["resolveSpeakerArbiter"]> {
+export async function speakerArbiterFor(
+  roles: Pick<RoleClientsWithSignal, "resolved" | "structured">,
+  maxContextTokens?: number | undefined,
+): ReturnType<ChatContext["resolveSpeakerArbiter"]> {
   const view = await roles.resolved("structured");
   if (view?.capability.kind !== "generation" || !carriesStructured(view)) {
     return null;
   }
-  return { structured: (inputs, opts) => roles.structured(inputs, opts), contextTokens: view.capability.generation.context.window };
+  return {
+    structured: (inputs, opts) => roles.structured(inputs, opts),
+    contextTokens: windowForPreset(view.capability.generation, maxContextTokens).context.window,
+  };
 }
 
 /**
@@ -816,6 +826,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     roleClientsFor: input.roleClientsFor,
     availability: input.connection.availability,
     resolveHostPrincipal: realHostPrincipal,
+    resolveUtilityPresetParams: input.resolveUtilityPresetParams,
   });
 
   // The host's active preset config, given its already-loaded default preset id. A stale/unowned/missing id
@@ -1224,7 +1235,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     },
     // The arbiter is structured output only: a row that carries no structured payload cannot serve it, so the round
     // degrades visibly instead of reading free text.
-    resolveSpeakerArbiter: async (funderUserId) => await speakerArbiterFor(await input.roleClientsFor(funderUserId)),
+    resolveSpeakerArbiter: async (funderUserId) =>
+      await speakerArbiterFor(await input.roleClientsFor(funderUserId), (await input.resolveUtilityPresetParams(funderUserId))?.maxContextTokens),
     summarizerContextTokens: taskWindows.summarize,
     summarizeAvailability: async (funderUserId) => await input.connection.availability({ task: "summarize", principal: await realHostPrincipal(funderUserId) }),
     // The embed model's input cap off the resolved EMBEDDING capability (was the vLLM launch window) — the

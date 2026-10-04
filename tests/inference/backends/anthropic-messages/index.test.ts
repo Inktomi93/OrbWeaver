@@ -1,6 +1,6 @@
-// backends/anthropic-messages/batch — the `summarize` + `structured` tasks on the DIRECT Anthropic wire. The
-// pins are on the WIRE BODY the SDK produced from the option slice this file builds, over the REAL curated
-// capability fold, because both #2575 defects are request shapes a current Claude model rejects with a 400:
+// The `summarize` + `structured` tasks on the DIRECT Anthropic wire, each item one chat turn (`roles/side-gen.ts`).
+// The pins are on the WIRE BODY the SDK produced, over the REAL curated capability fold, because both #2575 defects
+// are request shapes a current Claude model rejects with a 400:
 //   • the side-generation posture turned thinking OFF (`thinking: {type:"disabled"}`) on EVERY call, which
 //     Fable 5.1 / Mythos 5.1 / Opus 5.5 refuse — reasoning is mandatory there, so the posture must go through
 //     the same mandatory clamp the chat funnel runs (lowest effort, thinking left adaptive);
@@ -11,31 +11,27 @@
 import type { ProviderId } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { castId } from "@orb/kit/ids";
-import type { AnthropicBatchDeps } from "../../../../packages/inference/src/backends/anthropic-messages/batch.ts";
-import { runAnthropicStructured, runAnthropicSummarize } from "../../../../packages/inference/src/backends/anthropic-messages/batch.ts";
-import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
+import { createAnthropicBackend } from "../../../../packages/inference/src/backends/anthropic-messages/index.ts";
 import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
+import type { StructuredRequest, SummarizeRequest } from "../../../../packages/inference/src/contract/roles.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
-import { scriptedJsonFetch } from "../_hosted-support.ts";
+import { anthropicTextStream, scriptedSseFetch } from "../_hosted-support.ts";
 
 const NOW = 1_700_000_000_000;
 /** The models whose documented request surface refuses BOTH old shapes (thinking disabled, forced tool). */
 const STRICT_MODELS = ["claude-fable-5-1", "claude-mythos-5-1", "claude-opus-5-5"] as const;
-const MESSAGE_BODY = JSON.stringify({
-  id: "msg_batch",
-  type: "message",
-  role: "assistant",
-  model: "claude",
-  content: [{ type: "text", text: '{"ok":true}' }],
-  stop_reason: "end_turn",
-  stop_sequence: null,
-  usage: { input_tokens: 5, output_tokens: 3 },
-});
+const MESSAGE_STREAM = anthropicTextStream('{"ok":true}');
+
+/** The wire's two side-generation tasks over a scripted transport. */
+interface SideGenRunner {
+  readonly summarize: (req: SummarizeRequest) => Promise<unknown>;
+  readonly structured: (req: StructuredRequest) => Promise<unknown>;
+}
 const FORMAT: ResponseFormat = {
   name: "row",
   schema: wireSchema({ type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"], additionalProperties: false }),
@@ -72,8 +68,21 @@ function connectionFor<T extends "summarize" | "structured">(task: T, model: str
   });
 }
 
-function batchDeps(recorded: RecordedRequest[], lines: LogLine[]): AnthropicBatchDeps {
-  return { now: () => NOW, log: recordingLog(lines), transport: { fetch: scriptedJsonFetch([MESSAGE_BODY], recorded) }, normalize: passthroughImageNormalizer };
+function batchDeps(recorded: RecordedRequest[], lines: LogLine[]): SideGenRunner {
+  const backend = createAnthropicBackend({ now: () => NOW, log: recordingLog(lines), fetch: scriptedSseFetch([MESSAGE_STREAM], recorded) });
+  const { summarize, structured } = backend;
+  if (summarize === undefined || structured === undefined) {
+    throw new Error("the anthropic-messages backend serves summarize and structured");
+  }
+  return { summarize, structured };
+}
+
+function runAnthropicSummarize(req: SummarizeRequest, runner: SideGenRunner): Promise<unknown> {
+  return runner.summarize(req);
+}
+
+function runAnthropicStructured(req: StructuredRequest, runner: SideGenRunner): Promise<unknown> {
+  return runner.structured(req);
 }
 
 const INPUTS = [{ systemPrompt: "Summarize.", userPrompt: "A long exchange." }] as const;

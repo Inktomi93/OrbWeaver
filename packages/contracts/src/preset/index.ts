@@ -530,14 +530,14 @@ export type UserIntent = z.infer<typeof userIntentSchema>;
 // The two tuples partition `UserIntent`'s keys (pinned by `tests/contracts/preset/index.test-d.ts`),
 // so a new intent field reaches background tasks only after someone lists it here. A sampler knob is a role
 // field unless it is listed chat-only, which keeps the sampler catalog the one place a new knob is declared.
-/** Chat-turn-only intent: reasoning display and carry, context and compaction policy, reply shape, the
- *  message-handling escape hatch, and `banEos` (forcing every reply to its output cap would make a name pick
- *  ramble and pad a structured or summary reply). A background task never reads these. */
+/** Chat-turn-only intent: reasoning display and carry, compaction policy, reply shape, the message-handling escape
+ *  hatch, and `banEos` (forcing every reply to its output cap would make a name pick ramble and pad a structured or
+ *  summary reply). A background task never reads these. `maxContextTokens` is a role field: on a route whose window
+ *  the request sets, every role sends its own preset's window, so tasks sharing a row run one window. */
 export const CHAT_ONLY_INTENT_FIELDS = [
   "quality",
   "thinkingDisplay",
   "carryReasoning",
-  "maxContextTokens",
   "providerContextCompression",
   "verbosity",
   "replyMedia",
@@ -553,6 +553,7 @@ export const ROLE_PRESET_FIELDS = [
   ...ROLE_SAMPLER_KNOBS,
   "samplerOrder",
   "maxOutputTokens",
+  "maxContextTokens",
   "effort",
   "thinkingBudgetTokens",
 ] as const satisfies readonly (keyof UserIntent)[];

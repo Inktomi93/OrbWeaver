@@ -42,13 +42,17 @@ test("a preset with chat-only intent leaves the task's sampling exactly as task 
     carryReasoning: "conversation",
     thinkingDisplay: "summarized",
     verbosity: "high",
-    maxContextTokens: 8000,
     providerContextCompression: true,
     quality: "deep",
     advanced: { squashSystemMessages: true, parallelToolCalls: false },
     banEos: true,
   };
   expect(resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest, chatOnly)).toEqual(resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest));
+});
+
+// 0565: on a route whose window the request sets, every role sends its own preset's window.
+test("the role preset's Max context reaches the task, so a role send carries its own window", () => {
+  expect(resolveSideGenSampling(SIDE_GEN_POSTURES.memory_digest, { maxContextTokens: 16_384 })).toEqual({ maxOutputTokens: 1024, maxContextTokens: 16_384 });
 });
 
 test("a knob absent from both sources is omitted, never emitted as undefined", () => {
