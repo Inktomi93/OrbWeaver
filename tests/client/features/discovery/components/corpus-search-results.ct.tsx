@@ -793,6 +793,30 @@ test("a search after a failed rebuild says the rebuild failed and opens Jobs", a
   await expect(page.getByTestId("ct-nav-readout")).toContainText("section:config");
 });
 
+// No bus event marks the promotion; the paused state's own space-status poll is what sees it, so the refused search
+// must re-run on that flip rather than wait for the query to change or a Retry.
+test("a paused search answers on its own once the rebuild promotes", async ({ mount, page }) => {
+  let paused = true;
+  let answer: TrpcRoutes<"search.search">["search.search"] = () => trpcError({ code: "BAD_REQUEST", reason: SEARCH_SPACE_REINDEXING });
+  await routeTrpc(page, {
+    ...CORPUS_AMBIENT_ROUTES,
+    "sessions.me": { userId: PAUSED_VIEWER, handle: "member", globalRole: "user" },
+    "search.search": (input) => (typeof answer === "function" ? answer(input) : answer),
+    "search.spaceStatus": () => ({ paused, embed: paused, imageEmbed: false }),
+    "workloads.list": (input) => [cardRebuild("running")].filter((row) => input?.kind === undefined || row.kind === input.kind),
+  });
+  const component = await mount(<CorpusListSurfaceNavStory />);
+  await component.getByRole("combobox", { name: "Search your corpus" }).fill("parcel sorting");
+  await expect(component.locator('[data-slot="search-paused"]')).toHaveAttribute("data-rebuild", "running");
+
+  paused = false;
+  answer = MEMORY_HITS["search.search"];
+
+  // The paused state re-reads the space every 5 s.
+  await expect(component.getByText(DEPOT_TEXT)).toBeVisible({ timeout: 10_000 });
+  await expect(component.locator('[data-slot="search-paused"]')).toHaveCount(0);
+});
+
 // ── THE AMBIENT FEED IS ITSELF PINNED (#2226) ────────────────────────────────────────────────────────
 // The unfed-read census is a RUNTIME observation, so it can only see a pipeline the mount actually reached
 // — and the CONTENT pane's home dossier reaches its below-fold reads only AFTER its suspending reads
