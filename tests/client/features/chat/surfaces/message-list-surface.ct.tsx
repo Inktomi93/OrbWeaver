@@ -55,6 +55,7 @@ const PREVIEW_FIT_STUB: TrpcRoutes<"chat.previewContextFit"> = {
     usedTokens: number;
     ceilingTokens: number;
     ceilingEstimated: boolean;
+    limit: null;
     reserveOutputTokens: number;
     droppedCount: number;
     compactSummary: null;
@@ -63,6 +64,7 @@ const PREVIEW_FIT_STUB: TrpcRoutes<"chat.previewContextFit"> = {
     usedTokens: 120,
     ceilingTokens: 32_768,
     ceilingEstimated: false,
+    limit: null,
     reserveOutputTokens: 2048,
     droppedCount: 0,
     compactSummary: null,
@@ -646,6 +648,7 @@ const COMPACTED_PREVIEW_FIT: TrpcRoutes<"chat.previewContextFit"> = {
     usedTokens: number;
     ceilingTokens: number;
     ceilingEstimated: boolean;
+    limit: null;
     reserveOutputTokens: number;
     droppedCount: number;
     compactSummary: string;
@@ -654,6 +657,7 @@ const COMPACTED_PREVIEW_FIT: TrpcRoutes<"chat.previewContextFit"> = {
     usedTokens: 900,
     ceilingTokens: 1000,
     ceilingEstimated: false,
+    limit: null,
     reserveOutputTokens: 128,
     droppedCount: 3,
     compactSummary: "Long ago the heroes met and swore an oath by the river.",
@@ -714,6 +718,7 @@ test("no compaction fact when previewContextFit reports no covering summary (pla
       usedTokens: number;
       ceilingTokens: number;
       ceilingEstimated: boolean;
+      limit: null;
       reserveOutputTokens: number;
       droppedCount: number;
       compactSummary: null;
@@ -722,6 +727,7 @@ test("no compaction fact when previewContextFit reports no covering summary (pla
       usedTokens: 900,
       ceilingTokens: 1000,
       ceilingEstimated: false,
+      limit: null,
       reserveOutputTokens: 128,
       droppedCount: 3,
       compactSummary: null,

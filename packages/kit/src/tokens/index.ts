@@ -79,6 +79,13 @@ export function safeTokenWindow(windowTokens: number): number {
   return Math.max(0, Math.floor(windowTokens * TOKENIZER_HEADROOM_FACTOR), windowTokens - TOKEN_HEADROOM_SLACK_CAP);
 }
 
+/** The estimated tokens a prompt may occupy on a hard window once the reply's exact `max_tokens` is held back:
+ *  the window's input room, discounted by {@link safeTokenWindow}. The history fit and every surface that states
+ *  that room read it here. */
+export function windowInputRoom(windowTokens: number, reserveOutputTokens: number): number {
+  return safeTokenWindow(windowTokens - reserveOutputTokens);
+}
+
 /** The effective integer budget for a cut. A FRACTIONAL `maxTokens` breaks the "every piece fits" bound
  *  outright — `estimateTokens` is integer-valued and its floor for any non-empty piece is 1, so a 0.5
  *  budget admits no piece at all while the pre-guard loop happily emitted single-character ones (#1359).

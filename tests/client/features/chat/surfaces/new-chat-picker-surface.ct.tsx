@@ -320,6 +320,7 @@ const PREVIEW_FIT_STUB = {
   usedTokens: 0,
   ceilingTokens: 32_768,
   ceilingEstimated: false,
+  limit: null,
   reserveOutputTokens: 2048,
   droppedCount: 0,
   compactSummary: null,

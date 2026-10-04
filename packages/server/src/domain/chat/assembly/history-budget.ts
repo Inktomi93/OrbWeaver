@@ -11,10 +11,11 @@
 // §8 cache breakpoint is an OFFSET-FROM-END, so a front-drop here preserves it structurally — no
 // retagging needed. Token counting via the kit estimator (advisory; truth is provider `usage`).
 
+import type { ContextLimit } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
+import { estimateTokens, windowInputRoom } from "@orb/kit/tokens";
 
 /** One shaped history entry, as handed to the completion runners. File-local (the cross-boundary wire
  *  shape is the providers' ChatHistoryMessage; this is SHAPE's internal turn shape). */
@@ -70,11 +71,27 @@ function hardWindowOf(budget: HistoryBudget): number | undefined {
   return budget.windowTokens !== undefined && Number.isFinite(budget.windowTokens) ? budget.windowTokens : undefined;
 }
 
-function inputRoom(budget: HistoryBudget): number {
+function hardRoomOf(budget: HistoryBudget): number {
   const window = hardWindowOf(budget);
-  const hardRoom = window === undefined ? Number.POSITIVE_INFINITY : safeTokenWindow(window - budget.reserveOutputTokens);
-  const softRoom = budget.softMaxTokens === undefined ? Number.POSITIVE_INFINITY : budget.softMaxTokens - budget.reserveOutputTokens;
-  return Math.min(hardRoom, softRoom);
+  return window === undefined ? Number.POSITIVE_INFINITY : windowInputRoom(window, budget.reserveOutputTokens);
+}
+
+function softRoomOf(budget: HistoryBudget): number {
+  return budget.softMaxTokens === undefined ? Number.POSITIVE_INFINITY : budget.softMaxTokens - budget.reserveOutputTokens;
+}
+
+function inputRoom(budget: HistoryBudget): number {
+  return Math.min(hardRoomOf(budget), softRoomOf(budget));
+}
+
+/** Which limit the fit's room comes from — the model window or the preset cap, whichever leaves less room — or
+ *  `null` when neither bounds the context. What the Preview bar and the divider explain the room against. */
+export function contextLimitOf(budget: HistoryBudget): ContextLimit | null {
+  const window = hardWindowOf(budget);
+  if (window !== undefined && hardRoomOf(budget) <= softRoomOf(budget)) {
+    return { kind: "window", tokens: window };
+  }
+  return budget.softMaxTokens === undefined ? null : { kind: "cap", tokens: budget.softMaxTokens };
 }
 
 // The reported room never drops below one token: `0` is the wire's "unbounded", and a reserve that eats the whole

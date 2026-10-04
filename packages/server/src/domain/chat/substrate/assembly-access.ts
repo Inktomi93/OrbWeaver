@@ -13,6 +13,7 @@ import { assemblePrompt, assemblePromptWithSlices, previewSection as previewSect
 import { buildAssemblyBudget as buildAssemblyBudgetImpl } from "../assembly/budget.ts";
 import {
   buildHistoryBudget as buildHistoryBudgetImpl,
+  contextLimitOf as contextLimitOfImpl,
   fitCeilingTokens,
   fitHistoryToWindow,
   historyTurnTokens as historyTurnTokensImpl,
@@ -157,6 +158,12 @@ export function historyTurnTokens(...args: Parameters<typeof historyTurnTokensIm
  *  turn and previewFit read, so their fit boundaries can't drift. The legal `engine|verbs → assembly` bridge. */
 export function buildHistoryBudget(...args: Parameters<typeof buildHistoryBudgetImpl>): ReturnType<typeof buildHistoryBudgetImpl> {
   return buildHistoryBudgetImpl(...args);
+}
+
+/** FIT (limit): which limit the fit's room comes from, the model window or the preset cap. The legal
+ *  `verbs → assembly` bridge for the previews that explain the room. */
+export function contextLimitOf(...args: Parameters<typeof contextLimitOfImpl>): ReturnType<typeof contextLimitOfImpl> {
+  return contextLimitOfImpl(...args);
 }
 
 /** FIT (ceiling): the whole context the fit allows, reserve included — the ONE ceiling the post-turn and pre-turn

@@ -59,6 +59,8 @@ const NIKO_CARD = "Niko — a wary scout.";
 const PLAIN_BUDGET = {
   ceilingTokens: 8192,
   ceilingEstimated: false,
+  limit: null,
+  reserveOutputTokens: 0,
   totalTokens: 4300,
   sources: [
     {
@@ -210,6 +212,8 @@ test("a barely-used window renders as a SLIVER, not a full bar (the fill-vs-head
       budget: {
         ceilingTokens: 200_000,
         ceilingEstimated: false,
+        limit: null,
+        reserveOutputTokens: 0,
         totalTokens: 891,
         sources: [{ source: "system" as const, detail: "Main", tokens: 891, parts: [{ label: "Main", tokens: 891, text: "You are…" }], text: "You are…" }],
       },
@@ -374,6 +378,46 @@ test("an ESTIMATED ceiling is never drawn as a ratio — the panel says the wind
   await expect(component.getByText("200,000", { exact: false })).toHaveCount(0);
   // …and the BAR tells the same truth: a 2%-of-200k sliver would be a fill fraction against a window nobody
   // published, so the bar stays composition-only across the full rail.
+  await expect.poll(async () => await filledFraction(component)).toBeGreaterThan(0.98);
+});
+
+// The room is the window less the reply and the estimator margin; the line under the bar states all four
+// numbers so the room never reads as a misdetected window.
+test("a window-bound room names the window, the reply reserve and the safety margin under the bar", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => ({
+      ...PREVIEW_ASSEMBLY_DATA,
+      budget: { ...PLAIN_BUDGET, totalTokens: 3662, ceilingTokens: 4300, reserveOutputTokens: 2048, limit: { kind: "window" as const, tokens: 8192 } },
+    }),
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+
+  const component = await mount(<AssemblyPreviewPanelStory />);
+
+  await expect(component.getByText("3,662 / 4,300 tok")).toBeVisible();
+  const explainer = component.getByText("8,192", { exact: false });
+  await expect(explainer).toBeVisible();
+  for (const figure of ["4,300", "2,048", "1,844"]) {
+    await expect(explainer).toContainText(figure);
+  }
+});
+
+test("a reply reserve at or above the limit shows no ratio against a one-token room", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => ({
+      ...PREVIEW_ASSEMBLY_DATA,
+      budget: { ...PLAIN_BUDGET, totalTokens: 1658, ceilingTokens: 1, reserveOutputTokens: 2048, limit: { kind: "cap" as const, tokens: 2000 } },
+    }),
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+
+  const component = await mount(<AssemblyPreviewPanelStory />);
+
+  await expect(component.getByText("1,658", { exact: false }).first()).toBeVisible();
+  await expect(component.getByText("/ 1 tok", { exact: false })).toHaveCount(0);
+  // The no-room line carries both numbers, and the bar draws composition only (no fill against a room of 1).
+  const noRoom = component.getByText("2,000", { exact: false });
+  await expect(noRoom).toContainText("2,048");
   await expect.poll(async () => await filledFraction(component)).toBeGreaterThan(0.98);
 });
 

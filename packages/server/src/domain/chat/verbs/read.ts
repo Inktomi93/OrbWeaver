@@ -150,6 +150,7 @@ import {
   buildShapeTrace,
   buildTurnMacroContext,
   buildTurnUserMacros,
+  contextLimitOf,
   loadCharacterCardLore,
   previewActionText,
   previewSection,
@@ -1340,7 +1341,7 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided, timeZone });
     const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
     const { canon, shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
-    const { fitted } = await fitShapedHistory({
+    const { fitted, budget: fitBudget } = await fitShapedHistory({
       assembleContext,
       assembled: prompt,
       capability: inputs.capability,
@@ -1357,6 +1358,8 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       // `null` ⇒ no trustworthy ceiling (no window + no soft cap) ⇒ `0`, the wire's "unbounded" (the bar then
       // renders proportions with no ratio) — never a fabricated number.
       ceilingTokens: fitted.ceilingTokens ?? 0,
+      reserveOutputTokens: fitBudget.reserveOutputTokens,
+      limit: contextLimitOf(fitBudget),
       ceilingEstimated: ceilingIsEstimated(inputs.capability, assembleContext.promptConfig.params.maxContextTokens),
     });
     // Route through the host-audience redaction seam (D59). The verdict is DERIVED
@@ -1465,10 +1468,12 @@ function resolveContextFitPreview(env: {
   const { fitted, canon, compactSummary, coveragePoint } = env;
   const hasSummary = compactSummary !== null && compactSummary.length > 0;
   const common = {
-    usedTokens: fitted.usedTokens,
+    // The system prompt plus the kept history: the same total the Preview bar draws against the same room.
+    usedTokens: env.budget.systemTokens + fitted.usedTokens,
     ceilingTokens: fitted.ceilingTokens ?? 0,
     ceilingEstimated: env.ceilingEstimated,
     reserveOutputTokens: env.budget.reserveOutputTokens,
+    limit: contextLimitOf(env.budget),
     droppedCount: fitted.droppedCount,
   };
   if (!hasSummary) {
