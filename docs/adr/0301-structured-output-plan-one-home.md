@@ -2,6 +2,7 @@
 kind: adr
 status: active
 updated: 2026-10-04
+supersedes: docs/adr/0126-structured-output-wire-shape-app-setting.md
 ---
 
 # Structured output has one plan per request

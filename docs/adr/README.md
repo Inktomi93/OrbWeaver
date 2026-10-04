@@ -110,7 +110,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D123 | [Theme doors + the card-embeddable appearance partition (TD)](0123-theme-doors-the-card-embeddable-appearance-partition-td.md) | active |
 | D124 | [Hand-written rpg state stays off messages](0124-hand-written-rpg-state-stays-off-messages.md) | active |
 | D125 | [D121-E's order table gains a FIFTH leg: `PROMPT_HISTORY`, the ephemeral prompt-build pass](0125-d121-e-s-order-table-gains-a-fifth.md) | active |
-| D126 | [The structured-output wire shape is an app setting](0126-structured-output-wire-shape-app-setting.md) | active |
+| D126 | [The structured-output wire shape is an app setting](0126-structured-output-wire-shape-app-setting.md) | superseded by [0301-structured-output-plan-one-home.md](0301-structured-output-plan-one-home.md) |
 | D127 | [The compiler owns memoization](0127-compiler-owns-memoization.md) | active |
 | D128 | [A sealed third-party surface gets a committed manifest](0128-sealed-third-party-surface-gets-committed-manifest.md) | active |
 | D129 | [A canon row's PURPOSE is a DECLARED per-row fact (`messages.kind`), never inferred from role × attribution × the room's current config; and a row held out of the prompt is held out of every plane DERIVED from canon](0129-a-canon-row-s-purpose-is-a-declared.md) | active |
