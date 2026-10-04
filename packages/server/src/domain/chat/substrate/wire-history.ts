@@ -597,21 +597,6 @@ function tailSquashesStoredRows(canon: ShapeCanonRows, history: readonly ShapedH
   return at !== -1 && canon.slice(at + 1).some((row) => row.content.trim().length > 0);
 }
 
-function storedIndexOf(canon: ShapeCanonRows, messageId: MessageId | null): number {
-  return messageId === null ? -1 : canon.findIndex((row) => row.messageId === messageId);
-}
-
-// Whether the post-shape fit dropped a delivered row that SHAPE's squash built from several stored rows: the newest
-// dropped id-bearing row carries its run's first stored id, so a non-empty stored row between it and the first kept
-// one rode inside it. Cutting at stored rows instead can keep the newest part of that run.
-function cutDropsSquashedRun(canon: ShapeCanonRows, whole: ShapedFit): boolean {
-  const { droppedCount, earliestKeptMessageId } = whole.fitted;
-  const droppedId = whole.shaped.history.slice(0, droppedCount).findLast((row) => row.messageId !== undefined)?.messageId;
-  const from = droppedId === undefined ? -1 : storedIndexOf(canon, droppedId);
-  const to = storedIndexOf(canon, earliestKeptMessageId);
-  return from !== -1 && to > from + 1 && canon.slice(from + 1, to).some((row) => row.content.trim().length > 0);
-}
-
 /** SHAPE → CONVERT → FIT over the stored rows, the one sequence the turn pipeline and the read previews both run.
  *
  *  @remarks The post-shape fit can only drop whole delivered rows older than the newest id-bearing one. A merging
@@ -620,8 +605,6 @@ function cutDropsSquashedRun(canon: ShapeCanonRows, whole: ShapedFit): boolean {
  *  a squash, are the oldest STORED rows trimmed before SHAPE, by the fit's own rule (same estimator over the converted
  *  rows, same room, same chunk grid, the newest row kept), with the room lowered by what SHAPE adds over the rows it
  *  was handed; SHAPE then shapes the survivors as the turn's level says, and that result is taken only when it fits.
- *  The same pre-trim runs when a request fits but its cut dropped a squashed run whole: the result is taken only when
- *  it fits and opens on an earlier stored row, so the newest part of that run is kept.
  *  Every other request, including one that overruns for another reason (a lone oversized row, stored rows kept
  *  apart, level `none`), runs SHAPE once and is returned as the post-shape fit left it, so its wire bytes, its cut and
  *  its cache prefix are what they were without the pre-trim. After a pre-trim the dropped count is the stored rows
@@ -638,8 +621,7 @@ export async function shapeConvertFit(args: {
     return { shaped, ...fitWireHistory(converted, args.budget, shaped.newChatMarker), deliveredTokens: costOf(wireCostRows(converted)) };
   };
   const whole = await run(args.canon);
-  const overruns = overrun(whole.fitted, args.budget) > 0;
-  if (overruns ? !tailSquashesStoredRows(args.canon, whole.shaped.history) : !cutDropsSquashedRun(args.canon, whole)) {
+  if (overrun(whole.fitted, args.budget) === 0 || !tailSquashesStoredRows(args.canon, whole.shaped.history)) {
     return whole;
   }
   const stored = wireCostRows(await args.convert(args.canon.map((row) => ({ role: row.role, content: row.content, messageId: row.messageId }))));
@@ -647,7 +629,7 @@ export async function shapeConvertFit(args: {
   let trimmed = 0;
   // Each pass either cuts deeper or stops: a cut no deeper than the last means the stored rows already fit with
   // SHAPE's cost added, so the attempt fits, or the cut reached the newest row, which is never dropped.
-  do {
+  while (overrun(attempt.fitted, args.budget) > 0) {
     const shapingTokens = attempt.deliveredTokens - costOf(stored.slice(trimmed));
     const cut = fitHistory(stored, { ...args.budget, systemTokens: args.budget.systemTokens + shapingTokens }).droppedCount;
     if (cut <= trimmed) {
@@ -655,7 +637,7 @@ export async function shapeConvertFit(args: {
     }
     trimmed = cut;
     attempt = await run(args.canon.slice(cut));
-  } while (overrun(attempt.fitted, args.budget) > 0);
+  }
   // A trim that still overruns (the system prompt or one oversized row is the overrun) changes bytes for nothing.
   if (trimmed === 0 || overrun(attempt.fitted, args.budget) > 0) {
     return whole;
@@ -665,10 +647,6 @@ export async function shapeConvertFit(args: {
   // Counted in stored rows: a synthetic row the post-shape fit dropped (a new-chat marker SHAPE could no longer merge
   // into the survivors' head) is not a message the turn left out.
   const keptFrom = args.canon.findIndex((row) => row.messageId !== undefined && row.messageId === earliestKeptMessageId);
-  // A request that already fit takes the trim only when it keeps more of the stored history than the whole cut did.
-  if (!overruns && (keptFrom === -1 || keptFrom >= storedIndexOf(args.canon, whole.fitted.earliestKeptMessageId))) {
-    return whole;
-  }
   return {
     ...attempt,
     fitted: { ...fitted, droppedCount: keptFrom === -1 ? trimmed + fitted.droppedCount : keptFrom, earliestKeptMessageId },

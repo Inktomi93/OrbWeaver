@@ -1,8 +1,9 @@
-// The host's room switch for members' persona-attached world-info books (`chat.setMemberPersonaLore`).
-// Host-only mount; reads `ChatDetail.memberPersonaLore` (absent on the blob ⇒ on) and writes on change.
+// The host's room switch for members' persona-attached world-info books (`chat.setMemberPersonaLore`), and the
+// member-side notice that the host turned it off. Both read `ChatDetail.memberPersonaLore` (absent on the blob ⇒ on).
 
 import type { ChatId } from "@orb/kit/ids";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { Text } from "@orb/ui/text";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { SettingSwitchRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
@@ -10,6 +11,22 @@ import { useSetMemberPersonaLore } from "../hooks/use-context-panel-mutations.ts
 
 export interface MemberPersonaLoreControlProps {
   readonly chatId: ChatId;
+}
+
+/** The member-side line under World books when the host keeps members' persona lore out of the prompt; nothing
+ *  when it is on. Mounted for members only — the host sees the switch itself. */
+export function MemberPersonaLoreNotice({ chatId }: MemberPersonaLoreControlProps): ReactElement | null {
+  const trpc = useTRPC();
+  // Non-suspending on purpose: the line must never hold the World books rows behind a second read.
+  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  if (chat === undefined || chat.memberPersonaLore) {
+    return null;
+  }
+  return (
+    <Text voice="gloss" data-slot="member-persona-lore-off">
+      The host isn't using members' persona lore in this chat.
+    </Text>
+  );
 }
 
 /** The host-only "members' persona lore joins this chat" row. */
@@ -21,7 +38,7 @@ export function MemberPersonaLoreControl({ chatId }: MemberPersonaLoreControlPro
   return (
     <SettingSwitchRow
       label="Members' persona lore"
-      description="Lorebooks attached to other members' personas join this chat's prompt. Turn off to keep only your own lore, the chat's and the characters'."
+      description="Use the lorebooks other members attached to their personas in this chat's prompt. When off, only your lorebooks, this chat's and the characters' are used."
       checked={chat.memberPersonaLore}
       onChange={(next): void => {
         setEnabled.mutate({ chatId, enabled: next });

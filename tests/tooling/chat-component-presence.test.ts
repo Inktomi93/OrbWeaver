@@ -153,6 +153,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "settings-context-tab",
     why: "the host-only per-room 'Offer choices' switch (B1) renders inside CommittedSettingsTab's Host controls group; settings-context-tab.ct drives it end-to-end (host sees + toggles → setOfferChoices fires; the never-pinned room seats from the host's per-user default; member sees no control), the host-display-scripts-control precedent.",
   },
+  "member-persona-lore-control": {
+    coveredBy: "settings-context-tab",
+    why: "the host-only member-persona-lore switch renders inside CommittedSettingsTab's Storytelling section beside offer-choices-control; settings-context-tab.ct drives it end-to-end (seats on/off from ChatDetail.memberPersonaLore, toggling fires setMemberPersonaLore, member sees no control).",
+  },
   "row-reaction-picker": {
     coveredBy: "reaction-picker",
     why: "the row's picker MOUNT (split out of message-actions-row under the component-size cap): reaction-picker.ct's B7 segment describe drives it through the REAL row (NarratorActionsDoorsStory/StandardLabeledDoorsStory mount MessageActionsRow → RowReactionPicker → the picker), pinning the narrator gate and the segment claim's wire round-trip; message-reactions.ct's doors arms open it too.",
