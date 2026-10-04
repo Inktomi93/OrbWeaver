@@ -7,7 +7,12 @@ import { and, eq } from "drizzle-orm";
 import { vi } from "vitest";
 import type { EmbeddingConnectionSnapshot } from "../../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { markGenerationComplete } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
-import { probeWidth, resolveTargetGeneration, WIDTH_PROBE_TIMEOUT_MS } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
+import {
+  LOCAL_ENCODER_PROBE_TIMEOUT_MS,
+  probeWidth,
+  resolveTargetGeneration,
+  WIDTH_PROBE_TIMEOUT_MS,
+} from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -251,4 +256,11 @@ test("the built-in encoder's slow first load is not cut short by the probe's bou
   );
 
   expect(await probeAfter(target, coldLoadMs)).toBe("answered");
+});
+
+// The owner's embedder writes wait their turn behind this probe, so a built-in worker that hung must not hold them.
+test("a built-in encoder that never answers fails the width probe at its own, longer bound", async () => {
+  const target = await probeTarget("local-light", NEVER_ANSWERS);
+
+  expect(await probeAfter(target, LOCAL_ENCODER_PROBE_TIMEOUT_MS)).toBe("refused aborted");
 });

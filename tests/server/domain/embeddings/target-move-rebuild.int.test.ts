@@ -823,29 +823,122 @@ test("a write onto an embedder host that never answers is refused after one cata
       declared: { kind: "embedding", embedding: { dims: 768, mrl: false } },
     })
   ).id;
+
+  const { outcome, elapsed } = await onFakeClock(() => outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: dead })));
+
+  expect(outcome).toBe(`refused ${CONNECTION_OP_CODES.embedUnreachable}`);
+  const dials = d.h.requests.filter((request) => request.url.startsWith(DEAD_ORIGIN)).map((request) => `${request.method} ${request.url}`);
+  expect(dials, "one detect dial, then the width probe").toHaveLength(2);
+  expect(elapsed).toBeLessThanOrEqual(2 * CONNECT_TIMEOUT_MS);
+  expect(await boundEmbedder(d)).toBe(d.builtIn);
+});
+
+/** Run `write` on a fake clock advanced a step at a time until it settles: its outcome, and how long it took. */
+async function onFakeClock(write: () => Promise<string>): Promise<{ readonly outcome: string | undefined; readonly elapsed: number }> {
   const settled: { outcome?: string } = {};
   let elapsed = 0;
-
   // @orb-waive test-determinism(vi.useFakeTimers): the subject is how long the write waits on connect timeouts and the probe bound, all setTimeouts no clock seam reaches.
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   try {
-    const write = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: dead })).then((outcome) => {
+    const running = write().then((outcome) => {
       settled.outcome = outcome;
     });
     while (settled.outcome === undefined && elapsed < CLOCK_LIMIT_MS) {
       await vi.advanceTimersByTimeAsync(CLOCK_STEP_MS);
       elapsed += CLOCK_STEP_MS;
     }
-    await write;
+    await running;
   } finally {
     vi.useRealTimers();
   }
+  return { outcome: settled.outcome, elapsed };
+}
 
-  expect(settled.outcome).toBe(`refused ${CONNECTION_OP_CODES.embedUnreachable}`);
-  const dials = d.h.requests.filter((request) => request.url.startsWith(DEAD_ORIGIN)).map((request) => `${request.method} ${request.url}`);
-  expect(dials, "one detect dial, then the width probe").toHaveLength(2);
-  expect(elapsed).toBeLessThanOrEqual(2 * CONNECT_TIMEOUT_MS);
-  expect(await boundEmbedder(d)).toBe(d.builtIn);
+// The server a refused write named may be started right after: a retry must ask it again, not reuse the held failure.
+test("retrying a Server URL refused as unreachable asks that server again", async () => {
+  const d = await drive(deadHost);
+  await sweep(d, false);
+  d.h.useEmbeddings(d.svc);
+  const fits = await narrowStating(d, 768);
+  await d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: fits });
+  // This fixture's snapshots carry no URL, so the move the probe guards is the stated width that comes with the new server.
+  const repoint = (): Promise<string> =>
+    outcomeOf(
+      d.h.svc.update({
+        principal: d.principal,
+        connectionId: fits,
+        patch: { baseUrl: `${DEAD_ORIGIN}/v1`, declared: { kind: "embedding", embedding: { dims: 512, mrl: false } } },
+      }),
+    );
+  const detects = (): number => d.h.requests.filter((request) => request.url === `${DEAD_ORIGIN}${DETECT_FIRST_PATH}`).length;
+
+  expect((await onFakeClock(repoint)).outcome).toBe(`refused ${CONNECTION_OP_CODES.embedUnreachable}`);
+  const first = detects();
+  expect((await onFakeClock(repoint)).outcome).toBe(`refused ${CONNECTION_OP_CODES.embedUnreachable}`);
+
+  expect(detects(), "the retry looked at the server again").toBe(first + 1);
+});
+
+/** The first path a detecting row's server probe asks. */
+const DETECT_FIRST_PATH = "/api/extra/version";
+
+/** Whether `write` has settled within the time a write waiting its turn would have to keep waiting. */
+async function settlesWhileHeld(write: Promise<unknown>): Promise<boolean> {
+  const settled = { done: false };
+  void write.then(
+    () => {
+      settled.done = true;
+    },
+    () => {
+      settled.done = true;
+    },
+  );
+  for (let look = 0; look < OVERLAP_LOOKS && !settled.done; look += 1) {
+    await new Promise((resolve) => setTimeout(resolve, OVERLAP_LOOK_MS));
+  }
+  return settled.done;
+}
+
+// A slow embedder check holds only the writes that can move the owner's index; an edit of a row no vector role uses
+// lands at once.
+describe("the owner's write queue holds only embedder writes", () => {
+  test("a label edit on a row no vector role is bound to does not wait behind a held probe", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    const held = heldProbe();
+    d.h.useEmbeddings(probedService(d, async (n, real) => (n === 1 ? await held.hold(real) : await real())));
+    const wide = await narrowStating(d, 1024);
+    const unrelated = await narrowStating(d, 768);
+
+    const refused = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: wide }));
+    await held.reached;
+    const renamed = d.h.svc.update({ principal: d.principal, connectionId: unrelated, patch: { label: "renamed" } });
+
+    expect(await settlesWhileHeld(renamed)).toBe(true);
+    await held.releaseWhen(() => Promise.resolve(true));
+    expect(await refused).toBe(`refused ${CONNECTION_OP_CODES.embedWidthUnmakeable}`);
+    expect((await d.h.svc.get({ principal: d.principal, connectionId: unrelated })).label).toBe("renamed");
+  });
+
+  test("a binding queued behind the removal of its row is refused as not found, and nothing is bound to it", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    const held = heldProbe();
+    d.h.useEmbeddings(probedService(d, async (n, real) => (n === 1 ? await held.hold(real) : await real())));
+    const wide = await narrowStating(d, 1024);
+    const doomed = await narrowStating(d, 768);
+
+    const first = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: wide }));
+    await held.reached;
+    const removed = outcomeOf(d.h.svc.remove({ principal: d.principal, connectionId: doomed }));
+    const bound = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: doomed }));
+    await held.releaseWhen(() => Promise.resolve(true));
+
+    expect(await first).toBe(`refused ${CONNECTION_OP_CODES.embedWidthUnmakeable}`);
+    expect(await removed).toBe("accepted");
+    expect(await bound).toBe(`refused ${CONNECTION_OP_CODES.notFound}`);
+    expect(await boundEmbedder(d)).toBe(d.builtIn);
+  });
 });
 
 // The confirm says "deletes your search index" only when the write's sync will move a stored target.

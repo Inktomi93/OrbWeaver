@@ -56,12 +56,18 @@ export const WIDTH_PROBE_TEXT = "width check";
  *  @public Test-anchored module surface; the bounded-probe tests advance a fake clock past it. */
 export const WIDTH_PROBE_TIMEOUT_MS = 10_000;
 
+/** The in-process encoder's bound: it cannot be unreachable, but its first load from cold may download its weights
+ *  first. 10 minutes covers the shipped encoder's 874 MB q8 weights on a ~12 Mbit/s link plus a measured 21.8 s cold
+ *  load, and still frees the owner's write queue from a worker that hung.
+ *  @public Test-anchored module surface; the bounded-probe tests advance a fake clock past it. */
+export const LOCAL_ENCODER_PROBE_TIMEOUT_MS = 600_000;
+
 /** One embed through the new connection: the vector must be as wide as the space it would be written into. One
- *  attempt, bounded by {@link WIDTH_PROBE_TIMEOUT_MS}, except on the in-process encoder: it cannot be unreachable,
- *  and its first load from cold can outlast any network bound while it is only loading. */
+ *  attempt, bounded by {@link WIDTH_PROBE_TIMEOUT_MS}, or by {@link LOCAL_ENCODER_PROBE_TIMEOUT_MS} on the in-process
+ *  encoder, whose cold load is not a sign that it is gone. */
 export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: GenerationTask, dims: number): Promise<void> {
   const bound = new AbortController();
-  const timer = connection.wire === "local-light" ? undefined : setTimeout(() => bound.abort(), WIDTH_PROBE_TIMEOUT_MS);
+  const timer = setTimeout(() => bound.abort(), connection.wire === "local-light" ? LOCAL_ENCODER_PROBE_TIMEOUT_MS : WIDTH_PROBE_TIMEOUT_MS);
   const opts = { signal: bound.signal };
   const result = await (via === "embed"
     ? connection.embed(WIDTH_PROBE_TEXT, opts)

@@ -119,34 +119,55 @@ function createSetBinding(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue):
   return async (params: SetBindingParams): Promise<ConnectionBinding> => {
     const userId = params.principal.userId;
     const actor = await storedActorFor(ctx, userId, params.actor, params.connectionId === null ? undefined : params.task);
-    if (params.connectionId !== null) {
-      const row = await fetchOwnedConnection(ctx.db, userId, params.connectionId);
-      if (row === null) {
-        throw new ConnectionNotFoundError(params.connectionId);
-      }
-      requireServable(ctx, row, params.task);
-    }
     // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
     if (actor.actorKind !== "user" || !VECTOR_TASKS.includes(params.task)) {
+      await requireBindableRow(ctx, params);
       return await writeBinding(ctx, params, actor);
     }
-    return await ownerWrites(userId, () => writeVectorBinding(ctx, params, actor));
+    // The row is read inside the queue: a remove or update of it queued ahead must land before this write judges it.
+    return await ownerWrites(userId, async () => writeVectorBinding(ctx, params, actor, await requireBindableRow(ctx, params)));
   };
 }
 
+/** The row a binding names, owned by the caller and able to serve the task; `null` for an unbind. */
+async function requireBindableRow(ctx: ConnectionContext, params: SetBindingParams): Promise<UserConnection | null> {
+  if (params.connectionId === null) {
+    return null;
+  }
+  const row = await fetchOwnedConnection(ctx.db, params.principal.userId, params.connectionId);
+  if (row === null) {
+    throw new ConnectionNotFoundError(params.connectionId);
+  }
+  requireServable(ctx, row, params.task);
+  return row;
+}
+
 /** A vector role's write: it may move the owner's embed space, so it settles before the next same-owner write runs. */
-async function writeVectorBinding(ctx: ConnectionContext, params: SetBindingParams, actor: StoredActor): Promise<ConnectionBinding> {
+async function writeVectorBinding(
+  ctx: ConnectionContext,
+  params: SetBindingParams,
+  actor: StoredActor,
+  row: UserConnection | null,
+): Promise<ConnectionBinding> {
   const before = await vectorSpacesOf(ctx, params.principal);
   const prior = (await lookupBinding(ctx.db, actor, params.task))?.connectionId ?? null;
   return await writeBinding(ctx, params, actor, async () => {
-    await settleEmbedSpace(ctx, {
-      ownerId: params.principal.userId,
-      before,
-      after: await vectorSpacesOf(ctx, params.principal),
-      undo: async () => {
-        await restoreBindingIf(ctx.db, { actor, task: params.task, from: params.connectionId, to: prior });
-      },
-    });
+    try {
+      await settleEmbedSpace(ctx, {
+        ownerId: params.principal.userId,
+        before,
+        after: await vectorSpacesOf(ctx, params.principal),
+        undo: async () => {
+          await restoreBindingIf(ctx.db, { actor, task: params.task, from: params.connectionId, to: prior });
+        },
+      });
+    } catch (error) {
+      // The refused embedder's server was asked for its facts and may have failed; a retry once it is up must ask again.
+      if (row !== null) {
+        await ctx.runtime.catalogs.invalidateEndpoint(row);
+      }
+      throw error;
+    }
   });
 }
 
@@ -176,11 +197,14 @@ async function writeBinding(
 function createUseForEverything(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionService["useForEverything"] {
   return async (params): Promise<readonly ConnectionBinding[]> => {
     const userId = params.principal.userId;
-    const row = await fetchOwnedConnection(ctx.db, userId, params.connectionId);
-    if (row === null) {
-      throw new ConnectionNotFoundError(params.connectionId);
-    }
-    return await ownerWrites(userId, () => bindEverywhere(ctx, params.principal, row));
+    // The row is read inside the queue: a remove or update of it queued ahead must land before this write judges it.
+    return await ownerWrites(userId, async () => {
+      const row = await fetchOwnedConnection(ctx.db, userId, params.connectionId);
+      if (row === null) {
+        throw new ConnectionNotFoundError(params.connectionId);
+      }
+      return await bindEverywhere(ctx, params.principal, row);
+    });
   };
 }
 
