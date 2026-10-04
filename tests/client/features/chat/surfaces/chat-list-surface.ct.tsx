@@ -79,6 +79,15 @@ function resolvedPx(component: Page, token: string): Promise<number> {
   }, token);
 }
 
+/** The desktop column folds the month input behind its "Any time" control; open it so the input is reachable.
+ *  A no-op when the filter is already open or the pane is the phone's panel, which renders the input outright. */
+async function openMonthFilter(component: Locator): Promise<void> {
+  const anyTime = component.getByRole("button", { name: "Any time", exact: true });
+  if ((await anyTime.count()) > 0) {
+    await anyTime.click();
+  }
+}
+
 // A 3-seat room — D3: it must lead with an AvatarStack, not borrow one member's portrait.
 const GROUP = makeChatSummary({
   id: "chat_group",
@@ -238,6 +247,7 @@ test("jumping to a month resets loaded pages and lands its newest old row withou
     }, evictionPoll())
     .toBeGreaterThan(0);
 
+  await openMonthFilter(component);
   const month = component.getByLabel("Show chats up to");
   await month.fill("2020-06");
 
@@ -270,6 +280,7 @@ test.describe("date jump coarse pointer", () => {
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     const component = await mount(<ChatListSurfaceStory width={320} />);
 
+    await openMonthFilter(component);
     const month = component.getByLabel("Show chats up to");
     await month.fill("2020-06");
     const clear = component.getByRole("button", { name: "Clear the month" });
@@ -306,6 +317,7 @@ test.describe("date jump coarse pointer", () => {
     const scroll = component.locator('[data-slot="virtual-list-scroll"]');
     await scroll.evaluate((node) => node.setAttribute("data-remount-probe", "preserved"));
 
+    await openMonthFilter(component);
     await component.getByLabel("Show chats up to").fill("2020-06");
     await expect(component.getByText("Compact old 00")).toBeVisible();
     await expect(scroll).toHaveAttribute("data-remount-probe", "preserved");
@@ -341,10 +353,9 @@ test.describe("date jump coarse pointer", () => {
     await expect(expectOwnedGeometry).toPass();
     await expect(scroll).toHaveJSProperty("scrollTop", 0);
 
-    const firstRow = component.locator('[data-slot="virtual-list-row"][data-index="0"]');
-    await expect.poll(async () => firstRow.boundingBox()).not.toBeNull();
-    const firstBox = await firstRow.boundingBox();
-    await page.mouse.click((firstBox?.x ?? 0) + (firstBox?.width ?? 0) / 2, (firstBox?.y ?? 0) + (firstBox?.height ?? 0) / 2);
+    // The month panel opens with a height transition that moves the list, so click once the row is stable and
+    // let the actionability check confirm the click lands on the row's own body at its centre.
+    await component.locator('[data-slot="virtual-list-row"][data-index="0"] [data-slot="list-row-body"]').click();
     await expect(component.getByTestId("selected")).toHaveText("chat_compact_0");
   });
 });
@@ -403,6 +414,7 @@ for (const trigger of ["hover", "focus"] as const) {
 test("the icon-only month clear exposes pointer copy byte-equal to its accessible name", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
+  await openMonthFilter(component);
   await component.getByLabel("Show chats up to").fill("2020-06");
 
   const clear = component.getByRole("button", { name: "Clear the month" });
@@ -414,20 +426,28 @@ for (const width of [1280, 720, 430, 390, 320] as const) {
   test(`@${String(width)}: the month clear aligns to the input control rather than the label-and-field block`, async ({ mount, page }) => {
     await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
     const component = await mount(<ChatListSurfaceStory width={width} />);
+    await openMonthFilter(component);
     const month = component.getByLabel("Show chats up to");
     await month.fill("2020-06");
     const clear = component.getByRole("button", { name: "Clear the month" });
-    const [monthBox, clearBox] = await Promise.all([month.boundingBox(), clear.boundingBox()]);
-
-    expect(monthBox).not.toBeNull();
-    expect(clearBox).not.toBeNull();
-    expect(Math.abs((monthBox?.y ?? 0) + (monthBox?.height ?? 0) / 2 - ((clearBox?.y ?? 0) + (clearBox?.height ?? 0) / 2))).toBeLessThanOrEqual(1);
+    // The Any time panel opens with a height transition, so poll until the two centres agree instead of
+    // reading them once mid-animation.
+    await expect
+      .poll(async () => {
+        const [monthBox, clearBox] = await Promise.all([month.boundingBox(), clear.boundingBox()]);
+        if (monthBox === null || clearBox === null) {
+          return Number.POSITIVE_INFINITY;
+        }
+        return Math.abs(monthBox.y + monthBox.height / 2 - (clearBox.y + clearBox.height / 2));
+      })
+      .toBeLessThanOrEqual(1);
   });
 }
 
 test("month-scoped empty copy names the localized human month and year", async ({ mount, page }) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([]), "character.list": { items: [], nextCursor: null } });
   const component = await mount(<ChatListSurfaceStory />);
+  await openMonthFilter(component);
   await component.getByLabel("Show chats up to").fill("2020-06");
 
   await expect(component.getByText("No chats found by June 2020.")).toBeVisible();
@@ -451,6 +471,7 @@ test("#1348 the month bound's label states the direction its predicate runs — 
     "character.list": { items: [], nextCursor: null },
   });
   const component = await mount(<ChatListSurfaceStory />);
+  await openMonthFilter(component);
   const month = component.getByLabel("Show chats up to");
 
   // A ceiling ABOVE the library keeps every chat — "up to January 2026" includes June 2025.
@@ -526,6 +547,7 @@ test("#1718/#1735 @mobile: the trigger states the month bound only — the chip 
   // carries it (never a second sentence for one on-screen fact). `exact` is the whole assertion: a trigger
   // that also spelled "with Aria Nightshade" fails this match even though the chip's own "Clear the Aria
   // Nightshade filter" button legitimately carries the same name.
+  await openMonthFilter(component);
   await component.getByLabel("Show chats up to").fill("2020-06");
   await expect(component.getByRole("button", { name: "Filters: chats up to June 2020", exact: true })).toBeVisible();
 
@@ -535,15 +557,24 @@ test("#1718/#1735 @mobile: the trigger states the month bound only — the chip 
   await expect(component.getByText("Filtered:")).toBeHidden();
 });
 
-// The DESKTOP twin: the pane is a 300px column with vertical room to spare, so BOTH controls render outright
-// and no Filters row exists at all. This is the arm that goes red if the fold leaks past its applicability.
-test("#1350/#1718 @desktop: both secondary filters render outright, with no Filters disclosure", async ({ mount, page }) => {
+// The DESKTOP twin: the faces render outright and no Filters row exists at all; the month bound sits behind
+// its own "Any time" control, so no month box shows until the reader opens it. This is the arm that goes red
+// if the phone's fold leaks past its applicability.
+test("#1350/#1718 @desktop: the month box waits behind the Any time control, and the faces render outright with no Filters disclosure", async ({
+  mount,
+  page,
+}) => {
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
-  await expect(component.getByLabel("Show chats up to")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Any time", exact: true })).toBeVisible();
+  await expect(component.getByLabel("Show chats up to")).toHaveCount(0);
   await expect(component.getByRole("list", { name: "Filter by character" })).toBeVisible();
   await expect(component.getByRole("button", { name: "Filters", exact: true })).toHaveCount(0);
-  await expect(component.getByRole("button", { name: "Show chats up to", exact: true })).toHaveCount(0);
+
+  await component.getByRole("button", { name: "Any time", exact: true }).click();
+  await expect(component.getByLabel("Show chats up to")).toBeVisible();
+  await component.getByLabel("Show chats up to").fill("2020-06");
+  await expect(component.getByRole("button", { name: "Up to June 2020", exact: true })).toBeVisible();
 });
 
 test("a SEARCH that matches nothing says NO MATCHES — never the library-empty copy", async ({ mount, page }) => {
@@ -577,6 +608,7 @@ test("a search AND a month empty offers BOTH exits, and each one really widens t
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
 
+  await openMonthFilter(component);
   await component.getByLabel("Show chats up to").fill("2020-06");
   await component.getByRole("textbox", { name: "Search chats" }).fill("zzz-no-such-thread");
 
@@ -604,6 +636,7 @@ test("a month-only empty offers the CHARACTER exit too when a character scope is
   const component = await mount(<ChatListSurfaceStory />);
   await component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true }).click();
   await expect(component.getByText("Filtered:")).toBeVisible();
+  await openMonthFilter(component);
   await component.getByLabel("Show chats up to").fill("2020-06");
 
   await expect(component.getByText("No chats with Aria Nightshade found by June 2020.")).toBeVisible();
@@ -1383,6 +1416,7 @@ test("#385 a December jump rolls the exclusive bound into the following January 
   const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory />);
 
+  await openMonthFilter(component);
   await component.getByLabel("Show chats up to").fill("2020-12");
 
   await expect
@@ -1466,6 +1500,7 @@ test("#525 both filter clears sit INSIDE their field's box, and the field never 
   await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": datedChatListResponder([ADVENTURE]), "character.list": CHARACTERS });
   const component = await mount(<ChatListSurfaceStory width={320} />);
 
+  await openMonthFilter(component);
   const search = component.getByRole("textbox", { name: "Search chats" });
   const month = component.getByLabel("Show chats up to");
   const restingSearch = await search.boundingBox();

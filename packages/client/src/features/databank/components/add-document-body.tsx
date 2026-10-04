@@ -25,6 +25,7 @@
 // Databank section, from wherever the ceremony was started.
 
 import type { IngestOutcome, ScraperKind } from "@orb/contracts/databank";
+import { DOC_UPLOAD_ACCEPT } from "@orb/contracts/extraction";
 import type { DocumentId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
@@ -47,9 +48,6 @@ import { useScrapeForm } from "../hooks/use-scrape-form.ts";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
 import { DEFAULT_CAPTION_LANG, SCRAPER_OPTIONS } from "../lib/scrape-form-model.ts";
-
-/** What `infra/extraction` handles — the picker filter, mirroring the server's extractor table. */
-const UPLOAD_ACCEPT = ".txt,.md,.markdown,.pdf,.html,.htm,text/plain,text/markdown,application/pdf,text/html";
 
 /** The dialog's ingestion modes (ONE importable union from a tuple — §5.5). */
 const ADD_MODES = ["upload", "paste", "link"] as const;
@@ -189,7 +187,7 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
     <Stack className="flex-1" gap="block">
       <Field error={error} label="File">
         {/* The cap is the DEPLOYMENT's, read live (§2.2) — the dropzone also prints it as its own hint. */}
-        <FileDropzone accept={UPLOAD_ACCEPT} loading={loading} maxSizeBytes={caps.databankUpload} onFilesSelected={onFilesSelected} success={success} />
+        <FileDropzone accept={DOC_UPLOAD_ACCEPT} loading={loading} maxSizeBytes={caps.databankUpload} onFilesSelected={onFilesSelected} success={success} />
       </Field>
       {/* CANCEL, EVEN THOUGH THIS ARM HAS NO SUBMIT (side-eye sweep 2026-08-03). Each arm draws its own
           footer because each has its own submit verb, and this one — where picking the file IS the submit —

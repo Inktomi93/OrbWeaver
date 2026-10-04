@@ -11,10 +11,10 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useState } from "react";
 import type { Trpc } from "#data";
 import { useTRPC } from "#data";
 import { CONNECTION_ROLE_LABELS } from "#lib";
+import { setPresetReadoutTarget, usePresetReadoutTarget } from "#state";
 import { CHAT_ROLE_TARGET, effectiveTarget, SWITCHER_ROLES, targetFromValue, targetValue } from "../../lib/capability-target.ts";
 import { chatCapabilityOf } from "../../lib/chat-capability.ts";
 import { mirostatSkipped } from "../../lib/effective-knobs.ts";
@@ -31,7 +31,7 @@ export interface CapabilityPanelProps {
 
 export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): ReactElement {
   const trpc = useTRPC();
-  const [picked, setPicked] = useState<CapabilityTarget>(CHAT_ROLE_TARGET);
+  const picked = usePresetReadoutTarget() ?? CHAT_ROLE_TARGET;
   const connections = useQuery(trpc.connection.list.queryOptions());
   // Only a row that can chat has sampling and effort for this panel to describe.
   const chatRows = connections.data?.filter((row) => row.tasks.includes("chat"));
@@ -71,7 +71,7 @@ export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): Rea
                     (chatRows ?? []).map((row) => row.id),
                   );
             if (next !== null) {
-              setPicked(next);
+              setPresetReadoutTarget(next);
             }
           }}
           value={targetValue(target)}

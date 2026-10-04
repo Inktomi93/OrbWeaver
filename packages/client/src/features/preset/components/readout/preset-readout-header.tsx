@@ -4,8 +4,7 @@
 // The band read the neutral "Details" while the panel below it swapped its WHOLE content per editor view
 // (§7): Budget/Pivot/Preview in Prompt, the delivery path in Actions, the effective profile in Params. A
 // band that names none of them is a label doing no work — and the mocks name what they read
-// ("ACTIONS · READOUT"). So the band states the projection: the ACTIVE VIEW's own label, then the
-// invariant half of the panel's job.
+// ("ACTIONS · READOUT"). So the band states the projection: the ACTIVE VIEW's own label.
 //
 // It READS the view store and never writes it (§7 pin 1 — the tab strip is the one writer, §16 row 10),
 // and it resolves an unset read through the same `PRESET_EDITOR_VIEWS[0]` default the strip does, so the
@@ -16,9 +15,6 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { usePresetEditorView, useSelectedPresetId } from "#state";
 import { PRESET_EDITOR_VIEWS } from "../../lib/preset-nav.ts";
-
-/** The suffix naming what this pane always is, whatever it is currently projecting. */
-const READOUT_SUFFIX = "readout";
 
 /** THE NO-SELECTION ARM'S OWN NAME (side-eye F-25). With no preset open, the panel below does not project a
  *  view at all — it is `PresetReadout`'s ACTIVE PRESET / EFFECTIVE GENERATION / CAPABILITY arm — while this
@@ -36,7 +32,6 @@ export function PresetReadoutHeader(): ReactElement {
   return (
     <Row align="baseline" className="min-w-0" gap="field">
       <Text className="truncate text-title leading-title font-semibold">{label}</Text>
-      <Text voice="gloss">{READOUT_SUFFIX}</Text>
     </Row>
   );
 }

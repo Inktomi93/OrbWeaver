@@ -705,3 +705,28 @@ test("a text field's hint is drawn once, as its placeholder", async ({ mount, pa
   await expect(page.getByPlaceholder("comma, separated")).toBeVisible();
   await expect(page.getByText("comma, separated", { exact: true })).toHaveCount(0);
 });
+
+test("a plugin toggle sits beside its label at page width instead of docking to the far edge", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = { kind: "toggle", name: "sfw", label: "SFW only", value: false };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => null,
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  const component = await mount(<PluginsSurfaceStory />);
+
+  const toggle = page.getByRole("switch", { name: "SFW only" });
+  await expect(toggle).toBeVisible();
+  const [switchBox, labelBox, hostBox] = await Promise.all([
+    toggle.boundingBox(),
+    page.getByText("SFW only", { exact: true }).boundingBox(),
+    component.boundingBox(),
+  ]);
+  const gap = Math.abs((switchBox?.x ?? 0) - ((labelBox?.x ?? 0) + (labelBox?.width ?? 0)));
+  // The horizontal field docked the switch to a control column at the row's end, so the gap was most of the row.
+  expect(gap).toBeLessThan((hostBox?.width ?? 0) / 4);
+});

@@ -153,6 +153,20 @@ export function PresetReadoutParamsBoundStory(): ReactElement {
   );
 }
 
+/** PARAMS ↔ DATA: a button moves the editor view away from Params and back, so the Params panel unmounts and
+ *  mounts again inside one page — the case a pick held in the panel's own state loses. */
+export function PresetReadoutViewSwitchStory(): ReactElement {
+  const [view, setView] = useState("params");
+  return (
+    <CtDataProviders>
+      <button onClick={(): void => setView(view === "params" ? "data" : "params")} type="button">
+        Switch view
+      </button>
+      <ReadoutFrame chatId={STORY_CHAT} view={view} />
+    </CtDataProviders>
+  );
+}
+
 /** {@link PresetReadoutParamsBoundStory} with FOCUS-REFETCH OFF — for the pin that Retry itself issues the
  *  re-read. An errored query is stale, so react-query's `refetchOnWindowFocus` (v5 default `true`) would heal
  *  the panel on any focus event between the failure barrier and the assertion, passing the test without the

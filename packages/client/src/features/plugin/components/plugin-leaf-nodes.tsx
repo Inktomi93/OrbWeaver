@@ -49,6 +49,7 @@ import { Slider } from "@orb/ui/slider";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { ConfirmDialog } from "#components";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
 import { imageNodeCoverKey, keyValueRows, METER_DEFAULT_MAX, numFromValues, resolveNumber, resolveString } from "../lib/plugin-surface-bindings.ts";
@@ -284,6 +285,32 @@ function buttonIntent(node: PluginButtonNode, primaryButton: PluginButtonNode | 
   return node.variant === "outline" ? "outline" : "secondary";
 }
 
+/** A toggle's label rides beside its switch, not in a horizontal `Field`, whose control column docks to the
+ *  row's far end and strands the switch across the page. Named statically (`aria-labelledby`), clickable through
+ *  the label's `htmlFor`. */
+function ToggleLeaf({
+  label,
+  checked,
+  onCheckedChange,
+}: {
+  readonly label: string;
+  readonly checked: boolean;
+  readonly onCheckedChange: (next: boolean) => void;
+}): ReactElement {
+  const switchId = useId();
+  const labelId = `${switchId}-label`;
+  return (
+    <Row align="center" gap="row">
+      <label htmlFor={switchId}>
+        <Text as="span" id={labelId} voice="label">
+          {label}
+        </Text>
+      </label>
+      <Switch aria-labelledby={labelId} checked={checked} id={switchId} onCheckedChange={onCheckedChange} />
+    </Row>
+  );
+}
+
 /** The FORM/ACTION leaves. Values are client-transient until an action submits the whole bag. An if-chain,
  *  not a switch: each guard narrows `node`, and the final `confirmButton` return doubles as the safe fallback. */
 function FormLeaf({
@@ -325,19 +352,18 @@ function FormLeaf({
   }
   if (node.kind === "toggle") {
     return (
-      <Field label={node.label} orientation="horizontal">
-        <Switch
-          checked={values[node.name] === "true"}
-          onCheckedChange={(next): void => {
-            setValue(node.name, String(next));
-            // A LIVE toggle (hub v1.3): the flip IS the act — fire its action with the fresh value riding
-            // as `extra` (the select's v1.2 mechanism; the async React state write cannot race it).
-            if (node.actionId !== undefined) {
-              submit(node.actionId, { [node.name]: String(next) });
-            }
-          }}
-        />
-      </Field>
+      <ToggleLeaf
+        checked={values[node.name] === "true"}
+        label={node.label}
+        onCheckedChange={(next): void => {
+          setValue(node.name, String(next));
+          // A LIVE toggle (hub v1.3): the flip IS the act — fire its action with the fresh value riding
+          // as `extra` (the select's v1.2 mechanism; the async React state write cannot race it).
+          if (node.actionId !== undefined) {
+            submit(node.actionId, { [node.name]: String(next) });
+          }
+        }}
+      />
     );
   }
   if (node.kind === "select") {

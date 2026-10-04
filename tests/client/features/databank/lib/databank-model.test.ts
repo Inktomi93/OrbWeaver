@@ -3,6 +3,7 @@
 // so they are the one place a wrong answer becomes a wrong badge on every surface at once.
 
 import type { BankHealthView, DocumentView } from "@orb/contracts/databank";
+import { DOC_UPLOAD_ACCEPT, MIME_TO_FORMAT } from "@orb/contracts/extraction";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
@@ -22,6 +23,7 @@ import {
   passageTally,
   showsPhaseChip,
 } from "../../../../../packages/client/src/features/databank/lib/databank-model.ts";
+import { matchesAccept } from "../../../../../packages/ui/src/primitives/file-dropzone/accept.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
@@ -322,10 +324,30 @@ describe("ingestEmptyHint — the failed extraction's own remedy", () => {
   });
 });
 
+describe("DOC_UPLOAD_ACCEPT", () => {
+  test("the dropzone gate admits every extractor format by suffix, with or without a browser mime", () => {
+    const docx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    expect(matchesAccept(new File(["x"], "brief.docx", { type: docx }), DOC_UPLOAD_ACCEPT)).toBe(true);
+    expect(matchesAccept(new File(["x"], "novel.epub", { type: "" }), DOC_UPLOAD_ACCEPT)).toBe(true);
+    expect(matchesAccept(new File(["x"], "novel.epub", { type: "application/epub+zip" }), DOC_UPLOAD_ACCEPT)).toBe(true);
+    expect(matchesAccept(new File(["x"], "notes.md", { type: "text/x-markdown" }), DOC_UPLOAD_ACCEPT)).toBe(true);
+    expect(matchesAccept(new File(["x"], "pic.png", { type: "image/png" }), DOC_UPLOAD_ACCEPT)).toBe(false);
+  });
+});
+
 describe("documentTypeLabel", () => {
-  test("a known file type reads in words and an unknown one shows as stored", () => {
+  test("every mime the extractor accepts reads in words, never as the raw mime", () => {
+    expect(Object.keys(MIME_TO_FORMAT).filter((mime) => documentTypeLabel(mime) === mime)).toEqual([]);
     expect(documentTypeLabel("text/plain")).toBe("Plain text");
     expect(documentTypeLabel("application/pdf")).toBe("PDF");
-    expect(documentTypeLabel("application/epub+zip")).toBe("application/epub+zip");
+  });
+
+  test("a mime the browser sent with parameters or odd case reads as its bare type", () => {
+    expect(documentTypeLabel("text/markdown; charset=utf-8")).toBe("Markdown");
+    expect(documentTypeLabel("TEXT/HTML;charset=UTF-8")).toBe("Web page");
+  });
+
+  test("a type the extractor does not do shows as stored", () => {
+    expect(documentTypeLabel("image/png")).toBe("image/png");
   });
 });

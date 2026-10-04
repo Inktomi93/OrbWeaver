@@ -206,10 +206,10 @@ function PromptReadoutBody({
 
       <Section kicker="Pivot">
         {zones.missingPivot ? (
-          <DatumRow label="chat history" suffix="add one on the rack" value="missing" />
+          <DatumRow label="Chat history" suffix="add one on the rack" value="missing" />
         ) : (
           <DatumRow
-            label="chat history"
+            label="Chat history"
             suffix={zones.duplicatePivotIndexes.length === 0 ? null : `${zones.duplicatePivotIndexes.length} duplicate — only the first splits`}
             value={`placed · ${String(zones.pivotIndex + 1)} of ${String(sections.length)}`}
           />

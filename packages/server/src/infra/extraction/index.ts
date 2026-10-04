@@ -13,19 +13,18 @@
 // not a throw).
 
 import type { DocFormat, ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
-import { ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
-import { LOADERS, MIME_TO_FORMAT } from "./formats.ts";
+import { docFormatForMime, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
+import { LOADERS } from "./formats.ts";
 import type { RawExtraction } from "./loader.ts";
 import { normalizeText } from "./normalize.ts";
 import { EXTRACTOR_VERSION } from "./version.ts";
 
 export { EXTRACTOR_VERSION } from "./version.ts";
 
-/** Resolve the declared mime to a `DocFormat`, stripping parameters + lowercasing (`text/html; charset=utf-8`
- *  → `text/html`). An unregistered mime throws `UnsupportedDocTypeError` before any loader runs. */
+/** Resolve the declared mime to a `DocFormat`. An unregistered mime throws `UnsupportedDocTypeError` before
+ *  any loader runs. */
 function formatFor(mime: string): DocFormat {
-  const key = mime.split(";", 1)[0]?.trim().toLowerCase() ?? "";
-  const format = MIME_TO_FORMAT[key];
+  const format = docFormatForMime(mime);
   if (format === undefined) {
     throw new UnsupportedDocTypeError(mime);
   }

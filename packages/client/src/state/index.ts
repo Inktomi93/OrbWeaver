@@ -314,7 +314,7 @@ export {
   selectPluginPageFromList,
   usePluginPageKey,
 } from "./plugin-page-selection-store.ts";
-export { setPresetEditorView, usePresetEditorView } from "./preset-editor-view-store.ts";
+export { setPresetEditorView, setPresetReadoutTarget, usePresetEditorView, usePresetReadoutTarget } from "./preset-editor-view-store.ts";
 export { setPresetSearchQuery, usePresetSearchQuery } from "./preset-search-store.ts";
 export {
   closePresetSectionDrill,

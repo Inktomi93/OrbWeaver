@@ -180,7 +180,8 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
   return (
     <Stack gap="section">
       <Text voice="gloss">
-        The exact bytes this reply was generated from — not a re-render. Host-only: it carries every member's content, the room's hidden spans, and each
+        The prompt text this reply was generated from, as recorded when it was sent — not a re-render. It holds the system prose, the turn's own instruction and
+        the in-history injections; the chat history rows are not stored here. Host-only: it carries every member's content, the room's hidden spans, and each
         character's full card.
       </Text>
       <WireSection heading="Static prefix" gloss="The cache-stable half — system prose, cards, world info." text={prompt.static} />
@@ -188,7 +189,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
       <InjectionsSection prompt={prompt} />
       {prompt.sendHistory ? null : <Text voice="gloss">History was DISABLED for this turn — the model saw no transcript.</Text>}
       {params === null ? null : (
-        <Section heading={<Text voice="kicker">Recorded generation settings</Text>}>
+        <Section heading={<Text voice="kicker">Settings set for this send</Text>}>
           <LogViewer lines={JSON.stringify(params, null, 2).split("\n")} className="max-h-40" />
         </Section>
       )}

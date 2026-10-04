@@ -15,6 +15,8 @@
 
 import type { BankHealthView, DocOrigin, DocumentView, IngestPhase } from "@orb/contracts/databank";
 import { INGEST_PHASES, STALE_INGEST_MS } from "@orb/contracts/databank";
+import type { DocFormat } from "@orb/contracts/extraction";
+import { docFormatForMime } from "@orb/contracts/extraction";
 // `formatBytes` moved to `@orb/kit/strings` when the per-chat rack became its THIRD consumer (it was
 // spelled here and, byte-identically, inside `@orb/ui/file-dropzone`). Same function, one home.
 import { formatBytes, groupThousands } from "@orb/kit/strings";
@@ -34,16 +36,21 @@ export function originLabel(origin: DocOrigin): string {
   return ORIGIN_LABELS[origin];
 }
 
-const DOCUMENT_TYPE_LABELS: Readonly<Record<string, string>> = {
-  "text/plain": "Plain text",
-  "text/markdown": "Markdown",
-  "text/html": "Web page",
-  "application/pdf": "PDF",
+// Total over the extractor's own format tuple, so a format added there fails `tsc` here until it has a word.
+const DOCUMENT_FORMAT_LABELS: Readonly<Record<DocFormat, string>> = {
+  text: "Plain text",
+  markdown: "Markdown",
+  html: "Web page",
+  pdf: "PDF",
+  docx: "Word document",
+  epub: "EPUB book",
 };
 
-/** A document's file type in words; a type this list does not know shows as stored. */
+/** A document's file type in words; a type the extractor does not do shows as stored. The mime is the
+ *  browser's `file.type` raw, so parameters and case are ignored. */
 export function documentTypeLabel(mime: string): string {
-  return DOCUMENT_TYPE_LABELS[mime] ?? mime;
+  const format = docFormatForMime(mime);
+  return format === undefined ? mime : DOCUMENT_FORMAT_LABELS[format];
 }
 
 // The derived ingest phase. The chunk/embed counts are the ONLY truth (no status column): `indexing` = no

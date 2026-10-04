@@ -36,7 +36,7 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { getLog } from "#foundation/observability";
 
 /** The authored default persona — a neutral, editable starting `{{user}}`. Deliberately generic (the user
- *  makes it theirs); the description reads in the first person so it drops into `{{user}}` naturally.
+ *  makes it theirs), with no description until they write one.
  *
  *  THE NAME IS OWNER-RULED COPY, and it is not decorative: this string is what a model receives as `{{user}}`,
  *  so it gets used as a form of address. It was "You" and that produced literal vocatives — "Goodnight, You."
@@ -60,8 +60,9 @@ import { getLog } from "#foundation/observability";
 const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
   name: DEFAULT_PERSONA_NAME,
   title: "Your first persona",
-  description:
-    "This is you — the person on the other side of the conversation. Edit this description to tell characters who you are: your name, how you speak, what you're like, whatever you want them to react to. Until you do, you're simply {{user}}: curious, present, and here to see where the story goes.",
+  // Empty on purpose: the description is what assembly sends for `{{user}}`, so it must never carry an
+  // instruction addressed to the person.
+  description: "",
   starred: true,
   // The layer-2 artifact marker (file header). Stamped at MINT so the row is self-identifying forever —
   // independent of the name/title copy, which is owner-ruled and moves (#462).

@@ -244,10 +244,10 @@ export function CapabilityCard({
             (`claude-opus-4-8`) derives to itself, and a tooltip that repeats the visible text is a
             hover-noise and a screen-reader stutter, not a gloss. */}
         {model === undefined || modelName === undefined ? null : (
-          <DatumRow label="model" value={modelName} valueTitle={modelName === model ? undefined : model} />
+          <DatumRow label="Model" value={modelName} valueTitle={modelName === model ? undefined : model} />
         )}
-        <DatumRow label="context window" suffix={contextWindowSuffix(capability.context)} value={formatKnobValue(capability.context.window)} />
-        <DatumRow label="output cap" value={formatKnobValue(capability.output.maxTokens.max)} />
+        <DatumRow label="Context window" suffix={contextWindowSuffix(capability.context)} value={formatKnobValue(capability.context.window)} />
+        <DatumRow label="Output cap" value={formatKnobValue(capability.output.maxTokens.max)} />
       </Stack>
       <Text voice="gloss">
         {/* SECOND SITE of the same leak (side-eye 2026-08-22 P3-3 — found by that finding's own pin, which
