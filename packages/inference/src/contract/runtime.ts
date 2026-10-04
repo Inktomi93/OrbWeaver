@@ -5,7 +5,6 @@ import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { BindingActorKind, ConnectionBinding, ProviderDef, ProviderId, RoutableTask, UserConnection } from "@orb/contracts/inference";
 import { MODEL_INFO_APIS, modalitySchema, modelCatalogEntrySchema, PREFILL_MODES } from "@orb/contracts/inference";
-import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import type { AutomationRuleId, PluginId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { SessionEntryWriter } from "./agent.ts";
@@ -192,7 +191,6 @@ export interface InferenceDeps {
         readonly errorMessage: string;
       }) => Promise<void>)
     | undefined;
-  readonly structuredOutputVehicle: () => StructuredOutputVehicle;
   readonly connections: ConnectionStore;
   readonly bindings: BindingStore;
   readonly providerStore: ProviderStore;

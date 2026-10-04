@@ -1,6 +1,6 @@
 // entry/compose/chat — `speakerArbiterFor`, Smart's Utility arbiter gate, over the REAL resolver and role
 // clients: the bound row's resolved capability decides whether the arbiter exists at all, and the structured call
-// it hands back rides the vehicle `rc.structured` picks. Each route is stated with the connection's `declared`
+// it hands back rides the vehicle the structured plan picks. Each route is stated with the connection's `declared`
 // capability (or a curated row), and the executor only captures the request it would send.
 
 import type { Principal } from "@orb/contracts/identity";
@@ -16,6 +16,7 @@ import type { DetectedServer, EndpointModel } from "../../../../packages/inferen
 import { createProviderRegistry } from "../../../../packages/inference/src/registry/providers.ts";
 import type { ResolverContext } from "../../../../packages/inference/src/resolve/resolve-task.ts";
 import { createRoleClientsFor } from "../../../../packages/inference/src/roles/role-clients.ts";
+import { planStructuredFor } from "../../../../packages/inference/src/structured/plan.ts";
 import { speakerArbiterFor } from "../../../../packages/server/src/entry/compose/chat.ts";
 import { fakeConnection, fakeDeps, newUserId } from "../../../inference/_support.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -88,33 +89,40 @@ async function arbiterFor(
   return { arbiter, calls };
 }
 
+/** The vehicle the structured plan picks for one captured call on its own resolved row. */
+function plannedVehicle(call: StructuredRequest): string | undefined {
+  const plan = planStructuredFor(call.connection, { formats: [call.responseFormat] });
+  return plan.ok ? plan.responseFormat?.vehicle : undefined;
+}
+
 /** A local row whose model states the facts under test; server detection is off so nothing is probed. */
 const local = (generation: NonNullable<DeclaredCapability["generation"]>): DeclaredCapability => ({ features: { detectServer: false }, generation });
 
 describe("speakerArbiterFor — Smart's Utility arbiter gate", () => {
-  test("no structured output but a named forced tool: the arbiter exists and rides the forced-tool vehicle", async () => {
+  test("no structured output but a named forced tool: the arbiter exists and the plan rides the forced tool", async () => {
     const { arbiter, calls } = await arbiterFor("custom-openai", "qwen-local", local({ output: { structured: false }, tools: { parallel: true } }));
     expect(arbiter).not.toBeNull();
-    expect(calls.map((c) => c.responseFormat.vehicle)).toEqual(["forced-tool"]);
+    expect(calls.map(plannedVehicle)).toEqual(["forced-tool"]);
   });
 
   test("Claude 5.5 (structured output, no named tool choice): the arbiter rides response-format", async () => {
     const { arbiter, calls } = await arbiterFor("anthropic", "claude-sonnet-5-5", null);
     expect(arbiter?.contextTokens).toBeGreaterThan(0);
-    expect(calls.map((c) => c.responseFormat.vehicle)).toEqual(["response-format"]);
+    expect(calls.map(plannedVehicle)).toEqual(["response-format"]);
   });
 
-  test("neither vehicle: no arbiter, so the round degrades to natural with the warning", async () => {
+  test("a model that takes tools but cannot be forced onto one is offered the one tool; with no tools at all there is no arbiter", async () => {
     const noNamedTool = await arbiterFor(
       "custom-openai",
       "qwen-local",
       local({ output: { structured: false }, tools: { parallel: true, namedChoice: false } }),
     );
-    expect(noNamedTool.arbiter).toBeNull();
-    expect(noNamedTool.calls).toHaveLength(0);
-    // A model that takes no tools[] at all cannot be forced onto one, whatever `namedChoice` defaults to.
+    expect(noNamedTool.arbiter).not.toBeNull();
+    expect(noNamedTool.calls.map(plannedVehicle)).toEqual(["offered-tool"]);
+    // A model that takes no tools[] at all and states no structured output carries no payload: the round degrades.
     const noTools = await arbiterFor("custom-openai", "qwen-local", local({ output: { structured: false }, tools: null }));
     expect(noTools.arbiter).toBeNull();
+    expect(noTools.calls).toHaveLength(0);
   });
 
   test("the arbiter carries the bound model's context window", async () => {

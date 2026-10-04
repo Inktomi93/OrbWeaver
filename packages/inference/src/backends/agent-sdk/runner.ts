@@ -25,7 +25,7 @@ import type { ChatUsage } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
 import type { AgentSdkSessionTotals } from "../../contract/agent.ts";
-import type { AgentSdkChatRequest, ChatResult, ContextUsage, ToolCallInput } from "../../contract/chat.ts";
+import type { AgentSdkChatRequest, ChatResult, ContextUsage, ResponseFormat, ToolCallInput } from "../../contract/chat.ts";
 import { normalizeFinishReason } from "../../contract/chat.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
@@ -33,18 +33,39 @@ import type { ChatEvent, RateLimitSnapshot } from "../../contract/events.ts";
 import type { AgentSdkSessionId } from "../../contract/identity.ts";
 import { agentSdkSessionIdSchema } from "../../contract/identity.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
+import type { Resolved } from "../../contract/resolved.ts";
+import type { PlannedResponseFormat } from "../../structured/plan.ts";
+import { requireStructuredPlan } from "../../structured/plan.ts";
+import { normalizeStructuredValue } from "../../structured/reply.ts";
 import { classifyHttpStatus } from "../kit/error-classify.ts";
 import { redactSecretsFromText } from "../kit/openai-body.ts";
 import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
-import { toSdkOutputFormat } from "./output-schema.ts";
 import type { SeededSessionDecision, SessionCache } from "./session/index.ts";
 import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
 import { buildSystemPrompt, disciplineOptions, hookContextOf, MCP_NAMESPACE, observabilityOptions, tailSystemOptions, toSdkGeneration } from "./translate.ts";
 import type { AgentSdkDeps, TurnStreamContext } from "./types.ts";
 import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify.ts";
+
+/** The SDK query options for a turn's structured request: the planned schema as `outputFormat`, refused before
+ *  the spawn when it does not fit, and nothing for a turn that asks for none. The agent-sdk carries only the native
+ *  format, so the plan's vehicle is always `response-format`. */
+export function sdkOutputFormatOf(
+  connection: Resolved,
+  format: ResponseFormat | undefined,
+  label: string,
+): { readonly options: { outputFormat?: { type: "json_schema"; schema: Record<string, unknown> } }; readonly planned: PlannedResponseFormat | undefined } {
+  if (format === undefined) {
+    return { options: {}, planned: undefined };
+  }
+  const planned = requireStructuredPlan(connection, { formats: [format] }, label).responseFormat;
+  if (planned === undefined) {
+    throw new ProviderError({ kind: "invalid", retryable: false, message: `${label}: the structured plan carried no payload`, model: connection.model });
+  }
+  return { options: { outputFormat: { type: "json_schema", schema: planned.schema } }, planned };
+}
 
 /** chatId-derived metadata label only — never the user's chat title text. */
 function sdkChatTitle(chatId: ChatId | undefined): string {
@@ -165,6 +186,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   const abortController = linkAbort(req.signal);
   const chatId = req.chatId;
   const terminal = terminalToolOptions(req.terminalTools ?? [], gen.turnId, log);
+  const structured = sdkOutputFormatOf(connection, req.responseFormat, `agent-sdk chat (${connection.model})`);
   captureAgentSdkWire(req, deps, { systemPrompt, dynamicHook, resume, gen, terminalMounted: terminal !== null });
   const stream = deps.query({
     prompt: req.prompt,
@@ -173,7 +195,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       ...observabilityOptions(deps.debug, log),
       ...gen.options,
       ...mergeMountedOptions(dynamicHook, chatToolOptions(req, gen.turnId, log), terminal ?? {}),
-      ...(req.responseFormat !== undefined ? { outputFormat: toSdkOutputFormat(req.responseFormat, connection.model) } : {}),
+      ...structured.options,
       includePartialMessages: req.onDelta !== undefined,
       model: connection.model,
       maxTurns: chatMaxTurns(req),
@@ -196,7 +218,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       savedTotals,
       disposition,
       now: deps.now,
-      expectStructured: req.responseFormat !== undefined,
+      structured: structured.planned,
       captureTerminalTools: terminal !== null,
       // What the runtime was TOLD (B1): thinking off is `none`; a set effort is the word; nothing set is unrecorded.
       appliedEffort: gen.options.thinking?.type === "disabled" ? "none" : (gen.options.effort ?? null),
@@ -557,7 +579,11 @@ class TurnAccumulator {
 
   finish(contextUsage?: ContextUsage): ChatResult {
     this.logTurn(true, contextUsage);
-    const structuredReply = this.ctx.expectStructured === true && this.structuredOutput !== undefined ? JSON.stringify(this.structuredOutput) : undefined;
+    const planned = this.ctx.structured;
+    const structuredReply =
+      planned !== undefined && this.structuredOutput !== undefined
+        ? JSON.stringify(normalizeStructuredValue(this.structuredOutput, planned.reshapedPaths))
+        : undefined;
     // The subscription's own receipts, narrowed to the closed per-provider sidecar the variant stores
     // (`backends/kit/provider-metadata.ts`). `modelUsage` and `apiKeySource` stay OUT of the record on purpose:
     // the first is a per-model breakdown the stats plane already rolls up from the variant rows themselves, the

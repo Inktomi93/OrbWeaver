@@ -27,6 +27,7 @@ export const EVERY_PROVIDER_ERROR_FIELD: Required<Omit<ProviderErrorInit, "cause
   model: "orb-test/stub",
   terminalReason: "stub-terminal",
   detail: "stub-detail",
+  violations: [{ kind: "optional-props", mode: "anthropic-format", count: 30, limit: 24 }],
   sessionId: agentSdkSessionIdSchema.parse("00000000-0000-4000-8000-000000000001"),
   requestId: "stub-request",
   width: { stated: 1024, measured: 768 },

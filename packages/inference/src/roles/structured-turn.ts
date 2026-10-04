@@ -56,7 +56,7 @@ function parseStructured<T>(schema: z.ZodType<T>, text: string): ParseOutcome<T>
  * so a `}` inside a string literal never closes the scan early. Returns the parsed object or `null`.
  * (Verbatim the mechanics of the retired discovery/substrate/json-extract.ts.)
  */
-function extractJsonObject(raw: string): Record<string, unknown> | null {
+export function extractJsonObject(raw: string): Record<string, unknown> | null {
   const start = raw.indexOf("{");
   if (start === -1) {
     return null;

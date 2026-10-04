@@ -7,12 +7,11 @@
 import type { DeclaredCapability, GenerationCapability } from "@orb/contracts/inference";
 import { createInferenceRuntime, ProviderError } from "@orb/inference";
 import { runOpenAiCompatChatTurn } from "../../../packages/inference/src/backends/openai-compat/chat.ts";
-import { servableToolChoice } from "../../../packages/inference/src/backends/v4/options.ts";
 import { applyServerToolChoice } from "../../../packages/inference/src/capability/floor.ts";
-import type { ResolvedWarning } from "../../../packages/inference/src/contract/resolve.ts";
+import { planStructuredFor } from "../../../packages/inference/src/structured/plan.ts";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
-import { fakeConnection, fakeDeps, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";
+import { fakeConnection, fakeDeps, fakeResolved, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";
 import { generationCapability } from "../backends/_hosted-support.ts";
 import { localServerFetch, recordedAnswer, transcriptFetch } from "../catalog/_local-servers-fetch.ts";
 
@@ -42,12 +41,20 @@ function generationOf(resolved: { readonly capability: { readonly kind: string }
   return capability.generation;
 }
 
-/** What a `required` and a named choice go out as, and the warnings the downgrade raised. */
+const WEATHER_TOOL = { name: "get_weather", description: "Weather for a city.", parameters: { type: "object", properties: {} } };
+
+/** What a `required` and a named choice go out as through the structured plan, and the downgrades it raised. */
 function forced(generation: GenerationCapability): { readonly required: string; readonly named: string; readonly warnings: string[] } {
-  const warnings: ResolvedWarning[] = [];
-  const required = servableToolChoice({ mode: "required" }, generation, warnings).mode;
-  const named = servableToolChoice({ mode: "tool", name: "get_weather" }, generation, warnings).mode;
-  return { required, named, warnings: warnings.map((warning) => warning.code) };
+  const connection = fakeResolved({ task: "chat", providerId: "custom-openai", model: "test-model", capability: { kind: "generation", generation } });
+  const plans = [{ mode: "required" as const }, { mode: "tool" as const, name: WEATHER_TOOL.name }].map((toolChoice) => {
+    const plan = planStructuredFor(connection, { tools: [WEATHER_TOOL], toolChoice });
+    if (!plan.ok) {
+      throw new Error("the tool-only plan refused");
+    }
+    return plan;
+  });
+  const [required, named] = plans.map((plan) => plan.toolChoice?.mode ?? "none");
+  return { required: required ?? "none", named: named ?? "none", warnings: plans.flatMap((plan) => plan.downgrades.map((warning) => warning.code)) };
 }
 
 test("Ollama: neither forced form reaches the model, so both go out as auto with the downgrade warning", async () => {

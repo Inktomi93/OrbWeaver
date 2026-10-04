@@ -19,38 +19,13 @@ import type { Capability, ProviderId } from "#inference";
 import type { RolePresetParams } from "#preset";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "#providers";
 
-/** WHICH WIRE VEHICLE a structured-output request rides on a backend that has more than one. Minted here
- *  beside `ResponseFormat` because it is a property of the structured-output REQUEST; the AppSettings tier
- *  imports it DOWN for the deployment default (`structuredOutputVehicle`), and it composes with — never
- *  entangles with — the D126 `structuredOutputShape` axis (shape = how we spell an optional; vehicle = which
- *  endpoint feature carries the schema).
- *
- *  Only OpenRouter has a choice to make; vLLM has one enforcing wire (`response_format` + guided decoding)
- *  and ignores this knob.
- *  • `auto` — the DEFAULT: `response-format` when the resolved model's capability says the endpoint supports
- *    structured output, else `forced-tool`. Resolved ONCE, statically, off `capability.output.structured` at
- *    `entry/compose/role-clients.ts`'s `resolveVehicle` — there is NO runtime retry: a 400 on the chosen
- *    vehicle is returned to the caller, deliberately. (An earlier revision of this line claimed "a 400 on the
- *    first falls back to the second for that call". No such fallback was ever built, and the compose site's
- *    own comment states the opposite as the decision — "the backend's own 400 is the honest answer rather
- *    than a silent downgrade to an unenforced wire". Corrected 2026-08-14; a real fallback would be a
- *    behaviour change on every hosted structured call, i.e. a feature ask, not a repair.)
- *  • `response-format` — force `response_format: {type:"json_schema"}` + `strict` + provider
- *    `require_parameters`. Measured 2026-08-09 (23 live OpenRouter calls) as servable on anthropic-,
- *    openai- and google-family endpoints for a schema in the all-required shape. The schema-forge asks for
- *    this per call: an author designing a schema wants the hard guarantee, not a deployment posture.
- *  • `forced-tool` — force the single-forced-tool vehicle (the 2026-08-02 shape). Servable everywhere,
- *    compiles no grammar, and stays the fallback arm — nothing was ripped out. */
-export const STRUCTURED_OUTPUT_VEHICLES = ["auto", "response-format", "forced-tool"] as const;
-export type StructuredOutputVehicle = (typeof STRUCTURED_OUTPUT_VEHICLES)[number];
-export const structuredOutputVehicleSchema = z.enum(STRUCTURED_OUTPUT_VEHICLES) satisfies z.ZodType<StructuredOutputVehicle>;
-
 // @typeonly-ok: the wire vocabulary lives in `ResponseFormat` (the type consumers import); the runtime
 // schema itself is only referenced in type position here in contracts — infra's wire arms build their
 // OWN literal against the shape rather than calling this validator, so the schema stays the type anchor.
 /** The structured-output request (D79) — one projection rule (`@orb/kit/json-schema`) fills `schema`, the
  *  same shape every backend's wire arm maps. Never rides `toolChoice` (the two axes are separate). Minted
- *  zod-first as the cross-boundary vocabulary; the caller's zod payload schema stays its runtime validator. */
+ *  zod-first as the cross-boundary vocabulary; the caller's zod payload schema stays its runtime validator. A
+ *  caller states the schema only: how it goes out, and whether it fits, is the structured plan's (`@orb/inference`). */
 export const responseFormatSchema = z.object({
   /** Schema name (OpenAI `json_schema.name`; Anthropic tool name). */
   name: z.string(),
@@ -58,18 +33,7 @@ export const responseFormatSchema = z.object({
    *  type PINS this to {@link WireReady}; the zod stays a loose `z.record` (a type-only anchor — nothing
    *  `.parse`s a `ResponseFormat`, `@typeonly-ok` above). */
   schema: z.record(z.string(), z.unknown()),
-  /** Grammar STRICTNESS, opt-in: absent = the BACKEND's own default, and each backend owns that call
-   *  (Tier-3b — "each backend internalizes ALL its own quirks"). This used to read "Default true", and every
-   *  wire arm honored it by inventing `strict:true` for callers who never asked; on OpenAI-family models
-   *  through OpenRouter that is a hard 400 ("'required' is required to be supplied"), because the ONE
-   *  projection rule emits optional-by-construction schemas and OpenAI strict demands every property be
-   *  required. The OpenRouter chat arms now OMIT it unless set; the enforcing wires (vLLM guided decoding,
-   *  where a strict grammar is the whole point) still default it on. Set it explicitly to pin either. */
-  strict: z.boolean().optional(),
   description: z.string().optional(),
-  /** Per-CALL wire-vehicle request (see {@link STRUCTURED_OUTPUT_VEHICLES}). Absent = the deployment's
-   *  `structuredOutputVehicle` governs. Backends with one wire ignore it. */
-  vehicle: structuredOutputVehicleSchema.optional(),
 });
 /** `schema` is PINNED to {@link WireReady} (the rest rides the zod infer): only `projectJsonSchema` output
  *  can fill it, so a raw/stored/unprojected schema at any structured-output send-site fails to typecheck —
@@ -129,10 +93,9 @@ export interface SummarizeInput {
  *  the resolved model does not state, with a warning. */
 export type SummarizeOptions = RolePresetParams;
 
-/** The options a `structured` call takes: the summarize sampling PLUS the REQUIRED schema constraint (D79 —
- *  the wire enforces it: vLLM guided decoding, OpenAI/OR `response_format`, the agent-sdk `outputFormat`, or the
- *  forced-tool vehicle when the deployment says so). Structured generation is a DISTINCT task from prose
- *  summarization (owner ruling 2026-07-27; inference program §7.5-1): the caller NAMES it, nothing sniffs it. */
+/** The options a `structured` call takes: the summarize sampling plus the required schema (D79), carried however the
+ *  structured plan picks for the bound model. Structured generation is a distinct task from prose summarization:
+ *  the caller names it, nothing sniffs it. */
 export interface StructuredOptions extends SummarizeOptions {
   responseFormat: ResponseFormat;
 }

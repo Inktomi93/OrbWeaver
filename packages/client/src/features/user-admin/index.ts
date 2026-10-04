@@ -12,6 +12,5 @@ export { adminCatalogSection, adminEmbeddingsSection } from "./lib/admin-ops-sec
 export { adminUsersSection } from "./lib/admin-users-section.tsx";
 export { memoryTuningSection } from "./lib/memory-tuning-section.tsx";
 export { rateLimitsSection } from "./lib/rate-limits-section.tsx";
-export { structuredOutputSection } from "./lib/structured-output-section.tsx";
 export { mediaTrustSection, multiUserSection, operationsSection } from "./lib/system-config-sections.tsx";
 export { systemTuningSection } from "./lib/system-tuning-section.tsx";

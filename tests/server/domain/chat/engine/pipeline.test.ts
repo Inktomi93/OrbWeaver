@@ -10,7 +10,7 @@ import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, pipelineStepKey, RECE
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { ChatToolExecution, Resolved, ToolCallInput } from "@orb/inference";
-import { rowIndexAtCacheDepth } from "@orb/inference";
+import { ProviderError, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
@@ -2189,12 +2189,8 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
   });
 });
 
-// A structured-output payload the request-builder gate either keeps (when supported) or drops (when not).
+// A structured-output payload a turn may ask for; how it rides is the backend plan's.
 const RESPONSE_FORMAT = { name: "narrative", schema: wireSchema({ type: "object", properties: {}, additionalProperties: false }) } as const;
-const STRUCTURED_CONNECTION: Resolved<"chat"> = {
-  ...CONNECTION,
-  capability: makeCapability(makeGenerationCapability({ ...CAPABILITY, output: { ...CAPABILITY.output, structured: true } })),
-};
 
 describe("runTurnPipeline — §8.8 reasoning CARRY across a tool chain", () => {
   // A model that reasons AND round-trips its own signed thinking — the only shape where the carry knob has
@@ -2308,39 +2304,47 @@ describe("runTurnPipeline — §8.8 reasoning CARRY across a tool chain", () => 
   });
 });
 
-describe("runTurnPipeline — the D79 structured-output gate (04 §7)", () => {
-  test("responseFormat requested but capability.output.structured absent → dropped + flagged; free-text proceeds", async () => {
+describe("runTurnPipeline — a structured turn rides the plan, with no free-text fallback", () => {
+  test("a responseFormat always rides the request: the capability is the plan's to read, not the pipeline's", async () => {
     const requests: TurnRequest[] = [];
     const { args } = baseArgs({
       responseFormat: RESPONSE_FORMAT,
-      runChatTurn: scriptedDepths([[doneFinal("plain reply")]], requests),
+      runChatTurn: scriptedDepths([[doneFinal("{}")]], requests),
     });
-    const result = await runTurnPipeline(args);
+    await runTurnPipeline(args);
     expect(requests).toHaveLength(1);
-    expect(requests[0]).not.toHaveProperty("responseFormat");
-    expect(result.structuredOutputUnsupported).toBe(true);
-    // The turn still produced its free-text reply (interactive-axis degrade, not a dead turn).
-    expect(result.content).toBe("plain reply");
-  });
-
-  test("responseFormat requested + capability.output.structured true → rides the request, not flagged", async () => {
-    const requests: TurnRequest[] = [];
-    const { args } = baseArgs({
-      connection: STRUCTURED_CONNECTION,
-      responseFormat: RESPONSE_FORMAT,
-      runChatTurn: scriptedDepths([[doneFinal("ok")]], requests),
-    });
-    const result = await runTurnPipeline(args);
     expect(requests[0]?.responseFormat).toEqual(RESPONSE_FORMAT);
-    expect(result.structuredOutputUnsupported).toBe(false);
   });
 
-  test("no responseFormat requested → byte-identical no-op (no field, not flagged)", async () => {
+  test("a structured turn the plan refuses ends with the typed violations and runs no free-text turn", async () => {
+    const requests: TurnRequest[] = [];
+    const refusal = new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: "the structured request does not fit this model",
+      detail: "schema_rejected",
+      violations: [{ kind: "no-vehicle", mode: "hosted-common" }],
+    });
+    const { args } = baseArgs({
+      responseFormat: RESPONSE_FORMAT,
+      runChatTurn: (req) => {
+        requests.push(req);
+        return (async function* (): AsyncGenerator<TurnStreamChunk> {
+          await Promise.resolve();
+          yield* [];
+          throw refusal;
+        })();
+      },
+    });
+    await expect(runTurnPipeline(args)).rejects.toMatchObject({ detail: "schema_rejected", violations: [{ kind: "no-vehicle" }] });
+    expect(requests).toHaveLength(1);
+  });
+
+  test("no responseFormat requested → byte-identical no-op (no field)", async () => {
     const requests: TurnRequest[] = [];
     const { args } = baseArgs({ runChatTurn: scriptedDepths([[doneFinal("hi")]], requests) });
-    const result = await runTurnPipeline(args);
+    await runTurnPipeline(args);
     expect(requests[0]).not.toHaveProperty("responseFormat");
-    expect(result.structuredOutputUnsupported).toBe(false);
   });
 });
 

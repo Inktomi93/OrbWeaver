@@ -17,9 +17,8 @@
 //
 // THE RAW DOOR IS THREE-TIER (2026-08-09): a belt REFUSAL (`RefusalNote`, verbatim, blocks the save), a
 // PREFLIGHT ADVISORY (`PreflightNote` — valid, saves, but here is what a hosted wire will do to it), and
-// the accounting stats. The advisory tier derives every wire claim by running our own `scrubWireSchema`,
-// so it re-implements no vendor law (the design's §1 "client-side re-implementation of provider schema
-// law" ruling stays honoured — see the advisory module's header for the full fork statement).
+// the accounting stats. The advisory tier derives every wire claim from the structured layer's own check
+// (`checkWireSchema` over the hosted intersection), so it re-implements no vendor law.
 //
 // The two READ-ONLY panes (`PreflightNote` + `PreviewCard`) live in `schema-editor-panes.tsx` — the
 // `component-size` split, on this file's own `render-hint-picker` precedent. This module keeps the four

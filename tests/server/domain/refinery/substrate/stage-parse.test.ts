@@ -1,6 +1,6 @@
-// Unit pins for the stage-parse seam: the null-drop belt (strict-compatible survival), the stripped-key
-// capture diff (incl. nested paths), and the planted POSITIVE CONTROL (a clean payload strips nothing —
-// a diff that cannot return empty would flag every run).
+// Unit pins for the stage-parse seam: the reply arrives already normalized by the structured layer, so a null reaches
+// validation as the model wrote it; the stripped-key capture diff (incl. nested paths); and the planted POSITIVE
+// CONTROL (a clean payload strips nothing — a diff that cannot return empty would flag every run).
 
 import { z } from "zod";
 import { buildStageParse, diffKeyPaths } from "../../../../../packages/server/src/domain/refinery/substrate/stage-parse.ts";
@@ -12,14 +12,11 @@ const SCHEMA = z.object({
   nested: z.object({ inner: z.string() }),
 });
 
-test("dropNullValues runs BEFORE validation: an explicit null on an optional field parses", () => {
+test("a null on an optional field reaches validation as written: the structured layer drops only the nulls its reshape introduced", () => {
   const parse = buildStageParse(SCHEMA);
-  const parsed = parse.schema.parse({ keep: "k", maybe: null, nested: { inner: "i" } });
-  expect(parsed).toEqual({ keep: "k", nested: { inner: "i" } });
-  // A dropped null is NOT itemized (capture-after-drop, deliberate): it is strict-compatible's own
-  // encoding of ABSENT — itemizing it would stamp every legitimate run on that deployment and drown
-  // the tamper signal. Only schema-unknown keys itemize.
-  expect(parse.strippedKeysOf(parsed)).toEqual([]);
+  expect(parse.schema.safeParse({ keep: "k", maybe: null, nested: { inner: "i" } }).success).toBe(false);
+  // PLANTED CONTROL: the same reply with the key absent, as a normalized reshaped reply arrives, parses.
+  expect(parse.schema.parse({ keep: "k", nested: { inner: "i" } })).toEqual({ keep: "k", nested: { inner: "i" } });
 });
 
 test("invented keys are itemized as dotted paths (nested + top-level); a clean payload strips NOTHING (positive control)", () => {

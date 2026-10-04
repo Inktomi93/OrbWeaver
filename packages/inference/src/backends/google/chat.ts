@@ -9,19 +9,22 @@ import type { GoogleBackendDeps } from "../../contract/google.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
+import { requireStructuredPlan } from "../../structured/plan.ts";
+import { structuredChatResult } from "../../structured/reply.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
-import { providerErrorFromHttp } from "../kit/error-classify.ts";
+import { providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import { providerLogger } from "../kit/provider-log.ts";
 import { rateLimitFromHeaders } from "../kit/rate-limit-headers.ts";
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
 import { emitTurnSpanEvents } from "../kit/turn-span.ts";
+import { plannedOptions } from "../v4/options.ts";
 import { buildWirePlan } from "../v4/prompt.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
 import { drainStream } from "../v4/stream.ts";
 import { GOOGLE_KEY, googleModelId, googleProviderFor } from "./model.ts";
-import { googleOptions } from "./options.ts";
+import { googleOptions, googleToolAsk } from "./options.ts";
 
 function isJsonObject(value: unknown): value is JSONObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -48,8 +51,18 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
   if (plan.endsOnAssistant && !acceptsAssistantPrefill(generation)) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: `${label}: assistant prefill is unsupported` });
   }
-  const options = googleOptions(req, knobs, generation, warnings);
-  const classify = (err: unknown): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, label, resolvedScrubSet(connection)));
+  const structured = requireStructuredPlan(
+    connection,
+    { formats: req.responseFormat === undefined ? undefined : [req.responseFormat], ...googleToolAsk(req, generation, warnings) },
+    label,
+  );
+  warnings.push(...structured.downgrades);
+  const options = { ...googleOptions(req, knobs, generation, warnings), ...plannedOptions(structured) };
+  const secrets = resolvedScrubSet(connection);
+  const classify = (err: unknown): ProviderError =>
+    err instanceof ProviderError
+      ? err
+      : withSchemaRejection(providerErrorFromHttp(err, label, secrets), err, { log, model: connection.model, mode: structured.mode, secrets });
   const drain = await runWithPreCommitRetry(
     async (markCommitted) => {
       const idle = turnAbortSignal(req.signal);
@@ -110,7 +123,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
     rateLimit: response.rateLimit,
     warnings,
   });
-  const turn: ChatResult =
+  const turn: ChatResult = structuredChatResult(
     folded.finishReason === "filter"
       ? {
           ...folded,
@@ -119,7 +132,9 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
             { kind: "refusal", at: deps.now(), model: connection.model, category: folded.stopReason, explanation: null, retried: false, fallbackModel: null },
           ],
         }
-      : folded;
+      : folded,
+    structured,
+  );
   log.capability({
     turnId: knobs.turnId,
     api: req.api,

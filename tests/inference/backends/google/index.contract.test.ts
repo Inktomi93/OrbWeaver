@@ -180,6 +180,49 @@ test("native structured output uses JSON schema and summary safety refuses", asy
   });
 });
 
+test("responseJsonSchema carries the gemini-schema scrub: a length bound becomes the note, a numeric bound stays; oneOf is refused", async () => {
+  let body: Record<string, unknown> = {};
+  const native = backend((_url, init) => {
+    body = z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body)));
+    return Promise.resolve(Response.json({ candidates: [{ content: { parts: [{ text: '{"name":"a","n":2}' }] }, finishReason: "STOP" }] }));
+  });
+  await native.structured({
+    connection: connection("structured"),
+    inputs: [{ systemPrompt: "Extract", userPrompt: "yes" }],
+    responseFormat: {
+      name: "result",
+      schema: wireSchema({
+        type: "object",
+        properties: { name: { type: "string", minLength: 2 }, n: { type: "integer", minimum: 1 } },
+        required: ["name", "n"],
+      }),
+    },
+  });
+  const sent = (body["generationConfig"] as { readonly responseJsonSchema: { readonly properties: Record<string, unknown> } }).responseJsonSchema;
+  expect(sent.properties["name"]).toEqual({ type: "string", description: "[Constraints: minLength: 2]" });
+  expect(sent.properties["n"]).toEqual({ type: "integer", minimum: 1 });
+
+  let called = false;
+  const refusing = backend(() => {
+    called = true;
+    return Promise.resolve(Response.json({}));
+  });
+  const failure = await (async (): Promise<unknown> =>
+    refusing.structured({
+      connection: connection("structured"),
+      inputs: [{ systemPrompt: "Extract", userPrompt: "yes" }],
+      responseFormat: {
+        name: "result",
+        schema: wireSchema({ type: "object", properties: { pick: { oneOf: [{ type: "string" }, { type: "integer" }] } }, required: ["pick"] }),
+      },
+    }))().catch((err: unknown) => err);
+  expect(called).toBe(false);
+  expect(failure).toMatchObject({
+    detail: "schema_rejected",
+    violations: expect.arrayContaining([expect.objectContaining({ kind: "refused-keyword", keyword: "oneOf" })]),
+  });
+});
+
 test("native image generation and edit send reference bytes and reject unsupported masks", async () => {
   const bodies: Record<string, unknown>[] = [];
   const native = backend((_url, init) => {

@@ -53,6 +53,8 @@ export interface ModelCall {
   readonly prefillAllowed: boolean;
   /** What body rule 5b tells the template's thinking switch; `undefined` leaves the server's default. */
   readonly templateThinking: boolean | undefined;
+  /** What body rule 5c tells the template about replaying prior thinking; `undefined` sends nothing. */
+  readonly templatePreserveReasoning: boolean | undefined;
   /** Fold consecutive plain same-role rows into one message of parts (`body.ts` rule 10). */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
@@ -79,6 +81,7 @@ function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
     dialect,
     prefillAllowed: call.prefillAllowed,
     templateThinking: call.templateThinking,
+    templatePreserveReasoning: call.templatePreserveReasoning,
     reasoningMandatory: call.connection.capability.kind === "generation" && call.connection.capability.generation.reasoning.mandatory === true,
     foldSameRole: call.foldSameRole,
     replyImages: call.replyImages,
@@ -146,7 +149,8 @@ function openAiCompatibleProvider(call: ModelCall): ReturnType<typeof createOpen
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
     fetch: wrapFetch(fetchArgs(call, undefined)),
     includeUsage: true,
-    supportsStructuredOutputs: connection.features.strictJson !== "never",
+    // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
+    supportsStructuredOutputs: true,
     transformRequestBody: withExtra,
   });
 }
@@ -190,7 +194,8 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
     fetch: wrapFetch({ ...fetchArgs(call, toNative), fetch: ollamaNativeFetch(deps.fetch, { baseUrl, label: call.label }) }),
     includeUsage: true,
-    supportsStructuredOutputs: connection.features.strictJson !== "never",
+    // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
+    supportsStructuredOutputs: true,
     transformRequestBody: withExtra,
   });
 }

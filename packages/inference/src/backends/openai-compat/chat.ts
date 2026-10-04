@@ -8,7 +8,7 @@
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { Dialect, GenerationCapability } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, scrubWireSchema } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
@@ -21,10 +21,13 @@ import type { Resolved } from "../../contract/resolved.ts";
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveChat, templateThinkingFor } from "../../funnel/resolve-chat.ts";
+import type { StructuredPlan } from "../../structured/plan.ts";
+import { requireStructuredPlan } from "../../structured/plan.ts";
+import { structuredChatResult } from "../../structured/reply.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
 import type { ExplicitCachePlan, OpenRouterRouting } from "../kit/cache-control.ts";
 import { cachesByAnthropicMarkers, effectiveProviderRouting, explicitCachePlan, isAnthropicModel, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
-import { extractHttpErrorDiagnostic, providerErrorFromHttp } from "../kit/error-classify.ts";
+import { extractHttpErrorDiagnostic, providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
@@ -32,7 +35,7 @@ import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-he
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../kit/sanitize.ts";
 import { emitTurnSpanEvents } from "../kit/turn-span.ts";
-import { functionTools, jsonResponseFormat, servableToolChoice, standardSampling, toolChoiceOf, wireEffortOf } from "../v4/options.ts";
+import { plannedOptions, standardSampling, wireEffortOf } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
@@ -175,6 +178,13 @@ interface TurnKnobs {
   readonly sampling: ReturnType<typeof wireSampling>;
   /** {@link templateThinkingFor}: body rule 5b sends it on a `chat_template_kwargs` row, the effort word on a `reasoning_effort` one. */
   readonly templateThinking: boolean | undefined;
+  /** The turn's tools, tool choice and structured payload as planned (`structured/plan.ts`). */
+  readonly plan: StructuredPlan;
+}
+
+/** The planned response format's strictness, where one rides natively. */
+function plannedStrict(plan: StructuredPlan): boolean | undefined {
+  return plan.responseFormat?.vehicle === "response-format" ? plan.responseFormat.strict : undefined;
 }
 
 interface TurnShape {
@@ -245,38 +255,36 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, wa
   if (reasoning.enabled && reasoning.effort !== undefined && !spellsEffort) {
     warnings.push({ code: "effort_dropped", message: "effort ignored: this endpoint's row spells no reasoning-effort field" });
   }
+  const strict = plannedStrict(turn.plan);
   const providerOptions: SharedV4ProviderOptions = {
     [key]: {
       ...sampling.body,
       ...budget,
       ...(knobs.verbosity !== undefined ? { textVerbosity: knobs.verbosity } : {}),
-      ...(connection.features.strictJson === "default-on" ? { strictJsonSchema: req.responseFormat?.strict ?? true } : {}),
-      ...(connection.features.strictJson === "declared-only" ? { strictJsonSchema: req.responseFormat?.strict ?? false } : {}),
+      ...(strict !== undefined ? { strictJsonSchema: strict } : {}),
     },
   };
   return {
     options: {
       ...standardSampling(sampling.v4, knobs.maxOutputTokens),
       ...(effort !== undefined ? { reasoning: effort } : {}),
-      ...(req.tools !== undefined ? { tools: functionTools(req.tools, { strictJson: connection.features.strictJson, warnings }) } : {}),
-      ...(req.toolChoice !== undefined ? { toolChoice: toolChoiceOf(req.toolChoice) } : {}),
-      ...(req.responseFormat !== undefined ? { responseFormat: jsonResponseFormat(req.responseFormat, req.responseFormat.schema) } : {}),
+      ...plannedOptions(turn.plan),
       providerOptions,
     },
-    extraBody: parallelToolCallsBody(req),
+    extraBody: parallelToolCallsBody(req, turn.plan),
   };
 }
 
 /** The preset asked for one tool call at a time on a tools request. Only `false` goes out: a stored `true` is the
  *  endpoint's own default, and some OpenAI-compatible layers refuse the field (Gemini answers
  *  `Unknown name "parallel_tool_calls"`). */
-function disablesParallelToolCalls(req: OpenAiCompatChatRequest): boolean {
-  return req.tools !== undefined && req.params.advanced?.parallelToolCalls === false;
+function disablesParallelToolCalls(req: OpenAiCompatChatRequest, plan: StructuredPlan): boolean {
+  return plan.tools !== undefined && req.params.advanced?.parallelToolCalls === false;
 }
 
 // The @ai-sdk/openai-compatible provider models no `parallel_tool_calls`, so the switch rides the raw body.
-function parallelToolCallsBody(req: OpenAiCompatChatRequest): Record<string, unknown> {
-  return disablesParallelToolCalls(req) ? { parallel_tool_calls: false } : {};
+function parallelToolCallsBody(req: OpenAiCompatChatRequest, plan: StructuredPlan): Record<string, unknown> {
+  return disablesParallelToolCalls(req, plan) ? { parallel_tool_calls: false } : {};
 }
 
 /** THE OPENROUTER PLUGIN UNION (audit C3), validated against the 3.0.0 dist's own shape
@@ -409,6 +417,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings
   const { connection } = req;
   const { knobs, sampling } = turn;
   const { routing, models } = openRouterExtras(connection, warnings);
+  const strict = plannedStrict(turn.plan);
   const search = webSearchOptions(connection.extras, warnings);
   const debug = debugOptions(connection.extras, warnings);
   const compression =
@@ -425,11 +434,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings
   return {
     options: {
       ...standardSampling(sampling.v4, knobs.maxOutputTokens),
-      ...(req.tools !== undefined ? { tools: functionTools(req.tools, { strictJson: connection.features.strictJson, warnings }) } : {}),
-      ...(req.toolChoice !== undefined ? { toolChoice: toolChoiceOf(req.toolChoice) } : {}),
-      ...(req.responseFormat !== undefined
-        ? { responseFormat: jsonResponseFormat(req.responseFormat, scrubWireSchema(req.responseFormat.schema, "hosted-common").schema) }
-        : {}),
+      ...plannedOptions(turn.plan),
       providerOptions,
     },
     extraBody: {
@@ -445,8 +450,8 @@ function openRouterShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings
       ...(debug !== undefined ? { debug } : {}),
     },
     openRouterChat: {
-      ...(disablesParallelToolCalls(req) ? { parallelToolCalls: false } : {}),
-      ...(req.responseFormat?.strict !== undefined ? { strict: req.responseFormat.strict } : {}),
+      ...(disablesParallelToolCalls(req, turn.plan) || turn.plan.parallelToolCalls === false ? { parallelToolCalls: false } : {}),
+      ...(strict !== undefined ? { strict } : {}),
     },
   };
 }
@@ -620,11 +625,23 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   }
   const cache = placeCache({ plan, req, cachePlan, generation, log, anthropicRoute });
   const prompt = withMessageOptions(plan.prompt, OPENROUTER_KEY, cache.patches);
+  // Planned once per turn, never per attempt: a retry or the mandatory-reasoning replay must not warn twice.
+  const structured = requireStructuredPlan(
+    connection,
+    { formats: req.responseFormat === undefined ? undefined : [req.responseFormat], tools: req.tools, toolChoice: req.toolChoice },
+    label,
+  );
+  warnings.push(...structured.downgrades);
   const classify = (err: unknown): ProviderError => {
     if (err instanceof ProviderError) {
       return err;
     }
-    const classified = providerErrorFromHttp(err, label, secrets);
+    const classified = withSchemaRejection(providerErrorFromHttp(err, label, secrets), err, {
+      log,
+      model: connection.model,
+      mode: structured.mode,
+      secrets,
+    });
     if (req.tools !== undefined && isJinjaToolsRefusal(err)) {
       return new ProviderError({
         kind: "invalid",
@@ -643,15 +660,13 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     ...(deps.addSpanEvent !== undefined ? { addSpanEvent: deps.addSpanEvent } : {}),
   };
 
-  // Resolved once per turn, not per attempt: a retry or the mandatory-reasoning replay must not warn twice.
-  const wireReq: OpenAiCompatChatRequest =
-    req.toolChoice === undefined ? req : { ...req, toolChoice: servableToolChoice(req.toolChoice, generation, warnings) };
   // A word-keyed logit bias resolves once per turn, from the cache where held (one tokenize call per new word).
   const sampling = await resolveWordBias(knobs.sampling, connection, deps.tokens, warnings);
   const turnKnobs: TurnKnobs = {
     knobs,
     sampling: wireSampling(sampling, connection.features, dialect, warnings),
     templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true),
+    plan: structured,
   };
 
   const run = (includeReasoning: boolean): Promise<StreamDrain> =>
@@ -659,8 +674,8 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
       (markCommitted) => {
         const shape =
           dialect === "openrouter"
-            ? openRouterShape(wireReq, turnKnobs, warnings, includeReasoning)
-            : openAiCompatibleShape(wireReq, turnKnobs, warnings, providerOptionsKey(connection.providerId));
+            ? openRouterShape(req, turnKnobs, warnings, includeReasoning)
+            : openAiCompatibleShape(req, turnKnobs, warnings, providerOptionsKey(connection.providerId));
         attempt.shape = shape;
         const call: ModelCall = {
           connection,
@@ -671,6 +686,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           plan,
           prefillAllowed: acceptsAssistantPrefill(generation) && req.tools === undefined,
           templateThinking: turnKnobs.templateThinking,
+          templatePreserveReasoning: knobs.carryReasoning === "off" ? false : undefined,
           foldSameRole: cachesByAnthropicMarkers(connection, generation),
           replyImages: knobs.replyImages,
           ...(generation.imageDetail === true ? { imageDetail: req.attachmentQuality?.imageDetail ?? DEFAULT_ATTACHMENT_QUALITY.imageDetail } : {}),
@@ -732,7 +748,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     warnings,
   });
   const canary = rateLimitCanaryEvent(attempt.rateLimit, finishedAt);
-  const turn: ChatResult = canary === null ? folded : { ...folded, events: [...folded.events, canary] };
+  const turn: ChatResult = structuredChatResult(canary === null ? folded : { ...folded, events: [...folded.events, canary] }, structured);
   if (attempt.rateLimit !== null) {
     log.emit(attempt.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...attempt.rateLimit });
   }

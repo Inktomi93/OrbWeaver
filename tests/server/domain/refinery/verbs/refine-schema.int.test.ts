@@ -31,7 +31,7 @@ test("refines the CURRENT draft: the prompt carries the schema + the instruction
   expect(call?.user).toContain('"overallScore"');
   expect(call?.user).toContain("The schema as it stands today");
   expect(call?.opts?.responseFormat?.name).toBe("refinery_schema_design");
-  expect(call?.opts?.responseFormat?.vehicle).toBe("response-format");
+  expect(Object.keys(call?.opts?.responseFormat ?? {}).toSorted()).toEqual(["name", "schema"]);
 });
 
 test("a schema carrying a construct OUTSIDE the leaf language still refines — the current schema is prompt material, not a typed input", async () => {

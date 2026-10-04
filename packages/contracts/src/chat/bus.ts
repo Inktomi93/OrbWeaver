@@ -108,10 +108,6 @@ export const PLAIN_CHAT_WARNING_CODES = [
   // ONE PER TURN, never one per slot or per speaker: the shared `TurnRetrievalWarningEpisode` collapses the
   // round-level recall, every per-speaker recall, and the databank gather into a single notice.
   "retrieval_index_unavailable",
-  // A structured-output `responseFormat` was requested but `capability.output.structured` isn't true → dropped;
-  // the turn proceeds free-text (D79 interactive-axis degrade, 04 §7; the emit site is the engine's structured
-  // request-builder gate, mirror of tools_unsupported).
-  "structured_output_unsupported",
   // A registered `PromptTransform` (automation `transform_draft` / a plugin) threw or blew its 250 ms deadline
   // → the draft passed through UNCHANGED (D53 — a broken transform never eats a turn).
   // Emitted from the registry's apply pass so a host sees a misbehaving rule/plugin without losing the reply.

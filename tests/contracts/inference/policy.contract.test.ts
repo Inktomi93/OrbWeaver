@@ -91,10 +91,10 @@ test("foldFeatures: connection > provider row > wire default, field-wise", () =>
   expect(folded.prefill).toBe("none");
   expect(folded.strictJson).toBe(vllm.features?.strictJson);
   expect(folded.sleep).toEqual(vllm.features?.sleep);
-  // A bare custom row gets the wire default plus its two knobs: detect the server behind it, and the template
-  // thinking switch.
+  // A bare custom row gets the wire default plus its three knobs: detect the server behind it, the template
+  // thinking switch, and the hosted grammar vocabulary (a detected server swaps in its own row).
   const custom = foldFeatures(provider("custom-openai").features, undefined);
-  expect(custom).toEqual({ ...WIRE_DEFAULT_FEATURES, detectServer: true, thinkingOff: "chat_template_kwargs" });
+  expect(custom).toEqual({ ...WIRE_DEFAULT_FEATURES, detectServer: true, thinkingOff: "chat_template_kwargs", structuredMode: "hosted-common" });
   const override: EndpointFeatures = { effort: "reasoning_effort" };
   expect(foldFeatures(undefined, override).effort).toBe("reasoning_effort");
 });

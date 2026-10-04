@@ -10,11 +10,12 @@ import { AGENT_SDK_CONCURRENCY_MAX } from "@orb/contracts/settings";
 import { ProviderError } from "../../contract/errors.ts";
 import type { StructuredRequest, SummarizeRequest, SummarizeRequestItem } from "../../contract/roles.ts";
 import type { AnthImageBlock } from "../../contract/runtime.ts";
+import type { PlannedResponseFormat } from "../../structured/plan.ts";
+import { normalizeStructuredValue } from "../../structured/reply.ts";
 import { toAnthImageBlock } from "../kit/anth-image-block.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import type { AgentSdkLog } from "./log.ts";
-import { sanitizeAnthropicOutputSchema } from "./output-schema.ts";
-import { linkAbort } from "./runner.ts";
+import { linkAbort, sdkOutputFormatOf } from "./runner.ts";
 import { disciplineOptions, observabilityOptions } from "./translate.ts";
 import type { AgentSdkDeps } from "./types.ts";
 import { assertInitFrameShape } from "./verify.ts";
@@ -53,7 +54,7 @@ interface SummarizeTurnResult {
   readonly terminalReason: string | null;
 }
 
-function serializeStructured(structuredOutput: unknown, model: string): string {
+function serializeStructured(structuredOutput: unknown, planned: PlannedResponseFormat, model: string): string {
   if (structuredOutput === undefined) {
     throw new ProviderError({
       kind: "invalid",
@@ -62,12 +63,12 @@ function serializeStructured(structuredOutput: unknown, model: string): string {
       model,
     });
   }
-  return JSON.stringify(structuredOutput).trim();
+  return JSON.stringify(normalizeStructuredValue(structuredOutput, planned.reshapedPaths)).trim();
 }
 
-function toItem(turn: SummarizeTurnResult, hadSchema: boolean, model: string): SummarizeResultItem {
+function toItem(turn: SummarizeTurnResult, planned: PlannedResponseFormat | undefined, model: string): SummarizeResultItem {
   return {
-    text: hadSchema ? serializeStructured(turn.structuredOutput, model) : turn.reply.trim(),
+    text: planned !== undefined ? serializeStructured(turn.structuredOutput, planned, model) : turn.reply.trim(),
     usage: { tokensIn: turn.tokensIn, tokensOut: turn.tokensOut, costUsd: turn.costUsd },
   };
 }
@@ -111,7 +112,14 @@ async function reduceSummarizeStream(stream: AsyncIterable<SDKMessage>): Promise
   return { ...acc };
 }
 
-async function runSummarizeItem(req: SubBatchRequest, item: SummarizeRequestItem, deps: AgentSdkDeps, log: AgentSdkLog): Promise<SummarizeTurnResult> {
+// One batch's shared run context: the planned output format rides every item.
+interface SummarizeRun {
+  readonly outputFormat: Pick<Options, "outputFormat">;
+  readonly deps: AgentSdkDeps;
+  readonly log: AgentSdkLog;
+}
+
+async function runSummarizeItem(req: SubBatchRequest, item: SummarizeRequestItem, { outputFormat, deps, log }: SummarizeRun): Promise<SummarizeTurnResult> {
   const { connection } = req;
   const abortController = linkAbort(req.signal);
   let cancelWatchdog: (() => void) | undefined;
@@ -128,11 +136,6 @@ async function runSummarizeItem(req: SubBatchRequest, item: SummarizeRequestItem
       );
     }, SUMMARIZE_ITEM_TIMEOUT_MS);
   });
-  const responseFormat = "responseFormat" in req ? req.responseFormat : undefined;
-  const outputFormat: Pick<Options, "outputFormat"> =
-    responseFormat !== undefined
-      ? { outputFormat: { type: "json_schema", schema: sanitizeAnthropicOutputSchema(responseFormat.schema, connection.model) } }
-      : {};
   const prompt = await buildSummarizePrompt(item, deps.normalizeImageBytes);
   const stream = deps.query({
     prompt,
@@ -169,7 +172,9 @@ async function runSummarizeItem(req: SubBatchRequest, item: SummarizeRequestItem
 export async function summarize(req: SubBatchRequest, deps: AgentSdkDeps, log: AgentSdkLog): Promise<SummarizeResult> {
   const { connection } = req;
   const startedAt = deps.now();
-  const hadSchema = "responseFormat" in req;
+  // Planned once per batch, before any spawn: a schema that does not fit is refused without spending a turn.
+  const structured = sdkOutputFormatOf(connection, "responseFormat" in req ? req.responseFormat : undefined, `agent-sdk structured (${connection.model})`);
+  const run: SummarizeRun = { outputFormat: structured.options, deps, log };
   const items: (SummarizeResultItem | undefined)[] = new Array(req.inputs.length).fill(undefined);
   let ok = 0;
   let fail = 0;
@@ -182,7 +187,7 @@ export async function summarize(req: SubBatchRequest, deps: AgentSdkDeps, log: A
         break;
       }
       try {
-        items[i] = toItem(await runSummarizeItem(req, input, deps, log), hadSchema, connection.model);
+        items[i] = toItem(await runSummarizeItem(req, input, run), structured.planned, connection.model);
         ok += 1;
       } catch (error) {
         fail += 1;

@@ -1,33 +1,24 @@
 // The `summarize` + `structured` tasks on the openai-compat wire — the shared V4 batch runner with THIS wire's
 // option slice. Fan-out is `features.concurrency.summarize` (the openrouter row ships 1 — its per-key rate
-// limits make a parallel fan-out trip 429s).
-//
-// THE STRUCTURED VEHICLE (D79, live-probed 2026-08-02 / 2026-08-09, re-corrected 2026-08-14 — the receipts
-// are in the tree's `backends/openrouter/index.ts` history): `response-format` = `response_format.json_schema`
-// in the ALL-REQUIRED shape + `strict:true` (servable on the anthropic-, openai- and google-family endpoints
-// once the schema rides `strict-compatible`); `forced-tool` = the schema as ONE forced tool call + no parallel
-// calls (servable everywhere, compiles no grammar; `auto` over the tool on a model whose capability refuses forced
-// tool use). The CALLER decided which (`resolveVehicle` at the role
-// seam); an `auto` reaching here means nobody could and the forced tool is the servable-everywhere answer. On
-// an endpoint row `features.strictJson` says whether `strict` rides at all.
+// limits make a parallel fan-out trip 429s). The structured payload rides the plan (`structured/plan.ts`): this
+// file spells it and nothing else.
 
 import type { JSONObject, LanguageModelV4CallOptions, LanguageModelV4GenerateResult } from "@ai-sdk/provider";
-import type { GenerationCapability } from "@orb/contracts/inference";
-import { scrubWireSchema } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { WireTool } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { ResolvedReasoning, ResolvedWarning } from "../../contract/resolve.ts";
 import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveSideGenReasoning, sideGenOutputCap } from "../../funnel/resolve-chat.ts";
+import type { StructuredPlan } from "../../structured/plan.ts";
+import { requireStructuredPlan } from "../../structured/plan.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import type { BatchRequest } from "../v4/batch.ts";
-import { batchRequestOf, runV4Batch, STRUCTURED_TOOL_DESCRIPTION } from "../v4/batch.ts";
-import { functionTools, jsonResponseFormat, servableToolChoice, standardSampling, toolChoiceOf, wireEffortOf } from "../v4/options.ts";
+import { batchRequestOf, runV4Batch } from "../v4/batch.ts";
+import { plannedOptions, standardSampling, wireEffortOf } from "../v4/options.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
-import { languageModelFor } from "./model.ts";
+import { languageModelFor, providerOptionsKey } from "./model.ts";
 import { wireSampling } from "./sampling.ts";
 
 const OPENROUTER_KEY = "openrouter";
@@ -46,40 +37,25 @@ export interface BatchDeps {
 }
 
 interface StructuredShape {
+  readonly plan: StructuredPlan | undefined;
   readonly options: Partial<LanguageModelV4CallOptions>;
   readonly openRouterChat: ModelCall["openRouterChat"];
 }
 
-function vehicleOf(format: ResponseFormat): "response-format" | "forced-tool" {
-  return format.vehicle === "response-format" ? "response-format" : "forced-tool";
-}
-
-function structuredWireTool(format: ResponseFormat, hosted: boolean): WireTool {
-  return {
-    name: format.name,
-    description: format.description ?? STRUCTURED_TOOL_DESCRIPTION,
-    parameters: hosted ? scrubWireSchema(format.schema, "hosted-common").schema : format.schema,
-  };
-}
-
-/** The structured vehicle's option slice: the JSON response format (strict per the row / the measured cell)
- *  or the forced tool with parallel calls off — sent as `auto` over that one tool where the capability says the
- *  model rejects forced tool use. */
-function structuredOptions(req: BatchRequest, format: ResponseFormat, generation: GenerationCapability, warnings: ResolvedWarning[]): StructuredShape {
+/** The plan's spelling on this wire: the planned options, the response format's strictness under the row's
+ *  provider-options key (the SDK would otherwise write its own `strict: true`), and on OpenRouter the model-level
+ *  `strict` or the one-call switch. */
+function structuredOptions(req: BatchRequest, format: ResponseFormat, label: string, warnings: ResolvedWarning[]): StructuredShape {
   const { connection } = req;
+  const plan = requireStructuredPlan(connection, { formats: [format] }, label);
+  warnings.push(...plan.downgrades);
+  const planned = plan.responseFormat;
   const hosted = connection.provider.dialect === "openrouter";
-  if (vehicleOf(format) === "forced-tool" || connection.features.strictJson === "never") {
-    const tool = structuredWireTool(format, hosted);
-    return {
-      options: { tools: functionTools([tool]), toolChoice: toolChoiceOf(servableToolChoice({ mode: "tool", name: tool.name }, generation, warnings)) },
-      openRouterChat: hosted ? { parallelToolCalls: false } : undefined,
-    };
-  }
-  // The measured hosted cell: the ALL-REQUIRED shape + strict. An endpoint row spells strict per its feature.
-  const schema = hosted ? scrubWireSchema(format.schema, "strict-compatible").schema : format.schema;
-  const strict = hosted || connection.features.strictJson === "default-on" ? (format.strict ?? true) : (format.strict ?? false);
-  const providerOptions: Record<string, JSONObject> = hosted ? {} : { [connection.providerId]: { strictJsonSchema: strict } };
-  return { options: { responseFormat: jsonResponseFormat(format, schema), providerOptions }, openRouterChat: hosted ? { strict } : undefined };
+  const native = planned?.vehicle === "response-format";
+  const providerOptions: Record<string, JSONObject> =
+    native && !hosted ? { [providerOptionsKey(connection.providerId)]: { strictJsonSchema: planned.strict } } : {};
+  const openRouterChat: ModelCall["openRouterChat"] = native ? { strict: planned.strict } : { parallelToolCalls: false };
+  return { plan, options: { ...plannedOptions(plan), providerOptions }, openRouterChat: hosted ? openRouterChat : undefined };
 }
 
 interface ReasoningSlice {
@@ -149,7 +125,9 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
   const { generation } = connection.capability;
   const warnings: ResolvedWarning[] = [];
   const structured: StructuredShape =
-    req.responseFormat !== undefined ? structuredOptions(req, req.responseFormat, generation, warnings) : { options: {}, openRouterChat: undefined };
+    req.responseFormat !== undefined
+      ? structuredOptions(req, req.responseFormat, label, warnings)
+      : { plan: undefined, options: {}, openRouterChat: undefined };
   const sampling = wireSampling(req.sampling, connection.features, connection.provider.dialect ?? "openai-compatible", warnings);
   const sideGen = resolveSideGenReasoning(generation, connection.wire, warnings, req.sampling);
   const send = (reasoning: ResolvedReasoning, maxTokens: number | undefined, sent: ResolvedWarning[]): Promise<SummarizeResult> => {
@@ -163,6 +141,7 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
       prefillAllowed: false,
       // The template switch follows the resolved side-gen reasoning: off when it does not run, on when it does.
       templateThinking: reasoning.enabled,
+      templatePreserveReasoning: undefined,
       foldSameRole: false,
       replyImages: false,
       warnings: [],
@@ -186,6 +165,7 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
       normalize: deps.normalize,
       refusalOf,
       warnings: sent,
+      plan: structured.plan,
     });
   };
   const first = send(sideGen.reasoning, sideGen.maxTokens, warnings);

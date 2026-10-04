@@ -247,3 +247,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D298 | [A picture made in a room runs as the room host](0298-room-images-run-as-the-host.md) | active |
 | D299 | [Each model role picks its preset](0299-each-model-role-picks-its-preset.md) | active |
 | D300 | [Rooms attribute each reply honestly, and room pictures belong to the host](0300-room-attribution-and-host-owned-pictures.md) | active |
+| D301 | [Structured output has one plan per request](0301-structured-output-plan-one-home.md) | active |

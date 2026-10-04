@@ -1,25 +1,121 @@
-// A structured-output request's weight against a grammar's stated ceilings (`WireSubset.limits`), counted on what
-// actually reaches the wire: each schema AFTER `scrubWireSchema` for the mode, summed across the request, because
-// the ceilings are per request and the modes move weight between them (`strict-compatible` turns every optional
-// into a nullable union; the others keep it optional).
+// A structured-output request checked against a grammar's stated ceilings, counted on what reaches the wire: each
+// schema after `scrubWireSchema`, summed across the request, because the ceilings are per request and the reshape
+// moves weight between them (`strict-compatible` turns every optional into a nullable union).
 
-import type { WireSchemaMode } from "./wire-subset.ts";
-import { scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from "./wire-subset.ts";
+import type { StructuredVehicle, WireSchemaLimits, WireSchemaMode } from "./wire-subset.ts";
+import { scrubWireSchema, WIRE_SUBSETS } from "./wire-subset.ts";
 
-/** A JSON Schema's weight as a structured-output grammar counts it, per PARAMETER (an object property): those
- *  left out of their object's `required`, and those typed by a union (`anyOf`/`oneOf` or a `type` array). */
-export function structuredSchemaComplexity(schema: unknown): { readonly optionalProps: number; readonly unionProps: number } {
-  const weight = { optionalProps: 0, unionProps: 0 };
-  const visit = (node: unknown): void => {
-    if (Array.isArray(node)) {
-      node.forEach(visit);
-    } else if (isRecord(node)) {
-      countProperties(node, weight);
-      Object.values(node).forEach(visit);
-    }
-  };
-  visit(schema);
-  return weight;
+/** A grammar ceiling's kind, in the order {@link countWireSchemas} reports them. */
+export const WIRE_SCHEMA_CEILINGS = ["optional-props", "union-props", "strict-tools", "object-props", "depth", "enum-values", "name-chars"] as const;
+export type WireSchemaCeiling = (typeof WIRE_SCHEMA_CEILINGS)[number];
+
+/** Every way a structured request can fail its plan, as data. */
+export const WIRE_SCHEMA_VIOLATION_KINDS = [
+  ...WIRE_SCHEMA_CEILINGS,
+  "refused-keyword",
+  "root-not-object",
+  "ambiguous-null",
+  "no-vehicle",
+  "vendor-refused",
+] as const;
+export type WireSchemaViolationKind = (typeof WIRE_SCHEMA_VIOLATION_KINDS)[number];
+
+/** Where in a plan a violation came from: the candidate format's index and the vehicle it was tried on. */
+interface ViolationOrigin {
+  readonly mode: WireSchemaMode;
+  readonly shape?: number | undefined;
+  readonly vehicle?: StructuredVehicle | undefined;
+}
+
+interface CeilingViolation extends ViolationOrigin {
+  readonly kind: WireSchemaCeiling;
+  readonly count: number;
+  readonly limit: number;
+}
+
+interface RefusedKeywordViolation extends ViolationOrigin {
+  readonly kind: "refused-keyword";
+  readonly keyword: string;
+  readonly path: string;
+}
+
+interface PathViolation extends ViolationOrigin {
+  readonly kind: "root-not-object" | "ambiguous-null";
+  readonly path: string;
+}
+
+interface NoVehicleViolation extends ViolationOrigin {
+  readonly kind: "no-vehicle";
+}
+
+/** A vendor refused the schema without naming a count: `rule` is the matched refusal's name, never its body. */
+interface VendorRefusedViolation extends ViolationOrigin {
+  readonly kind: "vendor-refused";
+  readonly rule: string;
+}
+
+/** One reason a structured request cannot go out as asked. */
+export type WireSchemaViolation = CeilingViolation | RefusedKeywordViolation | PathViolation | NoVehicleViolation | VendorRefusedViolation;
+
+/** One violation as an operator-facing phrase. */
+export function describeWireSchemaViolation(violation: WireSchemaViolation): string {
+  switch (violation.kind) {
+    case "refused-keyword":
+      return `${violation.keyword} at ${violation.path === "" ? "the root" : violation.path} is not expressible under ${violation.mode}`;
+    case "root-not-object":
+      return `the root is not an object, which ${violation.mode} requires`;
+    case "ambiguous-null":
+      return `${violation.path} is both optional and nullable, so absent and null would collide under ${violation.mode}`;
+    case "no-vehicle":
+      return "this model takes neither structured output nor tool calls";
+    case "vendor-refused":
+      return `the provider refused the schema (${violation.rule})`;
+    case "optional-props":
+    case "union-props":
+    case "strict-tools":
+    case "object-props":
+    case "depth":
+    case "enum-values":
+    case "name-chars":
+      return `${violation.kind} ${violation.count} over the limit of ${violation.limit} (${violation.mode})`;
+  }
+}
+
+export interface WireSchemaCheck {
+  readonly fits: boolean;
+  readonly violations: readonly WireSchemaViolation[];
+  /** Each schema as the mode puts it on the wire, in input order. */
+  readonly wire: readonly Record<string, unknown>[];
+}
+
+/** The two facts a schema check reads off a connection: its grammar vocabulary and the ceilings that bind it. The
+ *  planner in `@orb/inference` derives the full target from a resolved connection. */
+export interface StructuredSchemaTarget {
+  readonly mode: WireSchemaMode;
+  readonly limits: WireSchemaLimits | undefined;
+}
+
+/** The target a check uses with no connection in hand: the hosted vocabulary under every documented vendor
+ *  ceiling, so a schema that fits it fits any hosted route. */
+export const HOSTED_INTERSECTION_TARGET: StructuredSchemaTarget = {
+  mode: "hosted-common",
+  limits: { ...WIRE_SUBSETS["strict-compatible"].limits, ...WIRE_SUBSETS["anthropic-format"].limits },
+};
+
+/** The ceilings that bind a model: the named mode's documented defaults with the capability's own overrides merged
+ *  over them field by field. `undefined` when neither states one. */
+export function effectiveStructuredLimits(limitsFrom: WireSchemaMode | undefined, overrides: WireSchemaLimits | undefined): WireSchemaLimits | undefined {
+  const base = limitsFrom === undefined ? undefined : WIRE_SUBSETS[limitsFrom].limits;
+  return base === undefined && overrides === undefined ? undefined : { ...base, ...overrides };
+}
+
+interface SchemaWeight {
+  optionalProps: number;
+  unionProps: number;
+  objectProps: number;
+  depth: number;
+  enumValues: number;
+  nameChars: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -30,61 +126,147 @@ function isUnion(param: Record<string, unknown>): boolean {
   return Array.isArray(param["anyOf"]) || Array.isArray(param["oneOf"]) || Array.isArray(param["type"]);
 }
 
-/** Count ONE object node's own parameters into `weight` (its nested nodes are the walk's job). */
-function countProperties(node: Record<string, unknown>, weight: { optionalProps: number; unionProps: number }): void {
+const DEF_KEYS = ["$defs", "definitions"] as const;
+const NAME_MAP_KEYS: ReadonlySet<string> = new Set<string>(["properties", ...DEF_KEYS]);
+
+// One node's own weight; its children are the walk's.
+function weighNode(node: Record<string, unknown>, weight: SchemaWeight): void {
   const properties = node["properties"];
-  if (!isRecord(properties)) {
-    return;
+  if (isRecord(properties)) {
+    const required = new Set(Array.isArray(node["required"]) ? node["required"] : []);
+    for (const [key, param] of Object.entries(properties)) {
+      weight.objectProps += 1;
+      weight.nameChars += key.length;
+      weight.optionalProps += required.has(key) ? 0 : 1;
+      weight.unionProps += isRecord(param) && isUnion(param) ? 1 : 0;
+    }
   }
-  const required = new Set(Array.isArray(node["required"]) ? node["required"] : []);
-  for (const [key, param] of Object.entries(properties)) {
-    weight.optionalProps += required.has(key) ? 0 : 1;
-    weight.unionProps += isRecord(param) && isUnion(param) ? 1 : 0;
+  weighNames(node, weight);
+}
+
+// The grammar-name weight a node carries beside its properties: enum members, a const, and definition names.
+function weighNames(node: Record<string, unknown>, weight: SchemaWeight): void {
+  const values = node["enum"];
+  if (Array.isArray(values)) {
+    weight.enumValues += values.length;
+    weight.nameChars += values.reduce<number>((sum, value) => sum + String(value).length, 0);
+  }
+  if ("const" in node) {
+    weight.nameChars += String(node["const"]).length;
+  }
+  for (const key of DEF_KEYS) {
+    const defs = node[key];
+    if (isRecord(defs)) {
+      weight.nameChars += Object.keys(defs).reduce((sum, name) => sum + name.length, 0);
+    }
   }
 }
 
-/** One ceiling a request breaks on one wire mode, as data. */
-export interface WireSchemaViolation {
-  readonly kind: "optional-props" | "union-props";
-  readonly mode: WireSchemaMode;
-  readonly count: number;
-  readonly limit: number;
+/** A JSON Schema's weight as a structured-output grammar counts it. `depth` is object nesting, the root object 1. */
+function weighSchema(schema: unknown): SchemaWeight {
+  const weight: SchemaWeight = { optionalProps: 0, unionProps: 0, objectProps: 0, depth: 0, enumValues: 0, nameChars: 0 };
+  const visit = (node: unknown, depth: number): void => {
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        visit(item, depth);
+      }
+      return;
+    }
+    if (!isRecord(node)) {
+      return;
+    }
+    weighNode(node, weight);
+    const here = isRecord(node["properties"]) ? depth + 1 : depth;
+    weight.depth = Math.max(weight.depth, here);
+    for (const child of childSchemas(node)) {
+      visit(child, here);
+    }
+  };
+  visit(schema, 0);
+  return weight;
 }
 
-export interface WireSchemaCheck {
-  readonly fits: boolean;
-  readonly violations: readonly WireSchemaViolation[];
+// A node's children to walk. A name map's keys are field names: its members are schemas, the map itself is not one.
+function childSchemas(node: Record<string, unknown>): unknown[] {
+  return Object.entries(node).flatMap(([key, value]) => (NAME_MAP_KEYS.has(key) && isRecord(value) ? Object.values(value) : [value]));
 }
 
-/** Does a request's strict schemas, scrubbed for `mode`, fit the ceilings of `limitsFrom`'s subset (default: the
- *  mode's own)? A subset that states no limits fits everything. `limitsFrom` exists because a vendor's grammar
- *  enforces its table whichever wire class carried the request (OpenRouter scrubs `strict-compatible` and then
- *  forwards to Anthropic). */
-export function checkWireSchema(schemas: readonly Record<string, unknown>[], mode: WireSchemaMode, limitsFrom: WireSchemaMode = mode): WireSchemaCheck {
-  const limits = WIRE_SUBSETS[limitsFrom].limits;
-  let optionalProps = 0;
-  let unionProps = 0;
-  for (const schema of schemas) {
-    const weight = structuredSchemaComplexity(scrubWireSchema(schema, mode).schema);
-    optionalProps += weight.optionalProps;
-    unionProps += weight.unionProps;
+/** A JSON Schema's optional and union-typed property counts, the two ceilings Anthropic reports in its refusals. */
+export function structuredSchemaComplexity(schema: unknown): { readonly optionalProps: number; readonly unionProps: number } {
+  const { optionalProps, unionProps } = weighSchema(schema);
+  return { optionalProps, unionProps };
+}
+
+/** Each ceiling's count over a request's summed weight, keyed by the ceiling kind. */
+const CEILING_READS: Readonly<
+  Record<WireSchemaCeiling, { readonly limit: keyof WireSchemaLimits; readonly count: (w: SchemaWeight, tools: number) => number }>
+> = {
+  "optional-props": { limit: "maxOptionalProps", count: (w) => w.optionalProps },
+  "union-props": { limit: "maxUnionProps", count: (w) => w.unionProps },
+  "strict-tools": { limit: "maxStrictTools", count: (_w, tools) => tools },
+  "object-props": { limit: "maxObjectProps", count: (w) => w.objectProps },
+  depth: { limit: "maxDepth", count: (w) => w.depth },
+  "enum-values": { limit: "maxEnumValues", count: (w) => w.enumValues },
+  "name-chars": { limit: "maxNameChars", count: (w) => w.nameChars },
+};
+
+/** Count already-scrubbed schemas against `limits`: every grammar-compiled schema of one request (the response
+ *  schema and each strict tool's parameters), plus the number of strict tools. Depth is the deepest schema's. */
+export function countWireSchemas(
+  scrubbed: readonly Record<string, unknown>[],
+  args: { readonly mode: WireSchemaMode; readonly limits: WireSchemaLimits | undefined; readonly strictTools: number },
+): readonly WireSchemaViolation[] {
+  if (args.limits === undefined) {
+    return [];
+  }
+  const total: SchemaWeight = { optionalProps: 0, unionProps: 0, objectProps: 0, depth: 0, enumValues: 0, nameChars: 0 };
+  for (const schema of scrubbed) {
+    const weight = weighSchema(schema);
+    total.optionalProps += weight.optionalProps;
+    total.unionProps += weight.unionProps;
+    total.objectProps += weight.objectProps;
+    total.enumValues += weight.enumValues;
+    total.nameChars += weight.nameChars;
+    total.depth = Math.max(total.depth, weight.depth);
   }
   const violations: WireSchemaViolation[] = [];
-  if (limits !== undefined && optionalProps > limits.maxOptionalProps) {
-    violations.push({ kind: "optional-props", mode, count: optionalProps, limit: limits.maxOptionalProps });
+  for (const kind of WIRE_SCHEMA_CEILINGS) {
+    const read = CEILING_READS[kind];
+    const limit = args.limits[read.limit];
+    const count = read.count(total, args.strictTools);
+    if (limit !== undefined && count > limit) {
+      violations.push({ kind, mode: args.mode, count, limit });
+    }
   }
-  if (limits !== undefined && unionProps > limits.maxUnionProps) {
-    violations.push({ kind: "union-props", mode, count: unionProps, limit: limits.maxUnionProps });
-  }
-  return { fits: violations.length === 0, violations };
+  return violations;
 }
 
-/** {@link checkWireSchema} on EVERY wire mode: for a caller that picks a vehicle before the backend picks the mode,
- *  so the request must fit whichever one it rides. `limitsFrom` undefined ⇒ no stated ceiling ⇒ fits. */
-export function fitsEveryWire(schemas: readonly Record<string, unknown>[], limitsFrom: WireSchemaMode | undefined): WireSchemaCheck {
-  if (limitsFrom === undefined) {
-    return { fits: true, violations: [] };
-  }
-  const violations = WIRE_SCHEMA_MODES.flatMap((mode) => checkWireSchema(schemas, mode, limitsFrom).violations);
-  return { fits: violations.length === 0, violations };
+/** What a scrub refused, as violations: each refused construct, an ambiguous optional-and-nullable property, and a
+ *  root that is not an object under a reshaping mode. */
+export function scrubViolations(scrub: ReturnType<typeof scrubWireSchema>, mode: WireSchemaMode, needsObjectRoot: boolean): readonly WireSchemaViolation[] {
+  return [
+    ...scrub.refused.map((refusal): WireSchemaViolation => ({ kind: "refused-keyword", mode, keyword: refusal.keyword, path: refusal.path })),
+    ...scrub.ambiguousPaths.map((path): WireSchemaViolation => ({ kind: "ambiguous-null", mode, path })),
+    ...(needsObjectRoot && scrub.schema["type"] !== "object" ? [{ kind: "root-not-object", mode, path: "" } as const] : []),
+  ];
+}
+
+/** Does one request's grammar-compiled schemas, scrubbed for `mode`, carry only what the mode expresses and fit
+ *  `limits`? The planner's check, and the one a preflight runs over a connection's target. */
+export function checkWireSchema(
+  schemas: readonly Record<string, unknown>[],
+  mode: WireSchemaMode,
+  limits: WireSchemaLimits | undefined,
+  strictTools = 0,
+): WireSchemaCheck {
+  const reshapes = WIRE_SUBSETS[mode].requireAllAsNullable;
+  const scrubs = schemas.map((schema) => scrubWireSchema(schema, mode));
+  const violations = [
+    ...scrubs.flatMap((scrub) => scrubViolations(scrub, mode, reshapes)),
+    ...countWireSchemas(
+      scrubs.map((scrub) => scrub.schema),
+      { mode, limits, strictTools },
+    ),
+  ];
+  return { fits: violations.length === 0, violations, wire: scrubs.map((scrub) => scrub.schema) };
 }

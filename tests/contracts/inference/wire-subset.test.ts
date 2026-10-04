@@ -4,7 +4,7 @@
 // silently disarm the local enforcing wire, and no strip at all is what shipped the banned keywords.
 
 import type { WireSchemaMode } from "@orb/contracts/inference";
-import { dropNullValues, scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from "@orb/contracts/inference";
+import { scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from "@orb/contracts/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
@@ -69,7 +69,7 @@ test("guided-decoding KEEPS the bounds (xgrammar compiles them — the populate 
 test("anthropic-format REPORTS oneOf as refused (never strips it — removing it would change the meaning)", () => {
   const projected = projectJsonSchema(z.object({ op: z.discriminatedUnion("k", [z.object({ k: z.literal("a") }), z.object({ k: z.literal("b") })]) }));
   const { schema, refused } = scrubWireSchema(projected, "anthropic-format");
-  expect(refused).toEqual(["oneOf"]);
+  expect(refused).toEqual([{ keyword: "oneOf", path: "op" }]);
   expect(collectKeys(schema).has("oneOf")).toBe(true); // reported, not silently rewritten
   // The other two wires carry `oneOf` fine (the forced-tool vehicle compiles no grammar; xgrammar accepts it).
   expect(scrubWireSchema(projected, "hosted-common").refused).toEqual([]);
@@ -273,22 +273,6 @@ test("the BELT is untouched: the wire loses the keyword, the caller's zod still 
   expect(belt.safeParse({ rating: 10 }).success).toBe(true);
 });
 
-test("dropNullValues: a null-valued key lands IDENTICALLY to an omitted one (the `null ≡ absent` half of strict)", () => {
-  // The two payloads a strict wire vs an omit wire produce for the SAME extraction.
-  const strictShaped = {
-    party: [{ targetRef: "player", hpDelta: -2, status: null, addCondition: null, trackerDeltas: [{ key: "grit", delta: 1 }] }],
-    scene: { location: "the ford", weather: null },
-    quests: null,
-  };
-  const omitShaped = {
-    party: [{ targetRef: "player", hpDelta: -2, trackerDeltas: [{ key: "grit", delta: 1 }] }],
-    scene: { location: "the ford" },
-  };
-  expect(dropNullValues(strictShaped)).toEqual(omitShaped);
-  // An ARRAY slot is positional — a null element is NOT erased (that would renumber the rest).
-  expect(dropNullValues({ xs: [1, null, 2] })).toEqual({ xs: [1, null, 2] });
-});
-
 // ── the #40 coupling invariant (was prose-only: `WireSubset.clampMinItems`'s own doc comment) ──────────
 // A mode that clamps `minItems` instead of stripping it MUST leave the keyword out of its `strip` set —
 // `scrubKeywords` deletes a stripped keyword before the clamp step ever runs (it `continue`s past it), so
@@ -314,4 +298,97 @@ test("the CLOSED-OBJECT pin is per-mode: on where the wire requires it, and byte
   // The hosted/Anthropic wires get the tree EXACTLY as projected (the projector already pinned what it built).
   expect(armOf("hosted-common")?.["additionalProperties"]).toBeUndefined();
   expect(armOf("anthropic-format")?.["additionalProperties"]).toBeUndefined();
+});
+
+// ── the gbnf and gemini-schema modes, and what a reshape records ─────────────────────────────────────
+
+test("gbnf KEEPS integer bounds and strips them from a `number` node into the note (llama.cpp ranges are integer-only)", () => {
+  const schema = { type: "object", required: ["n", "x"], properties: { n: { type: "integer", minimum: 1, maximum: 10 }, x: { type: "number", minimum: 0.5 } } };
+  const props = scrubWireSchema(schema, "gbnf").schema["properties"] as Record<string, Record<string, unknown>>;
+  expect(props["n"]).toMatchObject({ type: "integer", minimum: 1, maximum: 10 });
+  expect(props["x"]).toEqual({ type: "number", description: "[Constraints: minimum: 0.5]" });
+});
+
+test("gbnf REFUSES what llama.cpp's converter skips silently: prefixItems, an unanchored pattern, a union beside properties", () => {
+  const refusedOf = (schema: Record<string, unknown>): readonly string[] => scrubWireSchema(schema, "gbnf").refused.map((refusal) => refusal.keyword);
+  expect(refusedOf({ type: "object", properties: { t: { type: "array", prefixItems: [{ type: "string" }] } } })).toEqual(["prefixItems"]);
+  expect(refusedOf({ type: "object", properties: { id: { type: "string", pattern: "[a-z]+" } } })).toEqual(["unanchored pattern"]);
+  expect(refusedOf({ type: "object", properties: { id: { type: "string", pattern: "^[a-z]+$" } } })).toEqual([]);
+  expect(refusedOf({ type: "object", properties: { a: { type: "string" } }, anyOf: [{ required: ["a"] }] })).toEqual(["anyOf beside properties"]);
+});
+
+test("gemini-schema moves minLength and pattern into the note, keeps numeric bounds, and refuses oneOf and allOf", () => {
+  const schema = {
+    type: "object",
+    properties: { name: { type: "string", minLength: 2, pattern: "^[A-Z]" }, n: { type: "integer", minimum: 1 }, pick: { oneOf: [{ type: "string" }] } },
+  };
+  const scrub = scrubWireSchema(schema, "gemini-schema");
+  const props = scrub.schema["properties"] as Record<string, Record<string, unknown>>;
+  expect(props["name"]).toEqual({ type: "string", description: "[Constraints: minLength: 2, pattern: ^[A-Z]]" });
+  expect(props["n"]).toEqual({ type: "integer", minimum: 1 });
+  expect(scrub.refused).toEqual([{ keyword: "oneOf", path: "pick" }]);
+});
+
+test("anthropic-format refuses allOf over a $ref and an external $ref, and names where", () => {
+  const scrub = scrubWireSchema(
+    { type: "object", properties: { a: { allOf: [{ $ref: "#/$defs/A" }] }, b: { $ref: "https://example.com/b.json" } }, $defs: { A: { type: "string" } } },
+    "anthropic-format",
+  );
+  expect(scrub.refused).toEqual([
+    { keyword: "allOf with $ref", path: "a" },
+    { keyword: "external $ref", path: "b" },
+  ]);
+});
+
+test("strict-compatible records exactly the reshaped paths, with [*] for an array of objects", () => {
+  const schema = {
+    type: "object",
+    required: ["changes"],
+    properties: {
+      note: { type: "string" },
+      changes: { type: "array", items: { type: "object", required: ["field"], properties: { field: { type: "string" }, value: { type: "string" } } } },
+    },
+  };
+  const scrub = scrubWireSchema(schema, "strict-compatible");
+  expect(scrub.reshapedPaths).toEqual(["changes[*].value", "note"]);
+  expect(scrub.ambiguousPaths).toEqual([]);
+  // A mode that does not reshape records nothing.
+  expect(scrubWireSchema(schema, "hosted-common").reshapedPaths).toEqual([]);
+});
+
+test("an optional AND nullable property is ambiguous under the reshape; a required nullable one is the author's null", () => {
+  const schema = {
+    type: "object",
+    required: ["kept"],
+    properties: { kept: { anyOf: [{ type: "string" }, { type: "null" }] }, maybe: { type: ["string", "null"] } },
+  };
+  const scrub = scrubWireSchema(schema, "strict-compatible");
+  expect(scrub.ambiguousPaths).toEqual(["maybe"]);
+  expect(scrub.reshapedPaths).toEqual([]);
+});
+
+test("a reshaped path two union arms share with an author-declared nullable is ambiguous too", () => {
+  const schema = {
+    type: "object",
+    required: ["entry"],
+    properties: {
+      entry: {
+        anyOf: [
+          { type: "object", required: [], properties: { value: { type: "string" } } },
+          { type: "object", required: ["value"], properties: { value: { anyOf: [{ type: "string" }, { type: "null" }] } } },
+        ],
+      },
+    },
+  };
+  expect(scrubWireSchema(schema, "strict-compatible").ambiguousPaths).toEqual(["entry.value"]);
+});
+
+test("a reshape inside $defs lands at each value path that references it", () => {
+  const schema = {
+    type: "object",
+    required: ["a", "b"],
+    properties: { a: { $ref: "#/$defs/Pair" }, b: { type: "array", items: { $ref: "#/$defs/Pair" } } },
+    $defs: { Pair: { type: "object", required: ["k"], properties: { k: { type: "string" }, v: { type: "string" } } } },
+  };
+  expect(scrubWireSchema(schema, "strict-compatible").reshapedPaths).toEqual(["a.v", "b[*].v"]);
 });

@@ -331,9 +331,22 @@ export const generationCapabilitySchema = z.object({
     /** Accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
     structured: z.boolean().optional(),
     /** The wire subset whose grammar ceilings (`WireSubset.limits`) this model's vendor enforces, whichever wire
-     *  class carries the request. Absent ⇒ no stated ceiling. A caller that can shape its request another way
-     *  checks a schema against them first (`fitsEveryWire`). */
+     *  class carries the request. Absent ⇒ no stated ceiling. The structured planner checks every request
+     *  against them before the call. */
     structuredLimitsFrom: z.enum(WIRE_SCHEMA_MODES).optional(),
+    /** Per-model ceilings merged over `structuredLimitsFrom`'s defaults field by field: a model that differs from
+     *  its vendor's table is a row, never a branch. */
+    structuredLimits: z
+      .object({
+        maxOptionalProps: z.number().int().nonnegative().optional(),
+        maxUnionProps: z.number().int().nonnegative().optional(),
+        maxStrictTools: z.number().int().nonnegative().optional(),
+        maxObjectProps: z.number().int().nonnegative().optional(),
+        maxDepth: z.number().int().nonnegative().optional(),
+        maxEnumValues: z.number().int().nonnegative().optional(),
+        maxNameChars: z.number().int().nonnegative().optional(),
+      })
+      .optional(),
     /** What the model can PRODUCE. `image` here is what makes a chat model answer with pictures (§6.7) and
      *  what `generateImage` requires. */
     modalities: z.array(modalitySchema),

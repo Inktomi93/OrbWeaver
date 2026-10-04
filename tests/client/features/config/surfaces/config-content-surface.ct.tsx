@@ -97,8 +97,6 @@ const APP_CONFIG = {
   catalogRefreshIntervalMs: 86_400_000,
   imageVariantQuality: 80,
   promptCacheMinDepth: 0,
-  structuredOutputShape: "as-projected",
-  structuredOutputVehicle: "auto",
   ipCertificate: null,
 } satisfies TrpcWireOutput<"settings.getAppSettings">;
 const OWNER_VIEWER = { userId: "user_owner", handle: "owner", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;
@@ -144,6 +142,8 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "connection.list": [],
   "connection.listBindings": [],
   "connection.providersAvailable": [],
+  // Model roles' vector rows read whether search is paused for the embedder rebuild line.
+  "search.spaceStatus": { paused: false, embed: false, imageEmbed: false },
   // Model roles' Utility preset Select (D299) lists the reader's presets; unfed, the Model roles section errors.
   "preset.list": [],
   // The About group's version section suspends on the version identity.

@@ -20,6 +20,7 @@ import { agentSdkSessionIdSchema } from "../../../../packages/inference/src/cont
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { cacheHitRate } from "../../../../packages/server/src/domain/stats/substrate/rates.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeResolved } from "../../_support.ts";
 import { generationCapability } from "../_hosted-support.ts";
 
@@ -498,4 +499,69 @@ test("no tail system row mounts no hook, on a model that takes one too", async (
   const body = await capturedBody(undefined);
   expect(body["systemPrompt"]).toBe("You are Mira.\n\nScene: the harbor.");
   expect(body["hookContext"]).toBeNull();
+});
+
+// ── the structured plan on the agent-sdk wire ────────────────────────────────────────────────────────────────
+
+/** The `outputFormat` option one structured chat turn handed the runtime, or the turn's refusal. */
+async function outputFormatOf(schema: Record<string, unknown>): Promise<unknown> {
+  const model = "claude-opus-4-8";
+  const options: Record<string, unknown>[] = [];
+  const connection = fakeResolved({ task: "chat", providerId: "claude-sub", model, capability: generationCapability() });
+  const sessions = new SessionCache(quietLog);
+  const frames = okTurn(model);
+  const deps: AgentSdkDeps = {
+    now: () => 0,
+    log: quietLog,
+    // @orb-waive no-test-fabrication(unknown): the SDK `query` seam returns its own `Query` object; the reducer only iterates it, so a generator over captured-shape frames is the honest double. Ends if the SDK exports a query fake.
+    query: ((input: { readonly options: Record<string, unknown> }) => {
+      options.push(input.options);
+      return (async function* stream(): AsyncGenerator<unknown> {
+        await Promise.resolve();
+        yield* frames;
+      })();
+    }) as unknown as AgentSdkDeps["query"],
+    sessionStore: sessions.store,
+    normalizeImageBytes: passthroughImageNormalizer,
+    scheduleTimeout: () => () => undefined,
+    summarizeConcurrency: () => 1,
+    debug: false,
+    childEnv: () => ({}),
+  };
+  const turn = runChatTurn(
+    {
+      api: "agent-sdk",
+      connection,
+      params: {},
+      systemPrompt: { static: "Extract.", dynamic: "" },
+      prompt: "Go.",
+      responseFormat: { name: "row", schema: wireSchema(schema) },
+    },
+    deps,
+    sessions,
+    createAgentSdkLog(quietLog, "claude-sub"),
+  );
+  const failure = await turn.then(
+    () => undefined,
+    (err: unknown) => err,
+  );
+  return failure ?? options[0]?.["outputFormat"];
+}
+
+test("the runner's outputFormat holds the planned anthropic-format schema: meta stripped, the author's bound relayed", async () => {
+  const format = await outputFormatOf({
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    type: "object",
+    properties: { n: { type: "integer", maximum: 9 } },
+    required: ["n"],
+  });
+  expect(format).toEqual({
+    type: "json_schema",
+    schema: { type: "object", properties: { n: { type: "integer", description: "[Constraints: maximum: 9]" } }, required: ["n"] },
+  });
+});
+
+test("a schema the anthropic grammar cannot carry is refused before the spawn, with the typed violation", async () => {
+  const failure = await outputFormatOf({ type: "object", properties: { pick: { oneOf: [{ type: "string" }, { type: "integer" }] } }, required: ["pick"] });
+  expect(failure).toMatchObject({ kind: "invalid", detail: "schema_rejected", violations: [{ kind: "refused-keyword", keyword: "oneOf", path: "pick" }] });
 });

@@ -5,6 +5,7 @@
 // constructs messages from the task/wire/provider vocabulary only; the wire-level secret scrub
 // (`backends/kit/sanitize.ts`) is a backend concern.
 
+import type { WireSchemaViolation } from "@orb/contracts/inference";
 import type { AgentSdkSessionId } from "./identity.ts";
 
 declare const providerScrubSet: unique symbol;
@@ -41,6 +42,9 @@ export const PROVIDER_ERROR_KINDS = [
 ] as const;
 export type ProviderErrorKind = (typeof PROVIDER_ERROR_KINDS)[number];
 
+/** The `invalid` detail of a structured schema the planner or the provider refused; `violations` say why. */
+export const SCHEMA_REJECTED_DETAIL = "schema_rejected";
+
 export interface ProviderErrorInit {
   readonly kind: ProviderErrorKind;
   /** Whether a retry could plausibly succeed (rate_limit/server → true; forbidden/invalid → false). */
@@ -62,6 +66,8 @@ export interface ProviderErrorInit {
   /** An `invalid` embed whose vector width is not the width the connection states: the caller can say both
    *  numbers instead of reading them out of the message. */
   readonly width?: VectorWidthMismatch;
+  /** A structured request the plan or the provider refused (`detail: "schema_rejected"`): every reason, as data. */
+  readonly violations?: readonly WireSchemaViolation[];
   readonly cause?: unknown;
 }
 
@@ -82,6 +88,7 @@ export class ProviderError extends Error {
   readonly sessionId: AgentSdkSessionId | undefined;
   readonly requestId: string | undefined;
   readonly width: VectorWidthMismatch | undefined;
+  readonly violations: readonly WireSchemaViolation[] | undefined;
 
   constructor(init: ProviderErrorInit) {
     super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
@@ -96,6 +103,7 @@ export class ProviderError extends Error {
     this.sessionId = init.sessionId;
     this.requestId = init.requestId;
     this.width = init.width;
+    this.violations = init.violations;
   }
 
   /** Every carried field as its own log key. A field added to {@link ProviderErrorInit} MUST be mirrored
@@ -113,6 +121,7 @@ export class ProviderError extends Error {
       ...(this.sessionId !== undefined ? { sessionId: this.sessionId } : {}),
       ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
       ...(this.width !== undefined ? { width: this.width } : {}),
+      ...(this.violations !== undefined ? { violations: this.violations } : {}),
     };
   }
 
@@ -133,6 +142,7 @@ export class ProviderError extends Error {
       ...(this.sessionId !== undefined ? { sessionId: this.sessionId } : {}),
       ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
       ...(this.width !== undefined ? { width: this.width } : {}),
+      ...(this.violations !== undefined ? { violations: this.violations } : {}),
       cause: this,
     });
   }

@@ -8,10 +8,12 @@
 // dep (D8 — the core stays SDK-free) and kit sits BELOW the backends, so those classifiers do NOT live
 // here — they belong to `backends/agent-sdk`. This module is the HTTP path only.
 
+import type { WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ProviderErrorKind, ProviderScrubSet } from "../../contract/errors.ts";
-import { ProviderError } from "../../contract/errors.ts";
+import { ProviderError, SCHEMA_REJECTED_DETAIL } from "../../contract/errors.ts";
 import { redactSecretsFromText } from "./openai-body.ts";
+import type { ProviderLogger } from "./provider-log.ts";
 import { NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
 
 // Transport-name patterns on the hot error-classification path.
@@ -204,6 +206,82 @@ export function extractHttpErrorDiagnostic(error: unknown, secrets: ProviderScru
     }
   }
   return out;
+}
+
+/** One vendor refusal of a structured schema, matched on the upstream body. A row with `counts` names the
+ *  ceiling the body quotes; any other row is a `vendor-refused` violation under the row's name. */
+interface SchemaRejectionRow {
+  readonly rule: string;
+  readonly pattern: RegExp;
+  readonly ceiling?: "optional-props" | "union-props";
+}
+
+/** The vendors' "schema too complex" refusals. Sources: the recorded Anthropic 400s (req_011CffjcY1wYWAdWZwDY7zPs,
+ *  req_011CffjcWiZm184n3SZN3B1A); Anthropic's structured-outputs doc for the compile refusal; OpenAI's
+ *  `invalid_json_schema` code; vLLM's xgrammar backend; llama.cpp's `json-schema-to-grammar.cpp` `check_errors`.
+ *  A refusal the table misses logs `provider.schema_rejection_unmapped`, and its body becomes a new row. */
+const SCHEMA_REJECTIONS: readonly SchemaRejectionRow[] = [
+  { rule: "anthropic-optional-props", pattern: /too many optional parameters \((\d+)\).*?limit: (\d+)/su, ceiling: "optional-props" },
+  { rule: "anthropic-union-props", pattern: /too many parameters with union types \((\d+).*?limit: (\d+)/su, ceiling: "union-props" },
+  { rule: "anthropic-too-complex", pattern: /Schema is too complex for compilation/u },
+  { rule: "openai-invalid-json-schema", pattern: /invalid_json_schema/u },
+  { rule: "xgrammar-unsupported", pattern: /JSON schema contains features not supported by xgrammar/u },
+  { rule: "xgrammar-compile", pattern: /Failed to transform json schema into a grammar/u },
+  { rule: "gbnf-conversion", pattern: /JSON schema conversion failed/u },
+];
+
+/** A 400 that names a schema, a grammar or the response format but matches no row: logged, never guessed at. */
+const SCHEMA_SHAPED_BODY = /schema|grammar|response_format/iu;
+
+/** What a structured call's failure says about its schema, for {@link withSchemaRejection}. */
+export interface SchemaRejectionContext {
+  readonly log: ProviderLogger;
+  readonly model: string;
+  readonly mode: WireSchemaMode;
+  readonly secrets: ProviderScrubSet;
+}
+
+/** The violation a matched row reports. */
+function rejectionViolation(row: SchemaRejectionRow, match: RegExpExecArray, mode: WireSchemaMode): WireSchemaViolation {
+  if (row.ceiling === undefined) {
+    return { kind: "vendor-refused", mode, rule: row.rule };
+  }
+  return { kind: row.ceiling, mode, count: Number(match[1]), limit: Number(match[2]) };
+}
+
+/**
+ * A structured call's `invalid` failure, re-read for a vendor's schema refusal: a matched row becomes the same
+ * typed violation the planner raises before a call (`detail: "schema_rejected"`, `violations`) and logs one
+ * `provider.schema_rejected`; a schema-shaped body no row matches logs `provider.schema_rejection_unmapped` with
+ * its scrubbed, trimmed body. Every other failure passes through untouched.
+ */
+export function withSchemaRejection(failure: ProviderError, error: unknown, ctx: SchemaRejectionContext): ProviderError {
+  if (failure.kind !== "invalid" || failure.detail === SCHEMA_REJECTED_DETAIL) {
+    return failure;
+  }
+  const diagnostic = extractHttpErrorDiagnostic(error, ctx.secrets);
+  const text = `${diagnostic.body ?? ""} ${failure.message}`;
+  for (const row of SCHEMA_REJECTIONS) {
+    const match = row.pattern.exec(text);
+    if (match !== null) {
+      const violation = rejectionViolation(row, match, ctx.mode);
+      ctx.log.emit("warn", "provider.schema_rejected", { model: ctx.model, rule: row.rule, violation });
+      return new ProviderError({
+        kind: "invalid",
+        retryable: false,
+        message: failure.message,
+        ...(failure.apiErrorStatus !== undefined ? { apiErrorStatus: failure.apiErrorStatus } : {}),
+        model: ctx.model,
+        detail: SCHEMA_REJECTED_DETAIL,
+        violations: [violation],
+        cause: failure,
+      });
+    }
+  }
+  if (SCHEMA_SHAPED_BODY.test(text)) {
+    ctx.log.emit("warn", "provider.schema_rejection_unmapped", { model: ctx.model, mode: ctx.mode, body: diagnostic.body ?? failure.message });
+  }
+  return failure;
 }
 
 /**

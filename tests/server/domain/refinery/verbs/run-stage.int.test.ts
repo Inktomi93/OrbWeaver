@@ -361,21 +361,18 @@ test("an invented payload key is STRIPPED and itemized on the run row (paths, ne
   expect(rows[0]?.strippedKeys).toEqual(["hacked"]);
 });
 
-test("an explicit null on an optional field survives the parse (the strict-compatible null-drop belt)", async () => {
+test("a null reaching the parse is the model's error, retried once: the structured layer already dropped every null its reshape introduced", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_rs_g" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-g");
   const session = await h.svc.startSession({ principal: principal(owner), characterId });
 
-  // The §3.B end-to-end shape: `greetingIndex: null` where the schema says optional-int — a conforming
-  // strict-compatible reply that would FAIL without dropNullValues.
+  // `greetingIndex` is optional, never nullable: a null here did not come from the reshape, so the bounded retry asks again.
   h.queueReply(JSON.stringify({ fields: [{ field: "description", greetingIndex: null, text: "richer records" }] }));
+  h.queueReply(JSON.stringify({ fields: [{ field: "description", text: "richer records" }] }));
   const run = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
-  expect(run.stage).toBe("rewrite");
   expect(run.payload).toEqual({ fields: [{ field: "description", text: "richer records" }] });
-  // The dropped null is protocol-normal (strict-compatible's encoding of ABSENT) — NOT itemized, so the
-  // stripped-key tamper signal stays clean on such deployments (capture-after-drop, deliberate).
   expect(run.strippedKeys).toEqual([]);
 });
 

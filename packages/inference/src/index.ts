@@ -105,9 +105,13 @@ export { NoConnectionError } from "./resolve/resolve-task.ts";
 // definitions + an execute callback, and never branches on the connection's wire itself.
 export { toChatRequest } from "./roles/chat-request.ts";
 // The two non-turn chat calls behind neutral inputs: a structured-output call and a forced tool round.
-export { carriesForcedToolRound, runStructuredChat, toForcedToolRoundRequest } from "./roles/chat-rounds.ts";
+export { carriesForcedToolRound, carriesStructured, forcesToolRound, runStructuredChat, toForcedToolRoundRequest } from "./roles/chat-rounds.ts";
 export { unavailableRefusal } from "./roles/role-clients.ts";
 export { runStructuredTurn } from "./roles/structured-turn.ts";
+// The one structured-output layer: a caller that must choose between shapes, or ask whether its need fits a
+// connection at all, asks the planner every backend sends.
+export type { StructuredAsk, StructuredPlan, StructuredRefusal } from "./structured/plan.ts";
+export { planStructuredFor } from "./structured/plan.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";

@@ -3,28 +3,9 @@
 // fills the WHOLE state delta at once (no user-facing prose, so structured output is the natural fit — never
 // a prose-parser fork).
 //
-// HOW IT REACHES THE WIRE, per backend (corrected 2026-08-03 — the header said `output_config.format`
-// unconditionally, which has been false on the OpenRouter path since 2026-08-02):
-//   • agent-sdk (api.anthropic.com) — `output_config.format`, bound-stripped by the D93 module.
-//   • OpenRouter — the `parameters` of ONE FORCED TOOL CALL. `response_format: json_schema` is not servable
-//     across its hosted families with this schema; see the live probe matrix in `backends/openrouter/index.ts`.
-//   • vLLM — `response_format: json_schema` with guided decoding (the one ENFORCING wire we drive).
-//
-// RECOMMENDATION — REQUIRED + NULLABLE-UNION (owner call, NOT built; docs read 2026-08-03). This schema is
-// optional-by-construction (omit = keep), which is what both hosted walls are made of: Anthropic's grammar
-// compiler refuses it outright ("too many optional parameters (46)" — an UNDOCUMENTED runtime ceiling, absent
-// from `https://platform.claude.com/docs/en/build-with-claude/structured-outputs.md`), and OpenAI's strict
-// mode requires "All fields or function parameters must be specified as `required`"
-// (`https://developers.openai.com/api/docs/guides/structured-outputs`). OpenAI documents the escape on the same
-// page — "Emulate optional parameters using union with null" — and that ONE reshape clears BOTH walls at once:
-// every property in `required`, every optional property widened with `null`, and `null` ≡ absent at parse, so
-// omit-means-keep survives with the model emitting `null` instead of omitting the key. Spell the union as
-// `anyOf:[{…},{"type":"null"}]`, not `"type":["string","null"]` — the type-array form is documented only by
-// OpenAI, while `anyOf` + the `null` type are inside BOTH subsets. The cost is real and is why this is an
-// owner call, not a build: ~46 explicit `null`s per extraction (more output tokens), and it is a materially
-// worse prompt for a small local model — against which the vLLM populate lever wants exactly the opposite
-// (`xgrammar` skipping optionals is the thing the enforced grammar is there to prevent). It wants a live A/B
-// (hosted Claude/GPT vs the local 8B) before anyone reshapes the contract.
+// HOW IT REACHES THE WIRE is not this file's: the caller states the schema and `@orb/inference`'s structured plan picks the
+// vehicle, scrubs it for the endpoint and hands back a reply already normalized (a null the reshape introduced is
+// dropped; this contract has no nullable field, so every null the parse sees is a model error).
 //
 // THE SHARED-PLANE PROOF (the amendment's "the 7 plane shapes authored ONCE, exposed two ways"): this schema
 // is DERIVED from the SAME per-tool arg schemas the cheap-mode D48 tools use (`./tools`) — it does NOT re-spell
@@ -41,7 +22,6 @@
 // 4.4.3 and is unused here anyway — see the mechanism note in `./tools`.) So this composed object projects to
 // a structured-output JSON Schema without throwing (the contract test pins it, mirroring the tools pin).
 import { z } from "zod";
-import { dropNullValues } from "#inference";
 import { rpgNpcSlug } from "./actor.ts";
 import type { UpdateSceneArgs } from "./tools.ts";
 import {
@@ -666,16 +646,10 @@ function salvageArrayPlane(args: {
  * object at all yields the empty extraction with ONE `root` drop. The result feeds the SAME
  * `extractionToStateDelta` fold the tool vehicles feed — so the three delivery paths differ in transport only.
  */
-export function salvageExtraction(raw: unknown): RpgExtractionSalvage {
+export function salvageExtraction(value: unknown): RpgExtractionSalvage {
   const extraction: RpgExtraction = { party: [], inventory: [], trackers: [], quests: [], journal: [] };
   const dropped: RpgExtractionDrop[] = [];
   const stripped: string[] = [];
-  // `null ≡ absent`, at the boundary and for EVERY vehicle. This is the parse half of the strict-compatible
-  // projection (`dropNullValues` — under it the model emits an explicit `null` where it would otherwise omit
-  // the key, and omit means KEEP here), and it is correct for the other projections too: no field in this
-  // contract is `.nullable()`, so an explicit `null` has never meant anything but "no change" — it just used
-  // to cost the whole ENTRY at the per-entry parse below.
-  const value = dropNullValues(raw);
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     return { extraction, dropped: [{ plane: "root", index: null, issues: ["expected a JSON object"] }], stripped };
   }
@@ -769,10 +743,7 @@ const POPULATE_DROP_PLANES: ReadonlySet<RpgExtractionDropPlane> = new Set<RpgExt
  * caller, which is what makes "populate cannot touch scene/party/trackers/journal" a property of the parse
  * instead of a promise about the prompt.
  */
-export function salvagePopulate(raw: unknown): RpgPopulateSalvage {
-  // Same `null ≡ absent` normalization the plane salvage runs, applied BEFORE the sheet read too (the sheet is
-  // read off the raw payload, so a `{"sheet":{"title":null}}` would otherwise fail the whole sheet parse).
-  const value = dropNullValues(raw);
+export function salvagePopulate(value: unknown): RpgPopulateSalvage {
   const salvaged = salvageExtraction(value);
   // The live-play planes are DISCARDED here (never merely unread): a non-enforcing wire that volunteered a
   // `scene`/`party`/`trackers`/`journal` write gets nothing, by construction.

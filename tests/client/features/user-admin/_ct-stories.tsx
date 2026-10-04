@@ -18,7 +18,6 @@ import { MediaTrustSection } from "../../../../packages/client/src/features/user
 import { MemoryTuningSection } from "../../../../packages/client/src/features/user-admin/components/memory-tuning-section.tsx";
 import { OperationsSection } from "../../../../packages/client/src/features/user-admin/components/operations-section.tsx";
 import { RateLimitsSection } from "../../../../packages/client/src/features/user-admin/components/rate-limits-section.tsx";
-import { StructuredOutputSection } from "../../../../packages/client/src/features/user-admin/components/structured-output-section.tsx";
 import { SystemTuningSection } from "../../../../packages/client/src/features/user-admin/components/system-tuning-section.tsx";
 import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
@@ -256,20 +255,6 @@ export function OperationsRestartMutationBeltStory(): ReactElement {
         </CtToastSurface>
       </TRPCProvider>
     </QueryClientProvider>
-  );
-}
-
-/** The Structured-output admin SECTION (D126) in isolation — getAppSettingsWithOverrides +
- *  updateAppSettings stubbed per-test. */
-export function StructuredOutputSectionStory(): ReactElement {
-  return (
-    <CtDataProviders>
-      <TooltipProvider>
-        <div style={{ padding: 16, width: 720 }}>
-          <StructuredOutputSection sectionId="admin-structured-output" />
-        </div>
-      </TooltipProvider>
-    </CtDataProviders>
   );
 }
 

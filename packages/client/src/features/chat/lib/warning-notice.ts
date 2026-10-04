@@ -77,8 +77,6 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
         description: "Your reply went through without recalled memory or attached documents. Check your embedding connection in Connections.",
         title: "Your library couldn't be searched",
       };
-    case "structured_output_unsupported":
-      return { description: "This model doesn't support it, so the reply came back as plain text.", title: "Structured output isn't supported" };
     case "prompt_transform_skipped":
       return { description: "It errored or ran too long, so your message was sent unchanged.", title: "A prompt rule was skipped" };
     case "image_edit_dropped":

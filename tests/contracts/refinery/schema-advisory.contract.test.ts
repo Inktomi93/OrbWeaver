@@ -86,23 +86,30 @@ test("stats count nested properties, optionals, unions and depth — the account
   expect(stats.maxDepth).toBe(3);
 });
 
-test("the optional FAN advisory fires past the OG's threshold and escalates to the measured Anthropic ceiling", () => {
+test("a ceiling the target states is the planner's own violation: the hosted intersection binds past 24 optionals, a local target states none", () => {
   const optionalsOf = (n: number): Record<string, unknown> => ({
     type: "object",
     properties: Object.fromEntries(Array.from({ length: n }, (_, i) => [`f${i}`, { type: "string" }])),
     required: [],
   });
-  // 10 optionals — still under the OG's threshold, no fan advisory.
-  expect(refinerySchemaAdvisoryOf(optionalsOf(10)).advisories.filter((a) => a.code === "optional-nullable-fan")).toEqual([]);
-  // 12 — the fan advisory, and it says how many.
-  const fan = refinerySchemaAdvisoryOf(optionalsOf(12)).advisories;
-  expect(fan.filter((a) => a.code === "optional-nullable-fan").length).toBeGreaterThan(0);
-  expect(fan.some((a) => a.message.includes("12 optional fields"))).toBe(true);
-  // Past the measured 46 the copy escalates to the CEILING arm (a refusal risk, not a style note), and
-  // the two arms are exclusive — one sentence per fact.
-  const ceiling = refinerySchemaAdvisoryOf(optionalsOf(50)).advisories;
-  expect(ceiling.some((a) => a.code === "optional-ceiling")).toBe(true);
-  expect(ceiling.filter((a) => a.code === "optional-nullable-fan" && a.message.includes("optional fields."))).toEqual([]);
+  // 24 optionals fit Anthropic's documented table, the strictest hosted ceiling.
+  expect(refinerySchemaAdvisoryOf(optionalsOf(24)).advisories.filter((a) => a.code === "wire-limit")).toEqual([]);
+  // 25 do not, and the advisory says how many against which limit.
+  const over = refinerySchemaAdvisoryOf(optionalsOf(25)).advisories.filter((a) => a.code === "wire-limit");
+  expect(over).toHaveLength(1);
+  expect(over[0]?.message).toContain("optional-props 25 over the limit of 24");
+  // A bound local target (vLLM guided decoding, no stated ceiling) raises none.
+  expect(refinerySchemaAdvisoryOf(optionalsOf(25), { mode: "guided-decoding", limits: undefined }).advisories.filter((a) => a.code === "wire-limit")).toEqual(
+    [],
+  );
+});
+
+test("a construct the target's grammar cannot carry is a wire-refused advisory at its path", () => {
+  const schema = { type: "object", properties: { pick: { oneOf: [{ type: "string" }, { type: "number" }] } }, required: ["pick"] };
+  const refused = refinerySchemaAdvisoryOf(schema, { mode: "gemini-schema", limits: undefined }).advisories.filter((a) => a.code === "wire-refused");
+  expect(refused.map((a) => a.path)).toEqual(["pick"]);
+  // PLANTED CONTROL: the hosted intersection carries `oneOf`, so the same schema raises nothing there.
+  expect(refinerySchemaAdvisoryOf(schema).advisories.filter((a) => a.code === "wire-refused")).toEqual([]);
 });
 
 test("a wide union advises on its variant count, at the node's own path", () => {

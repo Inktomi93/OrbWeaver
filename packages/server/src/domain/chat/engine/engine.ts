@@ -2273,13 +2273,11 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
 }
 
 /** Emit the domain `warning` events for the capability drops the pipeline flagged this turn (image parts,
- *  tools, structured output) PLUS the INFRA-originated runner warnings it carried up (resolve/wire drops the
+ *  tools) PLUS the INFRA-originated runner warnings it carried up (resolve/wire drops the
  *  runners raised, narrowed to chat's vocabulary at the compose bridge — D41's read end). Extracted so the
  *  generation lifecycle stays under the cognitive-complexity cap.
- *  @internal exported for the drop-warning unit test (`tests/server/domain/chat/engine/engine.test.ts`) — the
- *  structured-output flag has no engine INPUT path yet (no chat consumer sets `responseFormat`, 04 §3), so that
- *  emit branch is only reachable directly, and the infra→chat translation below is total over a tuple a turn
- *  cannot produce all of. The export was CLAIMED by this doc line long before it existed (#1440 restored it). */
+ *  @internal exported for the drop-warning unit test (`tests/server/domain/chat/engine/engine.test.ts`): the
+ *  infra→chat translation below is total over a tuple a turn cannot produce all of. */
 export async function emitCapabilityDropWarnings(
   emit: (event: DurableChatBusEvent) => Promise<void>,
   chatId: ChatId,
@@ -2287,7 +2285,6 @@ export async function emitCapabilityDropWarnings(
     readonly imageDropped: boolean;
     readonly videoDropped: boolean;
     readonly toolsUnsupported: boolean;
-    readonly structuredOutputUnsupported: boolean;
     readonly guidedPlacedAsInjection: boolean;
     readonly runnerWarnings: readonly ResolvedWarning[];
     readonly providerRefused: boolean;
@@ -2302,15 +2299,12 @@ export async function emitCapabilityDropWarnings(
   if (result.toolsUnsupported) {
     await emit({ type: "warning", chatId, code: "tools_unsupported" });
   }
-  if (result.structuredOutputUnsupported) {
-    await emit({ type: "warning", chatId, code: "structured_output_unsupported" });
-  }
   // §10 addendum / F8: the system-placement steer fell back to a depth-0 injection (no marker) — landed,
   // not lost, and said so loudly (D41).
   if (result.guidedPlacedAsInjection) {
     await emit({ type: "warning", chatId, code: "guided_placed_as_injection" });
   }
-  // The provider DECLINED (a content-filter finish on the wire). Not a capability drop like the five above —
+  // The provider DECLINED (a content-filter finish on the wire). Not a capability drop like the four above —
   // nothing of ours was dropped — but the same obligation: a refusal that surfaces as a blank or truncated
   // reply with no reason is exactly the silent degrade D41 exists to forbid.
   if (result.providerRefused) {

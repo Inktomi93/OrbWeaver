@@ -22,6 +22,7 @@ function args(overrides: Partial<ShapeArgs> = {}): ShapeArgs & { readonly warnin
     dialect: "openai-compatible",
     prefillAllowed: false,
     templateThinking: undefined,
+    templatePreserveReasoning: undefined,
     reasoningMandatory: false,
     foldSameRole: false,
     replyImages: false,
@@ -531,4 +532,44 @@ test("rule 10: a row carrying a name, tool calls or replayed reasoning keeps its
   };
   const messages = recordsAt(shapeOutboundBody(raw, args({ dialect: "openrouter", foldSameRole: true })), "messages");
   expect(messages).toHaveLength(raw.messages.length);
+});
+
+// ── rules 5c and 5d: the carry-off preserve switch and the budget at zero ──────────────────────────────────────
+
+/** A llama.cpp-shaped row: the template switch is the kwarg, and the reasoning budget has its own field. */
+const LLAMA_SWITCH: EndpointFeatures = { ...SPELLS_EFFORT, thinkingOff: "chat_template_kwargs", reasoningBudgetField: "thinking_budget_tokens" };
+
+test("rule 5c: a turn whose reasoning carry is off sends preserve_reasoning false beside the switch; the user's own kwarg wins", () => {
+  const off = shapeOutboundBody(RAW, args({ features: LLAMA_SWITCH, templateThinking: true, templatePreserveReasoning: false }));
+  expect(off["chat_template_kwargs"]).toEqual({ enable_thinking: true, preserve_reasoning: false });
+  const theirs = shapeOutboundBody(
+    RAW,
+    args({ features: LLAMA_SWITCH, templateThinking: true, templatePreserveReasoning: false, extras: { chat_template_kwargs: { preserve_reasoning: true } } }),
+  );
+  expect(theirs["chat_template_kwargs"]).toEqual({ preserve_reasoning: true, enable_thinking: true });
+  // A carry left on sends nothing new; neither does a turn that sends no switch at all, so a proxy that refuses the
+  // kwargs never starts seeing them.
+  expect(
+    shapeOutboundBody(RAW, args({ features: LLAMA_SWITCH, templateThinking: true, templatePreserveReasoning: undefined }))["chat_template_kwargs"],
+  ).toEqual({
+    enable_thinking: true,
+  });
+  expect(
+    "chat_template_kwargs" in shapeOutboundBody(RAW, args({ features: LLAMA_SWITCH, templateThinking: undefined, templatePreserveReasoning: false })),
+  ).toBe(false);
+});
+
+test("rule 5d: a turn the template must not think on sends the row's budget field at 0 beside the switch; a user budget key wins", () => {
+  const off = shapeOutboundBody(RAW, args({ features: LLAMA_SWITCH, templateThinking: false }));
+  expect(off["thinking_budget_tokens"]).toBe(0);
+  expect(off["chat_template_kwargs"]).toEqual({ enable_thinking: false });
+  const theirs = shapeOutboundBody(RAW, args({ features: LLAMA_SWITCH, templateThinking: false, extras: { thinking_budget_tokens: 256 } }));
+  expect(theirs["thinking_budget_tokens"]).toBe(256);
+  // vLLM's own field name rides the same rule.
+  const vllm = shapeOutboundBody(RAW, args({ features: { ...LLAMA_SWITCH, reasoningBudgetField: "thinking_token_budget" }, templateThinking: false }));
+  expect(vllm["thinking_token_budget"]).toBe(0);
+  // PLANTED CONTROLS: a thinking turn, a row with no switch, and a row with no budget field send no budget.
+  expect("thinking_budget_tokens" in shapeOutboundBody(RAW, args({ features: LLAMA_SWITCH, templateThinking: true }))).toBe(false);
+  expect("thinking_budget_tokens" in shapeOutboundBody(RAW, args({ features: { ...LLAMA_SWITCH, thinkingOff: "none" }, templateThinking: false }))).toBe(false);
+  expect(Object.keys(shapeOutboundBody(RAW, args({ features: KWARGS_OFF, templateThinking: false })))).not.toContain("thinking_budget_tokens");
 });

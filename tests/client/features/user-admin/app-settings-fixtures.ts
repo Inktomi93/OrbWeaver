@@ -22,8 +22,6 @@ export const EFFECTIVE_APP_SETTINGS: EffectiveAppSettings = {
   promptTransformDeadlineMs: 250,
   catalogRefreshIntervalMs: 86_400_000,
   imageVariantQuality: 80,
-  structuredOutputShape: "as-projected",
-  structuredOutputVehicle: "auto",
   promptCacheMinDepth: 0,
 };
 

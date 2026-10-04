@@ -13,6 +13,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     auth: "apiKey",
     baseUrl: "https://generativelanguage.googleapis.com/v1beta",
     apis: ["google-generative-ai"],
+    features: { structuredMode: "gemini-schema" },
     catalog: "url",
     metered: true,
     docsUrl: "https://ai.google.dev/gemini-api/docs",
@@ -28,7 +29,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     // The whole wire set. `rerank` rides the wire's plain-POST arm: OpenRouter answers `POST /rerank` with
     // the same `{ results: [{ index, relevance_score }] }` shape vLLM does (raw SDK 1.1.8 `rerankRerank`,
     // `pathToFunc("/rerank")`), so the row names the path like the vllm row does.
-    features: { rerankPath: "/rerank" },
+    features: { rerankPath: "/rerank", structuredMode: "strict-compatible" },
     catalog: "url",
     metered: true,
     docsUrl: "https://openrouter.ai/docs",
@@ -40,6 +41,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     auth: "apiKey",
     baseUrl: "https://api.anthropic.com",
     apis: ["anthropic-messages"],
+    features: { structuredMode: "anthropic-format" },
     catalog: "url",
     metered: true,
     docsUrl: "https://docs.anthropic.com",
@@ -50,6 +52,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     wire: "agent-sdk",
     auth: "oauthToken",
     apis: ["agent-sdk"],
+    features: { structuredMode: "anthropic-format" },
     catalog: "url",
     metered: false,
     docsUrl: "https://docs.anthropic.com/en/docs/claude-code",
@@ -69,6 +72,7 @@ export const BUILTIN_PROVIDER_ROWS = [
       outputCapField: "max_completion_tokens",
       images: "images-api",
       strictJson: "declared-only",
+      structuredMode: "strict-compatible",
     },
     catalog: "url",
     metered: true,
@@ -84,6 +88,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     features: {
       prefill: "continue-final-message",
       strictJson: "default-on",
+      structuredMode: "guided-decoding",
       effort: "reasoning_effort",
       sleep: {
         isSleepingPath: "/is_sleeping",
@@ -112,6 +117,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     features: {
       prefill: "none",
       samplerKeys: { repetitionPenalty: "repeat_penalty" },
+      structuredMode: "hosted-common",
     },
     catalog: "url",
     metered: false,
@@ -132,6 +138,7 @@ export const BUILTIN_PROVIDER_ROWS = [
       thinkingOff: "reasoning_effort",
       modelInfoApi: "ollama",
       nativeChat: "ollama",
+      structuredMode: "gbnf",
       // The `/api/chat` `options` spelling (api/types.go `Options`).
       samplerKeys: { repetitionPenalty: "repeat_penalty" },
     },
@@ -159,6 +166,7 @@ export const BUILTIN_PROVIDER_ROWS = [
       // server-common.cpp reads `reasoning_budget_tokens` or this alias on the chat route.
       reasoningBudgetField: "thinking_budget_tokens",
       thinkingOff: "chat_template_kwargs",
+      structuredMode: "gbnf",
     },
     catalog: "url",
     metered: false,
@@ -187,6 +195,7 @@ export const BUILTIN_PROVIDER_ROWS = [
       reasoningBudgetField: "thinking_budget_tokens",
       // koboldcpp.py transform_genparams merges `chat_template_kwargs` into the template's under `--jinja`.
       thinkingOff: "chat_template_kwargs",
+      structuredMode: "gbnf",
     },
     catalog: "url",
     metered: false,
@@ -202,7 +211,7 @@ export const BUILTIN_PROVIDER_ROWS = [
     // The template thinking switch rides here too. A proxy that refuses `chat_template_kwargs` is answered by the
     // connection itself: `excludeBody` drops the key, its own body sets another value, or a declared
     // `thinkingOff: "none"` sends nothing. The user's body always wins over the switch (`openai-compat/body.ts`).
-    features: { detectServer: true, thinkingOff: "chat_template_kwargs" },
+    features: { detectServer: true, thinkingOff: "chat_template_kwargs", structuredMode: "hosted-common" },
     catalog: "url",
     metered: false,
   },

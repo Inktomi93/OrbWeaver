@@ -25,6 +25,7 @@ import type { AnthropicChatRequest, ChatDeltaSubscription, ChatResult } from "..
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeApiKeySecret, fakeResolved, newUserId } from "../../_support.ts";
 import type { RecordedRequest, SseEvent } from "../_hosted-support.ts";
 import {
@@ -913,4 +914,52 @@ test("prompt cache depth: the connection's minimum moves the history pair deeper
   // request's depth stands: the user value is bounded below by it.
   const floored = markersInPrefixOrder((await recordedTurn(cacheTurn({ ...SHIPPED_PROMPT_CACHE, historyDepth: 1 }, 3), anthropicTextStream("ok"))).body);
   expect(floored.map(({ at }) => at)).toEqual(["tool:1", "system", "message:1", "message:3"]);
+});
+
+// ── the structured plan on the direct Anthropic chat wire ────────────────────────────────────────────────────
+
+test("a response format rides output_config.format with the SDK pinned to it — the SDK never picks a vehicle itself", async () => {
+  const responseFormat = {
+    name: "row",
+    schema: wireSchema({ type: "object", properties: { tags: { type: "array", items: { type: "string" }, minItems: 3 } }, required: ["tags"] }),
+  };
+  const { body } = await recordedTurn(
+    turnRequest({ connection: curatedConnection("claude-sonnet-5-5"), tools: undefined, responseFormat }),
+    anthropicTextStream('{"tags":["a"]}'),
+  );
+  const format = (body?.body["output_config"] as { readonly format: { readonly type: string; readonly schema: Record<string, unknown> } }).format;
+  expect(format.type).toBe("json_schema");
+  // The anthropic-format scrub rode: the author's floor is clamped to the subset's 1 and relayed as the note. The
+  // SDK's own `sanitizeJsonSchema` would strip that `minItems: 1` too; the planned schema is put back after it.
+  expect((format.schema["properties"] as Record<string, unknown>)["tags"]).toEqual({
+    type: "array",
+    items: { type: "string" },
+    minItems: 1,
+    description: "[Constraints: minItems: 3]",
+  });
+  expect(body?.body).not.toHaveProperty("tools");
+});
+
+test("an over-limit schema on the direct wire with no tool to fall back to is a ProviderError with violations before fetch", async () => {
+  const connection = curatedConnection("claude-sonnet-5-5");
+  if (connection.capability.kind !== "generation") {
+    throw new Error("expected a generation capability");
+  }
+  const { tools: _tools, ...generation } = connection.capability.generation;
+  const responseFormat = {
+    name: "wide",
+    schema: wireSchema({
+      type: "object",
+      properties: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`f${String(i)}`, { type: "string" }])),
+      required: [],
+    }),
+  };
+  const recorded: RecordedRequest[] = [];
+  const failure = await runAnthropicChatTurn(
+    turnRequest({ connection: { ...connection, capability: { kind: "generation", generation } }, tools: undefined, responseFormat }),
+    deps(scriptedSseFetch([anthropicTextStream("{}")], recorded)),
+  ).catch((err: unknown) => err);
+  expect(recorded).toEqual([]);
+  expect(failure).toBeInstanceOf(ProviderError);
+  expect(failure).toMatchObject({ kind: "invalid", detail: "schema_rejected", violations: [{ kind: "optional-props", count: 30, limit: 24 }] });
 });

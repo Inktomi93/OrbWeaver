@@ -2,7 +2,6 @@
 // round's own wire tools verbatim) and the PATCH LIST (`structured-patch.ts`, flat enough for a grammar that caps
 // optional and union-typed properties). Either reply decodes to the SAME `RpgToolCall`s a tool round returns.
 
-import { dropNullValues } from "#inference";
 import type { RpgRecordedToolCall, RpgToolCall } from "./extraction.ts";
 
 /** The two structured shapes: the round's tools verbatim, and the flat field list for a grammar that caps optional
@@ -69,8 +68,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Decode a structured state reply into tool calls, or `null` when the reply is not `{changes: [...]}` with at
  * least one entry (the round then fails loudly; constrained decoding makes this a wire that ignored the schema).
  * An entry that is not an object with a string `tool` is counted, never guessed at. `args` keeps the tool path's
- * string encoding so the existing salvage, drop and disclosure logic reads it unchanged; explicit `null`s are
- * dropped first because a strict-compatible projection emits them for omitted optionals.
+ * string encoding so the existing salvage, drop and disclosure logic reads it unchanged. The reply arrives already
+ * normalized: a null the reshape introduced for an omitted optional is gone before this runs.
  */
 export function structuredChangesToToolCalls(value: unknown): RpgStructuredChanges | null {
   const changes = isRecord(value) ? value[RPG_STATE_CHANGES_FIELD] : undefined;
@@ -85,7 +84,7 @@ export function structuredChangesToToolCalls(value: unknown): RpgStructuredChang
       unreadable += 1;
       continue;
     }
-    calls.push({ name: tool, arguments: JSON.stringify(dropNullValues(entry[CHANGE_ARGS_KEY] ?? {})) });
+    calls.push({ name: tool, arguments: JSON.stringify(entry[CHANGE_ARGS_KEY] ?? {}) });
   }
   return { calls, unassembled: [], unreadable, dropped: [] };
 }

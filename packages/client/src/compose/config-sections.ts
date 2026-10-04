@@ -43,7 +43,6 @@ import {
   multiUserSection,
   operationsSection,
   rateLimitsSection,
-  structuredOutputSection,
   systemTuningSection,
 } from "#features/user-admin";
 import { backupExportSection, backupImportSection, workloadsJobsSection, workloadsSchedulesSection, workloadsTuningSection } from "#features/workloads";
@@ -100,7 +99,6 @@ export const configSections = createContributorRegistry<ConfigSectionContributio
   memoryTuningSection,
   rateLimitsSection,
   systemTuningSection,
-  structuredOutputSection,
   // about ← what this box IS (every member), then the admin's manual update check.
   aboutSection,
   aboutUpdatesSection,

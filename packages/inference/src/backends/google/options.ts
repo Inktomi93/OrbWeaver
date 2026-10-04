@@ -3,7 +3,8 @@ import type { GenerationCapability } from "@orb/contracts/inference";
 import type { GoogleChatRequest } from "../../contract/chat.ts";
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
-import { functionTools, jsonResponseFormat, servableToolChoice, standardSampling, toolChoiceOf } from "../v4/options.ts";
+import type { StructuredAsk } from "../../structured/plan.ts";
+import { standardSampling } from "../v4/options.ts";
 import { GOOGLE_KEY } from "./model.ts";
 
 const GOOGLE_EXTRA_KEYS = new Set(["cachedContent", "safetySettings", "threshold", "audioTimestamp", "mediaResolution", "imageConfig"]);
@@ -34,6 +35,22 @@ export function googleThinking(reasoning: ResolvedReasoning): JSONObject {
   return { thinkingConfig: { includeThoughts: true, ...(reasoning.effort === undefined ? {} : { thinkingLevel: reasoning.effort }) } };
 }
 
+/** The turn's tools and tool choice, or neither where the model takes no function tools (said, not dropped). */
+export function googleToolAsk(
+  req: GoogleChatRequest,
+  generation: GenerationCapability,
+  warnings: ResolvedWarning[],
+): Pick<StructuredAsk, "tools" | "toolChoice"> {
+  if (req.tools === undefined) {
+    return {};
+  }
+  if (generation.tools === undefined) {
+    warnings.push({ code: "sdk_unsupported_tool", message: "The selected model does not support function tools" });
+    return {};
+  }
+  return { tools: req.tools, toolChoice: req.toolChoice };
+}
+
 export function googleOptions(
   req: GoogleChatRequest,
   knobs: ResolvedChatKnobs,
@@ -46,15 +63,8 @@ export function googleOptions(
   if (req.params.advanced?.parallelToolCalls === false) {
     warnings.push({ code: "sdk_unsupported_tool", message: "Google cannot disable parallel function calls" });
   }
-  const tools = generation.tools === undefined ? undefined : req.tools;
-  if (req.tools !== undefined && tools === undefined) {
-    warnings.push({ code: "sdk_unsupported_tool", message: "The selected model does not support function tools" });
-  }
   return {
     ...standardSampling(knobs.sampling, knobs.maxOutputTokens),
-    ...(tools === undefined ? {} : { tools: functionTools(tools, { strictJson: req.connection.features.strictJson, warnings }) }),
-    ...(req.toolChoice === undefined || tools === undefined ? {} : { toolChoice: toolChoiceOf(servableToolChoice(req.toolChoice, generation, warnings)) }),
-    ...(req.responseFormat === undefined ? {} : { responseFormat: jsonResponseFormat(req.responseFormat, req.responseFormat.schema) }),
     providerOptions: {
       [GOOGLE_KEY]: {
         ...googleExtras(req.connection, warnings),

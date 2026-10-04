@@ -14,6 +14,8 @@
 //      actually ends on an assistant row; `prefillSuppressesThinking` strips the thinking toggle then.
 //   5b. `chat_template_kwargs.enable_thinking` set to the turn's template thinking state when `features.thinkingOff`
 //      names the kwarg, merged into whatever kwargs extras or `includeBody` set.
+//   5c. `chat_template_kwargs.preserve_reasoning: false` on such a row when the turn's reasoning carry is off.
+//   5d. the row's `reasoningBudgetField` at 0 on a turn the template must not think on, where the row names a switch.
 //   6. `modalities: ["text","image"]` when the funnel resolved `replyImages` (§6.7).
 //   7. the effort spelling: `features.effort: "none"` strips the SDK's `reasoning_effort` with `effort_dropped`.
 //   8. the output-cap spelling: `features.outputCapField: "max_completion_tokens"` renames the SDK's `max_tokens`
@@ -53,6 +55,8 @@ const MODALITIES_KEY = "modalities";
 const REPLY_MODALITIES = ["text", "image"] as const;
 const CHAT_TEMPLATE_KWARGS_KEY = "chat_template_kwargs";
 const ENABLE_THINKING_KEY = "enable_thinking";
+const PRESERVE_REASONING_KEY = "preserve_reasoning";
+const THINKING_SWITCH_NONE = "none";
 const IMAGE_URL_TYPE = "image_url";
 const VIDEO_URL_TYPE = "video_url";
 const TEXT_TYPE = "text";
@@ -84,6 +88,8 @@ export interface ShapeArgs {
   readonly replyImages: boolean;
   /** What rule 5b tells the template's thinking switch (`templateThinkingFor`); `undefined` sends nothing. */
   readonly templateThinking: boolean | undefined;
+  /** Rule 5c: `false` when the turn's reasoning carry resolved off; `undefined` sends nothing. */
+  readonly templatePreserveReasoning: boolean | undefined;
   /** The model's reasoning is mandatory: it is never told off, so rule 5's interlock leaves thinking alone. */
   readonly reasoningMandatory: boolean;
   readonly imageDetail?: ImageDetail | undefined;
@@ -223,6 +229,45 @@ function applyTemplateThinking(body: Record<string, unknown>, args: ShapeArgs, o
   return { ...body, [CHAT_TEMPLATE_KWARGS_KEY]: { ...kwargs, [ENABLE_THINKING_KEY]: args.templateThinking } };
 }
 
+/** The user's own body already decides one template kwarg: they excluded `chat_template_kwargs`, set it to
+ *  something no kwarg can merge into, or their kwargs state `key`. */
+function userDecidesKwarg(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>, key: string): boolean {
+  if (args.transport?.excludeBody?.includes(CHAT_TEMPLATE_KWARGS_KEY) === true) {
+    return true;
+  }
+  const kwargs = body[CHAT_TEMPLATE_KWARGS_KEY];
+  return owned.has(CHAT_TEMPLATE_KWARGS_KEY) && (!isRecord(kwargs) || key in kwargs);
+}
+
+/** Rule 5c: a turn whose reasoning carry resolved off tells the template not to replay prior thinking
+ *  (llama.cpp `common/chat.cpp` reads the `preserve_reasoning` kwarg per request). Beside the user's kwargs,
+ *  never over them, and only on a turn that already sends the thinking switch: a proxy that refuses
+ *  `chat_template_kwargs` must not start seeing the key on turns that never carried it. */
+function applyPreserveReasoning(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
+  if (
+    args.templatePreserveReasoning !== false ||
+    args.templateThinking === undefined ||
+    args.features.thinkingOff !== CHAT_TEMPLATE_KWARGS_KEY ||
+    userDecidesKwarg(body, args, owned, PRESERVE_REASONING_KEY)
+  ) {
+    return body;
+  }
+  const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? (body[CHAT_TEMPLATE_KWARGS_KEY] as Record<string, unknown>) : {};
+  return { ...body, [CHAT_TEMPLATE_KWARGS_KEY]: { ...kwargs, [PRESERVE_REASONING_KEY]: false } };
+}
+
+/** Rule 5d: a turn the template must not think on also sends the row's reasoning budget at 0, because some
+ *  templates keep reasoning under a JSON-schema response format with the thinking switch alone. A row that names no
+ *  template switch, and a budget key the user's body owns, are left alone. */
+function applyBudgetOff(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
+  const field = args.features.reasoningBudgetField;
+  const switchNamed = args.features.thinkingOff !== undefined && args.features.thinkingOff !== THINKING_SWITCH_NONE;
+  if (args.templateThinking !== false || field === undefined || !switchNamed || owned.has(field)) {
+    return body;
+  }
+  return { ...body, [field]: 0 };
+}
+
 /** Rule 7: an effort the SDK spelled onto a server whose row says it has no effort field. One the user's own
  *  body set stays. */
 function applyEffortSpelling(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
@@ -350,6 +395,7 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
     body = applyImageDetail(body, args.imageDetail);
   }
   body = applyTemplateThinking(applyPrefill(body, args, owned), args, owned);
+  body = applyBudgetOff(applyPreserveReasoning(body, args, owned), args, owned);
   if (args.replyImages && !owned.has(MODALITIES_KEY)) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }

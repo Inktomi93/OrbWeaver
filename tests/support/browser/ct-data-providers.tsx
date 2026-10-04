@@ -82,7 +82,6 @@ import {
   multiUserSection,
   operationsSection,
   rateLimitsSection,
-  structuredOutputSection,
   systemTuningSection,
 } from "@orb/client/features/user-admin";
 import {
@@ -326,7 +325,6 @@ const realSettingsSections: ContributorRegistry<ConfigSectionContribution> = cre
   memoryTuningSection,
   rateLimitsSection,
   systemTuningSection,
-  structuredOutputSection,
   // about ← the version (every member), then the admin's update check.
   aboutSection,
   aboutUpdatesSection,

@@ -68,12 +68,21 @@ function mergeGeneration(base: GenerationCapability, patch: GenerationPatch | Pa
     }
     merged[key] = value;
   }
+  mergeStructuredLimits(merged, base, patch);
   // A patch may open `turns` without every required cell: fill from the floor so the shape stays total.
   const turns = merged["turns"];
   if (typeof turns === "object" && turns !== null) {
     merged["turns"] = { ...TURNS_FLOOR, ...turns };
   }
   return merged as GenerationCapability;
+}
+
+// `output.structuredLimits` is a table of independent ceilings: a tier that states one keeps the others.
+function mergeStructuredLimits(merged: Record<string, unknown>, base: GenerationCapability, patch: GenerationPatch | Partial<GenerationCapability>): void {
+  const limits = { ...base.output.structuredLimits, ...patch.output?.structuredLimits };
+  if (Object.keys(limits).length > 0) {
+    merged["output"] = { ...(merged["output"] as GenerationCapability["output"]), structuredLimits: limits };
+  }
 }
 
 function mergeFlat<T extends object>(base: T, patch: Patch<T> | undefined): T {

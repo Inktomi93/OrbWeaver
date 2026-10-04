@@ -298,6 +298,9 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   prefill: ["prefill"],
   prefillSuppressesThinking: ["prefillSuppressesThinking"],
   strictJson: ["strictJson"],
+  // Not an editor field: a connection's only non-body inputs are the Advanced capability settings (owner ruling,
+  // docs/plans/structured-layer/design.md), so the grammar vocabulary stays the provider row's or the detected one's.
+  structuredMode: [],
   effort: ["effort"],
   outputCapField: ["outputCapField"],
   reasoningKeys: ["reasoningKeys"],

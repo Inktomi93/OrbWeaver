@@ -125,7 +125,10 @@ test("the connection's keep_alive rides the top level and its num_batch rides op
 
 test("a recorded tool call comes back as a tool call, and its replay reaches the server as Ollama spells it", async () => {
   const { result, recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.tools], { tools: [WEATHER] });
-  expect(recorded[0]?.body["tools"]).toEqual([{ type: "function", function: WEATHER }]);
+  // The tool's parameters ride in the row's grammar vocabulary (gbnf): the object is pinned closed, as llama.cpp reads it.
+  expect(recorded[0]?.body["tools"]).toEqual([
+    { type: "function", function: { ...WEATHER, parameters: { ...WEATHER.parameters, additionalProperties: false } } },
+  ]);
   expect(result.toolCalls).toEqual([{ toolCallId: "call_s4210pyw", name: "get_weather", arguments: '{"city":"Paris"}' }]);
   expect(result.finishReason).toBe("tool");
 
@@ -396,7 +399,7 @@ test("a structured call asks Ollama not to stream, sends the schema as `format`,
     {
       connection,
       inputs: [{ systemPrompt: "Extract.", userPrompt: "France." }],
-      responseFormat: { name: "capital", schema, vehicle: "response-format" },
+      responseFormat: { name: "capital", schema },
       signal: undefined,
     },
     batchDeps(posted),
@@ -416,7 +419,7 @@ test("a side-generation call with reasoning off sends `think: false` to a model 
     {
       connection,
       inputs: [{ systemPrompt: "Extract.", userPrompt: "France." }],
-      responseFormat: { name: "capital", schema, vehicle: "response-format" },
+      responseFormat: { name: "capital", schema },
       effort: "none",
       maxTokens: 128,
       signal: undefined,
@@ -548,7 +551,7 @@ test("0511: the rpg structured state round sends its changes schema as `format`,
     {
       connection,
       inputs: [{ systemPrompt: "Track state.", userPrompt: "Mira is bleeding." }],
-      responseFormat: { name: "rpg_state_changes", schema, vehicle: "response-format" },
+      responseFormat: { name: "rpg_state_changes", schema },
       signal: undefined,
     },
     { ...batchDeps([]), transport: { fetch: replying, app: { name: "t", url: "http://localhost:0" } } },

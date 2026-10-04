@@ -14,7 +14,9 @@ import type { Resolved } from "../../contract/resolved.ts";
 import type { StructuredRequest, SummarizeRequest, SummarizeRequestItem, TaskSampling } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveTaskSampling } from "../../funnel/resolve-chat.ts";
-import { providerErrorFromHttp } from "../kit/error-classify.ts";
+import type { PlannedResponseFormat, StructuredPlan } from "../../structured/plan.ts";
+import { normalizeStructuredText } from "../../structured/reply.ts";
+import { providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
@@ -25,9 +27,6 @@ import { measuredCostOf, sdkWarnings } from "./result.ts";
 /** A PROSE summary must never carry `<think>…</think>` scaffolding; the STRUCTURED task SKIPS the strip
  *  (constrained output is pure JSON, and a literal `<think>` inside a string value is real content). */
 const THINK_BLOCK_RE = /<think>[\s\S]*?<\/think>/gu;
-/** The description the forced tool carries when the caller supplied none — a tool with no description is a
- *  measurably worse prompt on every family, and the structured callers describe the SCHEMA, not the act. */
-export const STRUCTURED_TOOL_DESCRIPTION = "Record the result. Call this tool exactly once, with the complete result object.";
 const BASE64 = "base64";
 const DATA_URL_PREFIX = "data:";
 
@@ -74,6 +73,8 @@ export interface BatchRun {
    *  downgraded to `auto`). A side-generation batch has no bus, so — like the SDK's drops below — each is ONE
    *  named `provider.resolve-warning` line per batch rather than a silent adjustment. */
   readonly warnings?: readonly ResolvedWarning[] | undefined;
+  /** The structured task's plan: how its payload rode and which nulls the reply drops. Absent on summarize. */
+  readonly plan?: StructuredPlan | undefined;
 }
 
 /** One image input → a URL a hosted wire accepts: a string passes through (URL / data-URL); raw bytes are
@@ -102,23 +103,27 @@ function textOf(result: LanguageModelV4GenerateResult): string {
   return out;
 }
 
-/** The structured item's reply: the forced call's raw `arguments`, or the JSON text under `response_format`.
- *  A second call means the endpoint IGNORED the no-parallel knob — reported, never dropped silently. */
-function structuredReply(result: LanguageModelV4GenerateResult, toolName: string, log: ProviderLogger, index: number): string {
+/** The structured item's reply, normalized: the JSON text under `response-format`, or the structured call's raw
+ *  `arguments` under a tool vehicle. A tool vehicle the model did not call is an empty reply, never its prose. A
+ *  second call means the endpoint ignored the no-parallel knob — reported, never dropped silently. */
+function structuredReply(result: LanguageModelV4GenerateResult, format: PlannedResponseFormat, log: ProviderLogger, index: number): string {
+  if (format.vehicle === "response-format") {
+    return normalizeStructuredText(textOf(result), format);
+  }
   const calls = result.content.filter((part) => part.type === "tool-call");
-  const chosen = calls.find((call) => call.toolName === toolName);
+  const chosen = calls.find((call) => call.toolName === format.name);
   if (calls.length > 0 && chosen === undefined) {
     throw new ProviderError({
       kind: "invalid",
       retryable: false,
-      message: `structured response called "${calls[0]?.toolName ?? "unnamed"}" instead of forced tool "${toolName}"`,
+      message: `structured response called "${calls[0]?.toolName ?? "unnamed"}" instead of the structured tool "${format.name}"`,
     });
   }
   const extra = calls.filter((call) => call !== chosen).map((call) => call.toolName);
   if (extra.length > 0) {
     log.emit("warn", "provider.structured-extra-call", { index, droppedCalls: extra });
   }
-  return chosen !== undefined ? chosen.input : textOf(result);
+  return chosen === undefined ? "" : normalizeStructuredText(chosen.input, format);
 }
 
 async function runItem(run: BatchRun, log: ProviderLogger, item: SummarizeRequestItem, index: number): Promise<SummarizeResultItem> {
@@ -142,10 +147,8 @@ async function runItem(run: BatchRun, log: ProviderLogger, item: SummarizeReques
     if (refusal !== "") {
       throw new ProviderError({ kind: "refused", retryable: false, message: `the model refused: ${refusal}`, model: req.connection.model });
     }
-    const text =
-      req.responseFormat === undefined
-        ? textOf(result).replace(THINK_BLOCK_RE, "").trim()
-        : structuredReply(result, req.responseFormat.name, log, index).trim();
+    const planned = run.plan?.responseFormat;
+    const text = planned === undefined ? textOf(result).replace(THINK_BLOCK_RE, "").trim() : structuredReply(result, planned, log, index).trim();
     const tokensIn = result.usage.inputTokens.total ?? null;
     const tokensOut = result.usage.outputTokens.total ?? null;
     log.summarizeItem({
@@ -160,8 +163,10 @@ async function runItem(run: BatchRun, log: ProviderLogger, item: SummarizeReques
     return { text, usage: { tokensIn, tokensOut, costUsd: measured === null ? null : measured.costUsd } };
   } catch (err) {
     const prefix = `${label} item ${index} failed`;
+    const secrets = resolvedScrubSet(req.connection);
+    const classified = err instanceof ProviderError ? err.rewrap(`${prefix}: ${err.message}`) : providerErrorFromHttp(err, prefix, secrets);
     const failure =
-      err instanceof ProviderError ? err.rewrap(`${prefix}: ${err.message}`) : providerErrorFromHttp(err, prefix, resolvedScrubSet(req.connection));
+      run.plan === undefined ? classified : withSchemaRejection(classified, err, { log, model: req.connection.model, mode: run.plan.mode, secrets });
     log.summarizeItem({ ...base, durationMs: run.now() - startedAt, ok: false, tokensIn: null, tokensOut: null, finishReason: null, errorKind: failure.kind });
     throw failure;
   }

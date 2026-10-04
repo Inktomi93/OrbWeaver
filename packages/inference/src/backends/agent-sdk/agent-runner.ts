@@ -20,8 +20,7 @@ import type { AgentMcpServerHealth, ChatResult } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
 import type { AgentSdkLog } from "./log.ts";
-import { toSdkOutputFormat } from "./output-schema.ts";
-import { consumeTurnStream, linkAbort } from "./runner.ts";
+import { consumeTurnStream, linkAbort, sdkOutputFormatOf } from "./runner.ts";
 import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { disciplineOptions, MCP_NAMESPACE, observabilityOptions, TERMINAL_MCP_NAMESPACE } from "./translate.ts";
 import type { AgentSdkDeps } from "./types.ts";
@@ -101,15 +100,7 @@ async function probeMcpHealth(query: Query, deps: AgentSdkDeps, log: AgentSdkLog
 
 export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps, log: AgentSdkLog): Promise<ChatResult> {
   const { connection } = req;
-  const structured = connection.capability.kind === "generation" && connection.capability.generation.output.structured === true;
-  if (req.responseFormat !== undefined && !structured) {
-    throw new ProviderError({
-      kind: "invalid",
-      retryable: false,
-      message: "agent-sdk: responseFormat requested but the model does not support structured output (capability output.structured).",
-      model: connection.model,
-    });
-  }
+  const structured = sdkOutputFormatOf(connection, req.responseFormat, `agent-sdk agent (${connection.model})`);
   const overrides = {
     maxOutputTokens: req.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
     ...(req.maxContextTokens !== undefined ? { maxContextTokens: req.maxContextTokens } : {}),
@@ -121,8 +112,6 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps, lo
     [MCP_NAMESPACE]: req.mcpServer as McpSdkServerConfigWithInstance,
   };
   const taskBudget: Pick<Options, "taskBudget"> = req.taskBudget !== undefined ? { taskBudget: { total: req.taskBudget } } : {};
-  const outputFormat: Pick<Options, "outputFormat"> =
-    req.responseFormat !== undefined ? { outputFormat: toSdkOutputFormat(req.responseFormat, connection.model) } : {};
   const stream = deps.query({
     prompt: req.prompt,
     options: {
@@ -143,7 +132,7 @@ export async function runAgentTurn(req: AgentTurnRequest, deps: AgentSdkDeps, lo
         return Promise.resolve({ behavior: "cancelled" });
       },
       ...taskBudget,
-      ...outputFormat,
+      ...structured.options,
       ...(req.signal !== undefined ? { abortController } : {}),
     },
   });

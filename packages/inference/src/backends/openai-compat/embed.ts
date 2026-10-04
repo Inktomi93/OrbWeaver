@@ -216,6 +216,7 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
     plan: null,
     prefillAllowed: false,
     templateThinking: undefined,
+    templatePreserveReasoning: undefined,
     foldSameRole: false,
     replyImages: false,
     warnings: [],

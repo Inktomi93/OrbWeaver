@@ -4,7 +4,7 @@
 // patch reply and a tool call with the same intent leave the SAME record, verdict, issues and fold; `(plane, call)`
 // groups calls and `item` groups array elements; an entry that cannot form an argument rides its own recorded call.
 
-import { checkWireSchema, structuredSchemaComplexity, WIRE_SCHEMA_MODES } from "@orb/contracts/inference";
+import { checkWireSchema, effectiveStructuredLimits, structuredSchemaComplexity, WIRE_SCHEMA_MODES } from "@orb/contracts/inference";
 import type { ExtractionRefs, RpgStateRoundTool, RpgToolCall } from "@orb/contracts/rpg";
 import {
   constrainExtractionSchema,
@@ -128,7 +128,8 @@ test("the patch-list schema fits every wire mode under every mode's ceilings, fl
     expect(structuredSchemaComplexity(projected)).toEqual({ optionalProps: 0, unionProps: 0 });
     for (const mode of WIRE_SCHEMA_MODES) {
       for (const limitsFrom of WIRE_SCHEMA_MODES) {
-        expect(checkWireSchema([projected], mode, limitsFrom)).toEqual({ fits: true, violations: [] });
+        const check = checkWireSchema([projected], mode, effectiveStructuredLimits(limitsFrom, undefined));
+        expect(check.violations, `${mode} under ${limitsFrom}`).toEqual([]);
       }
     }
   }
