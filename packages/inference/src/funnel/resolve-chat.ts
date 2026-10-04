@@ -366,20 +366,26 @@ interface OutputSizing {
 
 /** A budget beside the visible cap takes what the model's own cap leaves beside the visible answer. Where that is
  *  less than the least the model thinks with, it takes part of the visible cap, never below
- *  {@link visibleReserve}: the budget shrinks before the visible reply does. */
+ *  {@link visibleReserve}: the budget shrinks before the visible reply does. The model refuses a budget under its
+ *  range minimum, so where even that minimum does not fit beside the reserve, the minimum runs and the visible
+ *  reply gives way. */
 function fitBudgetBeside(budgetTokens: number, sizing: OutputSizing, range: Range | undefined, warnings: ResolvedWarning[]): number {
   const visible = sizing.visible ?? 0;
   const least = range?.min ?? DERIVED_BUDGET_FLOOR;
-  const most = Math.max(sizing.modelMax - visible, Math.min(least, sizing.modelMax - visibleReserve(visible)));
-  if (budgetTokens <= most) {
+  const room = Math.max(sizing.modelMax - visible, Math.min(least, sizing.modelMax - visibleReserve(visible)));
+  if (budgetTokens <= room) {
     return budgetTokens;
   }
+  const applied = Math.max(room, range?.min ?? 0);
   warnings.push({
-    appliedBudget: most,
+    appliedBudget: applied,
     code: "reasoning_budget_clamped",
-    message: `reasoning budget ${budgetTokens} does not fit beside the visible cap ${visible} within the model's ${sizing.modelMax}: clamped to ${most}`,
+    message:
+      applied > room
+        ? `reasoning budget ${budgetTokens} does not fit beside the visible cap ${visible} within the model's ${sizing.modelMax}: runs at the model's least budget ${applied}, and the visible reply shrinks to fit`
+        : `reasoning budget ${budgetTokens} does not fit beside the visible cap ${visible} within the model's ${sizing.modelMax}: clamped to ${applied}`,
   });
-  return most;
+  return applied;
 }
 
 /** The output cap the wire sends. A turn whose budget sits beside the cap and that reasons gets room for it: the

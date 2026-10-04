@@ -2,8 +2,8 @@
 // must show what the NEXT TURN WILL ACTUALLY SEND, and the funnel resolves server-side; before this verb the
 // editor had no honest source for it and the quality-fed defaults were invisible.
 //
-// ONE HOME, TWO CONSUMERS: the value of every knob below comes from `resolveChat(params, capability)` —
-// literally the function both sealed chat runners call once per turn (`infra/providers/resolve-chat`). This
+// ONE HOME, TWO CONSUMERS: the value of every knob below comes from `resolveChat(params, capability, { wire,
+// posture })` — literally the call every chat runner makes once per turn (`funnel/resolve-chat`). This
 // verb resolves NO policy of its own: it runs that call and LABELS each result by comparing it against what
 // the preset stored and what the quality dial would have supplied. `QUALITY_SAMPLING`/`QUALITY_EFFORT` are
 // read for the LABEL only (which rung produced the value the funnel already returned), never to compute one —
@@ -16,7 +16,7 @@ import { requireGenerationCapability, SAMPLING_RANGE_KNOBS } from "@orb/contract
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, parsePromptConfig, QUALITY_EFFORT, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs } from "@orb/inference";
-import { resolveChat } from "@orb/inference";
+import { postureOfTask, resolveChat } from "@orb/inference";
 import type { PresetContext } from "../context.ts";
 import { PresetNotFoundError } from "../contract/errors.ts";
 import type { ResolveEffectiveParams } from "../contract/params.ts";
@@ -223,7 +223,10 @@ export function createResolveEffective(ctx: PresetContext): Pick<PresetService, 
     const { model } = resolved;
     const capability = requireGenerationCapability(resolved.capability);
     const intent = parsePromptConfig(row.config).params;
-    const turn = resolveChat(intent, capability);
+    // The wire and the role's posture both change how a budget and the output cap combine, so the readout
+    // resolves with the same two the turn hands `resolveChat`. A connection target resolves as a chat turn.
+    const posture = postureOfTask(params.target?.kind === "role" ? params.target.task : "chat");
+    const turn = resolveChat(intent, capability, { wire: resolved.wire, posture });
     const probes = probeKnobs(intent, capability, turn);
 
     const knobs: Partial<Record<EffectiveKnob, EffectiveKnobReading>> = {};

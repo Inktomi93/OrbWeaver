@@ -1,6 +1,6 @@
-// infra/providers/backends/kit/idle-timeout — a rolling idle-abort wrapper for streaming HTTP runners.
-// Shared (below the sealed backends) so every OpenAI-compatible / OpenRouter runner composes the same
-// stall guard without reaching into another strategy.
+// infra/providers/backends/kit/idle-timeout — a rolling idle-abort wrapper for streaming runners.
+// Shared (below the sealed backends) so every HTTP chat runner, and the agent-sdk side-generation turn,
+// composes the same stall guard without reaching into another strategy.
 //
 // Why IDLE, not a whole-turn deadline: a single `AbortSignal.timeout(N)` kills the turn N ms after it
 // STARTS — so a legitimately long generation that streams for >N ms is aborted mid-stream even though the

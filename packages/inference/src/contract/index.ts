@@ -97,5 +97,6 @@ export type {
 } from "./roles.ts";
 export { embedRequestTimeoutMs } from "./roles.ts";
 export type { SideGenSampling } from "./side-gen.ts";
+export { postureOfTask } from "./side-gen.ts";
 export type { StructuredRetrySummary, StructuredTurnArgs } from "./structured-turn.ts";
 export { StructuredOutputError } from "./structured-turn.ts";

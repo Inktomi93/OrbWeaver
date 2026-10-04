@@ -412,6 +412,26 @@ test("side generation: reasoning room never takes the visible reserve; the budge
   expect(knobs.warnings.map((w) => w.code)).toContain("reasoning_budget_clamped");
 });
 
+test("a budget beside the visible cap never runs under the model's least budget; the visible reply gives way, loudly", () => {
+  // [visible cap, model cap]: the least budget fits beside neither the visible cap nor its reserve.
+  const cramped = [
+    [1000, 2000],
+    [1500, 1500],
+    [100, 1100],
+  ] as const;
+  for (const [visible, modelMax] of cramped) {
+    const cap = generation({ reasoning: BUDGET_NO_DEFAULT, output: { maxTokens: { min: 1, max: modelMax }, modalities: ["text"] } });
+    const sideGen = resolveChat({ thinkingBudgetTokens: 5000, maxOutputTokens: visible } satisfies UserIntent, cap, { posture: "side-gen" });
+    const anthropic = resolveChat({ thinkingBudgetTokens: 5000, maxOutputTokens: visible } satisfies UserIntent, cap, { wire: "anthropic-messages" });
+    for (const knobs of [sideGen, anthropic]) {
+      expect(knobs.reasoning.budgetTokens).toBe(1024);
+      expect(knobs.warnings).toContainEqual(expect.objectContaining({ code: "reasoning_budget_clamped", appliedBudget: 1024 }));
+    }
+    expect(sideGen.maxOutputTokens).toBe(modelMax);
+    expect((anthropic.maxOutputTokens ?? 0) + 1024).toBe(Math.min(modelMax, visible + 1024));
+  }
+});
+
 test("replyMedia: the DEFAULT (absent / text) asks for nothing and warns about nothing, on either model", () => {
   expect(resolveChat({} satisfies UserIntent, generation({ output: IMAGE_OUT })).replyImages).toBe(false);
   const textOnly = resolveChat({ replyMedia: "text" } satisfies UserIntent, generation());

@@ -41,6 +41,8 @@ import { requireStructuredPlan } from "../../structured/plan.ts";
 import { normalizeStructuredValue } from "../../structured/reply.ts";
 import { toAnthImageBlock } from "../kit/anth-image-block.ts";
 import { classifyHttpStatus } from "../kit/error-classify.ts";
+import type { IdleAbort } from "../kit/idle-timeout.ts";
+import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import { redactSecretsFromText } from "../kit/openai-body.ts";
 import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
@@ -207,7 +209,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   logSessionDecision(req.chatId, resume, disposition, log);
 
   const stderrTail = new StderrTail();
-  const abortController = linkAbort(req.signal);
+  const abort = turnAbortOf(req);
   const chatId = req.chatId;
   const terminal = terminalToolOptions(req.terminalTools ?? [], gen.turnId, log);
   const structured = sdkOutputFormatOf(connection, req.responseFormat, `agent-sdk chat (${connection.model})`);
@@ -228,13 +230,13 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       stderr: (data: string): void => stderrTail.append(data),
       ...(resume !== undefined ? { resume } : {}),
       ...(systemPrompt !== undefined ? { systemPrompt } : {}),
-      ...(req.signal !== undefined ? { abortController } : {}),
+      ...abort.options,
       title: sdkChatTitle(chatId),
     },
   });
 
   const result = await consumeTurnStream(
-    stream,
+    abort.bound(stream),
     {
       turnId: gen.turnId,
       model: connection.model,
@@ -260,6 +262,51 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     log,
   );
   return appendWarnings(result, warnings, deps.now(), req.onEvent);
+}
+
+/** The abort a turn's subprocess takes, and the frames the turn reads. A side-generation item often has no caller
+ *  signal and nothing else waits on it, so a wedged subprocess would pin its batch forever: it takes the same idle
+ *  ceiling the HTTP wires use. */
+function turnAbortOf(req: AgentSdkChatRequest): {
+  readonly options: Pick<Options, "abortController">;
+  readonly bound: (stream: AsyncIterable<SDKMessage>) => AsyncIterable<SDKMessage>;
+} {
+  const idle = req.posture === "side-gen" ? turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs) : undefined;
+  const signal = idle?.signal ?? req.signal;
+  return {
+    options: signal !== undefined ? { abortController: linkAbort(signal) } : {},
+    bound: (stream) => (idle !== undefined ? idleBounded(stream, idle, req.signal, req.connection.model) : stream),
+  };
+}
+
+/** The turn's frames, each restarting the idle window. A window with no frame aborts the subprocess and fails the
+ *  turn retryably even if the SDK's iterator never settles; the caller's own cancel stays a non-retryable abort. */
+async function* idleBounded(stream: AsyncIterable<SDKMessage>, idle: IdleAbort, caller: AbortSignal | undefined, model: string): AsyncGenerator<SDKMessage> {
+  const tripped = new Promise<never>((_resolve, reject) => {
+    idle.signal.addEventListener(
+      "abort",
+      () =>
+        reject(
+          caller?.aborted === true
+            ? new ProviderError({ kind: "aborted", retryable: false, message: "agent-sdk: the turn was cancelled", model })
+            : new ProviderError({ kind: "server", retryable: true, message: "agent-sdk: no frame within the idle ceiling; the turn was aborted", model }),
+        ),
+      { once: true },
+    );
+  });
+  const frames = stream[Symbol.asyncIterator]();
+  try {
+    for (;;) {
+      const next = await Promise.race([frames.next(), tripped]);
+      if (next.done === true) {
+        return;
+      }
+      idle.reset();
+      yield next.value;
+    }
+  } finally {
+    idle.dispose();
+  }
 }
 
 /** The Claude runtime takes no parallel-tool control (its query options have none), so a preset's

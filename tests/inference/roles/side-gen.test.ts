@@ -380,6 +380,42 @@ test("(7) agent-sdk structured still refuses a turn that produced no structured_
   });
 });
 
+test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's idle ceiling and fails retryably", async () => {
+  const model = "claude-opus-5";
+  const controllers: (AbortController | undefined)[] = [];
+  // The init frame arrives, then nothing: the subprocess ends only when its controller aborts.
+  const wedged = (args: { readonly options: Record<string, unknown> }): AsyncGenerator<Record<string, unknown>> => {
+    const controller = args.options["abortController"] as AbortController | undefined;
+    controllers.push(controller);
+    return (async function* stream(): AsyncGenerator<Record<string, unknown>> {
+      yield { type: "system", subtype: "init", session_id: SESSION_ID, apiKeySource: "none", model };
+      await new Promise<void>((resolve) => controller?.signal.addEventListener("abort", () => resolve(), { once: true }));
+      throw Object.assign(new Error("aborted"), { name: "AbortError" });
+    })();
+  };
+  const executor = executorWith({ agentSdkQuery: wedged });
+  const { capability } = synthesizeCapability("generation", "anthropic", {
+    curated: curatedRows({ model, providerId: castId<ProviderId>("claude-sub"), wire: "agent-sdk", api: "agent-sdk" }),
+  });
+  const connection = fakeResolved({
+    task: "summarize",
+    providerId: "claude-sub",
+    model,
+    capability,
+    secret: fakeApiKeySecret("sk-ant-oat-not-a-real-token"),
+    declaredFeatures: { requestTimeoutMs: 50 },
+  });
+  const outcome = await Promise.race([
+    executor.summarize({ connection, inputs: [ITEM] }).then(
+      () => "resolved",
+      (error: unknown) => error,
+    ),
+    new Promise((resolve) => setTimeout(() => resolve("still pending"), 2000)),
+  ]);
+  expect(outcome).toMatchObject({ kind: "server", retryable: true });
+  expect(controllers[0]?.signal.aborted).toBe(true);
+});
+
 // ── (8) word-keyed logit bias ──────────────────────────────────────────────────────────────────────────
 
 test("(8) a word-keyed logit bias resolves to token ids through the server's tokenizer", async () => {

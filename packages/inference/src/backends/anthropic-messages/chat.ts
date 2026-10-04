@@ -151,8 +151,7 @@ const OFF_THINKING: Readonly<Record<ReasoningOffMode, JSONObject>> = {
 /** The thinking types that run no thinking before the reply; a turn that sent one ran with reasoning off. */
 const OFF_THINKING_TYPES: readonly unknown[] = Object.values(OFF_THINKING).map((thinking) => thinking["type"]);
 
-/** The `thinking` block per the resolved reasoning MODE — the policy already ran in the funnel. The batch
- *  tasks (`batch.ts`) spell their side-generation posture through this same function. */
+/** The `thinking` block per the resolved reasoning MODE — the policy already ran in the funnel. */
 export function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
   if (!reasoning.enabled) {
     return OFF_THINKING[reasoning.offMode ?? REASONING_OFF_DEFAULT];
