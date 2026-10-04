@@ -16,9 +16,11 @@ The prompt seam writes its rewrite into canon: the stored message has the ellips
 
 Plugin final pass finding.
 
+Owner ruling: model it on guided Impersonate. Polish takes the composer text and rewrites it in the composer before send, visibly, the way Impersonate fills the composer (packages/client/src/features/chat/components/composer-guided-cluster.tsx fireImpersonate); an undo puts the typed text back, the way the recent-steers recall does (packages/client/src/state/steer-recovery-store.ts). What the user sends is what is stored; no hidden rewrite after send.
+
 ## Done when
 
-The typed message is stored verbatim and only the model's prompt carries the polish, or the README and description state that it rewrites the saved text, by owner choice.
+Polish rewrites the draft in the composer before send, an undo restores the typed text, the sent message is stored exactly as sent, and the README and description match.
 
 ## Evidence
 
