@@ -146,6 +146,8 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   "connection.providersAvailable": [],
   // Model roles' Utility preset Select (D299) lists the reader's presets; unfed, the Model roles section errors.
   "preset.list": [],
+  // Model roles' rows read the embed generation state; fed not-paused so no row paints a pause notice.
+  "search.spaceStatus": { paused: false, embed: false, imageEmbed: false },
   // The About group's version section suspends on the version identity.
   "settings.getVersion": { version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout", channel: "main" },
   "plugin.list": [],
