@@ -952,10 +952,11 @@ function resolveCoveragePoint(
   return coverage > 0 ? coverage : undefined;
 }
 
-/** The context the next dispatch would carry, priced as the turn's fit prices it, against the fit's ceiling — the
- *  ONE measure the pre-turn compaction trigger and the no-wall warning read, so both trip where the fit does.
- *  `used` = the prompt-eligible rows above the current coverage plus the output reserve; the system prompt is not
- *  assembled yet, so it counts as zero. `null` ⇒ no window or soft cap bounds the context. */
+/** The context the next dispatch would carry, priced as the turn's fit prices it, against the fit's ceiling — what
+ *  the pre-turn compaction trigger reads. `used` = the prompt-eligible rows above the current coverage plus the
+ *  output reserve. The system prompt is not assembled yet and no per-chat figure is recorded, so it counts as zero:
+ *  this trigger fires later than the post-turn one by the system prompt's cost. `null` ⇒ no window or soft cap
+ *  bounds the context. */
 function preTurnFitUsage(args: {
   readonly connection: Resolved<"chat">;
   readonly maxContextTokens: number | undefined;
@@ -1064,16 +1065,12 @@ async function preTurnCompactionPlan(
  *  CANCELLABLE (#1436): the turn's signal rides into the generation, and a cancelled one propagates instead of
  *  being absorbed as a failure. Returns the (possibly reloaded) canon + maxSeq + a marker overlay (null when
  *  nothing compacted). */
-async function runPreTurnCompaction(
-  ctx: ChatContext,
-  deps: EngineDeps,
-  prep: TurnPrep,
-): Promise<{ readonly canonAll: readonly MessageView[]; readonly maxSeq: number; readonly compactionOverlay: CompactionOverlay | null }> {
+async function runPreTurnCompaction(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<PreTurnCompaction> {
   const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
-  const { coveragePoint, currentCoverage, instructions } = await preTurnCompactionPlan(ctx, prep, canonAll);
+  const { coveragePoint, instructions } = await preTurnCompactionPlan(ctx, prep, canonAll);
   // No pre-turn compaction: return the loaded canon untouched (still avoids a second DB read for maxSeq).
   if (coveragePoint === undefined || compactionInFlight.has(prep.chatId)) {
-    return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null };
+    return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null, markerFailed: false };
   }
   const { chatId } = prep;
   compactionInFlight.add(chatId);
@@ -1117,25 +1114,29 @@ async function runPreTurnCompaction(
   if (overlay !== null) {
     const reloaded = await loadCanonHistory(ctx.db, chatId);
     await emitQuiet(deps, { type: "chatUpdated", chatId });
-    return { canonAll: reloaded, maxSeq: reloaded.at(-1)?.seq ?? 0, compactionOverlay: overlay };
+    return { canonAll: reloaded, maxSeq: reloaded.at(-1)?.seq ?? 0, compactionOverlay: overlay, markerFailed: false };
   }
-  // THE NO-WALL BELT (owner ruling — compaction is a safety property): the pre-turn arm wanted to compact but NO
-  // usable marker materialized (the generation kept failing/empty). If the context is already AT/OVER the fit's
-  // ceiling, the turn would march into the wall — so we DEGRADE loudly: the DOMAIN fit-pass drop-oldest trims the
-  // shaped history there (→ a shorter agent-sdk seed → a reseed; the turn SURVIVES, no summary), and we
-  // emit a VISIBLE warning. Degraded-and-loud, never error-and-dead.
-  if (contextAtOrOverFit(prep, canonAll, currentCoverage)) {
-    await emitQuiet(deps, { type: "warning", chatId, code: "context_trimmed_no_summary" });
-  }
-  return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null };
+  // The marker failed: the turn proceeds on the current canon, and `emitTrimmedNoSummary` raises the no-wall
+  // warning once the turn's own fit shows it dropped rows.
+  return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null, markerFailed: true };
 }
 
-/** Whether the prompt-eligible context above the current coverage is AT/OVER the fit's ceiling — the no-wall
- *  belt's trip condition, so its warning fires exactly where the fit-pass's drop-oldest trim begins. */
-function contextAtOrOverFit(prep: TurnPrep, canonAll: readonly MessageView[], currentCoverage: number): boolean {
-  const { maxContextTokens, maxOutputTokens } = resolveEffectiveCompaction(prep);
-  const usage = preTurnFitUsage({ connection: prep.connection, maxContextTokens, maxOutputTokens, canonAll, currentCoverage });
-  return usage !== null && usage.used >= usage.ceiling;
+/** What the pre-turn compaction arm hands the turn: the canon to assemble from, a fresh marker overlay (null when
+ *  none ran), and whether it wanted a marker that never materialized. */
+interface PreTurnCompaction {
+  readonly canonAll: readonly MessageView[];
+  readonly maxSeq: number;
+  readonly compactionOverlay: CompactionOverlay | null;
+  readonly markerFailed: boolean;
+}
+
+/** THE NO-WALL BELT (owner ruling — compaction is a safety property): the pre-turn arm wanted a marker and none
+ *  materialized, so the turn ran on the full canon and the fit-pass's drop-oldest trim is what kept it alive.
+ *  Degraded-and-loud: the warning reads the turn's REAL drop count, the one source that knows the fit trimmed. */
+async function emitTrimmedNoSummary(deps: EngineDeps, chatId: ChatId, pre: PreTurnCompaction, result: { readonly droppedCount: number }): Promise<void> {
+  if (pre.markerFailed && result.droppedCount > 0) {
+    await emitQuiet(deps, { type: "warning", chatId, code: "context_trimmed_no_summary" });
+  }
 }
 
 /** The managed-compaction marker build's own trace root (I-7 finding: found alongside the three named holes —
@@ -1884,6 +1885,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     await deltaTail;
     const genFinishedAt = ctx.now();
     await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
+    await emitTrimmedNoSummary(deps, prep.chatId, pre, result);
     // §6.7 — the model's own pictures become canon HERE: stored under the host, spliced into the body as
     // `![alt](asset:<id>)` spans, and handed to the commit as the ids it must link `inline-reply`. It runs
     // AHEAD of the prose-less refusal below because those spans ARE the body of a picture-only reply.

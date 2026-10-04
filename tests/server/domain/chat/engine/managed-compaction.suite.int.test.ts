@@ -20,16 +20,10 @@ import { generationOf } from "@orb/inference";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { estimateTokens } from "@orb/kit/tokens";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import {
-  buildHistoryBudget,
-  fitCeilingTokens,
-  fitHistoryToWindow,
-  historyTurnTokens,
-} from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
+import { buildHistoryBudget, fitCeilingTokens, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { QuietGenerateParams } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { TurnMessage, TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -432,60 +426,72 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     expect(emitted.some((e) => e.type === "warning" && e.code === "context_trimmed_no_summary")).toBe(true);
   });
 
-  // The warning names a trim, so it fires where the fit trims: at the fit's ceiling, not at the raw window.
-  test("NO-WALL warning fires where the fit trims, even while the raw history is still under the raw window", async () => {
-    const window = 4000;
-    const maxOutputTokens = 100;
-    const sdk: Resolved<"chat"> = {
-      ...AGENT_SDK,
-      capability: makeCapability({ ...generationOf(AGENT_SDK), context: { ...generationOf(AGENT_SDK).context, window } }),
-    };
-    const budget = buildHistoryBudget({
-      windowTokens: window,
-      maxContextTokens: undefined,
-      maxOutputTokens,
-      systemTokens: 0,
-      outputCeiling: generationOf(sdk).output.maxTokens.max,
-    });
-    const ceiling = fitCeilingTokens(budget) ?? Number.NaN;
-    let used = budget.reserveOutputTokens;
-    let rows = 0;
-    while (used < ceiling) {
-      rows += 1;
-      used += historyTurnTokens({ content: historyRowContent(rows) });
-    }
-    const seeded = Array.from({ length: rows }, (_, i) => ({ role: "user" as const, content: historyRowContent(i + 1) }));
-    // The premise: the fit trims these rows, yet their raw estimate is well under the raw window.
-    expect(fitHistoryToWindow(seeded, budget).droppedCount).toBeGreaterThan(0);
-    expect(seeded.reduce((sum, row) => sum + estimateTokens(row.content), 0)).toBeLessThan(window);
+  // The warning names a trim, so it reads the turn's own fit: it fires whenever the fit dropped rows after the
+  // marker failed, whatever the system prompt costs. Seeded just under the fit's ceiling by history ALONE, so only
+  // the real system prompt (a bare card, or a 2000-word description) pushes the fit into trimming.
+  describe("NO-WALL warning fires when the turn's fit trims after a failed marker", () => {
+    test.for([0, 2000])("a %i-word character description", async (descriptionWords) => {
+      const window = 8000;
+      const maxOutputTokens = 100;
+      const sdk: Resolved<"chat"> = {
+        ...AGENT_SDK,
+        capability: makeCapability({ ...generationOf(AGENT_SDK), context: { ...generationOf(AGENT_SDK).context, window } }),
+      };
+      const budget = buildHistoryBudget({
+        windowTokens: window,
+        maxContextTokens: undefined,
+        maxOutputTokens,
+        systemTokens: 0,
+        outputCeiling: generationOf(sdk).output.maxTokens.max,
+      });
+      const ceiling = fitCeilingTokens(budget) ?? Number.NaN;
+      let used = budget.reserveOutputTokens;
+      let rows = 0;
+      while (used + historyTurnTokens({ content: historyRowContent(rows + 1) }) < ceiling) {
+        rows += 1;
+        used += historyTurnTokens({ content: historyRowContent(rows) });
+      }
+      const chatId = await seedChatWithHistory(rows);
+      let sentRows = -1;
+      const turn: ChatContext["runChatTurn"] = (req) => {
+        sentRows = req.history.length;
+        return turnWithUsage({ tokensIn: 4, tokensOut: 2 })(req);
+      };
+      const failingMarker: ChatContext["runChatTurn"] = () => {
+        throw new Error("summarizer permanently down");
+      };
+      const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: failingMarker }), {
+        emit: () => Promise.resolve(),
+        quietGenerate: createQuietGenerate({ runChatTurn: failingMarker, resolveChatPresetParams: () => Promise.resolve({}) }),
+        resolveConnection: () => Promise.resolve(sdk),
+      });
+      const emitted: ChatBusEvent[] = [];
+      const engine = createTurnEngine(makeChatContext(db, { runChatTurn: turn }), {
+        emit: (e: ChatBusEvent) => {
+          emitted.push(e);
+          return Promise.resolve();
+        },
+        holder: "r1",
+        lockTtlMs: 60_000,
+        generateSegments,
+        generateDigests,
+        loadWitnessHorizons,
+        recallMemory,
+        runCompaction,
+      });
 
-    const chatId = await seedChatWithHistory(rows);
-    const emitted: ChatBusEvent[] = [];
-    const failingMarker: ChatContext["runChatTurn"] = () => {
-      throw new Error("summarizer permanently down");
-    };
-    const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: failingMarker }), {
-      emit: () => Promise.resolve(),
-      quietGenerate: createQuietGenerate({ runChatTurn: failingMarker, resolveChatPresetParams: () => Promise.resolve({}) }),
-      resolveConnection: () => Promise.resolve(sdk),
+      const outcome = await engine.runTurn(
+        prepOf(chatId, sdk, {
+          assembleContext: { ...ASSEMBLE_CTX, character: { name: "Aria", description: "word ".repeat(descriptionWords) } },
+          intent: { compaction: { mode: "managed" }, maxOutputTokens },
+        }),
+      );
+      expect(outcome.aborted).toBe(false);
+      // The premise: the turn's fit really dropped rows the canon held.
+      expect(sentRows).toBeGreaterThan(0);
+      expect(sentRows).toBeLessThan(rows);
+      expect(emitted.some((e) => e.type === "warning" && e.code === "context_trimmed_no_summary")).toBe(true);
     });
-    const engine = createTurnEngine(makeChatContext(db, { runChatTurn: turnWithUsage({ tokensIn: 4, tokensOut: 2 }) }), {
-      emit: (e: ChatBusEvent) => {
-        emitted.push(e);
-        return Promise.resolve();
-      },
-      holder: "r1",
-      lockTtlMs: 60_000,
-      generateSegments,
-      generateDigests,
-      loadWitnessHorizons,
-      recallMemory,
-      runCompaction,
-    });
-
-    const outcome = await engine.runTurn(prepOf(chatId, sdk, { intent: { compaction: { mode: "managed" }, maxOutputTokens } }));
-    expect(outcome.aborted).toBe(false);
-    expect(emitted.some((e) => e.type === "warning" && e.code === "context_trimmed_no_summary")).toBe(true);
   });
 
   test("STATELESS api with the SAME blown fit does NOT compact (agent-sdk-API-only write gate)", async () => {
