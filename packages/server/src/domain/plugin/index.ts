@@ -43,6 +43,7 @@ export {
   CapabilityNotGrantedError,
   HostVersionUnservedError,
   ManifestInvalidError,
+  PluginActionFailedError,
   PluginAlreadyInstalledError,
   PluginBundleFetchError,
   PluginBundlePreviewStaleError,

@@ -9,7 +9,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CreateInstanceOutcome, PluginHandlerRef, PluginHostPort, PluginInstance } from "@orb/server/domain/plugin";
-import { PluginNotFoundError } from "@orb/server/domain/plugin";
+import { PluginActionFailedError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
@@ -163,5 +163,19 @@ test("an unknown surface id (or a surface with no onAction) is refused", async (
   );
   await expect(h.service.invokeUiAction({ caller, pluginId: installed.id, surfaceId: "readout", actionId: "x", values: {} })).rejects.toThrow(
     NO_ACTIONABLE_SURFACE_RE,
+  );
+});
+
+test("a guest handler that throws is a typed plugin error, not a bare Error", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, {
+    port: { ...makeRecordingPort([], "TOKEN"), invoke: () => Promise.reject(new Error("plugin host: ui.toast is limited to one notice")) },
+  });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+
+  await expect(h.service.invokeUiAction({ caller, pluginId: installed.id, surfaceId: "panel", actionId: "save", values: {} })).rejects.toBeInstanceOf(
+    PluginActionFailedError,
   );
 });

@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P2
 area: plugin
-lane: wt/agent-ad435ab6e19d39557
 ---
 
 # A plugin footer badge shows once per room
@@ -23,4 +22,4 @@ A plugin status badge shows once per room or only on messages the plugin acted o
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S6: message-footer badges are a per-row static spec by contract (plugin-message-footer-surfaces.tsx); once per room needs a host rule such as latest row only, or a plugin flag.

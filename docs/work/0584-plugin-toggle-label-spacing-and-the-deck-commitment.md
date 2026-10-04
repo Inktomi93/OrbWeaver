@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P3
 area: plugin
-lane: wt/agent-ad435ab6e19d39557
 ---
 
 # Plugin toggle label spacing and The Deck commitment display
@@ -23,4 +22,4 @@ A plugin toggle sits beside its label at page width, and the commitment reads as
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S6 (bc7ba151e5) put the plugin toggle label beside its switch (ToggleLeaf in plugin-leaf-nodes.tsx). Open: the Oracle Deck commitment display needs a bundle change with a version bump.
