@@ -288,7 +288,7 @@ export function grantSummaryLine(granted: readonly PluginCapability[]): string |
  * you"), not a settled state — the row below carries the actual re-consent notice + action. A plugin that was
  * never approved is a first ask, not a refusal, and wears the quiet {@link NEEDS_APPROVAL_LABEL} instead.
  *
- * `grantedCount` feeds the ENABLED-BUT-INERT arm (side-eye 2026-08-29 owner observation): a plugin switched
+ * The granted set feeds the ENABLED-BUT-INERT arm (side-eye 2026-08-29 owner observation): a plugin switched
  * on with ZERO granted capabilities runs and can reach nothing — the least-privilege posture working as
  * designed, but "I turned it on and nothing happened" needed an answer ON THE ROW. The badge says why,
  * and says no more: an installed plugin's grant is only editable through the re-consent path (`setGrant`
@@ -296,32 +296,39 @@ export function grantSummaryLine(granted: readonly PluginCapability[]): string |
  * point at a "tick something below" affordance that does not exist. `warning` on the statusCopy doc's own
  * rule — an on-but-inert plugin is an OPEN question, not a settled success.
  */
-export function statusCopy(
-  status: PluginStatus,
-  reconsentPending: boolean,
-  grantedCount: number,
-): { readonly label: string; readonly intent: "success" | "neutral" | "warning" | "danger" } {
-  if (status === "enabled") {
-    return grantedCount === 0 ? { label: "On — nothing granted yet", intent: "warning" } : { label: "On", intent: "success" };
+export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginStatus; readonly reconsentPending: boolean }): {
+  readonly label: string;
+  readonly intent: "success" | "neutral" | "warning" | "danger";
+} {
+  if (plugin.status === "enabled") {
+    return plugin.grantedCapabilities.length === 0 ? { label: "On — nothing granted yet", intent: "warning" } : { label: "On", intent: "success" };
   }
-  if (status === "errored") {
+  if (plugin.status === "errored") {
     return { label: "Stopped after an error", intent: "danger" };
   }
-  if (!reconsentPending) {
+  if (!plugin.reconsentPending) {
     return { label: "Off", intent: "neutral" };
   }
-  return grantedCount === 0 ? { label: NEEDS_APPROVAL_LABEL, intent: "neutral" } : { label: "Off — asked for more than you allowed", intent: "warning" };
+  return consentAskKind(plugin) === "first"
+    ? { label: NEEDS_APPROVAL_LABEL, intent: "neutral" }
+    : { label: "Off — asked for more than you allowed", intent: "warning" };
 }
 
 /** The quiet state a plugin waiting on its owner's first approval wears, on the Plugins screen and in the
  *  Plugin pages list alike. */
 export const NEEDS_APPROVAL_LABEL = "Needs approval";
 
+/** The two projected fields that tell a first ask from an update's. */
+interface ConsentAskFacts {
+  readonly grantedCapabilities: readonly PluginCapability[];
+  readonly widenedNetHosts: readonly string[];
+}
+
 /** Which ask a pending plugin is making. Both a never-approved install (the seeded examples, a distributed
- *  copy) and an update that widened reach raise `reconsentPending`. An owner who has granted nothing has never
- *  approved this plugin, whatever updates landed while it waited, so only a held grant makes it an update. */
-export function consentAskKind(plugin: { readonly grantedCapabilities: readonly PluginCapability[] }): "first" | "update" {
-  return plugin.grantedCapabilities.length === 0 ? "first" : "update";
+ *  copy) and an update that widened reach raise `reconsentPending`. A held grant, or a host delta recorded by
+ *  an update, makes it an update; a first ask has neither. */
+export function consentAskKind(plugin: ConsentAskFacts): "first" | "update" {
+  return plugin.grantedCapabilities.length === 0 && plugin.widenedNetHosts.length === 0 ? "first" : "update";
 }
 
 /** The headline of a never-approved plugin's ask. */

@@ -226,9 +226,11 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
   const ungranted = plugin.declaredCapabilities.filter((capability) => !plugin.grantedCapabilities.includes(capability));
   // #1855: approve-all/deny — the grant summary always shows the full declared set.
   const summary = grantSummaryLine(plugin.declaredCapabilities);
-  // A never-approved plugin is asking for the first time, so it is not "an update" and nothing in its ask is
-  // "New" relative to a grant it never had.
+  // A never-approved plugin is asking for the first time, so it is not "an update".
   const firstAsk = consentAskKind(plugin) === "first";
+  // No capability is "New" relative to a grant that was never given. The host marks always pass through: the
+  // server records them only when an update widened reach, so they are empty on a genuine first ask.
+  const newCapabilities = plugin.grantedCapabilities.length === 0 ? [] : ungranted;
   return (
     // THE WARNING-CALLOUT SKIN (owner rework 2026-08-29 — "no hierarchy"): this block is the one thing on
     // the row that NEEDS the owner, and it used to render as more of the same prose wall. It is set apart by
@@ -259,7 +261,7 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
       <Text className="max-w-(--reading-measure-prose)" prose={true} voice="gloss">
         {firstAsk
           ? `Review what it asks for below. Approving turns ${plugin.name} on; you can turn it off at any time.`
-          : `Orbweaver did not grant the extra permissions, so ${plugin.name} stayed off. Review what it asks for below and approve all, or remove the plugin.`}
+          : `Orbweaver did not grant the extra permissions, so ${plugin.name} stayed off. Review what it asks for below and approve all, or remove the plugin. Approving turns ${plugin.name} on; you can turn it off at any time.`}
       </Text>
       {/* #1855: READ-ONLY arm — approve-all/deny replaces per-grant toggles. `addedCapabilities` and
           `addedNetHosts` mark what this update added — the capability half derived from the two projected
@@ -267,8 +269,8 @@ export function ReConsentNotice({ plugin, onAllow, onRemove, allowing, removing 
           compute it; see plugin-grant-list.tsx's header). `netHosts` is passed ungated on purpose: this
           screen is showing reach, including reach that is not granted yet. */}
       <PluginGrantList
-        addedCapabilities={firstAsk ? [] : ungranted}
-        addedNetHosts={firstAsk ? [] : plugin.widenedNetHosts}
+        addedCapabilities={newCapabilities}
+        addedNetHosts={plugin.widenedNetHosts}
         capabilitiesLabel={`What ${plugin.name} asks for`}
         declared={plugin.declaredCapabilities}
         granted={plugin.grantedCapabilities}

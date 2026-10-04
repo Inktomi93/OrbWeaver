@@ -81,7 +81,7 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const enableAdmission = useRef(false);
 
-  const status = statusCopy(plugin.status, plugin.reconsentPending, plugin.grantedCapabilities.length);
+  const status = statusCopy(plugin);
   const grantTasks = pluginGrantTasks(plugin.declaredCapabilities);
   const provenance = builtAgainstLine(plugin.builtAgainst);
 

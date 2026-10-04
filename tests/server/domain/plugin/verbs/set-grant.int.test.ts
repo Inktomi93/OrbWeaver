@@ -61,8 +61,8 @@ test("THE LOOP CLOSES: upgrade declares a new capability → setGrant allows it 
 });
 
 test("re-grant never enables a disabled plugin, and enabling never re-grants", async () => {
-  // The two inversions, both directions. An enable that recomputed the grant would silently widen authority on
-  // every restart; a re-grant that enabled would turn "you may have this power" into "and use it now".
+  // Both directions. An enable that recomputed the grant would silently widen authority on every restart; a
+  // re-grant runs the plugin only when the owner's approval asks it to (`enable`), never by itself.
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -351,7 +351,7 @@ test("the seeder's own shape works for a plain user: install(grant:[]) then setG
   const settled = await h.service.setGrant({ caller: principalFor(user), pluginId: installed.id, grant: [], acknowledgedNetHosts: [] });
 
   expect(settled.grantedCapabilities).toEqual([]);
-  expect(settled.status).toBe("disabled"); // a re-grant never enables (the two acts stay separate)
+  expect(settled.status).toBe("disabled"); // a re-grant without `enable` never enables
   expect(settled.reconsentPending).toBe(false); // nothing declared, so nothing left unanswered
 });
 
