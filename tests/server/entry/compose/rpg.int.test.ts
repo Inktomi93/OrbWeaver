@@ -405,6 +405,8 @@ function buildCannedRpgWithText(args: {
    *  vllm surface (real `buildBody` + the real `captureWire` sink → the real ring) through this seam, because
    *  a fake executor can never prove the round's request reaches the debug read. Wins over `chatThrows`. */
   readonly chatArm?: NonNullable<Parameters<typeof buildRpg>[0]["executor"]["runChatTurn"]>;
+  /** The room preset's Max context, as chat's preset ladder resolves it; omitted ⇒ the real ladder answers. */
+  readonly presetMaxContext?: number;
 }): ReturnType<typeof buildRpg> {
   const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows, chatThrows, capability } = args;
   const structuredReplies = [...(args.structuredReplies ?? [])];
@@ -412,7 +414,10 @@ function buildCannedRpgWithText(args: {
     db,
     now: () => FROZEN_AT,
     ...(args.trace === undefined ? {} : { trace: args.trace }),
-    rpgChatOps: app.chatRpgOps,
+    rpgChatOps:
+      args.presetMaxContext === undefined
+        ? app.chatRpgOps
+        : { ...app.chatRpgOps, resolveChatPresetMaxContext: (): Promise<number | undefined> => Promise.resolve(args.presetMaxContext) },
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
@@ -3439,6 +3444,23 @@ test("0532: a state round that cannot fit the connection's window is named on th
   // A folding room runs no post-commit round, so there is nothing to fit even on the small window.
   await unpinned.service.updateConfig({ ...read, extractionMode: "folded" });
   expect((await unpinned.service.getGame(read)).effectiveDelivery).toMatchObject({ path: "folded", stateRoundOverflow: null });
+});
+
+// On Ollama's native route the turn sends the preset's Max context as `num_ctx`, so the round is priced against that
+// window: a preset that raises it clears the notice the server's floor would raise.
+test("0532: on a route that sends the window, the overflow notice prices the preset's Max context, not the floor", async ({ app, db }) => {
+  const floor = makeGenerationCapability({
+    output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] },
+    tools: { parallel: true },
+    context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } },
+  });
+  const unset = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: floor });
+  const game = await cheapGame(db, unset, "window-settable");
+  const read = { principal: hostPrincipal(game.hostId), chatId: game.chatId };
+  expect((await unset.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toEqual({ connectionId: TEST_CONNECTION_ID, windowTokens: 4096 });
+
+  const raised = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: floor, presetMaxContext: 16_384 });
+  expect((await raised.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toBeNull();
 });
 
 /** A cheap game whose host and one member each bind their own chat connection: the host's from `host`, the

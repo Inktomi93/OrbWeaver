@@ -2129,6 +2129,30 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
     expect(seen[0]).toEqual([{ toolCallId: "c1", name: "update_scene", arguments: '{"weather":"indoors"}' }]);
   });
 
+  // Ollama's native route sends the window as `num_ctx`: the post-commit state round must send the turn's own.
+  test("the rpg state round is handed the window the turn sent, not the server's floor", async () => {
+    const chatId = await seedChat(db, "rpg-turn-window");
+    const seen: unknown[] = [];
+    // @orb-waive no-test-fabrication(unknown): a completed turn reaches only the two turn hooks (the `fireOrderRpg` precedent above); the assertion is on what `onTurnCompleted` is HANDED Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    const rpg = {
+      onTurnCompleted: (...hookArgs: readonly unknown[]): Promise<void> => {
+        seen.push((hookArgs[4] as { connection: { capability: unknown } }).connection.capability);
+        return Promise.resolve();
+      },
+      onTurnAborted: (): Promise<void> => Promise.resolve(),
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+    const floor = {
+      ...testConnection(),
+      capability: makeCapability({ ...generationOf(testConnection()), context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } } }),
+    };
+    const h = harness(db, { rpg });
+
+    await h.engine.runTurn(prepOf(chatId, { connection: floor, intent: { maxContextTokens: 16_384 } }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(seen[0]).toMatchObject({ generation: { context: { window: 16_384 } } });
+  });
+
   test("the recovery pass rides TOOL-LESS and carries the continuation ask (never a second discharge)", async () => {
     const chatId = await seedChat(db, "recover-shape");
     const requests: TurnRequest[] = [];

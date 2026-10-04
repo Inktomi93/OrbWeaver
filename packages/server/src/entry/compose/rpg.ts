@@ -95,6 +95,7 @@ import {
   planStructuredFor,
   runStructuredChat,
   toForcedToolRoundRequest,
+  withPresetWindow,
 } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
@@ -2320,7 +2321,9 @@ function buildResolveStateRoundFit(deps: RpgComposeDeps): RpgContext["resolveSta
     const prose = await deps.rpgChatOps.resolveChatPresetProse(chatId);
     const inputs: PromptInputs = { config, refs, playerDisplayName, reconcile: false, prose };
     const userPrompt = buildExtractionUserPrompt([], baseState, config, prose);
-    const windowTokens = generationOf(conn).context.window;
-    return stateRoundNeededTokens(stateRoundRequestText(conn, inputs, userPrompt)) > windowTokens ? { connectionId: conn.connectionId, windowTokens } : null;
+    // The window the round is sent with: the preset's Max context on a route whose request sets it, as the turn sends.
+    const sent = withPresetWindow(conn, await deps.rpgChatOps.resolveChatPresetMaxContext(chatId));
+    const windowTokens = generationOf(sent).context.window;
+    return stateRoundNeededTokens(stateRoundRequestText(sent, inputs, userPrompt)) > windowTokens ? { connectionId: conn.connectionId, windowTokens } : null;
   };
 }

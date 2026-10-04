@@ -1935,7 +1935,8 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     // They are handed ONLY here — never persisted on the variant, never streamed, never member-visible.
     fireRpgTurnCompleted(ctx, view, turnId, {
       kind: prep.kind,
-      connection,
+      // The connection the turn SENT: on a route whose request sets the window, it carries the turn's own.
+      connection: result.request.connection,
       transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames),
       terminalToolCalls: result.terminalToolCalls,
       terminalToolsCollided: result.terminalToolsCollided,

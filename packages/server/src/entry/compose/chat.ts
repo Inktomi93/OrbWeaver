@@ -380,6 +380,9 @@ export interface ChatComposeResult {
      *  construction, ruled out. A VERB DOOR has no first resolution to diverge from; the consenting human
      *  clicked a button and this IS the moment, exactly as `resolvePromptUserMacros` is for the picks pane. */
     readonly resolveChatPresetProse: (chatId: ChatId) => Promise<ProseOverrides>;
+    /** The same ladder's `maxContextTokens`: the window a game turn sends on a route whose request sets it (Ollama's
+     *  native `num_ctx`), so a read that prices the state round prices it against that window. */
+    readonly resolveChatPresetMaxContext: (chatId: ChatId) => Promise<number | undefined>;
   };
   /** The D50 PromptTransform registrar — surfaced so automation's rule lifecycle
    *  + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the
@@ -953,16 +956,22 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // the table's GM preset sees the SAME bytes on a resync/populate that they see on a turn. Diverging here —
   // e.g. reading the host's default preset — is precisely the defect the `resolvePreviewInputs` GM redirect
   // was landed to fix, in a different jacket.
-  const resolveChatPresetProse = async (chatId: ChatId): Promise<ProseOverrides> => {
+  const resolveChatTurnPresetConfig = async (chatId: ChatId): Promise<PromptConfig | null> => {
     const hostUserId = await resolveChatHostUserId(chatId);
     if (hostUserId === null) {
-      return {};
+      return null;
     }
     const presetOverride = (await input.rpg?.resolvePresetOverride(chatId)) ?? null;
     const us = await input.settings.loadUserSettings(hostUserId);
-    const { config } = await resolvePromptConfigWithOverride(hostUserId, presetOverride ?? undefined, us.seeds.defaultPresetId);
-    return composeProse({ preset: config.prose });
+    return (await resolvePromptConfigWithOverride(hostUserId, presetOverride ?? undefined, us.seeds.defaultPresetId)).config;
   };
+  const resolveChatPresetProse = async (chatId: ChatId): Promise<ProseOverrides> => {
+    const config = await resolveChatTurnPresetConfig(chatId);
+    return config === null ? {} : composeProse({ preset: config.prose });
+  };
+  // The same ladder's Max context: what a game turn sends as the window on a route whose request sets it.
+  const resolveChatPresetMaxContext = async (chatId: ChatId): Promise<number | undefined> =>
+    (await resolveChatTurnPresetConfig(chatId))?.params.maxContextTokens;
 
   // The one memory-config merge: the admin-set defaults, forced to `mode:"off"` when the host disabled
   // memory. Kept pure so both the live turn path and the sweep resolver funnel through it without
@@ -1588,6 +1597,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),
       resolvePromptUserMacros,
       resolveChatPresetProse,
+      resolveChatPresetMaxContext,
     },
     promptTransforms: promptTransformRegistry,
     applyVariableOps: (chatId, ops, expect) => applyStandaloneVariableOps(chatCtx, chatId, ops, expect),
