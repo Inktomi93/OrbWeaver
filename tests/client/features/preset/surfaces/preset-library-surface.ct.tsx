@@ -79,7 +79,8 @@ test("#378 interactive preset subtitles use the readable label step without losi
   await expect(subtitle).toHaveCSS("white-space", "nowrap");
   await expect(subtitle).toHaveAttribute("id", NONEMPTY_ID);
   const subtitleId = await subtitle.getAttribute("id");
-  await expect(row.locator('[data-slot="list-row-body"]')).toHaveAttribute("aria-describedby", subtitleId ?? "missing-subtitle-id");
+  // The row is the active pick, so its Active chip rides the description beside the subtitle.
+  await expect(row.locator('[data-slot="list-row-body"]')).toHaveAttribute("aria-describedby", new RegExp(`(^| )${subtitleId ?? "missing-subtitle-id"}( |$)`));
 });
 
 async function focalHierarchyRatio(component: import("@playwright/test").Locator): Promise<number> {
@@ -325,6 +326,16 @@ test("O-1 the ACTIVE row's dot is a FILLED disc in the trailing slot, painted at
   await expect(dot.locator("svg")).toHaveAttribute("fill", "currentColor");
   // The UNPRESSED rows' dots stay hollow — the fill is the datum, not decoration on every row.
   await expect(page.getByRole("radio", { name: activateFor(IMPORTED_NAME), exact: true }).locator("svg")).toHaveAttribute("fill", "none");
+});
+
+test("the ACTIVE row wears an Active chip on its title line, and no other row does", async ({ mount, page }) => {
+  await routeLibrary(page, EDITED_ONE);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const active = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
+  await expect(active.locator(TITLE_ROW).getByText("Active", { exact: true })).toBeVisible();
+  await expect(component.getByText("Active", { exact: true })).toHaveCount(1);
 });
 
 test("P0 the row's geometry is IDENTICAL at rest and under hover — nothing enters or leaves layout", async ({ mount, page }) => {

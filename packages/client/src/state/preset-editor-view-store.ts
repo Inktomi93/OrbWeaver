@@ -17,15 +17,18 @@
 //
 // Device-transient, never persisted: landing on Params after a hard reload is the intended reset.
 
+import type { CapabilityTarget } from "@orb/contracts/inference";
 import { createGatedStore } from "./create-gated-store.ts";
 import { closePresetSectionDrill } from "./preset-section-drill-store.ts";
 
 interface PresetEditorViewState {
   /** The active editor view id (`null` = unset — the tab strip resolves the tuple's first view). */
   readonly viewId: string | null;
+  /** The connection or role the Params readout describes (`null` = none picked; the panel resolves its own default). */
+  readonly readoutTarget: CapabilityTarget | null;
 }
 
-const usePresetEditorViewStore = createGatedStore<PresetEditorViewState>("preset-editor-view", () => ({ viewId: null }));
+const usePresetEditorViewStore = createGatedStore<PresetEditorViewState>("preset-editor-view", () => ({ viewId: null, readoutTarget: null }));
 
 /** THE ONE WRITER — the editor's tab strip. No other surface may call this (§16 row 10).
  *
@@ -48,4 +51,15 @@ export function setPresetEditorView(viewId: string): void {
 /** Reactive: the active editor view (`null` = unset). A primitive selector (no fresh object). */
 export function usePresetEditorView(): string | null {
   return usePresetEditorViewStore((s) => s.viewId);
+}
+
+/** Remember the connection or role the Params readout describes, so leaving the Params view and coming back
+ *  does not reset "Connection in view". Same session-only posture as the view id. */
+export function setPresetReadoutTarget(readoutTarget: CapabilityTarget): void {
+  usePresetEditorViewStore.setState({ readoutTarget }, false, "presetEditorView/readoutTarget");
+}
+
+/** Reactive: the picked readout target (`null` = none picked this session). */
+export function usePresetReadoutTarget(): CapabilityTarget | null {
+  return usePresetEditorViewStore((s) => s.readoutTarget);
 }

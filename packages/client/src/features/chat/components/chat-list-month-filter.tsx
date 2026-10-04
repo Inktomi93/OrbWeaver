@@ -47,16 +47,18 @@
 // ONE phone Filters row now (`chat-list-phone-filters.tsx`) whose single trigger names BOTH states in force
 // (`phoneFiltersLabel`, `lib/chat-list-scope.ts` — the grammar table lives there).
 //
-// SO THIS FILE IS VIEWPORT-AGNOSTIC AGAIN: one shape, a plain `<Field>`-labelled control, in both regimes.
-// The phone renders it inside the shared panel; the desktop renders it in the column, where there is
-// vertical room to spare and nothing to buy back. Its label is its accessible name in both, through the
-// `<Field>`, which is why the phone arm's `aria-label` spelling of the same words could go with the fold.
+// THE DESKTOP COLUMN FOLDS IT BEHIND AN "Any time" CONTROL (owner ruling): an empty native month input paints
+// `--------- ----` at all times, so the box appears only once the reader opens the filter, and the trigger
+// names the bound once one is set. The phone already sits inside the shared Filters panel, so it renders the
+// plain `<Field>` control with no second disclosure. The label is the input's accessible name in both.
 
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { setChatListMonth, useChatListMonth } from "#state";
+import { setChatListMonth, useChatListMonth, useMobileViewport } from "#state";
+import { formatMonthLabel } from "../lib/chat-list-scope.ts";
 import { CLEAR_INSET_RESERVE, ClearFilterGlyph } from "./chat-list-filter-field.tsx";
 
 /** The bound's own words — an ON-OR-BEFORE ceiling that INCLUDES the selected month (#1348), and the
@@ -64,10 +66,9 @@ import { CLEAR_INSET_RESERVE, ClearFilterGlyph } from "./chat-list-filter-field.
  *  repeated it as an `aria-label`. */
 const MONTH_LABEL = "Show chats up to";
 const CLEAR_MONTH_LABEL = "Clear the month";
+const ANY_TIME_LABEL = "Any time";
 
-/** The chats pane's month bound: one labelled control, in both regimes. */
-export function ChatListMonthFilter(): ReactElement {
-  const month = useChatListMonth();
+function MonthField({ month }: { readonly month: string }): ReactElement {
   return (
     <Field label={MONTH_LABEL}>
       <Row align="center" className="relative">
@@ -75,5 +76,24 @@ export function ChatListMonthFilter(): ReactElement {
         {month === "" ? null : <ClearFilterGlyph label={CLEAR_MONTH_LABEL} onClick={(): void => setChatListMonth("")} />}
       </Row>
     </Field>
+  );
+}
+
+/** The chats pane's month bound: folded behind the "Any time" control on desktop, the plain field on a phone. */
+export function ChatListMonthFilter(): ReactElement {
+  const month = useChatListMonth();
+  const isMobile = useMobileViewport();
+  if (isMobile) {
+    return <MonthField month={month} />;
+  }
+  const monthLabel = formatMonthLabel(month);
+  return (
+    // Open on arrival when a bound is already set, so the control that narrowed the list is in view.
+    <Collapsible defaultOpen={monthLabel !== null}>
+      <CollapsibleTrigger>{monthLabel === null ? ANY_TIME_LABEL : `Up to ${monthLabel}`}</CollapsibleTrigger>
+      <CollapsiblePanel>
+        <MonthField month={month} />
+      </CollapsiblePanel>
+    </Collapsible>
   );
 }

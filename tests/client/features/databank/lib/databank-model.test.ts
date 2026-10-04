@@ -3,6 +3,7 @@
 // so they are the one place a wrong answer becomes a wrong badge on every surface at once.
 
 import type { BankHealthView, DocumentView } from "@orb/contracts/databank";
+import { MIME_TO_FORMAT } from "@orb/contracts/extraction";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
@@ -323,9 +324,18 @@ describe("ingestEmptyHint — the failed extraction's own remedy", () => {
 });
 
 describe("documentTypeLabel", () => {
-  test("a known file type reads in words and an unknown one shows as stored", () => {
+  test("every mime the extractor accepts reads in words, never as the raw mime", () => {
+    expect(Object.keys(MIME_TO_FORMAT).filter((mime) => documentTypeLabel(mime) === mime)).toEqual([]);
     expect(documentTypeLabel("text/plain")).toBe("Plain text");
     expect(documentTypeLabel("application/pdf")).toBe("PDF");
-    expect(documentTypeLabel("application/epub+zip")).toBe("application/epub+zip");
+  });
+
+  test("a mime the browser sent with parameters or odd case reads as its bare type", () => {
+    expect(documentTypeLabel("text/markdown; charset=utf-8")).toBe("Markdown");
+    expect(documentTypeLabel("TEXT/HTML;charset=UTF-8")).toBe("Web page");
+  });
+
+  test("a type the extractor does not do shows as stored", () => {
+    expect(documentTypeLabel("image/png")).toBe("image/png");
   });
 });

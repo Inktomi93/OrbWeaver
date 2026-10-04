@@ -97,7 +97,7 @@ test("a TEACH row's delivery path is the game turn's steering reminder — never
   await expect(probe.getByText("This row — A game turn with Deception on", { exact: false })).toBeVisible();
   // THE DEFECT'S EXACT SHAPE: no marker cluster for a row that never rides it.
   await expect(probe.getByText("Guided instruction", { exact: false })).toHaveCount(0);
-  await expect(probe.getByText("position", { exact: true })).toHaveCount(0);
+  await expect(probe.getByText("Position", { exact: true })).toHaveCount(0);
   // The unbound gloss states the names-only identity resolution, not the guided family's chat-macro claim.
   await expect(probe.getByText("identity registry", { exact: false })).toBeVisible();
   await expect(probe.getByText("Every macro here resolves in chat", { exact: false })).toHaveCount(0);
@@ -128,8 +128,8 @@ test("a GUIDED row keeps the marker cluster — health, position, role, and the 
 
   await expect(probe.getByRole("heading", { name: "Delivery path" })).toBeVisible();
   await expect(probe.getByText("Guided instruction", { exact: true })).toBeVisible();
-  await expect(probe.getByText("position", { exact: true })).toBeVisible();
-  await expect(probe.getByText("role", { exact: true })).toBeVisible();
+  await expect(probe.getByText("Position", { exact: true })).toBeVisible();
+  await expect(probe.getByText("Role", { exact: true })).toBeVisible();
   // The guided family's unbound gloss is unchanged — every macro there really does resolve in chat.
   await expect(probe.getByText(RESOLVES_IN_CHAT_RE)).toBeVisible();
 });

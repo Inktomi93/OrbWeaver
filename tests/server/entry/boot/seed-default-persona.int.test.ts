@@ -168,7 +168,9 @@ describe("createDefaultPersonaSeeder", () => {
     // does not), and the title is user-editable prose no backfill may correct. "Your first persona" stays
     // true forever. Asserted as a LITERAL for the same reason the name is (owner-ruled copy).
     expect(seededInput?.title).toBe("Your first persona");
-    expect((seededInput?.description ?? "").length).toBeGreaterThan(0);
+    // The description is what assembly sends as `{{user}}`'s card, so the seed carries none: an
+    // instruction written to the person ("Edit this description…") must never reach a model.
+    expect(seededInput?.description).toBe("");
     // …and the layer-2 artifact marker rides the SAME authored input (never a post-create patch).
     expect(seededInput?.metadata).toEqual({ seededDefault: true });
   });

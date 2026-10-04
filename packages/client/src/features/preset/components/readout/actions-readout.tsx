@@ -149,10 +149,10 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
         </Badge>
       </Row>
       <Stack gap="tight">
-        <DatumRow label="position" value={`${zones.zoneOf(index).toUpperCase()} · ${String(index + 1)} of ${String(sections.length)}`} />
+        <DatumRow label="Position" value={`${zones.zoneOf(index).toUpperCase()} · ${String(index + 1)} of ${String(sections.length)}`} />
         {/* ONE VOCABULARY with both drill-ins (O-10★): the field is "Role" there, so the datum is `role`
             here — "delivered as" was the third spelling of one thing. */}
-        <DatumRow label="role" value={marker.role} />
+        <DatumRow label="Role" value={marker.role} />
       </Stack>
       <Text voice="gloss">
         {marker.enabled

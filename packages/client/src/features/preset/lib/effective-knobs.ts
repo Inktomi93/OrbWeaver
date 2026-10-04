@@ -39,13 +39,13 @@ export interface EffectiveProfileRow {
  *  an unmapped key prints itself rather than being hidden. ONE home: the readout rows, the quality-mapping
  *  gloss and the staleness copy all read it, so the surfaces cannot drift on what a knob is called. */
 const KNOB_LABELS: Readonly<Record<string, string>> = {
-  effort: "effort",
-  thinkingBudgetTokens: "thinking budget",
-  thinkingDisplay: "reasoning display",
-  maxOutputTokens: "max output",
-  maxContextTokens: "context",
-  verbosity: "verbosity",
-  replyMedia: "reply pictures",
+  effort: "Effort",
+  thinkingBudgetTokens: "Thinking budget",
+  thinkingDisplay: "Reasoning display",
+  maxOutputTokens: "Max output",
+  maxContextTokens: "Context",
+  verbosity: "Verbosity",
+  replyMedia: "Reply pictures",
 };
 
 /** What a knob's row says while the server's Mirostat branch replaces it: the value still rides, and nothing runs it. */
@@ -62,11 +62,18 @@ export function mirostatSkipped(effective: EffectiveProfileRow | undefined, skip
 const SERVER_DEFAULT = "serverDefault";
 const SERVER_DEFAULT_GLOSS = "server default";
 
-/** A sampling knob reads as the deck names it, in the readout's lowercase register; the rest read as
- *  {@link KNOB_LABELS}; an unmapped key prints itself. */
+/** A sampling knob reads as the deck names it; the rest read as {@link KNOB_LABELS}; an unmapped key prints
+ *  itself. Sentence case: this is a row label. */
 export function knobLabel(knob: string): string {
   const deck = SAMPLING_KNOBS.find((spec) => spec.key === knob)?.label ?? (isFlagKnob(knob) ? SAMPLING_FLAG_LABELS[knob] : undefined);
-  return deck?.toLowerCase() ?? KNOB_LABELS[knob] ?? knob;
+  return deck ?? KNOB_LABELS[knob] ?? knob;
+}
+
+/** The same knob name inside a running sentence or list (`effort high · temp 1.0`): lowercased, except an
+ *  unmapped key, which prints itself. */
+function knobWord(knob: string): string {
+  const label = knobLabel(knob);
+  return label === knob ? knob : label.toLowerCase();
 }
 
 function isFlagKnob(knob: string): knob is keyof typeof SAMPLING_FLAG_LABELS {
@@ -81,7 +88,7 @@ const SAMPLING_CONSTRAINT_KEYS: ReadonlySet<string> = new Set(["exclusive", "mir
 export function honoredKnobLabels(sampling: Readonly<Record<string, unknown>>): readonly string[] {
   return Object.keys(sampling)
     .filter((key) => !SAMPLING_CONSTRAINT_KEYS.has(key))
-    .map((knob) => knobLabel(knob));
+    .map((knob) => knobWord(knob));
 }
 
 /** What a KnobRow needs to paint its inherited state: the number to ghost at + the provenance gloss. */
@@ -231,7 +238,7 @@ export function qualityMappingGloss(profile: EffectiveProfileRow | undefined, qu
   if (mapping === undefined || mapping === null) {
     return null;
   }
-  const parts = mapping.entries.map((entry) => `${knobLabel(entry.knob)} ${String(entry.value)}`);
+  const parts = mapping.entries.map((entry) => `${knobWord(entry.knob)} ${String(entry.value)}`);
   return `${mapping.quality} → ${parts.join(" · ")}`;
 }
 
@@ -246,7 +253,7 @@ function qualityOverrideGloss(profile: EffectiveProfileRow | undefined): string 
   if (mapping === undefined || mapping === null) {
     return null;
   }
-  const overridden = mapping.entries.filter((entry) => profile?.knobs[entry.knob]?.provenance === "explicit").map((entry) => knobLabel(entry.knob));
+  const overridden = mapping.entries.filter((entry) => profile?.knobs[entry.knob]?.provenance === "explicit").map((entry) => knobWord(entry.knob));
   if (overridden.length === 0) {
     return "explicit knobs below override this";
   }

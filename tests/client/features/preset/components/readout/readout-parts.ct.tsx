@@ -43,6 +43,7 @@ import {
   LongModelPathReadoutStory,
   PresetReadoutParamsBoundStory,
   PresetReadoutRetryStory,
+  PresetReadoutViewSwitchStory,
 } from "./_readout-stories.tsx";
 
 /** Any prose claiming something about the user's chat model. Deliberately BROADER than the deleted string:
@@ -176,11 +177,11 @@ test("SETTLED — the funnel's own row renders with its provenance rung and the 
   const probe = await mount(<EffectiveProfileSettledStory />);
 
   // The DISPLAY name, never the schema key (F-13), plus the rung that explains where the number came from.
-  await expect(probe.getByText("max output", { exact: true })).toBeVisible();
+  await expect(probe.getByText("Max output", { exact: true })).toBeVisible();
   await expect(probe.getByText("2,048", { exact: true })).toBeVisible();
   await expect(probe.getByText("default", { exact: true })).toBeVisible();
   // The window row the funnel deliberately does not resolve, supplied by the capability read (F-13).
-  await expect(probe.getByText("context", { exact: true })).toBeVisible();
+  await expect(probe.getByText("Context", { exact: true })).toBeVisible();
   await expect(probe.getByText("32,768", { exact: true })).toBeVisible();
   await expect(probe.getByText(RESOLVED_FOR_RE)).toBeVisible();
   await expect(probe.locator('[data-slot="skeleton"]')).toHaveCount(0);
@@ -190,8 +191,8 @@ test("SETTLED under Mirostat — a knob the server's Mirostat branch skips is ma
   const probe = await mount(<EffectiveProfileMirostatStory />);
   // Rows are label · value · suffix; the suffix is the only element after the value.
   const suffixOf = (label: string): Locator => probe.getByText(label, { exact: true }).locator("xpath=following-sibling::*[1]/*[last()]");
-  await expect(suffixOf("top-p")).toHaveText(MIROSTAT_SKIPPED_GLOSS);
-  await expect(suffixOf("temperature")).not.toHaveText(MIROSTAT_SKIPPED_GLOSS);
+  await expect(suffixOf("Top-P")).toHaveText(MIROSTAT_SKIPPED_GLOSS);
+  await expect(suffixOf("Temperature")).not.toHaveText(MIROSTAT_SKIPPED_GLOSS);
 });
 
 // ── THE SKELETON'S ONE JOB IS TO NOT MOVE (side-eye 2026-08-08 P2) ──────────────────────────────────────
@@ -360,7 +361,7 @@ test("WIRING — a SETTLED resolve renders the funnel's rows through the real re
   await routeTrpc(page, readoutRoutes(settledResolve));
   const probe = await mount(<PresetReadoutParamsBoundStory />);
 
-  await expect(probe.getByText("max output", { exact: true })).toBeVisible();
+  await expect(probe.getByText("Max output", { exact: true })).toBeVisible();
   await expect(probe.getByText(FAILURE_RE)).toHaveCount(0);
   await expect(probe.getByText(CHAT_MODEL_CLAIM_RE)).toHaveCount(0);
   await expect(probe.getByText(CONNECT_INVITATION_RE)).toHaveCount(0);
@@ -391,7 +392,7 @@ test("on a route that sends the window, the effective context is the preset's Ma
   const probe = await mount(<PresetReadoutParamsBoundStory />);
 
   // Rows are label · (value · suffix); the value is the first element after the label.
-  const contextValue = probe.getByText("context", { exact: true }).locator("xpath=following-sibling::*[1]/*[1]");
+  const contextValue = probe.getByText("Context", { exact: true }).locator("xpath=following-sibling::*[1]/*[1]");
   await expect(contextValue).toHaveText("65,536");
 });
 
@@ -403,7 +404,7 @@ test("the Utility role on that route shows the preset's Max context: its sends c
   await page.getByRole("option", { name: "Utility model role", exact: true }).click();
   await expect.poll(() => trpc.lastInput("connection.resolveChatCapability")).toEqual({ target: { kind: "role", task: "summarize" } });
 
-  const contextValue = probe.getByText("context", { exact: true }).locator("xpath=following-sibling::*[1]/*[1]");
+  const contextValue = probe.getByText("Context", { exact: true }).locator("xpath=following-sibling::*[1]/*[1]");
   await expect(contextValue).toHaveText("32,768");
 });
 
@@ -446,12 +447,12 @@ test("WIRING — Retry fires a REAL re-read: the click issues a second resolve t
   // The first read failed and rendered as such — the settle barrier. The panel is on its failure arm and has
   // NOT recovered on its own: the settled row is absent.
   await expect(probe.getByText(ROUTING_FAULT, { exact: true })).toBeVisible();
-  await expect(probe.getByText("max output", { exact: true })).toHaveCount(0);
+  await expect(probe.getByText("Max output", { exact: true })).toHaveCount(0);
 
   // THE PIN: the Retry click issues a real second read and the panel recovers to the settled row. If onRetry
   // were not wired to `refetch`, no read would fire and the settled row would never appear.
   await probe.getByRole("button", { name: "Retry" }).click();
-  await expect(probe.getByText("max output", { exact: true })).toBeVisible();
+  await expect(probe.getByText("Max output", { exact: true })).toBeVisible();
   await expect(probe.getByText(FAILURE_RE)).toHaveCount(0);
 });
 
@@ -484,6 +485,21 @@ test("switching to a connection re-reads both halves against that connection", a
   await expect(probe.locator('[data-slot="capability-in-view"]')).toContainText("Custom OpenAI-compatible");
 });
 
+test("the connection in view survives leaving the Params view and coming back", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, readoutRoutes(settledResolve));
+  const probe = await mount(<PresetReadoutViewSwitchStory />);
+
+  await probe.getByRole("combobox", { name: SWITCHER_NAME }).click();
+  await page.getByRole("option", { name: "Utility model role", exact: true }).click();
+  await expect.poll(() => trpc.lastInput("connection.resolveChatCapability")).toEqual({ target: { kind: "role", task: "summarize" } });
+
+  await probe.getByRole("button", { name: "Switch view" }).click();
+  await expect(probe.getByRole("combobox", { name: SWITCHER_NAME })).toHaveCount(0);
+  await probe.getByRole("button", { name: "Switch view" }).click();
+
+  await expect(probe.getByRole("combobox", { name: SWITCHER_NAME })).toContainText("Utility model role");
+});
+
 test("a role whose binding is stale shows the failure band with the server's reason, never a blank panel", async ({ mount, page }) => {
   const unbound = 'no connection is bound for "summarize"';
   await routeTrpc(
@@ -494,7 +510,7 @@ test("a role whose binding is stale shows the failure band with the server's rea
   );
   const probe = await mount(<PresetReadoutParamsBoundStory />);
 
-  await expect(probe.getByText("max output", { exact: true })).toBeVisible();
+  await expect(probe.getByText("Max output", { exact: true })).toBeVisible();
   await probe.getByRole("combobox", { name: SWITCHER_NAME }).click();
   await page.getByRole("option", { name: "Utility model role" }).click();
 
@@ -515,7 +531,7 @@ test("a pending read after a switch holds the skeleton, and a failed one shows t
   );
   const probe = await mount(<PresetReadoutParamsBoundStory />);
 
-  await expect(probe.getByText("max output", { exact: true })).toBeVisible();
+  await expect(probe.getByText("Max output", { exact: true })).toBeVisible();
   await probe.getByRole("combobox", { name: SWITCHER_NAME }).click();
   await page.getByRole("option", { name: "Local qwen" }).click();
   await expect(probe.locator('[aria-busy="true"] [data-slot="skeleton"]').first()).toBeVisible();

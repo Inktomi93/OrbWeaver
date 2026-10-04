@@ -47,11 +47,17 @@ test("the Capability honors line reads every sampling-schema key as a knob word,
   expect(honored).toHaveLength(keys.length - 2);
 });
 
-test("a sampling knob reads as the deck names it: same words, the readout's lowercase register", () => {
+test("a sampling knob reads as the deck names it, in sentence case", () => {
   const misnamed = [...SAMPLING_KNOBS.map((spec) => [spec.key, spec.label] as const), ...Object.entries(SAMPLING_FLAG_LABELS)].filter(
-    ([key, deckLabel]) => knobLabel(key) !== deckLabel.toLowerCase(),
+    ([key, deckLabel]) => knobLabel(key) !== deckLabel,
   );
   expect(misnamed).toEqual([]);
+});
+
+test("every mapped knob label starts with a capital, so no readout row opens lowercase", () => {
+  const lowercase = EFFECTIVE_KNOBS.filter((knob) => knobLabel(knob) !== knob).filter((knob) => /^\p{Ll}/u.test(knobLabel(knob)));
+  expect(lowercase).toEqual([]);
+  expect(knobLabel("maxOutputTokens")).toBe("Max output");
 });
 
 test("an unmapped key still prints itself rather than being hidden", () => {

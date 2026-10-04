@@ -145,6 +145,17 @@ export function PresetLibraryRow({
               </Badge>
             ),
           })}
+      // The state in words beside the dot, as the editor header names it. A static chip on the TITLE line
+      // (never the subtitle, whose stamp must survive the docked width), so nothing enters or leaves layout on hover.
+      {...(active
+        ? {
+            markers: (
+              <Badge intent="primary" size="inline" tone="soft">
+                Active
+              </Badge>
+            ),
+          }
+        : {})}
       stateToggle={
         <RowToggleAction
           // The dot, not the bolt (owner ruling O-1): a ⚡ reads as a one-shot zap ACTION and had no visible
@@ -159,9 +170,9 @@ export function PresetLibraryRow({
           // A FILLED disc vs a hollow ring — a shape delta, not stroke color alone (side-eye F-06, WCAG
           // 1.4.1).
           pressedFill={true}
-          // `when-on`, the D11 default: the PRESSED dot is permanently visible (it is the row's whole state
-          // readout now that the Active badge is gone) and only the unpressed ring rides the reveal. It must
-          // never be `never`/`hidden` — that swap is the P0 loop.
+          // `when-on`, the D11 default: the PRESSED dot is permanently visible and only the unpressed ring
+          // rides the reveal. It must never be `never`/`hidden` — that swap is the P0 loop. The row's
+          // subtitle chip names the same state in words.
           rest="when-on"
           // ONE-OF-N, not a toggle (side-eye F-19 / ARIA rec 3): pressing the active row is a NO-OP, so
           // `aria-pressed`'s "press to release" contract was a promise this control refuses to keep.
