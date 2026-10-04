@@ -183,6 +183,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     onTargetGenerationMoved: (ownerId) => {
       detachRepointReindex(ownerId);
     },
+    // A promotion ends the owner's search pause and moves the space every vector read uses. The member that refreshes
+    // those reads is `corpusRecomputed`, and the last scope to finish may be one whose sweep announces nothing.
+    onTargetPromoted: (ownerId) => {
+      publishUserEvent(ownerId, { type: "corpusRecomputed" });
+    },
   });
 
   const indexer = createEmbeddingsIndexer({

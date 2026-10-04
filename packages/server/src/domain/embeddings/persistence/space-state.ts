@@ -161,7 +161,8 @@ export async function switchTargetGeneration(
 }
 
 /** Record one successful scope and atomically promote when every required scope proves this target. The
- *  promotion also deletes any old-generation row a write already in flight at the switch landed afterwards. */
+ *  promotion also deletes any old-generation row a write already in flight at the switch landed afterwards.
+ *  @returns Whether THIS call promoted the target: false when a scope is still missing or a move won the race. */
 export async function markGenerationComplete(
   db: Db,
   input: { readonly ownerId: UserId; readonly scope: VectorScope; readonly generation: GenerationReceipt; readonly now: number },
@@ -207,13 +208,20 @@ export async function markGenerationComplete(
     });
 
   const rows = await db
-    .select({ scope: embedSpaceState.scope, generationId: embedSpaceState.candidateGenerationId, epoch: embedSpaceState.candidateEpoch })
+    .select({
+      scope: embedSpaceState.scope,
+      activeGenerationId: embedSpaceState.activeGenerationId,
+      generationId: embedSpaceState.candidateGenerationId,
+      epoch: embedSpaceState.candidateEpoch,
+    })
     .from(embedSpaceState)
     .where(eq(embedSpaceState.ownerId, input.ownerId));
   const required = VECTOR_SCOPES_BY_TASK[input.generation.task];
   if (!required.every((scope) => rows.some((row) => row.scope === scope && row.generationId === input.generation.id && row.epoch === input.generation.epoch))) {
     return false;
   }
+  // A single-scope task re-proves its active target on every pass; that re-completion is not a promotion.
+  const alreadyActive = required.every((scope) => rows.some((row) => row.scope === scope && row.activeGenerationId === input.generation.id));
 
   const promotionGuard = guard(input.ownerId, input.generation);
   const statements: BatchStmt[] = retiredVectorStatements(db, {
@@ -230,8 +238,8 @@ export async function markGenerationComplete(
         .where(and(eq(embedSpaceState.ownerId, input.ownerId), inArray(embedSpaceState.scope, [...required]), promotionGuard)),
     ),
   );
-  await db.batch(batchMany(statements));
-  return true;
+  const results = await db.batch(batchMany(statements));
+  return !alreadyActive && (results.at(-1)?.rowsAffected ?? 0) > 0;
 }
 
 /** Every logical row present in an older generation has a replacement in this generation. */

@@ -134,6 +134,9 @@ export interface EmbeddingsContext {
   /** The owner's target generation just moved and its old vectors are gone: queue their full rebuild. Called
    *  after the switch commits, by whichever caller moved it; fire-and-forget. */
   readonly onTargetGenerationMoved: (ownerId: UserId) => void;
+  /** The owner's target just promoted: every scope holds it, so their paused search answers again. Called once, by
+   *  the scope completion that promoted it; fire-and-forget. */
+  readonly onTargetPromoted: (ownerId: UserId) => void;
 }
 
 export interface EmbeddingsService {

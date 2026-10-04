@@ -5,8 +5,7 @@ import type { EmbeddingsContext } from "../context.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
-import { markGenerationComplete } from "../persistence/space-state.ts";
-import { resolveTargetGeneration } from "../substrate/generation.ts";
+import { completeGenerationScope, resolveTargetGeneration } from "../substrate/generation.ts";
 import { resolveImageSpace } from "../substrate/task-model.ts";
 export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsService, "indexAsset">): EmbeddingsService["embedAssets"] {
   return async ({ force, signal, ownerId, onProgress }: EmbedPassParams): Promise<BulkEmbedResult> => {
@@ -60,14 +59,14 @@ async function completeImageSweep(ctx: EmbeddingsContext, ownerId: UserId | null
   for (const [spaceOwnerId, receipt] of receipts) {
     const generation = await resolveTargetGeneration(ctx, spaceOwnerId, "imageEmbed", receipt.generationVia);
     if (generation !== null && generation.id === receipt.generationId && generation.epoch === receipt.generationEpoch) {
-      await markGenerationComplete(ctx.db, { ownerId: spaceOwnerId, scope: "images", generation, now: ctx.now() });
+      await completeGenerationScope(ctx, { ownerId: spaceOwnerId, scope: "images", generation });
     }
   }
   if (ownerId !== null && !receipts.has(ownerId)) {
     const emptySpace = await resolveImageSpace(ctx, ownerId);
     const generation = emptySpace === null ? null : await resolveTargetGeneration(ctx, ownerId, "imageEmbed", emptySpace.via);
     if (generation !== null) {
-      await markGenerationComplete(ctx.db, { ownerId, scope: "images", generation, now: ctx.now() });
+      await completeGenerationScope(ctx, { ownerId, scope: "images", generation });
     }
   }
 }

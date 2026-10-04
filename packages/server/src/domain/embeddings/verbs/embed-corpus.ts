@@ -14,8 +14,7 @@ import type { EmbeddingsContext } from "../context.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
-import { markGenerationComplete } from "../persistence/space-state.ts";
-import { resolveTargetGeneration } from "../substrate/generation.ts";
+import { completeGenerationScope, resolveTargetGeneration } from "../substrate/generation.ts";
 import { requireTaskModel } from "../substrate/task-model.ts";
 
 /** One card's sweep step: no text or no owner/embed binding ⇒ skipped (a card whose owner has no `embed`
@@ -83,13 +82,13 @@ async function completeCardSweep(ctx: EmbeddingsContext, ownerId: UserId | null,
   for (const [spaceOwnerId, receipt] of receipts) {
     const generation = await resolveTargetGeneration(ctx, spaceOwnerId, "embed");
     if (generation !== null && generation.id === receipt.generationId && generation.epoch === receipt.generationEpoch) {
-      await markGenerationComplete(ctx.db, { ownerId: spaceOwnerId, scope: "cards", generation, now: ctx.now() });
+      await completeGenerationScope(ctx, { ownerId: spaceOwnerId, scope: "cards", generation });
     }
   }
   if (ownerId !== null && !receipts.has(ownerId)) {
     const generation = await resolveTargetGeneration(ctx, ownerId, "embed");
     if (generation !== null) {
-      await markGenerationComplete(ctx.db, { ownerId, scope: "cards", generation, now: ctx.now() });
+      await completeGenerationScope(ctx, { ownerId, scope: "cards", generation });
     }
   }
 }

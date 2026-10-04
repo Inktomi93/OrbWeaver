@@ -293,6 +293,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     loadAssetOwner: (assetId) => loadOwnerOf(db, "asset", assetId),
     // A target move queues the owner's rebuild at compose; a domain test that cares overrides this.
     onTargetGenerationMoved: () => undefined,
+    onTargetPromoted: () => undefined,
     now: (): number => clock.now(),
     newCharacterEmbeddingId: (): CharacterEmbeddingId => castId<CharacterEmbeddingId>(ids.next("character_embedding")),
     newImageEmbeddingId: (): ImageEmbeddingId => castId<ImageEmbeddingId>(ids.next("image_embedding")),

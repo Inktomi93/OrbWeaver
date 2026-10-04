@@ -37,7 +37,7 @@ import { REBUILD_JOBS_LABEL, SEARCH_PAUSED_COPY } from "../../../../../packages/
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
-import { CorpusFieldsSearchStory, CorpusListSurfaceNavStory, CorpusSearchToDossierStory } from "../_ct-stories.tsx";
+import { CorpusFieldsSearchStory, CorpusListSurfaceBusStory, CorpusListSurfaceNavStory, CorpusSearchToDossierStory } from "../_ct-stories.tsx";
 
 /**
  * THE CORPUS SECTION'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
@@ -793,9 +793,9 @@ test("a search after a failed rebuild says the rebuild failed and opens Jobs", a
   await expect(page.getByTestId("ct-nav-readout")).toContainText("section:config");
 });
 
-// No bus event marks the promotion; the paused state's own space-status poll is what sees it, so the refused search
-// must re-run on that flip rather than wait for the query to change or a Retry.
-test("a paused search answers on its own once the rebuild promotes", async ({ mount, page }) => {
+// The server announces a promotion as the owner's `corpusRecomputed`, so every tab holding the refused search re-runs
+// it, rather than waiting for the query to change or a Retry.
+test("a paused search answers on its own once the rebuild's promotion is announced", async ({ mount, page }) => {
   let paused = true;
   let answer: TrpcRoutes<"search.search">["search.search"] = () => trpcError({ code: "BAD_REQUEST", reason: SEARCH_SPACE_REINDEXING });
   await routeTrpc(page, {
@@ -805,15 +805,15 @@ test("a paused search answers on its own once the rebuild promotes", async ({ mo
     "search.spaceStatus": () => ({ paused, embed: paused, imageEmbed: false }),
     "workloads.list": (input) => [cardRebuild("running")].filter((row) => input?.kind === undefined || row.kind === input.kind),
   });
-  const component = await mount(<CorpusListSurfaceNavStory />);
+  const component = await mount(<CorpusListSurfaceBusStory />);
   await component.getByRole("combobox", { name: "Search your corpus" }).fill("parcel sorting");
   await expect(component.locator('[data-slot="search-paused"]')).toHaveAttribute("data-rebuild", "running");
 
   paused = false;
   answer = MEMORY_HITS["search.search"];
+  await component.getByRole("button", { name: "corpus recomputed" }).click();
 
-  // The paused state re-reads the space every 5 s.
-  await expect(component.getByText(DEPOT_TEXT)).toBeVisible({ timeout: 10_000 });
+  await expect(component.getByText(DEPOT_TEXT)).toBeVisible();
   await expect(component.locator('[data-slot="search-paused"]')).toHaveCount(0);
 });
 

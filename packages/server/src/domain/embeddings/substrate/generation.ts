@@ -1,5 +1,6 @@
 // Immutable encoder generations and the authoritative per-owner migration target.
 
+import type { VectorScope } from "@orb/contracts/embeddings";
 import { embedDimsOf, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { VectorWidthMismatch } from "@orb/inference";
@@ -8,11 +9,21 @@ import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
-import type { GenerationTask } from "../contract/generation.ts";
+import type { GenerationReceipt, GenerationTask } from "../contract/generation.ts";
 import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration } from "../contract/service.ts";
-import { switchTargetGeneration } from "../persistence/space-state.ts";
+import { markGenerationComplete, switchTargetGeneration } from "../persistence/space-state.ts";
 
 type TargetResolveCtx = Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection" | "onTargetGenerationMoved">;
+
+/** Record one scope of `generation` complete for its owner, and announce the promotion when this completion made it. */
+export async function completeGenerationScope(
+  ctx: Pick<EmbeddingsContext, "db" | "now" | "onTargetPromoted">,
+  input: { readonly ownerId: UserId; readonly scope: VectorScope; readonly generation: GenerationReceipt },
+): Promise<void> {
+  if (await markGenerationComplete(ctx.db, { ...input, now: ctx.now() })) {
+    ctx.onTargetPromoted(input.ownerId);
+  }
+}
 
 export async function resolveTargetGeneration(
   ctx: TargetResolveCtx,

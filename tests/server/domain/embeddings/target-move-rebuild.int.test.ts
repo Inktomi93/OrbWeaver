@@ -65,6 +65,8 @@ interface Drive {
   readonly credentialId: UserCredentialId;
   /** Every owner the resolver reported a target move for. */
   readonly moved: UserId[];
+  /** Every owner whose target a completing scope promoted. */
+  readonly promoted: UserId[];
 }
 
 async function drive(): Promise<Drive> {
@@ -72,6 +74,7 @@ async function drive(): Promise<Drive> {
   // Flipped by the test once the user fixes the key; a resolve reads it at call time.
   const key: { revoked: boolean } = { revoked: true };
   const moved: UserId[] = [];
+  const promoted: UserId[] = [];
   const h = await makeHarness(db, {
     localLight: true,
     routes: [NARROW_ROUTE],
@@ -96,6 +99,9 @@ async function drive(): Promise<Drive> {
     ...store.ctx,
     onTargetGenerationMoved: (ownerId) => {
       moved.push(ownerId);
+    },
+    onTargetPromoted: (ownerId) => {
+      promoted.push(ownerId);
     },
     roleClientsFor: roleClients,
     // A named row resolves as if it were bound (the change preview asks that); embedding still runs through the bound role.
@@ -123,7 +129,7 @@ async function drive(): Promise<Drive> {
           };
     },
   };
-  return { db, h, principal, userId, builtIn, svc: createEmbeddingsService(ctx), ctx, key, credentialId, moved };
+  return { db, h, principal, userId, builtIn, svc: createEmbeddingsService(ctx), ctx, key, credentialId, moved, promoted };
 }
 
 /** The owner's sweep as the queued rebuild runs it: every card, then the two scopes this fixture holds nothing in. */
@@ -474,6 +480,30 @@ describe("a move that lands inside a running databank or memory sweep", () => {
     await completeScope(d, "documents");
     expect(await searchState(d)).toEqual(ALL_CARDS);
   });
+});
+
+// Search answers again only once the last scope promotes the new target, and nothing else on the bus says so: the
+// promotion itself is announced, to the owner whose target it is, once.
+test("the scope that completes a moved target last announces its promotion to that owner, once", async () => {
+  const d = await drive();
+  await sweep(d, false);
+  d.promoted.length = 0;
+  await repointNarrow(d);
+  await d.svc.syncTargetGenerations(d.userId);
+
+  await runRebuild(d);
+  // The picture target moved with the text one, and its only scope is the rebuild's picture pass.
+  expect(d.promoted, "the picture target promotes; cards alone leave text search paused").toEqual([d.userId]);
+  await completeScope(d, "memory");
+  expect(d.promoted, "two of three text scopes leave text search paused").toEqual([d.userId]);
+  await completeScope(d, "documents");
+
+  expect(d.promoted).toEqual([d.userId, d.userId]);
+  expect(await searchState(d)).toEqual(ALL_CARDS);
+  await runRebuild(d);
+  await completeScope(d, "memory");
+  await completeScope(d, "documents");
+  expect(d.promoted, "scopes completing again on the active targets promote nothing").toEqual([d.userId, d.userId]);
 });
 
 // A move purges the old index, so a width the new encoder does not make is refused before either target moves.

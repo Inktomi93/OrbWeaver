@@ -10,7 +10,6 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect } from "react";
 import { useEmbedderRebuild } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
@@ -80,7 +79,7 @@ function UnifiedResults({
   }
   if (result.error !== null) {
     return trpcErrorReason(result.error) === SEARCH_SPACE_REINDEXING ? (
-      <SearchPaused over={over} onResumed={result.refetch} onTextInstead={onTextInstead} />
+      <SearchPaused over={over} onTextInstead={onTextInstead} />
     ) : (
       <QueryErrorState label="the search" onRetry={result.refetch} />
     );
@@ -118,26 +117,9 @@ function UnifiedResults({
 
 /** Vector search refuses while the owner's index moves to a new embedder: say so, say whether the rebuild is running
  *  or failed, and offer the two ways on: the rebuild's jobs, and the text search, which does not wait on the index. */
-function SearchPaused({
-  over,
-  onResumed,
-  onTextInstead,
-}: {
-  readonly over: UnifiedOver;
-  readonly onResumed: () => unknown;
-  readonly onTextInstead: (() => void) | undefined;
-}): ReactElement {
+function SearchPaused({ over, onTextInstead }: { readonly over: UnifiedOver; readonly onTextInstead: (() => void) | undefined }): ReactElement {
   const trpc = useTRPC();
-  const task = over === "images" ? "imageEmbed" : "embed";
-  const rebuild = useEmbedderRebuild(trpc, true, task);
-  // No bus event marks a promotion: the space read this state polls is what sees it, so its flip re-runs the search.
-  const space = useQuery(trpc.search.spaceStatus.queryOptions());
-  const resumed = space.data !== undefined && !space.data[task];
-  useEffect(() => {
-    if (resumed) {
-      void onResumed();
-    }
-  }, [resumed, onResumed]);
+  const rebuild = useEmbedderRebuild(trpc, true, over === "images" ? "imageEmbed" : "embed");
   return (
     <Stack data-slot="search-paused" data-rebuild={rebuild ?? "unknown"} gap="field">
       <Text role="status" voice="gloss">

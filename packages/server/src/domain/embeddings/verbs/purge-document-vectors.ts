@@ -4,11 +4,11 @@
 import type { EmbeddingsContext } from "../context.ts";
 import type { PurgeDocumentVectorsResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
-import { markGenerationComplete } from "../persistence/space-state.ts";
+import { completeGenerationScope } from "../substrate/generation.ts";
 
 export function createPurgeDocumentVectors(ctx: EmbeddingsContext): EmbeddingsService["purgeDocumentVectors"] {
   return async ({ ownerId, generation }): Promise<PurgeDocumentVectorsResult> => {
-    await markGenerationComplete(ctx.db, { ownerId, scope: "documents", generation, now: ctx.now() });
+    await completeGenerationScope(ctx, { ownerId, scope: "documents", generation });
     return { chunks: 0 };
   };
 }
