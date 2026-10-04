@@ -93,4 +93,5 @@ test("a filled clock whose requestTurn outlives the host bound is not logged as 
   await drive.act("tick", { name: "the ritual", segments: "6" });
 
   expect(drive.logs.filter(({ level }) => level === "warn")).toEqual([]);
+  expect(drive.logs.some(({ level, message }) => level === "info" && message.includes("turn started"))).toBe(true);
 });

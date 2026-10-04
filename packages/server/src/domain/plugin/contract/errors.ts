@@ -4,7 +4,7 @@
 // membrane's guest-observable `PluginCapabilityError`/`HostVersionError` (`@orb/contracts/plugin`) — these are
 // host-side lifecycle failures a CALLER sees, never a guest.
 
-import { DomainConflictError, DomainNotFoundError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
+import { DomainConflictError, DomainError, DomainNotFoundError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 import type { PluginId } from "@orb/kit/ids";
 
 /** The bundle failed unzip/validation: a bad zip, extra/unknown entries, a decompression-bomb over the caps,
@@ -161,6 +161,12 @@ export class PluginActionFailedError extends DomainOperationError {
   constructor(message: string) {
     super("plugin_action_failed", message);
   }
+}
+
+/** The error a guest invoke's rejection surfaces as: a guest's own throw becomes {@link PluginActionFailedError};
+ *  a host DomainError keeps its own mapping. */
+export function asPluginActionError(error: unknown): DomainError {
+  return error instanceof DomainError ? error : new PluginActionFailedError(`plugin action failed: ${error instanceof Error ? error.message : String(error)}`);
 }
 
 /** The instance auto-disabled after the crash threshold. Maps to SERVICE_UNAVAILABLE. */

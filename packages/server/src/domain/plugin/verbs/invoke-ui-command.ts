@@ -26,7 +26,7 @@ import type { InvocationChat, PluginCommandArgSpec, PluginCommandArgValue, Plugi
 import { pluginCommandArgsSchema } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { z } from "zod";
-import { PluginNotFoundError } from "../contract/errors.ts";
+import { asPluginActionError, PluginNotFoundError } from "../contract/errors.ts";
 import type { InvokeUiCommandParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
@@ -87,6 +87,8 @@ export function createInvokeUiCommand(ctx: PluginContext, registry: PluginRegist
       // invocation's chat SCOPE, which the guest reads through `chat.current()`'s opaque handle — one mint, one
       // accessor (see `registerCommand`'s contract).
       await resident.invoke(command.onRun, JSON.stringify({ args, values: typedValues }), chat);
+    } catch (error) {
+      throw asPluginActionError(error);
     } finally {
       outcome = resolveUiOutcome(ctx.uiOutbox.drain(pluginId), resident.instance);
     }

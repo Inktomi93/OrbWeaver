@@ -5,7 +5,7 @@
 // the re-entry ARGS are proven with a recording port and the GATES with the default fake.
 
 import type { InvocationChat } from "@orb/contracts/plugin";
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CreateInstanceOutcome, PluginHandlerRef, PluginHostPort, PluginInstance } from "@orb/server/domain/plugin";
@@ -178,4 +178,29 @@ test("a guest handler that throws is a typed plugin error, not a bare Error", as
   await expect(h.service.invokeUiAction({ caller, pluginId: installed.id, surfaceId: "panel", actionId: "save", values: {} })).rejects.toBeInstanceOf(
     PluginActionFailedError,
   );
+});
+
+test("a host DomainError from a UI action passes through unchanged", async () => {
+  const db = await freshDb();
+  const refusal = new DomainConflictError("turn budget spent");
+  const h = makePluginHarness(db, { port: { ...makeRecordingPort([], "TOKEN"), invoke: () => Promise.reject(refusal) } });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+
+  await expect(h.service.invokeUiAction({ caller, pluginId: installed.id, surfaceId: "panel", actionId: "save", values: {} })).rejects.toBe(refusal);
+});
+
+test("the outbox drains after a mapped guest throw", async () => {
+  const db = await freshDb();
+  const h = makePluginHarness(db, { port: { ...makeRecordingPort([], "TOKEN"), invoke: () => Promise.reject(new Error("the guest threw")) } });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood", name: "Mood" }), grant: [] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+  h.ctx.uiOutbox.pushToast({ id: installed.id, name: "Mood", slug: "mood" }, "warn", "queued before the throw");
+
+  await expect(h.service.invokeUiAction({ caller, pluginId: installed.id, surfaceId: "panel", actionId: "save", values: {} })).rejects.toBeInstanceOf(
+    PluginActionFailedError,
+  );
+  expect(h.ctx.uiOutbox.drain(installed.id)).toEqual({ toasts: [] });
 });
