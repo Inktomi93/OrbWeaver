@@ -6,6 +6,7 @@ import type { GenerationCapability, SamplingCapability } from "@orb/contracts/in
 import { builtinProvider, foldFeatures, SAMPLER_ORDER_TOKENS } from "@orb/contracts/inference";
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
+import { resolveChat } from "../../../../../packages/inference/src/funnel/resolve-chat.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testProviderId } from "../../../../support/inference-identities.ts";
 
@@ -65,8 +66,9 @@ test("every stage a server orders has a token in the vocabulary its provider row
 test("behind a Custom endpoint a model family's stated sampling wins; only an unknown model gets the vLLM set", () => {
   // A Custom endpoint is often a proxy (LiteLLM, Azure) to a hosted family whose own rows state its set.
   const familyOnly = (model: string): SamplingCapability => {
+    // Drops only the any-model default; a family's own Custom-route row (Gemini's compatible layer) stays.
     const rows = curatedRows({ model, providerId: testProviderId("custom-openai"), wire: "openai-compat" }).filter(
-      (row) => row.match?.provider !== "custom-openai",
+      (row) => !(row.match?.provider === "custom-openai" && row.match.model === ".*"),
     );
     const { capability } = synthesizeCapability("generation", "other", { curated: rows });
     return capability.kind === "generation" ? capability.generation.sampling : {};
@@ -81,6 +83,21 @@ test("behind a Custom endpoint a model family's stated sampling wins; only an un
   expect(statedKnobs(generationOf("custom-openai", "some-finetune-7b").sampling)).toEqual(
     statedKnobs(generationOf("vllm", "some-finetune-7b").sampling).filter((knob) => !vllmBans.has(knob)),
   );
+});
+
+test("a hosted model behind a Custom endpoint sends its family's openai-compat samplers, never vLLM's top_k, min_p or repetition_penalty", () => {
+  const preset = { temperature: 0.7, topK: 40, minP: 0.05, repetitionPenalty: 1.1 };
+  for (const model of ["gpt-4.1", "claude-sonnet-4-6", "claude-opus-4-1"]) {
+    const { sampling } = resolveChat(preset, generationOf("custom-openai", model));
+    expect(Object.keys(sampling).toSorted(), model).toEqual(["temperature"]);
+  }
+  // An unknown model behind the same endpoint still gets the vLLM set.
+  expect(Object.keys(resolveChat(preset, generationOf("custom-openai", "some-finetune-7b")).sampling).toSorted()).toEqual([
+    "minP",
+    "repetitionPenalty",
+    "temperature",
+    "topK",
+  ]);
 });
 
 test("an embedder served by llama.cpp keeps its embedding capability: the rows state generation sampling only", () => {
