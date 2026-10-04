@@ -15,7 +15,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { useTRPC } from "#data";
 import { CONNECTION_ROLE_LABELS } from "#lib";
-import { CHAT_ROLE_TARGET, effectiveTarget, SWITCHER_ROLES, targetFromValue, targetValue } from "../../lib/capability-target.ts";
+import { CHAT_ROLE_TARGET, effectiveTarget, SWITCHER_ROLES, sendsPresetWindow, targetFromValue, targetValue } from "../../lib/capability-target.ts";
 import { chatCapabilityOf } from "../../lib/chat-capability.ts";
 import { mirostatSkipped } from "../../lib/effective-knobs.ts";
 import { CapabilityCard, EffectiveProfile } from "./readout-parts.tsx";
@@ -44,8 +44,9 @@ export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): Rea
   const preset = useQuery(trpc.preset.get.queryOptions({ id: presetId }));
   const inView = capability.data === undefined ? undefined : connections.data?.find((row) => row.id === capability.data.connectionId);
   const generation = chatCapabilityOf(capability.data);
-  // The window the turn sends: on a route whose window the request sets, the preset's Max context is it.
-  const turnGeneration = generation === undefined ? undefined : windowForPreset(generation, preset.data?.config.params.maxContextTokens);
+  // The window the turn sends: on a route whose window the request sets, a chat send runs the preset's Max context.
+  const turnGeneration =
+    generation === undefined || !sendsPresetWindow(target) ? generation : windowForPreset(generation, preset.data?.config.params.maxContextTokens);
 
   return (
     <>

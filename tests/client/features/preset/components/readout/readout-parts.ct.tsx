@@ -378,10 +378,10 @@ const SETTABLE_CAPABILITY = makeResolvedView({
 });
 const PRESET_WINDOW = 65_536;
 
-function settableRoutes(): ReturnType<typeof readoutRoutes> {
+function settableRoutes(presetWindow = PRESET_WINDOW): ReturnType<typeof readoutRoutes> {
   return {
     ...readoutRoutes(settledResolve),
-    "preset.get": () => ({ ...PRESET_DETAIL, config: { ...DEFAULT_PROMPT_CONFIG, params: { maxContextTokens: PRESET_WINDOW } } }),
+    "preset.get": () => ({ ...PRESET_DETAIL, config: { ...DEFAULT_PROMPT_CONFIG, params: { maxContextTokens: presetWindow } } }),
     "connection.resolveChatCapability": () => SETTABLE_CAPABILITY,
   };
 }
@@ -393,6 +393,18 @@ test("on a route that sends the window, the effective context is the preset's Ma
   // Rows are label · (value · suffix); the value is the first element after the label.
   const contextValue = probe.getByText("context", { exact: true }).locator("xpath=following-sibling::*[1]/*[1]");
   await expect(contextValue).toHaveText("65,536");
+});
+
+test("the Utility role on that route shows the connection's own window: its sends do not carry the preset's Max context", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, settableRoutes(32_768));
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  await probe.getByRole("combobox", { name: SWITCHER_NAME }).click();
+  await page.getByRole("option", { name: "Utility model role", exact: true }).click();
+  await expect.poll(() => trpc.lastInput("connection.resolveChatCapability")).toEqual({ target: { kind: "role", task: "summarize" } });
+
+  const contextValue = probe.getByText("context", { exact: true }).locator("xpath=following-sibling::*[1]/*[1]");
+  await expect(contextValue).toHaveText("4,096");
 });
 
 test("the capability card lists knobs only, never a sampling fact's schema key", async ({ mount, page }) => {

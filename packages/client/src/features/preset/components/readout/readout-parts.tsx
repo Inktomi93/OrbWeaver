@@ -211,6 +211,14 @@ function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; 
   );
 }
 
+// On a route whose request sends the window, the resolved one is only the default a preset can raise, up to the trained maximum.
+function contextWindowSuffix(context: GenerationCapability["context"]): string | null {
+  if (context.settable !== undefined) {
+    return `default · up to ${formatKnobValue(context.settable.max)}`;
+  }
+  return context.windowEstimated === true ? "estimated" : null;
+}
+
 /** WHY a knob is absent, and what the window costs you — the two questions the deck itself cannot answer
  *  (an absent knob renders as nothing, which is correct doctrine and mute). The MODEL name comes from the
  *  effective read, not the descriptor: `GenerationCapability` is keyed by `(model, backend)` and deliberately
@@ -243,11 +251,7 @@ export function CapabilityCard({
         {model === undefined || modelName === undefined ? null : (
           <DatumRow label="model" value={modelName} valueTitle={modelName === model ? undefined : model} />
         )}
-        <DatumRow
-          label="context window"
-          suffix={capability.context.windowEstimated === true ? "estimated" : null}
-          value={formatKnobValue(capability.context.window)}
-        />
+        <DatumRow label="context window" suffix={contextWindowSuffix(capability.context)} value={formatKnobValue(capability.context.window)} />
         <DatumRow label="output cap" value={formatKnobValue(capability.output.maxTokens.max)} />
       </Stack>
       <Text voice="gloss">

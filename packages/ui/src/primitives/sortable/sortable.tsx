@@ -18,6 +18,8 @@ export type SortableItemKey = string | number;
 
 /** The row NAME the live region reads, carried on the sortable's own `data` (see `ANNOUNCEMENTS`). */
 const LABEL_DATA_KEY = "orbSortableLabel";
+/** The list's row count, fixed tail included, carried beside the name (see `totalOf`). */
+const TOTAL_DATA_KEY = "orbSortableTotal";
 /** What an unnamed row is called — the same fallback the grip's own label uses, minus the verb. */
 const UNNAMED_ITEM = "item";
 
@@ -63,7 +65,7 @@ function SortableItem({ id, index, count, handle, label, disabled, children }: S
     // The name travels ON THE ENTITY, not in the announcement closure: the Accessibility plugin binds its
     // listeners ONCE at construction, so a closure over this render's items would be frozen at first mount
     // and read stale names forever. `useSortable` re-assigns `data` on every render, so this is live.
-    data: { [LABEL_DATA_KEY]: label },
+    data: { [LABEL_DATA_KEY]: label, [TOTAL_DATA_KEY]: count },
     // The drop-settle bounce is WAAPI (element.animate()), not CSS, so the app's reduced-motion
     // duration floor can't shorten it — short-circuit it outright instead.
     ...(reducedMotion
@@ -161,10 +163,11 @@ function nameOf(entity: AnnounceEntity): string {
   return typeof label === "string" && label !== "" ? label : UNNAMED_ITEM;
 }
 
-/** How many rows this list has — read off the manager's OWN registry rather than a captured `items.length`,
- *  for the same staleness reason the name rides `data` (one provider per list ⇒ one registry per list). */
-function totalOf(manager: AnnounceManager): number {
-  return [...manager.registry.draggables].length;
+/** How many rows this list has, fixed tail included, so it matches `aria-setsize`. It rides the dragged entity's
+ *  `data` for the same staleness reason the name does; the registry counts only draggables, so it is the fallback. */
+function totalOf(entity: AnnounceEntity, manager: AnnounceManager): number {
+  const total: unknown = entity?.data[TOTAL_DATA_KEY];
+  return typeof total === "number" ? total : [...manager.registry.draggables].length;
 }
 
 /** The entity's 1-based rank, or `null` when it carries none (a plain draggable is not in a sorted list, so
@@ -204,18 +207,18 @@ const withAnnouncements: NonNullable<ComponentProps<typeof DragDropProvider>["pl
       ? Accessibility.configure({
           announcements: {
             dragstart: ({ operation: { source } }: AnnounceEvent, manager: AnnounceManager): string | undefined =>
-              source === null || source === undefined ? undefined : `Picked up ${atPosition(nameOf(source), rankOf(source), totalOf(manager))}.`,
+              source === null || source === undefined ? undefined : `Picked up ${atPosition(nameOf(source), rankOf(source), totalOf(source, manager))}.`,
             // The DESTINATION is the hovered TARGET's rank, not the source's: the optimistic-sorting plugin
             // registers after this one, so at this instant the source still sits at its old index and the
             // target sits at the one it is about to take.
             dragover: ({ operation: { source, target } }: AnnounceEvent, manager: AnnounceManager): string | undefined =>
               source === null || source === undefined || target === null || target === undefined || source.id === target.id
                 ? undefined
-                : `${atPosition(nameOf(source), rankOf(target), totalOf(manager))}.`,
+                : `${atPosition(nameOf(source), rankOf(target), totalOf(source, manager))}.`,
             dragend: ({ operation: { source }, canceled }: AnnounceEvent, manager: AnnounceManager): string | undefined =>
               source === null || source === undefined
                 ? undefined
-                : `${canceled === true ? "Reorder cancelled. " : "Dropped "}${atPosition(nameOf(source), rankOf(source), totalOf(manager))}.`,
+                : `${canceled === true ? "Reorder cancelled. " : "Dropped "}${atPosition(nameOf(source), rankOf(source), totalOf(source, manager))}.`,
           },
         })
       : plugin,

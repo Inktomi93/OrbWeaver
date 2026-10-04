@@ -20,6 +20,8 @@ interface ReorderableListProps {
   readonly itemCount?: number;
   readonly handle?: boolean;
   readonly disabled?: boolean;
+  /** Fixed rows after the movable ones (`fixedTail`), named `Fixed <n>`. */
+  readonly fixedCount?: number;
 }
 
 /**
@@ -27,7 +29,7 @@ interface ReorderableListProps {
  * surfaces the call count + last payload as plain text nodes — CT mount props are serialized, so a
  * closure spy can't be read back from the test; the DOM is the only channel.
  */
-export function ReorderableList({ itemCount = 3, handle = false, disabled = false }: ReorderableListProps): ReactElement {
+export function ReorderableList({ itemCount = 3, handle = false, disabled = false, fixedCount = 0 }: ReorderableListProps): ReactElement {
   const [items, setItems] = useState<FixtureItem[]>(() => makeItems(itemCount));
   const [reorderCount, setReorderCount] = useState(0);
   const [lastOrder, setLastOrder] = useState("");
@@ -38,6 +40,7 @@ export function ReorderableList({ itemCount = 3, handle = false, disabled = fals
       <p data-testid="last-order">{lastOrder}</p>
       <SortableList
         disabled={disabled}
+        fixedTail={Array.from({ length: fixedCount }, (_, index) => ({ key: `fixed-${index}`, content: <div>{`Fixed ${index}`}</div> }))}
         getItemKey={(item): string => item.id}
         handle={handle}
         // The row's NAME is deliberately DIFFERENT from its key ("Item 0" vs "item-0") so an announcement
