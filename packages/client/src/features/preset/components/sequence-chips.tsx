@@ -13,6 +13,7 @@ import { Input } from "@orb/ui/input";
 import { Row } from "@orb/ui/layout";
 import type { KeyboardEvent, ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
+import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { decodeSequence, encodeSequence } from "../lib/sequence-escapes.ts";
 
 type AppForm = AppFormInstance<PromptConfig>;
@@ -36,7 +37,9 @@ interface SequenceChipsProps {
 
 /** G2 — the `params.stop` chip list. */
 export function StopSequences({ form }: { readonly form: AppForm }): ReactElement {
-  return <SequenceChips form={form} hint={STOP_SEQUENCE_HINT} legend="Stop sequences" name="params.stop" noun="stop sequence" unsetWhenEmpty={false} />;
+  return (
+    <SequenceChips form={form} hint={STOP_SEQUENCE_HINT} legend={SAMPLING_FLAG_LABELS.stop} name="params.stop" noun="stop sequence" unsetWhenEmpty={false} />
+  );
 }
 
 /** The DRY sampler's sequence breakers — llama.cpp refuses an empty list, so clearing the last one unsets it. */
@@ -45,7 +48,7 @@ export function DrySequenceBreakers({ form }: { readonly form: AppForm }): React
     <SequenceChips
       form={form}
       hint={DRY_BREAKER_HINT}
-      legend="DRY sequence breakers"
+      legend={SAMPLING_FLAG_LABELS.drySequenceBreakers}
       name="params.drySequenceBreakers"
       noun="DRY sequence breaker"
       unsetWhenEmpty={true}
@@ -55,7 +58,16 @@ export function DrySequenceBreakers({ form }: { readonly form: AppForm }): React
 
 /** The phrases the server bans outright — the preset refuses an empty list, so clearing the last one unsets it. */
 export function BannedPhrases({ form }: { readonly form: AppForm }): ReactElement {
-  return <SequenceChips form={form} hint={BANNED_PHRASE_HINT} legend="Banned phrases" name="params.bannedStrings" noun="banned phrase" unsetWhenEmpty={true} />;
+  return (
+    <SequenceChips
+      form={form}
+      hint={BANNED_PHRASE_HINT}
+      legend={SAMPLING_FLAG_LABELS.bannedStrings}
+      name="params.bannedStrings"
+      noun="banned phrase"
+      unsetWhenEmpty={true}
+    />
+  );
 }
 
 /** No chip-input primitive exists in the seal and none is needed: Badge chips + a ghost × + an add Input is

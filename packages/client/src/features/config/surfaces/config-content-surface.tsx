@@ -27,6 +27,7 @@
 
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Container, Row, Stack } from "@orb/ui/layout";
+import { scrollBehavior } from "@orb/ui/lib";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useEffect, useId, useState } from "react";
@@ -121,22 +122,27 @@ export function ConfigContentSurface({ groups }: ConfigContentSurfaceProps): Rea
       return supersede;
     }
     const { setting } = target;
-    // A setting-level landing also moves keyboard focus onto the leaf's own control when its section stamps
-    // one, so the reader lands on the thing the link named rather than on the LIST row that holds it. The
-    // section may suspend first, so a focus the reader moved meanwhile wins over this late one.
+    // A setting-level landing lands on the leaf's own control when its section stamps one: the control is
+    // scrolled into view (a leaf low in a long section sits below the fold once the section's top is in view)
+    // and takes keyboard focus, so the reader lands on the thing the link named rather than on the LIST row
+    // that holds it. The section may suspend first, so a focus the reader moved meanwhile wins over this late one.
     const doc = contentRef.current?.ownerDocument;
     const focusedAtRequest = doc?.activeElement ?? null;
-    const focusControl =
+    const landOnControl =
       setting === null
         ? undefined
         : (anchor: HTMLElement): void => {
-            const focusedNow = doc?.activeElement ?? null;
-            if (superseded || (focusedNow !== focusedAtRequest && focusedNow !== doc?.body)) {
+            const control = anchor.querySelector<HTMLElement>(`#${CSS.escape(configSettingControlId(target.group, setting))}`);
+            if (superseded || control === null) {
               return;
             }
-            anchor.querySelector<HTMLElement>(`#${CSS.escape(configSettingControlId(target.group, setting))}`)?.focus({ preventScroll: true });
+            control.scrollIntoView({ block: "center", behavior: scrollBehavior() });
+            const focusedNow = doc?.activeElement ?? null;
+            if (focusedNow === focusedAtRequest || focusedNow === doc?.body) {
+              control.focus({ preventScroll: true });
+            }
           };
-    scrollToAnchor({ group: target.group, sub: target.sub }, contentRef, suppressSpyRef, focusControl);
+    scrollToAnchor({ group: target.group, sub: target.sub }, contentRef, suppressSpyRef, landOnControl);
     // A SETTING-level landing also teaches: the focused-row seam gets the leaf so the context pane opens
     // on its lesson (VS Code's per-setting URL, #866 S3 — the search hit and `openConfigTo(g, s, leaf)`).
     if (setting !== null) {

@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SkeletonRows } from "#data";
 import type { EffectiveProfileRow } from "../../lib/effective-knobs.ts";
-import { knobLabel, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
+import { honoredKnobLabels, knobLabel, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
 import { formatCount } from "../../lib/format-count.ts";
 import { PARAMS_VIEW_LABEL } from "../../lib/preset-nav.ts";
 import { resolveFailureCopy, resolveFailureMessage } from "../../lib/resolve-failure.ts";
@@ -211,7 +211,7 @@ export function CapabilityCard({
   if (capability === undefined) {
     return null;
   }
-  const honored = Object.keys(capability.sampling).map((knob) => knobLabel(knob));
+  const honored = honoredKnobLabels(capability.sampling);
   const modelName = model === undefined ? undefined : modelDisplayName(model);
   return (
     <Section kicker="Capability">

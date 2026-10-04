@@ -8,7 +8,12 @@
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigSubcategory } from "@orb/client/state";
 import { Settings } from "@orb/ui/icons";
 import type { ConfigSearchEntry } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
-import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
+import {
+  buildConfigSearchEntries,
+  filterConfigEntries,
+  isConfigEntryModified,
+  shelfCompletions,
+} from "../../../../../packages/client/src/features/config/lib/config-search.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function group(id: ConfigGroupId, shelf: ConfigGroupDefinition["shelf"], label: string): ConfigGroupDefinition {
@@ -18,6 +23,7 @@ function group(id: ConfigGroupId, shelf: ConfigGroupDefinition["shelf"], label: 
 const APPEARANCE = group("appearance", "user", "Appearance");
 const CONNECTIONS = group("connections", "app", "Connections");
 const ADMIN = group("admin", "app", "Admin");
+const PLUGINS = group("plugins", "extensions", "Plugins");
 
 const ROWS: Readonly<Partial<Record<ConfigGroupId, readonly ConfigSubcategory[]>>> = {
   appearance: [
@@ -90,6 +96,35 @@ test("@shelf: and @in: narrow by address; an unknown value matches nothing (the 
   expect(filterConfigEntries(entries, { ...NO_FILTER, shelf: "you" }, NO_MODIFIED)).toEqual([]);
 });
 
+test("@shelf: takes the shelf's visible name, never its code id (D291: Plugins, not extensions)", () => {
+  const entries = buildConfigSearchEntries(
+    registryOf([APPEARANCE, PLUGINS]),
+    () => true,
+    (g) => ROWS[g.id] ?? [],
+  );
+  expect(filterConfigEntries(entries, { ...NO_FILTER, shelf: "plugins" }, NO_MODIFIED).map((e) => e.groupId)).toEqual(["plugins"]);
+  expect(filterConfigEntries(entries, { ...NO_FILTER, shelf: "extensions" }, NO_MODIFIED)).toEqual([]);
+});
+
+test("@in: takes the group's visible name, case, spaces and hyphens folded, as well as its id", () => {
+  const entries = buildConfigSearchEntries(
+    registryOf([group("chat-behavior", "user", "Chat behavior"), APPEARANCE]),
+    () => true,
+    () => [],
+  );
+  for (const typed of ["chat-behavior", "chatbehavior", "Chat-Behavior"]) {
+    expect(filterConfigEntries(entries, { ...NO_FILTER, group: typed }, NO_MODIFIED).map((e) => e.groupId)).toEqual(["chat-behavior"]);
+  }
+  expect(filterConfigEntries(entries, { ...NO_FILTER, group: "chat" }, NO_MODIFIED)).toEqual([]);
+});
+
+test("a partial @shelf: value completes to the visible shelf names it prefixes; a complete name completes to nothing", () => {
+  expect(shelfCompletions("")).toEqual(["user", "app", "collections", "plugins"]);
+  expect(shelfCompletions("PL")).toEqual(["plugins"]);
+  expect(shelfCompletions("plugins")).toEqual([]);
+  expect(shelfCompletions("ext")).toEqual([]);
+});
+
 test("@advanced FLIPS the axis: advanced leaves are hidden by default and are the ONLY rows when asked", () => {
   const entries = build();
   const plain = filterConfigEntries(entries, NO_FILTER, NO_MODIFIED);
@@ -136,7 +171,7 @@ test("isConfigEntryModified is the ONE verdict the filter applies, so a rendered
   expect(leaf === undefined ? null : isConfigEntryModified(leaf, modified)).toBe(false);
 });
 
-test("@ext: narrows to the plugins group (the slug rides the TERMS, not this filter)", () => {
+test("@plugin: narrows to the plugins group (the slug rides the TERMS, not this filter)", () => {
   const entries = build();
-  expect(filterConfigEntries(entries, { ...NO_FILTER, ext: "weather-teller" }, NO_MODIFIED)).toEqual([]);
+  expect(filterConfigEntries(entries, { ...NO_FILTER, plugin: "weather-teller" }, NO_MODIFIED)).toEqual([]);
 });

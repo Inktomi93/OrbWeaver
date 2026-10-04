@@ -16,20 +16,27 @@ export const selectVariants = tv({
     value: "min-w-0 truncate text-left",
     icon: "flex shrink-0 text-muted-foreground",
     positioner: "z-(--z-popover) outline-none",
-    // Select's popup can GROW past the anchor for a long option. Its two max-width ceilings (Base UI's
-    // collision width + the reading measure) intersect in select.tsx's POPUP_STYLE because two competing
-    // max-width utilities would merge to one. (Autocomplete/combobox lock to the exact anchor width.)
+    // Never narrower than the anchor, and grows to fit the longest LABEL. Descriptions do not size it (see
+    // `itemDescription`). The growth's two max-width ceilings (Base UI's collision width + the reading measure)
+    // intersect in select.tsx's POPUP_STYLE because two competing max-width utilities would merge to one.
     popup: [POPUP_SURFACE, "min-w-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
     group: "flex flex-col",
     groupLabel: "px-block py-field text-label font-medium leading-label text-muted-foreground select-none",
-    item: [ITEM_ROW, "justify-between gap-row"],
+    // A disabled option dims its LABEL only (`itemLabel`): the description is the one place that says why it
+    // is disabled, so the row itself keeps full opacity.
+    item: [ITEM_ROW, "group/select-item justify-between gap-row data-disabled:opacity-100"],
     // An option that carries a `description` stacks label-over-gloss; the column keeps the check
     // indicator centred against the pair instead of against a single line.
-    itemBody: "flex min-w-0 flex-col",
+    // `flex-1` gives the body the row's full width: a description that does not size the popup must still be
+    // laid out across it, or it wraps at its label's width.
+    itemBody: "flex min-w-0 flex-1 flex-col",
+    itemLabel: "group-data-disabled/select-item:opacity-50",
     // The SAME spelling `option-strip` uses for its description slot — one look for "the secondary line
     // of an option row", whichever listbox renders it. Deliberately NOT truncated: a mode's gloss is the
-    // reason to pick it, and the popup already grows past the anchor for a long option.
-    itemDescription: "text-label leading-label text-muted-foreground",
+    // reason to pick it, so it wraps at the popup's width instead. `contain-inline-size` keeps it out of the
+    // popup's intrinsic width: the labels and the trigger size the popup, and the description fills what they
+    // give it, so a one-line gloss cannot stretch the popup over the transcript.
+    itemDescription: "text-label leading-label text-muted-foreground contain-inline-size",
     itemIndicator: "flex shrink-0 text-primary",
     arrow: OVERLAY_ARROW,
     separator: "-mx-field my-field h-px bg-border",

@@ -6,6 +6,7 @@ import { useEffect, useId, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, usePortalContainer } from "#lib";
+import { useFieldControlDocksEnd } from "#primitives/field";
 import { Check, ChevronDown, Icon } from "#primitives/icons";
 import type { SelectItems, SelectOption, SelectOptionGroup } from "./items.ts";
 import { selectVariants } from "./variants.ts";
@@ -17,6 +18,14 @@ const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 // viewport, while the reading measure keeps explanatory option copy scannable on a wide desktop. CSS
 // `min()` is the one honest intersection; two max-width utilities would tailwind-merge into one winner.
 const POPUP_STYLE: CSSProperties = { maxWidth: "min(var(--available-width), var(--reading-measure))" };
+
+// A popup whose options carry descriptions also takes a floor. Descriptions never size the popup (they wrap
+// at whatever width the labels and the trigger give it), so under a narrow trigger they would wrap a few
+// words per line; `--width-popup-floor` keeps them readable, still inside the viewport.
+const GLOSSED_POPUP_STYLE: CSSProperties = {
+  ...POPUP_STYLE,
+  minWidth: "min(max(var(--anchor-width), var(--width-popup-floor)), var(--available-width))",
+};
 
 const slots = selectVariants();
 
@@ -32,6 +41,11 @@ const CHECK_ICON: ReactElement = <Icon icon={Check} size="xs" />;
 function isGrouped<Value>(items: SelectItems<Value>): items is readonly SelectOptionGroup<Value>[] {
   const first = items[0];
   return typeof first === "object" && "items" in first;
+}
+
+function popupStyle<Value>(items: SelectItems<Value>): CSSProperties {
+  const options = isGrouped(items) ? items.flatMap((group) => group.items) : items;
+  return options.some((option) => option.description !== undefined) ? GLOSSED_POPUP_STYLE : POPUP_STYLE;
 }
 
 /**
@@ -61,7 +75,13 @@ function renderOption<Value>(option: SelectOption<Value>, idPrefix: string): Rea
       value={option.value}
     >
       <span className={slots.itemBody()} data-slot="select-item-body">
-        <BaseSelect.ItemText {...(option.labelStyle === undefined ? {} : { style: option.labelStyle })}>{option.label}</BaseSelect.ItemText>
+        <BaseSelect.ItemText
+          className={slots.itemLabel()}
+          data-slot="select-item-label"
+          {...(option.labelStyle === undefined ? {} : { style: option.labelStyle })}
+        >
+          {option.label}
+        </BaseSelect.ItemText>
         {option.description === undefined ? null : (
           <span aria-hidden="true" className={slots.itemDescription()} data-slot="select-item-description" id={describedBy}>
             {option.description}
@@ -130,7 +150,7 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
   arrow?: boolean;
   /** Placement side, forwarded to the explicit Positioner. @defaultValue "bottom" (Base UI default) */
   side?: SelectPositionerProps["side"];
-  /** Alignment on the side. @defaultValue "start" (Base UI default) */
+  /** Alignment on the side. @defaultValue "end" for a control docked at the end of a horizontal `<Field>`, else "start" (Base UI default) */
   align?: SelectPositionerProps["align"];
   /** Anchor gap in px. @defaultValue 4 */
   sideOffset?: SelectPositionerProps["sideOffset"];
@@ -190,6 +210,10 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
   // Per-INSTANCE prefix for glossed options' description ids: two selects on one page can legitimately
   // share an option value ("flat"), so a value-only id would collide and point both at one description.
   const optionIdPrefix = useId();
+  // A control docked at the end of a horizontal Field row opens its popup end-aligned, so it grows back into
+  // the pane rather than past its edge. An explicit `align` wins.
+  const docksEnd = useFieldControlDocksEnd();
+  const popupAlign = align ?? (docksEnd ? "end" : undefined);
 
   // The visually hidden input Base UI generates for form submission gets flagged by axe-core as an
   // unlabeled interactive element; give it a fallback accessible name.
@@ -235,7 +259,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
       <BaseSelect.Portal container={container ?? portalContainer}>
         {backdrop ? <BaseSelect.Backdrop className={slots.backdrop()} data-slot="select-backdrop" /> : null}
         <BaseSelect.Positioner
-          align={align}
+          align={popupAlign}
           // Scroll arrows only function in Base UI's align-item-with-trigger mode.
           alignItemWithTrigger={scrollArrows}
           className={slots.positioner()}
@@ -243,7 +267,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
           side={side}
           sideOffset={sideOffset}
         >
-          <BaseSelect.Popup className={slots.popup()} data-slot="select-popup" style={POPUP_STYLE}>
+          <BaseSelect.Popup className={slots.popup()} data-slot="select-popup" style={popupStyle(items)}>
             {arrow ? <BaseSelect.Arrow className={slots.arrow()} data-slot="select-arrow" /> : null}
             {scrollArrows ? (
               <BaseSelect.ScrollUpArrow className={cn(slots.scrollArrow(), "top-0")} data-slot="select-scroll-up-arrow">

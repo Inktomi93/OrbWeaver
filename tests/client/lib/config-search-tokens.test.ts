@@ -3,7 +3,7 @@
 // silently searched as text), the partial-token detector the `@` menu keys on, and the literal-substring
 // highlight ranges. Pure logic → a browser-free unit test (Spine-Testing.md §7).
 
-import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "@orb/client/lib";
+import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "@orb/client/lib";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -18,7 +18,7 @@ describe("parseConfigQuery", () => {
     expect(parseConfigQuery("@shelf:APP keys")).toMatchObject({ terms: "keys", shelf: "app" });
     // `@in:` keeps the value AS TYPED — group ids are mixed-case (`worldInfo`).
     expect(parseConfigQuery("@in:worldInfo scan")).toMatchObject({ terms: "scan", group: "worldInfo" });
-    expect(parseConfigQuery("@ext:Weather-Teller")).toMatchObject({ terms: "", ext: "weather-teller" });
+    expect(parseConfigQuery("@plugin:Weather-Teller")).toMatchObject({ terms: "", plugin: "weather-teller" });
   });
 
   test("token NAMES are case-insensitive", () => {
@@ -26,8 +26,9 @@ describe("parseConfigQuery", () => {
   });
 
   test("malformed tokens are UNKNOWN, never searched as text — a typo matching a row would be a lie", () => {
-    const parsed = parseConfigQuery("@shefl:app @shelf: @bogus avatar");
-    expect(parsed.unknown).toEqual(["@shefl:app", "@shelf:", "@bogus"]);
+    // `@ext:` is not a token: the `extensions` code id never reaches the grammar (D291).
+    const parsed = parseConfigQuery("@shefl:app @shelf: @bogus @ext:weather avatar");
+    expect(parsed.unknown).toEqual(["@shefl:app", "@shelf:", "@bogus", "@ext:weather"]);
     expect(parsed.terms).toBe("avatar");
     expect(parsed.shelf).toBeUndefined();
   });
@@ -56,7 +57,18 @@ describe("partialConfigToken / applyConfigToken", () => {
   });
 
   test("the menu's vocabulary is total and insertable — every token either bare or value-taking", () => {
-    expect(CONFIG_QUERY_TOKENS.map((t) => t.token)).toEqual(["@modified", "@shelf:", "@in:", "@ext:", "@advanced"]);
+    expect(CONFIG_QUERY_TOKENS.map((t) => t.token)).toEqual(["@modified", "@shelf:", "@in:", "@plugin:", "@advanced"]);
+  });
+});
+
+describe("partialValueToken", () => {
+  test("past a value token's colon the word is a value, typed so far; a flag or an unknown token is not", () => {
+    expect(partialValueToken("@shelf:plu")).toEqual({ kind: "shelf", value: "plu" });
+    expect(partialValueToken("@IN:")).toEqual({ kind: "in", value: "" });
+    expect(partialValueToken("@plugin:weather")).toEqual({ kind: "plugin", value: "weather" });
+    expect(partialValueToken("@shel")).toBeNull();
+    expect(partialValueToken("@modified")).toBeNull();
+    expect(partialValueToken("@ext:weather")).toBeNull();
   });
 });
 

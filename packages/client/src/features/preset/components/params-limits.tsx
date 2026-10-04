@@ -46,6 +46,7 @@ import type { AppFormInstance } from "#forms/editor";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
+import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { LogitBiasEditor } from "./logit-bias-editor.tsx";
 import { BannedPhrases, StopSequences } from "./sequence-chips.tsx";
@@ -187,7 +188,7 @@ function BanEosRow({ form }: { readonly form: AppForm }): ReactElement {
     <SettingTrackRow>
       <form.Subscribe selector={(state): boolean => state.values.params.banEos === true}>
         {(on): ReactElement => (
-          <Field hint="Stops the model from ending its reply early; it writes until the output cap or a stop sequence." label="Ban end of reply">
+          <Field hint="Stops the model from ending its reply early; it writes until the output cap or a stop sequence." label={SAMPLING_FLAG_LABELS.banEos}>
             <Switch checked={on} onCheckedChange={(next): void => form.setFieldValue("params.banEos", next ? true : undefined)} />
           </Field>
         )}

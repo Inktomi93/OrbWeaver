@@ -59,6 +59,7 @@ import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { qualityDeckGloss } from "../lib/effective-knobs.ts";
 import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav.ts";
 import type { ReadFailure } from "../lib/resolve-failure.ts";
+import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 import { CapabilityGate } from "./capability-gate.tsx";
 import { KnobGrid, KnobRow } from "./knob-row.tsx";
 import { ParamsLimits } from "./params-limits.tsx";
@@ -233,7 +234,9 @@ function SamplingCluster({
         <SettingRowGroup>
           <SettingTrackRow>
             <form.AppField name="params.seed">
-              {(field): ReactElement => <field.NumberField hint="A fixed seed makes sampling reproducible." label="Seed" placeholder="random" />}
+              {(field): ReactElement => (
+                <field.NumberField hint="A fixed seed makes sampling reproducible." label={SAMPLING_FLAG_LABELS.seed} placeholder="random" />
+              )}
             </form.AppField>
           </SettingTrackRow>
         </SettingRowGroup>

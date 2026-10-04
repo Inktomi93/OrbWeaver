@@ -158,6 +158,27 @@ test("@shelf:… narrows to that shelf; the other shelf's rows drop out", async 
   await expect(appShelfRow).toHaveCount(0);
 });
 
+// Past a value token's `:` the menu completes the VALUE, and a complete value is a filter: the reader typing a
+// shelf's whole name, with the caret still on it, sees that shelf's rows.
+test("a partial @shelf: value offers the shelf names; a complete one shows that shelf's rows", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ConfigHostStory />);
+  const search = component.getByRole("combobox", { name: "Search settings" });
+
+  await search.fill("@shelf:a");
+  const completion = component.getByRole("option", { name: /@shelf:app/ });
+  await expect(completion).toBeVisible();
+  await completion.click();
+  await expect(search).toHaveValue("@shelf:app ");
+
+  await search.fill("@shelf:app");
+  await expect(component.getByRole("option", { name: /Library-wide rules/ })).toBeVisible();
+  await expect(component.getByRole("option", { name: /@shelf:/ })).toHaveCount(0);
+  // A group by its visible name, hyphens for spaces, the caret still on the token.
+  await search.fill("@in:chat-behavior");
+  await expect(component.getByRole("option", { name: "Chat behavior", exact: true })).toBeVisible();
+});
+
 test("a COLLECTION MEMBER is found by name (the dynamic `useSearchRows` fiber) and opens as the member", async ({ mount, page }) => {
   await stub(page);
   const component = await mount(<ConfigHostStory />);
