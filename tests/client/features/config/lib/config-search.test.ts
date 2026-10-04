@@ -18,6 +18,7 @@ function group(id: ConfigGroupId, shelf: ConfigGroupDefinition["shelf"], label: 
 const APPEARANCE = group("appearance", "user", "Appearance");
 const CONNECTIONS = group("connections", "app", "Connections");
 const ADMIN = group("admin", "app", "Admin");
+const PLUGINS = group("plugins", "extensions", "Plugins");
 
 const ROWS: Readonly<Partial<Record<ConfigGroupId, readonly ConfigSubcategory[]>>> = {
   appearance: [
@@ -90,6 +91,16 @@ test("@shelf: and @in: narrow by address; an unknown value matches nothing (the 
   expect(filterConfigEntries(entries, { ...NO_FILTER, shelf: "you" }, NO_MODIFIED)).toEqual([]);
 });
 
+test("@shelf: takes the shelf's visible name, never its code id (D291: Plugins, not extensions)", () => {
+  const entries = buildConfigSearchEntries(
+    registryOf([APPEARANCE, PLUGINS]),
+    () => true,
+    (g) => ROWS[g.id] ?? [],
+  );
+  expect(filterConfigEntries(entries, { ...NO_FILTER, shelf: "plugins" }, NO_MODIFIED).map((e) => e.groupId)).toEqual(["plugins"]);
+  expect(filterConfigEntries(entries, { ...NO_FILTER, shelf: "extensions" }, NO_MODIFIED)).toEqual([]);
+});
+
 test("@advanced FLIPS the axis: advanced leaves are hidden by default and are the ONLY rows when asked", () => {
   const entries = build();
   const plain = filterConfigEntries(entries, NO_FILTER, NO_MODIFIED);
@@ -136,7 +147,7 @@ test("isConfigEntryModified is the ONE verdict the filter applies, so a rendered
   expect(leaf === undefined ? null : isConfigEntryModified(leaf, modified)).toBe(false);
 });
 
-test("@ext: narrows to the plugins group (the slug rides the TERMS, not this filter)", () => {
+test("@plugin: narrows to the plugins group (the slug rides the TERMS, not this filter)", () => {
   const entries = build();
-  expect(filterConfigEntries(entries, { ...NO_FILTER, ext: "weather-teller" }, NO_MODIFIED)).toEqual([]);
+  expect(filterConfigEntries(entries, { ...NO_FILTER, plugin: "weather-teller" }, NO_MODIFIED)).toEqual([]);
 });

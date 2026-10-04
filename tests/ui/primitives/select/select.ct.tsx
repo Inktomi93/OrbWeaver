@@ -4,6 +4,7 @@ import { Field } from "@orb/ui/field";
 import { Select } from "@orb/ui/select";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { pixelContrast } from "../../../support/browser/pixel-contrast.ts";
 import { LinkedLabelStory, RenderValueStory } from "./select.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
@@ -278,37 +279,87 @@ test("option description: paints in the row, stays off the trigger, and is a des
   await expect(trigger).toHaveText("Beta");
 });
 
-test("a glossed desktop popup stops at the reading measure instead of spanning the available viewport", async ({ mount, page }) => {
+const EXPLAINED = [
+  {
+    label: "Sharper semantic recall",
+    value: "sharp",
+    description:
+      "Re-sorts related scenes with the rerank model for sharper recall. Costs an extra model call; if reranking is unavailable, vector order is used.",
+  },
+  { label: "Smart", value: "smart", disabled: true, description: "Needs a rerank model; pick one in Model roles to turn this on." },
+];
+
+test("a glossed field popup keeps to its trigger's width, so long descriptions wrap instead of covering the page", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await mount(
     <div style={{ width: 240 }}>
-      <Select
-        aria-label="Explained modes"
-        items={[
-          {
-            label: "Sharper semantic recall",
-            value: "sharp",
-            description:
-              "Re-sorts related scenes with the rerank model for sharper recall. Costs an extra model call; if reranking is unavailable, vector order is used.",
-          },
-        ]}
-      />
+      <Select aria-label="Explained modes" items={EXPLAINED} />
     </div>,
   );
-  await page.getByRole("combobox", { name: "Explained modes" }).click();
+  const trigger = page.getByRole("combobox", { name: "Explained modes" });
+  await trigger.click();
   const popup = page.locator('[data-slot="select-popup"]');
-  await expect(popup).toBeVisible();
+  // The open transition scales the popup up from 95%; measure its settled box.
+  await expect(popup).toHaveCSS("opacity", "1");
 
+  const triggerWidth = (await trigger.boundingBox())?.width ?? 0;
   const geometry = await popup.evaluate((element) => {
-    const probe = document.createElement("div");
-    probe.style.width = "var(--reading-measure)";
-    element.append(probe);
-    const measure = probe.getBoundingClientRect().width;
-    probe.remove();
-    return { measure, width: element.getBoundingClientRect().width };
+    const desc = element.querySelector('[data-slot="select-item-description"]');
+    const line = desc === null ? 0 : Number.parseFloat(getComputedStyle(desc).lineHeight);
+    return {
+      width: element.getBoundingClientRect().width,
+      overflow: element.scrollWidth - element.clientWidth,
+      descLines: desc === null || line === 0 ? 0 : Math.round(desc.getBoundingClientRect().height / line),
+    };
   });
-  expect(geometry.measure, "the reading-measure token resolves in the popup's own font context").toBeGreaterThan(0);
-  expect(geometry.width, "the popup itself is capped, not only its option prose").toBeLessThanOrEqual(geometry.measure + 1);
+  expect(triggerWidth).toBeGreaterThan(0);
+  expect(geometry.width, "the popup never grows past its anchor").toBeLessThanOrEqual(triggerWidth + 1);
+  expect(geometry.overflow, "nothing is clipped or scrolls sideways").toBeLessThanOrEqual(0);
+  expect(geometry.descLines, "the long description wraps").toBeGreaterThan(1);
+});
+
+// A disabled option's description is the only place that says WHY it is disabled, so only the label dims;
+// the reason keeps the muted-foreground ink at full opacity and clears the WCAG text floor in every seed.
+test("a disabled option dims its label only; its reason stays readable in dark and light", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mount(
+    <div style={{ width: 367 }}>
+      <Select aria-label="Explained modes" items={EXPLAINED} />
+    </div>,
+  );
+  const trigger = page.getByRole("combobox", { name: "Explained modes" });
+  const backdrops = new Set<string>();
+  for (const theme of ["hearth", "light"] as const) {
+    await page.evaluate((seed) => {
+      // `hearth` IS the base `@theme` at `:root`; only light emits a `[data-theme]` block.
+      if (seed === "hearth") {
+        document.documentElement.removeAttribute("data-theme");
+      } else {
+        document.documentElement.setAttribute("data-theme", seed);
+      }
+    }, theme);
+    await trigger.click();
+    const smart = page.getByRole("option", { name: "Smart", exact: true });
+    await expect(smart).toHaveAttribute("data-disabled", "");
+    const reason = smart.locator('[data-slot="select-item-description"]');
+    const painted = (el: Element): number => {
+      let opacity = 1;
+      for (let node: Element | null = el; node !== null; node = node.parentElement) {
+        opacity *= Number.parseFloat(getComputedStyle(node).opacity);
+      }
+      return opacity;
+    };
+    // Polled: the open transition fades the popup in, so the product settles a beat after the option mounts.
+    await expect.poll(() => reason.evaluate(painted), { message: `[${theme}] the reason paints at full opacity` }).toBe(1);
+    await expect.poll(() => smart.locator('[data-slot="select-item-label"]').evaluate(painted), { message: `[${theme}] the label dims` }).toBe(0.5);
+    const contrast = await pixelContrast(page, reason);
+    expect(contrast.ratio, `[${theme}] disabled reason vs popup — ${contrast.describe}`).toBeGreaterThanOrEqual(4.5);
+    backdrops.add(contrast.describe);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("listbox")).toBeHidden();
+  }
+  // Guards the loop: a light seed that never applied would measure the dark arm twice.
+  expect(backdrops.size).toBe(2);
 });
 
 for (const mode of ["field", "label", "aria", "linked"] as const) {

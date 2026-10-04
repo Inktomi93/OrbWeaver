@@ -30,7 +30,7 @@ import { openConfigTo, selectCollectionMember, setConfigSearchMatch, setConfigSe
 import { useConfigModified } from "../hooks/use-modified-sections.ts";
 import { CONFIG_MODIFIED_MARKER } from "../lib/config-copy.ts";
 import type { ConfigSearchEntry } from "../lib/config-search.ts";
-import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified } from "../lib/config-search.ts";
+import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified, shelfMatches } from "../lib/config-search.ts";
 import { useConfigSubcategories } from "../lib/config-subcategories.ts";
 import { CommandRow } from "./config-search-row.tsx";
 
@@ -79,10 +79,10 @@ function GroupSearchRows({
   readonly terms: string;
 }): ReactNode {
   const rows = group.useSearchRows?.() ?? [];
-  if (parsed.modified || parsed.advanced || parsed.ext !== undefined) {
+  if (parsed.modified || parsed.advanced || parsed.plugin !== undefined) {
     return null;
   }
-  if (parsed.shelf !== undefined && group.shelf !== parsed.shelf) {
+  if (parsed.shelf !== undefined && !shelfMatches(group.shelf, parsed.shelf)) {
     return null;
   }
   if (parsed.group !== undefined && group.id.toLowerCase() !== parsed.group.toLowerCase()) {
@@ -172,8 +172,8 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
   );
   const entries = buildConfigSearchEntries(groups, (id) => visible.has(id), subcategoriesFor);
   const narrowed = filterConfigEntries(entries, parsed, modified);
-  // `@ext:<slug>` narrows to the plugins group and SEARCHES the slug like a term (the slug is row text).
-  const terms = parsed.ext === undefined ? parsed.terms : `${parsed.terms} ${parsed.ext}`.trim();
+  // `@plugin:<slug>` narrows to the plugins group and SEARCHES the slug like a term (the slug is row text).
+  const terms = parsed.plugin === undefined ? parsed.terms : `${parsed.terms} ${parsed.plugin}`.trim();
   const hits = expanded && !tokenMenu ? staticHits(narrowed, terms) : [];
   const tokens = tokenMenu ? CONFIG_QUERY_TOKENS.filter((token) => token.token.startsWith(partial.toLowerCase())) : [];
   const rowGroups = groups.list().filter((group) => group.useSearchRows !== undefined && visible.has(group.id));

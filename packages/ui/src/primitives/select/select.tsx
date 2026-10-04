@@ -61,7 +61,13 @@ function renderOption<Value>(option: SelectOption<Value>, idPrefix: string): Rea
       value={option.value}
     >
       <span className={slots.itemBody()} data-slot="select-item-body">
-        <BaseSelect.ItemText {...(option.labelStyle === undefined ? {} : { style: option.labelStyle })}>{option.label}</BaseSelect.ItemText>
+        <BaseSelect.ItemText
+          className={slots.itemLabel()}
+          data-slot="select-item-label"
+          {...(option.labelStyle === undefined ? {} : { style: option.labelStyle })}
+        >
+          {option.label}
+        </BaseSelect.ItemText>
         {option.description === undefined ? null : (
           <span aria-hidden="true" className={slots.itemDescription()} data-slot="select-item-description" id={describedBy}>
             {option.description}
@@ -243,7 +249,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
           side={side}
           sideOffset={sideOffset}
         >
-          <BaseSelect.Popup className={slots.popup()} data-slot="select-popup" style={POPUP_STYLE}>
+          <BaseSelect.Popup className={slots.popup({ layout })} data-slot="select-popup" style={POPUP_STYLE}>
             {arrow ? <BaseSelect.Arrow className={slots.arrow()} data-slot="select-arrow" /> : null}
             {scrollArrows ? (
               <BaseSelect.ScrollUpArrow className={cn(slots.scrollArrow(), "top-0")} data-slot="select-scroll-up-arrow">

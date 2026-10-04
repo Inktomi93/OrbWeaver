@@ -11,6 +11,7 @@
 // tRPC-inferred at the call site, never a re-declared contract): the effective view lives in
 // `domain/preset/contract/views.ts`, which the client cannot import across the cake.
 
+import type { GenerationCapability } from "@orb/contracts/inference";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { SAMPLING_KNOBS } from "./sampling-knob-catalog.ts";
 
@@ -61,6 +62,17 @@ const SERVER_DEFAULT_GLOSS = "server default";
 /** {@link KNOB_LABELS} with the honest fallback. */
 export function knobLabel(knob: string): string {
   return SAMPLING_KNOBS.find((spec) => spec.key === knob)?.readoutLabel ?? KNOB_LABELS[knob] ?? knob;
+}
+
+/** Sampling-capability keys that constrain knobs rather than name one (`exclusive` pairs knobs a model refuses
+ *  together), so the honors list never prints them. */
+const SAMPLING_CONSTRAINT_KEYS: ReadonlySet<string> = new Set(["exclusive"] satisfies (keyof GenerationCapability["sampling"])[]);
+
+/** The Capability card's `honors …` list: one knob word per sampling key the capability advertises. */
+export function honoredKnobLabels(sampling: Readonly<Record<string, unknown>>): readonly string[] {
+  return Object.keys(sampling)
+    .filter((key) => !SAMPLING_CONSTRAINT_KEYS.has(key))
+    .map((knob) => knobLabel(knob));
 }
 
 /** What a KnobRow needs to paint its inherited state: the number to ghost at + the provenance gloss. */

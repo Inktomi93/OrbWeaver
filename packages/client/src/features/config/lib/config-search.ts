@@ -7,13 +7,14 @@
 // in its own fiber by the results list — they are deliberately NOT in this static half.
 //
 // The FILTER half (`filterConfigEntries`) is pure over a parsed query + the derived modified map, so the
-// token semantics are unit-testable without a browser: `@shelf:`/`@in:` narrow by address, `@ext:` narrows
+// token semantics are unit-testable without a browser: `@shelf:`/`@in:` narrow by address, `@plugin:` narrows
 // to the plugins group and searches the slug, `@advanced` FLIPS the advanced axis (advanced rows are hidden
 // by default — the D107 progressive-disclosure arm), `@modified` keeps only entries that differ from their
 // defaults AT THEIR OWN GRAIN — a leaf answers for its own key, never for its section's (#1099 F16)
 // (`use-modified-sections.ts` derives both grains; this file only consumes them).
 
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigShelf, ConfigSubcategory } from "#state";
+import { CONFIG_SHELF_LABELS } from "./config-nav-model.ts";
 
 /** One flattened, fuzzy-searchable entry. `subId: null` = a group-level hit (open the group, no scroll);
  *  a non-null `subId` jumps to that section's anchor; a `settingId` additionally names the leaf. */
@@ -108,7 +109,13 @@ export interface ConfigEntryFilter {
   readonly advanced: boolean;
   readonly shelf?: string;
   readonly group?: string;
-  readonly ext?: string;
+  readonly plugin?: string;
+}
+
+/** Whether a typed `@shelf:` value names `shelf`. The user types the shelf's visible name, never its code id
+ *  (D291: `@shelf:plugins` reaches the `extensions` shelf). */
+export function shelfMatches(shelf: ConfigShelf, typed: string): boolean {
+  return CONFIG_SHELF_LABELS[shelf].toLowerCase() === typed;
 }
 
 /** THE VERDICT IS READ AT THE ENTRY'S OWN GRAIN (#1099 F16). A LEAF answers for ITSELF — the section grain
@@ -137,13 +144,13 @@ export function filterConfigEntries(
     if (entry.advanced !== filter.advanced) {
       return false;
     }
-    if (filter.shelf !== undefined && entry.shelf !== filter.shelf) {
+    if (filter.shelf !== undefined && !shelfMatches(entry.shelf, filter.shelf)) {
       return false;
     }
     if (filter.group !== undefined && entry.groupId.toLowerCase() !== filter.group.toLowerCase()) {
       return false;
     }
-    if (filter.ext !== undefined && entry.groupId !== "plugins") {
+    if (filter.plugin !== undefined && entry.groupId !== "plugins") {
       return false;
     }
     if (filter.modified && !isConfigEntryModified(entry, modified)) {

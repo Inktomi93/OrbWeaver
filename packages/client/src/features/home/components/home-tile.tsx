@@ -84,7 +84,9 @@ const TILE_SKELETON_ROWS = 3;
  *  tile by glyph; it simply paints nothing in the band. */
 function TileBand({ title, trailing, headingId }: { readonly title: string; readonly trailing: ReactNode; readonly headingId: string }): ReactElement {
   return (
-    <Row align="center" gap="field">
+    // A declared action reserves its control height even while it renders nothing: Databank's hides itself on
+    // an empty bank once its read lands, and a band that collapsed then shifted every tile below it.
+    <Row align="center" className={trailing === undefined ? undefined : "min-h-control-sm"} gap="field">
       {/* The `kicker` VOICE on a real heading element (density-pass §2.3); `level` keeps the document
           outline (a styled div would leave home with one heading and six anonymous blocks). */}
       <Heading id={headingId} level={2} voice="kicker">
