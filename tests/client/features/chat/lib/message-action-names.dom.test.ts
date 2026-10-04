@@ -6,7 +6,7 @@
 // wording is pinned ONCE, here, at the consts' own mirror home. If this file goes red the copy changed;
 // that is the point.
 //
-// Two of these strings are RULINGS rather than taste, and their tests say so: `Generate a variant`
+// Two of these strings are RULINGS rather than taste, and their tests say so: `Regenerate a variant`
 // (#570, owner 2026-08-23 — the lone chevron generates, so borrowing the pager's word is the drift the
 // ruling forbids) and `More message actions` (#869 — deliberately unlike the composer utility menu's own
 // name, after Chrome stacked two tooltips with different copy). Changing either is changing that ruling.
@@ -44,6 +44,6 @@ test("the variant pager's names", () => {
 });
 
 test("the lone chevron says it GENERATES — #570's ruling, not the pager's word", () => {
-  expect(VARIANT_GENERATE_NAME).toBe("Generate a variant");
+  expect(VARIANT_GENERATE_NAME).toBe("Regenerate a variant");
   expect(VARIANT_GENERATE_NAME).not.toBe(VARIANT_NEXT_NAME);
 });

@@ -43,7 +43,7 @@ export function useRosterInsights(): readonly CollectionInsight[] | undefined {
   return [
     {
       id: "with-rules",
-      label: "Carry room rules",
+      label: "With room rules",
       value: `${String(withRules.length)} of ${String(rows.length)}`,
       ...(first === undefined ? {} : { open: { label: `Open ${first.name}`, run: (): void => selectCollectionMember(ROSTER_COLLECTION_ID, first.id) } }),
     },

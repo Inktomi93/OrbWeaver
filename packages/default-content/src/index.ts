@@ -92,7 +92,7 @@ export interface SeedBackgroundPlate {
  *  rename, delete or ignore. The inventory is pinned in BOTH directions (a file with no row, a row with no
  *  file) by `tests/default-content/index.test.ts`. */
 export const SEED_BACKGROUND_PLATES: readonly SeedBackgroundPlate[] = [
-  { slug: "assistant-bg", label: "Charlotte's study" },
+  { slug: "charlotte-bg", label: "Charlotte's study" },
   { slug: "jfc-coder-bg", label: "The dark office" },
   { slug: "niko-bg", label: "Konbini at 1 a.m." },
   { slug: "hana-bg", label: "City park, midnight" },

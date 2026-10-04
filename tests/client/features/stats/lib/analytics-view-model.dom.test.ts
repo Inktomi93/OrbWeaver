@@ -14,6 +14,7 @@ import {
   dailyTurnBuckets,
   disambiguatedNames,
   formatCompact,
+  formatCompactNoun,
   formatCount,
   formatDayLabel,
   formatDecimal,
@@ -125,6 +126,11 @@ describe("the nullable formatter family renders unrecorded as an em dash", () =>
     expect(formatPercent(0.019_36)).toBe("2%");
     expect(formatPercent(0.019_36, "estimated")).toBe("~2%");
     expect(formatPercent(0.019_36, "unrecorded")).toBe("—");
+  });
+  test("formatCompactNoun pluralizes on exactly one", () => {
+    expect(formatCompactNoun(1, "reply", "replies")).toBe("1 reply");
+    expect(formatCompactNoun(0, "reply", "replies")).toBe("0 replies");
+    expect(formatCompactNoun(1200, "reply", "replies")).toBe("1.2k replies");
   });
   test("formatThroughput carries estimated and unrecorded token provenance", () => {
     expect(formatThroughput(12.54, "measured")).toBe("12.5 t/s");

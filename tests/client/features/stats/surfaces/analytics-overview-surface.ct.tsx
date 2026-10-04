@@ -129,7 +129,8 @@ for (const width of [320, 720] as const) {
         await expect(component.getByText("Whole library · Aggregate only", { exact: true })).toBeVisible();
         await expect(component.getByText("~ marks estimates", { exact: false }).first()).toBeVisible();
         await expect(component.getByText("Reasoning (of replies + swipes)", { exact: true })).toBeVisible();
-        await expect(component.getByText("Throughput (output / gen time)", { exact: true })).toBeVisible();
+        await component.getByRole("button", { name: "Details" }).click();
+        await expect(component.getByText("Speed (tokens per second)", { exact: true })).toBeVisible();
         await expect.poll(() => component.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       });
     }
@@ -168,7 +169,7 @@ test("the dashboard's Recompute now button fires stats.reconcile", async ({ moun
 // read it (0 hits over 981 files by two methods) — the mirror of the write end's missing producer. It lands
 // beside "Time generating"/"Reasoning %", in the same duration voice, so the number a thinking model
 // produces is visible where every other economics figure is.
-test("the Economics band renders the reasoning WINDOW beside the reasoning rate", async ({ mount, page }) => {
+test("the Tokens and cost band renders the reasoning WINDOW beside the reasoning rate", async ({ mount, page }) => {
   await routeTrpc(page, {
     "stats.freshness": () => ({ computedAt: COMPUTED_AT, stale: false, hasData: true }),
     "stats.overview": () => OVERVIEW,

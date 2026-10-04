@@ -9,10 +9,10 @@ import { workloadResultSummary } from "../../../../../packages/client/src/featur
 import { expect, test } from "../../../../support/fixtures.ts";
 
 test("the catalog refresh reads as counts, not as JSON — and a FAILED lane says so instead of reading as zero", () => {
-  expect(workloadResultSummary("refresh-model-catalog", { models: 337, agentSdkModels: 4 })).toBe("337 models · 4 via Agent SDK");
-  expect(workloadResultSummary("refresh-model-catalog", { models: 1, agentSdkModels: 0 })).toBe("1 model · 0 via Agent SDK");
+  expect(workloadResultSummary("refresh-model-catalog", { models: 337, agentSdkModels: 4 })).toBe("337 models · 4 via the Claude app");
+  expect(workloadResultSummary("refresh-model-catalog", { models: 1, agentSdkModels: 0 })).toBe("1 model · 0 via the Claude app");
   // `null` is a lane that FAILED (the run only fails when both do) — reporting it as "0 models" would be a lie.
-  expect(workloadResultSummary("refresh-model-catalog", { models: null, agentSdkModels: 4 })).toBe("model list unavailable · 4 via Agent SDK");
+  expect(workloadResultSummary("refresh-model-catalog", { models: null, agentSdkModels: 4 })).toBe("model list unavailable · 4 via the Claude app");
 });
 
 // A pass whose INPUT was empty is not a pass that ran and found nothing, and the row is the only place a user

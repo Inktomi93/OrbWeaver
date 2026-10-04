@@ -134,7 +134,7 @@ const reconcileStatsSummary: WorkloadResultRenderer<"reconcile-stats"> = (result
 const catalogRefreshSummary: WorkloadResultRenderer<"refresh-model-catalog"> = (result) =>
   summarize([
     result.models === null ? "model list unavailable" : count(result.models, "model"),
-    result.agentSdkModels === null ? "Agent SDK list unavailable" : tally(result.agentSdkModels, "via Agent SDK"),
+    result.agentSdkModels === null ? "Claude app model list unavailable" : tally(result.agentSdkModels, "via the Claude app"),
   ]);
 
 /** A databank ingest/reindex pass, in vector-layer terms the user can act on. */

@@ -64,8 +64,8 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
           before they attach; a member reads why books they cannot touch are shaping their turns. */}
       <Text voice="gloss">
         {isHost
-          ? "Entries from these books can fire in this room's prompts, for everyone here — and an automation rule in this room can write new entries into one of your own books. Attaching is what grants that write reach; detaching takes it back."
-          : "Entries from these books can fire in this room's prompts, for everyone here. Only the host attaches or removes one."}
+          ? "These books add background to this room's prompts for everyone here. An automation rule in this room can write new entries into one of your own books once it is attached; detaching stops that."
+          : "These books add background to this room's prompts for everyone here. Only the host attaches or removes one."}
       </Text>
 
       {books.length === 0 ? (

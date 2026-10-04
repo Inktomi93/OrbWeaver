@@ -1034,7 +1034,7 @@ test("#553: model economics renders the COMPLETE quantities over mostly-null cos
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
-  await expect(component.getByRole("heading", { name: "Model economics" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Models by genre" })).toBeVisible();
   // The chart's own text equivalent is the honest read of a canvas series (`LabeledChartFrame` renders the
   // series as a visually-hidden table; the bars themselves are pixels).
   const table = component.getByRole("table", { name: BUSIEST_ROUTES });

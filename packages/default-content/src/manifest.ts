@@ -51,7 +51,7 @@ function campaign(slug: string, name: string, description: string, handles: read
 
 /** Every seeded item, in seed order: characters before the roster presets that seat them. */
 export const SEED_MANIFEST: readonly SeedManifestItem[] = [
-  character("assistant"),
+  character("charlotte"),
   character("jfc-coder"),
   character("niko"),
   character("hana"),
@@ -64,7 +64,7 @@ export const SEED_MANIFEST: readonly SeedManifestItem[] = [
   { kind: "persona", key: "persona:default" },
   roster("ashen-spire", "The Ashen Spire", "A dark lady, the knight she hired, and a sword with opinions.", ["morgatha", "sabine", "calamity"]),
   roster("midnight-run", "Midnight Run", "Two night owls, one convenience store, and a cursed apartment.", ["niko", "kohaku"]),
-  roster("second-opinion", "Second Opinion", "Charlotte drafts it, JFC tears it down.", ["assistant", "jfc-coder"]),
+  roster("second-opinion", "Second Opinion", "Charlotte drafts it, JFC tears it down.", ["charlotte", "jfc-coder"]),
   campaign(
     "storm-the-spire",
     "Storm the Spire",

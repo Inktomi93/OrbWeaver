@@ -96,7 +96,9 @@ function rowSummary(values: InjectionFormValues): string {
  *  below, which paints it FOR REAL: it depends on no read, so reserving a placeholder bar for text we
  *  already have would be the shift the reserve exists to prevent. */
 function injectionsIntro(isHost: boolean): string {
-  return isHost ? "Ad-hoc context spliced into this chat's prompt. Changes save automatically." : "Ad-hoc context the host has added to this chat's prompt.";
+  return isHost
+    ? "Notes you add here are sent with this chat's prompt. Changes save automatically."
+    : "Notes the host added here are sent with this chat's prompt.";
 }
 
 interface InjectionListRow {

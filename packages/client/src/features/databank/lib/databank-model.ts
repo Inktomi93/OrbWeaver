@@ -34,6 +34,18 @@ export function originLabel(origin: DocOrigin): string {
   return ORIGIN_LABELS[origin];
 }
 
+const DOCUMENT_TYPE_LABELS: Readonly<Record<string, string>> = {
+  "text/plain": "Plain text",
+  "text/markdown": "Markdown",
+  "text/html": "Web page",
+  "application/pdf": "PDF",
+};
+
+/** A document's file type in words; a type this list does not know shows as stored. */
+export function documentTypeLabel(mime: string): string {
+  return DOCUMENT_TYPE_LABELS[mime] ?? mime;
+}
+
 // The derived ingest phase. The chunk/embed counts are the ONLY truth (no status column): `indexing` = no
 // chunks yet (queued/in-flight); `embedding` = chunks exist but not all embedded (partial ingest, a retry
 // resumes it); `ready` = every chunk is embedded; `empty` = a document that extracted to nothing (charCount
@@ -169,7 +181,7 @@ export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
   if (word === null || ingestPhase(doc, now) !== "stalled") {
     return null;
   }
-  return `Still ${word} — Reindex can restart a stuck job.`;
+  return `Still ${word} — rebuilding the search index can restart a stuck job.`;
 }
 
 /**
@@ -304,7 +316,9 @@ function documentCount(health: BankHealth): string {
 
 /** The re-extract banner's sentence over `BankHealthView.staleExtraction`. */
 export function staleExtractionLine(count: number): string {
-  return count === 1 ? "1 document was extracted with an older extractor." : `${groupThousands(count)} documents were extracted with an older extractor.`;
+  return count === 1
+    ? "1 document was read by an older version of Orbweaver."
+    : `${groupThousands(count)} documents were read by an older version of Orbweaver.`;
 }
 
 export function bankHealthLine(health: BankHealth): string {

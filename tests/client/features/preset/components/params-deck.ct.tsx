@@ -413,11 +413,11 @@ test("CONTEXT — UNSET compaction communicates its resolved defaults on first p
   const deck = await mount(<CompactionTabDefaultsStory />);
 
   await expect(deck.getByText(`Default — ${compactionModeLabel(DEFAULT_COMPACTION_MODE)}`, { exact: false })).toBeVisible();
-  await expect(deck.getByLabel("Managed threshold", { exact: true })).toHaveAttribute("placeholder", `${MANAGED_COMPACT_DEFAULT_PCT} (default)`);
+  await expect(deck.getByLabel("Summarize at", { exact: true })).toHaveAttribute("placeholder", `${MANAGED_COMPACT_DEFAULT_PCT} (default)`);
   // G4: the "missing 4th compaction knob" now has an editor, with the ENGINE floor as its placeholder.
-  await expect(deck.getByLabel("Verbatim tail", { exact: true })).toHaveAttribute("placeholder", `${MANAGED_VERBATIM_TAIL} (engine default)`);
+  await expect(deck.getByLabel("Messages kept word-for-word", { exact: true })).toHaveAttribute("placeholder", `${MANAGED_VERBATIM_TAIL} (engine default)`);
   // G3: the provider-side switch that had no editor anywhere.
-  await expect(deck.getByRole("switch", { name: "Provider context compression" })).toBeVisible();
+  await expect(deck.getByRole("switch", { name: "Let the provider shorten the chat" })).toBeVisible();
 });
 
 test("CONTEXT — an explicit compaction mode renders the selected value (not the placeholder)", async ({ mount }) => {
@@ -425,7 +425,7 @@ test("CONTEXT — an explicit compaction mode renders the selected value (not th
   // Asserted on the TRIGGER, not on page text: since O-4 shortened the option labels to the bare mode name
   // ("Auto"), a loose text match also hits the auto-mode honesty gloss that begins "Auto uses the runner's
   // own compaction…" — two matches, and the one that matters is what the CONTROL reads.
-  await expect(deck.getByRole("combobox", { name: "Compaction mode" })).toHaveText(compactionModeLabel("auto"));
+  await expect(deck.getByRole("combobox", { name: "Summarizing" })).toHaveText(compactionModeLabel("auto"));
   await expect(deck.getByText(DEFAULT_PREFIX)).toHaveCount(0);
 });
 
@@ -442,7 +442,7 @@ test("PENDING CAPABILITY — the gate holds a skeleton and claims NOTHING; QUALI
   await expect(deck.getByText(GATE_SETTINGS_RE)).toHaveCount(0);
 
   await expect(deck.getByRole("combobox", { name: "Quality" })).toBeVisible();
-  await expect(deck.getByLabel("Verbatim tail", { exact: true })).toBeVisible();
+  await expect(deck.getByLabel("Messages kept word-for-word", { exact: true })).toBeVisible();
   await expect(deck.getByRole("button", { name: "Advanced" })).toBeVisible();
 });
 
@@ -492,12 +492,12 @@ test("CAPABILITY ERROR (no tRPC data — a transport failure) — the band state
 test("ADVANCED — the ONE collapsed disclosure; it opens onto the escape hatches", async ({ mount, page }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
 
-  await expect(deck.getByRole("group", { name: "Logit bias", exact: true })).toBeHidden();
+  await expect(deck.getByRole("group", { name: "Word bias", exact: true })).toBeHidden();
   await openAdvanced(deck, page);
 
-  await expect(deck.getByRole("group", { name: "Logit bias", exact: true })).toBeVisible();
+  await expect(deck.getByRole("group", { name: "Word bias", exact: true })).toBeVisible();
   await expect(deck.getByRole("switch", { name: "Parallel tool calls" })).toBeVisible();
-  await expect(deck.getByText(CLAUDE_ENV_RE)).toBeVisible();
+  await expect(deck.getByText(CLAUDE_ENV_RE)).toHaveCount(0);
 });
 
 // ── THE FOLDED ROW HAS A VALUE COLUMN (side-eye 2026-08-30 P2-C) ──────────────────────────────────────
@@ -915,7 +915,7 @@ test("REPLY PICTURES — on stores text+image in the preset, and off clears the 
 
 // ── LOGIT BIAS: rows keyed by a token id or a word; a word shows what the chat connection's server makes of it ──
 function biasKey(deck: Locator): Locator {
-  return deck.getByRole("textbox", { name: "Token id or word to bias", exact: true });
+  return deck.getByRole("textbox", { name: "Word or token number to bias", exact: true });
 }
 
 test("LOGIT BIAS — a token id and a bias add one entry, and removing it clears the map", async ({ mount, page }) => {
@@ -955,10 +955,10 @@ test("LOGIT BIAS — on a server that cannot look words up, a word is refused an
   const deck = await mount(<ParamsDeckGhostStory />);
   await openAdvanced(deck, page, false);
 
-  const idOnly = deck.getByRole("textbox", { name: "Token id to bias", exact: true });
+  const idOnly = deck.getByRole("textbox", { name: "Token number to bias", exact: true });
   await idOnly.fill("Elara");
   await idOnly.press("Enter");
-  await expect(deck.getByRole("alert")).toContainText("takes token ids only");
+  await expect(deck.getByRole("alert")).toContainText("takes token numbers only");
   await expect(saved(deck)).not.toContainText("logitBias");
 
   await idOnly.fill("13");

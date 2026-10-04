@@ -36,7 +36,7 @@ function gemMagnitudes(gem: ForgottenGem): string {
   const tokens =
     gem.tokensOut === null || gem.tokensOutProvenance === "unrecorded"
       ? "tokens not recorded"
-      : `${gem.tokensOutProvenance === "estimated" ? "~" : ""}${formatCount(gem.tokensOut)} tokens returned`;
+      : `${gem.tokensOutProvenance === "estimated" ? "~" : ""}${formatCount(gem.tokensOut)} tokens written`;
   return `${tokens} · ${exchanges}`;
 }
 

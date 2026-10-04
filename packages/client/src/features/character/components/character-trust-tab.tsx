@@ -54,8 +54,8 @@ function tristateFlag(value: string): boolean | null {
  *  are ordered weakest-first, matching `HTML_TRUST_STEPS`, so the menu reads as the ladder it is. */
 const INHERIT_STEP = "inherit";
 const HTML_TRUST_LABELS: Record<HtmlTrustStep, string> = {
-  untrusted: "Untrusted",
-  trusted: "Render HTML",
+  untrusted: "Plain text",
+  trusted: "Rich HTML",
   interactive: "Interactive",
 };
 const HTML_TRUST_ITEMS: SelectItems<string> = [
@@ -118,10 +118,7 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
           enforced twice, by the tighten-only render-policy resolver (@orb/contracts/chat) and by the page's
           Content-Security-Policy — and no per-character value can widen it. While the deployment blocks,
           the control is LOCKED rather than offering an "Allow" that nothing honours. */}
-      <Section
-        heading="Trust"
-        hint="External media is capped by the deployment-wide “Block external media” setting — “Allow” here cannot load external media while that is on. Changes reach an open tab on reload."
-      >
+      <Section heading="Trust">
         <Row gap="field" className="flex-wrap">
           {/* No control-has-associated-label suppression here (unlike its sibling): the conditional
               aria-describedby SPREAD makes the rule bail on this element, so a directive would be an
@@ -151,28 +148,22 @@ function TrustTabBody({ characterId }: CharacterAppearanceTabProps): ReactElemen
           />
         </Row>
         {externalMediaBlocked ? (
-          <Text id={externalMediaLockId} voice="gloss">
-            External media is blocked deployment-wide, so this character's setting is locked — every value here resolves to blocked. An admin can lift it in
-            System settings → “Block external media”.
+          <Text id={externalMediaLockId} voice="reading">
+            External media: blocked for everyone by your admin.
           </Text>
         ) : null}
-        <Text id={interactiveLockId} voice="gloss">
-          HTML rendering is a ladder: Untrusted keeps this character's messages as plain sanitized text, Render HTML lets them use rich HTML and card styling,
-          and Interactive is Render HTML plus cards that run their own scripts, in a locked-down frame that cannot reach your session, your data, or the rest of
-          the app. A card's script can still send a signal out over WebRTC, which no browser setting can block, so it can reveal that you viewed it, your IP
-          address, and anything you type into the card itself. Inherit default follows this box's setting, which is Interactive unless an admin switched
-          interactive cards off. Pick Render HTML or Untrusted to stop this character's cards from running scripts.
-        </Text>
-        <Text voice="gloss" data-slot="trust-resolved-step">
+        <Stack gap="field" id={interactiveLockId}>
+          <Text voice="reading">Plain text: safest, no styling.</Text>
+          <Text voice="reading">Rich HTML: styled messages, no scripts.</Text>
+          <Text voice="reading">
+            Interactive: cards can run scripts in a sealed frame. A script can still tell its author that you viewed it, and your IP address.
+          </Text>
+        </Stack>
+        <Text voice="reading" data-slot="trust-resolved-step">
           This character's messages render as {HTML_TRUST_LABELS[resolvedStep]} right now.
         </Text>
-        {interactiveCardsAllowed ? null : (
-          <Text voice="gloss">
-            Interactive is switched off deployment-wide, so picking it renders the same as Render HTML — this character's cards will not run scripts. An admin
-            can turn it on in System settings → “Let interactive cards run their own scripts”.
-          </Text>
-        )}
-        <Text voice="gloss">Trust settings apply the instant you change them — no save needed.</Text>
+        {interactiveCardsAllowed ? null : <Text voice="reading">Interactive is turned off by your admin, so it works like Rich HTML here.</Text>}
+        <Text voice="reading">Changes apply right away.</Text>
       </Section>
     </Stack>
   );

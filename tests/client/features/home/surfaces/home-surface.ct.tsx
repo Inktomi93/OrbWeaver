@@ -907,7 +907,7 @@ test("the masthead reserves its settled box on a fresh account at a phone width"
   const reserved = (await masthead.boundingBox())?.height ?? 0;
 
   chats.release(chatListResponder([])({ limit: RECENTS_LIMIT }));
-  await expect(masthead.getByRole("heading", { level: 1, name: "An empty house." })).toBeVisible();
+  await expect(masthead.getByRole("heading", { level: 1, name: "No chats yet." })).toBeVisible();
   await expect(masthead.locator("[aria-busy]")).toHaveCount(0);
   const settled = (await masthead.boundingBox())?.height ?? 0;
 
@@ -1454,7 +1454,7 @@ const LAW_CHARACTERS_PER_LINE = 75;
 /** The two teaching paragraphs #1130 capped, keyed on their first words. A text key, not a `data-*` hook:
  *  the assertion is about the copy a reader actually meets, and inventing a test-only attribute to find it
  *  would let the paragraph move off the measure while the hook stayed put. */
-const TEACHING_PROSE_PREFIXES = ["A room that never joins your chats list", "Upload a file, paste text, or pull in a page"] as const;
+const TEACHING_PROSE_PREFIXES = ["Temporary chats stay out of your list", "Upload a file, paste text, or pull in a page"] as const;
 
 interface ProseReading {
   readonly text: string;

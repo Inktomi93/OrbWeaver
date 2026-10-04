@@ -17,7 +17,7 @@ import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatTempChatTileStory } from "../_ct-stories.tsx";
 
 /** The creation-only teaching, in the user's own terms — the gloss line that replaced the sample Badge. */
-const CREATION_ONLY_TEACHING_RE = /Marked Temporary from the moment it opens/u;
+const CREATION_ONLY_TEACHING_RE = /You can't change the room later/u;
 
 /** A settings blob with a caller-chosen temp-chat TTL. */
 function settingsWithTtl(tempChatTtlHours: number): TrpcWireOutput<"settings.getUserSettings"> {
@@ -37,7 +37,7 @@ test("the gloss renders the user's OWN TTL, never a hardcoded 24h", async ({ mou
   const tile = home.locator('[data-home-tile="chat.tempChat"]');
 
   await expect(tile.getByText("Temp chat")).toBeVisible();
-  await expect(tile.getByText("72h")).toBeVisible();
+  await expect(tile.getByText("72 hours")).toBeVisible();
 });
 
 test("the launcher opens the SHARED new-chat picker with the temporary flag preset — it never mints its own seed", async ({ mount, page }) => {

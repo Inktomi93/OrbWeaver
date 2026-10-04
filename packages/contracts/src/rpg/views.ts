@@ -90,7 +90,7 @@ export interface RpgGameView {
    *  (`compose` = draft the composer; `send` = fire the turn), so it rides the MEMBER slice. */
   readonly publicConfig: {
     readonly statProfile: RpgGameConfig["statProfile"];
-    /** The RULESET setting (#862) — member-safe, and member-NEEDED: the dice-ask row above the composer
+    /** The RULESET setting (#862) — member-safe, and member-NEEDED: the dice in the Message tools menu
      *  publishes `RPG_RULESET_DICE[ruleset]`, so without it on the member slice the setting would have no
      *  visible consequence for anyone but the host (the dead-toggle finding, side-eye 2026-08-30). */
     readonly ruleset: RpgGameConfig["ruleset"];

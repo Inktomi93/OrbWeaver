@@ -29,7 +29,7 @@ import {
   ANALYTICS_DEFAULT_SORT,
   ANALYTICS_SORT_OPTIONS,
   disambiguatedNames,
-  formatCompact,
+  formatCompactNoun,
   formatDurationMs,
   formatTokens,
 } from "../lib/analytics-view-model.ts";
@@ -175,7 +175,7 @@ function LeaderboardBody({
               </Text>
             }
             title={names[row.characterId] ?? row.name}
-            subtitle={`${formatCompact(row.assistantTurns)} replies · ${formatDurationMs(row.totalGenTimeMs)}`}
+            subtitle={`${formatCompactNoun(row.assistantTurns, "reply", "replies")} · ${formatDurationMs(row.totalGenTimeMs)}`}
             actions={
               <Text voice="gloss" className="whitespace-nowrap font-mono">
                 {formatTokens(row.tokensOut, row.tokensOutProvenance)}

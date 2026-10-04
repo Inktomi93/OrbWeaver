@@ -152,6 +152,11 @@ function signInPanel(page: Page): Locator {
   return page.getByTestId("admin-sharing-panel");
 }
 
+/** The env how-tos sit behind this disclosure; every assertion about the lines they hold opens it first. */
+async function openHowTo(page: Page): Promise<void> {
+  await signInPanel(page).getByRole("button", { name: "How to change sign-in mode" }).click();
+}
+
 function targetBlocks(page: Page): Locator {
   return signInPanel(page).getByTestId("admin-sign-in-target");
 }
@@ -159,6 +164,7 @@ function targetBlocks(page: Page): Locator {
 test("single-user on bare metal: the setup command, then a switch for each login mode", async ({ mount, page }) => {
   await stub(page, OWNER);
   await mount(<GovernanceSectionsStory />);
+  await openHowTo(page);
 
   const panel = signInPanel(page);
   await expect(panel).toHaveAttribute("data-auth-mode", "single-user");
@@ -171,6 +177,7 @@ test("single-user on bare metal: the setup command, then a switch for each login
 test("a container never offers the setup command, which it cannot run", async ({ mount, page }) => {
   await stub(page, OWNER, { signIn: signInModeView("single-user", { install: "container", source: "process-env" }) });
   await mount(<GovernanceSectionsStory />);
+  await openHowTo(page);
 
   const panel = signInPanel(page);
   await expect(panel).toHaveAttribute("data-auth-mode-source", "process-env");
@@ -181,6 +188,7 @@ test("a container never offers the setup command, which it cannot run", async ({
 test("the running mode gets no switch, and a refused mode carries the server's own refusal sentence", async ({ mount, page }) => {
   await stub(page, DELEGATED_ADMIN, { signIn: signInModeView("oidc") });
   await mount(<GovernanceSectionsStory />);
+  await openHowTo(page);
 
   await expect(signInPanel(page)).toHaveAttribute("data-auth-mode", "oidc");
   await expect(targetBlocks(page)).toHaveCount(2);
@@ -194,6 +202,7 @@ test.describe("the sharing panel's copy", () => {
   test("bare metal copies only the mode line into .env: the fallback keys stay out", async ({ mount, page }) => {
     await stub(page, OWNER);
     await mount(<GovernanceSectionsStory />);
+    await openHowTo(page);
 
     await signInPanel(page)
       .getByRole("button", { name: copyActionName("the local lines"), exact: true })
@@ -204,6 +213,7 @@ test.describe("the sharing panel's copy", () => {
   test("a container copies the mode with the fallback pair the shipped env file needs overridden", async ({ mount, page }) => {
     await stub(page, OWNER, { signIn: signInModeView("single-user", { install: "container", source: "process-env" }) });
     await mount(<GovernanceSectionsStory />);
+    await openHowTo(page);
 
     await signInPanel(page)
       .getByRole("button", { name: copyActionName("the forward-header lines"), exact: true })
@@ -220,6 +230,7 @@ test.describe("the sharing panel's manual-copy fallback at 360px", () => {
   test("the field takes the panel's full width and replaces the chip it repeats", async ({ mount, page }) => {
     await stub(page, OWNER);
     await mount(<GovernanceSectionsStory width={360} />);
+    await openHowTo(page);
     // What an insecure (plain http) origin looks like: the [SecureContext] Clipboard API is absent.
     await page.evaluate(() => {
       Object.defineProperty(navigator, "clipboard", { configurable: true, value: undefined });
@@ -249,6 +260,7 @@ test.describe("at a 360px viewport", () => {
   test("oidc: 'Who can sign in' is a heading, and no command in a sentence breaks across lines", async ({ mount, page }) => {
     await stub(page, OWNER, { signIn: signInModeView("oidc") });
     await mount(<GovernanceSectionsStory />);
+    await openHowTo(page);
     const panel = signInPanel(page);
     await expect(panel.getByRole("heading", { level: 4, name: "Who can sign in" })).toBeVisible();
     const commands = panel.locator("p kbd");
@@ -272,9 +284,10 @@ test("the sharing panel is read-only: no switch, no field, only copy buttons, ev
 
   const panel = signInPanel(page);
   await expect(panel).toBeVisible();
+  await openHowTo(page);
   await expect(panel.getByRole("switch")).toHaveCount(0);
   await expect(panel.getByRole("textbox")).toHaveCount(0);
-  // The setup command and one block per login mode.
-  await expect(panel.getByRole("button")).toHaveCount(4);
+  // The disclosure, the setup command and one block per login mode.
+  await expect(panel.getByRole("button")).toHaveCount(5);
   await expect(panel.getByRole("button", { name: copyActionName("the command pnpm start --setup"), exact: true })).toBeVisible();
 });

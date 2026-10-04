@@ -21,18 +21,18 @@ interface SweepCopy {
 
 const SWEEP_COPY: Record<ReindexMode, SweepCopy> = {
   "chunk-embed": {
-    title: "Reindex every document?",
+    title: "Rebuild all documents?",
     description:
-      "Every document you own is re-chunked and re-embedded. Nothing is deleted — this is the sweep you run after a chunking or embedding-model change, and it can take a while on a large bank.",
-    confirmLabel: "Reindex",
-    started: "Reindexing every document…",
+      "Every document you own gets its search index rebuilt. Nothing is deleted. Use this after changing how documents are split or which search model you use. It can take a while on a large bank.",
+    confirmLabel: "Rebuild",
+    started: "Rebuilding all documents…",
   },
   "re-extract": {
-    title: "Re-extract every document?",
+    title: "Re-read all documents?",
     description:
-      "Extraction runs again over every source file you uploaded, then everything is re-chunked and re-embedded. Nothing is deleted — this is the slow sweep you run after an extractor upgrade.",
-    confirmLabel: "Re-extract",
-    started: "Re-extracting every document…",
+      "Orbweaver reads every file you uploaded again, then rebuilds each document's search index. Nothing is deleted. Use this after an update that improves how files are read. It is slow on a large bank.",
+    confirmLabel: "Re-read",
+    started: "Re-reading all documents…",
   },
 };
 

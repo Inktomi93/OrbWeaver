@@ -58,7 +58,8 @@ export function CorpusArtifactSurface({ destination }: { readonly destination: C
       return (
         <CorpusArtifactFrame title={`${destination.route.genre} → ${destination.route.model}`}>
           <Text>
-            {destination.route.generations} generations · {destination.route.provider ?? "Provider not recorded"}
+            {destination.route.generations} {destination.route.generations === 1 ? "generation" : "generations"} ·{" "}
+            {destination.route.provider ?? "Provider not recorded"}
           </Text>
           <Text>
             Returned tokens:{" "}
@@ -161,7 +162,7 @@ function CorpusClusterSurface({ destination }: { readonly destination: Extract<C
     <CorpusArtifactFrame title={destination.title}>
       <Text voice="gloss">Generated grouping; names may change when analysis reruns.</Text>
       <Text>
-        {destination.cluster.size} members · {destination.cluster.model}
+        {destination.cluster.size} {destination.cluster.size === 1 ? "member" : "members"} · {destination.cluster.model}
       </Text>
       {read.isSuccess &&
       !read.data.some(

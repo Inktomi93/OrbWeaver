@@ -63,4 +63,4 @@ export const VARIANT_NEXT_NAME = "Next variant";
  * their names stay honest; borrowing the pager's `Next variant` here is the exact drift that ruling forbids,
  * and `swipe-strip.ct.tsx` pins the stale name ABSENT as the regression control.
  */
-export const VARIANT_GENERATE_NAME = "Generate a variant";
+export const VARIANT_GENERATE_NAME = "Regenerate a variant";

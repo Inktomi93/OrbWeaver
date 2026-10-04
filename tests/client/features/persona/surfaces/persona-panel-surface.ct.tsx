@@ -215,8 +215,9 @@ test("the foot renders the viewer identity + Log out in a cookie mode (local)", 
   await stubAuth(page, "local");
   await mount(<PersonaYouSheetStory />);
   const foot = page.getByTestId("account-surface");
-  await expect(foot).toContainText("owner");
-  await expect(foot).toContainText("local");
+  await expect(foot).toContainText("Signed in as owner");
+  // Handle, role and mode coincide here, so neither badge adds anything.
+  await expect(foot).not.toContainText("local");
   await expect(page.getByTestId("account-logout")).toBeVisible();
 });
 

@@ -128,8 +128,8 @@ export const continuePostfixLabel = (value: ContinuePostfix): string => CONTINUE
 // (remembered past events, a different system). The domain's own noun is "compaction marker"
 // (`domain/chat/verbs/compaction.ts`), and that is what every preset-side copy site now says.
 const COMPACTION_MODE_LABELS: Record<CompactionMode, string> = {
-  auto: "Auto",
-  managed: "Managed",
+  auto: "The model's app",
+  managed: "Orbweaver",
 };
 export const COMPACTION_MODE_ITEMS: SelectItems<string> = COMPACTION_MODES.map((value) => ({
   value,

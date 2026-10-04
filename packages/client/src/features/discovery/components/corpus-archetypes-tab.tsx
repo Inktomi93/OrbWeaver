@@ -74,7 +74,7 @@ export function CorpusArchetypesTab(): ReactElement {
     return (
       <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-slot="archetypes-not-run">
         <Text prose={true} className="max-w-(--reading-measure-prose)" voice="gloss">
-          Archetypes need distilled characters. Start the understanding pass in Explore.
+          Archetypes need your characters sorted first. Start that in Explore.
         </Text>
         <Button intent="ghost" size="sm" onClick={openCorpusOverview}>
           Show Explore overview
@@ -196,7 +196,9 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
         <Button intent="ghost" size="sm" onClick={(): void => selectCorpusArtifact({ ...cluster.destination, title: name })}>
           {name}
         </Button>
-        <Text voice="gloss">{cluster.size} members</Text>
+        <Text voice="gloss">
+          {cluster.size} {cluster.size === 1 ? "member" : "members"}
+        </Text>
       </Row>
       {/* THE FACET CHAIN IS DATA (P3-2): 45-59 characters of distilled tokens, set in the 9.5px UPPERCASE
           band-label register. `kicker` names a SECTION; this names a cluster's contents, so it drops to the

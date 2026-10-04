@@ -151,7 +151,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
         {(field): ReactElement => (
           <field.TextareaField
             label="Note"
-            description="An author-facing memo (ST's comment) — shown in the list, never sent to the model."
+            description="A note for you. It shows in the list and is never sent to the model."
             placeholder="Optional"
             rows={2}
           />

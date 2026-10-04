@@ -9,6 +9,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { formatUsd } from "@orb/kit/strings";
 import { Button } from "@orb/ui/button";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { EmptyState } from "@orb/ui/empty-state";
 import { ArrowLeft, ChartColumn, Icon } from "@orb/ui/icons";
 import { Grid, Section, Stack } from "@orb/ui/layout";
@@ -29,6 +30,7 @@ import {
   formatMs,
   formatPercent,
   formatThroughput,
+  LATENCY_LABELS,
   REASONING_LABEL,
   THROUGHPUT_LABEL,
   throughputProvenance,
@@ -143,7 +145,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
         </Stack>
       </Section>
 
-      <Section heading="Economics">
+      <Section heading="Tokens and cost">
         <Stack gap="block">
           <Grid cols="cell" gap="block">
             <StatFigure
@@ -163,28 +165,31 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
             {/* The reasoning WINDOW beside the reasoning RATE (#184) — the per-character half of the same
                 unrendered rollup column. */}
             <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />
+          </Grid>
+          <Text voice="gloss">
+            Cache hits is the share of the tokens you sent that the provider served from its prompt cache — it is not rolled up per character, so it reads as a
+            dash here. Reasoning counts thinking passes per reply or swipe. {UNRECORDED_NOTE}
+          </Text>
+        </Stack>
+      </Section>
+
+      <Collapsible>
+        <CollapsibleTrigger>Details</CollapsibleTrigger>
+        <CollapsiblePanel className="pt-row">
+          <Grid cols="cell" gap="block">
+            <StatFigure label={LATENCY_LABELS.avgTtft} value={formatMs(latency.avgTtftMs)} />
+            <StatFigure label={LATENCY_LABELS.p50Ttft} value={formatMs(latency.p50TtftMs)} />
+            <StatFigure label={LATENCY_LABELS.p90Ttft} value={formatMs(latency.p90TtftMs)} />
+            <StatFigure label={LATENCY_LABELS.avgGen} value={formatMs(latency.avgGenMs)} />
+            <StatFigure label={LATENCY_LABELS.p50Gen} value={formatMs(latency.p50GenMs)} />
+            <StatFigure label={LATENCY_LABELS.p90Gen} value={formatMs(latency.p90GenMs)} />
             <StatFigure
               label={THROUGHPUT_LABEL}
               value={formatThroughput(stats.throughputTps, throughputProvenance(stats.totalGenTimeMs, stats.tokensOutProvenance))}
             />
           </Grid>
-          <Text voice="gloss">
-            Cache hits is the share of the tokens you sent that the provider served from its prompt cache — it is not rolled up per character, so it reads as a
-            dash here. Reasoning counts thinking passes per reply or swipe. Throughput divides output tokens by recorded generation time. {UNRECORDED_NOTE}
-          </Text>
-        </Stack>
-      </Section>
-
-      <Section heading="Latency">
-        <Grid cols="cell" gap="block">
-          <StatFigure label="Avg TTFT" value={formatMs(latency.avgTtftMs)} />
-          <StatFigure label="p50 TTFT" value={formatMs(latency.p50TtftMs)} />
-          <StatFigure label="p90 TTFT" value={formatMs(latency.p90TtftMs)} />
-          <StatFigure label="Avg gen" value={formatMs(latency.avgGenMs)} />
-          <StatFigure label="p50 gen" value={formatMs(latency.p50GenMs)} />
-          <StatFigure label="p90 gen" value={formatMs(latency.p90GenMs)} />
-        </Grid>
-      </Section>
+        </CollapsiblePanel>
+      </Collapsible>
     </Stack>
   );
 }

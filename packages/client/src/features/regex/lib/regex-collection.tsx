@@ -21,7 +21,7 @@ import {
 import { RegexMemberSurface } from "../surfaces/regex-member-surface.tsx";
 
 export const regexCollection: CollectionContribution = {
-  emptyText: "No scripts yet.",
+  emptyText: "A script finds a pattern in text and replaces it, in messages or in the prompt.",
   useCount: useRegexCount,
   // The landing's library-level FACTS (#1209): how much of the library is switched OFF and when it was
   // last touched — two questions a rules library answers and its LIST of rows cannot.

@@ -71,7 +71,7 @@ export function AddDocumentBody(): ReactElement {
       // so it will not reach a chat until the user runs the repair the sentence names.
       toast.add({
         title: "Saved, but not indexed yet",
-        description: "The indexer wouldn't take the job. The document is safe — use Reindex on it to try the index again.",
+        description: "The indexer wouldn't take the job. The document is safe — use Rebuild search index on it to try again.",
       });
     } else if (warning === "empty-extraction") {
       toast.add({ title: "Nothing to index in that file", description: "No text could be extracted — a scanned image PDF, most likely." });

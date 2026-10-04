@@ -57,9 +57,9 @@ function roomCountPhrase(count: number): string {
 // The house the viewer walks into: empty, new to them, or theirs.
 function mastheadTitle(totalCount: number, firstRun: boolean): string {
   if (totalCount === 0) {
-    return "An empty house.";
+    return "No chats yet.";
   }
-  return firstRun ? "Welcome in" : `${roomCountPhrase(totalCount)}, still warm.`;
+  return firstRun ? "Welcome" : `You have ${roomCountPhrase(totalCount).toLowerCase()}.`;
 }
 
 // IT DATES THE VIEWER'S OWN LAST TURN, never a room's activity: a friend who has just joined has left off nowhere,
@@ -69,7 +69,7 @@ function mastheadLine(viewerLastTurnAt: number | null, firstRun: boolean): strin
     return "Choose a room to begin";
   }
   if (viewerLastTurnAt === null) {
-    return "Start a room and this is where you will find your way back into it.";
+    return "Start a room and it will show up here.";
   }
   return `You left off ${timeLib.formatRelativeAgo(viewerLastTurnAt)}.`;
 }

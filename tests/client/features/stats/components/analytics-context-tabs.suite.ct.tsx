@@ -59,15 +59,15 @@ test("the Models tab drops its owner-wide latency quartet while a character is d
   // The barrier is the HEADING, not the text — `getByText` is a case-insensitive substring match and the
   // scope notice above contains the word "breakdown".
   await expect(component.getByRole("heading", { name: "Breakdown" })).toBeVisible();
-  await expect(component.getByText("Latency (all models)")).toHaveCount(0);
-  await expect(component.locator('[data-slot="stat-figure"]', { hasText: "p90 TTFT" })).toHaveCount(0);
+  await expect(component.getByText("Reply speed (all models)")).toHaveCount(0);
+  await expect(component.locator('[data-slot="stat-figure"]', { hasText: "Slowest 10% of waits" })).toHaveCount(0);
 });
 
 test("with nothing drilled the Models tab keeps its latency quartet and states no scope", async ({ mount, page }) => {
   await routeTrpc(page, { "stats.byModel": () => [MODEL_ROW], "stats.latency": () => LATENCY });
   const component = await mount(<AnalyticsModelsTabStory drilled={false} />);
 
-  await expect(component.getByText("Latency (all models)")).toBeVisible();
+  await expect(component.getByText("Reply speed (all models)")).toBeVisible();
   // Library scope is the unsurprising default with nothing drilled; a permanent caption teaches the eye
   // to skip it exactly when it starts mattering.
   await expect(component.getByText("Whole library", { exact: false })).toHaveCount(0);
