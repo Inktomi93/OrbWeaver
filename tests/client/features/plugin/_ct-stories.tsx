@@ -46,7 +46,7 @@ import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
@@ -411,6 +411,30 @@ export function ExtensionsPageStory({
           <ExtensionsContentHarness />
         </div>
       </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+/** Both Extensions panes side by side through the real registry, from an empty drill — what a desktop shell
+ *  shows, so a LIST pick is observed in the CONTENT pane it drives. */
+export function ExtensionsSectionStory(): ReactElement {
+  useEffect(() => {
+    clearPluginPage();
+  }, []);
+  return (
+    <CtDataProviders>
+      <CtToastSurface>
+        <CtRealSectionRegistry>
+          <Row align="start">
+            <div style={{ width: SWITCHER_PANE_WIDTH }}>
+              <ExtensionsListHarness />
+            </div>
+            <div data-testid="ct-extensions-content" style={{ height: PAGE_REGION.height, width: PAGE_REGION.width }}>
+              <ExtensionsContentHarness />
+            </div>
+          </Row>
+        </CtRealSectionRegistry>
+      </CtToastSurface>
     </CtDataProviders>
   );
 }

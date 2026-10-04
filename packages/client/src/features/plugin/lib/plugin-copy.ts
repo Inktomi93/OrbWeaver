@@ -285,7 +285,8 @@ export function grantSummaryLine(granted: readonly PluginCapability[]): string |
  * refused it on the owner's behalf" — a widening upgrade that landed the row `disabled` reads identically to
  * the owner's own toggle-off otherwise, and the surface would be presenting the system's refusal as the
  * person's decision. `warning` rather than `neutral` because it names an OPEN question ("this still needs
- * you"), not a settled state — the row below carries the actual re-consent notice + action.
+ * you"), not a settled state — the row below carries the actual re-consent notice + action. A plugin that was
+ * never approved is a first ask, not a refusal, and wears the quiet {@link NEEDS_APPROVAL_LABEL} instead.
  *
  * `grantedCount` feeds the ENABLED-BUT-INERT arm (side-eye 2026-08-29 owner observation): a plugin switched
  * on with ZERO granted capabilities runs and can reach nothing — the least-privilege posture working as
@@ -306,7 +307,26 @@ export function statusCopy(
   if (status === "errored") {
     return { label: "Stopped after an error", intent: "danger" };
   }
-  return reconsentPending ? { label: "Off — asked for more than you allowed", intent: "warning" } : { label: "Off", intent: "neutral" };
+  if (!reconsentPending) {
+    return { label: "Off", intent: "neutral" };
+  }
+  return grantedCount === 0 ? { label: NEEDS_APPROVAL_LABEL, intent: "neutral" } : { label: "Off — asked for more than you allowed", intent: "warning" };
+}
+
+/** The quiet state a plugin waiting on its owner's first approval wears, on the Plugins screen and in the
+ *  Plugin pages list alike. */
+export const NEEDS_APPROVAL_LABEL = "Needs approval";
+
+/** Which ask a pending plugin is making. Both a never-approved install (the seeded examples, a distributed
+ *  copy) and an update that widened reach raise `reconsentPending`. An owner who has granted nothing has never
+ *  approved this plugin, whatever updates landed while it waited, so only a held grant makes it an update. */
+export function consentAskKind(plugin: { readonly grantedCapabilities: readonly PluginCapability[] }): "first" | "update" {
+  return plugin.grantedCapabilities.length === 0 ? "first" : "update";
+}
+
+/** The headline of a never-approved plugin's ask. */
+export function firstConsentLine(pluginName: string, askedCount: number): string {
+  return `${pluginName} needs your OK for ${askedCount === 1 ? "1 permission" : `${askedCount} permissions`} before it can run.`;
 }
 
 /**

@@ -17,7 +17,7 @@
 // emptiness is about the ASKER, and this pane's job is to say WHICH emptiness. The reasons are ordered by
 // what the person must do next, and `EXTENSIONS_EMPTY_COPY` below is the ONE home for all four:
 //   · `none-installed`   — nothing to draw from. Go install one.
-//   · `awaiting-consent` — installed, standing on YOUR answer. Go read the ask. (The fresh-boot state.)
+//   · `awaiting-consent` — installed, standing on YOUR answer. Read the ask in place. (The fresh-boot state.)
 //   · `all-off`          — granted, but nothing is switched on, so nothing registers. Go turn one on.
 //   · `some-errored`     — a plugin FAILED to start. Go read why. (#1865 — the arm the four could not spell:
 //                          an `errored` row is not `enabled`, so a box whose only page-bringing plugin died
@@ -26,12 +26,12 @@
 //                          `all-off` deliberately: not turning a plugin on is a choice, a plugin dying is not,
 //                          and the louder fact goes first.)
 //   · `no-pages`         — running plugins, none of which bring a page. The original copy, now honest.
-// Each arm names a DIFFERENT next step and lands at a DIFFERENT config anchor, which is the whole reason
+// Each arm names a DIFFERENT next step and lands at a DIFFERENT place, which is the whole reason
 // they exist separately — the sibling defect this file already argues against for "pick one" vs "there are
 // none" (see the no-selection copy below), applied to its own empty.
 
 import { EXTENSIONS_SECTION_LABEL } from "./extensions-section-label.ts";
-import { PLUGIN_PERMISSIONS_SETTING_ID, PLUGINS_INSTALL_SUBCATEGORY, PLUGINS_INSTALLED_SUBCATEGORY } from "./plugins-nav.ts";
+import { PLUGINS_INSTALL_SUBCATEGORY, PLUGINS_INSTALLED_SUBCATEGORY } from "./plugins-nav.ts";
 
 /** The section's placeholder (title, description) — DISTINCT from every sibling's by the
  *  `placeholder-copy-registry` gate, and it doubles as the home-tile gloss, so it says what the section IS
@@ -43,22 +43,24 @@ export const EXTENSIONS_PLACEHOLDER = {
 
 /** One reason's teaching empty: what is true, what to do about it, and WHERE that is done. */
 export interface ExtensionsEmptyCopy {
-  readonly title: string;
   /** The arm's own COUNT: how many plugins are standing on the caller's consent (`awaiting-consent`), or how
-   *  many failed to start (`some-errored`). The other three ignore it — the signature stays uniform so the map
-   *  is one shape and the call sites never branch on which arm they drew. */
+   *  many failed to start (`some-errored`). Arms that do not count ignore it — the signature stays uniform so
+   *  the map is one shape and the call sites never branch on which arm they drew. */
+  readonly title: (count: number) => string;
   readonly description: (count: number) => string;
   readonly action: string;
-  /** Where the action lands inside the Plugins config group — a different anchor per reason, because
-   *  "install one" and "answer the ask" are not the same screen. */
-  readonly sub: string;
-  /** The setting row to FOCUS on arrival, when the next act is a specific control rather than a section. */
-  readonly setting: string | null;
+  /** Where the action lands inside the Plugins config group, or `null` when the answer happens in place: a
+   *  waiting plugin is reviewed inside Plugin pages, so its approval can only ever be for the plugin picked. */
+  readonly sub: string | null;
 }
 
 /** The generic label for "take me to the plugins screen" — shared by the arms whose next act is the section
  *  itself, and by the CONTENT pane's GONE state. */
 export const EXTENSIONS_OPEN_PLUGINS_ACTION = "Open Plugins";
+
+/** The one action that opens a waiting plugin's review in place — the waiting landing's, and the no-selection
+ *  state's while anything is still waiting. */
+export const EXTENSIONS_REVIEW_PLUGINS_ACTION = "Review plugins";
 
 /**
  * The teaching EMPTIES (§4.5b) — one per reason, each naming its own next step, which is why every arm
@@ -73,43 +75,42 @@ export const EXTENSIONS_OPEN_PLUGINS_ACTION = "Open Plugins";
  */
 export const EXTENSIONS_EMPTY_COPY = {
   "none-installed": {
-    title: "No plugins installed yet",
+    title: (): string => "No plugins installed yet",
     description: (): string => "Plugin pages are full pages a plugin brings: browsers, dashboards, whatever it adds. Install one and its pages open here.",
     action: "Add a plugin",
     sub: PLUGINS_INSTALL_SUBCATEGORY.id,
-    setting: null,
   },
   "awaiting-consent": {
-    title: "Your plugins are waiting on you",
-    description: (awaiting: number): string =>
-      `${awaiting === 1 ? "One plugin is" : `${awaiting} plugins are`} installed but not allowed to do anything yet. Read what each one asks for and choose what to allow — pages they bring open here once they run.`,
-    action: "Review what they ask for",
-    sub: PLUGINS_INSTALLED_SUBCATEGORY.id,
-    setting: PLUGIN_PERMISSIONS_SETTING_ID,
+    title: (awaiting: number): string => `${awaiting === 1 ? "1 plugin is" : `${awaiting} plugins are`} waiting for your OK`,
+    description: (): string => "Each one runs only after you approve what it asks for. Pages they bring open here once they run.",
+    action: EXTENSIONS_REVIEW_PLUGINS_ACTION,
+    sub: null,
   },
   "some-errored": {
-    title: "A plugin failed to start",
+    title: (): string => "A plugin failed to start",
     description: (count: number): string =>
       `${count === 1 ? "One plugin" : `${count} plugins`} could not start, so whatever ${count === 1 ? "it brings is" : "they bring are"} missing here. Each one records why it failed on the Plugins screen.`,
     action: "See what went wrong",
     sub: PLUGINS_INSTALLED_SUBCATEGORY.id,
-    setting: null,
   },
   "all-off": {
-    title: "Your plugins are turned off",
+    title: (): string => "Your plugins are turned off",
     description: (): string => "Nothing is running, so nothing has registered a page. Turn a plugin on and whatever it brings opens here.",
     action: EXTENSIONS_OPEN_PLUGINS_ACTION,
     sub: PLUGINS_INSTALLED_SUBCATEGORY.id,
-    setting: null,
   },
   "no-pages": {
-    title: "No plugin pages yet",
+    title: (): string => "No plugin pages yet",
     description: (): string => "Install a plugin that brings plugin pages and they will appear here.",
     action: EXTENSIONS_OPEN_PLUGINS_ACTION,
     sub: PLUGINS_INSTALLED_SUBCATEGORY.id,
-    setting: null,
   },
 } satisfies Record<string, ExtensionsEmptyCopy>;
+
+/** The LIST's label over the waiting plugins' rows — shown whether or not any pages exist yet. */
+export function extensionsWaitingGroupLabel(count: number): string {
+  return `${count === 1 ? "1 plugin" : `${count} plugins`} waiting for approval`;
+}
 
 /** The CONTENT pane's no-selection state — a switcher with rows but nothing picked. Distinct copy from the
  *  empty above: "pick one" and "there are none" are different facts and collapsing them is the generic-filler

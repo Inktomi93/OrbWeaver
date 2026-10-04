@@ -19,7 +19,7 @@
 // Re-grant on WIDENED REACH: a manifest that declares a capability the prior grant never confirmed — OR a
 // `netHosts` entry the prior manifest never declared — lands the row `disabled`, and the grant carried forward
 // is the INTERSECTION (`normalizeGrant`), so the newly-declared capability is NOT granted. Re-confirming is the
-// separate `setGrant` verb (`verbs/set-grant.ts`), then an explicit enable.
+// separate `setGrant` verb (`verbs/set-grant.ts`), whose approval may also turn the plugin back on.
 //
 // TRUTH-REPAIR (2026-08-24): this header used to say "the owner re-enables, re-confirming", and that was a
 // comment overstating a security mechanism — `setEnabled` activates with the STORED grant and never recomputes

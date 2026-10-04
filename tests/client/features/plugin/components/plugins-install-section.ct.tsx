@@ -1011,6 +1011,7 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
     pluginId: INSTALLED_ROW.id,
     grant: upgradedRow.declaredCapabilities,
     acknowledgedNetHosts: upgradedRow.netHosts,
+    enable: true,
   });
 });
 
@@ -1108,6 +1109,7 @@ test("#1855: a two-capability re-consent counts both, offers no partial path, an
     pluginId: INSTALLED_ROW.id,
     grant: upgradedRow.declaredCapabilities,
     acknowledgedNetHosts: upgradedRow.netHosts,
+    enable: true,
   });
 });
 

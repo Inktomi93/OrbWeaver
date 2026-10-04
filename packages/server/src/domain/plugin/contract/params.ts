@@ -142,12 +142,12 @@ export interface UpgradeFromShowcaseParams {
  *  activates with the STORED grant and never recomputes one — so before this verb the only way to allow a
  *  newly-declared capability was uninstall + reinstall (which also drops the plugin's `storage.kv` rows).
  *
- *  IT IS AN EXPLICIT ACT AND IT IS NOT ENABLING. Re-grant must never be a side effect of turning a plugin on
- *  (that is the same defect in the opposite direction — an enable would silently widen authority), so
- *  `setEnabled` still reads the stored grant, and this verb never enables a disabled plugin. `grant` is the
- *  WHOLE new subset, not a delta: a consent surface shows the complete asked-vs-allowed picture and the caller
- *  sends back exactly what it displayed. `acknowledgedNetHosts` is the anti-TOCTOU echo — see
- *  {@link PluginNetHostsUnacknowledgedError} for why `net.fetch` alone needs one. */
+ *  Re-grant is never a side effect of turning a plugin on (an enable would silently widen authority), so
+ *  `setEnabled` still reads the stored grant. The reverse is the owner's approval: with `enable`, the same act
+ *  also runs the plugin on the grant it just wrote. `grant` is the WHOLE new subset, not a delta: a consent
+ *  surface shows the complete asked-vs-allowed picture and the caller sends back exactly what it displayed.
+ *  `acknowledgedNetHosts` is the anti-TOCTOU echo — see {@link PluginNetHostsUnacknowledgedError} for why
+ *  `net.fetch` alone needs one. */
 export interface SetPluginGrantParams {
   readonly caller: Principal;
   readonly pluginId: PluginId;
@@ -155,6 +155,9 @@ export interface SetPluginGrantParams {
   /** The exact `netHosts` list the caller displayed to the owner (echo `PluginView.netHosts ?? []`). Only
    *  consulted when `grant` includes `net.fetch`; a manifest host absent from it is a typed refusal. */
   readonly acknowledgedNetHosts: readonly string[];
+  /** The owner's approval also turns the plugin on. Absent means never enable a disabled row: the example
+   *  seeder and the D147 fan-out call this verb to raise a consent ask and must leave the row unable to run. */
+  readonly enable?: boolean;
 }
 
 /** `setPluginEnabled` — activate (enabled ⇒ run `main.js` in the host, collect registrations) or deactivate

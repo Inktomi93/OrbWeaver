@@ -9,9 +9,9 @@
 // consent"). Deriving it from `plugin.declaredCapabilities`/`grantedCapabilities`/`netHosts` every render
 // means the notice survives a reload, a re-navigation, anything short of the owner actually resolving it.
 //
-// THE ESCAPE IS A REAL PATH, NOT A DEAD END. `setGrant` is an EXPLICIT re-consent act — it never enables (a
-// disabled plugin stays disabled) and enabling never re-grants (`setEnabled` still reads the stored grant) —
-// so granting and running stay two separate owner decisions, on purpose.
+// APPROVING TURNS THE PLUGIN ON (owner ruling, item 573). The notice's approval sends `setGrant` with `enable`,
+// so the server writes the grant and starts the plugin in one act, on exactly that grant. Enabling still never
+// re-grants (`setEnabled` reads the stored grant), and the row's switch stays the way to turn it off.
 //
 // RE-CONSENT IS AS GRANULAR AS INSTALL (#658). The notice used to offer exactly two outcomes — allow the
 // whole ask, or remove the plugin — while INSTALL let the same person tick individual boxes. That asymmetry
@@ -233,7 +233,17 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
             // it is read straight off the same `plugin.netHosts` the notice hands `PluginGrantList`, so the
             // server can refuse a manifest that moved under the screen. `grant` is the person's own subset.
             onAllow={(grant): void => {
-              setGrant.mutate({ acknowledgedNetHosts: [...(plugin.netHosts ?? [])], grant: [...grant], pluginId: plugin.id });
+              setGrant.mutate(
+                { acknowledgedNetHosts: [...(plugin.netHosts ?? [])], enable: true, grant: [...grant], pluginId: plugin.id },
+                {
+                  // The server's settled row says whether it started; a failed start shows its own error line.
+                  onSuccess: (view): void => {
+                    if (view.status === "enabled") {
+                      notify.success(`${plugin.name} is on.`);
+                    }
+                  },
+                },
+              );
             }}
             onRemove={(): void => uninstall.mutate({ pluginId: plugin.id })}
             plugin={plugin}

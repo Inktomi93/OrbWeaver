@@ -11,10 +11,14 @@
 //   • the ANTI-TOCTOU echo: `net.fetch` is the one capability whose reach the owner does not type, so a
 //     manifest that moved under a rendered consent screen must not arm a host nobody confirmed.
 
+import type { PluginCapability } from "@orb/contracts/plugin";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CapabilityNotGrantedError, PluginNetHostsUnacknowledgedError, PluginNotFoundError } from "@orb/server/domain/plugin";
-import { describe } from "vitest";
+import { createPluginHost } from "@orb/server/infra/plugin-host";
+import { afterEach, describe } from "vitest";
+import { __terminateManagedPluginBrokerForTest } from "../../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
@@ -613,5 +617,149 @@ describe("reconsentPending — the forced-disable flag", () => {
     // honest picture the surface owes: on, and still not allowed everything it asked for.
     expect(row?.grantedCapabilities).toEqual(["chat.read"]);
     expect(row?.declaredCapabilities).toEqual(["chat.read", "notify"]);
+  });
+});
+
+// APPROVE TURNS IT ON (owner ruling, item 573). The owner's approval of a plugin's ask is also the act that
+// runs it, in ONE call under the plugin's lifecycle lane. These pins hold what that must not cost: the guest
+// runs with exactly the stored grant and the consented reach, a call that does not ask to enable never
+// enables (the seeder and the fan-out still mint rows that do nothing), and a later widening update still
+// stops the plugin until it is approved again.
+describe("approve with enable", () => {
+  test("approving with enable turns a never-approved plugin on, under exactly the approved set", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const caller = principalFor(owner);
+    const installed = await h.service.install({ caller, bundle: makeBundle({ id: "pp", capabilities: ["chat.read", "notify"] }), grant: [] });
+    // The seeder's shape: the empty re-grant raises the standing ask and runs nothing.
+    await h.service.setGrant({ caller, pluginId: installed.id, grant: [], acknowledgedNetHosts: [] });
+    expect(h.port.created.length).toBe(0);
+
+    const approved = await h.service.setGrant({ caller, pluginId: installed.id, grant: ["chat.read", "notify"], acknowledgedNetHosts: [], enable: true });
+
+    expect(approved.status).toBe("enabled");
+    expect(approved.reconsentPending).toBe(false);
+    expect(h.port.created.length).toBe(1);
+    expect(h.port.created.at(-1)?.grants).toEqual(["chat.read", "notify"]);
+  });
+
+  test("enable never widens reach: a still-unanswered host stays off the egress wall", async () => {
+    // A PARTIAL approval with enable is the same consent state as a partial approval followed by the switch,
+    // so it must arm the same narrower wall `setEnabled` arms.
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const caller = principalFor(owner);
+    const installed = await h.service.install({
+      caller,
+      bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
+      grant: ["net.fetch"],
+    });
+    const upgraded = await h.service.upgrade({
+      caller,
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch", "notify"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
+    });
+
+    const partial = await h.service.setGrant({
+      caller,
+      pluginId: installed.id,
+      grant: ["net.fetch"],
+      acknowledgedNetHosts: upgraded.netHosts ?? [],
+      enable: true,
+    });
+
+    expect(partial.status).toBe("enabled");
+    expect(partial.reconsentPending).toBe(true);
+    expect(h.port.created.at(-1)?.grants).toEqual(["net.fetch"]);
+    expect(h.port.created.at(-1)?.netHosts).toEqual(["api.vendor.example"]);
+  });
+
+  test("after approve-and-enable, a widening update still stops the plugin until it is approved again", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const caller = principalFor(owner);
+    const installed = await h.service.install({ caller, bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }), grant: [] });
+    await h.service.setGrant({ caller, pluginId: installed.id, grant: ["chat.read"], acknowledgedNetHosts: [], enable: true });
+    expect(h.port.created.length).toBe(1);
+
+    const upgraded = await h.service.upgrade({
+      caller,
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify"] }),
+    });
+
+    expect(upgraded.status).toBe("disabled");
+    expect(upgraded.reconsentPending).toBe(true);
+    expect(upgraded.grantedCapabilities).toEqual(["chat.read"]);
+    expect(h.port.disposed.length).toBe(1); // the approved resident was torn down
+    expect(h.port.created.length).toBe(1); // and nothing came back up on the wider bundle
+  });
+
+  test("a stranger cannot approve-and-enable another user's plugin, and it stays off", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db);
+    const alice = await seedUser(db, { handle: castId<Handle>("alice") });
+    const boss = await seedUser(db, { handle: castId<Handle>("boss") });
+    const hers = await h.service.install({ caller: principalFor(alice), bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }), grant: [] });
+
+    await expect(
+      h.service.setGrant({ caller: ownerPrincipalFor(boss), pluginId: hers.id, grant: ["chat.read"], acknowledgedNetHosts: [], enable: true }),
+    ).rejects.toBeInstanceOf(PluginNotFoundError);
+
+    expect(h.port.created.length).toBe(0);
+    const [row] = await h.service.list({ caller: principalFor(alice) });
+    expect(row?.status).toBe("disabled");
+    expect(row?.grantedCapabilities).toEqual([]);
+  });
+});
+
+// THE SANDBOX STILL GATES EVERY CAPABILITY ON THE GRANT after approve-and-enable, proven through the REAL
+// plugin host rather than the fake port. The guest probes `chat.current` (capability `chat.read`) at
+// activation: without the grant the membrane throws `PluginCapabilityError`; with it, the capability check
+// passes and the call fails later for a different reason (no chat is in scope at activation). The fully
+// approved plugin is the positive control that tells the two apart.
+const PROBE_MAIN_JS = [
+  "const host = orb.host(1);",
+  "try { host.chat.current(); host.log.info('probe:allowed'); } catch (e) { host.log.info('probe:' + e.name); }",
+].join("\n");
+
+describe("approve with enable — real guest", () => {
+  afterEach(async () => {
+    await __terminateManagedPluginBrokerForTest();
+  });
+
+  function realHost(): ReturnType<typeof createPluginHost> {
+    let n = 0;
+    return createPluginHost({
+      nowEpochMs: (): number => FROZEN_AT_MS,
+      nextRandom: (): number => 0.5,
+      mintId: (): string => {
+        n += 1;
+        return `grant_${n}`;
+      },
+    });
+  }
+
+  test("an approved-and-running guest is still refused a capability it declared but was not granted", async () => {
+    const db = await freshDb();
+    const h = makePluginHarness(db, { port: realHost() });
+    const caller = principalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+    const declared: PluginCapability[] = ["storage.kv", "chat.read"];
+
+    // Both plugins DECLARE `chat.read`, so only the grant can tell them apart: the first is approved without it.
+    const withheld = await h.service.install({ caller, bundle: makeBundle({ id: "withheld", capabilities: declared }, PROBE_MAIN_JS), grant: [] });
+    const runningWithheld = await h.service.setGrant({ caller, pluginId: withheld.id, grant: ["storage.kv"], acknowledgedNetHosts: [], enable: true });
+    const granted = await h.service.install({ caller, bundle: makeBundle({ id: "granted", capabilities: declared }, PROBE_MAIN_JS), grant: [] });
+    const runningGranted = await h.service.setGrant({ caller, pluginId: granted.id, grant: declared, acknowledgedNetHosts: [], enable: true });
+
+    expect(runningWithheld.status).toBe("enabled");
+    expect(runningGranted.status).toBe("enabled");
+    const refusedLog = await h.service.getLog({ caller, pluginId: withheld.id });
+    const controlLog = await h.service.getLog({ caller, pluginId: granted.id });
+    expect(refusedLog.map((line) => line.message)).toEqual(["probe:PluginCapabilityError"]);
+    expect(controlLog.map((line) => line.message)).toEqual(["probe:Error"]);
   });
 });
