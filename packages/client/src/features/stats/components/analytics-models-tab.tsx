@@ -29,9 +29,11 @@ import {
   byModelBarItems,
   formatAccountingLabel,
   formatCompact,
+  formatCompactNoun,
   formatMs,
   formatThroughput,
   formatTokens,
+  LATENCY_LABELS,
   throughputProvenance,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
@@ -88,7 +90,7 @@ function ModelsBody(): ReactElement {
                   <ListRow
                     title={modelName}
                     {...(modelName === model.model ? {} : { fullTitle: model.model })}
-                    subtitle={`${model.provider ?? "unknown"} · ${formatCompact(model.generations)} gens · ${model.charactersUsedWith} characters`}
+                    subtitle={`${model.provider ?? "unknown"} · ${formatCompactNoun(model.generations, "generation", "generations")} · ${model.charactersUsedWith === 1 ? "1 character" : `${model.charactersUsedWith} characters`}`}
                     actions={
                       <Text voice="gloss" className="whitespace-nowrap font-mono">
                         {formatTokens(model.tokensOut, model.tokensOutProvenance)} · {formatUsd(model.costUsd)}
@@ -131,12 +133,12 @@ function OwnerLatency(): ReactElement {
   const trpc = useTRPC();
   const { data: latency } = useSuspenseQuery(trpc.stats.latency.queryOptions({ kind: "owner" }));
   return (
-    <Section heading="Latency (all models)">
+    <Section heading="Reply speed (all models)">
       <Row gap="block" className="flex-wrap">
-        <StatFigure label="Avg TTFT" value={formatMs(latency.avgTtftMs)} />
-        <StatFigure label="p90 TTFT" value={formatMs(latency.p90TtftMs)} />
-        <StatFigure label="Avg gen" value={formatMs(latency.avgGenMs)} />
-        <StatFigure label="p90 gen" value={formatMs(latency.p90GenMs)} />
+        <StatFigure label={LATENCY_LABELS.avgTtft} value={formatMs(latency.avgTtftMs)} />
+        <StatFigure label={LATENCY_LABELS.p90Ttft} value={formatMs(latency.p90TtftMs)} />
+        <StatFigure label={LATENCY_LABELS.avgGen} value={formatMs(latency.avgGenMs)} />
+        <StatFigure label={LATENCY_LABELS.p90Gen} value={formatMs(latency.p90GenMs)} />
       </Row>
     </Section>
   );

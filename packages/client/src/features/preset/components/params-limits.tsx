@@ -228,9 +228,9 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
           <form.AppField name="params.compaction.mode">
             {(field): ReactElement => (
               <field.SelectField
-                hint="Managed folds older turns into a durable compaction marker once the context fills past the threshold, and that marker is chat canon — it survives a model swap. Auto lets the runner compact its own session instead. Context is always kept in bounds; this only picks how."
+                hint="Orbweaver can summarize older messages once the chat fills up, and keep that summary even if you switch models. Or the model's own app can handle it. Either way the chat stays within the model's limit."
                 items={COMPACTION_MODE_ITEMS}
-                label="Compaction mode"
+                label="Summarizing"
                 placeholder={`Default — ${compactionModeLabel(DEFAULT_COMPACTION_MODE)}`}
               />
             )}
@@ -240,8 +240,8 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
           <form.AppField name="params.compaction.thresholdPct">
             {(field): ReactElement => (
               <field.NumberField
-                hint="Managed mode summarizes once the context fills past this fraction (0.5–0.99)."
-                label="Managed threshold"
+                hint="Orbweaver summarizes once the chat fills this fraction of the model's limit (0.5–0.99)."
+                label="Summarize at"
                 max={0.99}
                 min={0.5}
                 placeholder={`${MANAGED_COMPACT_DEFAULT_PCT} (default)`}
@@ -255,8 +255,8 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
           <form.AppField name="params.compaction.verbatimTail">
             {(field): ReactElement => (
               <field.NumberField
-                hint="How many of the newest messages stay literal when managed compaction runs — everything older folds into the compaction marker."
-                label="Verbatim tail"
+                hint="How many of the newest messages stay word-for-word when Orbweaver summarizes. Everything older goes into the summary."
+                label="Messages kept word-for-word"
                 max={100}
                 min={1}
                 placeholder={`${MANAGED_VERBATIM_TAIL} (engine default)`}
@@ -270,8 +270,8 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
           <form.AppField name="params.providerContextCompression">
             {(field): ReactElement => (
               <field.SwitchField
-                hint="Ask the provider to compress context on its side. Only backends that advertise it honor this; the rest ignore it silently."
-                label="Provider context compression"
+                hint="Ask the provider to shorten the chat on its side. Only some providers can; the rest ignore this."
+                label="Let the provider shorten the chat"
               />
             )}
           </form.AppField>
@@ -283,8 +283,8 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
         {(mode): ReactElement | null =>
           mode === "auto" ? (
             <Text voice="gloss">
-              Auto uses the runner's own compaction. It won't produce a readable summary, so there's no compaction marker in the transcript and nothing carries
-              forward if you switch this chat to another model. Choose managed to keep a durable, portable summary.
+              With the model's own app, you won't get a summary you can read, and nothing carries over if you switch this chat to another model. Choose
+              Orbweaver to keep a summary you can read and take with you.
             </Text>
           ) : null
         }
@@ -350,9 +350,6 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
               </form.Subscribe>
             </SettingTrackRow>
           </SettingRowGroup>
-          <Text voice="gloss">
-            `advanced.claudeEnv` is deliberately editor-less — it is a config-tier escape hatch for the agent-sdk process environment, not a generation knob.
-          </Text>
         </Stack>
       </CollapsiblePanel>
     </Collapsible>

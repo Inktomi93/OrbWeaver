@@ -248,3 +248,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D299 | [Each model role picks its preset](0299-each-model-role-picks-its-preset.md) | active |
 | D300 | [Rooms attribute each reply honestly, and room pictures belong to the host](0300-room-attribution-and-host-owned-pictures.md) | active |
 | D301 | [Structured output has one plan per request](0301-structured-output-plan-one-home.md) | active |
+| D302 | [Side generation runs through the chat turn](0302-side-generation-runs-through-the-chat-turn.md) | active |

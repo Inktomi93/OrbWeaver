@@ -3,9 +3,8 @@
 // capability-gating + the exclusive-pair drop, the output-cap clamp, the dynamic-context channel and the
 // reply-images decision all live here — never re-derived per backend. Pure + clock-free. Its second consumer
 // is `preset.resolveEffective` (the editor projects the very same call so the deck shows what the next turn
-// will actually send). The anthropic-messages batch tasks (`summarize`/`structured`) take the reasoning half
-// alone, through `resolveSideGenReasoning`, so a side-generation call obeys the same mandatory clamp a chat
-// turn does.
+// will actually send). A side-generation item is a chat turn with the `side-gen` posture, so it takes this same
+// resolution, mandatory clamp included.
 
 import type { AdjustedKnob } from "@orb/contracts/chat";
 import type { EffortLevel, GenerationCapability, Range, SamplerStage, SamplingRangeKnob, Verbosity, Wire } from "@orb/contracts/inference";
@@ -23,8 +22,7 @@ import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { CARRY_REASONING_DEFAULT, QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "../contract/resolve.ts";
 import { ADAPTIVE_DEFAULT_EFFORT } from "../contract/resolve.ts";
-import type { TaskSampling } from "../contract/roles.ts";
-import type { SideGenReasoning } from "../contract/side-gen.ts";
+import type { ChatPosture } from "../contract/side-gen.ts";
 
 const EFFORT_OFF = "none";
 const ADAPTIVE_BUDGET_WARNING = "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";
@@ -113,13 +111,19 @@ function resolveEffort(effort: UserIntent["effort"], levels: readonly EffortLeve
   return effort;
 }
 
+// The least budget an effort level derives: Anthropic's documented thinking minimum. A range whose own minimum is
+// near zero (gemini-2.5-flash takes 1) would otherwise derive a few dozen tokens for `low`, which thinks nothing.
+const DERIVED_BUDGET_FLOOR = 1024;
+
 /** The budget an effort level asks for when the caller set none: a geometric step through the model's range by
  *  the level's place in `EFFORT_LEVELS`, so each level roughly doubles the one below and `max` is the range top.
- *  A linear step would still hand `low` a third of a 63k range; geometric keeps the low levels near the floor. */
+ *  A linear step would still hand `low` a third of a 63k range; geometric keeps the low levels near the floor.
+ *  The step starts at the range minimum or {@link DERIVED_BUDGET_FLOOR}, whichever is higher. */
 function budgetForEffort(effort: UserIntent["effort"], range: Range): number {
   const index = effort === undefined || effort === EFFORT_OFF ? EFFORT_LEVELS.length - 1 : EFFORT_LEVELS.indexOf(effort);
   const fraction = (index + 1) / EFFORT_LEVELS.length;
-  return Math.round(range.min * (range.max / range.min) ** fraction);
+  const base = Math.min(Math.max(range.min, DERIVED_BUDGET_FLOOR), range.max);
+  return Math.round(base * (range.max / base) ** fraction);
 }
 
 function resolveBudget(requested: number | undefined, range: Range | undefined, effort: UserIntent["effort"]): number | undefined {
@@ -224,11 +228,17 @@ function reasoningEnabledFor(
  *  preset chose (after the mandatory clamp); with the preset unset, `false` on a turn that attaches terminal
  *  tools, because a folded turn needs prose and state in one completion and a template that thinks answers with
  *  the calls alone, unless the model's reasoning is mandatory, which is never told off; otherwise `undefined`,
- *  and the server's own default stands as it always has. */
-export function templateThinkingFor(params: UserIntent, capability: GenerationCapability, terminalToolsAttached: boolean): boolean | undefined {
-  const presetChose = params.effort !== undefined || params.quality !== undefined || params.thinkingBudgetTokens !== undefined;
+ *  and the server's own default stands as it always has. A side-generation posture always chooses. */
+export function templateThinkingFor(
+  params: UserIntent,
+  capability: GenerationCapability,
+  terminalToolsAttached: boolean,
+  posture: ChatPosture = "chat",
+): boolean | undefined {
+  const intent = postureIntent(params, capability, posture, []);
+  const presetChose = intent.effort !== undefined || intent.quality !== undefined || intent.thinkingBudgetTokens !== undefined;
   if (presetChose) {
-    const { enabled, effort } = reasoningEnabledFor(params, capability, []);
+    const { enabled, effort } = reasoningEnabledFor(intent, capability, []);
     if (enabled) {
       return true;
     }
@@ -258,7 +268,8 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
   if (wanted === "off") {
     return "off";
   }
-  if (!reasoningEnabledFor(params, capability, []).on) {
+  // The engine hands in the preset's raw params; the chat posture's intent is what the turn runs.
+  if (!reasoningEnabledFor(postureIntent(params, capability, "chat", []), capability, []).on) {
     warnings.push({ code: "sampling_knob_dropped", knob: "carryReasoning", message: CARRY_NEEDS_REASONING_WARNING });
     return "off";
   }
@@ -273,35 +284,31 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
   return wanted;
 }
 
-/** THE SIDE-GENERATION REASONING — what a `summarize` / `structured` call runs. When the role's preset sets
- *  effort or a thinking budget (D299), those govern; a budget alone turns reasoning on at that budget. Otherwise
- *  the posture is "reasoning OFF" (a summary is not worth thinking tokens). Both resolve through the SAME on/off decision and mandatory clamp a chat turn takes,
- *  never spelled `disabled` straight at the wire: a model whose reasoning is mandatory (Fable, Opus 5.5) 400s
- *  that, so it runs at its minimum effort or budget with `reasoning_mandatory_clamp`. No display is resolved —
- *  a batch reads only the reply text. An explicit `none` (a posture's floor) is the same off.
- *
- *  Reasoning that runs is paid out of the output cap on every wire this serves, so the cap grows by the room the
- *  thinking may take ({@link sideGenOutputCap}); a cap sized for the answer alone ends in an empty reply. A wire
- *  whose SDK already adds the budget to the cap gets the visible cap as-is on the budget arm. */
-export function resolveSideGenReasoning(
-  capability: GenerationCapability,
-  wire: Wire,
-  warnings: ResolvedWarning[],
-  wanted: Pick<TaskSampling, "effort" | "thinkingBudgetTokens" | "maxTokens">,
-): SideGenReasoning {
+/** THE POSTURE'S INTENT — the reasoning a turn asks for once its posture has spoken. An explicit effort or quality
+ *  stands as given. A budget with no effort is a choice to reason at that budget (a chat turn on an adaptive model
+ *  keeps the house default effort instead, with the budget dropped loudly). Otherwise a side-generation call runs
+ *  reasoning OFF (a summary is not worth thinking tokens), through the same mandatory clamp a chat turn takes: a
+ *  model whose reasoning is mandatory runs at its least effort or budget with `reasoning_mandatory_clamp`, never a
+ *  bare off it would refuse. A chat turn with nothing set keeps the model's default. */
+function postureIntent(params: UserIntent, capability: GenerationCapability, posture: ChatPosture, warnings: ResolvedWarning[]): UserIntent {
   const r = capability.reasoning;
-  const presetGoverns = (wanted.effort !== undefined && wanted.effort !== EFFORT_OFF) || wanted.thinkingBudgetTokens !== undefined;
-  const params: UserIntent = presetGoverns
-    ? presetReasoningIntent(capability, wanted, warnings)
-    : {
-        effort: EFFORT_OFF,
-        ...(r.mode === "budget" && r.mandatory === true && r.budgetRange !== undefined ? { thinkingBudgetTokens: r.budgetRange.min } : {}),
-      };
-  // A budget may take what the model's own cap leaves beside the visible answer.
-  const room = capability.output.maxTokens.max - (wanted.maxTokens ?? 0);
-  const { display: _display, ...reasoning } = resolveReasoning(params, capability, room, warnings);
-  const budgetAddedByWire = reasoning.enabled && reasoning.mode === "budget" && WIRES_ADDING_THINKING_BUDGET.has(wire);
-  return { reasoning, maxTokens: budgetAddedByWire ? wanted.maxTokens : sideGenOutputCap(capability, reasoning, wanted.maxTokens) };
+  const explicitOff = params.effort === EFFORT_OFF;
+  const choseLevel = (params.effort !== undefined && !explicitOff) || params.quality !== undefined;
+  // A side-generation `none` alone is the task posture's floor; beside a budget it is the role preset's own off.
+  if (choseLevel || (explicitOff && (posture === "chat" || params.thinkingBudgetTokens !== undefined))) {
+    return params;
+  }
+  if (params.thinkingBudgetTokens !== undefined) {
+    return posture === "chat" && r.mode === "adaptive" ? params : { ...params, ...budgetIntent(capability, params.thinkingBudgetTokens, warnings) };
+  }
+  if (posture === "chat") {
+    return params;
+  }
+  return {
+    ...params,
+    effort: EFFORT_OFF,
+    ...(r.mode === "budget" && r.mandatory === true && r.budgetRange !== undefined ? { thinkingBudgetTokens: r.budgetRange.min } : {}),
+  };
 }
 
 // The thinking room for an effort level on a model that states no budget range: Anthropic's documented budget
@@ -321,17 +328,9 @@ function effortForBudget(budget: number, levels: readonly EffortLevel[] | undefi
   return pool.find((level) => budgetForEffort(level, range) >= budget) ?? pool.at(-1) ?? EFFORT_LEVELS[0];
 }
 
-// A preset's own reasoning choice. A budget with no effort is a choice to reason at that budget: a budget-mode
-// model runs it as given; a model that reasons by effort runs the level that covers it, and says so.
-function presetReasoningIntent(
-  capability: GenerationCapability,
-  wanted: Pick<TaskSampling, "effort" | "thinkingBudgetTokens">,
-  warnings: ResolvedWarning[],
-): UserIntent {
-  const { effort, thinkingBudgetTokens: budget } = wanted;
-  if (effort !== undefined || budget === undefined) {
-    return { ...(effort !== undefined ? { effort } : {}), ...(budget !== undefined ? { thinkingBudgetTokens: budget } : {}) };
-  }
+// A budget with no effort: a budget-mode model runs it as given; a model that reasons by effort runs the level that
+// covers it, and says so here, so the budget leaves the intent and the reasoning fold does not drop it a second time.
+function budgetIntent(capability: GenerationCapability, budget: number, warnings: ResolvedWarning[]): UserIntent {
   const r = capability.reasoning;
   const level = effortForBudget(budget, r.effortLevels, r.budgetRange ?? REASONING_ALLOWANCE_RANGE);
   if (r.mode === "budget") {
@@ -343,19 +342,70 @@ function presetReasoningIntent(
       r.mode === "adaptive" ? { code: "adaptive_budget_dropped", message } : { code: "sampling_knob_dropped", knob: "thinkingBudgetTokens", message },
     );
   }
-  return { effort: level };
+  return { effort: level, thinkingBudgetTokens: undefined };
 }
 
-/** The output cap a side-generation call sends: its visible budget, plus the room its reasoning may take when
- *  reasoning runs (the budget itself, else the effort's share of the model's budget range), within the model's
- *  own output cap. A call that does not reason keeps its visible budget as-is. */
-export function sideGenOutputCap(capability: GenerationCapability, reasoning: ResolvedReasoning, visible: number | undefined): number | undefined {
+// The visible answer a budget beside the cap never takes: half the visible cap, kept between these bounds and never
+// more than the visible cap itself.
+const VISIBLE_RESERVE_MIN = 1024;
+const VISIBLE_RESERVE_MAX = 4096;
+
+function visibleReserve(visible: number): number {
+  return Math.min(visible, Math.min(Math.max(Math.round(visible / 2), VISIBLE_RESERVE_MIN), VISIBLE_RESERVE_MAX));
+}
+
+/** How the output cap and a reasoning budget share the model's own output cap on this turn. The budget sits beside
+ *  the visible cap rather than inside it where the cap `grows` to fit the reasoning (a side-generation call) or the
+ *  wire's SDK `adds` the budget to the cap it sends. */
+interface OutputSizing {
+  readonly visible: number | undefined;
+  readonly modelMax: number;
+  readonly grows: boolean;
+  readonly adds: boolean;
+}
+
+/** A budget beside the visible cap takes what the model's own cap leaves beside the visible answer. Where that is
+ *  less than the least the model thinks with, it takes part of the visible cap, never below
+ *  {@link visibleReserve}: the budget shrinks before the visible reply does. The model refuses a budget under its
+ *  range minimum, so where even that minimum does not fit beside the reserve, the minimum runs and the visible
+ *  reply gives way. */
+function fitBudgetBeside(budgetTokens: number, sizing: OutputSizing, range: Range | undefined, warnings: ResolvedWarning[]): number {
+  const visible = sizing.visible ?? 0;
+  const least = range?.min ?? DERIVED_BUDGET_FLOOR;
+  const room = Math.max(sizing.modelMax - visible, Math.min(least, sizing.modelMax - visibleReserve(visible)));
+  if (budgetTokens <= room) {
+    return budgetTokens;
+  }
+  const applied = Math.max(room, range?.min ?? 0);
+  warnings.push({
+    appliedBudget: applied,
+    code: "reasoning_budget_clamped",
+    message:
+      applied > room
+        ? `reasoning budget ${budgetTokens} does not fit beside the visible cap ${visible} within the model's ${sizing.modelMax}: runs at the model's least budget ${applied}, and the visible reply shrinks to fit`
+        : `reasoning budget ${budgetTokens} does not fit beside the visible cap ${visible} within the model's ${sizing.modelMax}: clamped to ${applied}`,
+  });
+  return applied;
+}
+
+/** The output cap the wire sends. A turn whose budget sits beside the cap and that reasons gets room for it: the
+ *  budget on a wire whose SDK adds it (the visible cap shortened only where the two would pass the model's cap),
+ *  else the visible cap plus the budget, or plus the effort's share of the budget range, within the model's cap. A
+ *  turn that does not reason, or that states no visible cap, sends the visible cap as-is. */
+function sentOutputCap(capability: GenerationCapability, reasoning: ResolvedReasoning, sizing: OutputSizing): number | undefined {
+  const { visible, modelMax } = sizing;
   if (visible === undefined || !reasoning.enabled) {
+    return visible;
+  }
+  if (sizing.adds && reasoning.budgetTokens !== undefined) {
+    return Math.min(visible, modelMax - reasoning.budgetTokens);
+  }
+  if (!sizing.grows) {
     return visible;
   }
   const effort = reasoning.effort ?? effectiveEffort({}, capability) ?? UNSTATED_ALLOWANCE_EFFORT;
   const allowance = reasoning.budgetTokens ?? budgetForEffort(effort, capability.reasoning.budgetRange ?? REASONING_ALLOWANCE_RANGE);
-  return Math.min(capability.output.maxTokens.max, visible + allowance);
+  return Math.min(modelMax, visible + allowance);
 }
 
 // The off turn: no effort, display or budget rides it, so the model's off spelling (`between-tools` takes no other
@@ -368,22 +418,22 @@ function offReasoning(capability: GenerationCapability, effort: UserIntent["effo
   return { mode: r.mode, enabled: false, offMode: reasoningOffModeOf(capability), ...(effort === EFFORT_OFF ? { offChosen: true } : {}) };
 }
 
-function resolveReasoning(
-  params: UserIntent,
-  capability: GenerationCapability,
-  maxOutputTokens: number | undefined,
-  warnings: ResolvedWarning[],
-): ResolvedReasoning {
+// A side-generation call reads only its reply text, so it asks for no reasoning display.
+function resolveReasoning(params: UserIntent, capability: GenerationCapability, sizing: OutputSizing, warnings: ResolvedWarning[]): ResolvedReasoning {
   const r = capability.reasoning;
   const { enabled, effort } = reasoningEnabledFor(params, capability, warnings);
   if (!enabled) {
     return offReasoning(capability, effort);
   }
-  const display = resolveDisplay(params.thinkingDisplay, r.displayModes, warnings) ?? defaultDisplay(r);
+  const display = sizing.grows ? undefined : (resolveDisplay(params.thinkingDisplay, r.displayModes, warnings) ?? defaultDisplay(r));
   const displayPart = display !== undefined ? { display } : {};
   if (r.mode === "budget") {
     const rawBudget = resolveBudget(params.thinkingBudgetTokens, r.budgetRange, effort);
-    const budgetTokens = rawBudget !== undefined ? clampBudgetToOutput(rawBudget, maxOutputTokens, r.budgetRange, warnings) : undefined;
+    const fitted = (budget: number): number =>
+      sizing.grows || sizing.adds
+        ? fitBudgetBeside(budget, sizing, r.budgetRange, warnings)
+        : clampBudgetToOutput(budget, sizing.visible, r.budgetRange, warnings);
+    const budgetTokens = rawBudget !== undefined ? fitted(rawBudget) : undefined;
     return { mode: r.mode, enabled, ...(budgetTokens !== undefined ? { budgetTokens } : {}), ...displayPart };
   }
   // D41: every budget-less mode drops a budget LOUDLY, adaptive and effort alike.
@@ -480,27 +530,6 @@ function stageOrderFor(
   return needsStage ? orderable : undefined;
 }
 
-/** A summarize/structured call's sampling through the chat turn's own gate: a knob the capability does not
- *  state drops with `sampling_knob_dropped`, a stated one is clamped into its range. The output cap stays the
- *  caller's. Side generation and chat therefore send the same knobs to the same model. */
-export function resolveTaskSampling(sampling: TaskSampling, capability: GenerationCapability, warnings: ResolvedWarning[]): TaskSampling {
-  // Reasoning is not a sampler: the wire resolves it through `resolveSideGenReasoning`, so it passes through.
-  const { maxTokens, effort, thinkingBudgetTokens, stop, drySequenceBreakers, bannedStrings, samplerOrder, ...knobs } = sampling;
-  const params: UserIntent = {
-    ...knobs,
-    ...(stop !== undefined ? { stop: [...stop] } : {}),
-    ...(drySequenceBreakers !== undefined ? { drySequenceBreakers: [...drySequenceBreakers] } : {}),
-    ...(bannedStrings !== undefined ? { bannedStrings: [...bannedStrings] } : {}),
-    ...(samplerOrder !== undefined ? { samplerOrder: [...samplerOrder] } : {}),
-  };
-  return {
-    ...resolveSampling(params, capability, warnings),
-    ...(maxTokens !== undefined ? { maxTokens } : {}),
-    ...(effort !== undefined ? { effort } : {}),
-    ...(thinkingBudgetTokens !== undefined ? { thinkingBudgetTokens } : {}),
-  };
-}
-
 /** The order this server runs for the preset's (`completeSamplerOrder`, D295). A stage the server cannot
  *  order is named in one drop warning. */
 function resolveSamplerOrder(
@@ -550,21 +579,41 @@ function resolveReplyImages(params: UserIntent, capability: GenerationCapability
   return true;
 }
 
-export function resolveChat(params: UserIntent, capability: GenerationCapability): ResolvedChatKnobs {
+/** What a turn's resolution depends on beyond the intent and the model. */
+export interface ResolveChatOptions {
+  /** {@link ChatPosture}; absent is a delivered chat turn. */
+  readonly posture?: ChatPosture | undefined;
+  /** The wire the turn rides, where the wire changes how a reasoning budget and the output cap combine. */
+  readonly wire?: Wire | undefined;
+}
+
+export function resolveChat(params: UserIntent, capability: GenerationCapability, options: ResolveChatOptions = {}): ResolvedChatKnobs {
   const warnings: ResolvedWarning[] = [];
-  // Resolve the output cap FIRST: the budget-mode reasoning clamp fits the reasoning budget under it.
-  const maxOutputTokens = params.maxOutputTokens !== undefined ? clampRange(params.maxOutputTokens, capability.output.maxTokens) : undefined;
-  const reasoning = resolveReasoning(params, capability, maxOutputTokens, warnings);
-  const sampling = resolveSampling(params, capability, warnings);
-  const verbosity = resolveVerbosity(params.verbosity, capability.verbosity, warnings);
-  const replyImages = resolveReplyImages(params, capability, warnings);
-  const carryReasoning = resolveCarryReasoning(params, capability, warnings);
+  const posture = options.posture ?? "chat";
+  const intent = postureIntent(params, capability, posture, warnings);
+  // Resolve the output cap FIRST: the budget-mode reasoning clamp fits the reasoning budget against it.
+  const visible = intent.maxOutputTokens !== undefined ? clampRange(intent.maxOutputTokens, capability.output.maxTokens) : undefined;
+  const sizing: OutputSizing = {
+    visible,
+    modelMax: capability.output.maxTokens.max,
+    grows: posture === "side-gen",
+    adds: options.wire !== undefined && WIRES_ADDING_THINKING_BUDGET.has(options.wire),
+  };
+  const reasoning = resolveReasoning(intent, capability, sizing, warnings);
+  const maxOutputTokens = sentOutputCap(capability, reasoning, sizing);
+  // Where the wire refuses a chosen off and the model then reasons at its own default, the cap a replay sends.
+  const replayMaxOutputTokens = reasoning.offChosen === true ? sentOutputCap(capability, { mode: reasoning.mode, enabled: true }, sizing) : maxOutputTokens;
+  const sampling = resolveSampling(intent, capability, warnings);
+  const verbosity = resolveVerbosity(intent.verbosity, capability.verbosity, warnings);
+  const replyImages = resolveReplyImages(intent, capability, warnings);
+  const carryReasoning = resolveCarryReasoning(intent, capability, warnings);
   return {
     turnId: mintTurnId(),
     reasoning,
     carryReasoning,
     sampling,
     ...(maxOutputTokens !== undefined ? { maxOutputTokens } : {}),
+    ...(replayMaxOutputTokens !== undefined ? { replayMaxOutputTokens } : {}),
     ...(verbosity !== undefined ? { verbosity } : {}),
     replyImages,
     warnings,

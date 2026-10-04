@@ -4,18 +4,17 @@
 
 import type { Capability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
-import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
-import type { BatchDeps } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
-import { runOpenAiCompatSummarize } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
+import { createOpenAiCompatBackend } from "../../../../packages/inference/src/backends/openai-compat/index.ts";
 import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
 import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
+import type { SummarizeRequest } from "../../../../packages/inference/src/contract/roles.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { testProviderId } from "../../../support/inference-identities.ts";
-import { fakeApiKeySecret, fakeResolved, memoryTokenLexicon } from "../../_support.ts";
+import { fakeApiKeySecret, fakeResolved, memoryStores, memoryTokenLexicon } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
-import { generationCapability, openAiTextStream, scriptedJsonFetch, scriptedSseFetch } from "../_hosted-support.ts";
+import { generationCapability, openAiTextStream, scriptedSseFetch } from "../_hosted-support.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "./_ollama-native-recordings.ts";
 
 const NOW = 1_700_000_000_000;
@@ -69,6 +68,21 @@ function localCapability(providerId: string): Capability {
 function silentLog(): Parameters<typeof runOpenAiCompatChatTurn>[1]["log"] {
   const noop = (): void => undefined;
   return { debug: noop, info: noop, warn: noop, error: noop };
+}
+
+/** A side-generation call on the wire's own backend, its items riding the chat turn this file pins. */
+function summarizeOver(fetchImpl: typeof fetch, req: SummarizeRequest): Promise<unknown> {
+  const { summarize } = createOpenAiCompatBackend({
+    now: () => NOW,
+    log: silentLog(),
+    fetch: fetchImpl,
+    app: APP,
+    snapshotStore: memoryStores().snapshotStore,
+  }).backend;
+  if (summarize === undefined) {
+    throw new Error("the openai-compat backend serves summarize");
+  }
+  return summarize(req);
 }
 
 function chatRequest(providerId: string, params: UserIntent): OpenAiCompatChatRequest {
@@ -239,15 +253,12 @@ test("KoboldCpp: a penalty spelling the user's own body sets stands alone, on a 
       { now: () => NOW, log: silentLog(), transport: { fetch: scriptedSseFetch([openAiTextStream("ok")], chat), app: APP }, tokens: memoryTokenLexicon() },
     );
     const batch: RecordedRequest[] = [];
-    await runOpenAiCompatSummarize(
-      { connection: { ...connection, task: "summarize" }, inputs: [{ systemPrompt: "Sum.", userPrompt: "Text." }], repetitionPenalty: 1.2, signal: undefined },
-      {
-        now: () => NOW,
-        log: silentLog(),
-        transport: { fetch: scriptedJsonFetch([COMPLETION], batch), app: APP },
-        normalize: passthroughImageNormalizer,
-      },
-    );
+    await summarizeOver(scriptedSseFetch([COMPLETION], batch), {
+      connection: { ...connection, task: "summarize" },
+      inputs: [{ systemPrompt: "Sum.", userPrompt: "Text." }],
+      repetitionPenalty: 1.2,
+      signal: undefined,
+    });
     return [chat[0]?.body ?? {}, batch[0]?.body ?? {}];
   };
   // The preset asks 1.2; the user's lower value is what runs, where ours on the other two spellings would win the
@@ -438,69 +449,44 @@ test("a declared spelling overrides one row key and keeps the row's others", asy
   expect(recorded[0]?.body).toMatchObject({ top_a_custom: 0.2, typical: 0.9 });
 });
 
-const COMPLETION = JSON.stringify({
-  id: "gen-batch",
-  object: "chat.completion",
-  created: 1_700_000_000,
-  model: MODEL,
-  choices: [{ index: 0, message: { role: "assistant", content: "A summary." }, finish_reason: "stop" }],
-  usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
-});
+const COMPLETION = openAiTextStream("A summary.");
 
 test("a side-generation call takes the chat turn's capability gate: OpenAI gets no top_k, and a 3.0 temperature clamps to the model's 2", async () => {
   const recorded: RecordedRequest[] = [];
-  const deps: BatchDeps = {
-    now: () => NOW,
-    log: silentLog(),
-    transport: { fetch: scriptedJsonFetch([COMPLETION], recorded), app: APP },
-    normalize: passthroughImageNormalizer,
-  };
-  await runOpenAiCompatSummarize(
-    {
-      connection: fakeResolved({
-        task: "summarize",
-        providerId: "openai",
-        model: "gpt-4.1",
-        capability: generationCapability({ sampling: { temperature: { min: 0, max: 2 } } }),
-        secret: fakeApiKeySecret("sk-not-a-real-key"),
-      }),
-      inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long scene." }],
-      temperature: 3,
-      topK: 40,
-      maxTokens: 256,
-    },
-    deps,
-  );
+  await summarizeOver(scriptedSseFetch([COMPLETION], recorded), {
+    connection: fakeResolved({
+      task: "summarize",
+      providerId: "openai",
+      model: "gpt-4.1",
+      capability: generationCapability({ sampling: { temperature: { min: 0, max: 2 } } }),
+      secret: fakeApiKeySecret("sk-not-a-real-key"),
+    }),
+    inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long scene." }],
+    temperature: 3,
+    topK: 40,
+    maxTokens: 256,
+  });
   expect(recorded[0]?.body["temperature"]).toBe(2);
   expect(recorded[0]?.body).not.toHaveProperty("top_k");
 });
 
 test("a side-generation call (a posture's temperature, the summarizer's penalties) reaches llama.cpp under the chat turn's spelling", async () => {
   const recorded: RecordedRequest[] = [];
-  const deps: BatchDeps = {
-    now: () => NOW,
-    log: silentLog(),
-    transport: { fetch: scriptedJsonFetch([COMPLETION], recorded), app: APP },
-    normalize: passthroughImageNormalizer,
-  };
-  await runOpenAiCompatSummarize(
-    {
-      connection: fakeResolved({
-        task: "summarize",
-        providerId: "llama-cpp",
-        model: MODEL,
-        capability: localCapability("llama-cpp"),
-        baseUrl: BASE_URL,
-        secret: fakeApiKeySecret("not-a-real-key"),
-      }),
-      inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long scene." }],
-      temperature: 0.4,
-      topK: 20,
-      repetitionPenalty: 1.05,
-      maxTokens: 256,
-    },
-    deps,
-  );
+  await summarizeOver(scriptedSseFetch([COMPLETION], recorded), {
+    connection: fakeResolved({
+      task: "summarize",
+      providerId: "llama-cpp",
+      model: MODEL,
+      capability: localCapability("llama-cpp"),
+      baseUrl: BASE_URL,
+      secret: fakeApiKeySecret("not-a-real-key"),
+    }),
+    inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long scene." }],
+    temperature: 0.4,
+    topK: 20,
+    repetitionPenalty: 1.05,
+    maxTokens: 256,
+  });
   expect(recorded[0]?.body).toMatchObject({ temperature: 0.4, top_k: 20, repeat_penalty: 1.05, max_tokens: 256 });
   expect(recorded[0]?.body["repetition_penalty"]).toBeUndefined();
 });

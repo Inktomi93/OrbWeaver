@@ -75,11 +75,11 @@ const useStartUnderstandingRun = createEntityMutation<StartWorkloadWire, Workloa
   options: (trpc) => trpc.workloads.start.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
   // The server's own sentence (an admission refusal, a run already going) is the reason; a fixed guess is not.
-  errorToast: (error) => `Couldn't start the understanding pass: ${errorMessage(error)}`,
+  errorToast: (error) => `Couldn't start sorting your characters: ${errorMessage(error)}`,
 });
 
 /** The pass's door, and the confirm's yes when it calls a model. */
-export const RUN_PASS_LABEL = "Run the understanding pass";
+export const RUN_PASS_LABEL = "Sort my characters";
 
 function isActive(status: WorkloadStatus): boolean {
   return (ACTIVE_WORKLOAD_STATUSES as readonly WorkloadStatus[]).includes(status);
@@ -237,7 +237,7 @@ export function useUnderstandingPass(): UnderstandingPassView {
     // mutation drops its errorToast.
     paidRun
       .confirmThen({
-        title: "Run the understanding pass?",
+        title: "Sort your characters?",
         confirmLabel: RUN_PASS_LABEL,
         estimates: (memoryDisabled ? PASS_KINDS.slice(0, 1) : PASS_KINDS).map((kind) => ({ input: { kind, params: {} }, mode: "singular" as const })),
         run: enqueueChain,

@@ -100,7 +100,7 @@ export function DatabankLibraryRow({
         menuItemsAfter: (
           <MenuItem onClick={(): void => onReindex(document.id)}>
             <Icon icon={RefreshCw} size="sm" />
-            Reindex
+            Rebuild search index
           </MenuItem>
         ),
       }}

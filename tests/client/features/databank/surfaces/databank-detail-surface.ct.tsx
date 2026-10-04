@@ -183,7 +183,7 @@ test("the detail states its metadata, keeps its Ready chip, and offers Reindex",
   await expect(workspace.getByRole("heading", { name: "The Crimson Court" })).toBeVisible();
 
   await expect(workspace.getByText("Ready", { exact: true })).toBeVisible();
-  await expect(workspace.getByText("application/pdf")).toBeVisible();
+  await expect(workspace.getByText("PDF", { exact: true })).toBeVisible();
   // ONE VOCABULARY, BOTH PANES (side-eye 2026-08-19 P2). The row two panes left says "12 passages"; this
   // readout said "Chunks · 12 / 12 embedded" — one number under two names, which reads as two facts.
   await expect(workspace.getByText("Passages", { exact: true })).toBeVisible();
@@ -195,7 +195,7 @@ test("the detail states its metadata, keeps its Ready chip, and offers Reindex",
   expect(pairs).toContainEqual(["Characters", "4,200"]);
   expect(pairs).toContainEqual(["Passages", "12"]);
 
-  await workspace.getByRole("button", { name: "Reindex" }).click();
+  await workspace.getByRole("button", { name: "Rebuild search index for this document" }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "document", documentId: READY_DOC.id } });
 });
 
@@ -223,7 +223,7 @@ test("the detail keeps a MEASURE at a desktop-wide pane — it does not spread w
   await stubDatabank(page);
   const wide = await mount(<DatabankDetailWideStory />);
   await wide.getByRole("button", { name: CRIMSON_ROW }).first().click();
-  await expect(wide.getByText("application/pdf")).toBeVisible();
+  await expect(wide.getByText("PDF", { exact: true })).toBeVisible();
   await expect
     .poll(
       async () =>
@@ -271,7 +271,7 @@ test("every readout row ties its label to its value — no gap to cross at any w
   await stubDatabank(page);
   const wide = await mount(<DatabankDetailWideStory />);
   await wide.getByRole("button", { name: CRIMSON_ROW }).first().click();
-  await expect(wide.getByText("application/pdf")).toBeVisible();
+  await expect(wide.getByText("PDF", { exact: true })).toBeVisible();
 
   const worstGap = await page.evaluate(() => {
     const pane = document.querySelector('[data-slot="databank-content"]');
@@ -535,14 +535,14 @@ const PROSE_WIDTHS = [1280, 1440, 1920] as const;
 const LAW_CHARACTERS_PER_LINE = 75;
 /** The Maintenance sentence's own opening — enough to find the paragraph, not the whole string, so the pin
  *  is about the MEASURE rather than about the wording. */
-const REINDEX_GLOSS = "Re-chunk and re-embed this document";
+const REINDEX_GLOSS = "Use this after a settings change";
 
 test("#1653 the Maintenance gloss reads inside the prose measure at every desktop width", async ({ mount, page }) => {
   await stubDatabank(page);
   const wide = await mount(<DatabankDetailWideStory />);
   await wide.getByRole("button", { name: CRIMSON_ROW }).first().click();
   // SETTLED: the document's own readout has painted, so the Maintenance section exists to measure.
-  await expect(wide.getByText("application/pdf")).toBeVisible();
+  await expect(wide.getByText("PDF", { exact: true })).toBeVisible();
   await expect(wide.getByText(REINDEX_GLOSS, { exact: false })).toBeVisible();
 
   const rows: string[] = [];

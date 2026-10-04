@@ -1,4 +1,4 @@
-// The outbound-image → Anthropic Messages content-block seam (MA-10), used by the agent-sdk summarize path.
+// The outbound-image → Anthropic Messages content-block seam (MA-10), used by the agent-sdk streaming-input prompt.
 // Bytes ride the shared `NormalizeImageBytes` seam (GIF → first-frame PNG, else PNG-labelled) BEFORE
 // base64-encoding — identical to the OpenAI-shaped `data:` URL path, projected onto the Anthropic block
 // shape. The block shape is spelled STRUCTURALLY here rather than imported from `@anthropic-ai/sdk`: the

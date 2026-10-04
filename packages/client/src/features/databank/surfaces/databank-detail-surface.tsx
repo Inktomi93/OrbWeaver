@@ -35,7 +35,16 @@ import { renameActionName, timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
-import { characterCount, ingestBadge, ingestEmptyHint, ingestPhase, ingestStallHint, originLabel, passageTally } from "../lib/databank-model.ts";
+import {
+  characterCount,
+  documentTypeLabel,
+  ingestBadge,
+  ingestEmptyHint,
+  ingestPhase,
+  ingestStallHint,
+  originLabel,
+  passageTally,
+} from "../lib/databank-model.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -172,7 +181,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
       { scope: { kind: "document", documentId } },
       {
         onSuccess: (): void => {
-          toast.add({ title: "Reindexing started — the chunk counts refresh as it runs." });
+          toast.add({ title: "Rebuilding the search index — the counts refresh as it runs." });
         },
       },
     );
@@ -240,7 +249,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
               See `cols="readout"`'s own note for why the knob-row token stopped being right here. */}
           <Grid className="items-baseline" cols="readout" gap="row">
             <DetailRow label="Origin" value={originLabel(doc.origin)} />
-            <DetailRow label="Type" value={doc.mime} />
+            <DetailRow label="Type" value={documentTypeLabel(doc.mime)} />
             <DetailRow label="Size" value={formatBytes(doc.byteSize)} />
             {/* THE LABEL CARRIES THE UNIT (side-eye 2026-08-19 N-3): the values are bare numbers, grouped
                 by the feature's one number convention — "Passages 12", never "Passages 12 passages". The
@@ -274,11 +283,11 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
                 the worst case; it does not tie the pair"). The button rides its own sentence. */}
             <Row align="center" gap="row" justify="start">
               <Text className="min-w-0 max-w-(--reading-measure-prose)" voice="gloss">
-                Re-chunk and re-embed this document — after a settings change, or to heal a partial index.
+                Use this after a settings change, or if search misses this document.
               </Text>
               <Button disabled={reindex.isPending} intent="secondary" onClick={onReindex} size="sm">
                 <Icon icon={RefreshCw} size="sm" />
-                Reindex
+                Rebuild search index for this document
               </Button>
             </Row>
             {/* A stuck-ingest signal: a doc parked in Queued/Indexing well past its last update likely

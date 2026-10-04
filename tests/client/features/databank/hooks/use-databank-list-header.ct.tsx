@@ -15,7 +15,7 @@ const DIALOG_FLOOR_SLACK_PX = 24;
  *  into dropping the floor the strip's stillness depends on. */
 const RESERVED_REGION_PX = 384;
 
-// BOTH SWEEPS CONFIRM (side-eye 2026-08-19 P3) — a superseded ruling, recorded. `Reindex everything` used
+// BOTH SWEEPS CONFIRM (side-eye 2026-08-19 P3) — a superseded ruling, recorded. `Rebuild all documents` used
 // to fire BARE while its slower sibling sat behind a dialog, on the reasoning that re-extract is "the
 // expensive arm". The scope is what earns the dialog, not the runtime: the one owner-wide sweep a mis-aimed
 // menu click could start was the one with no way back. Nothing is deleted by either, so both confirms stay
@@ -25,21 +25,21 @@ test("the maintenance kebab fires the owner-wide sweep, and BOTH arms wait for a
   const band = await mount(<DatabankListHeaderStory />);
 
   await band.getByRole("button", { name: "Databank maintenance" }).click();
-  await page.getByRole("menuitem", { name: "Reindex everything" }).click();
+  await page.getByRole("menuitem", { name: "Rebuild all documents" }).click();
   // At the SETTLED open-confirm state, nothing has been sent.
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await expect.poll(() => trpc.count("databank.reindex"), { intervals: [20, 50, 100] }).toBe(0);
 
-  await page.getByRole("alertdialog").getByRole("button", { name: "Reindex", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Rebuild", exact: true }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "owner" }, mode: "chunk-embed" });
 
   await band.getByRole("button", { name: "Databank maintenance" }).click();
-  await page.getByRole("menuitem", { name: "Re-extract everything" }).click();
+  await page.getByRole("menuitem", { name: "Re-read all documents" }).click();
   // The expensive arm is dialog-gated — at the settled open-confirm state, still ONE call: the one above.
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await expect.poll(() => trpc.count("databank.reindex"), { intervals: [20, 50, 100] }).toBe(1);
 
-  await page.getByRole("alertdialog").getByRole("button", { name: "Re-extract", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Re-read", exact: true }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "owner" }, mode: "re-extract" });
 });
 
@@ -58,9 +58,9 @@ test("both owner-wide sweeps are closed over an empty bank", async ({ mount, pag
   const band = await mount(<DatabankListHeaderStory />);
 
   await band.getByRole("button", { name: "Databank maintenance" }).click();
-  const reindex = page.getByRole("menuitem", { name: "Reindex everything" });
+  const reindex = page.getByRole("menuitem", { name: "Rebuild all documents" });
   await expect(reindex).toHaveAttribute("data-disabled", "");
-  await expect(page.getByRole("menuitem", { name: "Re-extract everything" })).toHaveAttribute("data-disabled", "");
+  await expect(page.getByRole("menuitem", { name: "Re-read all documents" })).toHaveAttribute("data-disabled", "");
 
   // …and it is disabled in the way that matters: activating it opens no confirm and sends nothing.
   await reindex.click({ force: true });
@@ -79,7 +79,7 @@ test("the sweeps' disabled reason is scoped to the empty bank — a stocked one 
   const band = await mount(<DatabankListHeaderStory />);
 
   await band.getByRole("button", { name: "Databank maintenance" }).click();
-  await expect(page.getByRole("menuitem", { name: "Reindex everything" })).not.toHaveAttribute("data-disabled", "");
+  await expect(page.getByRole("menuitem", { name: "Rebuild all documents" })).not.toHaveAttribute("data-disabled", "");
   await expect(page.getByText("Add a document first — these sweeps run over your whole bank.")).toHaveCount(0);
 });
 
@@ -252,7 +252,7 @@ test("a FAILED bank census does not tell a stocked bank to add a document first 
   await band.getByRole("button", { name: "Databank maintenance" }).click();
   await expect(page.getByText("Couldn't check your bank, so these sweeps stay closed.")).toBeVisible();
   await expect(page.getByText("Add a document first — these sweeps run over your whole bank.")).toHaveCount(0);
-  await expect(page.getByRole("menuitem", { name: "Reindex everything" })).toHaveAttribute("data-disabled", "");
+  await expect(page.getByRole("menuitem", { name: "Rebuild all documents" })).toHaveAttribute("data-disabled", "");
 
   // …and the closed door has a way out: the re-read is its own item, because a group LABEL cannot be
   // actioned and a disabled MenuItem takes no pointer events.

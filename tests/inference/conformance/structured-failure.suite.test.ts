@@ -3,18 +3,17 @@
 // arm is #1400's shape in the non-streaming task: a collapse-to-null that hands a caller a "successful"
 // structured answer with nothing in it, which then gets written as if the model had said it.
 //
-// WHAT "MALFORMED" IS PER WIRE, and why it is not one fixture. The hosted wires take `structured` over a
-// non-streaming `doGenerate`, so the malformed input is a truncated HTTP body (`{"choices": `) — the literal
-// shape a socket cut mid-response produces. The agent-sdk wire has no HTTP body at all; its analogue is a
-// `result` frame with NO `structured_output`, which is what the bundled runtime produces when its schema pass
-// yields nothing. Same law, two renderings — the harness owns both.
+// WHAT "MALFORMED" IS PER WIRE, and why it is not one fixture. The hosted wires take `structured` as a chat turn
+// over the stream, so the malformed input is an event whose JSON is cut off (`{"choices": `) — the literal shape a
+// socket cut mid-event produces. The agent-sdk wire has no HTTP body at all; its analogue is a `result` frame with
+// NO `structured_output`, which is what the bundled runtime produces when its schema pass yields nothing. Same law,
+// two renderings — the harness owns both.
 //
 // WHAT THESE PINS WOULD CATCH
-//  · Remove `serializeStructured`'s `structuredOutput === undefined` throw in
-//    `backends/agent-sdk/summarize.ts` and that wire resolves an item whose `text` is the string
-//    `"undefined"` — a blank answer laundered into a record. Only this arm reds.
-//  · Turn `backends/v4/batch.ts::runItem`'s catch into a swallow-and-return-empty and both hosted wires
-//    resolve with zero items while every shape check in the tree still passes.
+//  · Remove the runner's missing-`structured_output` throw in `backends/agent-sdk/runner.ts` and that wire resolves
+//    the turn's prose as the payload — an answer laundered into a record. Only this arm reds.
+//  · Turn `roles/side-gen.ts`'s item failure into a swallow-and-return-empty and every hosted wire resolves with
+//    zero items while every shape check in the tree still passes.
 //  · Change the classification so a malformed body reports `retryable: true` and the ERROR-KIND table below
 //    reds — a deterministic shape disagreement that is retried just re-buys the same refusal.
 //
@@ -59,7 +58,7 @@ test("the structured-failure kinds each wire reaches — a drifting classificati
     observed[wire] = error?.kind ?? "RESOLVED";
   }
   expect(observed).toEqual({
-    // The hosted pair: the SDK's own parse of a truncated body fails before any content exists, and that
+    // The hosted wires: the SDK's own parse of a truncated event fails before any content exists, and that
     // surfaces through `providerErrorFromHttp`'s transport-name fallback.
     "openai-compat": "unknown",
     "anthropic-messages": "unknown",

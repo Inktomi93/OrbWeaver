@@ -243,7 +243,7 @@ async function stubDeployment(page: Page, opts: { readonly externalMediaBlocked:
 const stubExternalMediaBlocked = async (page: Page, blocked: boolean): Promise<void> =>
   await stubDeployment(page, { externalMediaBlocked: blocked, interactiveCards: true });
 
-const LOCK_COPY_RE = /External media is blocked deployment-wide/u;
+const LOCK_COPY_RE = /External media: blocked for everyone by your admin/u;
 
 test("deployment BLOCKS external media → the per-character control is disabled + explained (no dead switch)", async ({ mount, page }) => {
   await stubExternalMediaBlocked(page, true);
@@ -274,10 +274,10 @@ const INTERACTIVE_VALUE_RE = /Interactive/u;
 /** The note shown ONLY while the deployment ceiling is down (#111 leg 3). It replaces leg 1's "card scripts
  *  stay switched off until the security review lands" copy, which became false when the grant landed — an
  *  assertion update the grant REQUIRED, since the whole point is that the rung now does something. */
-const CEILING_DOWN_COPY_RE = /Interactive is switched off deployment-wide/u;
+const CEILING_DOWN_COPY_RE = /Interactive is turned off by your admin/u;
 /** The ladder gloss, always shown. Pinned on the clause that describes the CAPABILITY, so a future edit that
  *  quietly re-softens it back to "scripts are off" reds here. */
-const LADDER_COPY_RE = /Interactive is Render HTML plus cards that run their own scripts/u;
+const LADDER_COPY_RE = /Interactive: cards can run scripts in a sealed frame/u;
 
 /** The `character.update` input carried by the most recent write. */
 function lastUpdateInput(trpc: TrpcRecorder): Record<string, unknown> | undefined {
@@ -290,7 +290,7 @@ test("the HTML rendering control offers the ladder IN ORDER, with Inherit as the
   await mount(<CharacterTrustTabStory />);
 
   await page.getByRole("combobox", { name: "HTML rendering" }).click();
-  await expect(page.getByRole("option")).toHaveText(["Inherit default", "Untrusted", "Render HTML", "Interactive"]);
+  await expect(page.getByRole("option")).toHaveText(["Inherit default", "Plain text", "Rich HTML", "Interactive"]);
 });
 
 test("picking Interactive WRITES the render trust it implies — the incoherent pair is unwritable (#111)", async ({ mount, page }) => {
@@ -310,11 +310,11 @@ test("the lower rungs write the pair too — Render HTML is trusted-but-static, 
   await mount(<CharacterTrustTabStory />);
 
   await page.getByRole("combobox", { name: "HTML rendering" }).click();
-  await page.getByRole("option", { name: "Render HTML", exact: true }).click();
+  await page.getByRole("option", { name: "Rich HTML", exact: true }).click();
   await expect.poll(() => lastUpdateInput(trpc), { intervals: [20, 50, 100] }).toEqual({ trustHtml: true, interactiveHtml: false });
 
   await page.getByRole("combobox", { name: "HTML rendering" }).click();
-  await page.getByRole("option", { name: "Untrusted", exact: true }).click();
+  await page.getByRole("option", { name: "Plain text", exact: true }).click();
   await expect.poll(() => lastUpdateInput(trpc), { intervals: [20, 50, 100] }).toEqual({ trustHtml: false, interactiveHtml: false });
 });
 
@@ -390,7 +390,7 @@ test("with the ceiling revoked the same untouched card resolves below the rung",
   await route(page, null);
   await mount(<CharacterTrustTabStory />);
 
-  await expect(page.locator(RESOLVED_STEP)).toContainText("Untrusted");
+  await expect(page.locator(RESOLVED_STEP)).toContainText("Plain text");
   await expect(page.locator(RESOLVED_STEP)).not.toContainText("Interactive");
 });
 
@@ -405,7 +405,7 @@ test("Render HTML stored on the card is the per-character disable even with the 
   });
   await mount(<CharacterTrustTabStory />);
 
-  await expect(page.locator(RESOLVED_STEP)).toContainText("Render HTML");
+  await expect(page.locator(RESOLVED_STEP)).toContainText("Rich HTML");
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────

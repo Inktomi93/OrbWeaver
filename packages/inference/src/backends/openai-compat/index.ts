@@ -8,11 +8,12 @@ import type { ProviderBackend } from "../../contract/backend.ts";
 import type { ChatRequest, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
+import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceDeps } from "../../deps.ts";
+import { runSideGen } from "../../roles/side-gen.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
-import { runOpenAiCompatStructured, runOpenAiCompatSummarize } from "./batch.ts";
 import { runOpenAiCompatChatTurn } from "./chat.ts";
 import { inspectOpenAiCompatEndpoint, listOpenAiCompatModels, openRouterCredits, openRouterGenerationCost, probeOpenAiCompat } from "./diagnostics.ts";
 import { runOpenAiCompatEmbed } from "./embed.ts";
@@ -107,27 +108,32 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
   };
   const tokens = createTokenLexicon({ fetch: deps.fetch, snapshotStore: deps.snapshotStore });
   const chatDeps = { now: deps.now, random: deps.random, log: deps.log, addSpanEvent: deps.addSpanEvent, transport, tokens };
-  const batchDeps = { now: deps.now, log: deps.log, transport, normalize };
   const diagnostics = { fetch: deps.fetch, now: deps.now };
   const reachability = createReachabilityProber({ fetch: deps.fetch, now: deps.now });
   const awake = wakeBeforeSend(reachability);
+  const chatTurn = async (req: ChatRequest): Promise<ChatResult> => {
+    if (!isOpenAiCompatChatRequest(req)) {
+      throw new ProviderError({ kind: "invalid", retryable: false, message: `openai-compat backend received api="${req.api}"` });
+    }
+    return await runOpenAiCompatChatTurn(req, chatDeps);
+  };
+  // The server is woken once per batch; each item is a chat turn on it.
+  const sideGen = (req: SummarizeRequest | StructuredRequest): ReturnType<typeof runSideGen> =>
+    runSideGen(req, { runChatTurn: chatTurn, concurrency: req.connection.features.concurrency?.summarize ?? 1, normalize, log: deps.log, now: deps.now });
   return {
     reachability,
     tokens,
     backend: {
       wire: "openai-compat",
       runChatTurn: async (req): Promise<ChatResult> => {
-        if (!isOpenAiCompatChatRequest(req)) {
-          throw new ProviderError({ kind: "invalid", retryable: false, message: `openai-compat backend received api="${req.api}"` });
-        }
         await awake(req);
-        return await runOpenAiCompatChatTurn(req, chatDeps);
+        return await chatTurn(req);
       },
       embed: woken(awake, (req) => runOpenAiCompatEmbed(req, { log: deps.log, transport })),
       rerank: woken(awake, (req) => runOpenAiCompatRerank(req, { fetch: deps.fetch, normalize, log: deps.log })),
       imageEmbed: woken(awake, (req) => runOpenAiCompatImageEmbed(req, { fetch: deps.fetch, normalize })),
-      summarize: woken(awake, (req) => runOpenAiCompatSummarize(req, batchDeps)),
-      structured: woken(awake, (req) => runOpenAiCompatStructured(req, batchDeps)),
+      summarize: woken(awake, sideGen),
+      structured: woken(awake, sideGen),
       generateImage: woken(awake, (req) => runOpenAiCompatGenerateImage(req, { transport, normalize })),
       probe: (req) => probeOpenAiCompat(req, diagnostics),
       accountCredits: (req) => openRouterCredits(req, diagnostics),

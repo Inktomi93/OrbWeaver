@@ -160,12 +160,7 @@ test("native structured output uses JSON schema and summary safety refuses", asy
   let body: Record<string, unknown> = {};
   const native = backend((_url, init) => {
     body = z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body)));
-    return Promise.resolve(
-      Response.json({
-        candidates: [{ content: { parts: [{ text: '{"ok":true}' }] }, finishReason: "STOP" }],
-        usageMetadata: { promptTokenCount: 3, candidatesTokenCount: 4 },
-      }),
-    );
+    return Promise.resolve(sse([{ text: '{"ok":true}' }]));
   });
   const result = await native.structured({
     connection: connection("structured"),
@@ -174,7 +169,7 @@ test("native structured output uses JSON schema and summary safety refuses", asy
   });
   expect(result.items[0]?.text).toBe('{"ok":true}');
   expect(body["generationConfig"]).toMatchObject({ responseMimeType: "application/json" });
-  const refused = backend(() => Promise.resolve(Response.json({ candidates: [{ content: { parts: [] }, finishReason: "SAFETY" }] })));
+  const refused = backend(() => Promise.resolve(sse([], "SAFETY")));
   await expect(refused.summarize({ connection: connection("summarize"), inputs: [{ systemPrompt: "Summarize", userPrompt: "text" }] })).rejects.toMatchObject({
     kind: "refused",
   });
@@ -184,7 +179,7 @@ test("responseJsonSchema carries the gemini-schema scrub: a length bound becomes
   let body: Record<string, unknown> = {};
   const native = backend((_url, init) => {
     body = z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body)));
-    return Promise.resolve(Response.json({ candidates: [{ content: { parts: [{ text: '{"name":"a","n":2}' }] }, finishReason: "STOP" }] }));
+    return Promise.resolve(sse([{ text: '{"name":"a","n":2}' }]));
   });
   await native.structured({
     connection: connection("structured"),
@@ -432,7 +427,7 @@ test("utility calls pay for mandatory thinking in maxOutputTokens; an off call k
     const bodies: Record<string, unknown>[] = [];
     const native = backend((_url, init) => {
       bodies.push(z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body))));
-      return Promise.resolve(Response.json({ candidates: [{ content: { parts: [{ text: "ok" }] }, finishReason: "STOP" }] }));
+      return Promise.resolve(sse([{ text: "ok" }]));
     });
     await native.summarize({
       connection: connection("summarize", model),
@@ -451,7 +446,7 @@ test("a Utility preset that sets only a thinking budget runs Gemini 2.5 at that 
     const bodies: Record<string, unknown>[] = [];
     const native = backend((_url, init) => {
       bodies.push(z.record(z.string(), z.unknown()).parse(JSON.parse(String(init?.body))));
-      return Promise.resolve(Response.json({ candidates: [{ content: { parts: [{ text: "ok" }] }, finishReason: "STOP" }] }));
+      return Promise.resolve(sse([{ text: "ok" }]));
     });
     await native.summarize({
       connection: connection("summarize", model),

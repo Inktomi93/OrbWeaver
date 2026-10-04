@@ -4,9 +4,11 @@ import type { ChatRequest, ChatResult, GoogleChatRequest } from "../../contract/
 import type { ListModelsRequest, ProbeRequest } from "../../contract/diagnostics.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { GoogleBackend, GoogleBackendDeps } from "../../contract/google.ts";
+import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
+import { runSideGen } from "../../roles/side-gen.ts";
+import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
 import { scrubbedReason } from "../kit/model-listing.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
-import { runGoogleBatch } from "./batch.ts";
 import { runGoogleChat } from "./chat.ts";
 import { runGoogleEmbed, runGoogleImageEmbed } from "./embed.ts";
 import { runGoogleGenerateImage } from "./images.ts";
@@ -39,16 +41,20 @@ function isGoogleRequest(req: ChatRequest): req is GoogleChatRequest {
 }
 
 export function createGoogleBackend(deps: GoogleBackendDeps): GoogleBackend {
+  const normalize = deps.imageToPng === undefined ? passthroughImageNormalizer : createImageNormalizer(deps.imageToPng);
+  const runChatTurn = (req: ChatRequest): Promise<ChatResult> => {
+    if (!isGoogleRequest(req)) {
+      return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: `Google backend received api=${req.api}` }));
+    }
+    return runGoogleChat(req, deps);
+  };
+  const sideGen = (req: SummarizeRequest | StructuredRequest): ReturnType<typeof runSideGen> =>
+    runSideGen(req, { runChatTurn, concurrency: req.connection.features.concurrency?.summarize ?? 1, normalize, log: deps.log, now: deps.now });
   return {
     wire: "google-generative-ai",
-    runChatTurn: (req): Promise<ChatResult> => {
-      if (!isGoogleRequest(req)) {
-        return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: `Google backend received api=${req.api}` }));
-      }
-      return runGoogleChat(req, deps);
-    },
-    summarize: (req) => runGoogleBatch(req, deps),
-    structured: (req) => runGoogleBatch(req, deps),
+    runChatTurn,
+    summarize: sideGen,
+    structured: sideGen,
     embed: (req) => runGoogleEmbed(req, deps),
     imageEmbed: (req) => runGoogleImageEmbed(req, deps),
     generateImage: (req) => runGoogleGenerateImage(req, deps),

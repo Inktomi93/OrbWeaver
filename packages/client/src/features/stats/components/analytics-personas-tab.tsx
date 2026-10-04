@@ -18,7 +18,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
-import { formatAccountingLabel, formatCompact, formatTokens, personaBarItems } from "../lib/analytics-view-model.ts";
+import { formatAccountingLabel, formatCompact, formatCompactNoun, formatTokens, personaBarItems } from "../lib/analytics-view-model.ts";
 
 export function AnalyticsPersonasTab(): ReactElement {
   return (
@@ -65,7 +65,7 @@ function PersonasBody(): ReactElement {
               <Stack aria-posinset={index + 1} aria-setsize={personas.length} gap="field" key={persona.personaId} role="listitem">
                 <ListRow
                   title={persona.name}
-                  subtitle={`${formatCompact(persona.chatCount)} chats · ${formatCompact(persona.messageCount)} messages${persona.lastUsedAt === null ? "" : ` · last used ${timeLib.formatRelative(persona.lastUsedAt)}`}`}
+                  subtitle={`${formatCompactNoun(persona.chatCount, "chat", "chats")} · ${formatCompactNoun(persona.messageCount, "message", "messages")}${persona.lastUsedAt === null ? "" : ` · last used ${timeLib.formatRelative(persona.lastUsedAt)}`}`}
                   actions={
                     <Text voice="gloss" className="whitespace-nowrap font-mono">
                       {formatTokens(persona.tokensOut, persona.tokensOutProvenance)}

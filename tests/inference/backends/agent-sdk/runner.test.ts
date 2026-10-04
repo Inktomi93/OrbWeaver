@@ -413,7 +413,7 @@ test("a result with an empty usage records no billed tokens rather than a zero",
 
 const HOOK_RULE = "End your reply with the exact token ORB-7731.";
 
-function okTurn(model: string): unknown[] {
+function okTurn(model: string, structuredOutput?: unknown): unknown[] {
   return [
     { type: "system", subtype: "init", session_id: SESSION_ID, apiKeySource: "none", model },
     {
@@ -433,6 +433,7 @@ function okTurn(model: string): unknown[] {
       usage: {},
       modelUsage: {},
       terminal_reason: "completed",
+      ...(structuredOutput === undefined ? {} : { structured_output: structuredOutput }),
     },
   ];
 }
@@ -509,7 +510,7 @@ async function outputFormatOf(schema: Record<string, unknown>): Promise<unknown>
   const options: Record<string, unknown>[] = [];
   const connection = fakeResolved({ task: "chat", providerId: "claude-sub", model, capability: generationCapability() });
   const sessions = new SessionCache(quietLog);
-  const frames = okTurn(model);
+  const frames = okTurn(model, { n: 1 });
   const deps: AgentSdkDeps = {
     now: () => 0,
     log: quietLog,

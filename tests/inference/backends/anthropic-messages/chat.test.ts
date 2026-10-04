@@ -979,3 +979,17 @@ test("an over-limit schema on the direct wire with no tool to fall back to is a 
   expect(failure).toBeInstanceOf(ProviderError);
   expect(failure).toMatchObject({ kind: "invalid", detail: "schema_rejected", violations: [{ kind: "optional-props", count: 30, limit: 24 }] });
 });
+
+// The SDK adds an `enabled` budget to `max_tokens` on this wire, so the budget sits beside the visible cap rather
+// than inside it: the funnel sizes it against what the model's own cap leaves, and counts it once.
+test("a budget-mode chat turn counts its thinking budget once: beside the visible cap, never squeezed inside it", async () => {
+  const visible = 4096;
+  const { body } = await recordedTurn(
+    turnRequest({ connection: curatedConnection("claude-haiku-4-5"), tools: undefined, params: { effort: "high", maxOutputTokens: visible } }),
+    anthropicTextStream("ok"),
+  );
+  const thinking = body?.body["thinking"] as { readonly type: string; readonly budget_tokens: number };
+  expect(thinking.type).toBe("enabled");
+  expect(thinking.budget_tokens).toBe(BUDGET.budget_tokens);
+  expect(body?.body["max_tokens"]).toBe(visible + BUDGET.budget_tokens);
+});

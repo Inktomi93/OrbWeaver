@@ -66,10 +66,12 @@ export function renderSingleBubble(args: {
       <Stack
         gap="row"
         data-slot="message-bubble"
-        // `relative overflow-hidden` ONLY when the Echo fallback tile is present — it anchors the
+        // `relative overflow-clip` ONLY when the Echo fallback tile is present — it anchors the
         // absolutely-positioned tile and clips its feather to the bubble's `rounded-card` corners. No
-        // other mode/kind reaches this (the plain bubble is byte-identical without a tile).
-        className={cn(args.bubbleClassName, edgeTile !== undefined && "relative overflow-hidden")}
+        // other mode/kind reaches this (the plain bubble is byte-identical without a tile). `clip`, not
+        // `hidden`: a hidden overflow makes the bubble a scroll container, and the sticky header would then
+        // stick to the bubble and never pin to the transcript's scrollport.
+        className={cn(args.bubbleClassName, edgeTile !== undefined && "relative overflow-clip")}
         style={bubbleStyle}
       >
         {edgeTile === undefined ? null : (

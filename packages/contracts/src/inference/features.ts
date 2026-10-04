@@ -208,8 +208,8 @@ export const endpointFeaturesSchema = z.object({
   /** The #187 per-POST token ceiling + derived deadline on embed: item-count batching alone let a 128-item
    *  POST reach ~1M tokens and head-of-line-block every other caller. Server-specific, so a feature. */
   embedBatch: z.object({ maxTokens: z.number().int().positive(), floorTokensPerSec: z.number().positive() }).optional(),
-  /** The deadline base for every NON-CHAT POST on the row (today only the embed POST carried one — a stated
-   *  widening, pinned per surface). */
+  /** The row's request deadline: the embed POST's deadline base, and the idle ceiling (the longest a turn may go
+   *  without a received chunk) of every HTTP chat turn and of an agent-sdk side-generation turn. */
   requestTimeoutMs: z.number().int().positive().optional(),
 });
 export type EndpointFeatures = z.infer<typeof endpointFeaturesSchema>;

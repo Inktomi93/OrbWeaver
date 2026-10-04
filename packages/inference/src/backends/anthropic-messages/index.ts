@@ -11,15 +11,16 @@ import type { AnthropicChatRequest, ChatRequest, ChatResult } from "../../contra
 import type { ListModelsRequest, ProbeRequest } from "../../contract/diagnostics.ts";
 import type { ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError } from "../../contract/errors.ts";
+import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceDeps } from "../../deps.ts";
+import { runSideGen } from "../../roles/side-gen.ts";
 import { fetchJson } from "../kit/fetch-json.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../kit/model-listing.ts";
 import { redactSecretsFromText } from "../kit/openai-body.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
-import { runAnthropicStructured, runAnthropicSummarize } from "./batch.ts";
 import { runAnthropicChatTurn } from "./chat.ts";
 import type { AnthropicTransportDeps } from "./model.ts";
 import { anthropicBaseUrl } from "./model.ts";
@@ -29,6 +30,8 @@ const VERSION_HEADER = "anthropic-version";
 const API_VERSION = "2023-06-01";
 const MODELS_PATH = "/models";
 const AUTH_FAILURE_RE = /\b401\b|\b403\b|unauthor|forbidden|invalid[\s_-]?api[\s_-]?key/iu;
+/** Side-generation items in flight when the row states no `features.concurrency.summarize`. */
+const DEFAULT_CONCURRENCY = 4;
 
 const modelsSchema = z.object({ data: z.array(z.object({ id: z.string(), display_name: z.string().optional() }).loose()) }).loose();
 
@@ -114,17 +117,25 @@ export function createAnthropicBackend(deps: AnthropicBackendDeps): ProviderBack
     ...(deps.captureWireReply !== undefined ? { captureWireReply: deps.captureWireReply } : {}),
   };
   const chatDeps = { now: deps.now, random: deps.random, log: deps.log, addSpanEvent: deps.addSpanEvent, transport };
-  const batchDeps = { now: deps.now, log: deps.log, transport, normalize };
+  const runChatTurn = (req: ChatRequest): Promise<ChatResult> => {
+    if (!isAnthropicChatRequest(req)) {
+      return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: `anthropic-messages backend received api="${req.api}"` }));
+    }
+    return runAnthropicChatTurn(req, chatDeps);
+  };
+  const sideGen = (req: SummarizeRequest | StructuredRequest): ReturnType<typeof runSideGen> =>
+    runSideGen(req, {
+      runChatTurn,
+      concurrency: req.connection.features.concurrency?.summarize ?? DEFAULT_CONCURRENCY,
+      normalize,
+      log: deps.log,
+      now: deps.now,
+    });
   return {
     wire: "anthropic-messages",
-    runChatTurn: (req): Promise<ChatResult> => {
-      if (!isAnthropicChatRequest(req)) {
-        return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: `anthropic-messages backend received api="${req.api}"` }));
-      }
-      return runAnthropicChatTurn(req, chatDeps);
-    },
-    summarize: (req) => runAnthropicSummarize(req, batchDeps),
-    structured: (req) => runAnthropicStructured(req, batchDeps),
+    runChatTurn,
+    summarize: sideGen,
+    structured: sideGen,
     probe: (req) => probe(req, deps.fetch, deps.now),
     listModels: (req) => listAnthropicModels(dialOf(req), deps.fetch),
   };

@@ -6,6 +6,7 @@
 import { createSdkMcpServer, query, tool } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel, ModelCatalogEntry, ModelListing } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
+import { AGENT_SDK_CONCURRENCY_MAX } from "@orb/contracts/settings";
 import type { ZodRawShape } from "zod";
 import type { AgentToolServer, AgentTurnRequest } from "../../contract/agent.ts";
 import type { ProviderBackend } from "../../contract/backend.ts";
@@ -16,6 +17,7 @@ import type { Resolved } from "../../contract/resolved.ts";
 import type { StructuredRequest, SummarizeRequest } from "../../contract/roles.ts";
 import type { SpawnIdentity } from "../../contract/runtime.ts";
 import type { InferenceDeps } from "../../deps.ts";
+import { runSideGen } from "../../roles/side-gen.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
 import { bareCatalogEntry, failedListing, listingOf } from "../kit/model-listing.ts";
@@ -27,7 +29,6 @@ import { buildClaudeSdkEnv } from "./env.ts";
 import { createAgentSdkLog } from "./log.ts";
 import { runChatTurn } from "./runner.ts";
 import { SessionCache } from "./session/index.ts";
-import { summarize } from "./summarize.ts";
 import type { AgentSdkDeps } from "./types.ts";
 
 export type { SessionEntryWriter } from "./session/index.ts";
@@ -103,19 +104,35 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
   };
   const logFor = (connection: Pick<Resolved, "providerId">): ReturnType<typeof createAgentSdkLog> => createAgentSdkLog(deps.log, connection.providerId);
   const catalogLog = createAgentSdkLog(deps.log, "claude-sub");
+  const chatTurn = (req: ChatRequest): Promise<ChatResult> => {
+    if (req.api !== "agent-sdk") {
+      return Promise.reject(
+        new ProviderError({ kind: "invalid", retryable: false, message: `agent-sdk backend received a non-agent-sdk request (api="${req.api}")` }),
+      );
+    }
+    return runChatTurn(req, resolved, sessions, logFor(req.connection));
+  };
+  // Read per batch so an admin retune applies to the next one.
+  const sideGen = (req: SummarizeRequest | StructuredRequest): ReturnType<typeof runSideGen> => {
+    const concurrency = resolved.summarizeConcurrency();
+    if (!Number.isSafeInteger(concurrency) || concurrency <= 0 || concurrency > AGENT_SDK_CONCURRENCY_MAX) {
+      return Promise.reject(
+        new ProviderError({
+          kind: "invalid",
+          retryable: false,
+          message: `agent-sdk: summarize concurrency must be a finite positive integer at most ${AGENT_SDK_CONCURRENCY_MAX}`,
+          model: req.connection.model,
+        }),
+      );
+    }
+    return runSideGen(req, { runChatTurn: chatTurn, concurrency, normalize: normalizeImageBytes, log: deps.log, now: deps.now });
+  };
   const backend: ProviderBackend = {
     wire: "agent-sdk",
-    runChatTurn: (req: ChatRequest): Promise<ChatResult> => {
-      if (req.api !== "agent-sdk") {
-        return Promise.reject(
-          new ProviderError({ kind: "invalid", retryable: false, message: `agent-sdk backend received a non-agent-sdk request (api="${req.api}")` }),
-        );
-      }
-      return runChatTurn(req, resolved, sessions, logFor(req.connection));
-    },
+    runChatTurn: chatTurn,
     runAgentTurn: (req: AgentTurnRequest): Promise<ChatResult> => runAgentTurn(req, resolved, logFor(req.connection)),
-    summarize: (req: SummarizeRequest) => summarize(req, resolved, logFor(req.connection)),
-    structured: (req: StructuredRequest) => summarize(req, resolved, logFor(req.connection)),
+    summarize: sideGen,
+    structured: sideGen,
     verifyAuth: (req: VerifyAuthRequest): Promise<VerifyAuthResult> => verifyAuth(req, resolved, logFor(req.connection)),
     listModels: async (req: ListModelsRequest): Promise<ModelListing> => {
       try {

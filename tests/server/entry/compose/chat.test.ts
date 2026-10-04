@@ -830,6 +830,7 @@ describe("createTaskWindowReaders — a missing window names its cause", () => {
       roleClientsFor: (funderUserId) => Promise.resolve(runtime.roleClientsFor(principalOf(funderUserId))),
       availability: runtime.availability,
       resolveHostPrincipal: (userId) => Promise.resolve(principalOf(userId)),
+      resolveUtilityPresetParams: () => Promise.resolve(undefined),
     });
     return { readers, ownerId };
   }
@@ -876,6 +877,27 @@ describe("createTaskWindowReaders — a missing window names its cause", () => {
     await expect(summarize.readers.summarize(summarize.ownerId)).resolves.toBeGreaterThan(0);
     const embed = await readersFor({ task: "embed", allowBackground: true });
     await expect(embed.readers.embed(embed.ownerId)).resolves.toBeGreaterThan(0);
+  });
+
+  // 0565: the summarize call sends the Utility preset's Max context on a route whose window the request sets, so the
+  // digest guard budgets against that window; a route that sends no window keeps the model's own.
+  test("the summarize window is the Utility preset's where the route sets one, and the model's own elsewhere", async () => {
+    const readersOver = (settable: boolean): ReturnType<typeof createTaskWindowReaders> =>
+      createTaskWindowReaders({
+        roleClientsFor: () =>
+          Promise.resolve({
+            resolved: () =>
+              Promise.resolve(
+                makeResolved({ task: "summarize", generation: { context: { window: 4096, ...(settable ? { settable: { max: 32_768 } } : {}) } } }),
+              ),
+          }),
+        availability: () => Promise.reject(new Error("a bound row never asks availability")),
+        resolveHostPrincipal: (userId) => Promise.resolve(principalOf(userId)),
+        resolveUtilityPresetParams: () => Promise.resolve({ maxContextTokens: 16_384 }),
+      });
+    const ownerId = newUserId();
+    await expect(readersOver(true).summarize(ownerId)).resolves.toBe(16_384);
+    await expect(readersOver(false).summarize(ownerId)).resolves.toBe(4096);
   });
 });
 

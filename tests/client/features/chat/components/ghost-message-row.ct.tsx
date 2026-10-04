@@ -405,7 +405,7 @@ test("#116: with no resolved attribution the ghost is byte-identically bare — 
   await expect(component.locator(NAME_ROW)).toHaveCount(0);
 });
 
-test("#116: the ghost's name row takes #113's pin — sticky, backed, and layout-neutral", async ({ mount }) => {
+test("#116: the ghost's name row takes #113's pin — sticky, unbacked at rest, and layout-neutral", async ({ mount }) => {
   // Layout neutrality is the load-bearing half: the sticky verdict arrives AFTER the virtualizer measures
   // the row, so any height the chip added would land as a post-paint reflow on exactly the tall streaming
   // rows this helps. The band's padding is cancelled — measured as outer extent on BOTH arms, which is the
@@ -421,8 +421,9 @@ test("#116: the ghost's name row takes #113's pin — sticky, backed, and layout
   await driveScript(stuck, 1);
   const stuckRow = stuck.locator(NAME_ROW);
   await expect(stuckRow).toHaveCSS("position", "sticky");
-  await expect(stuckRow).toHaveCSS("top", "0px");
-  await expect.poll(async () => await stuckRow.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
+  // Not pinned, so the header sits on the ghost's own surface: the band paints only while pinned.
+  await expect(stuckRow).not.toHaveAttribute("data-pinned");
+  await expect.poll(async () => await stuckRow.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).toBe(TRANSPARENT);
   const stuckOuter = await nameRowOuterExtent(stuckRow);
   expect(Math.abs(stuckOuter - bareOuter)).toBeLessThan(1);
 });
@@ -463,6 +464,9 @@ test("#116: a MULTI-VIEWPORT stream keeps the speaker on screen — the name pin
     port.evaluate((el: HTMLElement) => el.getBoundingClientRect().top),
   ]);
   expect(Math.abs(nameTop - portTop)).toBeLessThan(2);
+  // Pinned over the prose, the band paints.
+  await expect(nameRow).toHaveAttribute("data-pinned", "");
+  await expect.poll(async () => await nameRow.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
 });
 
 test("#116: the aria-live semantics are UNCHANGED — the name enters the announcement stream once, not twice", async ({ mount }) => {

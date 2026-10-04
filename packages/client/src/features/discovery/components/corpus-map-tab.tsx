@@ -43,7 +43,7 @@ function MapBody(): ReactElement {
         title="No map yet"
         // The projection is a PCA over CARD EMBEDDINGS: `corpusProjection` reads the index, not
         // `character_summaries`, so the job that fills it is the index. Distillation only colours the points.
-        description="The map places your cards by their text index. Run Index (embeddings) to build it. Distill characters then colors the points by genre."
+        description="The map places your characters by what their cards say. Build the search index to draw it. Sorting your characters then colors the points by genre."
       />
     );
   }

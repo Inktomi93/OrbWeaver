@@ -109,6 +109,10 @@ export function CharacterPicker(props: CharacterPickerProps): ReactElement {
   );
 }
 
+function characterCountLabel(count: number): string {
+  return count === 1 ? "1 character" : `${count} characters`;
+}
+
 function CharacterPickerBody({
   label,
   placeholder,
@@ -200,9 +204,7 @@ function CharacterPickerBody({
       {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
         <Row align="center" className="border-border border-t" gap="row" padding="row">
           <Text as="span" voice="gloss">
-            {excludedLoadedCount === 0
-              ? `Showing ${candidates.length} of ${totalCount}`
-              : `Showing ${candidates.length} available · checked ${loaded.length} of ${totalCount}`}
+            {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
           </Text>
           <Row className="flex-1" gap="field" justify="end">
             {query.isFetchNextPageError ? (

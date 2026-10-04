@@ -38,7 +38,7 @@ const CONTENT_DIR = fileURLToPath(new URL("../../packages/default-content/", imp
 
 /** sha256 of every shipped avatar PNG, by handle — the pack the default-character + persona seeders lay down. */
 const AVATAR_SHA256: Readonly<Record<string, string>> = {
-  assistant: "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa",
+  charlotte: "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa",
   birdie: "d91d20234b6277fe0087c15343d1bac55b81f657e981dd996432c8ca6fa50aba",
   calamity: "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75",
   elias: "9b67380721584258ea541edbbea2a9ac8f05d94133ecfd9275f4ac27c9c0d66b",
@@ -57,7 +57,7 @@ const AVATAR_SHA256: Readonly<Record<string, string>> = {
  *  key is `sha256Hex` of the stored bytes), which is what lets a seeded plate be recognised later by content
  *  rather than by a slug field the library entry does not have. */
 const BACKGROUND_SHA256: Readonly<Record<string, string>> = {
-  "assistant-bg": "664bc22f5de644e2beebe4e1a1ed4a133700438b6990280a9e986020209579ff",
+  "charlotte-bg": "664bc22f5de644e2beebe4e1a1ed4a133700438b6990280a9e986020209579ff",
   "birdie-bg": "ea26f236b800d2ab2a26a5efbb26aff28123e1971af2165a30d740a7ac07088b",
   "calamity-bg": "5a7b1dfa064ce07e685e317adbc39f5b3429f1b4a0d29193bdd005e7cf02f1a5",
   "elias-bg": "c64d3f76f84f04ff9532ed0239e31928b4b4f01553195d2ebc67a07447988bfc",
@@ -98,8 +98,8 @@ test("the reader's bytes are the file's bytes (no decode/re-encode in the path)"
   // The avatars go through `assets.store({enforceMagic:true})`, which sniffs the magic bytes — a reader that
   // transcoded or truncated would seed art the store refuses, and the digest above alone cannot see whether
   // the digest and the file drifted together.
-  const onDisk = await readFile(join(CONTENT_DIR, "avatars", "assistant.png"));
-  const read = await readSeedAvatar(castId<CharacterHandle>("assistant"));
+  const onDisk = await readFile(join(CONTENT_DIR, "avatars", "charlotte.png"));
+  const read = await readSeedAvatar(castId<CharacterHandle>("charlotte"));
   expect(read?.bytes).toEqual(new Uint8Array(onDisk));
 });
 

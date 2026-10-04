@@ -1094,10 +1094,10 @@ test.describe("the Corpus workbench on a phone", () => {
     await component.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
     const list = component.locator(CORPUS_LIST);
-    await list.getByRole("button", { name: "Open understanding pass", exact: true }).tap();
+    await list.getByRole("button", { name: "Go to sorting", exact: true }).tap();
     await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
     const main = component.locator("main.shell-content");
-    await expect(main.getByRole("button", { name: "Run the understanding pass", exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: "Sort my characters", exact: true })).toBeVisible();
     await expect(main).toBeFocused();
     await expect(component.getByRole("button", { name: "Show Explore list", exact: true })).toBeVisible();
   });
@@ -1120,7 +1120,7 @@ test.describe("the Corpus workbench on a phone", () => {
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(component.locator(CORPUS_LIST)).toHaveAttribute("data-panel-mode", "collapsed");
     const main = component.locator("main.shell-content");
-    await expect(main.getByRole("button", { name: "Run the understanding pass", exact: true })).toBeVisible();
+    await expect(main.getByRole("button", { name: "Sort my characters", exact: true })).toBeVisible();
     await expect(main).toBeFocused();
     await test.info().attach("0314-phone-overview", { body: await component.screenshot(), contentType: "image/png" });
     await test.info().attach("0314-phone-overview-aria", { body: Buffer.from(await component.ariaSnapshot()), contentType: "text/plain" });

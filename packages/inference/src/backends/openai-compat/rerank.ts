@@ -18,9 +18,9 @@ import type { RerankRequest } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { authHeaders, fetchJson } from "../kit/fetch-json.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
+import { toImageUrl } from "../kit/image-normalize.ts";
 import { providerLogger } from "../kit/provider-log.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
-import { toImageUrl } from "../v4/batch.ts";
 
 const RERANK_SCAFFOLD_RESERVE_TOKENS = 128;
 const TRAILING_SLASH_RE = /\/$/u;

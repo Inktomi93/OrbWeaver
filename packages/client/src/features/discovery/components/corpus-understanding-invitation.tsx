@@ -107,7 +107,7 @@ export function CorpusUnderstandingInvitation(): ReactElement {
                 onClick={pass.start}
               >
                 <Icon icon={Sparkles} size="sm" />
-                {pass.failure === null ? RUN_PASS_LABEL : "Try the understanding pass again"}
+                {pass.failure === null ? RUN_PASS_LABEL : "Try again"}
               </Button>
             )}
             {/* The full runs console is still one click away — it just is not where the work starts any more. */}
@@ -133,13 +133,11 @@ export function CorpusUnderstandingInvitation(): ReactElement {
  */
 function passProse(pass: UnderstandingPassView): string {
   if (pass.running) {
-    return pass.memoryDisabled
-      ? "Distill characters is running. Every panel on this page fills in as the results land — you can leave this screen, the pass keeps going."
-      : "Distill characters is running, then Memory backfill, then Compute themes. Every panel on this page fills in as the results land — you can leave this screen, the pass keeps going.";
+    return "Reading your characters now. Each panel on this page fills in as results arrive. You can leave this screen and it keeps going.";
   }
   return pass.memoryDisabled
-    ? "Everything you have written lives here, but until the understanding pass runs your library can only tell you its shape, not its story. This runs Distill characters, which reads every card into a genre, a tone and a pitch."
-    : "Everything you have written lives here, but until the understanding pass runs your library can only tell you its shape, not its story. This runs Distill characters over your cards, then Memory backfill over your chats, then Compute themes over those chat summaries — and every panel on this page fills in.";
+    ? "Orbweaver can read your characters and sort them by genre, tone and premise."
+    : "Orbweaver can read your characters and sort them by genre, tone and premise. It also reads your chat summaries to find story themes.";
 }
 
 /** Story themes are built from chat summaries, so with memory off the pass genuinely cannot produce them.
@@ -178,7 +176,7 @@ function UnderstandingPassProgress({ pass }: { readonly pass: UnderstandingPassV
       {/* A CRASH IS NOT A REFUSAL. `worker_died` means the run never came back — the row has no reason of its
           own to quote, and telling a user "stopped: undefined" is how a failure state reads as a bug in the
           message rather than in the run. It was only visible in Settings → Jobs before issue #166. */}
-      {pass.failureWasCrash ? "The last understanding pass stopped unexpectedly — run it again." : `The last understanding pass stopped: ${pass.failure}`}
+      {pass.failureWasCrash ? "The last run stopped unexpectedly. Try again." : `The last run stopped: ${pass.failure}`}
     </Text>
   );
 }

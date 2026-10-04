@@ -222,7 +222,7 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
             TWO CHANGES, BOTH MINIMAL. The GLYPH becomes `RefreshCw` — the house's regenerate mark, already
             carrying that meaning on the composer's ✨ Regenerate row 40px below (composer-utility-menu.tsx),
             so the "next page" reading is gone even before the word is read. And the word is VISIBLE:
-            "Generate", in the `sm` control box rather than the icon square, so the control says what it does
+            "Regenerate", in the `sm` control box rather than the icon square, so the control says what it does
             without hover.
 
             THE OLD RULING SURVIVES — ITS INPUT CHANGED. The header's "A PAGER NEEDS PAGES" ruling removed
@@ -230,9 +230,9 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
             here: `showPager` still gates BOTH, and no counter comes back. What the ruling did not settle is
             that the surviving verb rendered as a pager glyph with no name.
 
-            "Generate" IS A SUBSTRING OF THE ACCESSIBLE NAME, deliberately: #570 ruled the accname at one
-            variant is "Generate a variant", and WCAG 2.5.3 requires the visible label to appear in it, so
-            the visible word is the verb the accname already opens with rather than a synonym. */}
+            "Regenerate" IS A SUBSTRING OF THE ACCESSIBLE NAME, deliberately: #570 ruled the accname at one
+            variant says it generates ("Regenerate a variant"), and WCAG 2.5.3 requires the visible label to
+            appear in it, so the visible word is the verb the accname already opens with. */}
         {showPager ? (
           <Button intent="ghost" size="icon" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
             <Icon icon={ChevronRight} size="sm" />
@@ -240,7 +240,7 @@ export function SwipeStrip({ message, backingClass }: SwipeStripProps): ReactEle
         ) : (
           <Button intent="ghost" size="sm" loading={busy} aria-label={nextChevronLabel} onClick={goNext}>
             <Icon icon={RefreshCw} size="sm" />
-            Generate
+            Regenerate
           </Button>
         )}
       </Row>

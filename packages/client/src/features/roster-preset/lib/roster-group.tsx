@@ -24,7 +24,7 @@ export const rosterGroup: ConfigGroupDefinition = {
   order: 40,
   // B10's rules rider is named here because this card is the one place a user browsing the library learns
   // what a roster IS — and applying one switches automation on in the room (side-eye 2026-08-29 P2-6).
-  description: "Saved rosters — a named group of characters with their seat knobs and the room's enabled rules, ready to drop into any chat.",
+  description: "Saved rosters — a named group of characters with each one's settings and the room's turned-on rules, ready to drop into any chat.",
   useSearchRows: useRosterSearchRows,
   body: { kind: "collection", collection: rosterCollection },
 };

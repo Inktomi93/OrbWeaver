@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-04
 priority: P3
 area: client
+lane: wt/agent-ac8eb30b58c46c8f2
 ---
 
 # A new world book asks for its name

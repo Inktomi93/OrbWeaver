@@ -59,7 +59,6 @@ export interface AgentSdkLog {
   }) => void;
   readonly compaction: (fields: Record<string, unknown>) => void;
   readonly dialog: (entry: { readonly source: "elicitation" | "user-dialog"; readonly kind: string }) => void;
-  readonly summarize: (entry: { readonly items: number; readonly ok: number; readonly fail: number; readonly durationMs: number }) => void;
   readonly capability: (entry: ProviderCapabilityLog) => void;
   readonly mcp: (entry: { readonly unhealthy: boolean; readonly servers: readonly ProviderMcpServerHealth[] }) => void;
   readonly info: (fields: Record<string, unknown>, message: string) => void;
@@ -87,7 +86,6 @@ export function createAgentSdkLog(log: InferenceLog, providerId: string): AgentS
     terminalTools: (entry) => base.emit(entry.mounted ? "debug" : "warn", "provider.terminal_tools", { ...entry }),
     compaction: (fields) => base.emit("warn", "provider.compaction", fields),
     dialog: (entry) => base.emit("warn", "provider.dialog", { ...entry }),
-    summarize: (entry) => base.emit("info", "provider.summarize", { ...entry }),
     capability: (entry) => base.capability(entry),
     mcp: (entry) => base.emit(entry.unhealthy ? "warn" : "debug", "provider.mcp", { ...entry }),
     info: (fields, message) => log.info({ wire: WIRE, providerId, ...fields }, message),

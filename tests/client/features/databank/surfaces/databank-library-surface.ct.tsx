@@ -80,11 +80,11 @@ test("a wedged row says STALLED on the LIST, not Queued — and carries its reme
           return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
         }),
     )
-    .toContain("Still queued — Reindex can restart a stuck job.");
+    .toContain("Still queued — rebuilding the search index can restart a stuck job.");
   // …and the repair it names is one click away on this row's own kebab.
   await row.hover();
   await list.getByRole("button", { name: rowActionsName("Treaty of Ashfen"), exact: true }).click();
-  await expect(page.getByRole("menuitem", { name: "Reindex" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Rebuild search index" })).toBeVisible();
 });
 
 // EMPTY AND INDEXING ARE THE SAME AMBER BY RULING (databank-model's INGEST_BADGES: `Empty` is a FAILED
@@ -269,7 +269,7 @@ test("the EMPTY row carries its own remedy in the row's description — and it i
           return ids.map((id) => document.getElementById(id)?.textContent?.trim() ?? "").join(" ");
         }),
     )
-    .not.toContain("Reindex can restart");
+    .not.toContain("rebuilding the search index can restart");
 });
 
 test("a FRESH in-flight row still reads Queued — the stall verdict is a frozen clock, not a zero count", async ({ mount, page }) => {
@@ -356,7 +356,7 @@ test("the kebab mirrors Everywhere (N3), offers Reindex, and has NO Duplicate �
   await list.getByRole("button", { name: rowActionsName("The Crimson Court"), exact: true }).click();
 
   await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Reindex" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Rebuild search index" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Duplicate" })).toHaveCount(0);
   // The mirror arm names the same write the inline toggle does, in the state-appropriate direction.
   await page.getByRole("menuitem", { name: "Stop feeding every chat" }).click();
@@ -574,11 +574,11 @@ test("a stale-extraction census shows the re-extract banner, and its action conf
 
   const banner = list.locator('[data-slot="databank-re-extract-banner"]');
   await expect(banner).toBeVisible();
-  await banner.getByRole("button", { name: "Re-extract", exact: true }).click();
+  await banner.getByRole("button", { name: "Re-read", exact: true }).click();
   await expect(page.getByRole("alertdialog")).toBeVisible();
   await expect.poll(() => trpc.count("databank.reindex"), { intervals: [20, 50, 100] }).toBe(0);
 
-  await page.getByRole("alertdialog").getByRole("button", { name: "Re-extract", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Re-read", exact: true }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "owner" }, mode: "re-extract" });
 });
 

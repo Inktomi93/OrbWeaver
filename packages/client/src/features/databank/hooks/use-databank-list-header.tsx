@@ -94,11 +94,11 @@ export function useDatabankListHeader(): ListPaneHeaderView {
             ) : null}
             <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("chunk-embed")}>
               <Icon icon={RefreshCw} size="sm" />
-              Reindex everything
+              Rebuild all documents
             </MenuItem>
             <MenuItem disabled={sweep.pending || bankIsEmpty || countUnknown} onClick={(): void => sweep.ask("re-extract")}>
               <Icon icon={RefreshCw} size="sm" />
-              Re-extract everything
+              Re-read all documents
             </MenuItem>
           </MenuGroup>
         </RowActionsMenu>

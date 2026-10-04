@@ -316,7 +316,7 @@ const KNOB_LABELS: Record<AdjustedKnob, string> = {
   dynatempExponent: "Dynamic temperature exponent",
   dynatempRange: "Dynamic temperature range",
   frequencyPenalty: "Frequency penalty",
-  logitBias: "Logit bias",
+  logitBias: "Word bias",
   minKeep: "Min keep",
   minP: "Min-P",
   mirostatEta: "Mirostat eta",

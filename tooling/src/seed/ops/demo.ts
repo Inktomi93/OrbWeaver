@@ -45,7 +45,7 @@ import {
 import { readSeedAvatar } from "@orb/default-content";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
+import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
 import {
   createLocalLightUserSeed,
@@ -174,7 +174,7 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
       handleToId.set(card.input.handle, ref.characterId);
     }
   }
-  const assistantId = handleToId.get("assistant");
+  const assistantId = handleToId.get(WELCOME_ASSISTANT_HANDLE);
   const groupCharIds = GROUP_CAST_HANDLES.map((h) => handleToId.get(h)).filter((id): id is CharacterId => id !== undefined);
 
   // Solo chat — seeds the primary's greeting (verbatim, no model), then one best-effort scripted turn.

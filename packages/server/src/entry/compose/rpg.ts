@@ -186,9 +186,9 @@ export interface RpgComposeDeps {
    *  ROUNDS re-resolve NOTHING — they ride the character turn's already-resolved `input.turnConnection` threaded
    *  from the engine. */
   readonly connection: Pick<ConnectionService, "resolve">;
-  /** The executor the state rounds call through `@orb/inference`'s neutral round helpers, which pick the method
-   *  per backend (`runStructuredChat`, `toForcedToolRoundRequest`). */
-  readonly executor: Pick<ProviderExecutor, "structured" | "runChatTurn">;
+  /** The executor the state rounds call through `@orb/inference`'s neutral round helpers, which build the request
+   *  per backend (`runStructuredChat`, `toForcedToolRoundRequest`); every round is a chat turn. */
+  readonly executor: Pick<ProviderExecutor, "runChatTurn">;
   /** The host's REAL `Principal` by userId — the READ-side `trackersReadOnly` pill resolves the room connection
    *  as the host (D19). The state rounds no longer need it (they ride the threaded turn connection). */
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
@@ -527,8 +527,8 @@ interface ExtractCtx {
 }
 
 /** Emit the extraction JSON TEXT: a READ-ONLY structured emission (no tools mounted — extraction never mutates
- *  through a tool turn) on the CHARACTER turn's own row, never a re-resolve. Which executor method serves the
- *  connection's backend is `@orb/inference`'s choice; the format rides untouched, so no vehicle is asked for. */
+ *  through a tool turn) on the CHARACTER turn's own row, never a re-resolve. How the request rides the connection's
+ *  backend is `@orb/inference`'s choice; the format rides untouched, so no vehicle is asked for. */
 function extractStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<string> {
   return runStructuredChat(deps.executor, {
     connection: ctx.conn,
@@ -718,7 +718,7 @@ function refEnumerationLines(inputs: PromptInputs): string {
  *  cannot carry a forced tool round, and the vehicle the host resync drives. Rides the CHARACTER turn's ALREADY-RESOLVED connection +
  *  consent verdict (`input.turnConnection` — stickler F1: never a re-resolve of the host's global default, never
  *  a force-stamped consent), reads the beat, drives ONE structured-output call (`@orb/inference`'s
- *  `runStructuredChat` picks the executor method per backend), and folds the parsed extraction
+ *  `runStructuredChat`, one side-generation chat turn on any backend), and folds the parsed extraction
  *  into an `RpgStateDelta`. On any backend throw / parse failure it returns an EMPTY delta (the byte-identical
  *  non-writing turn — a broken extraction never corrupts canon, the errors-as-data posture).
  *

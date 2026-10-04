@@ -88,7 +88,7 @@ export function MessageHandlingSection({
   return (
     <Section kicker="Collapsing">
       <Text prose={true} voice="gloss">
-        Two independent collapses happen between your rack and the wire.
+        Orbweaver can tidy your messages in two ways before sending them.
       </Text>
 
       <FieldLayout orientation="horizontal">
@@ -108,7 +108,7 @@ export function MessageHandlingSection({
               />
               {floorConstrains(floor) ? (
                 <Row align="center" gap="field">
-                  <Text voice="gloss">This model enforces at least {ROLE_HANDLING_LABELS[floor]} — stricter always wins.</Text>
+                  <Text voice="gloss">This model needs at least {ROLE_HANDLING_LABELS[floor]}. A stricter choice still wins.</Text>
                   {isBelowFloor(roleHandling, floor) ? (
                     <Badge intent="warning" size="sm" tone="soft">
                       Applies as {ROLE_HANDLING_LABELS[floor]}

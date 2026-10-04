@@ -18,13 +18,13 @@ import {
   MessageHandlingStrictFloorUnsetStory,
 } from "./_message-handling-stories.tsx";
 
-const NOTE = /This model enforces at least/;
+const NOTE = /This model needs at least/;
 const CLAMP_BADGE = /Applies as/;
 
 test("a model with a REAL floor still announces it, and names the floor", async ({ mount }) => {
   const component = await mount(<MessageHandlingStrictFloorUnsetStory />);
   await expect(component.getByText(NOTE)).toBeVisible();
-  await expect(component.getByText("This model enforces at least Strict — stricter always wins.")).toBeVisible();
+  await expect(component.getByText("This model needs at least Strict. A stricter choice still wins.")).toBeVisible();
 });
 
 test("a below-floor pick on that model still wears the clamp badge", async ({ mount }) => {
@@ -44,7 +44,7 @@ test("a FLOORLESS model says nothing about a floor — no note, no clamp badge (
 // `slotted` is a model-only rung: the note names it, and the knob offers only the user levels above it.
 test("a slotted-floor model names its floor and offers only Semi-strict and Strict", async ({ mount, page }) => {
   const component = await mount(<MessageHandlingSlottedFloorStory />);
-  await expect(component.getByText("This model enforces at least Slotted — stricter always wins.")).toBeVisible();
+  await expect(component.getByText("This model needs at least Slotted. A stricter choice still wins.")).toBeVisible();
   await component.getByRole("combobox", { name: "Adjacent-role merging" }).click();
   const options = page.getByRole("option");
   await expect(options).toHaveText([/Model default/, /Semi-strict/, /^Strict/]);

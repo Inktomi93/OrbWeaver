@@ -258,10 +258,10 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
               <form.Subscribe selector={(s): CharacterCardFormValues => s.values}>
                 {(values): ReactElement => (
                   <Text
-                    aria-label={`${totalTokenCount(values, activeGreetingIndex)} tokens total, ${permanentTokenCount(values)} permanent — sent every turn`}
+                    aria-label={`${totalTokenCount(values, activeGreetingIndex)} tokens total, ${permanentTokenCount(values)} always sent`}
                     // Yields while the CONTEXT band is open: its `N tokens` chip is the same number.
                     className={`font-mono tabular-nums ${HERO_ECHO_CLASS}`}
-                    title={`${permanentTokenCount(values)} permanent tokens are sent every turn; the rest ride the active greeting.`}
+                    title={`${permanentTokenCount(values)} tokens are always sent; the rest depend on the greeting in use.`}
                     voice="gloss"
                   >
                     {/* HOUSE NUMERIC-DATUM TREATMENT (side-eye #844 P3, 2026-09-05) — this is a DATUM, not a
@@ -281,7 +281,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
                         `aria-label` above (a pointer and a screen reader both reach it), because the meta
                         slot is the one that gets clipped at 430px and a second focusable trigger in it is
                         what the P1-4 fix removed. */}
-                    {groupThousands(totalTokenCount(values, activeGreetingIndex))} tokens · {groupThousands(permanentTokenCount(values))} permanent
+                    {groupThousands(totalTokenCount(values, activeGreetingIndex))} tokens · {groupThousands(permanentTokenCount(values))} always sent
                   </Text>
                 )}
               </form.Subscribe>

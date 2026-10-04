@@ -10,6 +10,7 @@ import {
   bankHealthLine,
   characterCount,
   documentSubtitle,
+  documentTypeLabel,
   INGEST_POLL_MS,
   ingestBadge,
   ingestEmptyHint,
@@ -239,10 +240,10 @@ describe("ingestStallHint — a wedged job, derived from updatedAt with an INJEC
   test("fires only past the threshold, and names the phase it is stuck in", () => {
     const queued = doc({ chunkCount: 0, embeddedCount: 0 });
     expect(ingestStallHint(queued, AT + FIVE_MINUTES - 1)).toBeNull();
-    expect(ingestStallHint(queued, AT + FIVE_MINUTES)).toBe("Still queued — Reindex can restart a stuck job.");
+    expect(ingestStallHint(queued, AT + FIVE_MINUTES)).toBe("Still queued — rebuilding the search index can restart a stuck job.");
 
     const embedding = doc({ chunkCount: 39, embeddedCount: 22 });
-    expect(ingestStallHint(embedding, AT + FIVE_MINUTES)).toBe("Still indexing — Reindex can restart a stuck job.");
+    expect(ingestStallHint(embedding, AT + FIVE_MINUTES)).toBe("Still indexing — rebuilding the search index can restart a stuck job.");
   });
 
   test("a TERMINAL phase never stalls, however old the row is", () => {
@@ -318,5 +319,13 @@ describe("ingestEmptyHint — the failed extraction's own remedy", () => {
     const empty = doc({ charCount: 0, chunkCount: 0, embeddedCount: 0, updatedAt: AT - FIVE_MINUTES * 100 });
     expect(ingestStallHint(empty, AT)).toBeNull();
     expect(ingestEmptyHint(empty)).not.toBeNull();
+  });
+});
+
+describe("documentTypeLabel", () => {
+  test("a known file type reads in words and an unknown one shows as stored", () => {
+    expect(documentTypeLabel("text/plain")).toBe("Plain text");
+    expect(documentTypeLabel("application/pdf")).toBe("PDF");
+    expect(documentTypeLabel("application/epub+zip")).toBe("application/epub+zip");
   });
 });

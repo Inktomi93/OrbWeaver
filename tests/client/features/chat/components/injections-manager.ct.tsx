@@ -267,7 +267,7 @@ test("a non-host sees no Add/Remove affordances and every field is disabled-with
   const component = await mount(<InjectionsManagerStory isHost={false} />);
 
   // Read-only copy names the host as the actor.
-  await expect(component.getByText("Ad-hoc context the host has added to this chat's prompt.")).toBeVisible();
+  await expect(component.getByText("Notes the host added here are sent with this chat's prompt.")).toBeVisible();
 
   // A member reads the rows too — the disclosure is not host-gated, only the writes are.
   await rowDisclosure(component, 1).click();

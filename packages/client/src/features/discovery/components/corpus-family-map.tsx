@@ -181,9 +181,6 @@ export function CorpusFamilyMap({ families, focal, canOpenFamilies }: CorpusFami
     return null;
   }
 
-  // The model that produced the clustering is provenance, and it belongs beside the claim it backs: every
-  // family in a response comes from one embedding pass, so the first row's model names all of them.
-  const model = families[0]?.model ?? "";
   const names = resolveCorpusArchetypeNames(families);
   const body = (
     <Stack gap="row">
@@ -192,7 +189,7 @@ export function CorpusFamilyMap({ families, focal, canOpenFamilies }: CorpusFami
           <Heading id={titleId} level={2} voice="kicker">
             The shape of your library
           </Heading>
-          <Text voice="gloss">{model === "" ? "Grouped from the portrait embeddings" : `Grouped from the portrait embeddings · ${model}`}</Text>
+          <Text voice="gloss">Grouped by how their portraits look.</Text>
         </Stack>
         {/* THE REAL DOOR, and deliberately not the mockup's "Open map →". That link points at the CONTEXT
             "Map" tab, which draws the SEMANTIC projection of distilled cards — a different artifact from

@@ -29,15 +29,18 @@ export function PersonaAccountFoot(): ReactElement {
   const { mode } = config.data;
   const { handle, role } = me.data;
   const canLogout = mode === "local" || mode === "oidc";
+  // Role and mode are shown only when they say something the handle and a plain local login do not.
+  const showRole = role !== null && role !== handle;
+  const showMode = mode === "oidc" || mode === "forward-header";
 
   return (
     <Stack gap="field" data-testid={testId("accountSurface")}>
       <Row gap="row" align="center">
-        <Text weight="semibold" className="min-w-0 truncate font-mono">
-          {handle ?? "—"}
+        <Text weight="semibold" className="min-w-0 truncate">
+          {handle === null ? "Signed in" : `Signed in as ${handle}`}
         </Text>
-        {role === null ? null : <Badge>{role}</Badge>}
-        <Badge>{mode}</Badge>
+        {showRole ? <Badge>{role}</Badge> : null}
+        {showMode ? <Badge>{mode}</Badge> : null}
       </Row>
       {canLogout ? (
         <Button

@@ -89,7 +89,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
       // that carries nothing but a name (the distill content floor).
       <CorpusRunJobEmptyState
         title="Dossier unavailable"
-        description="This character has not been distilled yet. Run Distill characters to build its dossier. A card with only a name has nothing to distill, so give it a description first."
+        description="This character has not been sorted yet. Sort your characters to build its dossier. A card with only a name has nothing to read, so give it a description first."
         secondaryAction={
           <Button intent="secondary" size="sm" onClick={onBack}>
             <Icon icon={ArrowLeft} size="sm" />
