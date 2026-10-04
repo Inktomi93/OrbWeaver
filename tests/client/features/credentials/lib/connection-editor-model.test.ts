@@ -404,24 +404,24 @@ describe("the takes row is honest about a guessed modality list", () => {
 
 // "Fields to add or replace" validates with the canonical transport schema: what it refuses never reaches a save.
 describe("the request-body overrides field saves only what the transport schema accepts", () => {
-  test("a JSON object saves as written; empty text and an empty object clear it", () => {
-    expect(parseIncludeBody('{ "top_k": 40, "options": { "num_ctx": 8192 } }')).toEqual({
+  test("a JSON object saves as written; empty text and an empty object clear it", async () => {
+    expect(await parseIncludeBody('{ "top_k": 40, "options": { "num_ctx": 8192 } }')).toEqual({
       ok: true,
       includeBody: { ["top_k"]: 40, options: { ["num_ctx"]: 8192 } },
     });
-    expect(parseIncludeBody("   ")).toEqual({ ok: true, includeBody: undefined });
-    expect(parseIncludeBody("{}")).toEqual({ ok: true, includeBody: undefined });
+    expect(await parseIncludeBody("   ")).toEqual({ ok: true, includeBody: undefined });
+    expect(await parseIncludeBody("{}")).toEqual({ ok: true, includeBody: undefined });
   });
 
-  test("text that is not one JSON object is refused with a reason", () => {
+  test("text that is not one object of fields is refused with a reason", async () => {
     for (const raw of ['{ "top_k": 40', "[1, 2]", "40", '"top_k"', "null"]) {
-      expect(parseIncludeBody(raw).ok, raw).toBe(false);
+      expect((await parseIncludeBody(raw)).ok, raw).toBe(false);
     }
   });
 
-  test("the saved object reads back as the text it parses from", () => {
+  test("the saved object reads back as the text it parses from", async () => {
     const includeBody = { ["top_k"]: 40, stop: ["</s>"] };
-    expect(parseIncludeBody(includeBodyText(includeBody))).toEqual({ ok: true, includeBody });
+    expect(await parseIncludeBody(includeBodyText(includeBody))).toEqual({ ok: true, includeBody });
     expect(includeBodyText(undefined)).toBe("");
   });
 });

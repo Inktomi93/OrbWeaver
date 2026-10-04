@@ -163,8 +163,9 @@ const OPENROUTER_REASONING_IDS = [
 const OPEN_WEIGHT = /^openai\/gpt-oss/;
 
 function cells(model: string): { readonly sampling: boolean; readonly replay: string | undefined } {
+  const stated = openaiRows(model).findLast((row) => row.generation?.sampling !== undefined)?.generation?.sampling;
   return {
-    sampling: openaiRows(model).some((row) => row.generation?.sampling !== undefined),
+    sampling: stated !== undefined && Object.keys(stated).length === 0,
     replay: generation(model).reasoning.replay,
   };
 }
@@ -191,6 +192,34 @@ test("the non-reasoning chat snapshots and pre-GPT-5 ids take neither cell", () 
     "gpt-4o-mini",
   ]) {
     expect(cells(model), model).toEqual({ sampling: false, replay: undefined });
+  }
+});
+
+// The hosted family sweep (scripts/probes/hosted-families/RESULTS.md, 2026-10-03): every measured OpenAI id took and
+// obeyed a mid-history and a trailing system row and adjacent same-role rows, directly and through OpenRouter, and
+// treated a trailing assistant row as history, restarting or continuing from call to call.
+test("the swept OpenAI ids state their turn cells on every route; an unswept open-weight id states none", () => {
+  for (const model of ["gpt-4.1", "gpt-4o-mini", "gpt-5-nano", "gpt-5.4-mini", "gpt-6-sol", "o3-mini", "openai/gpt-4.1", "openai/o4-mini"]) {
+    const capability = generation(model);
+    expect(capability.turns, model).toMatchObject({ assistantPrefill: false, midConversationSystem: true, historySystemRows: true, roleHandlingFloor: "none" });
+    expect(capability.turnsEstimated, model).toBeUndefined();
+  }
+  for (const model of ["openai/gpt-oss-120b", "gpt-5.3-codex"]) {
+    expect(generation(model).turnsEstimated, model).toBeDefined();
+  }
+});
+
+test("a non-reasoning GPT id offers OpenAI's samplers, none of the extras OpenAI refuses by name", () => {
+  for (const model of ["gpt-4.1", "gpt-4.1-nano", "gpt-4o", "openai/gpt-4o-mini"]) {
+    expect(Object.keys(generation(model).sampling).toSorted(), model).toEqual([
+      "frequencyPenalty",
+      "logitBias",
+      "presencePenalty",
+      "seed",
+      "stop",
+      "temperature",
+      "topP",
+    ]);
   }
 });
 

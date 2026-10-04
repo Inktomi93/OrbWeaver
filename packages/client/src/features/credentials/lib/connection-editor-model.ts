@@ -19,11 +19,11 @@ import type {
   Task,
 } from "@orb/contracts/inference";
 import { BELT_OWNED_BODY_KEYS, connectionTransportSchema, requirementMet, taskDef } from "@orb/contracts/inference";
-import { errorMessage } from "@orb/kit/error-message";
 import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 // Direct, not through `#lib`: node-side CT specs import this module.
 import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
 import { grouped } from "./connection-fact-model.ts";
+import { fieldText, looksStructured, parsePastedObject, parsePastedStructure } from "./pasted-fields.ts";
 
 // ── the Purpose tier: the inferred-kind verdict ────────────────────────────────────────────────────────
 
@@ -222,6 +222,8 @@ export interface ExtraRow {
   readonly id: string;
   readonly key: string;
   readonly value: string;
+  /** Why the value text reads as nothing: the row's field says so, and no save goes out until it is fixed. */
+  readonly error?: string;
 }
 
 function parseExtraValue(raw: string): unknown {
@@ -254,14 +256,41 @@ export function extrasFromRows(rows: readonly ExtraRow[]): Record<string, unknow
   return Object.keys(out).length === 0 ? null : out;
 }
 
-function stringifyExtraValue(value: unknown): string {
-  return typeof value === "string" ? value : JSON.stringify(value);
-}
-
 /** The saved `extras` object as edit rows, with one empty row appended so there is always somewhere to type. */
 export function rowsFromExtras(extras: Readonly<Record<string, unknown>> | null, nextId: (index: number) => string): readonly ExtraRow[] {
-  const saved = Object.entries(extras ?? {}).map(([key, value], index): ExtraRow => ({ id: nextId(index), key, value: stringifyExtraValue(value) }));
+  const saved = Object.entries(extras ?? {}).map(([key, value], index): ExtraRow => ({ id: nextId(index), key, value: fieldText(value) }));
   return [...saved, { id: nextId(saved.length), key: "", value: "" }];
+}
+
+/** Pasted fields spliced into the rows at `id`: an empty row is replaced by the first field, a filled one keeps its
+ *  place and the fields follow it. Each field's value is shown as the JSON it saves. */
+export function rowsWithPastedFields(
+  rows: readonly ExtraRow[],
+  id: string,
+  fields: Readonly<Record<string, unknown>>,
+  mintRowId: () => string,
+): readonly ExtraRow[] {
+  const at = rows.findIndex((row) => row.id === id);
+  const target = rows[at];
+  if (target === undefined) {
+    return rows;
+  }
+  const replaces = target.key.trim() === "" && target.value.trim() === "";
+  const pasted = Object.entries(fields).map(
+    ([key, value], index): ExtraRow => ({ id: replaces && index === 0 ? id : mintRowId(), key, value: fieldText(value) }),
+  );
+  return [...rows.slice(0, replaces ? at : at + 1), ...pasted, ...rows.slice(at + 1)];
+}
+
+/** The row with its value read: a structured value is rewritten as the JSON it saves, and one that reads as nothing
+ *  keeps its text and says why. A plain value is left as typed. */
+export async function rowWithReadValue(row: ExtraRow): Promise<ExtraRow> {
+  const { error: _previous, ...rest } = row;
+  if (!looksStructured(row.value)) {
+    return rest;
+  }
+  const read = await parsePastedStructure(row.value);
+  return read.ok ? { ...rest, value: fieldText(read.value) } : { ...rest, error: read.reason };
 }
 
 // ── the Diagnostics tier: request-body overrides (`transport.includeBody`) ─────────────────────────────
@@ -271,21 +300,20 @@ type IncludeBodyParse = { readonly ok: true; readonly includeBody: ConnectionTra
 
 /** The canonical schema the connection writer validates with, so the field refuses exactly what a save would. */
 const INCLUDE_BODY_SCHEMA = connectionTransportSchema.shape.includeBody;
-const INCLUDE_BODY_SHAPE_REASON = 'Write one JSON object, like {"top_k": 40}.';
+const INCLUDE_BODY_SHAPE_REASON = "Every value must be plain JSON: text, a number, true or false, null, a list or an object.";
 
-/** The overrides field's text as the transport value it saves. Empty text, or an empty object, clears it. */
-export function parseIncludeBody(raw: string): IncludeBodyParse {
+/** The overrides field's text, in any pasted format {@link parsePastedObject} reads, as the transport value it saves.
+ *  Empty text, or an empty object, clears it. */
+export async function parseIncludeBody(raw: string): Promise<IncludeBodyParse> {
   const text = raw.trim();
   if (text === "") {
     return { ok: true, includeBody: undefined };
   }
-  let json: unknown;
-  try {
-    json = JSON.parse(text) as unknown;
-  } catch (err) {
-    return { ok: false, reason: `That is not valid JSON (${errorMessage(err)}). ${INCLUDE_BODY_SHAPE_REASON}` };
+  const read = await parsePastedObject(text);
+  if (!read.ok) {
+    return { ok: false, reason: read.reason };
   }
-  const parsed = INCLUDE_BODY_SCHEMA.safeParse(json);
+  const parsed = INCLUDE_BODY_SCHEMA.safeParse(read.value);
   if (!parsed.success || parsed.data === undefined) {
     return { ok: false, reason: INCLUDE_BODY_SHAPE_REASON };
   }

@@ -1,4 +1,5 @@
-import { builtinProvider, connectionTasks } from "@orb/contracts/inference";
+import type { GenerationCapability } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, builtinProvider, connectionTasks, isTurnEstimated } from "@orb/contracts/inference";
 import { embeddingPrompt } from "../../../../../packages/inference/src/backends/kit/embedding-input.ts";
 import { curatedKind, curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
@@ -72,7 +73,59 @@ test("older Gemini and non-thinking image models do not inherit thinking; native
     curated: curatedRows({ model: "google/gemini-3-flash-preview", providerId: testProviderId("openrouter"), wire: "openai-compat" }),
   }).capability;
   expect(native).toMatchObject({ generation: { turns: { assistantPrefill: true, historySystemRows: false, roleHandlingFloor: "strict" } } });
-  expect(routed).toMatchObject({ generation: { turns: { assistantPrefill: false } } });
+  expect(routed).toMatchObject({ generation: { turns: { assistantPrefill: true } } });
+});
+
+const GEMINI_ROUTES = [
+  ["", "google", "google-generative-ai"],
+  ["models/", "custom-openai", "openai-compat"],
+  ["google/", "openrouter", "openai-compat"],
+] as const;
+
+function geminiOn(prefix: string, providerId: string, wire: "google-generative-ai" | "openai-compat", model: string): GenerationCapability {
+  const { capability } = synthesizeCapability("generation", "google", {
+    curated: curatedRows({ model: `${prefix}${model}`, providerId: testProviderId(providerId), wire }),
+  });
+  if (capability.kind !== "generation") {
+    throw new Error("expected a generation capability");
+  }
+  return capability.generation;
+}
+
+// The hosted family sweep (scripts/probes/hosted-families/RESULTS.md, 2026-10-03), case c5: a conversation ending on a
+// model turn continues on the older ids and is refused with "Requests ending with a model turn are not supported."
+// on the newer ones, the same split on the native API, Google's OpenAI-compatible layer and OpenRouter.
+test("a Gemini continue by prefill is stated per model, the same on every route", () => {
+  for (const [prefix, providerId, wire] of GEMINI_ROUTES) {
+    for (const model of ["gemini-3-flash-preview", "gemini-3.1-flash-lite", "gemini-3.5-flash"]) {
+      expect(acceptsAssistantPrefill(geminiOn(prefix, providerId, wire, model)), `${providerId} ${model}`).toBe(true);
+    }
+    for (const model of ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash"]) {
+      const capability = geminiOn(prefix, providerId, wire, model);
+      expect(capability.turns?.assistantPrefill, `${providerId} ${model}`).toBe(false);
+      expect(isTurnEstimated(capability, "assistantPrefill"), `${providerId} ${model}`).toBe(false);
+    }
+  }
+  // Only OpenRouter reached these; the direct key got 404 or a quota 429, so the direct routes keep the floor.
+  for (const model of ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3.1-pro-preview"]) {
+    expect(geminiOn("google/", "openrouter", "openai-compat", model).turns?.assistantPrefill, model).toBe(true);
+    expect(isTurnEstimated(geminiOn("models/", "custom-openai", "openai-compat", model), "assistantPrefill"), model).toBe(true);
+  }
+});
+
+test("Google's OpenAI-compatible layer is offered no top_k; the native API keeps it", () => {
+  for (const model of ["gemini-2.5-flash", "gemini-3-flash-preview", "gemini-3.8-flash"]) {
+    expect(geminiOn("models/", "custom-openai", "openai-compat", model).sampling.topK, model).toBeUndefined();
+    expect(geminiOn("", "google", "google-generative-ai", model).sampling.topK, model).toEqual({ min: 1, max: 64 });
+  }
+  expect(Object.keys(geminiOn("models/", "custom-openai", "openai-compat", "gemini-3.5-flash").sampling).toSorted()).toEqual([
+    "frequencyPenalty",
+    "presencePenalty",
+    "seed",
+    "stop",
+    "temperature",
+    "topP",
+  ]);
 });
 
 test("the compatibility embedding transport does not inherit native multimodal admission", () => {

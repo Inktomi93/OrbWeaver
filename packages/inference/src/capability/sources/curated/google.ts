@@ -23,14 +23,14 @@ export const googleRows = [
   },
   {
     match: { model: "^(google/|models/)?gemini-(?!embedding)" },
-    // Gemini takes a system message only as the leading system instruction, so a system row that ends or sits
-    // inside the history must fold, on every route (a Custom proxy relays it to the same refusal). The message-
-    // handling floor is not stated: nothing here documents whether adjacent same-role rows are refused.
+    // Gemini keeps a system message only as the leading system instruction: no route leaves a later one in place, so
+    // a system row that ends or sits inside the history folds, on every route. The message-handling floor is not
+    // stated: adjacent same-role rows pass everywhere, but whether a history may open on a model turn is unmeasured.
     generation: { turns: { midConversationSystem: false, historySystemRows: false } },
     evidence: {
       tier: "curated",
       dated: "2026-10-03",
-      cite: "@ai-sdk/google 4.0.87 dist/index.js:372: a system message after the first user or assistant message throws 'system messages are only supported at the beginning of the conversation'; https://ai.google.dev/gemini-api/docs/text-generation#system-instructions (a request's system instruction is one field beside contents)",
+      cite: "@ai-sdk/google 4.0.87 dist/index.js:372: a system message after the first user or assistant message throws 'system messages are only supported at the beginning of the conversation'; https://ai.google.dev/gemini-api/docs/text-generation#system-instructions (a request's system instruction is one field beside contents). scripts/probes/hosted-families/RESULTS.md (2026-10-03): the OpenAI-compatible layer accepts a later system message and lifts it into the instruction, OpenRouter hoists it to systemInstruction, and native contents refuse role system on 3.5-flash-lite, 3.6, 3.7 and 3.8-flash (400 'Role 'system' is not supported'); a hoisted trailing row went unobeyed on OpenRouter 3.1-flash-lite and 3.1-pro-preview; user,user and model,model 200 on every route",
     },
   },
   {
@@ -241,6 +241,34 @@ export const googleRows = [
       cite: "@ai-sdk/google/src/google-language-model.ts: native 2.5 drops frequencyPenalty and presencePenalty; Gemini 3 generationConfig forwards both",
     },
   },
+  // Google's OpenAI-compatible layer refuses `top_k` by name, so the two sets above lose it on that route.
+  {
+    match: { model: "^(models/)?gemini-(?!embedding)", provider: "custom-openai" },
+    generation: { sampling: { temperature: { min: 0, max: 2 }, topP: { min: 0, max: 1 }, seed: true, stop: true } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-03",
+      cite: "scripts/probes/hosted-families/RESULTS.md, Gemini OpenAI-compat samplers: top_k, min_p, repetition_penalty and top_a each 400 'Unknown name' on every model (gemini-2.5-* and 3.1-pro-preview included); the rest of the family set is unchanged",
+    },
+  },
+  {
+    match: { model: "^(models/)?gemini-3(?!.*-image)", provider: "custom-openai" },
+    generation: {
+      sampling: {
+        temperature: { min: 0, max: 2 },
+        topP: { min: 0, max: 1 },
+        seed: true,
+        stop: true,
+        frequencyPenalty: { min: -2, max: 2 },
+        presencePenalty: { min: -2, max: 2 },
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-03",
+      cite: "scripts/probes/hosted-families/RESULTS.md, Gemini OpenAI-compat samplers: top_k 400 'Unknown name' on gemini-3-flash-preview, 3.1-flash-lite, 3.1-pro-preview, 3.5-flash, 3.5-flash-lite, 3.6-flash, 3.7-flash, 3.8-flash; the Gemini 3 set above otherwise",
+    },
+  },
   {
     match: { model: "^(google/|models/)?gemini-(3[-.]7-flash|3[-.]8-flash|3[-.]1-pro-preview)$" },
     generation: { reasoning: { effortLevels: ["low", "medium", "high"] } },
@@ -278,13 +306,24 @@ export const googleRows = [
       cite: "https://ai.google.dev/gemini-api/docs/image-generation: Gemini 3 image thinking cannot be disabled; SDK keeps Pro image on the budget mapping",
     },
   },
+  // A conversation that ends on a model turn: continued by the older ids, refused by the newer ones, the same split on
+  // the native API, Google's OpenAI-compatible layer and OpenRouter.
   {
-    match: { model: "^(models/)?gemini-3-flash-preview$", wire: "google-generative-ai" },
+    match: { model: "^(google/|models/)?gemini-(3-flash-preview|3[-.]1-flash-lite|3[-.]5-flash)$" },
     generation: { turns: { assistantPrefill: true } },
     evidence: {
       tier: "curated",
-      dated: "2026-09-30",
-      cite: "Measured native generateContent accepted final model prefix 'The secret word is' and returned only ' ORBIT.' under an exact-response prompt",
+      dated: "2026-10-03",
+      cite: "scripts/probes/hosted-families/RESULTS.md, case c5 (assistant tail 'A B C D E'): CONTINUES on gemini-3-flash-preview, 3.1-flash-lite and 3.5-flash through native generateContent, the OpenAI-compatible layer and OpenRouter. Earlier, native 3-flash-preview took the final model prefix 'The secret word is' and returned only ' ORBIT.' under an exact-response prompt (2026-09-30)",
+    },
+  },
+  {
+    match: { model: "^(google/|models/)?gemini-(3[-.]5-flash-lite|3[-.][678]-flash)$" },
+    generation: { turns: { assistantPrefill: false } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-03",
+      cite: "scripts/probes/hosted-families/RESULTS.md, case c5: 400 'Requests ending with a model turn are not supported.' on gemini-3.5-flash-lite, 3.6-flash, 3.7-flash and 3.8-flash through native generateContent, the OpenAI-compatible layer and OpenRouter",
     },
   },
   {
@@ -342,12 +381,13 @@ export const googleRows = [
     },
   },
   {
-    match: { model: "^google/gemini-3[-.]1-pro-preview$", provider: "openrouter" },
+    // Only OpenRouter reached these: the direct key got 404 for 2.5 and a quota 429 for 3.1-pro-preview.
+    match: { model: "^google/gemini-(2[-.]5-(flash|flash-lite|pro)|3[-.]1-pro-preview)$", provider: "openrouter" },
     generation: { turns: { assistantPrefill: true } },
     evidence: {
       tier: "curated",
-      dated: "2026-09-30",
-      cite: "OpenRouter Gemini 3.1 Pro accepted final assistant prefix 'The answer is' and returned only ' ORBIT.'; no inference about other models or disabling thinking generally",
+      dated: "2026-10-03",
+      cite: "scripts/probes/hosted-families/RESULTS.md, OpenRouter google case c5: CONTINUES on gemini-2.5-flash, 2.5-flash-lite, 2.5-pro and 3.1-pro-preview. Earlier, OpenRouter Gemini 3.1 Pro took the final assistant prefix 'The answer is' and returned only ' ORBIT.' (2026-09-30)",
     },
   },
 ] as const satisfies readonly CapabilityOverrideInput[];

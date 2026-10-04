@@ -73,6 +73,27 @@ export const anthropicRows = [
       cite: "domain/connection/catalog/chat-models.ts CLAUDE_CAPABILITY_FLOOR + turns.ts NON-version cells; roleHandlingFloor strict (turns.ts:90,103). midConversationSystem/historySystemRows stay false on the family cell as the fail-closed default: SHAPING-MATRIX §7 measured a tail and a legal mid-array system row at 200 on opus-5, opus-5-5, fable-5, fable-5-1, sonnet-5 and opus-4-8 (the SYSTEM_ROW_MODELS rows below), 400 on haiku-4-5 for any system row (req_011CfKhZ8ALv97q91yH4eqep), and opus-5 failing a mid-array row on OpenRouter (the OpenRouter opus-5 row below). Where a system row folds, SHAPE sends the note bare: a fold inside the history leads the user message it joins, at its depth, and a trailing fold follows the latest user text (OR-11, scripts/probes/openrouter/RESULTS.md). Depth-2 note that must end the reply with a canary word, direct: bare before the user text sonnet-5 12/15, opus-4-8 15/15 against 9/15 and 10/15 for the framed fold after it; haiku-4-5 a next-reply note 10/10 (req_011CfNequm73NFZ9tBhNJB4g…) against 2/10, a standing note 0/10 in every placement, the latest message included. structuredLimitsFrom: platform.claude.com/docs/en/build-with-claude/structured-outputs 'Schema complexity limits' (24 optional parameters, 16 parameters with union types per request, fetched 2026-10-03); live 2026-10-03 OpenRouter anthropic/claude-sonnet-5.5 pinned to Anthropic, the rpg structured state round schema: 41 optional -> 400 'too many optional parameters (41) ... limit: 24' (req_011CffjcY1wYWAdWZwDY7zPs), strict-compatible 41 unions -> 400 'limit: 16 parameters with unions' (req_011CffjcWiZm184n3SZN3B1A)",
     },
   },
+  // What Anthropic's OpenAI-compatible surface takes, so a Custom endpoint proxying Claude is not offered vLLM's
+  // extras. The version rows below that state an empty set replace it; OpenRouter's advertised list replaces it too.
+  {
+    match: {
+      model: "^(anthropic/)?claude[-/]",
+      wire: "openai-compat",
+    },
+    generation: {
+      sampling: {
+        temperature: { min: 0, max: 1 },
+        topP: { min: 0, max: 1 },
+        stop: true,
+        exclusive: [["temperature", "topP"]],
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-04",
+      cite: "platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk (fetched 2026-10-04): temperature 0 to 1, top_p and stop supported; presence_penalty, frequency_penalty, seed and logit_bias ignored; no top_k. scripts/probes/hosted-families/RESULTS.md, OpenRouter anthropic (2026-10-03): min_p, repetition_penalty and top_a dropped upstream on every Claude id, top_k dropped on 4.6 and later. exclusive: the direct-wire pair rule below",
+    },
+  },
   {
     match: {
       model: "^(anthropic/)?claude[-/].*opus-5",
