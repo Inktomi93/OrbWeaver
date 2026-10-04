@@ -28,5 +28,12 @@ export const OLLAMA_NATIVE_RECORDINGS = {
     contentType: "application/json; charset=utf-8",
     body: '{"model":"qwen2.5:0.5b","created_at":"2026-10-03T14:11:24.457294078Z","message":{"role":"assistant","content":"{\\n  \\"city\\": \\"Paris\\"\\n}"},"done":true,"done_reason":"stop","total_duration":977732393,"load_duration":1066851,"prompt_eval_count":37,"prompt_eval_cached_count":24,"prompt_eval_duration":370555000,"eval_count":10,"eval_duration":603996000}',
   },
+  // The rpg structured state round (scripts/probes/rpg-extraction/structured-state-round.ts PROBE_OLLAMA, its own
+  // Ollama 0.35.1 container): the union schema as `format`, one beat, temperature 0.
+  stateRound: {
+    status: 200,
+    contentType: "application/json; charset=utf-8",
+    body: '{"model":"qwen2.5:0.5b","created_at":"2026-10-03T18:05:56.294661527Z","message":{"role":"assistant","content":"{\\n  \\"changes\\": [\\n    {\\n      \\"tool\\": \\"update_party\\",\\n      \\"args\\": {\\n        \\"targetRef\\": \\"player\\",\\n        \\"addCondition\\": {\\n          \\"name\\": \\"Bleeding\\",\\n          \\"modifier\\": -1\\n        },\\n        \\"status\\": \\"bleeding, breathing hard\\"\\n      }\\n    },\\n    {\\n      \\"tool\\": \\"update_inventory\\",\\n      \\"args\\": {\\n        \\"targetRef\\": \\"player\\",\\n        \\"update\\": [\\n          {\\n            \\"name\\": \\"Small brass key\\",\\n            \\"description\\": \\"key hanging on a silver chain\\",\\n            \\"location\\": \\"silver chain around her neck\\"\\n          }\\n        ]\\n      }\\n    }\\n  ]\\n}"},"done":true,"done_reason":"stop","total_duration":28584312467,"load_duration":874235727,"prompt_eval_count":1416,"prompt_eval_cached_count":0,"prompt_eval_duration":18221917000,"eval_count":142,"eval_duration":9473249000}',
+  },
   missing: { status: 404, contentType: "application/json; charset=utf-8", body: '{"error":"model \'no-such-model:latest\' not found"}' },
 } as const;

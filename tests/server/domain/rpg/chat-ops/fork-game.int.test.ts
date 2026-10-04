@@ -1091,6 +1091,8 @@ test("EVERY rpg_games.config FIELD is classified — the ratchet the table-level
       "trackers",
       "lite",
       "extractionMode",
+      // 0511 — a host-only enum scalar, COPIED like the extraction-depth knobs.
+      "stateCaptureVehicle",
       "extractionContext",
       "extractionWindowTokens",
       "reconcileEveryBeats",

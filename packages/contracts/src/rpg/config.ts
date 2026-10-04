@@ -147,6 +147,16 @@ export type RpgFoldFallbackReason = (typeof RPG_FOLD_FALLBACK_REASONS)[number];
 export const RPG_DELIVERY_PATHS = ["folded", "tool-round", "none"] as const;
 export type RpgDeliveryPath = (typeof RPG_DELIVERY_PATHS)[number];
 
+/** The STATE-CAPTURE VEHICLE knob — how the dedicated state round asks the model for this beat's changes:
+ *    • `auto` (default) — the connection's capability picks: forced tool calls where the model can be forced to
+ *      call one, ONE schema-constrained reply where it cannot but constrains its output.
+ *    • `tools`      — tool calls only (the round as it was before the structured vehicle existed).
+ *    • `structured` — always the schema-constrained reply, in whichever shape fits the model's grammar.
+ *  Under `auto` and `tools`, a round whose forced choice went out as `auto` and came back with no usable call is
+ *  retried once as a structured round. Additive, default `auto`: a stored blob without it parses to `auto`. */
+export const RPG_STATE_CAPTURE_VEHICLES = ["auto", "tools", "structured"] as const;
+export type RpgStateCaptureVehicle = (typeof RPG_STATE_CAPTURE_VEHICLES)[number];
+
 /** The extraction-CONTEXT knob (the crunchy-cluster redesign §1.3) — how much of the turn's OWN story the
  *  post-narration state round reads as evidence. The round rides the character turn's already-loaded canon
  *  transcript (zero extra model reads, §1.4); this knob slices it:
@@ -226,6 +236,8 @@ export const rpgGameConfigSchema = z.object({
     })
     .default({ steeringNote: "" }),
   extractionMode: z.enum(RPG_EXTRACTION_MODES).default("folded"),
+  // How the dedicated state round asks for the beat's changes ({@link RPG_STATE_CAPTURE_VEHICLES}).
+  stateCaptureVehicle: z.enum(RPG_STATE_CAPTURE_VEHICLES).default("auto"),
   // The extraction-DEPTH knobs (the crunchy-cluster redesign §1.3) — how much of the turn's own story the
   // state round reads, and its token budget. Additive defaulted, self-healing at the parse seam (the
   // `extractionMode` precedent — D107 knob-wire discipline, no version stamp). `extractionContext` defaults

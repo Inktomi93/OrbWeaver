@@ -25,6 +25,7 @@ import {
   RPG_EXTRACTION_WINDOW_TOKENS_MAX,
   RPG_EXTRACTION_WINDOW_TOKENS_MIN,
   RPG_RECONCILE_EVERY_BEATS_MAX,
+  RPG_STATE_CAPTURE_VEHICLES,
   RPG_STEERING_NOTE_MAX,
 } from "./config.ts";
 import { rpgCyoaChoiceBehaviorSchema, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums.ts";
@@ -95,6 +96,8 @@ export const rpgUpdateConfigInputSchema = z.object({
       // The §1.3 extraction-depth knobs — how much story the state round reads (`beat`/`window`/`full`), the
       // `window` arm's token budget, and the reconcile cadence. Bounds mirror the config schema. Omit keeps.
       extractionContext: z.enum(RPG_EXTRACTION_CONTEXTS).optional(),
+      // The state round's vehicle (`auto` | `tools` | `structured`). Omit keeps.
+      stateCaptureVehicle: z.enum(RPG_STATE_CAPTURE_VEHICLES).optional(),
       extractionWindowTokens: z.number().int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).optional(),
       reconcileEveryBeats: z.number().int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).optional(),
       // WAVE MU (owner ruling #20's game half): the GAME's authored user macros — the whole set in ONE write

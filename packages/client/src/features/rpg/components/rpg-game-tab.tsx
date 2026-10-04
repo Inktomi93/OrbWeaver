@@ -401,7 +401,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
       <TrackersEditor chatId={state.chatId} config={config} />
       <RelationshipHintsEditor chatId={state.chatId} config={config} />
       <JournalTypeHintsEditor chatId={state.chatId} config={config} />
-      <HostConsoleScalars chatId={state.chatId} config={config} />
+      <HostConsoleScalars chatId={state.chatId} config={config} structuredUnavailable={state.game.effectiveDelivery.structuredUnavailable} />
       <RpgGameMacros chatId={state.chatId} config={config} />
       <ResyncControl chatId={state.chatId} />
     </Stack>

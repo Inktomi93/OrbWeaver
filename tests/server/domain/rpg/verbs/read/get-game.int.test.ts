@@ -37,7 +37,7 @@ describe("getGame", () => {
     const { chatId, h } = await seedLiteGame(db);
     const view = await h.service.getGame({ principal: principal(castId<Handle>("host")), chatId });
     expect(view.extractionMode).toBe("folded");
-    expect(view.effectiveDelivery).toEqual({ path: "folded", fallbackReason: null });
+    expect(view.effectiveDelivery).toEqual({ path: "folded", fallbackReason: null, structuredUnavailable: false });
   });
 
   test("EFF-3: a FOLD-GUARDED folded game reports the post-commit round it actually runs, with the reason", async () => {
@@ -47,7 +47,7 @@ describe("getGame", () => {
     const { chatId, h } = await seedLiteGame(db, { foldGuarded: true });
     const view = await h.service.getGame({ principal: principal(castId<Handle>("host")), chatId });
     expect(view.extractionMode).toBe("folded");
-    expect(view.effectiveDelivery).toEqual({ path: "tool-round", fallbackReason: "local-engine-fold-guard" });
+    expect(view.effectiveDelivery).toEqual({ path: "tool-round", fallbackReason: "local-engine-fold-guard", structuredUnavailable: false });
   });
 
   test("EFF-3: a readonly room delivers nothing — `none`, never a lag label the flush's F2 gate makes false", async () => {
@@ -55,6 +55,7 @@ describe("getGame", () => {
     expect((await h.service.getGame({ principal: principal(castId<Handle>("host")), chatId })).effectiveDelivery).toEqual({
       path: "none",
       fallbackReason: null,
+      structuredUnavailable: false,
     });
   });
 });
