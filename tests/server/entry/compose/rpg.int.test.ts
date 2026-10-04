@@ -56,7 +56,7 @@ import { findTurnToolCallsByVariant } from "../../../../packages/server/src/doma
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg, rpgPromotionProvenance } from "../../../../packages/server/src/entry/compose/rpg.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "../../../inference/backends/openai-compat/_ollama-native-recordings.ts";
-import { makeCapability, makeGenerationCapability, makeResolved } from "../../../support/factories/resolved-connection.ts";
+import { makeCapability, makeGenerationCapability, makeResolved, TEST_CONNECTION_ID } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 import { ANTHROPIC_PATCH_ROUND_200 } from "./_structured-state-round-recordings.ts";
@@ -3510,6 +3510,7 @@ test("0511: the panel's game read names a `structured` knob the room's model can
     path: "tool-round",
     fallbackReason: null,
     structuredUnavailable: true,
+    stateRoundOverflow: null,
   });
 
   const able = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}" });
@@ -3518,7 +3519,31 @@ test("0511: the panel's game read names a `structured` knob the room's model can
     path: "tool-round",
     fallbackReason: null,
     structuredUnavailable: false,
+    stateRoundOverflow: null,
   });
+});
+
+// An unpinned Ollama model resolves to its lowest default window, and the round's own request does not fit it: state
+// capture would drop every turn. The game read names the viewer's connection instead of raising the window behind the
+// host's back; the same game on that connection with a larger declared window reads clean.
+test("0532: a state round that cannot fit the connection's window is named on the game read; a larger declared window clears it", async ({ app, db }) => {
+  const withWindow = (window: number): ReturnType<typeof makeGenerationCapability> =>
+    makeGenerationCapability({
+      output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] },
+      tools: { parallel: true },
+      context: { window },
+    });
+  const unpinned = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: withWindow(4096) });
+  const game = await cheapGame(db, unpinned, "window-unpinned");
+  const read = { principal: hostPrincipal(game.hostId), chatId: game.chatId };
+  expect((await unpinned.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toEqual({ connectionId: TEST_CONNECTION_ID, windowTokens: 4096 });
+
+  const declared = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: withWindow(16_384) });
+  expect((await declared.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toBeNull();
+
+  // A folding room runs no post-commit round, so there is nothing to fit even on the small window.
+  await unpinned.service.updateConfig({ ...read, extractionMode: "folded" });
+  expect((await unpinned.service.getGame(read)).effectiveDelivery).toMatchObject({ path: "folded", stateRoundOverflow: null });
 });
 
 test("0511: a patch reply whose every value was refused is a recorded DROP naming the value sent — never a quiet beat", async ({ app, db }) => {

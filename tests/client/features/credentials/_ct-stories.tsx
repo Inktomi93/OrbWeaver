@@ -10,13 +10,14 @@ import { pluginsInstalledSection } from "@orb/client/features/plugin";
 import { SaveStatusHostContext } from "@orb/client/forms";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
-import { useActiveConfigGroup, useAggregateSaveStatus } from "@orb/client/state";
+import { requestConnectionEditor, useActiveConfigGroup, useAggregateSaveStatus } from "@orb/client/state";
 import type { CredRevokedReason } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useEffect } from "react";
 import { ConnectionEditor } from "../../../../packages/client/src/features/credentials/components/connection-editor.tsx";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
 import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
@@ -220,6 +221,14 @@ function ConnectionsPaneInner(): ReactElement {
       </button>
     </div>
   );
+}
+
+/** The pane after a door elsewhere (a game's context-window notice) asked for one row's editor on its Advanced tier. */
+export function ConnectionsSettingsRequestedStory({ connectionId }: { readonly connectionId: string }): ReactElement {
+  useEffect(() => {
+    requestConnectionEditor(castId<UserConnectionId>(connectionId), { openAdvanced: true });
+  }, [connectionId]);
+  return <ConnectionsSettingsStory />;
 }
 
 export function ConnectionsSettingsStory(): ReactElement {

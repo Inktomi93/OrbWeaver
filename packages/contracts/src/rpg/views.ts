@@ -4,7 +4,7 @@
 // widening the member type). The panel is swipe-consistent BY CONSTRUCTION — every tab reads the SAME
 // resolved-current snapshot, so a swipe re-resolves everything at once (the owner's ratification demand).
 
-import type { ChatId, MessageId, MessageVariantId, PresetId, RpgGameId } from "@orb/kit/ids";
+import type { ChatId, MessageId, MessageVariantId, PresetId, RpgGameId, UserConnectionId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroViewSchema } from "#preset";
@@ -44,6 +44,15 @@ export interface RpgEffectiveDelivery {
    *  after the turn runs as tool calls. Separate from `fallbackReason` because it is not a fold cause: a folded room
    *  whose model cannot fold can carry both, and the panel states both. `false` when no post-commit pass runs. */
   readonly structuredUnavailable: boolean;
+  /** The pass after the turn cannot fit the viewer's connection window, so it would lose the game state every turn.
+   *  Names the connection whose context-window setting fixes it. `null` when it fits or when no such pass runs. */
+  readonly stateRoundOverflow: RpgStateRoundOverflow | null;
+}
+
+/** A state round that does not fit: the viewer's own connection that runs it, and the window it was priced against. */
+export interface RpgStateRoundOverflow {
+  readonly connectionId: UserConnectionId;
+  readonly windowTokens: number;
 }
 
 /** `getGame` (member) — the takeover's mode read. The pointer fires the takeover; THIS carries the
@@ -386,6 +395,7 @@ const rpgEffectiveDeliverySchema = z.strictObject({
   path: z.enum(RPG_DELIVERY_PATHS),
   fallbackReason: z.enum(RPG_FOLD_FALLBACK_REASONS).nullable(),
   structuredUnavailable: z.boolean(),
+  stateRoundOverflow: z.strictObject({ connectionId: typeIdSchema(ID_PREFIX.userConnection), windowTokens: z.number().int() }).nullable(),
 }) satisfies z.ZodType<RpgEffectiveDelivery>;
 export const rpgGameViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.rpgGame),

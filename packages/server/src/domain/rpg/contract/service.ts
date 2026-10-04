@@ -32,7 +32,9 @@ import type {
   RpgRecordedToolCall,
   RpgRevealView,
   RpgSnapshotState,
+  RpgStateRoundOverflow,
   RpgToolCall,
+  RpgTrackerDef,
   RpgTrackerView,
   RpgTurnToolCallsView,
 } from "@orb/contracts/rpg";
@@ -585,6 +587,9 @@ interface RpgStateRoundInput {
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
   readonly baseState: RpgSnapshotState;
+  /** The game's tracker catalogue, off the row the flush already holds: the fold prices a first delta on an
+   *  unset meter from it. */
+  readonly trackerDefs: readonly RpgTrackerDef[];
   readonly turnConnection: RpgTurnContext;
   /** THE ROUND'S CANCELLATION. Minted by the flush barrier (`RpgFlushBarrier.register`) as the round's own
    *  lifetime — NOT `turnConnection.signal`, which is released the instant the engine turn returns and would
@@ -681,6 +686,10 @@ export interface RpgContext {
   /** The chat's active-preset user macros (WAVE MU) — the shadow gloss on the host macro editor. */
   readonly resolvePresetUserMacros: RpgResolvePresetUserMacros;
   readonly resolveStateDelivery: RpgResolveStateDelivery;
+  /** Does the post-commit state round fit the VIEWER's own chat connection window, over `baseState`? Wired at
+   *  compose, which owns the round's prompt builders; `null` when it fits or the connection does not resolve. Kept
+   *  off `resolveStateDelivery` because the gather calls that one every turn and this prices a whole request. */
+  readonly resolveStateRoundFit: (chatId: ChatId, viewerUserId: UserId, baseState: RpgSnapshotState) => Promise<RpgStateRoundOverflow | null>;
   readonly runToolRound: RpgRunToolRound;
   /** R1 (`folded` mode) — the character turn's TERMINAL tool mount (the gather calls it) and the fold of the
    *  calls it comes back with (the flush calls it). Together they replace the post-commit round with ZERO

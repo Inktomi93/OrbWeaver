@@ -84,6 +84,33 @@ describe("projectToolCallsForViewer", () => {
     expect(call?.issues[0]).not.toContain(TRUTH);
   });
 
+  // A model can invent any KEY, and a key is model bytes like any value. The host still reads it verbatim.
+  test("a hidden span in an argument KEY is belted for a member and kept for the host", () => {
+    const args = JSON.stringify({ [`location ${LIE}`]: "inn", npcs: [{ [`mood ${LIE}`]: "calm" }] });
+    const [member] = projectToolCallsForViewer([sceneCall(args)], false);
+    const [host] = projectToolCallsForViewer([sceneCall(args)], true);
+
+    expect(member?.args).not.toContain(TRUTH);
+    expect(JSON.parse(member?.args ?? "")).toEqual({ "location ": "inn", npcs: [{ "mood ": "calm" }] });
+    expect(host?.args).toBe(args);
+  });
+
+  test("a key that belts onto a sibling's name collapses to ONE key, and the later one wins", () => {
+    const args = `{"location ":"first","location ${LIE.replaceAll('"', '\\"')}":"second"}`;
+    const [member] = projectToolCallsForViewer([sceneCall(args)], false);
+
+    expect(member?.args).not.toContain(TRUTH);
+    expect(JSON.parse(member?.args ?? "")).toEqual({ "location ": "second" });
+  });
+
+  test("an issue line's sent value belts its KEYS as well as its strings", () => {
+    const issues = [`weather: Invalid input — sent ${JSON.stringify({ [`type ${LIE}`]: "storm" })}`];
+    const [call] = projectToolCallsForViewer([sceneCall("{}", issues)], false);
+
+    expect(call?.issues[0]).toContain("weather: Invalid input");
+    expect(call?.issues[0]).not.toContain(TRUTH);
+  });
+
   test("an issue line with no sent value is untouched (the salvage arm is pure schema paths)", () => {
     const [call] = projectToolCallsForViewer([sceneCall("{}", ["update_scene.weather"])], false);
     expect(call?.issues).toEqual(["update_scene.weather"]);
@@ -105,10 +132,21 @@ describe("a structured patch reply's model-sent names (0511)", () => {
   ];
   const inPlane = [{ plane: `update_scene ${LIE}`, call: 0, field: "location", item: 0, value: "x" }];
   const inId = [{ plane: "update_scene", call: -1, field: `location ${LIE}`, item: 0, value: "x" }];
+  // An entry the round cannot place keeps its raw bytes in the unassembled row's args, invented keys included.
+  const inKey = [{ plane: "update_scene", call: 0, field: "weather", item: 0, value: "x", [`mood ${LIE}`]: "y" }];
 
   test("a hidden span in a field name never reaches a member, in the issue line or anywhere else", () => {
     expect(JSON.stringify(projectToolCallsForViewer(recorded(inField), false))).not.toContain(TRUTH);
     expect(JSON.stringify(projectToolCallsForViewer(recorded(inId), false))).not.toContain(TRUTH);
+  });
+
+  test("an unassembled row whose raw args carry an invented key with a hidden span is belted for a member", () => {
+    const rows = recorded(inKey);
+    expect(rows.map((row) => row.verdict)).toEqual(["dropped"]);
+    const [member] = projectToolCallsForViewer(rows, false);
+    expect(member?.withheld).toBeNull();
+    expect(member?.args).not.toContain(TRUTH);
+    expect(JSON.parse(member?.args ?? "")).toEqual([{ plane: "update_scene", call: 0, field: "weather", item: 0, value: "x", "mood ": "y" }]);
   });
 
   test("a hidden span in a plane name never reaches a member, in the name column or the issue line", () => {
@@ -116,7 +154,7 @@ describe("a structured patch reply's model-sent names (0511)", () => {
   });
 
   test("CONTROL: the host reads the same rows verbatim, so the span really was in them", () => {
-    for (const changes of [inField, inPlane, inId]) {
+    for (const changes of [inField, inPlane, inId, inKey]) {
       expect(JSON.stringify(projectToolCallsForViewer(recorded(changes), true))).toContain(TRUTH);
     }
   });

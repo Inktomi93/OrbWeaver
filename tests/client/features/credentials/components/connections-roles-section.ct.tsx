@@ -34,7 +34,13 @@ import { userSettingsView } from "../../../../support/node/user-settings-view.ts
 // The floor capability: the CHEAP model §5.3a warns about, legal on the Utility slot and unable to do two of its three jobs.
 import { TEXT_ONLY_CAPABILITY } from "../../../../support/node/utility-role.ts";
 import { ALL_AVAILABLE } from "../_connection-fixtures.ts";
-import { ConnectionsPaneNarrowStory, ConnectionsPaneWideStory, ConnectionsSettingsHostedStory, ConnectionsSettingsStory } from "../_ct-stories.tsx";
+import {
+  ConnectionsPaneNarrowStory,
+  ConnectionsPaneWideStory,
+  ConnectionsSettingsHostedStory,
+  ConnectionsSettingsRequestedStory,
+  ConnectionsSettingsStory,
+} from "../_ct-stories.tsx";
 
 const AUTOSAVE_STATUS = '[data-slot="autosave-status"]';
 const UTILITY_PRESET_LABEL = "Utility preset";
@@ -460,6 +466,19 @@ test("a Rerank role on the built-in row has a door that opens that row's editor"
   const editor = page.locator('[data-slot="connection-editor"]');
   await expect(editor).toBeVisible();
   await expect(editor.getByText(rerankRow.label, { exact: true })).toBeVisible();
+});
+
+// A door from outside the pane (a game whose state round does not fit the model's window) lands on that row's editor
+// with Advanced open, where the context window is stated.
+test("a door asking for a row's Advanced tier opens that row's editor with Advanced expanded", async ({ mount, page }) => {
+  await stubPane(page);
+  await mount(<ConnectionsSettingsRequestedStory connectionId={CHAT_ROW.id} />);
+
+  const editor = page.locator('[data-slot="connection-editor"]');
+  await expect(editor).toBeVisible();
+  await expect(editor.getByText(CHAT_ROW.label, { exact: true })).toBeVisible();
+  await expect(editor.locator('[data-tier="Advanced"]').getByRole("button", { expanded: true })).toHaveCount(1);
+  await expect(editor.locator('[data-tier="Diagnostics"]').getByRole("button", { expanded: true })).toHaveCount(0);
 });
 
 test("a Rerank role on a row the user added offers no door to the built-in row", async ({ mount, page }) => {

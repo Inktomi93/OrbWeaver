@@ -464,7 +464,7 @@ export function makeRpgService(
       input.baseState,
       extraction,
       { item: () => `item_${n}_${itemSeq++}`, quest: () => castId<RpgQuestId>(`q_${n}_${questSeq++}`), objective: () => `obj_${n}_${objectiveSeq++}` },
-      buildActorRefIndex(fakes.participants),
+      { participantIndex: buildActorRefIndex(fakes.participants), trackerDefs: input.trackerDefs },
     );
   };
   // R1 — the folded pair. NEITHER makes a model call in the real impl, which is the whole point: a test that
@@ -584,6 +584,7 @@ export function makeRpgService(
         canPopulate: !fakes.trackersReadOnly,
         structuredUnavailable: false,
       }),
+    resolveStateRoundFit: () => Promise.resolve(null),
     runToolRound,
     buildFoldedTurn,
     foldTurnToolCalls,

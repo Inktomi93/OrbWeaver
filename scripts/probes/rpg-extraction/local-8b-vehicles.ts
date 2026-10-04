@@ -750,7 +750,7 @@ async function runGame(arm: string, runIndex: number): Promise<{ turns: TurnRow[
     const hit = (want: string): boolean => emittedRemoves.some((got) => norm(got).startsWith(norm(want)) || norm(want).startsWith(norm(got)));
     const emittedHp = (tally["update_party"] ?? []).some((a) => ((a["trackerDeltas"] as Args[] | undefined) ?? []).some((d) => d["key"] === "hp" && nNum(d["delta"]) && d["delta"] !== 0));
 
-    const delta = extractionToStateDelta(state, extraction, mints, participantIndex);
+    const delta = extractionToStateDelta(state, extraction, mints, { participantIndex, trackerDefs: config.trackers });
     state = { ...state, ...(delta.statePatch as Partial<RpgSnapshotState>) };
 
     turns.push({
