@@ -4,7 +4,7 @@
 //
 // Usage (see README.md):
 //   node scripts/probes/embed-width/run.ts <verb> [args] --base http://127.0.0.1:<port> --db <stage db> --archive <dir>
-// Verbs: seed · memory-on · bind <embedder> · race <embedder> <embedder> · badkey <embedder> · member <embedder> · state <label>
+// Verbs: seed · memory-on · utility · bind <embedder> · race <embedder> <embedder> · badkey <embedder> · member <embedder> · state <label>
 
 import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -51,6 +51,8 @@ interface EmbedderSpec {
   readonly model: string;
   readonly baseUrl: string | null;
   readonly dims?: number;
+  /** The editor's Purpose override (`declared.kind`): a model no curated row names is otherwise a chat model. */
+  readonly purpose?: "embedding";
   readonly keyEnv?: string;
   readonly existing?: true;
 }
@@ -61,10 +63,22 @@ const EMBEDDERS: Readonly<Record<string, EmbedderSpec>> = {
   "ollama-nomic-768": { providerId: "ollama", model: "nomic-embed-text", baseUrl: OLLAMA_BASE_URL },
   "ollama-nomic-256": { providerId: "ollama", model: "nomic-embed-text", baseUrl: OLLAMA_BASE_URL, dims: 256 },
   "ollama-minilm-384": { providerId: "ollama", model: "all-minilm", baseUrl: OLLAMA_BASE_URL },
+  // A width the model cannot make: the save must refuse it with the stated and measured widths.
+  "ollama-minilm-1024": { providerId: "ollama", model: "all-minilm", baseUrl: OLLAMA_BASE_URL, dims: 1024 },
   "openai-3small-1536": { providerId: "openai", model: "text-embedding-3-small", baseUrl: null, keyEnv: "OPENAI_PROBE_KEY" },
   "openai-3small-512": { providerId: "openai", model: "text-embedding-3-small", baseUrl: null, dims: 512, keyEnv: "OPENAI_PROBE_KEY" },
-  "openrouter-bge-768": { providerId: "openrouter", model: "baai/bge-base-en-v1.5", baseUrl: null, keyEnv: "OPENROUTER_PROBE_KEY" },
+  "openrouter-bge-768": {
+    providerId: "openrouter",
+    model: "baai/bge-base-en-v1.5",
+    baseUrl: null,
+    purpose: "embedding",
+    dims: 768,
+    keyEnv: "OPENROUTER_PROBE_KEY",
+  },
 };
+
+/** The cheap hosted chat model bound as Utility (`summarize`), so the memory rebuild writes digests too. */
+const UTILITY = { providerId: "openrouter", model: "openai/gpt-4o-mini", keyEnv: "OPENROUTER_PROBE_KEY" } as const;
 
 const CARDS = [
   {
@@ -122,6 +136,8 @@ const SEARCHES = [
   { over: "characters", query: "keeper of a lighthouse on a stormy coast", expect: "Maren Vos" },
   { over: "documents", query: "salt glass forms at low tide in the harbour", expect: DOC_NAME },
   { over: "segments", query: "where is the brass key to the lamp room hidden", expect: "brass key" },
+  // Digests exist only once a Utility model is bound. Their text is the model's, so a hit is judged by its chat.
+  { over: "digests", query: "where Maren hides the key to the lamp room", expect: null },
 ] as const;
 
 function parseOpts(argv: readonly string[]): { readonly opts: Opts; readonly positional: readonly string[] } {
@@ -155,6 +171,11 @@ class Trpc {
     this.cookie = cookie;
   }
 
+  /** The stage's loopback owner, who alone may write deployment settings. */
+  get isOwner(): boolean {
+    return this.cookie === null;
+  }
+
   private headers(json: boolean): Record<string, string> {
     return {
       ...(json ? { "content-type": "application/json" } : {}),
@@ -179,6 +200,12 @@ class Trpc {
     return { ok: res.ok, body };
   }
 
+  /** An SSE subscription, as the app's EventSource opens it: the open response, whose body the caller reads. */
+  async subscribe(proc: string, input: unknown, signal: AbortSignal): Promise<Response> {
+    const qs = `?input=${encodeURIComponent(JSON.stringify(input))}`;
+    return await fetch(`${this.opts.base}/api/trpc/${proc}${qs}`, { headers: { ...this.headers(false), accept: "text/event-stream" }, signal });
+  }
+
   private async unwrap(proc: string, res: Response): Promise<unknown> {
     const text = await res.text();
     if (!res.ok) {
@@ -193,6 +220,82 @@ function archive(opts: Opts, name: string, value: unknown): string {
   const file = path.join(opts.archive, `${new Date().toISOString().replaceAll(":", "-")}-${name}.json`);
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
   return file;
+}
+
+interface BusEvent {
+  readonly atMs: number;
+  readonly type: string;
+}
+
+// A user-channel data frame's event type, wherever the SSE envelope nests the frame.
+function userEventType(value: unknown): string | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const frame = value as { channel?: unknown; event?: { type?: unknown } };
+  if (frame.channel === "user" && typeof frame.event?.type === "string") {
+    return frame.event.type;
+  }
+  for (const child of Object.values(value)) {
+    const found = userEventType(child);
+    if (found !== null) {
+      return found;
+    }
+  }
+  return null;
+}
+
+/** The caller's user-bus events while a step runs, read over the socket the app opens (`stream.connect`, then an
+ *  attach to the `user` room). The step's evidence says whether its rebuild announced `corpusRecomputed`. */
+class UserBus {
+  readonly events: BusEvent[] = [];
+  private readonly abort = new AbortController();
+  private readonly started = Date.now();
+  private reading: Promise<void> = Promise.resolve();
+
+  static async open(trpc: Trpc): Promise<UserBus> {
+    const bus = new UserBus();
+    const socketId = crypto.randomUUID();
+    const res = await trpc.subscribe("stream.connect", { socketId }, bus.abort.signal);
+    if (!res.ok || res.body === null) {
+      throw new Error(`stream.connect HTTP ${String(res.status)}`);
+    }
+    bus.reading = bus.read(res.body);
+    await trpc.mutate("stream.attach", { socketId, ref: { channel: "user" } });
+    return bus;
+  }
+
+  private async read(body: ReadableStream<Uint8Array>): Promise<void> {
+    const decoder = new TextDecoder();
+    let buffered = "";
+    try {
+      for await (const chunk of body) {
+        buffered += decoder.decode(chunk, { stream: true });
+        const lines = buffered.split("\n");
+        buffered = lines.pop() ?? "";
+        // A keep-alive is a `data:` line with no JSON payload.
+        for (const payload of lines.filter((l) => l.startsWith("data:")).map((l) => l.slice("data:".length).trim())) {
+          if (!payload.startsWith("{")) {
+            continue;
+          }
+          const type = userEventType(JSON.parse(payload));
+          if (type !== null) {
+            this.events.push({ atMs: Date.now() - this.started, type });
+          }
+        }
+      }
+    } catch (error) {
+      if (!this.abort.signal.aborted) {
+        throw error;
+      }
+    }
+  }
+
+  async close(): Promise<readonly BusEvent[]> {
+    this.abort.abort();
+    await this.reading;
+    return this.events;
+  }
 }
 
 /** The stage db, read-only: per vector table, the stored widths by generation, plus the owner's targets. */
@@ -278,7 +381,7 @@ async function searches(opts: Opts, trpc: Trpc): Promise<unknown[]> {
   const chatId = execFileSync("python3", ["-c", MAREN_CHAT_SQL, opts.db], { encoding: "utf8" }).trim();
   const scopedCharacterId = execFileSync("python3", ["-c", MAREN_ID_SQL, opts.db], { encoding: "utf8" }).trim();
   for (const s of SEARCHES) {
-    const scope = s.over === "segments" ? { kind: "chat", chatId, scopedCharacterId } : { kind: "owner" };
+    const scope = s.over === "segments" || s.over === "digests" ? { kind: "chat", chatId, scopedCharacterId } : { kind: "owner" };
     try {
       const result = (await trpc.query("search.search", { query: s.query, topN: SEARCH_TOP_N, over: s.over, scope })) as Record<string, unknown>;
       const rows = (Object.values(result).find(Array.isArray) ?? []) as unknown[];
@@ -287,7 +390,7 @@ async function searches(opts: Opts, trpc: Trpc): Promise<unknown[]> {
         over: s.over,
         query: s.query,
         hits: rows.length,
-        expectInTop3: top3.some((row) => row.includes(s.expect)),
+        expectInTop3: top3.some((row) => row.includes(s.expect ?? chatId)),
         top: top3.map((row) => row.slice(0, ROW_EXCERPT)),
       });
     } catch (error) {
@@ -301,42 +404,129 @@ async function viewer(trpc: Trpc): Promise<string> {
   return ((await trpc.query("sessions.me")) as { userId: string }).userId;
 }
 
-/** The connection for an arm: the seeded built-in row, or a new row (with its key stored as a credential). */
-async function connectionFor(trpc: Trpc, name: string, keyOverride?: string): Promise<string> {
+interface ConnectionRow {
+  readonly id: string;
+  readonly label: string;
+  readonly providerId: string;
+  readonly model: string;
+  readonly declared: unknown;
+}
+
+/** The connection for an arm: the seeded built-in row, the arm's row from an earlier step (so a refused write is
+ *  retried on the same row), or a new row with its key stored as a credential. `badKey` makes a separate row. */
+async function connectionFor(trpc: Trpc, name: string, badKey?: string): Promise<string> {
   const spec = EMBEDDERS[name];
   if (spec === undefined) {
     throw new Error(`unknown embedder ${name}; known: ${Object.keys(EMBEDDERS).join(", ")}`);
   }
+  const rows = (await trpc.query("connection.list")) as ConnectionRow[];
   if (spec.existing === true) {
-    const rows = (await trpc.query("connection.list")) as { id: string; providerId: string; model: string; declared: unknown }[];
     const row = rows.find((r) => r.providerId === spec.providerId && r.model === spec.model && r.declared === null);
     if (row === undefined) {
       throw new Error(`no seeded ${spec.providerId} ${spec.model} row`);
     }
     return row.id;
   }
+  const label = `probe ${name}${badKey === undefined ? "" : " bad key"}`;
+  const earlier = rows.find((r) => r.label === label);
+  if (earlier !== undefined) {
+    return earlier.id;
+  }
+  if (spec.baseUrl !== null && trpc.isOwner) {
+    await admitEndpoint(trpc, spec.baseUrl);
+  }
+  return await createConnection(trpc, {
+    label,
+    providerId: spec.providerId,
+    model: spec.model,
+    baseUrl: spec.baseUrl,
+    declared: declaredFor(spec),
+    keyEnv: spec.keyEnv,
+    badKey,
+  });
+}
+
+/** The row's `declared` block: its Purpose override and its stated width, or nothing when it states neither. */
+function declaredFor(spec: EmbedderSpec): Record<string, unknown> | undefined {
+  if (spec.purpose === undefined && spec.dims === undefined) {
+    return;
+  }
+  return { ...(spec.purpose === undefined ? {} : { kind: spec.purpose }), ...(spec.dims === undefined ? {} : { embedding: { dims: spec.dims } }) };
+}
+
+/** A multi-user stage admits no private address: the owner admits the local server's exact authority, as the
+ *  connection editor's Admit button does (`settings.updateAppSettings`). */
+async function admitEndpoint(trpc: Trpc, baseUrl: string): Promise<void> {
+  const authority = new URL(baseUrl).host;
+  const settings = (await trpc.query("settings.getAppSettingsWithOverrides")) as { resolved: { privateEndpointAllowlist: string[] } };
+  const entries = settings.resolved.privateEndpointAllowlist;
+  if (!entries.includes(authority)) {
+    await trpc.mutate("settings.updateAppSettings", { partial: { privateEndpointAllowlist: [...entries, authority] } });
+  }
+}
+
+async function createConnection(
+  trpc: Trpc,
+  row: {
+    readonly label: string;
+    readonly providerId: string;
+    readonly model: string;
+    readonly baseUrl: string | null;
+    readonly declared?: Record<string, unknown> | undefined;
+    readonly keyEnv?: string | undefined;
+    readonly badKey?: string | undefined;
+  },
+): Promise<string> {
   let credentialId: string | null = null;
-  if (spec.keyEnv !== undefined) {
-    const key = keyOverride ?? probeKey(spec.keyEnv);
-    credentialId = ((await trpc.mutate("credentials.add", { provider: spec.providerId, label: `probe ${name}`, key })) as { id: string }).id;
+  if (row.keyEnv !== undefined) {
+    const key = row.badKey ?? probeKey(row.keyEnv);
+    credentialId = ((await trpc.mutate("credentials.add", { provider: row.providerId, label: row.label, key })) as { id: string }).id;
   }
   const created = (await trpc.mutate("connection.create", {
-    label: `probe ${name}`,
-    providerId: spec.providerId,
+    label: row.label,
+    providerId: row.providerId,
     credentialId,
-    baseUrl: spec.baseUrl,
-    model: spec.model,
+    baseUrl: row.baseUrl,
+    model: row.model,
     allowBackground: true,
-    ...(spec.dims === undefined ? {} : { declared: { embedding: { dims: spec.dims } } }),
+    ...(row.declared === undefined ? {} : { declared: row.declared }),
   })) as { id: string };
   return created.id;
 }
 
-/** Re-point the caller's embed role as the pane does: read the confirm's preview, then write the binding. */
-async function repoint(trpc: Trpc, connectionId: string): Promise<{ readonly preview: unknown; readonly binding: unknown }> {
+/** Bind the cheap hosted chat model as Utility, then sweep memory so its digests exist before the moves. */
+async function utility(opts: Opts, trpc: Trpc): Promise<void> {
+  const label = `probe utility ${UTILITY.model}`;
+  const connectionId = await createConnection(trpc, { label, providerId: UTILITY.providerId, model: UTILITY.model, baseUrl: null, keyEnv: UTILITY.keyEnv });
+  const binding = await trpc.mutate("connection.setBinding", { task: "summarize", connectionId });
+  const since = Date.now() - SINCE_SLACK_MS;
+  const started = await trpc.mutate("workloads.start", { input: { kind: "memory-backfill", params: {} }, mode: "singular" });
+  const settled = await settle(trpc, await viewer(trpc), since);
+  await evidence(opts, trpc, "utility", { connectionId, binding, started, workloads: settled.rows });
+}
+
+interface Repoint {
+  readonly preview: unknown;
+  readonly write: { readonly ok: boolean; readonly body: unknown };
+}
+
+/** Re-point the caller's embed role as the pane does: read the confirm's preview, then write the binding. The save
+ *  probes the embedder, so a refusal (unmakeable width, unreachable server, bad key) is an outcome, not a throw. */
+async function repoint(trpc: Trpc, connectionId: string): Promise<Repoint> {
   const preview = await trpc.query("connection.embedSpaceChangePreview", { change: { kind: "bind", task: "embed", connectionId } });
-  const binding = await trpc.mutate("connection.setBinding", { task: "embed", connectionId });
-  return { preview, binding };
+  const write = await trpc.attempt("connection.setBinding", { task: "embed", connectionId });
+  return { preview, write };
+}
+
+function requireAccepted(step: string, move: Repoint): void {
+  if (!move.write.ok) {
+    throw new Error(`${step}: the re-point was refused: ${JSON.stringify(move.write.body).slice(0, ERROR_EXCERPT)}`);
+  }
+}
+
+/** What a refused write must leave as it was: the embed binding and every stored width and target. */
+async function untouched(opts: Opts, trpc: Trpc): Promise<{ readonly bindings: unknown; readonly widths: unknown }> {
+  return { bindings: await trpc.query("connection.listBindings"), widths: widths(opts) };
 }
 
 async function evidence(opts: Opts, trpc: Trpc, label: string, extra: Record<string, unknown>): Promise<void> {
@@ -352,7 +542,8 @@ async function evidence(opts: Opts, trpc: Trpc, label: string, extra: Record<str
     roleRowLineNow: embedderRebuildState(await rebuildRows(trpc), me, await spaceStatus(trpc)),
   };
   const file = archive(opts, label, record);
-  process.stdout.write(`${JSON.stringify({ label, file, searches: record.searches, roleRowLineNow: record.roleRowLineNow })}\n`);
+  const summary = { label, file, searches: record.searches, roleRowLineNow: record.roleRowLineNow, refused: extra["refused"], bus: extra["bus"] };
+  process.stdout.write(`${JSON.stringify(summary)}\n`);
 }
 
 async function seed(opts: Opts, trpc: Trpc): Promise<void> {
@@ -394,13 +585,25 @@ async function memoryOn(opts: Opts, trpc: Trpc): Promise<void> {
   await evidence(opts, trpc, "seed-state", { memorySetting: setting, started, workloads: settled.rows });
 }
 
+/** One re-point. Accepted: wait for every rebuild. Refused: record the refusal and what it left in place. */
 async function bind(opts: Opts, trpc: Trpc, name: string): Promise<void> {
   const me = await viewer(trpc);
   const connectionId = await connectionFor(trpc, name);
+  const before = await untouched(opts, trpc);
+  const bus = await UserBus.open(trpc);
   const since = Date.now() - SINCE_SLACK_MS;
-  const { preview } = await repoint(trpc, connectionId);
+  const move = await repoint(trpc, connectionId);
   const settled = await settle(trpc, me, since);
-  await evidence(opts, trpc, `bind-${name}`, { connectionId, preview, timeline: settled.timeline, workloads: settled.rows });
+  const events = await bus.close();
+  const outcome = move.write.ok ? {} : { refused: move.write.body, before, after: await untouched(opts, trpc) };
+  await evidence(opts, trpc, `bind-${name}${move.write.ok ? "" : "-refused"}`, {
+    connectionId,
+    preview: move.preview,
+    ...outcome,
+    timeline: settled.timeline,
+    workloads: settled.rows,
+    bus: events,
+  });
 }
 
 /** Two re-points in quick succession: the second lands while the first one's rebuild runs. */
@@ -408,8 +611,10 @@ async function race(opts: Opts, trpc: Trpc, first: string, second: string): Prom
   const me = await viewer(trpc);
   const a = await connectionFor(trpc, first);
   const b = await connectionFor(trpc, second);
+  const bus = await UserBus.open(trpc);
   const since = Date.now() - SINCE_SLACK_MS;
   const firstRepoint = await repoint(trpc, a);
+  requireAccepted(first, firstRepoint);
   // Wait until the first rebuild is running, so the second move lands inside it.
   let sawRunning: unknown = null;
   for (let i = 0; i < RACE_POLLS && sawRunning === null; i += 1) {
@@ -422,6 +627,7 @@ async function race(opts: Opts, trpc: Trpc, first: string, second: string): Prom
     }
   }
   const secondRepoint = await repoint(trpc, b);
+  requireAccepted(second, secondRepoint);
   const settled = await settle(trpc, me, since);
   await evidence(opts, trpc, `race-${first}-then-${second}`, {
     first: { connectionId: a, preview: firstRepoint.preview },
@@ -429,39 +635,38 @@ async function race(opts: Opts, trpc: Trpc, first: string, second: string): Prom
     secondLandedWhile: sawRunning,
     timeline: settled.timeline,
     workloads: settled.rows,
+    bus: await bus.close(),
   });
 }
 
-/** Re-point to the hosted embedder under a bad key, then fix the key and make one write. */
+/** Re-point to the hosted embedder under a bad key (the save's probe refuses it, so the old index stays), then fix
+ *  the key and re-point the same row. */
 async function badkey(opts: Opts, trpc: Trpc, name: string): Promise<void> {
   const me = await viewer(trpc);
   const spec = EMBEDDERS[name];
   if (spec?.keyEnv === undefined) {
     throw new Error(`${name} takes no key`);
   }
-  const before = widths(opts);
+  const before = await untouched(opts, trpc);
   const connectionId = await connectionFor(trpc, name, "sk-probe-deliberately-bad-key");
   const since = Date.now() - SINCE_SLACK_MS;
-  const bad = await trpc.attempt("connection.setBinding", { task: "embed", connectionId });
+  const bad = await repoint(trpc, connectionId);
   const settledBad = await settle(trpc, me, since);
-  const afterBad = widths(opts);
+  const afterBad = await untouched(opts, trpc);
   const searchesBad = await searches(opts, trpc);
   const connection = (await trpc.query("connection.get", { connectionId })) as { credentialId: string };
   await trpc.mutate("credentials.replace", { credentialId: connection.credentialId, key: probeKey(spec.keyEnv) });
-  // The first write after the fix: an edit to one card re-embeds it, which resolves the binding and moves the target.
-  const maren = execFileSync("python3", ["-c", MAREN_ID_SQL, opts.db], { encoding: "utf8" }).trim();
+  const bus = await UserBus.open(trpc);
   const sinceFix = Date.now() - SINCE_SLACK_MS;
-  const write = await trpc.attempt("character.update", {
-    characterId: maren,
-    input: { description: `${CARDS[0].description} She polishes the lens at noon (${String(Date.now())}).` },
-  });
+  const fixed = await repoint(trpc, connectionId);
   const settledFix = await settle(trpc, me, sinceFix);
   await evidence(opts, trpc, `badkey-${name}`, {
     connectionId,
-    badBindingWrite: bad,
+    refused: bad.write.body,
     whileBad: { before, afterBad, searches: searchesBad, timeline: settledBad.timeline, workloads: settledBad.rows },
-    fixWrite: write,
+    fixWrite: fixed.write,
     afterFix: { timeline: settledFix.timeline, workloads: settledFix.rows },
+    bus: await bus.close(),
   });
 }
 
@@ -479,14 +684,15 @@ async function member(opts: Opts, owner: Trpc, name: string): Promise<void> {
   const ownerTargetsBefore = (widths(opts) as { targets: { owner_id: string }[] }).targets;
   const connectionId = await connectionFor(asMember, name);
   const since = Date.now() - SINCE_SLACK_MS;
-  const { preview } = await repoint(asMember, connectionId);
+  const move = await repoint(asMember, connectionId);
+  requireAccepted("member", move);
   const settled = await settle(asMember, memberId, since);
   const after = widths(opts) as { targets: { owner_id: string }[] };
   const ownerRows = (await owner.query("workloads.list", { since })) as WorkloadRow[];
   await evidence(opts, asMember, `member-${name}`, {
     loginStatus: login.status,
     connectionId,
-    preview,
+    preview: move.preview,
     timeline: settled.timeline,
     memberWorkloads: settled.rows,
     ownerVisibleWorkloadsSince: ownerRows.map((row) => ({ kind: row.kind, ownerId: row.ownerId, status: row.status })),
@@ -502,6 +708,7 @@ async function main(): Promise<void> {
   const verbs: Readonly<Record<string, () => Promise<void>>> = {
     seed: () => seed(opts, owner),
     "memory-on": () => memoryOn(opts, owner),
+    utility: () => utility(opts, owner),
     bind: () => bind(opts, owner, a),
     race: () => race(opts, owner, a, b),
     badkey: () => badkey(opts, owner, a),

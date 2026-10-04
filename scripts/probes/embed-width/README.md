@@ -32,15 +32,20 @@ node scripts/probes/embed-width/run.ts <verb> [args] --base http://127.0.0.1:<po
 | - | - |
 | `seed` | three cards, one databank document and a 24-message chat (imported through `/api/import/chat`), then `memory-on` |
 | `memory-on` | switches the owner's memory on and runs the whole-corpus memory sweep |
-| `bind <embedder>` | the confirm's preview (`connection.embedSpaceChangePreview`), the re-point (`connection.setBinding`), then waits for every workload |
+| `utility` | binds a cheap OpenRouter chat model as Utility (`summarize`) and sweeps memory, so digests exist |
+| `bind <embedder>` | the confirm's preview (`connection.embedSpaceChangePreview`), the re-point (`connection.setBinding`), then waits for every workload; a refused re-point records the refusal and the binding and widths before and after |
 | `race <a> <b>` | re-points to `a`, waits until its rebuild runs, re-points to `b` |
-| `badkey <embedder>` | re-points under a bad key, then replaces the key and edits one card |
+| `badkey <embedder>` | re-points under a bad key (refused at save), replaces the key, re-points the same row |
 | `member <embedder>` | the second human re-points their own embedder; the owner's targets must not move |
 | `state <label>` | the evidence record alone |
 
 Every verb archives one JSON record: the bindings, the stored width per vector table and generation (read
-from the stage db, `dim` and the blob length), the generation targets and scope ledger, the three searches
-(cards, the document, the chat's verbatim memory through `search.search`), the workload rows, and what the
-vector role row says at each change (`embedderRebuildState` over the rows the row reads).
+from the stage db, `dim` and the blob length), the generation targets and scope ledger, the four searches
+(cards, the document, and the chat's verbatim segments and digests through `search.search`), the workload rows,
+what the vector role row says at each change (`embedderRebuildState` over the rows the row reads and
+`search.spaceStatus`), and the user-bus events the move emitted (`stream.connect` attached to the `user` room).
 
-The embedder arms are the `EMBEDDERS` table in `run.ts`.
+The embedder arms are the `EMBEDDERS` table in `run.ts`. An arm reuses its row from an earlier step, so a refused
+re-point is retried on the same row. The first local-server arm admits `127.0.0.1:18434` as the owner, because a
+multi-user stage admits no private address. An uncurated hosted embedder declares its Purpose and width, as the
+editor would.
