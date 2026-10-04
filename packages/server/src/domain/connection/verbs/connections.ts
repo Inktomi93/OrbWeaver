@@ -180,6 +180,20 @@ function declaredPatch(row: UserConnection, model: ModelId, declared: UpdateConn
   return { declared: Object.keys(kept).length === 0 ? null : kept };
 }
 
+type IdentityColumns = Pick<UserConnection, "providerId" | "credentialId" | "baseUrl" | "model" | "api">;
+
+/** The validated identity columns the patch names, and only those. The row was read before the awaited checks, so
+ *  writing an unnamed column back from it would revert a write that landed meanwhile. */
+function namedIdentityColumns(patch: UpdateConnectionParams["patch"], values: IdentityColumns): Partial<IdentityColumns> {
+  return {
+    ...(patch.providerId !== undefined ? { providerId: values.providerId } : {}),
+    ...(patch.credentialId !== undefined ? { credentialId: values.credentialId } : {}),
+    ...(patch.baseUrl !== undefined ? { baseUrl: values.baseUrl } : {}),
+    ...(patch.model !== undefined ? { model: values.model } : {}),
+    ...(patch.api !== undefined ? { api: values.api } : {}),
+  };
+}
+
 /** The columns a patch may write, re-validated against the row's (possibly patched) provider. */
 async function validatedPatch(
   ctx: ConnectionContext,
@@ -202,11 +216,7 @@ async function validatedPatch(
   }
   return {
     ...(patch.label !== undefined ? { label: requireLabel(patch.label) } : {}),
-    providerId: provider.id,
-    credentialId,
-    baseUrl,
-    model,
-    api,
+    ...namedIdentityColumns(patch, { providerId: provider.id, credentialId, baseUrl, model, api }),
     ...declaredPatch(row, model, patch.declared),
     ...(patch.extras !== undefined ? { extras: patch.extras } : {}),
     ...(patch.transport !== undefined ? { transport: patch.transport } : {}),

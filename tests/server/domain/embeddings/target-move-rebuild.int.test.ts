@@ -987,6 +987,7 @@ const MODEL_LOAD_MS = 15_000;
 const HTTP_UNAUTHORIZED = 401;
 
 const UNLISTED_ENCODER = "probe-embedder";
+const MOVED_ENCODER = "other-embed";
 
 /** A row at `baseUrl` on the custom endpoint, with `declared` as its stated facts. */
 async function stating(
@@ -1180,6 +1181,26 @@ test("a width edit overtaken by a binding of its row never lands unprobed on the
   // The edit was asked first, so it lands first; the binding then probes the width the row now states, and is refused.
   expect(outcomes).toEqual(["accepted", `refused ${CONNECTION_OP_CODES.embedWidthUnmakeable}`]);
   expect(await boundEmbedder(d)).toBe(d.builtIn);
+});
+
+// A label edit reads the row before its checks and writes after them; a model move that lands in between must stay.
+test("a label edit that overlaps a model move of the same row keeps the moved model", async () => {
+  const held = heldAdmission();
+  const d = await drive(undefined, held.admission);
+  await sweep(d, false);
+  d.h.useEmbeddings(d.svc);
+  const row = await narrowStating(d, 768);
+  await d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: row });
+
+  held.arm();
+  const renamed = outcomeOf(d.h.svc.update({ principal: d.principal, connectionId: row, patch: { label: "renamed" } }));
+  await held.reached;
+  const moved = await outcomeOf(d.h.svc.update({ principal: d.principal, connectionId: row, patch: { model: MOVED_ENCODER } }));
+  held.release();
+
+  expect([moved, await renamed]).toEqual(["accepted", "accepted"]);
+  const saved = await d.h.svc.get({ principal: d.principal, connectionId: row });
+  expect({ model: saved.model, label: saved.label }).toEqual({ model: MOVED_ENCODER, label: "renamed" });
 });
 
 // The control: a label edit cannot change what the probe checks, so it lands at once even while a binding waits.
