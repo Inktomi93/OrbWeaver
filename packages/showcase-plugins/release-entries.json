@@ -15,11 +15,11 @@
       "manifest.json": "3cb85dbd6c2796a91e004398610b0b0fa580da145e0aa7c1ef6d19847823bb73"
     },
     "keepsake-camera": {
-      "main.js": "a370be64877d00caed17fa321de1d51e71ba642fae602de32fd8687ffa1408ed",
+      "main.js": "8374d4453887496174bf94cbf16fb089ab49b25d282c2f69707b490ef57793a8",
       "manifest.json": "31c479ff02f6fb62951dcc811dc25f4db58f150640e457def180925d7722c44d"
     },
     "oracle-deck": {
-      "main.js": "9837ed80342267c72d76cd3edc51e1272dc8d5a38b13a4907be3c7d620aed8b0",
+      "main.js": "bc389e87881347cc9091b6c182a70eb78580754a1249849deea1e5c12dd8fcf3",
       "manifest.json": "f42346f0c96bbbddfce68be4b839d5385de278a5354aeb2318d5fb79d2002fb5"
     },
     "pocket-arcade": {
@@ -35,8 +35,8 @@
       "manifest.json": "77f1ffa13e9607ddc0888f6aa332be91810e366d776e40990c3ef527148aa02b"
     },
     "story-clocks": {
-      "main.js": "b6cf3095095fb4a000b3d1b89053349d5618a250577ca9c9fb60170ad19315f8",
-      "manifest.json": "70565131f04380c33d4993889d5766fe306ed1cb41dfc291c75420db98827adf"
+      "main.js": "5baa0321f11e6cad7d40db5a84a386ad438fb4401efbb3a14eb913d256eb668f",
+      "manifest.json": "8caa50607721285a3a29063a14a848eb4a70aa38e3070f6f7cb20e4e0b776b8f"
     }
   }
 }

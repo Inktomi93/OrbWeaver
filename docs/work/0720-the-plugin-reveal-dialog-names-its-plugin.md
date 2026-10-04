@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P3
 area: plugin
-lane: wt/agent-a8d7e39d090971afa
 ---
 
 # The plugin reveal dialog names its plugin
@@ -23,4 +22,4 @@ The dialog is named for the plugin, renders without a nested card, and marks dea
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S4 refused: the modal title is a static ModalDefinition.title, the nested card is the shared PluginSurfaceShell chrome, and Mark dealt cards is Oracle Deck bundle content; needs a modal-host change.

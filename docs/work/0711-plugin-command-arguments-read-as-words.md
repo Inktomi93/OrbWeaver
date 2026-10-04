@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P3
 area: plugin
-lane: wt/agent-a8d7e39d090971afa
 ---
 
 # Plugin command arguments read as words
@@ -23,4 +22,4 @@ Arguments show labels, defaults are preselected, and suggestions show display na
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S4 humanized argument labels and option text. Not done: preselected defaults need a default or label field on PluginCommandArgSpec, a contracts and SDK change.

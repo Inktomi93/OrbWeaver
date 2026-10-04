@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P3
 area: plugin
-lane: wt/agent-a708baaa4eae9cb9b
 ---
 
 # Card Atlas paging is disabled before a search
@@ -23,4 +22,4 @@ Both are disabled until a search exists.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S5: the plugin button node has no disabled prop (packages/contracts/src/plugin/ui.ts:597-603); needs a bound disabled field on the button in the contract, SDK types, leaf renderer and CTs.

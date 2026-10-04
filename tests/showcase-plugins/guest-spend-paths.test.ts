@@ -137,24 +137,26 @@ interface Toast {
 }
 
 /** Run `/plugin keepsake-camera snapshot` against an image pipeline that rejects with `failure` after
- *  `elapsedMs` of (fake) wall clock, and return what the person was told. */
-async function snapshotToasts(source: string, failure: Error, elapsedMs: number): Promise<Toast[]> {
+ *  `elapsedMs` of (fake) wall clock — or, with `failure` null, paints and then has the album's first storage
+ *  write throw — and return what the person was told. */
+async function snapshotToasts(source: string, failure: Error | null, elapsedMs: number): Promise<Toast[]> {
   const toasts: Toast[] = [];
   let now = 1_700_000_000_000;
   let onRun: ((a: { values: Record<string, unknown> }) => Promise<void>) | undefined;
+  const storage = memoryStorage();
   boot(source, {
     grants: ["chat.read", "storage.kv", "imagery.generate", "ui.surface"],
     log: quietLog,
     clock: { nowEpochMs: (): number => now },
-    storage: memoryStorage(),
+    storage: failure === null ? { ...storage, compareAndSet: (): Promise<never> => Promise.reject(new Error("storage unavailable")) } : storage,
     chat: {
       current: (): string => "chat-handle",
       listMessages: (): Promise<View[]> => Promise.resolve(longScene(3)),
     },
     imagery: {
-      generatePicture: (): Promise<never> => {
+      generatePicture: (): Promise<{ assetId: string }> => {
         now += elapsedMs;
-        return Promise.reject(failure);
+        return failure === null ? Promise.resolve({ assetId: "asset-1" }) : Promise.reject(failure);
       },
     },
     ui: {
@@ -205,4 +207,12 @@ test("Keepsake Camera reports 'still developing' only when the host call ran out
   expect([timedOut, unconfigured, refused, unknown].map((toasts) => toasts.map(({ level }) => level))).toEqual([["info"], ["warn"], ["error"], ["error"]]);
   const sentences = [timedOut, unconfigured, refused, unknown].map((toasts) => toasts[0]?.message);
   expect(new Set(sentences).size).toBe(sentences.length);
+});
+
+test("Keepsake Camera never reports a painted postcard as unpainted when only the album save fails", { timeout: BUILD_TIMEOUT }, async () => {
+  const source = await releasedMain("keepsake-camera");
+  const [savedFailed, unknown] = await Promise.all([snapshotToasts(source, null, 40), snapshotToasts(source, new Error("something else"), 40)]);
+  expect(savedFailed.map(({ level }) => level)).toEqual(["warn"]);
+  // Its own sentence, never the "nothing was painted" one a real paint failure gets.
+  expect(savedFailed[0]?.message).not.toBe(unknown[0]?.message);
 });

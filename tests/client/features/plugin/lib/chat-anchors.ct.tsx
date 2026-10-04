@@ -267,7 +267,10 @@ test.describe("the flank anchor", () => {
     });
     const component = await mount(<PluginChatFlankRoomStory registered={true} />);
     await expect(component.getByText("Your latest warmth reading, 7 of 10.")).toBeVisible();
-    await expect(page.getByRole("button", { name: `${PLUGIN_NAME} — Warmth`, exact: true })).toBeHidden();
+    // Attached AND hidden: a bare `toBeHidden()` would also pass if the toggle never rendered at all.
+    const toggle = page.getByRole("button", { name: `${PLUGIN_NAME} — Warmth`, exact: true, includeHidden: true });
+    await expect(toggle).toBeAttached();
+    await expect(toggle).toBeHidden();
   });
 
   test("§4.9: a BOUND flank surface with nothing published stays silent — no blank meter in the room", async ({ mount, page }) => {

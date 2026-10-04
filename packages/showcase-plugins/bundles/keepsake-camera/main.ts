@@ -193,18 +193,16 @@ async function takeSnapshot(chat: ChatHandle, styleKey: string, note: string): P
   // answers inside the host bound (teaching point 2 in the header). The args shape is the SAME
   // `generate_image` vocabulary automation rules use — one vocabulary across rule, tool, and plugin.
   const paintStartedMs = host.clock.nowEpochMs();
+  let assetId: string;
   try {
-    const { assetId } = await host.imagery.generatePicture(chat, {
+    ({ assetId } = await host.imagery.generatePicture(chat, {
       mode: "scenario",
       prompt: fullPrompt,
       n: 1,
       useAvatarReference: false,
       reuse: "never",
       quiet: false,
-    });
-    const asset = await readAssetDetails(assetId);
-    await keepMoment(chosen.title, styleKey, assetId, asset);
-    await host.ui.toast("success", `Kept: "${chosen.title}" — the postcard is in the room and the album.`);
+    }));
   } catch (err) {
     const name = isRecord(err) && typeof err["name"] === "string" ? err["name"] : "Error";
     if (name === "PluginSuggestedError") {
@@ -214,7 +212,19 @@ async function takeSnapshot(chat: ChatHandle, styleKey: string, note: string): P
     }
     host.log.info(`snapshot not caught: ${String(err)}`);
     await host.ui.toast(...snapshotFailureToast(name, host.clock.nowEpochMs() - paintStartedMs));
+    return;
   }
+
+  // The paint SUCCEEDED from here on: the postcard is in the room. A failure filing it is an album miss, and
+  // must never read as "nothing was painted".
+  try {
+    await keepMoment(chosen.title, styleKey, assetId, await readAssetDetails(assetId));
+  } catch (err) {
+    host.log.info(`keepsake not filed: ${String(err)}`);
+    await host.ui.toast("warn", `"${chosen.title}" is in the room, but the album couldn't save it.`);
+    return;
+  }
+  await host.ui.toast("success", `Kept: "${chosen.title}" — the postcard is in the room and the album.`);
 }
 
 /** The membrane's per-call deadline (`HOST_FN_DEADLINE_MS`). Its rejection is a plain `Error` with no
