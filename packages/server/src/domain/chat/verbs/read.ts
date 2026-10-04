@@ -1252,7 +1252,7 @@ async function fitShapedHistory(args: {
     readonly canon: readonly MessageView[];
   };
   readonly ctx: ChatContext;
-}): Promise<{ fitted: ReturnType<typeof fitHistory>; budget: ReturnType<typeof buildHistoryBudget> }> {
+}): Promise<{ shaped: ReturnType<typeof shapeTurn>; fitted: ReturnType<typeof fitHistory>; budget: ReturnType<typeof buildHistoryBudget> }> {
   const params = args.assembleContext.promptConfig.params;
   const systemTokens = estimateTokens([args.assembled.static, args.assembled.dynamic].join("\n\n"));
   const budget = buildHistoryBudget({
@@ -1282,8 +1282,13 @@ async function fitShapedHistory(args: {
     // on exactly the chats this feature creates. LAZY: untouched on a history with no model-emitted image.
     loadInlineReplyAssetIds: () => loadInlineReplyAssetIds(args.ctx.db, args.convert.chatId),
   };
-  const { fitted } = await shapeConvertFit({ canon: args.next.rows, shape: args.next.shape, convert: (rows) => buildWireHistory(convertEnv, rows), budget });
-  return { fitted, budget };
+  const { shaped, fitted } = await shapeConvertFit({
+    canon: args.next.rows,
+    shape: args.next.shape,
+    convert: (rows) => buildWireHistory(convertEnv, rows),
+    budget,
+  });
+  return { shaped, fitted, budget };
 }
 
 /** Is the fit's ceiling a GUESS rather than the connected model's real window? True only when the capability's
@@ -1395,9 +1400,9 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
 
 /** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon.
  *  HOST/ADMIN (`requireHost`): the SHAPE-phase debug surface, gate-classified `host` in the auth matrix.
- *  Re-runs SHAPE on demand (the same `buildPrompt` → `toShapeCanon` → `shapeTurn` a real turn's peek uses),
- *  then projects the stage snapshots + the resolved breakpoint offset onto the content-free `ShapeTrace` —
- *  no content bytes by construction, nothing persists (mirrors `peekPrompt`'s dry-run frame). */
+ *  Re-runs SHAPE on demand through the turn's own SHAPE → CONVERT → FIT ({@link fitShapedHistory}), so a chat whose
+ *  squashed run overruns the window traces the survivors the turn shapes, then projects the stage snapshots + the
+ *  resolved breakpoint offset onto the content-free `ShapeTrace` — no content bytes by construction, nothing persists (mirrors `peekPrompt`'s dry-run frame). */
 function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["getShapeTrace"] {
   return async ({ principal, chatId, speakerCharacterId }: GetShapeTraceParams): Promise<ShapeTrace> => {
     const membership = await requireHost(ctx, principal, chatId);
@@ -1406,11 +1411,18 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
       speakerCharacterId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
     // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
-    const { rows, shape } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
-    const shaped = shape(rows);
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    const { shaped } = await fitShapedHistory({
+      assembleContext,
+      assembled,
+      capability: inputs.capability,
+      next,
+      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
+      ctx,
+    });
     return buildShapeTrace(shaped.stages, shaped.cacheBreakpointFromEnd, shaped.breakpointDecision);
   };
 }

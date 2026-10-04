@@ -3196,6 +3196,11 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     expect(fit.droppedCount).toBeGreaterThan(0);
     expect(fit.usedTokens).toBeLessThanOrEqual(fit.ceilingTokens);
     expect(fit.boundaryMessageId).toBe(castId(`message_${chatId}_${fit.droppedCount + 1}`));
+
+    // The shape trace runs the same sequence, so it traces the survivors the turn shapes, not the whole run.
+    const { getShapeTrace } = createRead(makeChatContext(db), makeFitDeps(eightK));
+    const trace = await getShapeTrace({ principal: principal(host), chatId });
+    expect(trace.stageCounts.withTail).toBe(21 - fit.droppedCount);
   });
 
   // COMPACTION-COVERED shrinkage (#9 verifier fix): a chat with a marker covering through seq N excludes seq

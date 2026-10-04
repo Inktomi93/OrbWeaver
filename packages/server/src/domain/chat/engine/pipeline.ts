@@ -685,8 +685,9 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
   const budget = fitBudget(args, effectiveIntent, systemTokens);
 
-  // SHAPE → CONVERT → FIT. The fit keeps the newest rows and places the new-chat marker at their head (one home
-  // with the previews), and trims stored rows before SHAPE only when a squashed run would overrun the window.
+  // SHAPE → CONVERT → FIT, one home with the previews. The fit keeps the newest rows and places the new-chat marker at
+  // their head. The oldest stored rows are trimmed before a second SHAPE only when the fitted request still overruns
+  // the room AND its newest id-bearing row is a squash of several stored rows; any other overrun ships as fitted.
   const {
     shaped,
     fitted,

@@ -589,16 +589,26 @@ function overrun(fitted: ReturnType<typeof fitHistory>, budget: Parameters<typeo
   return fitted.ceilingTokens === null ? 0 : Math.max(0, budget.systemTokens + fitted.usedTokens - fitted.ceilingTokens);
 }
 
+// Whether SHAPE's squash joined stored rows into the newest id-bearing delivered row. A squashed row carries its run's
+// first stored id, so a non-empty stored row after that id has no delivered row of its own: it rode in the tail.
+function tailSquashesStoredRows(canon: ShapeCanonRows, history: readonly ShapedHistoryRow[]): boolean {
+  const tailId = history.findLast((row) => row.messageId !== undefined)?.messageId;
+  const at = canon.findIndex((row) => row.messageId !== undefined && row.messageId === tailId);
+  return at !== -1 && canon.slice(at + 1).some((row) => row.content.trim().length > 0);
+}
+
 /** SHAPE → CONVERT → FIT over the stored rows, the one sequence the turn pipeline and the read previews both run.
  *
  *  @remarks The post-shape fit can only drop whole delivered rows older than the newest id-bearing one. A merging
  *  level on a wire that does not keep stored rows apart joins a same-role run into ONE row, so a run larger than the
- *  room becomes an irreducible tail and the request overruns the window. Only then are the oldest STORED rows trimmed
- *  before SHAPE, by the fit's own rule (same estimator over the converted rows, same room, same chunk grid, the
- *  newest row kept), with the room lowered by what SHAPE adds over the rows it was handed; SHAPE then shapes the
- *  survivors as the turn's level says, and the post-shape fit stays the backstop. A request that fits runs SHAPE
- *  once and is untouched, so its wire bytes, its cut and its cache prefix are what they were without the pre-trim.
- *  After a pre-trim the dropped count is the stored rows before the first one kept, which the boundary names. */
+ *  room becomes an irreducible tail and the request overruns the window. Only then, when the overrunning tail is such
+ *  a squash, are the oldest STORED rows trimmed before SHAPE, by the fit's own rule (same estimator over the converted
+ *  rows, same room, same chunk grid, the newest row kept), with the room lowered by what SHAPE adds over the rows it
+ *  was handed; SHAPE then shapes the survivors as the turn's level says, and the post-shape fit stays the backstop.
+ *  Every other request, including one that overruns for another reason (a lone oversized row, stored rows kept
+ *  apart, level `none`), runs SHAPE once and is returned as the post-shape fit left it, so its wire bytes, its cut and
+ *  its cache prefix are what they were without the pre-trim. After a pre-trim the dropped count is the stored rows
+ *  before the first one kept, which the boundary names. */
 export async function shapeConvertFit(args: {
   readonly canon: ShapeCanonRows;
   readonly shape: (canon: ShapeCanonRows) => ReturnType<typeof shapeTurn>;
@@ -611,7 +621,7 @@ export async function shapeConvertFit(args: {
     return { shaped, ...fitWireHistory(converted, args.budget, shaped.newChatMarker), deliveredTokens: costOf(wireCostRows(converted)) };
   };
   const whole = await run(args.canon);
-  if (overrun(whole.fitted, args.budget) === 0) {
+  if (overrun(whole.fitted, args.budget) === 0 || !tailSquashesStoredRows(args.canon, whole.shaped.history)) {
     return whole;
   }
   const stored = wireCostRows(await args.convert(args.canon.map((row) => ({ role: row.role, content: row.content, messageId: row.messageId }))));
@@ -627,6 +637,9 @@ export async function shapeConvertFit(args: {
     }
     trimmed = cut;
     attempt = await run(args.canon.slice(cut));
+  }
+  if (trimmed === 0) {
+    return whole;
   }
   const { fitted } = attempt;
   const earliestKeptMessageId = fitted.earliestKeptMessageId ?? fitted.history.find((row) => row.messageId !== undefined)?.messageId ?? null;

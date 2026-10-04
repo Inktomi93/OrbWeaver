@@ -3412,9 +3412,10 @@ describe("runTurnPipeline — the history fit on a squashed run", () => {
     });
   });
 
-  // Every case below fits its window (or its fit cuts whole rows), so it must reach the wire exactly as before
-  // the pre-trim existed: the goldens were recorded from the pipeline that had no pre-trim.
-  describe("a request that already fits is byte-identical", () => {
+  // Every case below must reach the wire exactly as before the pre-trim existed: the goldens were recorded from the
+  // pipeline that had no pre-trim. The `overflow/` cases overrun the window without a squashed run (a lone oversized
+  // row, an oversized newest row beside a note), which the pre-trim must leave as the old fit left them.
+  describe("a request without a squashed overrun is byte-identical", () => {
     const Variants = {
       plain: {},
       marker: {
@@ -3465,6 +3466,36 @@ describe("runTurnPipeline — the history fit on a squashed run", () => {
           }
         }
       }
+      return { ...out, ...overflowCases() };
+    }
+    function overflowCases(): Record<string, FitCase> {
+      const out: Record<string, FitCase> = {};
+      const note: ChatInjection = { position: "in_chat", depth: 2, role: "system", content: "Author's note." };
+      for (const level of AllLevels) {
+        for (const [wireName, wireAt] of Object.entries(Wires)) {
+          const promptConfig = presetAt(level);
+          const oversized = Dense.repeat(30);
+          out[`overflow/lone/${level}/${wireName}`] = {
+            canon: [storedRow(1, "user", oversized)],
+            connection: wireAt(8192),
+            ctx: ctxOf({ promptConfig }),
+            intent: {},
+          };
+          const newest = [
+            storedRow(1, "assistant", "greeting"),
+            storedRow(2, "user", "hi there"),
+            storedRow(3, "assistant", "hello back"),
+            storedRow(4, "user", oversized),
+          ];
+          out[`overflow/oversized-newest/${level}/${wireName}/plain`] = { canon: newest, connection: wireAt(8192), ctx: ctxOf({ promptConfig }), intent: {} };
+          out[`overflow/oversized-newest/${level}/${wireName}/note`] = {
+            canon: newest,
+            connection: wireAt(8192),
+            ctx: ctxOf({ promptConfig, chatInjections: [note] }),
+            intent: {},
+          };
+        }
+      }
       return out;
     }
 
@@ -3489,8 +3520,8 @@ describe("runTurnPipeline — the history fit on a squashed run", () => {
           sha256: createHash("sha256").update(wireBytes).digest("hex"),
         };
       }
-      // The identity claim covers requests that fit; a case that overflowed would prove nothing here.
-      expect(overflowing).toEqual([]);
+      // Only the `overflow/` cases overrun; every other case fits, so its identity covers the cut and the cache prefix.
+      expect(overflowing).toEqual(Object.keys(cases()).filter((name) => name.startsWith("overflow/")));
       // The capped cases cut, so the identity includes the cut point and the chunk boundary it snaps to.
       expect(Object.entries(seen).filter(([name, s]) => name.endsWith("/capped") && s.droppedCount === 0)).toEqual([]);
       expect(seen).toEqual(fitGoldens);

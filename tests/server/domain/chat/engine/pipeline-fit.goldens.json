@@ -718,5 +718,185 @@
     "droppedCount": 39,
     "boundaryIndex": 42,
     "sha256": "8c9b7a7830df1de285ade007e46f22fcf0520aa352b93c411220d42d7fa95a55"
+  },
+  "overflow/lone/none/local": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/none/local/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/none/local/note": {
+    "droppedCount": 4,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/none/anthropic": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/none/anthropic/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/none/anthropic/note": {
+    "droppedCount": 4,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/none/openrouter": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/none/openrouter/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/none/openrouter/note": {
+    "droppedCount": 4,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/semi-strict/local": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/semi-strict/local/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/semi-strict/local/note": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/semi-strict/anthropic": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/semi-strict/anthropic/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/semi-strict/anthropic/note": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/semi-strict/openrouter": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/semi-strict/openrouter/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/semi-strict/openrouter/note": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/strict/local": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/strict/local/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/strict/local/note": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/strict/anthropic": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/strict/anthropic/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/strict/anthropic/note": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/strict/openrouter": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/strict/openrouter/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/strict/openrouter/note": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/merge/local": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/merge/local/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/merge/local/note": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/merge/anthropic": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/merge/anthropic/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/merge/anthropic/note": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/lone/merge/openrouter": {
+    "droppedCount": 0,
+    "boundaryIndex": -1,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/merge/openrouter/plain": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/oversized-newest/merge/openrouter/note": {
+    "droppedCount": 3,
+    "boundaryIndex": 3,
+    "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
   }
 }
