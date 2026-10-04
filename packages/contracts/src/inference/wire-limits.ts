@@ -53,9 +53,21 @@ interface PathViolation extends ViolationOrigin {
   readonly path: string;
 }
 
-/** Why no carrier was left: the model takes neither structured output nor tools, or this turn ends on an assistant
- *  prefill, which the native carrier cannot follow, and the model has no tool to carry the payload instead. */
-type NoVehicleCause = "unsupported" | "assistant-prefill";
+/** Why no carrier was left. `unsupported`: the model takes neither structured output nor tools. `assistant-prefill`:
+ *  the turn ends on a prefill, which the native carrier cannot follow, and the model has no tool to carry the payload.
+ *  The `tools-` causes: the turn carries the caller's own tools, so the payload can only ride natively, and the native
+ *  carrier is missing from the model (`tools-without-native`) or removed by the prefill (`tools-with-prefill`). */
+type NoVehicleCause = "unsupported" | "assistant-prefill" | "tools-without-native" | "tools-with-prefill";
+
+const NO_VEHICLE_REASON: Readonly<Record<NoVehicleCause, string>> = {
+  unsupported: "this model takes neither structured output nor tool calls",
+  "assistant-prefill":
+    "structured output cannot be used on a turn that ends with a prefilled assistant message, and this model has no tool calls to carry it instead",
+  "tools-without-native":
+    "this model has no native structured output, and a turn that offers its own tools cannot also carry the structured answer as a tool call",
+  "tools-with-prefill":
+    "structured output cannot be used on a turn that ends with a prefilled assistant message, and a turn that offers its own tools cannot carry the structured answer as a tool call instead",
+};
 
 interface NoVehicleViolation extends ViolationOrigin {
   readonly kind: "no-vehicle";
@@ -81,9 +93,7 @@ export function describeWireSchemaViolation(violation: WireSchemaViolation): str
     case "ambiguous-null":
       return `${violation.path} is both optional and nullable, so absent and null would collide under ${violation.mode}`;
     case "no-vehicle":
-      return violation.cause === "assistant-prefill"
-        ? "structured output cannot be used on a turn that ends with a prefilled assistant message, and this model has no tool calls to carry it instead"
-        : "this model takes neither structured output nor tool calls";
+      return NO_VEHICLE_REASON[violation.cause];
     case "vendor-refused":
       return `the provider refused the schema (${violation.rule})`;
     case "optional-props":

@@ -4,9 +4,12 @@
 
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { Resolved } from "@orb/inference";
+import { createInferenceRuntime } from "@orb/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
-import { createPlanSchema } from "../../../../packages/server/src/entry/compose/refinery.ts";
+import { createPlanSchema, createResolveStructuredBinding } from "../../../../packages/server/src/entry/compose/refinery.ts";
+import { FROZEN_NOW, fakeConnection, fakeDeps, memoryStores, newUserId } from "../../../inference/_support.ts";
+import { principal } from "../../../support/factories/principal.ts";
 import { makeCapability, makeGenerationCapability, makeResolved, TEST_OWNER_ID } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -56,6 +59,30 @@ test("a local target with no stated ceiling takes the shape natively; no bound c
   });
   expect(await planOn(local)).toEqual({ outcome: "sends", model: "test-model", carrier: "native" });
   expect(await planOn(null)).toEqual({ outcome: "unbound" });
+});
+
+test("the plan preview reads only the facts already cached, so a dead endpoint is never re-dialed per keystroke", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "custom-openai", model: "local-model", baseUrl: "http://127.0.0.1:1", allowBackground: true });
+  stores.connections.rows.set(row.id, row);
+  // `structured` rides the Utility (`summarize`) binding.
+  stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "summarize", connectionId: row.id });
+  let clock = FROZEN_NOW;
+  let dials = 0;
+  const deadServer: typeof fetch = () => {
+    dials += 1;
+    return Promise.reject(new TypeError("fetch failed: connect ECONNREFUSED 127.0.0.1:1"));
+  };
+  const runtime = await createInferenceRuntime({ ...fakeDeps({ stores, fetch: deadServer }), now: () => clock });
+  const resolveStructuredBinding = createResolveStructuredBinding(runtime, (userId) => Promise.resolve(principal(userId)));
+
+  for (let ask = 0; ask < 4; ask += 1) {
+    expect(await resolveStructuredBinding(ownerId)).toMatchObject({ model: "local-model" });
+    // Past the mirror's failed-warm hold, so a dialing resolve would dial again.
+    clock += 11_000;
+  }
+  expect(dials).toBe(0);
 });
 
 test("a bound model whose connection withholds background work is named as such, not as unbound", async () => {

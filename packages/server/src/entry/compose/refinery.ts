@@ -12,14 +12,15 @@
 // DIFFERENT, smaller bundle than the service (no session minters, no clock, none of the apply-path ops) —
 // so the two are assembled side by side here rather than the queue reaching into the service.
 
+import type { Principal } from "@orb/contracts/identity";
 import { canFund } from "@orb/contracts/inference";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RefinerySchemaPlan } from "@orb/contracts/refinery";
 import { schemaPlanReasonOf } from "@orb/contracts/refinery";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import type { Resolved, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
-import { structuredFitFor } from "@orb/inference";
+import type { InferenceRuntime, Resolved, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
+import { NoConnectionError, structuredFitFor } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
@@ -49,6 +50,24 @@ export interface RefineryComposeDeps {
 export interface RefineryCompose {
   readonly refinery: RefineryService;
   readonly refineryWorkloads: RefineryWorkloadDeps;
+}
+
+/** The owner's bound `structured` row as the resolver folds it, before the background-work check. It reads only the
+ *  server facts already cached: the editor asks on every settled draft, and a dead endpoint must not be dialed each time. */
+export function createResolveStructuredBinding(
+  runtime: Pick<InferenceRuntime, "resolve">,
+  principalOf: (userId: UserId) => Promise<Principal>,
+): RefineryComposeDeps["resolveStructuredBinding"] {
+  return async (ownerId) => {
+    try {
+      return (await runtime.resolve({ task: "structured", principal: await principalOf(ownerId), cachedFacts: true })).resolved;
+    } catch (error) {
+      if (error instanceof NoConnectionError) {
+        return null;
+      }
+      throw error;
+    }
+  };
 }
 
 /** The refinery editor's plan preview: every refinery pass is `structured` background work on the owner's own

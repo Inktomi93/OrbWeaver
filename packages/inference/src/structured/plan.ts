@@ -282,12 +282,19 @@ function vehicleAttempt(format: ResponseFormat, vehicle: StructuredVehicle, { ta
   return vehicle === "response-format" ? responseFormatAttempt(format, target, callerTools) : toolVehicleAttempt(format, vehicle, target, downgrades);
 }
 
+function noVehicleCause({ target, callerTools, prefillDroppedNative }: PlanningTurn): Extract<WireSchemaViolation, { kind: "no-vehicle" }>["cause"] {
+  if (callerTools.length > 0 && target.vehicles.length > 0) {
+    return prefillDroppedNative ? "tools-with-prefill" : "tools-without-native";
+  }
+  return prefillDroppedNative ? "assistant-prefill" : "unsupported";
+}
+
 function planFormats(formats: readonly ResponseFormat[], turn: PlanningTurn): StructuredPlan | StructuredRefusal {
   const { target, downgrades, callerTools, toolChoice } = turn;
   // A request that also carries the caller's tools keeps them, so its payload can only ride the native carrier.
   const vehicles = callerTools.length > 0 ? target.vehicles.filter((vehicle) => vehicle === "response-format") : target.vehicles;
   if (vehicles.length === 0) {
-    return { ok: false, violations: [{ kind: "no-vehicle", mode: target.mode, cause: turn.prefillDroppedNative ? "assistant-prefill" : "unsupported" }] };
+    return { ok: false, violations: [{ kind: "no-vehicle", mode: target.mode, cause: noVehicleCause(turn) }] };
   }
   const violations: WireSchemaViolation[] = [];
   // Vehicles outer: an enforcing carrier with the caller's fallback shape beats a weaker carrier with its first one.

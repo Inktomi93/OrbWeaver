@@ -199,6 +199,15 @@ test("a turn whose shape refuses the native carrier (an Anthropic prefill) rides
     ok: false,
     violations: [{ kind: "no-vehicle", mode: "hosted-common", cause: "assistant-prefill" }],
   });
+  // A turn carrying the caller's own tools can only send the payload natively, so the model's tools are no fallback:
+  // the cause names those tools, with the prefill or with a model that has no native carrier.
+  const callerTools = [{ name: "roll", description: "Roll.", parameters: { type: "object", properties: {} } }];
+  expect(planStructured({ formats: [SMALL], tools: callerTools, nativeFormat: false }, target())).toMatchObject({
+    violations: [{ kind: "no-vehicle", cause: "tools-with-prefill" }],
+  });
+  expect(planStructured({ formats: [SMALL], tools: callerTools }, target({ vehicles: ["forced-tool", "offered-tool"] }))).toMatchObject({
+    violations: [{ kind: "no-vehicle", cause: "tools-without-native" }],
+  });
   // PLANTED CONTROL: a model with no carrier at all is refused for that, prefill or not.
   expect(planStructured({ formats: [SMALL], nativeFormat: false }, target({ vehicles: [] }))).toMatchObject({
     violations: [{ kind: "no-vehicle", cause: "unsupported" }],
