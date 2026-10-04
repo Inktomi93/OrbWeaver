@@ -10,6 +10,7 @@
 // syntax and never white-screens (the `MarkdownErrorBoundary` fallback text never appears). A final
 // reduced-motion test asserts the pacer's passthrough: the full text lands with no reveal lag.
 
+import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";
 import type { MountResult } from "@playwright/experimental-ct-react";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
@@ -379,6 +380,19 @@ test("#116/#288: a streaming turn names its speaker — the header leads the gho
   }
   expect(nameBox.y + nameBox.height).toBeLessThanOrEqual(proseBox.y + 1);
   expect(nameBox.y).toBeGreaterThanOrEqual(bubbleBox.y);
+});
+
+test("the ghost's streamed body follows its header at the container's row gap, with no empty band", async ({ mount }) => {
+  const component = await mount(<GhostRowScriptedStory chunks={["The lantern gutters. "]} speakerName="Marguerite" />);
+  await driveScript(component, 1);
+  const gap = await component.locator(NAME_ROW).evaluate((header: HTMLElement) => {
+    const body = header.nextElementSibling;
+    if (body === null) {
+      throw new Error("the ghost's header has no body after it");
+    }
+    return body.getBoundingClientRect().top - header.getBoundingClientRect().bottom;
+  });
+  expect(Math.abs(gap - SNAPPED_LENGTH_BASE_PX["spacing.row"])).toBeLessThan(1);
 });
 
 test("#116: with no resolved attribution the ghost is byte-identically bare — no empty name row", async ({ mount }) => {

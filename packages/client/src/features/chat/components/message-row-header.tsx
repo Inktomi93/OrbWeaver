@@ -136,9 +136,8 @@ function renderRowIdentity(args: {
  *  bands, and the ~17px of painted-then-empty space below the name was the detachment. The cluster rides
  *  a ZERO-HEIGHT flex wrapper (`h-0` + centered items): it keeps its full WIDTH in flow (the A3 geometry
  *  pin — a name can never be starved sideways), its buttons keep painting/hit-testing at full size, and
- *  reveal stays opacity-only. The inside arm reserves the following section gap (in BOTH sticky arms since
- *  #1873 — see the class list) and moves the rail down by one token block while the header is not pinned,
- *  containing its paint without overlapping prose or moving the bubble outside its content-column owner. */
+ *  reveal stays opacity-only. The inside arm's only reservation is the row's own minimum height (see the
+ *  class list): just enough that the centred rail fits between the container's top edge and the body. */
 function nameRowFrame(args: {
   readonly identity: ReactNode;
   readonly actions: ReactNode;
@@ -158,15 +157,14 @@ function nameRowFrame(args: {
       data-sticky={args.stickyAttribution ? "" : undefined}
       className={cn(
         headerBacking(args.placement, args.stickyAttribution),
-        // THE ACTION CLUSTER'S RESERVATION, AND IT IS UNCONDITIONAL (#1873). It used to be dropped the
-        // moment the row went sticky — which took --spacing-section out of the row at the exact instant
-        // the verdict landed, and `exceedsViewport` (the verdict's own input) is the MEASURED row height.
-        // The shrunken row stopped exceeding the scrollport, the verdict inverted, the row grew back, and
-        // the transcript oscillated forever: measured 250px ↔ 226px against a 234px port the moment a
-        // capability notice took its height out of the content column. Keeping it in both arms restores
-        // the invariant the backing constants state ("going sticky changes NO box"); the band pays for its
-        // own padding on the top only (`STICKY_ATTRIBUTION_CHROME_INSIDE`).
-        args.placement === "inside" && "mb-section",
+        // THE ACTION RAIL'S ONLY RESERVATION. The rail is centred on this row, so a content height of
+        // `control-md - 2 * row` makes it span exactly the container's top inset, this row and the
+        // `gap-row` below it: contained in the bubble, clear of the prose, and no empty band between
+        // name and body. It is unconditional (ghost, editing and sticky arms alike) because the sticky
+        // verdict is computed from the measured row height: any box the verdict changed would re-enter
+        // its own input and oscillate. `box-content` keeps the sticky band's `pt-row` additive, so its
+        // `-mt-row` cancellation stays exact.
+        args.placement === "inside" && "box-content min-h-[calc(var(--spacing-control-md)_-_2_*_var(--spacing-row))]",
         // At rest an inside header paints on the role bubble, so every datum must inherit that bubble's
         // paired foreground. Speaker/gloss inks derive from the scope's BASE and are invalid on an
         // independently-picked bubble fill. A sticky row paints its own reading band and keeps that
@@ -178,11 +176,7 @@ function nameRowFrame(args: {
     >
       {args.identity}
       {args.actions === null ? null : (
-        <Row
-          align="center"
-          className={cn("h-0", args.placement === "inside" && !args.stickyAttribution && "relative top-block")}
-          data-slot="message-actions-slot"
-        >
+        <Row align="center" className="h-0" data-slot="message-actions-slot">
           {args.actions}
         </Row>
       )}
@@ -228,7 +222,7 @@ export function renderRowNameRow(args: {
  *  Riding the shared frame is what buys #113's sticky pin for the live turn for free — once the growing
  *  ghost exceeds the scrollport the surface passes `stickyAttribution` and the name pins to the top of the
  *  scrollport with the stream flowing under it, layout-neutral (the band's `pt-row` is cancelled by
- *  `-mt-row`, and the action cluster's `mb-section` reservation stands in both arms — #1873).
+ *  `-mt-row`, and the inside row's minimum height stands in every arm, rail or no rail).
  *
  *  ARIA: plain text inside the ghost ROW's own live region, and nothing more. Post-#1499 the transcript
  *  CONTAINER is explicitly `aria-live="off"` (its implicit `role="log"` politeness announced every
