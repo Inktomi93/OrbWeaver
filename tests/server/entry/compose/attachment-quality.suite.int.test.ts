@@ -16,6 +16,7 @@ import { test as base, expect } from "../../../support/fixtures.ts";
 import { seedCharacter } from "../../domain/chat/_support.ts";
 
 const IMAGE_URL = "image_url";
+const CHAT_COMPLETIONS_URL = "https://quality.example/v1/chat/completions";
 const bodySchema = z.object({
   messages: z.array(
     z.object({
@@ -45,6 +46,8 @@ const test = base.extend<{ requests: RecordedRequest[]; providerFetch: typeof fe
 });
 
 test("member quality and historical attachment refusals use the actual room-scoped compose and SDK path", async ({ app, db, services, clock, requests }) => {
+  // A Custom row's first resolve on a fresh runtime also probes which local server it is; only the turns matter here.
+  const turns = (): RecordedRequest[] => requests.filter((request) => request.url === CHAT_COMPLETIONS_URL);
   const host = await seedUser(db, { id: newId<UserId>(), handle: castId("qualityhost") });
   const member = await seedUser(db, { id: newId<UserId>(), handle: castId("qualitymember") });
   const principal = (user: typeof host): Principal => ({ userId: user.id, handle: user.handle, role: user.role, externalId: null, via: "header" });
@@ -113,8 +116,8 @@ test("member quality and historical attachment refusals use the actual room-scop
     const resolveRow = vi.spyOn(app.assets, "assetCasRefById");
     try {
       await services.chat.send({ principal: memberPrincipal, chatId: chat.id, content: `Inspect this ![picture](asset:${asset.assetId}).` });
-      expect(requests).toHaveLength(1);
-      const body = bodySchema.parse(requests[0]?.body);
+      expect(turns()).toHaveLength(1);
+      const body = bodySchema.parse(turns()[0]?.body);
       const images = body.messages.flatMap((message) => (Array.isArray(message.content) ? message.content.filter((part) => part.type === IMAGE_URL) : []));
       expect(images).toEqual([{ type: "image_url", [IMAGE_URL]: { url: `data:image/png;base64,${bytes.toString("base64")}`, detail: "high" } }]);
       expect((await services.settings.getUserSettings({ principal: memberPrincipal })).config.chat.attachmentQuality.imageDetail).toBe("low");
@@ -170,8 +173,8 @@ test("member quality and historical attachment refusals use the actual room-scop
       loadBytes.mockClear();
       resolveRow.mockClear();
       await services.chat.send({ principal: hostPrincipal, chatId: chat.id, content: "Inspect the earlier attachment boundary markers." });
-      expect(requests).toHaveLength(2);
-      const refusedBody = bodySchema.parse(requests[1]?.body);
+      expect(turns()).toHaveLength(2);
+      const refusedBody = bodySchema.parse(turns()[1]?.body);
       const refusedImages = refusedBody.messages.flatMap((message) =>
         Array.isArray(message.content) ? message.content.filter((part) => part.type === IMAGE_URL) : [],
       );
