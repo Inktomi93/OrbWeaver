@@ -32,6 +32,13 @@ const OPENROUTER_EMBEDDER_ROUTES = [
   { match: "/models", json: { data: [] } },
 ];
 
+/** An Ollama server listing one embedder no curated row names; its `/api/show` is the test's own. */
+const OLLAMA_HOUSE_EMBEDDER_ROUTES = [
+  { match: "/v1/models", json: { object: "list", data: [{ id: "house-embedder:latest", object: "model" }] } },
+  { match: "/api/version", json: { version: "0.12.0" } },
+  { match: "/api/ps", json: { models: [] } },
+];
+
 describe("setBinding", () => {
   test("a row the provider's catalog lists as an embedder binds as one, with no Purpose set by hand", async () => {
     const db = await freshDb();
@@ -120,6 +127,57 @@ describe("setBinding", () => {
       credentialId: null,
       baseUrl: BYO_BASE_URL,
       model: "acme-embedder",
+      allowBackground: true,
+    });
+
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.embedUnreachable,
+    });
+  }, 30_000);
+
+  test("an Ollama embedder no curated row names binds to Embed by what /api/show says, and is refused for Chat", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, {
+      routes: [
+        { match: "/api/show", json: { capabilities: ["embedding"], ["model_info"]: { "general.architecture": "bert", "bert.embedding_length": 768 } } },
+        ...OLLAMA_HOUSE_EMBEDDER_ROUTES,
+      ],
+    });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: "ollama",
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "house-embedder:latest",
+      allowBackground: true,
+    });
+
+    expect((await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).connectionId).toBe(row.id);
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.taskUnservable,
+    });
+  });
+
+  // The list answered but the one read that says what the model is did not: still the unreachable refusal.
+  test("binding an Ollama embedder whose /api/show answers too late refuses as unreachable, not as a chat model", async () => {
+    const db = await freshDb();
+    const showStalls = (url: string, init: RequestInit | undefined): Promise<Response> | null =>
+      url.endsWith("/api/show")
+        ? new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("aborted", "AbortError"));
+            });
+          })
+        : null;
+    const h = await makeHarness(db, { intercept: showStalls, routes: OLLAMA_HOUSE_EMBEDDER_ROUTES });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: "ollama",
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "house-embedder:latest",
       allowBackground: true,
     });
 

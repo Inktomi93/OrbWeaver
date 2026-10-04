@@ -38,9 +38,10 @@ test("endpoint catalog fetch normalizes model ids and the supported context-wind
       secrets: NO_PROVIDER_SECRETS,
     }),
   ).resolves.toEqual([
-    { id: "max-model", contextLength: 131_072 },
-    { id: "context", contextLength: 32_768 },
-    { id: "max-context", contextLength: 8192 },
+    // With no native API, the listed window is also the embedding route's input limit.
+    { id: "max-model", contextLength: 131_072, embedInputTokens: 131_072 },
+    { id: "context", contextLength: 32_768, embedInputTokens: 32_768 },
+    { id: "max-context", contextLength: 8192, embedInputTokens: 8192 },
     { id: "unknown", contextLength: null },
   ]);
   expect(requests).toHaveLength(1);

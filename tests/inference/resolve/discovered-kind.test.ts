@@ -102,6 +102,36 @@ test("an uncurated Ollama embedder reads as an embedder on the first capability 
   }
 });
 
+// `/api/show` is the only Ollama read that says what a model is. A slow one leaves the kind unknown, and an unknown
+// kind is no answer: the next warm asks again rather than reading the model as a chat model from then on.
+test("a model whose /api/show answered too late is asked again, not cached as a model of no kind", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "ollama", model: "house-embedder:latest", baseUrl: OLLAMA_URL });
+  stores.connections.rows.set(row.id, row);
+  const server = ollamaServer({ "house-embedder:latest": ["embedding"] });
+  const show: { stalls: boolean } = { stalls: true };
+  const stalling: typeof fetch = (input, init) => {
+    if (show.stalls && new URL(String(input)).pathname === "/api/show") {
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+    }
+    return server.fetch(input, init);
+  };
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: stalling }));
+
+  await runtime.modelKind(row);
+  // Nothing held says what the model is, so a read that must not wait takes the caller's cold reading.
+  expect(await runtime.modelKind(row, { cachedFacts: true, coldAs: "embedding" })).toBe("embedding");
+
+  show.stalls = false;
+  expect(await runtime.modelKind(row)).toBe("embedding");
+  expect(await runtime.modelKind(row, { cachedFacts: true, coldAs: "generation" })).toBe("embedding");
+}, 30_000);
+
 test("two models on one Ollama server each get their own render probe, so the second does not run on guessed facts", async () => {
   const stores = memoryStores();
   const ownerId = newUserId();

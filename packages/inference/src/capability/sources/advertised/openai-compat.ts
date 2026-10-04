@@ -1,6 +1,6 @@
 // The ADVERTISED tier from an OpenAI-compatible `/v1/models` row: ids and, when the server reports one, a chat
 // model's context window (vLLM `max_model_len`, LM Studio `max_context_length`, llama.cpp `meta.n_ctx`, Ollama's
-// pinned `num_ctx`, else its default floor as assumed), an embedder's width, and — where the row's native model-info API states them (D292) — the
+// pinned `num_ctx`, else its default floor as assumed), an embedder's width and input limit, and — where the row's native model-info API states them (D292) — the
 // modalities a turn may carry, whether the model takes `tools[]` and whether it thinks, schema-constrained output, and whether a
 // delivered assistant row is continued (the server's rendered prompt leaves it open), and the sampler values the
 // server runs when a request leaves a knob unset. Everything else is curated or declared (§5.7, §6.3).
@@ -34,13 +34,26 @@ function samplingDefaultsOf(serverDefaults: EndpointModel["serverDefaults"], fea
   return defaults.length === 0 ? undefined : Object.fromEntries(defaults);
 }
 
+/** An embedder's input limit is its embedding route's own, never the generation window; a server's floor for a
+ *  window it does not state bounds that route too, and stays assumed. */
+function advertisedEmbedding(entry: Pick<EndpointModel, "contextFloor" | "embeddingDims" | "embedInputTokens">): Partial<EmbeddingCapability> {
+  const dims = entry.embeddingDims === undefined ? {} : { dims: entry.embeddingDims };
+  if (entry.embedInputTokens !== undefined) {
+    return { ...dims, maxInputTokens: entry.embedInputTokens };
+  }
+  return entry.contextFloor === undefined ? dims : { ...dims, maxInputTokens: entry.contextFloor, windowEstimated: true };
+}
+
 export function advertisedFromOpenAiCompat(
-  entry: Pick<EndpointModel, "contextLength" | "contextFloor" | "embeddingDims" | "input" | "tools" | "structured" | "prefill" | "serverDefaults" | "thinks">,
+  entry: Pick<
+    EndpointModel,
+    "contextLength" | "contextFloor" | "embeddingDims" | "embedInputTokens" | "input" | "tools" | "structured" | "prefill" | "serverDefaults" | "thinks"
+  >,
   kind: ModelKind,
   features: EndpointFeatures,
 ): GenerationPatch | Partial<EmbeddingCapability> {
   if (kind === "embedding") {
-    return entry.embeddingDims === undefined ? {} : { dims: entry.embeddingDims };
+    return advertisedEmbedding(entry);
   }
   if (kind !== "generation") {
     return {};

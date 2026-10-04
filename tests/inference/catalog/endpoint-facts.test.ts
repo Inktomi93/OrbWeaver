@@ -65,6 +65,83 @@ test("llama.cpp: an embedder is told apart by its handlers and measured from a r
   expect(unpooled.embeddingDims).toBeUndefined();
 });
 
+/** The recorded embedder arm, except that an input longer than the window gets `refusal` (llama.cpp
+ *  server-context.cpp checks a pooled task against the physical batch, then the slot window, before it decodes). */
+function embedderRefusing(refusal: { readonly status: number; readonly body: unknown }): { readonly fetch: typeof fetch; readonly inputs: string[] } {
+  const replay = transcriptFetch("llamacpp-embed");
+  const inputs: string[] = [];
+  const fetchImpl = ((input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+    const body = typeof init?.body === "string" ? (JSON.parse(init.body) as { readonly input?: unknown }) : {};
+    if (new URL(String(input)).pathname === "/v1/embeddings" && typeof body.input === "string") {
+      inputs.push(body.input);
+      if (body.input.length > 2048) {
+        return Promise.resolve(Response.json(refusal.body, { status: refusal.status }));
+      }
+    }
+    return replay(input, init);
+  }) as typeof fetch;
+  return { fetch: fetchImpl, inputs };
+}
+
+async function probedEmbedder(fetchImpl: typeof fetch): Promise<EndpointModel | undefined> {
+  const rows = await fetchEndpointModels({ fetch: fetchImpl, baseUrl: BASE_URL, secret: null, secrets: NO_PROVIDER_SECRETS, modelInfoApi: "llama-cpp" });
+  const probed = await fetchEndpointModels({
+    fetch: fetchImpl,
+    baseUrl: BASE_URL,
+    secret: null,
+    secrets: NO_PROVIDER_SECRETS,
+    modelInfoApi: "llama-cpp",
+    probeModel: rows[0]?.id,
+  });
+  return probed[0];
+}
+
+test("llama.cpp: an embedder's input limit is the one its server names when refusing an input past its window", async () => {
+  // The default physical batch (512) binds below the 2048 slot window: the batch is the limit, not the window.
+  const batchBound = embedderRefusing({
+    status: 500,
+    body: {
+      error: {
+        code: 500,
+        message: "input (2052 tokens) is too large to process. increase the physical batch size (current batch size: 512)",
+        type: "server_error",
+      },
+    },
+  });
+  await expect(probedEmbedder(batchBound.fetch)).resolves.toMatchObject({ kind: "embedding", embeddingDims: 768, embedInputTokens: 512 });
+  // One over-window input, past the slot window the server lists.
+  expect(batchBound.inputs.filter((sent) => sent.length > 2048)).toHaveLength(1);
+  // A batch at least as large as the window: the slot window binds.
+  const windowBound = embedderRefusing({
+    status: 400,
+    body: {
+      error: {
+        code: 400,
+        message: "input (2052 tokens) is larger than the max context size (2048 tokens). skipping",
+        type: "exceed_context_size_error",
+        ["n_prompt_tokens"]: 2052,
+        ["n_ctx"]: 2048,
+      },
+    },
+  });
+  await expect(probedEmbedder(windowBound.fetch)).resolves.toMatchObject({ embedInputTokens: 2048 });
+  // A server that takes the over-window input names no limit, so none is stated.
+  await expect(only("llamacpp-embed", "llama-cpp")).resolves.not.toHaveProperty("embedInputTokens");
+});
+
+test("Ollama: an embedder's input limit is the window its route truncates to, the pinned num_ctx under the trained maximum", async () => {
+  const rows = await fetchEndpointModels({
+    fetch: localServerFetch("ollama"),
+    baseUrl: BASE_URL,
+    secret: null,
+    secrets: NO_PROVIDER_SECRETS,
+    modelInfoApi: "ollama",
+  });
+  // nomic-embed-text pins num_ctx 8192 over a trained 2048.
+  expect(rows.find((row) => row.id === "nomic-embed-text:latest")).toMatchObject({ kind: "embedding", embedInputTokens: 2048 });
+  expect(rows.find((row) => row.id === "qwen2.5:0.5b")).not.toHaveProperty("embedInputTokens");
+});
+
 test("llama.cpp: prefill is what the server renders: continued by default, a new turn under --no-prefill-assistant", async () => {
   await expect(only("llamacpp-noprefill", "llama-cpp")).resolves.toMatchObject({ kind: "generation", prefill: "none" });
   // The owner's Qwen3.8-27B under its served template: continued, trained at 262144.

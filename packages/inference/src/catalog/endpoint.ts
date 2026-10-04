@@ -91,8 +91,9 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
   );
   switch (args.modelInfoApi) {
     case undefined:
-      // No native API, so a model has nothing of its own to probe.
-      return rows.map((row) => (isProbeModel(args, row.id) ? { ...row, probed: true } : row));
+      // No native API, so a model has nothing of its own to probe, and the one window the list states is the one
+      // the server runs the model at on every route.
+      return rows.map((row) => withStated(row, { embedInputTokens: listedWindow(row), ...(isProbeModel(args, row.id) ? { probed: true } : {}) }));
     case "ollama":
       return await withOllamaInfo(args, rows);
     case "llama-cpp":
@@ -228,6 +229,11 @@ function versionAtLeast(version: string | undefined, floor: string): boolean | u
   return true;
 }
 
+function listedWindow(row: Pick<EndpointModel, "contextLength">): number | undefined {
+  const parsed = POSITIVE_INT.safeParse(row.contextLength);
+  return parsed.success ? parsed.data : undefined;
+}
+
 function withStated(row: EndpointModel, facts: Partial<EndpointModel>): EndpointModel {
   const stated = Object.fromEntries(Object.entries(facts).filter(([, value]) => value !== undefined && value !== null));
   return { ...row, ...stated, contextLength: row.contextLength ?? facts.contextLength ?? null };
@@ -279,25 +285,44 @@ async function withOllamaInfo(args: EndpointFetchArgs, rows: readonly EndpointMo
   const loaded = await nativeRead(args, () => read("/api/ps").then((json) => ollamaPsSchema.parse(json).models));
   const out: EndpointModel[] = [];
   for (const row of rows) {
-    const show = await nativeRead(args, () => read("/api/show", { model: row.id }).then((json) => ollamaShowSchema.parse(json)));
+    const show = await nativeRead(args, () => readOllamaShow(args, row.id));
     const loadedContext = loaded?.find((model) => model.name === row.id || model.model === row.id)?.context_length;
     const contextFloor = Math.min(defaultFloor, loadedContext ?? defaultFloor);
-    const facts = ollamaFacts(show, contextFloor);
-    const listed = withStated(row, {
-      ...facts,
-      structured,
-      serverDefaults: ollamaParameters(show?.parameters),
-      ...(facts.kind === "generation" ? { toolChoice: OLLAMA_TOOL_CHOICE } : {}),
-    });
-    out.push(isProbeModel(args, row.id) ? withStated(listed, await ollamaModelFacts(args, listed)) : listed);
+    const listed = withStated(row, { ...ollamaShowFacts(show, contextFloor), structured });
+    // Only `/api/show` says what a model is: one it did not answer for stays unprobed, so the next warm asks again.
+    out.push(isProbeModel(args, row.id) && show !== null ? withStated(listed, await ollamaModelFacts(args, listed)) : listed);
   }
   return out;
+}
+
+function readOllamaShow(args: EndpointFetchArgs, model: string): Promise<z.infer<typeof ollamaShowSchema>> {
+  return nativeReader(args)("/api/show", { model }).then((json) => ollamaShowSchema.parse(json));
+}
+
+/** What `/api/show` states about one model, or the window floor alone where it did not answer. */
+function ollamaShowFacts(show: z.infer<typeof ollamaShowSchema> | null, contextFloor: number): Partial<EndpointModel> {
+  const facts = ollamaFacts(show, contextFloor);
+  return { ...facts, serverDefaults: ollamaParameters(show?.parameters), ...(facts.kind === "generation" ? { toolChoice: OLLAMA_TOOL_CHOICE } : {}) };
 }
 
 /** The facts only a render answers: whether a chat model continues a trailing assistant row. */
 async function ollamaModelFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
   const prefill = row.kind === "generation" ? await nativeRead(args, () => ollamaPrefill(args, row.id)) : undefined;
   return { prefill: prefill ?? undefined, probed: true };
+}
+
+/** A listed model's own facts on its first resolve. A model that states no kind may be one whose `/api/show` did not
+ *  answer the list read, so it is asked again; until it answers, the model stays unprobed. */
+async function ollamaLateFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
+  if (row.kind !== undefined) {
+    return await ollamaModelFacts(args, row);
+  }
+  const show = await nativeRead(args, () => readOllamaShow(args, row.id));
+  if (show === null) {
+    return {};
+  }
+  const shown = ollamaShowFacts(show, row.contextFloor ?? OLLAMA_LEGACY_FLOOR);
+  return { ...shown, ...(await ollamaModelFacts(args, withStated(row, shown))) };
 }
 
 /** Neither chat route takes `tool_choice` (`openai.go` ChatCompletionRequest has no such field; `/api/chat`
@@ -394,8 +419,14 @@ function ollamaFacts(show: z.infer<typeof ollamaShowSchema> | null, contextFloor
   const kind = ollamaKind(capabilities);
   if (kind !== "generation" || capabilities === undefined) {
     // Every architecture states an `embedding_length` (a chat model's is its hidden width), so it is a vector
-    // width only where the capabilities do not say the model generates.
-    return { ...window, embeddingDims: POSITIVE_INT.safeParse(width).success ? (width as number) : undefined, kind };
+    // width only where the capabilities do not say the model generates. The embed route truncates an input to the
+    // same window, so a stated one is the embedder's input limit.
+    return {
+      ...window,
+      embeddingDims: POSITIVE_INT.safeParse(width).success ? (width as number) : undefined,
+      embedInputTokens: kind === "embedding" ? (window.contextLength ?? undefined) : undefined,
+      kind,
+    };
   }
   return {
     ...window,
@@ -434,7 +465,7 @@ const llamaCppRowSchema = z
       .optional(),
   })
   .loose();
-const llamaCppErrorSchema = z.object({ error: z.object({ message: z.string() }).loose() }).loose();
+const llamaCppErrorSchema = z.object({ error: z.object({ message: z.string(), type: z.string().optional() }).loose() }).loose();
 const llamaCppTemplateSchema = z.object({ prompt: z.string() }).loose();
 const LLAMA_CPP_ROUTER_ROLE = "router";
 /** `build_info` is `b<number>-<hash>`. */
@@ -544,22 +575,58 @@ async function llamaCppPrefill(args: EndpointFetchArgs): Promise<EndpointModel["
   return parsed.success ? prefillOf(parsed.data.prompt) : undefined;
 }
 
-/** The facts only the loaded model can answer: its kind, an embedder's measured width, and a chat model's
- *  prefill. A router describes no single model, and probing it would load one, so it is not asked. */
-async function llamaCppModelFacts(args: EndpointFetchArgs, model: string): Promise<Partial<EndpointModel>> {
-  const kind = await nativeRead(args, () => llamaCppKind(args));
-  if (kind === "embedding") {
-    return { kind, embeddingDims: (await nativeRead(args, () => measuredWidth(args, model))) ?? undefined };
+/** A pooled input the server cannot split must fit one physical batch; the refusal names that batch. */
+const PHYSICAL_BATCH_RE = /current batch size: (\d+)/u;
+const EXCEED_CONTEXT_TYPE = "exceed_context_size_error";
+/** One word of the over-window input: every tokenizer spends at least one token on each. */
+const PROBE_WORD = "a ";
+
+/**
+ * The longest input the embedding route takes. Before it decodes, the server refuses a pooled input past the
+ * physical batch, naming the batch (which no read states), and any input past the slot window. One input longer
+ * than the window draws whichever binds, and costs no inference. A server that embeds it names nothing.
+ */
+async function llamaCppEmbedLimit(args: EndpointFetchArgs, model: string, window: number): Promise<number | undefined> {
+  const answer = await probeNative(args, OPENAI_EMBEDDINGS_PATH, { model, input: PROBE_WORD.repeat(window + 1) });
+  const batch = PHYSICAL_BATCH_RE.exec(refusalMessage(answer))?.[1];
+  if (batch !== undefined) {
+    return Math.min(window, Number.parseInt(batch, 10));
   }
-  if (kind === "generation") {
-    return { kind, prefill: (await nativeRead(args, () => llamaCppPrefill(args))) ?? undefined, toolChoice: LLAMA_CPP_TOOL_CHOICE };
-  }
-  return { kind: kind ?? undefined };
+  const parsed = llamaCppErrorSchema.safeParse(answer.json);
+  return parsed.success && parsed.data.error.type === EXCEED_CONTEXT_TYPE ? window : undefined;
 }
 
-/** A probed row's facts: the loaded model's own on a single-model server; a router's rows are never probed. */
-async function llamaCppProbedFacts(args: EndpointFetchArgs, model: string, single: boolean): Promise<Partial<EndpointModel>> {
-  return { ...(single ? await llamaCppModelFacts(args, model) : {}), probed: true };
+/** The facts only the loaded model can answer: its kind, an embedder's measured width and input limit, and a chat
+ *  model's prefill. A kind probe the server did not answer leaves the model unprobed, so the next warm asks again. */
+async function llamaCppModelFacts(args: EndpointFetchArgs, row: Pick<EndpointModel, "id" | "contextLength">): Promise<Partial<EndpointModel>> {
+  const kind = await nativeRead(args, () => llamaCppKind(args));
+  if (kind === null) {
+    return {};
+  }
+  if (kind === "embedding") {
+    const window = listedWindow(row);
+    const embedInputTokens = window === undefined ? null : await nativeRead(args, () => llamaCppEmbedLimit(args, row.id, window));
+    return {
+      kind,
+      embeddingDims: (await nativeRead(args, () => measuredWidth(args, row.id))) ?? undefined,
+      embedInputTokens: embedInputTokens ?? undefined,
+      probed: true,
+    };
+  }
+  if (kind === "generation") {
+    return { kind, prefill: (await nativeRead(args, () => llamaCppPrefill(args))) ?? undefined, toolChoice: LLAMA_CPP_TOOL_CHOICE, probed: true };
+  }
+  return { kind, probed: true };
+}
+
+/** A probed row's facts: the loaded model's own on a single-model server. A router describes no single model, and
+ *  probing it would load one, so its rows are not asked. */
+async function llamaCppProbedFacts(
+  args: EndpointFetchArgs,
+  row: Pick<EndpointModel, "id" | "contextLength">,
+  single: boolean,
+): Promise<Partial<EndpointModel>> {
+  return single ? await llamaCppModelFacts(args, row) : { probed: true };
 }
 
 /** llama.cpp serves one model per process, so `/props` describes every listed row: the loaded modalities, what
@@ -576,10 +643,11 @@ async function withLlamaCppInfo(args: EndpointFetchArgs, raw: readonly RawRow[],
     const parsed = llamaCppRowSchema.safeParse(raw[index]);
     const meta = parsed.success ? parsed.data.meta : undefined;
     const input = llamaCppRowInput(parsed.success ? parsed.data.architecture?.input_modalities : undefined, server);
-    const model = isProbeModel(args, row.id) ? await llamaCppProbedFacts(args, row.id, single) : {};
+    const window = meta?.n_ctx ?? server.window;
+    const model = isProbeModel(args, row.id) ? await llamaCppProbedFacts(args, { id: row.id, contextLength: window }, single) : {};
     out.push(
       withStated(row, {
-        contextLength: meta?.n_ctx ?? server.window,
+        contextLength: window,
         contextTrained: meta?.n_ctx_train,
         input: input === undefined ? undefined : [...input],
         tools: server.tools,
@@ -683,10 +751,10 @@ async function listedModelFacts(args: EndpointFetchArgs, row: EndpointModel): Pr
     case undefined:
       return { probed: true };
     case "ollama":
-      return await ollamaModelFacts(args, row);
+      return await ollamaLateFacts(args, row);
     case "llama-cpp": {
       const props = await nativeRead(args, () => nativeReader(args)("/props").then((json) => llamaCppPropsSchema.parse(json)));
-      return await llamaCppProbedFacts(args, row.id, props !== null && props.role !== LLAMA_CPP_ROUTER_ROLE);
+      return await llamaCppProbedFacts(args, row, props !== null && props.role !== LLAMA_CPP_ROUTER_ROLE);
     }
     case "koboldcpp":
       return await koboldCppModelFacts(args, row);

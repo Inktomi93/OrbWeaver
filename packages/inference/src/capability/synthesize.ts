@@ -186,8 +186,11 @@ function synthesizeEmbedding(evidence: Evidence): SynthesizedCapability {
   capability = mergeFlat(capability, declared);
   const tiers = [...(evidence.curated ?? []), ...(evidence.measured ?? [])];
   const advertised = evidence.advertised as Partial<EmbeddingCapability> | undefined;
-  const stated =
-    tiers.some((row) => row.embedding?.maxInputTokens !== undefined) || advertised?.maxInputTokens !== undefined || declared?.maxInputTokens !== undefined;
+  // As for a chat window: the tier whose input limit won the fold decides whether it is stated or a server's floor.
+  const windowSetters = [...(evidence.curated ?? []).map((row) => row.embedding), advertised, ...measuredRows, declared].filter(
+    (patch) => patch?.maxInputTokens !== undefined,
+  );
+  const stated = windowSetters.length > 0 && windowSetters.at(-1)?.windowEstimated !== true;
   // The width is ESTIMATED when only the floor stated it — a guessed width must never read as a fit.
   const dimsStated = tiers.some((row) => row.embedding?.dims !== undefined) || advertised?.dims !== undefined || declared?.dims !== undefined;
   const { windowEstimated: _dropped, dimsEstimated: _priorDimsFlag, ...rest } = capability;

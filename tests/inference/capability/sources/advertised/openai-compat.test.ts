@@ -42,6 +42,20 @@ test("an embedding row states its width and never a chat model's facts", () => {
   expect(advertisedFromOpenAiCompat({ contextLength: 2048, embeddingDims: 768 }, "rerank", ROW)).toStrictEqual({});
 });
 
+test("an embedding row's input limit is its embedding route's, never the generation window; a server floor stays assumed", () => {
+  expect(advertisedFromOpenAiCompat({ contextLength: 8192, embeddingDims: 768, embedInputTokens: 512 }, "embedding", ROW)).toStrictEqual({
+    dims: 768,
+    maxInputTokens: 512,
+  });
+  expect(advertisedFromOpenAiCompat({ contextLength: null, contextFloor: 4096 }, "embedding", ROW)).toStrictEqual({
+    maxInputTokens: 4096,
+    windowEstimated: true,
+  });
+  expect(advertisedFromOpenAiCompat({ contextLength: null, contextFloor: 4096, embedInputTokens: 2048 }, "embedding", ROW)).toStrictEqual({
+    maxInputTokens: 2048,
+  });
+});
+
 test("the posture reads whether the server stated an input list, not what it listed", () => {
   expect(advertisedStatesInput({ input: ["text"] })).toBe(true);
   expect(advertisedStatesInput({ input: [] })).toBe(true);

@@ -65,6 +65,10 @@ const endpointModelSchema = z.object({
   maxCompletionTokens: modelCatalogEntrySchema.shape.maxCompletionTokens,
   /** An embedder's vector width, where the server's native model info states it. */
   embeddingDims: z.number().int().positive().optional(),
+  /** The longest input, in tokens, the server's embedding route takes for this model, where the server states it or
+   *  a refusal names it. Not `contextLength`: llama.cpp also bounds a pooled embedder by its physical batch, and
+   *  KoboldCpp's window is its text model's. */
+  embedInputTokens: z.number().int().positive().optional(),
   /** What a chat turn may carry, where the server's native model info states it (D292). Absent ⇒ not stated. */
   input: z.array(modalitySchema).optional(),
   /** The server states the model takes `tools[]`; `parallel` only where it states that too. Absent ⇒ not stated. */
@@ -91,8 +95,9 @@ const endpointModelSchema = z.object({
   defaultReplyTokens: z.number().int().positive().optional(),
   /** The server renders chat through the model's jinja template (KoboldCpp `--jinja`) rather than an adapter. */
   jinja: z.boolean().optional(),
-  /** This model's own probes (kind, measured width, prefill) have run. A list warmed for another model on the same
-   *  server carries the server facts only, so the model is probed on its first resolve. */
+  /** This model's own probes (kind, measured width, prefill) have run, and the read that states its kind answered. A
+   *  list warmed for another model on the same server carries the server facts only, so the model is probed on its
+   *  first resolve; one whose kind read did not answer is asked again on the next. */
   probed: z.literal(true).optional(),
 });
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
