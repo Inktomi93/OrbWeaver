@@ -4,7 +4,7 @@
 // endpoint row carries a URL (a hosted one does not), the URL parses and passes the F12 admission, the
 // credential is the caller's, and the label is unique per owner (auto-minted `<provider> · <model>`,
 // collision-suffixed).
-// (§10-4) a write that moves one of the caller's vector SPACES re-raises the purge+reindex trigger
+// (§10-4) a write that moves one of the caller's vector SPACES onto a space that can embed raises the reindex trigger
 // through `onEmbedSpaceChanged` — the settings-blob trigger this replaces enqueued the same workload. The
 // condition is a before/after comparison of the resolved space tags (`substrate/embed-space.ts`), NOT a
 // column diff: the space is derived from the row's model AND its resolved capability, so a provider or
@@ -19,7 +19,6 @@ import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { CreateConnectionParams, UpdateConnectionParams } from "../contract/params.ts";
 import type { ConnectionView, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
-import { listBindingsForActor } from "../persistence/bindings.ts";
 import {
   deleteOwnedConnection,
   fetchOwnedConnection,
@@ -29,7 +28,7 @@ import {
   updateOwnedConnection,
 } from "../persistence/connections.ts";
 import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
-import { spacesDiffer, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
+import { spacesNeedRebuild, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
 
 function requireLabel(raw: string): string {
@@ -93,13 +92,6 @@ async function requireOwnedRow(ctx: ConnectionContext, ownerId: UserId, connecti
     throw new ConnectionNotFoundError(connectionId);
   }
   return row;
-}
-
-/** Is this row bound to a VECTOR task by the owner's `user` bindings? `remove` asks this BEFORE the delete,
- *  because after it there is no row left to resolve a before/after space comparison through. */
-async function boundToVectorTask(ctx: ConnectionContext, ownerId: UserId, connectionId: UserConnectionId): Promise<boolean> {
-  const bindings = await listBindingsForActor(ctx.db, { actorKind: "user", actorId: ownerId });
-  return bindings.some((binding) => binding.connectionId === connectionId && VECTOR_TASKS.includes(binding.task));
 }
 
 function createList(ctx: ConnectionContext): ConnectionService["list"] {
@@ -211,7 +203,7 @@ function createUpdate(ctx: ConnectionContext): ConnectionService["update"] {
       { actorUserId: ownerId, action: "connection.update", entityType: "connection", entityId: row.id, metadata: { fields: Object.keys(params.patch) } },
       now,
     );
-    if (spacesDiffer(before, await vectorSpacesOf(ctx, params.principal))) {
+    if (spacesNeedRebuild(before, await vectorSpacesOf(ctx, params.principal))) {
       ctx.onEmbedSpaceChanged(ownerId);
     }
     const saved = await requireOwnedRow(ctx, ownerId, row.id);
@@ -226,12 +218,9 @@ function createRemove(ctx: ConnectionContext): ConnectionService["remove"] {
   return async (params): Promise<void> => {
     const ownerId = params.principal.userId;
     const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
-    const wasVector = await boundToVectorTask(ctx, ownerId, row.id);
+    // No embed-space trigger: the delete sets every binding on the row to nothing, and nothing can embed there.
     await deleteOwnedConnection(ctx.db, ownerId, row.id);
     await ctx.audit({ actorUserId: ownerId, action: "connection.remove", entityType: "connection", entityId: row.id }, ctx.now());
-    if (wasVector) {
-      ctx.onEmbedSpaceChanged(ownerId);
-    }
     ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
   };
 }

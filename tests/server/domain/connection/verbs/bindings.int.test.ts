@@ -140,7 +140,9 @@ describe("setBinding", () => {
     expect(bound.task).toBe("embed");
   });
 
-  test("clearing a task writes `null` and raises the embed-space trigger for a vector task only", async () => {
+  // Only a move ONTO a space that can embed is worth a rebuild: clearing an embed role leaves nothing to embed with,
+  // and re-binding the same encoder moves nothing.
+  test("clearing a task writes `null`; only a bind onto a new embed space raises the trigger", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     const owner = await seedOwner(db);
@@ -161,6 +163,11 @@ describe("setBinding", () => {
     });
     await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: embedder.id });
     expect(h.embedSpaceChanges).toEqual([owner.userId]);
+    h.embedSpaceChanges.length = 0;
+    await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: embedder.id });
+    expect(h.embedSpaceChanges, "the same encoder again moves no space").toEqual([]);
+    await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: null });
+    expect(h.embedSpaceChanges, "an unbind leaves nothing that can embed").toEqual([]);
   });
 });
 

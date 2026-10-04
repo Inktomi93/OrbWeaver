@@ -3,8 +3,8 @@
 // Compare the SAME concrete connection fingerprint generationIdOf uses,
 // without changing its serialization or invalidating any unchanged stored generation.
 //
-// A task the principal has no binding for resolves to `null` — "no space", which compares correctly against
-// both a later binding (a change) and a later absence (no change).
+// A task the principal has no binding for resolves to `null` — "no space": gaining a space from it rebuilds,
+// falling back to it rebuilds nothing.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
@@ -75,7 +75,8 @@ export function spaceMoved(before: EmbedSpace | null | undefined, after: EmbedSp
   return before?.fingerprint !== after?.fingerprint || before?.dim !== after?.dim;
 }
 
-/** Did any vector task's space move? */
-export function spacesDiffer(before: EmbedSpaces, after: EmbedSpaces): boolean {
-  return VECTOR_TASKS.some((task) => spaceMoved(before[task], after[task]));
+/** Did any vector task move ONTO a space its corpus must be rebuilt in? Losing a space never counts: nothing can
+ *  embed there, and the old generation stays for a later re-bind (the preview's "clearing a role deletes nothing"). */
+export function spacesNeedRebuild(before: EmbedSpaces, after: EmbedSpaces): boolean {
+  return VECTOR_TASKS.some((task) => (after[task] ?? null) !== null && spaceMoved(before[task], after[task]));
 }

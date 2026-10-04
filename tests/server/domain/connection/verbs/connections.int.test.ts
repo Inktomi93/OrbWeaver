@@ -497,7 +497,8 @@ describe("update", () => {
 });
 
 describe("remove", () => {
-  test("deletes the caller's row and raises the embed-space trigger only when it was vector-bound", async () => {
+  // A removal sets its bindings to nothing, and nothing can embed through nothing: the trigger never fires.
+  test("deletes the caller's row and never raises the embed-space trigger, even when it was vector-bound", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     const owner = await seedOwner(db);
@@ -518,7 +519,7 @@ describe("remove", () => {
     await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: vector.id });
     h.embedSpaceChanges.length = 0;
     await h.svc.remove({ principal: owner.principal, connectionId: vector.id });
-    expect(h.embedSpaceChanges).toEqual([owner.userId]);
+    expect(h.embedSpaceChanges).toEqual([]);
   });
 
   test("a stranger's remove is refused and the row survives", async () => {
