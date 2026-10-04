@@ -91,6 +91,9 @@ const endpointModelSchema = z.object({
   defaultReplyTokens: z.number().int().positive().optional(),
   /** The server renders chat through the model's jinja template (KoboldCpp `--jinja`) rather than an adapter. */
   jinja: z.boolean().optional(),
+  /** This model's own probes (kind, measured width, prefill) have run. A list warmed for another model on the same
+   *  server carries the server facts only, so the model is probed on its first resolve. */
+  probed: z.literal(true).optional(),
 });
 export type EndpointModel = z.infer<typeof endpointModelSchema>;
 

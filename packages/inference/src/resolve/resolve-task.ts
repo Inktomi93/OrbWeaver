@@ -6,10 +6,11 @@
 //   3. the provider row from the registry, read as the row's owner (a dropped plugin provider, or one none of
 //      the owner's enabled installs contributes ⇒ `no-connection`); every FACT below reads `behaveAs`'s row
 //      (a detecting row's server), while identity and the credential stay the registered row's;
-//   4. the model's KIND: the OpenRouter catalog row → curated → the row's `declared.kind` → the task's own
-//      kind; then `connectionTasks` decides whether this row may serve the task at all;
-//   5. api coherence (data), the secret (by id, the funder's), the model id normalised (no heal);
-//   6. the catalog warm this provider's `catalog` strategy owns, then the evidence bundle → synthesis →
+//   4. the secret (by id, the funder's) and the catalog warm this provider's `catalog` strategy owns, so the kind a
+//      server or catalog states is in hand before anything reads it;
+//   5. the model's KIND: the row's `declared.kind` → the catalog row → curated → the task's own kind; then
+//      `connectionTasks` decides whether this row may serve the task at all;
+//   6. api coherence (data), the model id normalised (no heal), then the evidence bundle → synthesis →
 //      the endpoint posture floors → the features fold;
 //   7. the requirement verdict and `canFund` — VERDICTS on the result, never throws.
 
@@ -107,7 +108,16 @@ function kindOf(
   ctx: ResolverContext,
   args: { readonly task: Task; readonly provider: ProviderDef; readonly connection: UserConnection; readonly includeDeclared?: boolean },
 ): ModelKind {
-  const { task, provider, connection } = args;
+  return statedKind(ctx, args) ?? taskDef(args.task).kind;
+}
+
+/** The kind the evidence states: the row's declaration, the provider's catalog (read from the warmed mirror), the
+ *  curated rows; `undefined` when none states one. */
+function statedKind(
+  ctx: ResolverContext,
+  args: { readonly provider: ProviderDef; readonly connection: UserConnection; readonly includeDeclared?: boolean | undefined },
+): ModelKind | undefined {
+  const { provider, connection } = args;
   let catalogKind: ModelKind | undefined;
   if (provider.dialect === "openrouter") {
     catalogKind = ctx.openRouterCatalog.get()?.find((entry) => entry.id === connection.model)?.kind;
@@ -118,8 +128,7 @@ function kindOf(
   return (
     (args.includeDeclared === false ? undefined : connection.declared?.kind) ??
     catalogKind ??
-    curatedKind({ model: connection.model, providerId: provider.id, wire: provider.wire }) ??
-    taskDef(task).kind
+    curatedKind({ model: connection.model, providerId: provider.id, wire: provider.wire })
   );
 }
 
@@ -329,6 +338,47 @@ async function warmBeforeFacts(
   return { behaved, earlyCredential, reached };
 }
 
+/** Every warm a row's facts read, before any of them is read: the kind a server's catalog states decides which tasks
+ *  the row serves, so the catalog lands first. */
+async function warmFacts(
+  ctx: ResolverContext,
+  provider: ProviderDef,
+  connection: UserConnection,
+  cachedFacts: boolean,
+): Promise<{ readonly behaved: ProviderDef; readonly credential: ResolvedSecret }> {
+  const { behaved, earlyCredential, reached } = await warmBeforeFacts(ctx, provider, connection, cachedFacts);
+  const credential =
+    earlyCredential ?? (await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id }));
+  // A server that answered no detect probe will not answer its model list either; dialing it again only waits out
+  // the same dead host a second time.
+  if (provider.wire !== "google-generative-ai" && reached) {
+    await warmFor(ctx, behaved, connection, credential);
+  }
+  return { behaved, credential };
+}
+
+/** The kind a row's model is, as the resolver will read it: the catalog warmed first (or, with `cachedFacts`, only what
+ *  the mirrors already hold), then the declaration, the catalog and the curated rows. `undefined` when no evidence
+ *  states one; the row's provider not being registered for its owner reads the same. */
+export async function discoveredKind(ctx: ResolverContext, connection: UserConnection, cachedFacts: boolean): Promise<ModelKind | undefined> {
+  const provider = ctx.registry.get(connection.providerId, connection.ownerId);
+  if (provider === undefined) {
+    return;
+  }
+  return statedKind(ctx, { provider: cachedFacts ? behaveAs(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection), connection });
+}
+
+// A kind read gathers evidence and never refuses: a revoked key or a server that does not answer leaves the facts the
+// mirrors already hold, and the task that needs the key refuses with its own reason.
+async function warmedOrCached(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection): Promise<ProviderDef> {
+  // @orb-waive caught-failure-ownership(catch): the failed warm is owned by the next resolve of a task on this row, which runs the same warm and surfaces its error; the kind read degrades to the cached facts. Ends if a caller needs the kind read to refuse.
+  try {
+    return (await warmFacts(ctx, provider, connection, false)).behaved;
+  } catch {
+    return behaveAs(ctx, provider, connection);
+  }
+}
+
 interface CapabilityResolveOutcome extends ResolveOutcome {
   readonly baseline: Capability;
 }
@@ -347,7 +397,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   }
   // Every fact read below goes through the behaved row; identity (`providerId`, `provider`, the credential and
   // every refusal's wording) stays the registered row's.
-  const { behaved, earlyCredential, reached } = await warmBeforeFacts(ctx, provider, connection, args.cachedFacts === true);
+  const { behaved, credential } = await warmFacts(ctx, provider, connection, args.cachedFacts === true);
   const declared = connection.declared;
   const kind = kindOf(ctx, { task: args.task, provider: behaved, connection });
   const baselineKind = includeBaseline ? kindOf(ctx, { task: args.task, provider: behaved, connection, includeDeclared: false }) : undefined;
@@ -360,13 +410,6 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     });
   }
   const api = resolveApi(behaved, connection, kind);
-  const credential =
-    earlyCredential ?? (await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id }));
-  // A server that answered no detect probe will not answer its model list either; dialing it again only waits out
-  // the same dead host a second time.
-  if (provider.wire !== "google-generative-ai" && reached) {
-    await warmFor(ctx, behaved, connection, credential);
-  }
   const model = normalizeModelId(connection.model, provider.wire === "agent-sdk" ? ctx.agentSdkCatalog.get() : null);
   const factsModel = factsModelFor(ctx, behaved, model);
   const family = detectModelFamily(factsModel);

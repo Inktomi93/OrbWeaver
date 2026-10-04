@@ -7,7 +7,8 @@
 
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS } from "@orb/contracts/inference";
-import type { AutomationRuleId, PluginId, UserConnectionId } from "@orb/kit/ids";
+import { userCredentials } from "@orb/db";
+import type { AutomationRuleId, PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { BindingView } from "@orb/server/domain/connection";
 import { describe } from "vitest";
@@ -19,8 +20,42 @@ const PLUGIN_ID = castId<PluginId>("plugin_000001");
 const UNOWNED_RULE_ID = castId<AutomationRuleId>("automation_rule_999999");
 const LOCAL_LIGHT = castId<ProviderId>("local-light");
 const ENCODER = LOCAL_LIGHT_SEED_ROWS[0].model;
+const CREDENTIAL = castId<UserCredentialId>("user_credential_000001");
+
+/** OpenRouter lists embedders only under `output_modalities=embeddings`; the chat and rerank lists stay empty. */
+const OPENROUTER_EMBEDDER = "baai/bge-base-en-v1.5";
+const OPENROUTER_EMBEDDER_ROUTES = [
+  {
+    match: "/models?output_modalities=embeddings",
+    json: { data: [{ id: OPENROUTER_EMBEDDER, name: "BGE base", architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["embeddings"] } }] },
+  },
+  { match: "/models", json: { data: [] } },
+];
 
 describe("setBinding", () => {
+  test("a row the provider's catalog lists as an embedder binds as one, with no Purpose set by hand", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, { routes: OPENROUTER_EMBEDDER_ROUTES });
+    const owner = await seedOwner(db);
+    await db
+      .insert(userCredentials)
+      .values({ id: CREDENTIAL, ownerId: owner.userId, provider: castId<ProviderId>("openrouter"), ciphertext: "ct", iv: "iv", tag: "tag" });
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: "openrouter",
+      credentialId: CREDENTIAL,
+      baseUrl: null,
+      model: OPENROUTER_EMBEDDER,
+      allowBackground: true,
+    });
+
+    expect((await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).connectionId).toBe(row.id);
+    expect((await h.svc.get({ principal: owner.principal, connectionId: row.id })).tasks).toContain("embed");
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.taskUnservable,
+    });
+  });
+
   test("re-points an existing task in place — one row per (actor, task), never a second", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);

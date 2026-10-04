@@ -63,7 +63,8 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
   );
   switch (args.modelInfoApi) {
     case undefined:
-      return rows;
+      // No native API, so a model has nothing of its own to probe.
+      return rows.map((row) => (row.id === args.probeModel ? { ...row, probed: true } : row));
     case "ollama":
       return await withOllamaInfo(args, rows);
     case "llama-cpp":
@@ -246,18 +247,21 @@ async function withOllamaInfo(args: EndpointFetchArgs, rows: readonly EndpointMo
     const loadedContext = loaded?.find((model) => model.name === row.id || model.model === row.id)?.context_length;
     const contextFloor = Math.min(defaultFloor, loadedContext ?? defaultFloor);
     const facts = ollamaFacts(show, contextFloor);
-    const prefill = facts.kind === "generation" && row.id === args.probeModel ? await nativeRead(args, () => ollamaPrefill(args, row.id)) : undefined;
-    out.push(
-      withStated(row, {
-        ...facts,
-        structured,
-        serverDefaults: ollamaParameters(show?.parameters),
-        prefill: prefill ?? undefined,
-        ...(facts.kind === "generation" ? { toolChoice: OLLAMA_TOOL_CHOICE } : {}),
-      }),
-    );
+    const listed = withStated(row, {
+      ...facts,
+      structured,
+      serverDefaults: ollamaParameters(show?.parameters),
+      ...(facts.kind === "generation" ? { toolChoice: OLLAMA_TOOL_CHOICE } : {}),
+    });
+    out.push(row.id === args.probeModel ? withStated(listed, await ollamaModelFacts(args, listed)) : listed);
   }
   return out;
+}
+
+/** The facts only a render answers: whether a chat model continues a trailing assistant row. */
+async function ollamaModelFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
+  const prefill = row.kind === "generation" ? await nativeRead(args, () => ollamaPrefill(args, row.id)) : undefined;
+  return { prefill: prefill ?? undefined, probed: true };
 }
 
 /** Neither chat route takes `tool_choice` (`openai.go` ChatCompletionRequest has no such field; `/api/chat`
@@ -517,6 +521,11 @@ async function llamaCppModelFacts(args: EndpointFetchArgs, model: string): Promi
   return { kind: kind ?? undefined };
 }
 
+/** A probed row's facts: the loaded model's own on a single-model server; a router's rows are never probed. */
+async function llamaCppProbedFacts(args: EndpointFetchArgs, model: string, single: boolean): Promise<Partial<EndpointModel>> {
+  return { ...(single ? await llamaCppModelFacts(args, model) : {}), probed: true };
+}
+
 /** llama.cpp serves one model per process, so `/props` describes every listed row: the loaded modalities, what
  *  the chat template can render, and the launch sampler defaults. Tools are stated only when the template both
  *  describes tools and renders a call (the server warns that one without the other misbehaves). The router's
@@ -531,7 +540,7 @@ async function withLlamaCppInfo(args: EndpointFetchArgs, raw: readonly RawRow[],
     const parsed = llamaCppRowSchema.safeParse(raw[index]);
     const meta = parsed.success ? parsed.data.meta : undefined;
     const input = llamaCppRowInput(parsed.success ? parsed.data.architecture?.input_modalities : undefined, server);
-    const model = single && row.id === args.probeModel ? await llamaCppModelFacts(args, row.id) : {};
+    const model = row.id === args.probeModel ? await llamaCppProbedFacts(args, row.id, single) : {};
     out.push(
       withStated(row, {
         contextLength: meta?.n_ctx ?? server.window,
@@ -605,7 +614,7 @@ async function withKoboldCppInfo(args: EndpointFetchArgs, rows: readonly Endpoin
   for (const row of rows) {
     const facts: Partial<EndpointModel> =
       kind === "embedding"
-        ? { kind, embeddingDims: row.id === args.probeModel ? ((await nativeRead(args, () => measuredWidth(args, row.id))) ?? undefined) : undefined }
+        ? { kind }
         : {
             kind,
             input,
@@ -615,7 +624,37 @@ async function withKoboldCppInfo(args: EndpointFetchArgs, rows: readonly Endpoin
             jinja: version?.jinja,
             ...(kind === "generation" ? { prefill: "deliver" as const, toolChoice: KOBOLDCPP_TOOL_CHOICE } : {}),
           };
-    out.push(withStated(row, { contextLength: window, ...facts }));
+    const listed = withStated(row, { contextLength: window, ...facts });
+    out.push(row.id === args.probeModel ? withStated(listed, await koboldCppModelFacts(args, listed)) : listed);
   }
   return out;
+}
+
+/** The fact only the embedder answers: its measured width. */
+async function koboldCppModelFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
+  const width = row.kind === "embedding" ? await nativeRead(args, () => measuredWidth(args, row.id)) : undefined;
+  return { embeddingDims: width ?? undefined, probed: true };
+}
+
+/** One listed model's own probes, for a model the cached list has not probed yet (another model on the server
+ *  warmed it): the row with its probed facts merged. */
+export async function probeListedModel(args: EndpointFetchArgs, row: EndpointModel): Promise<EndpointModel> {
+  return withStated(row, await listedModelFacts(args, row));
+}
+
+async function listedModelFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
+  switch (args.modelInfoApi) {
+    case undefined:
+      return { probed: true };
+    case "ollama":
+      return await ollamaModelFacts(args, row);
+    case "llama-cpp": {
+      const props = await nativeRead(args, () => nativeReader(args)("/props").then((json) => llamaCppPropsSchema.parse(json)));
+      return await llamaCppProbedFacts(args, row.id, props !== null && props.role !== LLAMA_CPP_ROUTER_ROLE);
+    }
+    case "koboldcpp":
+      return await koboldCppModelFacts(args, row);
+    default:
+      return assertNever(args.modelInfoApi, "model info api");
+  }
 }

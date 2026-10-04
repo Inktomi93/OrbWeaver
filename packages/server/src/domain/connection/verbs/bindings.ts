@@ -48,8 +48,8 @@ async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: Bin
   return { actorKind: "plugin-grant", actorId: actor.pluginId };
 }
 
-function requireServable(ctx: ConnectionContext, row: UserConnection, task: RoutableTask): void {
-  if (!servableTasks(ctx, row).includes(task)) {
+async function requireServable(ctx: ConnectionContext, row: UserConnection, task: RoutableTask): Promise<void> {
+  if (!(await servableTasks(ctx, row)).includes(task)) {
     throw new DomainOperationError(CONNECTION_OP_CODES.taskUnservable, `"${row.label}" cannot serve ${task}.`);
   }
   if (!canFund(row, task)) {
@@ -138,7 +138,7 @@ async function requireBindableRow(ctx: ConnectionContext, params: SetBindingPara
   if (row === null) {
     throw new ConnectionNotFoundError(params.connectionId);
   }
-  requireServable(ctx, row, params.task);
+  await requireServable(ctx, row, params.task);
   return row;
 }
 
@@ -211,7 +211,7 @@ function createUseForEverything(ctx: ConnectionContext, ownerWrites: OwnerWriteQ
 /** Bind every task the row can serve. It may move the owner's embed space, so it settles before the next write. */
 async function bindEverywhere(ctx: ConnectionContext, principal: Principal, row: UserConnection): Promise<readonly ConnectionBinding[]> {
   const userId = principal.userId;
-  const tasks = everywhereTasks(ctx, row);
+  const tasks = await everywhereTasks(ctx, row);
   const actor: StoredActor = { actorKind: "user", actorId: userId };
   const before = tasks.some((task) => VECTOR_TASKS.includes(task)) ? await vectorSpacesOf(ctx, principal) : null;
   const priors = new Map<RoutableTask, ConnectionBinding["connectionId"]>();

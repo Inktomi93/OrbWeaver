@@ -32,6 +32,9 @@ export interface Mirror<T> {
    *  warm that coalesces onto one in flight shares that warm's answer, reason included. */
   readonly warm: (fetch: () => Promise<T>, secrets: ProviderScrubSet) => Promise<MirrorWarm<T>>;
   readonly seed: (value: T, at: number) => void;
+  /** Rewrite the held value in place, in memory and in the snapshot, keeping its fetch time: facts learned about it
+   *  after the fetch (one model's own probes). A cold mirror, or one invalidated meanwhile, keeps nothing. */
+  readonly amend: (update: (value: T) => T) => Promise<void>;
   /** Drop the in-memory copy AND skip the snapshot on the next warm — `catalogs.refresh` (a forced live fetch). */
   readonly invalidate: () => void;
 }
@@ -117,9 +120,24 @@ export function createMirror<T>(args: {
     }
   };
 
+  const amend = async (update: (value: T) => T): Promise<void> => {
+    const held = cache;
+    if (held === null || get() === null) {
+      return;
+    }
+    const startedAt = epoch;
+    const value = update(held.value);
+    seed(value, held.at);
+    await deps.snapshotStore.write(key, JSON.stringify({ fetchedAt: held.at, value }));
+    if (epoch !== startedAt) {
+      await deps.snapshotStore.deletePrefix(key);
+    }
+  };
+
   return {
     get,
     seed,
+    amend,
     invalidate: (): void => {
       cache = null;
       failed = null;

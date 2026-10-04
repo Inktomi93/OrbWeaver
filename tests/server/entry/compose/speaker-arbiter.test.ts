@@ -29,6 +29,7 @@ function emptyMirror<T>(): Mirror<T> {
     get: () => null,
     warm: () => Promise.resolve({ ok: false, reason: "speaker-arbiter test: an empty mirror has nothing to warm" }),
     seed: () => undefined,
+    amend: () => Promise.resolve(),
     invalidate: () => undefined,
   };
 }

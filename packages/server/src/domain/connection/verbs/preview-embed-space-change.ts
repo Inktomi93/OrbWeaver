@@ -52,11 +52,7 @@ async function targetMoves(
 async function rebindOf(ctx: ConnectionContext, principal: Principal, change: Exclude<EmbedSpaceChange, UpdateChange>): Promise<Rebind> {
   if (change.kind === "everywhere") {
     const row = await requireOwnedRow(ctx, principal, change.connectionId);
-    return new Map(
-      everywhereTasks(ctx, row)
-        .filter(isVectorTask)
-        .map((task) => [task, row.id]),
-    );
+    return new Map((await everywhereTasks(ctx, row, { cachedFacts: true })).filter(isVectorTask).map((task) => [task, row.id]));
   }
   if (change.connectionId !== null) {
     await requireOwnedRow(ctx, principal, change.connectionId);
