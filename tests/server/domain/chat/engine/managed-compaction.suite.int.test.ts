@@ -23,6 +23,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
+import { buildHistoryBudget, fitCeilingTokens, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { QuietGenerateParams } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { TurnMessage, TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -96,6 +97,11 @@ beforeEach(async () => {
 // let one test's in-flight compaction skip the next test's. Distinct ids keep the tests isolated.
 let chatSeq = 0;
 
+/** The body of seeded history row `seq`; a test that prices the rows reads the same text. */
+function historyRowContent(seq: number): string {
+  return `turn ${seq} — ${"lorem ipsum dolor sit amet ".repeat(8)}`;
+}
+
 /** Seed a host chat with `count` aged canon rows so a blown fit ceiling drops the oldest and stamps a boundary. */
 async function seedChatWithHistory(count: number): Promise<ChatId> {
   chatSeq += 1;
@@ -106,7 +112,7 @@ async function seedChatWithHistory(count: number): Promise<ChatId> {
     await seedMessage(db, chatId, seq, {
       role: seq % 2 === 1 ? "user" : "assistant",
       ...(seq % 2 === 1 ? { authorUserId: host } : {}),
-      content: `turn ${seq} — ${"lorem ipsum dolor sit amet ".repeat(8)}`,
+      content: historyRowContent(seq),
     });
   }
   return chatId;
@@ -290,6 +296,55 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     // maxSeq(16) − verbatimTail(4) = 12 (vs 16 − default 8 = 8): the smaller tail compacts through a higher seq.
     expect(row?.compactedAtSeq).toBe(12);
+  });
+
+  // The pre-turn arm and the turn's fit read one ceiling (the fit's room plus the reserve) and price rows one way,
+  // so the pre-turn trigger lands on the exact row count where the fit's own usage crosses the threshold.
+  describe("the PRE-TURN trigger fires at the fit's threshold row", () => {
+    const pct = 0.85;
+    const maxOutputTokens = 100;
+    const window = 4000;
+    const conn: Resolved<"chat"> = {
+      ...AGENT_SDK,
+      capability: makeCapability({ ...generationOf(AGENT_SDK), context: { ...generationOf(AGENT_SDK).context, window } }),
+    };
+    const budget = buildHistoryBudget({
+      windowTokens: window,
+      maxContextTokens: undefined,
+      maxOutputTokens,
+      systemTokens: 0,
+      outputCeiling: generationOf(conn).output.maxTokens.max,
+    });
+    const ceiling = fitCeilingTokens(budget) ?? Number.NaN;
+    // The fewest seeded rows whose fit usage (rows + reserve) reaches the threshold of the fit's ceiling.
+    let used = budget.reserveOutputTokens;
+    let triggerRows = 0;
+    while (used < pct * ceiling) {
+      triggerRows += 1;
+      used += historyTurnTokens({ content: historyRowContent(triggerRows) });
+    }
+    const intent = { compaction: { mode: "managed" as const, thresholdPct: pct }, maxOutputTokens };
+    const failing: ChatContext["runChatTurn"] = () =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.reject(new Error("agent-sdk: doomed dispatch"));
+        yield { kind: "text", text: "" };
+      })();
+    const compactAfterPreTurn = async (rows: number): Promise<string | null | undefined> => {
+      const chatId = await seedChatWithHistory(rows);
+      await buildEngine(failing)
+        .runTurn(prepOf(chatId, conn, { intent }))
+        .catch((e: unknown) => e);
+      const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+      return row?.compactSummary;
+    };
+
+    test("one row short of the threshold does not compact", async () => {
+      expect(await compactAfterPreTurn(triggerRows - 1)).toBeNull();
+    });
+
+    test("the threshold row compacts before the dispatch", async () => {
+      expect(await compactAfterPreTurn(triggerRows)).toBe("MANAGED MARKER");
+    });
   });
 
   test("WEDGE-STATE failure-honest: a FAILING pre-turn compaction does not block the turn (logs + proceeds)", async () => {

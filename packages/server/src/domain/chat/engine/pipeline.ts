@@ -67,6 +67,7 @@ import {
   buildHistoryBudget,
   buildPrompt,
   buildTurnMacroContext,
+  fitCeiling,
   materializeOutputReserve,
   shapeContextForSpeaker,
   shapeTurn,
@@ -769,8 +770,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,
     fitUsedTokens,
-    // `fitUsedTokens` counts the reserve, so the ceiling it is read against does too.
-    fitCeilingTokens: fitted.ceilingTokens === null ? null : fitted.ceilingTokens + budget.reserveOutputTokens,
+    fitCeilingTokens: fitCeiling(budget),
     imageDropped,
     videoDropped,
     // Records from the pipeline's own recurse loop (an array wire) and from the offer's `execute` callback (a

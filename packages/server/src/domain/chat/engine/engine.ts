@@ -105,6 +105,7 @@ import {
   loadVariableDeltas,
 } from "../persistence/queries.ts";
 import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
+import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
 import { digestsDerivable } from "../substrate/digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
@@ -892,6 +893,7 @@ const compactionInFlight = new Set<ChatId>();
 function resolveEffectiveCompaction(prep: TurnPrep): {
   readonly compaction: NonNullable<UserIntent["compaction"]>;
   readonly maxContextTokens: number | undefined;
+  readonly maxOutputTokens: number | undefined;
 } {
   const presetParams = prep.assembleContext.promptConfig.params;
   // The whole `compaction` object folds atomically (per-send replaces preset when present), matching the
@@ -905,6 +907,7 @@ function resolveEffectiveCompaction(prep: TurnPrep): {
   return {
     compaction: configured ?? { mode: DEFAULT_COMPACTION_MODE, thresholdPct: MANAGED_COMPACT_DEFAULT_PCT },
     maxContextTokens: prep.intent.maxContextTokens ?? presetParams.maxContextTokens,
+    maxOutputTokens: prep.intent.maxOutputTokens ?? presetParams.maxOutputTokens,
   };
 }
 
@@ -960,18 +963,29 @@ function preTurnCoveragePoint(args: {
   readonly compaction: NonNullable<UserIntent["compaction"]>;
   readonly connection: Resolved<"chat">;
   readonly maxContextTokens: number | undefined;
+  readonly maxOutputTokens: number | undefined;
   readonly canonAll: readonly MessageView[];
   readonly currentCoverage: number;
 }): number | undefined {
   const pct = args.compaction.thresholdPct ?? MANAGED_COMPACT_DEFAULT_PCT;
-  const window = generationOf(args.connection).context.window;
-  const ceiling = Math.min(window, args.maxContextTokens ?? Number.POSITIVE_INFINITY);
-  if (!Number.isFinite(ceiling) || ceiling <= 0) {
+  const generation = generationOf(args.connection);
+  // The SAME budget and ceiling the turn's fit reads, so the pre-turn and post-turn arms trip at one point. The
+  // system prompt is not assembled yet, so it counts as zero here.
+  const budget = buildHistoryBudget({
+    windowTokens: generation.context.window,
+    maxContextTokens: args.maxContextTokens,
+    maxOutputTokens: args.maxOutputTokens,
+    systemTokens: 0,
+    outputCeiling: generation.output.maxTokens.max,
+  });
+  const ceiling = fitCeiling(budget);
+  if (ceiling === null) {
     return; // no trustworthy ceiling → the pre-check can't threshold (the reactive arm still fires).
   }
-  // Cumulative estimate = the prompt-eligible rows ABOVE the current coverage (what the next seed/prompt carries).
+  // Cumulative estimate = the prompt-eligible rows ABOVE the current coverage (what the next seed/prompt carries),
+  // priced per row as the fit prices it, plus the reserve the post-turn usage also counts.
   const eligible = args.canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > args.currentCoverage);
-  const cumulative = eligible.reduce((sum, m) => sum + estimateTokens(m.content), 0);
+  const cumulative = eligible.reduce((sum, m) => sum + historyTurnTokens(m), 0) + budget.reserveOutputTokens;
   if (cumulative < pct * ceiling) {
     return;
   }
@@ -1021,12 +1035,12 @@ async function preTurnCompactionPlan(
   prep: TurnPrep,
   canonAll: readonly MessageView[],
 ): Promise<{ readonly coveragePoint: number | undefined; readonly currentCoverage: number; readonly instructions: string }> {
-  const { compaction, maxContextTokens } = resolveEffectiveCompaction(prep);
+  const { compaction, maxContextTokens, maxOutputTokens } = resolveEffectiveCompaction(prep);
   const chat = await loadChatRow(ctx.db, prep.chatId);
   const currentCoverage = chat?.compactedAtSeq ?? 0;
   const coveragePoint =
     compaction.mode === "managed" && prep.connection.api === "agent-sdk"
-      ? preTurnCoveragePoint({ compaction, connection: prep.connection, maxContextTokens, canonAll, currentCoverage })
+      ? preTurnCoveragePoint({ compaction, connection: prep.connection, maxContextTokens, maxOutputTokens, canonAll, currentCoverage })
       : undefined;
   return { coveragePoint, currentCoverage, instructions: compaction.instructions ?? DEFAULT_COMPACT_INSTRUCTIONS };
 }

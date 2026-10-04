@@ -13,6 +13,7 @@ import { assemblePrompt, assemblePromptWithSlices, previewSection as previewSect
 import { buildAssemblyBudget as buildAssemblyBudgetImpl } from "../assembly/budget.ts";
 import {
   buildHistoryBudget as buildHistoryBudgetImpl,
+  fitCeilingTokens,
   fitHistoryToWindow,
   historyTurnTokens as historyTurnTokensImpl,
   materializeOutputReserve as materializeOutputReserveImpl,
@@ -156,6 +157,12 @@ export function historyTurnTokens(...args: Parameters<typeof historyTurnTokensIm
  *  turn and previewFit read, so their fit boundaries can't drift. The legal `engine|verbs → assembly` bridge. */
 export function buildHistoryBudget(...args: Parameters<typeof buildHistoryBudgetImpl>): ReturnType<typeof buildHistoryBudgetImpl> {
   return buildHistoryBudgetImpl(...args);
+}
+
+/** FIT (ceiling): the whole context the fit allows, reserve included — the ONE ceiling the post-turn and pre-turn
+ *  managed-compaction triggers read. The legal `engine → assembly` bridge. */
+export function fitCeiling(...args: Parameters<typeof fitCeilingTokens>): ReturnType<typeof fitCeilingTokens> {
+  return fitCeilingTokens(...args);
 }
 
 /** FIT (reserve): the materialized output reserve = the runner's effective `max_tokens` = the fit's

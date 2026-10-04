@@ -83,6 +83,14 @@ function reportedRoom(room: number): number {
   return Math.max(1, room);
 }
 
+/** The whole context the fit allows — its system + history room plus the output reserve — or `null` when no
+ *  window or soft cap bounds it. The ceiling every "used plus reserve" comparison reads, so the managed-compaction
+ *  triggers and the fit agree on where the context is full. */
+export function fitCeilingTokens(budget: HistoryBudget): number | null {
+  const room = inputRoom(budget);
+  return Number.isFinite(room) ? reportedRoom(room) + budget.reserveOutputTokens : null;
+}
+
 /** The trim chunk as a fraction of `ceiling − reserveOutputTokens`, before the hard window's estimator discount:
  *  a larger chunk moves the cut, and so breaks the cached prefix, less often.
  *
