@@ -73,7 +73,7 @@ interface Drive {
   readonly promoted: UserId[];
 }
 
-async function drive(intercept?: HarnessOptions["intercept"]): Promise<Drive> {
+async function drive(intercept?: HarnessOptions["intercept"], admission?: HarnessOptions["admission"]): Promise<Drive> {
   const db = await freshDb();
   // Flipped by the test once the user fixes the key; a resolve reads it at call time.
   const key: { revoked: boolean } = { revoked: true };
@@ -83,6 +83,7 @@ async function drive(intercept?: HarnessOptions["intercept"]): Promise<Drive> {
     localLight: true,
     routes: [NARROW_ROUTE],
     intercept,
+    admission,
     resolveCredential: ({ credentialId: keyId, providerId }) => {
       if (keyId === null) {
         return Promise.resolve(makeResolvedSecret());
@@ -1125,6 +1126,78 @@ describe("the width probe on a server that answers", () => {
     const statedWrite = d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: stated });
     await expect(statedWrite).rejects.toMatchObject({ code: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 1024, assumed: false } });
   });
+});
+
+/** An admission read that holds the first URL check it is armed for until the test lets it through. */
+function heldAdmission(): {
+  readonly admission: NonNullable<HarnessOptions["admission"]>;
+  readonly arm: () => void;
+  readonly reached: Promise<void>;
+  readonly release: () => void;
+} {
+  const reached = Promise.withResolvers<void>();
+  const gate = Promise.withResolvers<void>();
+  let armed = false;
+  return {
+    admission: async (baseUrl): Promise<"invalid" | "admitted"> => {
+      if (armed) {
+        armed = false;
+        reached.resolve();
+        await gate.promise;
+      }
+      return URL.parse(baseUrl) === null ? "invalid" : "admitted";
+    },
+    arm: (): void => {
+      armed = true;
+    },
+    reached: reached.promise,
+    release: (): void => {
+      gate.resolve();
+    },
+  };
+}
+
+// A width edit and a binding of the same row, made together, must not both land: the width is then the bound
+// embedder's, and nothing probed it.
+test("a width edit overtaken by a binding of its row never lands unprobed on the bound row", async () => {
+  const held = heldAdmission();
+  const d = await drive(undefined, held.admission);
+  await sweep(d, false);
+  d.h.useEmbeddings(d.svc);
+  const row = await narrowStating(d, 768);
+
+  held.arm();
+  const edit = outcomeOf(
+    d.h.svc.update({ principal: d.principal, connectionId: row, patch: { declared: { kind: "embedding", embedding: { dims: 1024, mrl: false } } } }),
+  );
+  await held.reached;
+  const bind = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: row }));
+  // The binding lands now if nothing holds it; an edit that can move the space holds it until the edit is written.
+  await settlesWhileHeld(bind);
+  held.release();
+  const outcomes = [await edit, await bind];
+
+  // The edit was asked first, so it lands first; the binding then probes the width the row now states, and is refused.
+  expect(outcomes).toEqual(["accepted", `refused ${CONNECTION_OP_CODES.embedWidthUnmakeable}`]);
+  expect(await boundEmbedder(d)).toBe(d.builtIn);
+});
+
+// The control: a label edit cannot change what the probe checks, so it lands at once even while a binding waits.
+test("a label edit of a row being bound lands without waiting for the binding's probe", async () => {
+  const d = await drive();
+  await sweep(d, false);
+  const held = heldProbe();
+  d.h.useEmbeddings(probedService(d, async (n, real) => (n === 1 ? await held.hold(real) : await real())));
+  const row = await narrowStating(d, 768);
+
+  const bind = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: row }));
+  await held.reached;
+  const renamed = d.h.svc.update({ principal: d.principal, connectionId: row, patch: { label: "renamed" } });
+
+  expect(await settlesWhileHeld(renamed)).toBe(true);
+  await held.releaseWhen(() => Promise.resolve(true));
+  expect(await bind).toBe("accepted");
+  expect((await d.h.svc.get({ principal: d.principal, connectionId: row })).label).toBe("renamed");
 });
 
 describe("an edit that cannot move the index never dials the bound embedder", () => {

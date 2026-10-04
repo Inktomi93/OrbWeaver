@@ -11,7 +11,15 @@
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ModelCheck, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import { CONNECTION_LABEL_SEPARATOR, CONNECTION_OP_CODES, connectionTasks, isHubModelId, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
+import {
+  CONNECTION_LABEL_SEPARATOR,
+  CONNECTION_OP_CODES,
+  connectionTasks,
+  EMBED_SPACE_FIELDS,
+  isHubModelId,
+  modelIdSchema,
+  providerDisplayLabel,
+} from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { nextFreeLabel } from "@orb/kit/strings";
@@ -224,22 +232,33 @@ async function backsVectorRole(ctx: ConnectionContext, ownerId: UserId, connecti
   return false;
 }
 
-/** Run a row write in the owner's write queue when the row backs a vector role: there it can move the embed space, and
- *  even a label edit must not land inside another write's probe, or that write's undo cannot tell it apart. A row no
- *  vector role is bound to is written at once, so a slow embedder check never holds an unrelated edit. A binding that
- *  lands on the row later is that write's own move, made after this one. `write` is told which case it is. */
+/** Run a row removal in the owner's write queue when the row backs a vector role, so it cannot land inside another
+ *  write's probe; a removal moves no space, so an unbound row's is made at once. */
 async function rowWrite<T>(
   ctx: ConnectionContext,
   ownerWrites: OwnerWriteQueue,
   target: { readonly ownerId: UserId; readonly connectionId: UserConnectionId },
-  write: (backsVector: boolean) => Promise<T>,
+  write: () => Promise<T>,
 ): Promise<T> {
-  return (await backsVectorRole(ctx, target.ownerId, target.connectionId)) ? await ownerWrites(target.ownerId, () => write(true)) : await write(false);
+  return (await backsVectorRole(ctx, target.ownerId, target.connectionId)) ? await ownerWrites(target.ownerId, write) : await write();
 }
 
+/** The patch fields that can change what a vector role resolves to: the space's identity fields, and the credential,
+ *  which decides whether the row resolves at all. */
+const SPACE_PATCH_FIELDS = [...EMBED_SPACE_FIELDS, "credentialId"] as const satisfies readonly (keyof UpdateConnectionParams["patch"])[];
+
+/** An update that can change an embed space waits its turn in the owner's write queue, and only there asks whether a
+ *  vector role reads the row: asked before, a binding of the row could land between the answer and the write, leaving
+ *  an unprobed width on a bound row. Any other update (a label, a switch) changes nothing a probe checks, so it is
+ *  written at once and never waits on a slow embedder check. */
 function createUpdate(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionService["update"] {
-  return (params: UpdateConnectionParams): Promise<ConnectionView> =>
-    rowWrite(ctx, ownerWrites, { ownerId: params.principal.userId, connectionId: params.connectionId }, (backsVector) => updateRow(ctx, params, backsVector));
+  return async (params: UpdateConnectionParams): Promise<ConnectionView> => {
+    const ownerId = params.principal.userId;
+    if (!SPACE_PATCH_FIELDS.some((field) => params.patch[field] !== undefined)) {
+      return await updateRow(ctx, params, false);
+    }
+    return await ownerWrites(ownerId, async () => await updateRow(ctx, params, await backsVectorRole(ctx, ownerId, params.connectionId)));
+  };
 }
 
 async function updateRow(ctx: ConnectionContext, params: UpdateConnectionParams, backsVector: boolean): Promise<ConnectionView> {
