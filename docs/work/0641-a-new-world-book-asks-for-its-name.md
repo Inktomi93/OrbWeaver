@@ -12,6 +12,8 @@ area: client
 
 New book creates 'New book' instantly beside a disabled 'Backfill titles' button (fp8-wi-new\.png). Final visual pass; review: ~/homelab/development/probe-archive/side-eye-reviews/final-pass-1-rails-home.md.
 
+Owner ruling: New book, New roster and New script all ask for a name inline; the shared collection create flow changes once. Backfill titles half done by lane S3.
+
 ## Why
 
 Launch visual pass finding.
