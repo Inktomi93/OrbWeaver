@@ -122,6 +122,7 @@ export type { ReindexPreview } from "./embedder-rebuild.ts";
 export {
   EMBED_REFUSAL_SLOTS,
   EMBEDDER_REBUILD_KINDS,
+  embedderCheckingText,
   embedderRebuildState,
   embedRefusalOf,
   embedRefusalRowText,

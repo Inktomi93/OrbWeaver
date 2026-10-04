@@ -14,10 +14,19 @@ export function trpcErrorReason(error: unknown): string {
     : "";
 }
 
-/** One numeric fact a coded refusal states on `data.detail`, else `null`. */
-export function trpcErrorDetailNumber(error: unknown, key: string): number | null {
+function detailValue(error: unknown, key: string): unknown {
   const data = errorData(error);
   const detail = typeof data === "object" && data !== null && "detail" in data ? (data as { detail: unknown }).detail : null;
-  const value = typeof detail === "object" && detail !== null && key in detail ? (detail as Record<string, unknown>)[key] : null;
+  return typeof detail === "object" && detail !== null && key in detail ? (detail as Record<string, unknown>)[key] : null;
+}
+
+/** One numeric fact a coded refusal states on `data.detail`, else `null`. */
+export function trpcErrorDetailNumber(error: unknown, key: string): number | null {
+  const value = detailValue(error, key);
   return typeof value === "number" ? value : null;
+}
+
+/** Whether a coded refusal states `key` as true on `data.detail`. */
+export function trpcErrorDetailFlag(error: unknown, key: string): boolean {
+  return detailValue(error, key) === true;
 }

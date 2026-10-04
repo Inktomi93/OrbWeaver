@@ -1,11 +1,13 @@
 import type { Db } from "@orb/db";
 import { documentChunks, embedGenerationTargets, embedSpaceState, userConnections } from "@orb/db";
+import { ProviderError } from "@orb/inference";
 import type { DocumentChunkId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
+import { vi } from "vitest";
 import type { EmbeddingConnectionSnapshot } from "../../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { markGenerationComplete } from "../../../../../packages/server/src/domain/embeddings/persistence/space-state.ts";
-import { resolveTargetGeneration } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
+import { probeWidth, resolveTargetGeneration, WIDTH_PROBE_TIMEOUT_MS } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -185,4 +187,68 @@ test("a slow stale resolution cannot reset a newer target or promote its generat
       })),
     ),
   );
+});
+
+/** A text embedder on `wire` whose embed is `embed`. */
+async function probeTarget(wire: string, embed: EmbeddingConnectionSnapshot["embed"]): Promise<EmbeddingConnectionSnapshot> {
+  const clients = makeFakeRoleClients({ embedDim: 8, embedModel: "embed-probe" });
+  const resolved = await clients.resolved("embed");
+  if (resolved === null) {
+    throw new Error("the embed test connection must resolve");
+  }
+  return { ...resolved, api: "test", wire, baseUrl: null, features: {}, extras: null, transport: null, embed, imageEmbed: clients.imageEmbed };
+}
+
+/** Run the width probe on a fake clock advanced by `ms`, and say how it ended by then. */
+async function probeAfter(target: EmbeddingConnectionSnapshot, ms: number): Promise<string> {
+  const settled: { outcome?: string } = {};
+  // @orb-waive test-determinism(vi.useFakeTimers): the subject is the probe's timeout, a setTimeout no clock seam reaches; faking only setTimeout keeps it deterministic.
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    void probeWidth(target, "embed", 8).then(
+      () => {
+        settled.outcome = "answered";
+      },
+      (error: unknown) => {
+        settled.outcome = error instanceof ProviderError ? `refused ${error.kind}` : String(error);
+      },
+    );
+    await vi.advanceTimersByTimeAsync(ms);
+  } finally {
+    vi.useRealTimers();
+  }
+  return settled.outcome ?? "still waiting";
+}
+
+/** An embed that answers only when its caller gives up. */
+const NEVER_ANSWERS: EmbeddingConnectionSnapshot["embed"] = (_input, opts) =>
+  new Promise((_resolve, reject) => {
+    opts?.signal?.addEventListener("abort", () => reject(new ProviderError({ kind: "aborted", retryable: false, message: "aborted" })), { once: true });
+  });
+
+// A write waits on the width probe, so a remote embedder that accepts the request and never answers must not hold it.
+test("a remote embedder that never answers fails the width probe at its bound, after one attempt", async () => {
+  let attempts = 0;
+  const target = await probeTarget("openai-compat", async (input, opts) => {
+    attempts += 1;
+    return await NEVER_ANSWERS(input, opts);
+  });
+
+  expect(await probeAfter(target, WIDTH_PROBE_TIMEOUT_MS)).toBe("refused aborted");
+  expect(attempts).toBe(1);
+});
+
+// The built-in encoder runs in this process: a first load from cold can outlast the network bound, and it still answers.
+test("the built-in encoder's slow first load is not cut short by the probe's bound", async () => {
+  const coldLoadMs = 3 * WIDTH_PROBE_TIMEOUT_MS;
+  const target = await probeTarget(
+    "local-light",
+    (_input, opts) =>
+      new Promise((resolve, reject) => {
+        setTimeout(() => resolve({ vectors: [new Float32Array(8)], model: "embed-probe", usage: { promptTokens: null, totalTokens: null } }), coldLoadMs);
+        opts?.signal?.addEventListener("abort", () => reject(new ProviderError({ kind: "aborted", retryable: false, message: "aborted" })), { once: true });
+      }),
+  );
+
+  expect(await probeAfter(target, coldLoadMs)).toBe("answered");
 });

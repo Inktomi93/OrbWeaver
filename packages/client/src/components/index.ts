@@ -13,6 +13,7 @@ export { useSetBinding, useUpdateConnection } from "./connection-role-mutations.
 export type { ConnectionRoleSlotProps } from "./connection-role-slot.tsx";
 export { ConnectionRoleSlot } from "./connection-role-slot.tsx";
 export { EditableTagChip } from "./editable-tag-chip.tsx";
+export { useEmbedRefusalToastAfterUnmount } from "./embedder-refusal-toast.ts";
 export type { EntryListEditorProps } from "./entry-list-editor.tsx";
 export { EntryListEditor } from "./entry-list-editor.tsx";
 export type { FaceStripItem, FaceStripProps } from "./face-strip.tsx";

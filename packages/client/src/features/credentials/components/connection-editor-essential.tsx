@@ -27,12 +27,15 @@ export function SavedTextField({
   value,
   busy,
   onCommit,
+  resetKey = 0,
 }: {
   readonly label: string;
   readonly description: string;
   readonly value: string;
   readonly busy: boolean;
   readonly onCommit: (next: string) => void;
+  /** Changed when the server refused a write, so the field drops the refused draft and shows the saved value. */
+  readonly resetKey?: number | undefined;
 }): ReactElement {
   return (
     <Field description={description} label={label}>
@@ -40,7 +43,7 @@ export function SavedTextField({
         autoComplete="off"
         defaultValue={value}
         disabled={busy}
-        key={value}
+        key={`${String(resetKey)}:${value}`}
         onBlur={(event): void => {
           const next = event.target.value.trim();
           if (next !== "" && next !== value) {
@@ -65,6 +68,7 @@ export function ModelField({
   provider,
   busy,
   onCommit,
+  resetKey,
 }: {
   readonly connectionId: UserConnectionId;
   /** The row's kind: a built-in row's picker is narrowed to it (`editorPickerModels`). */
@@ -76,6 +80,8 @@ export function ModelField({
   readonly provider: ProviderDef | undefined;
   readonly busy: boolean;
   readonly onCommit: (next: string, check: ModelCheck) => void;
+  /** Changed when the server refused a write, so a refused model id goes back to the saved one. */
+  readonly resetKey: number;
 }): ReactElement {
   const trpc = useTRPC();
   // NON-suspense on purpose: a catalog read DIALS the provider (or the user's own box), and a failed dial is
@@ -91,11 +97,12 @@ export function ModelField({
   // The searchable list is on screen; an empty answer renders the typed field instead.
   const listShown = offered.status === "listed" && offered.models.length > 0;
 
-  // The draft follows the saved row: an outside save (another tab, a list pick here) replaces it.
+  // The draft follows the saved row: an outside save (another tab, a list pick here) replaces it, and so does a refusal,
+  // which leaves the saved row as it was.
   const [draft, setDraft] = useState(model);
-  const [savedSeen, setSavedSeen] = useState(model);
-  if (model !== savedSeen) {
-    setSavedSeen(model);
+  const [savedSeen, setSavedSeen] = useState({ model, resetKey });
+  if (model !== savedSeen.model || resetKey !== savedSeen.resetKey) {
+    setSavedSeen({ model, resetKey });
     setDraft(model);
   }
 

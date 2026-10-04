@@ -343,13 +343,13 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const warmAgentSdk = async (identity: SpawnIdentity): Promise<void> => {
     await warmAgentSdkCatalog(identity);
   };
-  const warmDetect = async (connection: UserConnection, provider: ProviderDef, secret: string | null): Promise<void> => {
+  const warmDetect = async (connection: UserConnection, provider: ProviderDef, secret: string | null): Promise<boolean> => {
     const baseUrl = detectionUrl(provider, connection);
     if (baseUrl === null) {
-      return;
+      return true;
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
-    await detectedServer(baseUrl).warm(() => detectServer({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers }), secrets);
+    return (await detectedServer(baseUrl).warm(() => detectServer({ fetch: fetchImpl, baseUrl, secret, headers: connection.transport?.headers }), secrets)).ok;
   };
 
   const ctx: ResolverContext = {

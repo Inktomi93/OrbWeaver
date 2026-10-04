@@ -50,10 +50,10 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, useReindexConfirm, useUpdateConnection } from "#components";
+import { QueryBoundary, useEmbedRefusalToastAfterUnmount, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
-import { embedRefusalOf } from "#lib";
+import { embedRefusalOf, embedRefusalText } from "#lib";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 import { capabilityFactRows, VECTOR_WIDTH_FACT_PATH } from "../lib/connection-capability-fact-model.ts";
 import { capabilityBadges, declaredOverrideCount, diagnosticsSetCount, hostLabel, inferredKindOf, purposeNotes } from "../lib/connection-editor-model.ts";
@@ -63,12 +63,12 @@ import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-m
 import { ClaudeSubscriptionNotice } from "./claude-subscription-notice.tsx";
 import { ConnectionAccount } from "./connection-account.tsx";
 import { ModelField, SavedTextField } from "./connection-editor-essential.tsx";
+import { factNoteOf, focusFact } from "./connection-editor-fact-note.tsx";
 import { CapabilityRail, KindVerdict, PurposeNotes } from "./connection-editor-purpose.tsx";
-import type { EditorEmbedRefusal } from "./connection-editor-refusal.tsx";
-import { EmbedRefusalAlert } from "./connection-editor-refusal.tsx";
+import type { EditorEmbedderCheck, EditorEmbedRefusal } from "./connection-editor-refusal.tsx";
+import { TopEmbedderNote } from "./connection-editor-refusal.tsx";
 import { ConnectionEditorHeader, ConnectionEditorUnavailable } from "./connection-editor-unavailable.tsx";
 import { ConnectionExtrasBlock } from "./connection-extras-editor.tsx";
-import type { FactRowNote } from "./connection-fact-rows.tsx";
 import { FactRowList, QuirksBlock } from "./connection-fact-rows.tsx";
 import { ConnectionInspector } from "./connection-inspector.tsx";
 import { ConnectionPromptCache } from "./connection-prompt-cache.tsx";
@@ -133,17 +133,6 @@ function ConnectionEditorBody({ connectionId, onDone, onRemoved, removalFinalFoc
   );
 }
 
-function refusalNoteOf(refused: EditorEmbedRefusal | null): FactRowNote | undefined {
-  return refused === null || refused.path === null ? undefined : { path: refused.path, content: <EmbedRefusalAlert onRow={true} refusal={refused.refusal} /> };
-}
-
-/** The pressed Override or Reset goes away with the change, so focus returns to its row once the write settles. */
-function focusFact(facts: HTMLElement | null, path: string | null): void {
-  if (path !== null) {
-    facts?.querySelector<HTMLElement>(`[data-fact="${path}"]`)?.focus();
-  }
-}
-
 function AvailableConnectionEditorBody({
   connection,
   connectionId,
@@ -166,6 +155,11 @@ function AvailableConnectionEditorBody({
   // The last write the server refused because the embedder does not make the width it would state, or did not answer,
   // and the fact row it came from (`null` for a field above Advanced), so the reason is drawn where focus returns.
   const [embedRefusal, setEmbedRefusal] = useState<EditorEmbedRefusal | null>(null);
+  const [checking, setChecking] = useState<EditorEmbedderCheck | null>(null);
+  // Counts refused writes: an uncontrolled field keyed on the saved value alone would keep the refused draft, because a
+  // refusal leaves that value unchanged.
+  const [refusedWrites, setRefusedWrites] = useState(0);
+  const toastRefusalIfClosed = useEmbedRefusalToastAfterUnmount();
   const providerLabel = providerDisplayLabel(provider);
   // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed.
   const detected = providers.find((row) => row.id === capabilityView.detectedProviderId);
@@ -177,36 +171,48 @@ function AvailableConnectionEditorBody({
   // A patch to an identity field of a row that backs the user's embedder can rebuild their index; the server says
   // whether it would. Any other field (a label, a switch) cannot move a space and is written straight through.
   // A fact row's Override or Reset button goes away with the change, so focus returns to the row (the confirm, when
-  // there is one, already does this).
+  // there is one, already does this). A write the server checks the embedder for says so where its refusal would land.
   const patch = (part: Parameters<typeof update.mutate>[0]["patch"], factPath: string | null = null): void => {
-    const write = (): void =>
-      update.mutate(
-        { connectionId, patch: part },
-        {
-          onSuccess: (): void => setEmbedRefusal(null),
-          onError: (error): void => {
+    const write = (checksEmbedder: boolean): void => {
+      if (checksEmbedder) {
+        setChecking({ path: factPath });
+      }
+      const saved = update.mutateAsync({ connectionId, patch: part });
+      toastRefusalIfClosed(saved, (refusal) => embedRefusalText(refusal, connection.label));
+      // @orb-waive caught-failure-ownership(saved): a refusal becomes the editor's alert state; any other failure toasts
+      // through the mutation's errorToast. Ends if that toast goes.
+      void saved
+        .then(
+          (): void => setEmbedRefusal(null),
+          (error: unknown): void => {
             const refusal = embedRefusalOf(error);
             setEmbedRefusal(refusal === null ? null : { refusal, path: factPath });
+            if (refusal !== null) {
+              setRefusedWrites((count) => count + 1);
+            }
           },
-          onSettled: (): void => focusFact(factsRef.current, factPath),
-        },
-      );
+        )
+        .finally((): void => {
+          setChecking(null);
+          focusFact(factsRef.current, factPath);
+        });
+    };
     if (EMBED_SPACE_FIELDS.some((field) => part[field] !== undefined)) {
       reindex.guard({ kind: "update", connectionId, patch: part }, write);
     } else {
-      write();
+      write(false);
     }
   };
 
-  const refusalNote = refusalNoteOf(embedRefusal);
+  const factNote = factNoteOf(checking, embedRefusal);
 
   return (
     // THE NAMED CONTAINER (see the header): every reflow below keys off THIS box, not the viewport.
     <Container className="@container/connection-editor" name="connection-editor">
-      <Stack data-slot="connection-editor" gap="block">
+      <Stack aria-busy={checking !== null} data-slot="connection-editor" gap="block">
         <ConnectionEditorHeader label={connection.label} onDone={onDone} />
         {reindex.dialog}
-        {embedRefusal === null || embedRefusal.path !== null ? null : <EmbedRefusalAlert onRow={false} refusal={embedRefusal.refusal} />}
+        <TopEmbedderNote checking={checking} refused={embedRefusal} />
 
         <EditorTier defaultOpen={true} title="Essential">
           <Stack gap="row">
@@ -233,6 +239,7 @@ function AvailableConnectionEditorBody({
                 description="Your own server. Nothing is sent anywhere else."
                 label="Server URL"
                 onCommit={(next): void => patch({ baseUrl: next })}
+                resetKey={refusedWrites}
                 value={connection.baseUrl}
               />
             )}
@@ -246,6 +253,7 @@ function AvailableConnectionEditorBody({
               modelCheck={connection.modelCheck}
               onCommit={(next, check): void => patch({ model: next, modelCheck: check })}
               provider={provider}
+              resetKey={refusedWrites}
             />
             <SavedTextField
               busy={busy}
@@ -327,7 +335,7 @@ function AvailableConnectionEditorBody({
               </Text>
               <FactRowList
                 busy={busy}
-                note={refusalNote}
+                note={factNote}
                 onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) }, row.path)}
                 onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) }, row.path)}
                 rows={capabilityFactRows(capabilityView.capability, declared, capabilityView.baseline)}
@@ -336,7 +344,7 @@ function AvailableConnectionEditorBody({
             <QuirksBlock
               busy={busy}
               declared={declared}
-              note={refusalNote}
+              note={factNote}
               onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) }, row.path)}
               onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) }, row.path)}
               ownServer={provider.auth === "endpoint"}

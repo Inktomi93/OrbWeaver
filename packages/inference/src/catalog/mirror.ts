@@ -13,6 +13,9 @@ import type { MirrorWarm } from "../contract/runtime.ts";
 import type { SnapshotStore, SpanAttrs } from "../deps.ts";
 
 const MS_PER_WEEK = 604_800_000;
+/** How long a failed live fetch is answered from memory. The several resolves of one connection write, or a burst of
+ *  turns, then share one wait on a dead server instead of each dialing it again; past it the next warm asks again. */
+const FAILED_WARM_HOLD_MS = 10_000;
 
 export interface MirrorDeps {
   readonly now: () => number;
@@ -45,6 +48,7 @@ export function createMirror<T>(args: {
   const ttl = args.ttlMs ?? MS_PER_WEEK;
   let cache: { readonly at: number; readonly value: T } | null = null;
   let inFlight: Promise<MirrorWarm<T>> | null = null;
+  let failed: { readonly at: number; readonly warm: MirrorWarm<T> } | null = null;
   let skipSnapshotOnce = false;
   // Bumped by every invalidate. A warm publishes (cache + snapshot) only if the epoch it started under is still
   // current, so a fetch that was in flight when the connection changed cannot re-seed what the invalidate dropped.
@@ -76,8 +80,10 @@ export function createMirror<T>(args: {
   };
 
   const warmOnce = async (fetch: () => Promise<T>, secrets: ProviderScrubSet): Promise<MirrorWarm<T>> => {
+    const startedAt = epoch;
+    // @orb-waive caught-failure-ownership(err): owned by the returned `ok: false` warm, whose reason the model-list read
+    // reports and the resolve degrades on, and by the structured warn; held so a burst shares it. Ends if a caller needs a throw.
     try {
-      const startedAt = epoch;
       const readSnapshotFirst = !skipSnapshotOnce;
       skipSnapshotOnce = false;
       const snapshot = readSnapshotFirst && (await readSnapshot(startedAt)) ? get() : null;
@@ -103,7 +109,11 @@ export function createMirror<T>(args: {
     } catch (err) {
       deps.addSpanEvent?.("cache.warm", { cache: key, outcome: "failed" });
       deps.warn({ cache: key, err }, "inference: catalog cold-warm failed — capability degrades to the marked-estimated fallback");
-      return { ok: false, reason: scrubbedReason(err, secrets) };
+      const warm: MirrorWarm<T> = { ok: false, reason: scrubbedReason(err, secrets) };
+      if (epoch === startedAt) {
+        failed = { at: deps.now(), warm };
+      }
+      return warm;
     }
   };
 
@@ -112,6 +122,7 @@ export function createMirror<T>(args: {
     seed,
     invalidate: (): void => {
       cache = null;
+      failed = null;
       skipSnapshotOnce = true;
       epoch += 1;
       // The next warm must fetch under the new epoch, not coalesce onto a warm that will not publish.
@@ -122,6 +133,10 @@ export function createMirror<T>(args: {
       if (hit !== null) {
         deps.addSpanEvent?.("cache.hit", { cache: key });
         return { ok: true, value: hit };
+      }
+      if (failed !== null && deps.now() - failed.at < FAILED_WARM_HOLD_MS) {
+        deps.addSpanEvent?.("cache.warm.held-failure", { cache: key });
+        return failed.warm;
       }
       deps.addSpanEvent?.("cache.miss", { cache: key });
       if (inFlight !== null) {

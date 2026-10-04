@@ -97,7 +97,7 @@ async function selectedStructuredVehicle(
     warmEndpoint: () => Promise.resolve(),
     warmAgentSdk: () => Promise.resolve(),
     detectedServer: () => emptyMirror<DetectedServer>(),
-    warmDetect: () => Promise.resolve(),
+    warmDetect: () => Promise.resolve(true),
   };
   const principal: Principal = { userId: ownerId, role: "owner", handle: castId<Handle>("owner"), externalId: null, via: "fallback" };
   const calls: StructuredRequest[] = [];

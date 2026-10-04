@@ -62,6 +62,8 @@ export interface HarnessOptions {
   readonly pluginGrantTasks?: readonly RoutableTask[] | undefined;
   /** Canned HTTP. An unmatched request answers 404 and is still recorded. */
   readonly routes?: readonly FakeRoute[] | undefined;
+  /** Answers a request itself before the routes (a host that never answers); `null` falls through to them. */
+  readonly intercept?: ((url: string, init: RequestInit | undefined) => Promise<Response> | null) | undefined;
   /** The bundled `claude` runtime — absent ⇒ the agent-sdk wire is NOT built (the shipped default). */
   readonly claudeExecutable?: string | undefined;
   /** ON ⇒ the in-process `local-light` tier gets its SCRIPTED model cache (`deps.localLight.cache`), so an
@@ -189,11 +191,15 @@ function urlOf(input: Parameters<typeof fetch>[0]): string {
   return input instanceof URL ? input.toString() : input.url;
 }
 
-function fakeFetch(routes: readonly FakeRoute[], log: RecordedRequest[]): typeof fetch {
+function fakeFetch(routes: readonly FakeRoute[], log: RecordedRequest[], intercept: HarnessOptions["intercept"]): typeof fetch {
   return (input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> => {
     const url = urlOf(input);
     const body = typeof init?.body === "string" ? init.body : null;
     log.push({ url, method: init?.method ?? "GET", headers: headersOf(init), body });
+    const intercepted = intercept?.(url, init) ?? null;
+    if (intercepted !== null) {
+      return intercepted;
+    }
     const route = routes.find((candidate) => url.includes(candidate.match));
     if (route === undefined) {
       return Promise.resolve(new Response(JSON.stringify({ error: "no route" }), { status: 404, headers: { "content-type": "application/json" } }));
@@ -257,7 +263,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
           },
         }
       : {}),
-    sdkFetch: fakeFetch(options.routes ?? [], requests),
+    sdkFetch: fakeFetch(options.routes ?? [], requests, options.intercept),
   };
   const runtime = await createInferenceRuntime(deps);
 

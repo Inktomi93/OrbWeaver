@@ -1,5 +1,5 @@
 // Catalog mirror behavior: persisted snapshot first, in-memory hits, forced refresh after invalidation,
-// coalesced cold warms, and best-effort failure without poisoning the next retry.
+// coalesced cold warms, and a best-effort failure held briefly before the next retry.
 
 import { z } from "zod";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../../../packages/inference/src/backends/kit/sanitize.ts";
@@ -53,19 +53,20 @@ test("warm prefers a valid snapshot, caches it, and invalidate forces a live ref
   expect(events).toEqual(["cache.miss:", "cache.warm:snapshot", "cache.hit:", "cache.miss:", "cache.warm:fetch"]);
 });
 
-test("concurrent cold warms share one fetch, and a failed warm remains retryable", async () => {
+test("concurrent cold warms share one fetch, and a failed warm is held briefly, then retried", async () => {
   let resolveFetch: ((value: string[]) => void) | undefined;
   let markFetchStarted: (() => void) | undefined;
   const fetchStarted = new Promise<void>((resolve) => {
     markFetchStarted = resolve;
   });
   let fetches = 0;
+  let now = 5000;
   const warnings: unknown[] = [];
   const mirror = createMirror({
     key: "models",
     schema: rowsSchema,
     deps: {
-      now: () => 5000,
+      now: () => now,
       snapshotStore: { read: () => Promise.resolve(null), write: () => Promise.resolve(), deletePrefix: () => Promise.resolve() },
       warn: (fields) => warnings.push(fields),
     },
@@ -94,7 +95,40 @@ test("concurrent cold warms share one fetch, and a failed warm remains retryable
   expect(await mirror.warm(() => Promise.reject(offline), NO_PROVIDER_SECRETS)).toEqual({ ok: false, reason: "offline" });
   expect(mirror.get()).toBeNull();
   expect(warnings).toHaveLength(1);
-  expect(await mirror.warm(() => Promise.resolve(["recovered"]), NO_PROVIDER_SECRETS)).toEqual({ ok: true, value: ["recovered"] });
+  // The resolves right after a failure share it rather than each waiting out the same dead server.
+  const recovered = (): Promise<string[]> => {
+    fetches += 1;
+    return Promise.resolve(["recovered"]);
+  };
+  expect(await mirror.warm(recovered, NO_PROVIDER_SECRETS)).toEqual({ ok: false, reason: "offline" });
+  expect(fetches).toBe(1);
+  now += 10_000;
+  expect(await mirror.warm(recovered, NO_PROVIDER_SECRETS)).toEqual({ ok: true, value: ["recovered"] });
+  expect(fetches).toBe(2);
+});
+
+test("an invalidate drops a held failure, so the next warm asks the server again", async () => {
+  let fetches = 0;
+  const mirror = createMirror({
+    key: "models",
+    schema: rowsSchema,
+    deps: {
+      now: () => 5000,
+      snapshotStore: { read: () => Promise.resolve(null), write: () => Promise.resolve(), deletePrefix: () => Promise.resolve() },
+      warn: () => undefined,
+    },
+  });
+  expect(await mirror.warm(() => Promise.reject(new Error("offline")), NO_PROVIDER_SECRETS)).toEqual({ ok: false, reason: "offline" });
+
+  mirror.invalidate();
+
+  expect(
+    await mirror.warm(() => {
+      fetches += 1;
+      return Promise.resolve(["back"]);
+    }, NO_PROVIDER_SECRETS),
+  ).toEqual({ ok: true, value: ["back"] });
+  expect(fetches).toBe(1);
 });
 
 // A process-wide mirror coalesces warms from DIFFERENT callers onto one fetch, so a failure reason is shared

@@ -51,9 +51,22 @@ export async function landProvenTarget(
  *  @public Test-anchored module surface; the write-path tests answer this probe apart from real embeds. */
 export const WIDTH_PROBE_TEXT = "width check";
 
-/** One embed through the new connection: the vector must be as wide as the space it would be written into. */
+/** How long a remote embedder has to answer the width probe. A write waits on the probe, so a box that has not
+ *  answered in this long is asleep or gone, and the write is refused rather than left hanging.
+ *  @public Test-anchored module surface; the bounded-probe tests advance a fake clock past it. */
+export const WIDTH_PROBE_TIMEOUT_MS = 10_000;
+
+/** One embed through the new connection: the vector must be as wide as the space it would be written into. One
+ *  attempt, bounded by {@link WIDTH_PROBE_TIMEOUT_MS}, except on the in-process encoder: it cannot be unreachable,
+ *  and its first load from cold can outlast any network bound while it is only loading. */
 export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: GenerationTask, dims: number): Promise<void> {
-  const result = via === "embed" ? await connection.embed(WIDTH_PROBE_TEXT) : await connection.imageEmbed({ kind: "text", input: WIDTH_PROBE_TEXT });
+  const bound = new AbortController();
+  const timer = connection.wire === "local-light" ? undefined : setTimeout(() => bound.abort(), WIDTH_PROBE_TIMEOUT_MS);
+  const opts = { signal: bound.signal };
+  const result = await (via === "embed"
+    ? connection.embed(WIDTH_PROBE_TEXT, opts)
+    : connection.imageEmbed({ kind: "text", input: WIDTH_PROBE_TEXT }, opts)
+  ).finally(() => clearTimeout(timer));
   const vector = result.vectors[0];
   if (vector === null || vector === undefined) {
     throw new EmbedFailedError("width probe", result.model);

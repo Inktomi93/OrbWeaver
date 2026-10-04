@@ -22,6 +22,7 @@ import {
   connectionHost,
   connectionSummary,
   EMBED_REFUSAL_SLOTS,
+  embedderCheckingText,
   embedRefusalOf,
   embedRefusalText,
   REBUILD_JOBS_LABEL,
@@ -34,6 +35,7 @@ import {
 } from "#lib";
 import { openConfigTo } from "#state";
 import { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
+import { useEmbedRefusalToastAfterUnmount } from "./embedder-refusal-toast.ts";
 import { useReindexConfirm } from "./reindex-confirm.tsx";
 import { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
 
@@ -148,8 +150,12 @@ export function ConnectionRoleSlot({
   });
   const isVectorRole = actor === undefined && VECTOR_ROLES.includes(row.task);
   const rebuild = useEmbedderRebuild(trpc, isVectorRole, row.task);
-  // The last pick the server refused because the embedder does not make the width its connection states, or did not answer.
-  const [embedRefusal, setEmbedRefusal] = useState<EmbedTargetRefusal | null>(null);
+  // The last pick the server refused because the embedder does not make the width its connection states, or did not
+  // answer, and the picked connection's name: the picker has rolled back to what is bound, so it no longer shows it.
+  const [embedRefusal, setEmbedRefusal] = useState<SlotEmbedRefusal | null>(null);
+  // The pick whose embedder the server is checking before the binding lands.
+  const [checking, setChecking] = useState<{ readonly embedder: string | undefined } | null>(null);
+  const toastRefusalIfGone = useEmbedRefusalToastAfterUnmount();
   // The PICKER's draft — `undefined` until the user touches it, which is the only state that can never
   // diverge. It is never the readout's `{X}`; it is only the other half of the comparison.
   const [draft, setDraft] = useState<string | null | undefined>(undefined);
@@ -179,7 +185,7 @@ export function ConnectionRoleSlot({
   const current = draft === undefined ? persisted : (draft ?? UNSET_VALUE);
 
   return (
-    <Row gap="field" align="start" justify="between" className="flex-wrap" ref={slotRef}>
+    <Row aria-busy={checking !== null} gap="field" align="start" justify="between" className="flex-wrap" ref={slotRef}>
       <Row gap="field" align="start">
         <Badge
           aria-label={ROLE_STATUS_LABELS[dot]}
@@ -196,7 +202,13 @@ export function ConnectionRoleSlot({
           </Text>
           {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
           <ReadoutLine readout={readout} unsetSentence={isVectorRole && row.task === "embed" ? TEXT_EMBEDDER_UNSET : undefined} />
-          <EmbedRefusalLine refusal={embedRefusal} />
+          {checking === null ? (
+            <EmbedRefusalLine refused={embedRefusal} />
+          ) : (
+            <Text voice="gloss" role="status" data-embedder-check="" className={PROSE_MEASURE}>
+              {embedderCheckingText(checking.embedder)}
+            </Text>
+          )}
           {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
           {repairs.map((connection) => (
             <BackgroundRepair
@@ -215,23 +227,27 @@ export function ConnectionRoleSlot({
         value={current}
         disabled={setBinding.isPending}
         onValueChange={(value): void => {
-          const picked = value === UNSET_VALUE ? null : (compatible.find((connection) => connection.id === value)?.id ?? undefined);
-          if (picked === undefined) {
+          const pickedRow = value === UNSET_VALUE ? null : compatible.find((connection) => connection.id === value);
+          if (pickedRow === undefined) {
             return;
           }
-          const write = (): void => {
+          const picked = pickedRow?.id ?? null;
+          const embedder = pickedRow?.label;
+          const write = (checksEmbedder: boolean): void => {
             setDraft(picked);
             setEmbedRefusal(null);
-            setBinding.mutate(
-              { task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) },
-              { onError: rollBackOnEmbedRefusal(setDraft, setEmbedRefusal) },
-            );
+            setChecking(checksEmbedder ? { embedder } : null);
+            const bound = setBinding.mutateAsync({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
+            toastRefusalIfGone(bound, (refusal) => embedRefusalText(refusal, embedder));
+            // @orb-waive caught-failure-ownership(bound): a refusal becomes the row's alert; any other failure keeps the
+            // draft (the row says "not applied yet") and toasts through the mutation's errorToast. Ends if that toast goes.
+            void bound.catch(rollBackOnEmbedRefusal(setDraft, (refusal) => setEmbedRefusal({ refusal, embedder }))).finally((): void => setChecking(null));
           };
           // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
           if (isVectorRole) {
             reindex.guard({ kind: "bind", task: row.task, connectionId: picked }, write);
           } else {
-            write();
+            write(false);
           }
         }}
         placeholder={unsetText}
@@ -254,10 +270,16 @@ function rollBackOnEmbedRefusal(setDraft: (draft: undefined) => void, setEmbedRe
   };
 }
 
-function EmbedRefusalLine({ refusal }: { readonly refusal: EmbedTargetRefusal | null }): ReactElement | null {
-  return refusal === null ? null : (
-    <Text voice="gloss" role="alert" data-refusal={EMBED_REFUSAL_SLOTS[refusal.kind]} className={cn(READOUT_INK.blocked, PROSE_MEASURE)}>
-      {embedRefusalText(refusal)}
+/** A refused pick, and the name of the connection that was picked. */
+interface SlotEmbedRefusal {
+  readonly refusal: EmbedTargetRefusal;
+  readonly embedder: string | undefined;
+}
+
+function EmbedRefusalLine({ refused }: { readonly refused: SlotEmbedRefusal | null }): ReactElement | null {
+  return refused === null ? null : (
+    <Text voice="gloss" role="alert" data-refusal={EMBED_REFUSAL_SLOTS[refused.refusal.kind]} className={cn(READOUT_INK.blocked, PROSE_MEASURE)}>
+      {embedRefusalText(refused.refusal, refused.embedder)}
     </Text>
   );
 }

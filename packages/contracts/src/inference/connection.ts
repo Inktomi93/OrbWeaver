@@ -138,6 +138,8 @@ export const CONNECTION_OP_CODES = {
 export interface EmbedWidthRefusalDetail {
   readonly stated: number;
   readonly measured: number;
+  /** The model can shorten its vectors, so `measured` is the widest it makes rather than its only width. */
+  readonly truncatable: boolean;
 }
 
 /** Why a write that would move the owner's index was refused before anything moved. */

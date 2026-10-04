@@ -669,6 +669,31 @@ test("a pick the server refuses because the embedder did not answer rolls the pi
   await expect(page.locator('[data-refusal="embed-unreachable"]')).toHaveAttribute("role", "alert");
   expect((await rowOf(page.locator('[data-refusal="embed-unreachable"]'))).picker).toBe("Text embedding connection");
   await expect(picker).toHaveText(before ?? "");
+  // The picker no longer shows the pick, so the line names the connection that did not answer.
+  await expect(page.locator('[data-refusal="embed-unreachable"]')).toContainText(EMBED_ROW.label);
+});
+
+// The server checks the new embedder before the binding lands, which can take a while; the row says so meanwhile.
+test("a pick whose embedder the server is still checking says so on its row until the answer", async ({ mount, page }) => {
+  await stubPane(page, {
+    reindexPreview: STORED_REBUILD,
+    bindAnswer: () => trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedUnreachable }),
+  });
+  const release = await gateTheWrite(page);
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  const checking = page.locator("[data-embedder-check]");
+  await expect(checking).toHaveAttribute("role", "status");
+  expect((await rowOf(checking)).picker).toBe("Text embedding connection");
+  await expect(page.locator('[aria-busy="true"]').filter({ has: checking })).toHaveCount(1);
+  release();
+  await expect(page.locator('[data-refusal="embed-unreachable"]')).toBeVisible();
+  await expect(checking).toHaveCount(0);
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
 });
 
 // The app cache never goes stale on its own, and the rows only poll while a rebuild already shows as running,

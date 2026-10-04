@@ -6,7 +6,7 @@ import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { groupThousands } from "@orb/kit/strings";
-import { trpcErrorDetailNumber, trpcErrorReason } from "./trpc-error-reason.ts";
+import { trpcErrorDetailFlag, trpcErrorDetailNumber, trpcErrorReason } from "./trpc-error-reason.ts";
 
 /** The roles whose binding defines the owner's vector space; re-pointing the user's own one can rebuild the index. */
 export const VECTOR_ROLES: readonly RoutableTask[] = ["embed", "imageEmbed"];
@@ -91,28 +91,41 @@ export function embedRefusalOf(error: unknown): EmbedTargetRefusal | null {
   }
   const stated = trpcErrorDetailNumber(error, "stated");
   const measured = trpcErrorDetailNumber(error, "measured");
-  return stated === null || measured === null ? null : { kind: "width", stated, measured };
+  return stated === null || measured === null ? null : { kind: "width", stated, measured, truncatable: trpcErrorDetailFlag(error, "truncatable") };
 }
 
 /** The `data-refusal` a refusal line carries, per refusal kind. */
 export const EMBED_REFUSAL_SLOTS = { width: "embed-width", unreachable: "embed-unreachable" } as const satisfies Record<EmbedTargetRefusal["kind"], string>;
 
-/** Why an embedder write was refused, and what to do next. */
-export function embedRefusalText(refusal: EmbedTargetRefusal): string {
+/** The next step after an embedder did not answer: a sleeping or stopped server is the usual cause. */
+const UNREACHABLE_NEXT_STEP = "Check that its server is running, then try again.";
+
+/** "makes 768-wide", or "makes at most 1,024-wide" for a model that can shorten its vectors. */
+function makesWidth(refusal: Extract<EmbedTargetRefusal, { readonly kind: "width" }>): string {
+  return `makes ${refusal.truncatable ? "at most " : ""}${groupThousands(refusal.measured)}-wide vectors, not ${groupThousands(refusal.stated)}`;
+}
+
+/** Why an embedder write was refused, and what to do next. `embedder` names the connection where the control beside
+ *  the line no longer shows it (a picker rolled back to what is bound). */
+export function embedRefusalText(refusal: EmbedTargetRefusal, embedder?: string): string {
   if (refusal.kind === "unreachable") {
-    return "Couldn't reach this embedder to check its vector width, so nothing changed. Try again.";
+    return `Couldn't reach ${embedder ?? "this embedder"} to check its vector width, so nothing changed. ${UNREACHABLE_NEXT_STEP}`;
   }
-  const made = groupThousands(refusal.measured);
-  return `This model makes ${made}-wide vectors, not ${groupThousands(refusal.stated)}, so nothing changed. Set its vector width under Advanced to ${made}.`;
+  return `${embedder ?? "This model"} ${makesWidth(refusal)}, so nothing changed. Set its vector width under Advanced to ${groupThousands(refusal.measured)}.`;
 }
 
 /** The same refusal said on the editor row whose change it refused. The rollback already put the row back, so it says
  *  what was kept rather than what to set. */
 export function embedRefusalRowText(refusal: EmbedTargetRefusal): string {
   if (refusal.kind === "unreachable") {
-    return "Kept as it was: couldn't reach this embedder to check its vector width. Try again.";
+    return `Kept as it was: couldn't reach this embedder to check its vector width. ${UNREACHABLE_NEXT_STEP}`;
   }
-  return `Kept as it was: this model makes ${groupThousands(refusal.measured)}-wide vectors, not ${groupThousands(refusal.stated)}.`;
+  return `Kept as it was: this model ${makesWidth(refusal)}.`;
+}
+
+/** The status line while the server checks the embedder a write would move the index onto. */
+export function embedderCheckingText(embedder?: string): string {
+  return `Checking ${embedder ?? "this embedder"}…`;
 }
 
 /** The vector role row's rebuild line while an embedder change re-indexes, and after one failed. */

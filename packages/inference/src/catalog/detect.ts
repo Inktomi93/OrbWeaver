@@ -54,30 +54,16 @@ async function answer(args: DetectArgs, path: string): Promise<unknown> {
 }
 
 /**
- * Probe the server in order and name the first that identifies itself. A server that answered no probe at all
- * (refused, timed out) throws, so the caller's cache stays cold and the next resolve asks again; a server that
- * answered and matched none is `null`, which is cached like a match.
+ * Probe the server in order and name the first that identifies itself. A server the first probe could not reach
+ * (refused, timed out) throws at once: every probe dials the same origin, so asking the rest only waits out the same
+ * dead host again. The throw leaves the caller's cache cold; a server that answered and matched none is `null`, which
+ * is cached like a match.
  */
 export async function detectServer(args: DetectArgs): Promise<DetectedServer> {
-  let reached = false;
-  let lastError: unknown;
   for (const probe of PROBES) {
-    let body: unknown;
-    // @orb-waive caught-failure-ownership(err): one probe that could not reach the server is not the verdict;
-    // the error is kept and rethrown below when no probe reached it, so the detect warm reports it.
-    try {
-      body = await answer(args, probe.path);
-      reached = true;
-    } catch (err) {
-      lastError = err;
-      continue;
-    }
-    if (probe.schema.safeParse(body).success) {
+    if (probe.schema.safeParse(await answer(args, probe.path)).success) {
       return { modelInfoApi: probe.server };
     }
-  }
-  if (!reached) {
-    throw lastError;
   }
   return { modelInfoApi: null };
 }

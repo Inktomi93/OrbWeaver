@@ -27,9 +27,9 @@ import type { Locator, Page } from "@playwright/test";
 // Pure `.ts`, safe in a node-side CT spec.
 import { REINDEX_CONFIRM_COPY } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
-import { ConnectionEditorNarrowStory, ConnectionEditorStory } from "../_ct-stories.tsx";
+import { ConnectionEditorClosableStory, ConnectionEditorNarrowStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 
 const CONNECTION_ID = "user_connection_cteditor0001";
 
@@ -131,8 +131,8 @@ async function stubEditor(
     readonly verifyAuth?: TrpcResponder<"connection.verifyAuth">;
     readonly inspectEndpoint?: TrpcResponder<"connection.inspectEndpoint">;
     readonly reindexPreview?: TrpcWireOutput<"connection.embedSpaceChangePreview">;
-    /** The update write's answer in place of saving, e.g. the server's width refusal. */
-    readonly updateAnswer?: () => ReturnType<typeof trpcError>;
+    /** The update write's answer in place of saving, e.g. the server's width refusal, or a hold the test releases. */
+    readonly updateAnswer?: () => ReturnType<typeof trpcError> | ReturnType<typeof trpcHold>;
   } = {},
 ): Promise<TrpcRecorder> {
   // The row the server holds: a saved model and check land on it, so the refetch after a save reads them.
@@ -1157,7 +1157,7 @@ test("confirming a vector-width rebuild returns focus to the vector-width row", 
 });
 
 /** A row backing an MRL embedder that is 1024 wide by default, with a stored index a width change would rebuild. */
-async function stubEmbedderEditor(page: Page, updateAnswer?: () => ReturnType<typeof trpcError>): Promise<TrpcRecorder> {
+async function stubEmbedderEditor(page: Page, updateAnswer?: () => ReturnType<typeof trpcError> | ReturnType<typeof trpcHold>): Promise<TrpcRecorder> {
   const embedding: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
     kind: "embedding",
     embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
@@ -1204,6 +1204,64 @@ test("a vector width the embedder cannot make is refused in the editor with both
   await expect(refusal).toBeInViewport();
   await expect(component.locator("[data-refusal]")).toHaveCount(1);
   await expect(component.getByRole("button", { name: "Override vector width" })).toBeVisible();
+});
+
+// The server checks the embedder before the write lands, which can take a while: the row the change came from says so
+// meanwhile, where the refusal will appear, and the editor is marked busy.
+test("a vector width the server is still checking says so on its row until the answer", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await stubEmbedderEditor(page, () => hold);
+  const component = await mount(<ConnectionEditorStory />);
+
+  await saveVectorWidth(page, component, "2048");
+  await hold.requested;
+
+  const checking = component.locator('[data-fact="embedding.dims"] [data-embedder-check]');
+  await expect(checking).toHaveAttribute("role", "status");
+  await expect(component.locator('[data-slot="connection-editor"]')).toHaveAttribute("aria-busy", "true");
+  hold.release(trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 2048, measured: 1024 } }));
+  await expect(component.locator('[data-fact="embedding.dims"] [data-refusal="embed-width"]')).toBeVisible();
+  await expect(component.locator("[data-embedder-check]")).toHaveCount(0);
+  await expect(component.locator('[data-slot="connection-editor"]')).toHaveAttribute("aria-busy", "false");
+});
+
+// A refused Server URL leaves the saved row as it was, so the field must show the saved URL again, not the refused one
+// it would submit again on the next blur.
+test("a Server URL the server refuses goes back to the saved URL", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, { updateAnswer: () => trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedUnreachable }) });
+  const component = await mount(<ConnectionEditorStory />);
+  const url = component.getByRole("textbox", { name: "Server URL" });
+  const saved = connectionRow().baseUrl ?? "";
+
+  await url.fill("http://127.0.0.1:18078/v1");
+  await url.blur();
+
+  await expect(component.locator('[data-refusal="embed-unreachable"]')).toBeVisible();
+  await expect(url).toHaveValue(saved);
+  await url.focus();
+  await url.blur();
+  await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+// Done stays live while the server checks; closing the editor then must not lose the refusal, so a toast says it.
+test("a refusal that arrives after the editor closed is still said", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await stubEditor(page, {
+    updateAnswer: () => hold,
+    reindexPreview: { reindex: true, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },
+  });
+  const component = await mount(<ConnectionEditorClosableStory />);
+  const url = component.getByRole("textbox", { name: "Server URL" });
+
+  await url.fill("http://203.0.113.1:8000/v1");
+  await url.blur();
+  await hold.requested;
+  await expect(component.locator("[data-embedder-check]")).toHaveAttribute("role", "status");
+  await component.getByRole("button", { name: "Done" }).click();
+  await expect(component.locator('[data-slot="connection-editor"]')).toHaveCount(0);
+  hold.release(trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedUnreachable }));
+
+  await expect(component.getByTestId("notified")).toContainText(connectionRow().label);
 });
 
 // With nothing stored to rebuild there is no confirm to hand focus back, and the button pressed goes away on save.

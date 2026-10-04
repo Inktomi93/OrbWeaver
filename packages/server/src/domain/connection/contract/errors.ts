@@ -24,7 +24,7 @@ export class EmbedWidthUnmakeableError extends DomainOperationError {
     super(
       CONNECTION_OP_CODES.embedWidthUnmakeable,
       `The model makes ${String(width.measured)}-wide vectors, not the ${String(width.stated)} its connection states.`,
-      { stated: width.stated, measured: width.measured },
+      { stated: width.stated, measured: width.measured, truncatable: width.truncatable },
     );
   }
 }

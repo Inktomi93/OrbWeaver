@@ -28,7 +28,7 @@ import { GenerationSupersededError } from "../../../../packages/server/src/kit/e
 import { freshDb } from "../../../support/db.ts";
 import { makeResolvedSecret } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import type { ConnectionHarness } from "../connection/_support.ts";
+import type { ConnectionHarness, HarnessOptions } from "../connection/_support.ts";
 import { BYO_PROVIDER, makeHarness, seedOwner } from "../connection/_support.ts";
 import { makeStoreHarness, seedCharacter } from "./_support.ts";
 
@@ -72,7 +72,7 @@ interface Drive {
   readonly promoted: UserId[];
 }
 
-async function drive(): Promise<Drive> {
+async function drive(intercept?: HarnessOptions["intercept"]): Promise<Drive> {
   const db = await freshDb();
   // Flipped by the test once the user fixes the key; a resolve reads it at call time.
   const key: { revoked: boolean } = { revoked: true };
@@ -81,6 +81,7 @@ async function drive(): Promise<Drive> {
   const h = await makeHarness(db, {
     localLight: true,
     routes: [NARROW_ROUTE],
+    intercept,
     resolveCredential: ({ credentialId: keyId, providerId }) => {
       if (keyId === null) {
         return Promise.resolve(makeResolvedSecret());
@@ -526,7 +527,7 @@ test("a sync whose embedder makes the wrong width returns the refusal and moves 
 
   const refusal = await svc.syncTargetGenerations(d.userId);
 
-  expect(refusal).toEqual({ kind: "width", task: "embed", stated: 768, measured: 7 });
+  expect(refusal).toEqual({ kind: "width", task: "embed", stated: 768, measured: 7, truncatable: true });
   expect(d.moved, "a width the embedder does not make keeps both targets").toEqual([]);
 });
 
@@ -562,7 +563,7 @@ describe("a connection write onto a width the embedder cannot make", () => {
 
     const write = d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: narrow });
 
-    await expect(write).rejects.toMatchObject({ code: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 1024, measured: 768 } });
+    await expect(write).rejects.toMatchObject({ code: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 1024, measured: 768, truncatable: false } });
     expect(await boundEmbedder(d)).toBe(d.builtIn);
     expect(d.moved).toEqual([]);
     expect(await searchState(d)).toEqual(ALL_CARDS);
@@ -579,7 +580,7 @@ describe("a connection write onto a width the embedder cannot make", () => {
       patch: { declared: { kind: "embedding", embedding: { dims: 2048 } } },
     });
 
-    await expect(write).rejects.toMatchObject({ code: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 2048, measured: 1024 } });
+    await expect(write).rejects.toMatchObject({ code: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 2048, measured: 1024, truncatable: true } });
     expect((await d.h.svc.get({ principal: d.principal, connectionId: d.builtIn })).declared).toBeNull();
     expect(d.moved).toEqual([]);
     expect(await searchState(d)).toEqual(ALL_CARDS);
@@ -777,6 +778,74 @@ describe("a refused write's undo, and a probe that does not answer", () => {
     expect(d.moved).toEqual([]);
     expect(await searchState(d)).toEqual(ALL_CARDS);
   });
+});
+
+const DEAD_ORIGIN = "http://203.0.113.1:18706";
+/** How long a dial to a host that never answers takes to fail: undici's default connect timeout. */
+const CONNECT_TIMEOUT_MS = 10_000;
+const CLOCK_STEP_MS = 1000;
+/** Far past the slowest refusal this write has had, so a regression reads as a duration instead of a hung test. */
+const CLOCK_LIMIT_MS = 300_000;
+
+/** A host that never answers: every dial to it fails at the connect timeout, or sooner when its caller gives up. */
+function deadHost(url: string, init: RequestInit | undefined): Promise<Response> | null {
+  if (!url.startsWith(DEAD_ORIGIN)) {
+    return null;
+  }
+  return new Promise<Response>((_resolve, reject) => {
+    const timer = setTimeout(() => reject(new TypeError("fetch failed: connect timeout")), CONNECT_TIMEOUT_MS);
+    init?.signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new DOMException("aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+}
+
+// A sleeping or powered-off embedder box is a connect timeout, not a refused port. The write waits on it, so it must
+// give up after one look at the server and one probe, not after every resolve has waited out the dead host again.
+test("a write onto an embedder host that never answers is refused after one catalog dial and one probe", async () => {
+  const d = await drive(deadHost);
+  await sweep(d, false);
+  d.h.useEmbeddings(d.svc);
+  d.key.revoked = false;
+  const dead = (
+    await d.h.svc.create({
+      principal: d.principal,
+      providerId: BYO_PROVIDER,
+      model: NARROW_ENCODER,
+      baseUrl: `${DEAD_ORIGIN}/v1`,
+      credentialId: d.credentialId,
+      allowBackground: true,
+      declared: { kind: "embedding", embedding: { dims: 768, mrl: false } },
+    })
+  ).id;
+  const settled: { outcome?: string } = {};
+  let elapsed = 0;
+
+  // @orb-waive test-determinism(vi.useFakeTimers): the subject is how long the write waits on connect timeouts and the probe bound, all setTimeouts no clock seam reaches.
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    const write = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: dead })).then((outcome) => {
+      settled.outcome = outcome;
+    });
+    while (settled.outcome === undefined && elapsed < CLOCK_LIMIT_MS) {
+      await vi.advanceTimersByTimeAsync(CLOCK_STEP_MS);
+      elapsed += CLOCK_STEP_MS;
+    }
+    await write;
+  } finally {
+    vi.useRealTimers();
+  }
+
+  expect(settled.outcome).toBe(`refused ${CONNECTION_OP_CODES.embedUnreachable}`);
+  const dials = d.h.requests.filter((request) => request.url.startsWith(DEAD_ORIGIN)).map((request) => `${request.method} ${request.url}`);
+  expect(dials, "one detect dial, then the width probe").toHaveLength(2);
+  expect(elapsed).toBeLessThanOrEqual(2 * CONNECT_TIMEOUT_MS);
+  expect(await boundEmbedder(d)).toBe(d.builtIn);
 });
 
 // The confirm says "deletes your search index" only when the write's sync will move a stored target.

@@ -36,17 +36,19 @@ type Proof =
  * skips the target (its first write after it can resolve moves it).
  */
 async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget): Promise<Proof> {
+  let truncatable = false;
   try {
     const move = await pendingTargetMove(ctx, { ownerId, task: target.task, via: target.via });
     if (move?.moves !== true) {
       return { kind: "skip" };
     }
+    truncatable = move.connection.capability.kind === "embedding" && move.connection.capability.embedding.mrl;
     await probeWidth(move.connection, target.via, move.dims);
     return { kind: "move", generationId: move.id };
   } catch (error) {
     const width = widthMismatchOf(error);
     if (width !== null) {
-      return { kind: "refused", refusal: { kind: "width", task: target.task, ...width } };
+      return { kind: "refused", refusal: { kind: "width", task: target.task, ...width, truncatable } };
     }
     if (bindingUnresolvable(error)) {
       return { kind: "skip" };

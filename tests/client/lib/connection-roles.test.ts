@@ -349,11 +349,16 @@ test("the role row says nothing once search answers, whatever an earlier rebuild
 // A refused embedder write is read off the wire's reason and detail, never its message: the picker rolls back on it.
 test("an embedder refusal is read from the refusal's code, and a width refusal from its two widths", () => {
   const refused = (reason: string, detail: unknown): unknown => ({ message: "irrelevant", data: { code: "BAD_REQUEST", reason, detail } });
-  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 1024, measured: 768 }))).toEqual({
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 1024, measured: 768, truncatable: false }))).toEqual({
     kind: "width",
     stated: 1024,
     measured: 768,
+    truncatable: false,
   });
+  expect(
+    embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 2048, measured: 1024, truncatable: true })),
+    "a model that can shorten its vectors",
+  ).toMatchObject({ truncatable: true });
   expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedUnreachable, {})), "no answer to the probe").toEqual({ kind: "unreachable" });
   expect(embedRefusalOf(refused(CONNECTION_OP_CODES.notFound, { stated: 1024, measured: 768 })), "another refusal").toBeNull();
   expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: "1024" })), "no numbers to say").toBeNull();

@@ -8,7 +8,8 @@ import { useInvalidation, useTRPC } from "@orb/client/data";
 import { connectionsKeysSection, connectionsListSection, connectionsRolesSection } from "@orb/client/features/credentials";
 import { pluginsInstalledSection } from "@orb/client/features/plugin";
 import { SaveStatusHostContext } from "@orb/client/forms";
-import { createContributorRegistry } from "@orb/client/lib";
+import type { NotifyInput } from "@orb/client/lib";
+import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
 import type { ConfigSectionContribution } from "@orb/client/state";
 import { useActiveConfigGroup, useAggregateSaveStatus } from "@orb/client/state";
 import type { CredRevokedReason } from "@orb/contracts/credentials";
@@ -17,6 +18,7 @@ import type { UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useMutationState, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { ConnectionEditor } from "../../../../packages/client/src/features/credentials/components/connection-editor.tsx";
 import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
 import { CtConfigGroupBody, CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
@@ -345,6 +347,41 @@ export function ConnectionEditorStory(): ReactElement {
       <div style={{ overflow: "auto", width: 870 }}>
         <ConnectionEditorInner connectionId="user_connection_cteditor0001" />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The editor as the list opens it: Done closes it. Beside it, the toasts `notify` raised, because `bindNotify` is
+ *  main.tsx-only and the CT harness leaves `notify` a no-op unless a story binds it. */
+function ClosableConnectionEditorInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const [open, setOpen] = useState(true);
+  const [notified, setNotified] = useState("");
+  useState(() => {
+    const sink = (notice: NotifyInput): void => setNotified(toNotice(notice).title);
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
+    return null;
+  });
+  return (
+    <div style={{ overflow: "auto", width: 870 }}>
+      {open ? (
+        <ConnectionEditor
+          connectionId={castId<UserConnectionId>("user_connection_cteditor0001")}
+          invalidation={invalidation}
+          onDone={(): void => setOpen(false)}
+          trpc={trpc}
+        />
+      ) : null}
+      <p data-testid="notified">{notified}</p>
+    </div>
+  );
+}
+
+export function ConnectionEditorClosableStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ClosableConnectionEditorInner />
     </CtDataProviders>
   );
 }

@@ -14,15 +14,19 @@ import { ConfirmDialog } from "./confirm-dialog.tsx";
 
 type EmbedSpaceChange = inferInput<Trpc["connection"]["embedSpaceChangePreview"]>["change"];
 
+/** Makes the write. `checksEmbedder`: the server will check the new embedder before the write lands, because the write
+ *  moves the index (or the preview could not tell), so the caller can say it is checking. */
+type GuardedWrite = (checksEmbedder: boolean) => void;
+
 interface PendingWrite {
   /** `null` when the preview could not be read: the confirm still asks, without counts. */
   readonly preview: ReindexPreview | null;
-  readonly write: () => void;
+  readonly write: GuardedWrite;
 }
 
 export interface ReindexConfirm {
   /** Write `change` through `write`, after the user confirms when it would rebuild a non-empty index. */
-  readonly guard: (change: EmbedSpaceChange, write: () => void) => void;
+  readonly guard: (change: EmbedSpaceChange, write: GuardedWrite) => void;
   readonly dialog: ReactElement;
 }
 
@@ -31,7 +35,7 @@ export function useReindexConfirm(trpc: Trpc, finalFocus?: ConfirmDialogProps["f
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<PendingWrite | null>(null);
 
-  const guard = (change: EmbedSpaceChange, write: () => void): void => {
+  const guard = (change: EmbedSpaceChange, write: GuardedWrite): void => {
     // `staleTime: 0`: the answer depends on rows that change between asks, so a cached one could skip the confirm.
     void queryClient
       .fetchQuery({ ...trpc.connection.embedSpaceChangePreview.queryOptions({ change }), staleTime: 0 })
@@ -39,7 +43,7 @@ export function useReindexConfirm(trpc: Trpc, finalFocus?: ConfirmDialogProps["f
         if (reindexNeedsConfirm(preview)) {
           setPending({ preview, write });
         } else {
-          write();
+          write(preview.reindex);
         }
       })
       // An unreadable preview still asks: writing straight through could delete an index the user never weighed.
@@ -59,7 +63,7 @@ export function useReindexConfirm(trpc: Trpc, finalFocus?: ConfirmDialogProps["f
         }
       }}
       onConfirm={(): void => {
-        pending?.write();
+        pending?.write(pending.preview?.reindex ?? true);
       }}
     />
   );
