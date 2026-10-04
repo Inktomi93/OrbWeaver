@@ -12,6 +12,8 @@ area: plugin
 
 Story Clocks host controls are under This chat, then Host controls, then Plugin panels, all collapsed. The flank says the host starts one below, but nothing shows below it. Screenshot: main-1990041-2026-10-04T21-23-26-528Z/fp2-stc-band.png. Final pass leg 2; review: ~/homelab/development/probe-archive/side-eye-reviews/final-pass-2-plugins.md.
 
+Owner ruling: keep other grafted sections closed, but the section a plugin's flank points at opens by default, and the flank's pointer is accurate.
+
 ## Why
 
 The host cannot find the controls the flank points to.
