@@ -36,7 +36,8 @@ export const PLUGIN_BRIDGE_OPERATIONS = [
   "variables.set",
   "variables.delete",
   "assets.read",
-  "assets.storeFetched",
+  "net.fetch",
+  "net.fetchAsset",
   "search.documents",
   "storage.get",
   "storage.set",
@@ -59,7 +60,7 @@ export const PLUGIN_BRIDGE_OPERATIONS = [
 ] as const;
 export type PluginBridgeOperation = (typeof PLUGIN_BRIDGE_OPERATIONS)[number];
 
-export const PLUGIN_SYNC_OPERATIONS = ["seam.nowEpochMs", "seam.nextRandom", "seam.mintId", "admitEgress", "admitAssetEgress", "invokeArgs"] as const;
+export const PLUGIN_SYNC_OPERATIONS = ["seam.nowEpochMs", "seam.nextRandom", "seam.mintId", "invokeArgs"] as const;
 export type PluginSyncOperation = (typeof PLUGIN_SYNC_OPERATIONS)[number];
 
 export interface RpcError {

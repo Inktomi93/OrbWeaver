@@ -779,6 +779,10 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
     ...recorded,
     chat: {
       ...recorded.chat,
+      // The bridge re-checks the installer's standing on every room-variable read and write, and the inert
+      // default reports no membership. This archetype's installer hosts the room, so the fixture says so.
+      resolveViewerVisibility: (): ReturnType<PluginHostOps["chat"]["resolveViewerVisibility"]> =>
+        Promise.resolve({ role: "host", historyFloorSeq: historyFloor(0), readsHidden: true }),
       getVariables: (chatId): Promise<Record<string, string>> => Promise.resolve({ ...(roomVars.get(chatId) ?? {}) }),
       applyVariableOps: (chatId, varOps, beliefs): Promise<VariableWriteResult> => {
         raceOnce(beliefs);

@@ -12,6 +12,7 @@
 // at equal weight, and lost browse context on every switch. Each renderer below is one of those, closed.
 
 import type { PluginGridNode, PluginMasterDetailNode, PluginSearchBarNode, PluginSurfaceNode } from "@orb/contracts/plugin";
+import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -23,7 +24,28 @@ import { MediaTileGrid, MediaTileGridSkeleton } from "@orb/ui/media-tile-grid";
 import { MessageMedia } from "@orb/ui/message-media";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { gridLoading, gridTiles, heroCoverKey, resolveString, tileCoverKey } from "../lib/plugin-surface-bindings.ts";
+
+const UNANSWERED_COPY = {
+  title: "The plugin didn't answer",
+  description: "Its results never arrived. Try again from the controls above.",
+};
+
+// True once a grid has claimed `loading` for a whole continuation window with no newer published state. Past that
+// window the host has revoked the authority of the work that set it loading, so that work can no longer clear it.
+// Each new state restarts the clock, and the timed-out state is remembered by identity, so a later publish wins.
+function useLoadingUnanswered(loading: boolean, state: Record<string, unknown>): boolean {
+  const [timedOut, setTimedOut] = useState<Record<string, unknown> | null>(null);
+  useEffect(() => {
+    if (!loading) {
+      return;
+    }
+    const timer = setTimeout(() => setTimedOut(state), PLUGIN_CONTINUATION_WINDOW_MS);
+    return (): void => clearTimeout(timer);
+  }, [loading, state]);
+  return loading && timedOut === state;
+}
 
 /**
  * The MEDIA-FORWARD TILE GRID (§4.5b failure 1) — through the sealed `@orb/ui` `MediaTileGrid` composite, which
@@ -54,7 +76,21 @@ export function SurfaceGrid({
   // `tilesFrom` binding resolved against published state (validated + clamped in contracts — untrusted state
   // never reaches this map unjudged). Everything below is arm-blind.
   const tiles = gridTiles(node, state);
-  if (gridLoading(node, state)) {
+  const loading = gridLoading(node, state);
+  const unanswered = useLoadingUnanswered(loading, state);
+  if (unanswered) {
+    // @orb-waive empty-state-has-action(EmptyState): the plugin GRID's unanswered state: as with the empty arm below, the renderer cannot mint a plugin action, and the next step is the searchBar or tabs the same surface renders above it. Ends the day the vocabulary grows a plugin-authored retry arm.
+    return (
+      <EmptyState
+        description={UNANSWERED_COPY.description}
+        icon={<Icon icon={Images} size="lg" />}
+        measure="default"
+        title={UNANSWERED_COPY.title}
+        titleAs="p"
+      />
+    );
+  }
+  if (loading) {
     // The LOADING third of the three-states law, finally spellable: the shelf composite's own skeleton, at
     // the grid's own aspect, so the reserved boxes match the tiles that are about to land.
     return <MediaTileGridSkeleton aspect={node.aspect ?? "portrait"} />;

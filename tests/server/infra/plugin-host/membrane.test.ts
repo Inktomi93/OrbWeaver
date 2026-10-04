@@ -36,6 +36,7 @@ import { describe } from "vitest";
 import { __setEgressResolverForTest } from "../../../../packages/server/src/infra/network/egress.ts";
 import type { MembraneRuntime } from "../../../../packages/server/src/infra/plugin-host/membrane.ts";
 import { attachMembrane } from "../../../../packages/server/src/infra/plugin-host/membrane.ts";
+import { createPluginNetEgress } from "../../../../packages/server/src/infra/plugin-host/net-egress.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = "chat_test0000000000000000000" as ChatId;
@@ -264,7 +265,7 @@ function makeRuntime(grants: readonly PluginCapability[], canWrite: boolean, bri
   return {
     grants: new Set(grants),
     bridge,
-    netHosts: extra.netHosts ?? [],
+    netEgress: createPluginNetEgress(extra.netHosts ?? [], bridge),
     currentChat: () => chat,
     currentToken: () => TOKEN,
     inFlight: { count: 0 },

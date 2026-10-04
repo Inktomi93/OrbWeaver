@@ -178,10 +178,11 @@ function centralLogMirror(label: string | undefined, mirrorLog: PluginHostSeamDe
 function residentSandboxOptions(
   input: CreateInstanceInputIn,
   grants: ReadonlySet<PluginCapability>,
-  mirrorLog: PluginHostSeamDeps["mirrorLog"],
+  seams: PluginHostSeamDeps,
 ): Parameters<typeof Sandbox.create>[1] {
+  const { mirrorLog, netEgress } = seams;
   return {
-    membrane: { grants, bridge: input.bridge, netHosts: input.netHosts ?? [] },
+    membrane: { grants, bridge: input.bridge, netHosts: input.netHosts ?? [], ...(netEgress === undefined ? {} : { netEgress }) },
     ...(input.budgets !== undefined ? { limits: input.budgets } : {}),
     ...(input.label !== undefined || mirrorLog !== undefined ? { logMirror: centralLogMirror(input.label, mirrorLog) } : {}),
   };
@@ -219,7 +220,7 @@ export function createLocalPluginHost(seams: PluginHostSeamDeps): {
         // Keep the WASM-module load failure surface here rather than mid-eval.
         await getPluginQuickJS();
         const grants = new Set(input.grants);
-        sandbox = await Sandbox.create(hostSeams, residentSandboxOptions(input, grants, seams.mirrorLog));
+        sandbox = await Sandbox.create(hostSeams, residentSandboxOptions(input, grants, seams));
         // The activation run's chat scope (the membrane resolves `current()` against it); `null` for an installed
         // plugin's registration-only `main.js`.
         sandbox.setInvocationChat(input.chat);
@@ -340,7 +341,12 @@ export function createLocalPluginHost(seams: PluginHostSeamDeps): {
         // AFTER the context it accounts for is gone — never while a torn-down-but-not-yet-freed one lingers.
         using sandbox = await Sandbox.create(hostSeams, {
           // A snippet has no manifest → no declared net hosts (its profile also omits net.fetch); `[]` fail-closes.
-          membrane: { grants: new Set(input.grants), bridge: input.bridge, netHosts: [] },
+          membrane: {
+            grants: new Set(input.grants),
+            bridge: input.bridge,
+            netHosts: [],
+            ...(seams.netEgress === undefined ? {} : { netEgress: seams.netEgress }),
+          },
           limits: { cpuDeadlineMs: SNIPPET_WALL_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
         });
         sandbox.setInvocationChat(input.chat);

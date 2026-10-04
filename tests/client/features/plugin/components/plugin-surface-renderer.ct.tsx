@@ -13,6 +13,7 @@
 //   4. RENDERER COVERAGE: a spec mixing container/display/form kinds renders each as a house control.
 
 import { BLOB_ROUTE } from "@orb/contracts/assets";
+import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -24,6 +25,7 @@ type PluginListRow = TrpcWireOutput<"plugin.list">[number];
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 
 const A_PAST_INSTANT = 1_760_000_000_000;
+const CLOCK_STEP_MS = 1000;
 /** A valid 1×1 transparent PNG — served for the OWNED blob so its <img> loads instead of tripping the
  *  broken-media fallback (message-media.tsx onError). */
 const ONE_PX_PNG_B64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
@@ -458,6 +460,40 @@ test("#799: the SAME grid spec with `busy: false` shows its tiles — the loadin
 
   await expect(page.getByText("Aria")).toBeVisible();
   await expect(page.locator('[data-slot="media-tile-grid-skeleton"]')).toHaveCount(0);
+});
+
+test("0698: a grid still loading once the plugin's continuation window has passed stops skeletoning and says so", async ({ mount, page }) => {
+  // Past the window the host has revoked the authority of whatever set `loading`, so no publish can clear it.
+  await page.clock.install();
+  const spec: NonNullable<PluginSurfaceRow["spec"]> = {
+    kind: "grid",
+    tilesFrom: { $state: "tiles" },
+    tileAction: "open_result",
+    empty: "Search to begin.",
+    loading: { $state: "busy" },
+  };
+  await routeTrpc(page, {
+    "plugin.list": () => [enabledRow(AFFINITY_ID, "Card Atlas")],
+    "plugin.listSurfaces": () => [surface(AFFINITY_ID, "atlas", spec)],
+    "plugin.getSurfaceState": () => ({ busy: true, tiles: [] }),
+    "plugin.getLog": () => [],
+    "assets.resolveBlobRefs": () => [],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await mount(<PluginsSurfaceStory />);
+  const skeleton = page.locator('[data-slot="media-tile-grid-skeleton"]');
+  const emptyState = page.locator('[data-slot="empty-state-root"]');
+
+  await expect(skeleton).toBeVisible();
+  await page.clock.runFor(PLUGIN_CONTINUATION_WINDOW_MS - CLOCK_STEP_MS);
+  // Still inside the window: the continuation may yet publish, so the grid keeps waiting.
+  await expect(skeleton).toBeVisible();
+  await expect(emptyState).toHaveCount(0);
+
+  await page.clock.runFor(2 * CLOCK_STEP_MS);
+  await expect(skeleton).toHaveCount(0);
+  await expect(emptyState).toBeVisible();
+  await expect(page.getByText("Search to begin.")).toHaveCount(0);
 });
 
 test("#799: an `icon` node renders the NAMED house glyph — labelled ones are named, unlabelled ones are decorative", async ({ mount, page }) => {

@@ -33,6 +33,7 @@ import {
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe, vi } from "vitest";
+import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX } from "../../../../packages/server/src/infra/plugin-host/budgets.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
@@ -889,12 +890,12 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     host.dispose(outcome.instance);
   });
 
-  test("a guest cannot keep a command authority alive forever by chaining host calls — the tail expires and the chain is refused", {
+  test("a guest cannot keep a command authority alive forever by chaining host calls — the tail's bound refuses the chain", {
     timeout: LONG,
   }, async () => {
     // Each settlement of the chain re-arms the pending count inside the same microtask flush, so the idle
-    // release never sees zero. The parent's fixed tail after command completion is the bound: the next call
-    // under the expired authority is refused as stale, the guest sees the rejection, and the chain stops.
+    // release never sees zero. The parent's tail after command completion is the bound; a fast chain reaches its
+    // call budget long before the continuation window, the guest sees the refusal, and the chain stops.
     const host = makeHost();
     let reads = 0;
     const wrote: string[] = [];
@@ -932,9 +933,10 @@ describe("escape — a runaway guest CONTINUATION cannot wedge the host (the pos
     expect(await host.invoke(outcome.instance, ref, "{}", null)).toBe("fired");
     const refused = (): string | undefined => host.readLog(outcome.instance).find((line) => line.message.startsWith("chain-refused:"))?.message;
     await vi.waitFor(() => expect(refused()).toBeDefined(), { timeout: POLL_MS, interval: 20 });
-    expect(refused()).toContain("stale command authority");
+    expect(refused()).toContain("continuation call budget");
     const readsAtRefusal = reads;
-    expect(readsAtRefusal).toBeGreaterThan(0);
+    // The command's own first read plus the tail's whole budget, and not one more.
+    expect(readsAtRefusal).toBe(PLUGIN_AUTHORITY_TAIL_CALLS_MAX + 1);
     // The chain is dead, not slowed: no further host call lands after the refusal.
     await new Promise((resolve) => setTimeout(resolve, 200));
     expect(reads).toBe(readsAtRefusal);

@@ -115,4 +115,4 @@ Composition asymmetry: storage/crypto/network/image are *called by* domains via 
 ## Open decisions
 
 - **`ip-ranges.ts` — the CIDR matcher stays in infra.** The literal parse moved to `@orb/kit/ip` because the setup wizard needs the same IP test. The matcher and the range sets have only infra consumers.
-- **`safeFetch`** is wired; consumers today are the fetch helpers in `egress.ts`, the plugin membrane, and the entry-composed background/update/inline-image fetches. Endpoint model discovery is a distinct `@orb/inference` capability over direct fetch plus the global dispatcher; it is not an infra adapter.
+- **`safeFetch`** is wired; consumers today are the fetch helpers in `egress.ts`, the plugin egress in `packages/server/src/infra/plugin-host/net-egress.ts` (run in the app process for the broker), and the entry-composed background/update/inline-image fetches. Endpoint model discovery is a distinct `@orb/inference` capability over direct fetch plus the global dispatcher; it is not an infra adapter.

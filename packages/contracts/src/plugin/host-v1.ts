@@ -111,6 +111,12 @@ export interface PluginWorldEntryView {
   readonly enabled: boolean;
 }
 
+/** How long a plugin command's host-pumped continuation may still act under that command's authority after the
+ *  command returned. Handlers return at once and float their wire work, so this window bounds a late publish: a
+ *  chain of host calls at the host's per-call deadline (a hub search, then its cover waves). A surface still
+ *  loading after this long can no longer be answered by the continuation that set it loading. */
+export const PLUGIN_CONTINUATION_WINDOW_MS = 45_000;
+
 /** The most bytes one `assets.read` call returns (#788 seam-11 read half). A bounded read of the installer's own
  *  CAS: the membrane already caps a serialized RESULT (`HOST_FN_RESULT_CAP_BYTES`), and base64 inflates ~4/3, so
  *  the byte ceiling here is the honest pre-encode bound — an asset over it is a typed refusal of the CALL, not a

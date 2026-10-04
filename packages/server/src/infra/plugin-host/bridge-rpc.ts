@@ -5,9 +5,15 @@ import type { ChatId } from "@orb/kit/ids";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import type { PluginHostSeamDeps } from "./contract/port.ts";
 import type { PluginBridgeOperation, PluginSyncOperation } from "./contract/process-protocol.ts";
+import type { PluginNetEgress, PluginNetResponse } from "./net-egress.ts";
 
 type AsyncCall = (operation: PluginBridgeOperation, args: readonly unknown[], liveness?: PluginInvocationLiveness) => Promise<unknown>;
-type SyncCall = (operation: PluginSyncOperation, args: readonly unknown[]) => unknown;
+
+/** The app-side objects a broker bridge call may reach: the domain's bridge and the binding's own egress. */
+export interface BridgeTarget {
+  readonly bridge: PluginBridge;
+  readonly netEgress: PluginNetEgress;
+}
 
 const ARG_FIRST = 0;
 const ARG_SECOND = 1;
@@ -37,7 +43,8 @@ const BRIDGE_HOST_FUNCTION = {
   "variables.set": "variables.set",
   "variables.delete": "variables.delete",
   "assets.read": "assets.read",
-  "assets.storeFetched": "net.fetchAsset",
+  "net.fetch": "net.fetch",
+  "net.fetchAsset": "net.fetchAsset",
   "search.documents": "search.documents",
   "storage.get": "storage.get",
   "storage.set": "storage.set",
@@ -81,11 +88,16 @@ const DIRECT_CHAT_WRITES = new Set<PluginBridgeOperation>([
   "surfaceQuickReply",
 ]);
 
+function egressInApp(): never {
+  throw new Error("plugin broker: egress runs in the app process; the broker has no network");
+}
+
 // Every op forwards its `liveness` as the RPC's cancellation seam (`AsyncCall`'s optional 3rd arg): a guest
 // invocation that aborts (retiring a failed activation, an ended invocation) settles the Worker-local pending
 // call and tells the parent to drop it, instead of `callAsync`'s promise waiting on a broker round trip that
-// may never answer. `admitEgress`/`admitAssetEgress` stay sync (no RPC to cancel).
-export function createRemoteBridge(call: AsyncCall, callSync: SyncCall): PluginBridge {
+// may never answer. The egress belts and the fetched-asset store are app-side halves of `net.*`, which crosses
+// whole through {@link createRemoteNetEgress}; the broker can neither claim a belt nor store bytes it fetched.
+export function createRemoteBridge(call: AsyncCall): PluginBridge {
   return {
     chat: {
       listMessages: (chatId, limit, liveness) => call("chat.listMessages", [chatId, limit], liveness) as ReturnType<PluginBridge["chat"]["listMessages"]>,
@@ -114,7 +126,7 @@ export function createRemoteBridge(call: AsyncCall, callSync: SyncCall): PluginB
     },
     assets: {
       read: (assetId, liveness) => call("assets.read", [assetId], liveness) as ReturnType<PluginBridge["assets"]["read"]>,
-      storeFetched: (bytes, mime, liveness) => call("assets.storeFetched", [bytes, mime], liveness) as ReturnType<PluginBridge["assets"]["storeFetched"]>,
+      storeFetched: egressInApp,
     },
     search: {
       documents: (query, limit, liveness) => call("search.documents", [query, limit], liveness) as ReturnType<PluginBridge["search"]["documents"]>,
@@ -132,12 +144,8 @@ export function createRemoteBridge(call: AsyncCall, callSync: SyncCall): PluginB
     },
     llm: { quiet: (prompt, opts, liveness) => call("llm.quiet", [prompt, opts], liveness) as ReturnType<PluginBridge["llm"]["quiet"]> },
     suggest: (chatId, act, liveness) => call("suggest", [chatId, act], liveness) as Promise<void>,
-    admitEgress: (): void => {
-      callSync("admitEgress", []);
-    },
-    admitAssetEgress: (): void => {
-      callSync("admitAssetEgress", []);
-    },
+    admitEgress: egressInApp,
+    admitAssetEgress: egressInApp,
     surfaceQuickReply: (chatId, choices, liveness) => call("surfaceQuickReply", [chatId, choices], liveness) as Promise<void>,
     ui: {
       setState: (surfaceId, state, chatId, liveness) => call("ui.setState", [surfaceId, state, chatId], liveness) as Promise<void>,
@@ -152,6 +160,14 @@ export function createRemoteBridge(call: AsyncCall, callSync: SyncCall): PluginB
       getCardData: (characterId, liveness) => call("character.getCardData", [characterId], liveness) as ReturnType<PluginBridge["character"]["getCardData"]>,
     },
     pubsub: { emit: (name, data, liveness) => call("pubsub.emit", [name, data], liveness) as Promise<void> },
+  };
+}
+
+/** The broker Worker's `net.*`: only the guest's URL and init cross; the app chooses the allowlist. */
+export function createRemoteNetEgress(call: AsyncCall): PluginNetEgress {
+  return {
+    fetch: (url, init, liveness) => call("net.fetch", [url, init], liveness) as Promise<PluginNetResponse>,
+    fetchAsset: (url, liveness) => call("net.fetchAsset", [url], liveness) as ReturnType<PluginNetEgress["fetchAsset"]>,
   };
 }
 
@@ -328,20 +344,7 @@ export function authorizeBridgeCall(authority: BridgeAuthority, operation: Plugi
   }
 }
 
-function syncCapability(operation: PluginSyncOperation): PluginCapability | null {
-  switch (operation) {
-    case "admitEgress":
-      return "net.fetch";
-    case "admitAssetEgress":
-      return "net.fetch_asset";
-    case "seam.nowEpochMs":
-    case "seam.nextRandom":
-    case "seam.mintId":
-    case "invokeArgs":
-      return null;
-  }
-}
-
+/** The synchronous seams carry no capability: each is a determinism read or the invocation's own argument builder. */
 export function authorizeSyncCall(authority: BridgeAuthority, operation: PluginSyncOperation): void {
   if (authority.phase === "lifecycle") {
     throw new Error(`plugin broker: ${operation} is unavailable during lifecycle teardown`);
@@ -349,19 +352,16 @@ export function authorizeSyncCall(authority: BridgeAuthority, operation: PluginS
   if (authority.phase === "rehydration" && operation !== "seam.nowEpochMs") {
     throw new Error(`plugin broker: ${operation} is unavailable while rebuilding a sleeping runtime`);
   }
-  const capability = syncCapability(operation);
-  if (capability !== null && !authority.grants.has(capability)) {
-    throw new Error(`plugin broker: ${operation} lacks capability ${capability}`);
-  }
 }
 
-/** The only parent-side dispatch from untrusted broker data into the authority-bearing bridge. */
+/** The only parent-side dispatch from untrusted broker data into the authority-bearing bridge and egress. */
 export async function dispatchBridgeCall(
-  bridge: PluginBridge,
+  target: BridgeTarget,
   operation: PluginBridgeOperation,
   args: readonly unknown[],
   liveness: PluginInvocationLiveness,
 ): Promise<unknown> {
+  const { bridge, netEgress } = target;
   switch (operation) {
     case "chat.listMessages":
       exact(args, 2, operation);
@@ -409,14 +409,12 @@ export async function dispatchBridgeCall(
     case "assets.read":
       exact(args, 1, operation);
       return await bridge.assets.read(stringAt(args, 0, operation));
-    case "assets.storeFetched": {
+    case "net.fetch":
       exact(args, 2, operation);
-      const bytes = args[0];
-      if (!(bytes instanceof Uint8Array)) {
-        invalid(operation);
-      }
-      return await bridge.assets.storeFetched(bytes, stringAt(args, 1, operation));
-    }
+      return await netEgress.fetch(stringAt(args, 0, operation), args[1], liveness);
+    case "net.fetchAsset":
+      exact(args, 1, operation);
+      return await netEgress.fetchAsset(stringAt(args, 0, operation), liveness);
     case "search.documents":
       exact(args, 2, operation);
       return await bridge.search.documents(stringAt(args, 0, operation), args[1] === undefined ? undefined : numberAt(args, 1, operation));
@@ -490,12 +488,11 @@ export async function dispatchBridgeCall(
 
 export interface SyncDispatchContext {
   readonly seams: PluginHostSeamDeps;
-  readonly bridge: PluginBridge;
   readonly invokeArgs: ReadonlyMap<string, (chatHandle: string | null) => string>;
 }
 
 export function dispatchSyncCall(operation: PluginSyncOperation, args: readonly unknown[], context: SyncDispatchContext): unknown {
-  const { seams, bridge, invokeArgs } = context;
+  const { seams, invokeArgs } = context;
   switch (operation) {
     case "seam.nowEpochMs":
       exact(args, 0, operation);
@@ -506,12 +503,6 @@ export function dispatchSyncCall(operation: PluginSyncOperation, args: readonly 
     case "seam.mintId":
       exact(args, 0, operation);
       return seams.mintId();
-    case "admitEgress":
-      exact(args, 0, operation);
-      return bridge.admitEgress();
-    case "admitAssetEgress":
-      exact(args, 0, operation);
-      return bridge.admitAssetEgress();
     case "invokeArgs": {
       exact(args, 2, operation);
       const builder = invokeArgs.get(stringAt(args, 0, operation));

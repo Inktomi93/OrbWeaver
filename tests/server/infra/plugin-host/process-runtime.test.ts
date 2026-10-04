@@ -11,6 +11,8 @@ import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync } from "fflate";
 import { afterEach, beforeAll, vi } from "vitest";
 import { env } from "../../../../packages/server/src/foundation/env/index.ts";
+import { __setEgressResolverForTest } from "../../../../packages/server/src/infra/network/egress.ts";
+import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX, PLUGIN_AUTHORITY_TAIL_MS } from "../../../../packages/server/src/infra/plugin-host/budgets.ts";
 import { pluginBrokerExecArgv, pluginWatchdogExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
 import {
   __countLiveAuthorityTailsForTest,
@@ -223,14 +225,13 @@ test("the app creates and owns the watchdog without a preconfigured broker endpo
 
 test("broker death while a Worker waits on the synchronous seam cannot block the app", { timeout: LONG }, async () => {
   const host = createPluginHost(seams());
-  __killManagedPluginBrokerOnBridgeForTest("admitEgress");
+  __killManagedPluginBrokerOnBridgeForTest("seam.mintId");
   await expect(
     host.createInstance({
-      ...durableSource(`(async () => { await orb.host(1).net.fetch("https://example.com/resource"); })()`),
-      grants: ["net.fetch"],
+      ...durableSource("orb.host(1).ids.mint();"),
+      grants: [],
       bridge: bridge(),
       chat: noChat,
-      netHosts: ["example.com"],
     }),
   ).rejects.toMatchObject({ name: "PluginHostUnavailable" });
 });
@@ -408,6 +409,260 @@ test("a failed activation with a parked host call retires within the settle wall
   expect(__hasManagedPluginBrokerForTest()).toBe(true);
   await expect(host.invoke(sibling.instance, sibling.handler, "{}", noChat)).resolves.toBe("done");
   host.dispose(sibling.instance);
+});
+
+const FIXTURE_HOST = "hub.fixture.test";
+const LAN_HOST = "lan.fixture.test";
+// The resolver seam stands in for DNS: the allowlisted fixture answers from a public address, the LAN name from a
+// private one, so safeFetch's own private-range wall is what refuses it.
+const FIXTURE_PUBLIC_ADDRESS = "93.184.216.34";
+const FIXTURE_PRIVATE_ADDRESS = "10.0.0.7";
+const FIXTURE_BODY = '{"hits":3}';
+const ONE_PX_PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");
+
+async function activateHandler(
+  host: ReturnType<typeof createPluginHost>,
+  input: {
+    readonly handler: string;
+    readonly grants: Parameters<ReturnType<typeof createPluginHost>["createInstance"]>[0]["grants"];
+    readonly bridge: PluginBridge;
+    readonly netHosts?: readonly string[];
+  },
+): Promise<{ readonly instance: PluginInstance; readonly handler: PluginHandlerRef }> {
+  const outcome = await host.createInstance({
+    ...durableSource(`
+      const h = orb.host(1);
+      h.tools.register({ name: "probe", description: "probe", parameters: { type: "object", properties: {} }, handler: ${input.handler} });`),
+    grants: ["tools.register", ...input.grants],
+    bridge: input.bridge,
+    chat: noChat,
+    ...(input.netHosts === undefined ? {} : { netHosts: input.netHosts }),
+  });
+  if (!outcome.ok) {
+    throw new Error(outcome.error);
+  }
+  const handler = outcome.instance.tools[0]?.handler;
+  if (handler === undefined) {
+    throw new Error("test: probe tool did not register");
+  }
+  return { instance: outcome.instance, handler };
+}
+
+// 0697: the broker runs with no network grant, so a fetch performed inside it dies at getaddrinfo. The fetch is
+// the app's: the broker forwards the guest's URL, and the app applies the binding's own netHosts, safeFetch's
+// SSRF wall and the image guard. The resolver and transport seams below only exist in the app process, so a
+// fetch still performed in the broker can never reach the fixture.
+test("a granted plugin's net.fetch and net.fetchAsset reach the allowlisted fixture through the broker while the wall still refuses", {
+  timeout: LONG,
+}, async () => {
+  const requested: string[] = [];
+  __setEgressResolverForTest((hostname) => Promise.resolve([hostname === LAN_HOST ? FIXTURE_PRIVATE_ADDRESS : FIXTURE_PUBLIC_ADDRESS]));
+  vi.stubGlobal("fetch", (input: URL | string) => {
+    const url = String(input);
+    requested.push(url);
+    return Promise.resolve(
+      url.endsWith(".png")
+        ? new Response(new Uint8Array(ONE_PX_PNG), { status: 200, headers: { "content-type": "application/octet-stream" } })
+        : new Response(FIXTURE_BODY, { status: 200, headers: { "content-type": "application/json" } }),
+    );
+  });
+  const stored: string[] = [];
+  const base = bridge();
+  const runtimeBridge: PluginBridge = {
+    ...base,
+    assets: {
+      ...base.assets,
+      storeFetched: (_bytes, mime) => {
+        stored.push(mime);
+        return Promise.resolve({ assetId: "asset_fetched" });
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  try {
+    const probe = await activateHandler(host, {
+      handler: `async () => {
+        const settle = (p) => p.then((ok) => ({ ok }), (e) => ({ refused: e.name + ": " + e.message }));
+        return JSON.stringify({
+          allowed: await settle(h.net.fetch("https://${FIXTURE_HOST}/search?q=lighthouse")),
+          asset: await settle(h.net.fetchAsset("https://${FIXTURE_HOST}/cover.png")),
+          offList: await settle(h.net.fetch("https://evil.example/steal")),
+          privateRange: await settle(h.net.fetch("https://${LAN_HOST}/x")),
+        });
+      }`,
+      grants: ["net.fetch", "net.fetch_asset"],
+      bridge: runtimeBridge,
+      netHosts: [FIXTURE_HOST, LAN_HOST],
+    });
+    const result = JSON.parse(await host.invoke(probe.instance, probe.handler, "{}", noChat)) as Record<
+      string,
+      { readonly ok?: unknown; readonly refused?: string }
+    >;
+
+    expect(result["allowed"]).toEqual({ ok: { status: 200, body: FIXTURE_BODY } });
+    expect(result["asset"]).toEqual({ ok: { assetId: "asset_fetched" } });
+    // The CAS write records the SNIFFED mime, never the served Content-Type.
+    expect(stored).toEqual(["image/png"]);
+    expect(result["offList"]?.refused).toMatch(/^EgressBlockedError: .*not in the allowlist/u);
+    expect(result["privateRange"]?.refused).toMatch(/^EgressBlockedError: .*private/u);
+    // Neither refused destination reached the transport.
+    expect(requested).toEqual([`https://${FIXTURE_HOST}/search?q=lighthouse`, `https://${FIXTURE_HOST}/cover.png`]);
+    host.dispose(probe.instance);
+  } finally {
+    vi.unstubAllGlobals();
+    __setEgressResolverForTest(null);
+  }
+});
+
+const CONTINUATION_STEP_MS = 3500;
+
+// 0698: an action handler floats its slow work and returns at once, and the continuation publishes the result
+// after the command settled. Three sequential host calls of ~3.5 s each carry the publish well past one host-call
+// deadline after the command returned; the continuation still holds the command's authority for its publish.
+test("a floated continuation keeps its accepted command's authority to publish after the command settles", { timeout: LONG }, async () => {
+  const published: Record<string, unknown>[] = [];
+  const base = bridge();
+  const slowBridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      get: (key) => new Promise((resolve) => setTimeout(() => resolve(`value-${key}`), CONTINUATION_STEP_MS)),
+    },
+    ui: {
+      ...base.ui,
+      setState: (_surfaceId, state) => {
+        published.push(state);
+        return Promise.resolve();
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  const probe = await activateHandler(host, {
+    handler: `async () => {
+      void (async () => {
+        const a = await h.storage.get("a");
+        const b = await h.storage.get("b");
+        await h.ui.setState("page", { a, b, loading: false });
+      })().catch((e) => h.log.warn("late publish refused: " + e.message));
+      return "accepted";
+    }`,
+    grants: ["storage.kv", "ui.surface"],
+    bridge: slowBridge,
+  });
+  await expect(host.invoke(probe.instance, probe.handler, "{}", noChat)).resolves.toBe("accepted");
+  await vi.waitFor(() => expect(published).toEqual([{ a: "value-a", b: "value-b", loading: false }]), { timeout: 4 * CONTINUATION_STEP_MS });
+  expect(host.readLog(probe.instance).filter((line) => line.message.startsWith("late publish refused"))).toEqual([]);
+  host.dispose(probe.instance);
+});
+
+test("a continuation that keeps calling after its command settled is cut off at the tail's call budget", { timeout: LONG }, async () => {
+  let served = 0;
+  const base = bridge();
+  const countingBridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      get: () => {
+        served += 1;
+        return Promise.resolve(null);
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  const probe = await activateHandler(host, {
+    // The first read is posted inside the command; every later one rides the tail.
+    handler: `async () => {
+      void (async () => {
+        for (;;) {
+          await h.storage.get("spin");
+        }
+      })().catch((e) => h.log.warn("continuation stopped: " + e.message));
+      return "accepted";
+    }`,
+    grants: ["storage.kv"],
+    bridge: countingBridge,
+  });
+  await expect(host.invoke(probe.instance, probe.handler, "{}", noChat)).resolves.toBe("accepted");
+  await vi.waitFor(() => expect(host.readLog(probe.instance).some((line) => line.message.startsWith("continuation stopped"))).toBe(true));
+  expect(served).toBe(PLUGIN_AUTHORITY_TAIL_CALLS_MAX + 1);
+  expect(host.readLog(probe.instance).find((line) => line.message.startsWith("continuation stopped"))?.message).toMatch(/continuation call budget/u);
+  host.dispose(probe.instance);
+});
+
+// The window half of the tail's bound: a SLOW chain never nears the call budget, so the refusal it meets after
+// the continuation window has to be the expired authority.
+test("a slow continuation is refused as stale once the continuation window has passed, well inside its call budget", {
+  timeout: PLUGIN_AUTHORITY_TAIL_MS + 2 * LONG,
+}, async () => {
+  let served = 0;
+  const base = bridge();
+  const slowBridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      get: () =>
+        new Promise((resolve) => {
+          served += 1;
+          setTimeout(() => resolve(null), CONTINUATION_STEP_MS);
+        }),
+    },
+  };
+  const host = createPluginHost(seams());
+  const probe = await activateHandler(host, {
+    handler: `async () => {
+      void (async () => {
+        for (;;) {
+          await h.storage.get("tick");
+        }
+      })().catch((e) => h.log.warn("continuation stopped: " + e.message));
+      return "accepted";
+    }`,
+    grants: ["storage.kv"],
+    bridge: slowBridge,
+  });
+  await expect(host.invoke(probe.instance, probe.handler, "{}", noChat)).resolves.toBe("accepted");
+  // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time across two processes — the window is a wall-clock bound the app and the Worker each enforce, so no frozen clock reaches it.
+  const settledAt = performance.now();
+  const stopped = (): string | undefined => host.readLog(probe.instance).find((line) => line.message.startsWith("continuation stopped"))?.message;
+  await vi.waitFor(() => expect(stopped()).toBeDefined(), { timeout: PLUGIN_AUTHORITY_TAIL_MS + LONG, interval: 250 });
+  // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — see the waiver above.
+  const elapsedMs = performance.now() - settledAt;
+
+  expect(stopped()).toContain("stale command authority");
+  expect(elapsedMs).toBeGreaterThanOrEqual(PLUGIN_AUTHORITY_TAIL_MS);
+  expect(served).toBeLessThan(PLUGIN_AUTHORITY_TAIL_CALLS_MAX);
+  host.dispose(probe.instance);
+});
+
+test("a continuation acts only within its command's grants", { timeout: LONG }, async () => {
+  let writes = 0;
+  const base = bridge();
+  const recordingBridge: PluginBridge = {
+    ...base,
+    variables: {
+      ...base.variables,
+      set: () => {
+        writes += 1;
+        return Promise.resolve();
+      },
+    },
+  };
+  const host = createPluginHost(seams());
+  const probe = await activateHandler(host, {
+    handler: `async () => {
+      void (async () => {
+        await h.storage.get("first");
+        await h.variables.set("outside", "the grant");
+      })().catch((e) => h.log.warn("refused: " + e.name));
+      return "accepted";
+    }`,
+    grants: ["storage.kv"],
+    bridge: recordingBridge,
+  });
+  await expect(host.invoke(probe.instance, probe.handler, "{}", noChat)).resolves.toBe("accepted");
+  await vi.waitFor(() => expect(host.readLog(probe.instance).map((line) => line.message)).toContain("refused: PluginCapabilityError"));
+  expect(writes).toBe(0);
+  host.dispose(probe.instance);
 });
 
 test("broker exit during deactivation releases the runtime and a later lifecycle may reactivate", { timeout: LONG }, async () => {
