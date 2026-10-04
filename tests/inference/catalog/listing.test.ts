@@ -196,6 +196,7 @@ describe("a draft lists by the provider's catalog strategy, with no connection r
     });
     expect(listing).toMatchObject({ listed: true, models: [{ id: "claude-opus-5", name: "Claude Opus 5" }] });
     expect(s.requests.map((request) => [request.url, request.headers["x-api-key"]])).toEqual([["https://api.anthropic.com/v1/models", PLANTED]]);
+    expect(s.requests.at(0)?.headers["anthropic-version"]).toBeTruthy();
     expect(s.credentialReads).toEqual([{ credentialId: s.credentialId, ownerId: s.alice.userId, providerId: provider("anthropic") }]);
   });
 
