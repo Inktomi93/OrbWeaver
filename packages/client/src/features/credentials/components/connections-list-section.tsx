@@ -94,10 +94,15 @@ function ConnectionsBody(): ReactElement {
   const addConnectionFocus = useRef<HTMLButtonElement>(null);
   const listFocusIntent = useRef<ListFocusIntent | null>(null);
   const rowRoots = useRef(new Map<ConnectionListItem["id"], HTMLDivElement>());
-  // A door elsewhere asks for one row's editor; the request is taken once, then cleared from the store.
+  // A door elsewhere asks for one row's editor; the request is taken once, then cleared from the store. Each taken
+  // request remounts the editor, so a door to the row already open still lands its tiers as asked.
   const requestedEditor = useRequestedConnectionEditor();
+  const [takenRequest, setTakenRequest] = useState<typeof requestedEditor>(null);
+  const [requestCount, setRequestCount] = useState(0);
   const [advancedOpenFor, setAdvancedOpenFor] = useState<ConnectionListItem["id"] | null>(null);
-  if (requestedEditor !== null && requestedEditor.connectionId !== editingId) {
+  if (requestedEditor !== null && requestedEditor !== takenRequest) {
+    setTakenRequest(requestedEditor);
+    setRequestCount((count) => count + 1);
     setEditingId(requestedEditor.connectionId);
     setAdvancedOpenFor(requestedEditor.openAdvanced ? requestedEditor.connectionId : null);
   }
@@ -125,6 +130,7 @@ function ConnectionsBody(): ReactElement {
     return (
       <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_LIST_SUBCATEGORY.id)}>
         <ConnectionEditor
+          key={requestCount}
           advancedOpen={advancedOpenFor === editingId}
           connectionId={editingId}
           invalidation={invalidation}

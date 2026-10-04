@@ -231,6 +231,22 @@ export function ConnectionsSettingsRequestedStory({ connectionId }: { readonly c
   return <ConnectionsSettingsStory />;
 }
 
+/** The pane with one row's editor already open (a plain door), plus a control that sends a second door to the SAME
+ *  row asking for its Advanced tier. */
+export function ConnectionsSettingsReRequestedStory({ connectionId }: { readonly connectionId: string }): ReactElement {
+  useEffect(() => {
+    requestConnectionEditor(castId<UserConnectionId>(connectionId));
+  }, [connectionId]);
+  return (
+    <>
+      <button type="button" onClick={(): void => requestConnectionEditor(castId<UserConnectionId>(connectionId), { openAdvanced: true })}>
+        door to Advanced
+      </button>
+      <ConnectionsSettingsStory />
+    </>
+  );
+}
+
 export function ConnectionsSettingsStory(): ReactElement {
   return (
     <CtDataProviders>

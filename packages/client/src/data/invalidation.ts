@@ -358,8 +358,9 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // entries on a poke is cheap and correct. NOT `listSurfaces` — a state change never moves the registration set
   // (that rides enable/disable, a different write).
   pluginSurfaceStateChanged: (_e, trpc) => [trpc.plugin.getSurfaceState.pathFilter()],
-  // Deferred member — never emitted today; the map entry is ready for when it lands.
-  connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter(), trpc.chat.getNextTurnConnection.pathFilter()],
+  // Every persisting connection and binding verb. The game read's delivery verdicts (read-only, the state round's
+  // fit against the context window) are derived from the viewer's resolved connection, so they refetch with it.
+  connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter(), trpc.chat.getNextTurnConnection.pathFilter(), trpc.rpg.getGame.pathFilter()],
 };
 
 /** The viewer triple: the server identity (`sessions.me`) plus the two reads a composed

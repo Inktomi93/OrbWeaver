@@ -439,6 +439,9 @@ const USER_TRACKED_KEYS = [
   // from `connection` because `settingsChanged` invalidates it NARROWLY (the roleDefaults edit re-resolves the
   // chat capability; the catalog reads under the same router must NOT be dropped — they cold-fetch).
   "chatCapability",
+  // The game read (`rpg.getGame`): its delivery verdicts are derived from the viewer's resolved connection, so a
+  // connection write (a declared context window) refetches it.
+  "rpgGame",
   // The transcript divider's fit budget also refetches on a settings/preset change (the resolved capability +
   // effective params drive the fit).
   "previewContextFit",
@@ -541,7 +544,7 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   pluginSurfaceStateChanged: ["pluginSurfaceState"],
   // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection
   // router, so the capability read under it goes stale too.
-  connectionsChanged: ["connection", "chatCapability"],
+  connectionsChanged: ["connection", "chatCapability", "rpgGame"],
 };
 
 // The user events carry no chatId EXCEPT `chatsChanged` (which reads it for the getChat branch). A `chatId`
@@ -592,6 +595,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         chatLineage: trpc.chat.getChatLineage.queryKey({ chatId: CHAT_ID }),
         connection: trpc.connection.providersAvailable.queryKey(),
         chatCapability: trpc.connection.resolveChatCapability.queryKey(),
+        rpgGame: trpc.rpg.getGame.queryKey({ chatId: CHAT_ID }),
         previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
         previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
         memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID, timeZone: UTC_TIME_ZONE }),
