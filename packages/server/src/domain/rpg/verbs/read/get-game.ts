@@ -12,11 +12,16 @@ import { deriveEffectiveDelivery } from "../../substrate/readonly-axis.ts";
 export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
   async function getGame(params: ReadGameParams): Promise<RpgGameView> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
-    const { trackersReadOnly, foldGuarded, canPopulate, structuredUnavailable } = await ctx.resolveStateDelivery(params.chatId, params.principal.userId);
+    const funderUserId = await ctx.resolveRoomFunder(params.chatId);
+    const { trackersReadOnly, foldGuarded, canPopulate, structuredUnavailable } = await ctx.resolveStateDelivery(params.chatId, funderUserId);
     const verdicts = { trackersReadOnly, foldGuarded, structuredUnavailable, stateRoundOverflow: null };
-    // Price the round only when one runs: a read-only or folding room has no post-commit request to fit.
+    // Price the round only when one runs (a read-only or folding room sends no post-commit request), and only for
+    // the funder: the fix is their own connection's setting, which no other member can reach.
     const roundRuns = deriveEffectiveDelivery(game.config.extractionMode, verdicts).path === "tool-round";
-    const stateRoundOverflow = roundRuns ? await ctx.resolveStateRoundFit(params.chatId, params.principal.userId, await currentSnapshotState(ctx, game)) : null;
+    const stateRoundOverflow =
+      roundRuns && funderUserId === params.principal.userId
+        ? await ctx.resolveStateRoundFit(params.chatId, funderUserId, await currentSnapshotState(ctx, game))
+        : null;
     return {
       id: game.id,
       chatId: game.chatId,

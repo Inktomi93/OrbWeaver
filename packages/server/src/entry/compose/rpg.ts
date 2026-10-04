@@ -198,9 +198,10 @@ export interface RpgComposeDeps {
    *  — the hidden-content posture + the D16 canon floor for one human over one chat. rpg's member-facing reads
    *  belt on it (#1528) and never re-derive either half. */
   readonly resolveViewerVisibility: RpgResolveViewerVisibility;
-  /** `resolve` — the runtime fold, for the READ-side `trackersReadOnly` pill and the two HOST doors (resync /
-   *  populate), each under the ACTING user's own chat binding (§8.4-3). The in-turn state ROUNDS re-resolve
-   *  NOTHING — they ride the character turn's already-resolved `input.turnConnection` threaded from the engine. */
+  /** `resolve` — the runtime fold, for the READ-side delivery verdicts (under the room funder's chat binding, the
+   *  one the next turn rides) and the two HOST doors (resync / populate, under the host's own). The in-turn state
+   *  ROUNDS re-resolve NOTHING — they ride the character turn's already-resolved `input.turnConnection` threaded
+   *  from the engine. */
   readonly connection: Pick<ConnectionService, "resolve">;
   /** The executor the state rounds call through `@orb/inference`'s neutral round helpers, which pick the method
    *  per backend (`runStructuredChat`, `toForcedToolRoundRequest`). */
@@ -2138,6 +2139,8 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     copyPresetToUser: deps.copyPresetToUser,
     // The chat's active-preset macros (WAVE MU) — the injected chat op the GM console's shadow gloss reads.
     resolvePresetUserMacros: deps.rpgChatOps.resolvePromptUserMacros,
+    // The present host's role row, the same read the turn's funder is frozen from (`resolveTurnIdentity`).
+    resolveRoomFunder: deps.rpgChatOps.resolveHostUserId,
     resolveStateDelivery: buildResolveStateDelivery(deps),
     resolveStateRoundFit: buildResolveStateRoundFit(deps),
     runToolRound: buildRunToolRound(deps),
@@ -2255,14 +2258,14 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
 function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveStateDelivery"] {
   // Nothing resolved ⇒ no model write path AND no fold — the fail-closed verdict every degraded arm returns.
   const closed = { trackersReadOnly: true, foldGuarded: true, canPopulate: false, structuredUnavailable: false };
-  return async (chatId, viewerUserId) => {
+  return async (chatId, funderUserId) => {
     const game = await findGameByChat(deps.db, chatId);
-    if (game === undefined) {
-      return closed; // no game — the verb caller resolves game-ness itself; a defensive readonly is harmless
+    if (game === undefined || funderUserId === null) {
+      return closed; // no game, or no host to fund a turn — a defensive readonly is harmless
     }
     // A `no-connection` / requirement refusal is READONLY BY CONSTRUCTION — the same contract as the
-    // missing-game/missing-host arms above.
-    const conn = await resolveViewerChat(deps, viewerUserId);
+    // missing-game/missing-host arm above.
+    const conn = await resolveFunderChat(deps, funderUserId);
     if (conn === null) {
       return closed;
     }
@@ -2276,13 +2279,15 @@ function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveSta
   };
 }
 
-/** The VIEWER's own chat connection (§8.4-3(b), verify9 H2): under `funderUserId` the round runs on the triggering
- *  member's row, so a delivery verdict must resolve under the same member or it and the round diverge. `null` on a
- *  `no-connection` / requirement refusal; anything else (a DB fault) RETHROWS. */
-async function resolveViewerChat(deps: RpgComposeDeps, viewerUserId: UserId): Promise<Resolved<"chat"> | null> {
-  const viewer = await deps.resolveHostPrincipal(viewerUserId);
+/** The FUNDER's chat connection, resolved the way the turn resolves its own (chat's `resolveChatFor`: the same
+ *  connection service, under the same real principal). A turn is funded by the room host whoever sends it
+ *  (`resolveTurnIdentity`), and the state round rides that turn's connection, so this is the connection a
+ *  delivery verdict describes. `null` on a `no-connection` / requirement refusal; anything else (a DB fault)
+ *  RETHROWS. */
+async function resolveFunderChat(deps: RpgComposeDeps, funderUserId: UserId): Promise<Resolved<"chat"> | null> {
+  const funder = await deps.resolveHostPrincipal(funderUserId);
   try {
-    return (await deps.connection.resolve({ task: "chat", principal: viewer })).resolved as Resolved<"chat">;
+    return (await deps.connection.resolve({ task: "chat", principal: funder })).resolved as Resolved<"chat">;
   } catch (err) {
     if (isUnresolvable(err)) {
       return null;
@@ -2312,17 +2317,20 @@ export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInpu
   return [toolRoundSystem(inputs), userPrompt, JSON.stringify(wireTools)];
 }
 
-/** Build the `resolveStateRoundFit` op: price the round a turn would run on the viewer's connection over `baseState`
+/** Build the `resolveStateRoundFit` op: price the round a turn would run on the funder's connection over `baseState`
  *  and the room's own prompt, against that connection's window. The story slice and the latest beat vary per turn and
  *  are left out, so an overflow here is one every turn pays. The window is never raised behind the host's back
  *  (owner ruling); the verdict names the connection whose setting fixes it. */
 function buildResolveStateRoundFit(deps: RpgComposeDeps): RpgContext["resolveStateRoundFit"] {
-  return async (chatId, viewerUserId, baseState) => {
-    const conn = await resolveViewerChat(deps, viewerUserId);
+  return async (chatId, funderUserId, baseState) => {
+    const conn = await resolveFunderChat(deps, funderUserId);
     if (conn === null) {
       return null;
     }
     const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, false);
+    // A read has no turn to capture prose from, so this walks the ladder the next turn will (GM redirect, then the
+    // preset). It differs from the turn's captured bag only in user-homed slots, and every slot the round reads is
+    // preset-homed (`RPG_PROSE_SLOTS`), so the bytes priced are the bytes the round sends.
     const prose = await deps.rpgChatOps.resolveChatPresetProse(chatId);
     const inputs: PromptInputs = { config, refs, playerDisplayName, reconcile: false, prose };
     const userPrompt = buildExtractionUserPrompt([], baseState, config, prose);

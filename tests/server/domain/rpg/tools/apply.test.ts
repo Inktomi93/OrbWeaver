@@ -424,6 +424,13 @@ test("a presentUpsert naming a PARTICIPANT adds PRESENCE and writes no identity 
   expect(patch.actorState?.[0]?.identity).toBeUndefined();
 });
 
+test("a participant named with a hidden span is still that participant, never an npc twin", () => {
+  const kaelId = castId<CharacterId>("character_kael");
+  const participantIndex = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
+  const patch = applyUpdateScene(emptyState(), { presentUpsert: [{ name: 'Kael <lie truth="the traitor"/>' }] }, participantIndex);
+  expect(patch.presentCharacters).toEqual([`character:${kaelId}`]);
+});
+
 test("update_scene writes a relationship — a custom kind carries its label, a built-in clears it (§2.1)", () => {
   const state = emptyState({ actorState: [castRow("mari", { name: "Mari", relationship: { kind: "friend", label: "" } })], presentCharacters: ["npc:mari"] });
   const toEnemy = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "enemy" } }] }, NO_PARTICIPANTS);

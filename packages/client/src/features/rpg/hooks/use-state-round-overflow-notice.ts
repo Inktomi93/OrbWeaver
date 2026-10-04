@@ -1,6 +1,6 @@
-// Tells the viewer once when the pass after the turn cannot fit their connection's context window, so game state is
+// Tells the host once when the pass after the turn cannot fit their connection's context window, so game state is
 // lost every turn, with a door to that connection's context-window setting. The verdict is the server's
-// (`effectiveDelivery.stateRoundOverflow`); the window is never raised for the host (owner ruling).
+// (`effectiveDelivery.stateRoundOverflow`, null for members); the window is never raised for the host (owner ruling).
 
 import type { RpgGameView } from "@orb/contracts/rpg";
 import { useEffect } from "react";

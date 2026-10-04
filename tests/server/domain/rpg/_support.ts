@@ -577,6 +577,10 @@ export function makeRpgService(
       return Promise.resolve(fakes.copyPresetFails ? null : castId<PresetId>(`${presetId}__copy_${toUserId}`));
     },
     resolvePresetUserMacros: () => Promise.resolve(fakes.presetUserMacros),
+    resolveRoomFunder: () => {
+      const host = [...fakes.membership].find(([, role]) => role === "host")?.[0];
+      return Promise.resolve(host === undefined ? null : castId<UserId>(host));
+    },
     resolveStateDelivery: () =>
       Promise.resolve({
         trackersReadOnly: fakes.trackersReadOnly,

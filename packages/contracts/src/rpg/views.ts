@@ -44,12 +44,13 @@ export interface RpgEffectiveDelivery {
    *  after the turn runs as tool calls. Separate from `fallbackReason` because it is not a fold cause: a folded room
    *  whose model cannot fold can carry both, and the panel states both. `false` when no post-commit pass runs. */
   readonly structuredUnavailable: boolean;
-  /** The pass after the turn cannot fit the viewer's connection window, so it would lose the game state every turn.
-   *  Names the connection whose context-window setting fixes it. `null` when it fits or when no such pass runs. */
+  /** The pass after the turn cannot fit the host's connection window (the one every turn here rides), so it would
+   *  lose the game state every turn. Names the connection whose context-window setting fixes it. `null` when it
+   *  fits, when no such pass runs, and for every reader but the host, who alone can change that setting. */
   readonly stateRoundOverflow: RpgStateRoundOverflow | null;
 }
 
-/** A state round that does not fit: the viewer's own connection that runs it, and the window it was priced against. */
+/** A state round that does not fit: the host's own connection that runs it, and the window it was priced against. */
 export interface RpgStateRoundOverflow {
   readonly connectionId: UserConnectionId;
   readonly windowTokens: number;

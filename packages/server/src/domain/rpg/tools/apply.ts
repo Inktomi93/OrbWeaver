@@ -41,6 +41,7 @@ import {
   trackerCeiling,
   trackerNumber,
 } from "@orb/contracts/rpg";
+import { stripHiddenSpans } from "@orb/kit/content";
 import type { RpgQuestId } from "@orb/kit/ids";
 import type { ActorRefIndex, ExtractionFoldRefs, ExtractionMints, ScenePatch, StagedJournalEntry } from "../contract/params.ts";
 import type { RpgStateDelta } from "../contract/service.ts";
@@ -74,7 +75,10 @@ export function buildActorRefIndex(participants: readonly { readonly actorRef: R
  *  The ONE resolution rule, shared by the party/inventory appliers AND the scene applier's presence writes, so
  *  an npc introduced by `presentUpsert` and wounded by `update_party` in the same round is ONE actor. */
 function refForTarget(targetRef: string, participantIndex: ActorRefIndex): RpgActorRef {
-  return participantIndex.get(targetRef.toLowerCase()) ?? { kind: "npc", npcKey: rpgNpcSlug(targetRef) };
+  // The span-free name addresses the same person the slug does, so a participant written with a hidden span
+  // still resolves to her own ref instead of minting an npc twin.
+  const name = stripHiddenSpans(targetRef).content.trim();
+  return participantIndex.get(name.toLowerCase()) ?? { kind: "npc", npcKey: rpgNpcSlug(name) };
 }
 
 /** Resolve the actor a `targetRef` NAME addresses (the model never sees ids). Match order:

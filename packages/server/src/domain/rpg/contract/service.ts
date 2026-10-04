@@ -395,9 +395,11 @@ type RpgResolvePresetUserMacros = (chatId: ChatId) => Promise<readonly UserMacro
  *  ONE resolve of the host connection, TWO verdicts — the connection resolve is the expensive part (credential +
  *  routing + catalog), so a per-turn caller that needs both must never pay for it twice. Its VALUE is
  *  INTEGRATION-supplied (W1c wires the real connection resolve); a fake returns fixed booleans in tests. */
-/** `viewerUserId` — WHOSE chat connection the verdict reads (§8.4-3(b): the round runs on the trigger's row, so
- *  the pill resolves under the same member; a read-side caller passes the reader). */
-export type RpgResolveStateDelivery = (chatId: ChatId, viewerUserId: UserId) => Promise<RpgStateDeliveryVerdict>;
+/** `funderUserId` — WHOSE chat connection the verdict reads: the user who funds the room's turns, which is the
+ *  room host whoever sends (`resolveTurnIdentity`). The gather passes its turn's frozen funder; a read passes
+ *  {@link RpgContext.resolveRoomFunder}'s answer, never the reader, because a member's own connection runs nothing
+ *  in this room. `null` (a hostless room) is the closed verdict: no turn can run. */
+export type RpgResolveStateDelivery = (chatId: ChatId, funderUserId: UserId | null) => Promise<RpgStateDeliveryVerdict>;
 
 /** What the resolved connection can do for THIS game's state delivery. Both fields are CAPABILITY-derived (the
  *  composition root reads the descriptor; rpg never sees a credential/source — D112's ban on a `credential.source`
@@ -685,11 +687,14 @@ export interface RpgContext {
   readonly copyPresetToUser: RpgCopyPresetToUser;
   /** The chat's active-preset user macros (WAVE MU) — the shadow gloss on the host macro editor. */
   readonly resolvePresetUserMacros: RpgResolvePresetUserMacros;
+  /** The user whose connection funds this room's turns (the present host, chat's own resolution), or `null` for a
+   *  hostless room. The reads price and judge THAT connection, because it is the one the next turn rides. */
+  readonly resolveRoomFunder: (chatId: ChatId) => Promise<UserId | null>;
   readonly resolveStateDelivery: RpgResolveStateDelivery;
-  /** Does the post-commit state round fit the VIEWER's own chat connection window, over `baseState`? Wired at
-   *  compose, which owns the round's prompt builders; `null` when it fits or the connection does not resolve. Kept
-   *  off `resolveStateDelivery` because the gather calls that one every turn and this prices a whole request. */
-  readonly resolveStateRoundFit: (chatId: ChatId, viewerUserId: UserId, baseState: RpgSnapshotState) => Promise<RpgStateRoundOverflow | null>;
+  /** Does the post-commit state round fit the funder's chat connection window, over `baseState`? Wired at compose,
+   *  which owns the round's prompt builders; `null` when it fits or the connection does not resolve. Kept off
+   *  `resolveStateDelivery` because the gather calls that one every turn and this prices a whole request. */
+  readonly resolveStateRoundFit: (chatId: ChatId, funderUserId: UserId, baseState: RpgSnapshotState) => Promise<RpgStateRoundOverflow | null>;
   readonly runToolRound: RpgRunToolRound;
   /** R1 (`folded` mode) — the character turn's TERMINAL tool mount (the gather calls it) and the fold of the
    *  calls it comes back with (the flush calls it). Together they replace the post-commit round with ZERO
