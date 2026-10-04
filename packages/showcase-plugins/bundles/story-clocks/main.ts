@@ -210,6 +210,9 @@ async function narrateFill(chat: ChatHandle, slug: string): Promise<void> {
   }
 }
 
+/** How the host's deadline rejection ends (`<fn> exceeded <n>ms host bound`). */
+const HOST_BOUND_TAIL = "ms host bound";
+
 /** Classify a `requestTurn` refusal by its class NAME (it crosses the sandbox boundary intact), behind a
  *  null-tolerant read — a guest realm can `throw null`, so the guard is load-bearing, not defensive noise. */
 function logTurnRefusal(err: unknown): void {
@@ -218,6 +221,12 @@ function logTurnRefusal(err: unknown): void {
     // Not the host of this room: the turn became a confirm card for the host. That is the designed outcome,
     // not a failure — do not retry (a retry only replaces the pending card).
     host.log.info("filled-clock turn became an ask for the room's host");
+    return;
+  }
+  // The host stops WAITING for the call at its bound but does not cancel the turn it started, so this
+  // rejection is a late answer, not a refusal. (The host raises it as a plain Error, so the message is the only tell.)
+  if (String(err).includes(HOST_BOUND_TAIL)) {
+    host.log.info("filled-clock turn started; the host stopped waiting before it answered");
     return;
   }
   // The other honest refusals here are the turn budget and D17 — "later", in both cases.
@@ -297,41 +306,51 @@ if (host.grants.includes("tools.register") && host.grants.includes("chat.read") 
 
 // ── the host-panel actions (split per verb so each reads as its own small story) ──────────────────────────
 
+/** A notice is never worth the action it decorates: the host's toast floor REFUSES a second toast inside its
+ *  cooldown by throwing, and that refusal must not read as a failed write or skip the refresh after it. */
+async function say(level: "info" | "success" | "warn" | "error", message: string): Promise<void> {
+  try {
+    await host.ui.toast(level, message);
+  } catch (err) {
+    host.log.info(`toast not shown: ${String(err)}`);
+  }
+}
+
 /** `Start`: refuse a duplicate or a fifth clock; otherwise mint at `0/max` from the select's value. */
 async function startAction(chat: ChatHandle, slug: string, vars: Readonly<Record<string, string>>, segmentsValue: string | undefined): Promise<void> {
   if (parseClock(vars[`${VAR_PREFIX}${slug}`]) !== null) {
-    await host.ui.toast("warn", `"${displayName(slug)}" is already running — Tick it instead.`);
+    await say("warn", `"${displayName(slug)}" is already running — Tick it instead.`);
     return;
   }
   if (clocksIn(vars).length >= MAX_CLOCKS) {
-    await host.ui.toast("warn", `This room already runs ${MAX_CLOCKS} clocks — clear one first.`);
+    await say("warn", `This room already runs ${MAX_CLOCKS} clocks — clear one first.`);
     return;
   }
   const parsed = Number(segmentsValue);
   const max = CLOCK_SIZES.includes(parsed) ? parsed : DEFAULT_SEGMENTS;
   await writeClock(chat, slug, `0/${max}`);
-  await host.ui.toast("success", `"${displayName(slug)}" starts at 0/${max}.`);
+  await say("success", `"${displayName(slug)}" starts at 0/${max}.`);
 }
 
 /** `Tick`: advance by one; a FILL celebrates and asks the narrator to land it (the turn.trigger arm). */
 async function tickAction(chat: ChatHandle, slug: string, vars: Readonly<Record<string, string>>): Promise<void> {
   const result = await tick(chat, slug, vars);
   if (result === null) {
-    await host.ui.toast("warn", `No clock named "${displayName(slug)}" — Start it first.`);
+    await say("warn", `No clock named "${displayName(slug)}" — Start it first.`);
     return;
   }
   if (result.contended === true) {
     // Nothing was written: somebody (or the narrator's tool) kept moving this clock while we retried. An
     // honest "nothing happened, look again" beats a toast claiming a tick that did not land.
-    await host.ui.toast("warn", `"${displayName(slug)}" is moving under you — the panel will refresh; tick it again.`);
+    await say("warn", `"${displayName(slug)}" is moving under you — the panel will refresh; tick it again.`);
     return;
   }
   if (result.filled) {
-    await host.ui.toast("success", `"${displayName(slug)}" is FULL — asking the narrator to make it land.`);
+    await say("success", `"${displayName(slug)}" is FULL — asking the narrator to make it land.`);
     await narrateFill(chat, slug);
     return;
   }
-  await host.ui.toast("info", `"${displayName(slug)}" → ${result.clock.cur}/${result.clock.max}`);
+  await say("info", `"${displayName(slug)}" → ${result.clock.cur}/${result.clock.max}`);
 }
 
 /** Dispatch one panel action. The vars snapshot is read ONCE per action, here, so every branch judges the
@@ -344,7 +363,7 @@ async function runClockAction(chat: ChatHandle, actionId: string, slug: string, 
     await tickAction(chat, slug, vars);
   } else if (actionId === "clear") {
     await writeClock(chat, slug, null);
-    await host.ui.toast("info", `"${displayName(slug)}" cleared.`);
+    await say("info", `"${displayName(slug)}" cleared.`);
   }
 }
 
@@ -420,16 +439,21 @@ if (host.grants.includes("ui.surface") && host.grants.includes("chat.read") && h
       }
       const slug = slugify(a.values["name"]);
       if (slug === null) {
-        await host.ui.toast("warn", "Name the clock first — the field above the buttons.");
+        await say("warn", "Name the clock first — the field above the buttons.");
         return;
       }
       try {
         await runClockAction(a.chat, a.actionId, slug, a.values);
-        await refresh(a.chat);
       } catch (err) {
         // Belt for the walls the mount gate already implies (and any transient): say it, never throw it.
         host.log.warn(`clock action failed: ${String(err)}`);
-        await host.ui.toast("error", "That didn't take — see the plugin log.");
+        await say("error", "That didn't take — see the plugin log.");
+      }
+      // After the write, whatever happened to the notices: the flank must show what the room now holds.
+      try {
+        await refresh(a.chat);
+      } catch (err) {
+        host.log.warn(`clock refresh failed: ${String(err)}`);
       }
     },
   });

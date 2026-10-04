@@ -13,6 +13,8 @@ lane: wt/agent-a8be2aff166fc06e4
 
 After the pass, rows read 'not run' for story themes, keywords and near-duplicates with one 'Run the passes again' button and no reason. Final visual pass; review: ~/homelab/development/probe-archive/side-eye-reviews/final-pass-1-rails-home.md.
 
+Lane S2 evidence: keywords and near-duplicates are their own passes outside the understanding chain (use-understanding-pass.ts PASS_KINDS), so the one rerun button cannot run them and no per-pass door exists on the client; only story themes has a known prerequisite (chat memory). Needs the corpus pass owner to add per-pass actions.
+
 ## Why
 
 Launch visual pass finding.

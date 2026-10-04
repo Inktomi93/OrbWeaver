@@ -22,4 +22,4 @@ Arguments show labels, defaults are preselected, and suggestions show display na
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S4 humanized argument labels and option text. Not done: preselected defaults need a default or label field on PluginCommandArgSpec, a contracts and SDK change.

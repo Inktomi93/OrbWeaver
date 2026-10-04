@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P3
 area: client
-lane: wt/agent-ac8eb30b58c46c8f2
 ---
 
 # Home columns end level at 1440
@@ -23,4 +22,4 @@ Columns balance at 1440.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S3 shipped nothing: balancing the Home columns needs measurement against the Home layout balance tests and live data.

@@ -22,4 +22,4 @@ The trace names what it shows and records effective settings, with a test.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S6 fixed the gloss copy only. Open: recording the effective settings needs the inference funnel's resolved params at engine.ts:309 (today prep.intent), which is request shaping; the section blurb mismatch is untouched.
