@@ -1,57 +1,14 @@
-// @orb/contracts/refinery/schema-advisory — the raw-door PREFLIGHT: what a schema that PASSES the belt
-// still costs on a real wire. Three tiers, and only the first two existed before this file:
-//   ERROR    — the belt refuses the save (./schema-authoring.ts). Unchanged here; never re-implemented.
-//   ADVISORY — this file. The schema is valid and WILL save; these are the facts a hosted round-trip will
-//              impose on it anyway (a bound that does not ride the wire, an optional-field fan-out).
-//   STATS    — the accounting an author needs to reason about a schema's size before spending a call.
-// Advisories NEVER block. Nothing here can refuse anything: the return value is data the editor paints.
-//
-// THE RULING FORK — RECONCILED 2026-08-14 (task #36 follow-up). It was raised as "orchestrator's to
-// reconcile" and it has been: the ADVISORY posture below is RATIFIED, and the fork is closed. A #36 brief
-// asked for these to become hard REFUSALS at the transpile layer, at ≤24 optionals / ≤16 unions. Both halves
-// lost. Posture: a refusal would reverse the "providers own their wire" ruling AND task #40's
-// bounds→description relay, neither of which is this file's to overturn. Numbers: 46 and 8 are MEASURED and
-// carry the receipts cited under SOURCE-PINNED below, while 24/16 were written from probe-era notes and cite
-// nothing — measured beats remembered. The paragraph that follows is the original statement of the fork,
-// kept because it is the argument that won.
-//
-// The design's last table row rules the OG's `validate.ts` ACCIDENTAL — "Client-side re-implementation of provider
-// schema law … dies to `liftJsonSchema`/`scrubWireSchema`/`runStructuredTurn`" (port study §2 E3: "the
-// extension's validator polices ANTHROPIC limits client-side because it had no server; orb's providers own
-// their wire"). That ruling is HONOURED, not reversed: no vendor limit is re-declared here and nothing is
-// policed. Every wire claim this file makes is DERIVED by running `scrubWireSchema` — our own wire
-// vocabulary, the single home of that law — and diffing the result against the input. If a wire's subset
-// changes, these advisories change with it, because they are literally its output. What the OG contributes
-// is the two ACCOUNTING THRESHOLDS below (the steal ledger's §11 posture: take the scar, not the code).
-//
-// SOURCE-PINNED NUMBERS
-//   • the stripped keyword set — NOT a constant here: read off `scrubWireSchema(schema, "hosted-common")`.
-//   • the optional-field ceiling 46 — OURS, measured: "Anthropic's grammar compiler refuses a schema for
-//     having too many OPTIONALS (an undocumented runtime ceiling, measured at 46)"
-//     (`@orb/contracts/inference` `wire-subset.ts`, the `strict-compatible` note).
-//   • 10 optionals / 50 total anyOf variants — the OG extension's own table
-//     (`references/card-refinery/src/domain/schema/validate.ts:180-195`), kept as the ADVISORY thresholds
-//     they always were there (it warned; it never errored on them).
-//   • 8 variants per anyOf — the OG's `ANTHROPIC_LIMITS.MAX_ANYOF_VARIANTS` (`constants.ts:12`). Advisory
-//     only: our belt permits any count, and the raw door is exactly where a union gets authored.
-// Deliberately ABSENT (they would be phantoms — our belt is STRICTER than the OG's limit, so the arm is
-// unreachable): nesting depth (belt 8 < OG 10), enum members (32 < 500), properties per object (64 < 100),
-// `$defs` (unliftable), `format` (unliftable), regex features (`pattern` is refused outright).
-//
-// ALSO ABSENT, ON PURPOSE — the OG's `additionalProperties: false` warning (`validate.ts:355-359`). It is a
-// true statement about our hosted wire (`hosted-common` has `pinClosed: false`, so an open object ships
-// open), but `transpileForgeDesign` emits NO `additionalProperties` on any node, so the advisory would fire
-// on 100% of drafts this app's own generator produces. A warning that is always on is not a warning. The
-// honest fix lives in the transpiler, not in the editor's readout — raised to the orchestrator, not
-// papered over here.
+// @orb/contracts/refinery/schema-advisory — the raw-door preflight: what a schema that passes the save belt still
+// costs on a hosted wire. Advisories never block. Every wire claim is the structured layer's own scrub, never a
+// vendor table re-declared here; whether the bound model takes the schema is `schema-plan.ts`'s, server-side.
 
 import type { Unprojected } from "@orb/kit/json-schema";
 import { RENDER_HINT_KEY } from "@orb/kit/json-schema";
-import { scrubWireSchema } from "#inference";
+import { checkWireSchema, HOSTED_INTERSECTION_TARGET } from "#inference";
 
-/** One advisory CLASS. A closed union so the editor's copy is a mapped Record and a new class cannot ship
- *  without a sentence for it (§5.5 dispatch discipline). */
-export const REFINERY_ADVISORY_CODES = ["wire-bounds-stripped", "optional-nullable-fan", "optional-ceiling", "anyof-variants"] as const;
+/** One advisory class. A closed union so the editor's copy is a mapped Record and a new class cannot ship without
+ *  a sentence for it. */
+export const REFINERY_ADVISORY_CODES = ["wire-bounds-stripped", "anyof-variants"] as const;
 export type RefineryAdvisoryCode = (typeof REFINERY_ADVISORY_CODES)[number];
 
 /** One advisory: what, where, and why it matters — in the author's terms, never the mechanism's. */
@@ -62,7 +19,7 @@ export interface RefinerySchemaAdvisory {
   readonly message: string;
 }
 
-/** The accounting readout (the OG's `ctx.stats` info line, minus the fields our belt makes unreachable). */
+/** The accounting readout an author reasons about a schema's size with. */
 export interface RefinerySchemaStats {
   readonly properties: number;
   readonly optionalFields: number;
@@ -77,17 +34,8 @@ export interface RefinerySchemaAssessment {
   readonly advisories: readonly RefinerySchemaAdvisory[];
 }
 
-// ── the OG's accounting thresholds (header) ──────────────────────────────────────────────────────────────
-
-/** Optional fields past which the implicit-nullable fan-out is worth naming (OG `validate.ts:184`). */
-const OPTIONAL_FAN_THRESHOLD = 10;
-/** Total anyOf VARIANTS (authored + 2 per implicit nullable) past which compilation gets slow (OG `:190`). */
-const TOTAL_ANYOF_VARIANT_THRESHOLD = 50;
-/** Each optional field becomes `anyOf: [<schema>, {"type":"null"}]` — two variants (`wire-subset.ts`). */
-const VARIANTS_PER_NULLABLE = 2;
-/** The MEASURED Anthropic optional ceiling (ours — `wire-subset.ts`'s `strict-compatible` note). */
-const OPTIONAL_CEILING = 46;
-/** Variants in one authored anyOf past which hosted grammar compilers complain (OG `constants.ts:12`). */
+/** Variants in one authored anyOf past which hosted grammar compilers get slow (the card-refinery extension's
+ *  `MAX_ANYOF_VARIANTS`). Advisory only: the belt permits any count. */
 const MAX_ANYOF_VARIANTS = 8;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -211,41 +159,13 @@ function walk(target: PairedNode, state: WalkState): void {
   }
 }
 
-/** The document-level accounting advisories (the OG's two thresholds + our measured ceiling). */
-function fanAdvisories(stats: RefinerySchemaStats): readonly RefinerySchemaAdvisory[] {
-  const out: RefinerySchemaAdvisory[] = [];
-  const implicitVariants = stats.optionalFields * VARIANTS_PER_NULLABLE;
-  const totalVariants = stats.anyOfVariants + implicitVariants;
-  if (stats.optionalFields > OPTIONAL_CEILING) {
-    out.push({
-      code: "optional-ceiling",
-      path: "#",
-      message: `${stats.optionalFields} optional fields. Under the strict-compatible output shape (Settings › Admin › Structured output) every optional becomes a "or null" alternative, and Anthropic's grammar compiler has been measured refusing schemas past about ${OPTIONAL_CEILING} of them. Make the ones you always want REQUIRED.`,
-    });
-  } else if (stats.optionalFields > OPTIONAL_FAN_THRESHOLD) {
-    out.push({
-      code: "optional-nullable-fan",
-      path: "#",
-      message: `${stats.optionalFields} optional fields. Under the strict-compatible output shape each one becomes a "or null" alternative, which the model pays attention for. Marking the ones you always want as required costs nothing and sharpens the answer.`,
-    });
-  }
-  if (totalVariants > TOTAL_ANYOF_VARIANT_THRESHOLD) {
-    out.push({
-      code: "optional-nullable-fan",
-      path: "#",
-      message: `about ${totalVariants} total alternatives once the optional fields are counted — big schemas compile slowly on hosted endpoints and answer less precisely. Consider splitting this into two schemas.`,
-    });
-  }
-  return out;
-}
-
 /**
- * PREFLIGHT one authored schema: the accounting, plus every advisory the hosted wire's own behaviour
- * implies. Total and non-throwing — it is called on every keystroke of the raw JSON door, over a draft the
- * belt has not judged yet, so a shape it cannot make sense of yields empty advisories, never an exception.
+ * Preflight one authored schema on the hosted wire: the accounting, and the keywords a hosted request drops. Total
+ * and non-throwing — it runs on every keystroke of the raw JSON door over a draft the belt has not judged, so a shape
+ * it cannot make sense of yields no advisories. Whether the bound model takes the schema at all is the server's
+ * plan (`refinerySchemaPlanSchema`), not a claim made here.
  *
- * Errors are NOT here: a refusal is the save belt's (`refinerySchemaDocumentSchema`), verbatim, and this
- * function never duplicates one.
+ * Errors are not here: a refusal is the save belt's (`refinerySchemaDocumentSchema`).
  */
 export function refinerySchemaAdvisoryOf(schema: Unprojected): RefinerySchemaAssessment {
   const state: WalkState = {
@@ -258,8 +178,7 @@ export function refinerySchemaAdvisoryOf(schema: Unprojected): RefinerySchemaAss
     strippedKeys: new Set<string>(),
     advisories: [],
   };
-  // The wire copy the hosted request would actually carry — the ONE home of which keywords survive.
-  const wire = scrubWireSchema(schema, "hosted-common").schema;
+  const wire = checkWireSchema([schema], HOSTED_INTERSECTION_TARGET.mode, undefined).wire[0] ?? {};
   walk({ node: schema, wire, path: "#", depth: 0 }, state);
 
   const stats: RefinerySchemaStats = {
@@ -279,6 +198,6 @@ export function refinerySchemaAdvisoryOf(schema: Unprojected): RefinerySchemaAss
       message: `valid — but ${named} ${state.strippedKeys.size === 1 ? "does" : "do"} not ride a hosted request: the endpoint never sees ${state.strippedKeys.size === 1 ? "it" : "them"}, so ${state.strippedKeys.size === 1 ? "it is" : "they are"} enforced when the answer comes back, not while the model writes it. Say what you want in the field's description too.`,
     });
   }
-  advisories.push(...fanAdvisories(stats), ...state.advisories);
+  advisories.push(...state.advisories);
   return { stats, advisories };
 }

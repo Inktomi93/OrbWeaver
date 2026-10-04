@@ -20,7 +20,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { scrubWireSchema, structuredSchemaComplexity } from "@orb/contracts/inference";
+import { checkWireSchema, structuredSchemaComplexity } from "@orb/contracts/inference";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ExtractionRefs, RpgStateRoundTool } from "@orb/contracts/rpg";
 import {
@@ -73,7 +73,7 @@ function wireTools(): RpgStateRoundTool[] {
 
 const tools = wireTools();
 const schema = stateRoundChangesSchema(constrained, tools);
-const strictSchema = scrubWireSchema(schema, "strict-compatible").schema;
+const strictSchema = checkWireSchema([schema], "strict-compatible", undefined).wire[0] ?? schema;
 console.log(
   JSON.stringify(
     {
@@ -155,7 +155,8 @@ if (process.env["PROBE_LIVE"] === "1") {
 if (process.env["PROBE_PATCH"] === "1") {
   const key = readEnvKey("OPENROUTER_PROBE_KEY");
   const model = process.env["PROBE_MODELS"] ?? "anthropic/claude-sonnet-5.5";
-  const patch = scrubWireSchema(projectJsonSchema(stateRoundPatchSchema(tools)), "strict-compatible").schema;
+  const projectedPatch = projectJsonSchema(stateRoundPatchSchema(tools));
+  const patch = checkWireSchema([projectedPatch], "strict-compatible", undefined).wire[0] ?? projectedPatch;
   console.log(JSON.stringify({ patch: structuredSchemaComplexity(patch) }));
   const patchSystem = [
     resolveProseText("rpg.extract.toolRoundHeader", {}),

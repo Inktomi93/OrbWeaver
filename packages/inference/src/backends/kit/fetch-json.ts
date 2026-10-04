@@ -28,6 +28,9 @@ import { classifyHttpStatus } from "./error-classify.ts";
 import { redactSecretsFromText, secretScrubOverhang } from "./openai-body.ts";
 import { sanitizeApiError } from "./sanitize.ts";
 
+/** How long a server may take to answer a read that loads nothing (its identity, its model list, its sleep state)
+ *  before it reads as not answering: the reachability probe's `down`, and the bound on a catalog warm's dials. */
+export const SERVER_READ_TIMEOUT_MS = 3000;
 const ERROR_BODY_LIMIT = 65_536;
 const REDIRECT_MIN = 300;
 const REDIRECT_MAX = 399;

@@ -58,3 +58,20 @@ export function flattenAbortSignal(external: AbortSignal): FlattenedAbort {
   const dispose = foldAbortInto(controller, external);
   return { signal: controller.signal, dispose };
 }
+
+/** A per-request deadline composed with the caller's cancel: fires on either, reason-flattened. `dispose()`
+ *  on settle also clears the deadline's timer. */
+export function deadlineSignal(external: AbortSignal | undefined, deadlineMs: number): FlattenedAbort {
+  const controller = new AbortController();
+  const detach = foldAbortInto(controller, external);
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, deadlineMs);
+  return {
+    signal: controller.signal,
+    dispose: (): void => {
+      clearTimeout(timer);
+      detach();
+    },
+  };
+}

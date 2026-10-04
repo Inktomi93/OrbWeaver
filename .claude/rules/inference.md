@@ -15,6 +15,12 @@ name; it reads the resolved `Capability` instead.
 `declared` overrides a dated measurement, and a nested field merges one level deep. Add a new
 quirk as a curated row, not a special case in `synthesize.ts`'s fold.
 
+## Structured output and tool calls
+
+A backend sends the plan from `structured/plan.ts` and spells no schema, vehicle or tool choice of
+its own. A vendor's schema subset or ceiling is a mode row in
+`packages/contracts/src/inference/wire-subset.ts` or a capability row, never a backend branch.
+
 ## Backends
 
 - Wire vocabulary differs per backend. Read each backend's own wire key or schema; never assume
@@ -32,9 +38,9 @@ quirk as a curated row, not a special case in `synthesize.ts`'s fold.
   system prompt, resolved capability), never a reconstructed HTTP payload.
 - `tokensIn` is the whole prompt of the turn. On agent-sdk read tokens from the result `usage`: `modelUsage` continues from the session's saved totals on a resumed or forked turn.
 - A context cap plus `disableAutoCompact` forces `is_error`.
-- `json_schema` output on the Anthropic wire rejects `oneOf` and throws. `scrubWireSchema`'s
-  per-provider wire-shape modes strip bound keywords like `minItems`/`maxLength` instead of
-  rejecting them (`output-schema.ts`).
+- The `outputFormat` schema comes from the structured plan (`sdkOutputFormatOf` in `runner.ts`),
+  never a local scrub. The plan refuses what the Anthropic grammar cannot carry, such as `oneOf`,
+  before the spawn.
 - Tool wire is sequential-only.
 - `terminal-tools.ts`: mount terminal tools through MCP and reach `hook_stopped` with
   `PreToolUse` `continue: false`. Never use `defer`; it is solo-only. `maxTurns` floors at 2 on a

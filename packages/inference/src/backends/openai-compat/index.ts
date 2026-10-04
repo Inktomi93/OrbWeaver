@@ -7,6 +7,7 @@
 import type { ProviderBackend } from "../../contract/backend.ts";
 import type { ChatRequest, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
+import type { Resolved } from "../../contract/resolved.ts";
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceDeps } from "../../deps.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
@@ -28,6 +29,49 @@ export type { ReachabilityProber } from "./reachability.ts";
 
 function isOpenAiCompatChatRequest(req: ChatRequest): req is OpenAiCompatChatRequest {
   return req.api === "chat-completions";
+}
+
+/** What a task carries that the wake reads: its row and its cancel. */
+interface WakeRequest {
+  readonly connection: Resolved;
+  readonly signal?: AbortSignal | undefined;
+}
+
+/** A row whose folded features name a sleep pair is woken before any task reaches it: the availability read calls a
+ *  sleeping server available because the task wakes it. A row without the pair sends as it is. */
+function wakeBeforeSend(reachability: ReachabilityProber): (req: WakeRequest) => Promise<void> {
+  return async ({ connection, signal }) => {
+    const sleep = connection.features.sleep;
+    if (sleep === undefined || connection.baseUrl === null) {
+      return;
+    }
+    const target = {
+      baseUrl: connection.baseUrl,
+      secret: connection.credential.secret,
+      headers: connection.transport?.headers,
+      sleepPath: sleep.isSleepingPath,
+      wakePath: sleep.wakePath,
+    };
+    if (!(await reachability.asleep(target, signal))) {
+      return;
+    }
+    if (!(await reachability.wake(target, signal))) {
+      throw new ProviderError({
+        kind: "model_unavailable",
+        retryable: true,
+        message: `the server at ${connection.baseUrl} was asleep and did not wake in time`,
+        model: connection.model,
+      });
+    }
+  };
+}
+
+/** A task runner that wakes the row's server first. */
+function woken<R extends WakeRequest, T>(awake: (req: WakeRequest) => Promise<void>, run: (req: R) => Promise<T>): (req: R) => Promise<T> {
+  return async (req) => {
+    await awake(req);
+    return await run(req);
+  };
 }
 
 /** The slice of the runtime deps this backend closes over. */
@@ -66,23 +110,25 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
   const batchDeps = { now: deps.now, log: deps.log, transport, normalize };
   const diagnostics = { fetch: deps.fetch, now: deps.now };
   const reachability = createReachabilityProber({ fetch: deps.fetch, now: deps.now });
+  const awake = wakeBeforeSend(reachability);
   return {
     reachability,
     tokens,
     backend: {
       wire: "openai-compat",
-      runChatTurn: (req): Promise<ChatResult> => {
+      runChatTurn: async (req): Promise<ChatResult> => {
         if (!isOpenAiCompatChatRequest(req)) {
-          return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: `openai-compat backend received api="${req.api}"` }));
+          throw new ProviderError({ kind: "invalid", retryable: false, message: `openai-compat backend received api="${req.api}"` });
         }
-        return runOpenAiCompatChatTurn(req, chatDeps);
+        await awake(req);
+        return await runOpenAiCompatChatTurn(req, chatDeps);
       },
-      embed: (req) => runOpenAiCompatEmbed(req, { log: deps.log, transport }),
-      rerank: (req) => runOpenAiCompatRerank(req, { fetch: deps.fetch, normalize, log: deps.log }),
-      imageEmbed: (req) => runOpenAiCompatImageEmbed(req, { fetch: deps.fetch, normalize }),
-      summarize: (req) => runOpenAiCompatSummarize(req, batchDeps),
-      structured: (req) => runOpenAiCompatStructured(req, batchDeps),
-      generateImage: (req) => runOpenAiCompatGenerateImage(req, { transport, normalize }),
+      embed: woken(awake, (req) => runOpenAiCompatEmbed(req, { log: deps.log, transport })),
+      rerank: woken(awake, (req) => runOpenAiCompatRerank(req, { fetch: deps.fetch, normalize, log: deps.log })),
+      imageEmbed: woken(awake, (req) => runOpenAiCompatImageEmbed(req, { fetch: deps.fetch, normalize })),
+      summarize: woken(awake, (req) => runOpenAiCompatSummarize(req, batchDeps)),
+      structured: woken(awake, (req) => runOpenAiCompatStructured(req, batchDeps)),
+      generateImage: woken(awake, (req) => runOpenAiCompatGenerateImage(req, { transport, normalize })),
       probe: (req) => probeOpenAiCompat(req, diagnostics),
       accountCredits: (req) => openRouterCredits(req, diagnostics),
       generationCost: (req) => openRouterGenerationCost(req, diagnostics),

@@ -1,11 +1,11 @@
 // Which known local server answers at a Custom connection's URL, by the one native field each states about
 // itself. Most specific first: KoboldCpp also answers Ollama's `/api/version` (a fixed `0.7.0`) and serves a
-// `/props`, so it is asked before llama.cpp and Ollama. The answer is a `ModelInfoApi`, which names the built-in
-// row that reads that server.
+// `/props`, so it is asked before llama.cpp and Ollama. vLLM serves no native identity route, so it is known last by
+// its model list's owner. The answer names the built-in row that reads that server.
 
-import type { ModelInfoApi } from "@orb/contracts/inference";
 import { z } from "zod";
-import { authHeaders, isRedirect, serverRootOf } from "../backends/kit/fetch-json.ts";
+import { deadlineSignal } from "../backends/kit/abort-flatten.ts";
+import { authHeaders, isRedirect, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/kit/fetch-json.ts";
 import type { DetectedServer } from "../contract/runtime.ts";
 
 export interface DetectArgs {
@@ -25,11 +25,14 @@ const llamaCppPropsSchema = z.union([
   z.object({ chat_template_caps: z.record(z.string(), z.unknown()) }).loose(),
 ]);
 const ollamaVersionSchema = z.object({ version: z.string() }).loose();
+/** vLLM's OpenAI server stamps every listed model `owned_by: "vllm"`; other servers name themselves or the org. */
+const vllmModelsSchema = z.object({ data: z.array(z.object({ ["owned_by"]: z.literal("vllm") }).loose()).min(1) }).loose();
 
-const PROBES: readonly { readonly server: ModelInfoApi; readonly path: string; readonly schema: z.ZodType }[] = [
+const PROBES: readonly { readonly server: NonNullable<DetectedServer["server"]>; readonly path: string; readonly schema: z.ZodType }[] = [
   { server: "koboldcpp", path: "/api/extra/version", schema: koboldVersionSchema },
   { server: "llama-cpp", path: "/props", schema: llamaCppPropsSchema },
   { server: "ollama", path: "/api/version", schema: ollamaVersionSchema },
+  { server: "vllm", path: "/v1/models", schema: vllmModelsSchema },
 ];
 
 /** One GET: the JSON body of a 2xx, `null` for any other answer, and a throw only when nothing answered. A
@@ -56,14 +59,20 @@ async function answer(args: DetectArgs, path: string): Promise<unknown> {
 /**
  * Probe the server in order and name the first that identifies itself. A server the first probe could not reach
  * (refused, timed out) throws at once: every probe dials the same origin, so asking the rest only waits out the same
- * dead host again. The throw leaves the caller's cache cold; a server that answered and matched none is `null`, which
- * is cached like a match.
+ * dead host again. The whole identification shares one {@link SERVER_READ_TIMEOUT_MS} deadline, so a host that
+ * answers slowly is a host that did not answer. The throw leaves the caller's cache cold; a server that answered and
+ * matched none is `null`, which is cached like a match.
  */
 export async function detectServer(args: DetectArgs): Promise<DetectedServer> {
-  for (const probe of PROBES) {
-    if (probe.schema.safeParse(await answer(args, probe.path)).success) {
-      return { modelInfoApi: probe.server };
+  const deadline = deadlineSignal(args.signal, SERVER_READ_TIMEOUT_MS);
+  try {
+    for (const probe of PROBES) {
+      if (probe.schema.safeParse(await answer({ ...args, signal: deadline.signal }, probe.path)).success) {
+        return { server: probe.server };
+      }
     }
+    return { server: null };
+  } finally {
+    deadline.dispose();
   }
-  return { modelInfoApi: null };
 }

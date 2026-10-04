@@ -14,7 +14,7 @@ import type { AssembledPrompt } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SideGenSampling } from "@orb/inference";
-import { resolveSideGenSampling } from "@orb/inference";
+import { resolveSideGenSampling, withPresetWindow } from "@orb/inference";
 import type { QuietGenerate, QuietGenerateDeps, QuietGenerateParams } from "../contract/context.ts";
 import type { TurnMessage } from "../contract/results.ts";
 
@@ -85,7 +85,8 @@ export function createQuietGenerate(deps: QuietGenerateDeps): QuietGenerate {
   return async (params: QuietGenerateParams) => {
     const chatParams = await deps.resolveChatPresetParams(params.chatId);
     const stream = deps.runChatTurn({
-      connection: params.connection,
+      // The chat's own window on a route that sends one: the server neither reloads the model nor cuts the transcript.
+      connection: withPresetWindow(params.connection, chatParams.maxContextTokens),
       chatId: params.chatId,
       prompt: quietPrompt(params.systemPrompt),
       history: quietHistory(params.userText),

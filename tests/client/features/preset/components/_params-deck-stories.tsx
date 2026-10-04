@@ -103,6 +103,18 @@ export function ParamsDeckGhostStory(): ReactElement {
   return <DeckHarness effective={GHOST_EFFECTIVE} params={{}} />;
 }
 
+/** The deck on Ollama's native route: an unpinned model resolves to the server's 4096 floor, and the route sends the
+ *  preset's Max context as `num_ctx`, so the knob reaches the model's 32768 trained maximum. */
+export function ParamsDeckSettableWindowStory(): ReactElement {
+  const capability = { ...STORY_CAPABILITY, context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } } };
+  return <DeckHarness capability={capability} effective={GHOST_EFFECTIVE} params={{}} />;
+}
+
+/** A Max context stored on a wider connection, read on this one's 32768 window, which it cannot send past. */
+export function ParamsDeckContextOverWindowStory(): ReactElement {
+  return <DeckHarness effective={GHOST_EFFECTIVE} params={{ maxContextTokens: 131_072 }} />;
+}
+
 /** The deck with an EXPLICIT repetition penalty the model clamps + a `quality` dial — the clamp gloss and
  *  the quality-mapping gloss both come off the resolver, never a client re-derivation. */
 export function ParamsDeckExplicitStory(): ReactElement {
@@ -132,6 +144,37 @@ export function ParamsDeckStaleKoboldStory(): ReactElement {
 
 export function ParamsDeckStaleStory(): ReactElement {
   return <DeckHarness effective={STALE_EFFECTIVE} params={{ topA: 0.2 }} />;
+}
+
+// A llama.cpp-shaped sampler set: an order whose last stage is adaptive-P, and the knobs its Mirostat branch skips.
+const LLAMA_MIROSTAT_CAPABILITY = makeGenerationCapability({
+  sampling: {
+    temperature: { min: 0, max: 5 },
+    topP: { min: 0, max: 1 },
+    topK: { min: 0, max: 200 },
+    mirostatMode: { min: 0, max: 2 },
+    mirostatTau: { min: 0, max: 10 },
+    samplerOrder: ["penalties", "topK", "topP", "temperature", "adaptiveP"],
+    mirostatSkips: ["topP", "topK"],
+  },
+  output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
+  context: { window: 32_768 },
+});
+
+/** Mirostat 2 is on, and the stored order put adaptive-P first: the server runs it last, and skips top-p and top-k. */
+export function ParamsDeckMirostatStory(): ReactElement {
+  return (
+    <DeckHarness
+      capability={LLAMA_MIROSTAT_CAPABILITY}
+      effective={{
+        model: "qwen3-8b",
+        knobs: { mirostatMode: { value: 2, provenance: "explicit" }, topP: { value: 0.95, provenance: "serverDefault" } },
+        stale: [],
+        qualityMapping: null,
+      }}
+      params={{ mirostatMode: 2, samplerOrder: ["adaptiveP", "temperature", "topK"] }}
+    />
+  );
 }
 
 /** The deck while the capability read is still PENDING (no descriptor, no error) — the gate's skeleton arm,

@@ -1,6 +1,7 @@
 // The openai-compat wire's one sampler-spelling seam: the knobs the V4 call options model go to the SDK, every
-// other knob rides the body under the row's own spelling (`features.samplerKeys` over `DEFAULT_SAMPLER_KEYS`,
-// `features.samplerOrder`). Which knobs ride was decided by the funnel; an unset knob is never sent.
+// other knob rides the body under the row's own spelling (`features.samplerKeys` over `DEFAULT_SAMPLER_KEYS`, and
+// any `features.samplerAliases` beside it; `features.samplerOrder`). Which knobs ride was decided by the funnel; an
+// unset knob is never sent.
 
 import type { Dialect, EndpointFeatures, SamplerKnob, SamplerStage } from "@orb/contracts/inference";
 import { BODY_SAMPLER_KNOBS, DEFAULT_SAMPLER_KEYS, SAMPLER_KNOBS, SAMPLER_ORDER_TOKENS } from "@orb/contracts/inference";
@@ -55,7 +56,9 @@ function spellSamplers(
   for (const knob of knobs) {
     const value = sampling[knob];
     if (value !== undefined && !(knob === "bannedStrings" && bansAsBias)) {
-      spelled[keys[knob]] = value;
+      for (const key of [keys[knob], ...(features.samplerAliases?.[knob] ?? [])]) {
+        spelled[key] = value;
+      }
     }
   }
   if (bansAsBias && sampling.bannedStrings !== undefined && knobs.includes("bannedStrings")) {
@@ -77,7 +80,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function samplerBodyKeys(features: EndpointFeatures): ReadonlySet<string> {
   const keys = { ...DEFAULT_SAMPLER_KEYS, ...features.samplerKeys };
   const order = features.samplerOrder === undefined ? [] : [SAMPLER_ORDER_TOKENS[features.samplerOrder].key];
-  return new Set([...SAMPLER_KNOBS.map((knob) => keys[knob]), ...order]);
+  return new Set([...SAMPLER_KNOBS.flatMap((knob) => [keys[knob], ...(features.samplerAliases?.[knob] ?? [])]), ...order]);
 }
 
 export function wireSampling(sampling: ResolvedSampling, features: EndpointFeatures, dialect: Dialect, warnings: ResolvedWarning[]): WireSampling {

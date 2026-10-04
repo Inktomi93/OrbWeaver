@@ -1,29 +1,19 @@
-// domain/refinery/substrate/stage-parse — the ONE model-output parse seam every stage inherits
-// (security pass §4.4-4.6). Two belts, composed per call:
-//   • `dropNullValues` BEFORE validation (§3.B): under the D126 `strict-compatible` projection, optional
-//     fields arrive as explicit `null` and would fail `z.number().optional()` — every rewrite run dead on
-//     that deployment. The kit function is safe to run unconditionally (its own docstring).
-//   • the STRIPPED-KEY itemization (§1 gap 5): zod strip-mode silently removes unknown keys, so an
-//     invented key must be DIFFED back out of the pre-parse capture and recorded on the run row — paths
-//     only, never values (zod messages quote model output; the structured-turn header's law).
-// The capture is taken AFTER the null-drop, DELIBERATELY: an explicit null under strict-compatible is
-// the projection's own encoding of ABSENT (protocol-normal), not an invented key — itemizing it would
-// stamp stripped keys onto EVERY legitimate run on that deployment and drown the tamper signal in
-// noise. Only keys the SCHEMA refused to know are itemized.
-// The capture is PER-CALL state (build a fresh parse per run) — a module-cached capture would pool one
-// call's payload onto another's (the per-turn-sink lesson).
+// domain/refinery/substrate/stage-parse — the ONE model-output parse seam every stage inherits (security pass
+// §4.4-4.6). The reply arrives already normalized by the structured layer (a null the reshape introduced is gone),
+// so this seam adds one belt: the STRIPPED-KEY itemization (§1 gap 5). zod strip-mode silently removes unknown
+// keys, so an invented key is DIFFED back out of the pre-parse capture and recorded on the run row — paths only,
+// never values (zod messages quote model output; the structured-turn header's law). The capture is PER-CALL state
+// (build a fresh parse per run) — a module-cached capture would pool one call's payload onto another's.
 
-import { dropNullValues } from "@orb/contracts/inference";
 import { z } from "zod";
 import type { StageParse } from "../contract/prompts.ts";
 
-/** Wrap one stage's payload schema with the null-drop + capture belts. Fresh per call (header). */
+/** Wrap one stage's payload schema with the capture belt. Fresh per call (header). */
 export function buildStageParse<T>(payloadSchema: z.ZodType<T>): StageParse<T> {
   let captured: unknown;
   const schema: z.ZodType<T> = z.preprocess((value) => {
-    const dropped = dropNullValues(value);
-    captured = dropped;
-    return dropped;
+    captured = value;
+    return value;
   }, payloadSchema);
   return {
     schema,

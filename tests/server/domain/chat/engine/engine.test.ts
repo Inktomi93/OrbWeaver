@@ -26,7 +26,6 @@ const NO_DOMAIN_DROPS = {
   imageDropped: false,
   videoDropped: false,
   toolsUnsupported: false,
-  structuredOutputUnsupported: false,
   guidedPlacedAsInjection: false,
   providerRefused: false,
 } as const;

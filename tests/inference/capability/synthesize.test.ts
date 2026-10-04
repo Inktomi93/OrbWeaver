@@ -149,6 +149,25 @@ test("embedding: maxInputTokens stated by curated clears windowEstimated; declar
   expect(embeddingOf(synthesizeCapability("embedding", "other", {}).capability).windowEstimated).toBe(true);
 });
 
+test("embedding: a server's assumed input floor replaces a curated window but stays estimated; a later stated window clears it", () => {
+  const curatedWindow: CapabilityOverride[] = [
+    { kind: "embedding", embedding: { maxInputTokens: 8192 }, evidence: { tier: "curated", dated: "2026-09-19", cite: "t" } },
+  ];
+  const floor = embeddingOf(
+    synthesizeCapability("embedding", "other", { curated: curatedWindow, advertised: { maxInputTokens: 2048, windowEstimated: true } }).capability,
+  );
+  expect(floor).toMatchObject({ maxInputTokens: 2048, windowEstimated: true });
+  const declared = embeddingOf(
+    synthesizeCapability("embedding", "other", {
+      curated: curatedWindow,
+      advertised: { maxInputTokens: 2048, windowEstimated: true },
+      declared: { embedding: { maxInputTokens: 4096 } },
+    }).capability,
+  );
+  expect(declared.maxInputTokens).toBe(4096);
+  expect(declared.windowEstimated).toBeUndefined();
+});
+
 function rowOf(id: string): ProviderDef {
   const row = builtinProvider(id);
   if (row === undefined) {

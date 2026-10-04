@@ -68,12 +68,21 @@ function mergeGeneration(base: GenerationCapability, patch: GenerationPatch | Pa
     }
     merged[key] = value;
   }
+  mergeStructuredLimits(merged, base, patch);
   // A patch may open `turns` without every required cell: fill from the floor so the shape stays total.
   const turns = merged["turns"];
   if (typeof turns === "object" && turns !== null) {
     merged["turns"] = { ...TURNS_FLOOR, ...turns };
   }
   return merged as GenerationCapability;
+}
+
+// `output.structuredLimits` is a table of independent ceilings: a tier that states one keeps the others.
+function mergeStructuredLimits(merged: Record<string, unknown>, base: GenerationCapability, patch: GenerationPatch | Partial<GenerationCapability>): void {
+  const limits = { ...base.output.structuredLimits, ...patch.output?.structuredLimits };
+  if (Object.keys(limits).length > 0) {
+    merged["output"] = { ...(merged["output"] as GenerationCapability["output"]), structuredLimits: limits };
+  }
 }
 
 function mergeFlat<T extends object>(base: T, patch: Patch<T> | undefined): T {
@@ -177,8 +186,11 @@ function synthesizeEmbedding(evidence: Evidence): SynthesizedCapability {
   capability = mergeFlat(capability, declared);
   const tiers = [...(evidence.curated ?? []), ...(evidence.measured ?? [])];
   const advertised = evidence.advertised as Partial<EmbeddingCapability> | undefined;
-  const stated =
-    tiers.some((row) => row.embedding?.maxInputTokens !== undefined) || advertised?.maxInputTokens !== undefined || declared?.maxInputTokens !== undefined;
+  // As for a chat window: the tier whose input limit won the fold decides whether it is stated or a server's floor.
+  const windowSetters = [...(evidence.curated ?? []).map((row) => row.embedding), advertised, ...measuredRows, declared].filter(
+    (patch) => patch?.maxInputTokens !== undefined,
+  );
+  const stated = windowSetters.length > 0 && windowSetters.at(-1)?.windowEstimated !== true;
   // The width is ESTIMATED when only the floor stated it — a guessed width must never read as a fit.
   const dimsStated = tiers.some((row) => row.embedding?.dims !== undefined) || advertised?.dims !== undefined || declared?.dims !== undefined;
   const { windowEstimated: _dropped, dimsEstimated: _priorDimsFlag, ...rest } = capability;

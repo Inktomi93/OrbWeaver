@@ -340,10 +340,11 @@ type BumpStatsCanonVersionOp = BumpStatsCanonVersion<unknown, Db>;
  *  @public Test-anchored module surface; the chat/memory test harnesses type their fake summarizers with it. */
 export type SummarizeOp = (funderUserId: UserId, ...args: Parameters<RoleClientsWithSignal["summarize"]>) => Promise<SummarizeResult>;
 
-/** The chat host's active-preset generation params for a quiet generation, which runs on the CHAT connection
- *  and so on the Chat role's preset. Resolved at the entry root (chat never reads the preset domain); a
- *  hostless/stale room degrades to the system-default params. */
-type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling>;
+/** The room's preset generation params for a quiet generation, which runs on the CHAT connection and so on the
+ *  preset the turn runs: the same ladder (a game's GM-voice preset, else the host's default). Resolved at the entry
+ *  root (chat never reads the preset domain); a hostless/stale room degrades to the system-default params.
+ *  `maxContextTokens` sets the window on a route that sends one, so the pass runs the turn's own. */
+type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling & Pick<UserIntent, "maxContextTokens">>;
 
 /** A user's Utility-role preset params (D299), `undefined` under task defaults. Resolved at the entry root. */
 type ResolveUtilityPresetParamsOp = (userId: UserId) => Promise<SideGenSampling | undefined>;

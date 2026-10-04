@@ -56,7 +56,7 @@ import {
   supportsSeed,
 } from "../lib/capability-panel-model.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
-import { qualityDeckGloss } from "../lib/effective-knobs.ts";
+import { MIROSTAT_SKIPPED_GLOSS, mirostatSkipped, qualityDeckGloss } from "../lib/effective-knobs.ts";
 import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav.ts";
 import type { ReadFailure } from "../lib/resolve-failure.ts";
 import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
@@ -197,6 +197,7 @@ function SamplingCluster({
 }): ReactElement {
   const knobs = samplingKnobsFor(capability);
   const stages = samplerStagesFor(capability);
+  const skipped = mirostatSkipped(effective, capability.sampling.mirostatSkips);
   if (knobs.length === 0 && !supportsSeed(capability)) {
     return (
       <Section kicker="Sampling">
@@ -222,6 +223,7 @@ function SamplingCluster({
                 max={knob.range.max}
                 min={knob.range.min}
                 name={knob.field}
+                note={skipped.has(knob.key) ? MIROSTAT_SKIPPED_GLOSS : undefined}
                 quality={quality}
                 step={knob.step}
                 {...(knob.step === INTEGER_STEP ? { largeStep: pageStep(knob.range.min, knob.range.max) } : {})}

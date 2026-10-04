@@ -86,23 +86,17 @@ test("stats count nested properties, optionals, unions and depth — the account
   expect(stats.maxDepth).toBe(3);
 });
 
-test("the optional FAN advisory fires past the OG's threshold and escalates to the measured Anthropic ceiling", () => {
-  const optionalsOf = (n: number): Record<string, unknown> => ({
+test("the hosted accounting claims nothing about a model: whether a bound model takes the schema is the server's plan", () => {
+  const optionals = {
     type: "object",
-    properties: Object.fromEntries(Array.from({ length: n }, (_, i) => [`f${i}`, { type: "string" }])),
+    properties: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`f${i}`, { type: "string" }])),
     required: [],
-  });
-  // 10 optionals — still under the OG's threshold, no fan advisory.
-  expect(refinerySchemaAdvisoryOf(optionalsOf(10)).advisories.filter((a) => a.code === "optional-nullable-fan")).toEqual([]);
-  // 12 — the fan advisory, and it says how many.
-  const fan = refinerySchemaAdvisoryOf(optionalsOf(12)).advisories;
-  expect(fan.filter((a) => a.code === "optional-nullable-fan").length).toBeGreaterThan(0);
-  expect(fan.some((a) => a.message.includes("12 optional fields"))).toBe(true);
-  // Past the measured 46 the copy escalates to the CEILING arm (a refusal risk, not a style note), and
-  // the two arms are exclusive — one sentence per fact.
-  const ceiling = refinerySchemaAdvisoryOf(optionalsOf(50)).advisories;
-  expect(ceiling.some((a) => a.code === "optional-ceiling")).toBe(true);
-  expect(ceiling.filter((a) => a.code === "optional-nullable-fan" && a.message.includes("optional fields."))).toEqual([]);
+  };
+  // Past every hosted ceiling, yet no advisory: a model that takes tools still runs it, which only the plan knows.
+  expect(refinerySchemaAdvisoryOf(optionals).advisories).toEqual([]);
+  expect(
+    refinerySchemaAdvisoryOf({ type: "object", properties: { pick: { oneOf: [{ type: "string" }, { type: "number" }] } }, required: ["pick"] }).advisories,
+  ).toEqual([]);
 });
 
 test("a wide union advises on its variant count, at the node's own path", () => {

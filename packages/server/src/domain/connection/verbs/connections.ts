@@ -39,7 +39,6 @@ import {
 } from "../persistence/connections.ts";
 import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
 import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
-import { curatedKindOf } from "../substrate/kind.ts";
 import type { createOwnerWriteQueue } from "../substrate/owner-queue.ts";
 
 type OwnerWriteQueue = ReturnType<typeof createOwnerWriteQueue>;
@@ -89,13 +88,13 @@ function mintLabel(provider: ProviderDef, model: string, taken: readonly string[
   return nextFreeLabel(base, taken);
 }
 
-function toView(ctx: ConnectionContext, row: UserConnection): ConnectionView {
+// A list read: the kind comes from what the mirrors already hold, so a server that does not answer never holds the list.
+async function toView(ctx: ConnectionContext, row: UserConnection): Promise<ConnectionView> {
   const provider = ctx.runtime.providers.registry.get(row.providerId, row.ownerId);
-  const kind = row.declared?.kind ?? (provider === undefined ? undefined : curatedKindOf(row, provider)) ?? "generation";
   return {
     ...row,
     providerLabel: provider === undefined ? row.providerId : providerDisplayLabel(provider),
-    tasks: provider === undefined ? [] : connectionTasks(provider, kind),
+    tasks: provider === undefined ? [] : connectionTasks(provider, await ctx.runtime.modelKind(row, { cachedFacts: true })),
   };
 }
 
@@ -108,7 +107,8 @@ async function requireOwnedRow(ctx: ConnectionContext, ownerId: UserId, connecti
 }
 
 function createList(ctx: ConnectionContext): ConnectionService["list"] {
-  return async (params): Promise<readonly ConnectionView[]> => (await listOwnedConnections(ctx.db, params.principal.userId)).map((row) => toView(ctx, row));
+  return async (params): Promise<readonly ConnectionView[]> =>
+    await Promise.all((await listOwnedConnections(ctx.db, params.principal.userId)).map((row) => toView(ctx, row)));
 }
 
 function createGet(ctx: ConnectionContext): ConnectionService["get"] {

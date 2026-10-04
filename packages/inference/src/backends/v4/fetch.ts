@@ -65,6 +65,9 @@ export interface WrapFetchArgs {
   /** The openrouter transport's body shaper, and a native chat route's translation (`ollama-native.ts`); the
    *  openai-compatible transport shapes in `transformRequestBody`. */
   readonly shapeBody?: ((body: Record<string, unknown>) => Record<string, unknown>) | undefined;
+  /** A native chat route's reply as the SDK reads it (`ollama-native.ts`), applied AFTER the reply tap so the
+   *  capture holds the bytes the server sent, on a success and a failure alike. */
+  readonly translateResponse?: ((res: Response) => Promise<Response>) | undefined;
   readonly capture?:
     | {
         readonly sink: WireCaptureSink;
@@ -446,7 +449,12 @@ async function failedResponse(args: WrapFetchArgs, res: Response, body: Record<s
   // The entry takes the RAW over-read text: `emitCapture` runs the same scrub-then-slice pair, and handing it
   // the already-sliced copy would re-introduce the truncate-first order the pair exists to avoid.
   emitCapture(args, body, res.headers, capturesReply(args) ? raw : undefined);
-  return new Response(scrubToLimit(raw, args.secrets), { status: res.status, statusText: res.statusText, headers: res.headers });
+  return await translated(args, new Response(scrubToLimit(raw, args.secrets), { status: res.status, statusText: res.statusText, headers: res.headers }));
+}
+
+/** A native route's reply as the SDK reads it; any other reply untouched. */
+function translated(args: WrapFetchArgs, res: Response): Promise<Response> {
+  return args.translateResponse === undefined ? Promise.resolve(res) : args.translateResponse(res);
 }
 
 /** The wrapped `fetch`: host-pinned, error-body-capped, response-reshaped, wire-captured. */
@@ -468,12 +476,13 @@ export function wrapFetch(args: WrapFetchArgs): typeof fetch {
     if (!res.ok) {
       return await failedResponse(args, res, prepared.capturedBody);
     }
-    // Tapped BEFORE any reshaping: the capture's whole claim is that it holds the literal wire, and
-    // `reshapedResponse` re-spells a non-OpenAI reply onto the SDK's schema.
+    // Tapped BEFORE any translation or reshaping: the capture's whole claim is that it holds the literal wire, and
+    // both re-spell a non-OpenAI reply onto the SDK's schema.
     const tapped = capturesReply(args) ? tapReply(res, args, prepared.capturedBody) : res;
     if (!capturesReply(args)) {
       emitCapture(args, prepared.capturedBody, res.headers, undefined);
     }
-    return needsReshape(args) ? await reshapedResponse(tapped, args) : tapped;
+    const reply = await translated(args, tapped);
+    return needsReshape(args) ? await reshapedResponse(reply, args) : reply;
   };
 }

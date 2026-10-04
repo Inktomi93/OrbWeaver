@@ -9,7 +9,7 @@
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { EmbeddingModelV4, ImageModelV4, LanguageModelV4 } from "@ai-sdk/provider";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
-import type { Dialect, ImageDetail } from "@orb/contracts/inference";
+import type { Dialect, EffortLevel, ImageDetail } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { wrapLanguageModel } from "ai";
 import type { WireCaptureSink } from "../../contract/backend.ts";
@@ -23,7 +23,8 @@ import { wrapFetch } from "../v4/fetch.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import type { ShapeArgs } from "./body.ts";
 import { shapeOutboundBody, userOwnedKeys } from "./body.ts";
-import { ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
+import type { NativeThink } from "./ollama-native.ts";
+import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
 import { samplerBodyKeys } from "./sampling.ts";
 import type { ReasoningTags } from "./think-tags.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
@@ -53,6 +54,13 @@ export interface ModelCall {
   readonly prefillAllowed: boolean;
   /** What body rule 5b tells the template's thinking switch; `undefined` leaves the server's default. */
   readonly templateThinking: boolean | undefined;
+  /** What body rule 5c tells the template about replaying prior thinking; `undefined` sends nothing. */
+  readonly templatePreserveReasoning: boolean | undefined;
+  /** The effort the funnel resolved, for a route that spells effort in its own words rather than the V4 one (Ollama's
+   *  native `think`, where `max` is not the OpenAI route's `xhigh`). */
+  readonly reasoningEffort?: EffortLevel | undefined;
+  /** Sees each native body as it goes out (after the user's body), so a turn records what was sent. */
+  readonly onNativeBody?: ((body: Readonly<Record<string, unknown>>) => void) | undefined;
   /** Fold consecutive plain same-role rows into one message of parts (`body.ts` rule 10). */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
@@ -79,6 +87,7 @@ function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
     dialect,
     prefillAllowed: call.prefillAllowed,
     templateThinking: call.templateThinking,
+    templatePreserveReasoning: call.templatePreserveReasoning,
     reasoningMandatory: call.connection.capability.kind === "generation" && call.connection.capability.generation.reasoning.mandatory === true,
     foldSameRole: call.foldSameRole,
     replyImages: call.replyImages,
@@ -146,7 +155,8 @@ function openAiCompatibleProvider(call: ModelCall): ReturnType<typeof createOpen
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
     fetch: wrapFetch(fetchArgs(call, undefined)),
     includeUsage: true,
-    supportsStructuredOutputs: connection.features.strictJson !== "never",
+    // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
+    supportsStructuredOutputs: true,
     transformRequestBody: withExtra,
   });
 }
@@ -158,10 +168,14 @@ function nativeWindow(call: ModelCall): number | undefined {
   return capability.kind === "generation" ? capability.generation.context.window : undefined;
 }
 
-/** The model states named effort levels, so Ollama's `think` carries the level rather than `true`. */
-function namedThinkLevels(call: ModelCall): boolean {
+/** What Ollama's `think` is spelled from: the resolved effort, the levels the model names, and the template switch. */
+function nativeThink(call: ModelCall): NativeThink {
   const capability = call.connection.capability;
-  return capability.kind === "generation" && (capability.generation.reasoning.effortLevels?.length ?? 0) > 0;
+  return {
+    effort: call.reasoningEffort,
+    levels: capability.kind === "generation" ? capability.generation.reasoning.effortLevels : undefined,
+    on: call.templateThinking,
+  };
 }
 
 /** A row whose folded `features.nativeChat` is `ollama` (D296): the same SDK and the same body shaping, with
@@ -174,23 +188,32 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
   const withExtra = (body: Record<string, unknown>): Record<string, unknown> => shapeOutboundBody({ ...body, ...(call.extraBody ?? {}) }, args);
   const samplerKeys = samplerBodyKeys(connection.features);
   const userOwned = userOwnedKeys(args);
-  const toNative = (body: Record<string, unknown>): Record<string, unknown> =>
-    toOllamaChat(body, {
+  const toNative = (body: Record<string, unknown>): Record<string, unknown> => {
+    const native = toOllamaChat(body, {
       numCtx: nativeWindow(call),
       samplerKeys,
       label: call.label,
-      namedThinkLevels: namedThinkLevels(call),
+      think: nativeThink(call),
       userOwned,
       keepAlive: connection.features.keepAlive,
       numBatch: connection.features.numBatch,
+      warnings: call.warnings,
     });
+    call.onNativeBody?.(native);
+    return native;
+  };
   return createOpenAICompatible({
     name: connection.providerId,
     baseURL: openAiPath(baseUrl, ""),
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
-    fetch: wrapFetch({ ...fetchArgs(call, toNative), fetch: ollamaNativeFetch(deps.fetch, { baseUrl, label: call.label }) }),
+    fetch: wrapFetch({
+      ...fetchArgs(call, toNative),
+      fetch: ollamaNativeFetch(deps.fetch, { baseUrl }),
+      translateResponse: (res) => fromOllamaChat(res, call.label),
+    }),
     includeUsage: true,
-    supportsStructuredOutputs: connection.features.strictJson !== "never",
+    // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
+    supportsStructuredOutputs: true,
     transformRequestBody: withExtra,
   });
 }

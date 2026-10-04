@@ -7,7 +7,7 @@
 // have NO matcher at all — `resolve-task.ts` applied the whole anthropic list to every anthropic-family id, so a
 // per-model measurement was structurally impossible (inference audit B3/H3, 2026-09-20).
 
-import type { CapabilityOverride, ChatApi, ProviderId, Wire } from "@orb/contracts/inference";
+import type { CapabilityOverride, ChatApi, NativeChatApi, ProviderId, Wire } from "@orb/contracts/inference";
 import { capabilityOverrideSchema } from "@orb/contracts/inference";
 import { z } from "zod";
 
@@ -23,6 +23,8 @@ export interface RowQuery {
   readonly providerId?: ProviderId | undefined;
   readonly wire?: Wire | undefined;
   readonly api?: ChatApi | null | undefined;
+  /** The chat route the folded `features.nativeChat` selects; a row that names one matches that route only. */
+  readonly nativeChat?: NativeChatApi | undefined;
 }
 
 const rowsSchema = z.array(capabilityOverrideSchema);
@@ -60,6 +62,9 @@ function rowMatches(compiled: CompiledRow, query: RowQuery): boolean {
     return false;
   }
   if (match.api !== undefined && match.api !== (query.api ?? null)) {
+    return false;
+  }
+  if (match.nativeChat !== undefined && match.nativeChat !== query.nativeChat) {
     return false;
   }
   return true;

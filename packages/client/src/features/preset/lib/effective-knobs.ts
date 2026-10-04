@@ -48,6 +48,16 @@ const KNOB_LABELS: Readonly<Record<string, string>> = {
   replyMedia: "reply pictures",
 };
 
+/** What a knob's row says while the server's Mirostat branch replaces it: the value still rides, and nothing runs it. */
+export const MIROSTAT_SKIPPED_GLOSS = "not run while Mirostat is on";
+
+/** The knobs the server will not run this turn because the effective Mirostat mode is on: the capability's own
+ *  list for this server (`sampling.mirostatSkips`), read against the funnel's resolved mode. */
+export function mirostatSkipped(effective: EffectiveProfileRow | undefined, skips: readonly string[] | undefined): ReadonlySet<string> {
+  const mode = effective?.knobs["mirostatMode"]?.value;
+  return typeof mode === "number" && mode > 0 ? new Set(skips ?? []) : new Set();
+}
+
 /** The read's rung for a value the server advertised for a knob the preset leaves unset. */
 const SERVER_DEFAULT = "serverDefault";
 const SERVER_DEFAULT_GLOSS = "server default";
@@ -63,9 +73,9 @@ function isFlagKnob(knob: string): knob is keyof typeof SAMPLING_FLAG_LABELS {
   return Object.hasOwn(SAMPLING_FLAG_LABELS, knob);
 }
 
-/** Sampling-capability keys that constrain knobs rather than name one (`exclusive` pairs knobs a model refuses
- *  together), so the honors list never prints them. */
-const SAMPLING_CONSTRAINT_KEYS: ReadonlySet<string> = new Set(["exclusive"] satisfies (keyof GenerationCapability["sampling"])[]);
+/** Sampling-capability keys that state a fact about other knobs rather than name one (`exclusive` pairs knobs a
+ *  model refuses together; `mirostatSkips` lists knobs Mirostat replaces), so the honors list never prints them. */
+const SAMPLING_CONSTRAINT_KEYS: ReadonlySet<string> = new Set(["exclusive", "mirostatSkips"] satisfies (keyof GenerationCapability["sampling"])[]);
 
 /** The Capability card's `honors …` list: one knob word per sampling key the capability advertises. */
 export function honoredKnobLabels(sampling: Readonly<Record<string, unknown>>): readonly string[] {
@@ -80,7 +90,13 @@ export interface KnobGhost {
   readonly value: number;
   /** The terse provenance line under the track — `null` when there is nothing non-obvious to say. */
   readonly gloss: string | null;
+  /** `false` when the request sends this default itself, so the model does not pick it. */
+  readonly modelDecides: boolean;
 }
+
+/** The client-supplied rung for Max context on a route whose window the request sends: unset, the resolved window
+ *  is the value sent, so it is a plain default rather than the model's full window. */
+export const SENT_WINDOW_PROVENANCE = "sentWindow";
 
 /** The clamp gloss for an EXPLICIT knob the capability moved — decision-load-bearing, so it stays VISIBLE
  *  (never behind a hover hint, §4.1). `null` when the stored value survived the funnel intact. */
@@ -105,7 +121,7 @@ export function knobGhost(effective: EffectiveKnobRow | undefined, quality: stri
   if (effective === undefined || typeof effective.value !== "number") {
     return null;
   }
-  return { value: effective.value, gloss: ghostGloss(effective.provenance, quality) };
+  return { value: effective.value, gloss: ghostGloss(effective.provenance, quality), modelDecides: effective.provenance !== SENT_WINDOW_PROVENANCE };
 }
 
 /** The provenance line, keyed by the server's rung vocabulary. An unknown rung reads as no gloss rather
@@ -117,7 +133,7 @@ function ghostGloss(provenance: string, quality: string | undefined): string | n
   if (provenance === "modelDefault") {
     return "model default";
   }
-  if (provenance === "floor") {
+  if (provenance === "floor" || provenance === SENT_WINDOW_PROVENANCE) {
     return "default";
   }
   // Not sent: the server runs its own advertised value for an unset knob.

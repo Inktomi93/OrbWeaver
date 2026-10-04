@@ -97,14 +97,15 @@ test("v3→v4 AppSettings lift is a no-op passthrough — the ⑩ admin fields a
   expect(liftedV3.agentSdkConcurrency).toBeUndefined();
 });
 
-test("v4→v5 AppSettings lift is a no-op passthrough — structuredOutputShape is additive (absent ⇒ the resolver floor)", () => {
-  // D126. A v4 blob (no shape field) lifts to v5 untouched; the missing field stays absent and reads back as
-  // its born-in-DB floor. A garbage value self-heals to absent rather than nuking the blob (`.catch`).
-  const liftedV4 = parseAppSettings({ schemaVersion: 4, imageVariantQuality: 60 });
-  expect(liftedV4.imageVariantQuality).toBe(60);
-  expect(liftedV4.structuredOutputShape).toBeUndefined();
-  expect(parseAppSettings({ structuredOutputShape: "strict-compatible" }).structuredOutputShape).toBe("strict-compatible");
-  expect(parseAppSettings({ structuredOutputShape: "nonsense", logLevel: "debug" })).toEqual({ logLevel: "debug" });
+test("a stored blob carrying the deleted structured-output keys loses them at parse, and every sibling override survives", () => {
+  // The shape and vehicle knobs are gone (the structured plan decides both); an old blob reads back without them.
+  const lifted = parseAppSettings({
+    schemaVersion: 4,
+    imageVariantQuality: 60,
+    structuredOutputShape: "strict-compatible",
+    structuredOutputVehicle: "forced-tool",
+  });
+  expect(lifted).toEqual({ imageVariantQuality: 60 });
 });
 
 test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVERY other key forward (#321)", () => {
@@ -172,8 +173,8 @@ test("v7→v8 AppSettings lift drops memoryDefaults.recencyBias and carries EVER
   expect(parsed.forbidExternalMedia).toBe(true);
   expect(parsed.maxImageBytes).toBe(20_000_000);
   expect(parsed.imageVariantQuality).toBe(60);
-  expect(parsed.structuredOutputShape).toBe("strict-compatible");
-  expect(parsed.structuredOutputVehicle).toBe("forced-tool");
+  expect(parsed).not.toHaveProperty("structuredOutputShape");
+  expect(parsed).not.toHaveProperty("structuredOutputVehicle");
   expect(parsed.promptCacheMinDepth).toBe(4);
   expect(parsed.localMultiUser).toBe(true);
 });
@@ -633,27 +634,14 @@ test("AppSettings ipCertificate: a whole choice parses; a malformed one drops al
   }
 });
 
-// The AppSettings v6→v7 lift. `structuredOutputVehicle` is purely additive AND its floor (`auto`) resolves
-// to exactly the vehicle every request used before the knob existed, so a stored v6 blob must read back with
-// the field absent and every sibling override intact — the proof that no deployment's wire bodies moved.
-test("AppSettings v6→v7: a stored v6 blob keeps its overrides and reads back with NO structuredOutputVehicle", () => {
-  const parsed = parseAppSettings({ schemaVersion: SCHEMA_VERSION_V6, structuredOutputShape: "strict-compatible", promptCacheMinDepth: 2 });
-  expect(parsed.structuredOutputShape).toBe("strict-compatible");
-  expect(parsed.promptCacheMinDepth).toBe(2);
-  expect(parsed.structuredOutputVehicle).toBeUndefined();
-  // The two axes COMPOSE — setting the vehicle leaves the shape alone, and a bad value drops to the floor.
-  expect(parseAppSettings({ structuredOutputVehicle: "response-format" }).structuredOutputVehicle).toBe("response-format");
-  expect(parseAppSettings({ structuredOutputVehicle: "nonsense", logLevel: "debug" })).toEqual({ logLevel: "debug" });
-});
-
 // The AppSettings v5→v6 lift. `promptCacheMinDepth` is purely additive AND its floor 0 is the identity of the
 // `Math.max` it feeds, so a stored v5 blob must read back with the field absent and every sibling override
 // intact — the proof that no deployment's wire bodies moved when this landed.
 test("AppSettings v5→v6: a stored v5 blob keeps its overrides and reads back with NO promptCacheMinDepth", () => {
   // `appSettingsSchema` strips the stored `schemaVersion` on the way out (it lives in the blob, not a column),
   // so the lift's receipt is the SURVIVING overrides, not a version field on the parsed value.
-  const parsed = parseAppSettings({ schemaVersion: SCHEMA_VERSION_V5, structuredOutputShape: "strict-compatible", maxImageBytes: 1_000_000 });
-  expect(parsed.structuredOutputShape).toBe("strict-compatible");
+  const parsed = parseAppSettings({ schemaVersion: SCHEMA_VERSION_V5, maxImageBytes: 1_000_000 });
+  expect(parsed).not.toHaveProperty("structuredOutputShape");
   expect(parsed.maxImageBytes).toBe(1_000_000);
   expect(parsed.promptCacheMinDepth).toBeUndefined();
 });

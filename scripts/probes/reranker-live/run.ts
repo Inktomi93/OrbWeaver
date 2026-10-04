@@ -148,7 +148,6 @@ async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise
     app: { name: "orbweaver-probe", url: "http://localhost:0" },
     snapshotStore: ports.snapshotStore,
     resolveCredential: () => Promise.resolve(makeResolvedSecret()),
-    structuredOutputVehicle: (): "auto" => "auto",
     connections: ports.connections,
     bindings: ports.bindings,
     providerStore: ports.providerStore,

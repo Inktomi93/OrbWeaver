@@ -20,6 +20,7 @@ import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { MIROSTAT_SKIPPED_GLOSS } from "../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
 import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav.ts";
 import { boxWithBeforeFloor, resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
@@ -29,11 +30,14 @@ import {
   ParamsDeckCapabilityErrorStory,
   ParamsDeckCapabilityNonRoutingStory,
   ParamsDeckCapabilityTransportFailureStory,
+  ParamsDeckContextOverWindowStory,
   ParamsDeckExplicitStory,
   ParamsDeckGhostStory,
   ParamsDeckLogitBiasSwitchStory,
+  ParamsDeckMirostatStory,
   ParamsDeckNoBansStory,
   ParamsDeckPendingCapabilityStory,
+  ParamsDeckSettableWindowStory,
   ParamsDeckStaleKoboldStory,
   ParamsDeckStaleStory,
 } from "./_params-deck-stories.tsx";
@@ -223,6 +227,30 @@ test("F-21 — the provenance gloss BELONGS to its row: both modalities point ar
   await expect(deck.getByRole("slider", { name: "Min-P", exact: true })).not.toHaveAttribute("aria-describedby", ANY);
 });
 
+// llama.cpp appends adaptive-P after the chain whatever its place, and its Mirostat branch runs temperature alone.
+test("MIROSTAT + ORDER — adaptive-P shows fixed after the movable stages, and a knob Mirostat skips says so", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckMirostatStory />);
+
+  const order = deck.getByRole("list", { name: "Sampler order", exact: true });
+  const items = order.getByRole("listitem");
+  // Four movable stages and the token-picking stage, all one list; the fixed stage is its last item and has no grip.
+  await expect(items).toHaveCount(5);
+  await expect(items.first()).toContainText("Temperature");
+  const fixed = items.last();
+  await expect(fixed.locator('[data-fixed-stage="adaptiveP"]')).toBeVisible();
+  await expect(fixed.getByRole("button")).toHaveCount(0);
+  // Its label starts at the same x as every movable row's, past the grip column.
+  const labelLeft = (item: Locator): Promise<number> => item.locator('[data-slot="sortable-content"]').evaluate((node) => node.getBoundingClientRect().left);
+  await expect.poll(() => labelLeft(fixed)).toBe(await labelLeft(items.first()));
+
+  // Top-p and top-k are skipped while Mirostat is on, and their rows carry the note; temperature still runs.
+  for (const label of ["Top-P", "Top-K"]) {
+    const glossId = await deck.getByRole("slider", { name: label, exact: true }).getAttribute("aria-describedby");
+    await expect(deck.locator(`#${glossId ?? ""}`)).toHaveText(MIROSTAT_SKIPPED_GLOSS);
+  }
+  await expect(deck.getByRole("slider", { name: "Temperature", exact: true })).not.toHaveAttribute("aria-describedby", ANY);
+});
+
 test("RESET is INERT while a row is inherited — no stray affordance, no focus stop", async ({ mount }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
   await expect(deck.getByRole("button", { name: "Reset Top-P to inherited" })).toBeHidden();
@@ -311,6 +339,25 @@ test("OUTPUT — the token caps are KnobRows at the model's real ceilings, and a
   await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("values=maxOutputTokens:8192");
   // The ghost placeholder beside it is raw too — that is what "one grammar" means here.
   await expect(deck.getByRole("textbox", { name: "Max context tokens value", exact: true })).toHaveAttribute("placeholder", "32768");
+});
+
+// The knob sets the window on a route that sends it, so a 4096 floor must not stop it at 4096.
+test("OUTPUT — on a route that sends the window, Max context reaches the trained maximum, not the server's floor", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckSettableWindowStory />);
+  const box = deck.getByRole("textbox", { name: "Max context tokens value", exact: true });
+
+  await setNumber(box, "16384");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("values=maxContextTokens:16384");
+
+  await setNumber(box, "999999");
+  await expect(box).toHaveValue("32768");
+});
+
+test("OUTPUT — a stored Max context past this connection's window carries a note on its row, not a silent pin", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckContextOverWindowStory />);
+  await expect(deck.getByRole("textbox", { name: "Max context tokens value", exact: true })).toHaveValue("131072");
+  const glossId = await deck.getByRole("slider", { name: "Max context tokens", exact: true }).getAttribute("aria-describedby");
+  await expect(deck.locator(`#${glossId ?? "missing-gloss"}`)).toBeVisible();
 });
 
 test("OUTPUT — the stop-sequence chip list adds and removes, and the add box carries its OWN name (G2, #1620)", async ({ mount }) => {

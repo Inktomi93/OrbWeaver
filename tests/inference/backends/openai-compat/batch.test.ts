@@ -1,9 +1,10 @@
-// backends/openai-compat/batch — the `structured` task's forced-tool vehicle on the openai-compat wire. The pin
-// is the WIRE BODY: a model whose capability refuses forced tool use gets `auto` over the one tool (parallel
-// calls still off), logged once per batch; every row that states no refusal — a vLLM/Qwen endpoint, Opus 5 on
-// OpenRouter — keeps the forced function choice byte-for-byte.
+// backends/openai-compat/batch — the `structured` task on the openai-compat wire. The pins are WIRE BODIES: the
+// structured plan picks the carrier per row (OpenRouter Claude in the strict-compatible shape, vLLM in the
+// guided-decoding subset, a Custom row in the hosted subset or one forced tool where it states no structured output),
+// and a model with no carrier is refused before any request.
 
-import type { ProviderId } from "@orb/contracts/inference";
+import type { ProviderId, WireSchemaMode } from "@orb/contracts/inference";
+import { scrubWireSchema } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { stateRoundChangesSchema } from "@orb/contracts/rpg";
 import { castId } from "@orb/kit/ids";
@@ -14,6 +15,7 @@ import { curatedRows } from "../../../../packages/inference/src/capability/sourc
 import { measuredRows } from "../../../../packages/inference/src/capability/sources/measured/loader.ts";
 import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
+import { makeCapability, makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
@@ -33,9 +35,9 @@ const COMPLETION = JSON.stringify({
 const FORMAT: ResponseFormat = {
   name: "row",
   schema: wireSchema({ type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"], additionalProperties: false }),
-  vehicle: "forced-tool",
 };
 const INPUTS = [{ systemPrompt: "Extract.", userPrompt: "One row." }] as const;
+const scrubbedFor = (schema: Record<string, unknown>, mode: WireSchemaMode): Record<string, unknown> => scrubWireSchema(schema, mode).schema;
 
 interface LogLine {
   readonly level: string;
@@ -88,26 +90,68 @@ function warnedCodes(lines: readonly LogLine[]): readonly unknown[] {
   return lines.filter((line) => line.level === "warn" && line.fields["event"] === "provider.resolve-warning").map((line) => line.fields["code"]);
 }
 
-test("#2575: a forced-tool structured call on OpenRouter + a forced-tool-rejecting model goes out as `auto`, logged", async () => {
-  for (const model of ["anthropic/claude-fable-5.1", "anthropic/claude-opus-5.5"]) {
+/** A schema carrying a bound, an annotation and an optional field, so each mode's scrub is visible on the wire. */
+const BOUNDED: ResponseFormat = {
+  name: "row",
+  schema: wireSchema({
+    type: "object",
+    title: "Row",
+    properties: { score: { type: "integer", minimum: 1, maximum: 10 }, note: { type: "string", maxLength: 40 } },
+    required: ["score"],
+    additionalProperties: false,
+  }),
+};
+
+function endpointConnection(providerId: string, capability = generationCapability()): ReturnType<typeof fakeResolved<"structured">> {
+  return fakeResolved({ task: "structured", providerId, model: "m", capability, baseUrl: "http://127.0.0.1:8000/v1" });
+}
+
+function responseSchemaOf(body: Record<string, unknown>): { readonly schema: Record<string, unknown>; readonly strict: unknown } {
+  const format = body["response_format"] as { readonly json_schema: { readonly schema: Record<string, unknown>; readonly strict: unknown } };
+  return format.json_schema;
+}
+
+test("#2575: a structured call on OpenRouter Claude rides response_format in the strict-compatible shape, never a forced tool", async () => {
+  for (const model of ["anthropic/claude-fable-5.1", "anthropic/claude-opus-5.5", "anthropic/claude-opus-5"]) {
     const { body, lines } = await structuredBody(orConnection(model));
-    expect(body["tool_choice"], model).toBe("auto");
-    expect(body["tools"], model).toMatchObject([{ function: { name: "row" } }]);
-    expect(body["parallel_tool_calls"], model).toBe(false);
-    // Both are mandatory-reasoning models: side generation's off clamps up, and says so (the direct wire's #2575 pin).
-    expect(warnedCodes(lines), model).toEqual(["tool_choice_downgraded", "reasoning_mandatory_clamp"]);
+    expect(body["response_format"], model).toMatchObject({ type: "json_schema", json_schema: { name: "row", strict: true } });
+    expect(body, model).not.toHaveProperty("tools");
+    expect(body, model).not.toHaveProperty("tool_choice");
+    expect(warnedCodes(lines), model).not.toContain("tool_choice_downgraded");
   }
 });
 
-test("#2575 (controls): Opus 5 on OpenRouter and a vLLM endpoint keep the forced function choice", async () => {
-  for (const connection of [orConnection("anthropic/claude-opus-5"), vllmConnection()]) {
-    const { body, lines } = await structuredBody(connection);
-    expect(body["tool_choice"], connection.model).toMatchObject({ type: "function", function: { name: "row" } });
-    expect(warnedCodes(lines), connection.model).toEqual([]);
-  }
+test("vLLM: the structured call carries the guided-decoding subset with strict true — bounds kept, annotations off", async () => {
+  const { body } = await structuredBody(vllmConnection(), BOUNDED);
+  const { schema, strict } = responseSchemaOf(body);
+  expect(strict).toBe(true);
+  expect(schema).not.toHaveProperty("title");
+  expect((schema["properties"] as Record<string, unknown>)["score"]).toEqual({ type: "integer", minimum: 1, maximum: 10 });
 });
 
-test("0511: the rpg structured state round on a KoboldCpp row rides `response_format` json_schema, never a tool", async () => {
+test("Custom: the structured call carries the hosted-common subset with strict false — a bound becomes the field's note", async () => {
+  const { body } = await structuredBody(endpointConnection("custom-openai"), BOUNDED);
+  const { schema, strict } = responseSchemaOf(body);
+  expect(strict).toBe(false);
+  expect((schema["properties"] as Record<string, unknown>)["score"]).toEqual({ type: "integer", description: "[Constraints: minimum: 1, maximum: 10]" });
+  expect(schema["required"]).toEqual(["score"]);
+});
+
+test("Custom with structured output off and tool calls on: one forced tool carries the payload, never a response format", async () => {
+  const toolsOnly = generationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] } });
+  const { body } = await structuredBody(endpointConnection("custom-openai", toolsOnly));
+  expect(body).not.toHaveProperty("response_format");
+  expect(body["tool_choice"]).toMatchObject({ type: "function", function: { name: "row" } });
+  expect(body["tools"]).toMatchObject([{ type: "function", function: { name: "row" } }]);
+});
+
+test("a model with neither structured output nor tool calls is refused before any request, with no-vehicle", async () => {
+  const bare = makeCapability(makeGenerationCapability());
+  const failure = await structuredBody(endpointConnection("custom-openai", bare)).catch((err: unknown) => err);
+  expect(failure).toMatchObject({ kind: "invalid", detail: "schema_rejected", violations: [{ kind: "no-vehicle" }] });
+});
+
+test("0511: the rpg structured state round on a KoboldCpp row rides `response_format` json_schema in the gbnf subset, never a tool", async () => {
   const schema = stateRoundChangesSchema(wireSchema({}), [
     { name: "update_scene", description: "Scene.", parameters: { type: "object", properties: { location: { type: "string" } }, additionalProperties: false } },
     { name: "no_changes", description: "Nothing.", parameters: { type: "object", properties: {}, additionalProperties: false } },
@@ -120,9 +164,12 @@ test("0511: the rpg structured state round on a KoboldCpp row rides `response_fo
     baseUrl: "http://127.0.0.1:5001/v1",
   });
 
-  const { body } = await structuredBody(kobold, { name: "rpg_state_changes", schema, vehicle: "response-format" });
+  const { body } = await structuredBody(kobold, { name: "rpg_state_changes", schema });
 
-  expect(body["response_format"]).toEqual({ type: "json_schema", json_schema: { name: "rpg_state_changes", schema, strict: false } });
+  expect(body["response_format"]).toEqual({
+    type: "json_schema",
+    json_schema: { name: "rpg_state_changes", schema: scrubbedFor(schema, "gbnf"), strict: false },
+  });
   expect(body).not.toHaveProperty("tools");
   expect(body).not.toHaveProperty("tool_choice");
 });

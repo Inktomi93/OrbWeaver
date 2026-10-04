@@ -7,7 +7,8 @@
 
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS } from "@orb/contracts/inference";
-import type { AutomationRuleId, PluginId, UserConnectionId } from "@orb/kit/ids";
+import { userCredentials } from "@orb/db";
+import type { AutomationRuleId, PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { BindingView } from "@orb/server/domain/connection";
 import { describe } from "vitest";
@@ -19,8 +20,195 @@ const PLUGIN_ID = castId<PluginId>("plugin_000001");
 const UNOWNED_RULE_ID = castId<AutomationRuleId>("automation_rule_999999");
 const LOCAL_LIGHT = castId<ProviderId>("local-light");
 const ENCODER = LOCAL_LIGHT_SEED_ROWS[0].model;
+const CREDENTIAL = castId<UserCredentialId>("user_credential_000001");
+
+/** OpenRouter lists embedders only under `output_modalities=embeddings`; the chat and rerank lists stay empty. */
+const OPENROUTER_EMBEDDER = "baai/bge-base-en-v1.5";
+const OPENROUTER_EMBEDDER_ROUTES = [
+  {
+    match: "/models?output_modalities=embeddings",
+    json: { data: [{ id: OPENROUTER_EMBEDDER, name: "BGE base", architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["embeddings"] } }] },
+  },
+  { match: "/models", json: { data: [] } },
+];
+
+/** An Ollama server listing one embedder no curated row names; its `/api/show` is the test's own. */
+const OLLAMA_HOUSE_EMBEDDER_ROUTES = [
+  { match: "/v1/models", json: { object: "list", data: [{ id: "house-embedder:latest", object: "model" }] } },
+  { match: "/api/version", json: { version: "0.12.0" } },
+  { match: "/api/ps", json: { models: [] } },
+];
 
 describe("setBinding", () => {
+  test("a row the provider's catalog lists as an embedder binds as one, with no Purpose set by hand", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, { routes: OPENROUTER_EMBEDDER_ROUTES });
+    const owner = await seedOwner(db);
+    await db
+      .insert(userCredentials)
+      .values({ id: CREDENTIAL, ownerId: owner.userId, provider: castId<ProviderId>("openrouter"), ciphertext: "ct", iv: "iv", tag: "tag" });
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: "openrouter",
+      credentialId: CREDENTIAL,
+      baseUrl: null,
+      model: OPENROUTER_EMBEDDER,
+      allowBackground: true,
+    });
+
+    expect((await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).connectionId).toBe(row.id);
+    expect((await h.svc.get({ principal: owner.principal, connectionId: row.id })).tasks).toContain("embed");
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.taskUnservable,
+    });
+  });
+
+  // A chat role moves no index, so it is judged from what is already known; a slow host cannot hold the write.
+  test("binding chat on a restarted process dials nothing", async () => {
+    const db = await freshDb();
+    const first = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const row = await first.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "some-local-model",
+      allowBackground: true,
+    });
+    const restarted = await makeHarness(db, { intercept: () => new Promise<Response>(() => undefined) });
+
+    expect((await restarted.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id })).connectionId).toBe(row.id);
+    expect(restarted.requests).toHaveLength(0);
+  });
+
+  // A vector role asks the server what the model is, but a host that never answers costs one bounded wait, not a hang.
+  test("binding an embedder on a host that never answers finishes within the server-read bound", async () => {
+    const db = await freshDb();
+    const silent = (_url: string, init: RequestInit | undefined): Promise<Response> =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+    const h = await makeHarness(db, { intercept: silent });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "nomic-embed-text",
+      allowBackground: true,
+    });
+    // @orb-waive test-determinism(performance.now): the subject is the real-time bound on a dial to a silent host.
+    const started = performance.now();
+
+    expect((await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).connectionId).toBe(row.id);
+
+    // @orb-waive test-determinism(performance.now): the subject is the real-time bound on a dial to a silent host.
+    expect(performance.now() - started).toBeLessThan(8000);
+  }, 30_000);
+
+  // Nothing known says what the model is because its server did not answer: that is the refusal, not a capability claim.
+  test("binding an embedder nothing describes yet, on a host that never answers, refuses as unreachable", async () => {
+    const db = await freshDb();
+    const silent = (_url: string, init: RequestInit | undefined): Promise<Response> =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+    const h = await makeHarness(db, { intercept: silent });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "acme-embedder",
+      allowBackground: true,
+    });
+
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.embedUnreachable,
+    });
+  }, 30_000);
+
+  test("an Ollama embedder no curated row names binds to Embed by what /api/show says, and is refused for Chat", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, {
+      routes: [
+        { match: "/api/show", json: { capabilities: ["embedding"], ["model_info"]: { "general.architecture": "bert", "bert.embedding_length": 768 } } },
+        ...OLLAMA_HOUSE_EMBEDDER_ROUTES,
+      ],
+    });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: "ollama",
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "house-embedder:latest",
+      allowBackground: true,
+    });
+
+    expect((await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).connectionId).toBe(row.id);
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.taskUnservable,
+    });
+  });
+
+  // The list answered but the one read that says what the model is did not: still the unreachable refusal.
+  test("binding an Ollama embedder whose /api/show answers too late refuses as unreachable, not as a chat model", async () => {
+    const db = await freshDb();
+    const showStalls = (url: string, init: RequestInit | undefined): Promise<Response> | null =>
+      url.endsWith("/api/show")
+        ? new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              reject(new DOMException("aborted", "AbortError"));
+            });
+          })
+        : null;
+    const h = await makeHarness(db, { intercept: showStalls, routes: OLLAMA_HOUSE_EMBEDDER_ROUTES });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: "ollama",
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "house-embedder:latest",
+      allowBackground: true,
+    });
+
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.embedUnreachable,
+    });
+  }, 30_000);
+
+  // A 404 on `/api/show` (a proxy exposing only `/v1`) is the server's answer: the model is unstated, not unreachable,
+  // and it is not asked again on every bind.
+  test("binding an Ollama model whose /api/show answers 404 refuses as unservable, asking the server once", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db, { routes: OLLAMA_HOUSE_EMBEDDER_ROUTES });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: "ollama",
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "house-embedder:latest",
+      allowBackground: true,
+    });
+
+    for (const _attempt of [1, 2, 3]) {
+      await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).rejects.toMatchObject({
+        code: CONNECTION_OP_CODES.taskUnservable,
+      });
+    }
+    expect(h.requests.filter((request) => request.url.endsWith("/api/show"))).toHaveLength(1);
+  });
+
   test("re-points an existing task in place — one row per (actor, task), never a second", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);

@@ -44,10 +44,10 @@ test("a design becomes a belt-legal draft; the call rides the ENFORCED grammar a
   expect(result.dropped).toEqual([]);
 
   const call = h.summarizeCalls.at(-1);
-  // THE ENFORCEMENT PAYLOAD is on the request — the whole point of the rework. It asks for the enforcing
-  // wire vehicle explicitly, and its schema is the design grammar (fields), never a free-form object.
+  // THE ENFORCEMENT PAYLOAD is on the request — the whole point of the rework. It states the design grammar
+  // (fields), never a free-form object, and nothing about how it rides: that is the structured plan's.
   expect(call?.opts?.responseFormat?.name).toBe("refinery_schema_design");
-  expect(call?.opts?.responseFormat?.vehicle).toBe("response-format");
+  expect(Object.keys(call?.opts?.responseFormat ?? {}).toSorted()).toEqual(["name", "schema"]);
   const wireSchema = JSON.stringify(call?.opts?.responseFormat?.schema);
   expect(wireSchema).toContain('"fields"');
   expect(wireSchema).toContain('"needsRaw"');

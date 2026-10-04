@@ -249,7 +249,6 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     resolveCredential:
       options.resolveCredential ??
       (({ credentialId }) => Promise.resolve(credentialId === null ? makeResolvedSecret() : makeResolvedSecret("apiKey", "sk-test", credentialId))),
-    structuredOutputVehicle: (): "auto" => "auto",
     connections: ports.connections,
     bindings: ports.bindings,
     providerStore: ports.providerStore,

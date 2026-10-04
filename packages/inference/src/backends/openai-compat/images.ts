@@ -146,6 +146,7 @@ export async function runOpenAiCompatGenerateImage(req: ImageGenerateRequest, de
     plan: null,
     prefillAllowed: false,
     templateThinking: undefined,
+    templatePreserveReasoning: undefined,
     foldSameRole: false,
     replyImages: false,
     warnings,

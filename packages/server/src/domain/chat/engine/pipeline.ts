@@ -38,7 +38,7 @@ import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatToolExecution, ChatToolOffer, GeneratedImage, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
-import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning } from "@orb/inference";
+import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning, withPresetWindow } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -232,9 +232,6 @@ interface TurnPipelineResult {
   readonly terminalToolsCollided: readonly string[];
   /** True when tools were attached but the model's capability lacks tools support (ran tool-less). */
   readonly toolsUnsupported: boolean;
-  /** True when a `responseFormat` was requested but the model's `capability.output.structured` isn't true →
-   *  the field was dropped and the turn proceeded free-text (D79 interactive-axis degrade, 04 §7). */
-  readonly structuredOutputUnsupported: boolean;
   /** The WI entries that fired this turn (budget-survived). */
   readonly worldInfoEntryIds: readonly WorldEntryId[];
   /** True when a `system`-placement guided steer fell back to a depth-0 injection (marker absent/disabled;
@@ -624,8 +621,8 @@ function speakerContexts(args: RunTurnPipelineArgs): {
 
 /** Executes one single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration of
  *  injected ops; persists nothing. */
-export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
-  const { layout, voice: ctx, cue } = speakerContexts(args);
+export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
+  const { layout, voice: ctx, cue } = speakerContexts(input);
 
   // FOLD — the effective generation params: the preset's `params` is the BASE, the per-turn
   // `UserIntent` overrides field-wise, and the host's custom stops join the merged stop set. This is
@@ -635,7 +632,10 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // reserve) and the runner's wire `max_tokens` read `effectiveIntent.maxOutputTokens` from here — pinning
   // the reserve to exactly what the runner generates. Unset ⇒ the shared response-length default (NOT the
   // model's output-cap ceiling / window), so the fit-pass leaves history room instead of reserving it all.
-  const effectiveIntent = materializeMaxOutput(foldGenerationParams(ctx.promptConfig.params, args.intent, args.extraStopSequences));
+  const effectiveIntent = materializeMaxOutput(foldGenerationParams(ctx.promptConfig.params, input.intent, input.extraStopSequences));
+  // The window this turn sends and fits, ONE value: on a route whose request sets it (Ollama's native `num_ctx`), the
+  // effective Max context; every read of `args.connection` below, the request included, sees it.
+  const args: RunTurnPipelineArgs = { ...input, connection: withPresetWindow(input.connection, effectiveIntent.maxContextTokens) };
 
   // BUILD — the system-prompt halves + the after-history (in_chat) section splices — then the D50
   // `assembled_dynamic` PromptTransform point: rewrite the dynamic half only (static is untransformable).
@@ -795,7 +795,6 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     terminalToolCalls: terminalCallsOf(terminal.attached, loop.economics, loop.terminalCalls),
     terminalToolsCollided: terminal.collided,
     toolsUnsupported: attach.unsupported,
-    structuredOutputUnsupported: structured.unsupported,
     worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
     guidedPlacedAsInjection: ctx.guidedPlacedAsInjection === true,
     runnerWarnings: loop.warnings,
@@ -965,17 +964,11 @@ function terminalCallsOf(attached: boolean, economics: TurnEconomics | null, cal
   return calls;
 }
 
-// The structured-output request-builder gate (D79, mirror of attachTools): a requested responseFormat rides
-// only when `capability.output.structured` is true; unsupported drops it (the turn proceeds free-text) and
-// flags structured_output_unsupported. Absent responseFormat is the byte-identical no-op (today's every turn).
-function attachResponseFormat(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { request: TurnRequest; unsupported: boolean } {
-  if (args.responseFormat === undefined) {
-    return { request: baseRequest, unsupported: false };
-  }
-  if (generationOf(args.connection).output.structured !== true) {
-    return { request: baseRequest, unsupported: true };
-  }
-  return { request: { ...baseRequest, responseFormat: args.responseFormat }, unsupported: false };
+// A requested responseFormat always rides: the structured plan in `@orb/inference` decides how, and a model it
+// cannot carry it on ends the turn with the typed violations before any call. There is no free-text fallback, because
+// the app never reads model prose as structure. Absent responseFormat is the byte-identical no-op.
+function attachResponseFormat(args: RunTurnPipelineArgs, baseRequest: TurnRequest): { request: TurnRequest } {
+  return { request: args.responseFormat === undefined ? baseRequest : { ...baseRequest, responseFormat: args.responseFormat } };
 }
 
 // The recurse loop: finishReason:"tool" is the only pivot, never text-sniffing. The exchange is

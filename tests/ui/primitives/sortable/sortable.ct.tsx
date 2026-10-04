@@ -152,6 +152,18 @@ test("announcements name the ROW and its position, never the raw item key", asyn
   await expect(liveRegion).not.toContainText("item-0");
 });
 
+test("with a fixed tail, the announced total matches the list's aria-setsize", async ({ mount, page }) => {
+  await mount(<ReorderableList fixedCount={1} itemCount={3} />);
+  const rows = page.locator('[data-slot="sortable-item"]');
+  await expect(rows.nth(0)).toHaveAttribute("aria-setsize", "4");
+  await expect(rows.nth(0)).toHaveAttribute("tabindex", "0");
+  await rows.nth(0).focus();
+
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("status")).toHaveText("Picked up Item 0, position 1 of 4.");
+  await page.keyboard.press("Escape");
+});
+
 // A cancel puts the row back, so the announcement names where it went back to, not where it was dragged.
 test("a cancelled keyboard drag announces the restored position", async ({ mount, page }) => {
   await mount(<ReorderableList itemCount={3} />);

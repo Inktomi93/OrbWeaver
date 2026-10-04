@@ -24,18 +24,16 @@ import "../../../support/composed-real.ts";
 import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatApi, ProviderId } from "@orb/contracts/inference";
+import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
-import { STRUCTURED_OUTPUT_VEHICLES } from "@orb/contracts/role-clients";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
 import { RPG_STATE_ROUND_FAILED_SUMMARY, RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
-import type { StructuredOutputShape } from "@orb/contracts/settings";
-import { DEFAULT_STRUCTURED_OUTPUT_SHAPE } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, messages, messageVariants, ownerStats, presets } from "@orb/db";
 import type { ChatResult, ResolveOutcome } from "@orb/inference";
+import { generationOf } from "@orb/inference";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
@@ -328,12 +326,8 @@ interface ExtractionSpy {
   /** The response-format SCHEMA the impl put on the wire per call — so a test can assert the R1 ref enum
    *  (`constrainExtractionSchema`) reached the request, on either arm. */
   readonly schemas: Record<string, unknown>[];
-  /** The `strict` flag each `responseFormat` carried (undefined = unset ⇒ the BACKEND's own default). The
-   *  strict-shape half the schema alone can't show — D126's admin knob sets both, or neither. */
-  readonly strictFlags: (boolean | undefined)[];
-  /** The `vehicle` each `responseFormat` carried (task #36). `undefined` is the LOAD-BEARING value here — see
-   *  the "#36 vehicle knob" pin below: the rail asking for no vehicle is what keeps it on the forced tool. */
-  readonly vehicles: (StructuredOutputVehicle | undefined)[];
+  /** The keys each `responseFormat` carried, sorted: a caller states the schema and nothing about how it rides. */
+  readonly formatKeys: string[][];
   /** The system prompts the impl sent — so a test can assert the R1 ref enumeration (the fallback arm). */
   readonly systemPrompts: string[];
   /** The user prompts the impl sent — so a §1.3 test can assert the RECENT STORY block (window arm) + the
@@ -342,6 +336,8 @@ interface ExtractionSpy {
   /** The cancellation signal each request carried (RPG-SIGNAL). `undefined` here would mean the round is
    *  uncancelable at the LAST hop no matter what the flush believes — this is the only tier that can see it. */
   readonly signals: (AbortSignal | undefined)[];
+  /** The window each request's connection carried — what an Ollama native route sends as `num_ctx`. */
+  readonly windows: number[];
 }
 
 /** Build an rpg seam over the REAL chat wiring (off `app.chatRpgOps`) + real db, with a FAKE executor/connection
@@ -361,10 +357,10 @@ function recordChatTurn(spy: ExtractionSpy, req: Parameters<NonNullable<Paramete
     hasToolServer: "toolServer" in req && req.toolServer !== undefined,
   });
   spy.signals.push(req.signal);
+  spy.windows.push(generationOf(req.connection).context.window);
   if (req.responseFormat !== undefined) {
     spy.schemas.push(req.responseFormat.schema);
-    spy.strictFlags.push(req.responseFormat.strict);
-    spy.vehicles.push(req.responseFormat.vehicle);
+    spy.formatKeys.push(Object.keys(req.responseFormat).toSorted());
   }
   if ("tools" in req && Array.isArray(req.tools)) {
     spy.wireTools.push(req.tools as { name: string; description: string; parameters: Record<string, unknown> }[]);
@@ -407,9 +403,6 @@ function buildCannedRpgWithText(args: {
   /** Resolve a different connection per principal — the room's host and a member each binding their own — so a
    *  pin can prove WHOSE connection a read prices. Wins over `capability`. */
   readonly resolvedFor?: (userId: UserId) => ReturnType<typeof makeResolved>;
-  /** The deployment's structured-output wire shape (D126) — the AppSettings knob the real composition root
-   *  feeds off `getEffectiveConfig()`. Omitted ⇒ the shipped floor, so every existing pin drives the default. */
-  readonly structuredOutputShape?: StructuredOutputShape;
   /** R-OBS — the rpg flight-recorder sink. Omitted ⇒ untraced, which is what every other pin here drives (and
    *  is itself the zero-cost/byte-identical claim: those pins pass unchanged with no sink wired). */
   readonly trace?: RpgTraceSink;
@@ -417,6 +410,8 @@ function buildCannedRpgWithText(args: {
    *  vllm surface (real `buildBody` + the real `captureWire` sink → the real ring) through this seam, because
    *  a fake executor can never prove the round's request reaches the debug read. Wins over `chatThrows`. */
   readonly chatArm?: NonNullable<Parameters<typeof buildRpg>[0]["executor"]["runChatTurn"]>;
+  /** The room preset's Max context, as chat's preset ladder resolves it; omitted ⇒ the real ladder answers. */
+  readonly presetMaxContext?: number;
 }): ReturnType<typeof buildRpg> {
   const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows, chatThrows, capability } = args;
   const structuredReplies = [...(args.structuredReplies ?? [])];
@@ -424,7 +419,10 @@ function buildCannedRpgWithText(args: {
     db,
     now: () => FROZEN_AT,
     ...(args.trace === undefined ? {} : { trace: args.trace }),
-    rpgChatOps: app.chatRpgOps,
+    rpgChatOps:
+      args.presetMaxContext === undefined
+        ? app.chatRpgOps
+        : { ...app.chatRpgOps, resolveChatPresetParams: (): Promise<UserIntent> => Promise.resolve({ maxContextTokens: args.presetMaxContext }) },
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
@@ -455,11 +453,11 @@ function buildCannedRpgWithText(args: {
         }
         spy.summarizeModels.push(req.connection.model);
         spy.schemas.push(req.responseFormat.schema);
-        spy.strictFlags.push(req.responseFormat.strict);
-        spy.vehicles.push(req.responseFormat.vehicle);
+        spy.formatKeys.push(Object.keys(req.responseFormat).toSorted());
         spy.systemPrompts.push(req.inputs[0]?.systemPrompt ?? "");
         spy.userPrompts.push(req.inputs[0]?.userPrompt ?? "");
         spy.signals.push(req.signal);
+        spy.windows.push(generationOf(req.connection).context.window);
         return Promise.resolve({
           items: [{ text: structuredReplies.shift() ?? cannedText, usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
           model: "fake-chat-model",
@@ -516,9 +514,6 @@ function buildCannedRpgWithText(args: {
       findByImportHash: () => Promise.resolve(null),
     },
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
-    // D126 — the admin-tier structured-output shape, threaded exactly as the real root threads it (a thunk off
-    // the resolved config). Unset ⇒ the shipped floor, so every existing pin still drives the default arm.
-    structuredOutputShape: () => args.structuredOutputShape ?? DEFAULT_STRUCTURED_OUTPUT_SHAPE,
   });
 }
 
@@ -527,11 +522,11 @@ const emptySpy = (): ExtractionSpy => ({
   chatTurns: [],
   wireTools: [],
   schemas: [],
-  strictFlags: [],
-  vehicles: [],
+  formatKeys: [],
   systemPrompts: [],
   userPrompts: [],
   signals: [],
+  windows: [],
 });
 
 test("CHEAP turn (tool-round arm) — a wire that CAN carry tools rides them, never the structured dispatcher", async ({ app, db }) => {
@@ -812,23 +807,6 @@ function objectNodes(node: unknown, out: Record<string, unknown>[] = []): Record
 
 const propertyNames = (node: Record<string, unknown>): string[] => Object.keys(node["properties"] as Record<string, unknown>);
 const requiredNames = (node: Record<string, unknown>): string[] => (Array.isArray(node["required"]) ? (node["required"] as string[]) : []);
-/** Every KEYWORD in a schema tree — what the wire vocabulary actually is, as opposed to what its bytes spell. */
-function schemaKeywords(node: unknown, acc: Set<string> = new Set()): Set<string> {
-  if (Array.isArray(node)) {
-    for (const item of node) {
-      schemaKeywords(item, acc);
-    }
-    return acc;
-  }
-  if (node === null || typeof node !== "object") {
-    return acc;
-  }
-  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
-    acc.add(key);
-    schemaKeywords(value, acc);
-  }
-  return acc;
-}
 
 /** Nodes spelled `anyOf:[…, {"type":"null"}]` — the strict-compatible optional. */
 function nullUnionCount(node: unknown, count = 0): number {
@@ -844,7 +822,7 @@ function nullUnionCount(node: unknown, count = 0): number {
   return Object.values(record).reduce<number>((n, value) => nullUnionCount(value, n), count + (isNullUnion ? 1 : 0));
 }
 
-test("D126 (default): the shipped floor sends the schema AS PROJECTED — optionals stay optional, no `strict`", async ({ app, db }) => {
+test("the extraction format states its schema AS PROJECTED and nothing else — no strict, no vehicle (the plan scrubs at the backend)", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "d126-floor");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
@@ -860,71 +838,12 @@ test("D126 (default): the shipped floor sends the schema AS PROJECTED — option
   expect(nodes.some((n) => requiredNames(n).length < propertyNames(n).length)).toBe(true);
   // … and nothing anywhere was wrapped in a null union.
   expect(nullUnionCount(schema)).toBe(0);
-  expect(spy.strictFlags).toEqual([undefined]); // unset ⇒ the backend's own default (D79)
+  expect(spy.formatKeys).toEqual([["name", "schema"]]);
 });
 
-test("D126 (switched): the admin knob's strict-compatible arm reaches scrubWireSchema — every property required, optionals as anyOf-null", async ({
-  app,
-  db,
-}) => {
-  const { chatId, hostId } = await seedHostGameChat(db, "d126-strict");
-  const spy = emptySpy();
-  // The ONLY difference from the test above: the deployment's resolved AppSettings value.
-  const rpgCompose = buildCannedRpgWithText({
-    app,
-    db,
-    api: "agent-sdk",
-    spy,
-    cannedText: JSON.stringify(CANNED_EXTRACTION),
-    structuredOutputShape: "strict-compatible",
-  });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
-  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
-  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
-
-  const schema = spy.schemas[0] as Record<string, unknown>;
-  const nodes = objectNodes(schema);
-  expect(nodes.length).toBeGreaterThan(1);
-  // OpenAI strict's demand, at EVERY depth: every property of every object node listed as required …
-  expect(nodes.filter((n) => requiredNames(n).length !== propertyNames(n).length)).toEqual([]);
-  // … with the ones that were optional now spelled `anyOf:[T,{"type":"null"}]` (the documented escape).
-  expect(nullUnionCount(schema)).toBeGreaterThan(0);
-  // The scrub also came off this wire copy: the dialect meta-key + the bound keywords both vendors refuse.
-  expect(schema["$schema"]).toBeUndefined();
-  // KEYWORD-level: since task #40 a stripped bound is RELAYED in the node's `description`, so the word
-  // "minLength" appears in the payload as prose. The claim is that the KEY is gone from the wire vocabulary.
-  expect(schemaKeywords(schema).has("minLength")).toBe(false);
-  // …and the relay actually happened — the extraction schema's `minLength: 1` refs are stated to the model.
-  expect(JSON.stringify(schema)).toContain("[Constraints: minLength: 1]");
-  expect(spy.strictFlags).toEqual([true]);
-
-  // The CONTRACT is unchanged: the same canned reply still folds and lands (`null ≡ absent` at the salvage
-  // boundary) — the reshape is a wire concern, not a semantics change.
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
-  expect(view.ambient?.location).toBe("the obsidian tower");
-});
-
-// ── #36 VEHICLE KNOB: rpg-lite is protected BY CONSTRUCTION, and this is the pin that keeps it that way ──
-// The owner's 2026-08-09 ruling on the structured-output vehicle knob (`auto` / `response-format` /
-// `forced-tool`) requires the rpg suites to stay green at ALL THREE values. They are — but the reason is
-// STRUCTURAL, not incidental, and it is worth stating because it is the thing a future wiring can break:
-//
-//   the deployment knob has exactly ONE reader — `entry/compose/role-clients.ts`'s `resolveVehicle`, on the
-//   `summarize`→`structured` facade. The rpg extraction rail does not go through that facade: it mints its
-//   own `ResponseFormat` (`EXTRACTION_RESPONSE_FORMATS`, the D126 SHAPE knob and nothing else) and hands it
-//   straight to `executor.structured` / `executor.runChatTurn`. So the rail asks for NO vehicle, and
-//   `backends/openrouter`'s `vehicleOf` maps an unstamped format to the FORCED TOOL — the 2026-08-02 shape,
-//   byte-for-byte. No value of the deployment knob can reach this request.
-//
-// Parameterizing this test over the three values would therefore be a tautology (the knob is not a dep of
-// `buildRpg` — there is nothing to set). The honest pin is the PREMISE the backend fence rests on: the rail
-// emits no vehicle. It goes red the moment anyone stamps one, on either arm, which is exactly the regression
-// that would silently move rpg onto an enforcing hosted grammar. The other half of the chain — "no vehicle
-// asked for ⇒ forced tool" — is pinned at
-// `tests/server/infra/providers/backends/openrouter/index.test.ts` ("the extraction rail's fence").
-test("#36 (vehicle knob): the rpg extraction rail asks for NO vehicle on either arm — the forced-tool fence's premise", async ({ app, db }) => {
-  // ARM 1 — the agent-sdk chat path (`executor.runChatTurn`), the per-turn extraction.
+// The rail states only the schema on BOTH arms (the per-turn chat extraction and the `structured` dispatcher behind
+// the host populate door): how it rides, and the scrub, are the structured plan's at the backend.
+test("the extraction rail states only the schema on either arm — no strict, no vehicle", async ({ app, db }) => {
   const chatSpy = emptySpy();
   const { chatId, hostId } = await seedHostGameChat(db, "vehicle-chat");
   const chatCompose = buildCannedRpg(app, db, "agent-sdk", chatSpy);
@@ -932,37 +851,22 @@ test("#36 (vehicle knob): the rpg extraction rail asks for NO vehicle on either 
   await chatCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
   await chatCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
+  expect(chatSpy.formatKeys).toEqual([["name", "schema"]]);
 
-  expect(chatSpy.schemas.length).toBeGreaterThan(0); // the round actually fired — an empty spy proves nothing
-  expect(chatSpy.vehicles).toEqual([undefined]);
-
-  // ARM 2 — the `structured` dispatcher (a non-agent-sdk wire), reached through the host POPULATE door.
   const structuredSpy = emptySpy();
   const populate = await seedHostGameChat(db, "vehicle-structured");
   const characterId = await seedCharacter(db, populate.hostId, "mira", { id: mintTypeId(ID_PREFIX.character) });
   await seedParticipant(db, { chatId: populate.chatId, key: "vehicle_char", characterId, joinSeq: 1 });
   await seedMessage(db, populate.chatId, 1, { role: "assistant", content: "You meet Mira at the ford." });
-  const structuredCompose = buildCannedRpgWithText({
-    app,
-    db,
-    api: "chat-completions",
-    spy: structuredSpy,
-    cannedText: JSON.stringify(CANNED_POPULATE),
-  });
+  const structuredCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: structuredSpy, cannedText: JSON.stringify(CANNED_POPULATE) });
   await structuredCompose.service.createGame({ principal: hostPrincipal(populate.hostId), chatId: populate.chatId, mode: "lite" });
   await structuredCompose.service.populateFromCharacter({
     principal: hostPrincipal(populate.hostId),
     chatId: populate.chatId,
     actorRef: { kind: "character", characterId },
   });
-
-  expect(structuredSpy.summarizeModels).toEqual(["fake-chat-model"]); // the structured dispatcher is the arm that fired
-  expect(structuredSpy.vehicles).toEqual([undefined]);
-
-  // Stated against the UNION rather than the three literals: if a fourth vehicle is ever minted, the claim
-  // this test makes ("no member of it reaches the rail") is still the claim being checked.
-  const asked = [...chatSpy.vehicles, ...structuredSpy.vehicles];
-  expect(asked.filter((v) => v !== undefined && (STRUCTURED_OUTPUT_VEHICLES as readonly string[]).includes(v))).toEqual([]);
+  expect(structuredSpy.summarizeModels).toEqual(["fake-chat-model"]);
+  expect(structuredSpy.formatKeys).toEqual([["name", "schema"]]);
 });
 
 test("F1 (room connection): the round runs on the TURN's connection (vllm), never a re-resolved global default", async ({ app, db }) => {
@@ -1364,7 +1268,6 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
     // D126 — the admin-tier structured-output shape, on its shipped floor (the real root reads it per call off
     // `getEffectiveConfig()`); the strict-arm pin below overrides it.
-    structuredOutputShape: () => DEFAULT_STRUCTURED_OUTPUT_SHAPE,
   });
 }
 
@@ -2860,7 +2763,6 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
     // D126 — the admin-tier structured-output shape, on its shipped floor (the real root reads it per call off
     // `getEffectiveConfig()`); the strict-arm pin below overrides it.
-    structuredOutputShape: () => DEFAULT_STRUCTURED_OUTPUT_SHAPE,
   });
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
 
@@ -3105,7 +3007,7 @@ test("0511: a no-force structured row asks for the changes schema, and the recor
 
   // ONE structured call, no tool round: the schema rides as `response_format`, never as a forced tool.
   expect(spy.chatTurns).toEqual([]);
-  expect(spy.vehicles).toEqual(["response-format"]);
+  expect(spy.formatKeys).toEqual([["name", "schema"]]);
   const schema = spy.schemas[0] as { properties: { changes: { minItems: number; items: { anyOf: { properties: { tool: { enum: string[] } } }[] } } } };
   expect(schema.properties.changes.minItems).toBe(1);
   expect(schema.properties.changes.items.anyOf.map((member) => member.properties.tool.enum)).toEqual(
@@ -3257,7 +3159,7 @@ test("0511: a downgraded Claude 5.5 round that comes back EMPTY is retried once 
 
   // The tool round ran first (unchanged), then exactly one structured call in the flat shape Claude's grammar fits.
   expect(spy.chatTurns).toHaveLength(1);
-  expect(spy.vehicles).toEqual(["response-format"]);
+  expect(spy.formatKeys).toEqual([["name", "schema"]]);
   expect(JSON.stringify(spy.schemas[0])).toContain('"plane"');
   expect(spy.systemPrompts[1]).toContain(resolveProseText("rpg.extract.patchRoundFrame", {}));
   expect(spy.systemPrompts[1]).toContain("fields: location");
@@ -3328,7 +3230,7 @@ test("0511: the `tools` knob keeps a no-force local row on its tool round; `stru
   const b = await cheapGame(db, structured, "knob-structured", "structured");
   await structured.chatOps.onTurnCompleted(b.chatId, b.messageId, b.variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.openai));
   expect(structuredSpy.chatTurns).toEqual([]);
-  expect(structuredSpy.vehicles).toEqual(["response-format"]);
+  expect(structuredSpy.formatKeys).toEqual([["name", "schema"]]);
   expect(JSON.stringify(structuredSpy.schemas[0])).toContain('"tool"');
   const [record] = await findTurnToolCallsByVariant(db, b.variantId);
   expect(record?.calls.map((call) => call.name)).toEqual(["update_party", "update_inventory"]);
@@ -3353,7 +3255,7 @@ test("0511: a host resync on a downgraded Claude 5.5 row that comes back empty t
 
   expect(verdict.ok).toBe(true);
   expect(spy.chatTurns).toHaveLength(1);
-  expect(spy.vehicles).toEqual(["response-format"]);
+  expect(spy.formatKeys).toEqual([["name", "schema"]]);
   expect((await panelState(compose, hostId, chatId)).location).toBe("cave by the river");
 });
 
@@ -3549,6 +3451,48 @@ test("0532: a state round that cannot fit the connection's window is named on th
   // A folding room runs no post-commit round, so there is nothing to fit even on the small window.
   await unpinned.service.updateConfig({ ...read, extractionMode: "folded" });
   expect((await unpinned.service.getGame(read)).effectiveDelivery).toMatchObject({ path: "folded", stateRoundOverflow: null });
+});
+
+// On Ollama's native route the turn sends the preset's Max context as `num_ctx`, so the round is priced against that
+// window: a preset that raises it clears the notice the server's floor would raise.
+test("0532: on a route that sends the window, the overflow notice prices the preset's Max context, not the floor", async ({ app, db }) => {
+  const floor = makeGenerationCapability({
+    output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] },
+    tools: { parallel: true },
+    context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } },
+  });
+  const unset = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: floor });
+  const game = await cheapGame(db, unset, "window-settable");
+  const read = { principal: hostPrincipal(game.hostId), chatId: game.chatId };
+  expect((await unset.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toEqual({ connectionId: TEST_CONNECTION_ID, windowTokens: 4096 });
+
+  const raised = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: floor, presetMaxContext: 16_384 });
+  expect((await raised.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toBeNull();
+});
+
+/** An unpinned Ollama model on its native route: the server's 4096 floor, a 32768 trained maximum. */
+const OLLAMA_FLOOR = makeGenerationCapability({
+  output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] },
+  tools: { parallel: true },
+  context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } },
+});
+
+// A host resync reads up to 16384 tokens of story; on a route that sends the window it must send the room's own,
+// or the server cuts the story at its floor while the turn and the overflow notice say it fits.
+test("0532: a host resync and populate send the room preset's Max context as the window, not the server's floor", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "resync-window");
+  const principal = hostPrincipal(hostId);
+  const spy = emptySpy();
+  const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}", capability: OLLAMA_FLOOR, presetMaxContext: 16_384 });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+  const characterId = await seedCharacter(db, hostId, "resync_window_mira", { id: mintTypeId(ID_PREFIX.character) });
+  await seedParticipant(db, { chatId, key: "resync_window_char", characterId, joinSeq: 1 });
+
+  await compose.service.resyncFromStory({ principal, chatId });
+  await compose.service.populateFromCharacter({ principal, chatId, actorRef: { kind: "character", characterId } });
+
+  expect(spy.windows.length).toBeGreaterThanOrEqual(2);
+  expect(new Set(spy.windows)).toEqual(new Set([16_384]));
 });
 
 /** A cheap game whose host and one member each bind their own chat connection: the host's from `host`, the

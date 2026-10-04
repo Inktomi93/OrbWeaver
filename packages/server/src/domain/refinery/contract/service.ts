@@ -9,6 +9,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
   RefineryRun,
+  RefinerySchemaPlan,
   RefinerySchemaSummary,
   RefineryScoreSweepResult,
   RefinerySessionSummary,
@@ -20,6 +21,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { SideGenSampling } from "@orb/inference";
 import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
+import type { WireReady } from "@orb/kit/json-schema";
 // Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
 // allowed; the runtime ops are wired at the entry composition root).
 import type { CharacterService, DeleteSnapshotOp, ListRefineryScoreTargetsOp, LoadOwnedCardOp, StampRefinerySignalsOp } from "#domain/character";
@@ -36,6 +38,7 @@ import type {
   ListSchemasParams,
   ListSessionsParams,
   PreflightParams,
+  PreviewSchemaPlanParams,
   RefineSchemaParams,
   RunStageParams,
   ScoreSweepOptions,
@@ -90,6 +93,9 @@ export interface RefineryContext {
   readonly loadOwnedCard: LoadOwnedCardOp;
   /** The `characters.refinery` merge-stamp (F6) — score runs stamp `score`, analyze runs `analysis`. */
   readonly stampRefinerySignals: StampRefinerySignalsOp;
+  /** The structured planner's answer for a projected draft on the owner's bound `structured` connection (composed
+   *  at `entry/compose/refinery.ts`, where the resolved connection is in hand). */
+  readonly planSchema: (ownerId: UserId, schema: WireReady) => Promise<RefinerySchemaPlan>;
   /** `character.snapshot` — the pre-apply reversibility belt ("auto: before refinery apply", §4.13). */
   readonly snapshotCharacter: CharacterService["snapshot"];
   /** The apply path's own retraction (#1551): un-does the belt-13 snapshot above when the conditional
@@ -200,4 +206,7 @@ export interface RefineryService {
   /** A drill: one stage pass against an owned card under the DRAFT schema; returns the payload for
    *  preview rendering. No run row, no stamps. */
   readonly testSchema: (params: TestSchemaParams) => Promise<RefineryTestResult>;
+  /** What the caller's bound Utility model would do with a draft: rides, rides on a tool, or refused and why.
+   *  `null` for a draft the save belt refuses, which the editor already shows. */
+  readonly previewSchemaPlan: (params: PreviewSchemaPlanParams) => Promise<RefinerySchemaPlan | null>;
 }

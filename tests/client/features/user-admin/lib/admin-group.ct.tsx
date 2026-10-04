@@ -58,7 +58,6 @@ const ANCHOR_ORDER = [
   "config-anchor-admin-memory-tuning",
   "config-anchor-admin-rate-limits",
   "config-anchor-admin-system-tuning",
-  "config-anchor-admin-structured-output",
 ];
 
 /** The nav rows the pane DERIVES from its contributions, in door order — one per `ANCHOR_ORDER` entry, read
@@ -76,7 +75,6 @@ const NAV_LABELS = [
   "Memory tuning",
   "Rate limits",
   "System tuning",
-  "Structured output",
 ];
 
 // The resolved slice the AppSettings sections read together (each has its own CT pinning its own knobs; here
@@ -102,7 +100,6 @@ const RESOLVED_APP: Partial<EffectiveAppSettings> = {
   privateEndpointAllowlist: [],
   corpusAutoindex: false,
   logLevel: "info",
-  structuredOutputShape: "as-projected",
 };
 
 function stub(page: Page, viewer: TrpcWireOutput<"sessions.me">): Promise<TrpcRecorder> {

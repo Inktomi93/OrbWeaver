@@ -3,7 +3,7 @@
 // (`_ollama-native-recordings.ts`), through the real SDK and the real turn, so a translation slip shows as a
 // wrong reply, tool call, reasoning or usage.
 
-import type { Capability } from "@orb/contracts/inference";
+import type { Capability, GenerationCapability } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { stateRoundChangesSchema, structuredChangesToToolCalls } from "@orb/contracts/rpg";
@@ -11,10 +11,12 @@ import { passthroughImageNormalizer } from "../../../../packages/inference/src/b
 import type { BatchDeps } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { runOpenAiCompatStructured, runOpenAiCompatSummarize } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
-import { ollamaNativeFetch, toOllamaChat } from "../../../../packages/inference/src/backends/openai-compat/ollama-native.ts";
+import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "../../../../packages/inference/src/backends/openai-compat/ollama-native.ts";
 import { samplerBodyKeys } from "../../../../packages/inference/src/backends/openai-compat/sampling.ts";
+import type { WireCaptureSink } from "../../../../packages/inference/src/contract/backend.ts";
 import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { withPresetWindow } from "../../../../packages/inference/src/contract/resolved.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeResolved, memoryTokenLexicon } from "../../_support.ts";
@@ -35,6 +37,12 @@ type Recording = (typeof OLLAMA_NATIVE_RECORDINGS)[keyof typeof OLLAMA_NATIVE_RE
 function silentLog(): Parameters<typeof runOpenAiCompatChatTurn>[1]["log"] {
   const noop = (): void => undefined;
   return { debug: noop, info: noop, warn: noop, error: noop };
+}
+
+/** The native route as `wrapFetch` composes it: rerouted to `/api/chat`, then the reply translated. */
+function nativeChatFetch(inner: typeof fetch): typeof fetch {
+  const routed = ollamaNativeFetch(inner, { baseUrl: BASE_URL });
+  return async (input, init): Promise<Response> => await fromOllamaChat(await routed(input, init), "t");
 }
 
 /** Answers each call with the next recording, as the server sent it, and records what was posted. */
@@ -84,6 +92,26 @@ async function turn(
   return { result, recorded };
 }
 
+// An unpinned model resolves to the server's floor, which the native route would send as `num_ctx`: the preset's
+// Max context is what goes out instead, up to the trained maximum.
+test("an Ollama turn sends the preset's Max context as num_ctx, up to the trained maximum", async () => {
+  const floor = fakeResolved({
+    task: "chat",
+    providerId: "ollama",
+    model: "qwen2.5:0.5b",
+    capability: capability({ context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } } }),
+    baseUrl: BASE_URL,
+  });
+  const numCtx = async (maxContextTokens: number | undefined): Promise<unknown> => {
+    const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], { connection: withPresetWindow(floor, maxContextTokens) });
+    return (recorded[0]?.body["options"] as Record<string, unknown> | undefined)?.["num_ctx"];
+  };
+
+  expect(await numCtx(16_384)).toBe(16_384);
+  expect(await numCtx(65_536)).toBe(32_768);
+  expect(await numCtx(undefined)).toBe(4096);
+});
+
 test("an Ollama turn posts /api/chat with the window as num_ctx and the samplers in options", async () => {
   const { result, recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text]);
   expect(recorded[0]?.url).toBe("http://127.0.0.1:11434/api/chat");
@@ -125,7 +153,10 @@ test("the connection's keep_alive rides the top level and its num_batch rides op
 
 test("a recorded tool call comes back as a tool call, and its replay reaches the server as Ollama spells it", async () => {
   const { result, recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.tools], { tools: [WEATHER] });
-  expect(recorded[0]?.body["tools"]).toEqual([{ type: "function", function: WEATHER }]);
+  // The tool's parameters ride in the row's grammar vocabulary (gbnf): the object is pinned closed, as llama.cpp reads it.
+  expect(recorded[0]?.body["tools"]).toEqual([
+    { type: "function", function: { ...WEATHER, parameters: { ...WEATHER.parameters, additionalProperties: false } } },
+  ]);
   expect(result.toolCalls).toEqual([{ toolCallId: "call_s4210pyw", name: "get_weather", arguments: '{"city":"Paris"}' }]);
   expect(result.finishReason).toBe("tool");
 
@@ -145,7 +176,41 @@ test("a recorded tool call comes back as a tool call, and its replay reaches the
   );
   expect(replayed["messages"]).toEqual([
     { role: "assistant", content: "", ["tool_calls"]: [{ id: "call_s4210pyw", function: { name: "get_weather", arguments: { city: "Paris" } } }] },
-    { role: "tool", content: "18C and clear", ["tool_name"]: "get_weather" },
+    { role: "tool", content: "18C and clear", ["tool_name"]: "get_weather", ["tool_call_id"]: "call_s4210pyw" },
+  ]);
+});
+
+test("two calls of one tool answered in reverse order keep each result paired with its own call id", () => {
+  const replayed = toOllamaChat(
+    {
+      messages: [
+        {
+          role: "assistant",
+          ["tool_calls"]: [
+            { id: "call_a", type: "function", function: { name: "get_weather", arguments: '{"city":"Boise"}' } },
+            { id: "call_b", type: "function", function: { name: "get_weather", arguments: '{"city":"Nampa"}' } },
+          ],
+        },
+        { role: "tool", ["tool_call_id"]: "call_b", content: "Nampa sunny" },
+        { role: "tool", ["tool_call_id"]: "call_a", content: "Boise rainy" },
+        // A result naming no call stays bare: no invented id or name.
+        { role: "tool", content: "orphan" },
+      ],
+    },
+    { numCtx: WINDOW, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" },
+  );
+  expect(replayed["messages"]).toEqual([
+    {
+      role: "assistant",
+      content: "",
+      ["tool_calls"]: [
+        { id: "call_a", function: { name: "get_weather", arguments: { city: "Boise" } } },
+        { id: "call_b", function: { name: "get_weather", arguments: { city: "Nampa" } } },
+      ],
+    },
+    { role: "tool", content: "Nampa sunny", ["tool_name"]: "get_weather", ["tool_call_id"]: "call_b" },
+    { role: "tool", content: "Boise rainy", ["tool_name"]: "get_weather", ["tool_call_id"]: "call_a" },
+    { role: "tool", content: "orphan" },
   ]);
 });
 
@@ -290,10 +355,42 @@ test("a model whose reasoning is mandatory (gpt-oss) is never told off on a fold
 test("think: a model with named effort levels (gpt-oss) gets the level, any other model on/off, and none turns it off", () => {
   const body = (effort: string): Record<string, unknown> => ({ messages: [{ role: "user", content: "hi" }], ["reasoning_effort"]: effort });
   const args = { numCtx: undefined, samplerKeys: OLLAMA_SAMPLER_KEYS, label: "t" };
-  expect(toOllamaChat(body("high"), { ...args, namedThinkLevels: true })["think"]).toBe("high");
-  expect(toOllamaChat(body("high"), args)["think"]).toBe(true);
-  expect(toOllamaChat(body("none"), { ...args, namedThinkLevels: true })["think"]).toBe(false);
-  expect(toOllamaChat({ messages: [] }, { ...args, namedThinkLevels: true })["think"]).toBeUndefined();
+  const named = ["low", "medium", "high"] as const;
+  expect(toOllamaChat(body("high"), { ...args, think: { effort: "high", levels: named } })["think"]).toBe("high");
+  expect(toOllamaChat(body("high"), { ...args, think: { effort: "high" } })["think"]).toBe(true);
+  expect(toOllamaChat(body("none"), { ...args, think: { levels: named } })["think"]).toBe(false);
+  expect(toOllamaChat({ messages: [] }, { ...args, think: { levels: named } })["think"]).toBeUndefined();
+  // The native spelling is the model's own: `max` stays `max`, never the OpenAI route's `xhigh`.
+  expect(toOllamaChat(body("xhigh"), { ...args, think: { effort: "max", levels: [...named, "max"] } })["think"]).toBe("max");
+  // An on/off-only model the turn switched on gets `true`; a word the user's own body set rides as they wrote it.
+  expect(toOllamaChat({ messages: [] }, { ...args, think: { levels: [], on: true } })["think"]).toBe(true);
+  expect(toOllamaChat(body("deep"), { ...args, think: { effort: "high", levels: named }, userOwned: new Set(["reasoning_effort"]) })["think"]).toBe("deep");
+});
+
+test("a chosen effort reaches Ollama in the model's own spelling, and the turn records what was sent, not what was asked", async () => {
+  const sent = async (
+    reasoning: GenerationCapability["reasoning"],
+    params: UserIntent,
+  ): Promise<{ readonly think: unknown; readonly applied: ChatResult["appliedEffort"]; readonly warnings: readonly string[] }> => {
+    const { result, recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], {
+      connection: fakeResolved({ task: "chat", providerId: "ollama", model: "qwen3:0.6b", capability: capability({ reasoning }), baseUrl: BASE_URL }),
+      params,
+    });
+    const warnings = result.events.flatMap((event) => (event.kind === "warning" ? [event.code] : []));
+    return { think: recorded[0]?.body["think"], applied: result.appliedEffort, warnings };
+  };
+  const named: GenerationCapability["reasoning"] = { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high", "max"] };
+  expect(await sent(named, { effort: "max" })).toEqual({ think: "max", applied: "max", warnings: [] });
+  expect(await sent(named, { effort: "low" })).toEqual({ think: "low", applied: "low", warnings: [] });
+  expect(await sent(named, { effort: "none" })).toMatchObject({ think: false, applied: "none" });
+  // On/off only: the level is dropped loudly, thinking is switched on, and no level is recorded.
+  const onOff = await sent({ mode: "effort", enabled: true, effortLevels: [] }, { effort: "low" });
+  expect(onOff).toMatchObject({ think: true, applied: null });
+  expect(onOff.warnings).toContain("effort_dropped");
+  // No descriptor: the level cannot be spelled, so thinking goes on without one, and the turn says so.
+  const unstated = await sent({ mode: "effort", enabled: true }, { effort: "low" });
+  expect(unstated).toMatchObject({ think: true, applied: null });
+  expect(unstated.warnings).toContain("effort_dropped");
 });
 
 test("an image part travels as base64 in `images`, and an image URL is refused before the send", () => {
@@ -346,7 +443,7 @@ test("a recorded non-streaming answer (the structured path) reads back as one Op
   const recording = OLLAMA_NATIVE_RECORDINGS.format;
   const inner: typeof fetch = () =>
     Promise.resolve(new Response(recording.body, { status: recording.status, headers: { "content-type": recording.contentType } }));
-  const res = await ollamaNativeFetch(inner, { baseUrl: BASE_URL, label: "t" })(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
+  const res = await nativeChatFetch(inner)(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
   expect(res.headers.get("content-type")).toBe("application/json");
   expect(await res.json()).toMatchObject({
     choices: [{ message: { role: "assistant", content: '{\n  "city": "Paris"\n}' }, ["finish_reason"]: "stop" }],
@@ -388,6 +485,17 @@ test("a summarize call asks Ollama not to stream and reads the one JSON answer",
   expect(result.items[0]).toMatchObject({ text: PARIS, usage: { tokensIn: 37, tokensOut: 10 } });
 });
 
+test("a side-generation call spells a chosen max in the model's own word, as a chat turn does", async () => {
+  const posted: RecordedRequest[] = [];
+  const reasoning: GenerationCapability["reasoning"] = { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high", "max"] };
+  const connection = fakeResolved({ task: "summarize", providerId: "ollama", model: "qwen3:0.6b", capability: capability({ reasoning }), baseUrl: BASE_URL });
+  await runOpenAiCompatSummarize(
+    { connection, inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long text." }], effort: "max", signal: undefined },
+    batchDeps(posted),
+  );
+  expect(posted[0]?.body["think"]).toBe("max");
+});
+
 test("a structured call asks Ollama not to stream, sends the schema as `format`, and reads the answer", async () => {
   const posted: RecordedRequest[] = [];
   const connection = fakeResolved({ task: "structured", providerId: "ollama", model: "qwen2.5:0.5b", capability: capability(), baseUrl: BASE_URL });
@@ -396,7 +504,7 @@ test("a structured call asks Ollama not to stream, sends the schema as `format`,
     {
       connection,
       inputs: [{ systemPrompt: "Extract.", userPrompt: "France." }],
-      responseFormat: { name: "capital", schema, vehicle: "response-format" },
+      responseFormat: { name: "capital", schema },
       signal: undefined,
     },
     batchDeps(posted),
@@ -416,7 +524,7 @@ test("a side-generation call with reasoning off sends `think: false` to a model 
     {
       connection,
       inputs: [{ systemPrompt: "Extract.", userPrompt: "France." }],
-      responseFormat: { name: "capital", schema, vehicle: "response-format" },
+      responseFormat: { name: "capital", schema },
       effort: "none",
       maxTokens: 128,
       signal: undefined,
@@ -470,7 +578,7 @@ test("cancelling the translated stream cancels Ollama's stream, so an abort reac
     },
   });
   const inner: typeof fetch = () => Promise.resolve(new Response(endless, { status: 200, headers: { "content-type": "application/x-ndjson" } }));
-  const res = await ollamaNativeFetch(inner, { baseUrl: BASE_URL, label: "t" })(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
+  const res = await nativeChatFetch(inner)(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
   const reader = res.body?.getReader();
   await reader?.read();
   await reader?.cancel();
@@ -491,7 +599,7 @@ test("a line split across three reads still streams to [DONE]", async () => {
     },
   });
   const inner: typeof fetch = () => Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "application/x-ndjson" } }));
-  const res = await ollamaNativeFetch(inner, { baseUrl: BASE_URL, label: "t" })(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
+  const res = await nativeChatFetch(inner)(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
   const text = await Promise.race([
     res.text(),
     new Promise<string>((resolve) => {
@@ -500,6 +608,44 @@ test("a line split across three reads still streams to [DONE]", async () => {
   ]);
   expect(text).toContain('"content":"hello"');
   expect(text.endsWith("data: [DONE]\n\n")).toBe(true);
+});
+
+test("the reply capture holds Ollama's native bytes, while the turn reads them translated, on one entry with the request", async () => {
+  const run = async (
+    recording: Recording,
+  ): Promise<{ readonly entries: Parameters<WireCaptureSink>[0][]; readonly result: ChatResult | undefined; readonly error: unknown }> => {
+    const entries: Parameters<WireCaptureSink>[0][] = [];
+    const recorded: RecordedRequest[] = [];
+    let result: ChatResult | undefined;
+    let error: unknown;
+    try {
+      result = await runOpenAiCompatChatTurn(request(), {
+        now: () => NOW,
+        log: silentLog(),
+        transport: {
+          fetch: replay([recording], recorded),
+          app: { name: "t", url: "http://localhost:0" },
+          captureWire: (entry) => entries.push(entry),
+          captureWireReply: true,
+        },
+        tokens: memoryTokenLexicon(),
+      });
+    } catch (thrown) {
+      error = thrown;
+    }
+    await expect.poll(() => entries.length).toBe(1);
+    return { entries, result, error };
+  };
+  const ok = await run(OLLAMA_NATIVE_RECORDINGS.text);
+  expect(ok.result?.reply).toBe("Hello, how are you?");
+  // The native stream's own fields, which the OpenAI reconstruction drops, are what was captured.
+  expect(ok.entries[0]?.responseBody).toContain('"prompt_eval_count":35');
+  expect(ok.entries[0]?.responseBody).not.toContain("chat.completion.chunk");
+  expect(ok.entries[0]?.body).toMatchObject({ messages: expect.any(Array), options: expect.any(Object) });
+  // A failed answer captures Ollama's own error body and still reaches the turn as the server's words.
+  const failed = await run(OLLAMA_NATIVE_RECORDINGS.missing);
+  expect(failed.entries[0]?.responseBody).toBe(OLLAMA_NATIVE_RECORDINGS.missing.body);
+  expect(String(failed.error)).toMatch(/no-such-model:latest' not found/u);
 });
 
 test("a recorded error answer reaches the turn as the server's own message", async () => {
@@ -548,7 +694,7 @@ test("0511: the rpg structured state round sends its changes schema as `format`,
     {
       connection,
       inputs: [{ systemPrompt: "Track state.", userPrompt: "Mira is bleeding." }],
-      responseFormat: { name: "rpg_state_changes", schema, vehicle: "response-format" },
+      responseFormat: { name: "rpg_state_changes", schema },
       signal: undefined,
     },
     { ...batchDeps([]), transport: { fetch: replying, app: { name: "t", url: "http://localhost:0" } } },

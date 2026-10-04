@@ -1,6 +1,6 @@
-// The funnel's resolved knobs → the V4 `LanguageModelV4CallOptions` slice both hosted wires spell the same
-// way: the standardized sampler fields, the tool projection, the tool choice, the JSON response format and the
-// unified effort vocabulary. What a wire spells DIFFERENTLY (OR's nested `reasoning`, vLLM's `top_k`/`min_p`
+// The funnel's resolved knobs and the structured plan → the V4 `LanguageModelV4CallOptions` slice every V4 wire
+// spells the same way: the standardized sampler fields, the planned tools, tool choice and JSON response format,
+// and the unified effort vocabulary. What a wire spells differently (OR's nested `reasoning`, vLLM's `top_k`/`min_p`
 // via provider options, Anthropic's `thinking`) stays in that wire's own option builder.
 
 import type {
@@ -11,11 +11,10 @@ import type {
   LanguageModelV4ToolChoice,
   SharedV4ProviderOptions,
 } from "@ai-sdk/provider";
-import type { EffortLevel, EndpointFeatures, GenerationCapability } from "@orb/contracts/inference";
-import { acceptsNamedToolChoice, acceptsRequiredToolChoice } from "@orb/contracts/inference";
-import type { ResponseFormat, ToolChoice, WireTool } from "../../contract/chat.ts";
-import { assertNever } from "../../contract/errors.ts";
-import type { ResolvedSampling, ResolvedWarning } from "../../contract/resolve.ts";
+import type { EffortLevel } from "@orb/contracts/inference";
+import type { ToolChoice } from "../../contract/chat.ts";
+import type { ResolvedSampling } from "../../contract/resolve.ts";
+import type { PlannedResponseFormat, PlannedTool, StructuredPlan } from "../../structured/plan.ts";
 
 /** The V4 `reasoning` vocabulary — our `max` is the wire's `xhigh` (no provider spells `max` on this axis). */
 type WireEffort = Exclude<NonNullable<LanguageModelV4CallOptions["reasoning"]>, "provider-default">;
@@ -39,94 +38,48 @@ export function standardSampling(sampling: ResolvedSampling, maxOutputTokens: nu
   };
 }
 
-/** THE STRICT-TOOL RESOLUTION (audit C1). Precedence is the endpoint FIRST, the caller second, which is the
- *  inverse of the `extras` rule and is right for the same reason it is right there: `features.strictJson`
- *  states what the row CAN do, and a caller asking for a mode the endpoint has no field for does not make it
- *  appear. `never` therefore refuses even an explicit `strict: true` — loudly, at the point of declining. */
-function strictOf(tool: WireTool, strictJson: EndpointFeatures["strictJson"], warnings: ResolvedWarning[] | undefined): boolean | undefined {
-  if (strictJson === "never") {
-    if (tool.strict !== undefined) {
-      warnings?.push({
-        code: "sdk_unsupported_tool",
-        message: `tool "${tool.name}" asked for strict input mode: this endpoint's row declares no strict JSON support, so the flag was not sent`,
-      });
-    }
-    return;
-  }
-  // `default-on` is the guided-decoding row (vLLM): strict is the house default there, and a tool that
-  // wants the wider schema subset says `strict: false` explicitly. `declared-only` sends nothing unless asked.
-  return tool.strict ?? (strictJson === "default-on" ? true : undefined);
-}
-
 /** Order preserved — byte-stable request bodies, the prompt cache cares.
  *
- *  `cacheControl` rides the LAST tool alone (audit C4): the tool list is a large, stable prefix and Anthropic
- *  caches everything UP TO a breakpoint, so one marker at the end of the list caches the whole list. Only the
- *  anthropic converter reads it (`getCacheControl(tool.providerOptions, {type:"tool definition"})`); the
- *  openai-compatible converter ignores an unknown per-tool provider option, so passing it is inert there. */
-export function functionTools(
-  tools: readonly WireTool[],
-  opts: {
-    readonly strictJson: EndpointFeatures["strictJson"];
-    readonly warnings?: ResolvedWarning[] | undefined;
-    readonly cacheLastTool?: SharedV4ProviderOptions | undefined;
-  } = {
-    strictJson: undefined,
-  },
-): LanguageModelV4FunctionTool[] {
+ *  `cacheControl` rides the LAST tool alone: the tool list is a large, stable prefix and Anthropic caches
+ *  everything up to a breakpoint, so one marker at the end of the list caches the whole list. Only the anthropic
+ *  converter reads it; the openai-compatible converter ignores an unknown per-tool provider option. */
+function functionTools(tools: readonly PlannedTool[], cacheLastTool: SharedV4ProviderOptions | undefined): LanguageModelV4FunctionTool[] {
   const last = tools.length - 1;
-  return tools.map((tool, index) => {
-    const strict = strictOf(tool, opts.strictJson, opts.warnings);
-    return {
-      type: "function",
-      name: tool.name,
-      description: tool.description,
-      inputSchema: tool.parameters as JSONSchema7,
-      ...(strict !== undefined ? { strict } : {}),
-      ...(tool.inputExamples !== undefined ? { inputExamples: tool.inputExamples.map((input) => ({ input: input as JSONObject })) } : {}),
-      ...(opts.cacheLastTool !== undefined && index === last ? { providerOptions: opts.cacheLastTool } : {}),
-    };
-  });
+  return tools.map((tool, index) => ({
+    type: "function",
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.parameters as JSONSchema7,
+    ...(tool.strict !== undefined ? { strict: tool.strict } : {}),
+    ...(tool.inputExamples !== undefined ? { inputExamples: tool.inputExamples.map((input) => ({ input: input as JSONObject })) } : {}),
+    ...(cacheLastTool !== undefined && index === last ? { providerOptions: cacheLastTool } : {}),
+  }));
 }
 
-export function toolChoiceOf(choice: ToolChoice): LanguageModelV4ToolChoice {
+function toolChoiceOf(choice: ToolChoice): LanguageModelV4ToolChoice {
   return choice.mode === "tool" ? { type: "tool", toolName: choice.name } : { type: choice.mode };
 }
 
-/** THE FORCED-TOOL DOWNGRADE (#2575), per form. A capability whose `tools.requiredChoice` / `tools.namedChoice`
- *  is `false` cannot have that form forced: Claude Fable 5.1 / Mythos 5.1 / Opus 5.5 / Sonnet 5.5 answer both
- *  with a 400, llama.cpp runs a named choice as `auto`, Ollama and KoboldCpp take neither. The choice goes out
- *  as `auto` over the SAME tools (their `strict` flags untouched, so schema-valid arguments survive) and the drop
- *  is LOUD, because `auto` no longer guarantees a call and a caller that relied on the guarantee must be able to
- *  see why it lapsed. Keyed on the capability, never a model name: every model without the fact keeps its
- *  forced choice byte-for-byte. */
-export function servableToolChoice(choice: ToolChoice, generation: GenerationCapability, warnings: ResolvedWarning[]): ToolChoice {
-  switch (choice.mode) {
-    case "auto":
-    case "none":
-      return choice;
-    case "required":
-    case "tool":
-      if (choice.mode === "required" ? acceptsRequiredToolChoice(generation) : acceptsNamedToolChoice(generation)) {
-        return choice;
-      }
-      warnings.push({
-        code: "tool_choice_downgraded",
-        message: `tool choice "${choice.mode === "tool" ? `tool:${choice.name}` : choice.mode}" sent as "auto": this model rejects forced tool use`,
-      });
-      return { mode: "auto" };
-    default:
-      return assertNever(choice, "servableToolChoice");
-  }
-}
-
-/** The V4 JSON response format. The schema arrives ALREADY in the wire subset the calling backend chose
- *  (`scrubWireSchema` at the call site — a hosted transport scrubs, guided decoding does not). */
-export function jsonResponseFormat(format: ResponseFormat, schema: Record<string, unknown>): NonNullable<LanguageModelV4CallOptions["responseFormat"]> {
+/** The V4 JSON response format off the planned payload; the schema is already in the endpoint's subset. */
+function jsonResponseFormat(format: PlannedResponseFormat): NonNullable<LanguageModelV4CallOptions["responseFormat"]> {
   return {
     type: "json",
-    schema: schema as JSONSchema7,
+    schema: format.schema as JSONSchema7,
     name: format.name,
     ...(format.description !== undefined ? { description: format.description } : {}),
+  };
+}
+
+/** The plan's tools, tool choice and native response format as V4 call options. A tool vehicle's payload already
+ *  rides in `plan.tools`, so only a `response-format` payload sets `responseFormat`. */
+export function plannedOptions(
+  plan: StructuredPlan,
+  opts: { readonly cacheLastTool?: SharedV4ProviderOptions | undefined } = {},
+): Pick<LanguageModelV4CallOptions, "tools" | "toolChoice" | "responseFormat"> {
+  const format = plan.responseFormat;
+  return {
+    ...(plan.tools !== undefined ? { tools: functionTools(plan.tools, opts.cacheLastTool) } : {}),
+    ...(plan.toolChoice !== undefined ? { toolChoice: toolChoiceOf(plan.toolChoice) } : {}),
+    ...(format?.vehicle === "response-format" ? { responseFormat: jsonResponseFormat(format) } : {}),
   };
 }

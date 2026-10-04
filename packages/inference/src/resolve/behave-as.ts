@@ -2,7 +2,7 @@
 // whose folded `features.detectServer` is on, the built-in local-server row its server identified as. Facts
 // only: the connection's identity, its `Resolved.providerId` and the credential's AAD stay the registered row's.
 
-import type { EndpointFeatures, ModelInfoApi, ProviderDef, UserConnection } from "@orb/contracts/inference";
+import type { EndpointFeatures, ProviderDef, UserConnection } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, foldFeatures } from "@orb/contracts/inference";
 import type { Mirror } from "../catalog/mirror.ts";
 import type { DetectedServer } from "../contract/runtime.ts";
@@ -12,9 +12,9 @@ export interface DetectCache {
   readonly detectedServer: (baseUrl: string) => Mirror<DetectedServer>;
 }
 
-/** The built-in endpoint row that reads each server: `auth: endpoint` with that `features.modelInfoApi`. */
-function detectedRow(modelInfoApi: ModelInfoApi): ProviderDef | undefined {
-  return BUILTIN_PROVIDERS.find((row) => row.auth === "endpoint" && row.features?.modelInfoApi === modelInfoApi);
+/** The built-in endpoint row a detected server names. */
+function detectedRow(server: NonNullable<DetectedServer["server"]>): ProviderDef | undefined {
+  return BUILTIN_PROVIDERS.find((row) => row.auth === "endpoint" && row.id === server);
 }
 
 /** The URL a detecting row probes, or `null` when the row does not detect: the knob is off, the connection
@@ -31,7 +31,7 @@ export function detectionUrl(provider: ProviderDef, connection: UserConnection):
  *  row; the resolver warms the cache before its first provider-dependent step. */
 export function behaveAs(ctx: DetectCache, provider: ProviderDef, connection: UserConnection): ProviderDef {
   const baseUrl = detectionUrl(provider, connection);
-  const detected = baseUrl === null ? null : ctx.detectedServer(baseUrl).get()?.modelInfoApi;
+  const detected = baseUrl === null ? null : ctx.detectedServer(baseUrl).get()?.server;
   return (detected === null || detected === undefined ? undefined : detectedRow(detected)) ?? provider;
 }
 

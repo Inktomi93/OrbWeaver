@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SkeletonRows } from "#data";
 import type { EffectiveProfileRow } from "../../lib/effective-knobs.ts";
-import { honoredKnobLabels, knobLabel, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
+import { honoredKnobLabels, knobLabel, MIROSTAT_SKIPPED_GLOSS, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
 import { formatCount } from "../../lib/format-count.ts";
 import { PARAMS_VIEW_LABEL } from "../../lib/preset-nav.ts";
 import { resolveFailureCopy, resolveFailureMessage } from "../../lib/resolve-failure.ts";
@@ -72,6 +72,14 @@ export function DatumRow({ label, value, suffix, valueTitle }: DatumRowProps): R
  *  a value bar on one text-height line, stacked on `tight`), so pending and settled are the same box. */
 const PENDING_ROWS = 4;
 
+// A knob the server skips this turn says so in place of the rung that produced its value.
+function readingSuffix(knob: string, reading: EffectiveProfileRow["knobs"][string], skipped: ReadonlySet<string> | undefined): string | null {
+  if (skipped?.has(knob) === true) {
+    return MIROSTAT_SKIPPED_GLOSS;
+  }
+  return reading === undefined ? null : provenanceSuffix(reading.provenance);
+}
+
 /** The resolved generation profile — the funnel's OWN output (§4.3), never a client re-derivation.
  *
  *  PENDING IS NOT AN EMPTY STATE (the F-02 class, applied here 2026-08-07 — the same fix `CapabilityGate`
@@ -96,9 +104,13 @@ export function EffectiveProfile({
   error,
   onRetry,
   contextWindow,
+  contextSetByPreset = false,
   subject,
+  skipped,
 }: {
   readonly effective: EffectiveProfileRow | undefined;
+  /** The knobs the server will not run this turn (`mirostatSkipped`): their rows say so in place of a rung. */
+  readonly skipped?: ReadonlySet<string> | undefined;
   /** What the profile was resolved against, as the signature line names it (`chat role`, a connection's name). */
   readonly subject: string;
   /** The resolve's THROWN error — `null` while the read is still PENDING. With `effective` undefined those
@@ -115,6 +127,8 @@ export function EffectiveProfile({
    *  what the next turn will do. It came from the capability read, exactly as the deck's own ghost does
    *  (side-eye F-13: the value existed and had no row). */
   readonly contextWindow?: number | undefined;
+  /** The preset's Max context set that window (a route whose window the request sends), so the row says so. */
+  readonly contextSetByPreset?: boolean;
 }): ReactElement {
   if (effective === undefined) {
     if (error === null) {
@@ -142,14 +156,11 @@ export function EffectiveProfile({
           {/* DISPLAY names, never the schema key (side-eye F-13): the read is keyed by `maxOutputTokens`,
               the reader wants "max output". */}
           {rows.map(([knob, reading]) => (
-            <DatumRow
-              key={knob}
-              label={knobLabel(knob)}
-              suffix={reading === undefined ? null : provenanceSuffix(reading.provenance)}
-              value={formatKnobValue(reading?.value)}
-            />
+            <DatumRow key={knob} label={knobLabel(knob)} suffix={readingSuffix(knob, reading, skipped)} value={formatKnobValue(reading?.value)} />
           ))}
-          {contextWindow === undefined ? null : <DatumRow label={knobLabel("maxContextTokens")} suffix="window" value={formatKnobValue(contextWindow)} />}
+          {contextWindow === undefined ? null : (
+            <DatumRow label={knobLabel("maxContextTokens")} suffix={contextSetByPreset ? "preset" : "window"} value={formatKnobValue(contextWindow)} />
+          )}
         </Stack>
       )}
       <Text voice="gloss">
@@ -197,6 +208,14 @@ function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; 
   );
 }
 
+// On a route whose request sends the window, the resolved one is only the default a preset can raise, up to the trained maximum.
+function contextWindowSuffix(context: GenerationCapability["context"]): string | null {
+  if (context.settable !== undefined) {
+    return `default · up to ${formatKnobValue(context.settable.max)}`;
+  }
+  return context.windowEstimated === true ? "estimated" : null;
+}
+
 /** WHY a knob is absent, and what the window costs you — the two questions the deck itself cannot answer
  *  (an absent knob renders as nothing, which is correct doctrine and mute). The MODEL name comes from the
  *  effective read, not the descriptor: `GenerationCapability` is keyed by `(model, backend)` and deliberately
@@ -227,11 +246,7 @@ export function CapabilityCard({
         {model === undefined || modelName === undefined ? null : (
           <DatumRow label="model" value={modelName} valueTitle={modelName === model ? undefined : model} />
         )}
-        <DatumRow
-          label="context window"
-          suffix={capability.context.windowEstimated === true ? "estimated" : null}
-          value={formatKnobValue(capability.context.window)}
-        />
+        <DatumRow label="context window" suffix={contextWindowSuffix(capability.context)} value={formatKnobValue(capability.context.window)} />
         <DatumRow label="output cap" value={formatKnobValue(capability.output.maxTokens.max)} />
       </Stack>
       <Text voice="gloss">

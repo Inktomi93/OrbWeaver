@@ -12,6 +12,7 @@ import type { ChatDeltaEvent, ChatEvent } from "../../contract/events.ts";
 import type { AgentSdkSessionId } from "../../contract/identity.ts";
 import type { SpawnIdentity } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
+import type { PlannedResponseFormat } from "../../structured/plan.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import type { ClaudeRuntimeOverrides } from "./env.ts";
 import type { SeededSessionDecision } from "./session/index.ts";
@@ -68,8 +69,8 @@ export interface TurnStreamContext {
   readonly configuredMaxContextTokens?: number | null | undefined;
   readonly probeContextUsage?: (() => Promise<ContextUsage | undefined>) | undefined;
   readonly stderrTail?: (() => string) | undefined;
-  /** True when the request carried a `responseFormat` (`outputFormat: json_schema` mounted). */
-  readonly expectStructured?: boolean | undefined;
+  /** The planned payload when the request carried a `responseFormat` (`outputFormat: json_schema` mounted). */
+  readonly structured?: PlannedResponseFormat | undefined;
   /** True when the request's TERMINAL tools actually MOUNTED (D112 R1). */
   readonly captureTerminalTools?: boolean | undefined;
   /** What the spawned runtime was told for effort (`ChatResult.appliedEffort`): `none` when thinking was disabled,

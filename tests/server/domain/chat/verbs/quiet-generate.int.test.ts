@@ -16,6 +16,7 @@ import type { QuietGenerateParams } from "../../../../../packages/server/src/dom
 import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { createQuietGenerate } from "../../../../../packages/server/src/domain/chat/verbs/quiet-generate.ts";
 import { freshDb } from "../../../../support/db.ts";
+import { makeGenerationCapability, makeResolved } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId } from "../../../../support/inference-identities.ts";
 import { seedChat, testConnection } from "../_support.ts";
@@ -121,6 +122,22 @@ describe("quietGenerate — the verb's own contract", () => {
     });
     await quiet(paramsOf(chatId, { intent: { ...SIDE_GEN_POSTURES.compaction } }));
     expect(sink.at(0)?.intent).toEqual({ temperature: 0.3, topP: 0.9, maxOutputTokens: 1024 });
+  });
+
+  // Ollama's native route sends the window as `num_ctx`: a marker pass runs the chat's own window, so the server
+  // neither reloads the model nor cuts the transcript at its default.
+  test("on a route whose window the request sets, the chat preset's Max context is the window sent", async () => {
+    const sink: TurnRequest[] = [];
+    const chatId = await seedChat(db, "qwindow");
+    const ollama = makeResolved({ generation: makeGenerationCapability({ context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } } }) });
+    const quiet = createQuietGenerate({
+      runChatTurn: scriptedRun(sink, [{ kind: "final", economics: { content: "M", model: testModelId("m") } }]),
+      resolveChatPresetParams: () => Promise.resolve({ maxContextTokens: 16_384 }),
+    });
+
+    await quiet(paramsOf(chatId, { connection: ollama }));
+
+    expect(sink.at(0)?.connection.capability).toMatchObject({ generation: { context: { window: 16_384 } } });
   });
 
   test("a null economics cost yields costUsd: null (a local vLLM turn reports none)", async () => {

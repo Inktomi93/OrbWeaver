@@ -141,7 +141,7 @@ import { createStoreInlineReplyImage } from "./inline-reply-image.ts";
 import { minter } from "./minter.ts";
 import type { PortabilityRunnerComposeResult } from "./portability-runner.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
-import { buildRefinery } from "./refinery.ts";
+import { buildRefinery, createResolveStructuredBinding } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
 import { withRetrievalDegrade } from "./retrieval-degrade.ts";
 import { buildRosterPreset } from "./roster-preset.ts";
@@ -517,8 +517,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // `ProviderErrorKind` plus the credentialId the call authenticated with, which is exactly
     // `MaybeRevokeParams`; an adapter here could only re-derive a fact it was handed (#1373's whole defect).
     onAuthFailed: credentials.maybeRevokeOnAuthFailed,
-    // A thunk: an admin flip governs the next structured call (D126).
-    structuredOutputVehicle: () => effectiveConfig.getEffectiveConfig().structuredOutputVehicle,
     // The sink stamps `at` from the injected clock (no-raw-clock) and forwards to the process ring.
     ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture({ ...entry, at: now() }) } : {}),
     // The reply tap lives at the SEND BOUNDARY (it owns the 64 KiB cap and the by-value scrub); compose only
@@ -825,6 +823,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     roleClientsFor,
+    resolveStructuredBinding: createResolveStructuredBinding(runtime, resolveFunderPrincipal),
     character,
     resolveUtilityPresetParams,
     loadUserSettings: settings.loadUserSettings,
@@ -1001,8 +1000,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
     runChatTurn: executor.runChatTurn,
     // The Anthropic prompt-cache depth FLOOR, read PER TURN off the resolved AppSettings tier (Settings ›
-    // Admin › System tuning). A thunk for the same reason `structuredOutputShape` below is one: an admin flip
-    // must govern the next turn with no restart.
+    // Admin › System tuning). A thunk, so an admin flip governs the next turn with no restart.
     promptCacheMinDepth: () => effectiveConfig.getEffectiveConfig().promptCacheMinDepth,
     readPresence: (userId) => Promise.resolve(presence.read(userId)),
     generatePicture: imagery.generatePicture,
@@ -1087,10 +1085,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     character,
     chat: chatCompose.service,
     toolUse,
-    // D126 — the deployment's structured-output wire shape, read PER CALL off the resolved AppSettings tier
-    // (Settings › Admin › Structured output). A thunk, so an admin flip reaches the next extraction without a
-    // restart (the `maxImageBytes` / `promptTransformDeadlineMs` precedent).
-    structuredOutputShape: () => effectiveConfig.getEffectiveConfig().structuredOutputShape,
   });
   rpgOpsHolder = rpgCompose.chatOps;
   const rpg = rpgCompose.service;

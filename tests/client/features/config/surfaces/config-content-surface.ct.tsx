@@ -97,8 +97,6 @@ const APP_CONFIG = {
   catalogRefreshIntervalMs: 86_400_000,
   imageVariantQuality: 80,
   promptCacheMinDepth: 0,
-  structuredOutputShape: "as-projected",
-  structuredOutputVehicle: "auto",
   ipCertificate: null,
 } satisfies TrpcWireOutput<"settings.getAppSettings">;
 const OWNER_VIEWER = { userId: "user_owner", handle: "owner", globalRole: "owner" } satisfies TrpcWireOutput<"sessions.me">;

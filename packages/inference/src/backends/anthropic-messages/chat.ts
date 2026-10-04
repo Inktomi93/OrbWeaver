@@ -17,14 +17,7 @@
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { GenerationCapability, ReasoningOffMode } from "@orb/contracts/inference";
-import {
-  acceptsAssistantPrefill,
-  acceptsTurnScopedSystem,
-  bindsThinkingToPrefix,
-  cacheMinTokensOf,
-  REASONING_OFF_DEFAULT,
-  scrubWireSchema,
-} from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, acceptsTurnScopedSystem, bindsThinkingToPrefix, cacheMinTokensOf, REASONING_OFF_DEFAULT } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { AnthropicChatRequest, ChatHistoryMessage, ChatResult } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
@@ -34,10 +27,13 @@ import type { Resolved } from "../../contract/resolved.ts";
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
+import type { StructuredPlan } from "../../structured/plan.ts";
+import { requireStructuredPlan } from "../../structured/plan.ts";
+import { structuredChatResult } from "../../structured/reply.ts";
 import { effortWordOf } from "../kit/applied-effort.ts";
 import type { ExplicitCachePlan } from "../kit/cache-control.ts";
 import { explicitCachePlan, placeExplicitCacheMarkers } from "../kit/cache-control.ts";
-import { providerErrorFromHttp } from "../kit/error-classify.ts";
+import { providerErrorFromHttp, withSchemaRejection } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { ProviderLogger } from "../kit/provider-log.ts";
 import { providerLogger } from "../kit/provider-log.ts";
@@ -46,7 +42,7 @@ import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-he
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
 import { emitTurnSpanEvents } from "../kit/turn-span.ts";
-import { functionTools, jsonResponseFormat, servableToolChoice, standardSampling, toolChoiceOf } from "../v4/options.ts";
+import { plannedOptions, standardSampling } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
@@ -168,6 +164,12 @@ export function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
   return { type: "adaptive", ...display };
 }
 
+/** Manual extended thinking (`thinking: enabled`) refuses a forced `tool_choice` on every model (the Messages API's
+ *  tool-use docs), so a turn that sends it asks the plan for no forced choice. */
+export function forcedChoiceOf(reasoning: ResolvedReasoning): false | undefined {
+  return reasoning.enabled && reasoning.mode === "budget" ? false : undefined;
+}
+
 /** Preserved thinking: on a prefix-bound model a replayed thinking block whose earlier prefix changed is a 400
  *  unless the request asks the API to drop it. Every carry rung replays thinking, so every rung asks: a missed
  *  edit then costs that block, counted and raised by {@link raiseThinkingDrops}, never the turn. The SDK spells
@@ -202,13 +204,28 @@ function toolCacheOptions(generation: GenerationCapability, cachePlan: ExplicitC
     : undefined;
 }
 
+/** How the SDK carries a planned payload: `outputFormat` (`output_config.format`) for a native format, so the SDK
+ *  never picks a vehicle itself, and one call with parallel use off for a tool vehicle. */
+export function anthropicStructuredOptions(plan: StructuredPlan): JSONObject {
+  const vehicle = plan.responseFormat?.vehicle;
+  if (vehicle === undefined) {
+    return {};
+  }
+  return vehicle === "response-format" ? { structuredOutputMode: "outputFormat" } : { disableParallelToolUse: true };
+}
+
+/** The planned schema when the payload rides `output_config.format`; a tool vehicle's schema is the tool's own. */
+export function nativeSchemaOf(plan: StructuredPlan | undefined): Record<string, unknown> | undefined {
+  return plan?.responseFormat?.vehicle === "response-format" ? plan.responseFormat.schema : undefined;
+}
+
 function anthropicOptions(
   req: AnthropicChatRequest,
   knobs: ResolvedChatKnobs,
   warnings: ResolvedWarning[],
-  model: { readonly generation: GenerationCapability; readonly toolCache: SharedV4ProviderOptions | undefined },
+  model: { readonly generation: GenerationCapability; readonly toolCache: SharedV4ProviderOptions | undefined; readonly plan: StructuredPlan },
 ): Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal"> {
-  const { generation, toolCache } = model;
+  const { generation, toolCache, plan } = model;
   const effort = knobs.reasoning.enabled ? sdkEffortOf(knobs.reasoning.effort, warnings, "turn") : undefined;
   if (knobs.verbosity !== undefined) {
     warnings.push({ code: "verbosity_dropped", message: "verbosity ignored: the anthropic wire has no verbosity field" });
@@ -219,20 +236,14 @@ function anthropicOptions(
     // knob below it (D143(b)/D156 — modelled wins; the allowlist itself excludes every modelled key).
     ...anthropicExtras(req.connection, warnings),
     sendReasoning: true,
-    structuredOutputMode: "auto",
     thinking: withBlockBinding(thinkingOf(knobs.reasoning), knobs, generation),
     ...(effort !== undefined ? { effort } : {}),
-    ...(req.tools !== undefined && parallel === false ? { disableParallelToolUse: true } : {}),
+    ...(plan.tools !== undefined && parallel === false ? { disableParallelToolUse: true } : {}),
+    ...anthropicStructuredOptions(plan),
   };
   return {
     ...standardSampling(knobs.sampling, knobs.maxOutputTokens),
-    ...(req.tools !== undefined
-      ? { tools: functionTools(req.tools, { strictJson: req.connection.features.strictJson, warnings, cacheLastTool: toolCache }) }
-      : {}),
-    ...(req.toolChoice !== undefined ? { toolChoice: toolChoiceOf(servableToolChoice(req.toolChoice, generation, warnings)) } : {}),
-    ...(req.responseFormat !== undefined
-      ? { responseFormat: jsonResponseFormat(req.responseFormat, scrubWireSchema(req.responseFormat.schema, "anthropic-format").schema) }
-      : {}),
+    ...plannedOptions(plan, { cacheLastTool: toolCache }),
     providerOptions: { [ANTHROPIC_KEY]: anthropic },
   };
 }
@@ -381,9 +392,25 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const toolCache = toolCacheOptions(generation, cachePlan, req.tools !== undefined && req.tools.length > 0);
   const cache = placeCache({ plan, req, cachePlan, generation, log, toolBlocks: toolCache === undefined ? 0 : 1 });
   const prompt = withMessageOptions(plan.prompt, ANTHROPIC_KEY, cache.patches);
-  const options = anthropicOptions(req, knobs, warnings, { generation, toolCache });
-  const call: AnthropicCall = { connection, deps: deps.transport, label, api: req.api, chatId: req.chatId };
-  const classify = (err: unknown): ProviderError => (err instanceof ProviderError ? err : providerErrorFromHttp(err, label, secrets));
+  const structured = requireStructuredPlan(
+    connection,
+    {
+      formats: req.responseFormat === undefined ? undefined : [req.responseFormat],
+      tools: req.tools,
+      toolChoice: req.toolChoice,
+      forcedChoice: forcedChoiceOf(knobs.reasoning),
+      // Anthropic: message prefilling is incompatible with JSON outputs.
+      nativeFormat: plan.endsOnAssistant ? false : undefined,
+    },
+    label,
+  );
+  warnings.push(...structured.downgrades);
+  const options = anthropicOptions(req, knobs, warnings, { generation, toolCache, plan: structured });
+  const call: AnthropicCall = { connection, deps: deps.transport, label, api: req.api, chatId: req.chatId, plannedSchema: nativeSchemaOf(structured) };
+  const classify = (err: unknown): ProviderError =>
+    err instanceof ProviderError
+      ? err
+      : withSchemaRejection(providerErrorFromHttp(err, label, secrets), err, { log, model: connection.model, mode: structured.mode, secrets });
   // THE TYPED-FAILURE BOUNDARY. `runWithPreCommitRetry` re-throws the ORIGINAL error on purpose (its JSDoc
   // states it: the classification is only the retry policy's input, and the openai-compat replay below peels
   // `responseBody`/`cause` off that raw object, which `providerErrorFromHttp` would have scrubbed away). That
@@ -444,7 +471,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const extraEvents: ChatEvent[] = [refusalEventOf(drain, connection.model, finishedAt), rateLimitCanaryEvent(response.rateLimit, finishedAt)].filter(
     (event): event is ChatEvent => event !== null,
   );
-  const turn: ChatResult = extraEvents.length > 0 ? { ...folded, events: [...folded.events, ...extraEvents] } : folded;
+  const turn: ChatResult = structuredChatResult(extraEvents.length > 0 ? { ...folded, events: [...folded.events, ...extraEvents] } : folded, structured);
   if (response.rateLimit !== null) {
     log.emit(response.rateLimit.status === "allowed" ? "debug" : "warn", "provider.rate_limit", { turnId: knobs.turnId, ...response.rateLimit });
   }

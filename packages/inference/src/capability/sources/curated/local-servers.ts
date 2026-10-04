@@ -91,6 +91,30 @@ export const localServerRows = [
         // The server's default chain (common/common.h `samplers`), then `adaptive_p`: it replaces the final
         // draw only while `adaptive_target` is set (sampling.cpp, llama-sampler.cpp), so listing it is inert.
         samplerOrder: ["penalties", "dry", "topNSigma", "topK", "typicalP", "topP", "minP", "xtc", "temperature", "adaptiveP"],
+        // Mirostat 1 or 2 builds a chain of plain temperature and Mirostat alone (common/sampling.cpp).
+        mirostatSkips: [
+          "topP",
+          "topK",
+          "minP",
+          "typicalP",
+          "topNSigma",
+          "repetitionPenalty",
+          "repetitionPenaltyRange",
+          "presencePenalty",
+          "frequencyPenalty",
+          "xtcProbability",
+          "xtcThreshold",
+          "dryMultiplier",
+          "dryBase",
+          "dryAllowedLength",
+          "dryPenaltyLastN",
+          "drySequenceBreakers",
+          "dynatempRange",
+          "dynatempExponent",
+          "adaptiveTarget",
+          "adaptiveDecay",
+          "minKeep",
+        ],
       },
     },
     evidence: {
@@ -112,6 +136,22 @@ export const localServerRows = [
         adaptiveDecay: KOBOLD_ADAPTIVE_DECAY,
         // The default `sampler_order` [6, 0, 1, 3, 4, 2, 5] without tail-free sampling (3), which no preset knob sets.
         samplerOrder: ["penalties", "topK", "topA", "typicalP", "topP", "temperature"],
+        // Its Mirostat branch runs DRY, the repetition stage and temperature with smoothing, then Mirostat; the order,
+        // the truncation samplers, n-sigma, XTC and Adaptive-P do not run (gpttype_adapter.cpp SampleLogits).
+        mirostatSkips: [
+          "topK",
+          "topA",
+          "topP",
+          "minP",
+          "typicalP",
+          "topNSigma",
+          "dynatempRange",
+          "dynatempExponent",
+          "xtcProbability",
+          "xtcThreshold",
+          "adaptiveTarget",
+          "adaptiveDecay",
+        ],
       },
     },
     evidence: {
@@ -140,6 +180,22 @@ export const localServerRows = [
     },
     // `typical_p` is left out: Ollama deprecated it (api/types.go:578) and only warns while passing it on.
     evidence: { tier: "curated", dated: DATED, cite: "ollama 42e911bc api/types.go Options (568-596) decoded by Options.FromMap (1022-1123)" },
+  },
+  {
+    // The same server with its native route turned off (`nativeChat: none`): `/v1/chat/completions` converts only
+    // these into options and drops `top_k`, `min_p`, `repeat_penalty`, `repeat_last_n` and `num_ctx` unread.
+    match: { model: ANY_MODEL, provider: "ollama", nativeChat: "none" },
+    generation: {
+      sampling: {
+        temperature: LOCAL_TEMPERATURE,
+        topP: PROBABILITY,
+        frequencyPenalty: PENALTY,
+        presencePenalty: PENALTY,
+        seed: true,
+        stop: true,
+      },
+    },
+    evidence: { tier: "curated", dated: DATED, cite: "ollama 42e911bc openai/openai.go ChatCompletionRequest (118-144) and fromChatRequest (604-816)" },
   },
   {
     match: { model: ANY_MODEL, provider: "lm-studio" },

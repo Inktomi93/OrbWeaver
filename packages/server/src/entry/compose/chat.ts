@@ -9,7 +9,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { resolveRenderPolicy, SIGNUP_INVITES_MINTABLE } from "@orb/contracts/chat";
 import type { AuthMode, Can, Principal } from "@orb/contracts/identity";
-import { acceptsNamedToolChoice, RERANK_FLOOR } from "@orb/contracts/inference";
+import { RERANK_FLOOR } from "@orb/contracts/inference";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -19,7 +19,7 @@ import type { Db } from "@orb/db";
 import { characterPersonas, chatParticipants, personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { BindingActor, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, ChatTurnInput, Resolved, RoleClientsWithSignal } from "@orb/inference";
-import { NoConnectionError, toChatRequest, unavailableRefusal } from "@orb/inference";
+import { carriesStructured, NoConnectionError, toChatRequest, unavailableRefusal } from "@orb/inference";
 import type { AssetId, ChatId, Handle, PersonaId, PresetId, TypeIdOf, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -380,6 +380,9 @@ export interface ChatComposeResult {
      *  construction, ruled out. A VERB DOOR has no first resolution to diverge from; the consenting human
      *  clicked a button and this IS the moment, exactly as `resolvePromptUserMacros` is for the picks pane. */
     readonly resolveChatPresetProse: (chatId: ChatId) => Promise<ProseOverrides>;
+    /** The same ladder's generation params, the one home of the room's Max context: a send on the room's chat
+     *  connection outside the turn applies it with `withPresetWindow`, so it runs the window the turn sends. */
+    readonly resolveChatPresetParams: (chatId: ChatId) => Promise<UserIntent>;
   };
   /** The D50 PromptTransform registrar — surfaced so automation's rule lifecycle
    *  + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the
@@ -762,23 +765,17 @@ export function createGeneratePictureOp(generatePicture: ImageryService["generat
 
 /**
  * Smart's Utility arbiter on the funder's bound row, or null when that row cannot answer it. The arbiter is
- * structured output only, so the row must serve a vehicle: schema-constrained output, or a forced named tool on a
- * model that takes `tools[]` at all. Null is the round's visible degrade, never a free-text call. The vehicle
- * itself is `rc.structured`'s choice.
+ * structured output only, so the row must carry a structured payload at all (`carriesStructured`, the planner's
+ * answer). Null is the round's visible degrade, never a free-text call. How it rides is the plan's.
  *
  * @public Test-anchored module surface; the three routes are pinned at `tests/server/entry/compose/speaker-arbiter.test.ts`.
  */
 export async function speakerArbiterFor(roles: Pick<RoleClientsWithSignal, "resolved" | "structured">): ReturnType<ChatContext["resolveSpeakerArbiter"]> {
   const view = await roles.resolved("structured");
-  if (view?.capability.kind !== "generation") {
+  if (view?.capability.kind !== "generation" || !carriesStructured(view)) {
     return null;
   }
-  const generation = view.capability.generation;
-  const forcedTool = generation.tools !== undefined && acceptsNamedToolChoice(generation);
-  if (generation.output.structured !== true && !forcedTool) {
-    return null;
-  }
-  return { structured: (inputs, opts) => roles.structured(inputs, opts), contextTokens: generation.context.window };
+  return { structured: (inputs, opts) => roles.structured(inputs, opts), contextTokens: view.capability.generation.context.window };
 }
 
 /**
@@ -926,22 +923,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     return config.userMacros;
   };
 
-  // The chat HOST's active-preset generation params for quiet-generate/compaction, which run on the chat
-  // connection. One home with `resolvePromptVariables` (same host + config resolution — a hostless/stale room
-  // degrades to the system-default params, never a throw).
-  const resolveChatPresetParams = async (chatId: ChatId): Promise<UserIntent> => {
-    const hostUserId = await resolveChatHostUserId(chatId);
-    if (hostUserId === null) {
-      return DEFAULT_PROMPT_CONFIG.params;
-    }
-    const us = await input.settings.loadUserSettings(hostUserId);
-    const { config } = await resolvePromptConfigFor(hostUserId, us.seeds.defaultPresetId);
-    return config.params;
-  };
-
   // The chat's app-tier PROSE overrides, resolved under the chat's HOST (PROSE-1 owner-decision 8, option
   // (a) — the room's side generations read one stable voice, not the speaker-of-the-moment's). One home with
-  // `resolvePromptVariables`/`resolveChatPresetParams`: same host resolution, same hostless degrade — an
+  // `resolvePromptVariables`: same host resolution, same hostless degrade — an
   // empty record, which resolves every slot to its shipped default (byte-identical to pre-PROSE-1).
   const resolveChatProse = async (chatId: ChatId): Promise<ProseOverrides> => {
     const hostUserId = await resolveChatHostUserId(chatId);
@@ -959,16 +943,25 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   // the table's GM preset sees the SAME bytes on a resync/populate that they see on a turn. Diverging here —
   // e.g. reading the host's default preset — is precisely the defect the `resolvePreviewInputs` GM redirect
   // was landed to fix, in a different jacket.
-  const resolveChatPresetProse = async (chatId: ChatId): Promise<ProseOverrides> => {
+  // The room's preset as a TURN resolves it: the GM-voice redirect first, then the host's default.
+  const resolveChatTurnPresetConfig = async (chatId: ChatId): Promise<PromptConfig | null> => {
     const hostUserId = await resolveChatHostUserId(chatId);
     if (hostUserId === null) {
-      return {};
+      return null;
     }
     const presetOverride = (await input.rpg?.resolvePresetOverride(chatId)) ?? null;
     const us = await input.settings.loadUserSettings(hostUserId);
-    const { config } = await resolvePromptConfigWithOverride(hostUserId, presetOverride ?? undefined, us.seeds.defaultPresetId);
-    return composeProse({ preset: config.prose });
+    return (await resolvePromptConfigWithOverride(hostUserId, presetOverride ?? undefined, us.seeds.defaultPresetId)).config;
   };
+  const resolveChatPresetProse = async (chatId: ChatId): Promise<ProseOverrides> => {
+    const config = await resolveChatTurnPresetConfig(chatId);
+    return config === null ? {} : composeProse({ preset: config.prose });
+  };
+  // The room's preset generation params, by the SAME ladder the turn walks: every send on the chat connection outside
+  // the turn (quiet generation and compaction, the host's resync and populate, the overflow notice) reads its sampling
+  // and its Max context here, so it runs the window the turn sends. A hostless room degrades to the system default.
+  const resolveChatPresetParams = async (chatId: ChatId): Promise<UserIntent> =>
+    (await resolveChatTurnPresetConfig(chatId))?.params ?? DEFAULT_PROMPT_CONFIG.params;
 
   // The one memory-config merge: the admin-set defaults, forced to `mode:"off"` when the host disabled
   // memory. Kept pure so both the live turn path and the sweep resolver funnel through it without
@@ -1229,8 +1222,8 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       const capability = view.capability.kind === "rerank" ? view.capability.rerank : RERANK_FLOOR;
       return { capability, rerank: (query, documents, opts) => roles.rerank(query, documents, opts) };
     },
-    // The arbiter is structured output only: a row whose model has neither a response-format nor a named
-    // forced-tool vehicle cannot serve it, so the round degrades visibly instead of reading free text.
+    // The arbiter is structured output only: a row that carries no structured payload cannot serve it, so the round
+    // degrades visibly instead of reading free text.
     resolveSpeakerArbiter: async (funderUserId) => await speakerArbiterFor(await input.roleClientsFor(funderUserId)),
     summarizerContextTokens: taskWindows.summarize,
     summarizeAvailability: async (funderUserId) => await input.connection.availability({ task: "summarize", principal: await realHostPrincipal(funderUserId) }),
@@ -1594,6 +1587,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),
       resolvePromptUserMacros,
       resolveChatPresetProse,
+      resolveChatPresetParams,
     },
     promptTransforms: promptTransformRegistry,
     applyVariableOps: (chatId, ops, expect) => applyStandaloneVariableOps(chatCtx, chatId, ops, expect),

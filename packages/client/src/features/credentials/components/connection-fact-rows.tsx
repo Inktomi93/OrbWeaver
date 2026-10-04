@@ -79,7 +79,8 @@ function FactRowView({ row, busy, onOverride, onReset, note }: { readonly row: F
             <Button aria-label={`Reset ${row.name}`} disabled={busy} intent="ghost" onClick={(): void => onReset(row)} size="sm">
               Reset
             </Button>
-          ) : (
+          ) : null}
+          {row.overridden || row.setElsewhere === true ? null : (
             <Button aria-label={`Override ${row.name}`} disabled={busy} intent="ghost" onClick={(): void => setEditing(true)} size="sm">
               Override
             </Button>

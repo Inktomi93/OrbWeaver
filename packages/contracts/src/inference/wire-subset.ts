@@ -1,64 +1,32 @@
-// @orb/contracts/inference wire-subset — the ONE keyword-scrub ENGINE behind every wire's JSON-Schema subset.
-// Pure + isomorphic, and deliberately NOT part of `projectJsonSchema`: the projection rule stays
-// backend-agnostic (D79 — zod is the one representation), and WHICH subset a request may carry is a property
-// of the WIRE, decided at the request-build site (D93). What lives here is only the walk + the per-mode
-// vocabulary, so three backends cannot drift three ways over the same keyword table (they did: the agent-sdk
-// walk was position-aware, vLLM's was not — a field literally named `title`/`default` was silently deleted
-// from the guided-decoding wire, and OpenRouter had no scrub at all).
-//
-// WHY A SCRUB EXISTS AT ALL (vendor docs, fetched 2026-08-03):
-//   • Anthropic — `minLength`/`maxLength`, `minimum`/`maximum`/`multipleOf` and the array/object bound
-//     keywords are listed NOT SUPPORTED by the structured-output subset
-//     (`https://platform.claude.com/docs/en/build-with-claude/structured-outputs.md`); `strict:true` tools
-//     compile through the same grammar pipeline
-//     (`https://platform.claude.com/docs/en/agents-and-tools/tool-use/strict-tool-use.md`).
-//     CORRECTION, SCOPED (owner-supplied Anthropic structured-outputs doc, 2026-08-08): the blanket "array
-//     bound keywords" clause above is STALE for exactly one keyword — the current doc lists "Array minItems
-//     (only values 0 and 1 supported)" under SUPPORTED. So on the Anthropic-family wire `minItems` SURVIVES,
-//     clamped to that range ({@link WireSubset.clampMinItems}); the rest of the clause stands, and the
-//     correction does NOT reach `hosted-common`, whose whole job is the family-agnostic INTERSECTION (support
-//     is unestablished for the OpenAI/Google endpoints OpenRouter may route to).
-//   • OpenAI — string bounds (`minLength`/`maxLength`) are unsupported; numeric bounds ARE supported
-//     (`https://developers.openai.com/api/docs/guides/structured-outputs`).
-//   • vLLM/xgrammar — guided decoding ENFORCES the bounds, so they must SURVIVE there; only the annotations
-//     its validator chokes on come off.
-// A hosted request cannot know which family its proxy will route to (OpenRouter routes per PROVIDER, not per
-// model), so the hosted mode carries the strictest COMMON subset: bounds off, everywhere.
-//
-// The bounds are never lost as VALIDATION — zod keeps them and every caller re-imposes them on the parsed
-// reply. This is a wire-copy concern only.
-//
-// …BUT A SILENT DELETION IS STILL A LOSS OF INTENT (task #40). A stripped bound used to vanish from the wire
-// with nothing in its place, so the model was asked for a 1-10 score with no way to know 10 was the ceiling,
-// and the belt then rejected the reply the model was never told how to write. The fix is the card-refinery
-// precedent (the previous codebase’s `references/card-refinery/src/domain/schema/auto-fix.ts` — "move unsupported
-// constraints to description", the same move Anthropic's own SDK makes): a stripped bound is APPENDED to that
-// node's `description` as `[Constraints: minimum: 1, maximum: 10]`. Three properties make it safe to run on
-// every hosted request:
-//   • it adds NO keyword — `description` is already in every hosted subset (it IS the model's instructions),
-//     so the wire vocabulary is unchanged and the keyword strip is exactly as strict as before;
-//   • it APPENDS — an author's own prose keeps its bytes and its position, the note follows one space behind;
-//   • the spelling is DETERMINISTIC — keyword order is {@link BOUND_KEYWORDS}' declaration order, never the
-//     input object's key order, so the same constraints always produce the same bytes (a cached wire copy and
-//     a prompt-cache prefix both depend on that).
-// It fires only where the keyword was actually STRIPPED, so the guided-decoding wire — which SENDS the bounds
-// — never carries a note that would merely duplicate its own grammar. A CLAMPED bound notes the AUTHOR's
-// number, not the clamped one: `minItems: 3` ships as `minItems: 1` + `[Constraints: minItems: 3]`, which is
-// the strongest thing an endpoint capped at 1 can say (the belt still refuses a 2-element reply).
-//
-// The walk is POSITION-AWARE: under a `properties`/`$defs`/`definitions` map the KEYS are field NAMES, not
-// keywords, so a field literally named `maximum`/`oneOf`/`$schema` is descended into as a schema (never
-// stripped, never a false refusal); keyword matching resumes inside each field's own node.
+// @orb/contracts/inference wire-subset — the one keyword-scrub engine behind every wire's JSON-Schema subset (D93).
+// Pure and isomorphic. One mode per wire class: which keywords an endpoint's grammar can express, never a vendor.
+// The walk is position-aware: under `properties`/`$defs`/`definitions` the keys are field names, never keywords.
 
 import { isPlainObject } from "@orb/kit/guards";
+import type { Wire } from "./wires.ts";
 
-/** The wire subsets we speak. One member per WIRE CLASS, never per vendor: what splits them is which
- *  keywords the endpoint can express, and two vendors with the same answer share a mode. */
-export const WIRE_SCHEMA_MODES = ["hosted-common", "anthropic-format", "guided-decoding", "strict-compatible"] as const;
+/** The wire subsets we speak. One member per wire class, never per vendor: what splits them is which keywords the
+ *  endpoint can express, and two vendors with the same answer share a mode. */
+export const WIRE_SCHEMA_MODES = ["hosted-common", "anthropic-format", "guided-decoding", "strict-compatible", "gbnf", "gemini-schema"] as const;
 export type WireSchemaMode = (typeof WIRE_SCHEMA_MODES)[number];
 
-// Bound keywords: refused by Anthropic's subset outright, half-refused by OpenAI's (strings), enforced by
-// xgrammar. A hosted request drops all of them; a guided-decoding request keeps all of them.
+/** How a planned structured request carries its schema: the endpoint's native carrier (`response_format`,
+ *  `output_config.format`, `responseJsonSchema`, the agent-sdk `outputFormat`), one tool the model is forced
+ *  onto, or one tool offered under `auto`. The planner in `@orb/inference` is the only reader. */
+export const STRUCTURED_VEHICLES = ["response-format", "forced-tool", "offered-tool"] as const;
+export type StructuredVehicle = (typeof STRUCTURED_VEHICLES)[number];
+
+/** The mode a provider row that names no `features.structuredMode` gets, per wire. */
+export const WIRE_STRUCTURED_MODE_DEFAULT: Readonly<Record<Wire, WireSchemaMode>> = {
+  "openai-compat": "hosted-common",
+  "anthropic-messages": "anthropic-format",
+  "google-generative-ai": "gemini-schema",
+  "agent-sdk": "anthropic-format",
+  "local-light": "hosted-common",
+};
+
+// Bound keywords: a mode that strips one relays it into the node's description, so the model still reads the
+// constraint the grammar cannot carry. Declaration order is the note's byte order.
 const BOUND_KEYWORDS = [
   "minItems",
   "maxItems",
@@ -71,44 +39,32 @@ const BOUND_KEYWORDS = [
   "minProperties",
   "maxProperties",
   "multipleOf",
+  "pattern",
 ] as const;
 
-/** Membership test for the note pass. Derived from {@link BOUND_KEYWORDS} rather than declared per mode: what
- *  earns a note is being a CONSTRAINT this wire dropped, so a future mode inherits the behaviour by stripping
- *  a bound and nothing else has to be remembered. (The meta and annotation keywords carry no validation
- *  semantics — noting `$schema` or `title` would be prompt noise, not preserved intent.) */
 const BOUND_KEYWORD_SET: ReadonlySet<string> = new Set<string>(BOUND_KEYWORDS);
 
-/** Bounds that are a PROJECTION ARTIFACT, not the author's intent: `z.number().int()` stamps
- *  `minimum: -(2^53-1)` / `maximum: 2^53-1` on EVERY integer node (probed, zod 4.4.3). Noting those would put
- *  the same 40 bytes of machine noise in front of the model on every int field in the tree while saying
- *  nothing `"type":"integer"` does not — and an author who really means ±MAX_SAFE_INTEGER means "any integer".
- *  They are still STRIPPED exactly as before; only the note skips them. */
+/** The range keywords llama.cpp's converter honours on `integer` only; on a `number` node it skips them silently. */
+const NUMBER_RANGE_KEYWORDS: ReadonlySet<string> = new Set<string>(["minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"]);
+
+/** `z.number().int()` stamps ±MAX_SAFE_INTEGER on every integer node: stripped like any bound, never noted. */
 const ARTIFACT_BOUNDS: Readonly<Record<string, number>> = { minimum: -Number.MAX_SAFE_INTEGER, maximum: Number.MAX_SAFE_INTEGER };
 
-/** Render the note for one node's stripped bounds, or null when none of them said anything worth relaying.
- *  Iterates the KEYWORD TABLE (not the captured map) so the byte order is the table's, not the input's. */
 function constraintNoteOf(stripped: ReadonlyMap<string, unknown>): string | null {
   const pairs: string[] = [];
   for (const keyword of BOUND_KEYWORDS) {
     const value = stripped.get(keyword);
-    // Every bound keyword is numeric in draft 2020-12; a non-number is malformed input and is dropped silently
-    // exactly as it was before this pass existed.
-    if (typeof value === "number" && ARTIFACT_BOUNDS[keyword] !== value) {
-      pairs.push(`${keyword}: ${value}`);
+    if ((typeof value === "number" && ARTIFACT_BOUNDS[keyword] !== value) || typeof value === "string") {
+      pairs.push(`${keyword}: ${String(value)}`);
     }
   }
   return pairs.length === 0 ? null : `[Constraints: ${pairs.join(", ")}]`;
 }
 
-/** The only `minItems` values the Anthropic structured-output subset accepts (owner-supplied doc, 2026-08-08:
- *  "Array minItems (only values 0 and 1 supported)"). */
+/** The only `minItems` values the Anthropic structured-output subset accepts. */
 const CLAMPED_MIN_ITEMS = [0, 1] as const;
 
-/** Bring a surviving `minItems` inside the family's supported range, recording the AUTHOR's number for the
- *  note. A value the endpoint would refuse is the same failure as an unsupported keyword — this keeps the
- *  strongest constraint the wire can express ("at least one") and relays the real floor as prose, instead of
- *  the all-or-nothing choice between a 400 and total silence. Mutates `node`/`stripped`; both are ours. */
+// Keep the strongest floor the endpoint can express ("at least one") and relay the author's number as prose.
 function clampMinItems(node: Record<string, unknown>, stripped: Map<string, unknown>): void {
   const value = node["minItems"];
   if (typeof value !== "number" || (CLAMPED_MIN_ITEMS as readonly number[]).includes(value)) {
@@ -118,8 +74,7 @@ function clampMinItems(node: Record<string, unknown>, stripped: Map<string, unkn
   node["minItems"] = value > 0 ? 1 : 0;
 }
 
-/** Append the note to the node's own `description` (assigning an existing key keeps its position, so an
- *  author's prose neither moves nor loses a byte). */
+// Appends, never replaces: an author's own prose keeps its bytes and position.
 function appendConstraintNote(node: Record<string, unknown>, stripped: ReadonlyMap<string, unknown>): void {
   const note = constraintNoteOf(stripped);
   if (note === null) {
@@ -129,257 +84,530 @@ function appendConstraintNote(node: Record<string, unknown>, stripped: ReadonlyM
   node["description"] = typeof existing === "string" && existing.length > 0 ? `${existing} ${note}` : note;
 }
 
-// Dialect meta-keys. `z.toJSONSchema` stamps `$schema: "https://json-schema.org/draft/2020-12/schema"`, which
-// is in NEITHER vendor's documented keyword list and which the agent-sdk's bundled validator rejects outright
-// ("no schema with key or ref …", live-caught 2026-07-27). Stripping them changes no constraint — every wire
-// infers its dialect.
+// `z.toJSONSchema` stamps `$schema`, which no vendor documents and the agent-sdk validator rejects. Every wire
+// infers its dialect, so dropping these changes no constraint.
 const META_KEYWORDS = ["$schema", "$id"] as const;
 
-// Pure annotations (no validation semantics). A strict guided-decoding endpoint chokes on them; the hosted
-// wires accept them and they are prompt surface there (`description` is NEVER in this set — it is the model's
-// instructions).
+// Pure annotations, no validation semantics. `description` is never one: it is the model's instructions.
 const ANNOTATION_KEYWORDS = ["title", "default", "examples"] as const;
 
-/** Keys whose VALUE is a `{ name → schema }` map — the names are data, never keywords. */
+/** Keys whose value is a `{ name → schema }` map: the names are data, never keywords. */
 const NAME_MAP_KEYWORDS: ReadonlySet<string> = new Set<string>(["properties", "$defs", "definitions"]);
+const DEF_MAP_KEYWORDS: ReadonlySet<string> = new Set<string>(["$defs", "definitions"]);
+const ITEM_KEYWORDS: ReadonlySet<string> = new Set<string>(["items", "prefixItems", "contains"]);
+const UNION_KEYWORDS = ["anyOf", "oneOf"] as const;
 
 const OBJECT_TYPE = "object";
+const NUMBER_TYPE = "number";
+const NULL_TYPE = "null";
+const REF_KEYWORD = "$ref";
+const LOCAL_REF_PREFIX = "#";
+const PATTERN_KEYWORD = "pattern";
+
+/** A construct a wire refuses that one keyword name cannot express: the label it reports and the node test. */
+interface NodeRefusal {
+  readonly label: string;
+  readonly test: (node: Readonly<Record<string, unknown>>) => boolean;
+}
+
+/** llama.cpp's converter breaks on an object node that also carries a union (its README's known limits). */
+const UNION_BESIDE_PROPERTIES: NodeRefusal = {
+  label: "anyOf beside properties",
+  test: (node) => "properties" in node && UNION_KEYWORDS.some((key) => key in node),
+};
+
+/** llama.cpp accepts any string for a `pattern` that is not `^…$` anchored, so the constraint would be lost silently. */
+const UNANCHORED_PATTERN: NodeRefusal = {
+  label: "unanchored pattern",
+  test: (node) => {
+    const pattern = node[PATTERN_KEYWORD];
+    return typeof pattern === "string" && !(pattern.startsWith("^") && pattern.endsWith("$"));
+  },
+};
+
+/** Anthropic's subset takes `allOf`, but not beside or over a `$ref`. */
+const ALL_OF_WITH_REF: NodeRefusal = {
+  label: "allOf with $ref",
+  test: (node) => {
+    const arms = node["allOf"];
+    return Array.isArray(arms) && (REF_KEYWORD in node || arms.some((arm) => isPlainObject(arm) && REF_KEYWORD in arm));
+  },
+};
+
+/** Anthropic resolves only references inside the schema itself. */
+const EXTERNAL_REF: NodeRefusal = {
+  label: "external $ref",
+  test: (node) => {
+    const ref = node[REF_KEYWORD];
+    return typeof ref === "string" && !ref.startsWith(LOCAL_REF_PREFIX);
+  },
+};
+
+/** Anthropic's subset takes `enum` of primitives only. */
+const ENUM_OF_COMPLEX: NodeRefusal = {
+  label: "enum of objects or arrays",
+  test: (node) => {
+    const values = node["enum"];
+    return Array.isArray(values) && values.some((value) => value !== null && typeof value === "object");
+  },
+};
+
+/** The string formats Anthropic's subset accepts. */
+const ANTHROPIC_FORMATS: ReadonlySet<string> = new Set<string>(["date-time", "time", "date", "duration", "email", "hostname", "uri", "ipv4", "ipv6", "uuid"]);
+
+const UNSUPPORTED_FORMAT: NodeRefusal = {
+  label: "unsupported string format",
+  test: (node) => typeof node["format"] === "string" && !ANTHROPIC_FORMATS.has(node["format"]),
+};
+
+/** Backreferences, lookaround and word boundaries, which Anthropic's regex subset refuses. */
+const UNSUPPORTED_REGEX_FEATURE = /\\[1-9bB]|\(\?<?[=!]/u;
+
+const UNSUPPORTED_PATTERN: NodeRefusal = {
+  label: "unsupported pattern feature",
+  test: (node) => typeof node[PATTERN_KEYWORD] === "string" && UNSUPPORTED_REGEX_FEATURE.test(node[PATTERN_KEYWORD]),
+};
+
+/** Anthropic requires every object closed: an `additionalProperties` schema (a map) or `true` is refused. */
+const OPEN_OBJECT: NodeRefusal = {
+  label: "additionalProperties other than false",
+  test: (node) => "additionalProperties" in node && node["additionalProperties"] !== false,
+};
+
+/** xgrammar refuses a string that mixes `pattern` or `format` with a length bound. */
+const PATTERN_WITH_LENGTH: NodeRefusal = {
+  label: "pattern or format with a length bound",
+  test: (node) => (PATTERN_KEYWORD in node || "format" in node) && ("minLength" in node || "maxLength" in node),
+};
+
+/** xgrammar refuses `propertyNames` beside any other property constraint. */
+const PROPERTY_NAMES_CONFLICT: NodeRefusal = {
+  label: "propertyNames beside property constraints",
+  test: (node) =>
+    "propertyNames" in node &&
+    ("properties" in node || "patternProperties" in node || "unevaluatedProperties" in node || isPlainObject(node["additionalProperties"])),
+};
 
 interface WireSubset {
-  /** Keywords dropped from the wire copy (the value still rides the caller's own zod belt). */
+  /** Keywords dropped from the wire copy; a dropped bound is relayed into the node's description. */
   readonly strip: ReadonlySet<string>;
-  /** Keywords this wire cannot express AT ALL — reported to the caller, never silently removed (removing
-   *  `oneOf` would change the schema's MEANING; the fix is a build-time reshape, so it must be loud). */
+  /** Keywords this wire cannot express at all: reported, never removed, because removing them changes meaning. */
   readonly refuse: ReadonlySet<string>;
-  /** Re-apply the projector's `additionalProperties:false` pin on every object node. ON only where the wire
-   *  REQUIRES a closed object (guided decoding compiles it; OpenAI strict demands it). The hosted/Anthropic
-   *  modes leave the tree exactly as projected — the projector already pinned it, and re-pinning there would
-   *  silently close a hand-supplied schema those wires accept open today. */
+  /** Node shapes this wire cannot express, beyond a single keyword. */
+  readonly refuseNodes: readonly NodeRefusal[];
+  /** Strip the range keywords from `type: number` nodes only (llama.cpp enforces them on integers). */
+  readonly stripNumberRanges: boolean;
+  /** Pin `additionalProperties: false` on every object node, where the wire requires a closed object. */
   readonly pinClosed: boolean;
-  /** OPTIONAL-AS-NULLABLE (the OpenAI strict shape). Every property lands in `required`, and a property that
-   *  was NOT required is emitted as `anyOf: [<its schema>, {"type":"null"}]`. Semantics are unchanged because
-   *  `null ≡ absent` is imposed at the parse boundary (`dropNullValues`). */
+  /** The optional-as-nullable reshape: every property becomes required and each optional becomes
+   *  `anyOf: [<schema>, {"type":"null"}]`. The reshaped paths ride the plan so the reply drops exactly those nulls. */
   readonly requireAllAsNullable: boolean;
-  /** KEEP `minItems`, clamped to {@link CLAMPED_MIN_ITEMS}, instead of stripping it — the ONE family-scoped
-   *  exception to the bound strip (header: the Anthropic doc lists `minItems` at 0|1 as supported). A mode
-   *  that sets this MUST leave `minItems` out of its `strip` set; a mode that strips it must leave this off,
-   *  or the keyword is gone before the clamp ever sees it. Off everywhere else BY DESIGN: `hosted-common` is
-   *  the family-agnostic intersection and guided-decoding sends the real value. */
+  /** Keep `minItems`, clamped to {@link CLAMPED_MIN_ITEMS}, instead of stripping it. A mode that sets this must
+   *  leave `minItems` out of its `strip` set, or the keyword is gone before the clamp sees it. */
   readonly clampMinItems: boolean;
-  /** The grammar's per-REQUEST ceilings, summed across every strict schema the request carries; absent ⇒ none
-   *  stated. They belong to the upstream that compiles the grammar, so a model whose vendor enforces them names
-   *  this subset (`output.structuredLimitsFrom`) whatever wire class carries its request. Checked by
-   *  `checkWireSchema` (wire-limits.ts). */
+  /** Refuse a `$defs` member that reaches itself through `$ref` (Anthropic: recursive schemas unsupported). */
+  readonly refuseRecursion?: true;
+  /** Refuse a `$ref` inside a `$defs` member (llama.cpp's converter breaks on a nested reference). */
+  readonly refuseNestedRef?: true;
+  /** The vendor's per-request ceilings as documented; a capability row names the mode whose ceilings bind
+   *  (`output.structuredLimitsFrom`) and may override them field by field (`output.structuredLimits`). */
   readonly limits?: WireSchemaLimits;
 }
 
-/** Ceilings a structured-output grammar states per request. `maxStrictTools` is stated, not yet checked: no caller
- *  counts strict tools against it until the follow-up structured-limits validator (work item 0518). */
+/** Ceilings a structured-output grammar states per request, summed across every strict schema the request
+ *  carries. Each is optional: a mode states only what its vendor documents. */
 export interface WireSchemaLimits {
-  readonly maxOptionalProps: number;
-  readonly maxUnionProps: number;
-  readonly maxStrictTools: number;
+  readonly maxOptionalProps?: number | undefined;
+  readonly maxUnionProps?: number | undefined;
+  readonly maxStrictTools?: number | undefined;
+  readonly maxObjectProps?: number | undefined;
+  readonly maxDepth?: number | undefined;
+  readonly maxEnumValues?: number | undefined;
+  readonly maxNameChars?: number | undefined;
+  /** Total characters of one string enum that has more than {@link LONG_ENUM_VALUES} values. */
+  readonly maxLongEnumChars?: number | undefined;
 }
 
-/** The Anthropic wire's bound strip: everything except `minItems`, which is clamped instead (header). */
-const ANTHROPIC_STRIPPED_BOUNDS = BOUND_KEYWORDS.filter((keyword) => keyword !== "minItems");
+/** The value count past which OpenAI strict caps one string enum's total characters. */
+export const LONG_ENUM_VALUES = 250;
 
-/** The per-mode vocabulary. A mapped Record, not a switch — a new `WireSchemaMode` without a row is a tsc
- *  error, so a wire can never silently inherit another wire's subset (§5.5 dispatch discipline). Exported
- *  so the #40 coupling invariant (a mode can't both strip `minItems` AND clamp it — the clamp would never
- *  see the keyword) is a real assertion over the table, not prose. */
+const ANTHROPIC_STRIPPED_BOUNDS = BOUND_KEYWORDS.filter((keyword) => keyword !== "minItems" && keyword !== PATTERN_KEYWORD);
+const HOSTED_STRIPPED_BOUNDS = BOUND_KEYWORDS.filter((keyword) => keyword !== PATTERN_KEYWORD);
+const GEMINI_STRIPPED = ["minLength", "maxLength", PATTERN_KEYWORD, "exclusiveMinimum", "exclusiveMaximum", "multipleOf"] as const;
+
+/** The per-mode vocabulary, a mapped Record so a new mode without a row fails `tsc`. Exported so the
+ *  strip-versus-clamp coupling is asserted over the table. */
 export const WIRE_SUBSETS: Readonly<Record<WireSchemaMode, WireSubset>> = {
-  // Hosted proxies (OpenRouter's forced structured tool + its `response_format`): the strictest COMMON
-  // subset, because the endpoint the request lands on is not knowable at build time. `oneOf` is NOT refused —
-  // this wire carries it (the forced-tool vehicle compiles no grammar; live 200 on all three families).
+  // A proxy whose upstream is not knowable at build time: the strictest common subset, refusing nothing.
   "hosted-common": {
-    strip: new Set<string>([...BOUND_KEYWORDS, ...META_KEYWORDS]),
+    strip: new Set<string>([...HOSTED_STRIPPED_BOUNDS, ...META_KEYWORDS]),
     refuse: new Set<string>(),
+    refuseNodes: [],
+    stripNumberRanges: false,
     pinClosed: false,
     requireAllAsNullable: false,
     clampMinItems: false,
   },
-  // Anthropic's native `output_config.format` (the agent-sdk backend): the same bound/meta strip, PLUS the
-  // documented `oneOf` refusal — the subset names `anyOf`/`allOf` and not `oneOf`, so a projected
-  // `z.discriminatedUnion` is a build bug to be flattened, not a payload to send (D93). This is the ONE mode
-  // that knows its vendor, so it is the only one entitled to the `minItems` carve-out (header).
+  // platform.claude.com structured-outputs: bounds unsupported except `minItems` 0|1; `oneOf`, `allOf` with
+  // `$ref` and external `$ref` unsupported; one complexity table for every request with `output_config.format`
+  // or `strict: true` tools.
   "anthropic-format": {
     strip: new Set<string>([...ANTHROPIC_STRIPPED_BOUNDS, ...META_KEYWORDS]),
     refuse: new Set<string>(["oneOf"]),
-    pinClosed: false,
+    refuseNodes: [ALL_OF_WITH_REF, EXTERNAL_REF, ENUM_OF_COMPLEX, UNSUPPORTED_FORMAT, UNSUPPORTED_PATTERN, OPEN_OBJECT],
+    stripNumberRanges: false,
+    pinClosed: true,
     requireAllAsNullable: false,
     clampMinItems: true,
-    // platform.claude.com/docs/en/build-with-claude/structured-outputs "Schema complexity limits" (fetched
-    // 2026-10-03): one global table for every request with `output_config.format` or `strict: true` tools.
+    refuseRecursion: true,
     limits: { maxOptionalProps: 24, maxUnionProps: 16, maxStrictTools: 20 },
   },
-  // STRICT-COMPATIBLE (built 2026-08-03, owner ruling — an OPTION, OFF by default but SELECTABLE at runtime:
-  // `AppSettings.structuredOutputShape` picks it per deployment, Settings › Admin › Structured output, D126;
-  // the extraction request builder `entry/compose/rpg.ts` is the caller that passes this mode). The hosted subset
-  // PLUS the documented optional-as-null reshape: OpenAI strict demands "All fields or function parameters must
-  // be specified as `required`" and names the escape — "Emulate optional parameters using union with null"
-  // (`https://developers.openai.com/api/docs/guides/structured-outputs`). It does NOT clear Anthropic's wall: each
-  // optional becomes a nullable union, and Anthropic caps those at 16 per request (the `anthropic-format` row's
-  // `limits`; a 41-optional schema sent this way 400s on the union cap). The union is spelled `anyOf`
-  // and never `"type":["string","null"]`: only OpenAI documents the type-array form, while `anyOf` + the `null`
-  // type are inside BOTH documented subsets.
+  // developers.openai.com structured-outputs: every field required, optionals as a union with null, closed objects;
+  // `allOf`, `not`, `if`/`then`/`else`, `dependentRequired`, `dependentSchemas` unsupported. The bound strip is
+  // the hosted intersection, because OpenRouter forwards this shape to every family.
   "strict-compatible": {
-    strip: new Set<string>([...BOUND_KEYWORDS, ...META_KEYWORDS]),
-    refuse: new Set<string>(),
+    strip: new Set<string>([...HOSTED_STRIPPED_BOUNDS, ...META_KEYWORDS]),
+    refuse: new Set<string>(["allOf", "not", "if", "then", "else", "dependentRequired", "dependentSchemas"]),
+    refuseNodes: [],
+    stripNumberRanges: false,
     pinClosed: true,
     requireAllAsNullable: true,
     clampMinItems: false,
+    limits: { maxObjectProps: 5000, maxDepth: 10, maxEnumValues: 1000, maxNameChars: 120_000, maxLongEnumChars: 15_000 },
   },
-  // vLLM guided decoding (xgrammar): bounds are the POINT — they compile into the grammar. Only the
-  // annotations its `--json-schema` validator refuses come off.
+  // vLLM xgrammar compiles the bounds, so they survive; it refuses the array and number features below.
   "guided-decoding": {
     strip: new Set<string>([...ANNOTATION_KEYWORDS, ...META_KEYWORDS]),
-    refuse: new Set<string>(),
+    refuse: new Set<string>(["multipleOf", "uniqueItems", "contains", "minContains", "maxContains", "patternProperties"]),
+    refuseNodes: [PATTERN_WITH_LENGTH, PROPERTY_NAMES_CONFLICT],
+    stripNumberRanges: false,
     pinClosed: true,
+    requireAllAsNullable: false,
+    clampMinItems: false,
+  },
+  // llama.cpp's JSON-schema-to-grammar converter, which Ollama and KoboldCpp run too. It skips what it cannot
+  // express silently (KoboldCpp then generates unconstrained), so everything it cannot carry is refused here.
+  gbnf: {
+    strip: new Set<string>([...META_KEYWORDS]),
+    refuse: new Set<string>([
+      "uniqueItems",
+      "contains",
+      "minContains",
+      "maxContains",
+      "not",
+      "if",
+      "then",
+      "else",
+      "dependentSchemas",
+      "patternProperties",
+      "prefixItems",
+      "$anchor",
+    ]),
+    refuseNodes: [UNION_BESIDE_PROPERTIES, UNANCHORED_PATTERN],
+    stripNumberRanges: true,
+    pinClosed: true,
+    requireAllAsNullable: false,
+    clampMinItems: false,
+    refuseNestedRef: true,
+  },
+  // ai.google.dev structured-output: the keywords below are not in the subset and the model ignores them silently.
+  "gemini-schema": {
+    strip: new Set<string>([...GEMINI_STRIPPED, ...META_KEYWORDS]),
+    refuse: new Set<string>(["allOf", "oneOf"]),
+    refuseNodes: [],
+    stripNumberRanges: false,
+    pinClosed: false,
     requireAllAsNullable: false,
     clampMinItems: false,
   },
 };
 
-const NULL_ARM = { type: "null" } as const;
+const NULL_ARM = { type: NULL_TYPE } as const;
 
-/** Is this node ALREADY a null union (a `z.nullable()` projection)? Wrapping it again would emit
- *  `anyOf:[anyOf:[T,null], null]` — legal but noise the grammar compiler pays for. */
-function isNullable(node: Record<string, unknown>): boolean {
-  const arms = node["anyOf"];
-  return Array.isArray(arms) && arms.some((arm) => arm !== null && typeof arm === "object" && (arm as Record<string, unknown>)["type"] === "null");
+/** The schema a local `$ref` (`#/$defs/Name`, `#/definitions/Name`) points at inside `root`, if any. */
+function resolveLocalRef(root: Record<string, unknown>, ref: string): Record<string, unknown> | undefined {
+  let node: unknown = root;
+  for (const segment of ref.slice(`${LOCAL_REF_PREFIX}/`.length).split("/")) {
+    node = isPlainObject(node) ? node[segment.replaceAll("~1", "/").replaceAll("~0", "~")] : undefined;
+  }
+  return isPlainObject(node) ? node : undefined;
 }
 
-/** The optional-as-null reshape for ONE object node (post-walk, so the child nodes are already scrubbed).
- *  `description` is HOISTED out of the wrapped arm: it is the model's instruction for the FIELD, and a reader
- *  looking at the property sees it at the property, not buried in arm 0. */
-function requireAllProperties(node: Record<string, unknown>): void {
-  const properties = node["properties"];
-  if (!isPlainObject(properties)) {
-    return;
+/** Does a node accept `null` as authored: `type: "null"` or a type array with it, an enum or const of `null`, a
+ *  null union arm, an `allOf` whose every arm accepts it, or a local `$ref` to a def that does? `seen` stops a
+ *  recursive def. */
+function acceptsNull(node: Record<string, unknown>, root: Record<string, unknown>, seen: ReadonlySet<string> = new Set()): boolean {
+  const type = node["type"];
+  const values = node["enum"];
+  if (
+    type === NULL_TYPE ||
+    (Array.isArray(type) && type.includes(NULL_TYPE)) ||
+    (Array.isArray(values) && values.includes(null)) ||
+    ("const" in node && node["const"] === null)
+  ) {
+    return true;
   }
-  const props = properties;
-  const names = Object.keys(props);
-  const alreadyRequired = new Set<string>(
-    Array.isArray(node["required"]) ? (node["required"] as unknown[]).filter((n): n is string => typeof n === "string") : [],
-  );
-  for (const name of names) {
-    const child = props[name];
-    if (alreadyRequired.has(name) || !isPlainObject(child)) {
-      continue;
+  const accepts = (arm: unknown): boolean => isPlainObject(arm) && acceptsNull(arm, root, seen);
+  const ref = node[REF_KEYWORD];
+  if (typeof ref === "string" && ref.startsWith(`${LOCAL_REF_PREFIX}/`) && !seen.has(ref)) {
+    const target = resolveLocalRef(root, ref);
+    if (target !== undefined && acceptsNull(target, root, new Set([...seen, ref]))) {
+      return true;
     }
-    const childNode = child;
-    if (isNullable(childNode)) {
-      continue;
-    }
-    const { description, ...rest } = childNode;
-    props[name] = { ...(description === undefined ? {} : { description }), anyOf: [rest, { ...NULL_ARM }] };
   }
-  node["required"] = names;
+  const all = node["allOf"];
+  if (Array.isArray(all) && all.length > 0 && all.every(accepts)) {
+    return true;
+  }
+  return UNION_KEYWORDS.some((key) => {
+    const arms = node[key];
+    return Array.isArray(arms) && arms.some(accepts);
+  });
 }
 
-/** The scrub's result: the wire copy, plus every construct the mode cannot express (empty on the happy
- *  path). `refused` is deduped and in first-encounter order — a caller turns it into its own typed error.
- *  Generic over the input schema's type so the scrub is BRAND-TRANSPARENT: a projected `WireReady` in yields
- *  a `WireReady` out (the strict-compatible arm relies on this), an unbranded {@link Unprojected} draft in
- *  yields an unbranded copy — the scrub never MINTS the brand, it only threads whatever it was handed. */
+/** One construct a mode cannot carry, with the value path of the node it sits on (`""` = the root). */
+export interface WireSchemaRefusal {
+  readonly keyword: string;
+  readonly path: string;
+}
+
+/** The scrub's result. `reshapedPaths` are the value paths an optional property became nullable at (only under a
+ *  reshaping mode); `ambiguousPaths` are optional properties that were already nullable, where absent and null
+ *  would collide after the reshape. Generic over the input so a projected `WireReady` keeps its brand. */
 export interface WireSchemaScrub<S extends Record<string, unknown> = Record<string, unknown>> {
   readonly schema: S;
-  readonly refused: readonly string[];
+  readonly refused: readonly WireSchemaRefusal[];
+  readonly reshapedPaths: readonly string[];
+  readonly ambiguousPaths: readonly string[];
 }
 
-/** ONE node's own keyword pass: drop what this wire cannot express, report what it must refuse LOUDLY,
- *  recurse into everything else, and relay the dropped bounds into the node's description. Split out of
- *  {@link walk} so each function states one rule — the keyword vocabulary here, the per-mode RESHAPES there. */
-function scrubKeywords(node: Record<string, unknown>, subset: WireSubset, refused: Set<string>): Record<string, unknown> {
+/** Walk state for one scrub. A path under `$defs` starts with `#/`; those are expanded through each `$ref` use. */
+interface Walk {
+  readonly subset: WireSubset;
+  readonly refused: Map<string, WireSchemaRefusal>;
+  readonly reshaped: string[];
+  readonly ambiguous: string[];
+  /** Required properties the author made nullable: a reshaped path that lands on one of these (two union arms
+   *  share a field) cannot tell the author's null from the reshape's, so it is ambiguous too. */
+  readonly declaredNull: string[];
+  readonly refUses: Map<string, string[]>;
+  /** The authored root, where a local `$ref` resolves when asking whether a property accepts null. */
+  readonly root: Record<string, unknown>;
+}
+
+const SIMPLE_NAME = /^[A-Za-z_$][\w$-]*$/u;
+/** The value-path segment for any element of an array. */
+export const ARRAY_ITEMS_SEGMENT = "[*]";
+/** The value-path segment for any value of a map (`additionalProperties` as a schema). */
+export const MAP_VALUES_SEGMENT = "{*}";
+
+/** Append a property name to a value path: `.name`, or `["name"]` for a name a dotted path cannot hold. */
+export function propertyPath(parent: string, name: string): string {
+  if (SIMPLE_NAME.test(name)) {
+    return parent === "" ? name : `${parent}.${name}`;
+  }
+  return `${parent}[${JSON.stringify(name)}]`;
+}
+
+function refuse(walk: Walk, keyword: string, path: string): void {
+  const key = `${keyword}\u0000${path}`;
+  if (!walk.refused.has(key)) {
+    walk.refused.set(key, { keyword, path });
+  }
+}
+
+function childPath(key: string, path: string): string {
+  if (ITEM_KEYWORDS.has(key)) {
+    return `${path}${ARRAY_ITEMS_SEGMENT}`;
+  }
+  return key === "additionalProperties" ? `${path}${MAP_VALUES_SEGMENT}` : path;
+}
+
+function strips(subset: WireSubset, key: string, node: Record<string, unknown>): boolean {
+  return subset.strip.has(key) || (subset.stripNumberRanges && node["type"] === NUMBER_TYPE && NUMBER_RANGE_KEYWORDS.has(key));
+}
+
+// What a node says as a whole: a construct the wire refuses, and a local `$ref` use its defs' paths are placed at.
+function noteNode(node: Record<string, unknown>, walk: Walk, path: string): void {
+  for (const rule of walk.subset.refuseNodes) {
+    if (rule.test(node)) {
+      refuse(walk, rule.label, path);
+    }
+  }
+  const ref = node[REF_KEYWORD];
+  if (typeof ref === "string" && ref.startsWith(LOCAL_REF_PREFIX)) {
+    walk.refUses.set(ref, [...(walk.refUses.get(ref) ?? []), path]);
+    if (walk.subset.refuseNestedRef === true && path.startsWith(`${LOCAL_REF_PREFIX}/`)) {
+      refuse(walk, "$ref inside $defs", path);
+    }
+  }
+}
+
+// The references that reach themselves: an edge runs from the def a `$ref` sits in to the def it names. A use outside
+// every `$defs` member sits in the root document, which `"$ref": "#"` names.
+function recursiveRefs(refUses: ReadonlyMap<string, readonly string[]>): readonly string[] {
+  const edges = new Map<string, string[]>();
+  for (const [target, uses] of refUses) {
+    for (const use of uses) {
+      const inRoot = !use.startsWith(`${LOCAL_REF_PREFIX}/`);
+      for (const source of inRoot ? [LOCAL_REF_PREFIX] : [...refUses.keys()].filter((ref) => isUnderRef(use, ref))) {
+        edges.set(source, [...(edges.get(source) ?? []), target]);
+      }
+    }
+  }
+  const reaches = (from: string, goal: string, seen: Set<string>): boolean => {
+    for (const next of edges.get(from) ?? []) {
+      if (next === goal) {
+        return true;
+      }
+      if (!seen.has(next)) {
+        seen.add(next);
+        if (reaches(next, goal, seen)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  return [...refUses.keys()].filter((ref) => reaches(ref, ref, new Set()));
+}
+
+// One node's keyword pass: drop what this wire cannot express, report what it must refuse, recurse into the rest,
+// and relay the dropped bounds into the node's description.
+function scrubKeywords(node: Record<string, unknown>, walk: Walk, path: string): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  // Bounds this node LOST, so the description can say what the wire can no longer express (header).
   const stripped = new Map<string, unknown>();
+  noteNode(node, walk, path);
   for (const [key, value] of Object.entries(node)) {
-    if (subset.strip.has(key)) {
+    if (strips(walk.subset, key, node)) {
       if (BOUND_KEYWORD_SET.has(key)) {
         stripped.set(key, value);
       }
       continue;
     }
-    if (subset.refuse.has(key)) {
-      refused.add(key);
+    if (walk.subset.refuse.has(key)) {
+      refuse(walk, key, path);
     }
-    out[key] = NAME_MAP_KEYWORDS.has(key) ? walkNameMap(value, subset, refused) : walk(value, subset, refused);
+    out[key] = NAME_MAP_KEYWORDS.has(key) ? walkNameMap(value, walk, path, key) : walkNode(value, walk, childPath(key, path));
   }
-  // Runs BEFORE the note so a clamped `minItems` lands in the same `[Constraints: …]` string, in table order.
-  if (subset.clampMinItems) {
+  if (walk.subset.clampMinItems) {
     clampMinItems(out, stripped);
   }
   appendConstraintNote(out, stripped);
   return out;
 }
 
-function walk(node: unknown, subset: WireSubset, refused: Set<string>): unknown {
-  if (Array.isArray(node)) {
-    return node.map((item) => walk(item, subset, refused));
+// The optional-as-nullable reshape for one object node, after its children are scrubbed. `description` is hoisted
+// out of the wrapped arm: it is the model's instruction for the field.
+function requireAllProperties(node: Record<string, unknown>, walk: Walk, path: string): void {
+  const properties = node["properties"];
+  if (!isPlainObject(properties)) {
+    return;
   }
-  if (node === null || typeof node !== "object") {
+  const names = Object.keys(properties);
+  const required = new Set<string>(Array.isArray(node["required"]) ? node["required"].filter((name): name is string => typeof name === "string") : []);
+  for (const name of names) {
+    const child = properties[name];
+    if (!isPlainObject(child)) {
+      continue;
+    }
+    if (required.has(name)) {
+      if (acceptsNull(child, walk.root)) {
+        walk.declaredNull.push(propertyPath(path, name));
+      }
+      continue;
+    }
+    if (acceptsNull(child, walk.root)) {
+      walk.ambiguous.push(propertyPath(path, name));
+      continue;
+    }
+    const { description, ...rest } = child;
+    properties[name] = { ...(description === undefined ? {} : { description }), anyOf: [rest, { ...NULL_ARM }] };
+    walk.reshaped.push(propertyPath(path, name));
+  }
+  node["required"] = names;
+}
+
+function walkNode(node: unknown, walk: Walk, path: string): unknown {
+  if (Array.isArray(node)) {
+    return node.map((item) => walkNode(item, walk, path));
+  }
+  if (!isPlainObject(node)) {
     return node;
   }
-  const out = scrubKeywords(node as Record<string, unknown>, subset, refused);
-  // The projector's pin, re-applied where the WIRE requires a closed object (guided decoding compiles it;
-  // OpenAI strict demands it) — a node minted after projection would otherwise arrive open.
-  if (subset.pinClosed && out["type"] === OBJECT_TYPE && out["additionalProperties"] === undefined) {
+  const out = scrubKeywords(node, walk, path);
+  if (walk.subset.pinClosed && out["type"] === OBJECT_TYPE && out["additionalProperties"] === undefined) {
     out["additionalProperties"] = false;
   }
-  if (subset.requireAllAsNullable && out["type"] === OBJECT_TYPE) {
-    requireAllProperties(out);
+  if (walk.subset.requireAllAsNullable && out["type"] === OBJECT_TYPE) {
+    requireAllProperties(out, walk, path);
   }
   return out;
 }
 
-// Descend a `{ name → schema }` map: every KEY is an opaque field name (kept verbatim, never keyword-matched),
-// every VALUE is a schema node walked normally.
-function walkNameMap(node: unknown, subset: WireSubset, refused: Set<string>): unknown {
+// Descend a `{ name → schema }` map: every key is an opaque name, every value a schema. A `$defs` member's paths
+// are rooted at its reference string until a `$ref` use places them.
+function walkNameMap(node: unknown, walk: Walk, path: string, key: string): unknown {
   if (!isPlainObject(node)) {
-    return walk(node, subset, refused);
+    return walkNode(node, walk, path);
   }
   const out: Record<string, unknown> = {};
   for (const [name, schema] of Object.entries(node)) {
-    out[name] = walk(schema, subset, refused);
+    const memberPath = DEF_MAP_KEYWORDS.has(key) ? `${LOCAL_REF_PREFIX}/${key}/${name}` : propertyPath(path, name);
+    out[name] = walkNode(schema, walk, memberPath);
   }
   return out;
 }
 
-/**
- * Project an already-projected JSON Schema onto ONE wire's supported keyword subset. Returns a fresh tree —
- * never mutates the caller's cached `ResponseFormat.schema`, which the OTHER wires also send (they need the
- * keywords this one drops).
- */
-export function scrubWireSchema<S extends Record<string, unknown>>(schema: S, mode: WireSchemaMode): WireSchemaScrub<S> {
-  const refused = new Set<string>();
-  const scrubbed = walk(schema, WIRE_SUBSETS[mode], refused) as S;
-  return { schema: scrubbed, refused: [...refused] };
+function isUnderRef(path: string, ref: string): boolean {
+  return path === ref || path.startsWith(`${ref}.`) || path.startsWith(`${ref}[`) || path.startsWith(`${ref}{`);
+}
+
+/** Place every path recorded under a `$defs` member at each value path that references it. A def reached again
+ *  through its own expansion is a recursive schema: its deeper uses are not expanded (no finite path names them). */
+function placeDefPaths(paths: readonly string[], refUses: ReadonlyMap<string, readonly string[]>): string[] {
+  const placed: string[] = [];
+  for (const path of paths) {
+    expandDefPath(path, new Set(), refUses, placed);
+  }
+  return [...new Set(placed)];
+}
+
+function expandDefPath(path: string, seen: ReadonlySet<string>, refUses: ReadonlyMap<string, readonly string[]>, placed: string[]): void {
+  if (!path.startsWith(`${LOCAL_REF_PREFIX}/`)) {
+    placed.push(path);
+    return;
+  }
+  for (const [ref, uses] of refUses) {
+    if (!isUnderRef(path, ref) || seen.has(ref)) {
+      continue;
+    }
+    const rest = path.slice(ref.length);
+    for (const use of uses) {
+      expandDefPath(rest.startsWith(".") && use === "" ? rest.slice(1) : `${use}${rest}`, new Set([...seen, ref]), refUses, placed);
+    }
+  }
 }
 
 /**
- * `null ≡ absent` — the PARSE half of the `strict-compatible` projection, and the reason that mode changes no
- * semantics: under it the model emits an explicit `null` where it would otherwise have omitted the key, so a
- * null-valued key must land byte-identically to an omitted one. Recursive, on a clone; array ELEMENTS are
- * walked but a `null` element is kept (an array slot is positional — erasing it would renumber the rest).
- *
- * Safe to run unconditionally on a model reply, which is where it belongs: a payload that carries an explicit
- * `null` for an omit-means-keep field means "no change" whichever projection produced it, and today it costs
- * that whole entry at the per-entry salvage instead.
+ * Project an already-projected JSON Schema onto one wire's supported keyword subset. Returns a fresh tree: the
+ * caller's cached `ResponseFormat.schema` also feeds wires that need the keywords this one drops.
  */
-export function dropNullValues<T>(value: T): T {
-  if (Array.isArray(value)) {
-    return value.map((item) => dropNullValues(item)) as unknown as T;
-  }
-  if (value === null || typeof value !== "object") {
-    return value;
-  }
-  const out: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    if (item !== null) {
-      out[key] = dropNullValues(item);
+export function scrubWireSchema<S extends Record<string, unknown>>(schema: S, mode: WireSchemaMode): WireSchemaScrub<S> {
+  const walk: Walk = { subset: WIRE_SUBSETS[mode], refused: new Map(), reshaped: [], ambiguous: [], declaredNull: [], refUses: new Map(), root: schema };
+  const scrubbed = walkNode(schema, walk, "") as S;
+  if (walk.subset.refuseRecursion === true) {
+    for (const ref of recursiveRefs(walk.refUses)) {
+      refuse(walk, "recursive $ref", ref === LOCAL_REF_PREFIX ? "" : ref);
     }
   }
-  return out as unknown as T;
+  const reshapedPaths = placeDefPaths(walk.reshaped, walk.refUses);
+  const declaredNull = new Set(placeDefPaths(walk.declaredNull, walk.refUses));
+  const collisions = reshapedPaths.filter((path) => declaredNull.has(path));
+  return {
+    schema: scrubbed,
+    refused: [...walk.refused.values()],
+    reshapedPaths,
+    ambiguousPaths: [...new Set([...placeDefPaths(walk.ambiguous, walk.refUses), ...collisions])],
+  };
 }

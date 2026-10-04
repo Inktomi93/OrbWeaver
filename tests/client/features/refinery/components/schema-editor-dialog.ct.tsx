@@ -45,6 +45,13 @@ const PLAIN_SCHEMA = {
 const SCHEMA_PANE = { name: "Schema (JSON — the full vocabulary)" };
 const ONE_CARD = { items: [{ id: mintTypeId(ID_PREFIX.character), name: "Aria the Archivist", handle: "aria", avatarHash: null, tags: [] }], nextCursor: null };
 
+/** The bound Utility model's plan the preflight asks about every settled draft; fed so no editor mount runs it inert. */
+const UNBOUND_PLAN = { outcome: "unbound" } as const;
+
+function stubEditor(page: Page, extra: Parameters<typeof routeTrpc>[1]): ReturnType<typeof routeTrpc> {
+  return routeTrpc(page, { "refinery.schemaPlan": () => UNBOUND_PLAN, ...extra });
+}
+
 /** Hold ONE procedure in flight forever, so its pending arm is a state the test can barrier on. */
 async function hang(page: Page, proc: string): Promise<void> {
   await page.route("**/api/trpc/**", async (route) => {
@@ -57,7 +64,7 @@ async function hang(page: Page, proc: string): Promise<void> {
 }
 
 test("the RAW DOOR's preflight: a valid-but-bounded schema still gets its advisory, and the accounting is rendered", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await stubEditor(page, {});
   await mount(<SchemaEditorStory />);
 
   // Nothing typed: no preflight at all — there is no schema to say anything about.
@@ -84,8 +91,71 @@ test("the RAW DOOR's preflight: a valid-but-bounded schema still gets its adviso
   await expect(page.locator('[data-advisory="wire-bounds-stripped"]')).toBeVisible();
 });
 
+test("the preflight names what the bound Utility model would do with the draft, asked per stage", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, {
+    "refinery.schemaPlan": () => ({
+      outcome: "refused",
+      model: "claude-sonnet-5-5",
+      reasons: ["30 optional fields, past its limit of 24 — make some required"],
+    }),
+  });
+  await mount(<SchemaEditorStory />);
+
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(PLAIN_SCHEMA));
+  const plan = page.getByTestId("refinery-schema-plan");
+  await expect(plan).toHaveAttribute("data-plan", "refused");
+  await expect(plan).toContainText("claude-sonnet-5-5");
+  await expect(plan).toContainText("30 optional fields");
+  // A verdict that runs will fail is announced, not only painted.
+  await expect(page.getByRole("status").getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "refused");
+  await expect.poll(() => trpc.lastInput("refinery.schemaPlan")).toMatchObject({ stage: "score", schema: PLAIN_SCHEMA });
+});
+
+/** A score schema the save belt accepts whose URL-encoded query input runs past Node's request-header limit. */
+const LONG_DESCRIPTION =
+  "Explain, in two or three sentences, how this aspect of the character card holds up: cite the specific lines that support the judgement and say what would raise it. ".repeat(
+    2,
+  );
+const BIG_SCHEMA = {
+  type: "object",
+  properties: {
+    ...Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`axis_${String(i)}`, { type: "string", description: LONG_DESCRIPTION }])),
+    overallScore: { type: "number", minimum: 1, maximum: 10 },
+  },
+};
+const PLAN_PROC = "refinery.schemaPlan";
+
+test("the plan is asked once the draft settles, by POST, so a draft too long for a URL still gets its line", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, {});
+  const methods: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes(PLAN_PROC)) {
+      methods.push(request.method());
+    }
+  });
+  await mount(<SchemaEditorStory />);
+
+  // The first draft is asked at once, so the line is never blank on open.
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(PLAIN_SCHEMA));
+  await expect(page.getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unbound");
+  // Two later drafts in quick succession: only the settled one is asked about.
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(BOUNDED_SCHEMA));
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(BIG_SCHEMA));
+  await expect.poll(() => trpc.lastInput(PLAN_PROC)).toMatchObject({ stage: "score", schema: BIG_SCHEMA });
+  await expect(page.getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unbound");
+  await expect.poll(() => methods).toEqual(["POST", "POST"]);
+});
+
+test("a plan ask that fails says the draft could not be checked instead of dropping the line", async ({ mount, page }) => {
+  await stubEditor(page, { [PLAN_PROC]: () => trpcError() });
+  await mount(<SchemaEditorStory />);
+
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(PLAIN_SCHEMA));
+  await expect(page.getByRole("status").getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unchecked");
+});
+
 test("the preflight stays SILENT when there is nothing to warn about, and disappears on an unparseable draft", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await stubEditor(page, {});
   await mount(<SchemaEditorStory />);
 
   await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(PLAIN_SCHEMA));
@@ -99,7 +169,7 @@ test("the preflight stays SILENT when there is nothing to warn about, and disapp
 });
 
 test("the ARM PICKER is visibly labelled and its choice reaches the wire", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, {
+  const trpc = await stubEditor(page, {
     "refinery.generateSchema": () => ({ kind: "draft", name: "vibes", schema: PLAIN_SCHEMA, dropped: [] }),
   });
   await mount(<SchemaEditorStory />);
@@ -119,7 +189,7 @@ test("the ARM PICKER is visibly labelled and its choice reaches the wire", async
 });
 
 test("the needs-raw HONEST REFUSAL hands over a skeleton and says why, instead of a flattened guess", async ({ mount, page }) => {
-  await routeTrpc(page, {
+  await stubEditor(page, {
     "refinery.generateSchema": () => ({
       kind: "needs-raw",
       message: "Your rubric needs a field that can be either a number or a phrase.",
@@ -138,7 +208,7 @@ test("the needs-raw HONEST REFUSAL hands over a skeleton and says why, instead o
 });
 
 test("the generate PENDING arm says so on the control it belongs to (P1-10: the feature had none)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await stubEditor(page, {});
   await hang(page, "refinery.generateSchema");
   await mount(<SchemaEditorStory />);
 
@@ -153,7 +223,7 @@ test("the generate PENDING arm says so on the control it belongs to (P1-10: the 
 });
 
 test("the test drill's SKELETON is plan-shaped: the preview shows the answer's anatomy while the model runs", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": () => ONE_CARD });
+  await stubEditor(page, { "character.list": () => ONE_CARD });
   await hang(page, "refinery.testSchema");
   await mount(<SchemaEditorStory />);
 
@@ -185,7 +255,7 @@ const ZOD_REFUSAL = JSON.stringify([
 ]);
 
 test("a belt REFUSAL shows the teaching SENTENCES, not the raw serialized zod issue array (D3)", async ({ mount, page }) => {
-  await routeTrpc(page, { "refinery.createSchema": () => trpcError({ code: "BAD_REQUEST", message: ZOD_REFUSAL }) });
+  await stubEditor(page, { "refinery.createSchema": () => trpcError({ code: "BAD_REQUEST", message: ZOD_REFUSAL }) });
   await mount(<SchemaEditorStory />);
 
   await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(BOUNDED_SCHEMA));
@@ -219,7 +289,7 @@ const KEEP_EDITING = "Keep editing";
 const DISCARD_DRAFT = "Discard draft";
 
 test("#81 P1 — a CLEAN dialog offers Cancel and both Cancel and Escape close it with no guard", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await stubEditor(page, {});
   await mount(<SchemaEditorCloseGuardStory />);
 
   // The affordance the dialog never had: a way out that is VISIBLE, not a key you have to know.
@@ -233,7 +303,7 @@ test("#81 P1 — a CLEAN dialog offers Cancel and both Cancel and Escape close i
 });
 
 test("#81 P1 — Escape over a DIRTY draft is GUARDED: the dialog stays, the draft survives, Keep editing returns to it", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await stubEditor(page, {});
   await mount(<SchemaEditorCloseGuardStory />);
 
   await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(BOUNDED_SCHEMA));
@@ -256,7 +326,7 @@ test("#81 P1 — Escape over a DIRTY draft is GUARDED: the dialog stays, the dra
 });
 
 test("#81 P1 — Cancel over a DIRTY draft asks too, and its Discard arm really does close", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await stubEditor(page, {});
   await mount(<SchemaEditorCloseGuardStory />);
 
   await page.getByRole("textbox", { name: "Describe the structure" }).fill("a cosiness rubric");
@@ -271,7 +341,7 @@ test("#81 P1 — Cancel over a DIRTY draft asks too, and its Discard arm really 
 
 test("#81 P1 — an EDIT-EXISTING dialog is clean until the saved row is actually changed", async ({ mount, page }) => {
   const schemaId = mintTypeId(ID_PREFIX.refinerySchema) as RefinerySchemaId;
-  await routeTrpc(page, {});
+  await stubEditor(page, {});
   await mount(<SchemaEditorCloseGuardStory editing={{ id: schemaId, name: "cosiness", description: "how cosy is it", schema: PLAIN_SCHEMA }} />);
   await expect(page.getByRole("textbox", { name: "Name" })).toHaveValue("cosiness");
 
@@ -285,7 +355,7 @@ test("#81 P1 — an EDIT-EXISTING dialog is clean until the saved row is actuall
 
 test("EDIT-EXISTING opens populated and saves through the UPDATE verb — the branch P1-15 found unreachable", async ({ mount, page }) => {
   const schemaId = mintTypeId(ID_PREFIX.refinerySchema) as RefinerySchemaId;
-  const trpc = await routeTrpc(page, { "refinery.updateSchema": () => ({ id: schemaId }) });
+  const trpc = await stubEditor(page, { "refinery.updateSchema": () => ({ id: schemaId }) });
   await mount(<SchemaEditorStory editing={{ id: schemaId, name: "cosiness", description: "how cosy is it", schema: PLAIN_SCHEMA }} />);
 
   // The dialog names the row it is editing, and every pane opens filled.

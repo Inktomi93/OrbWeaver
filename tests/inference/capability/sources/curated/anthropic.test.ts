@@ -2,18 +2,17 @@
 // as `resolve-task.ts` folds an `anthropic` row (curated rows → `synthesizeCapability`, no OR advertisement).
 // The SDK's own capability table is the direct wire's truth (`@ai-sdk/anthropic` 4.0.71 `dist/index.js:5148-5232` —
 // it strips before sending), and A8 was measured live (`req_011CfEBkabcoxXWyouHdYDxY`: fable + thinking disabled
-// → 400). A6: the structured-output VEHICLE is `resolveVehicle` (role-clients.ts) — `auto` picks the enforcing
-// `response-format` iff `output.structured === true`, else the forced tool Fable rejects; the input to that
-// decision is what these cells must state.
+// → 400). A6: the structured-output VEHICLE is the structured plan's (`structured/plan.ts`) — the enforcing
+// `response-format` iff `output.structured === true`, else a tool; the input to that decision is what these cells state.
 //
 // #2575: Opus 5.5 is its own row (mandatory thinking — under the opus-5 row alone a reasoning-off intent sent
-// `thinking: disabled`, a 400 there), and the models that 400 a forced
-// `tool_choice` (Fable 5.1, Mythos 5.1, Opus 5.5, Sonnet 5.5) keep a deployment-forced structured call on `response-format`.
+// `thinking: disabled`, a 400 there), and the models that 400 a forced `tool_choice` (Fable 5.1, Mythos 5.1, Opus 5.5,
+// Sonnet 5.5) are never planned onto a forced tool.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AgentSdkModel, GenerationCapability, ModelCatalogEntry, ProviderId } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
+
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
@@ -21,12 +20,14 @@ import { synthesizeCapability } from "../../../../../packages/inference/src/capa
 import type { Mirror } from "../../../../../packages/inference/src/catalog/mirror.ts";
 import { fetchOpenRouterCatalog } from "../../../../../packages/inference/src/catalog/openrouter.ts";
 import type { ProviderExecutor } from "../../../../../packages/inference/src/contract/backend.ts";
+import type { Resolved } from "../../../../../packages/inference/src/contract/resolved.ts";
 import type { StructuredRequest } from "../../../../../packages/inference/src/contract/roles.ts";
 import type { DetectedServer, EndpointModel } from "../../../../../packages/inference/src/contract/runtime.ts";
 import { resolveChat } from "../../../../../packages/inference/src/funnel/resolve-chat.ts";
 import { createProviderRegistry } from "../../../../../packages/inference/src/registry/providers.ts";
 import type { ResolverContext } from "../../../../../packages/inference/src/resolve/resolve-task.ts";
 import { createRoleClientsFor } from "../../../../../packages/inference/src/roles/role-clients.ts";
+import { planStructuredFor } from "../../../../../packages/inference/src/structured/plan.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { wireSchema } from "../../../../support/wire-ready.ts";
 import { openRouterCatalogFetch } from "../../../_openrouter-catalog.ts";
@@ -43,8 +44,10 @@ const FABLE_IDS = [
 function emptyMirror<T>(): Mirror<T> {
   return {
     get: () => null,
+    hydrate: () => Promise.resolve(null),
     warm: () => Promise.resolve({ ok: false, reason: "tests/inference: an empty mirror has nothing to warm" }),
     seed: () => undefined,
+    amend: () => Promise.resolve(),
     invalidate: () => undefined,
   };
 }
@@ -52,8 +55,10 @@ function emptyMirror<T>(): Mirror<T> {
 function fixedMirror<T>(value: T): Mirror<T> {
   return {
     get: () => value,
+    hydrate: () => Promise.resolve(value),
     warm: () => Promise.resolve({ ok: true, value }),
     seed: () => undefined,
+    amend: () => Promise.resolve(),
     invalidate: () => undefined,
   };
 }
@@ -75,13 +80,14 @@ function capturingExecutor(calls: StructuredRequest[]): ProviderExecutor {
   };
 }
 
-async function selectedStructuredVehicle(
+/** The vehicle the structured plan picks for this route's resolved connection, as folded, and with the capability's
+ *  structured output turned off (so only the tool vehicles remain). */
+async function plannedStructuredVehicles(
   providerId: string,
   model: string,
-  deployment: StructuredOutputVehicle = "auto",
   catalog: readonly ModelCatalogEntry[] | null = null,
-): Promise<string | undefined> {
-  const deps = { ...fakeDeps(), structuredOutputVehicle: (): StructuredOutputVehicle => deployment };
+): Promise<{ readonly folded: string | undefined; readonly toolsOnly: string | undefined }> {
+  const deps = fakeDeps();
   const ownerId = newUserId();
   const connection = fakeConnection({ ownerId, providerId, model, allowBackground: true });
   deps.stores.connections.rows.set(connection.id, connection);
@@ -102,11 +108,25 @@ async function selectedStructuredVehicle(
   const principal: Principal = { userId: ownerId, role: "owner", handle: castId<Handle>("owner"), externalId: null, via: "fallback" };
   const calls: StructuredRequest[] = [];
   const clients = createRoleClientsFor({ deps, ctx, executor: capturingExecutor(calls) })(principal);
-  await clients.structured([{ systemPrompt: "Return the payload.", userPrompt: "One row." }], {
-    responseFormat: { name: "row", schema: wireSchema({ type: "object", properties: {}, additionalProperties: false }) },
-  });
+  const responseFormat = { name: "row", schema: wireSchema({ type: "object", properties: {}, additionalProperties: false }) };
+  await clients.structured([{ systemPrompt: "Return the payload.", userPrompt: "One row." }], { responseFormat });
   expect(calls, `${providerId} · ${model}`).toHaveLength(1);
-  return calls[0]?.responseFormat.vehicle;
+  // The role seam resolves no vehicle: the caller's format reaches the backend as it was asked.
+  expect(calls[0]?.responseFormat).toBe(responseFormat);
+  const resolved = calls[0]?.connection;
+  if (resolved?.capability.kind !== "generation") {
+    throw new Error("expected a generation connection");
+  }
+  const vehicleOf = (target: Resolved): string | undefined => {
+    const plan = planStructuredFor(target, { formats: [responseFormat] });
+    return plan.ok ? plan.responseFormat?.vehicle : undefined;
+  };
+  const generation = resolved.capability.generation;
+  const toolsOnly = {
+    ...resolved,
+    capability: { kind: "generation" as const, generation: { ...generation, output: { ...generation.output, structured: false } } },
+  };
+  return { folded: vehicleOf(resolved), toolsOnly: vehicleOf(toolsOnly) };
 }
 
 function direct(model: string): GenerationCapability {
@@ -179,7 +199,7 @@ test("A6: every SDK-table id (and the 4.5 generation) states output.structured �
 
 test("A6: every supported Fable id sends an auto structured call through response-format, never forced-tool", async () => {
   for (const { providerId, model } of FABLE_IDS) {
-    await expect(selectedStructuredVehicle(providerId, model), `${providerId} · ${model}`).resolves.toBe("response-format");
+    await expect(plannedStructuredVehicles(providerId, model), `${providerId} · ${model}`).resolves.toMatchObject({ folded: "response-format" });
   }
 });
 
@@ -279,23 +299,29 @@ test("no effort set ⇒ adaptive thinking at high on the direct and agent-sdk ro
   }
 });
 
-test("#2575: a deployment-forced structured call on a forced-tool-rejecting model rides response-format instead", async () => {
+test("#2575: a forced-tool-rejecting model never plans a forced tool — with structured output off it is only offered the tool", async () => {
   for (const { providerId, model } of REJECTS_FORCED_TOOL) {
-    await expect(selectedStructuredVehicle(providerId, model, "forced-tool"), `${providerId} · ${model}`).resolves.toBe("response-format");
+    await expect(plannedStructuredVehicles(providerId, model), `${providerId} · ${model}`).resolves.toEqual({
+      folded: "response-format",
+      toolsOnly: "offered-tool",
+    });
   }
-  // PLANTED CONTROL: the models that ACCEPT a forced tool keep the deployment's explicit choice untouched.
+  // PLANTED CONTROL: the models that ACCEPT a forced tool get it once structured output is off.
   for (const model of ["claude-opus-5", "claude-fable-5", "claude-mythos-5"]) {
-    await expect(selectedStructuredVehicle("anthropic", model, "forced-tool"), model).resolves.toBe("forced-tool");
+    await expect(plannedStructuredVehicles("anthropic", model), model).resolves.toEqual({ folded: "response-format", toolsOnly: "forced-tool" });
   }
 });
 
 test("#2575: the forced-tool refusal holds on the OpenRouter route WITH a live-shaped catalog advertising tools", async () => {
   const catalog = await fetchOpenRouterCatalog({ fetch: openRouterCatalogFetch(), baseUrl: "https://openrouter.example/api/v1" });
   for (const model of ["anthropic/claude-fable-5.1", "anthropic/claude-fable-5.1:batch", "anthropic/claude-opus-5.5", "~anthropic/claude-fable-latest"]) {
-    await expect(selectedStructuredVehicle("openrouter", model, "forced-tool", catalog), model).resolves.toBe("response-format");
+    await expect(plannedStructuredVehicles("openrouter", model, catalog), model).resolves.toEqual({ folded: "response-format", toolsOnly: "offered-tool" });
   }
-  // PLANTED CONTROL: Opus 5 on the same route keeps the deployment's forced tool.
-  await expect(selectedStructuredVehicle("openrouter", "anthropic/claude-opus-5", "forced-tool", catalog)).resolves.toBe("forced-tool");
+  // PLANTED CONTROL: Opus 5 on the same route is forced onto the tool.
+  await expect(plannedStructuredVehicles("openrouter", "anthropic/claude-opus-5", catalog)).resolves.toEqual({
+    folded: "response-format",
+    toolsOnly: "forced-tool",
+  });
 });
 
 const OPENROUTER = { providerId: castId<ProviderId>("openrouter"), wire: "openai-compat", api: "chat-completions" } as const;

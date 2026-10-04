@@ -101,7 +101,8 @@ export const SAMPLING_KNOB_CATALOG = {
     wire: DEFAULT_SAMPLER_KEYS.repetitionPenaltyRange,
     field: "params.repetitionPenaltyRange",
     label: "Repetition range",
-    description: "How many recent tokens the repetition penalty looks back over (0 = off).",
+    description:
+      "How many recent tokens the repetition penalty looks back over. 0 turns it off on llama.cpp and Ollama; KoboldCpp reads 0 as 1 unless it batches the request.",
     step: 1,
   },
   typicalP: {
@@ -165,7 +166,8 @@ export const SAMPLING_KNOB_CATALOG = {
     wire: DEFAULT_SAMPLER_KEYS.dryPenaltyLastN,
     field: "params.dryPenaltyLastN",
     label: "DRY range",
-    description: "How many recent tokens DRY scans for repeats (0 = off).",
+    description:
+      "How many recent tokens DRY scans for repeats. 0 turns DRY off on llama.cpp but scans the whole context on KoboldCpp; set DRY strength to 0 to turn it off anywhere.",
     step: 1,
   },
   mirostatMode: {
@@ -250,11 +252,11 @@ export const SAMPLING_KNOB_CATALOG = {
   },
 } satisfies SamplingKnobCatalog;
 
-type FlagSamplingKey = Exclude<keyof Sampling, NumericSamplingKey | "exclusive">;
+type FlagSamplingKey = Exclude<keyof Sampling, NumericSamplingKey | "exclusive" | "mirostatSkips">;
 
 /** The deck's names for the sampling controls that are not a numeric track. The deck labels its controls with
- *  these and the readout reads the same words, so a knob has one name on every surface. `exclusive` is a
- *  constraint between knobs, not a control, so it has no name. */
+ *  these and the readout reads the same words, so a knob has one name on every surface. `exclusive` and
+ *  `mirostatSkips` state facts about other knobs, not controls, so they have no name. */
 export const SAMPLING_FLAG_LABELS: Readonly<Record<FlagSamplingKey, string>> = {
   seed: "Seed",
   logitBias: "Logit bias",

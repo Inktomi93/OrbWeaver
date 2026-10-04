@@ -52,11 +52,9 @@ async function targetMoves(
 async function rebindOf(ctx: ConnectionContext, principal: Principal, change: Exclude<EmbedSpaceChange, UpdateChange>): Promise<Rebind> {
   if (change.kind === "everywhere") {
     const row = await requireOwnedRow(ctx, principal, change.connectionId);
-    return new Map(
-      everywhereTasks(ctx, row)
-        .filter(isVectorTask)
-        .map((task) => [task, row.id]),
-    );
+    // A row whose kind nothing held states yet may be an embedder once the write warms it, so it previews as one.
+    const tasks = await everywhereTasks(ctx, row, { cachedFacts: true, coldAs: "embedding" });
+    return new Map(tasks.filter(isVectorTask).map((task) => [task, row.id]));
   }
   if (change.connectionId !== null) {
     await requireOwnedRow(ctx, principal, change.connectionId);

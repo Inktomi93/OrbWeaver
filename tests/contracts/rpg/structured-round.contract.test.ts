@@ -1,7 +1,7 @@
 // @orb/contracts/rpg structured-round — a structured state reply decodes to the SAME tool calls a tool round
-// returns, so both vehicles share one fold. Pinned: entries keep their order and their args' string encoding, a
-// strict-compatible `null` means "omitted", a reply that is not a non-empty `changes` list is refused whole, and an
-// entry with no tool name is counted rather than guessed at.
+// returns, so both vehicles share one fold. Pinned: entries keep their order and their args' string encoding (the reply
+// arrives already normalized: a null the reshape introduced is dropped upstream, by the structured layer), a reply that
+// is not a non-empty `changes` list is refused whole, and an entry with no tool name is counted rather than guessed at.
 
 import type { RpgToolCall } from "@orb/contracts/rpg";
 import { structuredChangesToToolCalls, toolCallsToExtraction } from "@orb/contracts/rpg";
@@ -10,7 +10,7 @@ import { expect, test } from "../../support/fixtures.ts";
 test("a multi-change reply decodes to the tool calls a tool round carries, and folds identically", () => {
   const reply = {
     changes: [
-      { tool: "update_scene", args: { location: "the cave", weather: null } },
+      { tool: "update_scene", args: { location: "the cave" } },
       { tool: "add_journal_entry", args: { type: "location", title: "Into the cave", content: "They fled the chapel." } },
     ],
   };

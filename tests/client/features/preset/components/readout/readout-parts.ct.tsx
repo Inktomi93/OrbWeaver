@@ -27,11 +27,14 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
+import { MIROSTAT_SKIPPED_GLOSS } from "../../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
 import { makeCapability, makeGenerationCapability, makeResolvedView, TEST_CONNECTION_ID } from "../../../../../support/factories/resolved-connection.ts";
 import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../../support/node/route-trpc.ts";
 import {
   EffectiveProfileFailedStory,
+  EffectiveProfileMirostatStory,
   EffectiveProfileMissingPresetStory,
   EffectiveProfilePendingStory,
   EffectiveProfileSettledStory,
@@ -69,6 +72,9 @@ const CAUSELESS_FAILURE_RE = /generation profile couldn't be resolved/i;
 const MODEL_ROLES_PATH_RE = /Settings → Connections → Model roles/;
 /** The model line the SETTLED arm signs its numbers with (`resolvedForLabel` + the readout's `· chat role`). */
 const RESOLVED_FOR_RE = /resolved for qwen3-32b · chat role/;
+/** The capability card's honored-knob line, and the raw schema key it must never list. */
+const HONORS_RE = /^honors /;
+const MIROSTAT_SKIPS_KEY_RE = /mirostatSkips/;
 
 // ── ARMS ────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -178,6 +184,14 @@ test("SETTLED — the funnel's own row renders with its provenance rung and the 
   await expect(probe.getByText("32,768", { exact: true })).toBeVisible();
   await expect(probe.getByText(RESOLVED_FOR_RE)).toBeVisible();
   await expect(probe.locator('[data-slot="skeleton"]')).toHaveCount(0);
+});
+
+test("SETTLED under Mirostat — a knob the server's Mirostat branch skips is marked; a knob that runs keeps its rung", async ({ mount }) => {
+  const probe = await mount(<EffectiveProfileMirostatStory />);
+  // Rows are label · value · suffix; the suffix is the only element after the value.
+  const suffixOf = (label: string): Locator => probe.getByText(label, { exact: true }).locator("xpath=following-sibling::*[1]/*[last()]");
+  await expect(suffixOf("top-p")).toHaveText(MIROSTAT_SKIPPED_GLOSS);
+  await expect(suffixOf("temperature")).not.toHaveText(MIROSTAT_SKIPPED_GLOSS);
 });
 
 // ── THE SKELETON'S ONE JOB IS TO NOT MOVE (side-eye 2026-08-08 P2) ──────────────────────────────────────
@@ -350,6 +364,55 @@ test("WIRING — a SETTLED resolve renders the funnel's rows through the real re
   await expect(probe.getByText(FAILURE_RE)).toHaveCount(0);
   await expect(probe.getByText(CHAT_MODEL_CLAIM_RE)).toHaveCount(0);
   await expect(probe.getByText(CONNECT_INVITATION_RE)).toHaveCount(0);
+});
+
+/** An Ollama-native-shaped chat row: a 4096 floor the request sends, settable up to the trained maximum, on a server
+ *  whose Mirostat branch skips top-p. */
+const SETTABLE_CAPABILITY = makeResolvedView({
+  capability: makeCapability(
+    makeGenerationCapability({
+      sampling: { temperature: { min: 0, max: 2 }, topP: { min: 0, max: 1 }, mirostatSkips: ["topP"] },
+      context: { window: 4096, windowEstimated: true, settable: { max: 131_072 } },
+    }),
+  ),
+});
+const PRESET_WINDOW = 65_536;
+
+function settableRoutes(presetWindow = PRESET_WINDOW): ReturnType<typeof readoutRoutes> {
+  return {
+    ...readoutRoutes(settledResolve),
+    "preset.get": () => ({ ...PRESET_DETAIL, config: { ...DEFAULT_PROMPT_CONFIG, params: { maxContextTokens: presetWindow } } }),
+    "connection.resolveChatCapability": () => SETTABLE_CAPABILITY,
+  };
+}
+
+test("on a route that sends the window, the effective context is the preset's Max context, not the connection's floor", async ({ mount, page }) => {
+  await routeTrpc(page, settableRoutes());
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  // Rows are label · (value · suffix); the value is the first element after the label.
+  const contextValue = probe.getByText("context", { exact: true }).locator("xpath=following-sibling::*[1]/*[1]");
+  await expect(contextValue).toHaveText("65,536");
+});
+
+test("the Utility role on that route shows the connection's own window: its sends do not carry the preset's Max context", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, settableRoutes(32_768));
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  await probe.getByRole("combobox", { name: SWITCHER_NAME }).click();
+  await page.getByRole("option", { name: "Utility model role", exact: true }).click();
+  await expect.poll(() => trpc.lastInput("connection.resolveChatCapability")).toEqual({ target: { kind: "role", task: "summarize" } });
+
+  const contextValue = probe.getByText("context", { exact: true }).locator("xpath=following-sibling::*[1]/*[1]");
+  await expect(contextValue).toHaveText("4,096");
+});
+
+test("the capability card lists knobs only, never a sampling fact's schema key", async ({ mount, page }) => {
+  await routeTrpc(page, settableRoutes());
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  await expect(probe.getByText(HONORS_RE)).toBeVisible();
+  await expect(probe.getByText(MIROSTAT_SKIPS_KEY_RE)).toHaveCount(0);
 });
 
 // P3-3 (side-eye 2026-08-22): the staleness line was the ONE piece of jargon on an otherwise jargon-free

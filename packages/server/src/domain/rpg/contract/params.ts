@@ -22,6 +22,7 @@ import type {
   RpgSnapshotState,
   RpgStateCaptureVehicle,
   RpgStatProfile,
+  RpgStructuredRoundShape,
   RpgTrackerDef,
   RpgTrackerView,
 } from "@orb/contracts/rpg";
@@ -536,4 +537,14 @@ export interface LiteReminderInput {
    *  migration a no-op until a host edits prose. Optional for the same reason `steerMacros` is: a test caller
    *  supplies none and gets the shipped defaults. The gather threads chat's `GatherTurnContextArgs.prose`. */
   readonly prose?: ProseOverrides | undefined;
+}
+
+/** What the structured planner answered for one state round on its connection. The domain reads the answers and
+ *  never the capability facts behind them: which form a tool choice can be forced in, and which schema fits. */
+export interface StateRoundPlans {
+  /** The tool round's `required` goes out as asked; false when the plan sends it as `auto`. */
+  readonly toolRoundForced: boolean;
+  /** The first structured shape the plan fits (in `RPG_STRUCTURED_ROUND_SHAPES` order), or `null`. A thunk:
+   *  a row that never needs a structured round never builds its schemas. */
+  readonly structuredShape: () => RpgStructuredRoundShape | null;
 }

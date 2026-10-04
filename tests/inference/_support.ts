@@ -270,7 +270,6 @@ export function fakeDeps(options: FakeDepsOptions = {}): InferenceDeps & { reado
       const found = options.secrets?.get(credentialId);
       return found === undefined ? Promise.reject(new Error(`tests/inference: no secret for ${credentialId}`)) : Promise.resolve(found);
     },
-    structuredOutputVehicle: () => "auto",
     connections: stores.connections,
     bindings: stores.bindings,
     providerStore: stores.providerStore,

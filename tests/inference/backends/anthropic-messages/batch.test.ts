@@ -4,8 +4,8 @@
 //   • the side-generation posture turned thinking OFF (`thinking: {type:"disabled"}`) on EVERY call, which
 //     Fable 5.1 / Mythos 5.1 / Opus 5.5 refuse — reasoning is mandatory there, so the posture must go through
 //     the same mandatory clamp the chat funnel runs (lowest effort, thinking left adaptive);
-//   • a `forced-tool` structured vehicle sends `tool_choice: {type:"tool"}`, which the same three refuse — the
-//     wire sends `auto` over the one tool instead (parallel use still off = at most one call), and says so.
+//   • a forced named tool, which the same three refuse — the structured plan carries the payload on
+//     `output_config.format` there, and forces a tool only where the model has no structured output and can be forced.
 // Each defect pin carries its planted control: the models that accept the old shape keep it byte-for-byte.
 
 import type { ProviderId } from "@orb/contracts/inference";
@@ -39,7 +39,6 @@ const MESSAGE_BODY = JSON.stringify({
 const FORMAT: ResponseFormat = {
   name: "row",
   schema: wireSchema({ type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"], additionalProperties: false }),
-  vehicle: "forced-tool",
 };
 
 interface LogLine {
@@ -94,6 +93,21 @@ async function structuredBody(model: string): Promise<{ readonly body: Record<st
     batchDeps(recorded, lines),
   );
   return { body: recorded[0]?.body ?? {}, lines };
+}
+
+/** The structured body on a model whose capability states no structured output (tools only). */
+async function structuredBodyWithout(model: string): Promise<{ readonly body: Record<string, unknown> }> {
+  const base = connectionFor("structured", model);
+  if (base.capability.kind !== "generation") {
+    throw new Error("expected a generation capability");
+  }
+  const generation = { ...base.capability.generation, output: { ...base.capability.generation.output, structured: false } };
+  const recorded: RecordedRequest[] = [];
+  await runAnthropicStructured(
+    { connection: { ...base, capability: { kind: "generation", generation } }, inputs: INPUTS, responseFormat: FORMAT, signal: undefined },
+    batchDeps(recorded, []),
+  );
+  return { body: recorded[0]?.body ?? {} };
 }
 
 function warnedCodes(lines: readonly LogLine[]): readonly unknown[] {
@@ -213,19 +227,88 @@ test("a model whose off is `between_tools` keeps the side-generation posture off
   expect(lines.filter((line) => line.level === "warn").map((line) => line.fields["event"])).toEqual([]);
 });
 
-test("#2575: a forced-tool structured call on a model that rejects forced tool use goes out as `auto`, loudly", async () => {
-  for (const model of STRICT_MODELS) {
+test("#2575: a structured call on a current Claude model rides output_config.format, so no forced tool reaches a model that refuses one", async () => {
+  for (const model of [...STRICT_MODELS, "claude-opus-5", "claude-fable-5"]) {
     const { body, lines } = await structuredBody(model);
-    expect(body["tool_choice"], model).toMatchObject({ type: "auto", disable_parallel_tool_use: true });
-    expect(body["tools"], model).toMatchObject([{ name: "row" }]);
-    expect(warnedCodes(lines), model).toContain("tool_choice_downgraded");
+    expect(body["output_config"], model).toMatchObject({ format: { type: "json_schema" } });
+    expect(body["tools"], model).toBeUndefined();
+    expect(body["tool_choice"], model).toBeUndefined();
+    expect(warnedCodes(lines), model).not.toContain("tool_choice_downgraded");
   }
 });
 
-test("#2575 (control): the models that accept forced tool use keep the forced tool", async () => {
-  for (const model of ["claude-opus-5", "claude-fable-5"]) {
-    const { body, lines } = await structuredBody(model);
-    expect(body["tool_choice"], model).toMatchObject({ type: "tool", name: "row" });
-    expect(warnedCodes(lines), model).not.toContain("tool_choice_downgraded");
+test("#2575: with no structured output stated, the plan forces the one tool where the model can be forced, and offers it where not", async () => {
+  const forcible = await structuredBodyWithout("claude-opus-5");
+  expect(forcible.body["tool_choice"]).toMatchObject({ type: "tool", name: "row", disable_parallel_tool_use: true });
+  const refusing = await structuredBodyWithout("claude-fable-5-1");
+  expect(refusing.body["tool_choice"]).toMatchObject({ type: "auto", disable_parallel_tool_use: true });
+  expect(refusing.body["tools"]).toMatchObject([{ name: "row" }]);
+  expect((refusing.body["output_config"] ?? {}) as Record<string, unknown>).not.toHaveProperty("format");
+});
+
+const OVER_LIMIT: ResponseFormat = {
+  name: "row",
+  schema: wireSchema({
+    type: "object",
+    properties: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`f${String(i)}`, { type: "string" }])),
+    required: [],
+    additionalProperties: false,
+  }),
+};
+const ONE_OF: ResponseFormat = {
+  name: "row",
+  schema: wireSchema({ type: "object", properties: { pick: { oneOf: [{ type: "string" }, { type: "number" }] } }, required: ["pick"] }),
+};
+
+/** A structured run on `model` with its capability's tools removed, so the native format is the only vehicle. */
+async function structuredFailureWithoutTools(
+  model: string,
+  responseFormat: ResponseFormat,
+): Promise<{ readonly failure: unknown; readonly recorded: readonly RecordedRequest[] }> {
+  const base = connectionFor("structured", model);
+  if (base.capability.kind !== "generation") {
+    throw new Error("expected a generation capability");
   }
+  const { tools: _tools, ...generation } = base.capability.generation;
+  const recorded: RecordedRequest[] = [];
+  const run = async (): Promise<unknown> =>
+    runAnthropicStructured(
+      { connection: { ...base, capability: { kind: "generation", generation } }, inputs: INPUTS, responseFormat, signal: undefined },
+      batchDeps(recorded, []),
+    );
+  return { failure: await run().catch((err: unknown) => err), recorded };
+}
+
+test("an over-limit schema on a model with only the native format is refused before any request, with the typed violation", async () => {
+  const { failure, recorded } = await structuredFailureWithoutTools("claude-sonnet-5-5", OVER_LIMIT);
+  expect(recorded).toEqual([]);
+  expect(failure).toMatchObject({
+    kind: "invalid",
+    detail: "schema_rejected",
+    violations: [{ kind: "optional-props", count: 30, limit: 24, vehicle: "response-format" }],
+  });
+});
+
+test("an over-limit schema on a model that takes tools rides one offered tool, which no grammar compiles", async () => {
+  const recorded: RecordedRequest[] = [];
+  await runAnthropicStructured(
+    { connection: connectionFor("structured", "claude-sonnet-5-5"), inputs: INPUTS, responseFormat: OVER_LIMIT, signal: undefined },
+    batchDeps(recorded, []),
+  );
+  expect(recorded[0]?.body["tool_choice"]).toMatchObject({ type: "auto", disable_parallel_tool_use: true });
+  expect((recorded[0]?.body["output_config"] ?? {}) as Record<string, unknown>).not.toHaveProperty("format");
+});
+
+test("a oneOf schema is refused with refused-keyword before any request, on every vehicle", async () => {
+  const { failure, recorded } = await structuredFailureWithoutTools("claude-sonnet-5-5", ONE_OF);
+  expect(recorded).toEqual([]);
+  expect(failure).toMatchObject({ detail: "schema_rejected", violations: [{ kind: "refused-keyword", keyword: "oneOf", path: "pick" }] });
+  const withTools: RecordedRequest[] = [];
+  const refusedEverywhere = await (async (): Promise<unknown> =>
+    runAnthropicStructured(
+      { connection: connectionFor("structured", "claude-sonnet-5-5"), inputs: INPUTS, responseFormat: ONE_OF, signal: undefined },
+      batchDeps(withTools, []),
+    ))().catch((err: unknown) => err);
+  expect(withTools).toEqual([]);
+  expect(refusedEverywhere).toMatchObject({ detail: "schema_rejected" });
 });

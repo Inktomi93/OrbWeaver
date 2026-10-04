@@ -5,12 +5,14 @@
 
 import type { ChatApi } from "@orb/contracts/inference";
 import type { ProviderExecutor } from "../contract/backend.ts";
-import type { ChatRequest, ForcedToolRoundInput, StructuredChatInput, ToolChoice } from "../contract/chat.ts";
+import type { ChatRequest, ForcedToolRoundInput, StructuredChatInput, ToolChoice, WireTool } from "../contract/chat.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { Resolved } from "../contract/resolved.ts";
+import { planStructuredFor } from "../structured/plan.ts";
+import { structuredTargetOf } from "../structured/target.ts";
 
-/** A forced round's choice: the model answers with calls, never prose. The backend still downgrades it to `auto`
- *  for a model that rejects forced tool use (`servableToolChoice`). */
+/** A forced round's choice: the model answers with calls, never prose. The structured plan sends it as `auto`
+ *  where the model rejects forced tool use, and says so. */
 const FORCED_TOOL_CHOICE: ToolChoice = { mode: "required" };
 
 /** The request arm a forced round rides per chat api, `null` where there is none — a mapped Record, so a new
@@ -27,6 +29,20 @@ const FORCED_TOOL_ROUND: Record<ChatApi, Exclude<ChatApi, "agent-sdk"> | null> =
  *  own fallback when the answer is no. */
 export function carriesForcedToolRound(connection: Resolved<"chat">): boolean {
   return connection.api !== null && FORCED_TOOL_ROUND[connection.api] !== null;
+}
+
+/** Does a forced round with these tools go out forced on this connection? `false` where the structured plan sends
+ *  `required` as `auto` (the model may then answer without a call), or refuses the tools outright. The round's own
+ *  request carries the same plan, so a caller's fallback and the wire agree. */
+export function forcesToolRound(connection: Resolved<"chat">, tools: readonly WireTool[]): boolean {
+  const plan = planStructuredFor(connection, { tools, toolChoice: FORCED_TOOL_CHOICE });
+  return plan.ok && plan.toolChoice?.mode === FORCED_TOOL_CHOICE.mode;
+}
+
+/** Does this connection carry any structured payload at all (a native format, or one tool)? A caller asks before
+ *  offering a structured-only feature, and degrades visibly when the answer is no. */
+export function carriesStructured(connection: Resolved): boolean {
+  return structuredTargetOf(connection).vehicles.length > 0;
 }
 
 /** Project a forced tool round onto its connection's request arm. A connection that cannot carry one is refused:

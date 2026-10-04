@@ -5,6 +5,7 @@
 
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { EndpointFeatures, GenerationCapability, PromptCacheSettings, ProviderDef, ResolvedConnectionView, Task } from "@orb/contracts/inference";
+import { windowForPreset } from "@orb/contracts/inference";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { ProviderError } from "./errors.ts";
@@ -71,4 +72,12 @@ export function generationOf(resolved: Resolved): GenerationCapability {
     });
   }
   return resolved.capability.generation;
+}
+
+/** The chat connection a turn sends: on a route whose window the request sets, carrying the preset's Max context as its
+ *  window ({@link windowForPreset}), so the history fit and the request read one value. The same object elsewhere. */
+export function withPresetWindow(connection: Resolved<"chat">, maxContextTokens: number | undefined): Resolved<"chat"> {
+  const generation = generationOf(connection);
+  const windowed = windowForPreset(generation, maxContextTokens);
+  return windowed === generation ? connection : { ...connection, capability: { kind: "generation", generation: windowed } };
 }

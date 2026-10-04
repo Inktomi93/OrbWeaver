@@ -112,7 +112,7 @@ export const REFINERY_FORGE_MAX_PATH_SEGMENTS = Math.floor(REFINERY_SCHEMA_MAX_D
 const PATH_SEGMENT_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*(\[\])?$/;
 
 /** One authored leaf. Every optional here is a real "the author had nothing to say" — under the hosted
- *  strict shape they arrive as explicit `null`s and `dropNullValues` restores absence at the parse seam. */
+ *  strict shape they arrive as explicit `null`s, and the structured layer drops them before the reply returns. */
 export const forgeFieldRowSchema = z
   .object({
     /** Dot path to the leaf; a `[]` suffix on a segment makes that level an array. */

@@ -12,6 +12,7 @@ import type {
   GenerationCapability,
   ModelCatalogEntry,
   ModelInfoApi,
+  ModelKind,
   ModelListing,
   ProviderAvailability,
   ProviderDef,
@@ -28,10 +29,10 @@ import { fetchAnthropicModels } from "./backends/anthropic-messages/index.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "./backends/kit/sanitize.ts";
 import type { LocalLightBackend } from "./backends/local-light/index.ts";
 import { tokenTargetOf } from "./backends/openai-compat/tokens.ts";
-import { curatedKind } from "./capability/sources/curated/loader.ts";
 import type { SynthesizedCapability } from "./capability/synthesize.ts";
 import { detectServer } from "./catalog/detect.ts";
-import { fetchEndpointModels } from "./catalog/endpoint.ts";
+import type { EndpointFetchArgs } from "./catalog/endpoint.ts";
+import { fetchEndpointModels, probeListedModel, sameModelId } from "./catalog/endpoint.ts";
 import { fetchGoogleModels } from "./catalog/google.ts";
 import { ENDPOINT_CATALOG_PREFIX, endpointCatalogKey, endpointCatalogPrefix, endpointDetectKey } from "./catalog/keys.ts";
 import { builtinCatalog, createCatalogListing } from "./catalog/listing.ts";
@@ -54,7 +55,15 @@ import { createProviderRegistry } from "./registry/providers.ts";
 import { checkAvailability, loadVerdict } from "./resolve/availability.ts";
 import { behaveAs, detectionUrl } from "./resolve/behave-as.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
-import { connectionNotFoundMessage, endpointMirrorTenant, modelInfoApiOf, resolveTask, resolveTaskWithBaseline } from "./resolve/resolve-task.ts";
+import {
+  cachedKind,
+  connectionNotFoundMessage,
+  discoveredKind,
+  endpointMirrorTenant,
+  modelInfoApiOf,
+  resolveTask,
+  resolveTaskWithBaseline,
+} from "./resolve/resolve-task.ts";
 import { createProviderDiagnostics } from "./roles/diagnostics.ts";
 import { createProviderExecutor } from "./roles/executor.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
@@ -82,6 +91,9 @@ export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
 export { resolvedWarningSchema } from "./contract/resolve.ts";
 export type { ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
+// The one structured-output layer: a caller that must choose between shapes, or ask whether its need fits a
+// connection at all, asks the planner every backend sends.
+export type { StructuredFit } from "./contract/structured-turn.ts";
 export type {
   BindingActor,
   BindingStore,
@@ -105,9 +117,11 @@ export { NoConnectionError } from "./resolve/resolve-task.ts";
 // definitions + an execute callback, and never branches on the connection's wire itself.
 export { toChatRequest } from "./roles/chat-request.ts";
 // The two non-turn chat calls behind neutral inputs: a structured-output call and a forced tool round.
-export { carriesForcedToolRound, runStructuredChat, toForcedToolRoundRequest } from "./roles/chat-rounds.ts";
+export { carriesForcedToolRound, carriesStructured, forcesToolRound, runStructuredChat, toForcedToolRoundRequest } from "./roles/chat-rounds.ts";
 export { unavailableRefusal } from "./roles/role-clients.ts";
 export { runStructuredTurn } from "./roles/structured-turn.ts";
+export type { StructuredAsk, StructuredPlan, StructuredRefusal } from "./structured/plan.ts";
+export { planStructuredFor, structuredFitFor } from "./structured/plan.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";
@@ -129,6 +143,15 @@ export interface InferenceRuntime {
   /** The availability verdict's no-I/O half for a row that already resolved: a local-light model whose latest
    *  load failed reads `model-load-failed`. The Connections readout asks it without probing endpoints. */
   readonly loadVerdict: (resolved: ResolveOutcome["resolved"]) => SendAvailability;
+  /** The kind a saved row's model is, as the resolver reads it: the row's declaration, its server's or catalog's
+   *  stated kind (warmed first), the curated rows, else `generation`. `cachedFacts` reads only the facts already held,
+   *  in memory or persisted, and dials nothing, for a read that lists rows or previews a change. `coldAs` is the kind
+   *  such a read answers while a warm could still change it (anything short of the row's own declaration): a preview
+   *  that must err toward the change that asks the user first. */
+  readonly modelKind: (
+    connection: UserConnection,
+    options?: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined },
+  ) => Promise<ModelKind>;
   readonly executor: ProviderExecutor;
   readonly capabilities: {
     /** provider row + declared overrides + catalog row → one descriptor, for a connection the principal owns
@@ -178,6 +201,9 @@ export interface InferenceRuntime {
    *  bounded close of its inference worker that shutdown runs. */
   readonly localLight: Pick<LocalLightBackend, "prefetch" | "embedSpace" | "close">;
 }
+
+/** The kind a row whose model no evidence describes is read as. */
+const DEFAULT_MODEL_KIND: ModelKind = "generation";
 
 function requireProvider(provider: ProviderDef | undefined, providerId: string): ProviderDef {
   if (provider === undefined) {
@@ -302,6 +328,24 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const warmOpenRouter = async (): Promise<void> => {
     await warmOpenRouterCatalog();
   };
+  // One late probe per listed row: a burst of turns on a newly bound model shares one. Keyed by the row object, so a
+  // refreshed list (new rows) never joins, or is overwritten by, a probe that started on the list it replaced.
+  const modelProbes = new WeakMap<EndpointModel, Promise<void>>();
+  const probeUnprobedModel = (mirror: Mirror<EndpointModel[]>, args: EndpointFetchArgs, model: string): Promise<void> => {
+    const row = mirror.get()?.find((candidate) => sameModelId(args.modelInfoApi, candidate.id, model));
+    if (row === undefined || row.probed === true) {
+      return Promise.resolve();
+    }
+    const pending = modelProbes.get(row);
+    if (pending !== undefined) {
+      return pending;
+    }
+    const run = probeListedModel(args, row)
+      .then((probed) => mirror.amend((rows) => rows.map((candidate) => (candidate === row ? probed : candidate))))
+      .finally(() => modelProbes.delete(row));
+    modelProbes.set(row, run);
+    return run;
+  };
   const warmEndpoint = async (connection: UserConnection, provider: ProviderDef, secret: string | null): Promise<void> => {
     const baseUrl = provider.baseUrl ?? connection.baseUrl;
     if (baseUrl === null) {
@@ -309,6 +353,19 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
     const modelInfoApi = modelInfoApiOf({ detectedServer }, provider, connection);
+    const tenant = endpointMirrorTenant(connection);
+    const endpointArgs: EndpointFetchArgs = {
+      fetch: fetchImpl,
+      baseUrl,
+      secret,
+      headers: connection.transport?.headers,
+      secrets,
+      modelInfoApi,
+      probeModel: connection.model,
+      warn: (message) => {
+        deps.log.warn({ providerId: provider.id }, message);
+      },
+    };
     // The Anthropic list needs its `anthropic-version` header, which only the provider's own lister sends.
     const fetchRows = (): Promise<EndpointModel[]> => {
       if (provider.wire === "google-generative-ai") {
@@ -317,20 +374,14 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       if (provider.wire === "anthropic-messages") {
         return fetchAnthropicModels({ baseUrl, secret, secrets, label: "Anthropic models" }, fetchImpl);
       }
-      return fetchEndpointModels({
-        fetch: fetchImpl,
-        baseUrl,
-        secret,
-        headers: connection.transport?.headers,
-        secrets,
-        modelInfoApi,
-        probeModel: connection.model,
-        warn: (message) => {
-          deps.log.warn({ providerId: provider.id }, message);
-        },
-      });
+      return fetchEndpointModels(endpointArgs);
     };
-    await endpointModels(baseUrl, modelInfoApi, endpointMirrorTenant(connection)).warm(fetchRows, secrets);
+    const mirror = endpointModels(baseUrl, modelInfoApi, tenant);
+    const warm = await mirror.warm(fetchRows, secrets);
+    // A list warmed for another model on this server carries none of this model's own probes.
+    if (warm.ok && provider.wire === "openai-compat") {
+      await probeUnprobedModel(mirror, endpointArgs, connection.model);
+    }
   };
   // The daemon runs under the USER's token (`identity.credential`, re-read by id through the credentials door,
   // never hand-minted), and the warm's failure reason is scrubbed of that same token.
@@ -396,14 +447,21 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     resolve: (args) => resolveTask(ctx, args),
     availability: (args) => checkAvailability(ctx, built.registry, { probe, loadFailed: built.localLight.loadFailed }, args),
     loadVerdict: (resolved) => loadVerdict(built.localLight.loadFailed, resolved),
+    modelKind: async (connection, options): Promise<ModelKind> => {
+      if (options?.cachedFacts !== true) {
+        return (await discoveredKind(ctx, connection)) ?? DEFAULT_MODEL_KIND;
+      }
+      const { kind, held } = await cachedKind(ctx, connection);
+      return (held ? undefined : options.coldAs) ?? kind ?? DEFAULT_MODEL_KIND;
+    },
     executor,
     capabilities: {
       for: async ({ connectionId, principal }): Promise<CapabilityRead> => {
         const connection = await ownedConnection(connectionId, principal);
         const provider = requireProvider(registry.get(connection.providerId, connection.ownerId), connection.providerId);
-        // A cold detect cache reads the registered row here; the resolve below warms it.
+        // The same discovered kind the resolve below reads, so the task it picks is one the row serves.
+        const kind = (await discoveredKind(ctx, connection)) ?? DEFAULT_MODEL_KIND;
         const facts = behaveAs(ctx, provider, connection);
-        const kind = connection.declared?.kind ?? curatedKind({ model: connection.model, providerId: facts.id, wire: facts.wire }) ?? "generation";
         const tasks = connectionTasks(facts, kind);
         const task = tasks[0];
         if (task === undefined) {

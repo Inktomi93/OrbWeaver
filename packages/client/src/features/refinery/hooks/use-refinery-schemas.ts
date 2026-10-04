@@ -10,15 +10,19 @@
 // in the editor's local state, and the double-failure `failed` arm is DATA (rendered for hand-fixing),
 // never an error toast.
 
+import type { RefinerySchemaStage } from "@orb/contracts/refinery";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
+import { useEffect, useState } from "react";
 import type { Trpc, TrpcReadError } from "#data";
-import { createEntityMutation, useGatedQuery, useTRPC } from "#data";
+import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
+import { useDebouncedValue } from "#lib";
 
 type SchemaLibrary = inferOutput<Trpc["refinery"]["listSchemas"]>;
 type Preflight = inferOutput<Trpc["refinery"]["preflight"]>;
+type SchemaPlan = inferOutput<Trpc["refinery"]["schemaPlan"]>;
 
 /** The owner's schema library (the stage-config picker + the editor's list). */
 export function useRefinerySchemas(): UseQueryResult<SchemaLibrary, TrpcReadError> {
@@ -31,6 +35,45 @@ export function useRefinerySchemas(): UseQueryResult<SchemaLibrary, TrpcReadErro
 export function useRefineryPreflight(sessionId: RefinerySessionId | null): UseQueryResult<Preflight, TrpcReadError> {
   const trpc = useTRPC();
   return useGatedQuery(sessionId, (id) => trpc.refinery.preflight.queryOptions({ sessionId: id }));
+}
+
+/** How long a draft must stay unchanged before its plan is asked. */
+const SCHEMA_PLAN_SETTLE_MS = 400;
+
+/** The plan ask is a POST because a draft can outgrow a URL; it writes nothing, so it moves no read. Its failure is
+ *  the plan line's own "couldn't check" state, not a toast. */
+const useAskSchemaPlan = createEntityMutation<inferInput<Trpc["refinery"]["schemaPlan"]>, SchemaPlan>({
+  options: (trpc) => trpc.refinery.schemaPlan.mutationOptions(),
+  invalidates: () => [],
+});
+
+/** The plan line's state: not yet answered, the server's answer (`null` for a draft the save belt refuses), or no
+ *  answer because the ask failed. */
+type SchemaPlanRead = { readonly state: "asking" } | { readonly state: "answered"; readonly plan: SchemaPlan } | { readonly state: "failed" };
+
+/** What the caller's bound Utility model would do with a draft schema, asked once the draft has settled. The last
+ *  answer stays up while the next draft is asked, so the line does not flicker as the author types. */
+export function useRefinerySchemaPlan(schema: Record<string, unknown>, stage: RefinerySchemaStage): SchemaPlanRead {
+  const { mutate } = useAskSchemaPlan({ trpc: useTRPC(), invalidation: useInvalidation(), failureShownInline: true });
+  const [read, setRead] = useState<SchemaPlanRead>({ state: "asking" });
+  // Settled by content, not identity: the dialog re-parses the draft text on every render.
+  const settled = useDebouncedValue(JSON.stringify(schema), SCHEMA_PLAN_SETTLE_MS);
+  useEffect(() => {
+    let current = true;
+    const answer = (next: SchemaPlanRead): void => {
+      if (current) {
+        setRead(next);
+      }
+    };
+    mutate(
+      { schema: JSON.parse(settled) as Record<string, unknown>, stage },
+      { onSuccess: (plan) => answer({ state: "answered", plan }), onError: () => answer({ state: "failed" }) },
+    );
+    return (): void => {
+      current = false;
+    };
+  }, [mutate, settled, stage]);
+  return read;
 }
 
 export const useCreateRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["createSchema"]>, inferOutput<Trpc["refinery"]["createSchema"]>>({

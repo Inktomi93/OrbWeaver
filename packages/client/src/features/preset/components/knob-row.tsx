@@ -56,9 +56,13 @@ const UNKNOWN_DEFAULT_PLACEHOLDER = "default";
  *  Two arms, exactly like the visible placeholder beside it: with a funnel reading, the number is real but it
  *  is the RESOLVED one and not this preset's, so it is announced as what it is; with none, there is no number
  *  at all and the thumb's `min` position is an artefact of having to park it somewhere. Both spell "default
- *  (model decides)" so the two arms of one state read as one state. */
+ *  (model decides)" so the two arms of one state read as one state — except a default the request sends itself
+ *  (`modelDecides: false`), which the model does not pick. */
 function inheritedValueText(ghost: KnobGhost | null): string {
-  return ghost === null ? "default (model decides)" : `${String(ghost.value)} — default (model decides)`;
+  if (ghost === null) {
+    return "default (model decides)";
+  }
+  return `${String(ghost.value)} — ${ghost.modelDecides ? "default (model decides)" : "default"}`;
 }
 
 export interface KnobRowProps {
@@ -78,6 +82,9 @@ export interface KnobRowProps {
   readonly effective?: EffectiveKnobRow | undefined;
   /** The preset's quality dial — names the rung in a `← quality (deep)` gloss. */
   readonly quality?: string | undefined;
+  /** What the server does with this knob on this turn when it is not what the value suggests (a Mirostat branch that
+   *  skips it). It outranks the provenance line: the value is moot until it changes. */
+  readonly note?: string | undefined;
 }
 
 /** The tracks a cluster of `KnobRow`s are cells of. ONE per cluster: the name track is content-sized, so
@@ -93,7 +100,7 @@ export function KnobGrid({ children }: { readonly children: ReactNode }): ReactE
 }
 
 export function KnobRow(props: KnobRowProps): ReactElement {
-  const { form, name, label, hint, min, max, step, largeStep, effective, quality } = props;
+  const { form, name, label, hint, min, max, step, largeStep, effective, quality, note } = props;
   // ONE id per row for the provenance line. Both modalities point at it (§4.1's gloss belongs to the
   // VALUE), which is what stops a column of loose glosses from fusing into one run of text for a screen
   // reader — a gloss reads as this row's, or it does not reach the row at all (side-eye F-21).
@@ -109,7 +116,7 @@ export function KnobRow(props: KnobRowProps): ReactElement {
         const ghost = explicit ? null : knobGhost(effective, quality);
         // The clamp gloss stays VISIBLE on an explicit row (decision-load-bearing, §4.1); the ghost's
         // provenance line is the inherited row's.
-        const gloss = explicit ? clampGloss(effective, { min, max }) : ghost?.gloss;
+        const gloss = note ?? (explicit ? clampGloss(effective, { min, max }) : ghost?.gloss);
         const describedBy = gloss === undefined || gloss === null ? undefined : glossId;
         return (
           // THREE CELLS AND A GLOSS, straight into the parent KnobGrid's tracks (never wrapped — see the

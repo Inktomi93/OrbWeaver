@@ -27,13 +27,14 @@ export const openaiRows = [
       },
       output: {
         structured: true,
+        structuredLimitsFrom: "strict-compatible",
         modalities: ["text"],
       },
     },
     evidence: {
       tier: "curated",
       dated: "2026-09-25",
-      cite: "resolve-model-capability.ts openai-family tools and structured output; OR's advertised row supersedes when present",
+      cite: "resolve-model-capability.ts openai-family tools and structured output; OR's advertised row supersedes when present. structuredLimitsFrom: developers.openai.com/api/docs/guides/structured-outputs 'Objects have limitations on nesting depth and size' (5000 object properties, 10 nesting levels, 1000 enum values, 120000 total name characters)",
     },
   },
   // Each reasoning row lists the efforts its model page documents. `none` is the off switch (`enabled`), never a level;

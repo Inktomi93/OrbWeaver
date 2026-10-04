@@ -3,7 +3,13 @@
 
 import { samplingCapabilitySchema } from "@orb/contracts/inference";
 import { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "@orb/server/domain/preset";
-import { honoredKnobLabels, knobGhost, knobLabel, provenanceSuffix } from "../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
+import {
+  honoredKnobLabels,
+  knobGhost,
+  knobLabel,
+  mirostatSkipped,
+  provenanceSuffix,
+} from "../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
 import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "../../../../../packages/client/src/features/preset/lib/sampling-knob-catalog.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
@@ -35,9 +41,10 @@ test("the Capability honors line reads every sampling-schema key as a knob word,
   const everyKey = Object.fromEntries(keys.map((key) => [key, true]));
   const honored = honoredKnobLabels(everyKey);
   expect(honored.filter((label) => keys.includes(label) && SCHEMA_IDENTIFIER.test(label))).toEqual([]);
-  // `exclusive` is a pairing constraint between knobs, not a knob the model honors.
+  // `exclusive` pairs knobs and `mirostatSkips` lists knobs Mirostat replaces: facts about knobs, not knobs the model honors.
   expect(honored).not.toContain(knobLabel("exclusive"));
-  expect(honored).toHaveLength(keys.length - 1);
+  expect(honored).not.toContain(knobLabel("mirostatSkips"));
+  expect(honored).toHaveLength(keys.length - 2);
 });
 
 test("a sampling knob reads as the deck names it: same words, the readout's lowercase register", () => {
@@ -49,4 +56,20 @@ test("a sampling knob reads as the deck names it: same words, the readout's lowe
 
 test("an unmapped key still prints itself rather than being hidden", () => {
   expect(knobLabel("someFutureKnob")).toBe("someFutureKnob");
+});
+
+test("the server's Mirostat skips apply only while the resolved Mirostat mode is on, set or by server default", () => {
+  const profile = (mode: number | undefined, provenance = "explicit"): Parameters<typeof mirostatSkipped>[0] => ({
+    model: "m",
+    knobs: mode === undefined ? {} : { mirostatMode: { value: mode, provenance } },
+    stale: [],
+    qualityMapping: null,
+  });
+  const skips = ["topP", "topK"];
+  expect([...mirostatSkipped(profile(2), skips)]).toEqual(skips);
+  expect([...mirostatSkipped(profile(1, "serverDefault"), skips)]).toEqual(skips);
+  expect(mirostatSkipped(profile(0), skips).size).toBe(0);
+  expect(mirostatSkipped(profile(undefined), skips).size).toBe(0);
+  // A server that states no skips marks nothing, Mirostat on or not.
+  expect(mirostatSkipped(profile(2), undefined).size).toBe(0);
 });

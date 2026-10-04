@@ -1,11 +1,12 @@
 // Ollama's native chat route under the openai-compat backend (D296): the SDK still builds an OpenAI chat body
 // and parses OpenAI chunks, and this file translates both ends. `/v1/chat/completions` drops `num_ctx` and
 // the samplers Ollama's Go decoder has no field for, so a row whose folded `features.nativeChat` is `ollama`
-// sends `/api/chat` instead. The request is translated in `wrapFetch`'s `shapeBody`, so the wire capture holds
-// the native body; the response is translated in the fetch underneath it, so the SDK and the reshaping read
-// OpenAI chunks.
+// sends `/api/chat` instead. Both ends are translated inside `wrapFetch`, the request in `shapeBody` and the reply
+// after its tap, so the wire capture holds the native body and the native reply while the SDK reads OpenAI chunks.
 
+import type { EffortLevel } from "@orb/contracts/inference";
 import { ProviderError } from "../../contract/errors.ts";
+import type { ResolvedWarning } from "../../contract/resolve.ts";
 import { serverRootOf } from "../kit/fetch-json.ts";
 import { encodeSseData, SSE_DONE_LINE } from "../kit/sse.ts";
 
@@ -20,6 +21,7 @@ const PART_SEPARATOR = "\n\n";
 const ERROR_BODY_LIMIT = 65_536;
 const REASONING_OFF = "none";
 const THINK_KEY = "think";
+const REASONING_EFFORT_KEY = "reasoning_effort";
 
 /** The output cap's OpenAI spellings, which `/api/chat` reads as `options.num_predict`. The samplers move into
  *  `options` under the keys the sampler seam already spelled for this row (`samplerBodyKeys`). */
@@ -105,7 +107,8 @@ function rememberToolNames(calls: unknown, toolNames: Map<string, string>): void
 function nativeMessage(row: Json, toolNames: ReadonlyMap<string, string>, label: string): Json {
   const { text, images } = contentOf(row["content"], label);
   const toolCalls = nativeToolCalls(row["tool_calls"]);
-  const answered = typeof row["tool_call_id"] === "string" ? toolNames.get(row["tool_call_id"]) : undefined;
+  const callId = typeof row["tool_call_id"] === "string" ? row["tool_call_id"] : undefined;
+  const answered = callId === undefined ? undefined : toolNames.get(callId);
   const thinking = row["reasoning_content"] ?? row["reasoning"];
   return {
     role: row["role"],
@@ -114,11 +117,13 @@ function nativeMessage(row: Json, toolNames: ReadonlyMap<string, string>, label:
     ...(toolCalls !== undefined ? { ["tool_calls"]: toolCalls } : {}),
     ...(typeof thinking === "string" && thinking !== "" ? { thinking } : {}),
     ...(answered !== undefined ? { ["tool_name"]: answered } : {}),
+    ...(callId !== undefined ? { ["tool_call_id"]: callId } : {}),
   };
 }
 
 /** OpenAI messages to Ollama's: string content, base64 `images`, object tool arguments, replayed thinking as
- *  `thinking`, and a tool result named by the call it answers (`tool_name`). */
+ *  `thinking`, and a tool result named by the call it answers (`tool_name`) and paired with it by id
+ *  (`tool_call_id`), so two calls of one tool keep their own results in any order. */
 function nativeMessages(messages: unknown, label: string): Json[] {
   const rows = Array.isArray(messages) ? messages.filter(isRecord) : [];
   const toolNames = new Map<string, string>();
@@ -139,16 +144,34 @@ function formatOf(responseFormat: unknown): unknown {
   return responseFormat["type"] === "json_schema" && isRecord(responseFormat["json_schema"]) ? responseFormat["json_schema"]["schema"] : undefined;
 }
 
-/** `reasoning_effort` as Ollama's `think`: off for `none`. A model whose capability names effort levels (gpt-oss:
- *  low/medium/high) takes the level itself, which Ollama's harmony renderer reads; any other model takes `true`. */
-function thinkOf(effort: unknown, namedLevels: boolean): boolean | string | undefined {
-  if (typeof effort !== "string") {
-    return;
-  }
+/** What `think` is spelled from: the effort the turn resolved, the levels the model's descriptor names (absent ⇒
+ *  unstated; empty ⇒ on or off only), and whether body rule 5b switched the template's thinking on. */
+export interface NativeThink {
+  readonly effort?: EffortLevel | undefined;
+  readonly levels?: readonly EffortLevel[] | undefined;
+  readonly on?: boolean | undefined;
+}
+
+/** `reasoning_effort` as Ollama's `think`: off for `none`, and a word the user's own body set rides as they wrote it.
+ *  Our word rides as the resolved level where the model names it (so `max` stays `max`, never the OpenAI route's
+ *  `xhigh`); a model that names no level takes `true`, which runs no particular level, and the turn is told. An
+ *  on/off-only model switched on with no word takes `true`. */
+function thinkOf(effort: unknown, think: NativeThink, userOwned: ReadonlySet<string>, warnings: ResolvedWarning[] | undefined): boolean | string | undefined {
   if (effort === REASONING_OFF) {
     return false;
   }
-  return namedLevels ? effort : true;
+  if (typeof effort !== "string") {
+    return think.on === true && think.levels?.length === 0 ? true : undefined;
+  }
+  if (userOwned.has(REASONING_EFFORT_KEY)) {
+    return effort;
+  }
+  const level = think.effort ?? effort;
+  if (think.levels?.some((named) => named === level) === true) {
+    return level;
+  }
+  warnings?.push({ code: "effort_dropped", message: `effort "${level}" sent as on: Ollama states no thinking level for this model, so it runs its own` });
+  return true;
 }
 
 const STREAM_KEY = "stream";
@@ -174,7 +197,12 @@ function nativeOptions(body: Json, ours: Json, userOwned: ReadonlySet<string>): 
  *  the user set rides as they wrote it, untranslated. Thunks, so a settled key's translation never runs. */
 function computedTopLevel(
   body: Json,
-  args: { readonly label: string; readonly namedThinkLevels?: boolean | undefined; readonly keepAlive?: string | undefined },
+  args: {
+    readonly label: string;
+    readonly think?: NativeThink | undefined;
+    readonly keepAlive?: string | undefined;
+    readonly warnings?: ResolvedWarning[] | undefined;
+  },
   userOwned: ReadonlySet<string>,
 ): Json {
   const computed: [string, () => unknown][] = [
@@ -182,7 +210,7 @@ function computedTopLevel(
     [STREAM_KEY, (): boolean => body[STREAM_KEY] === true],
     [MESSAGES_KEY, (): Json[] => nativeMessages(body[MESSAGES_KEY], args.label)],
     [FORMAT_KEY, (): unknown => formatOf(body["response_format"])],
-    [THINK_KEY, (): boolean | string | undefined => thinkOf(body["reasoning_effort"], args.namedThinkLevels === true)],
+    [THINK_KEY, (): boolean | string | undefined => thinkOf(body[REASONING_EFFORT_KEY], args.think ?? {}, userOwned, args.warnings)],
     [KEEP_ALIVE_KEY, (): string | undefined => args.keepAlive],
   ];
   const out: Json = userOwned.has(MESSAGES_KEY) && MESSAGES_KEY in body ? { [MESSAGES_KEY]: body[MESSAGES_KEY] } : {};
@@ -212,10 +240,12 @@ export function toOllamaChat(
     readonly numCtx: number | undefined;
     readonly samplerKeys: ReadonlySet<string>;
     readonly label: string;
-    readonly namedThinkLevels?: boolean | undefined;
+    readonly think?: NativeThink | undefined;
     readonly userOwned?: ReadonlySet<string> | undefined;
     readonly keepAlive?: string | undefined;
     readonly numBatch?: number | undefined;
+    /** Where a level `think` cannot spell is said. */
+    readonly warnings?: ResolvedWarning[] | undefined;
   },
 ): Json {
   const options: Json = {};
@@ -437,7 +467,8 @@ async function failedResponse(res: Response): Promise<Response> {
   return new Response(JSON.stringify({ error: { message } }), { status: res.status, statusText: res.statusText, headers: headersWith(res, JSON_CONTENT_TYPE) });
 }
 
-async function translatedResponse(res: Response, label: string): Promise<Response> {
+/** Ollama's reply (NDJSON, a JSON completion, or its error body) in the OpenAI shape the SDK reads. */
+export async function fromOllamaChat(res: Response, label: string): Promise<Response> {
   if (!res.ok) {
     return await failedResponse(res);
   }
@@ -460,13 +491,9 @@ function urlOf(input: Parameters<typeof fetch>[0]): string {
 }
 
 /** The fetch under `wrapFetch` for a native row: the SDK's `…/v1/chat/completions` becomes `/api/chat` on the
- *  server root, and the reply comes back in OpenAI's shape. Any other path (none today) passes through. */
-export function ollamaNativeFetch(inner: typeof fetch, args: { readonly baseUrl: string; readonly label: string }): typeof fetch {
-  return async (input, init): Promise<Response> => {
-    if (!urlOf(input).endsWith(CHAT_COMPLETIONS_SUFFIX)) {
-      return await inner(input, init);
-    }
-    const res = await inner(`${serverRootOf(args.baseUrl)}${NATIVE_CHAT_PATH}`, init);
-    return await translatedResponse(res, args.label);
-  };
+ *  server root. The reply comes back as Ollama sent it; `wrapFetch` taps it, then translates it with
+ *  {@link fromOllamaChat}. Any other path (none today) passes through. */
+export function ollamaNativeFetch(inner: typeof fetch, args: { readonly baseUrl: string }): typeof fetch {
+  return async (input, init): Promise<Response> =>
+    await inner(urlOf(input).endsWith(CHAT_COMPLETIONS_SUFFIX) ? `${serverRootOf(args.baseUrl)}${NATIVE_CHAT_PATH}` : input, init);
 }

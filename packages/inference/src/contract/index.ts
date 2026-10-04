@@ -78,7 +78,7 @@ export type {
 } from "./resolve.ts";
 export { WARNING_CODES } from "./resolve.ts";
 export type { ConnectionTransport, Resolved, ResponseMap } from "./resolved.ts";
-export { generationOf } from "./resolved.ts";
+export { generationOf, withPresetWindow } from "./resolved.ts";
 export type {
   EmbedRequest,
   GeneratedImage,

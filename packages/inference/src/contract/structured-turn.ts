@@ -2,6 +2,7 @@
 // error it throws when both attempts fail. The caller owns the payload schema, the prompt, the recovery policy
 // and the tracing; this package owns only the mechanics.
 
+import type { WireSchemaViolation } from "@orb/contracts/inference";
 import type { z } from "zod";
 
 /** Thrown when BOTH the first turn and the one bounded retry fail extraction/validation. Carries the last
@@ -49,3 +50,7 @@ export interface StructuredTurnArgs<T> {
    */
   readonly onRetry?: ((summary: StructuredRetrySummary) => void) | undefined;
 }
+
+/** A one-format preview of the structured plan: the carrier it would ride (`native` on the endpoint's own schema
+ *  carrier, else a tool call), or the violations of the first vehicle the plan tried. */
+export type StructuredFit = { readonly ok: true; readonly native: boolean } | { readonly ok: false; readonly violations: readonly WireSchemaViolation[] };

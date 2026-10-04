@@ -307,6 +307,40 @@ test("a FAILED response records its (capped, scrubbed) error body as the reply, 
   expect(captured[0]?.responseBody).not.toContain(SECRET);
 });
 
+test("a native route's reply translation runs after the tap: the entry holds the server's bytes, the caller the translation", async () => {
+  const captured: Parameters<WireCaptureSink>[0][] = [];
+  const sink: WireCaptureSink = (entry) => {
+    captured.push(entry);
+  };
+  const native = `{"message":{"content":"hi"},"done":true,"eval_count":1,"echo":"${SECRET}"}\n`;
+  const seen: string[] = [];
+  const translateResponse = async (wire: Response): Promise<Response> => {
+    const text = await wire.text();
+    seen.push(text);
+    return new Response(`translated:${String(wire.status)}`, { status: wire.status });
+  };
+  const ok = wrap(respond(native, { status: 200, headers: { "content-type": "application/x-ndjson" } }), {
+    capture: replyCapture(sink, true),
+    translateResponse,
+  });
+  const res = await ok("http://local/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m" }) });
+  expect(await res.text()).toBe("translated:200");
+  await settled(captured);
+  expect(captured[0]?.responseBody).toContain('"eval_count":1');
+  expect(captured[0]?.responseBody).not.toContain(SECRET);
+  // A failure is captured raw, then translated from the capped, scrubbed body.
+  const failedEntries: Parameters<WireCaptureSink>[0][] = [];
+  const failed = wrap(respond(`{"error":"bad key ${SECRET}"}`, { status: 401 }), {
+    capture: replyCapture((entry) => failedEntries.push(entry), true),
+    translateResponse,
+  });
+  const refused = await failed("http://local/v1/chat/completions", { method: "POST", body: JSON.stringify({ model: "m" }) });
+  expect(await refused.text()).toBe("translated:401");
+  expect(failedEntries[0]?.responseBody).toContain('{"error":"bad key ');
+  expect(failedEntries[0]?.responseBody).not.toContain(SECRET);
+  expect(seen.at(-1)).not.toContain(SECRET);
+});
+
 test("the entry still lands when the consumer ABANDONS the stream — the tap owns its own tee branch", async () => {
   const captured: Parameters<WireCaptureSink>[0][] = [];
   const sink: WireCaptureSink = (entry) => {

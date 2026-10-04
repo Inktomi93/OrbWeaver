@@ -20,8 +20,6 @@ import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { attachmentQualitySchema, PROMPT_CACHE_DEPTH_CEIL } from "#inference";
 import { legacyProseOverrides, proseOverridesSchema, proseOverridesViewSchema, resolveProseText } from "#prose";
-import type { StructuredOutputVehicle } from "#role-clients";
-import { structuredOutputVehicleSchema } from "#role-clients";
 import { memoryRetrievalModeSchema } from "#search";
 import { DATABANK_UPLOAD_MAX_BYTES } from "#uploads";
 import { defineVersionedConfig, tolerantArray } from "#versioned-config";
@@ -204,35 +202,6 @@ export const DEFAULT_MAX_IMAGE_BYTES = 5_000_000;
 const MAX_DATABANK_BYTES_FLOOR = 100_000;
 const MAX_DATABANK_BYTES_CEIL = DATABANK_UPLOAD_MAX_BYTES;
 
-// ── Structured-output wire shape (D126) ─────────────────────────────────────────────────────────────────
-// WHICH JSON-Schema SHAPE a schema-constrained request puts on the wire. Not a per-vendor fact (the per-WIRE
-// keyword subset is already decided at each backend's request-build site — `scrubWireSchema`, D93): this is
-// the DEPLOYMENT's answer to "how do we spell an OPTIONAL field", and it is admin-switchable because the two
-// walls it clears are discovered at runtime, per provider, by whoever is hosting.
-//   • `as-projected` — optionals stay optional (`required` lists only the genuinely-required properties).
-//     The default: fewest output tokens, and the shape a small local model reads best.
-//   • `strict-compatible` — every property lands in `required` and each optional is emitted as
-//     `anyOf:[T,{"type":"null"}]`, with `null ≡ absent` re-imposed at the parse boundary (`dropNullValues`),
-//     so NOTHING about the contract changes. This is the documented route past BOTH hosted walls: OpenAI
-//     strict's "all fields must be required", and Anthropic's undocumented grammar-compiler ceiling on the
-//     NUMBER of optionals. It costs one explicit `null` per unset field.
-// A string union, not a boolean: the axis is "which shape", and a third documented shape must be able to
-// land here without renaming the knob.
-export const STRUCTURED_OUTPUT_SHAPES = ["as-projected", "strict-compatible"] as const;
-export type StructuredOutputShape = (typeof STRUCTURED_OUTPUT_SHAPES)[number];
-/** The born-in-DB floor (no env var — only an admin override moves it). The default STANDS until the owner's
- *  live A/B says otherwise; this tier exists so switching is a click, not a redeploy. */
-export const DEFAULT_STRUCTURED_OUTPUT_SHAPE: StructuredOutputShape = "as-projected";
-const structuredOutputShapeSchema = z.enum(STRUCTURED_OUTPUT_SHAPES);
-
-// ── Structured-output WIRE VEHICLE (task #36) ────────────────────────────────────────────────────────────
-// The SECOND structured-output axis, and it COMPOSES with the shape above rather than entangling with it:
-// the shape decides how we spell an optional field, the vehicle decides which endpoint feature carries the
-// schema at all. Only OpenRouter has two; the vocabulary + its per-arm reasoning live beside `ResponseFormat`
-// (`#role-clients`), which is where the request shape is minted. Imported DOWN, never re-spelled here.
-/** The born-in-DB floor: `auto` — capability-led, with the forced-tool fallback that predates it. */
-export const DEFAULT_STRUCTURED_OUTPUT_VEHICLE: StructuredOutputVehicle = "auto";
-
 // ── Prompt-cache depth floor (findings §5) ───────────────────────────────────────────────────────────────
 // HOW DEEP into a conversation the Anthropic history `cache_control` breakpoint sits, counted in ROLE
 // SWITCHES from the end (`infra/providers/backends/kit/cache-control.ts` owns the axis; within-turn tool
@@ -303,10 +272,6 @@ const appSettingsShape = {
   // The owner's IP certificate choice (D275). Absent or null is off; only the share domain's verbs write it, after
   // refusing a non-public address, and every start re-checks it, because this generic door can write any shape.
   ipCertificate: ipCertificateSettingSchema.nullable().optional().catch(undefined),
-  // The JSON-Schema shape structured-output requests ride (D126) — see STRUCTURED_OUTPUT_SHAPES above.
-  structuredOutputShape: structuredOutputShapeSchema.nullable().optional().catch(undefined),
-  // WHICH WIRE carries the schema on a backend with two (task #36) — see above. Composes with the shape.
-  structuredOutputVehicle: structuredOutputVehicleSchema.nullable().optional().catch(undefined),
   // The Anthropic prompt-cache breakpoint depth FLOOR (role switches from the end) — see above. Bounded at
   // parse: an out-of-range value drops to the floor rather than pushing a breakpoint past the lookback.
   promptCacheMinDepth: z.number().int().min(PROMPT_CACHE_MIN_DEPTH_FLOOR).max(PROMPT_CACHE_MIN_DEPTH_CEIL).nullable().optional().catch(undefined),
@@ -334,16 +299,13 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   // nonOwnerLocalComputeBudgetWindowMs beside it, since RETIRED, F11) were purely additive/optional — an
   // absent field reads back as its floor.
   3: (config) => ({ ...config, schemaVersion: 4 }),
-  // v4→v5: `structuredOutputShape` (D126) is purely additive/optional — an absent field reads back as its
-  // born-in-DB floor (`as-projected`), so no stored blob changes meaning. Same shape as the two lifts above.
+  // v4→v5: a stamp; no stored field changes meaning.
   4: (config) => ({ ...config, schemaVersion: 5 }),
   // v5→v6: `promptCacheMinDepth` (findings §5) is purely additive/optional — an absent field reads back as
   // its born-in-DB floor 0, which is the identity of the `Math.max` it feeds, so no stored blob changes
   // meaning and no wire body moves.
   5: (config) => ({ ...config, schemaVersion: 6 }),
-  // v6→v7: `structuredOutputVehicle` (task #36) is purely additive/optional — an absent field reads back as
-  // its born-in-DB floor (`auto`), which resolves to exactly the vehicle every request used before this
-  // knob existed, so no stored blob changes meaning and no wire body moves.
+  // v6→v7: a stamp; no stored field changes meaning.
   6: (config) => ({ ...config, schemaVersion: 7 }),
   // v7→v8: `memoryDefaults.recencyBias` is REMOVED (#321, docs/work/0122, owner ruling 2026-08-22). Unlike every lift
   // above this one it DELETES a stored field, so it is the only one that has to be written by hand rather than
@@ -944,8 +906,6 @@ export interface EffectiveAppConfig {
   promptTransformDeadlineMs: number;
   catalogRefreshIntervalMs: number;
   imageVariantQuality: number;
-  structuredOutputShape: StructuredOutputShape;
-  structuredOutputVehicle: StructuredOutputVehicle;
   promptCacheMinDepth: number;
 }
 
@@ -1027,8 +987,6 @@ export const effectiveAppConfigSchema = z.strictObject({
   promptTransformDeadlineMs: z.number(),
   catalogRefreshIntervalMs: z.number(),
   imageVariantQuality: z.number(),
-  structuredOutputShape: structuredOutputShapeSchema,
-  structuredOutputVehicle: structuredOutputVehicleSchema,
   promptCacheMinDepth: z.number(),
 }) satisfies z.ZodType<EffectiveAppConfig>;
 // Read producers already normalize configuration; wire envelopes reject typed additions without re-healing objects.

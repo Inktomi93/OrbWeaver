@@ -246,6 +246,33 @@ export function EffectiveProfileTransportFailureStory(): ReactElement {
   );
 }
 
+/** SETTLED under Mirostat — top-p rides, but the server's Mirostat branch skips it, so its row says so in place of
+ *  its rung; temperature still runs and keeps its own. */
+export function EffectiveProfileMirostatStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <EffectiveProfile
+          subject="chat role"
+          effective={{
+            model: "qwen3-8b",
+            knobs: {
+              temperature: { value: 0.7, provenance: "explicit" },
+              topP: { value: 0.95, provenance: "serverDefault" },
+              mirostatMode: { value: 2, provenance: "explicit" },
+            },
+            stale: [],
+            qualityMapping: null,
+          }}
+          error={null}
+          onRetry={noRetry}
+          skipped={new Set(["topP"])}
+        />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** SETTLED — the funnel's own row, its provenance rung, and the window the capability read supplied. */
 export function EffectiveProfileSettledStory(): ReactElement {
   return (

@@ -11,9 +11,11 @@ import type { Modality, ModelInfoApi, ModelKind } from "@orb/contracts/inference
 import { parseModalities } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
-import { authHeaders, fetchJson, isRedirect, openAiPath, serverRootOf } from "../backends/kit/fetch-json.ts";
+import { deadlineSignal } from "../backends/kit/abort-flatten.ts";
+import type { FetchJsonArgs } from "../backends/kit/fetch-json.ts";
+import { authHeaders, fetchJson, isRedirect, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/kit/fetch-json.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
-import { assertNever } from "../contract/errors.ts";
+import { assertNever, ProviderError } from "../contract/errors.ts";
 import type { EndpointModel } from "../contract/runtime.ts";
 
 const rowSchema = z
@@ -45,16 +47,42 @@ export interface EndpointFetchArgs {
   readonly probeModel?: string | undefined;
 }
 
+/** Ollama resolves an untagged name to `:latest`, so `llama3` and `llama3:latest` are one model. A `:` that
+ *  precedes a `/` is a registry port, not a tag. */
+function withImplicitLatest(id: string): string {
+  return /:[^/]*$/u.test(id) ? id : `${id}:latest`;
+}
+
+/** Whether a listed id names `model` on a server read through `reader`: exact, except that Ollama's untagged
+ *  name is its `:latest` tag. */
+export function sameModelId(reader: ModelInfoApi | undefined, listed: string, model: string | undefined): boolean {
+  if (model === undefined) {
+    return false;
+  }
+  return reader === "ollama" ? withImplicitLatest(listed) === withImplicitLatest(model) : listed === model;
+}
+
+function isProbeModel(args: EndpointFetchArgs, id: string): boolean {
+  return sameModelId(args.modelInfoApi, id, args.probeModel);
+}
+
+/** One read that loads nothing on the server, bounded by {@link SERVER_READ_TIMEOUT_MS} and the caller's cancel. */
+async function boundedRead(args: EndpointFetchArgs, read: Omit<FetchJsonArgs, "fetch" | "secrets" | "signal">): Promise<unknown> {
+  const deadline = deadlineSignal(args.signal, SERVER_READ_TIMEOUT_MS);
+  try {
+    return (await fetchJson({ ...read, fetch: args.fetch, secrets: args.secrets, signal: deadline.signal })).json;
+  } finally {
+    deadline.dispose();
+  }
+}
+
 export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
-  const result = await fetchJson({
-    fetch: args.fetch,
+  const listed = await boundedRead(args, {
     url: openAiPath(args.baseUrl, "/models"),
     headers: authHeaders(args.secret, args.headers),
-    secrets: args.secrets,
     label: "endpoint models",
-    ...(args.signal !== undefined ? { signal: args.signal } : {}),
   });
-  const raw = listSchema.parse(result.json).data;
+  const raw = listSchema.parse(listed).data;
   const rows = raw.map(
     (row): EndpointModel => ({
       id: row.id,
@@ -63,7 +91,9 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
   );
   switch (args.modelInfoApi) {
     case undefined:
-      return rows;
+      // No native API, so a model has nothing of its own to probe, and the one window the list states is the one
+      // the server runs the model at on every route.
+      return rows.map((row) => withStated(row, { embedInputTokens: listedWindow(row), ...(isProbeModel(args, row.id) ? { probed: true } : {}) }));
     case "ollama":
       return await withOllamaInfo(args, rows);
     case "llama-cpp":
@@ -83,15 +113,12 @@ function nativeReader(args: EndpointFetchArgs): NativeRead {
   const root = serverRootOf(args.baseUrl);
   const headers = authHeaders(args.secret, args.headers);
   return (path, body) =>
-    fetchJson({
-      fetch: args.fetch,
+    boundedRead(args, {
       url: `${root}${path}`,
       ...(body === undefined ? {} : { method: "POST" as const, body }),
       headers,
-      secrets: args.secrets,
       label: `${args.modelInfoApi ?? "endpoint"} ${path}`,
-      ...(args.signal !== undefined ? { signal: args.signal } : {}),
-    }).then((response) => response.json);
+    });
 }
 
 interface ProbeAnswer {
@@ -102,13 +129,22 @@ interface ProbeAnswer {
 /** A native request whose STATUS is the answer (a 501 refusal, a 400 naming the missing field), so a non-2xx
  *  is returned rather than thrown. Only a server that does not answer at all throws. */
 async function probeNative(args: EndpointFetchArgs, path: string, body: unknown): Promise<ProbeAnswer> {
+  const deadline = deadlineSignal(args.signal, MODEL_PROBE_TIMEOUT_MS);
+  try {
+    return await probeNativeWithin(args, path, body, deadline.signal);
+  } finally {
+    deadline.dispose();
+  }
+}
+
+async function probeNativeWithin(args: EndpointFetchArgs, path: string, body: unknown, signal: AbortSignal): Promise<ProbeAnswer> {
   const res = await args.fetch(`${serverRootOf(args.baseUrl)}${path}`, {
     method: "POST",
     headers: { ...authHeaders(args.secret, args.headers), "content-type": "application/json" },
     body: JSON.stringify(body),
     // Host pin (#25): a redirect would replay the headers and the body to another origin, so it is no answer.
     redirect: "manual",
-    ...(args.signal !== undefined ? { signal: args.signal } : {}),
+    signal,
   });
   if (isRedirect(res)) {
     return { status: res.status, json: null };
@@ -123,6 +159,8 @@ async function probeNative(args: EndpointFetchArgs, path: string, body: unknown)
   }
 }
 
+/** The bound on a probe that may load or wake the model to answer (a render, an embedding, a rerank). */
+const MODEL_PROBE_TIMEOUT_MS = 120_000;
 /** A trailing assistant row the server continues renders with this text as the prompt's last. */
 const PREFILL_MARK = "PREFILLMARK";
 const OPENAI_EMBEDDINGS_PATH = "/v1/embeddings";
@@ -191,6 +229,11 @@ function versionAtLeast(version: string | undefined, floor: string): boolean | u
   return true;
 }
 
+function listedWindow(row: Pick<EndpointModel, "contextLength">): number | undefined {
+  const parsed = POSITIVE_INT.safeParse(row.contextLength);
+  return parsed.success ? parsed.data : undefined;
+}
+
 function withStated(row: EndpointModel, facts: Partial<EndpointModel>): EndpointModel {
   const stated = Object.fromEntries(Object.entries(facts).filter(([, value]) => value !== undefined && value !== null));
   return { ...row, ...stated, contextLength: row.contextLength ?? facts.contextLength ?? null };
@@ -207,6 +250,12 @@ const ollamaShowSchema = z
     model_info: z.record(z.string(), z.unknown()).nullable().optional(),
     /** `completion` · `tools` · `vision` · `embedding` · `insert` · `thinking` and newer members; absent on an older build. */
     capabilities: z.array(z.string()).optional(),
+    /** What `think` takes for this model and what an omitted one runs (types/model/thinking.go); absent ⇒ unknown. */
+    thinking: z
+      .object({ values: z.array(z.unknown()), default: z.unknown() })
+      .loose()
+      .nullable()
+      .optional(),
   })
   .loose();
 const ollamaVersionSchema = z.object({ version: z.string() }).loose();
@@ -242,27 +291,66 @@ async function withOllamaInfo(args: EndpointFetchArgs, rows: readonly EndpointMo
   const loaded = await nativeRead(args, () => read("/api/ps").then((json) => ollamaPsSchema.parse(json).models));
   const out: EndpointModel[] = [];
   for (const row of rows) {
-    const show = await nativeRead(args, () => read("/api/show", { model: row.id }).then((json) => ollamaShowSchema.parse(json)));
+    const { show, answered } = await ollamaShowRead(args, row.id);
     const loadedContext = loaded?.find((model) => model.name === row.id || model.model === row.id)?.context_length;
     const contextFloor = Math.min(defaultFloor, loadedContext ?? defaultFloor);
-    const facts = ollamaFacts(show, contextFloor);
-    const prefill = facts.kind === "generation" && row.id === args.probeModel ? await nativeRead(args, () => ollamaPrefill(args, row.id)) : undefined;
-    out.push(
-      withStated(row, {
-        ...facts,
-        structured,
-        serverDefaults: ollamaParameters(show?.parameters),
-        prefill: prefill ?? undefined,
-        ...(facts.kind === "generation" ? { toolChoice: OLLAMA_TOOL_CHOICE } : {}),
-      }),
-    );
+    const listed = withStated(row, { ...ollamaShowFacts(show, contextFloor), structured });
+    // Only `/api/show` says what a model is: one it did not answer for stays unprobed, so the next warm asks again.
+    out.push(isProbeModel(args, row.id) && answered ? withStated(listed, await ollamaModelFacts(args, listed)) : listed);
   }
   return out;
 }
 
-/** Neither chat route takes `tool_choice` (`openai.go` ChatCompletionRequest has no such field; `/api/chat`
- *  neither), so a forced choice cannot reach the model. */
-const OLLAMA_TOOL_CHOICE = { required: false, named: false } as const;
+function readOllamaShow(args: EndpointFetchArgs, model: string): Promise<z.infer<typeof ollamaShowSchema>> {
+  return nativeReader(args)("/api/show", { model }).then((json) => ollamaShowSchema.parse(json));
+}
+
+/** `/api/show` for one model. An error status (a proxy exposing only `/v1`, a model it will not describe) is the
+ *  server's answer and states nothing, as llama.cpp's probe status is; only a server that did not answer at all
+ *  leaves `answered` false, so the model is asked again. */
+async function ollamaShowRead(
+  args: EndpointFetchArgs,
+  model: string,
+): Promise<{ readonly show: z.infer<typeof ollamaShowSchema> | null; readonly answered: boolean }> {
+  let refused = false;
+  const show = await nativeRead(args, () =>
+    readOllamaShow(args, model).catch((err: unknown) => {
+      refused = err instanceof ProviderError && err.apiErrorStatus !== undefined;
+      throw err;
+    }),
+  );
+  return { show, answered: show !== null || refused };
+}
+
+/** What `/api/show` states about one model, or the window floor alone where it did not answer. */
+function ollamaShowFacts(show: z.infer<typeof ollamaShowSchema> | null, contextFloor: number): Partial<EndpointModel> {
+  const facts = ollamaFacts(show, contextFloor);
+  return { ...facts, serverDefaults: ollamaParameters(show?.parameters), ...(facts.kind === "generation" ? { toolChoice: OLLAMA_TOOL_CHOICE } : {}) };
+}
+
+/** The facts only a render answers: whether a chat model continues a trailing assistant row. */
+async function ollamaModelFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
+  const prefill = row.kind === "generation" ? await nativeRead(args, () => ollamaPrefill(args, row.id)) : undefined;
+  return { prefill: prefill ?? undefined, probed: true };
+}
+
+/** A listed model's own facts on its first resolve. A model that states no kind may be one whose `/api/show` did not
+ *  answer the list read, so it is asked again; until the server answers, even with an error, the model stays unprobed. */
+async function ollamaLateFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
+  if (row.kind !== undefined) {
+    return await ollamaModelFacts(args, row);
+  }
+  const { show, answered } = await ollamaShowRead(args, row.id);
+  if (show === null) {
+    return answered ? await ollamaModelFacts(args, row) : {};
+  }
+  const shown = ollamaShowFacts(show, row.contextFloor ?? OLLAMA_LEGACY_FLOOR);
+  return { ...shown, ...(await ollamaModelFacts(args, withStated(row, shown))) };
+}
+
+/** Neither chat route takes `tool_choice` or `parallel_tool_calls` (`openai.go` ChatCompletionRequest has no such
+ *  field; `/api/chat` neither), so no choice, `none` included, and no parallel switch reaches the model. */
+const OLLAMA_TOOL_CHOICE = { required: false, named: false, none: false, parallel: false } as const;
 
 const ollamaRenderSchema = z.object({ ["_debug_info"]: z.object({ ["rendered_template"]: z.string() }).loose() }).loose();
 
@@ -354,16 +442,35 @@ function ollamaFacts(show: z.infer<typeof ollamaShowSchema> | null, contextFloor
   const kind = ollamaKind(capabilities);
   if (kind !== "generation" || capabilities === undefined) {
     // Every architecture states an `embedding_length` (a chat model's is its hidden width), so it is a vector
-    // width only where the capabilities do not say the model generates.
-    return { ...window, embeddingDims: POSITIVE_INT.safeParse(width).success ? (width as number) : undefined, kind };
+    // width only where the capabilities do not say the model generates. The embed route truncates an input to the
+    // same window, so a stated one is the embedder's input limit.
+    return {
+      ...window,
+      embeddingDims: POSITIVE_INT.safeParse(width).success ? (width as number) : undefined,
+      embedInputTokens: kind === "embedding" ? (window.contextLength ?? undefined) : undefined,
+      kind,
+    };
   }
   return {
     ...window,
     kind,
     input: modalitiesOf({ vision: capabilities.includes("vision") }),
     tools: capabilities.includes("tools") ? { parallel: false } : undefined,
-    ...(capabilities.includes("thinking") ? { thinks: true } : {}),
+    ...(capabilities.includes("thinking") ? { thinks: true, thinking: thinkingDescriptor(show?.thinking) } : {}),
   };
+}
+
+const THINK_VALUE = z.union([z.boolean(), z.string().min(1)]);
+
+/** A descriptor as the server validates it (`Thinking.Valid`): distinct boolean or named values, and a default among
+ *  them. Anything else describes nothing, and the model's levels stay unknown. */
+function thinkingDescriptor(raw: { readonly values: readonly unknown[]; readonly default: unknown } | null | undefined): EndpointModel["thinking"] {
+  const values = z.array(THINK_VALUE).min(1).safeParse(raw?.values);
+  const fallback = THINK_VALUE.safeParse(raw?.default);
+  if (!(values.success && fallback.success) || new Set(values.data).size !== values.data.length || !values.data.includes(fallback.data)) {
+    return;
+  }
+  return { values: values.data, default: fallback.data };
 }
 
 // ── llama.cpp server ─────────────────────────────────────────────────────────────────────────────────
@@ -394,7 +501,7 @@ const llamaCppRowSchema = z
       .optional(),
   })
   .loose();
-const llamaCppErrorSchema = z.object({ error: z.object({ message: z.string() }).loose() }).loose();
+const llamaCppErrorSchema = z.object({ error: z.object({ message: z.string(), type: z.string().optional() }).loose() }).loose();
 const llamaCppTemplateSchema = z.object({ prompt: z.string() }).loose();
 const LLAMA_CPP_ROUTER_ROLE = "router";
 /** `build_info` is `b<number>-<hash>`. */
@@ -403,8 +510,9 @@ const LLAMA_CPP_BUILD_RE = /^b(\d+)/u;
  *  5978, merged 2024-03-21 between the b2460 and b2480 tags). Conservative on purpose: the exact tag is not
  *  recoverable from the release pages. */
 const LLAMA_CPP_STRUCTURED_FLOOR_BUILD = 2480;
-/** `required` is grammar-enforced; a named choice is not a value the server parses and runs as `auto`. */
-const LLAMA_CPP_TOOL_CHOICE = { required: true, named: false } as const;
+/** The server parses `auto`, `none` and `required` (grammar-enforced); a named choice is not a value it parses and
+ *  runs as `auto`. `parallel_tool_calls` is read into the template (server-common.cpp). */
+const LLAMA_CPP_TOOL_CHOICE = { required: true, named: false, none: true, parallel: true } as const;
 const HTTP_NOT_IMPLEMENTED = 501;
 const HTTP_BAD_REQUEST = 400;
 /** The handlers' own refusal text for an empty body, which names what a request must carry. */
@@ -504,17 +612,58 @@ async function llamaCppPrefill(args: EndpointFetchArgs): Promise<EndpointModel["
   return parsed.success ? prefillOf(parsed.data.prompt) : undefined;
 }
 
-/** The facts only the loaded model can answer: its kind, an embedder's measured width, and a chat model's
- *  prefill. A router describes no single model, and probing it would load one, so it is not asked. */
-async function llamaCppModelFacts(args: EndpointFetchArgs, model: string): Promise<Partial<EndpointModel>> {
+/** A pooled input the server cannot split must fit one physical batch; the refusal names that batch. */
+const PHYSICAL_BATCH_RE = /current batch size: (\d+)/u;
+const EXCEED_CONTEXT_TYPE = "exceed_context_size_error";
+/** One word of the over-window input: every tokenizer spends at least one token on each. */
+const PROBE_WORD = "a ";
+
+/**
+ * The longest input the embedding route takes. Before it decodes, the server refuses a pooled input past the
+ * physical batch, naming the batch (which no read states), and any input past the slot window. One input longer
+ * than the window draws whichever binds, and costs no inference. A server that embeds it names nothing.
+ */
+async function llamaCppEmbedLimit(args: EndpointFetchArgs, model: string, window: number): Promise<number | undefined> {
+  const answer = await probeNative(args, OPENAI_EMBEDDINGS_PATH, { model, input: PROBE_WORD.repeat(window + 1) });
+  const batch = PHYSICAL_BATCH_RE.exec(refusalMessage(answer))?.[1];
+  if (batch !== undefined) {
+    return Math.min(window, Number.parseInt(batch, 10));
+  }
+  const parsed = llamaCppErrorSchema.safeParse(answer.json);
+  return parsed.success && parsed.data.error.type === EXCEED_CONTEXT_TYPE ? window : undefined;
+}
+
+/** The facts only the loaded model can answer: its kind, an embedder's measured width and input limit, and a chat
+ *  model's prefill. A kind probe the server did not answer leaves the model unprobed, so the next warm asks again. */
+async function llamaCppModelFacts(args: EndpointFetchArgs, row: Pick<EndpointModel, "id" | "contextLength">): Promise<Partial<EndpointModel>> {
   const kind = await nativeRead(args, () => llamaCppKind(args));
+  if (kind === null) {
+    return {};
+  }
   if (kind === "embedding") {
-    return { kind, embeddingDims: (await nativeRead(args, () => measuredWidth(args, model))) ?? undefined };
+    const window = listedWindow(row);
+    const embedInputTokens = window === undefined ? null : await nativeRead(args, () => llamaCppEmbedLimit(args, row.id, window));
+    return {
+      kind,
+      embeddingDims: (await nativeRead(args, () => measuredWidth(args, row.id))) ?? undefined,
+      embedInputTokens: embedInputTokens ?? undefined,
+      probed: true,
+    };
   }
   if (kind === "generation") {
-    return { kind, prefill: (await nativeRead(args, () => llamaCppPrefill(args))) ?? undefined, toolChoice: LLAMA_CPP_TOOL_CHOICE };
+    return { kind, prefill: (await nativeRead(args, () => llamaCppPrefill(args))) ?? undefined, toolChoice: LLAMA_CPP_TOOL_CHOICE, probed: true };
   }
-  return { kind: kind ?? undefined };
+  return { kind, probed: true };
+}
+
+/** A probed row's facts: the loaded model's own on a single-model server. A router describes no single model, and
+ *  probing it would load one, so its rows are not asked. */
+async function llamaCppProbedFacts(
+  args: EndpointFetchArgs,
+  row: Pick<EndpointModel, "id" | "contextLength">,
+  single: boolean,
+): Promise<Partial<EndpointModel>> {
+  return single ? await llamaCppModelFacts(args, row) : { probed: true };
 }
 
 /** llama.cpp serves one model per process, so `/props` describes every listed row: the loaded modalities, what
@@ -531,10 +680,11 @@ async function withLlamaCppInfo(args: EndpointFetchArgs, raw: readonly RawRow[],
     const parsed = llamaCppRowSchema.safeParse(raw[index]);
     const meta = parsed.success ? parsed.data.meta : undefined;
     const input = llamaCppRowInput(parsed.success ? parsed.data.architecture?.input_modalities : undefined, server);
-    const model = single && row.id === args.probeModel ? await llamaCppModelFacts(args, row.id) : {};
+    const window = meta?.n_ctx ?? server.window;
+    const model = isProbeModel(args, row.id) ? await llamaCppProbedFacts(args, { id: row.id, contextLength: window }, single) : {};
     out.push(
       withStated(row, {
-        contextLength: meta?.n_ctx ?? server.window,
+        contextLength: window,
         contextTrained: meta?.n_ctx_train,
         input: input === undefined ? undefined : [...input],
         tools: server.tools,
@@ -574,8 +724,8 @@ const koboldCppValueSchema = z.object({ value: z.number().int().positive() }).lo
 /** The release that added `response_format` with a JSON schema to the OpenAI chat endpoint. */
 const KOBOLDCPP_STRUCTURED_FLOOR = "1.90";
 /** Without `--jinja_tools` the server picks ONE tool itself and grammar-forces it; with it, the choice is ignored
- *  for generation. Neither honours a forced choice the request names. */
-const KOBOLDCPP_TOOL_CHOICE = { required: false, named: false } as const;
+ *  for generation. Neither honours a forced choice or `none` the request names, nor `parallel_tool_calls`. */
+const KOBOLDCPP_TOOL_CHOICE = { required: false, named: false, none: false, parallel: false } as const;
 
 /** What the listed row is: a server with no text model and an embedder lists that embedder as its one row. With
  *  both loaded, the embedder is not listed at all and the row is the text model. */
@@ -605,7 +755,7 @@ async function withKoboldCppInfo(args: EndpointFetchArgs, rows: readonly Endpoin
   for (const row of rows) {
     const facts: Partial<EndpointModel> =
       kind === "embedding"
-        ? { kind, embeddingDims: row.id === args.probeModel ? ((await nativeRead(args, () => measuredWidth(args, row.id))) ?? undefined) : undefined }
+        ? { kind }
         : {
             kind,
             input,
@@ -615,7 +765,37 @@ async function withKoboldCppInfo(args: EndpointFetchArgs, rows: readonly Endpoin
             jinja: version?.jinja,
             ...(kind === "generation" ? { prefill: "deliver" as const, toolChoice: KOBOLDCPP_TOOL_CHOICE } : {}),
           };
-    out.push(withStated(row, { contextLength: window, ...facts }));
+    const listed = withStated(row, { contextLength: window, ...facts });
+    out.push(isProbeModel(args, row.id) ? withStated(listed, await koboldCppModelFacts(args, listed)) : listed);
   }
   return out;
+}
+
+/** The fact only the embedder answers: its measured width. */
+async function koboldCppModelFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
+  const width = row.kind === "embedding" ? await nativeRead(args, () => measuredWidth(args, row.id)) : undefined;
+  return { embeddingDims: width ?? undefined, probed: true };
+}
+
+/** One listed model's own probes, for a model the cached list has not probed yet (another model on the server
+ *  warmed it): the row with its probed facts merged. */
+export async function probeListedModel(args: EndpointFetchArgs, row: EndpointModel): Promise<EndpointModel> {
+  return withStated(row, await listedModelFacts(args, row));
+}
+
+async function listedModelFacts(args: EndpointFetchArgs, row: EndpointModel): Promise<Partial<EndpointModel>> {
+  switch (args.modelInfoApi) {
+    case undefined:
+      return { probed: true };
+    case "ollama":
+      return await ollamaLateFacts(args, row);
+    case "llama-cpp": {
+      const props = await nativeRead(args, () => nativeReader(args)("/props").then((json) => llamaCppPropsSchema.parse(json)));
+      return await llamaCppProbedFacts(args, row, props !== null && props.role !== LLAMA_CPP_ROUTER_ROLE);
+    }
+    case "koboldcpp":
+      return await koboldCppModelFacts(args, row);
+    default:
+      return assertNever(args.modelInfoApi, "model info api");
+  }
 }

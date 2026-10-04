@@ -15,6 +15,7 @@
 import { z } from "zod";
 import type { SamplerKnob, SamplerStage } from "./capability/generation.ts";
 import { SAMPLER_KNOBS } from "./capability/generation.ts";
+import { WIRE_SCHEMA_MODES } from "./wire-subset.ts";
 
 /** The request key each sampler rides under when the row names no other: the OpenAI / vLLM / llama.cpp
  *  vocabulary, which a server reads except where its row says otherwise (`features.samplerKeys`). Which knobs
@@ -104,9 +105,9 @@ export const SAMPLER_ORDER_TOKENS: Readonly<
  *  `turns.assistantPrefill`. */
 export const PREFILL_MODES = ["continue-final-message", "deliver", "none"] as const;
 
-/** When `response_format: { type: "json_schema", strict }` rides. `default-on` = vLLM guided decoding
- *  (today's `strictByDefault`); `declared-only` = only when the caller's `ResponseFormat.strict` says so;
- *  `never`. */
+/** Whether a tool's `strict: true` input mode rides. `default-on` = strict unless the tool says otherwise (vLLM
+ *  guided decoding); `declared-only` = only where the tool asks; `never` = the endpoint has no strict tool input.
+ *  Response-format strictness is not this field's: it follows the endpoint's `structuredMode`. */
 export const STRICT_JSON_MODES = ["default-on", "declared-only", "never"] as const;
 
 /** How a generic effort level is spelled on this server's wire, if at all. */
@@ -145,6 +146,9 @@ export type NativeChatApi = (typeof NATIVE_CHAT_APIS)[number];
 export const endpointFeaturesSchema = z.object({
   prefill: z.enum(PREFILL_MODES).optional(),
   strictJson: z.enum(STRICT_JSON_MODES).optional(),
+  /** The JSON-Schema vocabulary this endpoint's grammar compiles (`wire-subset.ts`); absent ⇒ the wire's default
+   *  (`WIRE_STRUCTURED_MODE_DEFAULT`). */
+  structuredMode: z.enum(WIRE_SCHEMA_MODES).optional(),
   effort: z.enum(EFFORT_SPELLINGS).optional(),
   outputCapField: z.enum(OUTPUT_CAP_FIELDS).optional(),
   images: z.enum(IMAGE_ARMS).optional(),
@@ -171,6 +175,11 @@ export const endpointFeaturesSchema = z.object({
    *  reads `repeat_penalty`; KoboldCpp reads `typical`, `nsigma`, `rep_pen_range`, and on its OpenAI route
    *  only `mirostat_mode`). Folds key by key. */
   samplerKeys: z.partialRecord(z.enum(SAMPLER_KNOBS), z.string().min(1)).optional(),
+  /** Further keys a sampler also rides under, on a server that reads several spellings and keeps the largest:
+   *  KoboldCpp's chat route takes the repetition penalty as the maximum of `rep_pen`, `repeat_penalty` and
+   *  `repetition_penalty`, each missing one counting as 1, so a value below 1 holds only when all three carry it
+   *  (koboldcpp.py transform_genparams). A key the user's own body sets stands alone. */
+  samplerAliases: z.partialRecord(z.enum(SAMPLER_KNOBS), z.array(z.string().min(1)).min(1)).optional(),
   /** The sampler-order vocabulary this server reads ({@link SAMPLER_ORDER_TOKENS}). */
   samplerOrder: z.enum(SAMPLER_ORDER_SPELLINGS).optional(),
   /** How the phrase ban rides ({@link BANNED_STRINGS_SPELLINGS}); absent ⇒ `list`. */

@@ -282,6 +282,22 @@ test("off mode: a route where the model is mandatory clamps off up, and the off 
   expect(knobs.warnings.map((w) => [w.code, w.appliedEffort])).toEqual([["reasoning_mandatory_clamp", "low"]]);
 });
 
+// A model whose thinking is on or off, with no level (an Ollama descriptor of booleans), has no level to clamp to.
+test("on/off-only thinking: a level is dropped as unspellable, and a mandatory model's off runs at its own default", () => {
+  const onOff = generation({ reasoning: { mode: "effort", enabled: true, effortLevels: [] } });
+  const low = resolveChat({ effort: "low" } satisfies UserIntent, onOff);
+  expect(low.reasoning).toEqual({ mode: "effort", enabled: true });
+  expect(low.warnings.map((w) => w.code)).toEqual(["effort_dropped"]);
+  expect(low.warnings[0]?.message).toContain("on or off");
+  const mandatory = resolveChat(
+    { effort: "none" } satisfies UserIntent,
+    generation({ reasoning: { mode: "effort", enabled: true, effortLevels: [], mandatory: true } }),
+  );
+  // No off is sent and no level is claimed: the model thinks as it always does.
+  expect(mandatory.reasoning).toEqual({ mode: "effort", enabled: false, offMode: "disabled" });
+  expect(mandatory.warnings.map((w) => [w.code, w.appliedEffort])).toEqual([["reasoning_mandatory_clamp", undefined]]);
+});
+
 // A budget-mode model with no explicit budget used to get the range MAX for any effort — `low` on haiku-4-5 sent
 // `budget_tokens: 63000`. The effort now picks a point in the range, low < medium < high, `max` at the top.
 test("budget mode: the effort level picks the budget when none is set, and an explicit budget still wins", () => {
@@ -317,6 +333,12 @@ test("sampler order: no stated stages drops it; stated stages complete it and na
   );
   expect(ordered.sampling.samplerOrder).toEqual(["temperature", "topK", "penalties"]);
   expect(ordered.warnings.find((w) => w.knob === "samplerOrder")?.message).toContain("xtc");
+});
+
+test("sampler order: adaptive-P stored mid-chain resolves last, the place the server runs it", () => {
+  const llama = generation({ sampling: { samplerOrder: ["penalties", "topK", "temperature", "adaptiveP"], adaptiveTarget: { min: 0, max: 1 } } });
+  const knobs = resolveChat({ samplerOrder: ["adaptiveP", "temperature", "topK"], adaptiveTarget: 0.5 } satisfies UserIntent, llama);
+  expect(knobs.sampling.samplerOrder).toEqual(["temperature", "topK", "penalties", "adaptiveP"]);
 });
 
 test("an unset sampler order sends nothing and warns about nothing, even where the server orders stages", () => {

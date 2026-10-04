@@ -18,6 +18,8 @@ export type SortableItemKey = string | number;
 
 /** The row NAME the live region reads, carried on the sortable's own `data` (see `ANNOUNCEMENTS`). */
 const LABEL_DATA_KEY = "orbSortableLabel";
+/** The list's row count, fixed tail included, carried beside the name (see `totalOf`). */
+const TOTAL_DATA_KEY = "orbSortableTotal";
 /** What an unnamed row is called — the same fallback the grip's own label uses, minus the verb. */
 const UNNAMED_ITEM = "item";
 
@@ -43,6 +45,8 @@ export interface SortableListProps<T> {
   /** Names the `<ul>` root, the `VirtualList` twin — a rack among sibling racks is otherwise an unnamed
    *  list in the a11y tree. Omit it when a heading directly above already names the group. */
   readonly "aria-label"?: string;
+  /** Rows that end the list and never move (a stage that always runs last): items of the same list, with no grip. */
+  readonly fixedTail?: readonly { readonly key: SortableItemKey; readonly content: ReactNode }[];
 }
 
 interface SortableItemProps {
@@ -64,7 +68,7 @@ function SortableItem({ id, index, count, handle, label, disabled, render }: Sor
     // The name travels ON THE ENTITY, not in the announcement closure: the Accessibility plugin binds its
     // listeners ONCE at construction, so a closure over this render's items would be frozen at first mount
     // and read stale names forever. `useSortable` re-assigns `data` on every render, so this is live.
-    data: { [LABEL_DATA_KEY]: label },
+    data: { [LABEL_DATA_KEY]: label, [TOTAL_DATA_KEY]: count },
     // The drop-settle bounce is WAAPI (element.animate()), not CSS, so the app's reduced-motion
     // duration floor can't shorten it — short-circuit it outright instead.
     ...(reducedMotion
@@ -166,10 +170,11 @@ function nameOf(entity: AnnounceEntity): string {
   return typeof label === "string" && label !== "" ? label : UNNAMED_ITEM;
 }
 
-/** How many rows this list has — read off the manager's OWN registry rather than a captured `items.length`,
- *  for the same staleness reason the name rides `data` (one provider per list ⇒ one registry per list). */
-function totalOf(manager: AnnounceManager): number {
-  return [...manager.registry.draggables].length;
+/** How many rows this list has, fixed tail included, so it matches `aria-setsize`. It rides the dragged entity's
+ *  `data` for the same staleness reason the name does; the registry counts only draggables, so it is the fallback. */
+function totalOf(entity: AnnounceEntity, manager: AnnounceManager): number {
+  const total: unknown = entity?.data[TOTAL_DATA_KEY];
+  return typeof total === "number" ? total : [...manager.registry.draggables].length;
 }
 
 /** The entity's 1-based rank, or `null` when it carries none (a plain draggable is not in a sorted list, so
@@ -217,16 +222,16 @@ const withAnnouncements: NonNullable<ComponentProps<typeof DragDropProvider>["pl
       ? Accessibility.configure({
           announcements: {
             dragstart: ({ operation: { source } }: AnnounceEvent, manager: AnnounceManager): string | undefined =>
-              source === null || source === undefined ? undefined : `Picked up ${atPosition(nameOf(source), rankOf(source), totalOf(manager))}.`,
+              source === null || source === undefined ? undefined : `Picked up ${atPosition(nameOf(source), rankOf(source), totalOf(source, manager))}.`,
             // The DESTINATION is the hovered TARGET's rank, not the source's: the optimistic-sorting plugin
             // registers after this one, so at this instant the source still sits at its old index and the
             // target sits at the one it is about to take.
             dragover: ({ operation: { source, target } }: AnnounceEvent, manager: AnnounceManager): string | undefined =>
               source === null || source === undefined || target === null || target === undefined || source.id === target.id
                 ? undefined
-                : `${atPosition(nameOf(source), rankOf(target), totalOf(manager))}.`,
+                : `${atPosition(nameOf(source), rankOf(target), totalOf(source, manager))}.`,
             dragend: ({ operation: { source }, canceled }: AnnounceEvent, manager: AnnounceManager): string | undefined =>
-              source === null || source === undefined ? undefined : dragEndLine(source, canceled === true, totalOf(manager)),
+              source === null || source === undefined ? undefined : dragEndLine(source, canceled === true, totalOf(source, manager)),
           },
         })
       : plugin,
@@ -243,8 +248,11 @@ export function SortableList<T>({
   disabled = false,
   className,
   "aria-label": ariaLabel,
+  fixedTail = [],
 }: SortableListProps<T>): ReactElement {
   const keys = items.map((item) => getItemKey(item));
+  const count = items.length + fixedTail.length;
+  const slots = sortableVariants();
 
   const handleDragEnd = (event: DragEndEvent): void => {
     if (event.canceled) {
@@ -264,10 +272,10 @@ export function SortableList<T>({
           `<ul>`/`<li>` rather than roles (tailwind preflight strips the marker/indent, so the skin is
           unchanged and no suppression is owed). The rank rides each item as `aria-posinset`, which is also
           the only channel a list with no VISIBLE rank has for saying where a row sits. */}
-      <ul aria-label={ariaLabel} className={cn(sortableVariants().root(), className)} data-slot="sortable-root">
+      <ul aria-label={ariaLabel} className={cn(slots.root(), className)} data-slot="sortable-root">
         {items.map((item, index) => (
           <SortableItem
-            count={items.length}
+            count={count}
             disabled={disabled}
             handle={handle}
             id={getItemKey(item)}
@@ -276,6 +284,14 @@ export function SortableList<T>({
             label={itemLabel?.(item) ?? UNNAMED_ITEM}
             render={(grip): ReactNode => renderItem(item, index, grip)}
           />
+        ))}
+        {fixedTail.map((row, index) => (
+          <li aria-posinset={items.length + index + 1} aria-setsize={count} className={slots.item()} data-slot="sortable-fixed-item" key={row.key}>
+            {handle === true ? <span aria-hidden={true} className={slots.handleSpacer()} /> : null}
+            <div className={slots.content()} data-slot="sortable-content">
+              {row.content}
+            </div>
+          </li>
         ))}
       </ul>
     </DragDropProvider>

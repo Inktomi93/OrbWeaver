@@ -74,8 +74,8 @@ function redirecting(calls: string[], landing: unknown): typeof fetch {
 test("a redirecting server is no answer to detection: one request per probe, none to the other origin", async () => {
   const calls: string[] = [];
   const verdict = await detectServer({ fetch: redirecting(calls, { result: "KoboldCpp" }), baseUrl: BASE_URL, secret: "sk-test" });
-  expect(verdict).toEqual({ modelInfoApi: null });
-  expect(calls).toHaveLength(3);
+  expect(verdict).toEqual({ server: null });
+  expect(calls).toHaveLength(4);
   expect(calls).not.toContain(ELSEWHERE);
 });
 

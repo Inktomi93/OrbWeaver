@@ -106,7 +106,8 @@ function resolveEffort(effort: UserIntent["effort"], levels: readonly EffortLeve
     return;
   }
   if (levels !== undefined && !levels.includes(effort)) {
-    warnings.push({ code: "effort_dropped", message: `effort "${effort}" ignored: model lists ${levels.join(", ")}` });
+    const listed = levels.length === 0 ? "this model's thinking is on or off, at no level" : `model lists ${levels.join(", ")}`;
+    warnings.push({ code: "effort_dropped", message: `effort "${effort}" ignored: ${listed}` });
     return;
   }
   return effort;
@@ -182,6 +183,12 @@ function defaultDisplay(r: GenerationCapability["reasoning"]): ResolvedReasoning
 function clampMandatoryEffort(r: GenerationCapability["reasoning"], effort: UserIntent["effort"], warnings: ResolvedWarning[]): UserIntent["effort"] {
   if (r.mandatory !== true || effort !== EFFORT_OFF) {
     return effort;
+  }
+  // A model whose thinking is on or off at no level has no level to clamp to: the off is not sent, so it thinks as it
+  // always does.
+  if (r.effortLevels?.length === 0) {
+    warnings.push({ code: "reasoning_mandatory_clamp", message: `reasoning is mandatory on this model: effort "${effort}" ignored, it thinks by default` });
+    return;
   }
   const lowest = lowestEffort(r.effortLevels);
   warnings.push({

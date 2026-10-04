@@ -270,6 +270,7 @@ describe("the endpoint mirror forgets on save and on inspection", () => {
     show.parameters = "num_ctx                        16384";
     const pinned = await h.svc.create({ principal: owner.principal, providerId: OLLAMA, credentialId: null, baseUrl: OLLAMA_URL, model: "qwen2.5-16k:latest" });
     const read = requireGenerationCapability((await h.svc.capabilities({ principal: owner.principal, connectionId: pinned.id })).capability);
+    // This server states no trained maximum, so nothing bounds a preset's window: the window stands, not settable.
     expect(read.context).toEqual({ window: 16_384 });
   });
 

@@ -13,7 +13,7 @@
 import { z } from "zod";
 import { chatApiSchema } from "../apis.ts";
 import { evidenceTierSchema } from "../evidence.ts";
-import { endpointFeaturesSchema } from "../features.ts";
+import { endpointFeaturesSchema, NATIVE_CHAT_APIS } from "../features.ts";
 import { modelKindSchema } from "../kinds.ts";
 import { providerIdSchema } from "../provider-schema.ts";
 import { WIRES } from "../wires.ts";
@@ -29,6 +29,9 @@ const capabilityMatchSchema = z
     provider: providerIdSchema.optional(),
     wire: z.enum(WIRES).optional(),
     api: chatApiSchema.optional(),
+    /** The chat route the connection's folded `features.nativeChat` selects: a server's native route and its `/v1`
+     *  route take different request fields (D296). */
+    nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
   })
   .refine((match) => (match.model === undefined) !== (match.ids === undefined), { message: "a match names `model` (a regex) or `ids`, not both" });
 

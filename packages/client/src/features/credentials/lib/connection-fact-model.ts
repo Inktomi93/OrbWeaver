@@ -115,6 +115,8 @@ export interface FactRow {
   /** `true` ⇒ the row's own `declared` block states this field: a colour change and `Reset` instead of
    *  `Override`. */
   readonly overridden: boolean;
+  /** `true` ⇒ the value is set somewhere else, which `source` names, so the row offers no `Override`. */
+  readonly setElsewhere?: boolean;
   readonly edit: FactEdit;
   /** What the Override control opens seeded with — the resolved value in the control's own spelling. */
   readonly draft: string;
@@ -298,6 +300,9 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   prefill: ["prefill"],
   prefillSuppressesThinking: ["prefillSuppressesThinking"],
   strictJson: ["strictJson"],
+  // Not an editor field: a connection's only non-body inputs are the Advanced capability settings (owner ruling,
+  // docs/plans/structured-layer/design.md), so the grammar vocabulary stays the provider row's or the detected one's.
+  structuredMode: [],
   effort: ["effort"],
   outputCapField: ["outputCapField"],
   reasoningKeys: ["reasoningKeys"],
@@ -312,6 +317,9 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   embedBatch: ["embedBatch.maxTokens", "embedBatch.floorTokensPerSec"],
   requestTimeoutMs: ["requestTimeoutMs"],
   samplerKeys: SAMPLER_KNOBS.map((knob) => `samplerKeys.${knob}`),
+  // Not an editor field: which extra spellings a server folds is the provider row's fact, and a user who wants one
+  // spelling sets it in their own body, where it stands alone.
+  samplerAliases: [],
   samplerOrder: ["samplerOrder"],
   bannedStrings: ["bannedStrings"],
   tokenizeApi: ["tokenizeApi"],

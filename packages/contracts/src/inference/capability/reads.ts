@@ -9,7 +9,15 @@ import type { CapabilityRequirement } from "../tasks.ts";
 import type { Capability } from "./capability.ts";
 import type { EmbeddingCapability } from "./embedding.ts";
 import type { EstimableTurn, GenerationCapability, ReasoningOffMode, ReasoningReplayMode, RoleHandling, SamplerStage, UserRoleHandling } from "./generation.ts";
-import { CACHE_MIN_FLOOR, REASONING_OFF_DEFAULT, REASONING_REPLAY_FLOOR, ROLE_HANDLING, TURNS_FLOOR, USER_ROLE_HANDLING } from "./generation.ts";
+import {
+  CACHE_MIN_FLOOR,
+  REASONING_OFF_DEFAULT,
+  REASONING_REPLAY_FLOOR,
+  ROLE_HANDLING,
+  TERMINAL_SAMPLER_STAGES,
+  TURNS_FLOOR,
+  USER_ROLE_HANDLING,
+} from "./generation.ts";
 import type { RerankCapability } from "./rerank.ts";
 
 /** Does this generation model accept/produce a modality on the named side? */
@@ -24,6 +32,17 @@ export function requireGenerationCapability(capability: Capability): GenerationC
 
 export function accepts(capability: GenerationCapability, side: "input" | "output", modality: Modality): boolean {
   return side === "input" ? capability.input.includes(modality) : capability.output.modalities.includes(modality);
+}
+
+/** The window a turn sends and budgets: on a route whose window the request sets, the preset's Max context tokens,
+ *  up to the model's trained maximum, and stated rather than estimated. It beats a declared window, because it is
+ *  the per-chat choice of what that route sends. Anywhere else, or with no preset window, the resolved one stands. */
+export function windowForPreset(capability: GenerationCapability, maxContextTokens: number | undefined): GenerationCapability {
+  const settable = capability.context.settable;
+  if (settable === undefined || maxContextTokens === undefined) {
+    return capability;
+  }
+  return { ...capability, context: { window: Math.min(maxContextTokens, settable.max), settable } };
 }
 
 export function acceptsImageInput(capability: GenerationCapability): boolean {
@@ -57,6 +76,17 @@ export function acceptsRequiredToolChoice(capability: GenerationCapability): boo
  *  structured-vehicle choice (the forced-tool vehicle names its tool) read this and nothing else. */
 export function acceptsNamedToolChoice(capability: GenerationCapability): boolean {
   return capability.tools?.namedChoice !== false;
+}
+
+/** MAY a request tell the model to call NO tool (`none`)? `tools.noneChoice`, absent ⇒ true. The structured plan
+ *  withdraws the offered tools where it cannot. */
+export function acceptsNoneToolChoice(capability: GenerationCapability): boolean {
+  return capability.tools?.noneChoice !== false;
+}
+
+/** Does a request's `parallel_tool_calls: false` reach the model? `tools.parallelControl`, absent ⇒ true. */
+export function honoursParallelControl(capability: GenerationCapability): boolean {
+  return capability.tools?.parallelControl !== false;
 }
 
 /** Whether a `turns` cell holds the floor's guess because no evidence tier stated it. */
@@ -244,8 +274,10 @@ function missingForRerank(cap: RerankCapability, requires: CapabilityRequirement
 
 /** The order a server runs for a preset's `samplerOrder` (D295): the preset's stages this server orders, in
  *  the preset's order, then the server's other stages in its own default order, so a preset written against
- *  another server never switches a sampler off. The funnel sends it and the editor shows it. */
+ *  another server never switches a sampler off. A stage that picks the token ({@link TERMINAL_SAMPLER_STAGES}) runs
+ *  last wherever the preset put it. The funnel sends it and the editor shows it. */
 export function completeSamplerOrder(wanted: readonly SamplerStage[] | undefined, orderable: readonly SamplerStage[]): readonly SamplerStage[] {
-  const kept = (wanted ?? []).filter((stage) => orderable.includes(stage));
-  return [...kept, ...orderable.filter((stage) => !kept.includes(stage))];
+  const movable = orderable.filter((stage) => !TERMINAL_SAMPLER_STAGES.includes(stage));
+  const kept = (wanted ?? []).filter((stage) => movable.includes(stage));
+  return [...kept, ...movable.filter((stage) => !kept.includes(stage)), ...orderable.filter((stage) => TERMINAL_SAMPLER_STAGES.includes(stage))];
 }

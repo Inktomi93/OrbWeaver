@@ -151,8 +151,11 @@ export function purposeNotes(capability: Capability, ownServer: boolean): readon
     notes.push("The Utility role's structured extraction needs structured output. If your server supports it, set structured output under Advanced.");
   }
   if (generation.context.windowEstimated === true) {
+    // A route that sends the window runs whatever the chat preset's Max context asks for, so that is where it is set.
     notes.push(
-      `This server doesn't report its context size, so we assume ${grouped(generation.context.window)} tokens. If the server's real size is smaller, long chats lose their start; set the context window under Advanced.`,
+      generation.context.settable === undefined
+        ? `This server doesn't report its context size, so we assume ${grouped(generation.context.window)} tokens. If the server's real size is smaller, long chats lose their start; set the context window under Advanced.`
+        : `Chats here use ${grouped(generation.context.window)} tokens of context. To use more, raise Max context tokens in your preset (Presets › Params), up to ${grouped(generation.context.settable.max)}.`,
     );
   }
   return notes;

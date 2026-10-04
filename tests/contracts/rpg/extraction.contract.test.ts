@@ -1181,7 +1181,7 @@ test("WIRE: the Anthropic wire REFUSES the multi-group extraction schema (oneOf)
   );
   const multi = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), { ...WIRE_REFS, actorRefs: ["Kael", "Sola"], trackerWriteGroups: groups });
   expect(wireKeywords(multi).has("oneOf")).toBe(true);
-  expect(scrubWireSchema(multi, "anthropic-format").refused).toEqual(["oneOf"]);
+  expect(scrubWireSchema(multi, "anthropic-format").refused.map((refusal) => refusal.keyword)).toEqual(["oneOf"]);
   // Every other wire carries it: the forced-tool vehicle compiles no grammar, and xgrammar accepts unions.
   expect(scrubWireSchema(multi, "hosted-common").refused).toEqual([]);
   expect(scrubWireSchema(multi, "guided-decoding").refused).toEqual([]);

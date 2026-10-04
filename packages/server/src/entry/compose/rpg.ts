@@ -33,8 +33,8 @@
 
 import { randomInt } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
-import type { ChatApi, GenerationCapability } from "@orb/contracts/inference";
-import { coEmitsProseWithTools, scrubWireSchema } from "@orb/contracts/inference";
+import type { ChatApi } from "@orb/contracts/inference";
+import { coEmitsProseWithTools } from "@orb/contracts/inference";
 import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -70,6 +70,7 @@ import {
   patchChangesToToolCalls,
   RPG_NO_CHANGES_TOOL,
   RPG_STATE_ROUND_FAILED_SUMMARY,
+  RPG_STRUCTURED_ROUND_SHAPES,
   recordToolCalls,
   rpgExtractionSchema,
   rpgGameConfigSchema,
@@ -83,10 +84,19 @@ import {
   structuredChangesToToolCalls,
   toolCallsToExtraction,
 } from "@orb/contracts/rpg";
-import type { StructuredOutputShape } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { ChatResult, ForcedToolRoundInput, ProviderExecutor, Resolved } from "@orb/inference";
-import { carriesForcedToolRound, generationOf, NoConnectionError, ProviderError, runStructuredChat, toForcedToolRoundRequest } from "@orb/inference";
+import {
+  carriesForcedToolRound,
+  forcesToolRound,
+  generationOf,
+  NoConnectionError,
+  ProviderError,
+  planStructuredFor,
+  runStructuredChat,
+  toForcedToolRoundRequest,
+  withPresetWindow,
+} from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
@@ -109,6 +119,7 @@ import type {
   RpgService,
   RpgStateDelta,
   RpgTraceSink,
+  StateRoundPlans,
 } from "#domain/rpg";
 import {
   actorCarrier,
@@ -131,7 +142,6 @@ import {
   reachableActorRefs,
   rpgToolDefinitions,
   stateRoundNeededTokens,
-  structuredShapeFits,
   structuredVehicleUnavailable,
 } from "#domain/rpg";
 import type { ToolUseService } from "#domain/tool-use";
@@ -152,33 +162,6 @@ const STRUCTURED_UNAVAILABLE_CODE = "structured-unavailable";
 /** The host-facing reason a structured state round that answered outside its schema records. */
 const STRUCTURED_REPLY_UNREADABLE = "the model's state reply was not a list of changes";
 const INVENTORY_NAME_WHITESPACE = /\s+/u;
-
-/** THE STRICT-SHAPE ARMS (D126) — one builder per `StructuredOutputShape`, selected at RUNTIME off the
- *  AppSettings tier (`EffectiveAppConfig.structuredOutputShape`, admin-editable in Settings › Admin ›
- *  Structured output; env floor `as-projected`, DB override wins). It was a source-level `boolean` const until
- *  2026-08-03 — a capability reachable only by editing and redeploying, which is a dead switch (D107).
- *
- *  `strict-compatible` sends the schema in the OpenAI-strict shape (every property `required`, every optional
- *  emitted as `anyOf:[T,{"type":"null"}]`) and asks for `strict: true`. Nothing about the CONTRACT changes —
- *  `null ≡ absent` is imposed at the salvage boundary (`dropNullValues`), so omit-means-keep survives verbatim.
- *  It stays OFF by default because it costs ~46 explicit `null`s of output per extraction and reads materially
- *  worse to a small local model — the wire our populate lever depends on. The reason to switch it on is a
- *  hosted wall: OpenAI strict's "all fields must be required", or Anthropic's undocumented ceiling on the
- *  NUMBER of optionals a schema may carry.
- *
- *  A mapped Record, not a ternary: a new `StructuredOutputShape` without an arm is a tsc error (§5.5). */
-const EXTRACTION_RESPONSE_FORMATS: Readonly<Record<StructuredOutputShape, (schema: WireReady) => ResponseFormat>> = {
-  "as-projected": (schema) => ({ name: EXTRACTION_SCHEMA_NAME, schema }),
-  "strict-compatible": (schema) => ({ name: EXTRACTION_SCHEMA_NAME, schema: scrubWireSchema(schema, "strict-compatible").schema, strict: true }),
-};
-
-/** The extraction call's `ResponseFormat`, in whichever wire shape the deployment selected. ONE home, so no
- *  backend's request can disagree with another's about what was sent. Resolved
- *  PER CALL (not captured at compose time) so an admin flip governs the very next extraction — the
- *  `getEffectiveConfig` cache is rebuilt on every admin write. */
-function extractionResponseFormat(deps: RpgComposeDeps, schema: WireReady): ResponseFormat {
-  return EXTRACTION_RESPONSE_FORMATS[deps.structuredOutputShape()](schema);
-}
 
 /** What the rpg seam needs from the composition root: db + the sibling front doors rpg's injected ops route
  *  through (chat's rpg-facing ops, the connection resolve, the executor, the host-principal bridge, the tool
@@ -228,9 +211,6 @@ export interface RpgComposeDeps {
   readonly chat: Pick<ChatService, "addCharacterToChat">;
   /** The ONE tool-use registry — rpg registers its 7 state tools into it (the imagery precedent). */
   readonly toolUse: Pick<ToolUseService, "register">;
-  /** The deployment's structured-output wire shape (D126), read PER CALL off the resolved AppSettings tier —
-   *  a thunk, never a captured value, so an admin flip governs the next extraction with no restart. */
-  readonly structuredOutputShape: () => StructuredOutputShape;
 }
 
 /** How many handle candidates the promotion mint probes before refusing (`vesna`, `vesna-2`, … `vesna-25`).
@@ -555,7 +535,7 @@ function extractStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<strin
     chatId: ctx.chatId,
     systemPrompt: ctx.systemPrompt,
     userPrompt: ctx.userPrompt,
-    responseFormat: extractionResponseFormat(deps, ctx.schema),
+    responseFormat: { name: EXTRACTION_SCHEMA_NAME, schema: ctx.schema },
     signal: ctx.signal,
   });
 }
@@ -1265,8 +1245,8 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     const history = [{ role: "user" as const, content: [{ type: "text" as const, text: userPrompt }] }];
     const wireTools = buildToolRoundWireTools(refs, config, prose);
     const generation = generationOf(conn);
-    const shapes = structuredShapes(generation, refs, wireTools);
-    const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.fits);
+    const shapes = structuredShapes(conn, refs, wireTools);
+    const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.plans);
     if (primary !== null) {
       const structured = structuredRound(primary, shapes.schemas()[primary], wireTools, { lead: toolRoundSystem(inputs), prose });
       return await runStructuredStateRound(deps, { input, refs, round: structured, userPrompt, priorCalls: [] });
@@ -1305,7 +1285,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
       return { ...empty, failure: roundFailure(err) };
     }
     deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "cheap tool round", calls: recordToolCalls(calls) });
-    const fallback = fallbackStateRound(generation, calls, shapes.fits);
+    const fallback = fallbackStateRound(generation, calls, shapes.plans);
     if (fallback !== null) {
       logStructuredFallback({ chatId, model: conn.model, api: conn.api, shape: fallback, calls: calls.length, event: "rpg.toolround.structured_fallback" });
       const structured = structuredRound(fallback, shapes.schemas()[fallback], wireTools, { lead: toolRoundSystem(inputs), prose });
@@ -1386,19 +1366,26 @@ const STRUCTURED_FRAMES: Readonly<Record<RpgStructuredRoundShape, ProseSlotId>> 
   patch: "rpg.extract.patchRoundFrame",
 };
 
-/** The round's two structured schemas and which ones the row's grammar fits, both built at most once and only when
- *  a caller asks: a tool row that never needs a structured round never projects either schema. */
-function structuredShapes(
-  generation: GenerationCapability,
+/** The round's two structured schemas and the planner's answers for this connection, the schemas built at most
+ *  once and only when a caller asks: a tool row that never needs a structured round never projects either. The
+ *  shape is the first candidate the plan fits, in `RPG_STRUCTURED_ROUND_SHAPES` order.
+ * @public Test-anchored module surface: the structured round's vehicle pins read these plans. */
+export function structuredShapes(
+  conn: Resolved<"chat">,
   refs: ExtractionRefs,
   tools: readonly RpgStateRoundTool[],
-): { readonly schemas: () => Readonly<Record<RpgStructuredRoundShape, WireReady>>; readonly fits: () => Readonly<Record<RpgStructuredRoundShape, boolean>> } {
+): { readonly schemas: () => Readonly<Record<RpgStructuredRoundShape, WireReady>>; readonly plans: StateRoundPlans } {
   let schemas: Readonly<Record<RpgStructuredRoundShape, WireReady>> | undefined;
   const built = (): Readonly<Record<RpgStructuredRoundShape, WireReady>> => {
     schemas ??= { union: shapeSchema("union", refs, tools), patch: shapeSchema("patch", refs, tools) };
     return schemas;
   };
-  return { schemas: built, fits: () => structuredShapeFits(generation, built()) };
+  const structuredShape = (): RpgStructuredRoundShape | null => {
+    const shapes = built();
+    const plan = planStructuredFor(conn, { formats: RPG_STRUCTURED_ROUND_SHAPES.map((shape) => ({ name: STATE_CHANGES_SCHEMA_NAME, schema: shapes[shape] })) });
+    return plan.ok && plan.shape !== undefined ? (RPG_STRUCTURED_ROUND_SHAPES[plan.shape] ?? null) : null;
+  };
+  return { schemas: built, plans: { toolRoundForced: forcesToolRound(conn, tools), structuredShape } };
 }
 
 /** Build the structured round in `shape`. The system prompt is `lead` (the tool round's own header, plane teaching
@@ -1420,7 +1407,7 @@ function structuredRound(
   return {
     shape,
     tools,
-    format: { name: STATE_CHANGES_SCHEMA_NAME, schema, vehicle: "response-format" },
+    format: { name: STATE_CHANGES_SCHEMA_NAME, schema },
     systemPrompt: [frame.lead, framing].join("\n\n"),
   };
 }
@@ -1755,8 +1742,8 @@ async function resyncViaToolRound(
   const { refs, config, prose } = inputs;
   const tools = buildToolRoundWireTools(refs, config, prose);
   const generation = generationOf(conn);
-  const shapes = structuredShapes(generation, refs, tools);
-  const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.fits);
+  const shapes = structuredShapes(conn, refs, tools);
+  const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.plans);
   const lead = { lead: toolRoundSystem(inputs), prose };
   if (primary !== null) {
     return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(primary, shapes.schemas()[primary], tools, lead), priorCalls: [] });
@@ -1781,7 +1768,7 @@ async function resyncViaToolRound(
     logger.warn({ event: RESYNC_EVENTS.failed, chatId, model: conn.model, api: conn.api, err }, "rpg resync tool round failed");
     return { ok: false, reason: `${RESYNC_FAILED_REASON} ${errorMessage(err)}` };
   }
-  const fallback = fallbackStateRound(generation, calls, shapes.fits);
+  const fallback = fallbackStateRound(generation, calls, shapes.plans);
   if (fallback !== null) {
     logStructuredFallback({ chatId, model: conn.model, api: conn.api, shape: fallback, calls: calls.length, event: "rpg.resync.structured_fallback" });
     return await resyncViaStructuredRound(deps, { ...args, round: structuredRound(fallback, shapes.schemas()[fallback], tools, lead), priorCalls: calls });
@@ -1838,7 +1825,7 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     const host = await deps.resolveHostPrincipal(hostUserId);
     let conn: Resolved<"chat">;
     try {
-      conn = (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">;
+      conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
     } catch (err) {
       if (isUnresolvable(err)) {
         logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: the host's chat connection did not resolve — no rebuild");
@@ -2000,7 +1987,7 @@ async function resolveHostRoundConnection(
   const host = await deps.resolveHostPrincipal(hostUserId);
   let conn: Resolved<"chat">;
   try {
-    conn = (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">;
+    conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
   } catch (err) {
     if (isUnresolvable(err)) {
       logger.warn({ event: "rpg.populate.unresolvable", chatId }, "rpg populate: the host's chat connection did not resolve — no round");
@@ -2279,6 +2266,12 @@ function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveSta
   };
 }
 
+/** A send on the room's chat connection outside the turn carries the window the turn sends: on a route whose request
+ *  sets it (Ollama's native `num_ctx`), the room preset's Max context, read through chat's one ladder. */
+async function roomWindowed(deps: RpgComposeDeps, chatId: ChatId, conn: Resolved<"chat">): Promise<Resolved<"chat">> {
+  return withPresetWindow(conn, (await deps.rpgChatOps.resolveChatPresetParams(chatId)).maxContextTokens);
+}
+
 /** The FUNDER's chat connection, resolved the way the turn resolves its own (chat's `resolveChatFor`: the same
  *  connection service, under the same real principal). A turn is funded by the room host whoever sends it
  *  (`resolveTurnIdentity`), and the state round rides that turn's connection, so this is the connection a
@@ -2308,8 +2301,8 @@ export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInpu
   }
   const wireTools = buildToolRoundWireTools(refs, config, prose);
   const generation = generationOf(conn);
-  const shapes = structuredShapes(generation, refs, wireTools);
-  const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.fits);
+  const shapes = structuredShapes(conn, refs, wireTools);
+  const primary = primaryStateRound(config.stateCaptureVehicle, generation, shapes.plans);
   if (primary !== null) {
     const round = structuredRound(primary, shapes.schemas()[primary], wireTools, { lead: toolRoundSystem(inputs), prose });
     return [round.systemPrompt, userPrompt, JSON.stringify(round.format.schema)];
@@ -2334,7 +2327,8 @@ function buildResolveStateRoundFit(deps: RpgComposeDeps): RpgContext["resolveSta
     const prose = await deps.rpgChatOps.resolveChatPresetProse(chatId);
     const inputs: PromptInputs = { config, refs, playerDisplayName, reconcile: false, prose };
     const userPrompt = buildExtractionUserPrompt([], baseState, config, prose);
-    const windowTokens = generationOf(conn).context.window;
-    return stateRoundNeededTokens(stateRoundRequestText(conn, inputs, userPrompt)) > windowTokens ? { connectionId: conn.connectionId, windowTokens } : null;
+    const sent = await roomWindowed(deps, chatId, conn);
+    const windowTokens = generationOf(sent).context.window;
+    return stateRoundNeededTokens(stateRoundRequestText(sent, inputs, userPrompt)) > windowTokens ? { connectionId: conn.connectionId, windowTokens } : null;
   };
 }

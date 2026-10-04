@@ -184,6 +184,9 @@ export type SamplerStage = (typeof SAMPLER_STAGES)[number];
  *  in `samplers`). Where the server orders that stage, a set knob makes the order ride even when the preset stores
  *  none, so the server's default chain with the stage is sent. */
 export const SAMPLER_KNOB_STAGES: Readonly<Partial<Record<SamplingRangeKnob, SamplerStage>>> = { adaptiveTarget: "adaptiveP" };
+/** A stage that picks the token rather than narrowing the candidates, as a server's final draw does: the server
+ *  runs it after every other stage, wherever an order lists it (llama.cpp common/sampling.cpp appends adaptive-P). */
+export const TERMINAL_SAMPLER_STAGES: readonly SamplerStage[] = ["adaptiveP"];
 export const samplerStageSchema = z.enum(SAMPLER_STAGES) satisfies z.ZodType<SamplerStage>;
 /** A stage order, each stage at most once: a repeat would put one token on the wire twice. The shape a
  *  capability states and a preset stores. */
@@ -206,6 +209,9 @@ export const samplingCapabilitySchema = z.object({
   banEos: z.boolean().optional(),
   samplerOrder: samplerOrderSchema.optional(),
   exclusive: z.array(z.tuple([z.string(), z.string()])).optional(),
+  /** The knobs this server's Mirostat branch does not run: while `mirostatMode` is on, Mirostat replaces them. They
+   *  still ride, so the editor and the readout mark them rather than drop them. Absent ⇒ unstated. */
+  mirostatSkips: z.array(z.enum(SAMPLER_KNOBS)).optional(),
 });
 export type SamplingCapability = z.infer<typeof samplingCapabilitySchema>;
 
@@ -315,13 +321,20 @@ export const generationCapabilitySchema = z.object({
    *  400, llama.cpp runs a named choice as `auto`, Ollama and KoboldCpp take neither. A wire downgrades that
    *  form to `auto` loudly, and the structured vehicle avoids the named tool. Absent ⇒ ACCEPTED, deliberately not
    *  fail-closed: `required` is live-verified and load-bearing on the vLLM and OpenRouter routes (the rpg state
-   *  round). Read through `acceptsRequiredToolChoice` / `acceptsNamedToolChoice`. */
+   *  round). Read through `acceptsRequiredToolChoice` / `acceptsNamedToolChoice`.
+   *
+   *  `noneChoice: false` = a `none` choice does not reach the model either (Ollama, and KoboldCpp, whose chat route
+   *  reads it as no constraint), so a turn that asks for none offers no tools there. `parallelControl: false` = a
+   *  request's `parallel_tool_calls: false` reaches no model on this server, so it is dropped by name. Absent ⇒
+   *  honoured, like the forced forms. Read through `acceptsNoneToolChoice` / `honoursParallelControl`. */
   tools: z
     .object({
       parallel: z.boolean(),
       silencesProse: z.boolean().optional(),
       requiredChoice: z.boolean().optional(),
       namedChoice: z.boolean().optional(),
+      noneChoice: z.boolean().optional(),
+      parallelControl: z.boolean().optional(),
     })
     .optional(),
   output: z.object({
@@ -331,9 +344,22 @@ export const generationCapabilitySchema = z.object({
     /** Accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
     structured: z.boolean().optional(),
     /** The wire subset whose grammar ceilings (`WireSubset.limits`) this model's vendor enforces, whichever wire
-     *  class carries the request. Absent ⇒ no stated ceiling. A caller that can shape its request another way
-     *  checks a schema against them first (`fitsEveryWire`). */
+     *  class carries the request. Absent ⇒ no stated ceiling. The structured planner checks every request
+     *  against them before the call. */
     structuredLimitsFrom: z.enum(WIRE_SCHEMA_MODES).optional(),
+    /** Per-model ceilings merged over `structuredLimitsFrom`'s defaults field by field: a model that differs from
+     *  its vendor's table is a row, never a branch. */
+    structuredLimits: z
+      .object({
+        maxOptionalProps: z.number().int().nonnegative().optional(),
+        maxUnionProps: z.number().int().nonnegative().optional(),
+        maxStrictTools: z.number().int().nonnegative().optional(),
+        maxObjectProps: z.number().int().nonnegative().optional(),
+        maxDepth: z.number().int().nonnegative().optional(),
+        maxEnumValues: z.number().int().nonnegative().optional(),
+        maxNameChars: z.number().int().nonnegative().optional(),
+      })
+      .optional(),
     /** What the model can PRODUCE. `image` here is what makes a chat model answer with pictures (§6.7) and
      *  what `generateImage` requires. */
     modalities: z.array(modalitySchema),
@@ -344,7 +370,15 @@ export const generationCapabilitySchema = z.object({
   imageReferences: z.boolean().optional(),
   /** `window` = usable context in tokens. `windowEstimated` marks a FALLBACK GUESS (cold catalog, no
    *  declared window) — the history FIT still runs against it, but a "used / window" surface must say so. */
-  context: z.object({ window: z.number(), windowEstimated: z.boolean().optional() }),
+  context: z.object({
+    window: z.number(),
+    windowEstimated: z.boolean().optional(),
+    /** The route sends the window with each request (Ollama's native `num_ctx`), so a preset's Max context tokens
+     *  sets the window the server runs, up to `max`, the model's trained maximum. Absent (another route, or a server
+     *  that states no trained maximum) ⇒ the window stands and the preset can only lower the fit. Read through
+     *  `windowForPreset`. */
+    settable: z.object({ max: z.number() }).optional(),
+  }),
   /** The catalog handed a modality string the parser did not know (§5.4's unknown-value rule). */
   modalitiesEstimated: z.boolean().optional(),
   moderated: z.boolean().optional(),

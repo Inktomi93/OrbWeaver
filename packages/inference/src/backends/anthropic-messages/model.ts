@@ -30,6 +30,25 @@ export interface AnthropicCall {
   readonly label: string;
   readonly api: string;
   readonly chatId?: ChatId | undefined;
+  /** The planned `output_config.format` schema. The SDK re-sanitizes that schema on its own (it drops `minItems` and
+   *  `pattern`, which Anthropic takes, and turns `oneOf` into `anyOf`), so the planned one is put back after it. */
+  readonly plannedSchema?: Record<string, unknown> | undefined;
+}
+
+const OUTPUT_CONFIG_KEY = "output_config";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** The request body with the planned schema in `output_config.format`, where the SDK wrote one. */
+function withPlannedSchema(body: Record<string, unknown>, schema: Record<string, unknown>): Record<string, unknown> {
+  const config = body[OUTPUT_CONFIG_KEY];
+  const format = isRecord(config) ? config["format"] : undefined;
+  if (!(isRecord(config) && isRecord(format))) {
+    return body;
+  }
+  return { ...body, [OUTPUT_CONFIG_KEY]: { ...config, format: { ...format, schema } } };
 }
 
 export function anthropicBaseUrl(connection: Pick<Resolved, "baseUrl">, label: string): string {
@@ -42,6 +61,7 @@ export function anthropicBaseUrl(connection: Pick<Resolved, "baseUrl">, label: s
 
 export function anthropicModelFor(call: AnthropicCall): LanguageModelV4 {
   const { connection, deps } = call;
+  const planned = call.plannedSchema;
   const provider = createAnthropic({
     baseURL: anthropicBaseUrl(connection, call.label),
     ...(connection.credential.secret !== null ? { apiKey: connection.credential.secret } : {}),
@@ -51,6 +71,7 @@ export function anthropicModelFor(call: AnthropicCall): LanguageModelV4 {
       label: call.label,
       responseMap: undefined,
       reasoningKeys: undefined,
+      ...(planned !== undefined ? { shapeBody: (body: Record<string, unknown>): Record<string, unknown> => withPlannedSchema(body, planned) } : {}),
       ...(deps.captureWire !== undefined
         ? {
             capture: {

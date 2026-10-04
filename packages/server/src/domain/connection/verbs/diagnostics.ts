@@ -14,7 +14,6 @@ import { isPrivateOrLoopback } from "#infra/network";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
-import { curatedKindOf } from "../substrate/kind.ts";
 
 const LOCALHOST_ALIAS = "localhost";
 
@@ -24,9 +23,7 @@ async function resolveRow(ctx: ConnectionContext, principal: Principal, connecti
   if (row === null) {
     throw new ConnectionNotFoundError(connectionId);
   }
-  const provider = ctx.runtime.providers.registry.get(row.providerId, row.ownerId);
-  const kind = provider === undefined ? "generation" : (curatedKindOf(row, provider) ?? "generation");
-  const task: Task = TASK_BY_KIND[kind];
+  const task: Task = TASK_BY_KIND[await ctx.runtime.modelKind(row)];
   return (await ctx.runtime.resolve({ task, principal, connectionId })).resolved;
 }
 

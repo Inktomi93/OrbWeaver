@@ -12,6 +12,7 @@ import {
   roleHandlingFloorOf,
   USER_ROLE_HANDLING,
   userRoleHandlingOptions,
+  windowForPreset,
 } from "@orb/contracts/inference";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -67,5 +68,38 @@ describe("completeSamplerOrder — the order a server runs for a preset's (D295)
 
   test("no preset order is the server's own default order", () => {
     expect(completeSamplerOrder(undefined, server)).toStrictEqual(server);
+  });
+
+  // llama.cpp appends adaptive-P after the chain whatever its place in `samplers` (common/sampling.cpp).
+  test("a stage that picks the token runs last wherever the preset put it", () => {
+    const llama = ["penalties", "dry", "topK", "topP", "temperature", "adaptiveP"] as const;
+    expect(completeSamplerOrder(["adaptiveP", "temperature", "topK"], llama)).toStrictEqual(["temperature", "topK", "penalties", "dry", "topP", "adaptiveP"]);
+  });
+});
+
+// Ollama's native route sends the window as `num_ctx`, so the preset's Max context is what the server runs.
+describe("windowForPreset — a route whose window the request sets runs the preset's Max context", () => {
+  const floor = { ...GENERATION_FLOOR, context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } } };
+
+  test("the preset's window is sent and budgeted, and is no longer an estimate", () => {
+    expect(windowForPreset(floor, 16_384).context).toStrictEqual({ window: 16_384, settable: { max: 32_768 } });
+  });
+
+  test("a preset above the model's trained maximum runs at that maximum", () => {
+    expect(windowForPreset(floor, 65_536).context.window).toBe(32_768);
+  });
+
+  test("with no preset window the resolved one stands", () => {
+    expect(windowForPreset(floor, undefined)).toBe(floor);
+  });
+
+  test("the preset beats a declared window: it is the per-chat knob for what this route sends", () => {
+    const declared = { ...floor, context: { window: 8192, settable: { max: 32_768 } } };
+    expect(windowForPreset(declared, 16_384).context.window).toBe(16_384);
+  });
+
+  test("a route the request cannot set keeps the server's window: the preset only lowers the fit", () => {
+    const served = { ...GENERATION_FLOOR, context: { window: 4096, windowEstimated: true } };
+    expect(windowForPreset(served, 16_384)).toBe(served);
   });
 });

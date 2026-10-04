@@ -18,7 +18,6 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "image_dropped":
     case "video_dropped":
     case "tools_unsupported":
-    case "structured_output_unsupported":
     case "guided_placed_as_injection":
     case "custom_parameters_ignored":
       return "turn-grouped";

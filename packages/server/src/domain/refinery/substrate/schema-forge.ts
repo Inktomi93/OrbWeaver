@@ -21,13 +21,11 @@
 //
 // VEHICLE: the domain's ruled F2 rung — the `summarize` facade, which routes a call carrying a
 // `responseFormat` to the `structured` ROLE (`entry/compose/role-clients.ts`; the owner's 2026-07-27 split).
-// The forge asks for the ENFORCED vehicle explicitly (`vehicle: "response-format"`), because a schema author
-// wants the hard guarantee rather than the deployment's default posture.
+// The structured plan picks how it rides for the bound model; the forge states its schemas and nothing else.
 //
 // THE THREE ARMS are the owner's "we should have options" (2026-08-09). Dispatched through an exhaustive
 // Record — a new `RefineryForgeArm` without a runner is a tsc error (§5.5).
 
-import { dropNullValues } from "@orb/contracts/inference";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -45,7 +43,7 @@ import type { RoleClients, StructuredOptions, SummarizeOptions } from "@orb/cont
 import { resolveSideGenSampling, runStructuredTurn, StructuredOutputError } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { z } from "zod";
+import type { z } from "zod";
 import { addSpanEvent, traceStructuredRetry } from "#foundation/observability";
 import type { RefineryContext } from "../context.ts";
 import type { ForgeTurnArgs } from "../contract/prompts.ts";
@@ -79,19 +77,11 @@ const FORMAT_NAMES = {
 // The projections are computed ONCE at module load: they are constants of the contract, and re-projecting a
 // schema per call is pure waste on a path that already pays for a model turn.
 const RESPONSE_FORMATS = {
-  design: { name: FORMAT_NAMES.design, schema: projectJsonSchema(forgeDesignEnvelopeSchema), vehicle: "response-format" as const },
-  plan: { name: FORMAT_NAMES.plan, schema: projectJsonSchema(forgePlanEnvelopeSchema), vehicle: "response-format" as const },
-  field: { name: FORMAT_NAMES.field, schema: projectJsonSchema(forgeFieldEnvelopeSchema), vehicle: "response-format" as const },
-  hints: { name: FORMAT_NAMES.hints, schema: projectJsonSchema(forgeHintEnvelopeSchema), vehicle: "response-format" as const },
+  design: { name: FORMAT_NAMES.design, schema: projectJsonSchema(forgeDesignEnvelopeSchema) },
+  plan: { name: FORMAT_NAMES.plan, schema: projectJsonSchema(forgePlanEnvelopeSchema) },
+  field: { name: FORMAT_NAMES.field, schema: projectJsonSchema(forgeFieldEnvelopeSchema) },
+  hints: { name: FORMAT_NAMES.hints, schema: projectJsonSchema(forgeHintEnvelopeSchema) },
 } as const;
-
-/** `null ≡ absent` at the forge's parse seam. The hosted wire serves this grammar in the OpenAI-strict shape
- *  (every property required, each optional an `anyOf:[T,null]` — the ONLY shape measured servable across
- *  anthropic/openai/google on 2026-08-09), so an unset knob arrives as an explicit `null`. Restoring absence
- *  here is what lets ONE payload schema validate both wires. */
-function tolerant<T>(schema: z.ZodType<T>): z.ZodType<T> {
-  return z.preprocess((value) => dropNullValues(value), schema) as unknown as z.ZodType<T>;
-}
 
 export async function resolveForgeCall(
   ctx: RefineryContext,
@@ -106,7 +96,7 @@ export async function resolveForgeCall(
 }
 
 /** One enforced call. `format` picks the grammar; `task` is the `{{task}}` splice; `payload` is the
- *  validator (already `tolerant`). Throws `StructuredOutputError` when both the turn and its one retry fail. */
+ *  validator. Throws `StructuredOutputError` when both the turn and its one retry fail. */
 async function runCall<T>(
   args: ForgeTurnArgs,
   spec: { readonly format: keyof typeof RESPONSE_FORMATS; readonly task: string; readonly user: string; readonly payload: z.ZodType<T> },
@@ -125,14 +115,14 @@ async function runCall<T>(
 
 /** `single` — one enforced call for the whole design, hints included. */
 async function runSingleArm(args: ForgeTurnArgs): Promise<ForgeDesignEnvelope> {
-  return await runCall(args, { format: "design", task: TASK_DESIGN, user: args.userPrompt, payload: tolerant(forgeDesignEnvelopeSchema) });
+  return await runCall(args, { format: "design", task: TASK_DESIGN, user: args.userPrompt, payload: forgeDesignEnvelopeSchema });
 }
 
 /** `guided` — plan the paths, then give each planned field its own turn in ONE batched call, then assemble.
  *  A field whose own turn produced nothing usable is DROPPED and counted; a plan whose every field failed
  *  resolves as the failed arm upstream (an empty `fields` list refuses at the envelope belt). */
 async function runGuidedArm(args: ForgeTurnArgs): Promise<ForgeDesignEnvelope> {
-  const plan = await runCall(args, { format: "plan", task: TASK_PLAN, user: args.userPrompt, payload: tolerant(forgePlanEnvelopeSchema) });
+  const plan = await runCall(args, { format: "plan", task: TASK_PLAN, user: args.userPrompt, payload: forgePlanEnvelopeSchema });
   const system = resolveProseText("refinery.schemaForge.system", args.overrides, { core: CORE_TEXTS[args.stage], task: TASK_FIELD });
   const roster = plan.fields.map((f) => `- ${f.path}: ${f.intent}`).join("\n");
   const inputs = plan.fields.map((f) => ({
@@ -140,7 +130,7 @@ async function runGuidedArm(args: ForgeTurnArgs): Promise<ForgeDesignEnvelope> {
     userPrompt: `${args.userPrompt}\n\nThe whole schema will be:\n${roster}\n\nDesign THIS field only: ${f.path} — ${f.intent}`,
   }));
   const res = await args.rc.structured(inputs, { ...args.sampleOpts, responseFormat: RESPONSE_FORMATS.field });
-  const payload = tolerant(forgeFieldEnvelopeSchema);
+  const payload = forgeFieldEnvelopeSchema;
   const fields: ForgeFieldRow[] = [];
   for (const [index, item] of res.items.entries()) {
     const parsed = parseFieldReply(payload, item.text);
@@ -182,14 +172,14 @@ async function runTwoStageArm(args: ForgeTurnArgs): Promise<ForgeDesignEnvelope>
     format: "design",
     task: `${TASK_DESIGN} Leave every display hint (role / group / label / chart / tones) unset — a second pass chooses them.`,
     user: args.userPrompt,
-    payload: tolerant(forgeDesignEnvelopeSchema),
+    payload: forgeDesignEnvelopeSchema,
   });
   const roster = structure.fields.map((f) => `- ${f.path} (${f.type}${f.enum === undefined ? "" : `: ${f.enum.join(" / ")}`}) — ${f.description}`).join("\n");
   const hinted = await runCall(args, {
     format: "hints",
     task: TASK_HINTS,
     user: `${args.userPrompt}\n\nThe finished fields:\n${roster}`,
-    payload: tolerant(forgeHintEnvelopeSchema),
+    payload: forgeHintEnvelopeSchema,
   });
   const applied = applyForgeHints(structure, hinted.hints);
   if (applied.unmatched > 0) {

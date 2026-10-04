@@ -1,5 +1,5 @@
 import { NO_PROVIDER_SECRETS } from "../../../packages/inference/src/backends/kit/sanitize.ts";
-import { fetchEndpointModels } from "../../../packages/inference/src/catalog/endpoint.ts";
+import { fetchEndpointModels, probeListedModel } from "../../../packages/inference/src/catalog/endpoint.ts";
 import type { EndpointModel } from "../../../packages/inference/src/contract/runtime.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import type { LocalServerArm } from "./_local-servers-fetch.ts";
@@ -38,9 +38,10 @@ test("endpoint catalog fetch normalizes model ids and the supported context-wind
       secrets: NO_PROVIDER_SECRETS,
     }),
   ).resolves.toEqual([
-    { id: "max-model", contextLength: 131_072 },
-    { id: "context", contextLength: 32_768 },
-    { id: "max-context", contextLength: 8192 },
+    // With no native API, the listed window is also the embedding route's input limit.
+    { id: "max-model", contextLength: 131_072, embedInputTokens: 131_072 },
+    { id: "context", contextLength: 32_768, embedInputTokens: 32_768 },
+    { id: "max-context", contextLength: 8192, embedInputTokens: 8192 },
     { id: "unknown", contextLength: null },
   ]);
   expect(requests).toHaveLength(1);
@@ -180,6 +181,49 @@ test("a server that does not answer the native API still lists its models, and s
   // No version answer: the lowest default any release shipped stays the assumed window.
   expect(rows).toEqual([{ id: "llama3.1:8b", contextLength: null, contextFloor: 2048 }]);
   expect(warnings.length).toBeGreaterThan(0);
+});
+
+// A proxy that exposes only `/v1` answers `/api/show` with a 404: that is the server's answer, so the model is not asked
+// again on every resolve. Only a server that does not answer at all leaves it unprobed.
+test("Ollama: an /api/show that answers with an error status marks the model probed, asked once and warned once", async () => {
+  const warnings: string[] = [];
+  const shows: string[] = [];
+  const fetchImpl = ((input: string | URL | Request): Promise<Response> => {
+    const path = new URL(String(input)).pathname;
+    const routes: Readonly<Record<string, unknown>> = {
+      "/v1/models": { data: [{ id: "house-embedder:latest" }] },
+      "/api/version": { version: "0.12.0" },
+      "/api/ps": { models: [] },
+    };
+    if (path === "/api/show") {
+      shows.push(path);
+    }
+    return Promise.resolve(path in routes ? Response.json(routes[path]) : Response.json({ error: "not found" }, { status: 404 }));
+  }) as typeof fetch;
+  const args = {
+    fetch: fetchImpl,
+    baseUrl: "http://127.0.0.1:11434",
+    secret: null,
+    secrets: NO_PROVIDER_SECRETS,
+    modelInfoApi: "ollama" as const,
+    probeModel: "house-embedder:latest",
+    warn: (message: string): void => {
+      warnings.push(message);
+    },
+  };
+
+  const [row] = await fetchEndpointModels(args);
+  if (row === undefined) {
+    throw new Error("expected the listed model");
+  }
+
+  expect(row).toMatchObject({ id: "house-embedder:latest", probed: true });
+  expect(row.kind).toBeUndefined();
+  expect(shows).toHaveLength(1);
+  expect(warnings).toHaveLength(1);
+  // A row a list warmed for another model is probed late: the same status answer settles it there too.
+  const { probed: _unprobed, ...listed } = row;
+  expect((await probeListedModel(args, listed)).probed).toBe(true);
 });
 
 test("endpoint catalog fetch rejects a malformed catalog instead of inventing rows", async () => {
