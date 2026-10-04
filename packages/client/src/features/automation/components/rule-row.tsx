@@ -92,7 +92,6 @@ import { notify } from "#lib";
 import {
   armLabel,
   hasSpendArm,
-  lastRunLine,
   ruleBindingTasks,
   ruleGloss,
   runOutcomeNotice,
@@ -101,17 +100,11 @@ import {
   suggestOnRefusalAccessibleName,
 } from "../lib/rule-copy.ts";
 import { useDeleteRule, useRunRuleNow, useSetRuleEnabled, useSetRuleSuggestOnRefusal, useTestRule } from "../lib/rule-mutations.ts";
-import {
-  isTransformOnlyRule,
-  RULE_UNREADABLE_BADGE,
-  ruleTransformOnlyRunRefusal,
-  ruleUnreadableEnableRefusal,
-  ruleUnreadableLine,
-  ruleUnreadableRunRefusal,
-} from "../lib/rule-refusal-copy.ts";
+import { isTransformOnlyRule, ruleTransformOnlyRunRefusal, ruleUnreadableEnableRefusal, ruleUnreadableRunRefusal } from "../lib/rule-refusal-copy.ts";
 import { ruleToolArgumentGuidance } from "../lib/rule-tool-arguments.ts";
 import { RuleConnections } from "./rule-connections.tsx";
 import { RuleFireLog } from "./rule-fire-log.tsx";
+import { RuleRowState } from "./rule-row-state.tsx";
 
 /** One row of the rule list — tRPC-inferred so a wire reshape breaks here at compile time. */
 type Rule = inferOutput<Trpc["automation"]["listRules"]>[number];
@@ -298,25 +291,9 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             <Stack className="min-w-0 flex-1" gap="tight">
               <Text voice="promoted">{rule.name}</Text>
               <Text voice="gloss">{ruleGloss(rule)}</Text>
-              {/* THE ERROR STATE, ANNOUNCED AS ONE (#1558) — badge + sentence, the same anatomy the dry-run
-                  verdict uses, so the two verdicts on this row read as one vocabulary. It stays on the CLOSED
-                  face: a rule that cannot run is exactly what a host must meet without opening anything.
-                  Not a live region: the row renders this state on arrival rather than in response to a press,
-                  and N broken rules would announce N times on mount. */}
-              {unreadable ? (
-                <Row align="start" className="min-w-0 flex-wrap" gap="block">
-                  <Badge intent="danger" size="sm" tone="soft">
-                    {RULE_UNREADABLE_BADGE}
-                  </Badge>
-                  <Text className="min-w-0 flex-1" data-slot="rule-actions-unreadable" voice="gloss">
-                    {ruleUnreadableLine(rule.lastError)}
-                  </Text>
-                </Row>
-              ) : null}
-              <Text voice="gloss">
-                {lastRunLine(rule.lastFiredAt)}
-                {rule.lastError === null ? "" : " Its last run errored."}
-              </Text>
+              {/* The error states stay on the CLOSED face: a rule that cannot or will not run is what a host
+                  must meet without opening anything. */}
+              <RuleRowState rule={rule} />
             </Stack>
           </CollapsibleTrigger>
           {/* `readOnly`, never `disabled`: the value stays legible (a broken rule left ON is the state a host

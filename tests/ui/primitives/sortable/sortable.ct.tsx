@@ -152,6 +152,44 @@ test("announcements name the ROW and its position, never the raw item key", asyn
   await expect(liveRegion).not.toContainText("item-0");
 });
 
+// A cancel puts the row back, so the announcement names where it went back to, not where it was dragged.
+test("a cancelled keyboard drag announces the restored position", async ({ mount, page }) => {
+  await mount(<ReorderableList itemCount={3} />);
+  const rows = page.locator('[data-slot="sortable-item"]');
+  const liveRegion = page.getByRole("status");
+  await expect(rows.nth(0)).toHaveAttribute("tabindex", "0");
+  await rows.nth(0).focus();
+
+  await page.keyboard.press("Space");
+  await page.keyboard.press("ArrowDown");
+  await expect(liveRegion).toContainText("position 2 of 3");
+  await page.keyboard.press("Escape");
+
+  await expect(liveRegion).toContainText("position 1 of 3");
+  await expect(rows.nth(0)).toContainText("Item 0");
+  await expect(page.getByTestId("reorder-count")).toHaveText("0");
+});
+
+// An inline grip lives inside the row's own content. After a keyboard drop or cancel it must still hold focus,
+// so a second Space+Arrow keeps moving the same row.
+for (const finish of ["Space", "Escape"] as const) {
+  test(`inline grip: the moved row keeps focus after a keyboard ${finish === "Space" ? "drop" : "cancel"}`, async ({ mount, page }) => {
+    await mount(<ReorderableList handle="inline" itemCount={3} />);
+    const grip = page.getByRole("button", { name: "Reorder Item 0", exact: true });
+    await expect(page.locator('[data-slot="sortable-item"]').nth(0)).toBeVisible();
+    await grip.focus();
+    await page.keyboard.press("Space");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press(finish);
+
+    await expect(page.getByTestId("reorder-count")).toHaveText(finish === "Space" ? "1" : "0");
+    await expect(grip).toBeFocused();
+    // Settled: focus stays put after dnd-kit's own post-drop restoration has run.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await expect(grip).toBeFocused();
+  });
+}
+
 test("dropping in place (no movement) does not call onReorder", async ({ mount, page }) => {
   await mount(<ReorderableList itemCount={3} />);
   const rows = page.locator('[data-slot="sortable-item"]');

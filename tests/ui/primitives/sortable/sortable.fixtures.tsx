@@ -18,7 +18,7 @@ function makeItems(count: number): FixtureItem[] {
 
 interface ReorderableListProps {
   readonly itemCount?: number;
-  readonly handle?: boolean;
+  readonly handle?: boolean | "inline";
   readonly disabled?: boolean;
 }
 
@@ -57,7 +57,12 @@ export function ReorderableList({ itemCount = 3, handle = false, disabled = fals
           setReorderCount((n) => n + 1);
           setLastOrder(orderedKeys.join(","));
         }}
-        renderItem={(item): ReactElement => <div>{item.label}</div>}
+        renderItem={(item, _index, grip): ReactElement => (
+          <div>
+            {grip}
+            {item.label}
+          </div>
+        )}
       />
     </div>
   );

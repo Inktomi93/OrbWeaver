@@ -27,6 +27,7 @@ const initial: Parameters<typeof editableRule>[0] = {
   predicateCel: null,
   actions: [{ type: "set_variable", scope: "chat", key: "score", op: "set", value: "1" }],
   actionsCorrupt: false,
+  autoDisabled: false,
   rulePresetId: null,
   rulePresetKnobs: null,
   matchAutomationEvents: false,

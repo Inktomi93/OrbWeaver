@@ -42,6 +42,9 @@ export interface RuleView {
    *  broken rule read as benign in management until an event happened to dispatch it (which is where the
    *  auto-disable lives). A surface renders the difference; nothing else about the row is changed by it. */
   readonly actionsCorrupt: boolean;
+  /** The dispatch turned this rule off after `AUTOMATION_CONSECUTIVE_ERROR_CEILING` errors in a row, and
+   *  nobody has switched it back on. Derived from the row: re-enabling resets the count, so it clears itself. */
+  readonly autoDisabled: boolean;
   /** Mint provenance (§3-S3 flip shape): the rule preset this rule was minted from, or NULL for a
    *  hand-authored/hand-EDITED rule (`updateRule` clears the pair). Both-or-neither with
    *  {@link RuleView.rulePresetKnobs} (db CHECK). The saved-cast capture + B2's knob editor read these. */
@@ -122,6 +125,7 @@ export const ruleViewSchema = z.strictObject({
   predicateCel: z.string().nullable(),
   actions: z.array(automationActionViewSchema).readonly(),
   actionsCorrupt: z.boolean(),
+  autoDisabled: z.boolean(),
   rulePresetId: rulePresetIdSchema.nullable(),
   rulePresetKnobs: rulePresetKnobOutputValuesSchema.nullable(),
   matchAutomationEvents: z.boolean(),

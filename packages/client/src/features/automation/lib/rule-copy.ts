@@ -239,9 +239,13 @@ export function ruleGloss(rule: {
 }
 
 /** The rule row's STATE line: when it last did anything. `lastFiredAt` was on the view and rendered
- *  nowhere, which is why two rules could look byte-identical. */
-export function lastRunLine(lastFiredAt: number | null): string {
-  return lastFiredAt === null ? "Hasn't run yet." : `Last ran ${timeLib.formatRelativeAgo(lastFiredAt)}.`;
+ *  nowhere, which is why two rules could look byte-identical. Only a successful fire stamps it, so a rule
+ *  that `errored` without one has run; it has only never succeeded. */
+export function lastRunLine(lastFiredAt: number | null, errored = false): string {
+  if (lastFiredAt !== null) {
+    return `Last ran ${timeLib.formatRelativeAgo(lastFiredAt)}.`;
+  }
+  return errored ? "Hasn't run successfully yet." : "Hasn't run yet.";
 }
 
 /** The editor's CLOCK line: which zone the rule's hours and dates read in, and whether the next save moves

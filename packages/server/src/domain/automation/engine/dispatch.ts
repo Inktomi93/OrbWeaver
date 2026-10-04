@@ -30,7 +30,7 @@
 // re-enable it. A first-party contributor cannot vanish, which is why no other seam here needs this.
 
 import type { AutomationAction, AutomationCelEnv, AutomationCelPlanes, AutomationFireOutcome, AutomationRunOutcome } from "@orb/contracts/automation";
-import { automationActionsSchema } from "@orb/contracts/automation";
+import { AUTOMATION_CONSECUTIVE_ERROR_CEILING, automationActionsSchema } from "@orb/contracts/automation";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { AutomationFireId, ChatId, UserId } from "@orb/kit/ids";
@@ -50,8 +50,6 @@ import { checkBudget } from "./budget-gate.ts";
 // chat + automation — chat's `requestTurn` write-side belt cannot import automation, so the shared home must
 // sit under both, and every consumer imports it from there: rule dispatch (here) + chat requestTurn + the
 // plugin subscriber fan-out — ONE cascade guard).
-/** Consecutive predicate/action/authority errors that auto-disable a rule. */
-const CONSECUTIVE_ERROR_DISABLE_AT = 20;
 
 /** One rule's dispatch terminal: whether the rule was disabled this dispatch (a corrupt blob or the 20-error
  *  ceiling — the caller reloads the enabled index when true) and WHICH terminal it reached. `outcome` is
@@ -148,7 +146,7 @@ function record(rc: RuleCtx, outcome: AutomationFireOutcome, detail: Record<stri
  *  chat-less rule (`notifyRuleEvent`), so without the null arm a rotting global rule would auto-disable in
  *  total silence — the exact rot the durable notice was added to make visible. */
 async function notifyAutoDisabled(rc: RuleCtx): Promise<void> {
-  const message = `Automation rule "${rc.rule.name}" was auto-disabled after ${CONSECUTIVE_ERROR_DISABLE_AT} consecutive errors.`.slice(
+  const message = `Automation rule "${rc.rule.name}" was auto-disabled after ${AUTOMATION_CONSECUTIVE_ERROR_CEILING} consecutive errors.`.slice(
     0,
     AUTOMATION_NOTICE_MESSAGE_MAX,
   );
@@ -181,7 +179,7 @@ async function onRuleError(
   }
   const errors = await recordRuleError(rc.ctx.db, rc.rule.id, outcome, rc.deps.nowMs);
   notifyRuleEvent(rc, "ruleErrored");
-  if (errors >= CONSECUTIVE_ERROR_DISABLE_AT) {
+  if (errors >= AUTOMATION_CONSECUTIVE_ERROR_CEILING) {
     await disableRule(rc.ctx.db, rc.rule.id, "auto-disabled: consecutive error ceiling", rc.deps.nowMs);
     await notifyAutoDisabled(rc);
     notifyRuleEvent(rc, "ruleAutoDisabled");

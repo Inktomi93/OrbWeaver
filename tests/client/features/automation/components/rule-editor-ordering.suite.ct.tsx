@@ -7,7 +7,7 @@ import type { Locator, Page } from "@playwright/test";
 import type { ReactElement } from "react";
 import { ruleActionExamples } from "../../../../support/factories/automation-rule-actions.ts";
 import { createSeededIds } from "../../../../support/ids.ts";
-import type { TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
+import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { RuleEditorRulesStory } from "../_editor-stories.tsx";
 
@@ -52,6 +52,7 @@ function orderedRow(actions: RuleRow["actions"]): RuleRow {
     predicateCel: null,
     actions,
     actionsCorrupt: false,
+    autoDisabled: false,
     rulePresetId: null,
     rulePresetKnobs: null,
     matchAutomationEvents: false,
@@ -146,18 +147,43 @@ function sameRow(a: Box, b: Box): boolean {
   return a.y < b.y + b.height && a.y + a.height > b.y;
 }
 
-/** Where the grips, reply fields and reply dividers land in an opened two-reply rule. */
-async function headerLayout(page: Page, paneWidth: number, mount: (story: ReactElement) => Promise<unknown>): Promise<HeaderLayout> {
-  await routeTrpc(page, {
-    "automation.listRules": [
-      orderedRow([automationActionSchema.parse(ruleActionExamples.surface_quick_reply), automationActionSchema.parse(ruleActionExamples.set_variable)]),
-    ],
+type Mount = (story: ReactElement) => Promise<unknown>;
+
+/** Open the editor on a two-reply quick-reply action followed by a variable action; saves echo back. */
+async function openOrderedEditor(page: Page, mount: Mount, paneWidth?: number): Promise<TrpcRecorder> {
+  let row = orderedRow([automationActionSchema.parse(ruleActionExamples.surface_quick_reply), automationActionSchema.parse(ruleActionExamples.set_variable)]);
+  const recorder = await routeTrpc(page, {
+    "automation.listRules": () => [row],
     "automation.listRulePresets": [],
     "settings.getUserSettings": { userId: owner, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0, configUnreadable: null },
+    "automation.updateRule": (input) => {
+      const { ruleId: _id, ...body } = automationRuleUpdateSchema.parse(input);
+      row = { ...row, ...body, description: body.description ?? null, predicateCel: body.predicateCel ?? null };
+      return row;
+    },
   });
-  await mount(<RuleEditorRulesStory chatId={chatId} firstOwner={owner} secondOwner={other} paneWidth={paneWidth} />);
+  await mount(<RuleEditorRulesStory chatId={chatId} firstOwner={owner} secondOwner={other} {...(paneWidth === undefined ? {} : { paneWidth })} />);
   await page.locator('[data-slot="collapsible-trigger"]').filter({ hasText: "Ordered rule" }).first().click();
   await page.getByRole("button", { name: "Edit Ordered rule", exact: true }).click();
+  return recorder;
+}
+
+/** Let dnd-kit's post-drop focus restoration run. */
+async function settleFrames(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+}
+
+/** Pick up the focused grip, move it one row down, and finish with `finish`. */
+async function keyboardMove(page: Page, grip: Locator, finish: "Space" | "Escape"): Promise<void> {
+  await grip.focus();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press(finish);
+}
+
+/** Where the grips, reply fields and reply dividers land in an opened two-reply rule. */
+async function headerLayout(page: Page, paneWidth: number, mount: Mount): Promise<HeaderLayout> {
+  await openOrderedEditor(page, mount, paneWidth);
   const actionGrip = await boxOf(page.getByRole("button", { name: "Reorder Offer quick replies", exact: true }));
   const removeAction = await boxOf(page.getByRole("button", { name: "Remove action 1", exact: true }));
   const replyGrip = await boxOf(page.getByRole("button", { name: "Reorder Go", exact: true }));
@@ -193,4 +219,57 @@ test.describe("mobile", () => {
   test("grips sit in the card and reply headers on a touch phone", async ({ mount, page }) => {
     expect(await headerLayout(page, 390, mount)).toEqual(HEADER_GRIPS);
   });
+});
+
+// Inline grips: after a keyboard drop the moved row keeps focus, including after its save echoes back, so a
+// second Space+Arrow moves it again rather than its neighbour.
+test("a keyboard drop keeps focus on the moved action and reply after each save", async ({ mount, page }) => {
+  const recorder = await openOrderedEditor(page, mount);
+  const actionGrip = page.getByRole("button", { name: "Reorder Offer quick replies", exact: true });
+  await keyboardMove(page, actionGrip, "Space");
+  await expect.poll(() => recorder.count("automation.updateRule")).toBe(1);
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await settleFrames(page);
+  await expect(actionGrip).toBeFocused();
+
+  const replyGrip = page.getByRole("button", { name: "Reorder Wait", exact: true });
+  await keyboardMove(page, replyGrip, "Space");
+  await expect.poll(() => recorder.count("automation.updateRule")).toBe(2);
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await settleFrames(page);
+  await expect(replyGrip).toBeFocused();
+  await expect(page.getByRole("textbox", { name: "Reply 1 label", exact: true })).toHaveValue("Go");
+});
+
+test("a keyboard cancel keeps focus on the action and reply it picked up", async ({ mount, page }) => {
+  const recorder = await openOrderedEditor(page, mount);
+  const actionGrip = page.getByRole("button", { name: "Reorder Offer quick replies", exact: true });
+  await keyboardMove(page, actionGrip, "Escape");
+  await settleFrames(page);
+  await expect(actionGrip).toBeFocused();
+
+  const replyGrip = page.getByRole("button", { name: "Reorder Wait", exact: true });
+  await keyboardMove(page, replyGrip, "Escape");
+  await settleFrames(page);
+  await expect(replyGrip).toBeFocused();
+  await expect(page.getByRole("textbox", { name: "Reply 1 label", exact: true })).toHaveValue("Wait");
+  await expect.poll(() => recorder.count("automation.updateRule")).toBe(0);
+});
+
+test("removing replies from the keyboard keeps focus in the card and an empty list says it needs a reply", async ({ mount, page }) => {
+  await openOrderedEditor(page, mount);
+  const addReply = page.getByRole("button", { name: "Add quick reply", exact: true });
+  await expect(addReply).not.toHaveAttribute("aria-describedby", /.+/u);
+
+  await page.getByRole("button", { name: "Remove reply 1", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  // The next reply moved into slot 1, so its remove control now carries the first ordinal.
+  await expect(page.getByRole("textbox", { name: "Reply 1 label", exact: true })).toHaveValue("Go");
+  await expect(page.getByRole("button", { name: "Remove reply 1", exact: true })).toBeFocused();
+
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("textbox", { name: "Reply 1 label", exact: true })).toHaveCount(0);
+  await expect(addReply).toBeFocused();
+  // The card itself explains the empty list, tied to the control that fixes it.
+  await expect(addReply).toHaveAccessibleDescription(/\S/u);
 });

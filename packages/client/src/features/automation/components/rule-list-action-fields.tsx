@@ -8,6 +8,7 @@ import { Separator } from "@orb/ui/separator";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useEffect, useId, useRef } from "react";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
 import { notify, removeActionName } from "#lib";
@@ -90,88 +91,120 @@ export function RuleLoreFields({
   );
 }
 
-/** Choices keep their identity through edits and ordering without adding fields to wire actions. */
-export function RuleReplyFields({
-  form,
-  index,
-  action,
-}: {
+interface ReplyFieldsProps {
   readonly form: AutosaveSession<RuleEditorValues>["form"];
   readonly index: number;
   readonly action: Extract<RuleEditorValues["actions"][number], { type: "surface_quick_reply" }>;
-}): ReactElement {
+}
+
+/** Choices keep their identity through edits and ordering without adding fields to wire actions. */
+export function RuleReplyFields({ form, index, action }: ReplyFieldsProps): ReactElement {
   return (
     <form.Subscribe selector={(state): string[] => state.values.choiceIds[index] ?? []}>
-      {(ids): ReactElement => (
-        <Stack gap="block">
-          <SortableList
-            items={ids}
-            getItemKey={(id): string => id}
-            handle="inline"
-            aria-label="Quick replies"
-            itemLabel={(id): string => {
-              const label = action.choices[ids.indexOf(id)]?.label ?? "";
-              return label.length === 0 ? `reply ${ids.indexOf(id) + 1}` : label;
-            }}
-            onReorder={(ordered): void => {
-              form.setFieldValue(
-                `actions[${index}].choices`,
-                ordered.flatMap((id) => action.choices[ids.indexOf(String(id))] ?? []),
-              );
-              form.setFieldValue(`choiceIds[${index}]`, ordered.map(String));
-            }}
-            renderItem={(_id, choice, grip): ReactElement | null => (
-              <Stack gap="tight">
-                {/* A rule between replies, not a nested card: ordered replies read as separate items. */}
-                {choice > 0 ? <Separator /> : null}
-                <Row gap="field" align="center">
-                  {grip}
-                  <Text className="min-w-0 flex-1">Reply {choice + 1}</Text>
-                  <Button
-                    intent="ghost"
-                    size="icon"
-                    aria-label={removeActionName(`reply ${choice + 1}`)}
-                    onClick={(): void => {
-                      Promise.all([form.removeFieldValue(`actions[${index}].choices`, choice), form.removeFieldValue(`choiceIds[${index}]`, choice)]).catch(
-                        () => notify.error("Couldn't remove the reply."),
-                      );
-                    }}
-                  >
-                    <Icon icon={Trash2} size="sm" />
-                  </Button>
-                </Row>
-                <form.AppField name={`actions[${index}].choices[${choice}].label`}>
-                  {(field): ReactElement => <field.TextField label={`Reply ${choice + 1} label`} />}
-                </form.AppField>
-                <form.AppField name={`actions[${index}].choices[${choice}].sendTemplate`}>
-                  {(field): ReactElement => <field.MacroField label={`Reply ${choice + 1} template`} suggestions={[]} />}
-                </form.AppField>
-                <form.AppField name={`actions[${index}].choices[${choice}].mode`}>
-                  {(field): ReactElement => (
-                    <field.SelectField
-                      label={`Reply ${choice + 1} behavior`}
-                      items={QUICK_REPLY_MODES.map((value) => ({ value, label: value === "send" ? "Send immediately" : "Put in the composer's draft" }))}
-                    />
-                  )}
-                </form.AppField>
-              </Stack>
-            )}
-          />
-          {ids.length >= QUICK_REPLY_MAX_CHOICES ? (
-            <Text voice="gloss">This action has reached its reply limit.</Text>
-          ) : (
-            <Button
-              intent="ghost"
-              onClick={(): void => {
-                form.pushFieldValue(`actions[${index}].choices`, { label: "", sendTemplate: "", mode: "send" });
-                form.pushFieldValue(`choiceIds[${index}]`, crypto.randomUUID());
-              }}
-            >
-              Add quick reply
-            </Button>
-          )}
-        </Stack>
-      )}
+      {(ids): ReactElement => <ReplyList form={form} index={index} action={action} ids={ids} />}
     </form.Subscribe>
+  );
+}
+
+function ReplyList({ form, index, action, ids }: ReplyFieldsProps & { readonly ids: readonly string[] }): ReactElement {
+  const emptyId = useId();
+  const removeButtons = useRef(new Map<string, HTMLButtonElement>());
+  const addButton = useRef<HTMLButtonElement>(null);
+  // A keyboard removal unmounts the focused control. Once the list re-renders, focus goes to the reply that
+  // moved into the removed slot, or to Add when none did.
+  const focusSlot = useRef<number | null>(null);
+  useEffect(() => {
+    const slot = focusSlot.current;
+    if (slot === null) {
+      return;
+    }
+    focusSlot.current = null;
+    const next = ids[slot];
+    (next === undefined ? addButton.current : removeButtons.current.get(next))?.focus();
+  }, [ids]);
+  return (
+    <Stack gap="block">
+      <SortableList
+        items={ids}
+        getItemKey={(id): string => id}
+        handle="inline"
+        aria-label="Quick replies"
+        itemLabel={(id): string => {
+          const label = action.choices[ids.indexOf(id)]?.label ?? "";
+          return label.length === 0 ? `reply ${ids.indexOf(id) + 1}` : label;
+        }}
+        onReorder={(ordered): void => {
+          form.setFieldValue(
+            `actions[${index}].choices`,
+            ordered.flatMap((id) => action.choices[ids.indexOf(String(id))] ?? []),
+          );
+          form.setFieldValue(`choiceIds[${index}]`, ordered.map(String));
+        }}
+        renderItem={(id, choice, grip): ReactElement | null => (
+          <Stack gap="tight">
+            {/* A rule between replies, not a nested card: ordered replies read as separate items. */}
+            {choice > 0 ? <Separator /> : null}
+            <Row gap="field" align="center">
+              {grip}
+              <Text className="min-w-0 flex-1">Reply {choice + 1}</Text>
+              <Button
+                ref={(button): void => {
+                  if (button === null) {
+                    removeButtons.current.delete(id);
+                  } else {
+                    removeButtons.current.set(id, button);
+                  }
+                }}
+                intent="ghost"
+                size="icon"
+                aria-label={removeActionName(`reply ${choice + 1}`)}
+                onClick={(): void => {
+                  focusSlot.current = choice;
+                  Promise.all([form.removeFieldValue(`actions[${index}].choices`, choice), form.removeFieldValue(`choiceIds[${index}]`, choice)]).catch(() =>
+                    notify.error("Couldn't remove the reply."),
+                  );
+                }}
+              >
+                <Icon icon={Trash2} size="sm" />
+              </Button>
+            </Row>
+            <form.AppField name={`actions[${index}].choices[${choice}].label`}>
+              {(field): ReactElement => <field.TextField label={`Reply ${choice + 1} label`} />}
+            </form.AppField>
+            <form.AppField name={`actions[${index}].choices[${choice}].sendTemplate`}>
+              {(field): ReactElement => <field.MacroField label={`Reply ${choice + 1} template`} suggestions={[]} />}
+            </form.AppField>
+            <form.AppField name={`actions[${index}].choices[${choice}].mode`}>
+              {(field): ReactElement => (
+                <field.SelectField
+                  label={`Reply ${choice + 1} behavior`}
+                  items={QUICK_REPLY_MODES.map((value) => ({ value, label: value === "send" ? "Send immediately" : "Put in the composer's draft" }))}
+                />
+              )}
+            </form.AppField>
+          </Stack>
+        )}
+      />
+      {ids.length === 0 ? (
+        <Text id={emptyId} voice="gloss">
+          Add at least one reply, or remove this action.
+        </Text>
+      ) : null}
+      {ids.length >= QUICK_REPLY_MAX_CHOICES ? (
+        <Text voice="gloss">This action has reached its reply limit.</Text>
+      ) : (
+        <Button
+          ref={addButton}
+          intent="ghost"
+          aria-describedby={ids.length === 0 ? emptyId : undefined}
+          onClick={(): void => {
+            form.pushFieldValue(`actions[${index}].choices`, { label: "", sendTemplate: "", mode: "send" });
+            form.pushFieldValue(`choiceIds[${index}]`, crypto.randomUUID());
+          }}
+        >
+          Add quick reply
+        </Button>
+      )}
+    </Stack>
   );
 }

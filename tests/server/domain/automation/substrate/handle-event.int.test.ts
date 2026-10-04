@@ -405,9 +405,18 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     const f = await setup({ runArm: failDispatch });
     const p = principal(f.host);
     const ruleId = await armRule(f, { name: "flaky" });
+    const autoDisabled = async (): Promise<boolean | undefined> =>
+      (await f.svc.listRules({ principal: p, chatId: f.chatId })).find((r) => r.id === ruleId)?.autoDisabled;
+    await fireOpenedN(f, 19);
+    // A host switching off a failing rule is not an auto-disable.
+    await f.svc.setRuleEnabled({ principal: p, ruleId, enabled: false });
+    expect(await autoDisabled()).toBe(false);
+    await f.svc.setRuleEnabled({ principal: p, ruleId, enabled: true });
     await fireOpenedN(f, 20);
+    expect(await autoDisabled()).toBe(true);
 
     await f.svc.setRuleEnabled({ principal: p, ruleId, enabled: true });
+    expect(await autoDisabled()).toBe(false);
     const [reEnabled] = await f.db.select().from(automationRules).where(eq(automationRules.id, ruleId));
     expect(reEnabled).toMatchObject({ enabled: true, consecutiveErrors: 0 });
     expect(reEnabled?.lastError).not.toBeNull();

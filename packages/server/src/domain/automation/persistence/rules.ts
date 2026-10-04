@@ -9,7 +9,7 @@
 // position in: a caller that could would be a caller that can duplicate one.
 
 import type { AutomationAction, AutomationTrigger } from "@orb/contracts/automation";
-import { automationActionsSchema } from "@orb/contracts/automation";
+import { AUTOMATION_CONSECUTIVE_ERROR_CEILING, automationActionsSchema } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/kit";
@@ -66,6 +66,7 @@ export function toRuleView(row: RuleRow): RuleView {
   const parsed = automationActionsSchema.safeParse(row.actions);
   return {
     actionsCorrupt: !parsed.success,
+    autoDisabled: !row.enabled && row.consecutiveErrors >= AUTOMATION_CONSECUTIVE_ERROR_CEILING,
     id: row.id,
     chatId: row.chatId,
     name: row.name,

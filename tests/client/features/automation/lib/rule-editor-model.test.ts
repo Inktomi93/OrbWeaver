@@ -2,6 +2,7 @@ import { AUTOMATION_ACTION_TYPES, automationActionSchema, automationRuleEditable
 import { ruleEditorCommitSchema, ruleEditorDraftSchema } from "../../../../../packages/client/src/features/automation/lib/contract/rule-editor.ts";
 import {
   emptyRuleEditor,
+  keepRowIdentities,
   newRuleAction,
   ruleEditable,
   ruleEditorValues,
@@ -78,4 +79,26 @@ test.each(AUTOMATION_ACTION_TYPES)("Add action constructs an editable %s draft w
     keywordIds: [action.type === "insert_world_info_entry" ? action.keys.map((_key, index) => `keyword-${index}`) : []],
   };
   expect(ruleEditorDraftSchema.parse(values).actions[0]?.type).toBe(type);
+});
+
+test("the echo of the editor's own save keeps local row identities; a different body takes fresh ones", () => {
+  const quick = automationActionSchema.parse(ruleActionExamples.surface_quick_reply);
+  const variable = automationActionSchema.parse(ruleActionExamples.set_variable);
+  const body = automationRuleEditableSchema.parse({
+    name: "Ordered",
+    description: "",
+    predicateCel: null,
+    trigger: { bus: "chat", type: "messageCommitted" },
+    actions: [variable, quick],
+    matchAutomationEvents: false,
+    cooldownSeconds: 0,
+    maxFiresPerHour: 30,
+  });
+  const echo = ruleEditorValues(body, "rule");
+  // The user moved the quick replies above the variable, so their local identities run in the moved order.
+  const submitted = { ...echo, actionIds: ["moved-b", "moved-a"], choiceIds: [[], ["reply-x", "reply-y"]] };
+
+  expect(keepRowIdentities(echo, submitted)).toMatchObject({ actionIds: ["moved-b", "moved-a"], choiceIds: [[], ["reply-x", "reply-y"]] });
+  expect(keepRowIdentities(echo, { ...submitted, actions: [quick, variable] })).toBe(echo);
+  expect(keepRowIdentities(echo, null)).toBe(echo);
 });

@@ -173,13 +173,21 @@ function totalOf(manager: AnnounceManager): number {
 }
 
 /** The entity's 1-based rank, or `null` when it carries none (a plain draggable is not in a sorted list, so
- *  there is no position to announce). `Sortable.index` is the OPTIMISTIC live index during a drag. */
-function rankOf(entity: AnnounceEntity): number | null {
-  if (entity === null || entity === undefined || !("index" in entity)) {
+ *  there is no position to announce). `Sortable.index` is the OPTIMISTIC live index during a drag;
+ *  `initialIndex` is where the drag started. */
+function rankOf(entity: AnnounceEntity, field: "index" | "initialIndex" = "index"): number | null {
+  if (entity === null || entity === undefined || !(field in entity)) {
     return null;
   }
-  const index: unknown = entity.index;
+  const index: unknown = Reflect.get(entity, field);
   return typeof index === "number" ? index + 1 : null;
+}
+
+/** The drop line. A cancel puts the row back, so it names where the row returned to, not where it was dragged. */
+function dragEndLine(source: AnnounceEntity, canceled: boolean, total: number): string {
+  return canceled
+    ? `Reorder cancelled. ${atPosition(nameOf(source), rankOf(source, "initialIndex"), total)}.`
+    : `Dropped ${atPosition(nameOf(source), rankOf(source), total)}.`;
 }
 
 /** `name, position N of M` — or the bare name when there is no rank to state. */
@@ -218,9 +226,7 @@ const withAnnouncements: NonNullable<ComponentProps<typeof DragDropProvider>["pl
                 ? undefined
                 : `${atPosition(nameOf(source), rankOf(target), totalOf(manager))}.`,
             dragend: ({ operation: { source }, canceled }: AnnounceEvent, manager: AnnounceManager): string | undefined =>
-              source === null || source === undefined
-                ? undefined
-                : `${canceled === true ? "Reorder cancelled. " : "Dropped "}${atPosition(nameOf(source), rankOf(source), totalOf(manager))}.`,
+              source === null || source === undefined ? undefined : dragEndLine(source, canceled === true, totalOf(manager)),
           },
         })
       : plugin,
