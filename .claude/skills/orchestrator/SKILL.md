@@ -18,6 +18,7 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 | - | - |
 | Search, lookup, "where is X" | `scout` or `Explore` |
 | Fully specified mechanical work, bulk edits, suite runs | `mech-executor` |
+| Small, well-specified fixes that need some judgment (review findings with a done line) | `sonnet-executor` |
 | Implementation that needs judgment | `executor` |
 | New subsystems, wide coupled changes, migrations, where the design is the risk | `forge` |
 | Authn, authz, secrets, crypto, validation, CSRF, hardening | `security-executor` |
@@ -57,6 +58,8 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 ## Lane cap
 
 Run at most three lanes at once. Raise the cap only on an explicit owner ruling, written here.
+
+Owner ruling: up to six `sonnet-executor` lanes and two Opus lanes (executor, security-executor) at once; never dispatch forge (owner). Verifier and side-eye passes may run over the cap.
 
 - Let over-cap lanes finish. Never refill above the cap.
 - Start gate-heavy lanes minutes apart. Simultaneous verification spikes load and makes gates flaky.

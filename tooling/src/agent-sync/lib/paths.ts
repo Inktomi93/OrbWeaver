@@ -20,6 +20,7 @@ export const ROLE_FAMILIES: Readonly<Record<string, ModelFamily>> = {
   forge: "astra",
   "mech-executor": "luna",
   "security-executor": "sol",
+  "sonnet-executor": "luna",
   "side-eye": "sol",
   stickler: "astra",
   verifier: "sol",

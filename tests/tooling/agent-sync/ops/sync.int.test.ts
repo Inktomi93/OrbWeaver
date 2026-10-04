@@ -54,7 +54,16 @@ test("lowercase Codex configuration stays synced to the Claude-owned agent sourc
 
   // The roster is pinned by literal, not derived from the map under test — a role silently dropped from
   // ROLE_FAMILIES would otherwise shrink the loop to nothing and still pass.
-  expect(Object.keys(ROLE_FAMILIES).toSorted()).toEqual(["executor", "forge", "mech-executor", "security-executor", "side-eye", "stickler", "verifier"]);
+  expect(Object.keys(ROLE_FAMILIES).toSorted()).toEqual([
+    "executor",
+    "forge",
+    "mech-executor",
+    "security-executor",
+    "side-eye",
+    "sonnet-executor",
+    "stickler",
+    "verifier",
+  ]);
   for (const [role, family] of Object.entries(ROLE_FAMILIES)) {
     const manifest = readFileSync(join(ROOT, ".codex", "agents", `${role}.toml`), "utf8");
     expect(manifest).toMatch(new RegExp(`^model = "gpt-[0-9]+(?:\\.[0-9]+)*-${family}"$`, "mu"));
