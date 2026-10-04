@@ -30,6 +30,7 @@ test("a confirmed newborn can reopen its newer invalid draft while list confirma
         enabled: false,
         position: 0,
         actionsCorrupt: false,
+        autoDisabled: false,
         rulePresetId: null,
         rulePresetKnobs: null,
         suggestOnRefusal: true,

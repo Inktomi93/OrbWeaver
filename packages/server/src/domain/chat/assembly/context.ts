@@ -340,6 +340,8 @@ interface BuildAssembleContextInput {
    *  axis — the producer of `unmutedCharacters`. Absent ⇒ nothing muted (or a hand-built ctx) ⇒ the full seated-character set. */
   readonly mutedSpeakerKeys?: ReadonlySet<string> | undefined;
   readonly personaIds: readonly PersonaId[];
+  /** The host's member-persona-lore room switch. Absent ⇒ on. */
+  readonly memberPersonaLore?: boolean | undefined;
   readonly promptConfig: PromptConfig;
   readonly personas: ResolvedPersonas;
   /** The room seats more than one present human (`AssembleContext.multiHuman`). Absent ⇒ solo. */
@@ -886,6 +888,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     ownerId: input.ownerId,
     characterIds: present.map((p) => p.characterId),
     personaIds: input.personaIds,
+    memberPersonaLore: input.memberPersonaLore !== false,
   });
 
   const base = buildBaseContext(character, characters, speakerRefs, input);

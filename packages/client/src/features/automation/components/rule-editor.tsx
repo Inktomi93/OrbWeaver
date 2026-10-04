@@ -15,7 +15,7 @@ import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { ruleEditorCommitSchema } from "../lib/contract/rule-editor.ts";
 import { ruleClockLine } from "../lib/rule-copy.ts";
 import { ruleEditorDrafts } from "../lib/rule-editor-drafts.ts";
-import { emptyRuleEditor, ruleEditorValues } from "../lib/rule-editor-model.ts";
+import { emptyRuleEditor, keepRowIdentities, ruleEditorValues } from "../lib/rule-editor-model.ts";
 import { editableRule } from "../lib/rule-save-session.ts";
 import { RuleEditorActions } from "./rule-editor-actions.tsx";
 import { RuleEditorSaveStatus } from "./rule-editor-save-status.tsx";
@@ -52,6 +52,11 @@ export function RuleEditor({
   const { save, acknowledged, failure, unknownZone } = useRuleAutosave({ owner, chatId, creation, ruleId, rule });
   const [needsExistingRow] = useState(ruleId !== null);
   const [observedRow, setObservedRow] = useState(rule !== null);
+  const [submitted, setSubmitted] = useState<RuleEditorValues | null>(null);
+  const saveRemembered = (values: RuleEditorValues): Promise<void> => {
+    setSubmitted(values);
+    return save(values);
+  };
   if (rule?.actionsCorrupt === true) {
     return (
       <Card ref={surface} role="region" aria-label="Rule editor" tabIndex={-1}>
@@ -72,11 +77,11 @@ export function RuleEditor({
       </Card>
     );
   }
-  const serverValues = confirmed === null ? emptyRuleEditor(chatId) : ruleEditorValues(editableRule(confirmed), identity);
+  const serverValues = confirmed === null ? emptyRuleEditor(chatId) : keepRowIdentities(ruleEditorValues(editableRule(confirmed), identity), submitted);
   return (
     // Capped at the editor content column: in the full-width library pane the fields otherwise stretch past 800px.
     <Card ref={surface} role="region" aria-label="Rule editor" tabIndex={-1} className="w-full max-w-(--width-content-col)">
-      <RuleForm entityId={identity} serverValues={serverValues} save={save}>
+      <RuleForm entityId={identity} serverValues={serverValues} save={saveRemembered}>
         {(session): ReactElement => (
           <Stack gap="section">
             <Row gap="field" align="center" className="justify-between">

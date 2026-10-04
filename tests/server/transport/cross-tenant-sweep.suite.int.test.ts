@@ -1071,6 +1071,12 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.setReactionsEnabled({ chatId: i.chatId, enabled: false }),
   },
   {
+    // The member-persona-lore room switch reaches the PROMPT (it decides whose lore joins). `requireHost` →
+    // `requireParticipant` miss on a stranger's chatId is a leak-free NOT_FOUND before any metadata write.
+    path: "chat.setMemberPersonaLore",
+    call: (c, i) => c.chat.setMemberPersonaLore({ chatId: i.chatId, enabled: false }),
+  },
+  {
     // WAVE MU: the per-chat user-macro INPUT picks flush — `requireParticipant` miss on a stranger's chatId is
     // a leak-free NOT_FOUND (the setVariables/member shape) BEFORE any `chats.user_macro_values` write.
     path: "chat.setUserMacroValues",
@@ -2964,6 +2970,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(chatStill.offerChoices).toBeNull(); // chat.setOfferChoices({enabled:true}) — reaches the prompt
     expect(chatStill.charactersCanReact).toBeNull(); // chat.setCharactersCanReact({enabled:true}) — arms a tool in A's room
     expect(chatStill.reactionsEnabled).toBeNull(); // chat.setReactionsEnabled({enabled:false}) — would silence A's room
+    expect(chatStill.memberPersonaLore).toBe(true); // chat.setMemberPersonaLore({enabled:false}) — would drop members' lore from A's prompt
     expect(chatStill.background).toBeNull(); // chat.setChatBackground({kind:"none"})
     expect(chatStill.anchorPersonaId).toBeNull(); // chat.setChatAnchorPersona(A's personaId) — would re-point {{user}}
     expect(chatStill.pendingHostUserId).toBeNull(); // invites.nominateHostHandoff never nominated in A's room

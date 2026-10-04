@@ -252,6 +252,9 @@ interface TurnPipelineResult {
    *  managed-compaction trigger reads this against `fitCeilingTokens` to decide whether usage crossed the
    *  threshold (mirrors what the fit reserved, so "85% used" means the same thing to both). */
   readonly fitUsedTokens: number;
+  /** The assembled system prompt's estimated cost, recorded on the reply for the next turn's pre-turn compaction
+   *  check. Null off the agent-sdk api, the only route managed compaction runs on. */
+  readonly systemTokens: number | null;
   /** The effective context ceiling the fit trims at — its system + history room plus the output reserve — or null when
    *  neither is finite (no trustworthy ceiling ⇒ managed compaction can't threshold ⇒ fit-drop only). */
   readonly fitCeilingTokens: number | null;
@@ -780,6 +783,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,
     fitUsedTokens,
+    systemTokens: args.connection.api === "agent-sdk" ? systemTokens : null,
     fitCeilingTokens: fitCeiling(budget),
     imageDropped,
     videoDropped,

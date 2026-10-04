@@ -1968,6 +1968,66 @@ async function shiftsSince(page: Page, since: number): Promise<{ readonly score:
   );
 }
 
+/** Start recording layout shifts LIVE, once the page has gone quiet: every buffered entry delivered, then three
+ *  frames with none new. A live observer sees only entries reported after it attaches, so a boot's own settle shift
+ *  that is reported late cannot be counted against what the test does next (a buffered read filtered by start time
+ *  could: the first visit's entry arrived stamped after the cut-off with its nodes already detached). */
+async function startShiftRecorder(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        let quietFrames = 0;
+        const drain = new PerformanceObserver(() => {
+          quietFrames = 0;
+        });
+        drain.observe({ type: "layout-shift", buffered: true });
+        const tick = (): void => {
+          quietFrames += 1;
+          if (quietFrames <= 2) {
+            requestAnimationFrame(tick);
+            return;
+          }
+          drain.disconnect();
+          // The tally rides attributes on the root, so the read below needs no cast.
+          const root = document.documentElement;
+          let score = 0;
+          const movers = new Set<string>();
+          root.setAttribute("data-ct-shift-score", "0");
+          root.setAttribute("data-ct-shift-movers", "");
+          // No `hadRecentInput` filter: the visit is started by a DOM click, which is not input.
+          new PerformanceObserver((list) => {
+            const entries = list.getEntries() as (PerformanceEntry & { value: number; sources?: LayoutShiftSourceLike[] })[];
+            score += entries.reduce((sum, entry) => sum + entry.value, 0);
+            for (const node of entries.flatMap((entry) => entry.sources ?? []).map((source) => source.node)) {
+              const tile = node instanceof Element ? node.closest("[data-home-tile]") : null;
+              movers.add(tile?.getAttribute("data-home-tile") ?? "other");
+            }
+            root.setAttribute("data-ct-shift-score", String(score));
+            root.setAttribute("data-ct-shift-movers", [...movers].join(" "));
+          }).observe({ type: "layout-shift" });
+          resolve();
+        };
+        requestAnimationFrame(tick);
+      }),
+  );
+}
+
+/** What {@link startShiftRecorder} has seen, two frames on (a shift is reported at the paint after it). */
+async function recordedShifts(page: Page): Promise<{ readonly score: number; readonly movers: readonly string[] }> {
+  return await page.evaluate(
+    () =>
+      new Promise<{ score: number; movers: string[] }>((resolve) => {
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            const root = document.documentElement;
+            const movers = root.getAttribute("data-ct-shift-movers") ?? "";
+            resolve({ score: Number(root.getAttribute("data-ct-shift-score")), movers: movers === "" ? [] : movers.split(" ") });
+          }),
+        );
+      }),
+  );
+}
+
 /** The page's own clock. A layout-shift entry's startTime is on it, so a cut-off must be read from it too. */
 async function pageNow(page: Page): Promise<number> {
   // @orb-waive test-determinism(performance.now): the subject is the browser's own layout-shift timeline.
@@ -2205,11 +2265,18 @@ test("a return visit shifts nothing: every tile reserves the height it settled a
     )
     .toBeCloseTo(settledBody, 0);
 
-  const since = await pageNow(page);
-  await home.getByRole("button", { name: "reboot" }).click();
+  // The first visit's own settle shifts can still be unreported here; record only what the return visit does.
+  await startShiftRecorder(page);
+  // A DOM click, not a mouse one: a real return visit has no input before it, and a pointer click marks every
+  // shift in the next 500ms `hadRecentInput`, which hid a late shift unless the box was slow enough to outlast it.
+  await home.getByRole("button", { name: "reboot" }).evaluate((button) => {
+    if (button instanceof HTMLElement) {
+      button.click();
+    }
+  });
   await expect(starter.getByRole("list", { name: "Character quick-picks" })).toBeVisible();
   await expect(home.locator("[aria-busy]")).toHaveCount(0);
-  const shift = await shiftsSince(page, since);
+  const shift = await recordedShifts(page);
   expect(shift, JSON.stringify(shift)).toEqual({ score: 0, movers: [] });
 });
 

@@ -93,6 +93,7 @@ import type {
   SetGroupConfigParams,
   SetHostDisplayScriptsParams,
   SetMemberHistoryVisibilityParams,
+  SetMemberPersonaLoreParams,
   SetMessageHiddenParams,
   SetOfferChoicesParams,
   SetReactionsEnabledParams,
@@ -398,6 +399,9 @@ export interface ChatService {
    *  Returns the stored value. Resolved OFF is enforced at the verbs (`toggleReaction` refuses,
    *  `listReactions` answers empty-with-verdict, the react tool refuses), never merely hidden. */
   readonly setReactionsEnabled: (params: SetReactionsEnabledParams) => Promise<boolean>;
+
+  /** Host-only room switch for members' persona-attached lore (`chatMetadata.memberPersonaLore`). Returns the stored value. */
+  readonly setMemberPersonaLore: (params: SetMemberPersonaLoreParams) => Promise<boolean>;
 
   /** Host-only write of the per-chat tool-call recursion cap (`chatMetadata.toolRecurseLimit`, 1..20).
    *  Returns the stored value. */

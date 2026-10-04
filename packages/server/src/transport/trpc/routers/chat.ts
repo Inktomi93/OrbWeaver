@@ -739,6 +739,10 @@ export const chatRouter = t.router({
     .output(z.boolean())
     .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setReactionsEnabled({ principal: ctx.auth, ...input })),
+  setMemberPersonaLore: authedProcedure
+    .output(z.boolean())
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
+    .mutation(({ ctx, input }) => ctx.services.chat.setMemberPersonaLore({ principal: ctx.auth, ...input })),
   setToolRecurseLimit: authedProcedure
     .output(toolRecurseLimitSchema)
     .input(setToolRecurseLimitSchema)

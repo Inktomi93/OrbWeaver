@@ -168,6 +168,7 @@ export const TOKENS = {
   "width.cell-fixed": { cssVar: "--width-cell-fixed", value: "8.5rem" },
   "width.cell-fixed-compact": { cssVar: "--width-cell-fixed-compact", value: "7.5rem" },
   "width.dialog-sm": { cssVar: "--width-dialog-sm", value: "25rem" },
+  "width.popup-floor": { cssVar: "--width-popup-floor", value: "20rem" },
   "width.dialog-md": { cssVar: "--width-dialog-md", value: "35rem" },
   "width.dialog-lg": { cssVar: "--width-dialog-lg", value: "45rem" },
   "width.dialog-xl": { cssVar: "--width-dialog-xl", value: "65rem" },

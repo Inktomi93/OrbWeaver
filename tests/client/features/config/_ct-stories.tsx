@@ -126,19 +126,25 @@ export function ConfigHostStory({ target, sub, width = 900, height = 560, placeh
 
 /** A setting-level deep link fired from a CLICK, the way a door elsewhere in the app fires it: the host
  *  mounts only after the click, so the LIST's arrival focus runs with the door still focused, exactly as
- *  when the rail switches to Settings. */
+ *  when the rail switches to Settings. `warm` mounts the host first, on the group's top, so the door fires into
+ *  an already-open Settings. */
 export function ConfigDeepLinkFromDoorStory({
   target,
   sub,
   setting,
+  warm = false,
 }: {
   readonly target: ConfigGroupId;
   readonly sub: string;
   readonly setting: string;
+  readonly warm?: boolean;
 }): ReactElement {
   const [open, setOpen] = useState(() => {
     __resetConfigNav();
-    return false;
+    if (warm) {
+      openConfigTo(target);
+    }
+    return warm;
   });
   return (
     <CtDataProviders>
@@ -503,6 +509,44 @@ export function ConfigFlashStory(): ReactElement {
         Second anchor
       </section>
     </>
+  );
+}
+
+/** A door in ANOTHER section into a Settings leaf, through the production `AppShell`: the door unmounts with the
+ *  click (a toast action, the chat's Group tab), so the arrival runs the shell's own focus rescue and the LIST's
+ *  arrival focus before the landing. */
+export function ConfigShellDoorStory({
+  target,
+  sub,
+  setting,
+}: {
+  readonly target: ConfigGroupId;
+  readonly sub: string;
+  readonly setting: string;
+}): ReactElement {
+  const [door, setDoor] = useState(() => {
+    __resetConfigNav();
+    clearCollectionSelection();
+    setActiveSection("databank");
+    return true;
+  });
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        {door ? (
+          <button
+            type="button"
+            onClick={(): void => {
+              setDoor(false);
+              openConfigTo(target, sub, setting);
+            }}
+          >
+            open the setting
+          </button>
+        ) : null}
+        <AppShell />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
   );
 }
 

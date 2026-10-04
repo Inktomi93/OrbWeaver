@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-04
 priority: P3
 area: connection
+lane: wt/agent-aa5265970d47617e4
 ---
 
 # An uncurated embedder row takes its kind from the catalog

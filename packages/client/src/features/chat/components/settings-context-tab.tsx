@@ -58,6 +58,7 @@ import { ChatDocumentsSection } from "./chat-documents-section.tsx";
 import { CommittedGroupConfigTab } from "./group-config-form.tsx";
 import { InjectionsManager, InjectionsSkeleton } from "./injections-manager.tsx";
 import { MacroPicksSection } from "./macro-picks-section.tsx";
+import { MemberPersonaLoreControl, MemberPersonaLoreNotice } from "./member-persona-lore-control.tsx";
 import { OfferChoicesControl } from "./offer-choices-control.tsx";
 import { CharactersCanReactControl, ReactionsEnabledControl } from "./reaction-toggles.tsx";
 import { RegexHeading, RegexSection } from "./regex-section.tsx";
@@ -249,7 +250,10 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's world books" onRetry={retry} />}
           reserveKey="chat.context.lorebooks"
         >
-          <ChatBooksSection chatId={chatId} isHost={isHost} />
+          <Stack gap="field">
+            <ChatBooksSection chatId={chatId} isHost={isHost} />
+            {isHost ? null : <MemberPersonaLoreNotice chatId={chatId} />}
+          </Stack>
         </QueryBoundary>
       </DisclosureSection>
       {/* REGEX (#1742) — "what regex runs in this room, in run order, and every lever that changes it", the
@@ -347,18 +351,20 @@ function HostControls({
             unknown persisted section id is dropped on the store's next write
             (`chat-context-section-open-store.ts`), and the reservation gate's arm B forbids reusing the
             literal. Do NOT re-add a display-script control here without re-opening §2 of the design. */}
-        {/* Storytelling (B1) — the room's standing offer-choices posture. Sits in the host band and NOT with
-            Field overrides/Injections above it because, unlike those, it is not something a member may set:
-            it changes what the model is told for everyone in the room. Reads the same getChat this tab
-            already loaded plus the host's own settings default (the inherit seam), so the QueryBoundary
-            matches its two neighbours' exactly. */}
+        {/* Storytelling — the room's offer-choices posture (B1) and whether members' persona lore joins the
+            prompt. Sits in the host band and NOT with Field overrides/Injections above it because neither is
+            something a member may set: both change what the model is told for everyone in the room. Reads the
+            getChat this tab already loaded, plus the host's own settings default for offer choices. */}
         <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Storytelling" sectionId="storytelling">
           <QueryBoundary
-            fallback={<SkeletonRows count={1} shape="line" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="the offer-choices setting" onRetry={retry} />}
+            fallback={<SkeletonRows count={2} shape="line" />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the storytelling settings" onRetry={retry} />}
             reserveKey="chat.context.storytelling"
           >
-            <OfferChoicesControl chatId={chatId} />
+            <Stack gap="field">
+              <OfferChoicesControl chatId={chatId} />
+              <MemberPersonaLoreControl chatId={chatId} />
+            </Stack>
           </QueryBoundary>
         </DisclosureSection>
         {/* Reactions (B7) — the plane's master switch + the react-tool opt-in, SIDE BY SIDE (owner ask:
@@ -370,8 +376,10 @@ function HostControls({
             renderError={(_error, retry): ReactElement => <QueryErrorState label="the reaction settings" onRetry={retry} />}
             reserveKey="chat.context.reactions"
           >
-            <ReactionsEnabledControl chatId={chatId} />
-            <CharactersCanReactControl chatId={chatId} />
+            <Stack gap="field">
+              <ReactionsEnabledControl chatId={chatId} />
+              <CharactersCanReactControl chatId={chatId} />
+            </Stack>
           </QueryBoundary>
         </DisclosureSection>
         {/* Tool use — reads getChat (already loaded for this tab) for the current cap; the QueryBoundary

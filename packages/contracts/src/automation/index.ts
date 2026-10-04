@@ -393,6 +393,8 @@ const TOOL_ARGS_TEMPLATE_MAX = 8192;
 /** The ordered action-arm cap. A rule carries 1..8 arms. */
 export const AUTOMATION_ACTION_ARMS_MIN = 1;
 export const AUTOMATION_ACTION_ARMS_MAX = 8;
+/** Consecutive predicate, action or authority errors after which the dispatch turns a rule off. */
+export const AUTOMATION_CONSECUTIVE_ERROR_CEILING = 20;
 
 /** S5 — the `run_analysis` arm's stored-GUIDANCE cap, in characters. ONE home, TWO enforcers (the
  *  `GLOBAL_VARIABLE_*` pattern above): the analysis applier SLICES the model's guidance to this bound at the

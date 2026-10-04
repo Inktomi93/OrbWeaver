@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SkeletonRows } from "#data";
 import type { EffectiveProfileRow } from "../../lib/effective-knobs.ts";
-import { knobLabel, MIROSTAT_SKIPPED_GLOSS, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
+import { honoredKnobLabels, knobLabel, MIROSTAT_SKIPPED_GLOSS, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
 import { formatCount } from "../../lib/format-count.ts";
 import { PARAMS_VIEW_LABEL } from "../../lib/preset-nav.ts";
 import { resolveFailureCopy, resolveFailureMessage } from "../../lib/resolve-failure.ts";
@@ -71,9 +71,6 @@ export function DatumRow({ label, value, suffix, valueTitle }: DatumRowProps): R
  *  the jump the placeholder is here to prevent. The `datum` arm is `DatumRow`'s own anatomy (a label bar and
  *  a value bar on one text-height line, stacked on `tight`), so pending and settled are the same box. */
 const PENDING_ROWS = 4;
-
-/** The `capability.sampling` keys that state a fact about other knobs rather than naming a knob of their own. */
-const SAMPLING_FACT_KEYS: ReadonlySet<string> = new Set(["exclusive", "mirostatSkips"]);
 
 // A knob the server skips this turn says so in place of the rung that produced its value.
 function readingSuffix(knob: string, reading: EffectiveProfileRow["knobs"][string], skipped: ReadonlySet<string> | undefined): string | null {
@@ -233,9 +230,7 @@ export function CapabilityCard({
   if (capability === undefined) {
     return null;
   }
-  const honored = Object.keys(capability.sampling)
-    .filter((key) => !SAMPLING_FACT_KEYS.has(key))
-    .map((knob) => knobLabel(knob));
+  const honored = honoredKnobLabels(capability.sampling);
   const modelName = model === undefined ? undefined : modelDisplayName(model);
   return (
     <Section kicker="Capability">

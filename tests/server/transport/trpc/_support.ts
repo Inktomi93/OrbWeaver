@@ -178,6 +178,7 @@ export function inviteResults(joiner: UserId): InviteResults {
         offerChoices: null,
         charactersCanReact: null,
         reactionsEnabled: null,
+        memberPersonaLore: true,
         background: null,
         rpg: null,
         opening: null,

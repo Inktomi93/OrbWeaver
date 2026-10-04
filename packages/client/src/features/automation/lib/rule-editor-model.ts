@@ -7,6 +7,7 @@ import {
 } from "@orb/contracts/automation";
 import { MULTIMODAL_MODES } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
+import { formValuesEqual } from "#forms";
 import type { RuleEditorValues } from "./contract/rule-editor.ts";
 import { ruleEditorDraftSchema } from "./contract/rule-editor.ts";
 
@@ -30,6 +31,16 @@ export function ruleEditorValues(body: AutomationRuleEditable, identity: string)
       action.type === "insert_world_info_entry" ? action.keys.map((_key, key) => `${identity}:${index}:key:${key}`) : [],
     ),
   });
+}
+
+/** The echo of this editor's own save carries the same rows in the same order, so it keeps the rows' local
+ *  identities. Re-minting them from the index would re-key every list row, and a row the user just moved
+ *  would swap places with its neighbour's DOM, focus included. Any other server body takes fresh identities. */
+export function keepRowIdentities(server: RuleEditorValues, submitted: RuleEditorValues | null): RuleEditorValues {
+  if (submitted === null || !formValuesEqual(ruleEditable(server).actions, ruleEditable(submitted).actions)) {
+    return server;
+  }
+  return { ...server, actionIds: submitted.actionIds, choiceIds: submitted.choiceIds, keywordIds: submitted.keywordIds };
 }
 
 /** An unopened action list is deliberately incomplete: opening a draft never creates a row. */

@@ -40,6 +40,7 @@ test("catalog failure, recovery and disappearance preserve the selected tool; Te
       }),
     ],
     actionsCorrupt: false,
+    autoDisabled: false,
     rulePresetId: null,
     rulePresetKnobs: null,
     matchAutomationEvents: false,

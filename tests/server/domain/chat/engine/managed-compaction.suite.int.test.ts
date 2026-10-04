@@ -10,18 +10,19 @@
 // delta on a resuming SDK session, hosted-verified); the fit-drop arm is the reactive backstop. Single-flight; an unchanged
 // coverage point never re-fires; a failed/empty generation leaves the marker untouched.
 
-import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
+import type { AssembleContext, ChatBusEvent, VariantMetadata } from "@orb/contracts/chat";
+import { parseVariantMetadata } from "@orb/contracts/chat";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { chats } from "@orb/db";
+import { chats, messages, messageVariants } from "@orb/db";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
-import { eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { buildHistoryBudget, fitCeilingTokens, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -491,6 +492,116 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
       expect(sentRows).toBeGreaterThan(0);
       expect(sentRows).toBeLessThan(rows);
       expect(emitted.some((e) => e.type === "warning" && e.code === "context_trimmed_no_summary")).toBe(true);
+    });
+  });
+
+  // A heavy character card: the pre-turn arm must price the system prompt the previous turn recorded, or it fires
+  // later than the post-turn arm by the prompt's whole cost (dozens of rows on an 8k window).
+  describe("the pre-turn trigger counts the chat's recorded system prompt", () => {
+    const window = 8192;
+    const conn: Resolved<"chat"> = {
+      ...AGENT_SDK,
+      capability: makeCapability({ ...generationOf(AGENT_SDK), context: { ...generationOf(AGENT_SDK).context, window } }),
+    };
+    const heavyCtx: AssembleContext = { ...ASSEMBLE_CTX, character: { name: "Aria", description: "word ".repeat(2000) } };
+    const managed = { compaction: { mode: "managed" as const }, maxOutputTokens: 100 };
+    const failing: ChatContext["runChatTurn"] = () =>
+      (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.reject(new Error("agent-sdk: doomed dispatch"));
+        yield { kind: "text", text: "" };
+      })();
+    const pollMs = 300;
+
+    /** The selected variant metadata of the chat's newest assistant row. */
+    async function newestAssistantMetadata(chatId: ChatId): Promise<VariantMetadata> {
+      const [row] = await db
+        .select({ metadata: messageVariants.metadata })
+        .from(messages)
+        .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+        .where(and(eq(messages.chatId, chatId), eq(messages.role, "assistant")))
+        .orderBy(desc(messages.seq))
+        .limit(1);
+      return parseVariantMetadata(row?.metadata);
+    }
+
+    async function compacted(chatId: ChatId): Promise<boolean> {
+      return await vi
+        .waitFor(
+          async () => {
+            const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+            expect(row?.compactSummary).toBe("MANAGED MARKER");
+          },
+          { timeout: pollMs },
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+    }
+
+    /** {@link seedChatWithHistory} under ONE host, so a test can seed many chats. */
+    async function seedChatFor(host: UserId, count: number): Promise<ChatId> {
+      chatSeq += 1;
+      const chatId = await seedChat(db, `c${chatSeq}`);
+      await seedParticipant(db, { chatId, key: `h${chatSeq}`, userId: host, role: "host" });
+      for (let seq = 1; seq <= count; seq += 1) {
+        await seedMessage(db, chatId, seq, {
+          role: seq % 2 === 1 ? "user" : "assistant",
+          ...(seq % 2 === 1 ? { authorUserId: host } : {}),
+          content: historyRowContent(seq),
+        });
+      }
+      return chatId;
+    }
+
+    /** The fewest seeded rows at which `fires(rows)` compacts (the trigger is monotone in the row count). */
+    async function thresholdRows(fires: (rows: number) => Promise<boolean>): Promise<number> {
+      let low = 1;
+      let high = 160;
+      while (low < high) {
+        const mid = Math.floor((low + high) / 2);
+        if (await fires(mid)) {
+          high = mid;
+        } else {
+          low = mid + 1;
+        }
+      }
+      return low;
+    }
+
+    test("pre-turn and post-turn triggers agree within one row for a 2000-word description", async () => {
+      // One engine per db: each engine's id minters start afresh, so a second engine on the same db would mint
+      // colliding ids (messages, compaction spend). The pre-turn search below runs on its own db for that reason.
+      const engine = buildEngine();
+      // The pipeline records the turn's system-prompt cost on the reply it commits.
+      const host = await seedUser(db, castId<Handle>("host"));
+      const probe = await seedChatFor(host, 2);
+      await engine.runTurn(prepOf(probe, conn, { assembleContext: heavyCtx, intent: managed }));
+      const systemTokens = (await newestAssistantMetadata(probe)).systemTokens ?? 0;
+      expect(systemTokens).toBeGreaterThan(2000);
+
+      // Post-turn: a turn that succeeds and judges its own assembled usage. The seeded rows record no system cost, so
+      // the pre-turn arm on this turn reads zero and can only fire later.
+      const postRows = await thresholdRows(async (rows) => {
+        const chatId = await seedChatFor(host, rows);
+        await engine.runTurn(prepOf(chatId, conn, { assembleContext: heavyCtx, intent: managed }));
+        return await compacted(chatId);
+      });
+      // Pre-turn: the previous reply carries the recorded cost; the dispatch fails, so only the pre-turn arm can fire.
+      db = await freshDb();
+      const preEngine = buildEngine(failing);
+      const preHost = await seedUser(db, castId<Handle>("host"));
+      const preRows = await thresholdRows(async (rows) => {
+        const chatId = await seedChatFor(preHost, rows);
+        await db
+          .update(messageVariants)
+          .set({ metadata: { systemTokens } })
+          .where(eq(messageVariants.id, castId<MessageVariantId>(`variant_${chatId}_${rows - (rows % 2)}_0`)));
+        await preEngine.runTurn(prepOf(chatId, conn, { assembleContext: heavyCtx, intent: managed })).catch((e: unknown) => e);
+        return await compacted(chatId);
+      });
+
+      expect(Math.abs(preRows - postRows)).toBeLessThanOrEqual(1);
     });
   });
 

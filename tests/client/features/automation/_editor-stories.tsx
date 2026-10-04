@@ -44,11 +44,14 @@ export function RuleEditorRulesStory({
   firstOwner,
   secondOwner,
   secondChatId,
+  paneWidth,
 }: {
   readonly chatId: ChatId | null;
   readonly firstOwner: string;
   readonly secondOwner: string;
   readonly secondChatId?: ChatId;
+  /** The host pane width; defaults to the docked context pane (chat) or the configuration column (library). */
+  readonly paneWidth?: number;
 }): ReactElement {
   const [owner, setOwner] = useState(firstOwner);
   const [epoch, setEpoch] = useState(0);
@@ -56,7 +59,7 @@ export function RuleEditorRulesStory({
   return (
     <CtDataProviders>
       <CtToastSurface>
-        <div style={{ width: chatId === null ? 560 : 384 }}>
+        <div style={{ width: paneWidth ?? (chatId === null ? 560 : 384) }}>
           <Text>Current account: {owner === firstOwner ? "First" : "Second"}</Text>
           <Button onClick={(): void => setOwner(owner === firstOwner ? secondOwner : firstOwner)}>Switch account</Button>
           <Button onClick={(): void => setEpoch((value) => value + 1)}>Reopen rules surface</Button>

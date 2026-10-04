@@ -695,6 +695,7 @@ const FORK_RESULT: Awaited<ReturnType<ChatService["forkChat"]>> = {
     // B7: the two reaction knobs are the same tri-state — a fresh fork inherits on both.
     charactersCanReact: null,
     reactionsEnabled: null,
+    memberPersonaLore: true,
     parentChatId: CHAT,
     forkedAt: 0,
     anchorPersonaId: null,

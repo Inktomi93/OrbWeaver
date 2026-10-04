@@ -4,6 +4,7 @@ import { Field } from "@orb/ui/field";
 import { Select } from "@orb/ui/select";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { pixelContrast } from "../../../support/browser/pixel-contrast.ts";
 import { LinkedLabelStory, RenderValueStory } from "./select.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
@@ -278,37 +279,169 @@ test("option description: paints in the row, stays off the trigger, and is a des
   await expect(trigger).toHaveText("Beta");
 });
 
-test("a glossed desktop popup stops at the reading measure instead of spanning the available viewport", async ({ mount, page }) => {
+const EXPLAINED = [
+  {
+    label: "Sharper semantic recall",
+    value: "sharp",
+    description:
+      "Re-sorts related scenes with the rerank model for sharper recall. Costs an extra model call; if reranking is unavailable, vector order is used.",
+  },
+  { label: "Smart", value: "smart", disabled: true, description: "Needs a rerank model; pick one in Model roles to turn this on." },
+];
+
+/** Most lines any one description may take: the reasons above run about 150 characters, which reads in four
+ *  lines at the popup floor. A description laid out at its label's width ran one or two words per line. */
+const MAX_DESCRIPTION_LINES = 5;
+
+// A glossed popup is never narrower than its trigger or the popup floor, never wider than the reading cap, and
+// its descriptions wrap across that width rather than sizing it: narrow, mid and wide triggers alike.
+for (const triggerPx of [120, 240, 367]) {
+  test(`a glossed popup under a ${String(triggerPx)}px trigger stays readable: floored, capped, descriptions wrap short`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await mount(
+      <div style={{ width: triggerPx }}>
+        <Select aria-label="Explained modes" items={EXPLAINED} />
+      </div>,
+    );
+    const trigger = page.getByRole("combobox", { name: "Explained modes" });
+    await trigger.click();
+    const popup = page.locator('[data-slot="select-popup"]');
+    // The open transition scales the popup up from 95%; measure its settled box.
+    await expect(popup).toHaveCSS("opacity", "1");
+
+    const triggerWidth = (await trigger.boundingBox())?.width ?? 0;
+    const geometry = await popup.evaluate((element) => {
+      const probe = (value: string): number => {
+        const node = document.createElement("div");
+        node.style.width = value;
+        element.append(node);
+        const width = node.getBoundingClientRect().width;
+        node.remove();
+        return width;
+      };
+      const descriptions = [...element.querySelectorAll('[data-slot="select-item-description"]')];
+      return {
+        width: element.getBoundingClientRect().width,
+        floor: probe("var(--width-popup-floor)"),
+        cap: probe("var(--reading-measure)"),
+        overflow: element.scrollWidth - element.clientWidth,
+        clipped: descriptions.filter((desc) => desc.scrollWidth > desc.clientWidth + 1).length,
+        lines: descriptions.map((desc) => Math.round(desc.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(desc).lineHeight))),
+      };
+    });
+    expect(geometry.floor, "the floor token resolves").toBeGreaterThan(0);
+    expect(geometry.width, "never narrower than the trigger or the floor").toBeGreaterThanOrEqual(Math.max(triggerWidth, geometry.floor) - 1);
+    expect(geometry.width, "a description never widens it past the larger of the two").toBeLessThanOrEqual(Math.max(triggerWidth, geometry.floor) + 1);
+    expect(geometry.width, "and never past the reading cap").toBeLessThanOrEqual(geometry.cap + 1);
+    expect(geometry.overflow, "nothing scrolls sideways").toBeLessThanOrEqual(0);
+    expect(geometry.clipped, "no description is clipped").toBe(0);
+    expect(Math.max(...geometry.lines), JSON.stringify(geometry.lines)).toBeLessThanOrEqual(MAX_DESCRIPTION_LINES);
+    expect(geometry.lines[0], "the long description wraps").toBeGreaterThan(1);
+  });
+}
+
+// An option label wider than the control column, and no descriptions: only the alignment decides where the popup ends.
+const DOCKED_ITEMS = [
+  { label: "Recall every stored scene, the sharpest first", value: "sharp" },
+  { label: "Off", value: "off" },
+];
+
+// A settings row docks its control at the row's END; the popup opens end-aligned so it grows back into the pane
+// instead of overhanging its right edge.
+test("a select docked at the end of a horizontal Field opens its popup end-aligned, inside the pane", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await mount(
-    <div style={{ width: 240 }}>
-      <Select
-        aria-label="Explained modes"
-        items={[
-          {
-            label: "Sharper semantic recall",
-            value: "sharp",
-            description:
-              "Re-sorts related scenes with the rerank model for sharper recall. Costs an extra model call; if reranking is unavailable, vector order is used.",
-          },
-        ]}
-      />
+    <div data-testid="pane" style={{ width: 640, overflow: "hidden" }}>
+      <Field label="Recall mode" orientation="horizontal">
+        <Select aria-label="Recall mode" items={DOCKED_ITEMS} />
+      </Field>
     </div>,
   );
-  await page.getByRole("combobox", { name: "Explained modes" }).click();
+  const trigger = page.getByRole("combobox", { name: "Recall mode" });
+  await trigger.click();
   const popup = page.locator('[data-slot="select-popup"]');
-  await expect(popup).toBeVisible();
+  await expect(popup).toHaveCSS("opacity", "1");
+  const [triggerBox, popupBox, paneBox] = await Promise.all([trigger.boundingBox(), popup.boundingBox(), page.getByTestId("pane").boundingBox()]);
+  const right = (box: { x: number; width: number } | null): number => (box === null ? Number.NaN : box.x + box.width);
+  expect(Math.abs(right(popupBox) - right(triggerBox)), "the popup's end meets the trigger's end").toBeLessThanOrEqual(1);
+  expect(right(popupBox), "the popup stays inside the pane").toBeLessThanOrEqual(right(paneBox) + 1);
+});
 
-  const geometry = await popup.evaluate((element) => {
-    const probe = document.createElement("div");
-    probe.style.width = "var(--reading-measure)";
-    element.append(probe);
-    const measure = probe.getBoundingClientRect().width;
-    probe.remove();
-    return { measure, width: element.getBoundingClientRect().width };
-  });
-  expect(geometry.measure, "the reading-measure token resolves in the popup's own font context").toBeGreaterThan(0);
-  expect(geometry.width, "the popup itself is capped, not only its option prose").toBeLessThanOrEqual(geometry.measure + 1);
+// A content-width trigger (the library sort: `w-auto`, showing only the selected label) is narrower than its
+// other options. The popup grows to the longest label, so no option name wraps.
+const SORTS = [
+  { label: "Recent", value: "recent" },
+  { label: "Name (A–Z)", value: "name" },
+  { label: "Most chatted with recently", value: "chatted" },
+  { label: "Recently imported", value: "imported" },
+];
+
+test("a content-width trigger's popup grows to its longest label, one line each", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mount(
+    <div style={{ display: "flex" }}>
+      <Select aria-label="Sort" className="w-auto" items={SORTS} value="recent" />
+    </div>,
+  );
+  const trigger = page.getByRole("combobox", { name: "Sort" });
+  await trigger.click();
+  const popup = page.locator('[data-slot="select-popup"]');
+  await expect(popup).toHaveCSS("opacity", "1");
+  const triggerWidth = (await trigger.boundingBox())?.width ?? 0;
+  const geometry = await popup.evaluate((element) => ({
+    width: element.getBoundingClientRect().width,
+    wrapped: [...element.querySelectorAll('[data-slot="select-item-label"]')]
+      .filter((label) => label.getBoundingClientRect().height > Number.parseFloat(getComputedStyle(label).lineHeight) * 1.5)
+      .map((label) => label.textContent),
+  }));
+  expect(geometry.width, "the popup is never narrower than its trigger").toBeGreaterThanOrEqual(triggerWidth - 1);
+  expect(geometry.width, "the longest label widens the popup past the content-width trigger").toBeGreaterThan(triggerWidth + 1);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): the popup's open transition settled (opacity 1) before this one atomic geometry snapshot.
+  expect(geometry.wrapped).toEqual([]);
+});
+
+// A disabled option's description is the only place that says WHY it is disabled, so only the label dims;
+// the reason keeps the muted-foreground ink at full opacity and clears the WCAG text floor in every seed.
+test("a disabled option dims its label only; its reason stays readable in dark and light", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mount(
+    <div style={{ width: 367 }}>
+      <Select aria-label="Explained modes" items={EXPLAINED} />
+    </div>,
+  );
+  const trigger = page.getByRole("combobox", { name: "Explained modes" });
+  const backdrops = new Set<string>();
+  for (const theme of ["hearth", "light"] as const) {
+    await page.evaluate((seed) => {
+      // `hearth` IS the base `@theme` at `:root`; only light emits a `[data-theme]` block.
+      if (seed === "hearth") {
+        document.documentElement.removeAttribute("data-theme");
+      } else {
+        document.documentElement.setAttribute("data-theme", seed);
+      }
+    }, theme);
+    await trigger.click();
+    const smart = page.getByRole("option", { name: "Smart", exact: true });
+    await expect(smart).toHaveAttribute("data-disabled", "");
+    const reason = smart.locator('[data-slot="select-item-description"]');
+    const painted = (el: Element): number => {
+      let opacity = 1;
+      for (let node: Element | null = el; node !== null; node = node.parentElement) {
+        opacity *= Number.parseFloat(getComputedStyle(node).opacity);
+      }
+      return opacity;
+    };
+    // Polled: the open transition fades the popup in, so the product settles a beat after the option mounts.
+    await expect.poll(() => reason.evaluate(painted), { message: `[${theme}] the reason paints at full opacity` }).toBe(1);
+    await expect.poll(() => smart.locator('[data-slot="select-item-label"]').evaluate(painted), { message: `[${theme}] the label dims` }).toBe(0.5);
+    const contrast = await pixelContrast(page, reason);
+    expect(contrast.ratio, `[${theme}] disabled reason vs popup — ${contrast.describe}`).toBeGreaterThanOrEqual(4.5);
+    backdrops.add(contrast.describe);
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("listbox")).toBeHidden();
+  }
+  // Guards the loop: a light seed that never applied would measure the dark arm twice.
+  expect(backdrops.size).toBe(2);
 });
 
 for (const mode of ["field", "label", "aria", "linked"] as const) {

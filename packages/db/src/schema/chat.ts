@@ -100,6 +100,7 @@ import type {
 } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import type { IanaTimeZone } from "@orb/kit/time";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import * as sqliteCore from "drizzle-orm/sqlite-core";
@@ -897,6 +898,9 @@ export const pendingTurns = sqliteTable(
       .$type<UserId>()
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    // The sender's zone AT DEFER TIME, so the drained turn's time macros read their clock even if the sender's
+    // zone has moved since. Null (no zone reported) drains on the UTC clock.
+    timeZone: text("time_zone").$type<IanaTimeZone>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [

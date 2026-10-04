@@ -1,5 +1,5 @@
-// The sampling knobs' editor vocabulary: one spec per numeric sampler (label, readout label, default wire key,
-// field path, step), in the editor's order. `capability-panel-model.ts` pairs each with a capability's range.
+// The sampling knobs' editor vocabulary: one spec per numeric sampler (label, default wire key, field path, step),
+// in the editor's order, plus the deck's names for the non-numeric sampling controls. `capability-panel-model.ts` pairs each with a capability's range.
 
 import type { GenerationCapability, Range } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS } from "@orb/contracts/inference";
@@ -21,7 +21,6 @@ export interface SamplingKnobSpec {
   readonly key: NumericSamplingKey;
   readonly field: `params.${NumericSamplingKey}`;
   readonly label: string;
-  readonly readoutLabel: string;
   readonly wire: string;
   readonly description: string;
   readonly step: number;
@@ -35,7 +34,6 @@ type SamplingKnobCatalog = {
 export const SAMPLING_KNOB_CATALOG = {
   temperature: {
     key: "temperature",
-    readoutLabel: "temperature",
     wire: DEFAULT_SAMPLER_KEYS.temperature,
     field: "params.temperature",
     label: "Temperature",
@@ -44,7 +42,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   topP: {
     key: "topP",
-    readoutLabel: "top-p",
     wire: DEFAULT_SAMPLER_KEYS.topP,
     field: "params.topP",
     label: "Top-P",
@@ -53,7 +50,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   topK: {
     key: "topK",
-    readoutLabel: "top-k",
     wire: DEFAULT_SAMPLER_KEYS.topK,
     field: "params.topK",
     label: "Top-K",
@@ -62,7 +58,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   minP: {
     key: "minP",
-    readoutLabel: "min-p",
     wire: DEFAULT_SAMPLER_KEYS.minP,
     field: "params.minP",
     label: "Min-P",
@@ -71,7 +66,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   topA: {
     key: "topA",
-    readoutLabel: "top-a",
     wire: DEFAULT_SAMPLER_KEYS.topA,
     field: "params.topA",
     label: "Top-A",
@@ -80,7 +74,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   frequencyPenalty: {
     key: "frequencyPenalty",
-    readoutLabel: "freq. penalty",
     wire: DEFAULT_SAMPLER_KEYS.frequencyPenalty,
     field: "params.frequencyPenalty",
     label: "Frequency penalty",
@@ -89,7 +82,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   presencePenalty: {
     key: "presencePenalty",
-    readoutLabel: "presence penalty",
     wire: DEFAULT_SAMPLER_KEYS.presencePenalty,
     field: "params.presencePenalty",
     label: "Presence penalty",
@@ -98,7 +90,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   repetitionPenalty: {
     key: "repetitionPenalty",
-    readoutLabel: "rep. penalty",
     wire: DEFAULT_SAMPLER_KEYS.repetitionPenalty,
     field: "params.repetitionPenalty",
     label: "Repetition penalty",
@@ -107,7 +98,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   repetitionPenaltyRange: {
     key: "repetitionPenaltyRange",
-    readoutLabel: "rep. range",
     wire: DEFAULT_SAMPLER_KEYS.repetitionPenaltyRange,
     field: "params.repetitionPenaltyRange",
     label: "Repetition range",
@@ -117,7 +107,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   typicalP: {
     key: "typicalP",
-    readoutLabel: "typical-p",
     wire: DEFAULT_SAMPLER_KEYS.typicalP,
     field: "params.typicalP",
     label: "Typical-P",
@@ -126,7 +115,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   topNSigma: {
     key: "topNSigma",
-    readoutLabel: "top-nσ",
     wire: DEFAULT_SAMPLER_KEYS.topNSigma,
     field: "params.topNSigma",
     label: "Top-nσ",
@@ -135,7 +123,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   xtcProbability: {
     key: "xtcProbability",
-    readoutLabel: "xtc chance",
     wire: DEFAULT_SAMPLER_KEYS.xtcProbability,
     field: "params.xtcProbability",
     label: "XTC chance",
@@ -144,7 +131,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   xtcThreshold: {
     key: "xtcThreshold",
-    readoutLabel: "xtc threshold",
     wire: DEFAULT_SAMPLER_KEYS.xtcThreshold,
     field: "params.xtcThreshold",
     label: "XTC threshold",
@@ -153,7 +139,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dryMultiplier: {
     key: "dryMultiplier",
-    readoutLabel: "dry strength",
     wire: DEFAULT_SAMPLER_KEYS.dryMultiplier,
     field: "params.dryMultiplier",
     label: "DRY strength",
@@ -162,7 +147,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dryBase: {
     key: "dryBase",
-    readoutLabel: "dry base",
     wire: DEFAULT_SAMPLER_KEYS.dryBase,
     field: "params.dryBase",
     label: "DRY base",
@@ -171,7 +155,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dryAllowedLength: {
     key: "dryAllowedLength",
-    readoutLabel: "dry allowed",
     wire: DEFAULT_SAMPLER_KEYS.dryAllowedLength,
     field: "params.dryAllowedLength",
     label: "DRY allowed length",
@@ -180,7 +163,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dryPenaltyLastN: {
     key: "dryPenaltyLastN",
-    readoutLabel: "dry range",
     wire: DEFAULT_SAMPLER_KEYS.dryPenaltyLastN,
     field: "params.dryPenaltyLastN",
     label: "DRY range",
@@ -190,7 +172,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   mirostatMode: {
     key: "mirostatMode",
-    readoutLabel: "mirostat",
     wire: DEFAULT_SAMPLER_KEYS.mirostatMode,
     field: "params.mirostatMode",
     label: "Mirostat",
@@ -199,7 +180,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   mirostatTau: {
     key: "mirostatTau",
-    readoutLabel: "mirostat τ",
     wire: DEFAULT_SAMPLER_KEYS.mirostatTau,
     field: "params.mirostatTau",
     label: "Mirostat tau",
@@ -208,7 +188,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   mirostatEta: {
     key: "mirostatEta",
-    readoutLabel: "mirostat η",
     wire: DEFAULT_SAMPLER_KEYS.mirostatEta,
     field: "params.mirostatEta",
     label: "Mirostat eta",
@@ -217,7 +196,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dynatempRange: {
     key: "dynatempRange",
-    readoutLabel: "dyn. temp range",
     wire: DEFAULT_SAMPLER_KEYS.dynatempRange,
     field: "params.dynatempRange",
     label: "Dynamic temperature range",
@@ -226,7 +204,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   dynatempExponent: {
     key: "dynatempExponent",
-    readoutLabel: "dyn. temp exponent",
     wire: DEFAULT_SAMPLER_KEYS.dynatempExponent,
     field: "params.dynatempExponent",
     label: "Dynamic temperature exponent",
@@ -235,7 +212,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   smoothingFactor: {
     key: "smoothingFactor",
-    readoutLabel: "smoothing",
     wire: DEFAULT_SAMPLER_KEYS.smoothingFactor,
     field: "params.smoothingFactor",
     label: "Smoothing factor",
@@ -244,7 +220,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   smoothingCurve: {
     key: "smoothingCurve",
-    readoutLabel: "smoothing curve",
     wire: DEFAULT_SAMPLER_KEYS.smoothingCurve,
     field: "params.smoothingCurve",
     label: "Smoothing curve",
@@ -253,7 +228,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   adaptiveTarget: {
     key: "adaptiveTarget",
-    readoutLabel: "adaptive-p target",
     wire: DEFAULT_SAMPLER_KEYS.adaptiveTarget,
     field: "params.adaptiveTarget",
     label: "Adaptive-P target",
@@ -262,7 +236,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   adaptiveDecay: {
     key: "adaptiveDecay",
-    readoutLabel: "adaptive-p decay",
     wire: DEFAULT_SAMPLER_KEYS.adaptiveDecay,
     field: "params.adaptiveDecay",
     label: "Adaptive-P decay",
@@ -271,7 +244,6 @@ export const SAMPLING_KNOB_CATALOG = {
   },
   minKeep: {
     key: "minKeep",
-    readoutLabel: "min keep",
     wire: DEFAULT_SAMPLER_KEYS.minKeep,
     field: "params.minKeep",
     label: "Min keep",
@@ -279,6 +251,21 @@ export const SAMPLING_KNOB_CATALOG = {
     step: 1,
   },
 } satisfies SamplingKnobCatalog;
+
+type FlagSamplingKey = Exclude<keyof Sampling, NumericSamplingKey | "exclusive" | "mirostatSkips">;
+
+/** The deck's names for the sampling controls that are not a numeric track. The deck labels its controls with
+ *  these and the readout reads the same words, so a knob has one name on every surface. `exclusive` and
+ *  `mirostatSkips` state facts about other knobs, not controls, so they have no name. */
+export const SAMPLING_FLAG_LABELS: Readonly<Record<FlagSamplingKey, string>> = {
+  seed: "Seed",
+  logitBias: "Logit bias",
+  stop: "Stop sequences",
+  drySequenceBreakers: "DRY sequence breakers",
+  bannedStrings: "Banned phrases",
+  banEos: "Ban end of reply",
+  samplerOrder: "Sampler order",
+};
 
 /** Shared sampling metadata for controls, effective readouts and typed stale-value clearing. */
 export const SAMPLING_KNOBS: readonly SamplingKnobSpec[] = Object.values(SAMPLING_KNOB_CATALOG);

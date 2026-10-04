@@ -24,13 +24,13 @@ import type { ReactElement, ReactNode } from "react";
 import { ListSearch } from "#components";
 import { useSettingsViewerView } from "#data";
 import type { ConfigQueryToken, ParsedConfigQuery } from "#lib";
-import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "#lib";
+import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupRegistry, ConfigSearchRow } from "#state";
 import { openConfigTo, selectCollectionMember, setConfigSearchMatch, setConfigSearchQuery, useConfigSearchQuery } from "#state";
 import { useConfigModified } from "../hooks/use-modified-sections.ts";
 import { CONFIG_MODIFIED_MARKER } from "../lib/config-copy.ts";
 import type { ConfigSearchEntry } from "../lib/config-search.ts";
-import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified } from "../lib/config-search.ts";
+import { buildConfigSearchEntries, filterConfigEntries, groupMatches, isConfigEntryModified, shelfCompletions, shelfMatches } from "../lib/config-search.ts";
 import { useConfigSubcategories } from "../lib/config-subcategories.ts";
 import { CommandRow } from "./config-search-row.tsx";
 
@@ -79,13 +79,13 @@ function GroupSearchRows({
   readonly terms: string;
 }): ReactNode {
   const rows = group.useSearchRows?.() ?? [];
-  if (parsed.modified || parsed.advanced || parsed.ext !== undefined) {
+  if (parsed.modified || parsed.advanced || parsed.plugin !== undefined) {
     return null;
   }
-  if (parsed.shelf !== undefined && group.shelf !== parsed.shelf) {
+  if (parsed.shelf !== undefined && !shelfMatches(group.shelf, parsed.shelf)) {
     return null;
   }
-  if (parsed.group !== undefined && group.id.toLowerCase() !== parsed.group.toLowerCase()) {
+  if (parsed.group !== undefined && !groupMatches(group, parsed.group)) {
     return null;
   }
   const items = rows.map((row) => ({ id: row.id, label: row.label, haystack: (row.keywords ?? []).join(" ") }));
@@ -148,6 +148,18 @@ function TokenMenu({
   );
 }
 
+/** What the token menu offers for the trailing partial, or null when the results show instead. Past a value
+ *  token's `:` it offers the shelf names that complete it; a complete name, or a group or plugin name, is
+ *  already a filter. */
+function menuTokens(partial: string): readonly ConfigQueryToken[] | null {
+  const valued = partialValueToken(partial);
+  if (valued === null) {
+    return CONFIG_QUERY_TOKENS.filter((token) => token.token.startsWith(partial.toLowerCase()));
+  }
+  const completions = valued.kind === "shelf" ? shelfCompletions(valued.value) : [];
+  return completions.length === 0 ? null : completions.map((name) => ({ token: `@shelf:${name}`, hint: `the ${name} shelf` }));
+}
+
 export interface ConfigSearchInputProps {
   readonly groups: ConfigGroupRegistry;
 }
@@ -161,7 +173,8 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
   const parsed = parseConfigQuery(query);
   const partial = partialConfigToken(query);
   const hasQuery = query.trim().length > 0;
-  const tokenMenu = partial !== null;
+  const tokens = partial === null ? null : menuTokens(partial);
+  const tokenMenu = tokens !== null;
   const expanded = hasQuery || tokenMenu;
 
   const visible = new Set(
@@ -172,10 +185,9 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
   );
   const entries = buildConfigSearchEntries(groups, (id) => visible.has(id), subcategoriesFor);
   const narrowed = filterConfigEntries(entries, parsed, modified);
-  // `@ext:<slug>` narrows to the plugins group and SEARCHES the slug like a term (the slug is row text).
-  const terms = parsed.ext === undefined ? parsed.terms : `${parsed.terms} ${parsed.ext}`.trim();
+  // `@plugin:<slug>` narrows to the plugins group and SEARCHES the slug like a term (the slug is row text).
+  const terms = parsed.plugin === undefined ? parsed.terms : `${parsed.terms} ${parsed.plugin}`.trim();
   const hits = expanded && !tokenMenu ? staticHits(narrowed, terms) : [];
-  const tokens = tokenMenu ? CONFIG_QUERY_TOKENS.filter((token) => token.token.startsWith(partial.toLowerCase())) : [];
   const rowGroups = groups.list().filter((group) => group.useSearchRows !== undefined && visible.has(group.id));
 
   return (
@@ -209,7 +221,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
         </Row>
         {expanded ? (
           <CommandList className="max-h-(--container-cq-sm)">
-            {tokenMenu ? (
+            {tokens !== null && partial !== null ? (
               <TokenMenu partial={partial} query={query} tokens={tokens} />
             ) : (
               <>

@@ -58,6 +58,8 @@ const chatMetadataSchema = z
     // able to switch a host's regex off behind their back (the failure direction that matters here is the
     // opposite of the group blob's, where healing to absent would silently revert a posture).
     regexEnabled: z.boolean().optional().catch(undefined),
+    // Heals to ABSENT (= on), the regexEnabled direction: a corrupt blob only ever restores the default.
+    memberPersonaLore: z.boolean().optional().catch(undefined),
     regexTiers: regexTierAllowSchema.optional().catch(undefined),
   })
   .loose();

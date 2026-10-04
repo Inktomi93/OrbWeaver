@@ -1,8 +1,8 @@
 // config-search-tokens — the PURE grammar of the Settings search's typed `@` filters
 // (VS Code's settings-search token grammar): `@modified` · `@shelf:<shelf>` · `@in:<groupId>` ·
-// `@ext:<plugin-slug>` · `@advanced`. Tier 4 (`#lib`) on §13.9's homing rule: pure, DOM-free, one consumer
+// `@plugin:<plugin-slug>` · `@advanced`. Tier 4 (`#lib`) on §13.9's homing rule: pure, DOM-free, one consumer
 // today (the config feature); it graduates to `@orb/kit` only when a second consumer appears. It deliberately
-// knows NO vocabulary — `shelf`/`group` are raw strings the FEATURE validates against its tuples (the lib
+// knows NO vocabulary — `shelf`/`group` are raw strings the FEATURE resolves against its labels and tuples (the lib
 // floor cannot import `#state`), and an unknown shelf simply matches nothing, which is the honest answer.
 //
 // The highlight helper lives here with the parser because the two are one contract: the ranges are computed
@@ -19,9 +19,9 @@ export interface ConfigQueryToken {
 /** The whole token vocabulary, in menu order — the funnel and the `@` menu render exactly this list. */
 export const CONFIG_QUERY_TOKENS: readonly ConfigQueryToken[] = [
   { token: "@modified", hint: "only settings that differ from their default" },
-  { token: "@shelf:", hint: "one shelf — user, app, collections or extensions" },
-  { token: "@in:", hint: "one group, by its id (appearance, chat-behavior, …)" },
-  { token: "@ext:", hint: "one plugin's rows, by its slug" },
+  { token: "@shelf:", hint: "one shelf — user, app, collections or plugins" },
+  { token: "@in:", hint: "one group by its name, with hyphens for spaces (chat-behavior)" },
+  { token: "@plugin:", hint: "one plugin's rows, by its name" },
   { token: "@advanced", hint: "include the advanced rows hidden by default" },
 ];
 
@@ -34,14 +34,14 @@ export interface ParsedConfigQuery {
   readonly shelf?: string;
   /** `@in:<groupId>`, as typed (group ids are mixed-case — `worldInfo`); the consumer compares its own way. */
   readonly group?: string;
-  /** `@ext:<slug>`, lowercased. */
-  readonly ext?: string;
+  /** `@plugin:<slug>`, lowercased. */
+  readonly plugin?: string;
   /** `@` words that parse as tokens but aren't in the grammar (a typo, an empty value) — surfaced, never
    *  silently dropped as search text: `@shefl:app` matching a row about shelves would be a lie. */
   readonly unknown: readonly string[];
 }
 
-const VALUE_TOKEN_RE = /^@(shelf|in|ext):(.*)$/iu;
+const VALUE_TOKEN_RE = /^@(shelf|in|plugin):(.*)$/iu;
 
 interface MutableParse {
   terms: string[];
@@ -50,7 +50,7 @@ interface MutableParse {
   advanced: boolean;
   shelf?: string;
   group?: string;
-  ext?: string;
+  plugin?: string;
 }
 
 /** One `@` word into the accumulator: a bare flag, a valued token, or unknown. */
@@ -76,7 +76,7 @@ function applyTokenWord(word: string, out: MutableParse): void {
   } else if (kind === "in") {
     out.group = value;
   } else {
-    out.ext = value.toLowerCase();
+    out.plugin = value.toLowerCase();
   }
 }
 
@@ -100,7 +100,7 @@ export function parseConfigQuery(text: string): ParsedConfigQuery {
     advanced: out.advanced,
     ...(out.shelf === undefined ? {} : { shelf: out.shelf }),
     ...(out.group === undefined ? {} : { group: out.group }),
-    ...(out.ext === undefined ? {} : { ext: out.ext }),
+    ...(out.plugin === undefined ? {} : { plugin: out.plugin }),
     unknown: out.unknown,
   };
 }
@@ -113,6 +113,17 @@ export function partialConfigToken(text: string): string | null {
   }
   const last = text.split(/\s+/u).at(-1) ?? "";
   return last.startsWith("@") ? last : null;
+}
+
+/** A trailing partial that is a value-taking token (`@shelf:plu`): its kind and the value typed so far, or null.
+ *  Past the `:` the reader is typing a VALUE, so the token menu has nothing left to offer for that word. */
+export function partialValueToken(partial: string): { readonly kind: "shelf" | "in" | "plugin"; readonly value: string } | null {
+  const valued = VALUE_TOKEN_RE.exec(partial);
+  const kind = valued?.[1]?.toLowerCase();
+  if (kind !== "shelf" && kind !== "in" && kind !== "plugin") {
+    return null;
+  }
+  return { kind, value: valued?.[2] ?? "" };
 }
 
 /** Replace the trailing partial `@` token with a chosen one (the token-menu select). A value-taking token

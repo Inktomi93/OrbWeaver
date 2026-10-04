@@ -1873,6 +1873,44 @@ describe("setHostDisplayScripts — the host's display-tier broadcast option", (
   });
 });
 
+describe("setMemberPersonaLore — the host's switch for members' persona lore", () => {
+  test("the host can turn it off and back on, merging rather than nuking the sibling sub-blobs", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const participants = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
+    await participants.setRoomOverrides({ principal: principal(host), chatId, overrides: roomOverridesSchema.parse({ scenario: "keep me" }) });
+    emitted.length = 0;
+
+    expect(await participants.setMemberPersonaLore({ principal: principal(host), chatId, enabled: false })).toBe(false);
+    const [off] = await db.select().from(chats).where(eq(chats.id, chatId));
+    const metadata = off?.metadata as { memberPersonaLore?: boolean; roomOverrides?: { scenario?: string } };
+    expect(metadata.memberPersonaLore).toBe(false);
+    expect(metadata.roomOverrides?.scenario).toBe("keep me");
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+
+    await participants.setMemberPersonaLore({ principal: principal(host), chatId, enabled: true });
+    const [on] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect((on?.metadata as { memberPersonaLore?: boolean }).memberPersonaLore).toBe(true);
+  });
+
+  test("a plain MEMBER cannot turn it back on to let their own lore in — not_host, no write, no emit", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const chatId = await seedChat(db, "a", { metadata: { memberPersonaLore: false } });
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const participants = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
+
+    const err = await participants.setMemberPersonaLore({ principal: principal(member), chatId, enabled: true }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect((row?.metadata as { memberPersonaLore?: boolean }).memberPersonaLore).toBe(false);
+    expect(emitted).toEqual([]);
+  });
+});
+
 // ── B1: the per-room offer-choices posture (RULED F2) ──────────────────────────────────────────────────
 // The display-scripts shape one sub-blob over, with ONE law that differs and is the reason this verb is
 // host-gated at all: it reaches the PROMPT. The tri-state is the other difference — absent means INHERIT the

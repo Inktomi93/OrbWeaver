@@ -49,6 +49,7 @@ const GLOBAL_RULE = {
   predicateCel: "has(event.character) && event.character.contentChanged",
   actions: [{ type: "generate_image", mode: "character_multimodal", n: 1, useAvatarReference: false, reuse: "prefer", quiet: true, confirmFirst: false }],
   actionsCorrupt: false,
+  autoDisabled: false,
   rulePresetId: "livingLibrary",
   rulePresetKnobs: null,
   matchAutomationEvents: false,

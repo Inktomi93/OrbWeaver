@@ -97,6 +97,19 @@ export const useSetReactionsEnabled = createEntityMutation<SetReactionsEnabledVa
   errorToast: "Couldn't change whether this chat has reactions.",
 });
 
+/** `chat.setMemberPersonaLore` vars — the host's switch for members' persona-attached lore. */
+interface SetMemberPersonaLoreVars {
+  readonly chatId: ChatId;
+  readonly enabled: boolean;
+}
+
+export const useSetMemberPersonaLore = createEntityMutation<SetMemberPersonaLoreVars, unknown>({
+  options: (trpc) => trpc.chat.setMemberPersonaLore.mutationOptions(),
+  // `chatUpdated` → getChat → `ChatDetail.memberPersonaLore`.
+  busDriven: true,
+  errorToast: "Couldn't change whether members' persona lore joins this chat.",
+});
+
 export const useSetToolRecurseLimit = createEntityMutation<SetToolRecurseLimitVars, unknown>({
   options: (trpc) => trpc.chat.setToolRecurseLimit.mutationOptions(),
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the cap

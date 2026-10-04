@@ -26,6 +26,7 @@ const initial: TrpcWireOutput<"automation.listRules">[number] = {
   predicateCel: null,
   actions: [{ type: "set_variable", scope: "chat", key: "original", op: "inc", value: "1" }],
   actionsCorrupt: false,
+  autoDisabled: false,
   rulePresetId: null,
   rulePresetKnobs: null,
   matchAutomationEvents: false,

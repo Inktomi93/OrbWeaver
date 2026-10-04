@@ -9,7 +9,7 @@
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
 // The CLOCK RULING: time macros read the zone the viewer's browser reported with the request, and a send's
 // follow-ups inherit it. A turn with no viewer reads its caller's ruled zone (an automation rule's own clock)
-// or UTC: a deferred drain's `pending_turns` row stores no zone, and the server's zone is no user's.
+// or UTC; a deferred drain reads the zone its sender reported at defer time. The server's zone is no user's.
 
 import type {
   AssembleContext,
@@ -1289,6 +1289,7 @@ async function deferIfHostOffline(
     readonly triggeredBy: UserId;
     readonly runAsUserId: UserId;
     readonly chatId: ChatId;
+    readonly timeZone: SendParams["timeZone"];
   },
 ): Promise<boolean> {
   if (args.principalUserId === args.runAsUserId || (await ctx.readPresence(args.runAsUserId)).online) {
@@ -1299,6 +1300,7 @@ async function deferIfHostOffline(
     chatId: args.chatId,
     triggeredBy: args.triggeredBy,
     runAsUserId: args.runAsUserId,
+    timeZone: args.timeZone ?? null,
     createdAt: ctx.now(),
   });
   return true;
@@ -1710,6 +1712,7 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
         triggeredBy: identity.triggeredBy,
         runAsUserId: identity.runAsUserId,
         chatId,
+        timeZone,
       })
     ) {
       // The user's own row carries no model-emitted hidden content OR reasoning, but route it through the ONE
@@ -2649,7 +2652,7 @@ function isDrainVerdictDrop(err: unknown): boolean {
 async function runDeferredRound(
   ctx: ChatContext,
   deps: TurnDeps,
-  row: { readonly chatId: ChatId; readonly triggeredBy: UserId; readonly runAsUserId: UserId },
+  row: { readonly chatId: ChatId; readonly triggeredBy: UserId; readonly runAsUserId: UserId; readonly timeZone: IanaTimeZone | null },
 ): Promise<void> {
   const chat = await loadChatRow(ctx.db, row.chatId);
   if (chat === undefined) {
@@ -2680,8 +2683,8 @@ async function runDeferredRound(
     // The Ruling-B host `{{char}}` (joined candidate names / solo single) for the rpg steeringNote render (chat owns it).
     candidateCharForHostRow: joinedCandidateName(room.speakerCandidates),
     chatMetadata: chat.metadata,
-    // The sender's zone is not on the queued row, so the drain reads the no-viewer clock (the header's ruling).
-    timeZone: UTC_TIME_ZONE,
+    // The zone the sender reported when the turn deferred; a row without one reads the no-viewer clock.
+    timeZone: row.timeZone ?? UTC_TIME_ZONE,
   });
   using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   // Persistence carries the initiator plus the frozen host. Reconstitute the triple once and pass it whole.
@@ -2731,6 +2734,7 @@ async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: Pe
       chatId: claimed.chatId,
       triggeredBy: claimed.triggeredBy,
       runAsUserId: claimed.runAsUserId,
+      timeZone: claimed.timeZone,
       createdAt: claimed.createdAt,
     });
     getLog().warn({ pendingTurnId: claimed.id, chatId: claimed.chatId, err, requeued: true }, "chat: deferred turn RE-QUEUED at drain (transient fault)");

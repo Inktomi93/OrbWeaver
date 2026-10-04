@@ -19,7 +19,7 @@ import { makeResolvedView } from "../../../../support/factories/resolved-connect
 import type { TrpcFixtureOutput, TrpcProcedurePath, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { defineTrpcRoutes, routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { signInModeView } from "../../user-admin/auth-config-fixtures.ts";
-import { ConfigDeepLinkFromDoorStory, ConfigHostInScrollingHostStory, ConfigHostStory } from "../_ct-stories.tsx";
+import { ConfigDeepLinkFromDoorStory, ConfigHostInScrollingHostStory, ConfigHostStory, ConfigShellDoorStory } from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance group suspends on — defaults are enough to render it. */
 // The Looks section (#866 S4) reads the theme library — three seeds, no owned rows.
@@ -611,6 +611,48 @@ test("a setting-level deep link from a door focuses the named setting's control,
   await page.getByRole("button", { name: "open the setting", exact: true }).click();
   await expect(component.locator("#config-anchor-connections-model-roles")).toBeInViewport();
   await expect(component.getByRole("combobox", { name: "Chat connection", exact: true })).toBeFocused();
+});
+
+// A door to a leaf BELOW THE FOLD of its section (Rerank is the last of the Model roles rows) must land on the
+// leaf itself: the section's top in view is not enough when the named control sits a screen further down.
+for (const warm of [false, true]) {
+  test(`a ${warm ? "warm" : "cold"} door to a below-the-fold setting scrolls its control into view and focuses it`, async ({ mount, page }) => {
+    await stub(page);
+    const component = await mount(<ConfigDeepLinkFromDoorStory setting="rerank-model" sub="model-roles" target="connections" warm={warm} />);
+    const picker = component.getByRole("combobox", { name: "Rerank connection", exact: true });
+    // Warm: Settings is already open on the group's top, with the picker mounted a screen below.
+    await (warm ? picker.waitFor({ state: "attached" }) : Promise.resolve());
+
+    await page.getByRole("button", { name: "open the setting", exact: true }).click();
+    await expect(picker).toBeFocused();
+    await expect(picker).toBeInViewport({ ratio: 1 });
+  });
+}
+
+// The same landing through the real shell, from a door that unmounts with its click: the shell's focus rescue
+// and the LIST's arrival focus both run before the leaf mounts, and neither is the reader moving on.
+test("a door from another section lands on a below-the-fold setting through the app shell", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await stub(page, {
+    "notifications.list": () => ({ items: [], nextCursor: null }),
+    "chat.listChats": () => ({ items: [], nextCursor: null }),
+    "databank.list": () => ({ items: [], nextCursor: null }),
+    "databank.listGlobal": () => [],
+    "character.list": () => ({ items: [], nextCursor: null }),
+    "databank.bankHealth": () => ({
+      total: 0,
+      passages: 0,
+      chunks: 0,
+      staleExtraction: 0,
+      byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 },
+    }),
+  });
+  await mount(<ConfigShellDoorStory setting="rerank-model" sub="model-roles" target="connections" />);
+
+  await page.getByRole("button", { name: "open the setting", exact: true }).click();
+  const picker = page.getByRole("combobox", { name: "Rerank connection", exact: true });
+  await expect(picker).toBeFocused();
+  await expect(picker).toBeInViewport({ ratio: 1 });
 });
 
 // The composer's other recovery door: a host with no connection at all lands on the add flow, with focus on
