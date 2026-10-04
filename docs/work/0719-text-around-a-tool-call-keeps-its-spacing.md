@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P3
 area: chat
-lane: wt/agent-ad435ab6e19d39557
 ---
 
 # Text around a tool call keeps its spacing
@@ -23,4 +22,4 @@ Text segments around tool calls render with their separating whitespace, with a 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S6: the tool loop joins depth text with content += reduced.content (pipeline.ts near 1033) and stored content is checked against provider text signatures (content-signatures.ts), so a separator changes stored text and next-turn history; ToolCallRecord has no boundary offset. Belongs with the tool history work in 0740.

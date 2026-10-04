@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P3
 area: plugin
-lane: wt/agent-ad435ab6e19d39557
 ---
 
 # A plugin's tool call shows as the raw generic tool block
@@ -23,4 +22,4 @@ A plugin tool call in the transcript shows the tool's display name and a readabl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S6: plugin.listSurfaces has no per-tool display name, there is no structured result line, and ToolCallBlock is the shared primitive for every tool; needs a display-name field on tool registration (pairs with the 0740 SDK change).
