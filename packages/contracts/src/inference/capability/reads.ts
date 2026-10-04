@@ -34,6 +34,18 @@ export function accepts(capability: GenerationCapability, side: "input" | "outpu
   return side === "input" ? capability.input.includes(modality) : capability.output.modalities.includes(modality);
 }
 
+/** The window a turn sends and budgets: on a route whose window the request sets, the preset's Max context tokens,
+ *  up to the model's trained maximum, and stated rather than estimated. It beats a declared window, because it is
+ *  the per-chat choice of what that route sends. Anywhere else, or with no preset window, the resolved one stands. */
+export function windowForPreset(capability: GenerationCapability, maxContextTokens: number | undefined): GenerationCapability {
+  const settable = capability.context.settable;
+  if (settable === undefined || maxContextTokens === undefined) {
+    return capability;
+  }
+  const window = settable.max === undefined ? maxContextTokens : Math.min(maxContextTokens, settable.max);
+  return { ...capability, context: { window, settable } };
+}
+
 export function acceptsImageInput(capability: GenerationCapability): boolean {
   return accepts(capability, "input", "image");
 }

@@ -36,6 +36,7 @@ import {
   ParamsDeckMirostatStory,
   ParamsDeckNoBansStory,
   ParamsDeckPendingCapabilityStory,
+  ParamsDeckSettableWindowStory,
   ParamsDeckStaleKoboldStory,
   ParamsDeckStaleStory,
 } from "./_params-deck-stories.tsx";
@@ -335,6 +336,18 @@ test("OUTPUT — the token caps are KnobRows at the model's real ceilings, and a
   await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("values=maxOutputTokens:8192");
   // The ghost placeholder beside it is raw too — that is what "one grammar" means here.
   await expect(deck.getByRole("textbox", { name: "Max context tokens value", exact: true })).toHaveAttribute("placeholder", "32768");
+});
+
+// The knob sets the window on a route that sends it, so a 4096 floor must not stop it at 4096.
+test("OUTPUT — on a route that sends the window, Max context reaches the trained maximum, not the server's floor", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckSettableWindowStory />);
+  const box = deck.getByRole("textbox", { name: "Max context tokens value", exact: true });
+
+  await setNumber(box, "16384");
+  await expect.poll(() => saved(deck).textContent(), savePoll()).toContain("values=maxContextTokens:16384");
+
+  await setNumber(box, "999999");
+  await expect(box).toHaveValue("32768");
 });
 
 test("OUTPUT — the stop-sequence chip list adds and removes, and the add box carries its OWN name (G2, #1620)", async ({ mount }) => {

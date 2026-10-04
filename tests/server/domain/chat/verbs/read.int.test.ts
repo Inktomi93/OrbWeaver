@@ -182,6 +182,34 @@ test("assembly and context-fit previews preserve host quality and drop unsupport
   expect(prepareVideo).not.toHaveBeenCalled();
 });
 
+// Ollama's native route sends the preset's Max context as `num_ctx`; the preview must draw that same window.
+test("the assembly preview budgets the window the preset sets on a route that sends it, as the turn does", async () => {
+  const host = await seedUser(db, castId<Handle>("preview_preset_window"));
+  const chatId = await seedRoom("preview_preset_window", host);
+  const read = createRead(
+    makeChatContext(db),
+    makeDeps({
+      resolveConnection: () =>
+        Promise.resolve(
+          makeResolved({ generation: makeGenerationCapability({ context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } } }) }),
+        ),
+      resolveForeignInputs: () =>
+        Promise.resolve({
+          promptConfig: { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, maxContextTokens: 16_384 } },
+          personas: { anchor: null, active: null },
+          globalRegexScripts: [],
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        }),
+    }),
+  );
+
+  const { budget } = await read.previewAssembly({ principal: principal(host), chatId });
+
+  expect(budget.limit).toEqual({ kind: "window", tokens: 16_384 });
+  expect(budget.ceilingEstimated).toBe(false);
+});
+
 // ── #1742 — `listEffectiveRegex`, the room's Regex section's body ───────────────────────────────────────
 describe("read — listEffectiveRegex (host-only, #1742)", () => {
   /** A room whose four tiers each hold one script. The rows come through the INJECTED scope resolver (the

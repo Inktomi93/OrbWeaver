@@ -103,6 +103,13 @@ export function ParamsDeckGhostStory(): ReactElement {
   return <DeckHarness effective={GHOST_EFFECTIVE} params={{}} />;
 }
 
+/** The deck on Ollama's native route: an unpinned model resolves to the server's 4096 floor, and the route sends the
+ *  preset's Max context as `num_ctx`, so the knob reaches the model's 32768 trained maximum. */
+export function ParamsDeckSettableWindowStory(): ReactElement {
+  const capability = { ...STORY_CAPABILITY, context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } } };
+  return <DeckHarness capability={capability} effective={GHOST_EFFECTIVE} params={{}} />;
+}
+
 /** The deck with an EXPLICIT repetition penalty the model clamps + a `quality` dial — the clamp gloss and
  *  the quality-mapping gloss both come off the resolver, never a client re-derivation. */
 export function ParamsDeckExplicitStory(): ReactElement {

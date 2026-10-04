@@ -39,6 +39,18 @@ export function clampToServedWindow(capability: Capability, served: ServedWindow
   };
 }
 
+/** A route that sends the window with each request (Ollama's native `num_ctx`) runs the one the preset asks for, up to
+ *  the trained maximum the server states; `windowForPreset` applies it per turn. The mark is the route's alone, so a
+ *  stated one on any other route is dropped. */
+export function markSettableWindow(capability: Capability, sendsWindow: boolean, trained: number | undefined): Capability {
+  if (capability.kind !== "generation" || (!sendsWindow && capability.generation.context.settable === undefined)) {
+    return capability;
+  }
+  const { settable: _replaced, ...context } = capability.generation.context;
+  const settable = sendsWindow ? { settable: trained === undefined ? {} : { max: trained } } : {};
+  return { kind: "generation", generation: { ...capability.generation, context: { ...context, ...settable } } };
+}
+
 /** What the server does with each tool-choice form and the parallel switch, as its catalog reader states it. */
 export interface ServerToolChoice {
   readonly required: boolean;

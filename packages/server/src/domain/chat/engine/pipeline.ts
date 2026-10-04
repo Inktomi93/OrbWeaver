@@ -38,7 +38,7 @@ import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatToolExecution, ChatToolOffer, GeneratedImage, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
-import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning } from "@orb/inference";
+import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning, withPresetWindow } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -618,8 +618,8 @@ function speakerContexts(args: RunTurnPipelineArgs): {
 
 /** Executes one single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration of
  *  injected ops; persists nothing. */
-export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
-  const { layout, voice: ctx, cue } = speakerContexts(args);
+export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
+  const { layout, voice: ctx, cue } = speakerContexts(input);
 
   // FOLD — the effective generation params: the preset's `params` is the BASE, the per-turn
   // `UserIntent` overrides field-wise, and the host's custom stops join the merged stop set. This is
@@ -629,7 +629,10 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // reserve) and the runner's wire `max_tokens` read `effectiveIntent.maxOutputTokens` from here — pinning
   // the reserve to exactly what the runner generates. Unset ⇒ the shared response-length default (NOT the
   // model's output-cap ceiling / window), so the fit-pass leaves history room instead of reserving it all.
-  const effectiveIntent = materializeMaxOutput(foldGenerationParams(ctx.promptConfig.params, args.intent, args.extraStopSequences));
+  const effectiveIntent = materializeMaxOutput(foldGenerationParams(ctx.promptConfig.params, input.intent, input.extraStopSequences));
+  // The window this turn sends and fits, ONE value: on a route whose request sets it (Ollama's native `num_ctx`), the
+  // effective Max context; every read of `args.connection` below, the request included, sees it.
+  const args: RunTurnPipelineArgs = { ...input, connection: withPresetWindow(input.connection, effectiveIntent.maxContextTokens) };
 
   // BUILD — the system-prompt halves + the after-history (in_chat) section splices — then the D50
   // `assembled_dynamic` PromptTransform point: rewrite the dynamic half only (static is untransformable).

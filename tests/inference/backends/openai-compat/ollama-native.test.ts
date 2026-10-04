@@ -16,6 +16,7 @@ import { samplerBodyKeys } from "../../../../packages/inference/src/backends/ope
 import type { WireCaptureSink } from "../../../../packages/inference/src/contract/backend.ts";
 import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
+import { withPresetWindow } from "../../../../packages/inference/src/contract/resolved.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
 import { fakeResolved, memoryTokenLexicon } from "../../_support.ts";
@@ -90,6 +91,26 @@ async function turn(
   });
   return { result, recorded };
 }
+
+// An unpinned model resolves to the server's floor, which the native route would send as `num_ctx`: the preset's
+// Max context is what goes out instead, up to the trained maximum.
+test("an Ollama turn sends the preset's Max context as num_ctx, up to the trained maximum", async () => {
+  const floor = fakeResolved({
+    task: "chat",
+    providerId: "ollama",
+    model: "qwen2.5:0.5b",
+    capability: capability({ context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } } }),
+    baseUrl: BASE_URL,
+  });
+  const numCtx = async (maxContextTokens: number | undefined): Promise<unknown> => {
+    const { recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text], { connection: withPresetWindow(floor, maxContextTokens) });
+    return (recorded[0]?.body["options"] as Record<string, unknown> | undefined)?.["num_ctx"];
+  };
+
+  expect(await numCtx(16_384)).toBe(16_384);
+  expect(await numCtx(65_536)).toBe(32_768);
+  expect(await numCtx(undefined)).toBe(4096);
+});
 
 test("an Ollama turn posts /api/chat with the window as num_ctx and the samplers in options", async () => {
   const { result, recorded } = await turn([OLLAMA_NATIVE_RECORDINGS.text]);

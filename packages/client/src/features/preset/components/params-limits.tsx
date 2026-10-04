@@ -83,6 +83,8 @@ function OutputCluster({
 }): ReactElement {
   const outputMax = capability.output.maxTokens.max;
   const window = capability.context.window;
+  // On a route that sends the window (Ollama's native `num_ctx`) this knob sets it, so it reaches the trained maximum.
+  const contextMax = capability.context.settable?.max ?? window;
   const verbosityLevels = verbosityLevelsFor(capability);
   return (
     <Section kicker="Output">
@@ -115,10 +117,10 @@ function OutputCluster({
             <KnobRow
               effective={{ value: window, provenance: "window" }}
               form={form}
-              hint={maxContextHint(window, Math.min(limits.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS, outputMax), limits.maxContextTokens)}
+              hint={maxContextHint(capability.context, Math.min(limits.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS, outputMax), limits.maxContextTokens)}
               label="Max context tokens"
-              largeStep={pageStep(1, window)}
-              max={window}
+              largeStep={pageStep(1, contextMax)}
+              max={contextMax}
               min={1}
               name="params.maxContextTokens"
               step={1}
@@ -172,10 +174,14 @@ function OutputCluster({
 
 /** The Max context tokens hint: the model window, the room it leaves for prompt and history once the reply and
  *  the safety margin are held back (the number the chat Preview bar draws), and a warning when the cap leaves no
- *  room beside the reply. */
-function maxContextHint(window: number, reserveOutputTokens: number, maxContextTokens: number | undefined): string {
+ *  room beside the reply. On a route that sends the window, the knob sets it rather than capping below it. */
+function maxContextHint(context: GenerationCapability["context"], reserveOutputTokens: number, maxContextTokens: number | undefined): string {
+  const { window, settable } = context;
   const room = windowInputRoom(window, reserveOutputTokens);
-  const base = `Soft-caps the working set below the model window — older turns beyond this are trimmed. This model's window is ${groupThousands(window)} tokens; ${groupThousands(room)} of them fit prompt and history after the reply and the safety margin.`;
+  const base =
+    settable === undefined
+      ? `Soft-caps the working set below the model window — older turns beyond this are trimmed. This model's window is ${groupThousands(window)} tokens; ${groupThousands(room)} of them fit prompt and history after the reply and the safety margin.`
+      : `Sets the context window this server runs${settable.max === undefined ? "" : `, up to ${groupThousands(settable.max)} tokens`}. Unset, it runs its default of ${groupThousands(window)}.`;
   return maxContextTokens !== undefined && maxContextTokens <= reserveOutputTokens
     ? `${base} The reply (${groupThousands(reserveOutputTokens)}) is larger than this limit, so only the newest message is sent.`
     : base;

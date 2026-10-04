@@ -34,7 +34,7 @@ import { googleModelId } from "../backends/google/model.ts";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
 import type { ServedWindow } from "../capability/floor.ts";
-import { applyEndpointPosture, applyServerToolChoice, clampToServedWindow, clampToTrainedWindow } from "../capability/floor.ts";
+import { applyEndpointPosture, applyServerToolChoice, clampToServedWindow, clampToTrainedWindow, markSettableWindow } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
 import { advertisedFromOpenAiCompat, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
@@ -505,11 +505,18 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   // nobody described gets the permissive posture.
   const advertisedInput = advertisedStatesInput(entry);
   // The server-side floors, after synthesis: the endpoint posture, the server's tool-choice support, the trained
-  // clamp, and the window a route that sends none runs.
+  // clamp, the window a route that sends none runs, and the window a route that sends one lets the preset set.
   const postured = (synthesizedCapability: Capability, inputStated: boolean, windowDeclared: boolean): Capability =>
-    clampToServedWindow(
-      clampToTrainedWindow(applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated), entry?.toolChoice), entry?.contextTrained),
-      servedWindowOf(features, entry, windowDeclared),
+    markSettableWindow(
+      clampToServedWindow(
+        clampToTrainedWindow(
+          applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated), entry?.toolChoice),
+          entry?.contextTrained,
+        ),
+        servedWindowOf(features, entry, windowDeclared),
+      ),
+      features.nativeChat === "ollama",
+      entry?.contextTrained,
     );
   const capability = withLocalLightEmbedDtype(
     postured(synthesized.capability, declared?.generation?.input !== undefined || advertisedInput, declared?.generation?.context?.window !== undefined),

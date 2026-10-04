@@ -1053,6 +1053,30 @@ describe("runTurnPipeline — token-budget reserve (single source of truth)", ()
     expect(uncapped.droppedCount).toBe(0);
     expect(capped.droppedCount).toBeGreaterThan(0);
   });
+
+  // Ollama's native route sends the window as `num_ctx`: the turn sends and budgets ONE window, the preset's.
+  test("on a route whose window the request sets, maxContextTokens is the window the turn sends and fits", async () => {
+    const generation = (context: GenerationCapability["context"]): Resolved<"chat"> => ({
+      ...CONNECTION,
+      capability: makeCapability(makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context })),
+    });
+    const ollama = generation({ window: 4096, windowEstimated: true, settable: { max: 32_768 } });
+    const sent: TurnRequest[] = [];
+    const recording: RunChatTurnOp = (req) => {
+      sent.push(req);
+      return scriptedTurn([{ kind: "final", economics: { content: "ok", tokensIn: 1, tokensOut: 1, model: testModelId("test-model") } }])(req);
+    };
+    const intent = { maxOutputTokens: 100, maxContextTokens: 16_384 } satisfies UserIntent;
+
+    const result = await runTurnPipeline(baseArgs({ intent, connection: ollama, runChatTurn: recording }).args);
+    const control = await runTurnPipeline(baseArgs({ intent, connection: generation({ window: 16_384 }) }).args);
+
+    expect(sent[0]?.connection.capability).toMatchObject({ generation: { context: { window: 16_384 } } });
+    expect(result.fitCeilingTokens).toBe(control.fitCeilingTokens);
+    const unset = await runTurnPipeline(baseArgs({ intent: { maxOutputTokens: 100 }, connection: ollama, runChatTurn: recording }).args);
+    expect(sent[1]?.connection).toBe(ollama);
+    expect(unset.fitCeilingTokens).toBeLessThanOrEqual(4096);
+  });
 });
 
 // ── History macro resolution (resolve-on-READ; D26/D51 — storage stays raw, every prompt build re-resolves) ──

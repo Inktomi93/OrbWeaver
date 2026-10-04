@@ -39,7 +39,7 @@ import type {
 import { buildIdentityNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { GenerationCapability, SendAvailability, UnavailableCause } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, turnsLevelFor, windowForPreset } from "@orb/contracts/inference";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
 import {
   DEFAULT_FORMAT_STRINGS,
@@ -536,7 +536,8 @@ async function resolvePreviewInputs(
     hostUserId,
     funderUserId: hostUserId,
     model: connection.model,
-    capability: generationOf(connection),
+    // The window the next turn sends and fits: the preset's, on a route whose request sets it.
+    capability: windowForPreset(generationOf(connection), foreign.promptConfig.params.maxContextTokens),
     explicitCacheMarkers: cachesByAnthropicMarkers(connection, generationOf(connection)),
     api: connection.api,
     characterIds,

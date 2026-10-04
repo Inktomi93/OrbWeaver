@@ -275,6 +275,18 @@ test("Ollama: turning the native route off leaves only the knobs /v1 carries and
   expect(turn.sampling).toEqual({ temperature: 0.7 });
 });
 
+// The native route sends `num_ctx`, so the preset sets the window up to the trained maximum; `/v1` sends none.
+test("Ollama: the native route's window is settable up to the trained maximum; the /v1 route's is not", async () => {
+  const model = "private:latest";
+  const fetchImpl = ollamaShowing(model, { capabilities: ["completion"], ["model_info"]: { "general.architecture": "qwen", "qwen.context_length": 32_768 } });
+  const native = generationOf(await resolvedFor({ providerId: "ollama", model, fetch: fetchImpl }));
+  expect(native.context).toStrictEqual({ window: 4096, windowEstimated: true, settable: { max: 32_768 } });
+  const compat = generationOf(await resolvedFor({ providerId: "ollama", model, fetch: fetchImpl, declared: { features: { nativeChat: "none" } } }));
+  expect(compat.context.settable).toBeUndefined();
+  const llama = generationOf(await resolvedFor({ providerId: "llama-cpp", model: LLAMA_MODEL, fetch: transcriptFetch("llamacpp-chat") }));
+  expect(llama.context.settable).toBeUndefined();
+});
+
 /** The rig's llama.cpp reranker arm, answering a scored request on either rerank route with Jina-shaped results
  *  (server-context.cpp `post_rerank`, `/rerank` and `/v1/rerank` both registered) over the indices it was sent. */
 function llamaCppReranker(): { readonly fetch: typeof fetch; readonly scored: { readonly url: string; readonly body: Record<string, unknown> }[] } {
