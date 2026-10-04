@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-04
 priority: P3
 area: rpg
+lane: wt/agent-ac8eb30b58c46c8f2
 ---
 
 # The Game tab stays highlighted in game-state views

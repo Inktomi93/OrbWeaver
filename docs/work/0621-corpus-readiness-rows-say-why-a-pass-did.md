@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-04
 priority: P3
 area: client
+lane: wt/agent-a8be2aff166fc06e4
 ---
 
 # Corpus readiness rows say why a pass did not run
