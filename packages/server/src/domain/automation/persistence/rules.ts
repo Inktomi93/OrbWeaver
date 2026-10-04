@@ -250,7 +250,14 @@ export async function applyRuleUpdate(db: Db, ruleId: AutomationRuleId, patch: R
 
 // @orb-waive owner-scoped-writes(automationRules): the D18 HOST rung, not the stamp — `requireRuleHost(ctx, principal, ruleId)` runs in every calling verb (`set-rule-enabled`) and is STRICTER than `eq(ownerId, …)` (a rule's owner is its author, but only the room's host may touch it), so an owner predicate here would encode the WEAKER check. Ends the day a verb writes a rule without that guard.
 export async function setRuleEnabledRow(db: Db, ruleId: AutomationRuleId, enabled: boolean, now: number): Promise<void> {
-  await db.update(automationRules).set({ enabled, updatedAt: now }).where(eq(automationRules.id, ruleId));
+  // Turning a rule back on restarts its error budget: a host re-enabling an auto-disabled rule gets the full
+  // ceiling again, not one strike. `lastError` stays, because it still describes the last run. An enable on a
+  // rule that is already on keeps its count, so the flip cannot launder a live rule's error streak.
+  const budget = enabled ? { consecutiveErrors: sql<number>`CASE WHEN ${automationRules.enabled} THEN ${automationRules.consecutiveErrors} ELSE 0 END` } : {};
+  await db
+    .update(automationRules)
+    .set({ enabled, updatedAt: now, ...budget })
+    .where(eq(automationRules.id, ruleId));
 }
 
 /** RULED F4's per-rule opt-out (spec row B4) — flip whether a rate refusal of this rule still offers the

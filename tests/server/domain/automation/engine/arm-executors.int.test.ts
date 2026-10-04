@@ -539,9 +539,13 @@ test("a fact with NO human author excludes nobody — there was no human act to 
 });
 
 // ── 1.7 generate_image (the /imagine engine) ──────────────────────────────────────────────────────────
-test("generate_image renders the prompt + maps the FULL IC-C args onto imagery.generatePicture", async () => {
+test("generate_image renders the prompt + maps the FULL IC-C args and the rule's clock onto imagery.generatePicture", async () => {
   const { db, host, chatId } = await setup();
   const { dispatch, captured } = makeHarness(db, { imageResult: { imageCount: 2 } });
+  const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+  if (kathmandu === null) {
+    throw new Error("the platform must know Asia/Kathmandu");
+  }
   const subjectCharacterId = mintTypeId(ID_PREFIX.character);
   const action = automationActionSchema.parse({
     type: "generate_image",
@@ -554,7 +558,7 @@ test("generate_image renders the prompt + maps the FULL IC-C args onto imagery.g
     useAvatarReference: true,
     reuse: "never",
   }) as Extract<AutomationActionInput, { type: "generate_image" }>;
-  const frame = makeFrame({ chatId, authorUserId: host });
+  const frame = makeFrame({ chatId, authorUserId: host, timeZone: kathmandu });
   const outcome = await dispatch(arm(action), frame);
 
   expect(outcome).toEqual({ ok: true });
@@ -574,6 +578,8 @@ test("generate_image renders the prompt + maps the FULL IC-C args onto imagery.g
     useAvatarReference: true,
     reuse: "never",
     quiet: false, // the default — the arm threads `quiet` so compose can post the image in-chat (F1, 03 §1.7)
+    // An extraction has no viewer, so its time macros read the rule's own clock.
+    timeZone: kathmandu,
   });
 });
 

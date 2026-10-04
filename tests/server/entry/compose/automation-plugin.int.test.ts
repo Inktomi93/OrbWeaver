@@ -30,7 +30,7 @@ import type { Db } from "@orb/db";
 import { automationRules, chatParticipants, chats } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { RuleValidationError } from "@orb/server/domain/automation";
 import { loadPresentRole } from "@orb/server/domain/chat";
 import type { PluginToolHandle } from "@orb/server/domain/tool-use";
@@ -393,6 +393,29 @@ test("a generate_image rule spends the connection bound to the rule, and without
   const bound = vi.spyOn(app.services.connection, "resolve");
   await app.automation.runRuleNow({ principal: actor, ruleId });
   expect(await resolvedRowFor(bound, "generateImage")).toBe(rows.rules);
+});
+
+test("a generate_image rule hands imagery its own stamped clock, so an extraction renders time macros in the rule zone", async ({ app, db }) => {
+  const { author, chatId } = await seedScene(db);
+  const actor = principal(author);
+  const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
+  if (kathmandu === null) {
+    throw new Error("the platform must know Asia/Kathmandu");
+  }
+  const rule = await app.automation.createRule({
+    timeZone: kathmandu,
+    principal: actor,
+    chatId,
+    name: "scene painter",
+    trigger: { bus: "chat", type: "messageCommitted" },
+    actions: [QUIET_FREE_IMAGE],
+  });
+  await app.automation.setRuleEnabled({ principal: actor, ruleId: rule.id, enabled: true });
+  const generate = vi.spyOn(app.services.imagery, "generatePicture");
+
+  await app.automation.runRuleNow({ principal: actor, ruleId: rule.id });
+
+  expect(generate.mock.calls[0]?.[0].timeZone).toBe(kathmandu);
 });
 
 test("a trigger_turn rule's turn resolves the rule's own chat binding first, and without one the host's", async ({ app, db }) => {

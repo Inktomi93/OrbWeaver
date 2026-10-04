@@ -325,6 +325,7 @@ async function runGenerateImage(
     // the chat as a message; `true` ⇒ generate silently (gallery-only). The arm passes the flag; compose owns
     // the single posting seam (imagery has no posting concept).
     quiet: action.quiet,
+    timeZone: frame.env.timeZone,
   });
   return OK;
 }

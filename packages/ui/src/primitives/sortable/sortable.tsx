@@ -25,11 +25,14 @@ export interface SortableListProps<T> {
   readonly items: readonly T[];
   /** Stable per-item key — the identity `move()` reorders by and `onReorder` reports. */
   readonly getItemKey: (item: T) => SortableItemKey;
-  readonly renderItem: (item: T, index: number) => ReactNode;
+  /** `grip` is the row's drag handle when `handle` is `"inline"`, for the row to place itself; otherwise null. */
+  readonly renderItem: (item: T, index: number, grip: ReactNode) => ReactNode;
   /** Fires once per completed (non-canceled, position-changed) drag with the new key order. */
   readonly onReorder: (orderedKeys: SortableItemKey[]) => void;
-  /** When `true`, only a dedicated grip starts a drag (row's own interactive content stays clickable). */
-  readonly handle?: boolean;
+  /** When `true`, only a dedicated grip starts a drag (row's own interactive content stays clickable), drawn in
+   *  its own column. `"inline"` hands the grip to `renderItem` instead, so a row with a header puts it there
+   *  and its content keeps the full width. */
+  readonly handle?: boolean | "inline";
   /** The row's own NAME — one resolver, two consumers: the grip's accessible name ("Reorder Rev", so a
    *  screen reader can tell N grips apart) AND the live-region announcements below. It is the bare noun,
    *  never a phrase: the seal owns the verb, so the two channels can never word the same row differently.
@@ -46,13 +49,13 @@ interface SortableItemProps {
   readonly id: SortableItemKey;
   readonly index: number;
   readonly count: number;
-  readonly handle: boolean;
+  readonly handle: boolean | "inline";
   readonly label: string;
   readonly disabled: boolean;
-  readonly children: ReactNode;
+  readonly render: (grip: ReactNode) => ReactNode;
 }
 
-function SortableItem({ id, index, count, handle, label, disabled, children }: SortableItemProps): ReactElement {
+function SortableItem({ id, index, count, handle, label, disabled, render }: SortableItemProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const { ref, handleRef, isDragging, isDragSource } = useSortable({
     id,
@@ -71,6 +74,14 @@ function SortableItem({ id, index, count, handle, label, disabled, children }: S
       : {}),
   });
   const slots = sortableVariants();
+  const grip =
+    handle === false ? null : (
+      <button aria-label={`Reorder ${label}`} className={slots.handle()} data-slot="sortable-handle" disabled={disabled} ref={handleRef} type="button">
+        <Icon icon={GripVertical} size="sm" />
+      </button>
+    );
+  const gutterGrip = handle === true ? grip : null;
+  const inlineGrip = handle === "inline" ? grip : null;
   // Arm the pickup affordance the instant the item becomes the drag source (Space/Enter), not just
   // once a move flips status to "dragging" (isDragging) — so the visual state matches the
   // "Picked up" live-region announcement for a sighted keyboard user.
@@ -83,13 +94,9 @@ function SortableItem({ id, index, count, handle, label, disabled, children }: S
       data-slot="sortable-item"
       ref={ref}
     >
-      {handle ? (
-        <button aria-label={`Reorder ${label}`} className={slots.handle()} data-slot="sortable-handle" disabled={disabled} ref={handleRef} type="button">
-          <Icon icon={GripVertical} size="sm" />
-        </button>
-      ) : null}
+      {gutterGrip}
       <div className={slots.content()} data-slot="sortable-content">
-        {children}
+        {render(inlineGrip)}
       </div>
     </li>
   );
@@ -261,9 +268,8 @@ export function SortableList<T>({
             index={index}
             key={getItemKey(item)}
             label={itemLabel?.(item) ?? UNNAMED_ITEM}
-          >
-            {renderItem(item, index)}
-          </SortableItem>
+            render={(grip): ReactNode => renderItem(item, index, grip)}
+          />
         ))}
       </ul>
     </DragDropProvider>

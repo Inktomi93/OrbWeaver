@@ -4,7 +4,7 @@
 // run the arms through the injected `runArm` dispatcher seam (a refused arm records `action_error`).
 // Every rule body is independent — a throw/failure never touches
 // sibling rules, the watcher loop, or the turn (the handler is fire-and-forget off the bus).
-// `consecutive_errors` increments on predicate/action/authority errors, resets on a clean fire, and
+// `consecutive_errors` increments on predicate/action/authority errors, resets on a clean fire or a re-enable, and
 // auto-disables the rule at 20 with a DURABLE `automation-notice` to the author (so a rotting rule is
 // visible even if the author has no live `automation.stream` open) PLUS the transient `ruleAutoDisabled` bus
 // event (host-only on the member-stream).

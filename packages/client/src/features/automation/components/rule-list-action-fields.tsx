@@ -2,13 +2,15 @@ import { QUICK_REPLY_MAX_CHOICES, QUICK_REPLY_MODES } from "@orb/contracts/autom
 import type { ChatId } from "@orb/kit/ids";
 import { ENTRY_POSITIONS } from "@orb/kit/world-info";
 import { Button } from "@orb/ui/button";
-import { Stack } from "@orb/ui/layout";
+import { Icon, Trash2 } from "@orb/ui/icons";
+import { Row, Stack } from "@orb/ui/layout";
+import { Separator } from "@orb/ui/separator";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AutosaveSession } from "#forms/editor";
 import { touchedFieldError } from "#forms/editor";
-import { notify } from "#lib";
+import { notify, removeActionName } from "#lib";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleBookField } from "./rule-book-field.tsx";
 
@@ -105,7 +107,7 @@ export function RuleReplyFields({
           <SortableList
             items={ids}
             getItemKey={(id): string => id}
-            handle={true}
+            handle="inline"
             aria-label="Quick replies"
             itemLabel={(id): string => {
               const label = action.choices[ids.indexOf(id)]?.label ?? "";
@@ -118,8 +120,26 @@ export function RuleReplyFields({
               );
               form.setFieldValue(`choiceIds[${index}]`, ordered.map(String));
             }}
-            renderItem={(_id, choice): ReactElement | null => (
+            renderItem={(_id, choice, grip): ReactElement | null => (
               <Stack gap="tight">
+                {/* A rule between replies, not a nested card: ordered replies read as separate items. */}
+                {choice > 0 ? <Separator /> : null}
+                <Row gap="field" align="center">
+                  {grip}
+                  <Text className="min-w-0 flex-1">Reply {choice + 1}</Text>
+                  <Button
+                    intent="ghost"
+                    size="icon"
+                    aria-label={removeActionName(`reply ${choice + 1}`)}
+                    onClick={(): void => {
+                      Promise.all([form.removeFieldValue(`actions[${index}].choices`, choice), form.removeFieldValue(`choiceIds[${index}]`, choice)]).catch(
+                        () => notify.error("Couldn't remove the reply."),
+                      );
+                    }}
+                  >
+                    <Icon icon={Trash2} size="sm" />
+                  </Button>
+                </Row>
                 <form.AppField name={`actions[${index}].choices[${choice}].label`}>
                   {(field): ReactElement => <field.TextField label={`Reply ${choice + 1} label`} />}
                 </form.AppField>
@@ -134,16 +154,6 @@ export function RuleReplyFields({
                     />
                   )}
                 </form.AppField>
-                <Button
-                  intent="ghost"
-                  onClick={(): void => {
-                    Promise.all([form.removeFieldValue(`actions[${index}].choices`, choice), form.removeFieldValue(`choiceIds[${index}]`, choice)]).catch(() =>
-                      notify.error("Couldn't remove the reply."),
-                    );
-                  }}
-                >
-                  Remove reply {choice + 1}
-                </Button>
               </Stack>
             )}
           />

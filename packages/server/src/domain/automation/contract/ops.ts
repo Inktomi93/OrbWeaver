@@ -149,6 +149,9 @@ export interface AutomationImageRequest {
    *  itself (imagery has no posting concept) — compose routes the non-quiet path through chat's existing
    *  image-post seam (`postNarratorMessage`), never a second posting path. */
   readonly quiet: boolean;
+  /** The rule's own clock (`automationRuleClockZone`): an extraction has no viewer, so its time macros read the
+   *  zone the rule was saved with, the same clock its predicate and templates read. */
+  readonly timeZone: IanaTimeZone;
 }
 
 /** The NARROW generation result automation reads — the image count. Never imagery's blocks/provenance:

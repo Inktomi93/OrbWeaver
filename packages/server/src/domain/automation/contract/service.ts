@@ -136,7 +136,8 @@ export interface AutomationService {
   readonly listRulePresets: () => RulePresetView[];
   /** Replace a rule's editable fields (host-only). Same validation; resets `consecutive_errors`. */
   readonly updateRule: (params: UpdateRuleParams) => Promise<RuleView>;
-  /** Enable/disable a rule (host-only) — the watcher's chat-Set is maintained off this. */
+  /** Enable/disable a rule (host-only) — the watcher's chat-Set is maintained off this. Turning a disabled
+   *  rule on resets `consecutive_errors`, so a re-enabled rule gets the full auto-disable ceiling again. */
   readonly setRuleEnabled: (params: SetRuleEnabledParams) => Promise<void>;
   /** RULED F4's per-rule opt-out (host-only; spec row B4) — flip whether a RATE REFUSAL of this rule still
    *  offers the host the "run it now?" invitation. Touches ONE column: the rule's authored shape, its
