@@ -292,8 +292,22 @@ export const BG_PHOTO_ERROR_PLATE = "in-data-[has-bg-image]:bg-card in-data-[has
 // non-`auto` z-index / `opacity < 1` on the bubble subtree) would paint in its own layer and could still
 // cover the band. No such sibling exists on the tree today (measured — see the #168 note above), and the
 // fence that keeps it that way is the hit-test CT, never a per-skin class.
-export const STICKY_ATTRIBUTION_CHROME =
-  "not-in-data-[has-bg-image]:-my-row sticky top-0 z-(--z-raised) rounded-card bg-reading-band py-row text-reading-plate-foreground";
+//
+// LAYOUT AND PAINT ARE SPLIT, AND ONLY THE PAINT FOLLOWS THE PIN. `exceedsViewport` is true for every reply
+// taller than the scrollport, including while its header sits at rest at the top of the reply. A band
+// painted there reads as a second object on top of the bubble. So the box (sticky, offset, raise, the
+// cancelled padding) applies for the whole sticky verdict and never moves, and the fill and its ink apply
+// only while the header is actually pinned (`usePinnedHeader`). Toggling paint cannot re-enter the verdict.
+// The offset is `-top-px` rather than `top-0` because the observer reads the pin as a one-pixel top clip.
+export const STICKY_ATTRIBUTION_CHROME = "not-in-data-[has-bg-image]:-my-row sticky -top-px z-(--z-raised) py-row";
+
+/** {@link STICKY_ATTRIBUTION_CHROME}'s fill and ink, applied only while the header is pinned. */
+export const STICKY_ATTRIBUTION_PINNED_PAINT = "rounded-card bg-reading-band text-reading-plate-foreground";
+
+/** What a sticky outside header paints while NOT pinned: the wallpaper chip's plate and ink without its
+ *  padding, which the sticky box already carries as `py-row`. With no wallpaper, it paints nothing. */
+export const STICKY_ATTRIBUTION_REST_PAINT =
+  "in-data-[has-bg-image]:bg-reading-plate in-data-[has-bg-image]:backdrop-blur-sm in-data-[has-bg-image]:rounded-card in-data-[has-bg-image]:text-reading-plate-foreground";
 
 // THE SAME PIN, FOR A HEADER THAT LIVES INSIDE ITS CONTAINER (#288). Everything #113/#168/#241 ruled is
 // carried over verbatim — the pin, the RAISE, the OPAQUE `bg-reading-band` fill (an occluding band is the
@@ -355,6 +369,11 @@ export const STICKY_ATTRIBUTION_CHROME =
 // the CHIP ROUNDING (1) — a deliberate, measured #288 ruling that stays. Pinned across the whole skin axis
 // by the "#2425 the pinned band paints one --spacing-row of fill below the name" CT (message-row.ct.tsx),
 // which samples the FRAMEBUFFER: the extension is a composite, and a class list says nothing about it.
-export const STICKY_ATTRIBUTION_CHROME_INSIDE =
-  "-mt-row sticky top-0 z-(--z-raised) bg-reading-band pt-row text-reading-plate-foreground " +
-  "after:absolute after:inset-x-0 after:top-full after:h-row after:bg-reading-band after:content-['']";
+//
+// Like the sibling, only the paint follows the pin: at rest an inside header sits on the bubble's own
+// surface with the bubble's ink, exactly like a short reply's.
+export const STICKY_ATTRIBUTION_CHROME_INSIDE = "-mt-row sticky -top-px z-(--z-raised) pt-row";
+
+/** {@link STICKY_ATTRIBUTION_CHROME_INSIDE}'s fill, ink and below-name extension, applied only while pinned. */
+export const STICKY_ATTRIBUTION_INSIDE_PINNED_PAINT =
+  "bg-reading-band text-reading-plate-foreground after:absolute after:inset-x-0 after:top-full after:h-row after:bg-reading-band after:content-['']";

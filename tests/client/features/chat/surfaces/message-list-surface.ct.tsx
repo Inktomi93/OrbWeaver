@@ -1415,9 +1415,13 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
       }
       return name.getBoundingClientRect().top - el.getBoundingClientRect().top;
     });
-  await expect.poll(readOffsetFromTop).toBeGreaterThanOrEqual(0);
-  await expect.poll(readOffsetFromTop).toBeLessThan(1);
+  // The band sticks one pixel above the edge (`-top-px`): its pin detector reads the pin as a one-pixel
+  // top clip, so nothing of the prose can show above it.
+  await expect.poll(readOffsetFromTop).toBeGreaterThanOrEqual(-1);
+  await expect.poll(readOffsetFromTop).toBeLessThan(0);
   await expect(component.locator(STUCK_NAME_ROW).getByText("Narrator")).toBeVisible();
+  // Pinned in the real virtualized list, the band paints; the at-rest arm is asserted below.
+  await expect(component.locator(STUCK_NAME_ROW)).toHaveAttribute("data-pinned", "");
 
   // …and the breathing did not vanish, it MOVED: scrolled to the very top, the first row still sits one
   // spacing.block (12px) off the scrollport edge, now provided by the virtualizer's paddingStart.
@@ -1440,6 +1444,8 @@ test("#113 a turn taller than the scrollport pins its speaker row to the top of 
     return row.getBoundingClientRect().top - el.getBoundingClientRect().top;
   });
   await expect.poll(async () => Math.round(await readFirstRowGapAtAssertion())).toBe(12);
+  // Back at rest at the top of the turn, the header is unpinned and sits on the bubble without a band.
+  await expect(component.locator(STUCK_NAME_ROW)).not.toHaveAttribute("data-pinned");
 });
 
 // The top edge fade dissolves the scroller's pixels into whatever is BEHIND the transcript. A pinned band sits
