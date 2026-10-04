@@ -22,17 +22,18 @@
 // Every arm but a page carries the standard content inset: the section declares none, because a page owns its
 // whole region and its shell paints the region's edges.
 
+import type { PluginId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Blocks, Icon } from "@orb/ui/icons";
 import { Container, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useRef } from "react";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
-import { openConfigTo, selectPluginPageFromList, usePluginPageKey } from "#state";
+import { openConfigTo, pluginPageKey, selectPluginPageFromList, usePluginPageKey } from "#state";
 import { PluginFrame } from "../components/plugin-frame.tsx";
 import { PluginRow } from "../components/plugin-row.tsx";
 import { PluginScriptedSurface } from "../components/plugin-scripted-surface.tsx";
@@ -159,6 +160,22 @@ export function ExtensionsPageSurface(): ReactElement {
   // after approval and shows the outcome (on, or the error that stopped it).
   const { data: plugins } = useQuery(trpc.plugin.list.queryOptions());
   const reviewed = key === null ? undefined : plugins?.find((plugin) => pluginReviewKey(plugin.id) === key);
+  const queryClient = useQueryClient();
+  // An approval turns the plugin on, so the page it just added is what the person came for: read the catalog
+  // fresh (the approval's own refetch may not have landed yet) and open that plugin's first page by title.
+  const openFirstPageOf = (pluginId: PluginId): void => {
+    queryClient
+      .fetchQuery(trpc.plugin.listSurfaces.queryOptions())
+      .then((surfaces) => {
+        const first = surfaces
+          .filter((surface) => surface.pluginId === pluginId && surface.anchor === "page")
+          .toSorted((a, b) => a.title.localeCompare(b.title))[0];
+        if (first !== undefined) {
+          selectPluginPageFromList(pluginPageKey(pluginId, first.id));
+        }
+      })
+      .catch((error: unknown) => globalThis.reportError(error));
+  };
   const page = key === null ? undefined : pages.find((candidate) => candidate.key === key);
 
   if (reviewed !== undefined) {
@@ -169,7 +186,7 @@ export function ExtensionsPageSurface(): ReactElement {
         ref={surfaceRef}
         tabIndex={-1}
       >
-        <PluginRow plugin={reviewed} />
+        <PluginRow onApproved={(): void => openFirstPageOf(reviewed.id)} plugin={reviewed} />
       </Container>
     );
   }

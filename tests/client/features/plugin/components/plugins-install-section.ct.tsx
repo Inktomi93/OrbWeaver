@@ -122,6 +122,7 @@ const INSTALLED_ROW = {
   // the server cannot produce.
   widenedNetHosts: [],
   builtAgainst: null,
+  description: "A fixture plugin.",
   lastError: null,
   installedAt: A_PAST_INSTANT,
   updatedAt: A_PAST_INSTANT,
@@ -1278,7 +1279,7 @@ test("at a phone-width pane the LONG status badge never collides with the row's 
       async () => {
         const badgeBox = await badge.boundingBox();
         const switchBox = await page.getByRole("switch", { name: "Turn Weather Teller on" }).boundingBox();
-        const updateBox = await page.getByRole("button", { name: "Update Weather Teller from a bundle" }).boundingBox();
+        const updateBox = await page.getByRole("button", { name: "More actions for Weather Teller" }).boundingBox();
         if (badgeBox === null || switchBox === null || updateBox === null) {
           return "a box was null";
         }
