@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-04
 priority: P3
 area: plugin
+lane: wt/agent-a708baaa4eae9cb9b
 ---
 
 # Card Atlas paging is disabled before a search

@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-04
 priority: P3
 area: chat
+lane: wt/agent-ad435ab6e19d39557
 ---
 
 # The wire trace states what it holds
