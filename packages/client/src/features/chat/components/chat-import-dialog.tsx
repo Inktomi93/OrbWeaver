@@ -108,15 +108,15 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
 
   return (
     <FormDialog
-      description="Drop chat files exported from orbweaver (.orb.json — the whole room) or transcripts from orbweaver or SillyTavern (.jsonl). Each lands on the character it names, so import that character's card first."
+      description="SillyTavern .jsonl transcripts or orbweaver .orb.json exports. Import the character first: each chat attaches to the character it names."
+      dismissLabel="Cancel"
       onOpenChange={changeOpen}
       open={open}
-      title="Import a chat"
+      title="Import chats"
     >
       <FileDropzone
         accept={TRANSCRIPT_ACCEPT}
-        hint="orbweaver or SillyTavern chat transcripts"
-        instructions="Drop a chat file (.orb.json or .jsonl), or click to browse"
+        instructions="Drop files here or click to browse"
         multiple={true}
         onFilesSelected={({ accepted }): void => onFiles(accepted)}
       />

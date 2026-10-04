@@ -9,12 +9,14 @@
 
 import { modelDisplayName } from "@orb/kit/model-name";
 import { BarList } from "@orb/ui/bar-list";
+import { Button } from "@orb/ui/button";
 import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
@@ -27,6 +29,8 @@ type ModelRoute = inferOutput<Trpc["discovery"]["modelRouting"]>[number];
 
 const MONEY_PRECISION = 2;
 const ROW_ESTIMATE_PX = 52;
+/** How many never-played rows the page shows before "Show all". */
+const NEVER_PLAYED_HEAD = 8;
 /** The placeholder row count for a deferred below-fold section — the sibling charts' own number. */
 const SKELETON_ROWS = 3;
 /** How many routes the chart draws. A route list is a LONG TAIL (142 rows = 4,544px of canvas, which is
@@ -65,35 +69,48 @@ export function CorpusNeverPlayedSection({
     // The rail says what has not run; a section with nothing renders nothing (the surface's header).
     return null;
   }
+  return <NeverPlayedList characters={characters} libraryCharacters={libraryCharacters} />;
+}
+
+/** The list FLOWS in the page scroll: a short head of rows, then "Show all" for the rest, never a scroller of
+ *  its own cut at some row with dead space below. */
+function NeverPlayedList({
+  characters,
+  libraryCharacters,
+}: {
+  readonly characters: readonly UnusedCharacter[];
+  readonly libraryCharacters: number;
+}): ReactElement {
+  const [showAll, setShowAll] = useState(false);
+  const shown = showAll ? characters : characters.slice(0, NEVER_PLAYED_HEAD);
   return (
     <Section kicker="Never played" level={2}>
-      {/* THE COUNT, AND THE ORDER (side-eye populated arm, [P2-4]). The list is virtualized, so what a
-          reader SEES is a window — eight rows of 204 — and a windowed list with no total reads as a
+      {/* THE COUNT, AND THE ORDER (side-eye populated arm, [P2-4]). A capped list with no total reads as a
           complete one. The ordering is stated for the same reason the gem shelf states its rank: this list
-          is alphabetical by name (`domain/discovery/verbs/insights.ts`, `orderBy(asc(characters.name))`),
-          which without a caption is indistinguishable from a top-8 of something. Both facts in one line,
-          bounded by the reading measure so it cannot become the 145-chars/line finding it sits beside. */}
+          is alphabetical by name (`domain/discovery/verbs/insights.ts`), which without a caption is
+          indistinguishable from a top-8 of something. Both facts in one line, bounded by the reading measure
+          so it cannot become the 145-chars/line finding it sits beside. */}
       <Text className="max-w-(--reading-measure-prose)" voice="gloss">
-        {`${formatCount(characters.length)} of ${formatCount(libraryCharacters)} characters have never been played — collected and never opened. Listed A–Z; scroll for the rest.`}
+        {`${formatCount(characters.length)} of ${formatCount(libraryCharacters)} characters have never been played — collected and never opened. Listed A–Z.`}
       </Text>
-      <VirtualList
-        aria-label="Never played characters"
-        className="max-h-96"
-        estimateSize={(): number => ROW_ESTIMATE_PX}
-        fadeEdge={true}
-        gapToken="row"
-        getItemKey={(character): string => character.characterId}
-        items={characters}
-        renderItem={(character): ReactElement => (
-          <ListRow
-            clickable={true}
-            leading={<CharacterAvatar hash={character.avatarHash} id={character.characterId} name={character.name} />}
-            onClick={(): void => selectCorpusCharacter(character.characterId)}
-            subtitle="Collected but never played"
-            title={character.name}
-          />
-        )}
-      />
+      <Stack aria-label="Never played characters" gap="row" role="list">
+        {shown.map((character) => (
+          <Stack key={character.characterId} role="listitem">
+            <ListRow
+              clickable={true}
+              leading={<CharacterAvatar hash={character.avatarHash} id={character.characterId} name={character.name} />}
+              onClick={(): void => selectCorpusCharacter(character.characterId)}
+              subtitle="Collected but never played"
+              title={character.name}
+            />
+          </Stack>
+        ))}
+      </Stack>
+      {showAll || characters.length <= NEVER_PLAYED_HEAD ? null : (
+        <Button className="self-start" intent="ghost" onClick={(): void => setShowAll(true)} size="sm">
+          {`Show all ${formatCount(characters.length)}`}
+        </Button>
+      )}
     </Section>
   );
 }

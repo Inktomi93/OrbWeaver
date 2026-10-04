@@ -57,7 +57,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import { ListSearch } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useGatedQuery, useTRPC } from "#data";
 import { useDebouncedValue, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import {
@@ -238,6 +238,24 @@ interface ChatListBodyProps {
   readonly query: string;
 }
 
+/** A chat opened from a character's New chat or a Home tile stays out of the library until its first message
+ *  (the husk lens, `@orb/db` chat-visibility), so an empty list beside an open room has to say that room is on
+ *  its way. A temporary room never joins the list and an archived one is hidden by the archive lens, so
+ *  neither earns the sentence. */
+function useOpenChatJoinsList(activeChatId: ChatId | null): boolean {
+  const trpc = useTRPC();
+  const { data: openChat } = useGatedQuery(activeChatId, (chatId) => trpc.chat.getChat.queryOptions({ chatId }));
+  return openChat !== undefined && !openChat.temporary && !openChat.archived;
+}
+
+/** The empty library's one sentence: a character scope names her, an unlisted open room says it is coming. */
+function emptyListDescription(characterName: string | null, openChatJoinsList: boolean): string {
+  if (characterName !== null) {
+    return `No chats with ${characterName} yet. Start one, or clear the filter.`;
+  }
+  return openChatJoinsList ? "This chat joins your list after your first message." : "Pick a character to start your first conversation.";
+}
+
 /** The paged body. Non-suspending by construction (`createCollectionSurface` is a plain `useInfiniteQuery`),
  *  so the pending / error / empty ladder is rendered here rather than by a `QueryBoundary` above — the
  *  character-library precedent, and the reason the faces strip and the search field stay put across every
@@ -257,6 +275,7 @@ function ChatListBody({
   const trpc = useTRPC();
   const scope = { beforeRecencyAt, characterId: characterFilter?.id ?? null, search: query };
   const collection = useChatListCollection({ trpc }, scope);
+  const openChatJoinsList = useOpenChatJoinsList(activeChatId);
   // ONE derivation of "which axes are narrowing right now", shared by both zero-result arms — a per-arm list
   // is how the search arm came to know about the month in its COPY and not in its ACTIONS (#541).
   const exits = activeFilterExits({
@@ -298,11 +317,7 @@ function ChatListBody({
             New chat
           </Button>
         }
-        description={
-          characterFilter === null
-            ? "Pick a character to start your first conversation."
-            : `No chats with ${characterFilter.name} yet. Start one, or clear the filter.`
-        }
+        description={emptyListDescription(characterFilter?.name ?? null, openChatJoinsList)}
         icon={<Icon icon={MessagesSquare} size="lg" />}
         title={characterFilter === null ? "No chats yet" : "No matches"}
       />

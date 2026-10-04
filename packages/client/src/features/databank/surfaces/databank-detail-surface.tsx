@@ -35,16 +35,7 @@ import { renameActionName, timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
-import {
-  characterCount,
-  documentSubtitle,
-  ingestBadge,
-  ingestEmptyHint,
-  ingestPhase,
-  ingestStallHint,
-  originLabel,
-  passageTally,
-} from "../lib/databank-model.ts";
+import { characterCount, ingestBadge, ingestEmptyHint, ingestPhase, ingestStallHint, originLabel, passageTally } from "../lib/databank-model.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -215,7 +206,6 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
         <Row align="start" gap="field" justify="between">
           <Stack className="min-w-0" gap="tight">
             <Heading level={2}>{doc.name}</Heading>
-            <Text voice="gloss">{documentSubtitle(doc)}</Text>
             {/* THE EMPTY PHASE'S REMEDY (side-eye 2026-08-19 N-5). It rides HERE, under the scent, and not
                 in Maintenance beside the stall hint: Reindex is that hint's repair and it is the wrong
                 advice for this state — re-running extraction over the same image-only bytes returns the
@@ -248,7 +238,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
           {/* ONE grid, not a stack of rows: the label track is `max-content` (as wide as the widest label,
               no wider) and every value still starts at ONE x, which a per-row measurement cannot promise.
               See `cols="readout"`'s own note for why the knob-row token stopped being right here. */}
-          <Grid cols="readout" gap="row">
+          <Grid className="items-baseline" cols="readout" gap="row">
             <DetailRow label="Origin" value={originLabel(doc.origin)} />
             <DetailRow label="Type" value={doc.mime} />
             <DetailRow label="Size" value={formatBytes(doc.byteSize)} />

@@ -424,6 +424,21 @@ test("§4.6 bulk mode reveals row checkboxes + the selection bar", async ({ moun
   await expect(component.getByRole("button", { name: "Delete", exact: true })).toBeVisible();
 });
 
+test("Escape leaves select mode from a focused row and drops the selection bar", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  const selectMode = component.getByRole("button", { name: "Select multiple" });
+  await selectMode.click();
+  const pick = component.getByRole("checkbox", { name: selectActionName("Bolt") });
+  await pick.click();
+  await expect(component.getByRole("button", { name: "Tag", exact: true })).toBeVisible();
+
+  await pick.focus();
+  await page.keyboard.press("Escape");
+  await expect(component.getByRole("button", { name: "Tag", exact: true })).toHaveCount(0);
+  await expect(selectMode).toHaveAttribute("aria-pressed", "false");
+});
+
 // D1, RE-AIMED (2026-08-13). The old shape of this pin was "a favorite that lives only on a LATER page is
 // reachable via Load more" — an affordance that existed because the chip filtered the LOADED WINDOW and the
 // only cure for a miss was fetching more of the library into the browser. With the chip on the server there
@@ -744,17 +759,19 @@ test("dropping a card on the Import dialog fires the multipart POST and reports 
     await route.fulfill({
       status: 200,
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ imported: [{ filename: "villain.png", created: true }], failed: [] }),
+      body: JSON.stringify({ imported: [{ filename: "villain.png", characterId: "char_imported_villain", created: true }], failed: [] }),
     });
   });
 
-  await mount(<CharacterLibrarySurfaceStory />);
+  await mount(<CharacterLibrarySurfaceStory showSelection={true} />);
+  await expect(page.getByText("selected: nobody")).toBeVisible();
   await dropFiles(await openImportDialog(page), [A_DROPPED_CARD]);
 
   await expect.poll(() => uploads, { intervals: [20, 50, 100] }).toEqual(["POST"]);
   await expect(page.locator(TOAST_ROOT)).toContainText("Card imported.");
-  // A successful import closes the dialog.
+  // A successful import closes the dialog and opens the card that landed.
   await expect(page.getByRole("dialog", { name: IMPORT_DIALOG_TITLE })).toHaveCount(0);
+  await expect(page.getByText("selected: char_imported_villain")).toBeVisible();
 });
 
 test("a PNG with no character data gets a LOUD toast naming why, and the dialog stays open", async ({ mount, page }) => {

@@ -116,7 +116,7 @@ test("the activation body owns the Everywhere write and states where the documen
   await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
   await expect(workspace.getByRole("heading", { name: "The Crimson Court" })).toBeVisible();
 
-  const toggle = workspace.getByRole("switch", { name: "Stop feeding The Crimson Court to every chat" });
+  const toggle = workspace.getByRole("switch", { name: "Use in every chat" });
   await expect(toggle).toBeVisible();
   await expect(workspace.getByText("Every chat", { exact: true })).toBeVisible();
   // NAMES, not "1 chat": the room is named by the client's ONE title chain off the cast the wire carries
@@ -160,7 +160,7 @@ test("the Everywhere switch locks while its write is held, then remains actionab
   });
   const workspace = await mount(<DatabankWorkspaceStory />);
   await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
-  const toggle = workspace.getByRole("switch", { name: "Feed The Crimson Court to every chat" });
+  const toggle = workspace.getByRole("switch", { name: "Use in every chat" });
 
   await toggle.click();
   await held.requested;

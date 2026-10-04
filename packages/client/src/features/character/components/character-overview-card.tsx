@@ -45,7 +45,6 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { QueryErrorState, useTRPC } from "#data";
 import { deriveChatTitle, timeLib } from "#lib";
-import { EMPTY_VALUE } from "../lib/empty-vocabulary.ts";
 
 const REFINERY_SCORE_DECIMALS = 2;
 
@@ -136,20 +135,18 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
         />
       </Stack>
 
-      <Stack gap="row">
-        <Kicker>Tags</Kicker>
-        {/* READ-ONLY, on purpose (#860): the editing strip — accepted chips with their removes, `Add tag`,
-            and the suggestion pills — stays in the CONTENT hero, where the tags sit ON the card the way the
-            reader sees them. This is the same fact stated as a datum, so the pane can answer "what is she
-            filed under" without the reader leaving the field they are inspecting. The count is the datum
-            and the names are the gloss, matching every other row here; `EMPTY_VALUE` is the house word. */}
-        <OverviewRow
-          label="Applied"
-          value={tagNames.length === 0 ? EMPTY_VALUE : String(tagNames.length)}
-          {...(tagNames.length === 0 ? {} : { gloss: nameGloss(tagNames) })}
-          mono={tagNames.length > 0}
-        />
-      </Stack>
+      {/* An empty tag list is not restated here: the CONTENT hero's own tags row already says it. */}
+      {tagNames.length === 0 ? null : (
+        <Stack gap="row">
+          <Kicker>Tags</Kicker>
+          {/* READ-ONLY, on purpose (#860): the editing strip — accepted chips with their removes, `Add tag`,
+              and the suggestion pills — stays in the CONTENT hero, where the tags sit ON the card the way the
+              reader sees them. This is the same fact stated as a datum, so the pane can answer "what is she
+              filed under" without the reader leaving the field they are inspecting. The count is the datum
+              and the names are the gloss, matching every other row here. */}
+          <OverviewRow label="Applied" value={String(tagNames.length)} gloss={nameGloss(tagNames)} mono={true} />
+        </Stack>
+      )}
     </Stack>
   );
 }

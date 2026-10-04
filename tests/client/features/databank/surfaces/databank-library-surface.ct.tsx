@@ -14,6 +14,7 @@
 
 import { rowActionsName } from "@orb/client/lib";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { DatabankHomeTileAndLibraryStory, DatabankLibraryStory } from "../_ct-stories.tsx";
 import { bankCensus, INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
 
@@ -305,11 +306,17 @@ test("Everywhere is the row's ONE state toggle: aria-pressed carries the state, 
   await expect(list.getByText("The Crimson Court")).toBeVisible();
 
   // The pressed toggle is rest-VISIBLE (D11 when-on) and states its own datum.
-  await expect(list.getByRole("button", { name: "Stop feeding The Crimson Court to every chat" })).toHaveAttribute("aria-pressed", "true");
+  await expect(list.getByRole("button", { name: "Use The Crimson Court in every chat" })).toHaveAttribute("aria-pressed", "true");
 
-  // An un-global row's toggle is reveal-gated, so reach it the way a user does — by hovering the row.
+  // An un-global row's toggle is reveal-gated, so reach it the way a user does — by hovering the row. It
+  // keeps the SAME name as the pressed one (the state is `aria-pressed`'s) and, unpressed, paints no fill —
+  // while the pressed one is a filled chip.
   await list.locator('[data-slot="list-row-root"]', { hasText: "Duskwater Barony" }).hover();
-  await expect(list.getByRole("button", { name: "Feed Duskwater Barony to every chat" })).toHaveAttribute("aria-pressed", "false");
+  const unpressed = list.getByRole("button", { name: "Use Duskwater Barony in every chat" });
+  await expect(unpressed).toHaveAttribute("aria-pressed", "false");
+  const fill = (button: Locator): Promise<string> => button.evaluate((el) => globalThis.getComputedStyle(el).backgroundColor);
+  const pressed = list.getByRole("button", { name: "Use The Crimson Court in every chat" });
+  expect(await fill(pressed)).not.toBe(await fill(unpressed));
 
   // THE POINT OF D-1: three rows, ONE global read — and no per-row reverse lookup at all. Polled, because a
   // request count is node-side state that settles independently of the DOM barrier above.
@@ -323,7 +330,7 @@ test("pressing Everywhere fires the OWNER-scoped attach with that row's id", asy
   await expect(list.getByText("Duskwater Barony")).toBeVisible();
 
   await list.locator('[data-slot="list-row-root"]', { hasText: "Duskwater Barony" }).hover();
-  await list.getByRole("button", { name: "Feed Duskwater Barony to every chat" }).click();
+  await list.getByRole("button", { name: "Use Duskwater Barony in every chat" }).click();
 
   // The PAYLOAD is the assertion (assert-the-mutation-fired), not a re-render of a stubbed response.
   await expect.poll(() => trpc.lastInput("databank.attachGlobal"), { intervals: [20, 50, 100] }).toEqual({ documentId: INDEXING_DOC.id });
@@ -334,7 +341,7 @@ test("un-pressing Everywhere fires DETACH, not attach — the toggle is a real t
   const trpc = await stubDatabank(page);
   const list = await mount(<DatabankLibraryStory />);
 
-  await list.getByRole("button", { name: "Stop feeding The Crimson Court to every chat" }).click();
+  await list.getByRole("button", { name: "Use The Crimson Court in every chat" }).click();
 
   await expect.poll(() => trpc.lastInput("databank.detachGlobal"), { intervals: [20, 50, 100] }).toEqual({ documentId: READY_DOC.id });
   await expect.poll(() => trpc.count("databank.attachGlobal"), { intervals: [20, 50, 100] }).toBe(0);

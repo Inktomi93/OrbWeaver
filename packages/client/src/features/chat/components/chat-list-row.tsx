@@ -82,10 +82,8 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
   };
   // ONE name for every action on this row (the kebab AND the star toggle inside the composite) — resolved
   // once here so the two can't spell the subject differently.
-  const rowName = chatRowActionName(
-    deriveChatTitle(chat.title, chat.participantNames),
-    qualifier ?? timeLib.formatRelativeCompact(chat.lastMessageAt ?? chat.updatedAt),
-  );
+  const displayTitle = deriveChatTitle(chat.title, chat.participantNames);
+  const rowName = chatRowActionName(displayTitle, qualifier ?? timeLib.formatRelativeCompact(chat.lastMessageAt ?? chat.updatedAt));
   return (
     // A PASSIVE OBSERVATION WRAPPER, not a layout one — `display:contents`, so it generates no box and the
     // virtualizer measures exactly the height it measured before (the transcript's own settle is #1181's
@@ -120,6 +118,7 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
               actions={actions}
               archived={chat.archived}
               chatId={chat.id}
+              displayTitle={displayTitle}
               onDeleted={onDeletedChat}
               rowName={rowName}
               starred={chat.starred}

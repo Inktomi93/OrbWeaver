@@ -307,15 +307,18 @@ function CharacterTagsRowHarness(): ReactElement {
 export interface CharacterLibrarySurfaceStoryProps {
   /** Pin the LIST panel width (the toolbar's flex row is width-sensitive — F1). Omitted = the mount root's. */
   readonly width?: number;
+  /** Print the selected character id above the pane — for a test whose subject is what the surface selects. */
+  readonly showSelection?: boolean;
 }
 
 /** The library surface wrapped in its anchor + the real data layer (`routeTrpc` stubs the network), with
  *  the section's real LIST chrome band above it — the title + create/import menu live THERE now
  *  (list-pane-projection L1 / D66 A1), so a surface mounted without the band is not the production pane. */
-export function CharacterLibrarySurfaceStory({ width }: CharacterLibrarySurfaceStoryProps = {}): ReactElement {
+export function CharacterLibrarySurfaceStory({ width, showSelection = false }: CharacterLibrarySurfaceStoryProps = {}): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
+        {showSelection ? <CharacterSelectionReadout /> : null}
         {/* The import path's outcome is a `notify.*` call, so the story carries the real toast surface —
             `notify` is BOUND for every story in this module (bindNotify is module-global; importing
             CtToastSurface anywhere in the module binds it), which makes the console fallback unreachable.
@@ -428,10 +431,10 @@ function BulkBarInner(): ReactElement {
   );
 }
 
-export function CharacterBulkBarStory(): ReactElement {
+export function CharacterBulkBarStory({ width = 337 }: { readonly width?: number } = {}): ReactElement {
   return (
     <CtDataProviders>
-      <div data-testid="bulk-panel" style={{ width: 337 }}>
+      <div data-testid="bulk-panel" style={{ width }}>
         <BulkBarInner />
       </div>
     </CtDataProviders>

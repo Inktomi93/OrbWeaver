@@ -18,9 +18,8 @@ import { Autocomplete } from "@orb/ui/autocomplete";
 import { Button } from "@orb/ui/button";
 import { Icon, Search } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
+import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
-import { Toggle } from "@orb/ui/toggle";
-import { ToggleGroup } from "@orb/ui/toggle-group";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
@@ -43,10 +42,7 @@ import {
 const DEFAULT_TARGET = CORPUS_SEARCH_TARGETS[0].id;
 const SKELETON_ROW_COUNT = 5;
 const MIN_SUGGEST_LEN = 2;
-/** The picker's grid: five cells over SIX tracks, so the two rows fill their width exactly — three
- *  2-track cells, then two 3-track cells. See the wrap note on `CorpusListSurface`. */
-const PICKER_TRACKS = "grid w-full grid-cols-6";
-const PICKER_FIRST_ROW = 3;
+const TARGET_ITEMS = CORPUS_SEARCH_TARGETS.map((target) => ({ label: target.label, value: target.id }));
 
 export function CorpusListSurface(): ReactElement {
   // FOCUS LANDS ON THE OMNIBOX, NOT ON A WRAPPER (side-eye corpus re-pass 2026-08-19, C7). This used to
@@ -89,27 +85,16 @@ export function CorpusListSurface(): ReactElement {
       >
         Skip to results
       </Button>
-      {/* THE PICKER WRAPS ON PURPOSE (side-eye corpus re-pass 2026-08-19 §5). Five content-sized cells in a
-          `w-fit` wrapping flex row missed one row by ~2px at the LIST pane's real width: "Memories" dropped
-          to a second line, leaving a 99px hole beside "Scenes" and a ragged right edge on the first thing
-          the pane shows. Five labels cannot fit one row at a 320-360px pane without truncating names that
-          ARE the vocabulary, so the wrap is made DELIBERATE and balanced instead of emergent: a 6-track grid
-          with 2-track cells on row one and 3-track cells on row two fills both rows exactly at EVERY width —
-          unconditional track sizing, no measurement, no count gate, and the mobile 4+1 ragged arm is gone
-          with it. */}
-      <ToggleGroup
+      {/* ONE CONTROL ON ONE ROW. Five labels never fit a 272-360px pane side by side without truncating the
+          names that ARE the vocabulary, and a segmented control that wraps leaves a ragged second row, so
+          the target is a select: the same five choices, one row at every width. */}
+      <Select
         aria-label="Search target"
-        className={PICKER_TRACKS}
         data-testid={testId("corpusSearchTarget")}
-        value={[targetId]}
-        onValueChange={(picked): void => setCorpusSearchTarget(picked[0] ?? DEFAULT_TARGET)}
-      >
-        {CORPUS_SEARCH_TARGETS.map((target, index) => (
-          <Toggle key={target.id} value={target.id} aria-label={`Search ${target.label}`} className={index < PICKER_FIRST_ROW ? "col-span-2" : "col-span-3"}>
-            {target.label}
-          </Toggle>
-        ))}
-      </ToggleGroup>
+        items={TARGET_ITEMS}
+        onValueChange={(picked): void => setCorpusSearchTarget(picked ?? DEFAULT_TARGET)}
+        value={targetId}
+      />
       <SearchOmnibox inputRef={omniboxRef} query={query} deferredQuery={deferredQuery} onQuery={setCorpusSearchQuery} />
       <Stack className="min-h-0 flex-1">
         {searching ? (

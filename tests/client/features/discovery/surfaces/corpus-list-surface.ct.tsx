@@ -8,11 +8,11 @@
 import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Locator } from "@playwright/test";
 import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "../../../../support/node/corpus-source.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { CorpusListSurfaceRailBounceStory, CorpusListSurfaceStory, CorpusListSurfaceWidthStory, CorpusSectionArrivalStory } from "../_ct-stories.tsx";
+import { expectSearchTarget, pickSearchTarget } from "../search-target.ts";
 
 const CHARACTER_HIT = {
   characterId: "char_aria",
@@ -118,7 +118,7 @@ test("switching to the Scenes target renders the per-chat evidence preview", asy
   });
   const component = await mount(<CorpusListSurfaceStory />);
 
-  await component.getByRole("button", { name: "Search Scenes" }).click();
+  await pickSearchTarget(component, "Scenes");
   await component.getByLabel("Search your corpus").fill("market");
 
   // The discover branch previews the matching chat moments (the J10 chat-search preview).
@@ -171,7 +171,7 @@ test("the Text target runs the lexical fields search and renders the hits it nam
   });
   const component = await mount(<CorpusListSurfaceStory />);
 
-  await component.getByRole("button", { name: "Search Text" }).click();
+  await pickSearchTarget(component, "Text");
   await component.getByLabel("Search your corpus").fill("lexeme");
   await expect(component.getByText("Zed the Lexeme")).toBeVisible();
 });
@@ -192,7 +192,7 @@ test("a rail bounce restores the omnibox: the query, the target, and the results
   });
   const component = await mount(<CorpusListSurfaceRailBounceStory />);
 
-  await component.getByRole("button", { name: "Search Scenes" }).click();
+  await pickSearchTarget(component, "Scenes");
   await component.getByRole("combobox", { name: "Search your corpus" }).fill("market");
   await expect(component.getByText("2 matching moments in 1 room")).toBeVisible();
 
@@ -203,7 +203,7 @@ test("a rail bounce restores the omnibox: the query, the target, and the results
   await component.getByRole("button", { name: "Back to Corpus" }).click();
 
   await expect(component.getByRole("combobox", { name: "Search your corpus" })).toHaveValue("market");
-  await expect(component.getByRole("button", { name: "Search Scenes" })).toHaveAttribute("aria-pressed", "true");
+  await expectSearchTarget(component, "Scenes");
   await expect(component.getByText("2 matching moments in 1 room")).toBeVisible();
 });
 
@@ -228,7 +228,7 @@ test("returning to Explore restores its scrolled finder and retained artifact sn
     "search.search": { over: "digests", coverage: CORPUS_PREVIEW_COVERAGE, hits },
   });
   const component = await mount(<CorpusListSurfaceRailBounceStory />);
-  await component.getByRole("button", { name: "Search Memories" }).click();
+  await pickSearchTarget(component, "Memories");
   const omnibox = component.getByRole("combobox", { name: "Search your corpus" });
   await omnibox.fill("retained evidence");
   const results = component.getByRole("list", { name: "Search results — Memories" });
@@ -249,37 +249,18 @@ test("returning to Explore restores its scrolled finder and retained artifact sn
   await component.getByRole("button", { name: "Leave Corpus" }).click();
   await component.getByRole("button", { name: "Back to Corpus" }).click();
   await expect(omnibox).toHaveValue("retained evidence");
-  await expect(component.getByRole("button", { name: "Search Memories" })).toHaveAttribute("aria-pressed", "true");
+  await expectSearchTarget(component, "Memories");
   await expect.poll(async () => results.evaluate((node) => node.scrollTop)).toBe(savedScroll);
   await expect(component.getByTestId("ct-nav-readout")).toContainText("artifact:digest");
   await expect(component.getByTestId("ct-artifact-identity")).toHaveText(identity);
 });
 
-// ── §5 TASTE: THE TARGET PICKER IS A FIT PROBLEM ─────────────────────────────────────────────────────
-// Five content-sized cells in a wrapping flex row missed row one by ~2px: "Memories" dropped to a second
-// line, leaving a hole beside "Scenes" and a ragged right edge on the first thing the pane renders (mobile
-// wrapped 4+1). The fix is unconditional track sizing — a 6-track grid, 2-track cells on row one and
-// 3-track cells on row two — so BOTH rows end flush at every width. Asserted at both ends of the real pane
-// range, because a point measurement cannot prove a range property.
-const PICKER_CELL_NAME = /^Search (Characters|Scenes|Memories|Images|Text)$/;
-
-async function pickerCellBoxes(component: Locator): Promise<{ x: number; right: number; y: number }[]> {
-  const cells = component.getByRole("button", { name: PICKER_CELL_NAME });
-  await expect(cells).toHaveCount(5);
-  const boxes = await cells.all();
-  return Promise.all(
-    boxes.map(async (cell) => {
-      const box = await cell.boundingBox();
-      if (box === null) {
-        throw new Error("a target-picker cell did not render a box");
-      }
-      return { x: Math.round(box.x), right: Math.round(box.x + box.width), y: Math.round(box.y) };
-    }),
-  );
-}
-
+// ── THE TARGET PICKER IS ONE CONTROL ON ONE ROW ──────────────────────────────────────────────────────
+// Five segmented buttons wrapped 3+2 at the pane's real width, leaving a ragged second row on the first thing
+// the pane shows. The target is a select now, so it is one control at every width. Asserted at both ends of
+// the real pane range, because a point measurement cannot prove a range property.
 for (const width of [320, 360]) {
-  test(`the target picker fills both of its rows at ${width}px — no hole, no ragged edge`, async ({ mount, page }) => {
+  test(`the target picker is one control on one row at ${width}px`, async ({ mount, page }) => {
     await routeTrpc(page, {
       "discovery.characterFacets": { genres: [], tones: [] },
       "discovery.catalog": EMPTY_CATALOG,
@@ -289,17 +270,13 @@ for (const width of [320, 360]) {
     });
     const component = await mount(<CorpusListSurfaceWidthStory width={width} />);
 
-    const cells = await pickerCellBoxes(component);
-    const rows = [...new Set(cells.map((cell) => cell.y))].sort((a, b) => a - b);
-    expect(rows, "the picker is exactly two deliberate rows").toHaveLength(2);
-    const first = cells.filter((cell) => cell.y === rows[0]);
-    const second = cells.filter((cell) => cell.y === rows[1]);
-    expect(first, "row one carries three targets").toHaveLength(3);
-    expect(second, "row two carries the remaining two").toHaveLength(2);
-    // BOTH rows start at the same left edge and END AT THE SAME RIGHT EDGE — that is what "no 99px hole
-    // beside Scenes, no ragged right" means in geometry rather than in taste.
-    expect(second.at(0)?.x).toBe(first.at(0)?.x);
-    expect(second.at(-1)?.right).toBe(first.at(-1)?.right);
+    const picker = component.getByRole("combobox", { name: "Search target" });
+    const omnibox = component.getByRole("combobox", { name: "Search your corpus" });
+    const [pickerBox, omniboxBox] = await Promise.all([picker.boundingBox(), omnibox.boundingBox()]);
+    // One row: the picker is no taller than the control under it, and fits inside the pane.
+    expect(pickerBox?.height ?? Number.POSITIVE_INFINITY).toBeLessThan((omniboxBox?.height ?? 0) * 1.5);
+    expect((pickerBox?.x ?? 0) + (pickerBox?.width ?? 0)).toBeLessThanOrEqual(width);
+    await expectSearchTarget(component, "Characters");
   });
 }
 

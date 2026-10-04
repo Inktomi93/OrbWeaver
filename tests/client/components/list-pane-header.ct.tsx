@@ -13,7 +13,7 @@ import { Button } from "@orb/ui/button";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { resolveSpacingPxIn } from "../../support/browser/touch-floor.ts";
-import { ListBandInShell } from "./list-pane-header.fixtures.tsx";
+import { ListBandInShell, NarrowBand } from "./list-pane-header.fixtures.tsx";
 
 const MICRO_PX = Number.parseFloat(TOKENS["text.micro"].value) * 16;
 const LABEL_PX = `${Number.parseFloat(TOKENS["text.label"].value) * 16}px`;
@@ -259,4 +259,11 @@ test("#1154 the band is an EVEN content box and every occupant lands on the devi
   for (const occupant of landing.occupants) {
     expect(occupant.topFraction, `${occupant.name} lands ${String(occupant.topFraction)} device px off the grid (top ${String(occupant.top)})`).toBe(0);
   }
+});
+
+test("a census beside an unscoped title never clips the title — the count gives the width", async ({ mount }) => {
+  const component = await mount(<NarrowBand count="0 of 11" title="Characters" />);
+  const title = component.getByText("Characters", { exact: true });
+  const fits = await title.evaluate((el) => el.scrollWidth <= el.clientWidth);
+  expect(fits, "the title is truncated while the count keeps its full width").toBe(true);
 });

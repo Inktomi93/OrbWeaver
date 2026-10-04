@@ -81,7 +81,9 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
           {/* The title TEXT is what truncates, not the heading box — see the count's note. It restates the
               display axes because it is the element that carries them (the heading is the flex box), which
               is the same spelling the accent half beside it already uses. */}
-          <Text as="span" className="truncate" size="display" tone="default" weight="semibold">
+          {/* An unscoped title is the pane's NAME: it never gives width up to the census beside it, the count
+              gives instead. A scoped title carries an entity name that may be long, so it still truncates. */}
+          <Text as="span" className={accent === undefined ? "shrink-0" : "truncate"} size="display" tone="default" weight="semibold">
             {accent === undefined ? title : `${title} · `}
             {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies
                 owns the foreground, so the pane still reads as "Chats, scoped to HER" rather than as two
@@ -107,7 +109,7 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             // `normal-case` is gone with the heading's caps: the #525 defect it existed to stop
             // (`CHATS 129 OF 896` — the joining word shouting at the section name's weight) cannot occur
             // now that nothing in this cluster uppercases.
-            <Text as="span" className="shrink-0 font-mono" size="label" tone="muted" weight="regular">
+            <Text as="span" className="min-w-0 truncate font-mono" size="label" tone="muted" weight="regular">
               {count}
             </Text>
           )}

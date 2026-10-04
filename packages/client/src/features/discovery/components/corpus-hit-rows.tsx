@@ -14,7 +14,6 @@ import { testId } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter, useSelectedCorpusDestination } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { chatSubtitle, evidenceScent, groupByEvidence, roomNumberingHint, snippetForDisplay } from "../lib/corpus-result-text.ts";
-import { percent } from "../lib/corpus-vocabulary.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 
 type UnifiedResult = inferOutput<Trpc["search"]["search"]>;
@@ -30,7 +29,6 @@ export function CharacterHitRow({
   genre,
   tone,
   pitch,
-  relevance,
   rank,
 }: {
   readonly characterId: DiscoverHit["characterId"];
@@ -39,23 +37,21 @@ export function CharacterHitRow({
   readonly genre: string | null;
   readonly tone: string | null;
   readonly pitch: string | null;
-  /** null on the LEXICAL branch: BM25 is an unbounded per-query score, not a similarity, so there is no
-   *  honest percent to print for it — the rank order carries what a reader can use (R2a for that one arm). */
-  readonly relevance: number | null;
-  /** This row's 1-based position in the server's ranking — printed, because the percent beside it is a
-   *  DIFFERENT quantity and does not descend ([P2-2]; see {@link hitRankMeta}). */
+  /** This row's 1-based position in the server's ranking — the one datum a row prints: a raw similarity
+   *  percent is an engineer's unit with no stated scale, and the order already says who is closer. */
   readonly rank: number;
 }): ReactElement {
   const facet = characterFacetLine(genre, tone);
-  const subtitle = pitch ?? (facet === "" ? "No pitch distilled" : facet);
+  // No pitch and no facet line means nothing to say: the row hides the line rather than repeating a placeholder.
+  const subtitle = pitch ?? facet;
   return (
     <ListRow
       clickable={true}
       onClick={(): void => selectCorpusCharacter(characterId)}
       leading={<CharacterAvatar id={characterId} name={name} hash={avatarHash} />}
       title={name}
-      subtitle={subtitle}
-      meta={hitRankMeta(rank, relevance)}
+      {...(subtitle === "" ? {} : { subtitle })}
+      meta={rank.toString()}
     />
   );
 }
@@ -72,7 +68,7 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
         title={hit.name}
         subtitle={evidenceScent(hit.matchCount, passages.size, rooms)}
         subtitleWrap={true}
-        meta={hitRankMeta(rank, hit.relevance)}
+        meta={rank.toString()}
       />
       <Stack className="pl-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
         {[...passages].map(([snippet, occurrences]) => (
@@ -116,7 +112,7 @@ export function DigestHitRow({ hit, rank, grouped = false }: { readonly hit: Dig
       title={chatSubtitle(hit.chatTitle, hit.scopedCharacterName)}
       subtitle={grouped ? (hit.scopedCharacterName ?? "Generated memory summary") : snippetForDisplay(hit.text)}
       subtitleWrap={true}
-      meta={hitRankMeta(rank, hit.relevance)}
+      meta={rank.toString()}
     />
   );
 }
@@ -139,11 +135,7 @@ export function ImageHitRow({ hit, rank }: { readonly hit: ImageHit; readonly ra
       }
       title={hit.characterName ?? hit.caption ?? "Uncaptioned image"}
       subtitle={hit.characterId === null ? "Unattached image · open asset detail" : (hit.caption ?? "Uncaptioned image")}
-      meta={hitRankMeta(rank, hit.relevance)}
+      meta={rank.toString()}
     />
   );
-}
-
-function hitRankMeta(rank: number, relevance: number | null): string {
-  return relevance === null ? rank.toString() : `${rank.toString()} · ${percent(relevance)}`;
 }

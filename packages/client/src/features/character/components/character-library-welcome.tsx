@@ -74,8 +74,7 @@ const FRESH_GLOSS_DOCKED =
   "Characters shipped with Orbweaver to talk to, take apart, or use as a starting point. Star the ones you like and they gather here; New at the top of the list makes your own.";
 const FRESH_GLOSS_COLLAPSED = `Characters shipped with Orbweaver to talk to, take apart, or use as a starting point. Star the ones you like and they gather here.${LIST_OFF_SCREEN_HINT}`;
 
-const FRESH_HINT =
-  "Once you've chatted with someone, Recently chatted takes this spot — the shelves appear when they have something to show, never as empty rooms.";
+const FRESH_HINT = "Characters you've chatted with show up here under Recently chatted.";
 
 const EMPTY_GLOSS_DOCKED = "Nobody lives here yet. New at the top of the list makes someone, and Import a card beside it brings one in.";
 const EMPTY_GLOSS_COLLAPSED = `Nobody lives here yet — make someone, or bring a card in.${LIST_OFF_SCREEN_HINT}`;
@@ -376,7 +375,7 @@ function LandingFrame({
                 13px line run to 114 characters (design-audit `line-length`, measured at 1280). The token
                 is `--reading-measure-prose` (#1145): the house `--reading-measure`'s 75 CSS `ch` is ~117
                 of the characters that 114 was counted in, so it was never the right ceiling for prose. */}
-          <Text className="max-w-(--reading-measure-prose)" voice="gloss">
+          <Text className="max-w-(--reading-measure-prose)" voice="quiet">
             {gloss}
           </Text>
         </Stack>

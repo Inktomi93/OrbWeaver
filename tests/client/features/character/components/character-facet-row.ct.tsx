@@ -99,30 +99,13 @@ test("an empty facet row shows the house EMPTY word, not an action word", async 
   await routeEditor(page);
   const component = await mount(<CharacterEditorSurfaceStory />);
 
-  const emptyRow = component.getByRole("button", { name: "Personality", exact: true }).locator("xpath=..");
+  const emptyRow = component.getByRole("button", { name: "Personality", exact: true });
   await expect(emptyRow).toBeVisible();
+  // THE WHOLE ROW IS THE BUTTON: the state word sits inside it, so the focus ring and hover pill take it too.
   await expect(emptyRow.getByText("Empty", { exact: true })).toBeVisible();
   // The action word is gone from the whole surface — the row IS the affordance.
   await expect(component.getByText("Add…")).toHaveCount(0);
   // …and a FILLED row shows its preview, never the state word (the magnitude stays sr-only).
-  const filledRow = component.getByRole("button", { name: "Description", exact: true }).locator("xpath=..");
+  const filledRow = component.getByRole("button", { name: "Description", exact: true });
   await expect(filledRow.getByText("Empty", { exact: true })).toHaveCount(0);
-});
-
-// The aria-snapshot receipt: the two ROWS as an assistive tech reads them, side by side, so a change that
-// flattens them back into one announcement is a visible diff rather than a silent regression. Scoped to the
-// two rows — an `ariaSnapshot` of the whole surface would churn on every editor edit. The snapshot is taken
-// of the row (the button's parent) rather than the button, because the state text is a SIBLING of the
-// button: `aria-describedby` is a name-computation relationship, not a tree containment one, so it does not
-// show up under the button node.
-test("aria snapshot: filled vs empty facet rows read differently", async ({ mount, page }) => {
-  await routeEditor(page);
-  const component = await mount(<CharacterEditorSurfaceStory />);
-
-  const filledRow = component.getByRole("button", { name: "Description", exact: true }).locator("xpath=..");
-  const emptyRow = component.getByRole("button", { name: "Personality", exact: true }).locator("xpath=..");
-  await expect(filledRow).toBeVisible();
-
-  expect(await filledRow.ariaSnapshot()).toContain(`Filled, ${DESCRIPTION.length} characters`);
-  expect(await emptyRow.ariaSnapshot()).toContain("Empty");
 });

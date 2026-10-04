@@ -199,6 +199,20 @@ test("the detail states its metadata, keeps its Ready chip, and offers Reindex",
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "document", documentId: READY_DOC.id } });
 });
 
+// EACH FACT ONCE, ON ONE BASELINE: origin, size and passages are the readout's rows, so the header does not
+// restate them in a subtitle, and a label shares its value's baseline instead of top-aligning two type sizes.
+test("the detail prints origin, size and passages once, and aligns each label to its value's baseline", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  const editor = workspace.locator('[data-slot="databank-detail-editor"]');
+  await expect(editor.getByRole("heading", { name: "The Crimson Court" })).toBeVisible();
+
+  await expect(editor.getByText(/ · .*passages?$/u)).toHaveCount(0);
+  const grid = editor.getByText("Origin", { exact: true }).locator("xpath=..");
+  await expect(grid).toHaveCSS("align-items", "baseline");
+});
+
 // THE DETAIL KEEPS A MEASURE (side-eye sweep 2026-08-03). `justify="between"` label/value rows spend
 // whatever width they are given: at the 1448px desktop CONTENT pane "Origin" sat at x=496 and its own value
 // "Text" at x=1387 — 890px of nothing between a label and the thing it labels, and Reindex flung to the far

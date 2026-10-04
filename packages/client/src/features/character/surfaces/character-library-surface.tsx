@@ -55,6 +55,7 @@ import {
   resumeChat,
   selectCharacter,
   setActiveSection,
+  setBulkMode,
   setCharacterSearch,
   toggleFavoritesOnly,
   toggleFiltersOpen,
@@ -249,7 +250,20 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
     // INSTRUMENT tier (UI-Density-Law.md §3.1 LIST panes): the library is a list you SCAN for a face
     // and a name, not a form you operate.
     <Surface tier="instrument">
-      <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" gap="row">
+      <Stack
+        ref={surfaceRef}
+        tabIndex={-1}
+        className="h-full min-h-0 outline-none"
+        gap="row"
+        // Escape leaves select mode from anywhere in the pane. A portaled dialog's Escape bubbles through the
+        // React tree, so only keys whose DOM target sits inside this pane count.
+        onKeyDown={(event): void => {
+          if (bulkMode && event.key === "Escape" && event.currentTarget.contains(event.target as Node)) {
+            collection.selection.clear();
+            setBulkMode(false);
+          }
+        }}
+      >
         {/* SKIP THE CHROME (#491, side-eye 2026-08-22 rail-characters P1-1). The app-shell's own
             `Skip to content` moves focus to `<main>` — it skips PAST this pane, so a keyboard user who came
             for the LIST had no shortcut at all: the search, the sort, the two view commands, up to 24

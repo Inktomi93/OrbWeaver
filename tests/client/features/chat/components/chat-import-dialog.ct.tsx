@@ -75,6 +75,15 @@ test("a dropped transcript POSTs multipart with the CSRF header and closes on su
   await expect(component.getByTestId("import-closes")).toHaveText("1");
 });
 
+test("the dialog has a visible exit that closes it without importing", async ({ mount, page }) => {
+  await routeTrpc(page, MEMORY_OFF_ROUTES);
+  const component = await mount(<ChatImportDialogStory />);
+
+  await expect(component.getByTestId("import-closes")).toHaveText("0");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(component.getByTestId("import-closes")).toHaveText("1");
+});
+
 test("an all-failed batch is NOT success: it names the server's reason and the dialog stays open", async ({ mount, page }) => {
   await routeTrpc(page, MEMORY_OFF_ROUTES);
   await routeImport(page, {

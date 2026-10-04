@@ -167,6 +167,31 @@ test("the empty-state New button fires onNewChat (the J2 picker trigger)", async
   await expect(page.getByTestId("new-count")).toHaveText("1");
 });
 
+// A room opened from a character's New chat stays out of the library until its first message, so an empty
+// list beside it says the room is coming — but only for a room that WILL join (not a temporary one).
+test("an empty list beside an open, listable room says that room joins after its first message", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], temporary: false, archived: false },
+    "chat.listChats": chatListResponder([]),
+  });
+
+  const component = await mount(<ChatListSurfaceStory activeChatId="chat_started" />);
+  await expect(component.getByText("This chat joins your list after your first message.")).toBeVisible();
+});
+
+test("an empty list beside a temporary room does not promise it a place", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], temporary: true, archived: false },
+    "chat.listChats": chatListResponder([]),
+  });
+
+  const component = await mount(<ChatListSurfaceStory activeChatId="chat_scratch" />);
+  await expect(component.locator('[data-slot="empty-state-title"]')).toHaveText("No chats yet");
+  await expect(component.getByText("This chat joins your list after your first message.")).toHaveCount(0);
+});
+
 test("the search field narrows the rows — the predicate rides the SERVER query, not a client pass", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
 
@@ -619,6 +644,17 @@ test("the per-row kebab opens the actions menu", async ({ mount, page }) => {
   await expect(page.getByRole("menuitem", { name: "Archive" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Export transcript" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
+});
+
+test("the delete confirm names the chat it is about to delete", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).hover();
+  await component.getByRole("button", { name: ADVENTURE_MENU }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+
+  await expect(page.getByRole("alertdialog", { name: /A grand adventure/u })).toBeVisible();
 });
 
 // The lifecycle one-home ruling: EXPORT homes on the row kebab (import is the band's ghost; the room

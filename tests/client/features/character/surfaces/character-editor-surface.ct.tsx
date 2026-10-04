@@ -594,6 +594,29 @@ test("#844 P3 the token census datum carries no wide letter-spacing", async ({ m
   await expect.poll(() => census.evaluate((node) => Number.parseFloat(globalThis.getComputedStyle(node).letterSpacing) || 0)).toBeLessThan(0.1);
 });
 
+// ONE HOME PER FACT: while the CONTEXT pane is open its head band prints the token count, so the editor's
+// own census stands down (the shell keys the yield on the context mode, as it does for the hero's echoes).
+test("the editor token census yields while the CONTEXT pane is docked", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHARACTER_EDITOR_AMBIENT_ROUTES, "character.get": () => CARD, "chat.listChats": chatListResponder([]) });
+  const component = await mount(
+    <div className="shell-grid" data-context-mode="docked">
+      <CharacterEditorSurfaceStory />
+    </div>,
+  );
+
+  await expect(component.getByRole("button", { name: DESCRIPTION_ROW })).toBeVisible();
+  await expect(component.getByText(TOKEN_SPLIT_RE)).toBeHidden();
+});
+
+test("the Overview card does not restate an empty tag list the hero already shows", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHARACTER_EDITOR_AMBIENT_ROUTES, "character.get": () => CARD, "chat.listChats": chatListResponder([]) });
+  const component = await mount(<CharacterFacetInspectorStory />);
+
+  const overview = component.locator('[data-slot="character-overview"]');
+  await expect(overview.locator('[data-slot="overview-row"]').filter({ hasText: "Added" })).toBeVisible();
+  await expect(overview.locator('[data-slot="overview-row"]').filter({ hasText: "Applied" })).toHaveCount(0);
+});
+
 // F4 (the ruling: a CONTEXT panel that opens to "Open a field to inspect it" fails its instrument tier)
 // SURVIVES — its INPUT changed. #513 replaced the card's four ECHO rows (tokens · openings · tags · chats,
 // all of which CONTENT prints 300px to the left) with rows CONTENT never shows. So this pin asserts BOTH
