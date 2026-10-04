@@ -2,7 +2,7 @@
 // `connection.setBinding` for an actor, beside what the role resolves to today from the persisted `listBindings`
 // view. Model roles renders one per task for the user; a rule's editor renders one per task its arms spend.
 
-import type { EmbedWidthRefusalDetail } from "@orb/contracts/inference";
+import type { EmbedTargetRefusal } from "@orb/contracts/inference";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, X } from "@orb/ui/icons";
@@ -21,8 +21,9 @@ import {
   cn,
   connectionHost,
   connectionSummary,
-  embedWidthRefusalOf,
-  embedWidthRefusalText,
+  EMBED_REFUSAL_SLOTS,
+  embedRefusalOf,
+  embedRefusalText,
   REBUILD_JOBS_LABEL,
   REBUILD_STATUS_COPY,
   ROLE_STATUS_LABELS,
@@ -139,8 +140,8 @@ export function ConnectionRoleSlot({
   });
   const isVectorRole = actor === undefined && VECTOR_ROLES.includes(row.task);
   const rebuild = useEmbedderRebuild(trpc, isVectorRole, row.task);
-  // The last pick the server refused because the embedder does not make the width its connection states.
-  const [widthRefusal, setWidthRefusal] = useState<EmbedWidthRefusalDetail | null>(null);
+  // The last pick the server refused because the embedder does not make the width its connection states, or did not answer.
+  const [embedRefusal, setEmbedRefusal] = useState<EmbedTargetRefusal | null>(null);
   // The PICKER's draft — `undefined` until the user touches it, which is the only state that can never
   // diverge. It is never the readout's `{X}`; it is only the other half of the comparison.
   const [draft, setDraft] = useState<string | null | undefined>(undefined);
@@ -187,7 +188,7 @@ export function ConnectionRoleSlot({
           </Text>
           {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
           <ReadoutLine readout={readout} unsetSentence={isVectorRole && row.task === "embed" ? TEXT_EMBEDDER_UNSET : undefined} />
-          <WidthRefusalLine refusal={widthRefusal} />
+          <EmbedRefusalLine refusal={embedRefusal} />
           {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
           {repairs.map((connection) => (
             <BackgroundRepair
@@ -212,10 +213,10 @@ export function ConnectionRoleSlot({
           }
           const write = (): void => {
             setDraft(picked);
-            setWidthRefusal(null);
+            setEmbedRefusal(null);
             setBinding.mutate(
               { task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) },
-              { onError: rollBackOnWidthRefusal(setDraft, setWidthRefusal) },
+              { onError: rollBackOnEmbedRefusal(setDraft, setEmbedRefusal) },
             );
           };
           // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
@@ -232,22 +233,23 @@ export function ConnectionRoleSlot({
   );
 }
 
-/** A failed pick's handler: the server undid a write onto a width the embedder cannot make, so the picker goes back to
- *  what is bound and the row says why. Any other failure keeps the draft, so the row says it is not applied yet. */
-function rollBackOnWidthRefusal(setDraft: (draft: undefined) => void, setWidthRefusal: (refusal: EmbedWidthRefusalDetail) => void): (error: unknown) => void {
+/** A failed pick's handler: the server undid a write onto an embedder whose width it could not accept or could not
+ *  check, so the picker goes back to what is bound and the row says why. Any other failure keeps the draft, so the
+ *  row says it is not applied yet. */
+function rollBackOnEmbedRefusal(setDraft: (draft: undefined) => void, setEmbedRefusal: (refusal: EmbedTargetRefusal) => void): (error: unknown) => void {
   return (error) => {
-    const width = embedWidthRefusalOf(error);
-    if (width !== null) {
+    const refusal = embedRefusalOf(error);
+    if (refusal !== null) {
       setDraft(undefined);
-      setWidthRefusal(width);
+      setEmbedRefusal(refusal);
     }
   };
 }
 
-function WidthRefusalLine({ refusal }: { readonly refusal: EmbedWidthRefusalDetail | null }): ReactElement | null {
+function EmbedRefusalLine({ refusal }: { readonly refusal: EmbedTargetRefusal | null }): ReactElement | null {
   return refusal === null ? null : (
-    <Text voice="gloss" role="alert" data-refusal="embed-width" className={cn(READOUT_INK.blocked, PROSE_MEASURE)}>
-      {embedWidthRefusalText(refusal)}
+    <Text voice="gloss" role="alert" data-refusal={EMBED_REFUSAL_SLOTS[refusal.kind]} className={cn(READOUT_INK.blocked, PROSE_MEASURE)}>
+      {embedRefusalText(refusal)}
     </Text>
   );
 }

@@ -38,7 +38,7 @@
 // SAVED row invalidates its credential, its base URL, its model and its kind at once; a control that starts
 // that cascade and handles none of it is worse than no control. The row says so and points at the add flow.
 
-import type { EmbedWidthRefusalDetail } from "@orb/contracts/inference";
+import type { EmbedTargetRefusal } from "@orb/contracts/inference";
 import { EMBED_SPACE_FIELDS, providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -54,7 +54,7 @@ import { useRef, useState } from "react";
 import { QueryBoundary, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
-import { embedWidthRefusalOf, embedWidthRefusalText } from "#lib";
+import { EMBED_REFUSAL_SLOTS, embedRefusalOf, embedRefusalText } from "#lib";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 import { capabilityFactRows, VECTOR_WIDTH_FACT_PATH } from "../lib/connection-capability-fact-model.ts";
 import { capabilityBadges, declaredOverrideCount, diagnosticsSetCount, hostLabel, inferredKindOf, purposeNotes } from "../lib/connection-editor-model.ts";
@@ -150,8 +150,8 @@ function AvailableConnectionEditorBody({
     widthRow?.focus();
     return widthRow === null;
   });
-  // The last write the server refused because the embedder does not make the width it would state.
-  const [widthRefusal, setWidthRefusal] = useState<EmbedWidthRefusalDetail | null>(null);
+  // The last write the server refused because the embedder does not make the width it would state, or did not answer.
+  const [embedRefusal, setEmbedRefusal] = useState<EmbedTargetRefusal | null>(null);
   const providerLabel = providerDisplayLabel(provider);
   // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed.
   const detected = providers.find((row) => row.id === capabilityView.detectedProviderId);
@@ -167,8 +167,8 @@ function AvailableConnectionEditorBody({
       update.mutate(
         { connectionId, patch: part },
         {
-          onSuccess: (): void => setWidthRefusal(null),
-          onError: (error): void => setWidthRefusal(embedWidthRefusalOf(error)),
+          onSuccess: (): void => setEmbedRefusal(null),
+          onError: (error): void => setEmbedRefusal(embedRefusalOf(error)),
         },
       );
     if (EMBED_SPACE_FIELDS.some((field) => part[field] !== undefined)) {
@@ -184,9 +184,9 @@ function AvailableConnectionEditorBody({
       <Stack data-slot="connection-editor" gap="block">
         <ConnectionEditorHeader label={connection.label} onDone={onDone} />
         {reindex.dialog}
-        {widthRefusal === null ? null : (
-          <Text className="text-warning" data-refusal="embed-width" role="alert" voice="gloss">
-            {embedWidthRefusalText(widthRefusal)}
+        {embedRefusal === null ? null : (
+          <Text className="text-warning" data-refusal={EMBED_REFUSAL_SLOTS[embedRefusal.kind]} role="alert" voice="gloss">
+            {embedRefusalText(embedRefusal)}
           </Text>
         )}
 

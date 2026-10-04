@@ -7,7 +7,7 @@ import type { Db } from "@orb/db";
 import { userConnections } from "@orb/db";
 import { fetchOwned } from "@orb/db/kit";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, getTableColumns, isNull } from "drizzle-orm";
 
 type ConnectionRow = typeof userConnections.$inferSelect;
 type ConnectionInsert = typeof userConnections.$inferInsert;
@@ -75,6 +75,28 @@ export async function updateOwnedConnection(
     .update(userConnections)
     .set(patch)
     .where(and(eq(userConnections.id, connectionId), eq(userConnections.ownerId, ownerId)));
+}
+
+type ConnectionPatch = Partial<Omit<ConnectionInsert, "id" | "ownerId" | "createdAt">>;
+
+/** Write `prior` back, only while the row still holds every column `written` set: undoing a write never overwrites a
+ *  newer write that landed after it. One conditional UPDATE, so the check and the write cannot interleave; each value
+ *  binds through its column's own encoding, so a JSON column compares as the text it was stored as. */
+export async function restoreOwnedConnectionIf(
+  db: Db,
+  ownerId: UserId,
+  connectionId: UserConnectionId,
+  args: { readonly written: ConnectionPatch; readonly prior: ConnectionPatch },
+): Promise<void> {
+  const columns = getTableColumns(userConnections);
+  const holdsWritten = Object.entries(args.written).map(([name, value]) => {
+    const column = columns[name as keyof typeof columns];
+    return value === null || value === undefined ? isNull(column) : eq(column, value);
+  });
+  await db
+    .update(userConnections)
+    .set(args.prior)
+    .where(and(eq(userConnections.id, connectionId), eq(userConnections.ownerId, ownerId), ...holdsWritten));
 }
 
 /** Owner-scoped delete. Bindings SET NULL, variants SET NULL, session entries CASCADE — schema physics. */

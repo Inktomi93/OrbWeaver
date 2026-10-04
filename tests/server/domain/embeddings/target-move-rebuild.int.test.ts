@@ -5,9 +5,11 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import type { EmbedResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, userCredentials } from "@orb/db";
+import { ProviderError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { CharacterId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -18,7 +20,8 @@ import type { MemoryEmbedSpace } from "../../../../packages/server/src/domain/ch
 import { createChatWorkloadContributions } from "../../../../packages/server/src/domain/chat/workload-contributions.ts";
 import { createDatabankWorkloadContributions } from "../../../../packages/server/src/domain/databank/workload-contributions.ts";
 import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
-import type { EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
+import type { EmbeddingConnectionSnapshot, EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
+import { WIDTH_PROBE_TEXT } from "../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
 import { nearestCharacters } from "../../../../packages/server/src/domain/search/persistence/nearest.ts";
 import { withActiveQuerySpace } from "../../../../packages/server/src/domain/search/substrate/space.ts";
 import { GenerationSupersededError } from "../../../../packages/server/src/kit/embedding-generation/index.ts";
@@ -523,7 +526,7 @@ test("a sync whose embedder makes the wrong width returns the refusal and moves 
 
   const refusal = await svc.syncTargetGenerations(d.userId);
 
-  expect(refusal).toEqual({ task: "embed", stated: 768, measured: 7 });
+  expect(refusal).toEqual({ kind: "width", task: "embed", stated: 768, measured: 7 });
   expect(d.moved, "a width the embedder does not make keeps both targets").toEqual([]);
 });
 
@@ -592,6 +595,116 @@ describe("a connection write onto a width the embedder cannot make", () => {
 
     expect(await boundEmbedder(d)).toBe(narrow);
     expect(d.moved).toContain(d.userId);
+  });
+});
+
+/** The embeddings service the owner's writes sync through, with the n-th width probe answered by `answer(n, real)`. */
+function probedService(d: Drive, answer: (n: number, real: () => Promise<EmbedResult>) => Promise<EmbedResult>): EmbeddingsService {
+  let probes = 0;
+  return createEmbeddingsService({
+    ...d.ctx,
+    resolveEmbeddingConnection: async (ownerId, task, connectionId) => {
+      const connection = await d.ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
+      if (connection === null) {
+        return null;
+      }
+      const embed: EmbeddingConnectionSnapshot["embed"] = async (input, opts) => {
+        if (input !== WIDTH_PROBE_TEXT) {
+          return await connection.embed(input, opts);
+        }
+        probes += 1;
+        return await answer(probes, () => connection.embed(input, opts));
+      };
+      return { ...connection, embed };
+    },
+  });
+}
+
+/** Where the owner's text target embeds through now. */
+async function targetConnection(d: Drive): Promise<unknown> {
+  const generation = await d.svc.resolveGeneration(d.userId, "embed");
+  return generation?.connection.connectionId;
+}
+
+/** A write's outcome as the pane meets it: accepted, or the refusal's code. */
+async function outcomeOf(write: Promise<unknown>): Promise<string> {
+  return await write.then(
+    () => "accepted",
+    (error: unknown) => `refused ${(error as { code?: string }).code ?? String(error)}`,
+  );
+}
+
+const PROBE_DOWN = (): Promise<never> => Promise.reject(new ProviderError({ kind: "server", retryable: true, message: "socket hang up" }));
+
+// A refused write is undone after its probe answers, and a newer write may have landed meanwhile: the undo restores only
+// what this write put there, so the newer write and its moved target agree.
+describe("a refused write's undo, and a probe that does not answer", () => {
+  test("a write refused after a newer write landed leaves the newer binding, which its target matches", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let reached: () => void = () => undefined;
+    const atGate = new Promise<void>((resolve) => {
+      reached = resolve;
+    });
+    d.h.useEmbeddings(
+      probedService(d, async (n, real) => {
+        if (n === 1) {
+          reached();
+          await gate;
+        }
+        return await real();
+      }),
+    );
+    const wide = await narrowStating(d, 1024);
+    const fits = await narrowStating(d, 768);
+
+    const first = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: wide }));
+    await atGate;
+    const second = await outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: fits }));
+    release();
+
+    expect(await first).toBe(`refused ${CONNECTION_OP_CODES.embedWidthUnmakeable}`);
+    expect(second).toBe("accepted");
+    expect(await boundEmbedder(d)).toBe(fits);
+    expect(await targetConnection(d)).toBe(fits);
+  });
+
+  test("a write's target move probes the width once, so a later failure cannot strand the write half done", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    let probes = 0;
+    // A second probe is the move probing again after the proof; it fails the way a flaky server would.
+    d.h.useEmbeddings(
+      probedService(d, async (n, real) => {
+        probes = n;
+        return n > 1 ? await PROBE_DOWN() : await real();
+      }),
+    );
+    const fits = await narrowStating(d, 768);
+
+    expect(await outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: fits }))).toBe("accepted");
+
+    expect(probes, "the text target's proof, and nothing again inside the move").toBe(1);
+    expect(await boundEmbedder(d)).toBe(fits);
+    expect(await targetConnection(d)).toBe(fits);
+  });
+
+  test("an embedder that does not answer the width probe refuses the write with its own code, and nothing moves", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    d.h.useEmbeddings(probedService(d, PROBE_DOWN));
+    const fits = await narrowStating(d, 768);
+
+    const outcome = await outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: fits }));
+
+    expect(outcome).toBe(`refused ${CONNECTION_OP_CODES.embedUnreachable}`);
+    expect(await boundEmbedder(d)).toBe(d.builtIn);
+    expect(d.moved).toEqual([]);
+    expect(await searchState(d)).toEqual(ALL_CARDS);
   });
 });
 

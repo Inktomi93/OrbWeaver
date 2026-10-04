@@ -10,7 +10,7 @@ import type { VectorScope } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
 import type {
   ConnectionBinding,
-  EmbedWidthRefusalDetail,
+  EmbedTargetRefusal,
   ModelListing,
   ResolvedConnectionView,
   RoutableTask,
@@ -92,8 +92,9 @@ export interface ConnectionContext {
   }) => Promise<CredentialHealth>;
   /** The embed-space trigger (§10-4): the caller's embed / imageEmbed space MAY have changed. Syncs the owner's stored
    *  targets against it, awaited by the write: a target that moves queues their rebuild, one that matches does not, and
-   *  an encoder that does not make its stated width moves nothing and is returned for the write to undo and refuse. */
-  readonly syncEmbedTargets: (ownerId: UserId) => Promise<EmbedWidthRefusalDetail | null>;
+   *  an encoder that does not make its stated width, or does not answer the probe, moves nothing and is returned for
+   *  the write to undo and refuse. */
+  readonly syncEmbedTargets: (ownerId: UserId) => Promise<EmbedTargetRefusal | null>;
   /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
    *  cannot resolve. The embeddings domain's own move rule, read-only, for the change preview. */
   readonly targetWouldMove: (args: {

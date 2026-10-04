@@ -129,6 +129,9 @@ export const CONNECTION_OP_CODES = {
   /** The embedder does not make vectors as wide as its connection states; the write that would rebuild the index
    *  on it is undone. The refusal's detail carries {@link EmbedWidthRefusalDetail}. */
   embedWidthUnmakeable: "connection_embed_width_unmakeable",
+  /** The embedder did not answer the width probe, so the width it makes is unknown; the write that would rebuild the
+   *  index on it is undone rather than accepted unchecked. */
+  embedUnreachable: "connection_embed_unreachable",
 } as const;
 
 /** The two widths an `embedWidthUnmakeable` refusal names: what the connection states, and what the model made. */
@@ -136,3 +139,6 @@ export interface EmbedWidthRefusalDetail {
   readonly stated: number;
   readonly measured: number;
 }
+
+/** Why a write that would move the owner's index was refused before anything moved. */
+export type EmbedTargetRefusal = ({ readonly kind: "width" } & EmbedWidthRefusalDetail) | { readonly kind: "unreachable" };

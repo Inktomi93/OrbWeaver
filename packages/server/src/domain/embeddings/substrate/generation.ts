@@ -25,20 +25,36 @@ export async function completeGenerationScope(
   }
 }
 
+/** The owner's target generation for `task`, moving the stored target first when the binding now resolves elsewhere.
+ *  A move probes the new width before it purges anything. */
 export async function resolveTargetGeneration(
   ctx: TargetResolveCtx,
   ownerId: UserId,
   task: GenerationTask,
   via: GenerationTask = task,
 ): Promise<PinnedGeneration | null> {
-  return await resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt: 0 });
+  return await resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven: undefined, attempt: 0 });
 }
 
-const PROBE_TEXT = "width check";
+/** {@link resolveTargetGeneration} for a move the caller already probed: it lands `proven`, the generation that proof
+ *  probed, without probing again. A resolve that lands anywhere else moves nothing and returns `null`, since a newer
+ *  write owns that move. */
+export async function landProvenTarget(
+  ctx: TargetResolveCtx,
+  ownerId: UserId,
+  target: { readonly task: GenerationTask; readonly via: GenerationTask },
+  proven: EmbedGenerationId,
+): Promise<PinnedGeneration | null> {
+  return await resolveTargetGenerationAttempt({ ctx, ownerId, ...target, proven, attempt: 0 });
+}
+
+/** What the width probe embeds.
+ *  @public Test-anchored module surface; the write-path tests answer this probe apart from real embeds. */
+export const WIDTH_PROBE_TEXT = "width check";
 
 /** One embed through the new connection: the vector must be as wide as the space it would be written into. */
 export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: GenerationTask, dims: number): Promise<void> {
-  const result = via === "embed" ? await connection.embed(PROBE_TEXT) : await connection.imageEmbed({ kind: "text", input: PROBE_TEXT });
+  const result = via === "embed" ? await connection.embed(WIDTH_PROBE_TEXT) : await connection.imageEmbed({ kind: "text", input: WIDTH_PROBE_TEXT });
   const vector = result.vectors[0];
   if (vector === null || vector === undefined) {
     throw new EmbedFailedError("width probe", result.model);
@@ -93,6 +109,7 @@ function movesTarget(prior: { readonly generationId: string } | undefined, id: E
 
 /** A target move a resolve would make now, without making it. */
 interface PendingTargetMove {
+  readonly id: EmbedGenerationId;
   readonly moves: boolean;
   readonly connection: EmbeddingConnectionSnapshot;
   readonly dims: number;
@@ -112,7 +129,7 @@ export async function pendingTargetMove(
     return null;
   }
   const candidate = candidateOf(ownerId, task, via, connection);
-  return { moves: movesTarget(await readTarget(ctx, ownerId, task), candidate.id), connection, dims: candidate.dims };
+  return { id: candidate.id, moves: movesTarget(await readTarget(ctx, ownerId, task), candidate.id), connection, dims: candidate.dims };
 }
 
 interface ResolveAttempt {
@@ -120,25 +137,35 @@ interface ResolveAttempt {
   readonly ownerId: UserId;
   readonly task: GenerationTask;
   readonly via: GenerationTask;
+  readonly proven: EmbedGenerationId | undefined;
   readonly attempt: number;
 }
 
-async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt }: ResolveAttempt): Promise<PinnedGeneration | null> {
-  const prior = await readTarget(ctx, ownerId, task);
-  let connection = await ctx.resolveEmbeddingConnection(ownerId, via);
-  if (connection === null) {
+/** What `via` resolves to now. Resolution can span provider/catalog work, so it is read twice and the later answer
+ *  wins: an older slow resolver cannot land after a newer binding and reset the target backwards. */
+async function resolveCurrentConnection(ctx: TargetResolveCtx, ownerId: UserId, via: GenerationTask): Promise<EmbeddingConnectionSnapshot | null> {
+  const first = await ctx.resolveEmbeddingConnection(ownerId, via);
+  if (first === null) {
     return null;
   }
-  // Resolution can span provider/catalog work. Re-read once before authorizing a target transition so an
-  // older slow resolver cannot land after a newer binding and reset the target backwards.
   const current = await ctx.resolveEmbeddingConnection(ownerId, via);
   if (current === null) {
     return null;
   }
-  if (connection.connectionId !== current.connectionId || connectionFingerprint(connection) !== connectionFingerprint(current)) {
-    connection = current;
+  return first.connectionId === current.connectionId && connectionFingerprint(first) === connectionFingerprint(current) ? first : current;
+}
+
+async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven, attempt }: ResolveAttempt): Promise<PinnedGeneration | null> {
+  const prior = await readTarget(ctx, ownerId, task);
+  const connection = await resolveCurrentConnection(ctx, ownerId, via);
+  if (connection === null) {
+    return null;
   }
   const { id, space, dims } = candidateOf(ownerId, task, via, connection);
+  const moves = movesTarget(prior, id);
+  if (moves && proven !== undefined && proven !== id) {
+    return null;
+  }
   const fingerprint = vectorSpaceFingerprint(connection);
   const now = ctx.now();
   await ctx.db
@@ -147,10 +174,12 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt
     .onConflictDoNothing();
   if (prior === undefined) {
     await ctx.db.insert(embedGenerationTargets).values({ ownerId, task, generationId: id, epoch: 1 }).onConflictDoNothing();
-  } else if (movesTarget(prior, id)) {
+  } else if (moves) {
     // A new generation never shares the index with the old one: the switch purges the old vectors with it. So
     // prove the new space can be written first; a width the embedder does not make keeps the old index.
-    await probeWidth(connection, via, dims);
+    if (proven === undefined) {
+      await probeWidth(connection, via, dims);
+    }
     // The switch emptied the old index; whoever moved it owes the owner the sweep that refills it, whatever the
     // caller was (a write, a sweep, a sync after a re-point).
     if (await switchTargetGeneration(ctx.db, { ownerId, task, from: prior, to: id })) {
@@ -160,7 +189,7 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt
   const row = await readTarget(ctx, ownerId, task);
   if (row === undefined || row.generationId !== id) {
     if (attempt === 0) {
-      return await resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt: 1 });
+      return await resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven, attempt: 1 });
     }
     throw new Error("embedding generation target kept changing while the sweep was starting");
   }

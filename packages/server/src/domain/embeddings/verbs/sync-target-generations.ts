@@ -4,12 +4,13 @@
 
 import { NoConnectionError, ProviderError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { EmbeddingsContext } from "../context.ts";
-import type { EmbedWidthRefusal, GenerationTask } from "../contract/generation.ts";
+import { EmbedFailedError } from "../contract/errors.ts";
+import type { EmbedMoveRefusal, GenerationTask } from "../contract/generation.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
-import { pendingTargetMove, probeWidth, resolveTargetGeneration, widthMismatchOf } from "../substrate/generation.ts";
+import { landProvenTarget, pendingTargetMove, probeWidth, widthMismatchOf } from "../substrate/generation.ts";
 import { resolveImageSpace } from "../substrate/task-model.ts";
 
 /** A binding that cannot resolve yet: a revoked or missing key, or no usable connection. Its first write after it
@@ -24,12 +25,15 @@ interface SyncTarget {
   readonly via: GenerationTask;
 }
 
-type Proof = { readonly kind: "move" } | { readonly kind: "skip" } | { readonly kind: "refused"; readonly refusal: EmbedWidthRefusal };
+type Proof =
+  | { readonly kind: "move"; readonly generationId: EmbedGenerationId }
+  | { readonly kind: "skip" }
+  | { readonly kind: "refused"; readonly refusal: EmbedMoveRefusal };
 
 /**
  * Probe one target's move before anything moves. A width the encoder does not make is the refusal the waiting write
- * reports. An unresolvable binding skips the target (its first write after it can resolve moves it). An embedder that
- * does not answer also skips it: the next write that embeds through the binding re-runs the move and owns that failure.
+ * reports, and so is an embedder that does not answer: an unchecked width is never accepted. An unresolvable binding
+ * skips the target (its first write after it can resolve moves it).
  */
 async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget): Promise<Proof> {
   try {
@@ -38,25 +42,25 @@ async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget
       return { kind: "skip" };
     }
     await probeWidth(move.connection, target.via, move.dims);
-    return { kind: "move" };
+    return { kind: "move", generationId: move.id };
   } catch (error) {
     const width = widthMismatchOf(error);
     if (width !== null) {
-      return { kind: "refused", refusal: { task: target.task, ...width } };
+      return { kind: "refused", refusal: { kind: "width", task: target.task, ...width } };
     }
     if (bindingUnresolvable(error)) {
       return { kind: "skip" };
     }
-    if (error instanceof ProviderError) {
-      getLog().warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe failed; the next write retries the move");
-      return { kind: "skip" };
+    if (error instanceof ProviderError || error instanceof EmbedFailedError) {
+      getLog().warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe got no answer; the write is refused");
+      return { kind: "refused", refusal: { kind: "unreachable", task: target.task } };
     }
     throw error;
   }
 }
 
 export function createSyncTargetGenerations(ctx: EmbeddingsContext): EmbeddingsService["syncTargetGenerations"] {
-  return async (ownerId: UserId): Promise<EmbedWidthRefusal | null> => {
+  return async (ownerId: UserId): Promise<EmbedMoveRefusal | null> => {
     const image = await resolveImageSpace(ctx, ownerId).catch((error: unknown) => {
       if (bindingUnresolvable(error)) {
         return null;
@@ -73,9 +77,10 @@ export function createSyncTargetGenerations(ctx: EmbeddingsContext): EmbeddingsS
       }
       proofs.push({ target, proof });
     }
+    // Each move lands the generation its proof probed, without probing again.
     for (const { target, proof } of proofs) {
       if (proof.kind === "move") {
-        await resolveTargetGeneration(ctx, ownerId, target.task, target.via);
+        await landProvenTarget(ctx, ownerId, target, proof.generationId);
       }
     }
     return null;

@@ -23,7 +23,7 @@ import type {
   UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
-import type { EmbedWidthRefusal, GenerationReceipt, GenerationTask } from "./generation.ts";
+import type { EmbedMoveRefusal, GenerationReceipt, GenerationTask } from "./generation.ts";
 import type {
   ClearTableParams,
   CountDocumentChunksParams,
@@ -147,7 +147,7 @@ export interface EmbeddingsService {
    *  differ (which queues the rebuild through {@link EmbeddingsContext.onTargetGenerationMoved}). A binding that
    *  cannot resolve yet moves nothing and does not throw: its first write after it can resolve moves it. Every move
    *  is width-probed before any moves, so a refusal leaves both targets and their indexes as they were. */
-  readonly syncTargetGenerations: (ownerId: UserId) => Promise<EmbedWidthRefusal | null>;
+  readonly syncTargetGenerations: (ownerId: UserId) => Promise<EmbedMoveRefusal | null>;
   /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
    *  cannot resolve. Read-only, and the same rule a move is made by. */
   readonly targetWouldMove: (args: {

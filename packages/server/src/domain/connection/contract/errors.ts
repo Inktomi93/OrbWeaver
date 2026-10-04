@@ -29,6 +29,15 @@ export class EmbedWidthUnmakeableError extends DomainOperationError {
   }
 }
 
+/** A write that would move the caller's index onto an embedder that did not answer the width probe. Undone before
+ *  this is thrown, like {@link EmbedWidthUnmakeableError}: an unchecked width is never accepted. */
+export class EmbedUnreachableError extends DomainOperationError {
+  declare readonly code: typeof CONNECTION_OP_CODES.embedUnreachable;
+  constructor() {
+    super(CONNECTION_OP_CODES.embedUnreachable, "Couldn't reach this embedder to check its vector width. Try again.");
+  }
+}
+
 export class ConnectionNotFoundError extends DomainOperationError {
   declare readonly code: typeof CONNECTION_OP_CODES.notFound;
   constructor(connectionId: UserConnectionId) {

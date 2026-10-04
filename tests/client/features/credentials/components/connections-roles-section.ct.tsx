@@ -648,6 +648,26 @@ test("a pick the server refuses for its width rolls the picker back and says why
   await expect(picker).toHaveText(before ?? "");
 });
 
+// An embedder that did not answer the width probe is refused the same way: the width is unknown, so nothing changed.
+test("a pick the server refuses because the embedder did not answer rolls the picker back and says so on the row", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, {
+    reindexPreview: STORED_REBUILD,
+    bindAnswer: () => trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedUnreachable }),
+  });
+  await mount(<ConnectionsSettingsStory />);
+  const picker = roleSelect(page, "Text embedding");
+  const before = await picker.textContent();
+
+  await picker.click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(page.locator('[data-refusal="embed-unreachable"]')).toHaveAttribute("role", "alert");
+  expect((await rowOf(page.locator('[data-refusal="embed-unreachable"]'))).picker).toBe("Text embedding connection");
+  await expect(picker).toHaveText(before ?? "");
+});
+
 // The app cache never goes stale on its own, and the rows only poll while a rebuild already shows as running,
 // so the confirmed re-point itself must re-read the job list or the rebuild it enqueued stays invisible.
 test("a confirmed embedder re-point shows its rebuild running, then failed", async ({ mount, page }) => {

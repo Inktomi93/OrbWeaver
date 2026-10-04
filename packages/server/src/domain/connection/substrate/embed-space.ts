@@ -7,11 +7,11 @@
 // target whether anything moved, falling back to it moves nothing.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { RoutableTask } from "@orb/contracts/inference";
+import type { EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { connectionFingerprint } from "#kit/embedding-generation";
-import { EmbedWidthUnmakeableError } from "../contract/errors.ts";
+import { EmbedUnreachableError, EmbedWidthUnmakeableError } from "../contract/errors.ts";
 import type { EmbedSpace, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext } from "../contract/service.ts";
 
@@ -86,10 +86,11 @@ export function spacesMayMoveTarget(before: EmbedSpaces, after: EmbedSpaces): bo
 
 /**
  * Settle a written change that may have moved the owner's stored targets. The sync probes the new encoder before any
- * target moves; a width it does not make runs `undo` and refuses the write, so the index and the binding stay as they
- * were.
+ * target moves; a width it does not make, or a probe it does not answer, runs `undo` and refuses the write, so the
+ * index and the binding stay as they were. A sync that throws undoes the write too: a write never stays landed behind
+ * an error. `undo` must restore only what this write still holds, since a newer write may have landed meanwhile.
  *
- * @throws {@link EmbedWidthUnmakeableError} after `undo`, when the encoder does not make the width its connection states.
+ * @throws {@link EmbedWidthUnmakeableError} or {@link EmbedUnreachableError} after `undo`.
  */
 export async function settleEmbedSpace(
   ctx: Pick<ConnectionContext, "syncEmbedTargets">,
@@ -98,9 +99,16 @@ export async function settleEmbedSpace(
   if (!spacesMayMoveTarget(args.before, args.after)) {
     return;
   }
-  const refused = await ctx.syncEmbedTargets(args.ownerId);
-  if (refused !== null) {
+  let refused: EmbedTargetRefusal | null;
+  try {
+    refused = await ctx.syncEmbedTargets(args.ownerId);
+  } catch (error) {
     await args.undo();
-    throw new EmbedWidthUnmakeableError(refused);
+    throw error;
   }
+  if (refused === null) {
+    return;
+  }
+  await args.undo();
+  throw refused.kind === "width" ? new EmbedWidthUnmakeableError(refused) : new EmbedUnreachableError();
 }

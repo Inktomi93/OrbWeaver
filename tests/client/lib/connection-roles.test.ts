@@ -29,7 +29,7 @@ import {
 import type { ReindexPreview } from "../../../packages/client/src/lib/embedder-rebuild.ts";
 import {
   embedderRebuildState,
-  embedWidthRefusalOf,
+  embedRefusalOf,
   REINDEX_CONFIRM_COPY,
   reindexConfirmDescription,
   reindexNeedsConfirm,
@@ -347,10 +347,15 @@ test("the role row says nothing once search answers, whatever an earlier rebuild
 });
 
 // A refused embedder write is read off the wire's reason and detail, never its message: the picker rolls back on it.
-test("a width refusal is read from the refusal's code and its two stated widths", () => {
+test("an embedder refusal is read from the refusal's code, and a width refusal from its two widths", () => {
   const refused = (reason: string, detail: unknown): unknown => ({ message: "irrelevant", data: { code: "BAD_REQUEST", reason, detail } });
-  expect(embedWidthRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 1024, measured: 768 }))).toEqual({ stated: 1024, measured: 768 });
-  expect(embedWidthRefusalOf(refused(CONNECTION_OP_CODES.notFound, { stated: 1024, measured: 768 })), "another refusal").toBeNull();
-  expect(embedWidthRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: "1024" })), "no numbers to say").toBeNull();
-  expect(embedWidthRefusalOf(new Error("This model makes 768-wide vectors")), "a message is never read").toBeNull();
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 1024, measured: 768 }))).toEqual({
+    kind: "width",
+    stated: 1024,
+    measured: 768,
+  });
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedUnreachable, {})), "no answer to the probe").toEqual({ kind: "unreachable" });
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.notFound, { stated: 1024, measured: 768 })), "another refusal").toBeNull();
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: "1024" })), "no numbers to say").toBeNull();
+  expect(embedRefusalOf(new Error("This model makes 768-wide vectors")), "a message is never read").toBeNull();
 });

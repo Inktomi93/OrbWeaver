@@ -25,6 +25,7 @@ import {
   insertConnection,
   listOwnedConnections,
   listOwnedLabels,
+  restoreOwnedConnectionIf,
   updateOwnedConnection,
 } from "../persistence/connections.ts";
 import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
@@ -216,13 +217,14 @@ function createUpdate(ctx: ConnectionContext): ConnectionService["update"] {
     // Snapshot BEFORE the write: after it, "what did this used to resolve to" is unanswerable.
     const before: EmbedSpaces = await vectorSpacesOf(ctx, params.principal);
     const now = ctx.now();
-    await updateOwnedConnection(ctx.db, ownerId, row.id, { ...patch, updatedAt: now });
+    const written = { ...patch, updatedAt: now };
+    await updateOwnedConnection(ctx.db, ownerId, row.id, written);
     await settleEmbedSpace(ctx, {
       ownerId,
       before,
       after: await vectorSpacesOf(ctx, params.principal),
       undo: async () => {
-        await updateOwnedConnection(ctx.db, ownerId, row.id, { ...priorColumns(row, patch), updatedAt: row.updatedAt });
+        await restoreOwnedConnectionIf(ctx.db, ownerId, row.id, { written, prior: { ...priorColumns(row, patch), updatedAt: row.updatedAt } });
       },
     });
     await ctx.audit(

@@ -1,7 +1,7 @@
 // The embedder-change rebuild as the client speaks of it: the confirm's words before a change that rebuilds the
 // search index, and the vector role row's rebuild line after. Pure and barrel-free, because node-side CT specs import it.
 
-import type { EmbedWidthRefusalDetail, RoutableTask } from "@orb/contracts/inference";
+import type { EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
@@ -80,20 +80,30 @@ export function reindexConfirmDescription(preview: ReindexPreview | null): strin
   ].join(" ");
 }
 
-/** The width refusal off a failed embedder write, or `null` when it failed for another reason. */
-export function embedWidthRefusalOf(error: unknown): EmbedWidthRefusalDetail | null {
-  if (trpcErrorReason(error) !== CONNECTION_OP_CODES.embedWidthUnmakeable) {
+/** Why the server undid an embedder write before anything moved, or `null` when it failed for another reason. */
+export function embedRefusalOf(error: unknown): EmbedTargetRefusal | null {
+  const reason = trpcErrorReason(error);
+  if (reason === CONNECTION_OP_CODES.embedUnreachable) {
+    return { kind: "unreachable" };
+  }
+  if (reason !== CONNECTION_OP_CODES.embedWidthUnmakeable) {
     return null;
   }
   const stated = trpcErrorDetailNumber(error, "stated");
   const measured = trpcErrorDetailNumber(error, "measured");
-  return stated === null || measured === null ? null : { stated, measured };
+  return stated === null || measured === null ? null : { kind: "width", stated, measured };
 }
 
-/** Why an embedder write was refused, and the width that would be accepted. */
-export function embedWidthRefusalText({ stated, measured }: EmbedWidthRefusalDetail): string {
-  const made = groupThousands(measured);
-  return `This model makes ${made}-wide vectors, not ${groupThousands(stated)}, so nothing changed. Set its vector width under Advanced to ${made}.`;
+/** The `data-refusal` a refusal line carries, per refusal kind. */
+export const EMBED_REFUSAL_SLOTS = { width: "embed-width", unreachable: "embed-unreachable" } as const satisfies Record<EmbedTargetRefusal["kind"], string>;
+
+/** Why an embedder write was refused, and what to do next. */
+export function embedRefusalText(refusal: EmbedTargetRefusal): string {
+  if (refusal.kind === "unreachable") {
+    return "Couldn't reach this embedder to check its vector width, so nothing changed. Try again.";
+  }
+  const made = groupThousands(refusal.measured);
+  return `This model makes ${made}-wide vectors, not ${groupThousands(refusal.stated)}, so nothing changed. Set its vector width under Advanced to ${made}.`;
 }
 
 /** The vector role row's rebuild line while an embedder change re-indexes, and after one failed. */

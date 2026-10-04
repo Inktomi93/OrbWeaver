@@ -15,7 +15,7 @@ import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { BindingActorInput, SetBindingParams, StoredActor } from "../contract/params.ts";
 import type { BindingView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
-import { listBindingsForActor, lookupBinding, upsertBinding } from "../persistence/bindings.ts";
+import { listBindingsForActor, lookupBinding, restoreBindingIf, upsertBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
 import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { everywhereTasks, servableTasks } from "../substrate/kind.ts";
@@ -133,7 +133,7 @@ function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding
         before,
         after: await vectorSpacesOf(ctx, params.principal),
         undo: async () => {
-          await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task: params.task, connectionId: prior });
+          await restoreBindingIf(ctx.db, { actor, task: params.task, from: params.connectionId, to: prior });
         },
       });
     }
@@ -177,7 +177,7 @@ function createUseForEverything(ctx: ConnectionContext): ConnectionService["useF
         after: await vectorSpacesOf(ctx, params.principal),
         undo: async () => {
           for (const [task, connectionId] of priors) {
-            await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task, connectionId });
+            await restoreBindingIf(ctx.db, { actor, task, from: row.id, to: connectionId });
           }
         },
       });

@@ -7,7 +7,7 @@ import type { Db } from "@orb/db";
 import { connectionBindings } from "@orb/db";
 import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import type { StoredActor } from "../contract/params.ts";
 
 type BindingRow = typeof connectionBindings.$inferSelect;
@@ -60,6 +60,19 @@ export async function lookupBinding(db: Db, actor: StoredActor, task: RoutableTa
 export async function listBindingsForActor(db: Db, actor: StoredActor): Promise<readonly ConnectionBinding[]> {
   const rows = await db.select().from(connectionBindings).where(actorWhere(actor));
   return rows.map(toBinding);
+}
+
+/** Put one actor's binding back to `to`, only while it still points at `from`: undoing a write never overwrites a
+ *  newer write that landed after it. One conditional UPDATE, so the check and the write cannot interleave. */
+export async function restoreBindingIf(
+  db: Db,
+  args: { readonly actor: StoredActor; readonly task: RoutableTask; readonly from: UserConnectionId | null; readonly to: UserConnectionId | null },
+): Promise<void> {
+  const holdsFrom = args.from === null ? isNull(connectionBindings.connectionId) : eq(connectionBindings.connectionId, args.from);
+  await db
+    .update(connectionBindings)
+    .set({ connectionId: args.to })
+    .where(and(actorWhere(args.actor), eq(connectionBindings.task, args.task), holdsFrom));
 }
 
 /** Upsert one actor's binding for a task — the per-arm partial unique is the conflict target, so an existing
