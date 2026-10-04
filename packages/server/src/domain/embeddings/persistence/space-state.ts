@@ -95,6 +95,19 @@ export async function readGenerationTargets(db: Db): Promise<
   }));
 }
 
+/** Every stored target in scope (one owner, or every owner for `null`), as one comparable string. Any move bumps a
+ *  target's epoch, so two equal snapshots mean no target in scope moved between them. */
+export async function readTargetSnapshot(db: Db, ownerId: UserId | null): Promise<string> {
+  const rows = await db
+    .select({ ownerId: embedGenerationTargets.ownerId, task: embedGenerationTargets.task, epoch: embedGenerationTargets.epoch })
+    .from(embedGenerationTargets)
+    .where(ownerId === null ? undefined : eq(embedGenerationTargets.ownerId, ownerId));
+  return rows
+    .map((row) => `${row.ownerId}:${row.task}:${String(row.epoch)}`)
+    .toSorted()
+    .join("|");
+}
+
 /**
  * Move an owner's target to a new generation and delete every vector of the old ones in the same batch, so
  * no index ever holds two generations. The scope rows lose their active generation too: reads refuse as

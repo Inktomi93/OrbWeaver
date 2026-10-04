@@ -10,6 +10,7 @@
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context.ts";
+import { GenerationSupersededError } from "../contract/errors.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
@@ -46,7 +47,7 @@ async function embedOneCard(
   });
   const prior = sweep.receipts.get(cardOwnerId);
   if (prior !== undefined && prior.generationId !== result.generationId) {
-    throw new Error(`embedding generation changed during card sweep for owner ${cardOwnerId}`);
+    throw new GenerationSupersededError(cardOwnerId, "card");
   }
   sweep.receipts.set(cardOwnerId, result);
   return result.outcome === "written" ? "written" : "skipped";

@@ -10,8 +10,9 @@ import { characterEmbeddings, userCredentials } from "@orb/db";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { CharacterId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createEmbeddingsService } from "@orb/server/domain/embeddings";
-import { describe } from "vitest";
+import { createEmbeddingsService, createEmbeddingsWorkloadContributions } from "@orb/server/domain/embeddings";
+import { logger } from "@orb/server/foundation/observability";
+import { describe, vi } from "vitest";
 import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
 import type { EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { nearestCharacters } from "../../../../packages/server/src/domain/search/persistence/nearest.ts";
@@ -213,9 +214,126 @@ describe("an embedding target move queues the owner's rebuild", () => {
     ).id;
     await d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: narrow });
 
+    const errorSpy = vi.spyOn(logger, "error");
+
     await expect(d.svc.syncTargetGenerations(d.userId)).resolves.toBeUndefined();
+
+    expect(errorSpy, "a revoked key is the expected unresolvable case, not an error").not.toHaveBeenCalled();
 
     expect(d.moved).toEqual([]);
     expect(await d.db.select().from(characterEmbeddings), "the old index survives a sync that could not resolve").toHaveLength(CARDS.length);
   });
+});
+
+/** Re-point the owner's embed role to the narrow encoder, its key working. */
+async function repointNarrow(d: Drive): Promise<void> {
+  d.key.revoked = false;
+  const narrow = (
+    await d.h.svc.create({
+      principal: d.principal,
+      providerId: BYO_PROVIDER,
+      model: NARROW_ENCODER,
+      baseUrl: NARROW_BASE_URL,
+      credentialId: d.credentialId,
+      allowBackground: true,
+    })
+  ).id;
+  await d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: narrow });
+}
+
+/** What the move's other two queued sweeps leave behind for this fixture, which holds no memory or documents: their
+ *  scopes completed on the current target. */
+async function completeSiblingScopes(d: Drive): Promise<void> {
+  const generation = await d.svc.resolveGeneration(d.userId, "embed");
+  if (generation !== null) {
+    await d.svc.purgeMemoryVectors({ ownerId: d.userId, generation });
+    await d.svc.purgeDocumentVectors({ ownerId: d.userId, generation });
+  }
+}
+
+/** Run the owner's `index(all)` as the worker would, over a context whose hook lands a target move mid-run. */
+async function runIndexWithMoveIn(d: Drive, hook: (ctx: EmbeddingsContext, move: () => Promise<void>) => EmbeddingsContext): Promise<string> {
+  let moved = false;
+  const move = async (): Promise<void> => {
+    if (moved) {
+      return;
+    }
+    moved = true;
+    await repointNarrow(d);
+    await svc.syncTargetGenerations(d.userId);
+  };
+  const svc = createEmbeddingsService(hook(d.ctx, move));
+  const [index] = createEmbeddingsWorkloadContributions({
+    embeddings: svc,
+    emitUserEvent: () => undefined,
+    listCorpusOwners: () => Promise.resolve([d.userId]),
+  });
+  return await index.run({ userId: d.userId, ownerId: d.userId, now: () => 0 }, { source: "all" }, vi.fn(), new AbortController().signal).then(
+    () => "fulfilled",
+    (error: unknown) => `rejected: ${String(error)}`,
+  );
+}
+
+// A move can land while the owner's `index(all)` run is already running (a second re-point within a rebuild, or a
+// manual run). That run pinned the old generation; it must finish on the NEW target, whichever pass it was in.
+describe("a move that lands inside a running index run", () => {
+  test("in the card pass: the run restarts on the new target and search answers with every card", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    let cards = 0;
+
+    const outcome = await runIndexWithMoveIn(d, (ctx, move) => ({
+      ...ctx,
+      loadCardText: async (id) => {
+        cards += 1;
+        if (cards === 2) {
+          await move();
+        }
+        return await ctx.loadCardText(id);
+      },
+    }));
+
+    expect(outcome).toBe("fulfilled");
+    await completeSiblingScopes(d);
+    expect(await searchState(d)).toEqual(ALL_CARDS);
+  });
+
+  test("in the picture pass: the run goes round again and search answers with every card", async () => {
+    const d = await drive();
+    await sweep(d, false);
+
+    const outcome = await runIndexWithMoveIn(d, (ctx, move) => ({
+      ...ctx,
+      listImageAssetIds: async (ownerId) => {
+        await move();
+        return await ctx.listImageAssetIds(ownerId);
+      },
+    }));
+
+    expect(outcome).toBe("fulfilled");
+    await completeSiblingScopes(d);
+    expect(await searchState(d)).toEqual(ALL_CARDS);
+  });
+});
+
+// Anything else a sync hits has no write waiting to report it, so it is logged rather than dropped.
+test("a sync whose embedder makes the wrong width keeps the target and logs why", async () => {
+  const d = await drive();
+  await sweep(d, false);
+  await repointNarrow(d);
+  const errorSpy = vi.spyOn(logger, "error");
+  const svc = createEmbeddingsService({
+    ...d.ctx,
+    resolveEmbeddingConnection: async (ownerId, task) => {
+      const connection = await d.ctx.resolveEmbeddingConnection(ownerId, task);
+      return connection === null
+        ? null
+        : { ...connection, embed: async (input, opts) => ({ ...(await connection.embed(input, opts)), vectors: [new Float32Array(7)] }) };
+    },
+  });
+
+  await svc.syncTargetGenerations(d.userId);
+
+  expect(d.moved, "a width the embedder does not make keeps the old target").toEqual([]);
+  expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ ownerId: d.userId, task: "embed" }), expect.any(String));
 });

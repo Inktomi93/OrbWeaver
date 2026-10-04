@@ -110,6 +110,39 @@ describe("workloads.start — the owner hears a system-started job", () => {
   });
 });
 
+// A target move's rebuild must carry its own flag and refill the new target, so it never folds into a plain index
+// run that is already going (that run pinned the old generation and says nothing about a rebuild).
+describe("workloads.start — an embedder rebuild beside a plain index run", () => {
+  test("a rebuild start does not adopt a running plain index(all) run; a second rebuild start adopts the first", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const running = await seedWorkloadRow(db, {
+      id: "workload_running_index",
+      kind: "index",
+      status: "running",
+      mode: "singular",
+      admissionKey: "all",
+      ownerId: owner,
+      params: { source: "all" },
+    });
+    const rebuild = {
+      input: { kind: "index", params: { source: "all", force: true, embedderChanged: true } },
+      caller: null,
+      mode: "singular",
+      ownerId: owner,
+      adoptActive: true,
+    } as const;
+
+    const first = await s.start(rebuild);
+    const second = await s.start(rebuild);
+
+    expect(first.id).not.toBe(running);
+    expect(second.id).toBe(first.id);
+    expect(await s.list({ caller: principal("user_alice") })).toHaveLength(2);
+  });
+});
+
 describe("workloads.start — MODE authz", () => {
   test("a normal user starting a SINGULAR run succeeds and is owned by the caller", async () => {
     const db = await freshDb();

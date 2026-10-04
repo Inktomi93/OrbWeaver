@@ -38,6 +38,8 @@ function build(): {
     embedCorpus: vi.fn(async () => ({ embedded: 3, skipped: 1 })),
     embedAssets: vi.fn(async () => ({ embedded: 2, skipped: 0 })),
     countAssetAnalysisCalls: vi.fn(async () => ANALYSIS_CALLS),
+    // No target moves during these runs, so every round is the last.
+    targetSnapshot: vi.fn(async () => "unmoved"),
   } as unknown as EmbeddingsWorkloadDeps["embeddings"];
   const userEvents: UserEventCall[] = [];
   const [index] = createEmbeddingsWorkloadContributions({

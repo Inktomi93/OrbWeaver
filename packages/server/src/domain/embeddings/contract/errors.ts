@@ -24,3 +24,14 @@ export class SpaceMismatchError extends Error {
     this.actualDim = actualDim;
   }
 }
+
+/** A sweep's owner moved to a new target generation while the sweep ran: what it already wrote went with the old
+ *  index. Not a failure of the run: the `index` run starts its passes again on the new target. */
+export class GenerationSupersededError extends Error {
+  readonly ownerId: string;
+  constructor(ownerId: string, scope: "card" | "image") {
+    super(`embedding generation changed during ${scope} sweep for owner ${ownerId}`);
+    this.name = "GenerationSupersededError";
+    this.ownerId = ownerId;
+  }
+}

@@ -11,6 +11,7 @@ import type { EmbeddingsService } from "./contract/service.ts";
 import { analyzeAvatarImage, avatarAnalysisCallsModel } from "./indexer/caption.ts";
 import { createImageAnalysisCounter, createImageIndexer } from "./indexer/image.ts";
 import { countOwnedVectors } from "./persistence/owned-vector-counts.ts";
+import { readTargetSnapshot } from "./persistence/space-state.ts";
 import { resolveTargetGeneration } from "./substrate/generation.ts";
 import { createClearTable } from "./verbs/clear-table.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
@@ -40,6 +41,7 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     indexAsset,
     resolveGeneration: (ownerId, task, via) => resolveTargetGeneration(ctx, ownerId, task, via),
     syncTargetGenerations: createSyncTargetGenerations(ctx),
+    targetSnapshot: (ownerId) => readTargetSnapshot(ctx.db, ownerId),
     staleGenerationOwners: createStaleGenerationOwners(ctx),
     countOwnedVectors: (ownerId) => countOwnedVectors(ctx.db, ownerId),
     store,

@@ -144,6 +144,9 @@ export interface EmbeddingsService {
    *  differ (which queues the rebuild through {@link EmbeddingsContext.onTargetGenerationMoved}). A binding that
    *  cannot resolve yet moves nothing and does not throw: its first write after it can resolve moves it. */
   readonly syncTargetGenerations: (ownerId: UserId) => Promise<void>;
+  /** Every stored target in scope (one owner, or every owner for `null`) as one comparable value: two equal
+   *  snapshots mean no target in scope moved between them. Read-only. */
+  readonly targetSnapshot: (ownerId: UserId | null) => Promise<string>;
   /** The owners whose stored target generation differs from the one their binding resolves to now. Read-only. */
   readonly staleGenerationOwners: () => Promise<readonly UserId[]>;
   /** How many vectors the owner has stored per scope — what an embedder change would delete and rebuild. */
@@ -220,7 +223,7 @@ export interface EmbeddingsIndexer {
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the `index` kind) —
  *  this domain's own verbs, plus the freshness plane the sweep's terminal fans on. */
 export interface EmbeddingsWorkloadDeps {
-  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets" | "countAssetAnalysisCalls">;
+  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets" | "countAssetAnalysisCalls" | "targetSnapshot">;
   /**
    * The per-user freshness plane (`corpusRecomputed`) — injected, never a sideways reach at the bus (D38).
    * The `index` sweep rewrites the vectors every `discovery.*` read and `search.similarArt` are derived from,
