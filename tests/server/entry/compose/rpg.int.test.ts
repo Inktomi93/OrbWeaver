@@ -24,6 +24,7 @@ import "../../../support/composed-real.ts";
 import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatApi, ProviderId } from "@orb/contracts/inference";
+import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { SummarizeResult } from "@orb/contracts/providers";
@@ -32,6 +33,7 @@ import { RPG_STATE_ROUND_FAILED_SUMMARY, RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDe
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, messages, messageVariants, ownerStats, presets } from "@orb/db";
 import type { ChatResult, ResolveOutcome } from "@orb/inference";
+import { generationOf } from "@orb/inference";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
@@ -334,6 +336,8 @@ interface ExtractionSpy {
   /** The cancellation signal each request carried (RPG-SIGNAL). `undefined` here would mean the round is
    *  uncancelable at the LAST hop no matter what the flush believes — this is the only tier that can see it. */
   readonly signals: (AbortSignal | undefined)[];
+  /** The window each request's connection carried — what an Ollama native route sends as `num_ctx`. */
+  readonly windows: number[];
 }
 
 /** Build an rpg seam over the REAL chat wiring (off `app.chatRpgOps`) + real db, with a FAKE executor/connection
@@ -353,6 +357,7 @@ function recordChatTurn(spy: ExtractionSpy, req: Parameters<NonNullable<Paramete
     hasToolServer: "toolServer" in req && req.toolServer !== undefined,
   });
   spy.signals.push(req.signal);
+  spy.windows.push(generationOf(req.connection).context.window);
   if (req.responseFormat !== undefined) {
     spy.schemas.push(req.responseFormat.schema);
     spy.formatKeys.push(Object.keys(req.responseFormat).toSorted());
@@ -417,7 +422,7 @@ function buildCannedRpgWithText(args: {
     rpgChatOps:
       args.presetMaxContext === undefined
         ? app.chatRpgOps
-        : { ...app.chatRpgOps, resolveChatPresetMaxContext: (): Promise<number | undefined> => Promise.resolve(args.presetMaxContext) },
+        : { ...app.chatRpgOps, resolveChatPresetParams: (): Promise<UserIntent> => Promise.resolve({ maxContextTokens: args.presetMaxContext }) },
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db }),
     connection: {
@@ -452,6 +457,7 @@ function buildCannedRpgWithText(args: {
         spy.systemPrompts.push(req.inputs[0]?.systemPrompt ?? "");
         spy.userPrompts.push(req.inputs[0]?.userPrompt ?? "");
         spy.signals.push(req.signal);
+        spy.windows.push(generationOf(req.connection).context.window);
         return Promise.resolve({
           items: [{ text: structuredReplies.shift() ?? cannedText, usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
           model: "fake-chat-model",
@@ -520,6 +526,7 @@ const emptySpy = (): ExtractionSpy => ({
   systemPrompts: [],
   userPrompts: [],
   signals: [],
+  windows: [],
 });
 
 test("CHEAP turn (tool-round arm) — a wire that CAN carry tools rides them, never the structured dispatcher", async ({ app, db }) => {
@@ -3461,6 +3468,31 @@ test("0532: on a route that sends the window, the overflow notice prices the pre
 
   const raised = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: floor, presetMaxContext: 16_384 });
   expect((await raised.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toBeNull();
+});
+
+/** An unpinned Ollama model on its native route: the server's 4096 floor, a 32768 trained maximum. */
+const OLLAMA_FLOOR = makeGenerationCapability({
+  output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] },
+  tools: { parallel: true },
+  context: { window: 4096, windowEstimated: true, settable: { max: 32_768 } },
+});
+
+// A host resync reads up to 16384 tokens of story; on a route that sends the window it must send the room's own,
+// or the server cuts the story at its floor while the turn and the overflow notice say it fits.
+test("0532: a host resync and populate send the room preset's Max context as the window, not the server's floor", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "resync-window");
+  const principal = hostPrincipal(hostId);
+  const spy = emptySpy();
+  const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}", capability: OLLAMA_FLOOR, presetMaxContext: 16_384 });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+  const characterId = await seedCharacter(db, hostId, "resync_window_mira", { id: mintTypeId(ID_PREFIX.character) });
+  await seedParticipant(db, { chatId, key: "resync_window_char", characterId, joinSeq: 1 });
+
+  await compose.service.resyncFromStory({ principal, chatId });
+  await compose.service.populateFromCharacter({ principal, chatId, actorRef: { kind: "character", characterId } });
+
+  expect(spy.windows.length).toBeGreaterThanOrEqual(2);
+  expect(new Set(spy.windows)).toEqual(new Set([16_384]));
 });
 
 /** A cheap game whose host and one member each bind their own chat connection: the host's from `host`, the

@@ -264,14 +264,14 @@ describe("the endpoint mirror forgets on save and on inspection", () => {
     const owner = await seedOwner(db);
     const first = await h.svc.create({ principal: owner.principal, providerId: OLLAMA, credentialId: null, baseUrl: OLLAMA_URL, model: "qwen2.5:0.5b" });
     const unpinned = requireGenerationCapability((await h.svc.capabilities({ principal: owner.principal, connectionId: first.id })).capability);
-    expect(unpinned.context, "an unpinned model assumes the server's default floor").toEqual({ window: 4096, windowEstimated: true, settable: {} });
+    expect(unpinned.context, "an unpinned model assumes the server's default floor").toEqual({ window: 4096, windowEstimated: true });
 
     list.data.push({ id: "qwen2.5-16k:latest" });
     show.parameters = "num_ctx                        16384";
     const pinned = await h.svc.create({ principal: owner.principal, providerId: OLLAMA, credentialId: null, baseUrl: OLLAMA_URL, model: "qwen2.5-16k:latest" });
     const read = requireGenerationCapability((await h.svc.capabilities({ principal: owner.principal, connectionId: pinned.id })).capability);
-    // The native route sends the window, so the preset may still set it; this server states no trained maximum.
-    expect(read.context).toEqual({ window: 16_384, settable: {} });
+    // This server states no trained maximum, so nothing bounds a preset's window: the window stands, not settable.
+    expect(read.context).toEqual({ window: 16_384 });
   });
 
   // The native route sends the window as `num_ctx`, and Ollama clamps it to the trained maximum at load, so a

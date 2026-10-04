@@ -40,14 +40,14 @@ export function clampToServedWindow(capability: Capability, served: ServedWindow
 }
 
 /** A route that sends the window with each request (Ollama's native `num_ctx`) runs the one the preset asks for, up to
- *  the trained maximum the server states; `windowForPreset` applies it per turn. The mark is the route's alone, so a
- *  stated one on any other route is dropped. */
+ *  the trained maximum; `windowForPreset` applies it per turn. With no trained maximum stated there is no bound to
+ *  hold a preset value to, so the window stands. The mark is the route's alone: a stated one elsewhere is dropped. */
 export function markSettableWindow(capability: Capability, sendsWindow: boolean, trained: number | undefined): Capability {
-  if (capability.kind !== "generation" || (!sendsWindow && capability.generation.context.settable === undefined)) {
+  const settable = sendsWindow && trained !== undefined ? { settable: { max: trained } } : {};
+  if (capability.kind !== "generation" || (!("settable" in settable) && capability.generation.context.settable === undefined)) {
     return capability;
   }
   const { settable: _replaced, ...context } = capability.generation.context;
-  const settable = sendsWindow ? { settable: trained === undefined ? {} : { max: trained } } : {};
   return { kind: "generation", generation: { ...capability.generation, context: { ...context, ...settable } } };
 }
 

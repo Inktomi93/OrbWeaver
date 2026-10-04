@@ -98,11 +98,6 @@ describe("windowForPreset — a route whose window the request sets runs the pre
     expect(windowForPreset(declared, 16_384).context.window).toBe(16_384);
   });
 
-  test("a server that states no trained maximum runs the preset's window as asked", () => {
-    const unbounded = { ...floor, context: { window: 4096, windowEstimated: true, settable: {} } };
-    expect(windowForPreset(unbounded, 65_536).context.window).toBe(65_536);
-  });
-
   test("a route the request cannot set keeps the server's window: the preset only lowers the fit", () => {
     const served = { ...GENERATION_FLOOR, context: { window: 4096, windowEstimated: true } };
     expect(windowForPreset(served, 16_384)).toBe(served);

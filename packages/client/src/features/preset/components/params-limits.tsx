@@ -181,7 +181,7 @@ function maxContextHint(context: GenerationCapability["context"], reserveOutputT
   const base =
     settable === undefined
       ? `Soft-caps the working set below the model window — older turns beyond this are trimmed. This model's window is ${groupThousands(window)} tokens; ${groupThousands(room)} of them fit prompt and history after the reply and the safety margin.`
-      : `Sets the context window this server runs${settable.max === undefined ? "" : `, up to ${groupThousands(settable.max)} tokens`}. Unset, it runs its default of ${groupThousands(window)}.`;
+      : `Sets the context window this server runs, up to ${groupThousands(settable.max)} tokens. Unset, it runs its default of ${groupThousands(window)}.`;
   return maxContextTokens !== undefined && maxContextTokens <= reserveOutputTokens
     ? `${base} The reply (${groupThousands(reserveOutputTokens)}) is larger than this limit, so only the newest message is sent.`
     : base;

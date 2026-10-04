@@ -31,6 +31,7 @@ import "../../../support/composed-real.ts";
 import process from "node:process";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
@@ -345,6 +346,26 @@ describe("compose/chat.ts — the preset-read catches narrow to PresetNotFoundEr
     // defined ProseOverrides object rather than propagating the stale override.
     await expect(app.chatRpgOps.resolveChatPresetProse(chatId)).resolves.toBeDefined();
   });
+});
+
+// A game room's turn assembles its GM preset, so every send on the room's chat connection outside the turn (manual
+// compaction, the host's resync and populate, the overflow notice) reads the room's preset through the same ladder.
+test("the room's chat preset params follow the GM redirect: a GM preset's Max context wins over the host default's", async ({ db, app, services }) => {
+  const host = await seedUser(db, castId<Handle>("gmwindowhost"));
+  const chatId = await seedChat(db, "gmwindowchat");
+  await seedParticipant(db, { chatId, key: "gmwindowhost", userId: host, role: "host" });
+  const hostDefault = await seedPreset(db, { id: castId<PresetId>("preset_host_default_window"), ownerId: host, name: "Host default" });
+  await services.settings.updateUserSettingsSection({ principal: hostPrincipal(host), input: { section: "seeds", patch: { defaultPresetId: hostDefault } } });
+  const gameId = await seedGame(db, chatId, "gmwindow");
+  const gmPreset = await seedPreset(db, {
+    id: castId<PresetId>("preset_gm_window"),
+    ownerId: host,
+    name: "GM window",
+    config: { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, maxContextTokens: 16_384 } },
+  });
+  await db.update(rpgGames).set({ gmPresetId: gmPreset }).where(eq(rpgGames.id, gameId));
+
+  expect((await app.chatRpgOps.resolveChatPresetParams(chatId)).maxContextTokens).toBe(16_384);
 });
 
 // ── #760 — the composed persona-read catches narrow to PersonaNotFoundError, END TO END ─────────────────────

@@ -1825,7 +1825,7 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     const host = await deps.resolveHostPrincipal(hostUserId);
     let conn: Resolved<"chat">;
     try {
-      conn = (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">;
+      conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
     } catch (err) {
       if (isUnresolvable(err)) {
         logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: the host's chat connection did not resolve — no rebuild");
@@ -1987,7 +1987,7 @@ async function resolveHostRoundConnection(
   const host = await deps.resolveHostPrincipal(hostUserId);
   let conn: Resolved<"chat">;
   try {
-    conn = (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">;
+    conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
   } catch (err) {
     if (isUnresolvable(err)) {
       logger.warn({ event: "rpg.populate.unresolvable", chatId }, "rpg populate: the host's chat connection did not resolve — no round");
@@ -2266,6 +2266,12 @@ function buildResolveStateDelivery(deps: RpgComposeDeps): RpgContext["resolveSta
   };
 }
 
+/** A send on the room's chat connection outside the turn carries the window the turn sends: on a route whose request
+ *  sets it (Ollama's native `num_ctx`), the room preset's Max context, read through chat's one ladder. */
+async function roomWindowed(deps: RpgComposeDeps, chatId: ChatId, conn: Resolved<"chat">): Promise<Resolved<"chat">> {
+  return withPresetWindow(conn, (await deps.rpgChatOps.resolveChatPresetParams(chatId)).maxContextTokens);
+}
+
 /** The FUNDER's chat connection, resolved the way the turn resolves its own (chat's `resolveChatFor`: the same
  *  connection service, under the same real principal). A turn is funded by the room host whoever sends it
  *  (`resolveTurnIdentity`), and the state round rides that turn's connection, so this is the connection a
@@ -2321,8 +2327,7 @@ function buildResolveStateRoundFit(deps: RpgComposeDeps): RpgContext["resolveSta
     const prose = await deps.rpgChatOps.resolveChatPresetProse(chatId);
     const inputs: PromptInputs = { config, refs, playerDisplayName, reconcile: false, prose };
     const userPrompt = buildExtractionUserPrompt([], baseState, config, prose);
-    // The window the round is sent with: the preset's Max context on a route whose request sets it, as the turn sends.
-    const sent = withPresetWindow(conn, await deps.rpgChatOps.resolveChatPresetMaxContext(chatId));
+    const sent = await roomWindowed(deps, chatId, conn);
     const windowTokens = generationOf(sent).context.window;
     return stateRoundNeededTokens(stateRoundRequestText(sent, inputs, userPrompt)) > windowTokens ? { connectionId: conn.connectionId, windowTokens } : null;
   };

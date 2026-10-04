@@ -42,8 +42,7 @@ export function windowForPreset(capability: GenerationCapability, maxContextToke
   if (settable === undefined || maxContextTokens === undefined) {
     return capability;
   }
-  const window = settable.max === undefined ? maxContextTokens : Math.min(maxContextTokens, settable.max);
-  return { ...capability, context: { window, settable } };
+  return { ...capability, context: { window: Math.min(maxContextTokens, settable.max), settable } };
 }
 
 export function acceptsImageInput(capability: GenerationCapability): boolean {

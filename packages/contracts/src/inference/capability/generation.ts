@@ -374,9 +374,10 @@ export const generationCapabilitySchema = z.object({
     window: z.number(),
     windowEstimated: z.boolean().optional(),
     /** The route sends the window with each request (Ollama's native `num_ctx`), so a preset's Max context tokens
-     *  sets the window the server runs, up to `max`, the model's trained maximum where the server states one.
-     *  Absent ⇒ the server owns the window and the preset can only lower the fit. Read through `windowForPreset`. */
-    settable: z.object({ max: z.number().optional() }).optional(),
+     *  sets the window the server runs, up to `max`, the model's trained maximum. Absent (another route, or a server
+     *  that states no trained maximum) ⇒ the window stands and the preset can only lower the fit. Read through
+     *  `windowForPreset`. */
+    settable: z.object({ max: z.number() }).optional(),
   }),
   /** The catalog handed a modality string the parser did not know (§5.4's unknown-value rule). */
   modalitiesEstimated: z.boolean().optional(),
