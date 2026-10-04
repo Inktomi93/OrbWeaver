@@ -373,7 +373,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
             drops the hint object at the JSON pane's cursor; the author positions inside the node they
             want to elevate first. */}
         <RenderHintPicker schemaTextRef={schemaTextRef} setSchemaText={setSchemaText} />
-        {schema === null ? null : <PreflightNote schema={schema} />}
+        {schema === null ? null : <PreflightNote schema={schema} stage={stage} />}
         <RefusalNote error={editing === null ? create.error : update.error} />
         {previewPlan !== null && schema !== null ? (
           <PreviewCard key={schemaText} outerBusy={busy} plan={previewPlan} schema={schema} stage={stage} />

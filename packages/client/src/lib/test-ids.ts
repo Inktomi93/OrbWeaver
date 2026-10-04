@@ -242,6 +242,8 @@ export const TEST_IDS = {
   refinerySchemaPreflight: "refinery-schema-preflight",
   /** The preflight's accounting line — one node so a CT reads the numbers without the prose. */
   refinerySchemaStats: "refinery-schema-stats",
+  /** The bound Utility model's plan line. Carries `data-plan` = the outcome, so a CT pins the outcome, not the copy. */
+  refinerySchemaPlan: "refinery-schema-plan",
   /** ONE advisory row. Carries `data-advisory` = the advisory CODE, so a CT pins the CLASS that fired
    *  rather than a sentence that copy edits will move. */
   refinerySchemaAdvisory: "refinery-schema-advisory",

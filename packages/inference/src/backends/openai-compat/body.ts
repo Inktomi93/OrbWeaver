@@ -170,21 +170,11 @@ function reattachRows(body: Record<string, unknown>, plan: WirePlan, warnings: R
   return { ...body, messages: messages.map((message: unknown, index: number) => patchRow(message, plan.names.get(index), plan.assistantMedia.get(index))) };
 }
 
-/** The user's own body already decides the template's thinking: they excluded `chat_template_kwargs`, set it
- *  to something other than an object (nothing of ours can merge into it), or their kwargs state `enable_thinking`. */
-function userDecidesThinking(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): boolean {
-  if (args.transport?.excludeBody?.includes(CHAT_TEMPLATE_KWARGS_KEY) === true) {
-    return true;
-  }
-  const kwargs = body[CHAT_TEMPLATE_KWARGS_KEY];
-  return owned.has(CHAT_TEMPLATE_KWARGS_KEY) && (!isRecord(kwargs) || ENABLE_THINKING_KEY in kwargs);
-}
-
 /** Rule 5: the prefill pair, and the measured vLLM interlock (`prefillSuppressesThinking`, §8.1). A key the
  *  user's own body set stays theirs, the interlock's thinking switch included. A `messages` array the user set
  *  replaced the plan this rule reads, and a prefill key the user set or excluded is their prefill decision, so
  *  in either case neither the pair nor the interlock runs. */
-function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
+function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>, userThinking: boolean): Record<string, unknown> {
   if (
     args.plan === null ||
     owned.has(MESSAGES_KEY) ||
@@ -197,7 +187,7 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: Rea
     return body;
   }
   const out: Record<string, unknown> = { ...body, [CONTINUE_FINAL_MESSAGE_KEY]: true, [ADD_GENERATION_PROMPT_KEY]: false };
-  if (args.features.prefillSuppressesThinking !== true || args.reasoningMandatory || userDecidesThinking(out, args, owned)) {
+  if (args.features.prefillSuppressesThinking !== true || args.reasoningMandatory || userThinking) {
     return out;
   }
   const kwargs = out[CHAT_TEMPLATE_KWARGS_KEY];
@@ -218,8 +208,8 @@ function applyPrefill(body: Record<string, unknown>, args: ShapeArgs, owned: Rea
 
 /** Rule 5b: the template-level thinking switch, beside the user's own kwargs and never over them. A switch the
  *  user's body already decides stays theirs, and so does rule 5's interlock off. */
-function applyTemplateThinking(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
-  if (args.templateThinking === undefined || args.features.thinkingOff !== CHAT_TEMPLATE_KWARGS_KEY || userDecidesThinking(body, args, owned)) {
+function applyTemplateThinking(body: Record<string, unknown>, args: ShapeArgs, userThinking: boolean): Record<string, unknown> {
+  if (args.templateThinking === undefined || args.features.thinkingOff !== CHAT_TEMPLATE_KWARGS_KEY || userThinking) {
     return body;
   }
   const kwargs = isRecord(body[CHAT_TEMPLATE_KWARGS_KEY]) ? (body[CHAT_TEMPLATE_KWARGS_KEY] as Record<string, unknown>) : {};
@@ -230,7 +220,7 @@ function applyTemplateThinking(body: Record<string, unknown>, args: ShapeArgs, o
 }
 
 /** The user's own body already decides one template kwarg: they excluded `chat_template_kwargs`, set it to
- *  something no kwarg can merge into, or their kwargs state `key`. */
+ *  something no kwarg can merge into, or their kwargs state `key` (`enable_thinking` is the thinking switch). */
 function userDecidesKwarg(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>, key: string): boolean {
   if (args.transport?.excludeBody?.includes(CHAT_TEMPLATE_KWARGS_KEY) === true) {
     return true;
@@ -258,11 +248,12 @@ function applyPreserveReasoning(body: Record<string, unknown>, args: ShapeArgs, 
 
 /** Rule 5d: a turn the template must not think on also sends the row's reasoning budget at 0, because some
  *  templates keep reasoning under a JSON-schema response format with the thinking switch alone. A row that names no
- *  template switch, and a budget key the user's body owns, are left alone. */
-function applyBudgetOff(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
+ *  template switch, a budget key the user's body owns, and a thinking switch the user's body decides (the 5b
+ *  deferral) are left alone: a budget of 0 would cancel the user's own thinking-on. */
+function applyBudgetOff(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>, userThinking: boolean): Record<string, unknown> {
   const field = args.features.reasoningBudgetField;
   const switchNamed = args.features.thinkingOff !== undefined && args.features.thinkingOff !== THINKING_SWITCH_NONE;
-  if (args.templateThinking !== false || field === undefined || !switchNamed || owned.has(field)) {
+  if (args.templateThinking !== false || field === undefined || !switchNamed || owned.has(field) || userThinking) {
     return body;
   }
   return { ...body, [field]: 0 };
@@ -394,8 +385,10 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
   if (!rowsOwned) {
     body = applyImageDetail(body, args.imageDetail);
   }
-  body = applyTemplateThinking(applyPrefill(body, args, owned), args, owned);
-  body = applyBudgetOff(applyPreserveReasoning(body, args, owned), args, owned);
+  // Read before any rule writes a kwarg, so the switch our own rules set is never mistaken for the user's.
+  const userThinking = userDecidesKwarg(body, args, owned, ENABLE_THINKING_KEY);
+  body = applyTemplateThinking(applyPrefill(body, args, owned, userThinking), args, userThinking);
+  body = applyBudgetOff(applyPreserveReasoning(body, args, owned), args, owned, userThinking);
   if (args.replyImages && !owned.has(MODALITIES_KEY)) {
     body = { ...body, [MODALITIES_KEY]: [...REPLY_MODALITIES] };
   }

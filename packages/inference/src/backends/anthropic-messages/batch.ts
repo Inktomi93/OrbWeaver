@@ -17,7 +17,7 @@ import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import type { BatchRequest } from "../v4/batch.ts";
 import { batchRequestOf, runV4Batch } from "../v4/batch.ts";
 import { plannedOptions, standardSampling } from "../v4/options.ts";
-import { anthropicStructuredOptions, nativeSchemaOf, sdkEffortOf, thinkingOf } from "./chat.ts";
+import { anthropicStructuredOptions, forcedChoiceOf, nativeSchemaOf, sdkEffortOf, thinkingOf } from "./chat.ts";
 import type { AnthropicTransportDeps } from "./model.ts";
 import { ANTHROPIC_KEY, anthropicModelFor } from "./model.ts";
 
@@ -37,8 +37,13 @@ interface StructuredShape {
 }
 
 /** The plan's spelling on this wire: the planned options plus the SDK's carrier switch. */
-function structuredOptions(req: BatchRequest, format: ResponseFormat, label: string, warnings: ResolvedWarning[]): StructuredShape {
-  const plan = requireStructuredPlan(req.connection, { formats: [format] }, label);
+function structuredOptions(
+  req: BatchRequest,
+  format: ResponseFormat,
+  turn: { readonly label: string; readonly reasoning: ResolvedReasoning; readonly warnings: ResolvedWarning[] },
+): StructuredShape {
+  const { label, reasoning, warnings } = turn;
+  const plan = requireStructuredPlan(req.connection, { formats: [format], forcedChoice: forcedChoiceOf(reasoning) }, label);
   warnings.push(...plan.downgrades);
   return { plan, options: plannedOptions(plan), anthropic: anthropicStructuredOptions(plan) };
 }
@@ -66,7 +71,9 @@ function runBatch(req: BatchRequest, deps: AnthropicBatchDeps): Promise<Summariz
   const sideGen = resolveSideGenReasoning(generation, connection.wire, warnings, req.sampling);
   const reasoning = reasoningOptions(sideGen.reasoning, warnings);
   const structured: StructuredShape =
-    req.responseFormat !== undefined ? structuredOptions(req, req.responseFormat, label, warnings) : { plan: undefined, options: {}, anthropic: {} };
+    req.responseFormat !== undefined
+      ? structuredOptions(req, req.responseFormat, { label, reasoning: sideGen.reasoning, warnings })
+      : { plan: undefined, options: {}, anthropic: {} };
   return runV4Batch({
     req,
     model: anthropicModelFor({ connection, deps: deps.transport, label, api: req.task, plannedSchema: nativeSchemaOf(structured.plan) }),

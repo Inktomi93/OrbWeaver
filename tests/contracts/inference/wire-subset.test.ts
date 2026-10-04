@@ -4,7 +4,7 @@
 // silently disarm the local enforcing wire, and no strip at all is what shipped the banned keywords.
 
 import type { WireSchemaMode } from "@orb/contracts/inference";
-import { scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from "@orb/contracts/inference";
+import { checkWireSchema, effectiveStructuredLimits, scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from "@orb/contracts/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
@@ -295,9 +295,9 @@ test("the CLOSED-OBJECT pin is per-mode: on where the wire requires it, and byte
   };
   expect(armOf("guided-decoding")?.["additionalProperties"]).toBe(false); // xgrammar compiles the closure
   expect(armOf("strict-compatible")?.["additionalProperties"]).toBe(false); // OpenAI strict demands it
-  // The hosted/Anthropic wires get the tree EXACTLY as projected (the projector already pinned what it built).
+  expect(armOf("anthropic-format")?.["additionalProperties"]).toBe(false); // Anthropic requires every object closed
+  // The hosted wire gets the tree exactly as projected (the projector already pinned what it built).
   expect(armOf("hosted-common")?.["additionalProperties"]).toBeUndefined();
-  expect(armOf("anthropic-format")?.["additionalProperties"]).toBeUndefined();
 });
 
 // ── the gbnf and gemini-schema modes, and what a reshape records ─────────────────────────────────────
@@ -383,6 +383,45 @@ test("a reshaped path two union arms share with an author-declared nullable is a
   expect(scrubWireSchema(schema, "strict-compatible").ambiguousPaths).toEqual(["entry.value"]);
 });
 
+test("null accepted through a $ref, an enum, a const or an all-null allOf counts as nullable: optional is ambiguous, never reshaped", () => {
+  const schema = {
+    type: "object",
+    required: [],
+    properties: {
+      viaRef: { $ref: "#/$defs/Maybe" },
+      viaEnum: { enum: ["a", null] },
+      viaConst: { const: null },
+      viaAllOf: { allOf: [{ type: ["string", "null"] }, { anyOf: [{ type: "null" }, { type: "string" }] }] },
+      plainRef: { $ref: "#/$defs/Word" },
+    },
+    $defs: { Maybe: { anyOf: [{ type: "string" }, { type: "null" }] }, Word: { type: "string" } },
+  };
+  const scrub = scrubWireSchema(schema, "strict-compatible");
+  expect(scrub.ambiguousPaths.toSorted()).toEqual(["viaAllOf", "viaConst", "viaEnum", "viaRef"]);
+  // PLANTED CONTROL: a $ref to a non-null def is an ordinary optional and is reshaped.
+  expect(scrub.reshapedPaths).toEqual(["plainRef"]);
+});
+
+test("a required field nullable through an enum or a $ref is the author's null: a reshape sharing its path is ambiguous", () => {
+  const sharing = (declared: Record<string, unknown>): Record<string, unknown> => ({
+    type: "object",
+    required: ["entry"],
+    properties: {
+      entry: {
+        anyOf: [
+          { type: "object", required: [], properties: { value: { type: "string" } } },
+          { type: "object", required: ["value"], properties: { value: declared } },
+        ],
+      },
+    },
+    $defs: { Maybe: { type: ["string", "null"] } },
+  });
+  expect(scrubWireSchema(sharing({ enum: ["x", null] }), "strict-compatible").ambiguousPaths).toEqual(["entry.value"]);
+  expect(scrubWireSchema(sharing({ $ref: "#/$defs/Maybe" }), "strict-compatible").ambiguousPaths).toEqual(["entry.value"]);
+  // PLANTED CONTROL: an enum without null declares no null, so the reshape owns the path.
+  expect(scrubWireSchema(sharing({ enum: ["x", "y"] }), "strict-compatible").ambiguousPaths).toEqual([]);
+});
+
 test("a reshape inside $defs lands at each value path that references it", () => {
   const schema = {
     type: "object",
@@ -391,4 +430,73 @@ test("a reshape inside $defs lands at each value path that references it", () =>
     $defs: { Pair: { type: "object", required: ["k"], properties: { k: { type: "string" }, v: { type: "string" } } } },
   };
   expect(scrubWireSchema(schema, "strict-compatible").reshapedPaths).toEqual(["a.v", "b[*].v"]);
+});
+
+const keywordsRefused = (schema: Record<string, unknown>, mode: WireSchemaMode): string[] =>
+  scrubWireSchema(schema, mode)
+    .refused.map((refusal) => refusal.keyword)
+    .toSorted();
+
+test("anthropic-format refuses what Anthropic's subset lists as unsupported: complex enums, other formats, lookaround, open maps, recursion", () => {
+  const schema = {
+    type: "object",
+    required: ["a", "b", "c", "d"],
+    properties: {
+      a: { enum: [{ x: 1 }, "y"] },
+      b: { type: "string", format: "ipv4-ish" },
+      c: { type: "string", pattern: "^(?=x)x$" },
+      d: { type: "object", additionalProperties: { type: "string" } },
+    },
+  };
+  expect(keywordsRefused(schema, "anthropic-format")).toEqual([
+    "additionalProperties other than false",
+    "enum of objects or arrays",
+    "unsupported pattern feature",
+    "unsupported string format",
+  ]);
+  const recursive = {
+    type: "object",
+    required: ["n"],
+    properties: { n: { $ref: "#/$defs/Node" } },
+    $defs: { Node: { type: "object", required: [], properties: { next: { $ref: "#/$defs/Node" } } } },
+  };
+  expect(keywordsRefused(recursive, "anthropic-format")).toEqual(["recursive $ref"]);
+  // PLANTED CONTROL: a documented format, a plain anchored pattern and a flat reference all fit.
+  const fine = {
+    type: "object",
+    required: ["when", "code", "ref"],
+    properties: { when: { type: "string", format: "date" }, code: { type: "string", pattern: "^[A-Z]{3}$" }, ref: { $ref: "#/$defs/Leaf" } },
+    $defs: { Leaf: { type: "string" } },
+  };
+  expect(keywordsRefused(fine, "anthropic-format")).toEqual([]);
+});
+
+test("guided-decoding refuses what xgrammar refuses: a length bound beside pattern or format, propertyNames beside properties", () => {
+  const schema = {
+    type: "object",
+    properties: { s: { type: "string", pattern: "^a+$", maxLength: 4 }, m: { type: "object", propertyNames: { pattern: "^k" }, properties: {} } },
+  };
+  expect(keywordsRefused(schema, "guided-decoding")).toEqual(["pattern or format with a length bound", "propertyNames beside property constraints"]);
+  // PLANTED CONTROL: either bound alone compiles.
+  expect(
+    keywordsRefused({ type: "object", properties: { s: { type: "string", pattern: "^a+$" }, t: { type: "string", maxLength: 4 } } }, "guided-decoding"),
+  ).toEqual([]);
+});
+
+test("gbnf refuses what llama.cpp's converter skips or breaks on: $anchor, minContains, and a reference inside a definition", () => {
+  const schema = {
+    type: "object",
+    properties: { a: { $anchor: "x", type: "string" }, b: { type: "array", items: { type: "string" }, minContains: 1 }, c: { $ref: "#/$defs/Outer" } },
+    $defs: { Outer: { type: "object", properties: { inner: { $ref: "#/$defs/Inner" } } }, Inner: { type: "string" } },
+  };
+  expect(keywordsRefused(schema, "gbnf")).toEqual(["$anchor", "$ref inside $defs", "minContains"]);
+});
+
+test("strict-compatible caps one string enum past 250 values at 15,000 characters; a short enum of long values is not that ceiling", () => {
+  const long = Array.from({ length: 251 }, (_, i) => `${"v".repeat(60)}${String(i)}`);
+  const schema = { type: "object", required: ["pick"], properties: { pick: { type: "string", enum: long } } };
+  const limits = effectiveStructuredLimits("strict-compatible", undefined);
+  expect(checkWireSchema([schema], "strict-compatible", limits).violations).toMatchObject([{ kind: "long-enum-chars", limit: 15_000 }]);
+  const short = { type: "object", required: ["pick"], properties: { pick: { type: "string", enum: long.slice(0, 250) } } };
+  expect(checkWireSchema([short], "strict-compatible", limits).fits).toBe(true);
 });

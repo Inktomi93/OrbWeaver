@@ -143,6 +143,51 @@ const EXTERNAL_REF: NodeRefusal = {
   },
 };
 
+/** Anthropic's subset takes `enum` of primitives only. */
+const ENUM_OF_COMPLEX: NodeRefusal = {
+  label: "enum of objects or arrays",
+  test: (node) => {
+    const values = node["enum"];
+    return Array.isArray(values) && values.some((value) => value !== null && typeof value === "object");
+  },
+};
+
+/** The string formats Anthropic's subset accepts. */
+const ANTHROPIC_FORMATS: ReadonlySet<string> = new Set<string>(["date-time", "time", "date", "duration", "email", "hostname", "uri", "ipv4", "ipv6", "uuid"]);
+
+const UNSUPPORTED_FORMAT: NodeRefusal = {
+  label: "unsupported string format",
+  test: (node) => typeof node["format"] === "string" && !ANTHROPIC_FORMATS.has(node["format"]),
+};
+
+/** Backreferences, lookaround and word boundaries, which Anthropic's regex subset refuses. */
+const UNSUPPORTED_REGEX_FEATURE = /\\[1-9bB]|\(\?<?[=!]/u;
+
+const UNSUPPORTED_PATTERN: NodeRefusal = {
+  label: "unsupported pattern feature",
+  test: (node) => typeof node[PATTERN_KEYWORD] === "string" && UNSUPPORTED_REGEX_FEATURE.test(node[PATTERN_KEYWORD]),
+};
+
+/** Anthropic requires every object closed: an `additionalProperties` schema (a map) or `true` is refused. */
+const OPEN_OBJECT: NodeRefusal = {
+  label: "additionalProperties other than false",
+  test: (node) => "additionalProperties" in node && node["additionalProperties"] !== false,
+};
+
+/** xgrammar refuses a string that mixes `pattern` or `format` with a length bound. */
+const PATTERN_WITH_LENGTH: NodeRefusal = {
+  label: "pattern or format with a length bound",
+  test: (node) => (PATTERN_KEYWORD in node || "format" in node) && ("minLength" in node || "maxLength" in node),
+};
+
+/** xgrammar refuses `propertyNames` beside any other property constraint. */
+const PROPERTY_NAMES_CONFLICT: NodeRefusal = {
+  label: "propertyNames beside property constraints",
+  test: (node) =>
+    "propertyNames" in node &&
+    ("properties" in node || "patternProperties" in node || "unevaluatedProperties" in node || isPlainObject(node["additionalProperties"])),
+};
+
 interface WireSubset {
   /** Keywords dropped from the wire copy; a dropped bound is relayed into the node's description. */
   readonly strip: ReadonlySet<string>;
@@ -160,6 +205,10 @@ interface WireSubset {
   /** Keep `minItems`, clamped to {@link CLAMPED_MIN_ITEMS}, instead of stripping it. A mode that sets this must
    *  leave `minItems` out of its `strip` set, or the keyword is gone before the clamp sees it. */
   readonly clampMinItems: boolean;
+  /** Refuse a `$defs` member that reaches itself through `$ref` (Anthropic: recursive schemas unsupported). */
+  readonly refuseRecursion?: true;
+  /** Refuse a `$ref` inside a `$defs` member (llama.cpp's converter breaks on a nested reference). */
+  readonly refuseNestedRef?: true;
   /** The vendor's per-request ceilings as documented; a capability row names the mode whose ceilings bind
    *  (`output.structuredLimitsFrom`) and may override them field by field (`output.structuredLimits`). */
   readonly limits?: WireSchemaLimits;
@@ -175,7 +224,12 @@ export interface WireSchemaLimits {
   readonly maxDepth?: number | undefined;
   readonly maxEnumValues?: number | undefined;
   readonly maxNameChars?: number | undefined;
+  /** Total characters of one string enum that has more than {@link LONG_ENUM_VALUES} values. */
+  readonly maxLongEnumChars?: number | undefined;
 }
+
+/** The value count past which OpenAI strict caps one string enum's total characters. */
+export const LONG_ENUM_VALUES = 250;
 
 const ANTHROPIC_STRIPPED_BOUNDS = BOUND_KEYWORDS.filter((keyword) => keyword !== "minItems" && keyword !== PATTERN_KEYWORD);
 const HOSTED_STRIPPED_BOUNDS = BOUND_KEYWORDS.filter((keyword) => keyword !== PATTERN_KEYWORD);
@@ -200,11 +254,12 @@ export const WIRE_SUBSETS: Readonly<Record<WireSchemaMode, WireSubset>> = {
   "anthropic-format": {
     strip: new Set<string>([...ANTHROPIC_STRIPPED_BOUNDS, ...META_KEYWORDS]),
     refuse: new Set<string>(["oneOf"]),
-    refuseNodes: [ALL_OF_WITH_REF, EXTERNAL_REF],
+    refuseNodes: [ALL_OF_WITH_REF, EXTERNAL_REF, ENUM_OF_COMPLEX, UNSUPPORTED_FORMAT, UNSUPPORTED_PATTERN, OPEN_OBJECT],
     stripNumberRanges: false,
-    pinClosed: false,
+    pinClosed: true,
     requireAllAsNullable: false,
     clampMinItems: true,
+    refuseRecursion: true,
     limits: { maxOptionalProps: 24, maxUnionProps: 16, maxStrictTools: 20 },
   },
   // developers.openai.com structured-outputs: every field required, optionals as a union with null, closed objects;
@@ -218,13 +273,13 @@ export const WIRE_SUBSETS: Readonly<Record<WireSchemaMode, WireSubset>> = {
     pinClosed: true,
     requireAllAsNullable: true,
     clampMinItems: false,
-    limits: { maxObjectProps: 5000, maxDepth: 10, maxEnumValues: 1000, maxNameChars: 120_000 },
+    limits: { maxObjectProps: 5000, maxDepth: 10, maxEnumValues: 1000, maxNameChars: 120_000, maxLongEnumChars: 15_000 },
   },
   // vLLM xgrammar compiles the bounds, so they survive; it refuses the array and number features below.
   "guided-decoding": {
     strip: new Set<string>([...ANNOTATION_KEYWORDS, ...META_KEYWORDS]),
     refuse: new Set<string>(["multipleOf", "uniqueItems", "contains", "minContains", "maxContains", "patternProperties"]),
-    refuseNodes: [],
+    refuseNodes: [PATTERN_WITH_LENGTH, PROPERTY_NAMES_CONFLICT],
     stripNumberRanges: false,
     pinClosed: true,
     requireAllAsNullable: false,
@@ -234,12 +289,26 @@ export const WIRE_SUBSETS: Readonly<Record<WireSchemaMode, WireSubset>> = {
   // express silently (KoboldCpp then generates unconstrained), so everything it cannot carry is refused here.
   gbnf: {
     strip: new Set<string>([...META_KEYWORDS]),
-    refuse: new Set<string>(["uniqueItems", "contains", "not", "if", "then", "else", "dependentSchemas", "patternProperties", "prefixItems"]),
+    refuse: new Set<string>([
+      "uniqueItems",
+      "contains",
+      "minContains",
+      "maxContains",
+      "not",
+      "if",
+      "then",
+      "else",
+      "dependentSchemas",
+      "patternProperties",
+      "prefixItems",
+      "$anchor",
+    ]),
     refuseNodes: [UNION_BESIDE_PROPERTIES, UNANCHORED_PATTERN],
     stripNumberRanges: true,
     pinClosed: true,
     requireAllAsNullable: false,
     clampMinItems: false,
+    refuseNestedRef: true,
   },
   // ai.google.dev structured-output: the keywords below are not in the subset and the model ignores them silently.
   "gemini-schema": {
@@ -255,15 +324,44 @@ export const WIRE_SUBSETS: Readonly<Record<WireSchemaMode, WireSubset>> = {
 
 const NULL_ARM = { type: NULL_TYPE } as const;
 
-/** Does a node accept `null` as authored: a null union arm, a type array with `null`, or `type: "null"`? */
-function acceptsNull(node: Record<string, unknown>): boolean {
+/** The schema a local `$ref` (`#/$defs/Name`, `#/definitions/Name`) points at inside `root`, if any. */
+function resolveLocalRef(root: Record<string, unknown>, ref: string): Record<string, unknown> | undefined {
+  let node: unknown = root;
+  for (const segment of ref.slice(`${LOCAL_REF_PREFIX}/`.length).split("/")) {
+    node = isPlainObject(node) ? node[segment.replaceAll("~1", "/").replaceAll("~0", "~")] : undefined;
+  }
+  return isPlainObject(node) ? node : undefined;
+}
+
+/** Does a node accept `null` as authored: `type: "null"` or a type array with it, an enum or const of `null`, a
+ *  null union arm, an `allOf` whose every arm accepts it, or a local `$ref` to a def that does? `seen` stops a
+ *  recursive def. */
+function acceptsNull(node: Record<string, unknown>, root: Record<string, unknown>, seen: ReadonlySet<string> = new Set()): boolean {
   const type = node["type"];
-  if (type === NULL_TYPE || (Array.isArray(type) && type.includes(NULL_TYPE))) {
+  const values = node["enum"];
+  if (
+    type === NULL_TYPE ||
+    (Array.isArray(type) && type.includes(NULL_TYPE)) ||
+    (Array.isArray(values) && values.includes(null)) ||
+    ("const" in node && node["const"] === null)
+  ) {
+    return true;
+  }
+  const accepts = (arm: unknown): boolean => isPlainObject(arm) && acceptsNull(arm, root, seen);
+  const ref = node[REF_KEYWORD];
+  if (typeof ref === "string" && ref.startsWith(`${LOCAL_REF_PREFIX}/`) && !seen.has(ref)) {
+    const target = resolveLocalRef(root, ref);
+    if (target !== undefined && acceptsNull(target, root, new Set([...seen, ref]))) {
+      return true;
+    }
+  }
+  const all = node["allOf"];
+  if (Array.isArray(all) && all.length > 0 && all.every(accepts)) {
     return true;
   }
   return UNION_KEYWORDS.some((key) => {
     const arms = node[key];
-    return Array.isArray(arms) && arms.some((arm) => isPlainObject(arm) && acceptsNull(arm));
+    return Array.isArray(arms) && arms.some(accepts);
   });
 }
 
@@ -293,6 +391,8 @@ interface Walk {
    *  share a field) cannot tell the author's null from the reshape's, so it is ambiguous too. */
   readonly declaredNull: string[];
   readonly refUses: Map<string, string[]>;
+  /** The authored root, where a local `$ref` resolves when asking whether a property accepts null. */
+  readonly root: Record<string, unknown>;
 }
 
 const SIMPLE_NAME = /^[A-Za-z_$][\w$-]*$/u;
@@ -337,7 +437,39 @@ function noteNode(node: Record<string, unknown>, walk: Walk, path: string): void
   const ref = node[REF_KEYWORD];
   if (typeof ref === "string" && ref.startsWith(LOCAL_REF_PREFIX)) {
     walk.refUses.set(ref, [...(walk.refUses.get(ref) ?? []), path]);
+    if (walk.subset.refuseNestedRef === true && path.startsWith(`${LOCAL_REF_PREFIX}/`)) {
+      refuse(walk, "$ref inside $defs", path);
+    }
   }
+}
+
+// The `$defs` members a reference reaches itself from: an edge runs from the def a `$ref` sits in to the def it names.
+function recursiveRefs(refUses: ReadonlyMap<string, readonly string[]>): readonly string[] {
+  const edges = new Map<string, string[]>();
+  for (const [target, uses] of refUses) {
+    for (const use of uses) {
+      for (const source of refUses.keys()) {
+        if (isUnderRef(use, source)) {
+          edges.set(source, [...(edges.get(source) ?? []), target]);
+        }
+      }
+    }
+  }
+  const reaches = (from: string, goal: string, seen: Set<string>): boolean => {
+    for (const next of edges.get(from) ?? []) {
+      if (next === goal) {
+        return true;
+      }
+      if (!seen.has(next)) {
+        seen.add(next);
+        if (reaches(next, goal, seen)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+  return [...refUses.keys()].filter((ref) => reaches(ref, ref, new Set()));
 }
 
 // One node's keyword pass: drop what this wire cannot express, report what it must refuse, recurse into the rest,
@@ -380,12 +512,12 @@ function requireAllProperties(node: Record<string, unknown>, walk: Walk, path: s
       continue;
     }
     if (required.has(name)) {
-      if (acceptsNull(child)) {
+      if (acceptsNull(child, walk.root)) {
         walk.declaredNull.push(propertyPath(path, name));
       }
       continue;
     }
-    if (acceptsNull(child)) {
+    if (acceptsNull(child, walk.root)) {
       walk.ambiguous.push(propertyPath(path, name));
       continue;
     }
@@ -462,8 +594,13 @@ function expandDefPath(path: string, seen: ReadonlySet<string>, refUses: Readonl
  * caller's cached `ResponseFormat.schema` also feeds wires that need the keywords this one drops.
  */
 export function scrubWireSchema<S extends Record<string, unknown>>(schema: S, mode: WireSchemaMode): WireSchemaScrub<S> {
-  const walk: Walk = { subset: WIRE_SUBSETS[mode], refused: new Map(), reshaped: [], ambiguous: [], declaredNull: [], refUses: new Map() };
+  const walk: Walk = { subset: WIRE_SUBSETS[mode], refused: new Map(), reshaped: [], ambiguous: [], declaredNull: [], refUses: new Map(), root: schema };
   const scrubbed = walkNode(schema, walk, "") as S;
+  if (walk.subset.refuseRecursion === true) {
+    for (const ref of recursiveRefs(walk.refUses)) {
+      refuse(walk, "recursive $ref", ref);
+    }
+  }
   const reshapedPaths = placeDefPaths(walk.reshaped, walk.refUses);
   const declaredNull = new Set(placeDefPaths(walk.declaredNull, walk.refUses));
   const collisions = reshapedPaths.filter((path) => declaredNull.has(path));

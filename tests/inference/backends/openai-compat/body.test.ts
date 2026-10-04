@@ -573,3 +573,21 @@ test("rule 5d: a turn the template must not think on sends the row's budget fiel
   expect("thinking_budget_tokens" in shapeOutboundBody(RAW, args({ features: { ...LLAMA_SWITCH, thinkingOff: "none" }, templateThinking: false }))).toBe(false);
   expect(Object.keys(shapeOutboundBody(RAW, args({ features: KWARGS_OFF, templateThinking: false })))).not.toContain("thinking_budget_tokens");
 });
+
+test("rule 5d defers like 5b wherever the user's body decides the thinking switch: their thinking-on is not cancelled by a budget of 0", () => {
+  const theirsOn = shapeOutboundBody(
+    RAW,
+    args({ features: LLAMA_SWITCH, templateThinking: false, extras: { chat_template_kwargs: { enable_thinking: true } } }),
+  );
+  expect(theirsOn["chat_template_kwargs"]).toEqual({ enable_thinking: true });
+  expect("thinking_budget_tokens" in theirsOn).toBe(false);
+  const excluded = shapeOutboundBody(
+    RAW,
+    args({ features: LLAMA_SWITCH, templateThinking: false, transport: { includeBody: {}, excludeBody: ["chat_template_kwargs"] } }),
+  );
+  expect("thinking_budget_tokens" in excluded).toBe(false);
+  // PLANTED CONTROL: kwargs the user set without the switch leave the switch, and so the budget, to the rules.
+  const otherKwarg = shapeOutboundBody(RAW, args({ features: LLAMA_SWITCH, templateThinking: false, extras: { chat_template_kwargs: { foo: 1 } } }));
+  expect(otherKwarg["thinking_budget_tokens"]).toBe(0);
+  expect(otherKwarg["chat_template_kwargs"]).toEqual({ foo: 1, enable_thinking: false });
+});

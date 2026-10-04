@@ -8,6 +8,7 @@ import type { ResponseFormat, ToolChoice, WireTool } from "../contract/chat.ts";
 import { assertNever, ProviderError, SCHEMA_REJECTED_DETAIL } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { Resolved } from "../contract/resolved.ts";
+import type { StructuredFit } from "../contract/structured-turn.ts";
 import type { StructuredTarget } from "./target.ts";
 import { structuredTargetOf } from "./target.ts";
 
@@ -21,6 +22,12 @@ export interface StructuredAsk {
   readonly formats?: readonly ResponseFormat[] | undefined;
   readonly tools?: readonly WireTool[] | undefined;
   readonly toolChoice?: ToolChoice | undefined;
+  /** `false` when this turn's own settings refuse forced tool use (Anthropic's manual extended thinking): a forced
+   *  choice goes out as `auto`, loudly, and the forced-tool vehicle is not tried. */
+  readonly forcedChoice?: false | undefined;
+  /** `false` when this turn's own shape refuses the native carrier (an Anthropic assistant prefill cannot ride
+   *  `output_config.format`): the payload rides a tool or is refused. */
+  readonly nativeFormat?: false | undefined;
 }
 
 /** The structured payload as planned: the scrubbed schema, how it rides, and the paths the reply drops a null at. */
@@ -97,6 +104,24 @@ function planTool(tool: WireTool, target: StructuredTarget, downgrades: Resolved
   return { tool: { ...tool, parameters: scrub.schema, strict }, mode, scrub };
 }
 
+/** A caller's tool as it goes out. One whose schema the strict grammar cannot carry goes out non-strict, loudly,
+ *  instead of failing the whole turn: a non-strict tool is prompt material no grammar compiles, and the turn's
+ *  other tools keep their strictness. */
+function planCallerTool(tool: WireTool, target: StructuredTarget, downgrades: ResolvedWarning[]): PlannedToolScrub {
+  const planned = planTool(tool, target, downgrades);
+  const refused = planned.tool.strict === true ? scrubViolations(planned.scrub, planned.mode, false) : [];
+  if (refused.length === 0) {
+    return planned;
+  }
+  downgrades.push({
+    code: "sdk_unsupported_tool",
+    message: `tool "${tool.name}" sent without strict input: ${refused.map(describeWireSchemaViolation).join("; ")}`,
+  });
+  const mode = toolModeOf(target, false);
+  const scrub = scrubWireSchema(tool.parameters, mode);
+  return { tool: { ...tool, parameters: scrub.schema, strict: false }, mode, scrub };
+}
+
 /** A forced choice of a form the model refuses goes out as `auto` over the same tools, loudly: `auto` no longer
  *  guarantees a call, and a caller that relied on the guarantee must be able to see why it lapsed. */
 function servableToolChoice(choice: ToolChoice, target: StructuredTarget, downgrades: ResolvedWarning[]): ToolChoice {
@@ -126,11 +151,6 @@ function ceilingViolations(target: StructuredTarget, schemas: readonly Record<st
 
 function strictEntries(tools: readonly PlannedToolScrub[]): readonly PlannedToolScrub[] {
   return tools.filter((entry) => entry.tool.strict === true);
-}
-
-/** The caller's own tools: only a strict tool's refusals block, because only a strict tool compiles a grammar. */
-function callerToolViolations(tools: readonly PlannedToolScrub[]): readonly WireSchemaViolation[] {
-  return strictEntries(tools).flatMap((entry) => scrubViolations(entry.scrub, entry.mode, false));
 }
 
 type Attempt =
@@ -200,15 +220,28 @@ function toolVehicleAttempt(
   };
 }
 
+// The endpoint's target narrowed by what this turn's own settings refuse.
+function turnTarget(ask: StructuredAsk, endpoint: StructuredTarget): StructuredTarget {
+  const forced = ask.forcedChoice !== false;
+  const native = ask.nativeFormat !== false;
+  return {
+    ...endpoint,
+    requiredChoice: endpoint.requiredChoice && forced,
+    namedChoice: endpoint.namedChoice && forced,
+    vehicles: endpoint.vehicles.filter((vehicle) => (vehicle !== "forced-tool" || forced) && (vehicle !== "response-format" || native)),
+  };
+}
+
 /** Plan one structured request for `target`: the first vehicle (in the target's order) on which a format (in the
  *  caller's order) fits, or every violation each pair raised. A non-strict tool is not grammar-compiled, so a schema
  *  over the ceilings still rides one where the model takes tools; a model with no fitting vehicle is refused. */
-export function planStructured(ask: StructuredAsk, target: StructuredTarget): StructuredPlan | StructuredRefusal {
+export function planStructured(ask: StructuredAsk, endpoint: StructuredTarget): StructuredPlan | StructuredRefusal {
+  const target = turnTarget(ask, endpoint);
   const downgrades: ResolvedWarning[] = [];
   const turn: PlanningTurn = {
     target,
     downgrades,
-    callerTools: (ask.tools ?? []).map((tool) => planTool(tool, target, downgrades)),
+    callerTools: (ask.tools ?? []).map((tool) => planCallerTool(tool, target, downgrades)),
     toolChoice: ask.toolChoice === undefined ? undefined : servableToolChoice(ask.toolChoice, target, downgrades),
   };
   const formats = ask.formats ?? [];
@@ -225,14 +258,11 @@ interface PlanningTurn {
 // A tool turn with no structured payload: the caller's strict tools still count against the ceilings.
 function planToolTurn({ target, downgrades, callerTools, toolChoice }: PlanningTurn): StructuredPlan | StructuredRefusal {
   const strict = strictEntries(callerTools);
-  const violations = [
-    ...callerToolViolations(callerTools),
-    ...ceilingViolations(
-      target,
-      strict.map((entry) => entry.scrub.schema),
-      strict.length,
-    ),
-  ];
+  const violations = ceilingViolations(
+    target,
+    strict.map((entry) => entry.scrub.schema),
+    strict.length,
+  );
   if (violations.length > 0) {
     return { ok: false, violations };
   }
@@ -254,10 +284,6 @@ function planFormats(formats: readonly ResponseFormat[], { target, downgrades, c
   const vehicles = callerTools.length > 0 ? target.vehicles.filter((vehicle) => vehicle === "response-format") : target.vehicles;
   if (vehicles.length === 0) {
     return { ok: false, violations: [{ kind: "no-vehicle", mode: target.mode }] };
-  }
-  const callerViolations = callerToolViolations(callerTools);
-  if (callerViolations.length > 0) {
-    return { ok: false, violations: callerViolations };
   }
   const violations: WireSchemaViolation[] = [];
   // Vehicles outer: an enforcing carrier with the caller's fallback shape beats a weaker carrier with its first one.
@@ -283,6 +309,16 @@ function planFormats(formats: readonly ResponseFormat[], { target, downgrades, c
 /** {@link planStructured} for a resolved connection. The one planning call the rest of the app makes. */
 export function planStructuredFor(connection: Resolved, ask: StructuredAsk): StructuredPlan | StructuredRefusal {
   return planStructured(ask, structuredTargetOf(connection));
+}
+
+/** {@link planStructuredFor} for a caller that shows the outcome instead of sending (the refinery schema editor). */
+export function structuredFitFor(connection: Resolved, format: ResponseFormat): StructuredFit {
+  const plan = planStructuredFor(connection, { formats: [format] });
+  if (plan.ok) {
+    return { ok: true, native: plan.responseFormat?.vehicle === "response-format" };
+  }
+  const first = plan.violations[0]?.vehicle;
+  return { ok: false, violations: plan.violations.filter((violation) => violation.vehicle === first) };
 }
 
 /** The plan a backend sends, or a typed refusal before any byte goes out. */

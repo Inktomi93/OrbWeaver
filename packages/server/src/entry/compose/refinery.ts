@@ -13,11 +13,15 @@
 // so the two are assembled side by side here rather than the queue reaching into the service.
 
 import type { ProseOverrides } from "@orb/contracts/prose";
+import type { RefinerySchemaPlan } from "@orb/contracts/refinery";
+import { schemaPlanReasonOf } from "@orb/contracts/refinery";
 import type { UserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import type { RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
+import { structuredFitFor } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import type { WireReady } from "@orb/kit/json-schema";
 import type { CharacterService } from "#domain/character";
 import { createDeleteSnapshot, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "#domain/character";
 import type { RefineryService, RefineryWorkloadDeps } from "#domain/refinery";
@@ -43,8 +47,27 @@ export interface RefineryCompose {
   readonly refineryWorkloads: RefineryWorkloadDeps;
 }
 
+/** The refinery editor's plan preview: every refinery pass is `structured` on the owner's own binding, so that
+ *  connection's plan for the projected draft is the answer. */
+export function createPlanSchema(
+  roleClientsFor: (ownerId: UserId) => Promise<Pick<RoleClientsWithSignal, "resolved">>,
+): (ownerId: UserId, schema: WireReady) => Promise<RefinerySchemaPlan> {
+  return async (ownerId, schema) => {
+    const connection = await (await roleClientsFor(ownerId)).resolved("structured");
+    if (connection === null) {
+      return { outcome: "unbound" };
+    }
+    const preview = structuredFitFor(connection, { name: "refinery_schema_preview", schema });
+    if (preview.ok) {
+      return { outcome: "sends", model: connection.model, carrier: preview.native ? "native" : "tool" };
+    }
+    return { outcome: "refused", model: connection.model, reasons: preview.violations.map(schemaPlanReasonOf) };
+  };
+}
+
 export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
   const resolveUserProse = async (userId: UserId): Promise<ProseOverrides> => (await deps.loadUserSettings(userId)).prose;
+
   const stampRefinerySignals = createStampRefinerySignals({ db: deps.db });
   const refinery = createRefineryService({
     db: deps.db,
@@ -55,6 +78,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     roleClientsFor: deps.roleClientsFor,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
     resolveUserProse,
+    planSchema: createPlanSchema(deps.roleClientsFor),
     emitUserEvent: publishUserEvent,
     loadOwnedCard: createLoadOwnedCard({ db: deps.db }),
     stampRefinerySignals,

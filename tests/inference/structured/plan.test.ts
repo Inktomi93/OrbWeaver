@@ -7,8 +7,9 @@ import { effectiveStructuredLimits } from "@orb/contracts/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
 import type { ResponseFormat } from "../../../packages/inference/src/contract/chat.ts";
-import { planStructured } from "../../../packages/inference/src/structured/plan.ts";
+import { planStructured, planStructuredFor } from "../../../packages/inference/src/structured/plan.ts";
 import type { StructuredTarget } from "../../../packages/inference/src/structured/target.ts";
+import { makeCapability, makeGenerationCapability, makeResolved } from "../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { wireSchema } from "../../support/wire-ready.ts";
 
@@ -132,10 +133,66 @@ test("strict tools count against the shared ceilings with the response schema: t
   expect(planStructured({ tools: loose }, target({ mode: "anthropic-format", limits: ANTHROPIC })).ok).toBe(true);
 });
 
+const UNIQUE_TAGS = wireSchema({ type: "object", properties: { t: { type: "array", items: { type: "string" }, uniqueItems: true } } });
+
+test("a caller tool whose schema the grammar refuses goes out non-strict, loudly, and the turn's other tools stay strict", () => {
+  const tools = [
+    { name: "tags", description: "Tags.", parameters: UNIQUE_TAGS },
+    { name: "plain", description: "Plain.", parameters: { type: "object", properties: { a: { type: "string" } } } },
+  ];
+  const plan = planStructured({ tools }, target({ mode: "guided-decoding", strictTools: "default-on" }));
+  expect(plan).toMatchObject({
+    ok: true,
+    tools: [
+      { name: "tags", strict: false },
+      { name: "plain", strict: true },
+    ],
+  });
+  expect(plan.ok && plan.downgrades.map((warning) => warning.code)).toEqual(["sdk_unsupported_tool"]);
+  // The structured payload is the caller's reply contract, so its own refusal still blocks rather than relaxing.
+  const payload = planStructured(
+    { formats: [{ name: "row", schema: UNIQUE_TAGS }] },
+    target({ mode: "guided-decoding", vehicles: ["forced-tool"], strictTools: "default-on" }),
+  );
+  expect(payload).toMatchObject({ ok: false, violations: [{ kind: "refused-keyword", keyword: "uniqueItems" }] });
+});
+
 test("a schema over the ceilings still rides one offered tool where the model takes tools, because no grammar compiles it", () => {
   const plan = planStructured(
     { formats: [optionals(30)] },
     target({ mode: "anthropic-format", limits: ANTHROPIC, vehicles: ["response-format", "offered-tool"] }),
   );
   expect(plan).toMatchObject({ ok: true, responseFormat: { vehicle: "offered-tool" }, toolChoice: { mode: "auto" } });
+});
+
+test("agent-sdk: the CLI sends StructuredOutput as a non-strict tool it validates itself, so Anthropic's ceilings do not refuse there", () => {
+  const claude = makeCapability(
+    makeGenerationCapability({
+      output: { maxTokens: { min: 1, max: 8192 }, structured: true, modalities: ["text"], structuredLimitsFrom: "anthropic-format" },
+    }),
+  );
+  const sdk = planStructuredFor(makeResolved({ providerId: "claude-sub", capability: claude }), { formats: [optionals(41)] });
+  expect(sdk).toMatchObject({ ok: true, responseFormat: { vehicle: "response-format" } });
+  // PLANTED CONTROL: the same capability on the Messages wire compiles a grammar and is refused at the ceiling.
+  const messages = planStructuredFor(makeResolved({ providerId: "anthropic", capability: claude }), { formats: [optionals(41)] });
+  expect(messages).toMatchObject({ ok: false, violations: [{ kind: "optional-props", count: 41, limit: 24 }] });
+});
+
+test("a turn whose own settings refuse forced tool use gets no forced choice and no forced-tool vehicle", () => {
+  const tools = [{ name: "set", description: "Set.", parameters: { type: "object", properties: {} } }];
+  const plan = planStructured({ tools, toolChoice: { mode: "required" }, forcedChoice: false }, target());
+  expect(plan).toMatchObject({ ok: true, toolChoice: { mode: "auto" } });
+  expect(plan.ok && plan.downgrades.map((warning) => warning.code)).toEqual(["tool_choice_downgraded"]);
+  const format = planStructured({ formats: [SMALL], forcedChoice: false }, target({ vehicles: ["forced-tool", "offered-tool"] }));
+  expect(format).toMatchObject({ ok: true, responseFormat: { vehicle: "offered-tool" }, toolChoice: { mode: "auto" } });
+});
+
+test("a turn whose shape refuses the native carrier (an Anthropic prefill) rides the payload on a tool instead", () => {
+  const plan = planStructured({ formats: [SMALL], nativeFormat: false }, target());
+  expect(plan).toMatchObject({ ok: true, responseFormat: { vehicle: "forced-tool" } });
+  // With no tool to fall back on, the plan refuses before the call instead of sending a request that 400s.
+  expect(planStructured({ formats: [SMALL], nativeFormat: false }, target({ vehicles: ["response-format"] }))).toMatchObject({
+    ok: false,
+    violations: [{ kind: "no-vehicle" }],
+  });
 });

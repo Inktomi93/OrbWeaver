@@ -42,6 +42,8 @@ export * from "./schema-authoring.ts";
 // The forge's WIRE GRAMMAR (task #36 — the meta-schema every NL→schema call is constrained by). Imports
 // ./schema-authoring.ts for the caps it mirrors, so it is re-exported AFTER it.
 export * from "./schema-forge.ts";
+// What the bound Utility model would do with a draft: the structured planner's answer, server-computed.
+export * from "./schema-plan.ts";
 
 // The 1-10 rubric bounds + the verdict vocabulary live in ./core.ts (schema-authoring's well-known-core
 // check needs them and this file re-exports ./schema-authoring — importing them back out of here would

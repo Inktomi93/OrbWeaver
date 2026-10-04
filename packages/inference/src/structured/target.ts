@@ -6,7 +6,7 @@ import { acceptsNamedToolChoice, acceptsRequiredToolChoice, effectiveStructuredL
 import type { Resolved } from "../contract/resolved.ts";
 
 /** The planner's view of one endpoint. `mode` is `features.structuredMode`, else the wire default; `limits` are
- *  `output.structuredLimitsFrom` merged with `output.structuredLimits`. */
+ *  `output.structuredLimitsFrom` merged with `output.structuredLimits`, where the carrier is grammar-compiled. */
 export interface StructuredTarget extends StructuredSchemaTarget {
   /** The carriers this endpoint can take, in preference order. */
   readonly vehicles: readonly StructuredVehicle[];
@@ -25,6 +25,17 @@ const NATIVE_CARRIER: Readonly<Record<Wire, boolean>> = {
   "anthropic-messages": true,
   "google-generative-ai": true,
   "agent-sdk": true,
+  "local-light": false,
+};
+
+/** Wires whose native carrier the vendor compiles into a grammar, so its ceilings bind. The agent-sdk CLI (0.3.280)
+ *  sends `outputFormat` as its own StructuredOutput tool, non-strict unless a remote flag (default off) is on, and
+ *  validates the reply against the full schema itself, retrying on a mismatch. */
+const COMPILED_CARRIER: Readonly<Record<Wire, boolean>> = {
+  "openai-compat": true,
+  "anthropic-messages": true,
+  "google-generative-ai": true,
+  "agent-sdk": false,
   "local-light": false,
 };
 
@@ -60,7 +71,9 @@ export function structuredTargetOf(connection: Resolved): StructuredTarget {
   }
   return {
     mode,
-    limits: effectiveStructuredLimits(generation.output.structuredLimitsFrom, generation.output.structuredLimits),
+    limits: COMPILED_CARRIER[connection.wire]
+      ? effectiveStructuredLimits(generation.output.structuredLimitsFrom, generation.output.structuredLimits)
+      : undefined,
     vehicles,
     strictTools,
     requiredChoice: acceptsRequiredToolChoice(generation),

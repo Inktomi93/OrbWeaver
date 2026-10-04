@@ -17,6 +17,7 @@ import { createListRuns } from "./verbs/list-runs.ts";
 import { createListSchemas } from "./verbs/list-schemas.ts";
 import { createListSessions } from "./verbs/list-sessions.ts";
 import { createPreflight } from "./verbs/preflight.ts";
+import { createPreviewSchemaPlan } from "./verbs/preview-schema-plan.ts";
 import { createRefineSchema } from "./verbs/refine-schema.ts";
 import { createExecuteStage, createRunStage } from "./verbs/run-stage.ts";
 import { createStartSession } from "./verbs/start-session.ts";
@@ -47,5 +48,6 @@ export function createRefineryService(ctx: RefineryContext): RefineryService {
     generateSchema: createGenerateSchema(ctx),
     refineSchema: createRefineSchema(ctx),
     testSchema: createTestSchema(ctx),
+    previewSchemaPlan: createPreviewSchemaPlan(ctx),
   };
 }

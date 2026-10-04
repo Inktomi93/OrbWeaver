@@ -6,17 +6,17 @@
 // like, so nothing here can lose a keystroke.
 
 import type { RefinerySchemaStage } from "@orb/contracts/refinery";
-import { refinerySchemaAdvisoryOf } from "@orb/contracts/refinery";
+import { refinerySchemaAdvisoryOf, refinerySchemaPlanLine } from "@orb/contracts/refinery";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
-import { useTestRefinerySchema } from "../hooks/use-refinery-schemas.ts";
+import { useRefinerySchemaPlan, useTestRefinerySchema } from "../hooks/use-refinery-schemas.ts";
 import type { buildRenderPlan } from "../lib/render-plan.ts";
 import { CharacterDoor } from "./character-door.tsx";
 import { PayloadView } from "./payload-view.tsx";
@@ -27,13 +27,21 @@ import { RefineryChip } from "./refinery-chip.tsx";
  *  blocks: the Save press does not consult it. It answers the question a valid-but-expensive schema
  *  leaves hanging — "this saves, but what does it cost on a real wire?" — with the accounting the OG
  *  extension put behind a validator, minus the client-side policing that validator also did. */
-export function PreflightNote({ schema }: { schema: Record<string, unknown> }): ReactElement {
+export function PreflightNote({ schema, stage }: { schema: Record<string, unknown>; stage: RefinerySchemaStage }): ReactElement {
   const { stats, advisories } = refinerySchemaAdvisoryOf(schema);
+  // The server's plan for the bound model, asked about the settled draft rather than every keystroke's. A draft the
+  // save belt refuses has no plan (`null`): the refusal note below already speaks for it.
+  const plan = useRefinerySchemaPlan(useDeferredValue(schema), stage).data ?? null;
   return (
     <Stack data-testid={testId("refinerySchemaPreflight")} gap="tight">
       <Text data-testid={testId("refinerySchemaStats")} voice="gloss">
         {stats.properties} fields · {stats.optionalFields} optional · {stats.enums} choice lists · {stats.anyOfBlocks} unions · {stats.maxDepth} levels deep
       </Text>
+      {plan === null ? null : (
+        <Text data-plan={plan.outcome} data-testid={testId("refinerySchemaPlan")} voice="gloss">
+          {refinerySchemaPlanLine(plan)}
+        </Text>
+      )}
       {/* The advisories need a CLASS above them or they read as a second, longer stats line — measured
           on the rendered dialog: same voice, same tint, no separation, no way to tell that one is an
           accounting and the other is a warning. The kicker is the cheapest honest separator, and it

@@ -10,15 +10,17 @@
 // in the editor's local state, and the double-failure `failed` arm is DATA (rendered for hand-fixing),
 // never an error toast.
 
+import type { RefinerySchemaStage } from "@orb/contracts/refinery";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc, TrpcReadError } from "#data";
 import { createEntityMutation, useGatedQuery, useTRPC } from "#data";
 
 type SchemaLibrary = inferOutput<Trpc["refinery"]["listSchemas"]>;
 type Preflight = inferOutput<Trpc["refinery"]["preflight"]>;
+type SchemaPlan = inferOutput<Trpc["refinery"]["schemaPlan"]>;
 
 /** The owner's schema library (the stage-config picker + the editor's list). */
 export function useRefinerySchemas(): UseQueryResult<SchemaLibrary, TrpcReadError> {
@@ -31,6 +33,13 @@ export function useRefinerySchemas(): UseQueryResult<SchemaLibrary, TrpcReadErro
 export function useRefineryPreflight(sessionId: RefinerySessionId | null): UseQueryResult<Preflight, TrpcReadError> {
   const trpc = useTRPC();
   return useGatedQuery(sessionId, (id) => trpc.refinery.preflight.queryOptions({ sessionId: id }));
+}
+
+/** What the caller's bound Utility model would do with a draft schema. The last answer stays up while the next draft
+ *  is asked, so the line does not flicker as the author types. */
+export function useRefinerySchemaPlan(schema: Record<string, unknown>, stage: RefinerySchemaStage): UseQueryResult<SchemaPlan, TrpcReadError> {
+  const trpc = useTRPC();
+  return useQuery({ ...trpc.refinery.schemaPlan.queryOptions({ schema, stage }), placeholderData: keepPreviousData });
 }
 
 export const useCreateRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["createSchema"]>, inferOutput<Trpc["refinery"]["createSchema"]>>({

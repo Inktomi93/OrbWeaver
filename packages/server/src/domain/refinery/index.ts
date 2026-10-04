@@ -20,6 +20,7 @@ export type {
   ListSchemasParams,
   ListSessionsParams,
   PreflightParams,
+  PreviewSchemaPlanParams,
   RefineSchemaParams,
   RunStageParams,
   ScoreSweepOptions,

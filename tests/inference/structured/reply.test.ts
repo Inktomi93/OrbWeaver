@@ -8,13 +8,18 @@ import type { PlannedResponseFormat, StructuredPlan } from "../../../packages/in
 import { normalizeStructuredText, normalizeStructuredValue, structuredChatResult } from "../../../packages/inference/src/structured/reply.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
+/** A format with no pinned values, so only the reshaped paths act. */
+function at(reshapedPaths: readonly string[]): Pick<PlannedResponseFormat, "schema" | "reshapedPaths"> {
+  return { schema: {}, reshapedPaths };
+}
+
 function format(reshapedPaths: readonly string[], vehicle: PlannedResponseFormat["vehicle"] = "response-format"): PlannedResponseFormat {
   return { name: "row", schema: {}, strict: true, vehicle, nullMeansAbsent: reshapedPaths.length > 0, reshapedPaths };
 }
 
 test("a nullable REQUIRED field keeps its null under strict-compatible; a reshaped optional's null is dropped", () => {
   const reply = { verdict: null, note: null, score: 3 };
-  expect(normalizeStructuredValue(reply, ["note"])).toEqual({ verdict: null, score: 3 });
+  expect(normalizeStructuredValue(reply, at(["note"]))).toEqual({ verdict: null, score: 3 });
 });
 
 test("a reshaped optional inside an array of objects drops at every index, and a null element of the array stays", () => {
@@ -26,7 +31,7 @@ test("a reshaped optional inside an array of objects drops at every index, and a
     ],
     tags: [null, "t"],
   };
-  expect(normalizeStructuredValue(reply, ["changes[*].value"])).toEqual({
+  expect(normalizeStructuredValue(reply, at(["changes[*].value"]))).toEqual({
     changes: [{ field: "a" }, { field: "b", value: "x" }, { field: "c" }],
     tags: [null, "t"],
   });
@@ -35,12 +40,12 @@ test("a reshaped optional inside an array of objects drops at every index, and a
 test("an unreshaped plan drops nothing, and its text is returned byte for byte", () => {
   const text = '{"a": null,  "b": [null]}';
   expect(normalizeStructuredText(text, format([]))).toBe(text);
-  expect(normalizeStructuredValue({ a: null }, [])).toEqual({ a: null });
+  expect(normalizeStructuredValue({ a: null }, at([]))).toEqual({ a: null });
 });
 
 test("a quoted path segment and a map-value wildcard address their nulls", () => {
-  expect(normalizeStructuredValue({ "odd key": null, keep: null }, ['["odd key"]'])).toEqual({ keep: null });
-  expect(normalizeStructuredValue({ byId: { a: { v: null }, b: { v: 1 } } }, ["byId{*}.v"])).toEqual({ byId: { a: {}, b: { v: 1 } } });
+  expect(normalizeStructuredValue({ "odd key": null, keep: null }, at(['["odd key"]']))).toEqual({ keep: null });
+  expect(normalizeStructuredValue({ byId: { a: { v: null }, b: { v: 1 } } }, at(["byId{*}.v"]))).toEqual({ byId: { a: {}, b: { v: 1 } } });
 });
 
 test("a reply that is not bare JSON is read tolerantly; one with no object is returned for the caller's own parse to refuse", () => {
@@ -96,4 +101,28 @@ test("a chat turn under a tool vehicle answers with the structured call's argume
   expect(called.toolCalls?.map((call) => call.name)).toEqual(["other"]);
   // The model's prose is never the payload.
   expect(structuredChatResult(chatResult("I chose not to call it."), planWith(format([], "offered-tool"))).reply).toBe("");
+});
+
+test("an enum or const value that differs from the schema's only in case becomes the schema's value; anything else is untouched", () => {
+  const schema = {
+    type: "object",
+    properties: {
+      topic: { type: "string", enum: ["Conversation Topic 1", "Conversation topic 3"] },
+      mood: { anyOf: [{ type: "string", enum: ["Calm"] }, { type: "null" }] },
+      rows: { type: "array", items: { type: "object", properties: { kind: { const: "Fact" } } } },
+      free: { type: "string" },
+    },
+  };
+  const reply = { topic: "Conversation Topic 3", mood: "calm", rows: [{ kind: "fact" }], free: "calm" };
+  expect(normalizeStructuredValue(reply, { schema, reshapedPaths: [] })).toEqual({
+    topic: "Conversation topic 3",
+    mood: "Calm",
+    rows: [{ kind: "Fact" }],
+    free: "calm",
+  });
+  // An exact value, and a value two pinned strings match ignoring case, are left alone.
+  const ambiguous = { type: "object", properties: { k: { enum: ["Ab", "aB"] } } };
+  expect(normalizeStructuredValue({ k: "ab" }, { schema: ambiguous, reshapedPaths: [] })).toEqual({ k: "ab" });
+  const exact = { topic: "Conversation Topic 1" };
+  expect(normalizeStructuredValue(exact, { schema, reshapedPaths: [] })).toBe(exact);
 });

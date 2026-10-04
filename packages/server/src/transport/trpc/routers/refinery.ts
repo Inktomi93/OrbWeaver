@@ -14,6 +14,7 @@ import {
   refineryGuidanceSchema,
   refineryRewriteFieldSchema,
   refineryRunViewSchema,
+  refinerySchemaPlanSchema,
   refinerySchemaStageSchema,
   refinerySchemaSummarySchema,
   refinerySelectionPatchSchema,
@@ -217,4 +218,9 @@ export const refineryRouter = t.router({
     .mutation(({ ctx, input }) =>
       ctx.services.refinery.testSchema({ principal: ctx.auth, schema: input.schema, stage: input.stage, characterId: input.characterId }),
     ),
+
+  schemaPlan: authedProcedure
+    .output(refinerySchemaPlanSchema.nullable())
+    .input(z.object({ schema: rawSchemaSchema, stage: refinerySchemaStageSchema }))
+    .query(({ ctx, input }) => ctx.services.refinery.previewSchemaPlan({ principal: ctx.auth, schema: input.schema, stage: input.stage })),
 });

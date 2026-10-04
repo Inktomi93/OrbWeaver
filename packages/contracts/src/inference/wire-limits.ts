@@ -3,10 +3,19 @@
 // moves weight between them (`strict-compatible` turns every optional into a nullable union).
 
 import type { StructuredVehicle, WireSchemaLimits, WireSchemaMode } from "./wire-subset.ts";
-import { scrubWireSchema, WIRE_SUBSETS } from "./wire-subset.ts";
+import { LONG_ENUM_VALUES, scrubWireSchema, WIRE_SUBSETS } from "./wire-subset.ts";
 
 /** A grammar ceiling's kind, in the order {@link countWireSchemas} reports them. */
-export const WIRE_SCHEMA_CEILINGS = ["optional-props", "union-props", "strict-tools", "object-props", "depth", "enum-values", "name-chars"] as const;
+export const WIRE_SCHEMA_CEILINGS = [
+  "optional-props",
+  "union-props",
+  "strict-tools",
+  "object-props",
+  "depth",
+  "enum-values",
+  "name-chars",
+  "long-enum-chars",
+] as const;
 export type WireSchemaCeiling = (typeof WIRE_SCHEMA_CEILINGS)[number];
 
 /** Every way a structured request can fail its plan, as data. */
@@ -77,6 +86,7 @@ export function describeWireSchemaViolation(violation: WireSchemaViolation): str
     case "depth":
     case "enum-values":
     case "name-chars":
+    case "long-enum-chars":
       return `${violation.kind} ${violation.count} over the limit of ${violation.limit} (${violation.mode})`;
   }
 }
@@ -116,6 +126,8 @@ interface SchemaWeight {
   depth: number;
   enumValues: number;
   nameChars: number;
+  /** The longest string enum past {@link LONG_ENUM_VALUES} values, in total characters. */
+  longEnumChars: number;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -149,7 +161,11 @@ function weighNames(node: Record<string, unknown>, weight: SchemaWeight): void {
   const values = node["enum"];
   if (Array.isArray(values)) {
     weight.enumValues += values.length;
-    weight.nameChars += values.reduce<number>((sum, value) => sum + String(value).length, 0);
+    const chars = values.reduce<number>((sum, value) => sum + String(value).length, 0);
+    weight.nameChars += chars;
+    if (values.length > LONG_ENUM_VALUES && values.every((value) => typeof value === "string")) {
+      weight.longEnumChars = Math.max(weight.longEnumChars, chars);
+    }
   }
   if ("const" in node) {
     weight.nameChars += String(node["const"]).length;
@@ -164,7 +180,7 @@ function weighNames(node: Record<string, unknown>, weight: SchemaWeight): void {
 
 /** A JSON Schema's weight as a structured-output grammar counts it. `depth` is object nesting, the root object 1. */
 function weighSchema(schema: unknown): SchemaWeight {
-  const weight: SchemaWeight = { optionalProps: 0, unionProps: 0, objectProps: 0, depth: 0, enumValues: 0, nameChars: 0 };
+  const weight: SchemaWeight = { optionalProps: 0, unionProps: 0, objectProps: 0, depth: 0, enumValues: 0, nameChars: 0, longEnumChars: 0 };
   const visit = (node: unknown, depth: number): void => {
     if (Array.isArray(node)) {
       for (const item of node) {
@@ -208,6 +224,7 @@ const CEILING_READS: Readonly<
   depth: { limit: "maxDepth", count: (w) => w.depth },
   "enum-values": { limit: "maxEnumValues", count: (w) => w.enumValues },
   "name-chars": { limit: "maxNameChars", count: (w) => w.nameChars },
+  "long-enum-chars": { limit: "maxLongEnumChars", count: (w) => w.longEnumChars },
 };
 
 /** Count already-scrubbed schemas against `limits`: every grammar-compiled schema of one request (the response
@@ -219,7 +236,7 @@ export function countWireSchemas(
   if (args.limits === undefined) {
     return [];
   }
-  const total: SchemaWeight = { optionalProps: 0, unionProps: 0, objectProps: 0, depth: 0, enumValues: 0, nameChars: 0 };
+  const total: SchemaWeight = { optionalProps: 0, unionProps: 0, objectProps: 0, depth: 0, enumValues: 0, nameChars: 0, longEnumChars: 0 };
   for (const schema of scrubbed) {
     const weight = weighSchema(schema);
     total.optionalProps += weight.optionalProps;
@@ -228,6 +245,7 @@ export function countWireSchemas(
     total.enumValues += weight.enumValues;
     total.nameChars += weight.nameChars;
     total.depth = Math.max(total.depth, weight.depth);
+    total.longEnumChars = Math.max(total.longEnumChars, weight.longEnumChars);
   }
   const violations: WireSchemaViolation[] = [];
   for (const kind of WIRE_SCHEMA_CEILINGS) {

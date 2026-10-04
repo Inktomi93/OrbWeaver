@@ -82,6 +82,9 @@ export * from "./contract/index.ts";
 export type { ResolvedWarning } from "./contract/resolve.ts";
 export { resolvedWarningSchema } from "./contract/resolve.ts";
 export type { ProviderOrigin, RoleClientsFor } from "./contract/runtime.ts";
+// The one structured-output layer: a caller that must choose between shapes, or ask whether its need fits a
+// connection at all, asks the planner every backend sends.
+export type { StructuredFit } from "./contract/structured-turn.ts";
 export type {
   BindingActor,
   BindingStore,
@@ -108,10 +111,8 @@ export { toChatRequest } from "./roles/chat-request.ts";
 export { carriesForcedToolRound, carriesStructured, forcesToolRound, runStructuredChat, toForcedToolRoundRequest } from "./roles/chat-rounds.ts";
 export { unavailableRefusal } from "./roles/role-clients.ts";
 export { runStructuredTurn } from "./roles/structured-turn.ts";
-// The one structured-output layer: a caller that must choose between shapes, or ask whether its need fits a
-// connection at all, asks the planner every backend sends.
 export type { StructuredAsk, StructuredPlan, StructuredRefusal } from "./structured/plan.ts";
-export { planStructuredFor } from "./structured/plan.ts";
+export { planStructuredFor, structuredFitFor } from "./structured/plan.ts";
 
 const OPENROUTER_CATALOG_KEY = "catalog:openrouter";
 const AGENT_SDK_CATALOG_KEY = "catalog:agent-sdk";

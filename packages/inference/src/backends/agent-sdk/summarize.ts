@@ -63,7 +63,7 @@ function serializeStructured(structuredOutput: unknown, planned: PlannedResponse
       model,
     });
   }
-  return JSON.stringify(normalizeStructuredValue(structuredOutput, planned.reshapedPaths)).trim();
+  return JSON.stringify(normalizeStructuredValue(structuredOutput, planned)).trim();
 }
 
 function toItem(turn: SummarizeTurnResult, planned: PlannedResponseFormat | undefined, model: string): SummarizeResultItem {

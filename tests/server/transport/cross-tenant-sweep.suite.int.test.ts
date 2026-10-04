@@ -1921,6 +1921,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "self-scoped: mints a row stamping ownerId = principal.userId from VALUES only (name + description + stage + the schema blob) — no foreign id to reach through; the per-owner name-uniqueness check is itself owner-scoped",
   "refinery.generateSchema":
     "self-scoped model call: input is an NL description + a stage, no owned/foreign id. The forge resolves the CALLER's own prose overrides + preset params (resolveForgeCall(principal.userId)) and the draft is returned, never persisted — there is no tenant axis for a stranger to cross",
+  "refinery.schemaPlan":
+    "self-scoped read: input is a caller-supplied draft schema VALUE + a stage, no owned/foreign id; the plan is computed against the CALLER's own `structured` binding (roleClientsFor(principal.userId)) and nothing is persisted",
   "refinery.refineSchema":
     "self-scoped model call: input is a caller-supplied draft schema VALUE + an instruction + a stage — the draft is client-held, never a reference to a stored row, so a stranger can only ever iterate on bytes it already sent itself; same caller-scoped forge resolution as generateSchema, still never persisted",
   "persona.create": "self-scoped",

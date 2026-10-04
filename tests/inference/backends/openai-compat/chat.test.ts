@@ -577,6 +577,17 @@ test("D3: a MALFORMED debug block is dropped whole, loudly — never sent half-v
   expect(messages).toContain("extras.debug ignored: not a valid openrouter debug block");
 });
 
+// OpenRouter answers `provider.require_parameters` beside `response_format` with 404 "no endpoints", so the layer
+// never adds it; the user's own `provider` block is theirs and rides as set.
+test("a structured OpenRouter turn never adds provider.require_parameters; the user's own provider block rides as set", async () => {
+  const responseFormat = { name: "row", schema: wireSchema({ type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] }) };
+  const ours = await sentBody(orRequest({ tools: undefined, responseFormat, connection: extrasConnection({}) }));
+  expect(ours["response_format"]).toBeDefined();
+  expect((ours["provider"] as Record<string, unknown> | undefined)?.["require_parameters"]).toBeUndefined();
+  const theirs = await sentBody(orRequest({ tools: undefined, responseFormat, connection: extrasConnection({ provider: { require_parameters: true } }) }));
+  expect(theirs["provider"]).toMatchObject({ require_parameters: true });
+});
+
 test("a modelled extras door does not ALSO report itself ignored (the belt's list and the readers agree)", async () => {
   const messages: string[] = [];
   const req = orRequest({

@@ -86,30 +86,17 @@ test("stats count nested properties, optionals, unions and depth — the account
   expect(stats.maxDepth).toBe(3);
 });
 
-test("a ceiling the target states is the planner's own violation: the hosted intersection binds past 24 optionals, a local target states none", () => {
-  const optionalsOf = (n: number): Record<string, unknown> => ({
+test("the hosted accounting claims nothing about a model: whether a bound model takes the schema is the server's plan", () => {
+  const optionals = {
     type: "object",
-    properties: Object.fromEntries(Array.from({ length: n }, (_, i) => [`f${i}`, { type: "string" }])),
+    properties: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`f${i}`, { type: "string" }])),
     required: [],
-  });
-  // 24 optionals fit Anthropic's documented table, the strictest hosted ceiling.
-  expect(refinerySchemaAdvisoryOf(optionalsOf(24)).advisories.filter((a) => a.code === "wire-limit")).toEqual([]);
-  // 25 do not, and the advisory says how many against which limit.
-  const over = refinerySchemaAdvisoryOf(optionalsOf(25)).advisories.filter((a) => a.code === "wire-limit");
-  expect(over).toHaveLength(1);
-  expect(over[0]?.message).toContain("optional-props 25 over the limit of 24");
-  // A bound local target (vLLM guided decoding, no stated ceiling) raises none.
-  expect(refinerySchemaAdvisoryOf(optionalsOf(25), { mode: "guided-decoding", limits: undefined }).advisories.filter((a) => a.code === "wire-limit")).toEqual(
-    [],
-  );
-});
-
-test("a construct the target's grammar cannot carry is a wire-refused advisory at its path", () => {
-  const schema = { type: "object", properties: { pick: { oneOf: [{ type: "string" }, { type: "number" }] } }, required: ["pick"] };
-  const refused = refinerySchemaAdvisoryOf(schema, { mode: "gemini-schema", limits: undefined }).advisories.filter((a) => a.code === "wire-refused");
-  expect(refused.map((a) => a.path)).toEqual(["pick"]);
-  // PLANTED CONTROL: the hosted intersection carries `oneOf`, so the same schema raises nothing there.
-  expect(refinerySchemaAdvisoryOf(schema).advisories.filter((a) => a.code === "wire-refused")).toEqual([]);
+  };
+  // Past every hosted ceiling, yet no advisory: a model that takes tools still runs it, which only the plan knows.
+  expect(refinerySchemaAdvisoryOf(optionals).advisories).toEqual([]);
+  expect(
+    refinerySchemaAdvisoryOf({ type: "object", properties: { pick: { oneOf: [{ type: "string" }, { type: "number" }] } }, required: ["pick"] }).advisories,
+  ).toEqual([]);
 });
 
 test("a wide union advises on its variant count, at the node's own path", () => {

@@ -1,15 +1,14 @@
 // @orb/contracts/refinery/schema-advisory — the raw-door preflight: what a schema that passes the save belt still
-// costs on a real wire. Advisories never block. Every wire claim is the structured layer's own output for a target
-// (`checkWireSchema`), never a vendor table re-declared here.
+// costs on a hosted wire. Advisories never block. Every wire claim is the structured layer's own scrub, never a
+// vendor table re-declared here; whether the bound model takes the schema is `schema-plan.ts`'s, server-side.
 
 import type { Unprojected } from "@orb/kit/json-schema";
 import { RENDER_HINT_KEY } from "@orb/kit/json-schema";
-import type { StructuredSchemaTarget, WireSchemaViolation } from "#inference";
-import { checkWireSchema, describeWireSchemaViolation, HOSTED_INTERSECTION_TARGET, WIRE_SCHEMA_CEILINGS } from "#inference";
+import { checkWireSchema, HOSTED_INTERSECTION_TARGET } from "#inference";
 
 /** One advisory class. A closed union so the editor's copy is a mapped Record and a new class cannot ship without
- *  a sentence for it. `wire-limit` and `wire-refused` map from the plan's violation kinds. */
-export const REFINERY_ADVISORY_CODES = ["wire-bounds-stripped", "wire-limit", "wire-refused", "anyof-variants"] as const;
+ *  a sentence for it. */
+export const REFINERY_ADVISORY_CODES = ["wire-bounds-stripped", "anyof-variants"] as const;
 export type RefineryAdvisoryCode = (typeof REFINERY_ADVISORY_CODES)[number];
 
 /** One advisory: what, where, and why it matters — in the author's terms, never the mechanism's. */
@@ -38,8 +37,6 @@ export interface RefinerySchemaAssessment {
 /** Variants in one authored anyOf past which hosted grammar compilers get slow (the card-refinery extension's
  *  `MAX_ANYOF_VARIANTS`). Advisory only: the belt permits any count. */
 const MAX_ANYOF_VARIANTS = 8;
-
-const CEILING_KINDS: ReadonlySet<string> = new Set<string>(WIRE_SCHEMA_CEILINGS);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -162,26 +159,15 @@ function walk(target: PairedNode, state: WalkState): void {
   }
 }
 
-/** A plan violation as the author's advisory: a ceiling the request would break, or a construct the target's
- *  grammar cannot carry. */
-function violationAdvisory(violation: WireSchemaViolation): RefinerySchemaAdvisory {
-  const path = "path" in violation && violation.path !== "" ? violation.path : "#";
-  return {
-    code: CEILING_KINDS.has(violation.kind) ? "wire-limit" : "wire-refused",
-    path,
-    message: `${describeWireSchemaViolation(violation)}. It will still save; a structured call on this model would be refused before it is sent.`,
-  };
-}
-
 /**
- * Preflight one authored schema against a structured target: the accounting, the keywords the target's wire drops,
- * and every violation the planner would raise. Total and non-throwing — it runs on every keystroke of the raw JSON
- * door over a draft the belt has not judged, so a shape it cannot make sense of yields no advisories. With no bound
- * connection in hand, the target is the hosted intersection.
+ * Preflight one authored schema on the hosted wire: the accounting, and the keywords a hosted request drops. Total
+ * and non-throwing — it runs on every keystroke of the raw JSON door over a draft the belt has not judged, so a shape
+ * it cannot make sense of yields no advisories. Whether the bound model takes the schema at all is the server's
+ * plan (`refinerySchemaPlanSchema`), not a claim made here.
  *
  * Errors are not here: a refusal is the save belt's (`refinerySchemaDocumentSchema`).
  */
-export function refinerySchemaAdvisoryOf(schema: Unprojected, target: StructuredSchemaTarget = HOSTED_INTERSECTION_TARGET): RefinerySchemaAssessment {
+export function refinerySchemaAdvisoryOf(schema: Unprojected): RefinerySchemaAssessment {
   const state: WalkState = {
     properties: 0,
     optionalFields: 0,
@@ -192,8 +178,7 @@ export function refinerySchemaAdvisoryOf(schema: Unprojected, target: Structured
     strippedKeys: new Set<string>(),
     advisories: [],
   };
-  const check = checkWireSchema([schema], target.mode, target.limits);
-  const wire = check.wire[0] ?? {};
+  const wire = checkWireSchema([schema], HOSTED_INTERSECTION_TARGET.mode, undefined).wire[0] ?? {};
   walk({ node: schema, wire, path: "#", depth: 0 }, state);
 
   const stats: RefinerySchemaStats = {
@@ -213,8 +198,6 @@ export function refinerySchemaAdvisoryOf(schema: Unprojected, target: Structured
       message: `valid — but ${named} ${state.strippedKeys.size === 1 ? "does" : "do"} not ride a hosted request: the endpoint never sees ${state.strippedKeys.size === 1 ? "it" : "them"}, so ${state.strippedKeys.size === 1 ? "it is" : "they are"} enforced when the answer comes back, not while the model writes it. Say what you want in the field's description too.`,
     });
   }
-  // A draft with no properties is not a schema yet: the planner's root and ceiling claims would only be noise.
-  const violations = isRecord(schema["properties"]) ? check.violations : [];
-  advisories.push(...violations.map(violationAdvisory), ...state.advisories);
+  advisories.push(...state.advisories);
   return { stats, advisories };
 }

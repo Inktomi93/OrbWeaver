@@ -581,9 +581,7 @@ class TurnAccumulator {
     this.logTurn(true, contextUsage);
     const planned = this.ctx.structured;
     const structuredReply =
-      planned !== undefined && this.structuredOutput !== undefined
-        ? JSON.stringify(normalizeStructuredValue(this.structuredOutput, planned.reshapedPaths))
-        : undefined;
+      planned !== undefined && this.structuredOutput !== undefined ? JSON.stringify(normalizeStructuredValue(this.structuredOutput, planned)) : undefined;
     // The subscription's own receipts, narrowed to the closed per-provider sidecar the variant stores
     // (`backends/kit/provider-metadata.ts`). `modelUsage` and `apiKeySource` stay OUT of the record on purpose:
     // the first is a per-model breakdown the stats plane already rolls up from the variant rows themselves, the

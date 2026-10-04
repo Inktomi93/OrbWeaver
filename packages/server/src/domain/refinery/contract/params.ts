@@ -193,3 +193,10 @@ export interface TestSchemaParams extends RefineryActorParams {
   readonly stage: RefinerySchemaStage;
   readonly characterId: CharacterId;
 }
+
+/** `previewSchemaPlan` — what the caller's bound Utility model would do with a draft schema. Reads the draft only:
+ *  no row, no model call. */
+export interface PreviewSchemaPlanParams extends RefineryActorParams {
+  readonly schema: Record<string, unknown>;
+  readonly stage: RefinerySchemaStage;
+}

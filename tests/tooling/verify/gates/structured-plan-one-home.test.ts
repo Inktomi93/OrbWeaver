@@ -37,6 +37,21 @@ test("a waiver naming `toolChoice` binds to its one finding", () => {
   expect(waived.authority.authorityAlarms).toEqual([]);
 });
 
+test("a planner internal reached through a namespace import or a re-export is the same finding as a named import", () => {
+  const namespaced = passOf(gate, {
+    [WIRE_SCHEMA_ENGINE]: ENGINE,
+    "packages/server/src/domain/x/ns.ts":
+      'import * as inf from "@orb/contracts/inference";\nexport const a = inf.scrubWireSchema;\nexport const b = inf["countWireSchemas"];\nexport const ok = inf.checkWireSchema;\n',
+  });
+  const reexported = passOf(gate, {
+    [WIRE_SCHEMA_ENGINE]: ENGINE,
+    "packages/server/src/domain/x/re.ts": 'export { scrubWireSchema as scrub, checkWireSchema } from "@orb/contracts/inference";\n',
+  });
+
+  expect(namespaced.authority.effectiveFindings.map((finding) => finding.token).toSorted()).toEqual(["countWireSchemas", "scrubWireSchema"]);
+  expect(reexported.authority.effectiveFindings.map((finding) => finding.token)).toEqual(["scrubWireSchema"]);
+});
+
 test("a vehicle string inside a comment is not a finding, and the same string in code is", () => {
   const commented = passOf(gate, {
     [WIRE_SCHEMA_ENGINE]: ENGINE,

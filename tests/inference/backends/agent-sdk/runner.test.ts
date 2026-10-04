@@ -548,7 +548,7 @@ async function outputFormatOf(schema: Record<string, unknown>): Promise<unknown>
   return failure ?? options[0]?.["outputFormat"];
 }
 
-test("the runner's outputFormat holds the planned anthropic-format schema: meta stripped, the author's bound relayed", async () => {
+test("the runner's outputFormat holds the planned anthropic-format schema: meta stripped, the author's bound relayed, the object closed", async () => {
   const format = await outputFormatOf({
     $schema: "https://json-schema.org/draft/2020-12/schema",
     type: "object",
@@ -557,7 +557,7 @@ test("the runner's outputFormat holds the planned anthropic-format schema: meta 
   });
   expect(format).toEqual({
     type: "json_schema",
-    schema: { type: "object", properties: { n: { type: "integer", description: "[Constraints: maximum: 9]" } }, required: ["n"] },
+    schema: { type: "object", properties: { n: { type: "integer", description: "[Constraints: maximum: 9]" } }, required: ["n"], additionalProperties: false },
   });
 });
 

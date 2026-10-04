@@ -164,6 +164,12 @@ export function thinkingOf(reasoning: ResolvedReasoning): JSONObject {
   return { type: "adaptive", ...display };
 }
 
+/** Manual extended thinking (`thinking: enabled`) refuses a forced `tool_choice` on every model (the Messages API's
+ *  tool-use docs), so a turn that sends it asks the plan for no forced choice. */
+export function forcedChoiceOf(reasoning: ResolvedReasoning): false | undefined {
+  return reasoning.enabled && reasoning.mode === "budget" ? false : undefined;
+}
+
 /** Preserved thinking: on a prefix-bound model a replayed thinking block whose earlier prefix changed is a 400
  *  unless the request asks the API to drop it. Every carry rung replays thinking, so every rung asks: a missed
  *  edit then costs that block, counted and raised by {@link raiseThinkingDrops}, never the turn. The SDK spells
@@ -388,7 +394,14 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const prompt = withMessageOptions(plan.prompt, ANTHROPIC_KEY, cache.patches);
   const structured = requireStructuredPlan(
     connection,
-    { formats: req.responseFormat === undefined ? undefined : [req.responseFormat], tools: req.tools, toolChoice: req.toolChoice },
+    {
+      formats: req.responseFormat === undefined ? undefined : [req.responseFormat],
+      tools: req.tools,
+      toolChoice: req.toolChoice,
+      forcedChoice: forcedChoiceOf(knobs.reasoning),
+      // Anthropic: message prefilling is incompatible with JSON outputs.
+      nativeFormat: plan.endsOnAssistant ? false : undefined,
+    },
     label,
   );
   warnings.push(...structured.downgrades);

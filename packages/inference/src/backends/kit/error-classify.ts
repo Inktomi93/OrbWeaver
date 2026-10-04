@@ -249,6 +249,22 @@ function rejectionViolation(row: SchemaRejectionRow, match: RegExpExecArray, mod
   return { kind: row.ceiling, mode, count: Number(match[1]), limit: Number(match[2]) };
 }
 
+// The refusal as the plan's typed violation, keeping the failure's provenance (status, request id) on the outer error.
+function schemaRejected(failure: ProviderError, violation: WireSchemaViolation, model: string): ProviderError {
+  return new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: failure.message,
+    ...(failure.apiErrorStatus !== undefined ? { apiErrorStatus: failure.apiErrorStatus } : {}),
+    ...(failure.requestId !== undefined ? { requestId: failure.requestId } : {}),
+    ...(failure.terminalReason !== undefined ? { terminalReason: failure.terminalReason } : {}),
+    model,
+    detail: SCHEMA_REJECTED_DETAIL,
+    violations: [violation],
+    cause: failure,
+  });
+}
+
 /**
  * A structured call's `invalid` failure, re-read for a vendor's schema refusal: a matched row becomes the same
  * typed violation the planner raises before a call (`detail: "schema_rejected"`, `violations`) and logs one
@@ -266,16 +282,7 @@ export function withSchemaRejection(failure: ProviderError, error: unknown, ctx:
     if (match !== null) {
       const violation = rejectionViolation(row, match, ctx.mode);
       ctx.log.emit("warn", "provider.schema_rejected", { model: ctx.model, rule: row.rule, violation });
-      return new ProviderError({
-        kind: "invalid",
-        retryable: false,
-        message: failure.message,
-        ...(failure.apiErrorStatus !== undefined ? { apiErrorStatus: failure.apiErrorStatus } : {}),
-        model: ctx.model,
-        detail: SCHEMA_REJECTED_DETAIL,
-        violations: [violation],
-        cause: failure,
-      });
+      return schemaRejected(failure, violation, ctx.model);
     }
   }
   if (SCHEMA_SHAPED_BODY.test(text)) {

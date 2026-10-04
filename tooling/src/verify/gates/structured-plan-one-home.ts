@@ -1,12 +1,13 @@
 // Gate: structured-plan-one-home — how structured output and tool calls go out is the structured planner's alone
 // (`packages/inference/src/structured/plan.ts`); a caller elsewhere that scrubs a schema, names a vehicle or spells a
-// tool choice is a second speller the planner cannot see. ARMS: an import of a planner-internal name; a string literal
-// in the engine's `STRUCTURED_VEHICLES`; a `toolChoice` property write. DECLARED LIMIT: a name re-exported under an
-// alias by an inference module is judged at its import, by its exported name. FAMILY: singleton — the vehicle tuple is
+// tool choice is a second speller the planner cannot see. ARMS: a planner-internal name taken from an inference module
+// by named import, re-export or a namespace import's member; a string literal in the engine's `STRUCTURED_VEHICLES`; a
+// `toolChoice` property write. DECLARED LIMIT: a computed namespace member is not judged. FAMILY: singleton — the vehicle tuple is
 // read off the wire-subset engine; no sibling policy judges this subject. POPULATION: new — server, client,
 // contracts and kit source outside the inference contract folder and outside tests.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { STRUCTURED_VEHICLES_NAME, structuredVehiclesFact } from "../lib/structured-vehicles-fact.ts";
 import { WIRE_SCHEMA_ENGINE } from "../lib/wire-schema-vocabulary-fact.ts";
@@ -31,6 +32,35 @@ const FIX =
 /** A literal's text and the offset of that text inside the node (the opening quote). */
 function literalSlice(node: MorphNode): { readonly text: string; readonly offset: number } | undefined {
   return Node.isStringLiteral(node) || Node.isNoSubstitutionTemplateLiteral(node) ? { text: node.getLiteralText(), offset: 1 } : undefined;
+}
+
+/** Where a member access's name sits: the property name, or the string argument of `ns["name"]`. */
+function memberNameNode(node: MorphNode): MorphNode | undefined {
+  if (Node.isPropertyAccessExpression(node)) {
+    return node.getNameNode();
+  }
+  return Node.isElementAccessExpression(node) ? node.getArgumentExpression() : undefined;
+}
+
+/** The planner-internal member a namespace import of an inference module reads, through the shared origin reader. */
+function namespaceMember(node: MorphNode): { readonly name: string; readonly at: MorphNode } | undefined {
+  const at = memberNameNode(node);
+  const origin = at === undefined ? undefined : resolveModuleMemberOrigin(node);
+  if (at === undefined || origin?.kind !== "resolved" || !INFERENCE_SPECIFIER.test(origin.value.moduleSpecifier)) {
+    return;
+  }
+  const [member] = origin.value.memberPath;
+  // A namespace read names the internal in its member path; a named import's own member (`.call`) is not one.
+  const name = origin.value.memberPath.length === 0 ? origin.value.exportedName : member;
+  return name !== undefined && PLANNER_INTERNALS.has(name) ? { name, at } : undefined;
+}
+
+/** The module an import or re-export specifier names, and the name it takes from it. */
+function specifierSource(node: MorphNode): { readonly name: string; readonly module: string | undefined } | undefined {
+  if (Node.isImportSpecifier(node)) {
+    return { name: node.getName(), module: node.getImportDeclaration().getModuleSpecifierValue() };
+  }
+  return Node.isExportSpecifier(node) ? { name: node.getName(), module: node.getExportDeclaration().getModuleSpecifierValue() } : undefined;
 }
 
 /** The written property name of a `toolChoice` write: an object member or an assignment target. */
@@ -62,15 +92,20 @@ export const gate = defineGate({
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.ImportSpecifier],
+          kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.ExportSpecifier],
           visit: (node) => {
-            if (!Node.isImportSpecifier(node)) {
-              return;
+            const source = specifierSource(node);
+            if (source?.module !== undefined && PLANNER_INTERNALS.has(source.name) && INFERENCE_SPECIFIER.test(source.module)) {
+              ctx.report.node(node, { token: source.name, offset: 0 });
             }
-            const name = node.getName();
-            const specifier = node.getImportDeclaration().getModuleSpecifierValue();
-            if (PLANNER_INTERNALS.has(name) && INFERENCE_SPECIFIER.test(specifier)) {
-              ctx.report.node(node, { token: name, offset: 0 });
+          },
+        },
+        {
+          kinds: [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
+          visit: (node) => {
+            const member = namespaceMember(node);
+            if (member !== undefined) {
+              ctx.report.node(member.at, { token: member.name, offset: Node.isStringLiteral(member.at) ? 1 : 0 });
             }
           },
         },
@@ -112,6 +147,24 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "scrubWireSchema" },
       why: "a server module importing the scrub spells the wire subset itself instead of letting the planner choose the mode",
+    },
+    {
+      mode: "types",
+      files: {
+        [WIRE_SCHEMA_ENGINE]: `export const ${STRUCTURED_VEHICLES_NAME} = ["response-format", "forced-tool", "offered-tool"] as const;\n`,
+        "packages/server/src/domain/x/ns.ts": 'import * as inf from "@orb/contracts/inference";\nexport const s = inf.scrubWireSchema;\n',
+      },
+      expect: { count: 1, token: "scrubWireSchema" },
+      why: "a namespace import's member is the same scrub as a named import of it",
+    },
+    {
+      mode: "types",
+      files: {
+        [WIRE_SCHEMA_ENGINE]: `export const ${STRUCTURED_VEHICLES_NAME} = ["response-format", "forced-tool", "offered-tool"] as const;\n`,
+        "packages/server/src/domain/x/re.ts": 'export { scrubWireSchema as scrub } from "@orb/contracts/inference";\n',
+      },
+      expect: { count: 1, token: "scrubWireSchema" },
+      why: "a re-export under an alias hands the scrub to every importer of the alias, which the import visitor alone never sees",
     },
     {
       mode: "types",

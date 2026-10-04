@@ -289,6 +289,22 @@ test("#2575 (control): the models that accept a forced tool_choice keep it byte-
   }
 });
 
+test("manual extended thinking refuses a forced tool_choice on every model: a budget-thinking turn sends `auto`, loudly", async () => {
+  const thinking = await recordedTurn(
+    turnRequest({ connection: curatedConnection("claude-sonnet-4-5"), params: { effort: "high" }, toolChoice: { mode: "required" } }),
+    anthropicTextStream("ok"),
+  );
+  expect(thinkingTypeOf(thinking.body)).toBe("enabled");
+  expect(thinking.body?.body["tool_choice"]).toMatchObject({ type: "auto" });
+  expect(eventCodes(thinking.turn)).toContain("tool_choice_downgraded");
+  // PLANTED CONTROL: the same model with thinking off keeps the forced choice.
+  const off = await recordedTurn(
+    turnRequest({ connection: curatedConnection("claude-sonnet-4-5"), params: { effort: "none" }, toolChoice: { mode: "required" } }),
+    anthropicTextStream("ok"),
+  );
+  expect(off.body?.body["tool_choice"]).toMatchObject({ type: "any" });
+});
+
 test("#2575: Opus 5.5 with reasoning OFF never sends `thinking: disabled` — it is clamped to the lowest effort", async () => {
   const { turn, body } = await recordedTurn(
     turnRequest({ connection: curatedConnection("claude-opus-5-5"), params: { effort: "none" }, tools: undefined }),

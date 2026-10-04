@@ -49,6 +49,8 @@ export interface RefineryHarness {
   /** Every recorded `emitUserEvent` call, in order (shared with the workload bundle below, so a sweep's
    *  terminal fan and a verb's tick land in ONE ledger — exactly as compose wires one publisher). */
   readonly userEvents: UserEventCall[];
+  /** Every projected draft the plan preview asked the bound connection about. */
+  readonly planCalls: Record<string, unknown>[];
   /** Queue the next reply text (FIFO). Under-scripting throws LOUD at the call site. */
   readonly queueReply: (text: string) => void;
   /** Advance the injected frozen clock (ms) — break createdAt ties for latest-per-stage ordering. */
@@ -69,6 +71,7 @@ export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}
   const replies: string[] = [];
   const summarizeCalls: SummarizeCall[] = [];
   const userEvents: UserEventCall[] = [];
+  const planCalls: Record<string, unknown>[] = [];
   const summarize = (inputs: readonly SummarizeInput[], opts?: SummarizeOptions): Promise<SummarizeResult> => {
     const items = inputs.map((input) => {
       summarizeCalls.push({ system: input.systemPrompt, user: input.userPrompt, opts });
@@ -93,6 +96,10 @@ export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}
     roleClientsFor,
     resolveUtilityPresetParams: () => Promise.resolve(options.presetParams ?? {}),
     resolveUserProse: () => Promise.resolve({}),
+    planSchema: (_ownerId, schema) => {
+      planCalls.push(schema);
+      return Promise.resolve({ outcome: "unbound" });
+    },
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
     },
@@ -110,6 +117,7 @@ export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}
     ctx,
     summarizeCalls,
     userEvents,
+    planCalls,
     queueReply: (text: string): void => {
       replies.push(text);
     },

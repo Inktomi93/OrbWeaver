@@ -118,3 +118,20 @@ test("a failure that is not `invalid` is never re-read as a schema refusal", () 
     }),
   ).toBe(rateLimited);
 });
+
+test("the mapped refusal keeps the failure's provenance on the outer error: the upstream request id survives", () => {
+  const traced = new ProviderError({
+    kind: "invalid",
+    retryable: false,
+    message: "anthropic chat: Bad Request",
+    apiErrorStatus: 400,
+    requestId: "req_011CffjcY1wYWAdWZwDY7zPs",
+  });
+  const mapped = withSchemaRejection(traced, httpError(ANTHROPIC_STATE_ROUND_400S.asProjected.body), {
+    log: recordingLogger([]),
+    model: "m",
+    mode: "anthropic-format",
+    secrets: NO_PROVIDER_SECRETS,
+  });
+  expect(mapped).toMatchObject({ detail: "schema_rejected", requestId: "req_011CffjcY1wYWAdWZwDY7zPs" });
+});
