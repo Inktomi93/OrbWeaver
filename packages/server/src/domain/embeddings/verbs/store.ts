@@ -1,7 +1,7 @@
 // The single vector write path — the only inserter into any vector table. Per lens arm: hash the content →
 // read the stored hash for the upsert key (identical ⇒ noop, skipping the expensive embed) → embed via the
-// injected role op → assert the produced vector's dim matches the declared space (else
-// `SpaceMismatchError`) → upsert (never touches `hub_score`).
+// injected role op → assert the produced vector's width matches the pinned generation's (the bound embedder's
+// stated `dims`, else `SpaceMismatchError`) → upsert (never touches `hub_score`).
 //
 // THE STAMPED TAG IS THE PROVIDER'S, NOT THE CALLER'S, and that is a recorded ruling (issue 724,
 // `0fed0b3ee`): a request-time snapshot can go stale between parameter construction and the live role call,
@@ -65,11 +65,21 @@ function firstVector(vectors: readonly (Float32Array | null)[], lens: string, mo
   return vector;
 }
 
-/** The store-time space tripwire: the produced vector must match the declared space `dim`. */
+/** The store-time space tripwire: the produced vector must be as wide as the generation it is written into. */
 function assertSpace(model: string, dim: number, vector: Float32Array): void {
   if (vector.length !== dim) {
     throw new SpaceMismatchError(model, dim, vector.length);
   }
+}
+
+/** A precomputed vector for these bytes, only when it is as wide as the generation. The seeds are made at the
+ *  encoder's native width and the space tag carries no width, so a declared narrower width must embed live. */
+function seedFor(
+  ctx: EmbeddingsContext,
+  { hash, kind, generation }: { readonly hash: string; readonly kind: "card-text" | "image-raw"; readonly generation: PinnedGeneration },
+): { readonly model: string; readonly vector: Float32Array<ArrayBuffer> } | null {
+  const seeded = ctx.precomputedEmbedding?.(hash, generation.space, kind, generation.connection) ?? null;
+  return seeded !== null && seeded.vector.length === generation.dims ? seeded : null;
 }
 
 /** card-text → `character_embeddings` (hash-gated; the staleness gate short-circuits before the embed —
@@ -86,25 +96,22 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, gen
       generationVia: generation.via,
     };
   }
-  const seeded = ctx.precomputedEmbedding?.(hash, generation.space, "card-text", generation.connection);
-  const embedded =
-    seeded === undefined || seeded === null
-      ? await generation.connection.embed(p.content, { signal: p.signal })
-      : { model: seeded.model, vectors: [seeded.vector] };
+  const seeded = seedFor(ctx, { hash, kind: "card-text", generation });
+  const embedded = seeded === null ? await generation.connection.embed(p.content, { signal: p.signal }) : { model: seeded.model, vectors: [seeded.vector] };
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
-  assertSpace(embedded.model, p.dim, vector);
-  await upsertCharacterEmbedding(ctx.db, {
+  assertSpace(embedded.model, generation.dims, vector);
+  const landed = await upsertCharacterEmbedding(ctx.db, {
     id: ctx.newCharacterEmbeddingId(),
     characterId: p.characterId,
     embedding: vector,
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
-    dim: p.dim,
+    dim: generation.dims,
     now: ctx.now(),
   });
   return {
-    outcome: "written",
+    outcome: landed ? "written" : "noop",
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
@@ -173,9 +180,9 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
   // Raw pixels keep their own lens, and generic multimodal callers retain strict pair semantics.
   let embedded: EmbedResult | ImageEmbedResult;
   if (p.lens === "image-raw") {
-    const seeded = ctx.precomputedEmbedding?.(hash, generation.space, "image-raw", generation.connection);
+    const seeded = seedFor(ctx, { hash, kind: "image-raw", generation });
     embedded =
-      seeded === undefined || seeded === null
+      seeded === null
         ? await generation.connection.imageEmbed({ kind: "image", input: p.content }, { signal: p.signal })
         : { model: seeded.model, vectors: [seeded.vector] };
   } else if (p.via === "embed") {
@@ -187,8 +194,8 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     );
   }
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
-  assertSpace(embedded.model, p.dim, vector);
-  await upsertImageEmbedding(ctx.db, {
+  assertSpace(embedded.model, generation.dims, vector);
+  const landed = await upsertImageEmbedding(ctx.db, {
     id: ctx.newImageEmbeddingId(),
     assetId: p.assetId,
     lens: p.lens,
@@ -198,11 +205,11 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
-    dim: p.dim,
+    dim: generation.dims,
     now: ctx.now(),
   });
   return {
-    outcome: "written",
+    outcome: landed ? "written" : "noop",
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
@@ -238,8 +245,8 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
   }
   const embedded = await generation.connection.embed(p.text, { signal: p.signal });
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
-  assertSpace(embedded.model, p.dim, vector);
-  await upsertChatDigest(ctx.db, {
+  assertSpace(embedded.model, generation.dims, vector);
+  const landed = await upsertChatDigest(ctx.db, {
     id: ctx.newChatDigestId(),
     chatId: p.chatId,
     scopedCharacterId: p.scopedCharacterId,
@@ -253,13 +260,13 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
-    dim: p.dim,
+    dim: generation.dims,
     now: ctx.now(),
     speakerCharacterIds: p.speakerCharacterIds,
   });
   // The persistence seam commits the digest and its complete speaker projection as one atomic batch.
   return {
-    outcome: "written",
+    outcome: landed ? "written" : "noop",
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
@@ -289,8 +296,8 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
   }
   const embedded = await generation.connection.embed(p.content, { signal: p.signal });
   const vector = firstVector(embedded.vectors, p.lens, embedded.model);
-  assertSpace(embedded.model, p.dim, vector);
-  await upsertDocumentChunk(ctx.db, {
+  assertSpace(embedded.model, generation.dims, vector);
+  const landed = await upsertDocumentChunk(ctx.db, {
     id: ctx.newDocumentChunkId(),
     documentId: p.fkRefs.documentId,
     chunkIdx: p.fkRefs.chunkIdx,
@@ -301,11 +308,11 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,
-    dim: p.dim,
+    dim: generation.dims,
     now: ctx.now(),
   });
   return {
-    outcome: "written",
+    outcome: landed ? "written" : "noop",
     contentHash: hash,
     model: embedded.model,
     generationId: generation.id,

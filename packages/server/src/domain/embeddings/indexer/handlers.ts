@@ -37,7 +37,6 @@ export async function onCharacterUpdated(ctx: EmbeddingsIndexerContext, event: C
     characterId: event.characterId,
     content: text,
     model: embedModel,
-    dim: ctx.embedDim,
   });
   // A content edit whose projected embed text is nonetheless unchanged short-circuits to `noop`; surface it
   // at debug so an absent embed is explainable.

@@ -29,6 +29,7 @@ import { recallMemory } from "../../../packages/server/src/domain/chat/memory/re
 import type { MsgRow } from "../../../packages/server/src/domain/chat/memory/types.ts";
 import type { DatabankContext } from "../../../packages/server/src/domain/databank/contract/service.ts";
 import { createGatherRetrieval } from "../../../packages/server/src/domain/databank/verbs/gather-retrieval.ts";
+import { countOwnedVectors } from "../../../packages/server/src/domain/embeddings/persistence/owned-vector-counts.ts";
 import type { SearchService } from "../../../packages/server/src/domain/search/index.ts";
 import { seedLocalLightOnBoot } from "../../../packages/server/src/entry/boot/seed-local-light.ts";
 import { makeChatContext } from "../../../tests/server/domain/chat/_support.ts";
@@ -153,7 +154,6 @@ async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise
     providerStore: ports.providerStore,
     agentSdk: { summarizeConcurrency: (): number => 1 },
     userRuntimeDir: (ownerId): string => path.join(cacheDir, "..", "runtime", ownerId),
-    embedSpace: { dims: 1024 },
     localLight: { cacheDir, device: "cpu", allowRemoteModels },
     sdkFetch: globalThis.fetch,
   };
@@ -170,7 +170,9 @@ async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise
     pluginGrantTasksOf: () => Promise.resolve(null),
     endpointAdmission: () => Promise.resolve("admitted"),
     recordProbeOutcome: (args) => Promise.resolve(args.result),
-    onEmbedSpaceChanged: () => undefined,
+    syncEmbedTargets: () => Promise.resolve(null),
+    targetWouldMove: () => Promise.resolve(null),
+    countOwnedVectors: (ownerId) => countOwnedVectors(db, ownerId),
     emitUserEvent: () => undefined,
   };
   return { db, runtime, svc: createConnectionService(ctx), close: () => runtime.localLight.close() };

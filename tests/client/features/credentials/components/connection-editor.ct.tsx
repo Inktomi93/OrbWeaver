@@ -21,12 +21,15 @@
 //     owner ruling), no per-chat/per-room override (F20).
 
 import type { USER_ROLES } from "@orb/contracts/identity";
+import { CONNECTION_OP_CODES, EMBEDDING_FLOOR } from "@orb/contracts/inference";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+// Pure `.ts`, safe in a node-side CT spec.
+import { REINDEX_CONFIRM_COPY } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ALL_AVAILABLE, catalogEntry, catalogOf, SIGNED_IN } from "../_connection-fixtures.ts";
-import { ConnectionEditorNarrowStory, ConnectionEditorStory } from "../_ct-stories.tsx";
+import { ConnectionEditorClosableStory, ConnectionEditorNarrowStory, ConnectionEditorStory } from "../_ct-stories.tsx";
 
 const CONNECTION_ID = "user_connection_cteditor0001";
 
@@ -127,6 +130,9 @@ async function stubEditor(
     readonly accountCredits?: TrpcResponder<"connection.accountCredits">;
     readonly verifyAuth?: TrpcResponder<"connection.verifyAuth">;
     readonly inspectEndpoint?: TrpcResponder<"connection.inspectEndpoint">;
+    readonly reindexPreview?: TrpcWireOutput<"connection.embedSpaceChangePreview">;
+    /** The update write's answer in place of saving, e.g. the server's width refusal, or a hold the test releases. */
+    readonly updateAnswer?: () => ReturnType<typeof trpcError> | ReturnType<typeof trpcHold>;
   } = {},
 ): Promise<TrpcRecorder> {
   // The row the server holds: a saved model and check land on it, so the refetch after a save reads them.
@@ -142,8 +148,20 @@ async function stubEditor(
     // A list that answers nothing is the TYPED-ID arm, and it is not a check of the saved model.
     "connection.catalogModels":
       opts.catalogModels ?? ((): TrpcWireOutput<"connection.catalogModels"> => ({ listed: false, reason: "the provider listed no models" })),
+    // An embedder-identity patch first asks whether it would rebuild the index; these rows back no stored index.
+    "connection.embedSpaceChangePreview": () =>
+      opts.reindexPreview ?? { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },
     "connection.update": ({ patch }) => {
-      row = { ...row, model: patch.model ?? row.model, modelCheck: patch.modelCheck ?? row.modelCheck };
+      const refused = opts.updateAnswer?.();
+      if (refused !== undefined) {
+        return refused;
+      }
+      row = {
+        ...row,
+        model: patch.model ?? row.model,
+        modelCheck: patch.modelCheck ?? row.modelCheck,
+        declared: patch.declared ?? row.declared,
+      };
       return row;
     },
     "connection.remove": opts.removeConnection ?? ((): undefined => undefined),
@@ -1114,4 +1132,156 @@ test("request-body overrides save over the other transport fields, refuse invali
     .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
     .toEqual({ connectionId: CONNECTION_ID, patch: { transport: SHAPED_TRANSPORT } });
   await expect(component.locator('[data-slot="field-error"]')).toHaveCount(0);
+});
+
+// Saving a new vector width closes its editor as the rebuild confirm opens, so the confirm hands focus back to the
+// vector-width row rather than the page.
+test("confirming a vector-width rebuild returns focus to the vector-width row", async ({ mount, page }) => {
+  const embedding: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
+    kind: "embedding",
+    embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
+  };
+  await stubEditor(page, {
+    capabilities: { capability: embedding, baseline: embedding, warnings: [], tasks: ["embed", "imageEmbed"] },
+    reindexPreview: { reindex: true, stored: { cards: 10, memory: 0, documents: 0, images: 0 }, embedCalls: 10, utilityModelSet: true },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+
+  await tier(page, "Advanced").click();
+  await component.getByRole("button", { name: "Override vector width" }).click();
+  await component.getByRole("textbox", { name: "vector width — your value" }).fill("512");
+  await component.getByRole("button", { name: "Save your vector width" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  await expect(component.locator('[data-fact="embedding.dims"]')).toBeFocused();
+});
+
+/** A row backing an MRL embedder that is 1024 wide by default, with a stored index a width change would rebuild. */
+async function stubEmbedderEditor(page: Page, updateAnswer?: () => ReturnType<typeof trpcError> | ReturnType<typeof trpcHold>): Promise<TrpcRecorder> {
+  const embedding: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
+    kind: "embedding",
+    embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
+  };
+  return await stubEditor(page, {
+    capabilities: { capability: embedding, baseline: embedding, warnings: [], tasks: ["embed", "imageEmbed"] },
+    reindexPreview: { reindex: true, stored: { cards: 10, memory: 0, documents: 0, images: 0 }, embedCalls: 10, utilityModelSet: true },
+    ...(updateAnswer === undefined ? {} : { updateAnswer }),
+  });
+}
+
+async function saveVectorWidth(page: Page, component: Locator, width: string): Promise<void> {
+  await tier(page, "Advanced").click();
+  await component.getByRole("button", { name: "Override vector width" }).click();
+  await component.getByRole("textbox", { name: "vector width — your value" }).fill(width);
+  await component.getByRole("button", { name: "Save your vector width" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+}
+
+// After a saved width the row offers Reset; focus on it would make the next key press undo what was just saved.
+test("a saved vector width leaves focus on its row, not on the row's Reset", async ({ mount, page }) => {
+  await stubEmbedderEditor(page);
+  const component = await mount(<ConnectionEditorStory />);
+
+  await saveVectorWidth(page, component, "512");
+
+  await expect(component.getByRole("button", { name: "Reset vector width" })).toBeVisible();
+  await expect(component.locator('[data-fact="embedding.dims"]')).toBeFocused();
+});
+
+// The server refuses a width the embedder cannot make and keeps the row as it was; the editor says why.
+test("a vector width the embedder cannot make is refused in the editor with both widths", async ({ mount, page }) => {
+  const recorder = await stubEmbedderEditor(page, () =>
+    trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 2048, measured: 1024 } }),
+  );
+  const component = await mount(<ConnectionEditorStory />);
+
+  await saveVectorWidth(page, component, "2048");
+
+  await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(1);
+  // The reason sits on the width row, where the confirm returned focus, not at the top of the editor.
+  const refusal = component.locator('[data-fact="embedding.dims"] [data-refusal="embed-width"]');
+  await expect(refusal).toHaveAttribute("role", "alert");
+  await expect(refusal).toBeInViewport();
+  await expect(component.locator("[data-refusal]")).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Override vector width" })).toBeVisible();
+});
+
+// The server checks the embedder before the write lands, which can take a while: the row the change came from says so
+// meanwhile, where the refusal will appear, and the editor is marked busy.
+test("a vector width the server is still checking says so on its row until the answer", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await stubEmbedderEditor(page, () => hold);
+  const component = await mount(<ConnectionEditorStory />);
+
+  await saveVectorWidth(page, component, "2048");
+  await hold.requested;
+
+  const checking = component.locator('[data-fact="embedding.dims"] [data-embedder-check]');
+  await expect(checking).toHaveAttribute("role", "status");
+  await expect(component.locator('[data-slot="connection-editor"]')).toHaveAttribute("aria-busy", "true");
+  hold.release(trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 2048, measured: 1024 } }));
+  await expect(component.locator('[data-fact="embedding.dims"] [data-refusal="embed-width"]')).toBeVisible();
+  await expect(component.locator("[data-embedder-check]")).toHaveCount(0);
+  await expect(component.locator('[data-slot="connection-editor"]')).toHaveAttribute("aria-busy", "false");
+});
+
+// A refused Server URL leaves the saved row as it was, so the field must show the saved URL again, not the refused one
+// it would submit again on the next blur.
+test("a Server URL the server refuses goes back to the saved URL", async ({ mount, page }) => {
+  const recorder = await stubEditor(page, { updateAnswer: () => trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedUnreachable }) });
+  const component = await mount(<ConnectionEditorStory />);
+  const url = component.getByRole("textbox", { name: "Server URL" });
+  const saved = connectionRow().baseUrl ?? "";
+
+  await url.fill("http://127.0.0.1:18078/v1");
+  await url.blur();
+
+  await expect(component.locator('[data-refusal="embed-unreachable"]')).toBeVisible();
+  await expect(url).toHaveValue(saved);
+  await url.focus();
+  await url.blur();
+  await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+// Done stays live while the server checks; closing the editor then must not lose the refusal, so a toast says it, with
+// the reason as its description so it stays up long enough to read.
+test("a refusal that arrives after the editor closed is still said", async ({ mount, page }) => {
+  const hold = trpcHold();
+  await stubEditor(page, {
+    updateAnswer: () => hold,
+    reindexPreview: { reindex: true, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },
+  });
+  const component = await mount(<ConnectionEditorClosableStory />);
+  const url = component.getByRole("textbox", { name: "Server URL" });
+
+  await url.fill("http://203.0.113.1:8000/v1");
+  await url.blur();
+  await hold.requested;
+  await expect(component.locator("[data-embedder-check]")).toHaveAttribute("role", "status");
+  await component.getByRole("button", { name: "Done" }).click();
+  await expect(component.locator('[data-slot="connection-editor"]')).toHaveCount(0);
+  hold.release(trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedUnreachable }));
+
+  await expect(component.getByTestId("notified-description")).toContainText(connectionRow().label);
+});
+
+// With nothing stored to rebuild there is no confirm to hand focus back, and the button pressed goes away on save.
+test("a vector width saved with no rebuild to confirm leaves focus on its row", async ({ mount, page }) => {
+  const embedding: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
+    kind: "embedding",
+    embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
+  };
+  await stubEditor(page, {
+    capabilities: { capability: embedding, baseline: embedding, warnings: [], tasks: ["embed", "imageEmbed"] },
+    reindexPreview: { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+
+  await tier(page, "Advanced").click();
+  await component.getByRole("button", { name: "Override vector width" }).click();
+  await component.getByRole("textbox", { name: "vector width — your value" }).fill("512");
+  await component.getByRole("button", { name: "Save your vector width" }).click();
+
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(component.locator('[data-fact="embedding.dims"]')).toBeFocused();
 });

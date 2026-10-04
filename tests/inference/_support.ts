@@ -277,7 +277,6 @@ export function fakeDeps(options: FakeDepsOptions = {}): InferenceDeps & { reado
     agentSdk: { summarizeConcurrency: () => 2, ...(options.agentSdkQuery !== undefined ? { query: options.agentSdkQuery } : {}) },
     ...(options.captureWire !== undefined ? { captureWire: options.captureWire } : {}),
     userRuntimeDir: (ownerId, tool) => `/tmp/orb-test/${ownerId}/${tool}`,
-    embedSpace: { dims: 1024 },
     localLight: { cache: fakeModelCache() },
     sdkFetch: options.fetch ?? NO_NETWORK,
   };

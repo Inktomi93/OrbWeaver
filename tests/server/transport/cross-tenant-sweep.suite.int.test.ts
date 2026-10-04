@@ -1801,6 +1801,23 @@ const PROBES: readonly Probe[] = [
   // bindings back, because a hijacked binding lands in B's world and A's row re-reads clean.
   { path: "connection.setBinding", call: (c, i) => c.connection.setBinding({ task: "chat", connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
   { path: "connection.useForEverything", call: (c, i) => c.connection.useForEverything({ connectionId: i.connectionId }), refusal: CONNECTION_NOT_YOURS },
+  // The embedder-change preview reads A's row in both arms: a bind naming it, and a patch of it. Each refuses
+  // before anything about A's row or index is counted.
+  {
+    path: "connection.embedSpaceChangePreview",
+    call: (c, i) => c.connection.embedSpaceChangePreview({ change: { kind: "bind", task: "embed", connectionId: i.connectionId } }),
+    refusal: CONNECTION_NOT_YOURS,
+  },
+  {
+    path: "connection.embedSpaceChangePreview",
+    call: (c, i) => c.connection.embedSpaceChangePreview({ change: { kind: "update", connectionId: i.connectionId, patch: { model: ATTACKER_TEXT } } }),
+    refusal: CONNECTION_NOT_YOURS,
+  },
+  {
+    path: "connection.embedSpaceChangePreview",
+    call: (c, i) => c.connection.embedSpaceChangePreview({ change: { kind: "everywhere", connectionId: i.connectionId } }),
+    refusal: CONNECTION_NOT_YOURS,
+  },
   // The CREDENTIAL-reach pair. `credentialOwned` is the only belt; its refusal is a different documented
   // code (`connection_credential_foreign`), collapsed the same way — `credentialOwned` answers false for a
   // credential that does not exist AND for one that is A's, so neither probe is an existence oracle.
@@ -2001,6 +2018,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // so with the `assets.ownerId` belt DELETED the stranger's seed read still returns null → []. The belt is
   // proven where the data exists: verbs/similar-art.int.test.ts ("REFUSES a cross-tenant seed", model-
   // populated) and persistence/image-nearest.int.test.ts ("never returns another owner's image").
+  "search.spaceStatus": "self-scoped: ownerId = principal.userId (the caller's own generation state; no input)",
   "search.similarArt":
     "caller-precondition + unprobeable under vllmDisabled: the caller's own imageEmbed binding is resolved before the seed read (identical refusal for any seed id), and A has no avatar vectors to leak here. Belt proven in verbs/similar-art.int.test.ts + persistence/image-nearest.int.test.ts",
   "search.search":

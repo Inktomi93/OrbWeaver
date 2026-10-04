@@ -44,7 +44,6 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent, LiveOnlyChatEventType } from "@orb/contracts/chat";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import { pluginGrantTasks } from "@orb/contracts/plugin";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EmbedResult } from "@orb/contracts/providers";
@@ -347,6 +346,8 @@ export interface ServicesResult {
   readonly enqueueEmbedReindex: (scope: UserId | null) => Promise<void>;
   /** The same sweeps started detached, for a boot seed that must not wait on them. */
   readonly detachEmbedReindex: (scope: UserId | null) => void;
+  /** Boot's re-index of every owner whose stored generation went stale without a user action, detached. */
+  readonly detachStaleSpaceReindex: () => void;
   /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);
    *  `lifecycle.ts` hands it to `createApp`, which registers `/api/_debug/memory/recalls` over it. */
   readonly recallRecorder: MemoryRecallRecorder;
@@ -389,12 +390,22 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // must enqueue the purge+reindex. `workloads` is built far below (the search-discovery seam), so this holder
   // is late-bound after it exists; the connection ctx derefs it at request time (a pane write), never during
   // boot. Until then it is an inert no-op.
-  let embedReindex: Pick<SearchDiscoveryComposeResult, "enqueueEmbedReindex" | "detachEmbedReindex"> = {
+  let embedReindex: Pick<SearchDiscoveryComposeResult, "enqueueEmbedReindex" | "detachEmbedReindex" | "detachStaleSpaceReindex"> = {
     enqueueEmbedReindex: () => Promise.resolve(),
     detachEmbedReindex: () => undefined,
+    detachStaleSpaceReindex: () => undefined,
+  };
+  // A connection write awaits the owner's target sync, and the pane's change preview asks the same move rule; both are
+  // the embeddings domain's, which composes after the connection domain.
+  let embedTargets: Pick<EmbeddingsService, "syncTargetGenerations" | "targetWouldMove"> = {
+    syncTargetGenerations: () => Promise.reject(new Error("compose: syncTargetGenerations invoked before search-discovery wiring")),
+    targetWouldMove: () => Promise.reject(new Error("compose: targetWouldMove invoked before search-discovery wiring")),
   };
   // chat's memory-enabled read for the search-discovery seam, which composes before chat. Bound once chat exists.
   let isMemoryEnabled: (ownerId: UserId) => Promise<boolean> = () => Promise.reject(new Error("compose: isMemoryEnabled invoked before chat wiring"));
+  // The connection pane's embedder-change preview counts the embeddings domain's rows, which compose after it.
+  let countOwnedVectors: ConnectionContext["countOwnedVectors"] = () =>
+    Promise.reject(new Error("compose: countOwnedVectors invoked before search-discovery wiring"));
   // materializeBackground (side-eye F-P0-2): built after `assets` + `effectiveConfig` exist (the assets-character
   // seam), but settings/character/chat compose BEFORE `assets`, so they deref this late-bound holder at request
   // time (the `spriteSheetOps` pattern). Invoked only when a user pastes an external background URL.
@@ -522,7 +533,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       ...(deps.providerSeams?.agentSdk ?? {}),
     },
     userRuntimeDir: (ownerId, tool) => userRuntimeDirs.dirFor(ownerId, tool),
-    embedSpace: { dims: EMBED_SPACE_DIMS },
     // THE PROVIDER TRANSPORT, read from the ambient api HERE and nowhere else (reviewed grant
     // `no-raw-egress:entry-compose-transport`): the root reads the platform's `fetch` once so every tier
     // below receives it INJECTED rather than reaching for the global — the `no-raw-clock:entry-lifecycle`
@@ -564,7 +574,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       connection: encoderConnection,
       input,
       ...(knobs.dimensions === undefined ? {} : { dimensions: knobs.dimensions }),
-      ...(knobs.truncateTo === undefined ? {} : { truncateTo: knobs.truncateTo }),
       ...(knobs.inputType === undefined ? {} : { inputType: knobs.inputType }),
       ...(knobs.instruction === undefined ? {} : { instruction: knobs.instruction }),
       ...(opts?.signal === undefined ? {} : { signal: opts.signal }),
@@ -595,11 +604,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       return runtime.executor.imageEmbed({ connection: generationConnection, input, ...(opts?.signal === undefined ? {} : { signal: opts.signal }) });
     },
   });
-  const resolveEmbeddingConnection: import("#domain/embeddings").ResolveEmbeddingConnection = async (ownerId, task, connectionId) => {
+  const resolveEmbeddingConnection: import("#domain/embeddings").ResolveEmbeddingConnection = async (ownerId, task, connectionId, opts) => {
     const principal = await resolveFunderPrincipal(ownerId);
     let outcome: Awaited<ReturnType<typeof runtime.resolve>>;
     try {
-      outcome = await runtime.resolve({ task, principal, ...(connectionId === undefined ? {} : { connectionId }) });
+      outcome = await runtime.resolve({
+        task,
+        principal,
+        ...(connectionId === undefined ? {} : { connectionId }),
+        ...(opts?.cachedFacts === true ? { cachedFacts: true } : {}),
+      });
     } catch (error) {
       if (connectionId === undefined) {
         throw error;
@@ -629,9 +643,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     endpointAdmission: resolvedEndpointAdmission,
     recordProbeOutcome: credentials.recordProbeOutcome,
     // The late-bound holder above, derefed at request time.
-    onEmbedSpaceChanged: () => {
-      embedReindex.detachEmbedReindex(null);
-    },
+    countOwnedVectors: (ownerId) => countOwnedVectors(ownerId),
+    syncEmbedTargets: (ownerId) => embedTargets.syncTargetGenerations(ownerId),
+    targetWouldMove: (args) => embedTargets.targetWouldMove(args),
     emitUserEvent: publishUserEvent,
   };
   const connection = createConnectionService(connectionCtx);
@@ -800,6 +814,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   } = searchDiscovery;
   // Bind the embed-space sweep enqueue now that `workloads` exists.
   embedReindex = searchDiscovery;
+  countOwnedVectors = searchDiscovery.embeddings.countOwnedVectors;
+  embedTargets = searchDiscovery.embeddings;
   await searchDiscovery.embeddings.purgeDisallowedImages();
   refreshAutoindex = searchDiscovery.refreshAutoindex;
 
@@ -1269,6 +1285,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         await embeddings.purgeDocumentVectors(receipt);
       }
     },
+    // The databank and memory sweeps settle on it the way the `index` sweep does.
+    targetSnapshot: embeddings.targetSnapshot,
     backfillMemory: (args) => chatCompose.backfill.memory(args),
     estimateMemoryBackfill: (args) => chatCompose.backfill.estimateMemory(args),
     // The #156 admission gate's read — one hop to the ONE memory-config merge, never a second settings read.
@@ -1472,6 +1490,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     enqueueEmbedReindex: (scope) => embedReindex.enqueueEmbedReindex(scope),
     detachEmbedReindex: (scope): void => {
       embedReindex.detachEmbedReindex(scope);
+    },
+    detachStaleSpaceReindex: (): void => {
+      embedReindex.detachStaleSpaceReindex();
     },
     wireCaptureOn,
   };

@@ -6,14 +6,57 @@
 // still spelled inside workloads; it is here now, and the two halves finally live together.
 
 import type { IngestRunResult } from "@orb/contracts/databank";
-import { databankIngestWorkloadParams, databankReindexWorkloadParams } from "@orb/contracts/workloads";
+import type { ReportProgress, WorkloadParamsByKind, WorkloadRunContext } from "@orb/contracts/workloads";
+import { databankIngestWorkloadParams, databankReindexWorkloadParams, REBUILD_ADMISSION_KEY_SUFFIX } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
+import { runUntilSettled } from "#kit/embedding-generation";
 import type { DatabankWorkloadDeps } from "./contract/service.ts";
 
 type DatabankContributions = readonly [WorkloadContribution<"databank-ingest">, WorkloadContribution<"databank-reindex">];
 
 /** The mode a reindex runs when the row didn't pick one — the domain's own floor. */
 const DEFAULT_REINDEX_MODE = "chunk-embed";
+
+/** One databank-reindex run's inputs. */
+interface ReindexRun {
+  readonly ctx: WorkloadRunContext;
+  readonly params: WorkloadParamsByKind["databank-reindex"];
+  readonly report: ReportProgress;
+  readonly signal: AbortSignal;
+}
+
+/** One reindex round, its terminal included. */
+async function reindexOnce(deps: DatabankWorkloadDeps, { ctx, params, report, signal }: ReindexRun): Promise<IngestRunResult> {
+  // Only an OWNER-WIDE pass re-derives a whole `documents` scope, so only it may claim one (#2517) —
+  // a single-document repair covers one row and says nothing about the rest of the corpus.
+  const corpusWide = params.scope.kind === "owner";
+  const generationReceipts = corpusWide ? await deps.beginDocumentVectorSweep(ctx.ownerId) : [];
+  const mode = params.mode ?? DEFAULT_REINDEX_MODE;
+  const label = `databank-reindex: ${mode} (${params.scope.kind} scope)`;
+  report({ message: label });
+  const result = await deps.databankIngest.reindex({
+    ownerId: ctx.ownerId,
+    scope: params.scope,
+    mode,
+    signal,
+    onProgress: (done, total) => {
+      report({ message: `Rebuilding databank search — ${done} of ${total} documents`, current: done, total });
+    },
+  });
+  report({
+    message: `databank-reindex: ${result.documents} docs, ${result.chunksUpserted} written, ${result.chunksPruned} pruned, ${result.reExtracted} re-extracted`,
+  });
+  // THE PASS'S TERMINAL — record the `documents` scope's completion for the generations this pass
+  // opened; the promotion lands once cards, memory and documents all name the same target generation.
+  // The old generation's chunks were already deleted when the target moved
+  // (`embeddings/persistence/space-state.ts switchTargetGeneration`). An aborted pass claims nothing and
+  // leaves the new index partial for the rerun. The cross-owner reach lives solely in the op's fan-out
+  // (`beginDocumentVectorSweep`), which the enumeration scope decides.
+  if (corpusWide && !signal.aborted) {
+    await deps.purgeDocumentVectors(generationReceipts);
+  }
+  return result;
+}
 
 export function createDatabankWorkloadContributions(deps: DatabankWorkloadDeps): DatabankContributions {
   return [
@@ -45,43 +88,21 @@ export function createDatabankWorkloadContributions(deps: DatabankWorkloadDeps):
       // Same unit rule as ingest, one level up: a per-document repair (the library row's Reindex) is its own
       // unit, so healing two wedged documents does not serialize; the owner-wide sweep is a single unit
       // (`owner`) and stays single-active against itself. The reindex MODE is deliberately NOT in the key —
-      // a `chunk-embed` and a `re-extract` pass over the same document must not race each other.
-      admissionKey: (params) => (params.scope.kind === "document" ? params.scope.documentId : params.scope.kind),
+      // a `chunk-embed` and a `re-extract` pass over the same document must not race each other. An embedder
+      // change's owner rebuild holds its own slot, so it never adopts a plain owner pass that pinned the old
+      // generation.
+      admissionKey: (params): string => {
+        if (params.scope.kind === "document") {
+          return params.scope.documentId;
+        }
+        return params.embedderChanged === true ? `${params.scope.kind}${REBUILD_ADMISSION_KEY_SUFFIX}` : params.scope.kind;
+      },
       // Bulk derived-layer maintenance over one document or a whole owner — a sweep, not a user's wait.
       lane: "sweep",
       resume: "idempotent-restart",
-      run: async (ctx, params, report, signal): Promise<IngestRunResult> => {
-        // Only an OWNER-WIDE pass re-derives a whole `documents` scope, so only it may claim one (#2517) —
-        // a single-document repair covers one row and says nothing about the rest of the corpus.
-        const corpusWide = params.scope.kind === "owner";
-        const generationReceipts = corpusWide ? await deps.beginDocumentVectorSweep(ctx.ownerId) : [];
-        const mode = params.mode ?? DEFAULT_REINDEX_MODE;
-        report({ message: `databank-reindex: ${mode} (${params.scope.kind} scope)` });
-        const result = await deps.databankIngest.reindex({ ownerId: ctx.ownerId, scope: params.scope, mode, signal });
-        report({
-          message: `databank-reindex: ${result.documents} docs, ${result.chunksUpserted} written, ${result.chunksPruned} pruned, ${result.reExtracted} re-extracted`,
-        });
-        // THE PASS'S TERMINAL — record the `documents` scope's completion for the generations this pass
-        // opened, and reclaim the chunks stranded in any OTHER embed space once cards, memory and
-        // documents all name the same target generation. The DELETE lives in embeddings/persistence (the ONE
-        // vector write path) — this is the injected op, never a db reach.
-        //
-        // #2517 — THE RULING SURVIVES, ITS INPUT CHANGED, exactly as in chat's memory sweep: the BULK-ONLY
-        // fence was an argument about the cross-owner FAN-OUT, and it had the COMPLETION welded to it, so an
-        // owner's own reindex could never make `readGeneration` say `ready`. The fan-out now lives inside
-        // `beginDocumentVectorSweep`, which enumerates the scope it is handed. Still skipped on abort: the
-        // space stays a strict superset (never a gap); the rerun reclaims it.
-        //
-        // WHAT DID *NOT* CHANGE: the reclaim's blast radius. `markGenerationComplete` promotes nothing until
-        // cards, memory AND documents name the same `(generation, epoch)`, and its DELETEs derive their row
-        // set from THIS owner's documents (`embeddings/persistence/space-state.ts retiredVectorStatements`),
-        // so a per-owner pass can only ever reclaim its own old space. The cross-owner reach lives solely in
-        // the op's fan-out, which the enumeration scope still decides.
-        if (corpusWide && !signal.aborted) {
-          await deps.purgeDocumentVectors(generationReceipts);
-        }
-        return result;
-      },
+      // A target move mid-pass purges what the pass wrote and refuses its terminal, so the pass goes round again.
+      run: (ctx, params, report, signal): Promise<IngestRunResult> =>
+        runUntilSettled({ snapshot: () => deps.targetSnapshot(ctx.ownerId), signal, round: () => reindexOnce(deps, { ctx, params, report, signal }) }),
     },
   ];
 }

@@ -94,7 +94,6 @@ async function indexAsset(
           assetId,
           content: bytes,
           model,
-          dim: ctx.imageEmbedDim,
           force,
           signal,
         });
@@ -109,7 +108,6 @@ async function indexAsset(
     captionMeta: analysis.captionMeta,
     via: space.via,
     model,
-    dim: ctx.imageEmbedDim,
     force,
     signal,
   });

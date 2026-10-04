@@ -3,7 +3,16 @@
 // persisted read's words, and the `Needs:` rail and the background repair judge what the resolver judges.
 
 import type { Capability } from "@orb/contracts/inference";
-import { EMBEDDING_FLOOR, GENERATION_FLOOR, LOCAL_LIGHT_SEED_ROWS, ROUTABLE_TASKS, TASKS, UNAVAILABLE_CAUSES } from "@orb/contracts/inference";
+import {
+  CONNECTION_OP_CODES,
+  EMBEDDING_FLOOR,
+  GENERATION_FLOOR,
+  LOCAL_LIGHT_SEED_ROWS,
+  ROUTABLE_TASKS,
+  TASKS,
+  UNAVAILABLE_CAUSES,
+} from "@orb/contracts/inference";
+import type { WorkloadStatus } from "@orb/contracts/workloads";
 import {
   backgroundRepairs,
   bindRefusal,
@@ -17,6 +26,14 @@ import {
   roleRequirementVerdicts,
   roleStatus,
 } from "../../../packages/client/src/lib/connection-roles.ts";
+import type { ReindexPreview } from "../../../packages/client/src/lib/embedder-rebuild.ts";
+import {
+  embedderRebuildState,
+  embedRefusalOf,
+  REINDEX_CONFIRM_COPY,
+  reindexConfirmDescription,
+  reindexNeedsConfirm,
+} from "../../../packages/client/src/lib/embedder-rebuild.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 const OPENROUTER = "user_connection_model0000001";
@@ -160,13 +177,12 @@ test("the Utility rail is THREE clauses, judged per clause, each with what SKIPS
   expect(roleRequirementVerdicts(utility, null).map((verdict) => verdict.met)).toEqual([null, null, null]);
 });
 
-test("the vector rows judge width and image input through the same requirementMet the resolver uses", () => {
+test("the vector rows judge image input through the same requirementMet the resolver uses, and admit any width", () => {
   const imageEmbed = ROLE_ROWS_ORDERED.find((row) => row.task === "imageEmbed") as (typeof ROLE_ROWS_ORDERED)[number];
-  expect(imageEmbed.requirements.map((requirement) => requirement.label)).toEqual(["image input", "1024-wide vectors"]);
-  expect(roleRequirementVerdicts(imageEmbed, embedding()).map((verdict) => verdict.met)).toEqual([false, true]);
-  expect(roleRequirementVerdicts(imageEmbed, embedding({ input: ["text", "image"] })).map((verdict) => verdict.met)).toEqual([true, true]);
-  // A NARROWER model never fits — padding invents coordinates (#1635), so the clause must read false.
-  expect(roleRequirementVerdicts(imageEmbed, embedding({ dims: 768, input: ["text", "image"] })).map((verdict) => verdict.met)).toEqual([true, false]);
+  expect(imageEmbed.requirements.map((requirement) => requirement.label)).toEqual(["image input"]);
+  expect(roleRequirementVerdicts(imageEmbed, embedding()).map((verdict) => verdict.met)).toEqual([false]);
+  // The owner's space takes the bound embedder's width, so a narrower joint encoder meets every clause.
+  expect(roleRequirementVerdicts(imageEmbed, embedding({ dims: 768, input: ["text", "image"] })).map((verdict) => verdict.met)).toEqual([true]);
 });
 
 // THE ORACLE: the authored clause lists may say MORE than `TASK_DEFS` (captions are not their own task),
@@ -238,4 +254,119 @@ test("labelNamesModel never counts the provider segment as naming the model", ()
 test("connectionSummary names a model by its own name, and the seeded local rows by what they do", () => {
   expect(connectionSummary({ label: "work key", model: "openai/gpt-5-mini" })).toBe("work key · gpt-5-mini");
   expect(LOCAL_LIGHT_SEED_ROWS.map(connectionSummary)).toEqual(["Built-in embeddings · jina-clip-v2", "Built-in reranker · ettin-reranker-32m-v1"]);
+});
+
+// The embedder-change confirm asks only when a change both moves to a new generation AND has something stored to
+// rebuild; the sentence names only the scopes that hold vectors, and stays honest when the counts are unknown.
+test("the rebuild confirm asks only for a new generation over a stored index", () => {
+  const stored = { cards: 2, memory: 0, documents: 0, images: 0 };
+  const empty = { cards: 0, memory: 0, documents: 0, images: 0 };
+  expect(reindexNeedsConfirm({ reindex: true, stored, embedCalls: 2, utilityModelSet: true })).toBe(true);
+  expect(reindexNeedsConfirm({ reindex: true, stored: empty, embedCalls: 0, utilityModelSet: true })).toBe(false);
+  expect(reindexNeedsConfirm({ reindex: false, stored, embedCalls: 2, utilityModelSet: true })).toBe(false);
+});
+
+// What pauses follows the scopes the rebuild covers, and a memory rebuild says whether the Utility model can run it.
+test("the rebuild confirm names only what pauses and whether chat memory can re-summarize", () => {
+  const preview = (stored: ReindexPreview["stored"], utilityModelSet = true): string =>
+    reindexConfirmDescription({ reindex: true, stored, embedCalls: 1, utilityModelSet });
+  const { pause } = REINDEX_CONFIRM_COPY;
+  const pictures = preview({ cards: 0, memory: 0, documents: 0, images: 3 });
+  expect([pictures.includes(pause.pictures), pictures.includes(pause.search), pictures.includes(pause.memory)]).toEqual([true, false, false]);
+  const cardsAndPictures = preview({ cards: 2, memory: 0, documents: 0, images: 3 });
+  expect([cardsAndPictures.includes(pause.search), cardsAndPictures.includes(pause.pictures)]).toEqual([true, false]);
+  const memory = preview({ cards: 0, memory: 4, documents: 0, images: 0 }, false);
+  expect([memory.includes(pause.memory), memory.includes(pause.search), memory.includes(REINDEX_CONFIRM_COPY.noUtility)]).toEqual([true, false, true]);
+  expect(preview({ cards: 0, memory: 4, documents: 0, images: 0 }).includes(REINDEX_CONFIRM_COPY.resummarize)).toBe(true);
+  expect(reindexConfirmDescription(null)).not.toMatch(/\d/u);
+});
+
+/** The rows below judge a rebuild while search refuses for it; the space status decides that first. */
+const SEARCH_PAUSED = { paused: true } as const;
+
+// The vector role row speaks for the viewer's newest embedder rebuild only: a later success buries an older failure,
+// and an ordinary index pass or another user's rebuild says nothing.
+test("the role row's rebuild state follows the viewer's newest embedder rebuild", () => {
+  const rebuild = (status: WorkloadStatus, createdAt: number, ownerId: string | null = "user_me"): Parameters<typeof embedderRebuildState>[0][number] => ({
+    kind: "index",
+    status,
+    ownerId,
+    createdAt,
+    params: { source: "all", force: true, embedderChanged: true },
+  });
+  expect(embedderRebuildState([rebuild("running", 2), rebuild("failed", 1)], "user_me", SEARCH_PAUSED)).toBe("running");
+  expect(embedderRebuildState([rebuild("failed", 2, null)], "user_me", SEARCH_PAUSED)).toBe("failed");
+  expect(embedderRebuildState([rebuild("succeeded", 3), rebuild("failed", 2)], "user_me", SEARCH_PAUSED)).toBeNull();
+  expect(embedderRebuildState([rebuild("failed", 2, "user_other")], "user_me", SEARCH_PAUSED)).toBeNull();
+  expect(embedderRebuildState([{ ...rebuild("running", 2), params: { source: "all" } }], "user_me", SEARCH_PAUSED)).toBeNull();
+});
+
+// A move rebuilds three scopes, and search waits on all of them: the row stays on while any one still runs, and a
+// failed sibling surfaces even after the index finished.
+test("the role row's rebuild state covers the move's databank and memory rebuilds too", () => {
+  const row = (kind: string, status: WorkloadStatus, createdAt: number, embedderChanged = true): Parameters<typeof embedderRebuildState>[0][number] => ({
+    kind,
+    status,
+    ownerId: "user_me",
+    createdAt,
+    params: embedderChanged ? { embedderChanged } : {},
+  });
+  const indexDone = row("index", "succeeded", 3);
+
+  expect(embedderRebuildState([indexDone, row("databank-reindex", "succeeded", 2), row("memory-backfill", "running", 2)], "user_me", SEARCH_PAUSED)).toBe(
+    "running",
+  );
+  expect(embedderRebuildState([indexDone, row("databank-reindex", "queued", 2)], "user_me", SEARCH_PAUSED)).toBe("running");
+  expect(embedderRebuildState([indexDone, row("memory-backfill", "failed", 2)], "user_me", SEARCH_PAUSED)).toBe("failed");
+  expect(embedderRebuildState([indexDone, row("memory-backfill", "failed", 1), row("memory-backfill", "succeeded", 2)], "user_me", SEARCH_PAUSED)).toBeNull();
+  expect(embedderRebuildState([indexDone, row("memory-backfill", "running", 2, false)], "user_me", SEARCH_PAUSED), "a plain sweep is no rebuild").toBeNull();
+});
+
+// The live probe's cell 2 (scripts/probes/embed-width/RESULTS.md): a move's memory rebuild failed, the next move
+// (memory off) rebuilt cards and documents and search answers again. The old failure is no longer the state.
+test("the role row says nothing once search answers, whatever an earlier rebuild left behind", () => {
+  const row = (kind: string, status: WorkloadStatus, createdAt: number): Parameters<typeof embedderRebuildState>[0][number] => ({
+    kind,
+    status,
+    ownerId: "user_me",
+    createdAt,
+    params: { embedderChanged: true },
+  });
+  const cells = [
+    row("memory-backfill", "failed", 1_791_081_353_599),
+    row("databank-reindex", "succeeded", 1_791_081_353_588),
+    row("index", "succeeded", 1_791_081_353_588),
+    row("databank-reindex", "succeeded", 1_791_081_441_345),
+    row("index", "succeeded", 1_791_081_441_345),
+  ];
+
+  expect(embedderRebuildState(cells, "user_me", { paused: false })).toBeNull();
+  expect(embedderRebuildState(cells, "user_me", { paused: true }), "search still refuses: the failure stands").toBe("failed");
+  expect(embedderRebuildState([...cells, row("memory-backfill", "queued", 1_791_081_500_000)], "user_me", { paused: true })).toBe("running");
+  expect(embedderRebuildState(cells, "user_me", undefined), "an unread status claims nothing").toBeNull();
+});
+
+// A refused embedder write is read off the wire's reason and detail, never its message: the picker rolls back on it.
+test("an embedder refusal is read from the refusal's code, and a width refusal from its two widths", () => {
+  const refused = (reason: string, detail: unknown): unknown => ({ message: "irrelevant", data: { code: "BAD_REQUEST", reason, detail } });
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 1024, measured: 768, truncatable: false }))).toEqual({
+    kind: "width",
+    stated: 1024,
+    measured: 768,
+    truncatable: false,
+    assumed: false,
+  });
+  expect(
+    embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 2048, measured: 1024, truncatable: true })),
+    "a model that can shorten its vectors",
+  ).toMatchObject({ truncatable: true });
+  expect(
+    embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 1024, measured: 768, truncatable: false, assumed: true })),
+    "no width was set, so the stated one was only assumed",
+  ).toMatchObject({ assumed: true });
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedUnreachable, {})), "no answer to the probe").toEqual({ kind: "unreachable" });
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedAuth, {})), "the server refused the key").toEqual({ kind: "auth" });
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.notFound, { stated: 1024, measured: 768 })), "another refusal").toBeNull();
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: "1024" })), "no numbers to say").toBeNull();
+  expect(embedRefusalOf(new Error("This model makes 768-wide vectors")), "a message is never read").toBeNull();
 });

@@ -23,7 +23,7 @@ import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
 import { minimumRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
@@ -34,19 +34,27 @@ export interface FactRowListProps {
   readonly busy: boolean;
   readonly onOverride: (row: FactRow, value: unknown) => void;
   readonly onReset: (row: FactRow) => void;
+  /** What the server said about the last change to one row, drawn under that row, where focus returns after it. */
+  readonly note?: FactRowNote | undefined;
 }
 
-export function FactRowList({ rows, busy, onOverride, onReset }: FactRowListProps): ReactElement {
+/** A line under one fact row, keyed by the row's `path`. */
+export interface FactRowNote {
+  readonly path: string;
+  readonly content: ReactNode;
+}
+
+export function FactRowList({ rows, busy, onOverride, onReset, note }: FactRowListProps): ReactElement {
   return (
     <Stack gap="row">
       {rows.map((row) => (
-        <FactRowView key={row.path} row={row} busy={busy} onOverride={onOverride} onReset={onReset} />
+        <FactRowView key={row.path} row={row} busy={busy} onOverride={onOverride} onReset={onReset} note={note?.path === row.path ? note : undefined} />
       ))}
     </Stack>
   );
 }
 
-function FactRowView({ row, busy, onOverride, onReset }: { readonly row: FactRow } & Omit<FactRowListProps, "rows">): ReactElement {
+function FactRowView({ row, busy, onOverride, onReset, note }: { readonly row: FactRow } & Omit<FactRowListProps, "rows">): ReactElement {
   const [editing, setEditing] = useState(false);
 
   return (
@@ -54,7 +62,8 @@ function FactRowView({ row, busy, onOverride, onReset }: { readonly row: FactRow
     // source follow, and the action moves to a right-aligned line of its own. Measured on the mock at 486:
     // a 172px key basis + a mono value + a control-height button cannot share a 462px content line without
     // the source wrapping to three.
-    <Stack data-slot="connection-fact-row" data-fact={row.path} data-overridden={row.overridden} gap="tight">
+    // Focusable by script only: a confirm that closes over this row returns focus to the row, not to its first button.
+    <Stack data-slot="connection-fact-row" data-fact={row.path} data-overridden={row.overridden} gap="tight" tabIndex={-1}>
       <Row align="start" className="@max-lg:flex-col @max-lg:items-stretch" gap="field" justify="between">
         <Text className="shrink-0" voice="datum">
           {row.name}
@@ -77,6 +86,7 @@ function FactRowView({ row, busy, onOverride, onReset }: { readonly row: FactRow
           )}
         </Row>
       </Row>
+      {note?.content}
       {editing ? (
         <FactOverrideEditor
           row={row}
@@ -213,7 +223,9 @@ export function QuirksBlock({
   busy,
   onOverride,
   onReset,
+  note,
 }: {
+  readonly note?: FactRowNote | undefined;
   readonly providerFeatures: Parameters<typeof quirkFactRows>[0];
   readonly declared: DeclaredCapability | null;
   readonly providerLabel: string;
@@ -233,7 +245,7 @@ export function QuirksBlock({
       <Text voice="gloss">
         How this kind of server behaves, and where each answer came from. Read-only — override a line only when this box differs from the others of its kind.
       </Text>
-      <FactRowList busy={busy} onOverride={onOverride} onReset={onReset} rows={rows} />
+      <FactRowList busy={busy} note={note} onOverride={onOverride} onReset={onReset} rows={rows} />
     </Stack>
   );
 }

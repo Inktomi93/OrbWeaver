@@ -108,7 +108,11 @@ export type UserBusEvent =
   // The per-user connection store: `user_connections` CRUD and `connection_bindings` changes
   // (docs/work/0121). NO id (see the MEMBERSHIP note) — the client path-invalidates the whole connection
   // domain regardless of which row or binding moved.
-  | { type: "connectionsChanged" };
+  | { type: "connectionsChanged" }
+  // A job you own was queued by the SYSTEM (an embed re-point's rebuild, a seed's sweep) rather than by a request
+  // of yours: no client mutation exists to refresh the job list, so the start verb announces it. NO id — the
+  // client path-invalidates `workloads.list`, and a run's own lifecycle rides its `workloads` room.
+  | { type: "workloadsChanged" };
 
 /** Valid discriminators, derived from the union. The `satisfies Record<UserBusEvent["type"], true>` makes
  *  `tsc` error if a member is added without a matching entry — the `bus-producer-coverage` gate parses THIS object
@@ -131,6 +135,7 @@ export const USER_BUS_EVENT_TYPES = {
   identityChanged: true,
   pluginSurfaceStateChanged: true,
   connectionsChanged: true,
+  workloadsChanged: true,
 } satisfies Record<UserBusEvent["type"], true>;
 
 /**
@@ -165,6 +170,7 @@ export const COARSE_USER_BUS_EVENT = {
   identityChanged: { type: "identityChanged" },
   pluginSurfaceStateChanged: { type: "pluginSurfaceStateChanged" },
   connectionsChanged: { type: "connectionsChanged" },
+  workloadsChanged: { type: "workloadsChanged" },
 } satisfies Record<UserBusEvent["type"], UserBusEvent>;
 
 /** The INJECTED emit op every mutating domain verb closes over (the house cross-feature-op pattern — the verb

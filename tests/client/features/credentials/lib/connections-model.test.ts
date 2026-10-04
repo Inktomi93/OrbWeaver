@@ -11,6 +11,7 @@ import {
   joinRoleLabels,
   providerPickerItems,
   showsApiControl,
+  sweepRebindsEmbedder,
   sweepRoleLabels,
 } from "../../../../../packages/client/src/features/credentials/lib/connections-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -118,6 +119,15 @@ test("the sweep's gloss names the roles it will write — and drops the ones it 
   // `useForEverything` SKIPS a background task on a row with the flag off ("everything it can serve"), so
   // the gloss must skip it too or the sentence promises bindings the verb will not write.
   expect(sweepRoleLabels({ allowBackground: false, tasks: ["chat", "summarize", "embed"] })).toEqual(["Chat"]);
+});
+
+// The sweep asks before re-pointing an embedder, and only then: an embedder it cannot fund is skipped, so it
+// moves no index and the sweep writes straight through.
+test("the sweep asks first exactly when it would re-point an embedder it can fund", () => {
+  expect(sweepRebindsEmbedder({ allowBackground: true, tasks: ["chat", "embed"] })).toBe(true);
+  expect(sweepRebindsEmbedder({ allowBackground: true, tasks: ["imageEmbed"] })).toBe(true);
+  expect(sweepRebindsEmbedder({ allowBackground: false, tasks: ["chat", "embed", "imageEmbed"] })).toBe(false);
+  expect(sweepRebindsEmbedder({ allowBackground: true, tasks: ["chat", "summarize", "rerank"] })).toBe(false);
 });
 
 test("the remove confirm counts the roles the connection is actually BOUND to, in render order", () => {

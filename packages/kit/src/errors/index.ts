@@ -53,13 +53,18 @@ export class DomainForbiddenError extends DomainError {
   }
 }
 
+/** The facts a coded refusal states beside its code, so a client can say them without reading the message. */
+export type DomainOperationDetail = Readonly<Record<string, string | number | boolean>>;
+
 /** A coded operational failure (the `code` is the discriminator). Maps to tRPC BAD_REQUEST. */
 export class DomainOperationError extends DomainError {
   readonly code: string;
-  constructor(code: string, message: string) {
+  readonly detail: DomainOperationDetail | undefined;
+  constructor(code: string, message: string, detail?: DomainOperationDetail) {
     super(message);
     this.name = this.constructor.name;
     this.code = code;
+    this.detail = detail;
   }
 }
 

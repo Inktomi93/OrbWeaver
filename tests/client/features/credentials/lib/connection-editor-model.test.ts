@@ -7,7 +7,7 @@
 // line that is merely plausible is the defect.
 
 import type { Capability, DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
-import { declaredCapabilitySchema, EMBED_SPACE_DIMS, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
+import { declaredCapabilitySchema, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import { describe } from "vitest";
 import { capabilityFactRows } from "../../../../../packages/client/src/features/credentials/lib/connection-capability-fact-model.ts";
 import {
@@ -282,15 +282,13 @@ describe("the capability rail", () => {
     expect(badges.find((badge) => badge.task === "embed")?.reason).toBe("wrong kind");
   });
 
-  // "wrong vector width" alone does not say which way; a 768-wide local embedder must read as too narrow.
-  test("a vector-width refusal names both widths", () => {
+  // The owner's space takes the bound embedder's width, so a 768-wide local embedder is a green text-embedding role.
+  test("a narrower embedder serves the text embedding role", () => {
     const narrow: Capability = {
       kind: "embedding",
       embedding: { dims: 768, mrl: true, maxInputTokens: 8192, input: ["text"], output: ["vector"], instructionAware: false },
     };
-    const reason = capabilityBadges(narrow, ["embed", "imageEmbed"]).find((badge) => badge.task === "embed")?.reason ?? "";
-    expect(reason).toContain("768");
-    expect(reason).toContain(String(EMBED_SPACE_DIMS));
+    expect(capabilityBadges(narrow, ["embed", "imageEmbed"]).find((badge) => badge.task === "embed")).toMatchObject({ ok: true, reason: null });
   });
 });
 

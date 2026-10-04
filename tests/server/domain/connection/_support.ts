@@ -21,6 +21,8 @@ import { castId } from "@orb/kit/ids";
 import type { ConnectionContext, ConnectionService, EndpointAdmission } from "@orb/server/domain/connection";
 import { createConnectionPorts, createConnectionService } from "@orb/server/domain/connection";
 import type { AuditEntry } from "@orb/server/foundation/observability";
+import type { EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
+import { countOwnedVectors } from "../../../../packages/server/src/domain/embeddings/persistence/owned-vector-counts.ts";
 import { fakeModelCache } from "../../../inference/_support.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { principal } from "../../../support/factories/principal.ts";
@@ -45,6 +47,8 @@ interface FakeRoute {
   readonly match: string;
   readonly status?: number | undefined;
   readonly json?: unknown;
+  /** Answers from the request body instead of `json` — a fake server that honours what it was asked for. */
+  readonly reply?: ((body: string | null) => unknown) | undefined;
 }
 
 export interface HarnessOptions {
@@ -58,6 +62,8 @@ export interface HarnessOptions {
   readonly pluginGrantTasks?: readonly RoutableTask[] | undefined;
   /** Canned HTTP. An unmatched request answers 404 and is still recorded. */
   readonly routes?: readonly FakeRoute[] | undefined;
+  /** Answers a request itself before the routes (a host that never answers); `null` falls through to them. */
+  readonly intercept?: ((url: string, init: RequestInit | undefined) => Promise<Response> | null) | undefined;
   /** The bundled `claude` runtime — absent ⇒ the agent-sdk wire is NOT built (the shipped default). */
   readonly claudeExecutable?: string | undefined;
   /** ON ⇒ the in-process `local-light` tier gets its SCRIPTED model cache (`deps.localLight.cache`), so an
@@ -74,13 +80,19 @@ export interface HarnessOptions {
   readonly resolveCredential?: InferenceDeps["resolveCredential"] | undefined;
 }
 
+/** The two embeddings verbs the connection domain awaits or asks. */
+type EmbeddingTargetPorts = Pick<EmbeddingsService, "syncTargetGenerations" | "targetWouldMove">;
+
 export interface ConnectionHarness {
   readonly ctx: ConnectionContext;
   readonly svc: ConnectionService;
   readonly runtime: InferenceRuntime;
   readonly audits: AuditCall[];
-  /** Every `onEmbedSpaceChanged(ownerId)` the verbs raised (the embed-space purge+reindex trigger). */
+  /** Every `syncEmbedTargets(ownerId)` the verbs awaited (the embed-space purge+reindex trigger). */
   readonly embedSpaceChanges: UserId[];
+  /** Route the target sync and the move rule through a real embeddings service over the same db. Until called, the
+   *  sync moves nothing and every candidate row reads as one that cannot resolve yet. */
+  readonly useEmbeddings: (embeddings: EmbeddingTargetPorts) => void;
   /** Every `emitUserEvent(ownerId, event)` the verbs raised (the per-user freshness plane). */
   readonly emittedUserEvents: { readonly userId: UserId; readonly event: UserBusEvent }[];
   /** Every `recordProbeOutcome` the probe verb handed the credentials domain. */
@@ -179,15 +191,21 @@ function urlOf(input: Parameters<typeof fetch>[0]): string {
   return input instanceof URL ? input.toString() : input.url;
 }
 
-function fakeFetch(routes: readonly FakeRoute[], log: RecordedRequest[]): typeof fetch {
+function fakeFetch(routes: readonly FakeRoute[], log: RecordedRequest[], intercept: HarnessOptions["intercept"]): typeof fetch {
   return (input: Parameters<typeof fetch>[0], init?: RequestInit): Promise<Response> => {
     const url = urlOf(input);
-    log.push({ url, method: init?.method ?? "GET", headers: headersOf(init), body: typeof init?.body === "string" ? init.body : null });
+    const body = typeof init?.body === "string" ? init.body : null;
+    log.push({ url, method: init?.method ?? "GET", headers: headersOf(init), body });
+    const intercepted = intercept?.(url, init) ?? null;
+    if (intercepted !== null) {
+      return intercepted;
+    }
     const route = routes.find((candidate) => url.includes(candidate.match));
     if (route === undefined) {
       return Promise.resolve(new Response(JSON.stringify({ error: "no route" }), { status: 404, headers: { "content-type": "application/json" } }));
     }
-    return Promise.resolve(new Response(JSON.stringify(route.json ?? {}), { status: route.status ?? 200, headers: { "content-type": "application/json" } }));
+    const json = route.reply === undefined ? (route.json ?? {}) : route.reply(body);
+    return Promise.resolve(new Response(JSON.stringify(json), { status: route.status ?? 200, headers: { "content-type": "application/json" } }));
   };
 }
 
@@ -209,6 +227,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
   const requests: RecordedRequest[] = [];
   const now = (): number => clock.now();
   const ports = createConnectionPorts({ db, now });
+  let embeddings: EmbeddingTargetPorts = { syncTargetGenerations: () => Promise.resolve(null), targetWouldMove: () => Promise.resolve(null) };
 
   const deps: InferenceDeps = {
     now,
@@ -236,7 +255,6 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     providerStore: ports.providerStore,
     agentSdk: { summarizeConcurrency: (): number => 1 },
     userRuntimeDir: (ownerId): string => `/tmp/orb-test/${ownerId}/claude`,
-    embedSpace: { dims: 1024 },
     ...(options.localLight === true
       ? {
           localLight: {
@@ -245,7 +263,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
           },
         }
       : {}),
-    sdkFetch: fakeFetch(options.routes ?? [], requests),
+    sdkFetch: fakeFetch(options.routes ?? [], requests, options.intercept),
   };
   const runtime = await createInferenceRuntime(deps);
 
@@ -267,9 +285,12 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
       probeRecords.push(args);
       return Promise.resolve(args.result);
     },
-    onEmbedSpaceChanged: (ownerId): void => {
+    countOwnedVectors: (ownerId) => countOwnedVectors(db, ownerId),
+    syncEmbedTargets: (ownerId) => {
       embedSpaceChanges.push(ownerId);
+      return embeddings.syncTargetGenerations(ownerId);
     },
+    targetWouldMove: (args) => embeddings.targetWouldMove(args),
     emitUserEvent: (userId, event): void => {
       emittedUserEvents.push({ userId, event });
     },
@@ -281,6 +302,9 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
     runtime,
     audits,
     embedSpaceChanges,
+    useEmbeddings: (wired): void => {
+      embeddings = wired;
+    },
     emittedUserEvents,
     probeRecords,
     requests,

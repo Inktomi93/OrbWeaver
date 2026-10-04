@@ -8,6 +8,7 @@ import {
   fieldSearchResultSchema,
   SEARCH_SUGGEST_MAX_LIMIT,
   SEARCH_TOP_N_MAX,
+  searchSpaceStatusSchema,
   searchSuggestionSchema,
   similarArtHitSchema,
   unifiedSearchResultSchema,
@@ -101,4 +102,7 @@ export const searchRouter = t.router({
         lens: input.lens,
       }),
     ),
+
+  // Is the caller's own vector search paused for an embedding rebuild? The vector role rows read it.
+  spaceStatus: authedProcedure.output(searchSpaceStatusSchema).query(({ ctx }) => ctx.services.search.spaceStatus({ ownerId: ctx.auth.userId })),
 });

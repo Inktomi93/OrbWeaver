@@ -1,9 +1,9 @@
-// funnel/resolve-embed — embed admission (§10): exact width ⇒ nothing; wider + MRL ⇒ `dimensions`; wider
-// non-MRL ⇒ client-side `truncateTo`; NARROWER ⇒ refused (a padded vector poisons the store, #1635); an
-// instruction rides only on an instruction-aware model, else a warning.
+// funnel/resolve-embed — the embed width rule: the owner's space is the embedder's own stated width, so
+// nothing is padded. An MRL model is asked for its stated width (which is how a declared shorter width is
+// honoured); any other model is never shortened and is taken at the width it returns. An instruction rides
+// only on an instruction-aware model, else a warning.
 
 import type { EmbeddingCapability } from "@orb/contracts/inference";
-import { ProviderError } from "../../../packages/inference/src/contract/errors.ts";
 import { resolveEmbed } from "../../../packages/inference/src/funnel/resolve-embed.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -11,35 +11,24 @@ function cap(dims: number, mrl: boolean, instructionAware = false): EmbeddingCap
   return { dims, mrl, maxInputTokens: 8192, input: ["text"], output: ["vector"], instructionAware };
 }
 
-test("exact width asks for nothing", () => {
-  expect(resolveEmbed({}, cap(1024, false), 1024)).toEqual({ warnings: [] });
+test("an MRL model is asked for its stated width, so a declared shorter width reaches the wire", () => {
+  expect(resolveEmbed({}, cap(3072, true))).toEqual({ dimensions: 3072, warnings: [] });
+  expect(resolveEmbed({}, cap(512, true))).toEqual({ dimensions: 512, warnings: [] });
 });
 
-test("a wider MRL model is asked for the space width; a wider non-MRL model is truncated client-side", () => {
-  expect(resolveEmbed({}, cap(2048, true), 1024)).toEqual({ dimensions: 1024, warnings: [] });
-  expect(resolveEmbed({}, cap(1536, false), 1024)).toEqual({ truncateTo: 1024, warnings: [] });
+test("a non-MRL model is never asked for or cut to a width", () => {
+  expect(resolveEmbed({}, cap(1536, false))).toEqual({ warnings: [] });
 });
 
-function caught(fn: () => unknown): unknown {
-  let thrown: unknown;
-  try {
-    fn();
-  } catch (err) {
-    thrown = err;
-  }
-  return thrown;
-}
-
-test("a narrower model is refused up front — never padded", () => {
-  const err = caught(() => resolveEmbed({}, cap(768, true), 1024));
-  expect(err).toBeInstanceOf(ProviderError);
-  expect(err).toMatchObject({ kind: "invalid", retryable: false });
+test("a narrower embedder is admitted at its own width", () => {
+  expect(resolveEmbed({}, cap(384, false))).toEqual({ warnings: [] });
+  expect(resolveEmbed({}, cap(768, true))).toEqual({ dimensions: 768, warnings: [] });
 });
 
 test("instruction and inputType ride per the capability", () => {
-  const aware = resolveEmbed({ instruction: "Represent the query", inputType: "query" }, cap(1024, false, true), 1024);
+  const aware = resolveEmbed({ instruction: "Represent the query", inputType: "query" }, cap(1024, false, true));
   expect(aware).toEqual({ instruction: "Represent the query", inputType: "query", warnings: [] });
-  const deaf = resolveEmbed({ instruction: "Represent the query" }, cap(1024, false, false), 1024);
+  const deaf = resolveEmbed({ instruction: "Represent the query" }, cap(1024, false, false));
   expect(deaf.instruction).toBeUndefined();
   expect(deaf.warnings.map((w) => w.code)).toEqual(["sampling_knob_dropped"]);
 });

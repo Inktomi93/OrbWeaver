@@ -48,24 +48,26 @@ describe("store — card-text (character_embeddings)", () => {
       precomputedEmbedding: (candidate, model, kind) =>
         candidate === hash && model === EMBED_MODEL && kind === "card-text" ? { model, vector: new Float32Array(fakeVector(EMBED_DIM)) } : null,
     });
-    await svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: CARD_TEXT, model: "stale-caller-space", dim: EMBED_DIM });
+    await svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: CARD_TEXT, model: "stale-caller-space" });
     expect(h.roleClients.embed).not.toHaveBeenCalled();
     expect((await db.select().from(characterEmbeddings))[0]).toMatchObject({ model: EMBED_MODEL, contentHash: hash, dim: EMBED_DIM });
-    await svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: `${CARD_TEXT} edited`, model: EMBED_MODEL, dim: EMBED_DIM });
+    await svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: `${CARD_TEXT} edited`, model: EMBED_MODEL });
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
   });
 
-  test("a malformed seed vector cannot bypass the store dimension tripwire", async () => {
+  // A seed is made at the encoder's native width; one that is not the generation's width is never written. The
+  // card embeds live instead, so a declared narrower width still indexes.
+  test("a seed vector of another width is never written; the card embeds live at the generation's width", async () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const ownerId = await seedUser(db, { handle: castId<Handle>("seed-dimension") });
     const characterId = await seedCharacter(db, ownerId);
     const svc = createEmbeddingsService({ ...h.ctx, precomputedEmbedding: (_hash, model) => ({ model, vector: new Float32Array(2) }) });
-    await expect(
-      svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: CARD_TEXT, model: EMBED_MODEL, dim: EMBED_DIM }),
-    ).rejects.toBeInstanceOf(SpaceMismatchError);
-    expect(await db.select().from(characterEmbeddings)).toHaveLength(0);
-    expect(h.roleClients.embed).not.toHaveBeenCalled();
+    await expect(svc.store({ kind: "card", lens: "card-text", ownerId, characterId, content: CARD_TEXT, model: EMBED_MODEL })).resolves.toMatchObject({
+      outcome: "written",
+    });
+    expect((await db.select({ dim: characterEmbeddings.dim }).from(characterEmbeddings)).map((row) => row.dim)).toEqual([EMBED_DIM]);
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
   });
   test("concurrent deliveries of one card share inference before the hash gate commits", async () => {
     const db = await freshDb();
@@ -91,7 +93,7 @@ describe("store — card-text (character_embeddings)", () => {
       usage: { promptTokens: null, totalTokens: null },
     });
 
-    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: "stale-snapshot-model", dim: EMBED_DIM, ownerId: owner });
+    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: "stale-snapshot-model", ownerId: owner });
 
     const row = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
     expect(row?.model).toBe("actual-live-model");
@@ -110,7 +112,6 @@ describe("store — card-text (character_embeddings)", () => {
       characterId,
       content: CARD_TEXT,
       model: EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
 
@@ -169,7 +170,6 @@ describe("store — card-text (character_embeddings)", () => {
       characterId,
       content: CARD_TEXT,
       model: EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
     const second = await svc.store({
@@ -178,7 +178,6 @@ describe("store — card-text (character_embeddings)", () => {
       characterId,
       content: `${CARD_TEXT} (edited)`,
       model: EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
 
@@ -209,7 +208,6 @@ describe("store — card-text (character_embeddings)", () => {
         characterId,
         content: CARD_TEXT,
         model: EMBED_MODEL,
-        dim: EMBED_DIM,
         ownerId: owner,
       }),
     ).rejects.toBeInstanceOf(SpaceMismatchError);
@@ -237,7 +235,6 @@ describe("store — card-text (character_embeddings)", () => {
         characterId,
         content: CARD_TEXT,
         model: EMBED_MODEL,
-        dim: EMBED_DIM,
         ownerId: owner,
       }),
     ).rejects.toBeInstanceOf(EmbedFailedError);
@@ -257,7 +254,6 @@ describe("store — card-text (character_embeddings)", () => {
       characterId,
       content: CARD_TEXT,
       model: EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
     const written = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
@@ -273,7 +269,6 @@ describe("store — card-text (character_embeddings)", () => {
       characterId,
       content: `${CARD_TEXT} (edited again)`,
       model: EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
     const after = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];
@@ -295,7 +290,6 @@ describe("store — image lenses (image_embeddings)", () => {
       assetId,
       content: IMG,
       model: IMAGE_EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
 
@@ -321,7 +315,6 @@ describe("store — image lenses (image_embeddings)", () => {
       assetId,
       content: IMG,
       model: IMAGE_EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
     await svc.store({
@@ -333,7 +326,6 @@ describe("store — image lenses (image_embeddings)", () => {
       caption: TEST_CAPTION,
       captionMeta: { model: "captioner" },
       model: IMAGE_EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
 
@@ -373,7 +365,6 @@ describe("store — image lenses (image_embeddings)", () => {
       caption: TEST_CAPTION,
       captionMeta: { model: "captioner" },
       model: EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
 
@@ -408,7 +399,6 @@ describe("store — image lenses (image_embeddings)", () => {
       caption: "   \n  ", // whitespace-only ≡ empty (the summarizer produced nothing usable)
       captionMeta: { model: "captioner" },
       model: IMAGE_EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
 
@@ -428,7 +418,6 @@ describe("store — image lenses (image_embeddings)", () => {
       caption: TEST_CAPTION,
       captionMeta: { model: "captioner" },
       model: IMAGE_EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
     expect(written.outcome).toBe("written");
@@ -465,7 +454,6 @@ describe("store — the chat-block digest lens", () => {
       speakerCharacterIds: [scoped],
       contentHash: "precomputed-digest-hash",
       model: EMBED_MODEL,
-      dim: EMBED_DIM,
       ownerId: owner,
     });
 
@@ -690,7 +678,6 @@ describe("store — chunk (document_chunks, the 5th arm)", () => {
         lens: "chunk",
         content: "x",
         model: EMBED_MODEL,
-        dim: EMBED_DIM,
         fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: 1 },
         ownerId: owner,
       }),
@@ -722,11 +709,11 @@ describe("store — a local-light dtype change is a space change (#2417)", () =>
     // provider REPORTS for a produced vector (the stored `model` column, issue-724) and never reaches it.
     h.embedDtypeAs("q8");
     embedAs(h, q8Space);
-    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, dim: EMBED_DIM, ownerId: owner });
+    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, ownerId: owner });
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
 
     // Re-running in the SAME space short-circuits: identical bytes, identical geometry, nothing to redo.
-    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, dim: EMBED_DIM, ownerId: owner });
+    await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: q8Space, ownerId: owner });
     expect(h.roleClients.embed).toHaveBeenCalledTimes(1);
 
     // Now the operator selects fp32. Same character, same text — different encoder, so the gate must NOT
@@ -735,13 +722,13 @@ describe("store — a local-light dtype change is a space change (#2417)", () =>
     expect(fp32Space).not.toBe(q8Space);
     h.embedDtypeAs("fp32");
     embedAs(h, fp32Space);
-    const reindexed = await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: fp32Space, dim: EMBED_DIM, ownerId: owner });
+    const reindexed = await svc.store({ kind: "card", lens: "card-text", characterId, content: CARD_TEXT, model: fp32Space, ownerId: owner });
 
     expect(reindexed.outcome).toBe("written");
-    expect(h.roleClients.embed).toHaveBeenCalledTimes(2);
-    // Additive, never overwritten in place — the retired space survives until its generation is promoted
-    // Additive, never overwritten in place — the retired space survives until its generation is promoted
+    // The original embed, the width probe that precedes the switch, and the re-embed.
+    expect(h.roleClients.embed).toHaveBeenCalledTimes(3);
+    // The switch to the new generation deleted the old space's row: the index never holds both.
     const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
-    expect(rows.map((r) => r.model).toSorted()).toEqual([fp32Space, q8Space].toSorted());
+    expect(rows.map((r) => r.model)).toEqual([fp32Space]);
   });
 });

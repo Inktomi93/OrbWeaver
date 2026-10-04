@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { EMBED_DIM, EMBED_MODEL, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
+import { EMBED_MODEL, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
 async function storeChunk(svc: ReturnType<typeof createEmbeddingsService>, documentId: DocumentId, chunkIdx: number, ownerId: UserId): Promise<void> {
   await svc.store({
@@ -17,7 +17,6 @@ async function storeChunk(svc: ReturnType<typeof createEmbeddingsService>, docum
     lens: "chunk",
     content: `chunk ${chunkIdx} content`,
     model: EMBED_MODEL,
-    dim: EMBED_DIM,
     fkRefs: { documentId, chunkIdx, charStart: chunkIdx * 10, charEnd: chunkIdx * 10 + 10 },
     ownerId,
   });

@@ -4,14 +4,22 @@
 // endpoint row carries a URL (a hosted one does not), the URL parses and passes the F12 admission, the
 // credential is the caller's, and the label is unique per owner (auto-minted `<provider> · <model>`,
 // collision-suffixed).
-// (§10-4) a write that moves one of the caller's vector SPACES re-raises the purge+reindex trigger
-// through `onEmbedSpaceChanged` — the settings-blob trigger this replaces enqueued the same workload. The
-// condition is a before/after comparison of the resolved space tags (`substrate/embed-space.ts`), NOT a
+// (§10-4) a write that moves one of the caller's vector SPACES onto a space that can embed awaits
+// `settleEmbedSpace`, which syncs the owner's stored target and queues the rebuild if it moved. The
+// filter is a before/after comparison of the resolved space tags (`substrate/embed-space.ts`), NOT a
 // column diff: the space is derived from the row's model AND its resolved capability, so a provider or
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ModelCheck, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import { CONNECTION_LABEL_SEPARATOR, CONNECTION_OP_CODES, connectionTasks, isHubModelId, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
+import {
+  CONNECTION_LABEL_SEPARATOR,
+  CONNECTION_OP_CODES,
+  connectionTasks,
+  EMBED_SPACE_FIELDS,
+  isHubModelId,
+  modelIdSchema,
+  providerDisplayLabel,
+} from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { nextFreeLabel } from "@orb/kit/strings";
@@ -19,18 +27,22 @@ import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { CreateConnectionParams, UpdateConnectionParams } from "../contract/params.ts";
 import type { ConnectionView, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
-import { listBindingsForActor } from "../persistence/bindings.ts";
+import { lookupBinding } from "../persistence/bindings.ts";
 import {
   deleteOwnedConnection,
   fetchOwnedConnection,
   insertConnection,
   listOwnedConnections,
   listOwnedLabels,
+  restoreOwnedConnectionIf,
   updateOwnedConnection,
 } from "../persistence/connections.ts";
 import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
-import { spacesDiffer, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
+import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
+import type { createOwnerWriteQueue } from "../substrate/owner-queue.ts";
+
+type OwnerWriteQueue = ReturnType<typeof createOwnerWriteQueue>;
 
 function requireLabel(raw: string): string {
   const label = raw.trim();
@@ -93,13 +105,6 @@ async function requireOwnedRow(ctx: ConnectionContext, ownerId: UserId, connecti
     throw new ConnectionNotFoundError(connectionId);
   }
   return row;
-}
-
-/** Is this row bound to a VECTOR task by the owner's `user` bindings? `remove` asks this BEFORE the delete,
- *  because after it there is no row left to resolve a before/after space comparison through. */
-async function boundToVectorTask(ctx: ConnectionContext, ownerId: UserId, connectionId: UserConnectionId): Promise<boolean> {
-  const bindings = await listBindingsForActor(ctx.db, { actorKind: "user", actorId: ownerId });
-  return bindings.some((binding) => binding.connectionId === connectionId && VECTOR_TASKS.includes(binding.task));
 }
 
 function createList(ctx: ConnectionContext): ConnectionService["list"] {
@@ -175,6 +180,20 @@ function declaredPatch(row: UserConnection, model: ModelId, declared: UpdateConn
   return { declared: Object.keys(kept).length === 0 ? null : kept };
 }
 
+type IdentityColumns = Pick<UserConnection, "providerId" | "credentialId" | "baseUrl" | "model" | "api">;
+
+/** The validated identity columns the patch names, and only those. The row was read before the awaited checks, so
+ *  writing an unnamed column back from it would revert a write that landed meanwhile. */
+function namedIdentityColumns(patch: UpdateConnectionParams["patch"], values: IdentityColumns): Partial<IdentityColumns> {
+  return {
+    ...(patch.providerId !== undefined ? { providerId: values.providerId } : {}),
+    ...(patch.credentialId !== undefined ? { credentialId: values.credentialId } : {}),
+    ...(patch.baseUrl !== undefined ? { baseUrl: values.baseUrl } : {}),
+    ...(patch.model !== undefined ? { model: values.model } : {}),
+    ...(patch.api !== undefined ? { api: values.api } : {}),
+  };
+}
+
 /** The columns a patch may write, re-validated against the row's (possibly patched) provider. */
 async function validatedPatch(
   ctx: ConnectionContext,
@@ -197,11 +216,7 @@ async function validatedPatch(
   }
   return {
     ...(patch.label !== undefined ? { label: requireLabel(patch.label) } : {}),
-    providerId: provider.id,
-    credentialId,
-    baseUrl,
-    model,
-    api,
+    ...namedIdentityColumns(patch, { providerId: provider.id, credentialId, baseUrl, model, api }),
     ...declaredPatch(row, model, patch.declared),
     ...(patch.extras !== undefined ? { extras: patch.extras } : {}),
     ...(patch.transport !== undefined ? { transport: patch.transport } : {}),
@@ -211,54 +226,123 @@ async function validatedPatch(
   };
 }
 
-function createUpdate(ctx: ConnectionContext): ConnectionService["update"] {
+/** The row's own values for every column a patch writes: what undoing that patch writes back. */
+function priorColumns(row: UserConnection, patch: Partial<UserConnection>): Partial<UserConnection> {
+  return Object.fromEntries(Object.keys(patch).map((column) => [column, row[column as keyof UserConnection]]));
+}
+
+/** Is the row the owner's own text or picture embedder? Only then can its write move the owner's embed space. */
+async function backsVectorRole(ctx: ConnectionContext, ownerId: UserId, connectionId: UserConnectionId): Promise<boolean> {
+  const actor = { actorKind: "user", actorId: ownerId } as const;
+  for (const task of VECTOR_TASKS) {
+    if ((await lookupBinding(ctx.db, actor, task))?.connectionId === connectionId) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Run a row removal in the owner's write queue when the row backs a vector role, so it cannot land inside another
+ *  write's probe; a removal moves no space, so an unbound row's is made at once. */
+async function rowWrite<T>(
+  ctx: ConnectionContext,
+  ownerWrites: OwnerWriteQueue,
+  target: { readonly ownerId: UserId; readonly connectionId: UserConnectionId },
+  write: () => Promise<T>,
+): Promise<T> {
+  return (await backsVectorRole(ctx, target.ownerId, target.connectionId)) ? await ownerWrites(target.ownerId, write) : await write();
+}
+
+/** The patch fields that can change what a vector role resolves to: the space's identity fields, and the credential,
+ *  which decides whether the row resolves at all. */
+const SPACE_PATCH_FIELDS = [...EMBED_SPACE_FIELDS, "credentialId"] as const satisfies readonly (keyof UpdateConnectionParams["patch"])[];
+
+/** An update that can change an embed space waits its turn in the owner's write queue, and only there asks whether a
+ *  vector role reads the row: asked before, a binding of the row could land between the answer and the write, leaving
+ *  an unprobed width on a bound row. Any other update (a label, a switch) changes nothing a probe checks, so it is
+ *  written at once and never waits on a slow embedder check. */
+function createUpdate(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionService["update"] {
   return async (params: UpdateConnectionParams): Promise<ConnectionView> => {
     const ownerId = params.principal.userId;
-    const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
-    const patch = await validatedPatch(ctx, ownerId, row, params.patch);
-    // Snapshot BEFORE the write: after it, "what did this used to resolve to" is unanswerable.
-    const before: EmbedSpaces = await vectorSpacesOf(ctx, params.principal);
-    const now = ctx.now();
-    await updateOwnedConnection(ctx.db, ownerId, row.id, { ...patch, updatedAt: now });
-    await ctx.audit(
-      { actorUserId: ownerId, action: "connection.update", entityType: "connection", entityId: row.id, metadata: { fields: Object.keys(params.patch) } },
-      now,
-    );
-    if (spacesDiffer(before, await vectorSpacesOf(ctx, params.principal))) {
-      ctx.onEmbedSpaceChanged(ownerId);
+    if (!SPACE_PATCH_FIELDS.some((field) => params.patch[field] !== undefined)) {
+      return await updateRow(ctx, params, false);
     }
-    const saved = await requireOwnedRow(ctx, ownerId, row.id);
-    // A save is the user's "ask the server again": the row's advertised facts are re-read on its next resolve.
-    await ctx.runtime.catalogs.invalidateEndpoint(saved);
-    ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
-    return toView(ctx, saved);
+    return await ownerWrites(ownerId, async () => await updateRow(ctx, params, await backsVectorRole(ctx, ownerId, params.connectionId)));
   };
 }
 
-function createRemove(ctx: ConnectionContext): ConnectionService["remove"] {
-  return async (params): Promise<void> => {
-    const ownerId = params.principal.userId;
-    const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
-    const wasVector = await boundToVectorTask(ctx, ownerId, row.id);
-    await deleteOwnedConnection(ctx.db, ownerId, row.id);
-    await ctx.audit({ actorUserId: ownerId, action: "connection.remove", entityType: "connection", entityId: row.id }, ctx.now());
-    if (wasVector) {
-      ctx.onEmbedSpaceChanged(ownerId);
-    }
-    ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
-  };
+async function updateRow(ctx: ConnectionContext, params: UpdateConnectionParams, backsVector: boolean): Promise<ConnectionView> {
+  const ownerId = params.principal.userId;
+  const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
+  const patch = await validatedPatch(ctx, ownerId, row, params.patch);
+  const now = ctx.now();
+  if (backsVector) {
+    await updateVectorRow(ctx, params.principal, { row, patch, now });
+  } else {
+    // No vector role reads this row, so its write cannot move a space; resolving the bound embedder to compare would
+    // dial that embedder's host for nothing.
+    await updateOwnedConnection(ctx.db, ownerId, row.id, { ...patch, updatedAt: now });
+  }
+  await ctx.audit(
+    { actorUserId: ownerId, action: "connection.update", entityType: "connection", entityId: row.id, metadata: { fields: Object.keys(params.patch) } },
+    now,
+  );
+  const saved = await requireOwnedRow(ctx, ownerId, row.id);
+  // A save is the user's "ask the server again": the row's advertised facts are re-read on its next resolve.
+  await ctx.runtime.catalogs.invalidateEndpoint(saved);
+  ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
+  return toView(ctx, saved);
+}
+
+/** Write a row a vector role reads, and settle the embed space it may have moved: refused, the write is undone. */
+async function updateVectorRow(
+  ctx: ConnectionContext,
+  principal: UpdateConnectionParams["principal"],
+  write: { readonly row: UserConnection; readonly patch: Partial<UserConnection>; readonly now: number },
+): Promise<void> {
+  const { row, patch, now } = write;
+  const ownerId = principal.userId;
+  // Snapshot BEFORE the write: after it, "what did this used to resolve to" is unanswerable.
+  const before: EmbedSpaces = await vectorSpacesOf(ctx, principal);
+  await updateOwnedConnection(ctx.db, ownerId, row.id, { ...patch, updatedAt: now });
+  try {
+    await settleEmbedSpace(ctx, {
+      ownerId,
+      before,
+      after: await vectorSpacesOf(ctx, principal),
+      undo: async () => {
+        await restoreOwnedConnectionIf(ctx.db, ownerId, row.id, { written: patch, prior: { ...priorColumns(row, patch), updatedAt: row.updatedAt } });
+      },
+    });
+  } catch (error) {
+    // The refused write's server was asked for its facts and may have failed; a retry once it is up must ask again.
+    await ctx.runtime.catalogs.invalidateEndpoint({ ...row, ...patch });
+    throw error;
+  }
+}
+
+function createRemove(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionService["remove"] {
+  return (params): Promise<void> =>
+    rowWrite(ctx, ownerWrites, { ownerId: params.principal.userId, connectionId: params.connectionId }, async () => {
+      const ownerId = params.principal.userId;
+      const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
+      // No embed-space trigger: the delete sets every binding on the row to nothing, and nothing can embed there.
+      await deleteOwnedConnection(ctx.db, ownerId, row.id);
+      await ctx.audit({ actorUserId: ownerId, action: "connection.remove", entityType: "connection", entityId: row.id }, ctx.now());
+      ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
+    });
 }
 
 /** The slice of `ConnectionService` this grouped file owns. */
 type ConnectionRowVerbs = Pick<ConnectionService, "list" | "get" | "create" | "update" | "remove">;
 
 /** The `user_connections` verb bundle (`verb-naming`: one factory named for the file). */
-export function createConnections(ctx: ConnectionContext): ConnectionRowVerbs {
+export function createConnections(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionRowVerbs {
   return {
     list: createList(ctx),
     get: createGet(ctx),
     create: createCreate(ctx),
-    update: createUpdate(ctx),
-    remove: createRemove(ctx),
+    update: createUpdate(ctx, ownerWrites),
+    remove: createRemove(ctx, ownerWrites),
   };
 }

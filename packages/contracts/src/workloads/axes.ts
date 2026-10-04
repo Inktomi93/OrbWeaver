@@ -52,6 +52,10 @@ export const indexSourceSchema = z.enum(INDEX_SOURCES) satisfies z.ZodType<Index
  *  DISTINCT in a unique index, so a nullable key would silently dissolve the single-active lock. */
 export const DEFAULT_ADMISSION_KEY = "none";
 
+/** Appended to an embed-scope sweep's admission key when an embedder change queued it: the rebuild holds its own
+ *  slot, so it never folds into a plain run of the same unit that pinned the old generation. */
+export const REBUILD_ADMISSION_KEY_SUFFIX = ":rebuild";
+
 /** How a workload RUN is scoped. `singular` = one authed user's own data. `bulk` = the box-owner-only
  *  global pass (a maintenance sweep across all owners, or — for a create-kind — a mint into a target). */
 export const WORKLOAD_MODES = ["singular", "bulk"] as const;

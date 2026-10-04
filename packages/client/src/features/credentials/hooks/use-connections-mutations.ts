@@ -7,7 +7,8 @@
 import type { RolePresetChoice } from "@orb/contracts/settings";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { createEntityMutation } from "#data";
+import { connectionWriteReads, createEntityMutation } from "#data";
+import { embedRefusalOf, embedRefusalText } from "#lib";
 
 type ConnectionView = inferOutput<Trpc["connection"]["get"]>;
 type DraftModelListing = inferOutput<Trpc["connection"]["draftCatalogModels"]>;
@@ -26,15 +27,19 @@ export const useCreateConnection = createEntityMutation<inferInput<Trpc["connect
 /** Delete a row — every binding on it SET-NULLs to `no-connection`; history keeps its attribution. */
 export const useRemoveConnection = createEntityMutation<inferInput<Trpc["connection"]["remove"]>, unknown>({
   options: (trpc) => trpc.connection.remove.mutationOptions(),
-  invalidates: connectionReads,
+  invalidates: connectionWriteReads,
   errorToast: "Couldn't remove that connection.",
 });
 
 /** §5.3a's one-click survivor: write every compatible `user` binding to this row at once. */
 export const useUseForEverything = createEntityMutation<inferInput<Trpc["connection"]["useForEverything"]>, unknown>({
   options: (trpc) => trpc.connection.useForEverything.mutationOptions(),
-  invalidates: connectionReads,
-  errorToast: "Couldn't apply that connection to your roles.",
+  invalidates: connectionWriteReads,
+  // An embedder refusal is the one reason the row cannot say itself (the action lives in a menu that has closed).
+  errorToast: (error) => {
+    const refusal = embedRefusalOf(error);
+    return refusal === null ? "Couldn't apply that connection to your roles." : embedRefusalText(refusal);
+  },
 });
 
 /** The add dialog's model list for a draft that has no row yet (§7.4): an endpoint's SERVER-SIDE

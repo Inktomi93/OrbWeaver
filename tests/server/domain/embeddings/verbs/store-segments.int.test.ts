@@ -41,7 +41,6 @@ function segment(chatId: SegmentStoreParams["chatId"], over: Partial<SegmentStor
     text: SEGMENT_TEXT,
     contentHash: "seg-h",
     model: EMBED_MODEL,
-    dim: EMBED_DIM,
     ...over,
   };
 }

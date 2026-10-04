@@ -20,6 +20,7 @@ import { createSegments } from "./verbs/segments.ts";
 import { createSimilarArt } from "./verbs/similar-art.ts";
 import { createSimilarCharacters } from "./verbs/similar-characters.ts";
 import { createSourceState } from "./verbs/source-state.ts";
+import { createSpaceStatus } from "./verbs/space-status.ts";
 
 export function createSearchService(ctx: SearchContext): SearchService {
   const knn = createKnn(ctx);
@@ -46,5 +47,6 @@ export function createSearchService(ctx: SearchContext): SearchService {
     similarCharacters: createSimilarCharacters(ctx),
     similarArt: createSimilarArt(ctx),
     search: createSearch(ctx, { knn, findCharacters, discover, corpus, images, segments, documents }, coverage),
+    spaceStatus: createSpaceStatus(ctx),
   };
 }

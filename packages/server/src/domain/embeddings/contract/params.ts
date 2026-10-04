@@ -45,7 +45,6 @@ export interface CardTextStoreParams extends EmbedAbortParams {
   readonly characterId: CharacterId;
   readonly content: string;
   readonly model: string;
-  readonly dim: number;
   /** Re-embed even when the stored `content_hash` matches. */
   readonly force?: boolean | undefined;
 }
@@ -58,7 +57,6 @@ export interface ImageRawStoreParams extends EmbedAbortParams {
   readonly assetId: AssetId;
   readonly content: Uint8Array;
   readonly model: string;
-  readonly dim: number;
   /** Re-embed even on a matched `content_hash`. */
   readonly force?: boolean | undefined;
 }
@@ -84,7 +82,6 @@ export interface ImageCaptionedStoreParams extends EmbedAbortParams {
    *  into a geometry nothing queries. */
   readonly via: "imageEmbed" | "embed";
   readonly model: string;
-  readonly dim: number;
   /** Re-embed even on a matched `content_hash`. */
   readonly force?: boolean | undefined;
 }
@@ -112,7 +109,6 @@ export interface SegmentStoreParams {
   /** Staleness/collapse key, precomputed by memory (per CHUNK — it folds the chunk's position + count). */
   readonly contentHash: string;
   readonly model: string;
-  readonly dim: number;
 }
 
 /** Embed an aged-out chat block's distilled digest. `text` is the distilled body — the embed input, the
@@ -138,12 +134,11 @@ export interface DigestStoreParams extends EmbedAbortParams {
   readonly speakerCharacterIds: readonly CharacterId[];
   readonly contentHash: string;
   readonly model: string;
-  readonly dim: number;
 }
 
 /** Embed a databank document chunk. `content` is the chunk slice (kit/chunk output,
- *  incl. any overlap prefix) — the embed input; the store hashes it for the staleness gate. `(model, dim)` is
- *  the caller-supplied active embed space; the `fkRefs` locate the chunk in its producer document. No
+ *  incl. any overlap prefix) — the embed input; the store hashes it for the staleness gate. `model` is
+ *  the caller-supplied active embed space (its width is the owner's generation's); the `fkRefs` locate the chunk in its producer document. No
  *  `ownerId` (D20 — owner derives via `documents.ownerId`); no `hubScore` (discovery-only). Unique key:
  *  `(documentId, chunkIdx, model)`. */
 export interface DocumentChunkStoreParams extends EmbedAbortParams {
@@ -152,7 +147,6 @@ export interface DocumentChunkStoreParams extends EmbedAbortParams {
   readonly ownerId: UserId;
   readonly content: string;
   readonly model: string;
-  readonly dim: number;
   readonly fkRefs: {
     readonly documentId: DocumentId;
     readonly chunkIdx: number;

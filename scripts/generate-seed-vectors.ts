@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { APP_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { createDb, runMigrations, settings } from "@orb/db";
 import { readSeedAvatar } from "@orb/default-content";
@@ -43,7 +43,7 @@ function add(
   result: { readonly model: string; readonly vectors: readonly (Float32Array | null)[] },
 ): void {
   const vector = result.vectors[0];
-  if (vector === null || vector === undefined || vector.length !== EMBED_SPACE_DIMS || !vector.every(Number.isFinite)) {
+  if (vector === null || vector === undefined || vector.length !== BUILT_IN_EMBED_DIMS || !vector.every(Number.isFinite)) {
     throw new Error(`No complete seed vector for ${source}`);
   }
   rows.push({ kind, source, hash: hash(content), model: result.model, dim: vector.length, vector: [...vector] });

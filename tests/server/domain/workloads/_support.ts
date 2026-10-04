@@ -7,6 +7,7 @@
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { WorkloadKind, WorkloadLane, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
@@ -48,7 +49,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
     // Only the contribution's params schema is read from this stub frame (see above).
     ...createEmbeddingsWorkloadContributions({
       // @orb-waive no-test-fabrication(never): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-      embeddings: { embedCorpus: stub({ embedded: 3, skipped: 1 }), embedAssets: stub({ embedded: 2, skipped: 0 }) } as never,
+      embeddings: { embedCorpus: stub({ embedded: 3, skipped: 1 }), embedAssets: stub({ embedded: 2, skipped: 0 }), targetSnapshot: stub("unmoved") } as never,
       // The terminal `corpusRecomputed` fan — discarded here; its behavior is pinned at the owning domain's
       // own contribution mirror, this frame only needs the params schemas.
       emitUserEvent: () => undefined,
@@ -102,6 +103,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       // The #156 admission precondition's read — the ONE dep here whose VALUE matters to a verb test, since
       // `memory-backfill` refuses enqueue when memory is off for the row's owner.
       isMemoryEnabled: stub(opts.memoryEnabled ?? true),
+      targetSnapshot: stub("unmoved"),
     }),
     // Only the contribution's params schema is read from this stub frame (see above).
     ...createDatabankWorkloadContributions({
@@ -109,6 +111,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       databankIngest: { ingestDocument: stub({}), reindex: stub({}) } as never,
       beginDocumentVectorSweep: stub([]),
       purgeDocumentVectors: stub(undefined),
+      targetSnapshot: stub("unmoved"),
     }),
     ...createImportWorkloadContributions({
       stagingRoot: "/tmp/orb-test-staging",
@@ -135,7 +138,11 @@ export function contributionsWith<K extends WorkloadKind>(kind: K, run: Workload
 }
 
 /** A `WorkloadService` over a real db with the frozen clock + a deterministic sequential id minter. */
-export function makeService(db: Db, contributions: WorkloadContributions = fakeContributions()): WorkloadService {
+export function makeService(
+  db: Db,
+  contributions: WorkloadContributions = fakeContributions(),
+  emitUserEvent: EmitUserEvent = () => undefined,
+): WorkloadService {
   let n = 0;
   const newWorkloadId = (): WorkloadId => {
     n += 1;
@@ -155,6 +162,7 @@ export function makeService(db: Db, contributions: WorkloadContributions = fakeC
     requireOwner,
     isAdmin,
     isOwner,
+    emitUserEvent,
   });
 }
 

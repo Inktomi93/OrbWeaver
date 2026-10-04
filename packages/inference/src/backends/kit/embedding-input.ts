@@ -12,17 +12,25 @@ function toChatMlPrompt(text: string, instruction: string): string {
   return `<|im_start|>system\n${instruction}<|im_end|>\n<|im_start|>user\n${text}<|im_end|>\n<|im_start|>assistant\n`;
 }
 
-/** MRL truncation down; a REFUSAL for a narrower vector (#1635 — padding invents coordinates). */
-export function fitToDim(vec: readonly number[], dim: number | undefined, prefix: string): Float32Array<ArrayBuffer> {
-  if (dim !== undefined && vec.length < dim) {
+/** The width a returned vector must have, and whether the model's vectors may be cut down to it. */
+export interface VectorFit {
+  readonly dims: number;
+  readonly mrl: boolean;
+}
+
+/** Fit a returned vector to the space width: only an MRL model's longer vector is cut (its prefix is a valid
+ *  shorter embedding); any other mismatch is refused, because padding invents coordinates and cutting a
+ *  non-MRL vector discards meaning. */
+export function fitToDim(vec: readonly number[], fit: VectorFit, prefix: string): Float32Array<ArrayBuffer> {
+  if (vec.length !== fit.dims && !(fit.mrl && vec.length > fit.dims)) {
     throw new ProviderError({
       kind: "invalid",
       retryable: false,
-      message: `${prefix}: the model returned a ${vec.length}-wide vector, narrower than the ${dim} the space admits`,
+      message: `${prefix}: the model returned a ${vec.length}-wide vector, but the connection states ${fit.dims}${fit.mrl ? "" : " and the model cannot be shortened"}; set the vector width under Advanced to what the model makes`,
+      width: { stated: fit.dims, measured: vec.length },
     });
   }
-  const sliced = dim !== undefined && vec.length > dim ? vec.slice(0, dim) : vec;
-  return l2Normalize(Float32Array.from(sliced)) as Float32Array<ArrayBuffer>;
+  return l2Normalize(Float32Array.from(vec.length > fit.dims ? vec.slice(0, fit.dims) : vec)) as Float32Array<ArrayBuffer>;
 }
 
 /** The prompt one input embeds as: the scaffold + instruction the capability says the model was trained on. */

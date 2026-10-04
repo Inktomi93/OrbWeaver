@@ -131,6 +131,8 @@ export interface PaneStubOptions {
   readonly role?: (typeof USER_ROLES)[number];
   /** The deployment's private-endpoint allowlist. A `settings.updateAppSettings` that writes it replaces it. */
   readonly allowlist?: readonly string[];
+  /** Replaces `connection.embedSpaceChangePreview`; the default backs no stored index. */
+  readonly reindexPreview?: TrpcWireOutput<"connection.embedSpaceChangePreview">;
 }
 
 /** A passing sign-in check, as the agent-sdk backend answers it. */
@@ -181,6 +183,15 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     "connection.catalogModels": opts.catalogModels ?? catalogOf([]),
     "connection.draftCatalogModels": opts.draftCatalogModels ?? catalogOf([]),
     "connection.useForEverything": [],
+    // The pane's Model roles section reads the Utility preset picker and the memory settings.
+    "preset.list": () => [],
+    "settings.getUserSettings": () => userSettingsView(),
+    // The embedding rows read the viewer's embedder rebuild from the job list, and whether search is paused for it.
+    "workloads.list": () => [],
+    "search.spaceStatus": () => ({ paused: false, embed: false, imageEmbed: false }),
+    // An embedder change first asks whether it would rebuild the index; by default these rows back no stored index.
+    "connection.embedSpaceChangePreview": () =>
+      opts.reindexPreview ?? { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },
     // The first-model step's writes: a patch lands on the stateful row, a role write echoes its binding.
     "connection.update": ({ connectionId, patch }) => {
       const index = connections.findIndex((row) => row.id === connectionId);
@@ -202,9 +213,6 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
       connectionId,
     }),
     "connection.verifyAuth": opts.verifyAuth ?? SIGNED_IN,
-    // Model roles' Utility preset picker, which the pane renders beside the list: no presets, every default.
-    "preset.list": () => [],
-    "settings.getUserSettings": () => userSettingsView(),
     "settings.getAppSettingsWithOverrides": () => ({
       resolved: { privateEndpointAllowlist: [...allowlist] },
       overrides: { privateEndpointAllowlist: null },

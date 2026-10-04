@@ -83,11 +83,6 @@ test("requirementMet names every missing clause; a satisfied requirement is ok",
     embedding: { dims: 1024, mrl: true, maxInputTokens: 512, input: ["text"], output: ["vector"], instructionAware: false },
   };
   expect(requirementMet(embedding, { output: ["image"] }).ok).toBe(false);
-  expect(requirementMet(embedding, { dims: 1024 })).toEqual({ ok: true });
-  // A wider MRL model FITS a narrower space (it truncates); a narrower model never fits (it would pad).
-  expect(requirementMet(embedding, { dims: 768 })).toEqual({ ok: true });
-  const narrow: Capability = { kind: "embedding", embedding: { ...embedding.embedding, dims: 512 } };
-  expect(requirementMet(narrow, { dims: 1024 })).toEqual({ ok: false, missing: ["dims:1024"] });
 });
 
 test("foldFeatures: connection > provider row > wire default, field-wise", () => {

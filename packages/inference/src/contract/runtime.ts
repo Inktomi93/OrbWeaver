@@ -206,7 +206,6 @@ export interface InferenceDeps {
     readonly sessionWriter?: SessionEntryWriter | undefined;
   };
   readonly userRuntimeDir: (ownerId: UserId, tool: "claude") => string;
-  readonly embedSpace: { readonly dims: number };
   readonly localLight?:
     | {
         readonly cacheDir?: string | undefined;

@@ -6,7 +6,7 @@
 // The entry root wires these; transport/tests reference them directly.
 export type { EmbeddingsContext } from "./context.ts";
 export { EmbedFailedError, SpaceMismatchError } from "./contract/errors.ts";
-export type { GenerationReceipt } from "./contract/generation.ts";
+export type { EmbedMoveRefusal, GenerationReceipt } from "./contract/generation.ts";
 export type { EmbeddingsHandoffRestampContext, HandoffRestampPair, HandoffRestampStatements } from "./contract/handoff-restamp.ts";
 // Consumed by `discovery` + `search` + tests, not just this domain.
 export type { VectorTable } from "./contract/params.ts";

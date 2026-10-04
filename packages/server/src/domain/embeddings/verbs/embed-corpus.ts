@@ -3,22 +3,18 @@
 // (force bypasses it); cooperative abort between items and at the embed's wait on the model, every completed
 // item durable + idempotent; an embed failure (an abort mid-embed included) propagates so the rerun resumes.
 //
-// This is the REINDEX half of purge+reindex. After a full BULK sweep re-embeds every card into the
-// box's active `(model, dim)` space, it PURGES `character_embeddings` rows left in any OTHER space (an
-// old-model change strands them; the uniform `(characterId, model)` upsert key means the new space was
-// written additively beside the old, never overwriting it). The purge is PER OWNER (vector tasks are
-// owner-scoped, §7.5): every owner the sweep touched has their own stale rows reclaimed against their own
-// `embed` binding — a bulk pass covers every owner, a singular pass exactly one, and neither can reach a
-// neighbour's live space. On an abort the purge is skipped — the space stays a strict superset (never a gap);
-// the rerun reclaims it.
+// This is the REINDEX half of purge+reindex. The purge already happened when the owner's target moved to a
+// new generation (`persistence/space-state.ts` `switchTargetGeneration`), so this sweep only refills the
+// cards. A complete sweep records the `cards` scope's completion per owner (vector tasks are owner-scoped,
+// §7.5); an aborted one records nothing, leaves a partial new-generation index, and the rerun finishes it.
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { GenerationSupersededError } from "#kit/embedding-generation";
 import type { EmbeddingsContext } from "../context.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
-import { markGenerationComplete } from "../persistence/space-state.ts";
-import { resolveTargetGeneration } from "../substrate/generation.ts";
+import { completeGenerationScope, resolveTargetGeneration } from "../substrate/generation.ts";
 import { requireTaskModel } from "../substrate/task-model.ts";
 
 /** One card's sweep step: no text or no owner/embed binding ⇒ skipped (a card whose owner has no `embed`
@@ -45,25 +41,25 @@ async function embedOneCard(
     characterId,
     content: text,
     model: embedModel,
-    dim: ctx.embedDim,
     force: sweep.force,
     signal: sweep.signal,
   });
   const prior = sweep.receipts.get(cardOwnerId);
   if (prior !== undefined && prior.generationId !== result.generationId) {
-    throw new Error(`embedding generation changed during card sweep for owner ${cardOwnerId}`);
+    throw new GenerationSupersededError(cardOwnerId, "card");
   }
   sweep.receipts.set(cardOwnerId, result);
   return result.outcome === "written" ? "written" : "skipped";
 }
 
 export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store: EmbeddingsService["store"] }): EmbeddingsService["embedCorpus"] {
-  return async ({ force, signal, ownerId }: EmbedPassParams): Promise<BulkEmbedResult> => {
+  return async ({ force, signal, ownerId, onProgress }: EmbedPassParams): Promise<BulkEmbedResult> => {
     let embedded = 0;
     let skipped = 0;
     // Every owner the sweep resolved, with the space it embedded into — the purge set.
     const receipts = new Map<UserId, StoreResult>();
-    for (const characterId of await ctx.listCharacterIds(ownerId)) {
+    const characterIds = await ctx.listCharacterIds(ownerId);
+    for (const characterId of characterIds) {
       if (signal.aborted) {
         break;
       }
@@ -72,9 +68,9 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
       } else {
         skipped += 1;
       }
+      onProgress?.(embedded + skipped, characterIds.length);
     }
-    // Purge (reclaim each touched owner's old space) — only after a complete sweep, never on abort.
-    // A no-op for an owner whose embed binding did not change since the last index.
+    // Only a complete sweep may claim the `cards` scope; an aborted one leaves the space moving.
     if (!signal.aborted) {
       await completeCardSweep(ctx, ownerId, receipts);
     }
@@ -86,13 +82,13 @@ async function completeCardSweep(ctx: EmbeddingsContext, ownerId: UserId | null,
   for (const [spaceOwnerId, receipt] of receipts) {
     const generation = await resolveTargetGeneration(ctx, spaceOwnerId, "embed");
     if (generation !== null && generation.id === receipt.generationId && generation.epoch === receipt.generationEpoch) {
-      await markGenerationComplete(ctx.db, { ownerId: spaceOwnerId, scope: "cards", generation, now: ctx.now() });
+      await completeGenerationScope(ctx, { ownerId: spaceOwnerId, scope: "cards", generation });
     }
   }
   if (ownerId !== null && !receipts.has(ownerId)) {
     const generation = await resolveTargetGeneration(ctx, ownerId, "embed");
     if (generation !== null) {
-      await markGenerationComplete(ctx.db, { ownerId, scope: "cards", generation, now: ctx.now() });
+      await completeGenerationScope(ctx, { ownerId, scope: "cards", generation });
     }
   }
 }

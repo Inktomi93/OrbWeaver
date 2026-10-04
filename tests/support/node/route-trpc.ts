@@ -332,6 +332,8 @@ interface TrpcErrorMarker {
   /** The honest domain reason code the real error formatter rides on `data.reason` (a DomainOperationError's
    *  `.code`) — modelled here so a CT can drive a client mapper that keys on it (e.g. `duplicate_name`). */
   readonly reason?: string;
+  /** The refusal's stated facts the formatter rides on `data.detail` (a DomainOperationError's `.detail`). */
+  readonly detail?: Readonly<Record<string, string | number | boolean>>;
 }
 
 /**
@@ -339,13 +341,31 @@ interface TrpcErrorMarker {
  * succeed scripts close over a counter: `echo: () => (n++ === 0 ? trpcError() : data)`. Pass `reason` to
  * model a DomainOperationError's `data.reason` code (the wire field a client inline-error mapper reads).
  */
-export function trpcError(opts: { readonly code?: TrpcErrorCode; readonly message?: string; readonly reason?: string } = {}): TrpcErrorMarker {
+export function trpcError(
+  opts: {
+    readonly code?: TrpcErrorCode;
+    readonly message?: string;
+    readonly reason?: string;
+    readonly detail?: Readonly<Record<string, string | number | boolean>>;
+  } = {},
+): TrpcErrorMarker {
   return {
     [ERROR_MARK]: true,
     code: opts.code ?? "INTERNAL_SERVER_ERROR",
     message: opts.message ?? "scripted CT failure",
     ...(opts.reason === undefined ? {} : { reason: opts.reason }),
+    ...(opts.detail === undefined ? {} : { detail: opts.detail }),
   };
+}
+
+/** A scripted failure as the real error formatter puts it on the wire. */
+function errorEnvelope(marker: TrpcErrorMarker): { readonly error: { readonly code: number; readonly message: string; readonly data: object } } {
+  const data = {
+    code: marker.code,
+    ...(marker.reason === undefined ? {} : { reason: marker.reason }),
+    ...(marker.detail === undefined ? {} : { detail: marker.detail }),
+  };
+  return { error: { code: errorNumber(marker.code), message: marker.message, data } };
 }
 
 function isTrpcError(value: unknown): value is TrpcErrorMarker {
@@ -536,8 +556,7 @@ export async function routeTrpc<const TRoutes extends object>(
         }
         data = unwrapTrpcWireEscape(data);
         if (isTrpcError(data)) {
-          const errorData = data.reason === undefined ? { code: data.code } : { code: data.code, reason: data.reason };
-          return { error: { code: errorNumber(data.code), message: data.message, data: errorData } };
+          return errorEnvelope(data);
         }
         // `data ?? null`: JSON can't carry undefined; unlisted procedures land here → {data:null}.
         return { result: { data: data ?? null } };

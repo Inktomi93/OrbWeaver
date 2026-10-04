@@ -96,6 +96,27 @@ export interface EmbedSpace {
  *  other routable task is `undefined` rather than a lie about a space it never resolved. */
 export type EmbedSpaces = Readonly<Partial<Record<RoutableTask, EmbedSpace | null>>>;
 
+/** What an embedder change would cost before it is made: whether it moves the owner to a new generation (which
+ *  deletes and rebuilds the index), and how many stored vectors per scope that rebuild covers. Scopes the change
+ *  does not touch read 0. */
+export interface EmbedSpaceChangePreview {
+  readonly reindex: boolean;
+  readonly stored: { readonly cards: number; readonly memory: number; readonly documents: number; readonly images: number };
+  /** The embedding calls the rebuild makes: one per stored vector it replaces. */
+  readonly embedCalls: number;
+  /** Whether a Utility model resolves: the switch deletes the chat digests, so memory re-summarizes through it. */
+  readonly utilityModelSet: boolean;
+}
+
+const storedCount = z.number().int().nonnegative();
+
+export const embedSpaceChangePreviewSchema = z.strictObject({
+  reindex: z.boolean(),
+  stored: z.strictObject({ cards: storedCount, memory: storedCount, documents: storedCount, images: storedCount }),
+  embedCalls: storedCount,
+  utilityModelSet: z.boolean(),
+}) satisfies z.ZodType<EmbedSpaceChangePreview>;
+
 export type { CredentialHealth } from "@orb/contracts/credentials";
 export type { ProviderAvailability } from "@orb/contracts/inference";
 

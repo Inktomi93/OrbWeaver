@@ -29,6 +29,7 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, between, eq, inArray, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import { isAborted } from "#kit/abort";
+import { GenerationSupersededError } from "#kit/embedding-generation";
 import type { ChatContext } from "../context.ts";
 import type { BackfillPassCounts, MemoryBackfillSweepCounts, MemoryEmbedSpace, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
 import type { MemorySweepArgs } from "../contract/workloads.ts";
@@ -156,13 +157,19 @@ interface PlanDeps {
   readonly funderUserId: UserId;
 }
 
+/** A cancel or a target move ends the whole sweep and propagates: the runner records the cancel, and the workload's
+ *  settle loop runs a superseded sweep again on the new target. Anything else is one unit's fault, counted and skipped. */
+function endsTheSweep(err: unknown, signal: AbortSignal): boolean {
+  return isAborted(signal) || err instanceof GenerationSupersededError;
+}
+
 function recordSpace(sweep: PlanSweep, space: MemoryEmbedSpace): void {
   const priorSpace = sweep.spaces.get(space.ownerId);
   if (
     priorSpace !== undefined &&
     (priorSpace.model !== space.model || priorSpace.generationId !== space.generationId || priorSpace.generationEpoch !== space.generationEpoch)
   ) {
-    throw new Error(`memory embed space changed during planning for owner ${space.ownerId}`);
+    throw new GenerationSupersededError(space.ownerId, "memory");
   }
   sweep.spaces.set(space.ownerId, space);
 }
@@ -254,8 +261,7 @@ async function planAllBuckets(ctx: ChatContext, args: MemorySweepArgs, resolveMe
     try {
       await planOneChat(ctx, deps, chatId, sweep);
     } catch (err) {
-      // A cancel is the run ending, not a fault: it propagates, and the workload runner records the run cancelled.
-      if (isAborted(args.signal)) {
+      if (endsTheSweep(err, args.signal)) {
         throw err;
       }
       sweep.failed += 1;
@@ -359,8 +365,7 @@ async function storeAllTier0(ctx: ChatContext, state: CommitState, perPlanTexts:
       acc.written += stored.written;
       acc.skippedEmpty += stored.skippedEmpty;
     } catch (err) {
-      // A cancel is the run ending, not a fault: it propagates, and the workload runner records the run cancelled.
-      if (isAborted(state.signal)) {
+      if (endsTheSweep(err, state.signal)) {
         throw err;
       }
       failed += 1;
@@ -403,8 +408,7 @@ async function collectTierAcrossBuckets(ctx: ChatContext, state: CommitState, ti
         collected.push({ planIdx: pi, scope: plan.scope, cons });
       }
     } catch (err) {
-      // A cancel is the run ending, not a fault: it propagates, and the workload runner records the run cancelled.
-      if (isAborted(state.signal)) {
+      if (endsTheSweep(err, state.signal)) {
         throw err;
       }
       failed += 1;
@@ -452,8 +456,7 @@ async function summarizeAndStoreTier(ctx: ChatContext, collected: readonly Colle
       acc.written += stored.written;
       acc.skippedEmpty += stored.skippedEmpty;
     } catch (err) {
-      // A cancel is the run ending, not a fault: it propagates, and the workload runner records the run cancelled.
-      if (isAborted(state.signal)) {
+      if (endsTheSweep(err, state.signal)) {
         throw err;
       }
       failed += 1;
@@ -552,9 +555,13 @@ export async function backfillMemory(
   args: MemorySweepArgs,
   resolveMemoryConfig: ResolveBackfillMemoryConfig,
 ): Promise<MemoryBackfillSweepCounts> {
+  args.onProgress?.("planning chats");
   const sweep = await planAllBuckets(ctx, args, resolveMemoryConfig);
+  args.onProgress?.("embedding transcripts");
   const segments = await storeAllSegments(ctx, sweep.segments, args.signal);
+  args.onProgress?.("summarizing");
   const perPlanTexts = await summarizeAllPending(ctx, args.funderUserId, sweep.plans);
+  args.onProgress?.("writing digests");
   const committed = await commitAllPlans(ctx, sweep.plans, perPlanTexts, { signal: args.signal, funderUserId: args.funderUserId });
   const failed = sweep.failed + segments.failed + committed.failed;
   return {
@@ -596,8 +603,7 @@ async function storeAllSegments(
     );
     return { written: stored.written, skippedOverWindow: stored.skippedOverWindow, failed: 0 };
   } catch (err) {
-    // A cancel is the run ending, not a fault: it propagates, and the workload runner records the run cancelled.
-    if (isAborted(signal)) {
+    if (endsTheSweep(err, signal)) {
       throw err;
     }
     // ISOLATED like every other phase (#41): one poisoned chunk (a filtered vector, a dead engine) must not

@@ -10,7 +10,7 @@
 // chat_digest_speakers OR-branch — and otherwise delegates.
 
 import type { RoleClients } from "@orb/contracts/role-clients";
-import type { CorpusSource, ResolveCorpusSourceState } from "@orb/contracts/search";
+import type { CorpusSource, ResolveCorpusSourceState, SearchSpaceStatus } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
 import type { ChatId, DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import type { ResolveViewerVisibility } from "#domain/chat";
@@ -109,6 +109,8 @@ export interface SearchService {
    *  `over`. A dispatcher over the siblings; the only new capability is the by-character cross-chat
    *  digest scan (the chat_digest_speakers OR-branch). */
   readonly search: (params: UnifiedSearchParams) => Promise<UnifiedSearchResult>;
+  /** Whether the owner's vector search is paused for a rebuild, read from the same generation state it refuses on. */
+  readonly spaceStatus: (params: { readonly ownerId: UserId }) => Promise<SearchSpaceStatus>;
 }
 
 export type DigestSourceLocator = Pick<

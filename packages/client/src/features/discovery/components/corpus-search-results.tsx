@@ -1,16 +1,20 @@
 // The Corpus omnibox dispatches typed search results into readable artifact destinations.
 // Disclosure comes from the response metadata; repeated prose retains every source occurrence.
 
+import { SEARCH_SPACE_REINDEXING } from "@orb/contracts/search";
+import { Button } from "@orb/ui/button";
 import { Icon, Search } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useEmbedderRebuild } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { openChatMoment } from "#state";
+import { REBUILD_JOBS_LABEL, SEARCH_PAUSED_COPY, trpcErrorReason } from "#lib";
+import { openChatMoment, openConfigTo } from "#state";
 import { groupByEvidence, snippetForDisplay } from "../lib/corpus-result-text.ts";
 import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, isNearestOnly, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
@@ -27,15 +31,18 @@ export interface CorpusSearchResultsProps {
   readonly query: string;
   readonly targetId: string;
   readonly retainFinderScroll?: boolean;
+  /** Switch this surface to the lexical text target, which still answers while vector search is paused. Absent: the
+   *  surface has no target picker, so a paused search offers no switch. */
+  readonly onTextInstead?: (() => void) | undefined;
 }
 
 /** Dispatch to the engine the active target names — the unified `search.search`, or the lexical `fields`. */
-export function CorpusSearchResults({ query, targetId, retainFinderScroll = false }: CorpusSearchResultsProps): ReactElement {
+export function CorpusSearchResults({ query, targetId, retainFinderScroll = false, onTextInstead }: CorpusSearchResultsProps): ReactElement {
   const target = resolveSearchTarget(targetId);
   if (target.kind === "fields") {
     return <FieldsResults query={query} label={target.label} retainFinderScroll={retainFinderScroll} />;
   }
-  return <UnifiedResults query={query} over={target.over} label={target.label} retainFinderScroll={retainFinderScroll} />;
+  return <UnifiedResults query={query} over={target.over} label={target.label} retainFinderScroll={retainFinderScroll} onTextInstead={onTextInstead} />;
 }
 
 /** Run the unified search for the active target + render the discriminated result. */
@@ -44,11 +51,13 @@ function UnifiedResults({
   over,
   label,
   retainFinderScroll,
+  onTextInstead,
 }: {
   readonly query: string;
   readonly over: UnifiedOver;
   readonly label: string;
   readonly retainFinderScroll: boolean;
+  readonly onTextInstead: (() => void) | undefined;
 }): ReactElement {
   const trpc = useTRPC();
   const trimmed = query.trim();
@@ -69,7 +78,11 @@ function UnifiedResults({
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
   }
   if (result.error !== null) {
-    return <QueryErrorState label="the search" onRetry={result.refetch} />;
+    return trpcErrorReason(result.error) === SEARCH_SPACE_REINDEXING ? (
+      <SearchPaused over={over} onTextInstead={onTextInstead} />
+    ) : (
+      <QueryErrorState label="the search" onRetry={result.refetch} />
+    );
   }
 
   const shown = result.data;
@@ -99,6 +112,30 @@ function UnifiedResults({
         <ResultBranch data={shown} />
       </CorpusResultsList>
     </>
+  );
+}
+
+/** Vector search refuses while the owner's index moves to a new embedder: say so, say whether the rebuild is running
+ *  or failed, and offer the two ways on: the rebuild's jobs, and the text search, which does not wait on the index. */
+function SearchPaused({ over, onTextInstead }: { readonly over: UnifiedOver; readonly onTextInstead: (() => void) | undefined }): ReactElement {
+  const trpc = useTRPC();
+  const rebuild = useEmbedderRebuild(trpc, true, over === "images" ? "imageEmbed" : "embed");
+  return (
+    <Stack data-slot="search-paused" data-rebuild={rebuild ?? "unknown"} gap="field">
+      <Text role="status" voice="gloss">
+        {SEARCH_PAUSED_COPY[rebuild ?? "unknown"]}
+      </Text>
+      <Row className="flex-wrap" gap="field">
+        <Button intent="secondary" onClick={(): void => openConfigTo("workloads", "jobs")} size="sm" type="button">
+          {REBUILD_JOBS_LABEL}
+        </Button>
+        {onTextInstead === undefined ? null : (
+          <Button intent="ghost" onClick={onTextInstead} size="sm" type="button">
+            {SEARCH_PAUSED_COPY.textInstead}
+          </Button>
+        )}
+      </Row>
+    </Stack>
   );
 }
 

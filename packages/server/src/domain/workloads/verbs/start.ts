@@ -104,7 +104,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
     // is refused at the door, never enqueued to land as a vacuous success.
     await assertAdmissible(contributions, input.kind, input.params, ownerId);
     const now = ctx.now();
-    return await admit(
+    const admitted = await admit(
       ctx,
       {
         kind: input.kind,
@@ -122,6 +122,12 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
       },
       params.adoptActive === true,
     );
+    // A person's start refreshes their list through its own mutation; a system start has no such caller, and
+    // an owner-less sweep has no single channel to tell.
+    if (params.caller === null && ownerId !== null) {
+      ctx.emitUserEvent(ownerId, { type: "workloadsChanged" });
+    }
+    return admitted;
   }
   return { start };
 }

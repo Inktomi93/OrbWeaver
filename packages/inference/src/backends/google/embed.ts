@@ -8,6 +8,7 @@ import { clampToTokenBudget, safeTokenWindow } from "@orb/kit/tokens";
 import { ProviderError } from "../../contract/errors.ts";
 import type { GoogleBackendDeps } from "../../contract/google.ts";
 import type { EmbedRequest, ImageEmbedRequest } from "../../contract/roles.ts";
+import { embedRequestTimeoutMs } from "../../contract/roles.ts";
 import { embeddingPrompt, fitToDim } from "../kit/embedding-input.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
@@ -19,7 +20,6 @@ import { mediaFilePart } from "../v4/prompt.ts";
 import { GOOGLE_KEY, googleModelId, googleProviderFor } from "./model.ts";
 
 const INPUT_RESERVE_TOKENS = 64;
-const DEFAULT_TIMEOUT_MS = 120_000;
 const IMAGE_URL_MIMES: ReadonlyMap<string, string> = new Map([
   ["png", "image/png"],
   ["jpg", "image/jpeg"],
@@ -85,11 +85,16 @@ function storeBatch(batch: readonly KeptInput[], embeddings: readonly number[][]
   }
   for (const [index, vector] of embeddings.entries()) {
     if (capability.mrl && vector.length !== dimension) {
-      throw new ProviderError({ kind: "invalid", retryable: false, message: `${label}: embedding width ${vector.length} differs from requested ${dimension}` });
+      throw new ProviderError({
+        kind: "invalid",
+        retryable: false,
+        message: `${label}: embedding width ${vector.length} differs from requested ${dimension}`,
+        width: { stated: dimension, measured: vector.length },
+      });
     }
     const input = batch[index];
     if (input !== undefined) {
-      vectors[input.index] = fitToDim(vector, dimension, label);
+      vectors[input.index] = fitToDim(vector, { dims: dimension, mrl: capability.mrl }, label);
     }
   }
 }
@@ -103,7 +108,7 @@ async function runBatches(model: EmbeddingModelV4, req: EmbedRequest, kept: read
   };
   for (let start = 0; start < kept.length; start += limit) {
     const batch = kept.slice(start, start + limit);
-    const idle = turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs ?? DEFAULT_TIMEOUT_MS);
+    const idle = turnAbortSignal(req.signal, embedRequestTimeoutMs(req.connection.features));
     const content = batch.some((input) => input.parts !== undefined) ? { content: batch.map((input) => input.parts ?? null) } : {};
     try {
       const result = await model.doEmbed({
@@ -125,7 +130,7 @@ async function embedInputs(req: EmbedRequest, inputs: readonly (EmbeddingInput |
   }
   const capability = connection.capability.embedding;
   const label = `${connection.providerId} embed (${connection.model})`;
-  const dimension = req.dimensions ?? req.truncateTo ?? deps.embedSpaceDims;
+  const dimension = req.dimensions ?? capability.dims;
   const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(inputs.length).fill(null);
   const kept = keptInputs(req, inputs, deps, capability);
   if (kept.length === 0) {

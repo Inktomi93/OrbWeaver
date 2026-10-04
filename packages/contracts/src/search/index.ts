@@ -420,3 +420,12 @@ export const unifiedSearchResultSchema = z.discriminatedUnion("over", [
   imageRows.extend(searchCoverageFields),
   documentRows.extend(searchCoverageFields),
 ]) satisfies z.ZodType<UnifiedSearchResult>;
+
+/** Whether the owner's search is paused for an embedding rebuild: a target moved and its scopes have not all
+ *  completed on the new generation, so vector search refuses as re-indexing. `embed` and `imageEmbed` say which
+ *  target is moving; `paused` is either. */
+export const searchSpaceStatusSchema = z.strictObject({ paused: z.boolean(), embed: z.boolean(), imageEmbed: z.boolean() });
+
+/** The refusal reason a vector search answers while the owner's index is moving to a new embedder. */
+export const SEARCH_SPACE_REINDEXING = "search_space_reindexing";
+export type SearchSpaceStatus = z.infer<typeof searchSpaceStatusSchema>;

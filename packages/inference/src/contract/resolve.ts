@@ -149,11 +149,10 @@ export interface ResolvedChatKnobs {
   readonly warnings: readonly ResolvedWarning[];
 }
 
-/** The (EmbedOptions × EmbeddingCapability) fold: the width the wire is asked for (MRL) or the client-side
- *  truncation the caller must apply, plus the instruction the model honours. */
+/** The (EmbedOptions × EmbeddingCapability) fold: the width an MRL model is asked for, plus the instruction
+ *  the model honours. */
 export interface ResolvedEmbedKnobs {
   readonly dimensions?: number | undefined;
-  readonly truncateTo?: number | undefined;
   readonly instruction?: string | undefined;
   readonly inputType?: "query" | "document" | undefined;
   readonly warnings: readonly ResolvedWarning[];

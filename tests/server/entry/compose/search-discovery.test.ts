@@ -192,7 +192,7 @@ describe("buildSearchDiscovery — the embed-model-change reindex is a BOX-WIDE,
       expect(call.ownerId).toBeNull();
     }
     // The index sweep must be the FORCED all-sources pass; a non-forced one no-ops on hash-matched rows.
-    expect(calls.find((c) => c.input.kind === "index")?.input.params).toStrictEqual({ source: "all", force: true });
+    expect(calls.find((c) => c.input.kind === "index")?.input.params).toStrictEqual({ source: "all", force: true, embedderChanged: true });
   });
 
   test("an enqueue REJECTION never escapes (the settings write that triggered it must not fail)", async () => {
@@ -273,6 +273,7 @@ describe("buildSearchDiscovery — the cluster product is complete", () => {
         "workloads",
         "enqueueEmbedReindex",
         "detachEmbedReindex",
+        "detachStaleSpaceReindex",
         "vacuousMemoryReceipt",
         "listCorpusOwners",
       ].sort(),

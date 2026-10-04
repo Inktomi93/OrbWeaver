@@ -108,6 +108,17 @@ export interface SetBindingParams extends ActorParams {
   readonly actor?: BindingActorInput | undefined;
 }
 
+/** The caller's own pending embedder change, previewed before it is written: re-pointing a role at a row (or
+ *  clearing it), patching a row's fields, or using a row for everything it can serve. */
+export type EmbedSpaceChange =
+  | { readonly kind: "bind"; readonly task: RoutableTask; readonly connectionId: UserConnectionId | null }
+  | { readonly kind: "update"; readonly connectionId: UserConnectionId; readonly patch: UpdateConnectionParams["patch"] }
+  | { readonly kind: "everywhere"; readonly connectionId: UserConnectionId };
+
+export interface PreviewEmbedSpaceChangeParams extends ActorParams {
+  readonly change: EmbedSpaceChange;
+}
+
 /** `useForEverything` — write every compatible `user` binding for a row at once (§5.3a, the 90% case). */
 export interface UseForEverythingParams extends ActorParams {
   readonly connectionId: UserConnectionId;

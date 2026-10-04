@@ -170,21 +170,10 @@ export function embedDtypeOf(capability: Capability): string | undefined {
   return capability.kind === "embedding" ? capability.embedding.dtype : undefined;
 }
 
-/** Does a vector model FIT the owner's space? Exact width, or a wider MRL model that truncates. A narrower
- *  model never fits — padding invents coordinates (#1635). */
-export function fitsSpace(capability: EmbeddingCapability, dims: number): boolean {
-  return capability.dims === dims || (capability.mrl && capability.dims > dims);
-}
-
-/** Why a vector model does NOT fit the owner's space, in the words the role badge and the bind refusal both
- *  show; `null` when it fits. One home, so the pane and the server name the same widths. */
-export function spaceMisfitReason(capability: EmbeddingCapability, dims: number): string | null {
-  if (fitsSpace(capability, dims)) {
-    return null;
-  }
-  return capability.dims < dims
-    ? `it makes ${String(capability.dims)}-wide vectors and search here needs ${String(dims)}-wide ones; a narrower vector is never padded`
-    : `it makes ${String(capability.dims)}-wide vectors that it can't shorten to the ${String(dims)} search here needs`;
+/** The width of the vectors a resolved connection writes — the owner's space width, taken from the bound
+ *  embedder rather than fixed by the deployment. `undefined` for a non-embedding capability, which has no space. */
+export function embedDimsOf(capability: Capability): number | undefined {
+  return capability.kind === "embedding" ? capability.embedding.dims : undefined;
 }
 
 /** The requirement verdict — `{ ok: false, missing }` names each unmet clause in `axis:member` spelling so
@@ -234,17 +223,11 @@ function missingForGeneration(cap: GenerationCapability, requires: CapabilityReq
   if (requires.structured === true && cap.output.structured !== true) {
     missing.push("structured");
   }
-  if (requires.dims !== undefined) {
-    missing.push(`dims:${requires.dims}`);
-  }
   return missing;
 }
 
 function missingForEmbedding(cap: EmbeddingCapability, requires: CapabilityRequirement): string[] {
   const missing = missingModalities(cap.input, requires.input, "input");
-  if (requires.dims !== undefined && !fitsSpace(cap, requires.dims)) {
-    missing.push(`dims:${requires.dims}`);
-  }
   if (wantsGeneration(requires)) {
     missing.push("kind:generation");
   }
@@ -253,7 +236,7 @@ function missingForEmbedding(cap: EmbeddingCapability, requires: CapabilityRequi
 
 function missingForRerank(cap: RerankCapability, requires: CapabilityRequirement): string[] {
   const missing = missingModalities(cap.input, requires.input, "input");
-  if (wantsGeneration(requires) || requires.dims !== undefined) {
+  if (wantsGeneration(requires)) {
     missing.push("kind:generation");
   }
   return missing;

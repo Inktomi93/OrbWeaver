@@ -59,6 +59,10 @@ export interface ResolveArgs {
   readonly actor?: BindingActor | undefined;
   /** An explicit row instead of the fold — the turn's own already-resolved connection re-read, a pane preview. */
   readonly connectionId?: UserConnection["id"] | undefined;
+  /** Read only the server facts the catalog mirrors already hold, and dial nothing. For a read-only question asked
+   *  before the user commits (the change preview): a host that does not answer must not hold it. A cold mirror
+   *  degrades to the stated and curated facts. */
+  readonly cachedFacts?: boolean | undefined;
 }
 
 /** Everything the resolver reads that is not a dep: the registry + the catalog mirrors + the warms. */
@@ -74,7 +78,8 @@ export interface ResolverContext {
   readonly warmAgentSdk: (identity: SpawnIdentity) => Promise<void>;
   /** The per-URL answer of a detecting row's server probe (`catalog:endpoint:<url>#detect`). */
   readonly detectedServer: (baseUrl: string) => Mirror<DetectedServer>;
-  readonly warmDetect: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<void>;
+  /** Warm the detect answer; `false` when the server could not be reached to ask. */
+  readonly warmDetect: (connection: UserConnection, provider: ProviderDef, secret: string | null) => Promise<boolean>;
 }
 
 export class NoConnectionError extends ProviderError {
@@ -300,25 +305,28 @@ function withLocalLightEmbedDtype(
 
 /** The warms that must land before any step reads provider facts: a detecting row's server probe, and Google's
  *  native catalog (its kind decides which tasks the row serves). Both need the credential, which is always the
- *  REGISTERED row's: its AAD binds the registered provider id, whatever the server turned out to be. */
+ *  REGISTERED row's: its AAD binds the registered provider id, whatever the server turned out to be. `reached` is
+ *  false when the detect probe found nothing answering at the URL, or when `cachedFacts` asked for no dial at all. */
 async function warmBeforeFacts(
   ctx: ResolverContext,
   provider: ProviderDef,
   connection: UserConnection,
-): Promise<{ readonly behaved: ProviderDef; readonly earlyCredential: ResolvedSecret | null }> {
+  cachedFacts: boolean,
+): Promise<{ readonly behaved: ProviderDef; readonly earlyCredential: ResolvedSecret | null; readonly reached: boolean }> {
   const detecting = detectionUrl(provider, connection) !== null;
+  if (cachedFacts) {
+    return { behaved: behaveAs(ctx, provider, connection), earlyCredential: null, reached: false };
+  }
   if (provider.wire !== "google-generative-ai" && !detecting) {
-    return { behaved: provider, earlyCredential: null };
+    return { behaved: provider, earlyCredential: null, reached: true };
   }
   const earlyCredential = await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id });
-  if (detecting) {
-    await ctx.warmDetect(connection, provider, earlyCredential.secret);
-  }
+  const reached = detecting ? await ctx.warmDetect(connection, provider, earlyCredential.secret) : true;
   const behaved = behaveAs(ctx, provider, connection);
   if (provider.wire === "google-generative-ai") {
     await warmFor(ctx, behaved, connection, earlyCredential);
   }
-  return { behaved, earlyCredential };
+  return { behaved, earlyCredential, reached };
 }
 
 interface CapabilityResolveOutcome extends ResolveOutcome {
@@ -339,7 +347,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   }
   // Every fact read below goes through the behaved row; identity (`providerId`, `provider`, the credential and
   // every refusal's wording) stays the registered row's.
-  const { behaved, earlyCredential } = await warmBeforeFacts(ctx, provider, connection);
+  const { behaved, earlyCredential, reached } = await warmBeforeFacts(ctx, provider, connection, args.cachedFacts === true);
   const declared = connection.declared;
   const kind = kindOf(ctx, { task: args.task, provider: behaved, connection });
   const baselineKind = includeBaseline ? kindOf(ctx, { task: args.task, provider: behaved, connection, includeDeclared: false }) : undefined;
@@ -354,7 +362,9 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   const api = resolveApi(behaved, connection, kind);
   const credential =
     earlyCredential ?? (await ctx.deps.resolveCredential({ credentialId: connection.credentialId, ownerId: connection.ownerId, providerId: provider.id }));
-  if (provider.wire !== "google-generative-ai") {
+  // A server that answered no detect probe will not answer its model list either; dialing it again only waits out
+  // the same dead host a second time.
+  if (provider.wire !== "google-generative-ai" && reached) {
     await warmFor(ctx, behaved, connection, credential);
   }
   const model = normalizeModelId(connection.model, provider.wire === "agent-sdk" ? ctx.agentSdkCatalog.get() : null);

@@ -4,8 +4,9 @@
 // The seam is real, not arithmetic: a row in the map answers "what does THIS event stale", and a set here
 // answers "which reads are that", which is the thing several rows share.
 //
-// Every export is consumed by `invalidation.ts` alone. Nothing here calls `invalidateQueries` — the seam's
-// chokepoint stays in the map file (gate `no-inline-invalidate-outside-seam`).
+// Every export is consumed by `invalidation.ts` alone, except `connectionWriteReads`, the set the connection
+// mutations share through `#data`. Nothing here calls `invalidateQueries` — the seam's chokepoint stays in the
+// map file (gate `no-inline-invalidate-outside-seam`).
 
 import type { RoomEntityKind } from "@orb/contracts/chat";
 import { ROOM_ENTITY_KINDS } from "@orb/contracts/chat";
@@ -18,16 +19,26 @@ import type { Trpc } from "./trpc.ts";
 /** What a corpus recompute (`corpusRecomputed`) moves. It replaces the source rows Explore retains, so a restored
  *  `search.search` key and source resolution refresh with discovery while ordinary canon paging stays; fields/suggest
  *  keep their lexical index cache, deliberately outside this vector-source fan. A finished pass also leaves less for
- *  the next run to call a model for, so the paid-run estimate refreshes too (every confirm re-reads it fresh anyway). */
+ *  the next run to call a model for, so the paid-run estimate refreshes too (every confirm re-reads it fresh anyway).
+ *  A target promotion announces itself through this member as well, so whether search is paused refreshes with it. */
 export function corpusRecomputeReads(trpc: Trpc): readonly InvalidateFilter[] {
   return [
     trpc.discovery.pathFilter(),
     trpc.search.similarArt.pathFilter(),
     trpc.search.search.pathFilter(),
+    trpc.search.spaceStatus.pathFilter(),
     trpc.chat.getMessageWindow.pathFilter(),
     trpc.workloads.estimateModelCalls.pathFilter(),
     trpc.workloads.estimateRetryModelCalls.pathFilter(),
   ];
+}
+
+/** What a connection write moves: the `connection.*` reads, the job list and search's paused state, because a write
+ *  that changes the owner's embed space pauses search and enqueues a rebuild the vector role rows only start polling
+ *  once they see it. The rebuild is queued detached, so `workloadsChanged` is what reliably lands it; this read is the
+ *  same-tab try. */
+export function connectionWriteReads(trpc: Trpc): readonly InvalidateFilter[] {
+  return [trpc.connection.pathFilter(), trpc.workloads.list.pathFilter(), trpc.search.spaceStatus.pathFilter()];
 }
 
 /** What the proxy's `.queryFilter()`/`.pathFilter()` return — accepted by `invalidateQueries`. */

@@ -8,7 +8,8 @@ import "../../../support/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
 import type { DomainEvent } from "@orb/contracts/events";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import {
   characterEmbeddings,
@@ -19,6 +20,7 @@ import {
   chatSegments,
   chats,
   embedGenerations,
+  embedGenerationTargets,
   imageEmbeddings,
   rpgGames,
   tags,
@@ -61,6 +63,7 @@ import { readGeneration } from "../../../../packages/server/src/domain/search/pe
 import { writeAppOverride } from "../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { subscribeChatEvents } from "../../../../packages/server/src/transport/trpc/chat-events-bus.ts";
 import { subscribeNotifications } from "../../../../packages/server/src/transport/trpc/notifications-bus.ts";
+import { subscribeUserEvents } from "../../../../packages/server/src/transport/trpc/user-events-bus.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -69,7 +72,7 @@ import { makeHarness as makeAssetsHarness, pngBytes, principal, seedUser } from 
 import { makeHarness as makeCharHarness } from "../../domain/character/_support.ts";
 import { seedChat, seedCharacter as seedChatCharacter, seedParticipant } from "../../domain/chat/_support.ts";
 import { seedTurns } from "../../domain/chat/memory/_support.ts";
-import { EMBED_DIM, makeRoleClients, makeStoreHarness, seedUser as seedVectorOwner } from "../../domain/embeddings/_support.ts";
+import { makeRoleClients, makeStoreHarness, seedUser as seedVectorOwner } from "../../domain/embeddings/_support.ts";
 
 const SERVICE_KEYS = [
   "admin",
@@ -380,7 +383,6 @@ async function wireIndexer(db: Db): Promise<IndexerWiring> {
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     loadCharacterOwner,
     roleClientsFor: (): Promise<ReturnType<typeof makeRoleClients>> => Promise.resolve(makeRoleClients()),
-    embedDim: EMBED_DIM,
   });
   function dispatch(event: DomainEvent): Promise<void> {
     switch (event.type) {
@@ -501,7 +503,7 @@ describe("embeddings indexer bus subscription", () => {
 // assert a card-text embedding row is persisted (ON) / never written (OFF). The tests/e2e default is OFF (vitest env CORPUS_AUTOINDEX=false); the
 // ON case flips it via a stored AppSettings override the boot reload resolves.
 
-function buildGatedGraph(db: Db, cache = fakeLocalLightCache(EMBED_SPACE_DIMS)): ReturnType<typeof createServices> {
+function buildGatedGraph(db: Db, cache = fakeLocalLightCache(BUILT_IN_EMBED_DIMS)): ReturnType<typeof createServices> {
   return createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
@@ -758,61 +760,229 @@ describe("persona.remove seed re-point (owner invariant)", () => {
   });
 });
 
-// ── The embed-model change → reindex trigger (DBK-B(b)) ──────────────────────────────────────────────────
-// The compose root wires `onEmbedModelChanged` to `enqueueEmbedReindex`, which must re-embed EVERY vector
-// source into the box's new space: the `index` runner (character/image/memory chunks) AND — added by DBK-B(b)
-// — a bulk `databank-reindex` (document chunks live in `document_chunks`, which `index` never touches). A model
-// change that enqueued only `index` would strand every document chunk in the OLD space. This drives the REAL
-// settings → trigger → `workloads.start` seam through the full graph (no faked enqueue) and asserts BOTH rows.
-describe("embed-model change reindex trigger (DBK-B(b))", () => {
-  test("changing the embed model enqueues all three bulk embed-space sweeps", async () => {
+// ── The embed-space rebuild trigger (DBK-B(b), 0507) ─────────────────────────────────────────────────────
+// Every move of an owner's stored target generation, from any caller, empties their index, and the compose root
+// answers it with that owner's forced sweeps: `index` (cards, pictures), `databank-reindex` (document chunks, which
+// `index` never touches) and the memory sweep. A binding write only asks the stored target whether it moved, so a
+// re-bind of the encoder the target already names queues nothing. These drive the REAL connection → embeddings →
+// `workloads.start` seam through the full graph and run what was queued.
+const WORKLOADS_CHANGED = "workloadsChanged" satisfies UserBusEvent["type"];
+const REINDEX_SPAN = "embeddings.modelChangeReindex";
+
+/** Point the owner's stored text target at an encoder no binding resolves to, as an older release would have. */
+async function seedLegacyTarget(db: Db, owner: UserId): Promise<void> {
+  const legacy = castId<EmbedGenerationId>("embed_generation_from_an_older_release");
+  await db.insert(embedGenerations).values({
+    id: legacy,
+    ownerId: owner,
+    task: "embed",
+    via: "embed",
+    connectionId: null,
+    connectionRef: castId<UserConnectionId>("user_connection_legacy"),
+    fingerprint: "legacy",
+    space: "legacy",
+    createdAt: 0,
+  });
+  await db.insert(embedGenerationTargets).values({ ownerId: owner, task: "embed", generationId: legacy, epoch: 1 });
+}
+
+/** The connection the local-light seed bound for the owner's `embed` role. */
+async function seededEmbedder(result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId): Promise<UserConnectionId> {
+  const embedder = (await result.services.connection.listBindings({ principal: principal(owner) })).find((view) => view.task === "embed")?.binding
+    ?.connectionId;
+  if (embedder === undefined || embedder === null) {
+    throw new Error("the seed bound no embedder");
+  }
+  return embedder;
+}
+
+/** Run every queued row's contribution as the worker would, and report each outcome by kind. */
+async function runQueued(result: Awaited<ReturnType<typeof buildGatedGraph>>, rows: readonly (typeof workloads.$inferSelect)[]): Promise<unknown[]> {
+  const outcomes = await Promise.allSettled(
+    rows.map(async (row) => {
+      const contribution = result.workloadContributions[row.kind] as { readonly run: (...args: readonly unknown[]) => Promise<unknown> };
+      return await contribution.run(
+        { userId: row.ownerId, ownerId: row.ownerId, now: createFrozenClock().now },
+        row.params,
+        vi.fn(),
+        new AbortController().signal,
+      );
+    }),
+  );
+  return outcomes.map((outcome, i) => ({ kind: rows[i]?.kind, status: outcome.status }));
+}
+
+function reindexErrors(errorSpy: { readonly mock: { readonly calls: unknown[][] } }): unknown[][] {
+  return errorSpy.mock.calls.filter((call) => (call[0] as { spanName?: string }).spanName === REINDEX_SPAN);
+}
+
+describe("embed-space rebuild trigger (DBK-B(b))", () => {
+  // Clearing an embed role leaves nothing that can embed, and the preview already told the user it rebuilds nothing:
+  // the write queues no sweep, so no job lands failed and nothing is logged.
+  test("unbinding a member's embedder queues nothing and logs nothing", async () => {
     const db = await freshDb();
-    const result = await buildGraph(db); // vLLM-disabled full graph
-    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const result = await buildGatedGraph(db);
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
+    await result.seedUserConnections(member);
+    await drain(() => false);
+    const errorSpy = vi.spyOn(logger, "error");
 
-    // No bulk reindex work exists before the change (causation control).
-    const before = await db.select().from(workloads);
-    expect(before.filter((r) => r.mode === "bulk" && (r.kind === "index" || r.kind === "databank-reindex" || r.kind === "memory-backfill"))).toHaveLength(0);
-
-    await result.services.connection.setBinding({
-      principal: principal(owner),
-      task: "embed",
-      connectionId: null,
-    });
-
-    // The trigger is supervised detached work; flush the IO queue deterministically.
+    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: null });
     await drain(() => false);
 
-    const bulkKinds = new Set((await db.select().from(workloads)).filter((r) => r.mode === "bulk").map((r) => r.kind));
-    expect(bulkKinds.has("index")).toBe(true); // character/image/memory chunks
-    expect(bulkKinds.has("databank-reindex")).toBe(true); // document chunks
-    expect(bulkKinds.has("memory-backfill")).toBe(true); // chat memory
+    expect(await db.select().from(workloads)).toEqual([]);
+    expect(reindexErrors(errorSpy)).toEqual([]);
+  });
+
+  // The stored target already names this encoder, so an unbind and re-bind moves nothing and re-embeds nothing.
+  test("re-binding the encoder the stored target names queues nothing", async () => {
+    const db = await freshDb();
+    const result = await buildGatedGraph(db);
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
+    await result.seedUserConnections(member);
+    const embedder = await seededEmbedder(result, member);
+    await result.embeddings.resolveGeneration(member, "embed");
+    const errorSpy = vi.spyOn(logger, "error");
+
+    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: null });
+    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: embedder });
+    await drain(() => false);
+
+    expect(await db.select().from(workloads)).toEqual([]);
+    expect(reindexErrors(errorSpy)).toEqual([]);
+  });
+
+  // A re-point moves only the re-pointing user's generations, so the rebuild is THEIR job: a plain member must be
+  // able to read it back through `workloads.list` (which pins a member to their own rows), their live user channel
+  // must hear that it was queued (the binding write's own tick lands before the detached insert), and every queued
+  // run must complete.
+  test("a member's re-point that moves their target queues their own forced rebuild, readable, announced, and runnable", async () => {
+    const db = await freshDb();
+    const result = await buildGatedGraph(db);
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
+    await result.seedUserConnections(member);
+    const embedder = await seededEmbedder(result, member);
+    await seedLegacyTarget(db, member);
+    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: null });
+    await drain(() => false);
+    const abort = new AbortController();
+    onTestFinished(() => {
+      abort.abort();
+    });
+    // Everything the member's channel carries up to the first job announcement.
+    const announced = (async (): Promise<UserBusEvent[]> => {
+      const heard: UserBusEvent[] = [];
+      for await (const event of subscribeUserEvents(member, abort.signal)) {
+        heard.push(event);
+        if (event.type === WORKLOADS_CHANGED) {
+          break;
+        }
+      }
+      return heard;
+    })();
+
+    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: embedder });
+    // Bounded: an announcement that never comes fails the assertion below instead of hanging the test.
+    const heard = await Promise.race([announced, drain(() => false).then((): UserBusEvent[] => [])]);
+    await drain(() => false);
+
+    const rows = await db.select().from(workloads);
+    expect(rows.filter((row) => row.mode === "bulk")).toHaveLength(0);
+    const index = rows.find((row) => row.kind === "index");
+    expect(index).toMatchObject({ ownerId: member, mode: "singular", params: { source: "all", force: true, embedderChanged: true } });
+    // The documents sweep is the move's rebuild too, in its own slot beside any plain owner pass.
+    expect(rows.find((row) => row.kind === "databank-reindex")).toMatchObject({ admissionKey: "owner:rebuild", params: { embedderChanged: true } });
+    const listed = await result.services.workloads.list({ caller: principal(member), kind: "index" });
+    expect(listed.map((row) => row.id)).toEqual([index?.id]);
+    expect(heard).toContainEqual({ type: WORKLOADS_CHANGED });
+    expect(await runQueued(result, rows)).toEqual(rows.map((row) => ({ kind: row.kind, status: "fulfilled" })));
+  });
+
+  // The lazy path no binding write sees (a key fixed after a revoked re-point, a release, boot): the first write
+  // whose resolve moves the target queues the same rebuild.
+  test("a write that moves the target queues the owner's forced rebuild", async () => {
+    const db = await freshDb();
+    const result = await buildGatedGraph(db);
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
+    await result.seedUserConnections(member);
+    await seedLegacyTarget(db, member);
+
+    await result.embeddings.resolveGeneration(member, "embed");
+    await drain(() => false);
+
+    const rows = await db.select().from(workloads);
+    expect(rows.find((row) => row.kind === "index")).toMatchObject({ ownerId: member, mode: "singular", params: { force: true, embedderChanged: true } });
+    expect(await runQueued(result, rows)).toEqual(rows.map((row) => ({ kind: row.kind, status: "fulfilled" })));
+  });
+
+  // Two triggers for one move (boot's stale-owner sweep and the move it then makes, a re-bind racing it) adopt the
+  // active run instead of queuing twice or logging a conflict.
+  test("two triggers for one move queue one sweep of each kind and log nothing", async () => {
+    const db = await freshDb();
+    const result = await buildGatedGraph(db);
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
+    await result.seedUserConnections(member);
+    const embedder = await seededEmbedder(result, member);
+    await seedLegacyTarget(db, member);
+    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: null });
+    await drain(() => false);
+    const errorSpy = vi.spyOn(logger, "error");
+
+    result.detachStaleSpaceReindex();
+    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: embedder });
+    await drain(() => false);
+
+    const kinds = (await db.select().from(workloads)).map((row) => row.kind).toSorted((a, b) => a.localeCompare(b));
+    expect(kinds).toEqual([...new Set(kinds)]);
+    expect(kinds).toContain("index");
+    expect(reindexErrors(errorSpy)).toEqual([]);
+  });
+
+  // B4: a release that moves generation identity leaves owners whose stored target no user action will ever
+  // re-raise. Boot finds them and queues the same sweeps a target move does, for that owner, forced.
+  test("boot queues the embed-space sweeps for an owner whose stored generation went stale", async () => {
+    const db = await freshDb();
+    const result = await buildGraph(db);
+    const owner = await seedUser(db, { handle: castId<Handle>("stale-owner") });
+    await result.seedUserConnections(owner);
+    await seedLegacyTarget(db, owner);
+
+    result.detachStaleSpaceReindex();
+    const queued = async (): Promise<(typeof workloads.$inferSelect)[]> =>
+      (await db.select().from(workloads)).filter((row) => row.ownerId === owner && row.mode === "singular");
+    let rows: (typeof workloads.$inferSelect)[] = [];
+    for (let attempt = 0; attempt < DRAIN_MAX_TURNS && rows.length < 2; attempt += 1) {
+      rows = await queued();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    // A memory-off owner's memory scope completes vacuously instead of queuing a run; the other two are runs.
+    expect(rows.map((row) => row.kind).toSorted((a, b) => a.localeCompare(b))).toEqual(["databank-reindex", "index"]);
+    expect(rows.find((row) => row.kind === "index")?.params).toMatchObject({ source: "all", force: true, embedderChanged: true });
   });
 
   test("a detached enqueue rejection is structured and operator-visible without failing the settings write", async () => {
     const db = await freshDb();
-    const result = await buildGraph(db);
+    const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await result.seedUserConnections(owner);
+    const embedder = await seededEmbedder(result, owner);
+    await seedLegacyTarget(db, owner);
+    await result.services.connection.setBinding({ principal: principal(owner), task: "embed", connectionId: null });
+    await drain(() => false);
     const enqueueFailure = new Error("workload admission unavailable");
-    vi.spyOn(result.services.workloads, "start").mockRejectedValue(enqueueFailure);
+    const start = vi.spyOn(result.services.workloads, "start").mockRejectedValue(enqueueFailure);
     const errorSpy = vi.spyOn(logger, "error");
 
-    await expect(
-      result.services.connection.setBinding({
-        principal: principal(owner),
-        task: "embed",
-        connectionId: null,
-      }),
-    ).resolves.toBeDefined();
-    await drain(() => errorSpy.mock.calls.filter((call) => (call[0] as { spanName?: string }).spanName === "embeddings.modelChangeReindex").length === 3);
+    await expect(result.services.connection.setBinding({ principal: principal(owner), task: "embed", connectionId: embedder })).resolves.toBeDefined();
+    await drain(() => false);
 
-    const failures = errorSpy.mock.calls.filter((call) => (call[0] as { spanName?: string }).spanName === "embeddings.modelChangeReindex");
-    expect(failures).toHaveLength(3);
+    // Every enqueue the move attempted failed, and each failure is logged in the reindex span; none escaped.
+    const failures = reindexErrors(errorSpy);
+    expect(failures).toHaveLength(start.mock.calls.length);
     expect(failures.map((call) => call[0])).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ err: enqueueFailure, workloadKind: "index", spanName: "embeddings.modelChangeReindex" }),
-        expect.objectContaining({ err: enqueueFailure, workloadKind: "databank-reindex", spanName: "embeddings.modelChangeReindex" }),
-        expect.objectContaining({ err: enqueueFailure, workloadKind: "memory-backfill", spanName: "embeddings.modelChangeReindex" }),
+        expect.objectContaining({ err: enqueueFailure, workloadKind: "index", spanName: REINDEX_SPAN }),
+        expect.objectContaining({ err: enqueueFailure, workloadKind: "databank-reindex", spanName: REINDEX_SPAN }),
       ]),
     );
     expect(failures.every((call) => call[1] === "detached operation failed")).toBe(true);
@@ -830,7 +1000,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
   test("fresh seeded content indexes through events and catch-up without any seed inference", async () => {
     const db = await freshDb();
     await writeAppOverride(db, { corpusAutoindex: true, schemaVersion: 2 }, createFrozenClock().now());
-    const cache = fakeLocalLightCache(EMBED_SPACE_DIMS);
+    const cache = fakeLocalLightCache(BUILT_IN_EMBED_DIMS);
     const textCalls = vi.spyOn(cache, "embedTexts").mockRejectedValue(new Error("seed text reached inference"));
     const imageCalls = vi.spyOn(cache, "embedImages").mockRejectedValue(new Error("seed image reached inference"));
     const result = await buildGatedGraph(db, cache);
@@ -1020,11 +1190,11 @@ describe("search when the memory scope can build no digests (0215)", () => {
       seqStart: 1,
       seqEnd: 2,
       text: "an old-model memory chunk",
-      embedding: new Float32Array(EMBED_SPACE_DIMS),
+      embedding: new Float32Array(BUILT_IN_EMBED_DIMS),
       contentHash: "old",
       model: "old-embed-model-v0",
       generationId: oldGeneration,
-      dim: EMBED_SPACE_DIMS,
+      dim: BUILT_IN_EMBED_DIMS,
       now: RunAt,
     });
 

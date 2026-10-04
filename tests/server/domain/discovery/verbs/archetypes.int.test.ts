@@ -91,29 +91,29 @@ describe("archetypes", () => {
     expect(second?.passId).not.toBe(first?.passId);
   });
 
-  test("labels are globally unique and stable across equal-size model spaces", async () => {
+  // One owner has one generation at rest; rows of any other (a write that landed after the switch) are never
+  // clustered, so a stale space cannot mint a second archetype or meet the current one in a pass.
+  test("clusters only the owner's current generation, stably, ignoring another model's leftover rows", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_unique_labels");
-    await Promise.all(
-      ["model-b", "model-a"].flatMap((model) =>
-        [0, 1].map((i) =>
-          seedCard(db, {
-            id: `${model}_${i}`,
-            ownerId: owner,
-            embedding: vec(1, i * 0.001),
-            contentHash: `${model}_${i}`,
-            genre: "fantasy",
-            tone: "dark",
-            model,
-          }),
-        ),
-      ),
-    );
+    // The first model seeded is the owner's current generation (the fixture pins the first target it meets).
+    for (const model of ["model-b", "model-a"]) {
+      for (const i of [0, 1]) {
+        await seedCard(db, {
+          id: `${model}_${i}`,
+          ownerId: owner,
+          embedding: vec(1, i * 0.001),
+          contentHash: `${model}_${i}`,
+          genre: "fantasy",
+          tone: "dark",
+          model,
+        });
+      }
+    }
     const first = await svcFor(db).archetypes(owner, { k: 1 });
     const second = await svcFor(db).archetypes(owner, { k: 1 });
-    expect(first.map((a) => a.label)).toEqual(["dark fantasy", "dark fantasy (2)"]);
-    expect(first.map((a) => a.baseLabel)).toEqual(["dark fantasy", "dark fantasy"]);
-    expect(first.map((a) => a.model)).toEqual(["model-a", "model-b"]);
+    expect(first.map((a) => a.label)).toEqual(["dark fantasy"]);
+    expect(first.map((a) => a.model)).toEqual(["model-b"]);
     expect(second).toEqual(first);
   });
 

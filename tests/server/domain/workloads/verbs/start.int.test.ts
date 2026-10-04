@@ -2,10 +2,11 @@
 // security core): a SINGULAR run is any authed caller (owned by self); a BULK run is BOX-OWNER-only; an
 // unsupported mode / a missing bulk-create target / a bad target are typed errors.
 
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import { DomainConflictError, DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, makeService, principal, seedUser, seedWorkloadRow } from "../_support.ts";
@@ -79,6 +80,106 @@ describe("workloads.start — enqueue + conflict", () => {
         ownerId: null,
       }),
     ).rejects.toThrow();
+  });
+});
+
+// A system start has no client mutation to refresh the owner's job list, so the verb announces it on their
+// user channel. A person's own start refreshes through its mutation, and an owner-less sweep has no channel.
+describe("workloads.start — the owner hears a system-started job", () => {
+  test("a system start of an owned row tells that owner their job list changed, once", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_member");
+    const emit = vi.fn<EmitUserEvent>();
+    const s = makeService(db, fakeContributions(), emit);
+
+    await s.start({ input: { kind: "index", params: { source: "all", force: true, embedderChanged: true } }, caller: null, mode: "singular", ownerId: owner });
+
+    expect(emit.mock.calls).toEqual([[owner, { type: "workloadsChanged" }]]);
+  });
+
+  test("a person's own start and an owner-less sweep announce nothing", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_member");
+    const emit = vi.fn<EmitUserEvent>();
+    const s = makeService(db, fakeContributions(), emit);
+
+    await s.start({ input: { kind: "index", params: { source: "text" } }, caller: principal(owner), mode: "singular", ownerId: owner });
+    await s.start({ input: { kind: "reconcile-stats", params: {} }, caller: null, mode: "bulk", ownerId: null });
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+});
+
+// A target move's rebuild must carry its own flag and refill the new target, so it never folds into a plain index
+// run that is already going (that run pinned the old generation and says nothing about a rebuild).
+describe("workloads.start — an embedder rebuild beside a plain index run", () => {
+  test("a rebuild start does not adopt a running plain index(all) run; a second rebuild start adopts the first", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const running = await seedWorkloadRow(db, {
+      id: "workload_running_index",
+      kind: "index",
+      status: "running",
+      mode: "singular",
+      admissionKey: "all",
+      ownerId: owner,
+      params: { source: "all" },
+    });
+    const rebuild = {
+      input: { kind: "index", params: { source: "all", force: true, embedderChanged: true } },
+      caller: null,
+      mode: "singular",
+      ownerId: owner,
+      adoptActive: true,
+    } as const;
+
+    const first = await s.start(rebuild);
+    const second = await s.start(rebuild);
+
+    expect(first.id).not.toBe(running);
+    expect(second.id).toBe(first.id);
+    expect(await s.list({ caller: principal("user_alice") })).toHaveLength(2);
+  });
+
+  // The move's two sibling sweeps hold the same rule: a plain run already going pinned the old generation.
+  test("a rebuild start of the owner's databank or memory sweep does not adopt a running plain one; a second adopts the first", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const runningDatabank = await seedWorkloadRow(db, {
+      id: "workload_running_databank",
+      kind: "databank-reindex",
+      status: "running",
+      mode: "singular",
+      admissionKey: "owner",
+      ownerId: owner,
+      params: { scope: { kind: "owner" }, mode: "chunk-embed" },
+    });
+    const runningMemory = await seedWorkloadRow(db, {
+      id: "workload_running_memory",
+      kind: "memory-backfill",
+      status: "running",
+      mode: "singular",
+      admissionKey: "none",
+      ownerId: owner,
+      params: {},
+    });
+    const start = { caller: null, mode: "singular", ownerId: owner, adoptActive: true } as const;
+    const databankRebuild = {
+      ...start,
+      input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed", embedderChanged: true } },
+    } as const;
+    const memoryRebuild = { ...start, input: { kind: "memory-backfill", params: { embedderChanged: true } } } as const;
+
+    const databank = [await s.start(databankRebuild), await s.start(databankRebuild)];
+    const memory = [await s.start(memoryRebuild), await s.start(memoryRebuild)];
+
+    expect(databank[0]?.id).not.toBe(runningDatabank);
+    expect(databank[1]?.id).toBe(databank[0]?.id);
+    expect(memory[0]?.id).not.toBe(runningMemory);
+    expect(memory[1]?.id).toBe(memory[0]?.id);
+    expect(await s.list({ caller: principal("user_alice") })).toHaveLength(4);
   });
 });
 

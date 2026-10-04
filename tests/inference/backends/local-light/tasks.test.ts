@@ -184,3 +184,32 @@ test("imageEmbed: explicit pair fallback uses the same text tower and preserves 
   ]);
   await expect(imageEmbed({ connection, input: { kind: "multimodal", input: pairs, allowTextFallback: false } })).rejects.toMatchObject({ kind: "invalid" });
 });
+
+// A declared shorter MRL width is the owner's space for text AND pictures: the image side cuts to it too, or every
+// picture would be written wider than the text index it shares a space with.
+test("imageEmbed: an MRL encoder declared at a shorter width embeds images and image-side text at that width", async () => {
+  const conn = fakeResolved({
+    task: "imageEmbed",
+    providerId: "local-light",
+    model: MODEL,
+    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 512, mrl: true, input: ["text", "image"] } },
+  });
+  const imageEmbed = createLocalLightImageEmbed(fakeModelCache(1024), tag);
+  const images = await imageEmbed({ connection: conn, input: { kind: "image", input: new Uint8Array([1, 2, 3]) } });
+  const texts = await imageEmbed({ connection: conn, input: { kind: "text", input: "a red square" } });
+  expect(images.vectors.map((vector) => vector?.length)).toEqual([512]);
+  expect(texts.vectors.map((vector) => vector?.length)).toEqual([512]);
+  expect(norm(images.vectors[0] ?? new Float32Array())).toBeCloseTo(1);
+});
+
+test("embed: an MRL encoder declared at a shorter width cuts text to it even when the caller asks for no width", async () => {
+  const conn = fakeResolved({
+    task: "embed",
+    providerId: "local-light",
+    model: MODEL,
+    capability: { kind: "embedding", embedding: { ...EMBEDDING_FLOOR, dims: 512, mrl: true, input: ["text", "image"] } },
+  });
+  const embed = createLocalLightEmbed(fakeModelCache(1024), tag);
+  const out = await embed({ connection: conn, input: "a red square" });
+  expect(out.vectors.map((vector) => vector?.length)).toEqual([512]);
+});

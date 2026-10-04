@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { findSeedEmbedding, readSeedAvatar } from "@orb/default-content";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { CharacterHandle } from "@orb/kit/ids";
@@ -32,7 +32,7 @@ test("every shipped card projection and avatar has a complete normalized vector 
     const digest = hash(source.content);
     const found = findSeedEmbedding(digest, SPACE, source.kind);
     expect(found, `${source.kind}:${digest}`).not.toBeNull();
-    expect(found?.vector.length).toBe(EMBED_SPACE_DIMS);
+    expect(found?.vector.length).toBe(BUILT_IN_EMBED_DIMS);
     expect(found?.vector.every(Number.isFinite)).toBe(true);
     expect(found?.vector.reduce((sum, value) => sum + value * value, 0)).toBeCloseTo(1);
     expect(findSeedEmbedding(`${digest}-edited`, SPACE, source.kind)).toBeNull();

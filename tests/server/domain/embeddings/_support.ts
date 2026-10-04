@@ -291,6 +291,9 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     // test seeded; a null answer means "row gone", which the sweeps skip.
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
     loadAssetOwner: (assetId) => loadOwnerOf(db, "asset", assetId),
+    // A target move queues the owner's rebuild at compose; a domain test that cares overrides this.
+    onTargetGenerationMoved: () => undefined,
+    onTargetPromoted: () => undefined,
     now: (): number => clock.now(),
     newCharacterEmbeddingId: (): CharacterEmbeddingId => castId<CharacterEmbeddingId>(ids.next("character_embedding")),
     newImageEmbeddingId: (): ImageEmbeddingId => castId<ImageEmbeddingId>(ids.next("image_embedding")),
@@ -301,8 +304,6 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     loadCardText,
     listImageAssetIds,
     loadAssetBytes,
-    embedDim: EMBED_DIM,
-    imageEmbedDim: EMBED_DIM,
   };
   return {
     ctx,
@@ -353,7 +354,6 @@ export function makeIndexerHarness(
     loadCardText,
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
     roleClientsFor: () => Promise.resolve(roleClients),
-    embedDim: EMBED_DIM,
   };
   return { ctx, roleClients, loadCardText, loadAssetMime, loadAssetBytes, store };
 }

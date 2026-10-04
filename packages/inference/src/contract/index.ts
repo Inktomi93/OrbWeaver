@@ -63,7 +63,7 @@ export type {
   ProviderDiagnostics,
   VerifyAuthRequest,
 } from "./diagnostics.ts";
-export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet } from "./errors.ts";
+export type { ProviderErrorInit, ProviderErrorKind, ProviderScrubSet, VectorWidthMismatch } from "./errors.ts";
 export { assertNever, PROVIDER_ERROR_KINDS, ProviderError } from "./errors.ts";
 export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 export type { AgentSdkSessionId } from "./identity.ts";
@@ -95,6 +95,7 @@ export type {
   TaskSampling,
   WireEmbedding,
 } from "./roles.ts";
+export { embedRequestTimeoutMs } from "./roles.ts";
 export type { SideGenSampling } from "./side-gen.ts";
 export type { StructuredRetrySummary, StructuredTurnArgs } from "./structured-turn.ts";
 export { StructuredOutputError } from "./structured-turn.ts";

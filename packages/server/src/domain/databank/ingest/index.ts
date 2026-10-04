@@ -108,7 +108,6 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: Abor
       ownerId: doc.ownerId,
       content: chunk.content,
       model: space.model,
-      dim: space.dim,
       fkRefs: { documentId: doc.id, chunkIdx: chunk.idx, charStart: chunk.start, charEnd: chunk.end },
       signal,
     });
@@ -215,7 +214,7 @@ export function createDatabankIngest(ctx: DatabankContext): DatabankIngest {
         announceIngest(ctx, touchedOwners);
       }
     },
-    reindex: async ({ ownerId, scope, mode, signal }): Promise<IngestRunResult> => {
+    reindex: async ({ ownerId, scope, mode, signal, onProgress }): Promise<IngestRunResult> => {
       const acc = new IngestAccumulator();
       // Accumulated as the documents land and announced from a `finally`, so a CANCELLED sweep still tells
       // the owners whose documents it already re-embedded (an abort mid-pass would otherwise leave half-new
@@ -223,11 +222,12 @@ export function createDatabankIngest(ctx: DatabankContext): DatabankIngest {
       const touchedOwners = new Set<UserId>();
       try {
         const ids = await resolveReindexIds(ctx, ownerId, scope);
-        for (const id of ids) {
+        for (const [index, id] of ids.entries()) {
           if (isAborted(signal)) {
             break;
           }
           await runDocument({ documentId: id, mode, signal, acc, touchedOwners });
+          onProgress?.(index + 1, ids.length);
         }
         return acc.result();
       } finally {

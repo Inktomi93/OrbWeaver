@@ -3,6 +3,7 @@
 // ids preserved, raw logit as score, text-only), `imageEmbed` (the joint image/text space; the `multimodal`
 // PAIR kind requires explicit text fallback — jina-clip has two encoders and defines no fused vector).
 
+import type { Capability } from "@orb/contracts/inference";
 import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, ImageInput, RerankQuery } from "@orb/contracts/role-clients";
@@ -43,9 +44,15 @@ function finalizeVector(vec: Float32Array, dimensions: number | undefined, model
       kind: "invalid",
       retryable: false,
       message: `local-light model "${modelId}" emits ${vec.length}-dim vectors; cannot expand to the requested ${dimensions}`,
+      width: { stated: dimensions, measured: vec.length },
     });
   }
   return normalizeVector(vec.slice(0, dimensions));
+}
+
+/** The width an MRL connection's vectors are cut to; `undefined` for a model whose vectors cannot be shortened. */
+function declaredMrlWidth(capability: Capability): number | undefined {
+  return capability.kind === "embedding" && capability.embedding.mrl ? capability.embedding.dims : undefined;
 }
 
 function scatter(
@@ -84,7 +91,8 @@ export function createLocalLightEmbed(cache: LocalLightModelCache, spaceTag: (mo
           )
         : [];
     throwIfAborted(req.signal);
-    const dims = req.dimensions ?? req.truncateTo;
+    // A caller that asks for no width still writes into the connection's space, so a declared MRL width applies.
+    const dims = req.dimensions ?? declaredMrlWidth(req.connection.capability);
     const vectors = scatter(inputs.length, kept, raw, (vec) => finalizeVector(vec, dims, modelId));
     return { vectors, model: spaceTag(modelId), usage: { promptTokens: null, totalTokens: null } };
   };
@@ -136,10 +144,14 @@ export function createLocalLightRerank(cache: LocalLightModelCache): (req: Reran
   };
 }
 
+/** Shapes one raw vector into the space: L2 always, and an MRL cut to the connection's stated width. */
+type Finalize = (vec: Float32Array) => Float32Array<ArrayBuffer>;
+
 async function embedImageSide(
   cache: LocalLightModelCache,
   modelId: ModelId,
   input: ImageInput | readonly ImageInput[],
+  finalize: Finalize,
 ): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   const images: readonly ImageInput[] = typeof input === "string" || input instanceof Uint8Array ? [input] : input;
   const raw = await cache.embedImages(modelId, images);
@@ -150,10 +162,15 @@ async function embedImageSide(
       message: `local-light imageEmbed: the model returned a vector count that does not match the images — expected ${images.length}, got ${raw.length}`,
     });
   }
-  return raw.map((vec) => normalizeVector(vec));
+  return raw.map((vec) => finalize(vec));
 }
 
-async function embedTextSide(cache: LocalLightModelCache, modelId: ModelId, input: string | readonly string[]): Promise<(Float32Array<ArrayBuffer> | null)[]> {
+async function embedTextSide(
+  cache: LocalLightModelCache,
+  modelId: ModelId,
+  input: string | readonly string[],
+  finalize: Finalize,
+): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   const texts: readonly string[] = typeof input === "string" ? [input] : input;
   const kept = selectInputs(texts, undefined);
   if (kept.length === 0) {
@@ -163,15 +180,15 @@ async function embedTextSide(cache: LocalLightModelCache, modelId: ModelId, inpu
     modelId,
     kept.map((k) => k.text),
   );
-  return scatter(texts.length, kept, raw, normalizeVector);
+  return scatter(texts.length, kept, raw, finalize);
 }
 
-function embedByKind(cache: LocalLightModelCache, modelId: ModelId, input: ImageEmbedInput): Promise<(Float32Array<ArrayBuffer> | null)[]> {
+function embedByKind(cache: LocalLightModelCache, modelId: ModelId, input: ImageEmbedInput, finalize: Finalize): Promise<(Float32Array<ArrayBuffer> | null)[]> {
   if (input.kind === "image") {
-    return embedImageSide(cache, modelId, input.input);
+    return embedImageSide(cache, modelId, input.input, finalize);
   }
   if (input.kind === "text") {
-    return embedTextSide(cache, modelId, input.input);
+    return embedTextSide(cache, modelId, input.input, finalize);
   }
   if (input.allowTextFallback === true) {
     const pairs = Array.isArray(input.input) ? input.input : [input.input];
@@ -179,6 +196,7 @@ function embedByKind(cache: LocalLightModelCache, modelId: ModelId, input: Image
       cache,
       modelId,
       pairs.map((pair) => pair.text),
+      finalize,
     );
   }
   return Promise.reject(
@@ -197,7 +215,10 @@ export function createLocalLightImageEmbed(
   return async (req) => {
     throwIfAborted(req.signal);
     const modelId = req.connection.model;
-    const vectors = await abortableWait(embedByKind(cache, modelId, req.input), req.signal);
+    // The image side writes into the same space as the text side, so a declared shorter MRL width applies here too.
+    const dims = declaredMrlWidth(req.connection.capability);
+    const finalize: Finalize = (vec) => finalizeVector(vec, dims, modelId);
+    const vectors = await abortableWait(embedByKind(cache, modelId, req.input, finalize), req.signal);
     throwIfAborted(req.signal);
     return { vectors, model: spaceTag(modelId) };
   };

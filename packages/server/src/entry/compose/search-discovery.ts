@@ -13,7 +13,6 @@
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { characters as charactersTable, personas as personasTable } from "@orb/db";
@@ -127,12 +126,15 @@ export interface SearchDiscoveryComposeResult {
   readonly discovery: DiscoveryService;
   readonly notifications: NotificationsService;
   readonly workloads: WorkloadService;
-  /** Enqueue the embed-space sweeps: `null` for every owner (a binding change), a `UserId` for that owner (a seed).
-   *  Settles once every enqueue has; never rejects, because a failed enqueue is logged in its own span. */
+  /** Enqueue the embed-space sweeps: `null` for every owner, a `UserId` for that owner (a seed). Settles once
+   *  every enqueue has; never rejects, because a failed enqueue is logged in its own span. */
   readonly enqueueEmbedReindex: (scope: UserId | null) => Promise<void>;
   /** {@link SearchDiscoveryComposeResult.enqueueEmbedReindex} for a trigger that must not wait on it: the same
    *  sweeps, started detached. */
   readonly detachEmbedReindex: (scope: UserId | null) => void;
+  /** Boot's catch-up: the same sweeps for every owner whose stored generation is no longer the one their
+   *  binding resolves to, started detached. No user action raised the trigger, so autoindex does not gate it. */
+  readonly detachStaleSpaceReindex: () => void;
   /** A memory-off owner's vacuous memory receipt against their current target, or `null` (memory on, or no
    *  target). The memory sweep's terminal records it for an owner the sweep covered but built nothing for. */
   readonly vacuousMemoryReceipt: (ownerId: UserId) => Promise<MemoryEmbedSpace | null>;
@@ -176,8 +178,16 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     loadCharacterOwner,
     loadAssetOwner,
-    embedDim: EMBED_SPACE_DIMS,
-    imageEmbedDim: EMBED_SPACE_DIMS,
+    // Every target move, from any caller (a write, a sweep, a sync after a re-point, boot), emptied that owner's
+    // index: their forced sweeps refill it. Derefs the sweep starter below at call time, never during compose.
+    onTargetGenerationMoved: (ownerId) => {
+      detachRepointReindex(ownerId);
+    },
+    // A promotion ends the owner's search pause and moves the space every vector read uses. The member that refreshes
+    // those reads is `corpusRecomputed`, and the last scope to finish may be one whose sweep announces nothing.
+    onTargetPromoted: (ownerId) => {
+      publishUserEvent(ownerId, { type: "corpusRecomputed" });
+    },
   });
 
   const indexer = createEmbeddingsIndexer({
@@ -186,7 +196,6 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadCardText: async (characterId): Promise<string | undefined> => (await character.loadCardText(characterId)) ?? undefined,
     loadCharacterOwner,
     roleClientsFor,
-    embedDim: EMBED_SPACE_DIMS,
   });
   // The subscription stays live so an admin save can enable indexing without rebuilding composition.
   eventBus.subscribe((event: DomainEvent): Promise<void> => {
@@ -380,6 +389,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     requireOwner,
     isOwner,
     isAdmin,
+    emitUserEvent: publishUserEvent,
   });
 
   // The memory receipt for an owner a sweep covers but builds no space for. Only completable when memory is OFF
@@ -395,10 +405,10 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
 
   // An owner's memory sweep: a memory-backfill run, or for a memory-off owner (refused at admission, and it
   // would derive nothing) the vacuous receipt recorded directly.
-  const enqueueOwnerMemory = async (ownerId: UserId): Promise<unknown> => {
+  const enqueueOwnerMemory = async (ownerId: UserId, params: { readonly embedderChanged?: boolean }): Promise<unknown> => {
     const vacuous = await vacuousMemoryReceipt(ownerId);
     if (vacuous === null) {
-      return await workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "singular", ownerId });
+      return await workloads.start({ input: { kind: "memory-backfill", params }, caller: null, mode: "singular", ownerId, adoptActive: true });
     }
     return await embeddings.purgeMemoryVectors({
       ownerId,
@@ -408,20 +418,26 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
 
   // THE EMBED-SPACE SWEEPS: `index` for card/image vectors, `databank-reindex` for document chunks and the memory
   // sweep for chat segments/digests, so every scope lands in the new target and search reads it.
-  //   • `null` — an embed binding change: three GLOBAL BULK sweeps (`ownerId: null` spans every owner), the index
-  //     pass FORCED, because a non-forced one no-ops on rows whose text hash still matches the old space.
+  //   • `null` — three GLOBAL BULK sweeps (`ownerId: null` spans every owner), the index pass FORCED, because a
+  //     non-forced one no-ops on rows whose text hash still matches the old space.
   //   • a `UserId` — a seed bound that owner's encoder outside the binding verb: that owner's SINGULAR sweeps. None
   //     with the autoindex off: then nothing embeds in the background, no target is pinned, and search reads the
   //     live space with no migration to wait on.
-  // `caller: null` is the trusted-system mode-gate bypass. Each enqueue runs in its own root span, and a duplicate
-  // run (a kind already active → DomainConflictError) or any enqueue failure is logged there, never thrown at the
-  // write that triggered it.
-  const embedSweeps = (scope: UserId | null): readonly EmbedSweep[] => {
-    if (scope !== null && deps.getEffectiveConfig().corpusAutoindex !== true) {
+  //   • a `UserId` with `embedderChanged` — the owner's target moved, or boot found their stored generation stale:
+  //     their SINGULAR sweeps, the index pass forced, whatever the autoindex says, because the switch empties
+  //     their index.
+  // `caller: null` is the trusted-system mode-gate bypass. Every start ADOPTS an active run of the same unit rather
+  // than conflicting, so two triggers for one move (the text and picture targets, boot and a write) queue one set.
+  // Each enqueue runs in its own root span, and any enqueue failure is logged there, never thrown at the write
+  // that triggered it.
+  const embedSweeps = (scope: UserId | null, embedderChanged = scope === null): readonly EmbedSweep[] => {
+    if (!embedderChanged && deps.getEffectiveConfig().corpusAutoindex !== true) {
       return [];
     }
     const at = String(now());
     const mode = scope === null ? "bulk" : "singular";
+    // A rebuild's databank and memory runs carry the flag too, so each holds its own slot beside a plain run.
+    const rebuild = embedderChanged ? { embedderChanged } : {};
     const sweep = (workloadKind: string, start: () => Promise<unknown>): EmbedSweep => ({
       requestId: `embed-reindex:${workloadKind}:${scope ?? "all"}:${at}`,
       attrs: { workloadKind },
@@ -430,17 +446,26 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     return [
       sweep("index", () =>
         workloads.start({
-          input: { kind: "index", params: scope === null ? { source: "all", force: true } : { source: "all" } },
+          input: { kind: "index", params: embedderChanged ? { source: "all", force: true, embedderChanged } : { source: "all" } },
           caller: null,
           mode,
           ownerId: scope,
+          adoptActive: true,
         }),
       ),
       sweep("databank-reindex", () =>
-        workloads.start({ input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } }, caller: null, mode, ownerId: scope }),
+        workloads.start({
+          input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed", ...rebuild } },
+          caller: null,
+          mode,
+          ownerId: scope,
+          adoptActive: true,
+        }),
       ),
       sweep("memory-backfill", () =>
-        scope === null ? workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode, ownerId: null }) : enqueueOwnerMemory(scope),
+        scope === null
+          ? workloads.start({ input: { kind: "memory-backfill", params: rebuild }, caller: null, mode, ownerId: null, adoptActive: true })
+          : enqueueOwnerMemory(scope, rebuild),
       ),
     ];
   };
@@ -452,6 +477,21 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     for (const s of embedSweeps(scope)) {
       superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
     }
+  };
+  // An owner's target moved (`onTargetGenerationMoved`): their sweeps, forced. Their generations are theirs alone,
+  // so nobody else's index is touched, and the jobs are theirs to read under Jobs.
+  const detachRepointReindex = (ownerId: UserId): void => {
+    for (const s of embedSweeps(ownerId, true)) {
+      superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
+    }
+  };
+
+  const detachStaleSpaceReindex = (): void => {
+    superviseDetached("embeddings.staleGeneration.reindex", EMBED_REINDEX_SPAN, { workloadKind: "index" }, async () => {
+      for (const ownerId of await embeddings.staleGenerationOwners()) {
+        await Promise.all(embedSweeps(ownerId, true).map((s) => superviseSettled(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start)));
+      }
+    });
   };
 
   let autoindexEnabled = deps.getEffectiveConfig().corpusAutoindex === true;
@@ -481,6 +521,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     workloads,
     enqueueEmbedReindex,
     detachEmbedReindex,
+    detachStaleSpaceReindex,
     vacuousMemoryReceipt,
     listCorpusOwners: () => distinctCorpusOwners(db),
   };

@@ -2,18 +2,17 @@
 // extending kit's DomainOperationError. Deliberately NOT a SearchError: the rerank role's not-supported
 // throw — search does not catch-and-rewrap it and does not silently fall back to CSLS order.
 
+import { SEARCH_SPACE_REINDEXING as SPACE_REINDEXING } from "@orb/contracts/search";
 import { DomainOperationError } from "@orb/kit/errors";
 
 export const SEARCH_EMPTY_QUERY = "empty_query";
 /** The owner has no `embed`/`imageEmbed` connection bound — nothing defines their vector space. */
 export const SEARCH_NO_SPACE = "search_no_space";
 
-/** The owner's corpus has not finished moving into the space their binding now resolves to (§10-5). NOT an
- *  empty result: the query can only be embedded by the LIVE model, and every admitted embedder is 1024-wide,
- *  so scanning the last-complete space with it would return dimensionally-valid, semantically meaningless
- *  rankings. A named refusal is the only honest answer while the two disagree, and it is one a surface can
- *  explain ("re-indexing your library; search resumes when it finishes"). */
-export const SEARCH_SPACE_REINDEXING = "search_space_reindexing";
+// The owner's corpus has not finished moving into the space their binding now resolves to (§10-5). Not an empty
+// result: scanning the last-complete space with the live model would return meaningless rankings, so the refusal is
+// the only honest answer. Spelled in contracts, because the client branches on it.
+export const SEARCH_SPACE_REINDEXING: typeof SPACE_REINDEXING = SPACE_REINDEXING;
 
 /** A chat-memory verb keying to a digest block was called without an egocentric scopedCharacterId; we
  *  throw rather than mint an empty-string sentinel. */
