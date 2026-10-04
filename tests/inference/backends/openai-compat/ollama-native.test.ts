@@ -11,8 +11,9 @@ import { passthroughImageNormalizer } from "../../../../packages/inference/src/b
 import type { BatchDeps } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { runOpenAiCompatStructured, runOpenAiCompatSummarize } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
-import { ollamaNativeFetch, toOllamaChat } from "../../../../packages/inference/src/backends/openai-compat/ollama-native.ts";
+import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "../../../../packages/inference/src/backends/openai-compat/ollama-native.ts";
 import { samplerBodyKeys } from "../../../../packages/inference/src/backends/openai-compat/sampling.ts";
+import type { WireCaptureSink } from "../../../../packages/inference/src/contract/backend.ts";
 import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -35,6 +36,12 @@ type Recording = (typeof OLLAMA_NATIVE_RECORDINGS)[keyof typeof OLLAMA_NATIVE_RE
 function silentLog(): Parameters<typeof runOpenAiCompatChatTurn>[1]["log"] {
   const noop = (): void => undefined;
   return { debug: noop, info: noop, warn: noop, error: noop };
+}
+
+/** The native route as `wrapFetch` composes it: rerouted to `/api/chat`, then the reply translated. */
+function nativeChatFetch(inner: typeof fetch): typeof fetch {
+  const routed = ollamaNativeFetch(inner, { baseUrl: BASE_URL });
+  return async (input, init): Promise<Response> => await fromOllamaChat(await routed(input, init), "t");
 }
 
 /** Answers each call with the next recording, as the server sent it, and records what was posted. */
@@ -415,7 +422,7 @@ test("a recorded non-streaming answer (the structured path) reads back as one Op
   const recording = OLLAMA_NATIVE_RECORDINGS.format;
   const inner: typeof fetch = () =>
     Promise.resolve(new Response(recording.body, { status: recording.status, headers: { "content-type": recording.contentType } }));
-  const res = await ollamaNativeFetch(inner, { baseUrl: BASE_URL, label: "t" })(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
+  const res = await nativeChatFetch(inner)(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
   expect(res.headers.get("content-type")).toBe("application/json");
   expect(await res.json()).toMatchObject({
     choices: [{ message: { role: "assistant", content: '{\n  "city": "Paris"\n}' }, ["finish_reason"]: "stop" }],
@@ -550,7 +557,7 @@ test("cancelling the translated stream cancels Ollama's stream, so an abort reac
     },
   });
   const inner: typeof fetch = () => Promise.resolve(new Response(endless, { status: 200, headers: { "content-type": "application/x-ndjson" } }));
-  const res = await ollamaNativeFetch(inner, { baseUrl: BASE_URL, label: "t" })(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
+  const res = await nativeChatFetch(inner)(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
   const reader = res.body?.getReader();
   await reader?.read();
   await reader?.cancel();
@@ -571,7 +578,7 @@ test("a line split across three reads still streams to [DONE]", async () => {
     },
   });
   const inner: typeof fetch = () => Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "application/x-ndjson" } }));
-  const res = await ollamaNativeFetch(inner, { baseUrl: BASE_URL, label: "t" })(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
+  const res = await nativeChatFetch(inner)(`${BASE_URL}/chat/completions`, { method: "POST", body: "{}" });
   const text = await Promise.race([
     res.text(),
     new Promise<string>((resolve) => {
@@ -580,6 +587,44 @@ test("a line split across three reads still streams to [DONE]", async () => {
   ]);
   expect(text).toContain('"content":"hello"');
   expect(text.endsWith("data: [DONE]\n\n")).toBe(true);
+});
+
+test("the reply capture holds Ollama's native bytes, while the turn reads them translated, on one entry with the request", async () => {
+  const run = async (
+    recording: Recording,
+  ): Promise<{ readonly entries: Parameters<WireCaptureSink>[0][]; readonly result: ChatResult | undefined; readonly error: unknown }> => {
+    const entries: Parameters<WireCaptureSink>[0][] = [];
+    const recorded: RecordedRequest[] = [];
+    let result: ChatResult | undefined;
+    let error: unknown;
+    try {
+      result = await runOpenAiCompatChatTurn(request(), {
+        now: () => NOW,
+        log: silentLog(),
+        transport: {
+          fetch: replay([recording], recorded),
+          app: { name: "t", url: "http://localhost:0" },
+          captureWire: (entry) => entries.push(entry),
+          captureWireReply: true,
+        },
+        tokens: memoryTokenLexicon(),
+      });
+    } catch (thrown) {
+      error = thrown;
+    }
+    await expect.poll(() => entries.length).toBe(1);
+    return { entries, result, error };
+  };
+  const ok = await run(OLLAMA_NATIVE_RECORDINGS.text);
+  expect(ok.result?.reply).toBe("Hello, how are you?");
+  // The native stream's own fields, which the OpenAI reconstruction drops, are what was captured.
+  expect(ok.entries[0]?.responseBody).toContain('"prompt_eval_count":35');
+  expect(ok.entries[0]?.responseBody).not.toContain("chat.completion.chunk");
+  expect(ok.entries[0]?.body).toMatchObject({ messages: expect.any(Array), options: expect.any(Object) });
+  // A failed answer captures Ollama's own error body and still reaches the turn as the server's words.
+  const failed = await run(OLLAMA_NATIVE_RECORDINGS.missing);
+  expect(failed.entries[0]?.responseBody).toBe(OLLAMA_NATIVE_RECORDINGS.missing.body);
+  expect(String(failed.error)).toMatch(/no-such-model:latest' not found/u);
 });
 
 test("a recorded error answer reaches the turn as the server's own message", async () => {

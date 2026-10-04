@@ -1,9 +1,8 @@
 // Ollama's native chat route under the openai-compat backend (D296): the SDK still builds an OpenAI chat body
 // and parses OpenAI chunks, and this file translates both ends. `/v1/chat/completions` drops `num_ctx` and
 // the samplers Ollama's Go decoder has no field for, so a row whose folded `features.nativeChat` is `ollama`
-// sends `/api/chat` instead. The request is translated in `wrapFetch`'s `shapeBody`, so the wire capture holds
-// the native body; the response is translated in the fetch underneath it, so the SDK and the reshaping read
-// OpenAI chunks.
+// sends `/api/chat` instead. Both ends are translated inside `wrapFetch`, the request in `shapeBody` and the reply
+// after its tap, so the wire capture holds the native body and the native reply while the SDK reads OpenAI chunks.
 
 import type { EffortLevel } from "@orb/contracts/inference";
 import { ProviderError } from "../../contract/errors.ts";
@@ -468,7 +467,8 @@ async function failedResponse(res: Response): Promise<Response> {
   return new Response(JSON.stringify({ error: { message } }), { status: res.status, statusText: res.statusText, headers: headersWith(res, JSON_CONTENT_TYPE) });
 }
 
-async function translatedResponse(res: Response, label: string): Promise<Response> {
+/** Ollama's reply (NDJSON, a JSON completion, or its error body) in the OpenAI shape the SDK reads. */
+export async function fromOllamaChat(res: Response, label: string): Promise<Response> {
   if (!res.ok) {
     return await failedResponse(res);
   }
@@ -491,13 +491,9 @@ function urlOf(input: Parameters<typeof fetch>[0]): string {
 }
 
 /** The fetch under `wrapFetch` for a native row: the SDK's `…/v1/chat/completions` becomes `/api/chat` on the
- *  server root, and the reply comes back in OpenAI's shape. Any other path (none today) passes through. */
-export function ollamaNativeFetch(inner: typeof fetch, args: { readonly baseUrl: string; readonly label: string }): typeof fetch {
-  return async (input, init): Promise<Response> => {
-    if (!urlOf(input).endsWith(CHAT_COMPLETIONS_SUFFIX)) {
-      return await inner(input, init);
-    }
-    const res = await inner(`${serverRootOf(args.baseUrl)}${NATIVE_CHAT_PATH}`, init);
-    return await translatedResponse(res, args.label);
-  };
+ *  server root. The reply comes back as Ollama sent it; `wrapFetch` taps it, then translates it with
+ *  {@link fromOllamaChat}. Any other path (none today) passes through. */
+export function ollamaNativeFetch(inner: typeof fetch, args: { readonly baseUrl: string }): typeof fetch {
+  return async (input, init): Promise<Response> =>
+    await inner(urlOf(input).endsWith(CHAT_COMPLETIONS_SUFFIX) ? `${serverRootOf(args.baseUrl)}${NATIVE_CHAT_PATH}` : input, init);
 }

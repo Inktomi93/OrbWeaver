@@ -24,7 +24,7 @@ import type { WirePlan } from "../v4/prompt.ts";
 import type { ShapeArgs } from "./body.ts";
 import { shapeOutboundBody, userOwnedKeys } from "./body.ts";
 import type { NativeThink } from "./ollama-native.ts";
-import { ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
+import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
 import { samplerBodyKeys } from "./sampling.ts";
 import type { ReasoningTags } from "./think-tags.ts";
 import { thinkTagMiddleware } from "./think-tags.ts";
@@ -206,7 +206,11 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
     name: connection.providerId,
     baseURL: openAiPath(baseUrl, ""),
     headers: authHeaders(connection.credential.secret, connection.transport?.headers),
-    fetch: wrapFetch({ ...fetchArgs(call, toNative), fetch: ollamaNativeFetch(deps.fetch, { baseUrl, label: call.label }) }),
+    fetch: wrapFetch({
+      ...fetchArgs(call, toNative),
+      fetch: ollamaNativeFetch(deps.fetch, { baseUrl }),
+      translateResponse: (res) => fromOllamaChat(res, call.label),
+    }),
     includeUsage: true,
     // The structured plan decides whether a response format rides; the SDK must never downgrade one itself.
     supportsStructuredOutputs: true,
