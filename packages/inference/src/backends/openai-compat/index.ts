@@ -31,10 +31,16 @@ function isOpenAiCompatChatRequest(req: ChatRequest): req is OpenAiCompatChatReq
   return req.api === "chat-completions";
 }
 
+/** What a task carries that the wake reads: its row and its cancel. */
+interface WakeRequest {
+  readonly connection: Resolved;
+  readonly signal?: AbortSignal | undefined;
+}
+
 /** A row whose folded features name a sleep pair is woken before any task reaches it: the availability read calls a
  *  sleeping server available because the task wakes it. A row without the pair sends as it is. */
-function wakeBeforeSend(reachability: ReachabilityProber): (connection: Resolved) => Promise<void> {
-  return async (connection) => {
+function wakeBeforeSend(reachability: ReachabilityProber): (req: WakeRequest) => Promise<void> {
+  return async ({ connection, signal }) => {
     const sleep = connection.features.sleep;
     if (sleep === undefined || connection.baseUrl === null) {
       return;
@@ -44,11 +50,12 @@ function wakeBeforeSend(reachability: ReachabilityProber): (connection: Resolved
       secret: connection.credential.secret,
       headers: connection.transport?.headers,
       sleepPath: sleep.isSleepingPath,
+      wakePath: sleep.wakePath,
     };
-    if ((await reachability.probe(target)) !== "asleep") {
+    if (!(await reachability.asleep(target, signal))) {
       return;
     }
-    if (!(await reachability.wake({ ...target, wakePath: sleep.wakePath }))) {
+    if (!(await reachability.wake(target, signal))) {
       throw new ProviderError({
         kind: "model_unavailable",
         retryable: true,
@@ -60,12 +67,9 @@ function wakeBeforeSend(reachability: ReachabilityProber): (connection: Resolved
 }
 
 /** A task runner that wakes the row's server first. */
-function woken<R extends { readonly connection: Resolved }, T>(
-  awake: (connection: Resolved) => Promise<void>,
-  run: (req: R) => Promise<T>,
-): (req: R) => Promise<T> {
+function woken<R extends WakeRequest, T>(awake: (req: WakeRequest) => Promise<void>, run: (req: R) => Promise<T>): (req: R) => Promise<T> {
   return async (req) => {
-    await awake(req.connection);
+    await awake(req);
     return await run(req);
   };
 }
@@ -116,7 +120,7 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
         if (!isOpenAiCompatChatRequest(req)) {
           throw new ProviderError({ kind: "invalid", retryable: false, message: `openai-compat backend received api="${req.api}"` });
         }
-        await awake(req.connection);
+        await awake(req);
         return await runOpenAiCompatChatTurn(req, chatDeps);
       },
       embed: woken(awake, (req) => runOpenAiCompatEmbed(req, { log: deps.log, transport })),

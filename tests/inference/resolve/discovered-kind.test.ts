@@ -9,26 +9,82 @@ import { fakeConnection, fakeDeps, memoryStores, newUserId } from "../_support.t
 const OLLAMA_URL = "http://ollama.test:11434";
 
 /** An Ollama server listing `models`, each with the `/api/show` capabilities given. Records the model each
- *  `/api/chat` render probe asked about. */
-function ollamaServer(models: Readonly<Record<string, readonly string[]>>): { readonly fetch: typeof fetch; readonly rendered: string[] } {
+ *  `/api/chat` render probe asked about; `holdRender` keeps a render unanswered until the promise it returns settles. */
+function ollamaServer(
+  models: Record<string, readonly string[]>,
+  holdRender?: (model: string) => Promise<void> | undefined,
+): { readonly fetch: typeof fetch; readonly rendered: string[]; readonly shown: string[] } {
   const rendered: string[] = [];
+  const shown: string[] = [];
   const routes: Readonly<Record<string, (model: string) => unknown>> = {
     "/v1/models": () => ({ object: "list", data: Object.keys(models).map((id) => ({ id, object: "model" })) }),
     "/api/version": () => ({ version: "0.12.0" }),
     "/api/ps": () => ({ models: [] }),
     "/api/show": (model) => ({ capabilities: models[model] ?? [], ["model_info"]: { "general.architecture": "test", "test.embedding_length": 768 } }),
-    "/api/chat": (model) => {
-      rendered.push(model);
-      return { ["_debug_info"]: { ["rendered_template"]: "<user>hi</user><assistant>PREFILLMARK" } };
-    },
+    "/api/chat": () => ({ ["_debug_info"]: { ["rendered_template"]: "<user>hi</user><assistant>PREFILLMARK" } }),
   };
-  const fetchImpl: typeof fetch = (input, init) => {
-    const route = routes[new URL(input instanceof Request ? input.url : String(input)).pathname];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const path = new URL(input instanceof Request ? input.url : String(input)).pathname;
+    const route = routes[path];
     const body = typeof init?.body === "string" ? (JSON.parse(init.body) as { readonly model?: string }) : {};
-    return Promise.resolve(route === undefined ? new Response("not found", { status: 404 }) : Response.json(route(body.model ?? "")));
+    const model = body.model ?? "";
+    if (path === "/api/show") {
+      shown.push(model);
+    }
+    if (path === "/api/chat") {
+      rendered.push(model);
+      await holdRender?.(model);
+    }
+    return route === undefined ? new Response("not found", { status: 404 }) : Response.json(route(model));
   };
-  return { fetch: fetchImpl, rendered };
+  return { fetch: fetchImpl, rendered, shown };
 }
+
+// Ollama serves `alpha` as `alpha:latest`, and its list names the tag; the row typed without it is the same model.
+test("a model named without its implicit :latest tag still gets its own probe", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const row = fakeConnection({ ownerId, providerId: "ollama", model: "alpha", baseUrl: OLLAMA_URL });
+  stores.connections.rows.set(row.id, row);
+  const server = ollamaServer({ "alpha:latest": ["completion"] });
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: server.fetch }));
+
+  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+
+  expect(server.rendered).toEqual(["alpha:latest"]);
+  expect(resolved.capability.kind === "generation" && resolved.capability.generation.turns?.assistantPrefill).toBe(true);
+});
+
+// A probe still running when the server's facts are refreshed answers for the list it started on, never the new one.
+test("a model probe that outlives a refresh of the server's facts does not overwrite the refreshed row", async () => {
+  const stores = memoryStores();
+  const ownerId = newUserId();
+  const alpha = fakeConnection({ ownerId, providerId: "ollama", model: "alpha:7b", baseUrl: OLLAMA_URL });
+  const beta = fakeConnection({ ownerId, providerId: "ollama", model: "beta:7b", baseUrl: OLLAMA_URL });
+  stores.connections.rows.set(alpha.id, alpha);
+  stores.connections.rows.set(beta.id, beta);
+  const models: Record<string, readonly string[]> = { "alpha:7b": ["completion"], "beta:7b": ["completion"] };
+  const { promise: released, resolve: release } = Promise.withResolvers<undefined>();
+  const server = ollamaServer(models, (model) => (model === "beta:7b" ? released : undefined));
+  const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: server.fetch }));
+  const asker = principal(ownerId);
+  await runtime.resolve({ task: "chat", principal: asker, connectionId: alpha.id });
+
+  // beta's render probe starts on the list alpha warmed, and stalls.
+  const stale = runtime.resolve({ task: "chat", principal: asker, connectionId: beta.id }).catch(() => undefined);
+  await expect.poll(() => server.rendered).toContain("beta:7b");
+  // The server now serves beta as an embedder, and its facts are refreshed.
+  models["beta:7b"] = ["embedding"];
+  await runtime.catalogs.invalidateEndpoint(beta);
+  const fresh = runtime.modelKind(beta);
+  // The stalled probe answers only once the refreshed list is read and held.
+  await expect.poll(() => server.shown.filter((model) => model === "beta:7b")).toHaveLength(2);
+  await new Promise((settled) => setTimeout(settled, 50));
+  release(undefined);
+  await Promise.all([stale, fresh]);
+
+  expect(await runtime.modelKind(beta, { cachedFacts: true })).toBe("embedding");
+});
 
 test("an uncurated Ollama embedder reads as an embedder on the first capability read and every one after", async () => {
   const stores = memoryStores();

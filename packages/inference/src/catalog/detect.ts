@@ -5,7 +5,8 @@
 
 import type { ModelInfoApi } from "@orb/contracts/inference";
 import { z } from "zod";
-import { authHeaders, isRedirect, serverRootOf } from "../backends/kit/fetch-json.ts";
+import { deadlineSignal } from "../backends/kit/abort-flatten.ts";
+import { authHeaders, isRedirect, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/kit/fetch-json.ts";
 import type { DetectedServer } from "../contract/runtime.ts";
 
 export interface DetectArgs {
@@ -56,14 +57,20 @@ async function answer(args: DetectArgs, path: string): Promise<unknown> {
 /**
  * Probe the server in order and name the first that identifies itself. A server the first probe could not reach
  * (refused, timed out) throws at once: every probe dials the same origin, so asking the rest only waits out the same
- * dead host again. The throw leaves the caller's cache cold; a server that answered and matched none is `null`, which
- * is cached like a match.
+ * dead host again. The whole identification shares one {@link SERVER_READ_TIMEOUT_MS} deadline, so a host that
+ * answers slowly is a host that did not answer. The throw leaves the caller's cache cold; a server that answered and
+ * matched none is `null`, which is cached like a match.
  */
 export async function detectServer(args: DetectArgs): Promise<DetectedServer> {
-  for (const probe of PROBES) {
-    if (probe.schema.safeParse(await answer(args, probe.path)).success) {
-      return { modelInfoApi: probe.server };
+  const deadline = deadlineSignal(args.signal, SERVER_READ_TIMEOUT_MS);
+  try {
+    for (const probe of PROBES) {
+      if (probe.schema.safeParse(await answer({ ...args, signal: deadline.signal }, probe.path)).success) {
+        return { modelInfoApi: probe.server };
+      }
     }
+    return { modelInfoApi: null };
+  } finally {
+    deadline.dispose();
   }
-  return { modelInfoApi: null };
 }

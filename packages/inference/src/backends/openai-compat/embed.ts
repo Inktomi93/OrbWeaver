@@ -22,7 +22,7 @@ import type { Resolved } from "../../contract/resolved.ts";
 import type { EmbedRequest } from "../../contract/roles.ts";
 import { embedRequestTimeoutMs } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
-import { foldAbortInto } from "../kit/abort-flatten.ts";
+import { deadlineSignal } from "../kit/abort-flatten.ts";
 import type { VectorFit } from "../kit/embedding-input.ts";
 import { embeddingPrompt, fitToDim } from "../kit/embedding-input.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
@@ -133,20 +133,6 @@ function postDeadlineMs(tokens: number, baseMs: number, floorTokensPerSec: numbe
   return floorTokensPerSec === undefined ? baseMs : Math.max(baseMs, Math.ceil((tokens / floorTokensPerSec) * MS_PER_SEC));
 }
 
-/** The per-POST deadline composed with the caller's cancel — reason-flattened, never `AbortSignal.any`. */
-function postSignal(external: AbortSignal | undefined, deadlineMs: number): { readonly signal: AbortSignal; readonly dispose: () => void } {
-  const controller = new AbortController();
-  const detach = foldAbortInto(controller, external);
-  const timer = setTimeout(() => controller.abort(), deadlineMs);
-  return {
-    signal: controller.signal,
-    dispose: (): void => {
-      clearTimeout(timer);
-      detach();
-    },
-  };
-}
-
 interface BatchRun {
   readonly req: EmbedRequest;
   readonly call: ModelCall;
@@ -163,7 +149,7 @@ async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<num
   const { req, call, model, label, secrets } = run;
   const { features } = req.connection;
   const tokens = batch.reduce((sum, item) => sum + item.tokens, 0);
-  const post = postSignal(req.signal, postDeadlineMs(tokens, embedRequestTimeoutMs(features), features.embedBatch?.floorTokensPerSec));
+  const post = deadlineSignal(req.signal, postDeadlineMs(tokens, embedRequestTimeoutMs(features), features.embedBatch?.floorTokensPerSec));
   try {
     const result = await embedOnce({
       call,

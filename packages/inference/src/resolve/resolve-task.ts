@@ -42,6 +42,7 @@ import { curatedKind, curatedRows } from "../capability/sources/curated/loader.t
 import { measuredRows } from "../capability/sources/measured/loader.ts";
 import type { Evidence } from "../capability/synthesize.ts";
 import { synthesizeCapability } from "../capability/synthesize.ts";
+import { sameModelId } from "../catalog/endpoint.ts";
 import type { Mirror } from "../catalog/mirror.ts";
 import { ProviderError } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
@@ -60,9 +61,9 @@ export interface ResolveArgs {
   readonly actor?: BindingActor | undefined;
   /** An explicit row instead of the fold — the turn's own already-resolved connection re-read, a pane preview. */
   readonly connectionId?: UserConnection["id"] | undefined;
-  /** Read only the server facts the catalog mirrors already hold, and dial nothing. For a read-only question asked
-   *  before the user commits (the change preview): a host that does not answer must not hold it. A cold mirror
-   *  degrades to the stated and curated facts. */
+  /** Read only the server facts already held, in memory or in the persisted snapshot, and dial nothing. For a read-only
+   *  question asked before the user commits (the change preview): a host that does not answer must not hold it. A fact
+   *  never persisted degrades to the stated and curated facts. */
   readonly cachedFacts?: boolean | undefined;
 }
 
@@ -177,18 +178,10 @@ function endpointEntryFor(
   }
   const catalogId = provider.wire === "google-generative-ai" ? googleModelId(model) : model;
   const reader = modelInfoApiOf(ctx, provider, connection);
-  const sameId =
-    reader === "ollama" ? (id: string): boolean => withImplicitLatest(id) === withImplicitLatest(catalogId) : (id: string): boolean => id === catalogId;
   return ctx
     .endpointModels(baseUrl, reader, endpointMirrorTenant(connection))
     .get()
-    ?.find((candidate) => sameId(candidate.id));
-}
-
-/** Ollama resolves an untagged name to `:latest`, so `llama3` and `llama3:latest` are one model. A `:` that
- *  precedes a `/` is a registry port, not a tag. */
-function withImplicitLatest(id: string): string {
-  return /:[^/]*$/u.test(id) ? id : `${id}:latest`;
+    ?.find((candidate) => sameModelId(reader, candidate.id, catalogId));
 }
 
 /** Whose list a row's endpoint mirror holds. A server that authenticates the caller may answer each credential with a
@@ -324,7 +317,7 @@ async function warmBeforeFacts(
 ): Promise<{ readonly behaved: ProviderDef; readonly earlyCredential: ResolvedSecret | null; readonly reached: boolean }> {
   const detecting = detectionUrl(provider, connection) !== null;
   if (cachedFacts) {
-    return { behaved: behaveAs(ctx, provider, connection), earlyCredential: null, reached: false };
+    return { behaved: await heldFacts(ctx, provider, connection), earlyCredential: null, reached: false };
   }
   if (provider.wire !== "google-generative-ai" && !detecting) {
     return { behaved: provider, earlyCredential: null, reached: true };
@@ -357,15 +350,79 @@ async function warmFacts(
   return { behaved, credential };
 }
 
-/** The kind a row's model is, as the resolver will read it: the catalog warmed first (or, with `cachedFacts`, only what
- *  the mirrors already hold), then the declaration, the catalog and the curated rows. `undefined` when no evidence
- *  states one; the row's provider not being registered for its owner reads the same. */
-export async function discoveredKind(ctx: ResolverContext, connection: UserConnection, cachedFacts: boolean): Promise<ModelKind | undefined> {
+/** The mirror `warmFor` fills for this row, or `undefined` where no catalog is read (a builtin row's closed set). */
+function catalogMirrorOf(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection): Pick<Mirror<unknown>, "hydrate"> | undefined {
+  if (provider.catalog === "builtin") {
+    return;
+  }
+  if (provider.wire === "agent-sdk") {
+    return ctx.agentSdkCatalog;
+  }
+  if (provider.dialect === "openrouter") {
+    return ctx.openRouterCatalog;
+  }
+  const baseUrl = provider.baseUrl ?? connection.baseUrl;
+  return baseUrl === null ? undefined : ctx.endpointModels(baseUrl, modelInfoApiOf(ctx, provider, connection), endpointMirrorTenant(connection));
+}
+
+/** The row whose facts a `cachedFacts` read reads, with every mirror it reads loaded from its persisted snapshot: what a
+ *  warm would read first, so a restarted process agrees with the write that warms. Nothing is dialed. */
+async function heldFacts(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection): Promise<ProviderDef> {
+  const detectUrl = detectionUrl(provider, connection);
+  if (detectUrl !== null) {
+    await ctx.detectedServer(detectUrl).hydrate();
+  }
+  const behaved = behaveAs(ctx, provider, connection);
+  await catalogMirrorOf(ctx, behaved, connection)?.hydrate();
+  return behaved;
+}
+
+/** Whether the held mirrors carry every fact a warm would read for this row's kind: the detect answer, the catalog,
+ *  and, for a listed model a server's native API describes, that model's own probe. */
+function kindFactsHeld(ctx: ResolverContext, registered: ProviderDef, behaved: ProviderDef, connection: UserConnection): boolean {
+  const detectUrl = detectionUrl(registered, connection);
+  if (detectUrl !== null && ctx.detectedServer(detectUrl).get() === null) {
+    return false;
+  }
+  if (behaved.catalog === "builtin") {
+    return true;
+  }
+  if (behaved.dialect === "openrouter") {
+    return ctx.openRouterCatalog.get() !== null;
+  }
+  const baseUrl = behaved.baseUrl ?? connection.baseUrl;
+  if ((behaved.wire !== "openai-compat" && behaved.wire !== "google-generative-ai") || baseUrl === null) {
+    return true;
+  }
+  const reader = modelInfoApiOf(ctx, behaved, connection);
+  if (ctx.endpointModels(baseUrl, reader, endpointMirrorTenant(connection)).get() === null) {
+    return false;
+  }
+  const entry = endpointEntryFor(ctx, { provider: behaved, connection, model: connection.model });
+  return entry === undefined || reader === undefined || entry.probed === true;
+}
+
+/** The kind a row's model is, as the resolver will read it: the catalog warmed first, then the declaration, the catalog
+ *  and the curated rows. `undefined` when no evidence states one; the row's provider not being registered for its
+ *  owner reads the same. */
+export async function discoveredKind(ctx: ResolverContext, connection: UserConnection): Promise<ModelKind | undefined> {
   const provider = ctx.registry.get(connection.providerId, connection.ownerId);
   if (provider === undefined) {
     return;
   }
-  return statedKind(ctx, { provider: cachedFacts ? behaveAs(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection), connection });
+  return statedKind(ctx, { provider: await warmedOrCached(ctx, provider, connection), connection });
+}
+
+/** {@link discoveredKind} over the persisted facts only, dialing nothing. `held` is false when no evidence states a kind
+ *  yet a warm could still read one (a catalog or detect answer never persisted, a listed model not yet probed). */
+export async function cachedKind(ctx: ResolverContext, connection: UserConnection): Promise<{ readonly kind: ModelKind | undefined; readonly held: boolean }> {
+  const provider = ctx.registry.get(connection.providerId, connection.ownerId);
+  if (provider === undefined) {
+    return { kind: undefined, held: true };
+  }
+  const behaved = await heldFacts(ctx, provider, connection);
+  const kind = statedKind(ctx, { provider: behaved, connection });
+  return { kind, held: kind !== undefined || kindFactsHeld(ctx, provider, behaved, connection) };
 }
 
 // A kind read gathers evidence and never refuses: a revoked key or a server that does not answer leaves the facts the

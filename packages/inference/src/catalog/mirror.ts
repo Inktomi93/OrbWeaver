@@ -31,6 +31,9 @@ export interface Mirror<T> {
    *  Never a throw: the resolve path degrades on `ok: false`, and the model-list read reports the reason. A
    *  warm that coalesces onto one in flight shares that warm's answer, reason included. */
   readonly warm: (fetch: () => Promise<T>, secrets: ProviderScrubSet) => Promise<MirrorWarm<T>>;
+  /** The first half of a warm and nothing more: a cold mirror loads the persisted snapshot, and nothing is dialed. A read
+   *  that must not wait on a host still sees what the next warm would read first. `null` when nothing is held. */
+  readonly hydrate: () => Promise<T | null>;
   readonly seed: (value: T, at: number) => void;
   /** Rewrite the held value in place, in memory and in the snapshot, keeping its fetch time: facts learned about it
    *  after the fetch (one model's own probes). A cold mirror, or one invalidated meanwhile, keeps nothing. */
@@ -134,8 +137,17 @@ export function createMirror<T>(args: {
     }
   };
 
+  const hydrate = async (): Promise<T | null> => {
+    // An invalidated mirror's next warm skips the snapshot, so its facts are not held until that warm fetches.
+    if (get() !== null || skipSnapshotOnce) {
+      return get();
+    }
+    return (await readSnapshot(epoch)) ? get() : null;
+  };
+
   return {
     get,
+    hydrate,
     seed,
     amend,
     invalidate: (): void => {

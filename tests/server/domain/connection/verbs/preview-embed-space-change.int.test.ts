@@ -2,6 +2,7 @@
 // when the change moves the caller to a new embedding generation, count what that rebuild covers, and write
 // nothing.
 
+import type { ProviderId } from "@orb/contracts/inference";
 import { characterEmbeddings, characters, embedGenerations, userCredentials } from "@orb/db";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { CharacterEmbeddingId, CharacterHandle, CharacterId, EmbedGenerationId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
@@ -68,6 +69,87 @@ async function storeCardVectors(db: Awaited<ReturnType<typeof freshDb>>, fixture
     });
   }
 }
+
+const OPENROUTER_CREDENTIAL = castId<UserCredentialId>("user_credential_preview_or");
+/** An embedder only OpenRouter's catalog describes: no curated row and no declared Purpose. */
+const OPENROUTER_EMBEDDER = "baai/bge-base-en-v1.5";
+const OPENROUTER_EMBEDDER_ROUTES = [
+  {
+    match: "/models?output_modalities=embeddings",
+    json: { data: [{ id: OPENROUTER_EMBEDDER, name: "BGE base", architecture: { ["input_modalities"]: ["text"], ["output_modalities"]: ["embeddings"] } }] },
+  },
+  { match: "/models", json: { data: [] } },
+];
+
+/** The bound local embedder with stored vectors, plus an OpenRouter embedder row the owner may switch to. */
+async function openRouterSwitch(db: Awaited<ReturnType<typeof freshDb>>): Promise<Fixture> {
+  const h = await makeHarness(db, { routes: OPENROUTER_EMBEDDER_ROUTES });
+  const owner = await seedOwner(db);
+  await db
+    .insert(userCredentials)
+    .values({ id: OPENROUTER_CREDENTIAL, ownerId: owner.userId, provider: castId<ProviderId>("openrouter"), ciphertext: "x", iv: "x", tag: "x" });
+  const bound = (
+    await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "nomic-embed-text",
+      allowBackground: true,
+    })
+  ).id;
+  await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: bound });
+  const other = (
+    await h.svc.create({
+      principal: owner.principal,
+      providerId: "openrouter",
+      credentialId: OPENROUTER_CREDENTIAL,
+      baseUrl: null,
+      model: OPENROUTER_EMBEDDER,
+      allowBackground: true,
+    })
+  ).id;
+  const fixture = { h, owner, bound, other };
+  await storeCardVectors(db, fixture, 2);
+  return fixture;
+}
+
+describe("previewEmbedSpaceChange after a restart", () => {
+  // A restarted process holds no catalog in memory; the preview must read the persisted one the write will read.
+  test("a fresh runtime previews the rebuild that using a catalog-described embedder for everything then makes", async () => {
+    const db = await freshDb();
+    const fixture = await openRouterSwitch(db);
+    await fixture.h.runtime.resolve({ task: "embed", principal: fixture.owner.principal, connectionId: fixture.other });
+    const restarted = await makeHarness(db, { routes: OPENROUTER_EMBEDDER_ROUTES });
+
+    const preview = await restarted.svc.previewEmbedSpaceChange({
+      principal: fixture.owner.principal,
+      change: { kind: "everywhere", connectionId: fixture.other },
+    });
+    const listedTasks = (await restarted.svc.get({ principal: fixture.owner.principal, connectionId: fixture.other })).tasks;
+    expect(restarted.requests, "the preview and the list view dial nothing").toHaveLength(0);
+    await restarted.svc.useForEverything({ principal: fixture.owner.principal, connectionId: fixture.other });
+
+    expect(preview).toMatchObject({ reindex: true, stored: { cards: 2 } });
+    expect(listedTasks).toContain("embed");
+    expect(restarted.embedSpaceChanges).toHaveLength(1);
+  });
+
+  // Nothing persisted says what the row is, and the write will ask its catalog: the preview confirms rather than stay quiet.
+  test("a row whose catalog was never read previews a rebuild rather than none", async () => {
+    const db = await freshDb();
+    const fixture = await openRouterSwitch(db);
+    const restarted = await makeHarness(db, { routes: OPENROUTER_EMBEDDER_ROUTES });
+
+    const preview = await restarted.svc.previewEmbedSpaceChange({
+      principal: fixture.owner.principal,
+      change: { kind: "everywhere", connectionId: fixture.other },
+    });
+
+    expect(restarted.requests).toHaveLength(0);
+    expect(preview).toMatchObject({ reindex: true, stored: { cards: 2 } });
+  });
+});
 
 describe("previewEmbedSpaceChange", () => {
   test("binding a different embedder over a stored index says rebuild, with the counts it covers", async () => {

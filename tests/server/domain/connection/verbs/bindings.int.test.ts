@@ -56,6 +56,53 @@ describe("setBinding", () => {
     });
   });
 
+  // A chat role moves no index, so it is judged from what is already known; a slow host cannot hold the write.
+  test("binding chat on a restarted process dials nothing", async () => {
+    const db = await freshDb();
+    const first = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const row = await first.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "some-local-model",
+      allowBackground: true,
+    });
+    const restarted = await makeHarness(db, { intercept: () => new Promise<Response>(() => undefined) });
+
+    expect((await restarted.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id })).connectionId).toBe(row.id);
+    expect(restarted.requests).toHaveLength(0);
+  });
+
+  // A vector role asks the server what the model is, but a host that never answers costs one bounded wait, not a hang.
+  test("binding an embedder on a host that never answers finishes within the server-read bound", async () => {
+    const db = await freshDb();
+    const silent = (_url: string, init: RequestInit | undefined): Promise<Response> =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("aborted", "AbortError"));
+        });
+      });
+    const h = await makeHarness(db, { intercept: silent });
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "nomic-embed-text",
+      allowBackground: true,
+    });
+    // @orb-waive test-determinism(performance.now): the subject is the real-time bound on a dial to a silent host.
+    const started = performance.now();
+
+    expect((await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id })).connectionId).toBe(row.id);
+
+    // @orb-waive test-determinism(performance.now): the subject is the real-time bound on a dial to a silent host.
+    expect(performance.now() - started).toBeLessThan(8000);
+  }, 30_000);
+
   test("re-points an existing task in place — one row per (actor, task), never a second", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);

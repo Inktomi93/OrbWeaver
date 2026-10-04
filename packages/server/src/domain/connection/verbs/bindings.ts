@@ -49,7 +49,8 @@ async function storedActorFor(ctx: ConnectionContext, userId: UserId, actor: Bin
 }
 
 async function requireServable(ctx: ConnectionContext, row: UserConnection, task: RoutableTask): Promise<void> {
-  if (!(await servableTasks(ctx, row)).includes(task)) {
+  // Only a vector role can move the owner's index, so only its write waits on the server for the freshest kind.
+  if (!(await servableTasks(ctx, row, { cachedFacts: !VECTOR_TASKS.includes(task) })).includes(task)) {
     throw new DomainOperationError(CONNECTION_OP_CODES.taskUnservable, `"${row.label}" cannot serve ${task}.`);
   }
   if (!canFund(row, task)) {

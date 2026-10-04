@@ -32,7 +32,7 @@ import { tokenTargetOf } from "./backends/openai-compat/tokens.ts";
 import type { SynthesizedCapability } from "./capability/synthesize.ts";
 import { detectServer } from "./catalog/detect.ts";
 import type { EndpointFetchArgs } from "./catalog/endpoint.ts";
-import { fetchEndpointModels, probeListedModel } from "./catalog/endpoint.ts";
+import { fetchEndpointModels, probeListedModel, sameModelId } from "./catalog/endpoint.ts";
 import { fetchGoogleModels } from "./catalog/google.ts";
 import { ENDPOINT_CATALOG_PREFIX, endpointCatalogKey, endpointCatalogPrefix, endpointDetectKey } from "./catalog/keys.ts";
 import { builtinCatalog, createCatalogListing } from "./catalog/listing.ts";
@@ -56,6 +56,7 @@ import { checkAvailability, loadVerdict } from "./resolve/availability.ts";
 import { behaveAs, detectionUrl } from "./resolve/behave-as.ts";
 import type { ResolveArgs, ResolveOutcome, ResolverContext } from "./resolve/resolve-task.ts";
 import {
+  cachedKind,
   connectionNotFoundMessage,
   discoveredKind,
   endpointMirrorTenant,
@@ -143,9 +144,14 @@ export interface InferenceRuntime {
    *  load failed reads `model-load-failed`. The Connections readout asks it without probing endpoints. */
   readonly loadVerdict: (resolved: ResolveOutcome["resolved"]) => SendAvailability;
   /** The kind a saved row's model is, as the resolver reads it: the row's declaration, its server's or catalog's
-   *  stated kind (warmed first), the curated rows, else `generation`. `cachedFacts` reads only the warmed mirrors
-   *  and dials nothing, for a read that lists rows. */
-  readonly modelKind: (connection: UserConnection, options?: { readonly cachedFacts?: boolean | undefined }) => Promise<ModelKind>;
+   *  stated kind (warmed first), the curated rows, else `generation`. `cachedFacts` reads only the facts already held,
+   *  in memory or persisted, and dials nothing, for a read that lists rows or previews a change. `coldAs` is the kind
+   *  such a read answers when no evidence states one and a warm still could: a preview that must err toward the
+   *  change that asks the user first. */
+  readonly modelKind: (
+    connection: UserConnection,
+    options?: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined },
+  ) => Promise<ModelKind>;
   readonly executor: ProviderExecutor;
   readonly capabilities: {
     /** provider row + declared overrides + catalog row → one descriptor, for a connection the principal owns
@@ -322,21 +328,22 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
   const warmOpenRouter = async (): Promise<void> => {
     await warmOpenRouterCatalog();
   };
-  // One model's late probe at a time per mirror: a burst of turns on a newly bound model shares one.
-  const modelProbes = new Map<string, Promise<void>>();
-  const probeUnprobedModel = (mirror: Mirror<EndpointModel[]>, flightKey: string, args: EndpointFetchArgs, model: string): Promise<void> => {
-    const row = mirror.get()?.find((candidate) => candidate.id === model);
+  // One late probe per listed row: a burst of turns on a newly bound model shares one. Keyed by the row object, so a
+  // refreshed list (new rows) never joins, or is overwritten by, a probe that started on the list it replaced.
+  const modelProbes = new WeakMap<EndpointModel, Promise<void>>();
+  const probeUnprobedModel = (mirror: Mirror<EndpointModel[]>, args: EndpointFetchArgs, model: string): Promise<void> => {
+    const row = mirror.get()?.find((candidate) => sameModelId(args.modelInfoApi, candidate.id, model));
     if (row === undefined || row.probed === true) {
       return Promise.resolve();
     }
-    const pending = modelProbes.get(flightKey);
+    const pending = modelProbes.get(row);
     if (pending !== undefined) {
       return pending;
     }
     const run = probeListedModel(args, row)
-      .then((probed) => mirror.amend((rows) => rows.map((candidate) => (candidate.id === model ? probed : candidate))))
-      .finally(() => modelProbes.delete(flightKey));
-    modelProbes.set(flightKey, run);
+      .then((probed) => mirror.amend((rows) => rows.map((candidate) => (candidate === row ? probed : candidate))))
+      .finally(() => modelProbes.delete(row));
+    modelProbes.set(row, run);
     return run;
   };
   const warmEndpoint = async (connection: UserConnection, provider: ProviderDef, secret: string | null): Promise<void> => {
@@ -373,7 +380,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     const warm = await mirror.warm(fetchRows, secrets);
     // A list warmed for another model on this server carries none of this model's own probes.
     if (warm.ok && provider.wire === "openai-compat") {
-      await probeUnprobedModel(mirror, `${endpointCatalogKey(baseUrl, modelInfoApi, tenant)}#${connection.model}`, endpointArgs, connection.model);
+      await probeUnprobedModel(mirror, endpointArgs, connection.model);
     }
   };
   // The daemon runs under the USER's token (`identity.credential`, re-read by id through the credentials door,
@@ -440,14 +447,20 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     resolve: (args) => resolveTask(ctx, args),
     availability: (args) => checkAvailability(ctx, built.registry, { probe, loadFailed: built.localLight.loadFailed }, args),
     loadVerdict: (resolved) => loadVerdict(built.localLight.loadFailed, resolved),
-    modelKind: async (connection, options) => (await discoveredKind(ctx, connection, options?.cachedFacts === true)) ?? DEFAULT_MODEL_KIND,
+    modelKind: async (connection, options): Promise<ModelKind> => {
+      if (options?.cachedFacts !== true) {
+        return (await discoveredKind(ctx, connection)) ?? DEFAULT_MODEL_KIND;
+      }
+      const { kind, held } = await cachedKind(ctx, connection);
+      return kind ?? (held ? DEFAULT_MODEL_KIND : (options.coldAs ?? DEFAULT_MODEL_KIND));
+    },
     executor,
     capabilities: {
       for: async ({ connectionId, principal }): Promise<CapabilityRead> => {
         const connection = await ownedConnection(connectionId, principal);
         const provider = requireProvider(registry.get(connection.providerId, connection.ownerId), connection.providerId);
         // The same discovered kind the resolve below reads, so the task it picks is one the row serves.
-        const kind = (await discoveredKind(ctx, connection, false)) ?? DEFAULT_MODEL_KIND;
+        const kind = (await discoveredKind(ctx, connection)) ?? DEFAULT_MODEL_KIND;
         const facts = behaveAs(ctx, provider, connection);
         const tasks = connectionTasks(facts, kind);
         const task = tasks[0];

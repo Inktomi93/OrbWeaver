@@ -11,7 +11,9 @@ import type { Modality, ModelInfoApi, ModelKind } from "@orb/contracts/inference
 import { parseModalities } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { z } from "zod";
-import { authHeaders, fetchJson, isRedirect, openAiPath, serverRootOf } from "../backends/kit/fetch-json.ts";
+import { deadlineSignal } from "../backends/kit/abort-flatten.ts";
+import type { FetchJsonArgs } from "../backends/kit/fetch-json.ts";
+import { authHeaders, fetchJson, isRedirect, openAiPath, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/kit/fetch-json.ts";
 import type { ProviderScrubSet } from "../contract/errors.ts";
 import { assertNever } from "../contract/errors.ts";
 import type { EndpointModel } from "../contract/runtime.ts";
@@ -45,16 +47,42 @@ export interface EndpointFetchArgs {
   readonly probeModel?: string | undefined;
 }
 
+/** Ollama resolves an untagged name to `:latest`, so `llama3` and `llama3:latest` are one model. A `:` that
+ *  precedes a `/` is a registry port, not a tag. */
+function withImplicitLatest(id: string): string {
+  return /:[^/]*$/u.test(id) ? id : `${id}:latest`;
+}
+
+/** Whether a listed id names `model` on a server read through `reader`: exact, except that Ollama's untagged
+ *  name is its `:latest` tag. */
+export function sameModelId(reader: ModelInfoApi | undefined, listed: string, model: string | undefined): boolean {
+  if (model === undefined) {
+    return false;
+  }
+  return reader === "ollama" ? withImplicitLatest(listed) === withImplicitLatest(model) : listed === model;
+}
+
+function isProbeModel(args: EndpointFetchArgs, id: string): boolean {
+  return sameModelId(args.modelInfoApi, id, args.probeModel);
+}
+
+/** One read that loads nothing on the server, bounded by {@link SERVER_READ_TIMEOUT_MS} and the caller's cancel. */
+async function boundedRead(args: EndpointFetchArgs, read: Omit<FetchJsonArgs, "fetch" | "secrets" | "signal">): Promise<unknown> {
+  const deadline = deadlineSignal(args.signal, SERVER_READ_TIMEOUT_MS);
+  try {
+    return (await fetchJson({ ...read, fetch: args.fetch, secrets: args.secrets, signal: deadline.signal })).json;
+  } finally {
+    deadline.dispose();
+  }
+}
+
 export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<EndpointModel[]> {
-  const result = await fetchJson({
-    fetch: args.fetch,
+  const listed = await boundedRead(args, {
     url: openAiPath(args.baseUrl, "/models"),
     headers: authHeaders(args.secret, args.headers),
-    secrets: args.secrets,
     label: "endpoint models",
-    ...(args.signal !== undefined ? { signal: args.signal } : {}),
   });
-  const raw = listSchema.parse(result.json).data;
+  const raw = listSchema.parse(listed).data;
   const rows = raw.map(
     (row): EndpointModel => ({
       id: row.id,
@@ -64,7 +92,7 @@ export async function fetchEndpointModels(args: EndpointFetchArgs): Promise<Endp
   switch (args.modelInfoApi) {
     case undefined:
       // No native API, so a model has nothing of its own to probe.
-      return rows.map((row) => (row.id === args.probeModel ? { ...row, probed: true } : row));
+      return rows.map((row) => (isProbeModel(args, row.id) ? { ...row, probed: true } : row));
     case "ollama":
       return await withOllamaInfo(args, rows);
     case "llama-cpp":
@@ -84,15 +112,12 @@ function nativeReader(args: EndpointFetchArgs): NativeRead {
   const root = serverRootOf(args.baseUrl);
   const headers = authHeaders(args.secret, args.headers);
   return (path, body) =>
-    fetchJson({
-      fetch: args.fetch,
+    boundedRead(args, {
       url: `${root}${path}`,
       ...(body === undefined ? {} : { method: "POST" as const, body }),
       headers,
-      secrets: args.secrets,
       label: `${args.modelInfoApi ?? "endpoint"} ${path}`,
-      ...(args.signal !== undefined ? { signal: args.signal } : {}),
-    }).then((response) => response.json);
+    });
 }
 
 interface ProbeAnswer {
@@ -103,13 +128,22 @@ interface ProbeAnswer {
 /** A native request whose STATUS is the answer (a 501 refusal, a 400 naming the missing field), so a non-2xx
  *  is returned rather than thrown. Only a server that does not answer at all throws. */
 async function probeNative(args: EndpointFetchArgs, path: string, body: unknown): Promise<ProbeAnswer> {
+  const deadline = deadlineSignal(args.signal, MODEL_PROBE_TIMEOUT_MS);
+  try {
+    return await probeNativeWithin(args, path, body, deadline.signal);
+  } finally {
+    deadline.dispose();
+  }
+}
+
+async function probeNativeWithin(args: EndpointFetchArgs, path: string, body: unknown, signal: AbortSignal): Promise<ProbeAnswer> {
   const res = await args.fetch(`${serverRootOf(args.baseUrl)}${path}`, {
     method: "POST",
     headers: { ...authHeaders(args.secret, args.headers), "content-type": "application/json" },
     body: JSON.stringify(body),
     // Host pin (#25): a redirect would replay the headers and the body to another origin, so it is no answer.
     redirect: "manual",
-    ...(args.signal !== undefined ? { signal: args.signal } : {}),
+    signal,
   });
   if (isRedirect(res)) {
     return { status: res.status, json: null };
@@ -124,6 +158,8 @@ async function probeNative(args: EndpointFetchArgs, path: string, body: unknown)
   }
 }
 
+/** The bound on a probe that may load or wake the model to answer (a render, an embedding, a rerank). */
+const MODEL_PROBE_TIMEOUT_MS = 120_000;
 /** A trailing assistant row the server continues renders with this text as the prompt's last. */
 const PREFILL_MARK = "PREFILLMARK";
 const OPENAI_EMBEDDINGS_PATH = "/v1/embeddings";
@@ -253,7 +289,7 @@ async function withOllamaInfo(args: EndpointFetchArgs, rows: readonly EndpointMo
       serverDefaults: ollamaParameters(show?.parameters),
       ...(facts.kind === "generation" ? { toolChoice: OLLAMA_TOOL_CHOICE } : {}),
     });
-    out.push(row.id === args.probeModel ? withStated(listed, await ollamaModelFacts(args, listed)) : listed);
+    out.push(isProbeModel(args, row.id) ? withStated(listed, await ollamaModelFacts(args, listed)) : listed);
   }
   return out;
 }
@@ -540,7 +576,7 @@ async function withLlamaCppInfo(args: EndpointFetchArgs, raw: readonly RawRow[],
     const parsed = llamaCppRowSchema.safeParse(raw[index]);
     const meta = parsed.success ? parsed.data.meta : undefined;
     const input = llamaCppRowInput(parsed.success ? parsed.data.architecture?.input_modalities : undefined, server);
-    const model = row.id === args.probeModel ? await llamaCppProbedFacts(args, row.id, single) : {};
+    const model = isProbeModel(args, row.id) ? await llamaCppProbedFacts(args, row.id, single) : {};
     out.push(
       withStated(row, {
         contextLength: meta?.n_ctx ?? server.window,
@@ -625,7 +661,7 @@ async function withKoboldCppInfo(args: EndpointFetchArgs, rows: readonly Endpoin
             ...(kind === "generation" ? { prefill: "deliver" as const, toolChoice: KOBOLDCPP_TOOL_CHOICE } : {}),
           };
     const listed = withStated(row, { contextLength: window, ...facts });
-    out.push(row.id === args.probeModel ? withStated(listed, await koboldCppModelFacts(args, listed)) : listed);
+    out.push(isProbeModel(args, row.id) ? withStated(listed, await koboldCppModelFacts(args, listed)) : listed);
   }
   return out;
 }

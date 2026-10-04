@@ -1,16 +1,17 @@
 // The endpoint REACHABILITY probe + the wake slice (§8.1, §4). Every `auth: endpoint` row alike: a cached
 // `GET <baseUrl>/v1/models` says `up | down`; when the row's folded `features.sleep` names the pair, the
-// `isSleepingPath` read says `asleep`, and `wake` (called by the backend before each task) POSTs `wakePath` and polls until the server answers
-// awake — nothing here knows the word vLLM. The cache is per base URL with a short TTL so a burst of
-// availability reads (every composer render) shares one probe; a wake invalidates it.
+// `isSleepingPath` read says `asleep`. Before each task the backend asks `asleep` afresh and, when it is, `wake` POSTs
+// `wakePath` and polls until the server answers awake — nothing here knows the word vLLM. The `up | down` cache is per
+// base URL with a short TTL so a burst of availability reads (every composer render) shares one probe.
 
 import { setTimeout as sleep } from "node:timers/promises";
+import { ProviderError } from "../../contract/errors.ts";
 import type { Reachability } from "../../contract/runtime.ts";
-import { authHeaders, fetchJson, openAiPath } from "../kit/fetch-json.ts";
+import { deadlineSignal } from "../kit/abort-flatten.ts";
+import { authHeaders, fetchJson, openAiPath, SERVER_READ_TIMEOUT_MS } from "../kit/fetch-json.ts";
 import { NO_PROVIDER_SECRETS } from "../kit/sanitize.ts";
 
 const PROBE_TTL_MS = 10_000;
-const PROBE_TIMEOUT_MS = 3000;
 const WAKE_POLL_MS = 1000;
 const WAKE_TIMEOUT_MS = 120_000;
 const TRAILING_SLASH_RE = /\/$/u;
@@ -27,13 +28,15 @@ interface ProbeTarget {
   readonly sleepPath: string | undefined;
 }
 
+/** A row whose folded features name the sleep pair. */
+interface SleepTarget extends ProbeTarget {
+  readonly sleepPath: string;
+  readonly wakePath: string;
+}
+
 interface CacheEntry {
   readonly at: number;
   readonly state: Reachability;
-}
-
-function withTimeout(ms: number): AbortSignal {
-  return AbortSignal.timeout(ms);
 }
 
 function sleepUrl(baseUrl: string, path: string): string {
@@ -49,30 +52,42 @@ function readsAsleep(json: unknown): boolean {
   return record["is_sleeping"] === true || record["sleeping"] === true;
 }
 
-async function probeOnce(deps: ReachabilityDeps, target: ProbeTarget): Promise<Reachability> {
-  const headers = authHeaders(target.secret, target.headers);
+function wakeAborted(cause?: unknown): ProviderError {
+  return new ProviderError({ kind: "aborted", retryable: false, message: "the wake was cancelled", cause });
+}
+
+/** One bounded GET's JSON body; throws when the server does not answer in time or `signal` aborts. */
+async function readJson(
+  deps: ReachabilityDeps,
+  target: ProbeTarget,
+  { url, label }: { readonly url: string; readonly label: string },
+  signal: AbortSignal | undefined,
+): Promise<unknown> {
+  const read = deadlineSignal(signal, SERVER_READ_TIMEOUT_MS);
   try {
-    if (target.sleepPath !== undefined) {
-      const sleeping = await fetchJson({
-        fetch: deps.fetch,
-        url: sleepUrl(target.baseUrl, target.sleepPath),
-        headers,
-        secrets: NO_PROVIDER_SECRETS,
-        label: "sleep probe",
-        signal: withTimeout(PROBE_TIMEOUT_MS),
-      });
-      if (readsAsleep(sleeping.json)) {
-        return "asleep";
-      }
-    }
-    await fetchJson({
+    const answer = await fetchJson({
       fetch: deps.fetch,
-      url: openAiPath(target.baseUrl, "/models"),
-      headers,
+      url,
+      headers: authHeaders(target.secret, target.headers),
       secrets: NO_PROVIDER_SECRETS,
-      label: "reachability probe",
-      signal: withTimeout(PROBE_TIMEOUT_MS),
+      label,
+      signal: read.signal,
     });
+    return answer.json;
+  } finally {
+    read.dispose();
+  }
+}
+
+async function probeOnce(deps: ReachabilityDeps, target: ProbeTarget, signal?: AbortSignal): Promise<Reachability> {
+  try {
+    if (
+      target.sleepPath !== undefined &&
+      readsAsleep(await readJson(deps, target, { url: sleepUrl(target.baseUrl, target.sleepPath), label: "sleep probe" }, signal))
+    ) {
+      return "asleep";
+    }
+    await readJson(deps, target, { url: openAiPath(target.baseUrl, "/models"), label: "reachability probe" }, signal);
     return "up";
     // @orb-waive caught-failure-ownership(catch): every probe failure is owned by the returned `down` state; reachability is advisory and never authorizes a request. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers need the failure cause.
   } catch {
@@ -82,8 +97,13 @@ async function probeOnce(deps: ReachabilityDeps, target: ProbeTarget): Promise<R
 
 export interface ReachabilityProber {
   readonly probe: (target: ProbeTarget) => Promise<Reachability>;
-  /** POST the row's wake path, then poll the sleep read until awake or the wake window closes. */
-  readonly wake: (target: ProbeTarget & { readonly wakePath: string }) => Promise<boolean>;
+  /** Whether the server says it is asleep right now. Never cached: a server is put to sleep from outside the app at
+   *  any moment, and a sleeping vLLM queues a request without answering, so only a fresh read may send to it. A read
+   *  that fails is `false` (the task then meets the server's own answer); a `signal` abort rejects. */
+  readonly asleep: (target: SleepTarget, signal: AbortSignal | undefined) => Promise<boolean>;
+  /** POST the row's wake path, then poll the sleep read until awake or the wake window closes. A `signal` abort
+   *  rejects at once with an `aborted` error. */
+  readonly wake: (target: SleepTarget, signal: AbortSignal | undefined) => Promise<boolean>;
   readonly invalidate: (baseUrl: string) => void;
 }
 
@@ -114,24 +134,47 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
     cache.delete(baseUrl);
   };
 
-  const wake = async (target: ProbeTarget & { readonly wakePath: string }): Promise<boolean> => {
+  const asleep = async (target: SleepTarget, signal: AbortSignal | undefined): Promise<boolean> => {
+    // @orb-waive caught-failure-ownership(err): a sleep read the server does not answer is owned by the task it guards, which meets the same server and surfaces its own classified error; only a cancel is rethrown here. Ends if a caller needs the read's own failure.
+    try {
+      return readsAsleep(await readJson(deps, target, { url: sleepUrl(target.baseUrl, target.sleepPath), label: "sleep probe" }, signal));
+    } catch (err) {
+      if (signal?.aborted === true) {
+        throw wakeAborted(err);
+      }
+      return false;
+    }
+  };
+
+  const wake = async (target: SleepTarget, signal: AbortSignal | undefined): Promise<boolean> => {
     invalidate(target.baseUrl);
-    const headers = authHeaders(target.secret, target.headers);
+    const post = deadlineSignal(signal, SERVER_READ_TIMEOUT_MS);
     // @orb-waive caught-failure-ownership(fetch): wake POST failure falls through to the bounded probe loop, whose final false is the wake verdict. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the following loop stops deciding success or timeout.
     await deps
-      .fetch(sleepUrl(target.baseUrl, target.wakePath), { method: "POST", headers, redirect: "manual", signal: withTimeout(PROBE_TIMEOUT_MS) })
-      .catch(() => undefined);
+      .fetch(sleepUrl(target.baseUrl, target.wakePath), {
+        method: "POST",
+        headers: authHeaders(target.secret, target.headers),
+        redirect: "manual",
+        signal: post.signal,
+      })
+      .catch(() => undefined)
+      .finally(post.dispose);
     const deadline = deps.now() + WAKE_TIMEOUT_MS;
     while (deps.now() < deadline) {
-      invalidate(target.baseUrl);
-      const state = await probe(target);
+      const state = await probeOnce(deps, target, signal);
+      if (signal?.aborted === true) {
+        throw wakeAborted();
+      }
+      cache.set(target.baseUrl, { at: deps.now(), state });
       if (state === "up") {
         return true;
       }
-      await sleep(WAKE_POLL_MS);
+      await sleep(WAKE_POLL_MS, undefined, signal === undefined ? undefined : { signal }).catch((err: unknown) => {
+        throw wakeAborted(err);
+      });
     }
     return false;
   };
 
-  return { probe, wake, invalidate };
+  return { probe, asleep, wake, invalidate };
 }

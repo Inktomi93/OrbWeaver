@@ -27,6 +27,7 @@ const LOCAL_BASE_URL = "http://127.0.0.1:1/v1";
 function emptyMirror<T>(): Mirror<T> {
   return {
     get: () => null,
+    hydrate: () => Promise.resolve(null),
     warm: () => Promise.resolve({ ok: false, reason: "speaker-arbiter test: an empty mirror has nothing to warm" }),
     seed: () => undefined,
     amend: () => Promise.resolve(),

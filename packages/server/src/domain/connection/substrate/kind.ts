@@ -6,8 +6,9 @@ import type { RoutableTask, UserConnection } from "@orb/contracts/inference";
 import { connectionTasks, isRoutableTask, taskDef } from "@orb/contracts/inference";
 import type { ConnectionContext } from "../contract/service.ts";
 
-// How fresh a kind read must be. A write (a binding) warms the catalog first; a read that lists rows or previews a
-// change reads only what the mirrors hold, so a host that does not answer cannot hold it.
+// How fresh a kind read must be. A write that may move the index warms the catalog first; a read that lists rows,
+// previews a change or binds a non-vector role reads only the facts already held, so a host that does not answer
+// cannot hold it.
 type KindRead = Parameters<ConnectionContext["runtime"]["modelKind"]>[1];
 
 /** The tasks this row may be bound to — provider × the model's kind. */
