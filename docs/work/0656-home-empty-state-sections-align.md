@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P3
 area: client
-lane: wt/agent-ac8eb30b58c46c8f2
 ---
 
 # Home empty-state sections align
@@ -23,4 +22,4 @@ The section tops align.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S3 tried a minimum band height on every Home tile band; it broke the Home REGIONS layout tests, so it was reverted. Needs measurement against those tests and live data.

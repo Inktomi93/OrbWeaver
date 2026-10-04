@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-04
 priority: P3
 area: plugin
+lane: wt/agent-ad435ab6e19d39557
 ---
 
 # Plugin toggle label spacing and The Deck commitment display
