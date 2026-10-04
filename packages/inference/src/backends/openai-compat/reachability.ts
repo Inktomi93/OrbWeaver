@@ -1,6 +1,6 @@
 // The endpoint REACHABILITY probe + the wake slice (§8.1, §4). Every `auth: endpoint` row alike: a cached
 // `GET <baseUrl>/v1/models` says `up | down`; when the row's folded `features.sleep` names the pair, the
-// `isSleepingPath` read says `asleep`, and `wakeForTask` POSTs `wakePath` and polls until the server answers
+// `isSleepingPath` read says `asleep`, and `wake` (called by the backend before each task) POSTs `wakePath` and polls until the server answers
 // awake — nothing here knows the word vLLM. The cache is per base URL with a short TTL so a burst of
 // availability reads (every composer render) shares one probe; a wake invalidates it.
 
