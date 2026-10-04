@@ -288,3 +288,22 @@ test("the role row's rebuild state follows the viewer's newest embedder rebuild"
   expect(embedderRebuildState([rebuild("failed", 2, "user_other")], "user_me")).toBeNull();
   expect(embedderRebuildState([{ ...rebuild("running", 2), params: { source: "all" } }], "user_me")).toBeNull();
 });
+
+// A move rebuilds three scopes, and search waits on all of them: the row stays on while any one still runs, and a
+// failed sibling surfaces even after the index finished.
+test("the role row's rebuild state covers the move's databank and memory rebuilds too", () => {
+  const row = (kind: string, status: WorkloadStatus, createdAt: number, embedderChanged = true): Parameters<typeof embedderRebuildState>[0][number] => ({
+    kind,
+    status,
+    ownerId: "user_me",
+    createdAt,
+    params: embedderChanged ? { embedderChanged } : {},
+  });
+  const indexDone = row("index", "succeeded", 3);
+
+  expect(embedderRebuildState([indexDone, row("databank-reindex", "succeeded", 2), row("memory-backfill", "running", 2)], "user_me")).toBe("running");
+  expect(embedderRebuildState([indexDone, row("databank-reindex", "queued", 2)], "user_me")).toBe("running");
+  expect(embedderRebuildState([indexDone, row("memory-backfill", "failed", 2)], "user_me")).toBe("failed");
+  expect(embedderRebuildState([indexDone, row("memory-backfill", "failed", 1), row("memory-backfill", "succeeded", 2)], "user_me")).toBeNull();
+  expect(embedderRebuildState([indexDone, row("memory-backfill", "running", 2, false)], "user_me"), "a plain sweep is no rebuild").toBeNull();
+});

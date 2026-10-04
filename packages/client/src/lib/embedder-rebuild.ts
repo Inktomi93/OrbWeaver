@@ -2,7 +2,7 @@
 // search index, and the vector role row's rebuild line after. Pure and barrel-free, because node-side CT specs import it.
 
 import type { RoutableTask } from "@orb/contracts/inference";
-import type { WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { groupThousands } from "@orb/kit/strings";
 
@@ -94,21 +94,33 @@ interface RebuildRow {
   readonly params: unknown;
 }
 
+/** The workload kinds an embedder change queues, one per scope search waits on: cards and pictures, documents, memory. */
+export const EMBEDDER_REBUILD_KINDS = ["index", "databank-reindex", "memory-backfill"] as const satisfies readonly WorkloadKind[];
+
 function isEmbedderRebuild(row: RebuildRow): boolean {
   const { params } = row;
-  return row.kind === "index" && typeof params === "object" && params !== null && "embedderChanged" in params && params.embedderChanged === true;
+  return (
+    EMBEDDER_REBUILD_KINDS.some((kind) => kind === row.kind) &&
+    typeof params === "object" &&
+    params !== null &&
+    "embedderChanged" in params &&
+    params.embedderChanged === true
+  );
 }
 
-/** The viewer's newest embedder rebuild (their own, or a box-wide sweep): running, failed, or neither. */
+/** The viewer's embedder rebuild (their own, or a box-wide sweep), read from the newest rebuild of each kind: running
+ *  while any of them is active, failed when one failed, else neither. A later success of a kind buries its older failure. */
 export function embedderRebuildState(rows: readonly RebuildRow[], viewerId: string | null): RebuildState | null {
-  const newest = rows
-    .filter((row) => isEmbedderRebuild(row) && (row.ownerId === null || row.ownerId === viewerId))
-    .toSorted((a, b) => b.createdAt - a.createdAt)[0];
-  if (newest === undefined) {
-    return null;
+  const newestByKind = new Map<string, RebuildRow>();
+  for (const row of rows.filter((candidate) => isEmbedderRebuild(candidate) && (candidate.ownerId === null || candidate.ownerId === viewerId))) {
+    const newest = newestByKind.get(row.kind);
+    if (newest === undefined || row.createdAt > newest.createdAt) {
+      newestByKind.set(row.kind, row);
+    }
   }
-  if (ACTIVE_WORKLOAD_STATUSES.some((status) => status === newest.status)) {
+  const newest = [...newestByKind.values()];
+  if (newest.some((row) => ACTIVE_WORKLOAD_STATUSES.some((status) => status === row.status))) {
     return "running";
   }
-  return newest.status === "failed" || newest.status === "worker_died" ? "failed" : null;
+  return newest.some((row) => row.status === "failed" || row.status === "worker_died") ? "failed" : null;
 }

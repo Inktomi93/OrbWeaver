@@ -195,8 +195,8 @@ async function stubPane(
     "preset.list": () => PRESET_ROWS,
     "settings.getUserSettings": () => opts.settings ?? userSettingsView(),
     "settings.updateUserSettingsSection": () => opts.settings ?? userSettingsView(),
-    // The vector rows read the viewer's embedder rebuild from the job list.
-    "workloads.list": () => opts.workloads?.() ?? [],
+    // The vector rows read the viewer's embedder rebuild from the job list, one kind per read, as the server filters it.
+    "workloads.list": (input) => (opts.workloads?.() ?? []).filter((row) => input?.kind === undefined || row.kind === input.kind),
   });
   return { recorder };
 }
@@ -516,6 +516,35 @@ function rebuildRow(status: TrpcWireOutput<"workloads.list">[number]["status"]):
     poison: false,
   };
 }
+
+/** The same move's chat-memory rebuild, which outlasts the index one. */
+function memoryRebuildRow(status: TrpcWireOutput<"workloads.list">[number]["status"]): TrpcWireOutput<"workloads.list">[number] {
+  return {
+    id: "workload_01jct0memrebuild0000000000000",
+    kind: "memory-backfill",
+    status,
+    mode: "singular",
+    lane: "sweep",
+    ownerId: VIEWER_ID,
+    dependsOn: null,
+    error: null,
+    progress: null,
+    scheduledAt: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    params: { embedderChanged: true },
+    result: null,
+    poison: false,
+  };
+}
+
+// Search waits on every scope the move rebuilds, so the line stays while the memory rebuild still runs.
+test("the embedding rows keep the rebuild line while the memory rebuild outlasts the index one", async ({ mount, page }) => {
+  await stubPane(page, { workloads: () => [rebuildRow("succeeded"), memoryRebuildRow("running")] });
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect(page.locator('[data-rebuild="running"]')).toHaveCount(2);
+});
 
 test("the embedding rows say when a rebuild runs and when it failed", async ({ mount, page }) => {
   await stubPane(page, { workloads: () => [rebuildRow("failed")] });

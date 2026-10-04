@@ -119,6 +119,7 @@ export type { EditSession } from "./edit-session.ts";
 export { resolveCommit } from "./edit-session.ts";
 export type { ReindexPreview } from "./embedder-rebuild.ts";
 export {
+  EMBEDDER_REBUILD_KINDS,
   embedderRebuildState,
   REBUILD_STATUS_COPY,
   REINDEX_CONFIRM_COPY,

@@ -8,7 +8,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
@@ -20,6 +20,7 @@ import {
   cn,
   connectionHost,
   connectionSummary,
+  EMBEDDER_REBUILD_KINDS,
   embedderRebuildState,
   REBUILD_STATUS_COPY,
   ROLE_STATUS_LABELS,
@@ -225,12 +226,21 @@ const REBUILD_POLL_MS = 5000;
 /** The viewer's embedder rebuild, read only for their own vector roles. */
 function useEmbedderRebuild(trpc: Trpc, enabled: boolean): ReturnType<typeof embedderRebuildState> {
   const viewer = useQuery({ ...trpc.sessions.me.queryOptions(), enabled });
-  const rows = useQuery({
-    ...trpc.workloads.list.queryOptions({ kind: "index" }),
-    enabled,
-    refetchInterval: (query) => (embedderRebuildState(query.state.data ?? [], viewer.data?.userId ?? null) === "running" ? REBUILD_POLL_MS : false),
+  // One read per rebuild kind, each polling while its own rebuild runs, so the line holds until the last scope lands.
+  const rows = useQueries({
+    queries: EMBEDDER_REBUILD_KINDS.map((kind) => ({
+      ...trpc.workloads.list.queryOptions({ kind }),
+      enabled,
+      refetchInterval: (query: { readonly state: { readonly data?: Parameters<typeof embedderRebuildState>[0] | undefined } }): number | false =>
+        embedderRebuildState(query.state.data ?? [], viewer.data?.userId ?? null) === "running" ? REBUILD_POLL_MS : false,
+    })),
   });
-  return enabled ? embedderRebuildState(rows.data ?? [], viewer.data?.userId ?? null) : null;
+  return enabled
+    ? embedderRebuildState(
+        rows.flatMap((query) => query.data ?? []),
+        viewer.data?.userId ?? null,
+      )
+    : null;
 }
 
 /** The four sentences, one per arm — each spelled ONCE, so a fix lane restyling the steady arm cannot
