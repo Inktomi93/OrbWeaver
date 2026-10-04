@@ -232,6 +232,17 @@ test.describe("the flank anchor", () => {
     const component = await mount(<PluginChatFlankRoomStory registered={true} />);
     const scroller = page.locator(SCROLLER);
     const toggle = page.getByRole("button", { name: "Plugin panels (2)", exact: true });
+    // The jump-to-latest pill is laid out (faded, inert) even while hidden, so its box is measurable. It is
+    // pinned to the transcript's own box, so a squeezed transcript floated it over the room title: it must
+    // sit in the lower half of the transcript, inside it.
+    const pillAtTranscriptFoot = async (): Promise<boolean> => {
+      const pill = await page.locator('[data-slot="jump-to-latest"]').boundingBox();
+      const box = await scroller.boundingBox();
+      return pill !== null && box !== null && pill.y > box.y + box.height / 2 && pill.y + pill.height <= box.y + box.height + 1;
+    };
+    const expectPillAtTranscriptFoot = async (): Promise<void> => {
+      await expect.poll(pillAtTranscriptFoot).toBe(true);
+    };
     await expect(scroller).toBeVisible();
     // Folded: the transcript has the room, and the one control that reveals the surfaces is on screen.
     await expect(toggle).toBeInViewport();
@@ -240,11 +251,13 @@ test.describe("the flank anchor", () => {
     await expect(component.getByText("clock face")).toBeHidden();
     const viewportHeight = 740;
     expect((await scroller.boundingBox())?.height ?? 0).toBeGreaterThan(viewportHeight / 4);
+    await expectPillAtTranscriptFoot();
 
     // Opened: both surfaces are reachable inside the flank's own scroll, and the transcript keeps its column.
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await expect(component.getByText("board row 0")).toBeVisible();
+    await expectPillAtTranscriptFoot();
     await component.getByText("clock face").scrollIntoViewIfNeeded();
     await expect(component.getByText("clock face")).toBeInViewport();
     await expect(scroller).toBeVisible();
