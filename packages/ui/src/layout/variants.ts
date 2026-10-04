@@ -416,7 +416,7 @@ export const toolbarLinkVariants = tv({
 // Use ONE per horizontal toolbar and place it LAST — left/right arrows drive both the text caret and
 // the roving tabindex (Base UI's own usage guideline, https://base-ui.com/react/components/toolbar, "Usage guidelines").
 export const toolbarInputVariants = tv({
-  base: `h-control-sm min-w-0 rounded-control border border-input-border bg-input px-field text-body leading-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
+  base: `h-control-sm min-w-0 rounded-control border border-input-border bg-field-fill px-field text-body leading-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
 });
 
 /** THE `gutterCentred` TRACKS AS A CLASS, for a caller that must not swap its ELEMENT (#1728 arm B).

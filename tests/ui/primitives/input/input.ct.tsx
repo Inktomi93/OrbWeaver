@@ -256,6 +256,33 @@ test("inside a <Field>, the label associates and aria-describedby wires the desc
   await expect(control).toHaveAttribute("aria-describedby", NON_EMPTY);
 });
 
+// A dark wash at 16% reads as a DISABLED field on the light theme, so the light fill is an opaque near-white that
+// the edge then frames. The fill must not be translucent (the pane behind it would tint it again).
+test("light theme: an input is an opaque near-white field, not a translucent dark wash", async ({ mount }) => {
+  const field = await mount(
+    <div data-theme="light" className="bg-background p-row">
+      <Input aria-label="Light field" />
+    </div>,
+  );
+  // Rasterised, so the assertion reads the colour whatever space the stylesheet spells it in.
+  const [red, green, blue, alpha] = await field.getByLabel("Light field").evaluate((el) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext("2d");
+    if (context === null) {
+      throw new Error("no 2d context");
+    }
+    context.fillStyle = getComputedStyle(el).backgroundColor;
+    context.fillRect(0, 0, 1, 1);
+    return [...context.getImageData(0, 0, 1, 1).data];
+  });
+  expect(alpha, "the fill is opaque").toBe(255);
+  for (const channel of [red, green, blue]) {
+    expect(channel, `near-white channel (${String(red)}, ${String(green)}, ${String(blue)})`).toBeGreaterThanOrEqual(245);
+  }
+});
+
 // ── D159 / #1641 / #1361-1: THE FORM-CONTROL EDGE, FROM THE FRAMEBUFFER ────────────────────────────
 //
 // `--color-input-border` is the token this control's edge wears since the shared `--color-border`

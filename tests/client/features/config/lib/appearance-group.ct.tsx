@@ -8,7 +8,7 @@
 // aggregation (ONE footer, error > saved, inline retry AT the failing section, nav marker) · P5 nav/search
 // parity for the subs that moved or were absorbed · the §7.4 sub-level deep link.
 
-import { rowActionsName } from "@orb/client/lib";
+import { removeActionName } from "@orb/client/lib";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -147,7 +147,7 @@ test("tapping a seeded background tile writes kind+asset in ONE patch; the None 
 
 // The DERIVED library population (R-BG): every `backgroundLibrary` entry is a tile, and removing the
 // SELECTED entry resets the selection to None in the SAME patch (never a dangling assetId).
-test("library entries render as tiles; Remove-from-library of the selected entry resets to None", async ({ mount, page }) => {
+test("library entries render once, as tiles; removing the selected entry resets to None", async ({ mount, page }) => {
   const entryA = { entryId: "e1", assetId: "asset_00000000000000000000000001", assetHash: "hashaaa", mime: "image/png", name: "My dock" };
   const entryB = { entryId: "e2", assetId: "asset_00000000000000000000000002", assetHash: "hashbbb", mime: "image/png", name: "My forest" };
   const withLibrary = {
@@ -184,8 +184,9 @@ test("library entries render as tiles; Remove-from-library of the selected entry
   await expect(grid.getByRole("gridcell", { name: "My forest" })).toBeVisible();
   await expect(grid.getByRole("gridcell", { name: "My dock" })).toHaveAttribute("aria-selected", "true");
 
-  await page.getByRole("button", { name: rowActionsName("My dock") }).click();
-  await page.getByRole("menuitem", { name: "Remove from library" }).click();
+  // The grid is the only list of backgrounds: removal acts on the picked tile, never on a second text list.
+  await expect(page.getByText("Your library")).toHaveCount(0);
+  await page.getByRole("button", { name: removeActionName("My dock") }).click();
   await expect
     .poll(
       () => {

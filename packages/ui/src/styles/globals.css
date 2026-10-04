@@ -372,6 +372,12 @@
     linear-gradient(transparent, transparent) padding-box,
     linear-gradient(180deg, oklch(from var(--color-primary) l c h / 0.55), oklch(from var(--color-sheen) l c h / 0.04)) border-box;
 }
+/* A disabled (not busy) primary is neutral, so its ring goes neutral too — an accent hairline round a grey button
+ * would still read as live. */
+[data-slot="button"][data-cta]:is(:disabled, [data-disabled]):not([aria-busy="true"])::after {
+  background: none;
+  border-color: var(--color-border);
+}
 /* Positioning context for the ring above — Base UI's button isn't positioned by default. */
 [data-slot="button"][data-cta] {
   position: relative;

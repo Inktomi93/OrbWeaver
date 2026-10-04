@@ -10,7 +10,8 @@
 // catalogs; hosts edit stat profiles manually, and the storage grammar remains independent of defaults.
 
 import { z } from "zod";
-import type { RpgTrackerDef } from "./tracker.ts";
+import type { RpgTrackerDef, RpgTrackerValue } from "./tracker.ts";
+import { trackerCeiling, trackerNumber } from "./tracker.ts";
 
 /** One attribute definition in a profile's vocabulary — the label-as-mini-prompt (`{key, label, hint}`).
  *  `key` is the machine name (a sheet's `attributes` record keys off it); `label`/`hint` are prompt prose. */
@@ -131,6 +132,9 @@ export const RPG_PROFILE_D20: RpgStatProfile = {
 // So the demotion has no default-UX regression: a MECHANICAL profile seeds the def at mint and reads exactly as
 // before, and `freeform` seeds nothing and finally stops carrying a null health track it never used.
 
+/** The seeded HP meter's key — how a surface tells it from a host-defined pool. */
+const RPG_SEED_HP_KEY = "hp";
+
 /** The default ceiling the seeded HP meter is born with. A per-CARRIER ceiling that differs on purpose rides
  *  `RpgTrackerValue.max` through the one `trackerCeiling` resolver (the d20 max-HP reality the unification's
  *  per-carrier override was designed for) — this is only the game-wide default the host can retune. */
@@ -143,7 +147,7 @@ export const RPG_SEED_HP_MAX = 20;
  *  The `hint` states the unset rule, because an unset meter shows the model no reading: a delta on a
  *  carried-but-unset meter spends from its ceiling, so an untouched carrier reads as full. */
 const SEEDED_HP_TRACKER: RpgTrackerDef = {
-  key: "hp",
+  key: RPG_SEED_HP_KEY,
   label: "HP",
   shape: "meter",
   write: "delta",
@@ -157,6 +161,14 @@ const SEEDED_HP_TRACKER: RpgTrackerDef = {
   pinned: true,
   locked: false,
 };
+
+/** The reading a meter SHOWS: its stored number, or, for the seeded HP meter with none written, its ceiling. The HP
+ *  def's rule is "unset counts as full" (a first delta spends from the ceiling), so an untouched carrier is full, not
+ *  empty. Display only: nothing is written, and every other unset meter stays `null`. */
+export function meterDisplayNumber(def: RpgTrackerDef, value: RpgTrackerValue | undefined): number | null {
+  const reading = trackerNumber(value);
+  return reading === null && def.key === RPG_SEED_HP_KEY ? trackerCeiling(def, value) : reading;
+}
 
 /** The tracker defs a game MINTS with, given its profile (D71's "new theme = a json" pattern applied to game
  *  birth: the profile is the data, this is the one derivation).

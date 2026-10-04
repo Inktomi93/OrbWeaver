@@ -2,7 +2,7 @@
 // §6c) — the FIRST real `chatContextContributors` consumer + rpg's registered definition (the
 // feature-owns-definition anchor). The GAME-rail tabs: Status · Inventory · Scene ·
 // Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction) + the
-// PHASE-locked Map (visible, `disabledReason` — "the promise visible, the gate honest"; 5 live + 1 locked).
+// Map (declared with a `disabledReason` but hidden by its `when` while the map program is parked).
 // **Sheet is NOT a tab** (the tracked-field unification): Status is the only list of people and expanding
 // a participant entry IS the sheet, so the sheet is a STATE of Status, not a sibling of it — a tab whose content
 // migrated to another tab depending on the stat profile was a hallway. Inventory STAYS its own tab
@@ -125,16 +125,16 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       body: gameTab("Journal", (state) => <RpgJournalTab state={state} />),
     },
     {
-      // The ONE PHASE-locked tab ("Map"): visible, wearing a lock glyph with its reason
-      // on `title`. RV-7: it OPENS, onto the planned-feature body. Because it opens for every input,
-      // the bracket's cell does NOT mark it `aria-disabled` (2026-08-01 side-eye: announcing "unavailable"
-      // over a tab that Enter and a click both open is two stories) — `disabledReason` is the LOCK's reason
-      // here, and the cell decides how to wear it.
+      // The ONE PHASE-locked tab ("Map"): when shown it wears a lock glyph with its reason on `title` and OPENS
+      // onto the planned-feature body, so the bracket's cell does NOT mark it `aria-disabled` — announcing
+      // "unavailable" over a tab that Enter and a click both open is two stories.
       id: "rpg.map",
       label: "Map",
       icon: MapIcon,
       strip: "game",
-      when: isGameChat,
+      // HIDDEN WHILE THE MAP PROGRAM IS PARKED (owner ruling): a tab that opens onto "not built yet" is a dead end.
+      // Un-parking is this one line, back to `isGameChat`.
+      when: (): boolean => false,
       // Plain "planned" wording: no program name, no ticket id, no unlock the player could earn.
       disabledReason: (): string => RPG_MAP_PLANNED,
       body: (s): ReactNode =>
@@ -158,6 +158,8 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       // HOST-ONLY — the crown-gold glyph at rest in the admin rail. `when` is the real gate
       // (PERMISSION-omit); this is only how the HUD paints it.
       crown: true,
+      // A setup form: dense controls read badly over the chat art the translucent pane lets through.
+      opaque: true,
       when: isHostCommitted,
       body: (s): ReactNode => {
         if (isHostGameChat(s)) {

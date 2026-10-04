@@ -942,6 +942,18 @@ export function RecallIndicatorStory(): ReactElement {
   );
 }
 
+/** The HOST's memory chip, over the real data layer: with the account's Memory switch off its popover says so and
+ *  offers to turn it on. */
+export function RecallIndicatorHostStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 260 }}>
+        <ChatRecallIndicator chatId={RECALL_CHAT_ID} viewerIsHost={true} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 const RECALL_DETAIL_CHARACTER_ID = castId<CharacterId>("character_ct_recall_detail");
 
 const RECALL_DETAIL_SLICE: MemoryRecallSlice = {

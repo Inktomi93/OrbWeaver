@@ -75,6 +75,17 @@ test("a dropped transcript POSTs multipart with the CSRF header and closes on su
   await expect(component.getByTestId("import-closes")).toHaveText("1");
 });
 
+// The add/import dialogs share one frame: a close glyph in the corner and a Cancel in the footer, each a way out.
+test("the dialog offers both a Close glyph and a Cancel, and either one dismisses it", async ({ mount, page }) => {
+  await routeTrpc(page, MEMORY_OFF_ROUTES);
+  const component = await mount(<ChatImportDialogStory />);
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "Close" })).toBeVisible();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(component.getByTestId("import-closes")).toHaveText("1");
+});
+
 test("an all-failed batch is NOT success: it names the server's reason and the dialog stays open", async ({ mount, page }) => {
   await routeTrpc(page, MEMORY_OFF_ROUTES);
   await routeImport(page, {

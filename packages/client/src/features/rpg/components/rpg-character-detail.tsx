@@ -233,13 +233,19 @@ function IdentityBlock({
         <StatusLine status={actor.volatile?.status ?? ""} {...(edit === undefined ? {} : { edit })} />
         <Row gap="field" align="center" className="flex-wrap">
           <SheetLevel level={actor.sheet.level} {...(onEditLevel === undefined ? {} : { onEditLevel })} />
-          <WalletChips
-            wallet={actor.volatile?.wallet ?? []}
-            lockBase={lockBase}
-            lockedPaths={lockedPaths}
-            {...(onEditCoin === undefined ? {} : { onEditAmount: onEditCoin })}
-            {...(onReleaseCoin === undefined ? {} : { onRelease: onReleaseCoin })}
-          />
+          {/* The story's own purse, named apart from any Coin tracker the host adds below: that one is a game stat. */}
+          <Row gap="field" align="center" className="flex-wrap" role="group" aria-label="Story currency">
+            <Text as="span" voice="gloss">
+              Story currency
+            </Text>
+            <WalletChips
+              wallet={actor.volatile?.wallet ?? []}
+              lockBase={lockBase}
+              lockedPaths={lockedPaths}
+              {...(onEditCoin === undefined ? {} : { onEditAmount: onEditCoin })}
+              {...(onReleaseCoin === undefined ? {} : { onRelease: onReleaseCoin })}
+            />
+          </Row>
         </Row>
       </Stack>
     </Row>

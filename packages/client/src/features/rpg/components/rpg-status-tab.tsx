@@ -28,6 +28,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations.ts";
 import { actorKey, actorSubjects } from "../lib/actor-key.ts";
@@ -144,7 +145,10 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
           NOTHING (every actor's volatile plane is still null), so it teaches once and then gets out of the
           way; an established game never carries it ([[empty-states-are-load-bearing]]). */}
       {characters.length === 0 || characters.every((actor) => actor.volatile === null) ? (
-        <RpgDoorwayLine>The story fills this in as you play. Set up trackers in the Game tab.</RpgDoorwayLine>
+        // The Game tab is the host's, so only a host is offered the door to it.
+        <RpgDoorwayLine {...(isHost ? { actionLabel: "Open the Game tab", onAction: (): void => revealContextPanel("rpg.game") } : {})}>
+          The story fills this in as you play. Set up trackers in the Game tab.
+        </RpgDoorwayLine>
       ) : null}
       {characters.map((actor) => {
         const edit = editFor(actor);

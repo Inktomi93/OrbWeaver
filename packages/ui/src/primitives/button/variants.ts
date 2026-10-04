@@ -60,7 +60,13 @@ export const buttonVariants = tv({
   ],
   variants: {
     intent: {
-      primary: "bg-primary text-primary-foreground shadow-cta hover:bg-primary/90 hover:shadow-cta-glow active:bg-primary/80",
+      // A disabled primary drops the accent fill for the neutral muted pair (a half-opacity accent read as nearly enabled).
+      // A busy (`loading`) button is disabled too but is working, so it keeps its fill; `globals.css` quiets its ring to match.
+      primary: [
+        "bg-primary text-primary-foreground shadow-cta hover:bg-primary/90 hover:shadow-cta-glow active:bg-primary/80",
+        "disabled:not-aria-busy:bg-muted disabled:not-aria-busy:text-muted-foreground disabled:not-aria-busy:shadow-none",
+        "data-disabled:not-aria-busy:bg-muted data-disabled:not-aria-busy:text-muted-foreground data-disabled:not-aria-busy:shadow-none",
+      ],
       secondary: `border border-border bg-transparent text-current ${ACCENT_HOVER} active:bg-accent/80`,
       ghost: `text-current ${ACCENT_HOVER} active:bg-accent/80`,
       destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
