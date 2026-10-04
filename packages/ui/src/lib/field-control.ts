@@ -12,7 +12,7 @@
 // THE EDGE IS `border-input-border`, NOT `border-border` (D159): a form control's boundary is what
 // IDENTIFIES it as operable, so WCAG 1.4.11's 3:1 governs it, while the shared `--color-border`
 // hairline is a decorative divider at 1.19-1.28:1 and stays that way for its other 70-odd consumers.
-export const FIELD_CONTROL_BOX = "w-full min-w-0 rounded-control border border-input-border bg-input text-foreground";
+export const FIELD_CONTROL_BOX = "w-full min-w-0 rounded-control border border-input-border bg-field-fill text-foreground";
 
 // THE TYPE STEP IS `text-field`, A POINTER-CONDITIONAL TOKEN, AND THAT IS WHY THERE IS NO MEDIA QUERY
 // AND NO VARIANT ANYWHERE NEAR THIS LINE (#1868, §4b axis 3).

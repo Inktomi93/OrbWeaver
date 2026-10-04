@@ -262,21 +262,15 @@ test("#102-F2 an EMPTY bank keeps the RAIL register: flush-left, no centred isla
     .toBe(steps.labelStep);
 });
 
-// ── RED-FIRST (rail sweep, the IA finding): Databank is IN the rail, like every other section ────────
-// This pin used to read "the tile SUBSUMES its jump row — Databank is one door on home, not two", and it
-// was written (side-eye 2026-08-08 P2-c) when "Elsewhere in the house" was seven FAT TEACHING ROWS, where a
-// duplicate row really was a duplicate block. Program #102 replaced those with a wrapping PILL RAIL whose
-// whole promise is that every room in the house is one skim away — and Databank was then the ONE section
-// missing from it (eight pills for nine sections, measured on the live surface). The `sectionId` MECHANISM
-// is untouched; this tile simply no longer claims it. See the tile's own header for the retraction.
-test("Databank keeps its pill in the rail — the tile beside it is not a substitute for the index", async ({ mount, page }) => {
+// A section whose tile is on screen is not repeated in Elsewhere: the tile carries the section's name, glyph,
+// contents, health and a door into it, so a pill beside it is the same destination twice.
+test("Databank leaves the rail while its tile is on screen; every other section keeps its pill", async ({ mount, page }) => {
   await stubDatabank(page);
   const home = await mount(<DatabankHomeTileWithJumpGridStory />);
 
   const jump = home.locator('[data-home-tile="home.jump"]');
-  // The grid is REAL and derives every section from the registry — including this tile's own.
   await expect(jump.getByRole("button", { name: "Go to Chats" })).toBeVisible();
-  await expect(jump.getByRole("button", { name: "Go to Databank" })).toBeVisible();
+  await expect(jump.getByRole("button", { name: "Go to Databank" })).toHaveCount(0);
 });
 
 test("on a 360px phone an EMPTY bank's two doors wrap, and both stay inside the card", async ({ mount, page }) => {

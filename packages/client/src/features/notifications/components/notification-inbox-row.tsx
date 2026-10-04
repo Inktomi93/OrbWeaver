@@ -10,6 +10,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
@@ -20,10 +21,18 @@ import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.t
 
 type InboxItem = inferOutput<Trpc["notifications"]["list"]>["items"][number];
 
+/** The display name of the plugin a `plugin-disabled` row is about. The wire carries ids only, so the name is
+ *  read from the owner's plugin list, and only for the row that needs one. */
+function useDisabledPluginName(payload: NotificationEvent): string | undefined {
+  const trpc = useTRPC();
+  const { data: plugins } = useQuery({ ...trpc.plugin.list.queryOptions(), enabled: payload.type === "plugin-disabled" });
+  return payload.type === "plugin-disabled" ? plugins?.find((plugin) => plugin.id === payload.pluginId)?.name : undefined;
+}
+
 /** The per-reason row copy — a mapped Record so a new NotificationEvent member fails tsc until it says
  *  what the inbox row reads. A handle is lowercase, so no sentence opens on one. */
 const ROW_COPY: {
-  readonly [K in NotificationType]: (payload: Extract<NotificationEvent, { type: K }>) => string;
+  readonly [K in NotificationType]: (payload: Extract<NotificationEvent, { type: K }>, pluginName: string | undefined) => string;
 } = {
   invite: (p) => `Invited to a chat by ${p.invitedByHandle}`,
   kicked: () => "You were removed from a chat",
@@ -32,7 +41,8 @@ const ROW_COPY: {
   "deferred-turn-dropped": (p) =>
     p.reason === "consent" ? "An AI reply couldn't run — the host hasn't allowed it" : "An AI reply couldn't run — that chat is no longer available",
   "automation-notice": (p) => `Automation notice: ${p.message}`,
-  "plugin-disabled": () => "A plugin was disabled",
+  // The crash policy turns a plugin off after repeated failures; the payload carries the id only.
+  "plugin-disabled": (_p, pluginName) => `${pluginName ?? "A plugin"} was turned off after it kept failing`,
   // THE FRESH-BOOT ASK (#1041/#924). ONE aggregate row, never one per plugin — the count is the whole
   // message, and what each plugin asks for (and why) is read on the consent screen the Review action opens,
   // which is the only place the answer can actually be given. The wording is the Extensions pane's
@@ -44,9 +54,9 @@ const ROW_COPY: {
       : `${p.pendingCount} plugins are installed but not allowed to do anything yet`,
 };
 
-function rowCopy(payload: NotificationEvent): string {
-  const handler = ROW_COPY[payload.type] as (p: NotificationEvent) => string;
-  return handler(payload);
+function rowCopy(payload: NotificationEvent, pluginName: string | undefined): string {
+  const handler = ROW_COPY[payload.type] as (p: NotificationEvent, pluginName: string | undefined) => string;
+  return handler(payload, pluginName);
 }
 
 export interface InboxRowProps {
@@ -79,6 +89,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
   const isInvite = item.payload.type === "invite";
   const isHandoff = item.payload.type === "handoff-nominated";
   const isConsent = item.payload.type === "plugins-awaiting-consent";
+  const disabledPluginName = useDisabledPluginName(item.payload);
   const isPending = accept.isPending || decline.isPending || dismiss.isPending;
   // The handoff's own in-flight copy moved to the confirm with the verb (#1762): the only write this row
   // still owns for a nomination is the dismiss.
@@ -169,7 +180,7 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
             own actions are what say it is decidable; the mark is the sighted shorthand. */}
         {item.actionable ? <Badge intent="primary" size="dot" aria-hidden={true} className="mt-field" /> : null}
         <Text as="span" size="label" weight={item.readAt === null || item.actionable ? "medium" : undefined}>
-          {rowCopy(item.payload)}
+          {rowCopy(item.payload, disabledPluginName)}
         </Text>
       </Row>
       <Row gap="field" align="center" justify="end">
@@ -214,6 +225,11 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
             Review
           </Button>
         ) : null}
+        {disabledPluginName === undefined ? null : (
+          <Button aria-label={`Open Plugins — ${disabledPluginName}`} type="button" disabled={isPending} intent="secondary" size="sm" onClick={onOpenPlugins}>
+            Open Plugins
+          </Button>
+        )}
         {/* DISMISS STAYS GHOST, and that is a deviation from the brief's "Decline/Dismiss = secondary" with
             a reason: Dismiss is on EVERY row, including the nine-strong run of notices and consent asks a
             fresh boot lands, and at `secondary` that run is a wall of bordered boxes with no focal point

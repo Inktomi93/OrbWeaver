@@ -37,17 +37,25 @@
 // when the invoke THREW: a handler that toasts "couldn't reach the API" and then throws should still get its
 // sentence to the person, and leaving items behind would deliver them to a LATER, unrelated round-trip.
 
-import type { PluginUiOutcome } from "@orb/contracts/plugin";
-import { DomainError, DomainNotFoundError } from "@orb/kit/errors";
-import { PluginActionFailedError, PluginNotFoundError } from "../contract/errors.ts";
+import type { InvocationChat, PluginUiOutcome } from "@orb/contracts/plugin";
+import { DomainNotFoundError } from "@orb/kit/errors";
+import { asPluginActionError, PluginNotFoundError } from "../contract/errors.ts";
 import type { InvokeUiActionParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
 import { resolveUiOutcome } from "../substrate/ui-outbox.ts";
 
-/** A guest's own throw is a typed plugin refusal, not a bare server error; a host DomainError keeps its mapping. */
-function asPluginActionError(error: unknown): never {
-  throw error instanceof DomainError ? error : new PluginActionFailedError(`plugin action failed: ${error instanceof Error ? error.message : String(error)}`);
+/** The invocation scope for the claimed room, or `null` for a room-less surface. A UI action is a HUMAN act, so
+ *  it is the cascade ROOT (automationDepth 0): a turn it goes on to trigger stamps 1. */
+async function admitChat(ctx: PluginContext, caller: InvokeUiActionParams["caller"], chatId: InvokeUiActionParams["chatId"]): Promise<InvocationChat | null> {
+  if (chatId === undefined) {
+    return null;
+  }
+  const authority = await ctx.resolveChatAuthority(caller, chatId);
+  if (!authority.canRead) {
+    throw new DomainNotFoundError("chat", chatId);
+  }
+  return { chatId, canWrite: authority.canWrite, automationDepth: 0 };
 }
 
 export function createInvokeUiAction(ctx: PluginContext, registry: PluginRegistry): PluginService["invokeUiAction"] {
@@ -70,13 +78,7 @@ export function createInvokeUiAction(ctx: PluginContext, registry: PluginRegistr
     // (4) MEMBERSHIP — the claimed room, verified. The write ceiling (`canWrite`) is the caller's HOST authority
     // on that room, resolved here and NEVER inferred from the client; a plugin action in a room the installer
     // merely reads gets the same read-only ceiling every other member-scoped invocation gets.
-    const authority = chatId === undefined ? null : await ctx.resolveChatAuthority(caller, chatId);
-    if (chatId !== undefined && authority?.canRead !== true) {
-      throw new DomainNotFoundError("chat", chatId);
-    }
-    // A UI action is a HUMAN act — the cascade ROOT (automationDepth 0), exactly like a snippet run; a turn it
-    // goes on to trigger stamps 1.
-    const chat = chatId === undefined || authority === null ? null : { chatId, canWrite: authority.canWrite, automationDepth: 0 };
+    const chat = await admitChat(ctx, caller, chatId);
     // Re-enter under the crash policy + the per-instance invoke queue. The args are a CLOSURE over the handle the
     // runtime mints for THIS invocation (see the header); the handler's string return is discarded. The DRAIN
     // (U5) is in a `finally` so a throwing handler's toasts still reach the person who acted (and never leak into
@@ -84,7 +86,9 @@ export function createInvokeUiAction(ctx: PluginContext, registry: PluginRegistr
     // with a sad toast.
     let outcome: PluginUiOutcome = { toasts: [] };
     try {
-      await resident.invoke(surface.onAction, (chatHandle) => JSON.stringify({ actionId, values, chat: chatHandle }), chat).catch(asPluginActionError);
+      await resident.invoke(surface.onAction, (chatHandle) => JSON.stringify({ actionId, values, chat: chatHandle }), chat);
+    } catch (error) {
+      throw asPluginActionError(error);
     } finally {
       outcome = resolveUiOutcome(ctx.uiOutbox.drain(pluginId), resident.instance);
     }

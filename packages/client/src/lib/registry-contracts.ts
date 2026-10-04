@@ -65,6 +65,8 @@ export interface ContextTabDef<S> {
    *  a list of foreign tab ids, i.e. rpg knowing chat's vocabulary. PRESENTATION only, never a gate: the
    *  host-only-ness is enforced by `when` (PERMISSION-omit). Absent ⇒ false. */
   readonly crown?: boolean;
+  /** The tab body sits on an OPAQUE panel surface, not the pane's translucent one (a dense setup form). Absent ⇒ false. */
+  readonly opaque?: boolean;
   /** A changed-since-viewed marker (§4.6): a truthy boolean ⇒ a corner dot; a number \> 0 ⇒ a count. `null`
    *  / `false` / `0` ⇒ no badge. Resolved at resolve-time against `S` (same as `when`). Never rendered on
    *  the active tab (the strip suppresses it). */
@@ -92,6 +94,8 @@ export interface ResolvedContextTab {
   readonly strip: ContextTabStrip;
   /** RESOLVED host-only marker (HUD-1 §4), defaulted to `false` — the renderer never sees an absent field. */
   readonly crown: boolean;
+  /** RESOLVED opaque-surface marker, defaulted to `false`. */
+  readonly opaque: boolean;
   readonly badge: number | boolean | null;
   readonly disabledReason: string | null;
   /** RESOLVED preferred-default flag: `true` ⇒ the panel lands here when no
@@ -231,6 +235,7 @@ export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): Resol
     node: tab.body(state),
     strip: tab.strip ?? "meta",
     crown: tab.crown ?? false,
+    opaque: tab.opaque ?? false,
     badge: tab.badge?.(state) ?? null,
     disabledReason: tab.disabledReason?.(state) ?? null,
     defaultTab: tab.defaultTab?.(state) ?? false,

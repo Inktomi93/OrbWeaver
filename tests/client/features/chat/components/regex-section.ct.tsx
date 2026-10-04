@@ -348,12 +348,26 @@ test("host: with NO label on the wire the preset tier says the bare `From the pr
   await expect(component.getByRole("switch", { name: "Preset — in this chat" })).toBeVisible();
 });
 
-test("host: a preset-less room's group says so instead of naming a preset it cannot name (§7.5)", async ({ mount, page }) => {
+test("host: a tier with no scripts shows neither its group nor its switch", async ({ mount, page }) => {
   const view = board01();
   view.tiers[1] = { scope: "preset", allowed: true, rows: [] };
   await stubHost(page, view);
   const component = await mount(<RegexSectionStory />);
-  await expect(component.locator('[data-tier="preset"]')).toContainText("Nothing from here.");
+  await expect(component.locator('[data-tier="global"]')).toBeVisible();
+  await expect(component.locator('[data-tier="preset"]')).toHaveCount(0);
+  await expect(component.getByRole("switch", { name: "Preset — in this chat" })).toHaveCount(0);
+  await expect(component.getByRole("switch", { name: "Everywhere — in this chat" })).toBeVisible();
+});
+
+test("host: with no scripts anywhere the room keeps its own group's Attach action and no empty switches", async ({ mount, page }) => {
+  const view = board01();
+  view.tiers = view.tiers.map((tier) => ({ ...tier, rows: [] }));
+  await stubHost(page, view);
+  const component = await mount(<RegexSectionStory />);
+  await expect(component.locator('[data-slot="regex-tier"]')).toHaveCount(1);
+  await expect(component.locator('[data-tier="chat"]')).toBeVisible();
+  await expect(component.getByRole("button", { name: "Attach a script" })).toBeVisible();
+  await expect(component.getByRole("switch", { name: /— in this chat$/u })).toHaveCount(0);
 });
 
 test("the SETTLING read renders the boundary's fallback, never a void", async ({ mount, page }) => {

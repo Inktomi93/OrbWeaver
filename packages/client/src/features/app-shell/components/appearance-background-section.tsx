@@ -12,21 +12,20 @@ import { blobUrl } from "@orb/contracts/assets";
 import type { AppearanceSettings, BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { pickKeys } from "@orb/kit/objects";
+import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { ListRow } from "@orb/ui/list-row";
 import type { MediaGridItem } from "@orb/ui/media-grid";
 import { MediaGrid } from "@orb/ui/media-grid";
-import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { ConfigTeachScope, QueryBoundary, RowActionsMenu, SettingRow, SettingRowGroup } from "#components";
+import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#components";
 import { createEntityMutation, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
-import { rowActionsName } from "#lib";
+import { removeActionName } from "#lib";
 import { configAnchorId } from "#state";
 import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
 import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
@@ -149,31 +148,19 @@ function BackgroundBody({ sectionId, session }: { readonly sectionId: string; re
             </SettingRow>
           </SettingRowGroup>
 
-          {/* MANAGE — the library rows (the Your-themes grammar): name · age-free meta · ⋯ Remove. */}
-          <form.Subscribe selector={(state): readonly BackgroundLibraryEntry[] => state.values.backgroundLibrary}>
-            {(library): ReactElement | null =>
-              library.length === 0 ? null : (
-                <Stack gap="tight">
-                  <Text as="span" voice="kicker">
-                    {`Your library · ${library.length}`}
-                  </Text>
-                  {library.map((entry) => (
-                    <ListRow
-                      key={entry.entryId}
-                      actions={
-                        <RowActionsMenu label={rowActionsName(entry.name)} triggerSize="sm">
-                          <MenuItem onClick={(): void => removeEntry(entry)}>
-                            <Icon icon={Trash2} size="sm" />
-                            Remove from library
-                          </MenuItem>
-                        </RowActionsMenu>
-                      }
-                      title={entry.name}
-                    />
-                  ))}
-                </Stack>
-              )
-            }
+          {/* MANAGE — the grid above IS the library, so removal acts on the picked tile instead of listing every
+              background a second time. */}
+          <form.Subscribe selector={(state): BackgroundForm => state.values}>
+            {(values): ReactElement | null => {
+              const picked =
+                values.backgroundImageKind === "asset" ? values.backgroundLibrary.find((entry) => entry.assetId === values.backgroundAssetId) : undefined;
+              return picked === undefined ? null : (
+                <Button className="self-start" intent="ghost" onClick={(): void => removeEntry(picked)} size="sm" type="button">
+                  <Icon icon={Trash2} size="sm" />
+                  {removeActionName(picked.name)}
+                </Button>
+              );
+            }}
           </form.Subscribe>
 
           {/* ADD — one door at the grid's end; both ways in funnel through the SAME append+select path

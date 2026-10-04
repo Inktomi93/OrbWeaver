@@ -125,8 +125,11 @@ const SEED_COVERED = new Set<string>(["color.backdrop"]);
 //     6.82 / 5.67 vs 6.27 / 6.14 vs 6.65). Note the asymmetry with its sibling: `--color-border` is EMITTED
 //     and re-derives per custom base, because a decorative divider owes no ratio; this one owes 3:1 on both
 //     sides of a bound, which is what a derivation cannot carry.
+//   • field-fill: the text-field fill, static because the light arm is a fixed near-white that must stay clear of the
+//     translucent `--color-input` rails and switch tracks (`orb.output: "light-dark"`, active arm by `color-scheme`).
 const STATIC_RATIONALE = new Set<string>([
   "color.input-border",
+  "color.field-fill",
   "color.sheen",
   "color.accolade",
   "color.selection-quiet",

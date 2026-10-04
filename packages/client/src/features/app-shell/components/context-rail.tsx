@@ -125,13 +125,11 @@ const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = 
   receded: "text-inherit",
 };
 
-/** The narrow-panel WRAP (side-eye 08-01, measured at the panel's 17rem/272px floor): six cells on one
- *  `auto-cols-fr` row give ~44px each, and four of the six captions clipped to ~3 characters. Below the
- *  `xs` container step a SIX-cell rail lays out as ROWS of three instead (`CONTEXT_RAIL_WRAP` — a
- *  FINE-pointer answer; a phone stays one row and scrolls, the 320×568 measurement is in that fragment's
- *  note). ONLY a rail that folds EVENLY takes it (#861, side-eye 2026-08-30: at 1024×768 the five-cell
- *  foot rail folded 3+2 and left a ragged void beside the orphan pair). Every other rail SCROLLS instead —
- *  `RAIL_TRACK_CLASSES` below keeps each cell at its whole caption and lets the row overflow. */
+/** The narrow-panel WRAP: below the `xs` container step a rail of exactly six cells lays out as ROWS of three, because
+ *  six cells on one `auto-cols-fr` row clipped four captions to ~3 characters (`CONTEXT_RAIL_WRAP`; a FINE-pointer
+ *  answer, a phone stays one row and scrolls). ONLY a rail that folds EVENLY takes it: a five-cell rail would fold 3+2
+ *  and leave a ragged void beside the orphan pair. Every other rail SCROLLS instead — `RAIL_TRACK_CLASSES` below keeps
+ *  each cell at its whole caption and lets the row overflow. */
 const RAIL_WRAP_CELLS = 6;
 
 /** THE READABLE-CAPTION FLOOR, ON EVERY RAIL (#208, 2026-08-18) — the track-sizing function, unconditional.

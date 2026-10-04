@@ -242,6 +242,7 @@ export type { RpgStatAttributeDef, RpgStatProfile, RpgStatResolution } from "./p
 export {
   attributeGloss,
   attributeReading,
+  meterDisplayNumber,
   RPG_PROFILE_D20,
   RPG_PROFILE_FREEFORM,
   RPG_PROFILE_MAX_ATTRIBUTES,

@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { clearPluginCommandArgs, closeModal, usePluginCommandArgsSubject } from "#state";
 import { usePluginCommandRunner, usePluginCommands } from "../hooks/use-plugin-commands.ts";
-import { pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
+import { humanizeId, pluginCommandActionLabel, pluginCommandAttribution } from "../lib/plugin-command-copy.ts";
 
 /** The initial string bag: booleans default to `"false"` (an unchecked toggle IS a value, not an omission);
  *  everything else starts empty (a required one blocks submit until filled, an optional one is dropped). */
@@ -35,9 +35,10 @@ function initialValues(specs: readonly PluginCommandArgSpec[]): Record<string, s
   return seed;
 }
 
-/** The arg's visible label — its name, with a required marker so a person knows what blocks the run. */
+/** The arg's visible label — its name read as words, with a required marker so a person knows what blocks the run. */
 function argLabel(spec: PluginCommandArgSpec): string {
-  return spec.required === true ? `${spec.name} *` : spec.name;
+  const label = humanizeId(spec.name);
+  return spec.required === true ? `${label} *` : label;
 }
 
 /** ONE typed input for one declared arg. The `type` dispatch is exhaustive (an if-chain the final `string` arm
@@ -63,7 +64,7 @@ function ArgInput({
     return (
       <Field description={spec.describe} label={argLabel(spec)}>
         <NumberField
-          aria-label={spec.name}
+          aria-label={humanizeId(spec.name)}
           onValueChange={(next): void => onChange(next === null ? "" : String(next))}
           value={value === "" ? null : Number(value)}
         />
@@ -80,8 +81,8 @@ function ArgInput({
             falls back to the literal "Hidden select value". Dropping it trades a real name for a generic one
             on an element axe scans. The primitive's header states the rule; this site cites it. */}
         <Select
-          aria-label={spec.name}
-          items={(spec.enumValues ?? []).map((option) => ({ label: option, value: option }))}
+          aria-label={humanizeId(spec.name)}
+          items={(spec.enumValues ?? []).map((option) => ({ label: humanizeId(option), value: option }))}
           onValueChange={(next: string | null): void => onChange(next ?? "")}
           value={value}
         />

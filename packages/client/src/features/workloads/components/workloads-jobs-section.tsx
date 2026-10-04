@@ -106,7 +106,8 @@ function WorkloadsJobsBody(): ReactElement {
     if (!isPrivileged || workload.ownerId === null || workload.ownerId === viewer.userId) {
       return null;
     }
-    return handleByUserId.get(workload.ownerId as string) ?? null;
+    // The handle list can lag or miss a removed account; a job that is not the viewer's is still labelled as someone else's.
+    return handleByUserId.get(workload.ownerId as string) ?? "another user";
   };
 
   return (

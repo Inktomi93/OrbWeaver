@@ -18,6 +18,7 @@
 import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
+import { Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { testId } from "#lib";
@@ -67,6 +68,13 @@ export interface FormDialogProps {
    * given (that footer already carries a Cancel).
    */
   readonly dismissLabel?: string;
+  /**
+   * A close glyph in the title row's corner, the frame the shell's own modals wear. The add and import dialogs
+   * set it so they share one frame with "Add a document". It follows the body in tab order, so the dialog still
+   * opens on its first real control rather than on the glyph.
+   * @defaultValue false
+   */
+  readonly closeButton?: boolean;
   /** Where focus goes on close. Give one when the dialog can open with no trigger focused (a request from another
    *  section), or its close drops focus on the page body. */
   readonly finalFocus?: RefObject<HTMLElement | null>;
@@ -87,6 +95,7 @@ export function FormDialog({
   children,
   submit,
   dismissLabel,
+  closeButton = false,
   finalFocus,
 }: FormDialogProps): ReactElement {
   return (
@@ -97,7 +106,7 @@ export function FormDialog({
         {...(finalFocus === undefined ? {} : { finalFocus })}
       >
         <Stack gap="block">
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className={closeButton ? "pe-control-md" : ""}>{title}</DialogTitle>
           {description === undefined ? null : <DialogDescription>{description}</DialogDescription>}
           {submit === undefined ? children : <PromptBody submit={submit}>{children}</PromptBody>}
           {submit === undefined && dismissLabel !== undefined ? (
@@ -106,6 +115,15 @@ export function FormDialog({
             </Row>
           ) : null}
         </Stack>
+        {closeButton ? (
+          <DialogClose
+            render={
+              <Button aria-label="Close" className="absolute end-field top-field" intent="ghost" size="icon" type="button">
+                <Icon icon={X} size="sm" />
+              </Button>
+            }
+          />
+        ) : null}
       </DialogPopup>
     </Dialog>
   );

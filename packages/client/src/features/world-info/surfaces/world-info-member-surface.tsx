@@ -72,6 +72,8 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   // A remembered entry from a DIFFERENT book simply doesn't match here, so the surface falls back to the
   // entry list — which is why the entry selection needs no clearing when the open book changes.
   const selectedEntry = entries.find((e) => e.id === selectedEntryId) ?? null;
+  // The verb fills a blank title from the entry's keys, so an entry with no keys is one it leaves blank.
+  const canBackfill = entries.some((e) => e.title.trim() === "" && (e.keys ?? []).length > 0);
 
   // Drag settled: the sortable reports the new key order; persist it (position i → priority N-i). The hook
   // optimistically re-sorts the cached list so the rows land instantly, then reconciles from the server.
@@ -133,9 +135,11 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
                   the pair read as "one button and a caption" rather than as two verbs of different weight.
                   Secondary is the house's non-primary CHROME — it has a box at rest, and the primary keeps
                   its rank because it is the only filled control in the row. */}
-              <Button disabled={backfill.isPending || entries.length === 0} intent="secondary" onClick={onBackfill} size="sm">
-                Backfill titles
-              </Button>
+              {canBackfill ? (
+                <Button disabled={backfill.isPending} intent="secondary" onClick={onBackfill} size="sm">
+                  Backfill titles
+                </Button>
+              ) : null}
               <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">
                 <Icon icon={Plus} size="sm" />
                 New entry

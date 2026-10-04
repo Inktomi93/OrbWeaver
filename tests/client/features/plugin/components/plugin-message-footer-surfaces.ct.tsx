@@ -52,6 +52,7 @@ function pluginRow(): PluginListRow {
     reconsentPending: false,
     widenedNetHosts: [],
     builtAgainst: null,
+    description: "A fixture plugin.",
     lastError: null,
     installedAt: A_PAST_INSTANT,
     updatedAt: A_PAST_INSTANT,

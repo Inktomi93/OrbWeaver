@@ -12,6 +12,8 @@ area: plugin
 
 Previous and Next are enabled before any search and answer 'Search first…' (fp2-ca-page.png). Final pass leg 2 (plugins); review: ~/homelab/development/probe-archive/side-eye-reviews/final-pass-2-plugins.md.
 
+Owner ruling: add a bound disabled field to the plugin button node (contract, SDK types, renderer) and use it for the Card Atlas pager.
+
 ## Why
 
 Plugin final pass finding.

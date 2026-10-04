@@ -39,11 +39,12 @@
 
 import { pluginGrantTasks } from "@orb/contracts/plugin";
 import { Badge } from "@orb/ui/badge";
-import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
+import { CopyButton } from "@orb/ui/copy-button";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Row, Stack } from "@orb/ui/layout";
+import { MenuItem } from "@orb/ui/menu";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -55,7 +56,8 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import { builtAgainstLine, PLUGIN_MODEL_HEADING, REMOVE_PLUGIN_DESCRIPTION, statusCopy } from "../lib/plugin-copy.ts";
+import { builtAgainstLine, PLUGIN_ERROR_COPY_SUBJECT, PLUGIN_ERROR_SENTENCE, REMOVE_PLUGIN_DESCRIPTION, statusCopy } from "../lib/plugin-copy.ts";
+import { PLUGIN_MODEL_HEADING } from "../lib/plugin-model-copy.ts";
 import { useSetPluginEnabled, useSetPluginGrant, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 import { PluginLogPanel } from "./plugin-log-panel.tsx";
@@ -69,9 +71,12 @@ type PluginView = inferOutput<Trpc["plugin"]["list"]>[number];
 
 export interface PluginRowProps {
   readonly plugin: PluginView;
+  /** Fires once the owner's approval has landed and the plugin is on — the host that reviews in place uses it
+   *  to open what the plugin just added. */
+  readonly onApproved?: () => void;
 }
 
-export function PluginRow({ plugin }: PluginRowProps): ReactElement {
+export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setEnabled = useSetPluginEnabled({ trpc, invalidation });
@@ -151,14 +156,22 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
                   {status.label}
                 </Badge>
               </Row>
+              {/* What the plugin is for, from its own manifest: the person approving needs it before the ask. */}
+              <Text className="max-w-(--reading-measure-prose)" prose={true}>
+                {plugin.description}
+              </Text>
               <Text prose={true} voice="gloss">
                 Version {plugin.version}
                 {provenance === null ? "" : ` · ${provenance}`}
               </Text>
               {plugin.lastError === null ? null : (
-                <Text className="text-destructive" prose={true} voice="gloss">
-                  {plugin.lastError}
-                </Text>
+                // The raw error is developer text; the card says it plainly and keeps the detail one press away.
+                <Row align="center" className="flex-wrap" gap="field">
+                  <Text className="max-w-(--reading-measure-prose) text-destructive" prose={true} voice="gloss">
+                    {PLUGIN_ERROR_SENTENCE}
+                  </Text>
+                  <CopyButton text={plugin.lastError} what={PLUGIN_ERROR_COPY_SUBJECT} />
+                </Row>
               )}
             </Stack>
             <Row align="center" className="shrink-0" gap="field">
@@ -171,11 +184,13 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
                 disabled={setEnabled.isPending}
                 onCheckedChange={onEnabledChange}
               />
-              {/* Update sits IN the cluster (it is reversible-ish and the common maintenance act); Remove is
-                  demoted into the overflow behind the composite's ConfirmDialog, so the irreversible action
-                  cannot be reached by a single click beside the toggle. */}
+              {/* The bundle upload and Remove both live in the overflow, so the cluster holds one update door
+                  ("Check for updates" below, where the source can serve one) and the irreversible act cannot be
+                  reached by a single click beside the toggle. The FileTrigger wraps the menu so its input stays
+                  mounted after the menu closes. */}
               <FileTrigger
                 accept=".zip"
+                disabled={upgrade.isPending}
                 onFilesSelected={(files): void => {
                   const [file] = files;
                   if (file !== undefined) {
@@ -184,27 +199,34 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
                 }}
               >
                 {({ open }): ReactElement => (
-                  <Button aria-label={`Update ${plugin.name} from a bundle`} intent="secondary" loading={upgrade.isPending} onClick={open} size="sm">
-                    Update
-                  </Button>
+                  <RowActionsMenu
+                    destructive={{
+                      // Every OTHER string on this feature says "Remove" (the row's own confirm button, the
+                      // re-consent notice's escape action below); this menu item defaulted to "Delete" and was the
+                      // one place a person read a different verb for the same act (side-eye P2-7).
+                      confirmLabel: "Remove plugin",
+                      description: REMOVE_PLUGIN_DESCRIPTION,
+                      label: "Remove",
+                      onConfirm: (): void => uninstall.mutate({ pluginId: plugin.id }),
+                      title: `Remove "${plugin.name}"?`,
+                    }}
+                    label={`More actions for ${plugin.name}`}
+                  >
+                    <MenuItem disabled={upgrade.isPending} onClick={open}>
+                      Install a bundle from a file…
+                    </MenuItem>
+                  </RowActionsMenu>
                 )}
               </FileTrigger>
-              <RowActionsMenu
-                destructive={{
-                  // Every OTHER string on this feature says "Remove" (the row's own confirm button, the
-                  // re-consent notice's escape action below); this menu item defaulted to "Delete" and was the
-                  // one place a person read a different verb for the same act (side-eye P2-7).
-                  confirmLabel: "Remove plugin",
-                  description: REMOVE_PLUGIN_DESCRIPTION,
-                  label: "Remove",
-                  onConfirm: (): void => uninstall.mutate({ pluginId: plugin.id }),
-                  title: `Remove "${plugin.name}"?`,
-                }}
-                label={`More actions for ${plugin.name}`}
-              />
             </Row>
           </Row>
         </Stack>
+
+        {upgrade.isPending ? (
+          <Text prose={true} role="status" voice="gloss">
+            Installing the new bundle…
+          </Text>
+        ) : null}
 
         {uploadError === null ? null : (
           <Text className="text-destructive" prose={true} role="alert">
@@ -215,7 +237,7 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
         {/* U8 2b — the auto update-check + one-click upgrade, mounted only when the SERVER says something can
           serve a newer version for this row (`updateSource`, #1740): a remembered `url` source, or the showcase
           copy this build ships for a SEEDED example. A hand-uploaded plugin is neither and keeps only the manual
-          "Update" bundle upload above. The gate is the server's field and not `origin` on purpose — a seeded
+          bundle upload in the ⋯ menu above. The gate is the server's field and not `origin` on purpose — a seeded
           example arrives as an `upload` and is indistinguishable from a hand upload by origin alone, and the
           shipped slug set is not something this surface may re-spell. The one-click rides the SAME server
           upgrade verb either way, so a reach-widening update lands `disabled` and the ReConsentNotice below
@@ -240,6 +262,7 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
                   onSuccess: (view): void => {
                     if (view.status === "enabled") {
                       notify.success(`${plugin.name} is on.`);
+                      onApproved?.();
                     }
                   },
                 },
@@ -257,8 +280,11 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
           />
         ) : null}
 
-        <Collapsible>
-          {/* `size="control"` — the disclosure IS a row of its own (the automation rule-row precedent, minted
+        {/* While the ask above is showing, the same permission list is not drawn a second time; once the
+            plugin is settled this disclosure is the one home for it. */}
+        {plugin.reconsentPending ? null : (
+          <Collapsible>
+            {/* `size="control"` — the disclosure IS a row of its own (the automation rule-row precedent, minted
             for the identical defect): it shipped `inline` at ~746×16 with `::after` resolving `content:
             none`, below WCAG 2.5.8's 24px floor on ANY pointer (side-eye 2026-08-29 P2-3). The `control`
             arm pins the pointer-conditional `--spacing-control-sm` floor (44px coarse / 32px fine).
@@ -266,10 +292,10 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
             "What ${name} is allowed to do" re-ordered them, so a voice-control user saying the words on
             the screen could not match the control. The plugin name still disambiguates — after the em
             dash, outside the visible phrase. */}
-          <CollapsibleTrigger aria-label={`What it's allowed to do — ${plugin.name}`} size="control">
-            <Text voice="label">What it's allowed to do</Text>
-          </CollapsibleTrigger>
-          {/* `ps-block` clears the checkbox's touch-target pseudo on the side it now docks (P2-11's rule, side
+            <CollapsibleTrigger aria-label={`What it's allowed to do — ${plugin.name}`} size="control">
+              <Text voice="label">What it's allowed to do</Text>
+            </CollapsibleTrigger>
+            {/* `ps-block` clears the checkbox's touch-target pseudo on the side it now docks (P2-11's rule, side
             flipped by the grant-list rework): the panel's `overflow-hidden` is load-bearing for the
             collapse-height animation (`packages/ui/src/primitives/collapsible/variants.ts`), and a LEADING
             control's ≥44px coarse-pointer hit area (13px of pseudo past the visible 18px box each side,
@@ -277,30 +303,32 @@ export function PluginRow({ plugin }: PluginRowProps): ReactElement {
             checkbox leads the row. The old `pe-3` cleared the END edge for the right-docked column that no
             longer exists. Scoped here rather than widened in `@orb/ui`: only a panel-adjacent docked control
             inside a height-animated panel hits this, and this is the one place that pairs the two. */}
-          <CollapsiblePanel className="ps-block">
-            {plugin.declaredCapabilities.length === 0 ? (
-              <Text prose={true} voice="gloss">
-                Nothing. It can run its own code and reach nothing else.
-              </Text>
-            ) : (
-              // `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
-              // subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),
-              // which is the whole point of the asked-vs-allowed pair: this disclosure used to be able to show
-              // only the allowed half, which cannot say "this plugin asks for X and you allowed Y".
-              //
-              // The `netHosts` prop is GATED ON `net.fetch` BEING GRANTED, not merely declared — this
-              // disclosure's copy is "what it's allowed to do" (past tense, confirmed), and "the exact hosts it
-              // can reach" is a false claim for a paranoid owner who declined `net.fetch` itself: the plugin
-              // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
-              <PluginGrantList
-                capabilitiesLabel={`What it's allowed to do — ${plugin.name}`}
-                declared={plugin.declaredCapabilities}
-                granted={plugin.grantedCapabilities}
-                netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
-              />
-            )}
-          </CollapsiblePanel>
-        </Collapsible>
+            <CollapsiblePanel className="ps-block">
+              {plugin.declaredCapabilities.length === 0 ? (
+                <Text prose={true} voice="gloss">
+                  Nothing. It can run its own code and reach nothing else.
+                </Text>
+              ) : (
+                // `declared` is the FULL current ask (#650 P1-2) — a plugin an owner granted only a paranoid
+                // subset of now shows the ungranted rows too ("Not granted" statements, plugin-grant-list.tsx),
+                // which is the whole point of the asked-vs-allowed pair: this disclosure used to be able to show
+                // only the allowed half, which cannot say "this plugin asks for X and you allowed Y".
+                //
+                // The `netHosts` prop is GATED ON `net.fetch` BEING GRANTED, not merely declared — this
+                // disclosure's copy is "what it's allowed to do" (past tense, confirmed), and "the exact hosts it
+                // can reach" is a false claim for a paranoid owner who declined `net.fetch` itself: the plugin
+                // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
+                <PluginGrantList
+                  roleScope={{ kind: "plugin", pluginId: plugin.id }}
+                  capabilitiesLabel={`What it's allowed to do — ${plugin.name}`}
+                  declared={plugin.declaredCapabilities}
+                  granted={plugin.grantedCapabilities}
+                  netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
+                />
+              )}
+            </CollapsiblePanel>
+          </Collapsible>
+        )}
 
         {/* The plugin's OWN model per spend task it declares — only those tasks, only the installer's own
             connections. A plugin that routes nothing through its grant has no row here at all. */}

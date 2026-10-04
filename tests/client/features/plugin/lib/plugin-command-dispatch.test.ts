@@ -55,7 +55,7 @@ test("pluginCommandArgOffers hints the declared arg NAMES, filtered by the parti
 
 test("pluginCommandArgOffers completes ENUM VALUES when mid-typing argname=<partial>", () => {
   const offers = pluginCommandArgOffers(SPECS, "oracle draw", " suit=w");
-  expect(offers.map((o) => o.label)).toEqual(["wands"]);
+  expect(offers.map((o) => o.label)).toEqual(["Wands"]);
   expect(offers[0]?.insert).toBe("oracle draw suit=wands");
   // A prior arg survives the completion of a later enum value.
   const withPrior = pluginCommandArgOffers(SPECS, "oracle draw", " count=3 suit=s");

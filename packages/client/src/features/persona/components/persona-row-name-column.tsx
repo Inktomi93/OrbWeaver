@@ -150,7 +150,8 @@ export function PersonaRowNameColumn({
         </Row>
       </Row>
       {persona.title === null ? null : (
-        <Text className="truncate" voice="gloss">
+        // `px-block` is the name button's own inline padding, so the subtitle starts under the name's first letter.
+        <Text className="truncate px-block" voice="gloss">
           {persona.title}
         </Text>
       )}

@@ -72,6 +72,44 @@ function consentRow(pendingCount: number, overrides: Partial<InboxRowOf<"plugins
   };
 }
 
+/** A plugin the crash policy turned off — ids only on the wire, so the plugin's name has to come from its list. */
+function disabledRow(pluginId: string, seq: number): InboxRowOf<"plugin-disabled"> {
+  return {
+    id: `ntf_ct_disabled${seq}`,
+    type: "plugin-disabled",
+    payload: { type: "plugin-disabled", recipientUserId: "user_ct_invitee", pluginId },
+    seq,
+    readAt: null,
+    dismissedAt: null,
+    actionable: false,
+    createdAt: 1_750_000_000_000,
+  };
+}
+
+function installedPlugin(id: string, name: string): TrpcWireOutput<"plugin.list">[number] {
+  return {
+    id,
+    slug: name.toLowerCase().replaceAll(" ", "-"),
+    name,
+    version: "1.0.0",
+    status: "errored",
+    origin: "upload",
+    sourceUrl: null,
+    sourceCommit: null,
+    updateSource: null,
+    declaredCapabilities: [],
+    grantedCapabilities: [],
+    netHosts: null,
+    reconsentPending: false,
+    widenedNetHosts: [],
+    builtAgainst: null,
+    description: "A fixture plugin.",
+    lastError: null,
+    installedAt: 1_750_000_000_000,
+    updatedAt: 1_750_000_000_000,
+  };
+}
+
 function kickedRow(): InboxRowOf<"kicked"> {
   return {
     id: "ntf_ct_notice",
@@ -702,6 +740,28 @@ test("Review sends the shell to the Plugins group and closes the inbox", async (
   await expect(destination).toHaveText("config/plugins");
   // …and the popover is gone, the same close-then-navigate the invite/handoff arms perform.
   await expect(page.getByText("9 plugins are installed but not allowed to do anything yet")).toBeHidden();
+});
+
+test("each auto-disabled plugin gets its own notice naming it, with a door to the Plugins screen", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": () => ({ items: [disabledRow("plugin_ct_affinity00000001", 2), disabledRow("plugin_ct_polish0000000001", 1)], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 2 }),
+    "plugin.list": () => [installedPlugin("plugin_ct_affinity00000001", "Affinity Tracker"), installedPlugin("plugin_ct_polish0000000001", "Draft Polish")],
+  });
+  await routeInboxStream(page, []);
+
+  await mount(<NotificationBellDestinationStory />);
+  const destination = page.getByTestId("ct-shell-destination");
+  await page.getByRole("button", { name: "Notifications (2 unread)" }).click();
+
+  const rows = page.locator('[data-slot="inbox-row"]');
+  await expect(rows).toHaveCount(2);
+  await expect(rows.filter({ hasText: "Affinity Tracker" })).toHaveCount(1);
+  await expect(rows.filter({ hasText: "Draft Polish" })).toHaveCount(1);
+
+  await page.getByRole("button", { name: "Open Plugins — Draft Polish" }).click();
+  await expect(destination).toHaveText("config/plugins");
 });
 
 // ── THE UNREAD MARK IS A DOT, NOT A NUMBER (#1798, owner ruling) ─────────────────────────────────────

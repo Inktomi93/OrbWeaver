@@ -42,6 +42,10 @@ type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
  *  user is searching, not scanning, and cmdk must mount every row it can match. */
 const RECENT_THREADS = 20;
 
+/** Read between a row's label and its badge in the accessible name; the badge is painted at the far edge, so the
+ *  two would otherwise run together as one word. */
+const BADGE_SEPARATOR = " — ";
+
 /** A command's declared bucket, defaulted — the contribution's `group` is optional by design. */
 function groupOf(command: SlashCommandContribution): SlashCommandGroup {
   return command.group ?? "commands";
@@ -219,9 +223,16 @@ function PaletteSourceGroup({ source, context, onRun }: PaletteSourceGroupProps)
           {source.icon === undefined ? null : <Icon icon={source.icon} size="sm" />}
           {row.label}
           {row.badge === undefined ? null : (
-            <Text as="span" className="ml-auto" voice="gloss">
-              {row.badge}
-            </Text>
+            <>
+              {/* The visible badge is pushed to the far edge, so its text runs straight into the label's in the
+                  accessible name; a hidden dash keeps the two as words. */}
+              <Text as="span" className="sr-only">
+                {BADGE_SEPARATOR}
+              </Text>
+              <Text as="span" className="ml-auto" voice="gloss">
+                {row.badge}
+              </Text>
+            </>
           )}
         </CommandItem>
       ))}

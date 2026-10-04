@@ -72,7 +72,8 @@ export function useExtensionsEmpty(): ExtensionsEmptyView {
   if (plugins === undefined || surfaces === undefined) {
     return PENDING;
   }
-  const awaitingPlugins = plugins.filter((plugin) => plugin.reconsentPending);
+  // By name, so the waiting group and the action that opens its first review read in one order.
+  const awaitingPlugins = plugins.filter((plugin) => plugin.reconsentPending).toSorted((a, b) => a.name.localeCompare(b.name));
   if (plugins.length === 0) {
     return { reason: "none-installed", awaitingPlugins, erroredCount: 0 };
   }
