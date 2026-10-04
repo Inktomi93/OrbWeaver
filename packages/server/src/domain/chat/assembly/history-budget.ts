@@ -11,10 +11,11 @@
 // §8 cache breakpoint is an OFFSET-FROM-END, so a front-drop here preserves it structurally — no
 // retagging needed. Token counting via the kit estimator (advisory; truth is provider `usage`).
 
+import type { ContextLimit } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { estimateTokens } from "@orb/kit/tokens";
+import { estimateTokens, windowInputRoom } from "@orb/kit/tokens";
 
 /** One shaped history entry, as handed to the completion runners. File-local (the cross-boundary wire
  *  shape is the providers' ChatHistoryMessage; this is SHAPE's internal turn shape). */
@@ -52,16 +53,63 @@ interface FitResult {
   /** The kept history's estimated token cost (message content + per-message overhead) — the "N used" the
    *  preview budget renders. Zero when there is no history. */
   readonly usedTokens: number;
-  /** The effective ceiling the fit resolved against — `min(window, softMax)`, or `null` when neither is
-   *  finite (no trustworthy ceiling ⇒ no trim). */
+  /** The room the fit packs system + history into, the number it trims at: the hard window's input room after
+   *  the output reserve and the estimator discount, or the soft cap less the reserve, whichever is smaller.
+   *  `null` when neither is finite (no trustworthy ceiling ⇒ no trim). */
   readonly ceilingTokens: number | null;
 }
 
-// Per-message wire overhead (role markers the estimator doesn't see) + estimator-slop headroom.
+// Per-message wire overhead: the role markers the estimator doesn't see.
 const PER_MESSAGE_OVERHEAD = 4;
-const SAFETY_MARGIN = 64;
 
-/** The trim chunk as a fraction of the history's room (`ceiling − reserveOutputTokens`).
+// The estimated tokens system + history may occupy. The model window is HARD (the server 400s or drops the oldest
+// kept rows past it) and the estimator's error is proportional, so the window's input room — what the output
+// reserve leaves, the reserve being an exact `max_tokens` — is discounted by `safeTokenWindow`. The soft cap is
+// the user's own working-set knob, measured in the same estimate the preview shows, so it is taken as stated.
+// A non-finite window (a preview with no resolved capability) is no hard window at all.
+function hardWindowOf(budget: HistoryBudget): number | undefined {
+  return budget.windowTokens !== undefined && Number.isFinite(budget.windowTokens) ? budget.windowTokens : undefined;
+}
+
+function hardRoomOf(budget: HistoryBudget): number {
+  const window = hardWindowOf(budget);
+  return window === undefined ? Number.POSITIVE_INFINITY : windowInputRoom(window, budget.reserveOutputTokens);
+}
+
+function softRoomOf(budget: HistoryBudget): number {
+  return budget.softMaxTokens === undefined ? Number.POSITIVE_INFINITY : budget.softMaxTokens - budget.reserveOutputTokens;
+}
+
+function inputRoom(budget: HistoryBudget): number {
+  return Math.min(hardRoomOf(budget), softRoomOf(budget));
+}
+
+/** Which limit the fit's room comes from — the model window or the preset cap, whichever leaves less room — or
+ *  `null` when neither bounds the context. What the Preview bar and the divider explain the room against. */
+export function contextLimitOf(budget: HistoryBudget): ContextLimit | null {
+  const window = hardWindowOf(budget);
+  if (window !== undefined && hardRoomOf(budget) <= softRoomOf(budget)) {
+    return { kind: "window", tokens: window };
+  }
+  return budget.softMaxTokens === undefined ? null : { kind: "cap", tokens: budget.softMaxTokens };
+}
+
+// The reported room never drops below one token: `0` is the wire's "unbounded", and a reserve that eats the whole
+// window is the opposite.
+function reportedRoom(room: number): number {
+  return Math.max(1, room);
+}
+
+/** The whole context the fit allows — its system + history room plus the output reserve — or `null` when no
+ *  window or soft cap bounds it. The ceiling every "used plus reserve" comparison reads, so the managed-compaction
+ *  triggers and the fit agree on where the context is full. */
+export function fitCeilingTokens(budget: HistoryBudget): number | null {
+  const room = inputRoom(budget);
+  return Number.isFinite(room) ? reportedRoom(room) + budget.reserveOutputTokens : null;
+}
+
+/** The trim chunk as a fraction of `ceiling − reserveOutputTokens`, before the hard window's estimator discount:
+ *  a larger chunk moves the cut, and so breaks the cached prefix, less often.
  *
  *  @remarks The prompt cache is an exact prefix, so a fit that drops one row per turn rewrites the whole kept
  *  history every turn. The cut snaps to a grid of chunks counted from the history's start instead, so
@@ -142,7 +190,8 @@ export function buildHistoryBudget(args: {
  * and leave the preview's boundary unnameable (no kept row carries an id).
  */
 export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: HistoryBudget): FitResult {
-  const ceiling = Math.min(budget.windowTokens ?? Number.POSITIVE_INFINITY, budget.softMaxTokens ?? Number.POSITIVE_INFINITY);
+  const ceiling = Math.min(hardWindowOf(budget) ?? Number.POSITIVE_INFINITY, budget.softMaxTokens ?? Number.POSITIVE_INFINITY);
+  const room = inputRoom(budget);
   const cost = historyTurnTokens;
   // No trustworthy ceiling → don't trim (e.g. custom-openai with no knob set). Still report the full cost so
   // a preview shows honest usage even when nothing can be dropped.
@@ -156,7 +205,7 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
     };
   }
 
-  const promptBudget = ceiling - budget.systemTokens - budget.reserveOutputTokens - SAFETY_MARGIN;
+  const promptBudget = room - budget.systemTokens;
 
   // The irreducible-tail anchor: the newest id-bearing turn (falling back to the newest row when no row
   // carries an id — hand-built histories keep the old newest-row guarantee).
@@ -185,7 +234,7 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
   }
 
   if (keepFrom === 0) {
-    return { history: [...history], droppedCount: 0, earliestKeptMessageId: null, usedTokens: used, ceilingTokens: ceiling };
+    return { history: [...history], droppedCount: 0, earliestKeptMessageId: null, usedTokens: used, ceilingTokens: reportedRoom(room) };
   }
   // The irreducible tail still wins over the grid: the cut never passes the newest id-bearing turn.
   const cut = Math.min(chunkAlignedCut(history, keepFrom, trimChunkTokens(ceiling, budget.reserveOutputTokens)), irreducibleFrom);
@@ -195,6 +244,6 @@ export function fitHistoryToWindow(history: readonly HistoryTurn[], budget: Hist
     droppedCount: cut,
     earliestKeptMessageId: kept.find((t) => t.messageId !== undefined)?.messageId ?? null,
     usedTokens: kept.reduce((sum, t) => sum + cost(t), 0),
-    ceilingTokens: ceiling,
+    ceilingTokens: reportedRoom(room),
   };
 }

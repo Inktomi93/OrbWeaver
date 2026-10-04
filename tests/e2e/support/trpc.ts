@@ -123,6 +123,7 @@ export interface ContextFitPreview {
   readonly usedTokens: number;
   readonly ceilingTokens: number;
   readonly reserveOutputTokens: number;
+  readonly limit: { readonly kind: "window" | "cap"; readonly tokens: number } | null;
   readonly droppedCount: number;
   readonly compactSummary: string | null;
 }

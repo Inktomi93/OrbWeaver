@@ -67,6 +67,7 @@ import {
   buildHistoryBudget,
   buildPrompt,
   buildTurnMacroContext,
+  fitCeiling,
   materializeOutputReserve,
   shapeContextForSpeaker,
   shapeTurn,
@@ -75,7 +76,7 @@ import {
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
-import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, fitWireHistory } from "../substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, shapeConvertFit } from "../substrate/wire-history.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
  *  + the turn axes. Stays UNEXPORTED (`no-inline-types`: an exported type belongs in `contract/`, and this is
@@ -254,7 +255,7 @@ interface TurnPipelineResult {
    *  managed-compaction trigger reads this against `fitCeilingTokens` to decide whether usage crossed the
    *  threshold (mirrors what the fit reserved, so "85% used" means the same thing to both). */
   readonly fitUsedTokens: number;
-  /** The effective context ceiling the fit resolved against (`min(window, maxContextTokens)`), or null when
+  /** The effective context ceiling the fit trims at — its system + history room plus the output reserve — or null when
    *  neither is finite (no trustworthy ceiling ⇒ managed compaction can't threshold ⇒ fit-drop only). */
   readonly fitCeilingTokens: number | null;
 }
@@ -652,35 +653,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // warnings sink is deliberately a THROWAWAY: the backend's own `resolveChat` raises the drop on the turn stream,
   // and raising it twice would show the user two notices for one decision.
   const carryReasoning = resolveCarryReasoning(effectiveIntent, generationOf(args.connection), []);
-
-  const shaped = shapeTurn({
-    canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES, promptHistoryEnv(ctx, args)) : [],
-    appendUserTurn: shapeTail(args, prefillHonored),
-    injections: inChatInjections,
-    output: args.shape?.output ?? "per-speaker",
-    cardScope: args.shape?.cardScope ?? "merged",
-    scopedTargetId: args.shape?.scopedTargetId ?? null,
-    namesBehavior: ctx.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
-    speakers,
-    multiHuman: ctx.multiHuman === true,
-    groupNudge: cue,
-    cueReplay: await cueReplayFor(generationOf(args.connection), carryReasoning, args.loadCues),
-    // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
-    // against the floor `turnsLevelFor` hands back, which is the model's own only where a tier STATED it.
-    assistantPrefill: prefillHonored,
-    // The two system-row facts SHAPE's delivery rule reads (`assembly/shape` deliverSystemRows): a run that ends
-    // the history needs `midConversationSystem`, a run inside it `historySystemRows`; the level decides whether a
-    // legal slot is also required. On a model whose cells are estimated the level alone decides. Read through the
-    // contract helper — never a second spelling of the capability field. Neither touches narrator canon rows
-    // (owner ruling: group narration is the assistant's own voice).
-    ...turnsLevelFor(generationOf(args.connection), effectiveIntent.advanced?.roleHandling),
-    roleHandling: effectiveIntent.advanced?.roleHandling,
-    explicitCacheMarkers: cachesByAnthropicMarkers(args.connection, generationOf(args.connection)),
-    squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
-    // The room host's note frames (PROSE-1) rode onto the ctx at build; SHAPE frames the spliced injections.
-    prose: ctx.prose,
-    convertsToEmptyWireRow,
-  });
+  const cueReplay = await cueReplayFor(generationOf(args.connection), carryReasoning, args.loadCues);
 
   // REQUEST (conversion half) — the one seam where the shaped string body becomes content-parts (§3.5, the WIRE plane of the
   // content-class visibility registry): tokenize each row's spans, resolve USER-ATTACHMENT media refs by
@@ -693,29 +666,67 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   // regex pass (§3.9 pin: a promptOnly/AI_OUTPUT script sees the FULL card bytes; the stub replaces them for
   // the wire below it). All six connection modes consume the resulting TurnMessage[], so the collapse is
   // uniform per backend.
-  const converted = await buildWireHistory(
-    {
-      visionOk: acceptsImageInput(generationOf(args.connection)),
-      videoOk: acceptsVideoInput(generationOf(args.connection)),
-      resolveImageUrl: args.resolveImageUrl,
-      cardKeepLastX: args.cardKeepLastX,
-      canon: args.canon,
-      // The `conversation` rung's source, read ONLY on that rung — the op is injected (the domain holds no
-      // db handle) and lazy, so every other turn pays nothing for a feature it did not ask for.
-      reasoningByMessage: carryReasoning === "conversation" ? await args.loadReasoningParts() : EMPTY_REASONING_BY_MESSAGE,
-      loadInlineReplyAssetIds: args.loadInlineReplyAssetIds,
-      contentSignaturesByMessage: await args.loadContentSignatures?.(),
-    },
-    shaped.history,
-  );
+  const convertEnv: Parameters<typeof buildWireHistory>[0] = {
+    visionOk: acceptsImageInput(generationOf(args.connection)),
+    videoOk: acceptsVideoInput(generationOf(args.connection)),
+    resolveImageUrl: args.resolveImageUrl,
+    cardKeepLastX: args.cardKeepLastX,
+    canon: args.canon,
+    // The `conversation` rung's source, read ONLY on that rung — the op is injected (the domain holds no
+    // db handle) and lazy, so every other turn pays nothing for a feature it did not ask for.
+    reasoningByMessage: carryReasoning === "conversation" ? await args.loadReasoningParts() : EMPTY_REASONING_BY_MESSAGE,
+    loadInlineReplyAssetIds: args.loadInlineReplyAssetIds,
+    contentSignaturesByMessage: await args.loadContentSignatures?.(),
+  };
 
   // FIT — the history-budget tail, priced against the CONVERTED rows (#1434: the fitter used to run before
   // this conversion and charge card bodies and choice blocks the provider never receives). The read verb's
-  // previews run this same pair through the same substrate module (#1540) — one conversion, one cost rule.
+  // previews run this same sequence through the same substrate module (#1540) — one conversion, one cost rule.
   const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
   const budget = fitBudget(args, effectiveIntent, systemTokens);
-  // The fit keeps the newest rows and places the new-chat marker at their head (one home with the previews).
-  const { fitted, kept: fitKept } = fitWireHistory(converted, budget, shaped.newChatMarker);
+
+  // SHAPE → CONVERT → FIT, one home with the previews. The fit keeps the newest rows and places the new-chat marker at
+  // their head. The oldest stored rows are trimmed before a second SHAPE only when the fitted request still overruns
+  // the room AND its newest id-bearing row is a squash of several stored rows, and that trim is kept only when it
+  // fits; any other overrun ships as fitted.
+  const {
+    shaped,
+    fitted,
+    kept: fitKept,
+  } = await shapeConvertFit({
+    canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES, promptHistoryEnv(ctx, args)) : [],
+    shape: (canon) =>
+      shapeTurn({
+        canon,
+        appendUserTurn: shapeTail(args, prefillHonored),
+        injections: inChatInjections,
+        output: args.shape?.output ?? "per-speaker",
+        cardScope: args.shape?.cardScope ?? "merged",
+        scopedTargetId: args.shape?.scopedTargetId ?? null,
+        namesBehavior: ctx.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
+        speakers,
+        multiHuman: ctx.multiHuman === true,
+        groupNudge: cue,
+        cueReplay,
+        // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
+        // against the floor `turnsLevelFor` hands back, which is the model's own only where a tier STATED it.
+        assistantPrefill: prefillHonored,
+        // The two system-row facts SHAPE's delivery rule reads (`assembly/shape` deliverSystemRows): a run that ends
+        // the history needs `midConversationSystem`, a run inside it `historySystemRows`; the level decides whether a
+        // legal slot is also required. On a model whose cells are estimated the level alone decides. Read through the
+        // contract helper — never a second spelling of the capability field. Neither touches narrator canon rows
+        // (owner ruling: group narration is the assistant's own voice).
+        ...turnsLevelFor(generationOf(args.connection), effectiveIntent.advanced?.roleHandling),
+        roleHandling: effectiveIntent.advanced?.roleHandling,
+        explicitCacheMarkers: cachesByAnthropicMarkers(args.connection, generationOf(args.connection)),
+        squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
+        // The room host's note frames (PROSE-1) rode onto the ctx at build; SHAPE frames the spliced injections.
+        prose: ctx.prose,
+        convertsToEmptyWireRow,
+      }),
+    convert: (rows) => buildWireHistory(convertEnv, rows),
+    budget,
+  });
   // The empty-row drop re-anchors the §8 breakpoint: it is a DEPTH from the end, which the fit's front-trim and
   // the marker's head row preserve for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
   const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(fitKept, shaped.cacheBreakpointFromEnd);
@@ -769,7 +780,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,
     fitUsedTokens,
-    fitCeilingTokens: fitted.ceilingTokens,
+    fitCeilingTokens: fitCeiling(budget),
     imageDropped,
     videoDropped,
     // Records from the pipeline's own recurse loop (an array wire) and from the offer's `execute` callback (a

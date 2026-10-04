@@ -4,6 +4,7 @@ import { GENERATION_FLOOR } from "@orb/contracts/inference";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
 import { describe } from "vitest";
 import { detectModelFamily } from "../../../../../packages/inference/src/capability/families.ts";
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
@@ -92,10 +93,29 @@ describe("fitHistoryToWindow", () => {
     expect(capped.droppedCount).toBeGreaterThan(0);
   });
 
+  // A preview with no resolved capability passes an infinite window: that is no hard window, not a crash.
+  test("a non-finite window is no hard window: the soft cap governs and is the reported ceiling", () => {
+    const h = Array.from({ length: 6 }, (_, i) => turn(`${"q".repeat(40)}${i}`));
+    const fit = fitHistoryToWindow(h, { windowTokens: Number.POSITIVE_INFINITY, softMaxTokens: 60, reserveOutputTokens: 10, systemTokens: 10 });
+    expect(fit.droppedCount).toBeGreaterThan(0);
+    expect(fit.ceilingTokens).toBe(60 - 10);
+  });
+
+  // The preview bar and the divider divide by `ceilingTokens`, so it is the room the fit trims at.
+  test("the reported ceiling is the room the fit packs system + history into", () => {
+    const h = Array.from({ length: 200 }, (_, i) => turn(`${"p".repeat(200)}${i}`));
+    const budget = { windowTokens: 8192, reserveOutputTokens: 1024, systemTokens: 300 };
+    const fit = fitHistoryToWindow(h, budget);
+    expect(fit.ceilingTokens).toBe(safeTokenWindow(8192 - 1024));
+    expect(fit.droppedCount).toBeGreaterThan(0);
+    expect(fit.usedTokens + budget.systemTokens).toBeLessThanOrEqual(fit.ceilingTokens ?? 0);
+  });
+
   // The prompt cache is an exact prefix, so the trim snaps to a chunk grid instead of dropping one row per turn.
   describe("the chunked trim", () => {
     const budget = { windowTokens: 2000, reserveOutputTokens: 200, systemTokens: 300 };
-    const room = budget.windowTokens - budget.systemTokens - budget.reserveOutputTokens - 64;
+    const room = safeTokenWindow(budget.windowTokens - budget.reserveOutputTokens) - budget.systemTokens;
+    // The chunk reads the undiscounted room: a fixed function of the window and reserve, never of the rows.
     const chunk = Math.round(HISTORY_TRIM_CHUNK_FRACTION * (budget.windowTokens - budget.reserveOutputTokens));
     // Uneven row sizes, so a chunk boundary rarely falls exactly on a row start.
     const rows = Array.from({ length: 240 }, (_, i) => turn(`${i} `.concat("w".repeat(20 + ((i * 37) % 120)))));
@@ -129,6 +149,52 @@ describe("fitHistoryToWindow", () => {
       expect(moves).toBeGreaterThan(0);
       expect(moves).toBeLessThanOrEqual(Math.ceil(trimmedGrowth / chunk));
     });
+
+    // A cut is on the grid when its first kept row is the first row to start at or past some chunk multiple.
+    const onChunkGrid = (cut: number): boolean => Math.floor(startOf(cut) / chunk) > Math.floor(startOf(cut - 1) / chunk);
+    const keepsPrefix = (earlier: (typeof fits)[number], later: (typeof fits)[number]): boolean =>
+      JSON.stringify(later.history.slice(0, earlier.history.length)) === JSON.stringify(earlier.history);
+
+    test("turn over turn the kept history stays a byte-identical prefix until the cut lands on the next chunk boundary", () => {
+      const pairs = fits.slice(1).map((later, i) => ({ turn: i + 2, earlier: fits[i] ?? later, later }));
+      const prefixBreaks = pairs.filter((p) => p.later.droppedCount === p.earlier.droppedCount && !keepsPrefix(p.earlier, p.later));
+      const moves = pairs.filter((p) => p.later.droppedCount !== p.earlier.droppedCount);
+      expect(prefixBreaks.map((p) => p.turn)).toEqual([]);
+      expect(moves.length).toBeGreaterThan(0);
+      expect(moves.filter((p) => !onChunkGrid(p.later.droppedCount)).map((p) => ({ turn: p.turn, cut: p.later.droppedCount }))).toEqual([]);
+      // Far fewer moves than turns: the cut does not slide with every arriving row.
+      expect(moves.length * 4).toBeLessThan(pairs.filter((p) => p.earlier.droppedCount > 0).length);
+    });
+  });
+});
+
+// A hard-window server (Ollama) drops the oldest messages past its window, so the fit must hold the REAL count
+// inside it. The estimator undercounts digit-dense text; the real counts below were recorded with the Qwen3.8-27B
+// tokenizer.json (the Qwen2.5 family the local-server rig runs splits digits the same way) over each string in its
+// ChatML wrapper, `<|im_start|>{role}\n{content}<|im_end|>\n`.
+describe("the fit against a hard window on digit-dense text", () => {
+  const notes = [
+    "The lamp gutters as the wind finds the gap under the door, and Mara pulls her shawl tighter.",
+    "Rain drums on the slate roof while the kettle begins its thin, rising whistle.",
+    "Outside, the weir gates groan against the tide and the gulls argue over the nets.",
+    "She turns the ledger page slowly, tracing each name with a fingertip stained with ink.",
+  ];
+  const denseRow = notes.map((note, i) => `Note ${105 + i}.${i}: ${note}`).join("\n");
+  const recorded = { rowEstimate: 104, rowReal: 115, systemEstimate: 17, systemReal: 22 } as const;
+  const system = "You are Mara, a ledger keeper at the salt weirs. Stay in character.";
+  const window = 4096;
+  const reserveOutputTokens = 16;
+  const chat = Array.from({ length: 60 }, () => turn(denseRow));
+
+  test("the kept history's recorded real count stays inside the window", () => {
+    // The recorded counts belong to these exact strings; a changed estimator or string invalidates them.
+    expect(historyTurnTokens(turn(denseRow))).toBe(recorded.rowEstimate);
+    expect(estimateTokens(system)).toBe(recorded.systemEstimate);
+
+    const fit = fitHistoryToWindow(chat, { windowTokens: window, reserveOutputTokens, systemTokens: recorded.systemEstimate });
+
+    expect(fit.droppedCount).toBeGreaterThan(0);
+    expect(fit.history.length * recorded.rowReal + recorded.systemReal + reserveOutputTokens).toBeLessThanOrEqual(window);
   });
 });
 

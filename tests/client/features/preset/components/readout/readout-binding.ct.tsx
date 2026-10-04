@@ -89,6 +89,8 @@ const ASSEMBLY: TrpcWireOutput<"chat.previewAssembly"> = {
   budget: {
     ceilingTokens: 8192,
     ceilingEstimated: false,
+    reserveOutputTokens: 2048,
+    limit: { kind: "window", tokens: 8192 },
     totalTokens: 2266,
     sources: [
       { source: "system", detail: "Main", tokens: 412, parts: [{ label: "Main", tokens: 412, text: "You are Aveline." }], text: "You are Aveline." },

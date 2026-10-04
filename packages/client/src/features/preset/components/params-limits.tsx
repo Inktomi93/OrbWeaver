@@ -24,7 +24,15 @@
 
 import type { GenerationCapability, Verbosity } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
+import {
+  DEFAULT_COMPACT_INSTRUCTIONS,
+  DEFAULT_COMPACTION_MODE,
+  DEFAULT_MAX_OUTPUT_TOKENS,
+  MANAGED_COMPACT_DEFAULT_PCT,
+  MANAGED_VERBATIM_TAIL,
+} from "@orb/contracts/preset";
+import { groupThousands } from "@orb/kit/strings";
+import { windowInputRoom } from "@orb/kit/tokens";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Field } from "@orb/ui/field";
 import { Section, Stack } from "@orb/ui/layout";
@@ -97,17 +105,26 @@ function OutputCluster({
         {/* `maxContextTokens` never enters the turn funnel (it is OUR history soft-cap, not a wire knob),
             so `resolveEffective` deliberately reports nothing for it — the ghost is the model's window,
             read straight off the capability, with the `full window` gloss the mock carries. */}
-        <KnobRow
-          effective={{ value: window, provenance: "window" }}
-          form={form}
-          hint={`Soft-caps the working set below the model window — older turns beyond this are trimmed. This model's window is ${window} tokens.`}
-          label="Max context tokens"
-          largeStep={pageStep(1, window)}
-          max={window}
-          min={1}
-          name="params.maxContextTokens"
-          step={1}
-        />
+        <form.Subscribe
+          selector={(state): { readonly maxOutputTokens: number | undefined; readonly maxContextTokens: number | undefined } => ({
+            maxOutputTokens: state.values.params.maxOutputTokens,
+            maxContextTokens: state.values.params.maxContextTokens,
+          })}
+        >
+          {(limits): ReactElement => (
+            <KnobRow
+              effective={{ value: window, provenance: "window" }}
+              form={form}
+              hint={maxContextHint(window, Math.min(limits.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS, outputMax), limits.maxContextTokens)}
+              label="Max context tokens"
+              largeStep={pageStep(1, window)}
+              max={window}
+              min={1}
+              name="params.maxContextTokens"
+              step={1}
+            />
+          )}
+        </form.Subscribe>
       </KnobGrid>
       <SettingRowGroup>
         {verbosityLevels === undefined ? null : (
@@ -151,6 +168,17 @@ function OutputCluster({
       {capability.sampling.bannedStrings === true ? <BannedPhrases form={form} /> : null}
     </Section>
   );
+}
+
+/** The Max context tokens hint: the model window, the room it leaves for prompt and history once the reply and
+ *  the safety margin are held back (the number the chat Preview bar draws), and a warning when the cap leaves no
+ *  room beside the reply. */
+function maxContextHint(window: number, reserveOutputTokens: number, maxContextTokens: number | undefined): string {
+  const room = windowInputRoom(window, reserveOutputTokens);
+  const base = `Soft-caps the working set below the model window — older turns beyond this are trimmed. This model's window is ${groupThousands(window)} tokens; ${groupThousands(room)} of them fit prompt and history after the reply and the safety margin.`;
+  return maxContextTokens !== undefined && maxContextTokens <= reserveOutputTokens
+    ? `${base} The reply (${groupThousands(reserveOutputTokens)}) is larger than this limit, so only the newest message is sent.`
+    : base;
 }
 
 /** `params.banEos`: on stores `true`, off clears the field (the server's own default lets the reply end). */

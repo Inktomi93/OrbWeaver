@@ -33,6 +33,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
+import { limitOutgrownByReply, noRoomLine, roomExplainer } from "../lib/context-room.ts";
 import { AssemblyPreviewDiagnostics } from "./assembly-preview-diagnostics.tsx";
 
 export interface AssemblyPreviewPanelProps {
@@ -108,54 +109,70 @@ const SOURCE_LABEL: Record<AssemblySource, string> = {
   ["history"]: "History",
 };
 
-/** The budget card: the used/window line + the bar. FILL-VS-HEADROOM (owner ruling 2026-07-31, superseding
- *  the mock's composition-only reading): the bar's FILLED LENGTH is `used / window`, the fill keeps its
- *  per-source segments, and the rest of the rail is visible HEADROOM — so 891 of 200k reads as the sliver it
- *  is instead of a full-looking bar. The bar is decoration (aria-hidden inside `SegmentBar`); the text line +
- *  the rows carry the datum.
+/** The budget card: the used/room line, the bar and one explainer line. FILL-VS-HEADROOM (owner ruling
+ *  2026-10-04, superseding the 2026-07-31 "used / window" reading): the bar's FILLED LENGTH is `used / room`,
+ *  where the room is what the history fit packs the prompt and history into — the limit less the reply reserve
+ *  and, on a model window, the safety margin for token-count error. The fill keeps its per-source segments and
+ *  the rest of the rail is visible headroom, so the bar reads full exactly where the fit starts trimming. The
+ *  explainer line names the limit, the reserve and the margin, so the room never reads as a misread window. The
+ *  bar is decoration (aria-hidden inside `SegmentBar`); the text lines and the rows carry the datum.
  *
- *  With NO real window (unknown or unbounded) there is no headroom truth to draw, so no fill geometry is
- *  faked: the bar falls back to composition-only across the full rail, and the headline says which case it is
- *  (the owner's explicit carve-out — a proportion against a fallback would be the same fiction as the ratio). */
+ *  With NO real limit (unknown or unbounded) there is no headroom truth to draw, so no fill geometry is faked:
+ *  the bar falls back to composition-only across the full rail and the headline says which case it is. A reply
+ *  reserve at or above the limit leaves no room at all, so the line says that instead of a ratio against 1. */
 function ContextBudget({ budget }: { readonly budget: AssemblyBudgetPreview }): ReactElement {
   const segments: readonly SegmentBarSegment[] = budget.sources.map((source) => ({
     id: source.source,
     value: source.tokens,
     color: SOURCE_COLOR[source.source],
   }));
-  const windowKnown = budget.ceilingTokens > 0 && !budget.ceilingEstimated;
+  const noRoom = limitOutgrownByReply(budget.limit, budget.reserveOutputTokens) !== null;
+  const roomKnown = budget.ceilingTokens > 0 && !budget.ceilingEstimated && !noRoom;
   return (
     <Card>
       <Stack gap="field">
         <Row align="baseline" gap="row" justify="between">
-          <Text voice="gloss">context</Text>
-          <Text voice="datum">{budgetHeadline(budget)}</Text>
+          <Text voice="gloss">prompt + history</Text>
+          <Text voice="datum">{budgetHeadline(budget, noRoom)}</Text>
         </Row>
-        <SegmentBar segments={segments} {...(windowKnown ? { total: budget.ceilingTokens } : {})} />
-        {budget.ceilingEstimated ? (
-          <Text voice="gloss">
-            The connected model's context window isn't published (its catalog couldn't be read), so the fit runs against a fallback — the ratio would be
-            fiction.
-          </Text>
-        ) : null}
+        <SegmentBar segments={segments} {...(roomKnown ? { total: budget.ceilingTokens } : {})} />
+        {budgetGloss(budget, roomKnown)}
       </Stack>
     </Card>
   );
 }
 
-/** The used/ceiling line, in the THREE honest states — a ratio is drawn only against a real window (and the
- *  bar's fill follows the same verdict, see {@link ContextBudget}):
- *   • a known ceiling  ⇒ "4,300 / 8,192 tok";
- *   • an ESTIMATED one ⇒ the total alone + "window unknown" — never a fabricated denominator (D41). The
- *     server still fits against the fallback (it must fit against something), but this surface won't pretend
- *     that number came from the model;
- *   • no ceiling at all ⇒ "no window limit" (nothing bounds the context). */
-function budgetHeadline(budget: AssemblyBudgetPreview): string {
+/** The one line under the bar: why the window is unknown, why nothing fits, or what the room is made of. */
+function budgetGloss(budget: AssemblyBudgetPreview, roomKnown: boolean): ReactElement | null {
+  if (budget.ceilingEstimated) {
+    return (
+      <Text voice="gloss">
+        The connected model's context window isn't published (its catalog couldn't be read), so the fit runs against a fallback — the ratio would be fiction.
+      </Text>
+    );
+  }
+  const outgrown = limitOutgrownByReply(budget.limit, budget.reserveOutputTokens);
+  if (outgrown !== null) {
+    return <Text voice="gloss">{noRoomLine(outgrown, budget.reserveOutputTokens)}</Text>;
+  }
+  return roomKnown && budget.limit !== null ? <Text voice="gloss">{roomExplainer(budget.ceilingTokens, budget.limit, budget.reserveOutputTokens)}</Text> : null;
+}
+
+/** The used/room line, in its honest states — a ratio is drawn only against a real room (and the bar's fill
+ *  follows the same verdict, see {@link ContextBudget}):
+ *   • a known room ⇒ "3,662 / 4,300 tok";
+ *   • an ESTIMATED window ⇒ the total alone + "window unknown" — never a fabricated denominator (D41);
+ *   • a reply that outgrows the limit ⇒ the total alone + "no room" (the gloss says why);
+ *   • no limit at all ⇒ "no window limit" (nothing bounds the context). */
+function budgetHeadline(budget: AssemblyBudgetPreview, noRoom: boolean): string {
   const total = groupThousands(budget.totalTokens);
   if (budget.ceilingTokens === 0) {
     return `${total} tok · no window limit`;
   }
-  return budget.ceilingEstimated ? `${total} tok · window unknown` : `${total} / ${groupThousands(budget.ceilingTokens)} tok`;
+  if (budget.ceilingEstimated) {
+    return `${total} tok · window unknown`;
+  }
+  return noRoom ? `${total} tok · no room` : `${total} / ${groupThousands(budget.ceilingTokens)} tok`;
 }
 
 // ── The per-source rows ─────────────────────────────────────────────────────────────────────────────

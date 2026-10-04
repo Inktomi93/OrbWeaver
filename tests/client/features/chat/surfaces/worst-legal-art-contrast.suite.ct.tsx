@@ -24,6 +24,7 @@ function routeRoom(page: Page): Promise<{ readonly count: (path: string) => numb
       usedTokens: 120,
       ceilingTokens: 32_768,
       ceilingEstimated: false,
+      limit: null,
       reserveOutputTokens: 2048,
       droppedCount: 0,
       compactSummary: null,

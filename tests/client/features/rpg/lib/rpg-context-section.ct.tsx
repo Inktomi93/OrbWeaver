@@ -338,7 +338,7 @@ const CHAT_PANEL_AMBIENT_ROUTES: TrpcRoutes<
   "chat.previewAssembly": {
     prompt: { static: "", dynamic: "", afterHistory: [], sendHistory: true, trace: EMPTY_ASSEMBLE_TRACE },
     trace: EMPTY_ASSEMBLE_TRACE,
-    budget: { ceilingTokens: 8192, ceilingEstimated: false, totalTokens: 0, sources: [], sections: [] },
+    budget: { ceilingTokens: 8192, ceilingEstimated: false, reserveOutputTokens: 0, limit: null, totalTokens: 0, sources: [], sections: [] },
   },
   // The viewer's settings row. A CASCADE row, not a census one: it does not appear in the #649 ledger for
   // this file because it was UNREACHABLE while the reads above answered null — the panel's meta tabs died in
