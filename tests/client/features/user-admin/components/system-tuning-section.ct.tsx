@@ -1,7 +1,7 @@
 // CT: the System tuning admin SECTION (Phase B ⑩ — system-tuning-section.tsx). Drives the production admin
 // path: getAppSettingsWithOverrides seeds the fields (resolved floor + which are overridden), editing + Save
-// fires updateAppSettings with the only-moved-fields delta, and Reset clears every ⑩ override. Asserts the mutation fired with the right patch shape (route
-// recorder) — assert-the-mutation-fired, not a UI reaction.
+// fires updateAppSettings with the only-moved-fields delta, and Reset clears every ⑩ override. Asserts the
+// mutation fired with the right patch shape (route recorder) — assert-the-mutation-fired, not a UI reaction.
 //
 // THE vLLM KNOBS ARE GONE (`@orb/inference` cut-over, 2026-09-20): `engineLaunch.*` and
 // `nonOwnerLocalComputeBudgetWindowMs` left `AppSettings` with the in-server engine fleet, so the two

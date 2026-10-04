@@ -48,6 +48,7 @@ export {
   groupsLogFields,
   logger,
   logRing,
+  logSerializers,
   type RequestRecord,
   recentRequests,
   recordRequest,

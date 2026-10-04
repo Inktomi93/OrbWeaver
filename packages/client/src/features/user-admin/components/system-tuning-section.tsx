@@ -1,6 +1,6 @@
 // The System-tuning admin SECTION (Phase B ⑩) — the live scalar admin knobs for prompt transforms,
-// model-catalog refresh, image variants, databank uploads and prompt-cache depth. Each shows its deployment floor + whether an override is active; Reset clears the section's
-// overrides at once. Reads getAppSettingsWithOverrides for the floor-vs-override story and saves only the
+// model-catalog refresh, image variants, databank uploads and prompt-cache depth. Each shows its deployment
+// floor + whether an override is active; Reset clears the section's overrides at once. Reads getAppSettingsWithOverrides for the floor-vs-override story and saves only the
 // moved fields through the admin-gated updateAppSettings path.
 //
 // A settings-SECTION CONTRIBUTION (§6c) at the `admin` anchor, owned by user-admin (admin-tier config).

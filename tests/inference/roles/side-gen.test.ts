@@ -208,27 +208,35 @@ const stalledServer: typeof fetch = (input, init) => {
   }
   const body = new ReadableStream<Uint8Array>({
     start(controller): void {
-      init?.signal?.addEventListener("abort", () => controller.error(new DOMException("aborted", "AbortError")), { once: true });
+      // As fetch does: an aborted body errors with the signal's own reason.
+      const signal = init?.signal;
+      signal?.addEventListener("abort", () => controller.error(signal.reason), { once: true });
     },
   });
   return Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } }));
 };
 
-test("(3) a stalled body aborts at the row's requestTimeoutMs on summarize and on a chat turn alike", { timeout: 5000 }, async () => {
+// An idle trip is a stalled server, retryable on every wire; the caller's own cancel stays a non-retryable abort.
+test("(3) a stalled body trips at the row's requestTimeoutMs as a retryable server failure on summarize and chat alike", { timeout: 10_000 }, async () => {
   const executor = executorWith({ fetch: stalledServer });
   const declaredFeatures = { requestTimeoutMs: 50 };
   const connection = fakeResolved({ task: "summarize", providerId: "vllm", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL, declaredFeatures });
-  await expect(executor.summarize({ connection, inputs: [ITEM] })).rejects.toMatchObject({ name: "ProviderError" });
+  const stalled = { name: "ProviderError", kind: "server", retryable: true };
+  await expect(executor.summarize({ connection, inputs: [ITEM] })).rejects.toMatchObject(stalled);
   const chat = fakeResolved({ task: "chat", providerId: "vllm", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL, declaredFeatures });
-  await expect(
+  const turn = (signal?: AbortSignal): ReturnType<ProviderExecutor["runChatTurn"]> =>
     executor.runChatTurn({
       api: "chat-completions",
       connection: chat,
       params: {},
       systemPrompt: { static: "S.", dynamic: "" },
       history: [{ role: "user", content: [{ type: "text", text: "Go." }] }],
-    }),
-  ).rejects.toMatchObject({ name: "ProviderError" });
+      ...(signal !== undefined ? { signal } : {}),
+    });
+  await expect(turn()).rejects.toMatchObject(stalled);
+  const cancel = new AbortController();
+  setTimeout(() => cancel.abort(), 10);
+  await expect(turn(cancel.signal)).rejects.toMatchObject({ kind: "aborted", retryable: false });
 });
 
 // ── (4) cost ───────────────────────────────────────────────────────────────────────────────────────────
@@ -415,14 +423,16 @@ test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's 
   ]);
   expect(outcome).toMatchObject({ kind: "server", retryable: true });
   expect(controllers[0]?.signal.aborted).toBe(true);
+  // The caller's own cancel inside the same window stays a non-retryable abort.
+  const cancel = new AbortController();
+  setTimeout(() => cancel.abort(), 10);
+  await expect(executor.summarize({ connection, inputs: [ITEM], signal: cancel.signal })).rejects.toMatchObject({ kind: "aborted", retryable: false });
 });
 
 // Each agent-sdk item is a Claude subprocess; the connection's 'utility calls at once' bounds how many run together.
-test("(3) agent-sdk side generation fans out to the connection's utility calls at once, 4 when it states none, refused above 32", async () => {
+test("(3) agent-sdk side generation fans out to the connection's utility calls at once, 4 when it states none", async () => {
   const model = "claude-opus-5";
-  const run = async (declaredFeatures: {
-    readonly concurrency?: { readonly summarize: number };
-  }): Promise<{ readonly peak: number; readonly outcome: unknown }> => {
+  const run = async (declaredFeatures: { readonly concurrency?: { readonly summarize: number } }): Promise<number> => {
     let inFlight = 0;
     let peak = 0;
     const counting = (): AsyncGenerator<Record<string, unknown>> => {
@@ -443,14 +453,11 @@ test("(3) agent-sdk side generation fans out to the connection's utility calls a
       secret: fakeApiKeySecret("sk-ant-oat-not-a-real-token"),
       declaredFeatures,
     });
-    const outcome = await executor.summarize({ connection, inputs: Array.from({ length: 10 }, () => ITEM) }).catch((error: unknown) => error);
-    return { peak, outcome };
+    await executor.summarize({ connection, inputs: Array.from({ length: 10 }, () => ITEM) });
+    return peak;
   };
-  expect((await run({})).peak).toBe(4);
-  expect((await run({ concurrency: { summarize: 2 } })).peak).toBe(2);
-  const over = await run({ concurrency: { summarize: 33 } });
-  expect(over.outcome).toMatchObject({ kind: "invalid", retryable: false });
-  expect(over.peak).toBe(0);
+  expect(await run({})).toBe(4);
+  expect(await run({ concurrency: { summarize: 2 } })).toBe(2);
 });
 
 // ── (8) word-keyed logit bias ──────────────────────────────────────────────────────────────────────────
@@ -504,6 +511,13 @@ test("(10) an unterminated <think> block at the output cap never reaches the sum
   const connection = fakeResolved({ task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
   const result = await executor.summarize({ connection, inputs: [ITEM], maxTokens: 64 });
   expect(result.items[0]?.text).not.toContain("<think>");
+});
+
+test("(10) the Utility preset's own tag pair splits a summarize reply in place of the house pair", async () => {
+  const executor = executorWith({ fetch: openAiServer([], () => ({ content: "<reason>which beats matter</reason>The scene, summarized." })) });
+  const connection = fakeResolved({ task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
+  const result = await executor.summarize({ connection, inputs: [ITEM], reasoningTags: { prefix: "<reason>", suffix: "</reason>" } });
+  expect(result.items[0]?.text).toBe("The scene, summarized.");
 });
 
 test("(10) items sharing a static system prompt on an OpenRouter Claude route each place its cache breakpoint", async () => {

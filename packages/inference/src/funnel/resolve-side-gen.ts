@@ -1,8 +1,8 @@
-// The pure fold for a side-generation call's sampling (D299). A non-chat role contributes only its preset's
-// generation params (`ROLE_PRESET_FIELDS`), never prompt structure or chat-only intent; both inputs are projected
-// here, so a caller that hands in a whole `UserIntent` cannot leak a chat-only field.
+// The pure fold for a side-generation call's sampling (D299). A non-chat role contributes its preset's generation
+// params (`ROLE_PRESET_FIELDS`) and inline reasoning tag pair, never other prompt structure or chat-only intent;
+// both inputs are projected here, so a caller that hands in a whole `UserIntent` cannot leak a chat-only field.
 
-import type { UserIntent } from "@orb/contracts/preset";
+import type { RolePresetParams, UserIntent } from "@orb/contracts/preset";
 import { rolePresetParamsOf } from "@orb/contracts/preset";
 import type { SideGenSampling } from "../contract/side-gen.ts";
 
@@ -11,7 +11,10 @@ import type { SideGenSampling } from "../contract/side-gen.ts";
  *  knob absent from both stays absent so the backend default stands. Effort and the thinking budget are one
  *  reasoning choice: a preset that sets either keeps the posture's effort floor out, so its budget is not
  *  overruled by an effort it never chose. */
-export function resolveSideGenSampling(posture: UserIntent, presetParams?: UserIntent | undefined): SideGenSampling {
+export function resolveSideGenSampling(
+  posture: UserIntent,
+  presetParams?: (UserIntent & Pick<RolePresetParams, "reasoningTags">) | undefined,
+): SideGenSampling {
   const preset = rolePresetParamsOf(presetParams ?? {});
   const { effort, ...rest } = rolePresetParamsOf(posture);
   const presetReasons = preset.effort !== undefined || preset.thinkingBudgetTokens !== undefined;

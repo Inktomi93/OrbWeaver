@@ -34,8 +34,6 @@ export type { SessionEntryWriter } from "./session/index.ts";
 
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
 const CLAUDE_TOOL = "claude";
-// The ceiling on a connection's `features.concurrency.summarize` here: each in-flight item is a Claude subprocess.
-const AGENT_SDK_SUMMARIZE_CONCURRENCY_MAX = 32;
 
 export interface AgentSdkBackendDeps {
   readonly now: () => number;
@@ -114,16 +112,6 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
   };
   const sideGen = (req: SummarizeRequest | StructuredRequest): ReturnType<typeof runSideGen> => {
     const concurrency = req.connection.features.concurrency?.summarize ?? 1;
-    if (concurrency > AGENT_SDK_SUMMARIZE_CONCURRENCY_MAX) {
-      return Promise.reject(
-        new ProviderError({
-          kind: "invalid",
-          retryable: false,
-          message: `agent-sdk: utility calls at once must be at most ${AGENT_SDK_SUMMARIZE_CONCURRENCY_MAX}`,
-          model: req.connection.model,
-        }),
-      );
-    }
     return runSideGen(req, { runChatTurn: chatTurn, concurrency, normalize: normalizeImageBytes, log: deps.log, now: deps.now });
   };
   const backend: ProviderBackend = {

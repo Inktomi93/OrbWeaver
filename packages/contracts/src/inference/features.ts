@@ -143,6 +143,10 @@ export type ModelInfoApi = (typeof MODEL_INFO_APIS)[number];
 export const NATIVE_CHAT_APIS = ["ollama", "none"] as const;
 export type NativeChatApi = (typeof NATIVE_CHAT_APIS)[number];
 
+/** The most side-generation items a connection runs at once. An agent-sdk item is its own Claude subprocess, so the
+ *  bound holds on every wire rather than per backend. */
+export const SUMMARIZE_CONCURRENCY_MAX = 32;
+
 export const endpointFeaturesSchema = z.object({
   prefill: z.enum(PREFILL_MODES).optional(),
   strictJson: z.enum(STRICT_JSON_MODES).optional(),
@@ -202,7 +206,7 @@ export const endpointFeaturesSchema = z.object({
     .object({
       embed: z.number().int().positive().optional(),
       imageEmbed: z.number().int().positive().optional(),
-      summarize: z.number().int().positive().optional(),
+      summarize: z.number().int().positive().max(SUMMARIZE_CONCURRENCY_MAX).optional(),
     })
     .optional(),
   /** The #187 per-POST token ceiling + derived deadline on embed: item-count batching alone let a 128-item

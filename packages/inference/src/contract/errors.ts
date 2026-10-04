@@ -93,7 +93,9 @@ export class ProviderError extends Error {
   readonly requestId: string | undefined;
   readonly width: VectorWidthMismatch | undefined;
   readonly violations: readonly WireSchemaViolation[] | undefined;
-  readonly partialItems: readonly (SummarizeResultItem | undefined)[] | undefined;
+  // A private field, never an own enumerable property: an error serializer copies every enumerable field, and an
+  // item's text is model output that must not reach a log line.
+  readonly #partialItems: readonly (SummarizeResultItem | undefined)[] | undefined;
 
   constructor(init: ProviderErrorInit) {
     super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
@@ -109,7 +111,12 @@ export class ProviderError extends Error {
     this.requestId = init.requestId;
     this.width = init.width;
     this.violations = init.violations;
-    this.partialItems = init.partialItems;
+    this.#partialItems = init.partialItems;
+  }
+
+  /** {@link ProviderErrorInit.partialItems}: read only by a caller re-sending a failed batch. */
+  get partialItems(): readonly (SummarizeResultItem | undefined)[] | undefined {
+    return this.#partialItems;
   }
 
   /** Every carried field as its own log key. A field added to {@link ProviderErrorInit} MUST be mirrored
@@ -136,12 +143,30 @@ export class ProviderError extends Error {
   /** Re-frame under a NEW message carrying EVERY classification/provenance field forward — THE ONE re-mint
    *  helper, because a hand-rolled `new ProviderError({ kind, retryable, message })` silently destroys
    *  `resetsAt`, `apiErrorStatus`, `model`, `requestId`, and a dropped field looks like a provider that never
-   *  sent one. A batch failure passes its own `partialItems`; every other re-mint carries the existing ones. */
-  rewrap(message: string, partialItems: ProviderErrorInit["partialItems"] = this.partialItems): ProviderError {
+   *  sent one. */
+  rewrap(message: string): ProviderError {
+    return new ProviderError({ ...this.#carried(), message, ...this.#partialOf(this.#partialItems), cause: this });
+  }
+
+  /** The same failure, carrying the items its batch finished. Not a re-frame: the message and cause stay as they
+   *  were, so a logged chain does not repeat the message. */
+  withPartialItems(partialItems: readonly (SummarizeResultItem | undefined)[]): ProviderError {
     return new ProviderError({
+      ...this.#carried(),
+      message: this.message,
+      ...this.#partialOf(partialItems),
+      ...(this.cause !== undefined ? { cause: this.cause } : {}),
+    });
+  }
+
+  #partialOf(partialItems: ProviderErrorInit["partialItems"]): Pick<ProviderErrorInit, "partialItems"> {
+    return partialItems !== undefined ? { partialItems } : {};
+  }
+
+  #carried(): Omit<ProviderErrorInit, "message" | "partialItems" | "cause"> {
+    return {
       kind: this.kind,
       retryable: this.retryable,
-      message,
       ...(this.resetsAt !== undefined ? { resetsAt: this.resetsAt } : {}),
       ...(this.apiErrorStatus !== undefined ? { apiErrorStatus: this.apiErrorStatus } : {}),
       ...(this.model !== undefined ? { model: this.model } : {}),
@@ -151,9 +176,7 @@ export class ProviderError extends Error {
       ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
       ...(this.width !== undefined ? { width: this.width } : {}),
       ...(this.violations !== undefined ? { violations: this.violations } : {}),
-      ...(partialItems !== undefined ? { partialItems } : {}),
-      cause: this,
-    });
+    };
   }
 }
 

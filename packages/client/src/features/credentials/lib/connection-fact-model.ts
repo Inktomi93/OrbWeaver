@@ -38,6 +38,7 @@ import {
   SAMPLER_KNOBS,
   SAMPLER_ORDER_SPELLINGS,
   STRICT_JSON_MODES,
+  SUMMARIZE_CONCURRENCY_MAX,
   THINKING_OFF_SPELLINGS,
   TOKENIZE_APIS,
 } from "@orb/contracts/inference";
@@ -65,7 +66,7 @@ export function grouped(value: unknown): string {
  *  the name — a component types its parameter as `FactRow["edit"]`, which is the same type by construction. */
 type FactEdit =
   | { readonly kind: "text" }
-  | { readonly kind: "number"; readonly min?: NumberMinimum }
+  | { readonly kind: "number"; readonly min?: NumberBound; readonly max?: NumberBound }
   | { readonly kind: "boolean"; readonly labels?: BooleanLabels }
   | { readonly kind: "list" }
   | { readonly kind: "enum"; readonly options: readonly string[] }
@@ -85,18 +86,21 @@ export interface FactChoice {
   readonly matches: (value: unknown) => boolean;
 }
 
-/** The smallest value a number fact takes, and how it reads. */
-export interface NumberMinimum {
+/** A bound on the values a number fact takes, and how it reads. */
+export interface NumberBound {
   readonly value: number;
   readonly reads: string;
 }
 
-/** The refusal for a typed number under its fact's minimum, else `null`. */
-export function minimumRefusal(edit: FactRow["edit"], raw: string): string | null {
-  if (edit.kind !== "number" || edit.min === undefined || raw.trim() === "") {
+const SUMMARIZE_MAX: NumberBound = { value: SUMMARIZE_CONCURRENCY_MAX, reads: String(SUMMARIZE_CONCURRENCY_MAX) };
+
+/** The refusal for a typed number outside its fact's bounds, else `null`. */
+export function boundRefusal(edit: FactRow["edit"], raw: string): string | null {
+  if (edit.kind !== "number" || raw.trim() === "") {
     return null;
   }
-  return Number(raw.trim()) < edit.min.value ? `The minimum is ${edit.min.reads}.` : null;
+  const below = edit.min !== undefined && Number(raw) < edit.min.value ? `The minimum is ${edit.min.reads}.` : null;
+  return below ?? (edit.max !== undefined && Number(raw) > edit.max.value ? `The maximum is ${edit.max.reads}.` : null);
 }
 
 /** The plain reading of a boolean fact, for a leaf that states no labels of its own. */
@@ -359,7 +363,7 @@ const QUIRK_LEAVES: readonly FactLeaf[] = [
   { path: "pricing.outputPerMTok", name: "price out", edit: { kind: "number" }, format: perMillionTokens },
   { path: "concurrency.embed", name: "embeddings at once", edit: { kind: "number" } },
   { path: "concurrency.imageEmbed", name: "image embeddings at once", edit: { kind: "number" } },
-  { path: "concurrency.summarize", name: "utility calls at once", edit: { kind: "number" } },
+  { path: "concurrency.summarize", name: "utility calls at once", edit: { kind: "number", max: SUMMARIZE_MAX } },
   { path: "embedBatch.maxTokens", name: "embedding batch ceiling", edit: { kind: "number" }, format: tokens },
   {
     path: "embedBatch.floorTokensPerSec",

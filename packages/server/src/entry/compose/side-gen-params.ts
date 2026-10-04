@@ -1,7 +1,8 @@
-// Which preset a Utility-role background task reads (D299), for the user who funds it. It returns only generation
-// params, projected through `ROLE_PRESET_FIELDS`: never prompt structure (templates, macros, message handling,
-// regex, guided actions) and never chat-only intent, so each background task keeps its own prompt.
+// Which preset a Utility-role background task reads (D299), for the user who funds it. It returns generation
+// params, projected through `ROLE_PRESET_FIELDS`, and the preset's inline reasoning tag pair: never other prompt
+// structure (templates, macros, message handling, regex, guided actions) and never chat-only intent.
 
+import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, rolePresetParamsOf } from "@orb/contracts/preset";
 import type { RolePresetChoice } from "@orb/contracts/settings";
 import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
@@ -22,12 +23,18 @@ export interface SideGenParamsDeps {
   readonly settings: Pick<SettingsService, "loadUserSettings">;
 }
 
+/** A preset's role params, with its `reasoningParse` pair where it states one. */
+function rolePresetOf(config: PromptConfig): SideGenSampling {
+  const pair = config.reasoningParse;
+  return rolePresetParamsOf({ ...config.params, ...(pair !== undefined ? { reasoningTags: { prefix: pair.prefix, suffix: pair.suffix } } : {}) });
+}
+
 export function buildSideGenParams(deps: SideGenParamsDeps): { readonly resolveUtilityPresetParams: ResolveUtilityPresetParams } {
   // `null` from a stale/unowned/missing id. A database/I/O/program failure must surface, not silently replace the
   // caller's configured sampling (#759).
   const presetParams = async (userId: UserId, presetId: PresetId): Promise<SideGenSampling | null> => {
     try {
-      return rolePresetParamsOf((await deps.preset.get({ userId, id: presetId })).config.params);
+      return rolePresetOf((await deps.preset.get({ userId, id: presetId })).config);
     } catch (err) {
       if (err instanceof PresetNotFoundError) {
         return null;
@@ -42,7 +49,7 @@ export function buildSideGenParams(deps: SideGenParamsDeps): { readonly resolveU
     }
     // Same as chat: the active preset, which falls back to the built-in exactly as a chat turn does.
     const active = activePresetId === null ? null : await presetParams(userId, castId<PresetId>(activePresetId));
-    return active ?? rolePresetParamsOf(DEFAULT_PROMPT_CONFIG.params);
+    return active ?? rolePresetOf(DEFAULT_PROMPT_CONFIG);
   };
 
   const resolveUtilityPresetParams: ResolveUtilityPresetParams = async (userId) => {

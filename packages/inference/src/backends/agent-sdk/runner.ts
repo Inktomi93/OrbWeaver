@@ -42,7 +42,7 @@ import { normalizeStructuredValue } from "../../structured/reply.ts";
 import { toAnthImageBlock } from "../kit/anth-image-block.ts";
 import { classifyHttpStatus } from "../kit/error-classify.ts";
 import type { IdleAbort } from "../kit/idle-timeout.ts";
-import { turnAbortSignal } from "../kit/idle-timeout.ts";
+import { isIdleTrip, turnAbortSignal } from "../kit/idle-timeout.ts";
 import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import { redactSecretsFromText } from "../kit/openai-body.ts";
 import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
@@ -275,21 +275,21 @@ function turnAbortOf(req: AgentSdkChatRequest): {
   const signal = idle?.signal ?? req.signal;
   return {
     options: signal !== undefined ? { abortController: linkAbort(signal) } : {},
-    bound: (stream) => (idle !== undefined ? idleBounded(stream, idle, req.signal, req.connection.model) : stream),
+    bound: (stream) => (idle !== undefined ? idleBounded(stream, idle, req.connection.model) : stream),
   };
 }
 
 /** The turn's frames, each restarting the idle window. A window with no frame aborts the subprocess and fails the
  *  turn retryably even if the SDK's iterator never settles; the caller's own cancel stays a non-retryable abort. */
-async function* idleBounded(stream: AsyncIterable<SDKMessage>, idle: IdleAbort, caller: AbortSignal | undefined, model: string): AsyncGenerator<SDKMessage> {
+async function* idleBounded(stream: AsyncIterable<SDKMessage>, idle: IdleAbort, model: string): AsyncGenerator<SDKMessage> {
   const tripped = new Promise<never>((_resolve, reject) => {
     idle.signal.addEventListener(
       "abort",
       () =>
         reject(
-          caller?.aborted === true
-            ? new ProviderError({ kind: "aborted", retryable: false, message: "agent-sdk: the turn was cancelled", model })
-            : new ProviderError({ kind: "server", retryable: true, message: "agent-sdk: no frame within the idle ceiling; the turn was aborted", model }),
+          isIdleTrip(idle.signal.reason)
+            ? new ProviderError({ kind: "server", retryable: true, message: "agent-sdk: no frame within the idle ceiling; the turn was aborted", model })
+            : new ProviderError({ kind: "aborted", retryable: false, message: "agent-sdk: the turn was cancelled", model }),
         ),
       { once: true },
     );
