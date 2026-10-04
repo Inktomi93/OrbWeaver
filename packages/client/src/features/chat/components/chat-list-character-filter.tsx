@@ -144,7 +144,7 @@ export function ChatListFilterChip({ filter }: { readonly filter: ChatListCharac
   return (
     <Row align="center" gap="field">
       <Text voice="kicker">Filtered:</Text>
-      <Badge intent="info" size="sm" tone="soft">
+      <Badge intent="primary" size="sm" tone="soft">
         {filter.name}
       </Badge>
       <Button aria-label={`Clear the ${filter.name} filter`} intent="ghost" onClick={clearChatListCharacterFilter} size="icon" type="button">

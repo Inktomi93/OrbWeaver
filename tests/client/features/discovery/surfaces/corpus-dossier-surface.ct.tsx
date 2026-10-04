@@ -194,12 +194,12 @@ test("a dossier with NO keyword profile renders no Keywords section at all", asy
   await expect(component.getByText(NO_KEYWORD_PROFILE)).toHaveCount(0);
 });
 
-test("the portrait readout speaks the surface's ONE similarity vocabulary — a percent, not a raw cosine", async ({ mount, page }) => {
+test("the portrait readout speaks in words, not a raw cosine or a bare percent", async ({ mount, page }) => {
   await routeDossier(page, IDLE_ANSWER, { ...DOSSIER, portrait: { avatarHash: "aaaa1111", alignment: 0.25 } });
   const component = await mount(<CorpusDossierSurfaceStory />);
 
   await expect(component.getByRole("heading", { name: "Portrait alignment" })).toBeVisible();
-  await expect(component.getByText("Card ↔ art match: 25%")).toBeVisible();
+  await expect(component.getByText("Card ↔ art match: Good")).toBeVisible();
   // The shipped spelling: an engineer's unit with no scale, beside neighbours quoted in whole percents.
   await expect(component.getByText(RAW_COSINE)).toHaveCount(0);
 });

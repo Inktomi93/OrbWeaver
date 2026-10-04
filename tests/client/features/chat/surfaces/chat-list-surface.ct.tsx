@@ -24,6 +24,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";
+import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 import type { TrpcInput, TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListSurfaceStory } from "../_ct-stories.tsx";
@@ -943,6 +944,15 @@ test("Arm B: the faces strip curates the recent cast, and tapping one SCOPES the
   // library's favorites strip, which OPENS an editor, keeps aria-current). The source moved in the nightly
   // fix-all; this assertion was its unswept half.
   await expect(face).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the character filter chip wears the accent token, not the info blue", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory />);
+
+  await component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true }).click();
+  const chip = component.locator('[data-slot="badge"]').getByText("Aria Nightshade", { exact: true });
+  await expect(chip).toHaveCSS("color", resolvedTokenColor("color.primary"));
 });
 
 // Mock order (side-eye P2b/P2a): the faces are the shortcut you arrive for, so the strip is the FIRST thing

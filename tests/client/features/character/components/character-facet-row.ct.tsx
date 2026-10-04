@@ -103,6 +103,8 @@ test("an empty facet row shows the house EMPTY word, not an action word", async 
   await expect(emptyRow).toBeVisible();
   // THE WHOLE ROW IS THE BUTTON: the state word sits inside it, so the focus ring and hover pill take it too.
   await expect(emptyRow.getByText("Empty", { exact: true })).toBeVisible();
+  // …and it is the same word the row announces as its description.
+  await expect(emptyRow).toHaveAccessibleDescription(LEADS_WITH_EMPTY);
   // The action word is gone from the whole surface — the row IS the affordance.
   await expect(component.getByText("Add…")).toHaveCount(0);
   // …and a FILLED row shows its preview, never the state word (the magnitude stays sr-only).

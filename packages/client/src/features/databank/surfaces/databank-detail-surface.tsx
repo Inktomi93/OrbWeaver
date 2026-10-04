@@ -1,7 +1,7 @@
 // The Databank CONTENT pane — the open document's detail, or the teaching
 // welcome when nothing is selected (an empty CONTENT pane reads as unbuilt: empty states are load-bearing),
-// or — on an EMPTY bank with the LIST on screen — nothing at all, because there the list's own empty state
-// owns the first step and the only Add door (#434; `DatabankWelcome`'s note states the whole rule).
+// or — on an EMPTY bank — a landing that explains the Databank and points at the list's one Add door (the
+// pane mints no Add button of its own; `DatabankWelcome`'s note states the rule).
 //
 // `form` TIER (density §3.1 "entity editor"): identity header → Details group → Maintenance → Source text.
 //
@@ -91,9 +91,16 @@ export function DatabankDetailSurface(): ReactElement {
  *  phone, where the panes stack. */
 const PICK_A_DOCUMENT = "Pick a document from the list to see what was extracted, how much of it is indexed, and where it fires.";
 
+/** The empty bank's landing: what the Databank is, and the ONE Add it points at — no button of its own. */
+const EMPTY_BANK_DESCRIPTION =
+  "Your databank holds reference documents. Each one is split into passages and indexed, so the relevant ones can be pulled into your chats. Add a document to begin.";
+/** …and with the LIST off screen, the shell control that brings the one Add back. */
+const EMPTY_BANK_COLLAPSED =
+  "Your databank holds reference documents, indexed so the relevant ones can be pulled into your chats. Show list panel in the top bar opens the library, where a document gets added.";
+
 /**
- * The no-selection arm — what this PANE will show once a document is open, and NOTHING AT ALL while the bank
- * is empty and the LIST is on screen (#434, the #430 IA proposal).
+ * The no-selection arm — what this PANE will show once a document is open, and, on an EMPTY bank, what the
+ * Databank is, pointing at the list's one Add door (#434: still no second Add button).
  *
  * #445 — THE POPULATED ARM NAMES THE DOOR TOO. "Pick a document from the list" presupposes a list on screen,
  * which is false in the same three regimes the empty arm handles (narrow-desktop auto-collapse, focus mode, a
@@ -101,19 +108,10 @@ const PICK_A_DOCUMENT = "Pick a document from the list to see what was extracted
  * because that lane's scope was the empty bank. Same signal, same conditional shape, same verbatim
  * affordance name; the instruction is unchanged for the reader who can see the list.
  *
- * THE EMPTY-BANK STAND-DOWN extends the ruling below one notch rather than reversing it. "An empty CONTENT
- * pane reads as unbuilt" still holds — it is why the two arms under it exist — but on an EMPTY bank the pane
- * was not empty, it was WRONG: "Pick a document from the list" names an act the reader cannot perform, three
- * feet from a LIST that is already teaching the real first step and already carrying the only Add door. Two
- * empty states in one glance saying nearly the same thing is the §13 IA duplication the side-eye report
- * filed; the one that has the affordance wins, and this pane stands down. (The REFUSED arm, recorded so the
- * next reader does not re-mint it: a second Add door here — see the two-Add-doors note below.)
- *
- * IT IS CONDITIONED ON THE LIST BEING ON SCREEN, not on the bank alone, because "the LIST owns the first
- * step" is only true when the list is showing. `panelDefaults.list` is `docked`, but the shell auto-collapses
- * a docked default in the narrow-desktop band and focus mode hides both panes — regimes where standing down
- * would leave the reader a blank pane and no door at all. There the pane keeps a teaching state and names the
- * affordance that produces the list, verbatim, exactly as the Presets welcome does (side-eye F-28).
+ * THE EMPTY BANK EXPLAINS ITSELF AND POINTS, IT DOES NOT ACT. A blank CONTENT pane reads as unbuilt, but
+ * "Pick a document from the list" names an act the reader cannot perform on an empty bank. So the pane says
+ * what the Databank is and points at the list's one Add door — never a second Add button (the refused
+ * two-Add-doors arm). With the LIST off screen it names the shell control that brings that door back.
  *
  * The census is `databank.bankHealth` — the SAME read the home tile's chips use, so "is the bank empty" has
  * one home and cannot disagree with the list pane's own `totalCount` for a reason this pane invented. While
@@ -141,14 +139,14 @@ function DatabankWelcome(): ReactElement | null {
     return null;
   }
   if (census.data.total === 0) {
-    return listMode === "collapsed" ? (
-      // @orb-waive empty-state-has-action(EmptyState): the Databank CONTENT teaching state for an EMPTY bank, whose copy already names the affordance that fixes it (Show list panel opens the library, which carries both create doors). The next step lives in the sibling list, so this state legitimately carries none of its own — the preset-library-welcome precedent. Ends if the library stops carrying a create door.
+    return (
+      // @orb-waive empty-state-has-action(EmptyState): the Databank CONTENT landing for an EMPTY bank. It explains the Databank and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
       <EmptyState
-        description="Nothing is indexed yet. Show list panel in the top bar opens the library, where a document gets added."
+        description={listMode === "collapsed" ? EMPTY_BANK_COLLAPSED : EMPTY_BANK_DESCRIPTION}
         icon={<Icon icon={FileText} size="lg" />}
         title="Your databank"
       />
-    ) : null;
+    );
   }
   return (
     // @orb-waive empty-state-has-action(EmptyState): the Databank CONTENT pick-a-document nudge shown alongside the library list, which itself carries both create doors (the band's Add primary and the empty bank's own CTA). The next step lives in the sibling list — the preset-library-welcome precedent, same species. Ends if the library stops carrying a create door.

@@ -3,7 +3,7 @@
 // and the rendered halves are pinned by the surfaces that use them.
 
 import { describe } from "vitest";
-import { facetLabel, percent, sentenceCase } from "../../../../../packages/client/src/features/discovery/lib/corpus-vocabulary.ts";
+import { facetLabel, matchWord, percent, sentenceCase } from "../../../../../packages/client/src/features/discovery/lib/corpus-vocabulary.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("percent (P2-5)", () => {
@@ -35,5 +35,15 @@ describe("facetLabel (P3-4)", () => {
   test("…and a real label is only cased — the VALUE is never rewritten", () => {
     expect(facetLabel("anime")).toBe("Anime");
     expect(facetLabel("noir portrait")).toBe("Noir portrait");
+  });
+});
+
+describe("matchWord", () => {
+  test("a portrait-card cosine is bucketed into words at its cut points", () => {
+    expect(matchWord(0.45)).toBe("Strong");
+    expect(matchWord(0.3)).toBe("Strong");
+    expect(matchWord(0.25)).toBe("Good");
+    expect(matchWord(0.2)).toBe("Good");
+    expect(matchWord(0.05)).toBe("Weak");
   });
 });

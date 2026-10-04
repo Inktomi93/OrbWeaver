@@ -222,8 +222,13 @@ const MORE_FILTERS = "Favorites, archived & tags — show more filters";
 const FEWER_FILTERS = "Fewer filters — hide the tag vocabulary";
 const MORE_FILTERS_LABEL = "Favorites, archived & tags";
 
+/** The closed disclosure, by its place in the Filters group — its label depends on whether the tag list has loaded. */
+function filtersDisclosure(component: Locator): Locator {
+  return component.getByRole("group", { name: "Filters" }).getByRole("button", { expanded: false });
+}
+
 async function openFilters(component: Locator): Promise<void> {
-  await component.getByRole("button", { name: MORE_FILTERS }).click();
+  await filtersDisclosure(component).click();
 }
 
 /** The FOOT-of-list progress line (#493) — "30 of 320 loaded", absent once the matched set is fully paged
@@ -1947,7 +1952,7 @@ test("#502 the tag vocabulary is NOT read while the filter disclosure is shut �
   // SETTLE on the rendered library — the count below is only meaningful once the pane has finished the
   // reads it does make (a count taken mid-mount would pass for the wrong reason).
   await expect(component.getByText("Tagged One")).toBeVisible();
-  await expect(component.getByRole("button", { name: MORE_FILTERS })).toBeVisible();
+  await expect(filtersDisclosure(component)).toBeVisible();
 
   // Settled snapshot: settled by construction — the two barriers above are the LAST things this pane paints on a
   // cold mount, so every request it was ever going to fire has been recorded. Polling a zero would only
@@ -2001,6 +2006,11 @@ test("#519 the collapsed disclosure advertises what it opens — and the resting
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
 
+  // Cold, the tag list has not loaded, so the label names only what is certainly there…
+  await expect(filtersDisclosure(component)).not.toContainText("tags");
+  // …and once the list has loaded (open, then close) it names the tags too.
+  await openFilters(component);
+  await component.getByRole("button", { name: FEWER_FILTERS }).click();
   const disclosure = component.getByRole("button", { name: MORE_FILTERS });
   await expect(disclosure).toHaveText(MORE_FILTERS_LABEL);
   await expect(disclosure).toHaveAttribute("aria-expanded", "false");

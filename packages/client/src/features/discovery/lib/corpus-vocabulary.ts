@@ -27,6 +27,19 @@ export function percent(value: number): string {
 
 const PERCENT_SCALE = 100;
 
+/** Portrait↔card match cut points. Display-only: they bucket the CLIP-range cosine into words so a reader
+ *  never meets a bare percentage; nothing stored or ranked reads them. */
+const STRONG_MATCH_AT = 0.3;
+const GOOD_MATCH_AT = 0.2;
+
+/** A portrait↔card cosine in words — Strong, Good or Weak — instead of a bare percentage. */
+export function matchWord(value: number): "Strong" | "Good" | "Weak" {
+  if (value >= STRONG_MATCH_AT) {
+    return "Strong";
+  }
+  return value >= GOOD_MATCH_AT ? "Good" : "Weak";
+}
+
 /** The token the labelling passes write when a facet produced nothing to say. Matched case-insensitively —
  *  it arrives from a VL caption breakdown, not from a closed enum. */
 const UNCLASSIFIED_TOKENS = new Set(["none", "unknown", "n/a", ""]);

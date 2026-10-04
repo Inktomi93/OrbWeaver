@@ -505,15 +505,14 @@ test("…and a PAID route is annotated, never promoted over the quantities (#553
   await expect(component.getByText("claude", { exact: false }).filter({ hasText: "reported across" })).toBeVisible();
 });
 
-test("a large never-played library is windowed instead of mounting every avatar row", async ({ mount, page }) => {
+test("a large never-played library shows a short head and offers Show all instead of mounting every avatar row", async ({ mount, page }) => {
   await stub(page, { ...ANALYSED, "discovery.unusedCharacters": LARGE_UNUSED_LIBRARY });
   const component = await mount(<CorpusContentStory />);
 
   const list = component.getByRole("list", { name: "Never played characters" });
   await expect(list).toBeVisible();
-  await expect(list).toHaveAttribute("data-more", "");
   await expect.poll(() => list.getByRole("listitem").count()).toBeLessThan(LARGE_UNUSED_LIBRARY.length);
-  await expect(list.getByRole("listitem").first()).toHaveAttribute("aria-setsize", LARGE_UNUSED_LIBRARY.length.toString());
+  await expect(component.getByRole("button", { name: /^Show all/u })).toBeVisible();
 });
 
 test("the CONTENT region insets its body through the shell host — no row starts flush at the pane edge", async ({ mount, page }) => {
