@@ -256,6 +256,44 @@ async function announceDraw(cards: readonly string[], dealt: number, commitment:
   await host.pubsub.emit("draw", { cards, dealt, commitment, deckSize: DECK.length });
 }
 
+// ── the deck page's published state ────────────────────────────────────────────────────────────────────────
+// The page is a projection of the stored session, so EVERY path that changes the session republishes it: the
+// tools and the commands as much as the page's own buttons. Activation publishes once, so a page opened after
+// a restart reads the session that survived it.
+
+/** A notice is never worth the action it decorates: the host's toast floor refuses a second toast inside its
+ *  cooldown by throwing, and that refusal must not skip the page refresh. */
+async function say(level: "info" | "success" | "warn", message: string): Promise<void> {
+  try {
+    await host.ui.toast(level, message);
+  } catch (err) {
+    host.log.info(`toast not shown: ${String(err)}`);
+  }
+}
+
+/** Publish the page's state from storage. Never throws: a stale page is a smaller failure than a draw that
+ *  already claimed its cards and then reports an error. */
+async function publishDeckState(): Promise<void> {
+  if (!(host.grants.includes("ui.surface") && host.grants.includes("storage.kv"))) {
+    return;
+  }
+  try {
+    const session = await loadSession();
+    const cards = session === null ? [] : shuffleFor(session.seed).slice(0, session.dealt);
+    await host.ui.setState("deck_page", {
+      status: session === null ? "No session open" : `Session open · ${session.dealt} dealt`,
+      // Bound rows (`rowsFrom`): no committed deck, no row. A "Commitment" label over nothing reads as broken.
+      commitmentRows: session === null ? [] : [{ key: "Commitment", value: commitmentFor(session.seed) }],
+      dealt: session === null ? 0 : session.dealt,
+      deckSize: DECK.length,
+      last: cards.length === 0 ? "" : `Last drawn: ${cards.at(-1)}`,
+      dealtList: cards.length === 0 ? "" : `Dealt so far: ${cards.join(", ")}`,
+    });
+  } catch (err) {
+    host.log.warn(`deck page not refreshed: ${String(err)}`);
+  }
+}
+
 // ── the tools ──────────────────────────────────────────────────────────────────────────────────────────────
 // `tools.register` is activation-time and synchronous. The host namespaces each name to
 // `plugin_<slug'>_<name>`, where `slug'` doubles each hyphen (so this pair lands as
@@ -301,6 +339,7 @@ if (canDeal) {
 
       const drawn = taken.map((card, i) => `${session.dealt + i + 1}. ${card}`).join("\n");
       await announceDraw(taken, session.dealt + taken.length, commitmentFor(session.seed));
+      await publishDeckState();
       // The commitment rides in the RESULT on every draw (it is public by construction — only the seed is
       // secret), but the model is TOLD about it only on the first, because that is the moment it means
       // something and repeating it every draw would train everyone to skip the line that matters.
@@ -323,6 +362,7 @@ if (canDeal) {
       // Retiring the session on reveal is the whole discipline: a seed that stays live after it is public is a
       // deck whose remaining order everyone already knows.
       await host.storage.delete(SESSION_KEY);
+      await publishDeckState();
       const order = shuffleFor(session.seed).join(", ");
       return `Seed: ${session.seed}\nCommitment: ${commitmentFor(session.seed)}\nCards dealt: ${session.dealt}\nFull order: ${order}`;
     },
@@ -431,17 +471,6 @@ if (host.grants.includes("ui.surface")) {
 //
 // All four ride the SAME `ui.surface` grant as the card, so the same feature-detect guard covers them.
 if (host.grants.includes("ui.surface")) {
-  /** The page's published state — the deck's own dashboard. `setState` replaces it whole. */
-  const publishDeckState = async (): Promise<void> => {
-    const session = await loadSession();
-    await host.ui.setState("deck_page", {
-      status: session === null ? "No session open" : `Session open · ${session.dealt} dealt`,
-      commitment: session === null ? "—" : commitmentFor(session.seed),
-      dealt: session === null ? 0 : session.dealt,
-      deckSize: DECK.length,
-    });
-  };
-
   // TYPED COMMAND ARGS (#791). Declaring `args` buys the whole platform half for free: the palette shows a
   // typed input strip, the composer autocompletes `count=`/`spread=`, both surfaces validate BEFORE your code
   // runs, and the server re-validates at the membrane — so `a.values` here holds only well-typed, in-enum,
@@ -468,12 +497,12 @@ if (host.grants.includes("ui.surface")) {
       const count = clampCount(a.values["count"] ?? spread);
       const claim = await claimCards(count);
       if (claim === null) {
-        await host.ui.toast("warn", "The deck is being dealt from somewhere else right now — try again in a moment.");
+        await say("warn", "The deck is being dealt from somewhere else right now — try again in a moment.");
         return;
       }
       const { session, taken } = claim;
       if (taken.length === 0) {
-        await host.ui.toast("warn", "The deck is spent — reveal it to start a fresh shuffle.");
+        await say("warn", "The deck is spent — reveal it to start a fresh shuffle.");
         return;
       }
       await publishDeckState();
@@ -485,7 +514,7 @@ if (host.grants.includes("ui.surface")) {
         a.values["spread"] === "past_present_future" && taken.length === SPREAD_CARDS
           ? taken.map((card, i) => `${labels[i]}: ${card}`).join(" · ")
           : taken.join(", ");
-      await host.ui.toast("info", `${line} (${session.dealt + taken.length} of ${DECK.length} dealt)`);
+      await say("info", `${line} (${session.dealt + taken.length} of ${DECK.length} dealt)`);
     },
   });
 
@@ -514,8 +543,10 @@ if (host.grants.includes("ui.surface")) {
       gap: "block",
       children: [
         { kind: "text", value: { $state: "status" }, voice: "label" },
-        { kind: "keyValue", rows: [{ key: "Commitment", value: { $state: "commitment" } }] },
+        { kind: "keyValue", rowsFrom: { $state: "commitmentRows" } },
         { kind: "meter", label: "Dealt", max: DECK.length, value: { $state: "dealt" } },
+        { kind: "text", value: { $state: "last" } },
+        { kind: "text", value: { $state: "dealtList" }, voice: "gloss" },
         { kind: "button", actionId: "draw_one", label: "Draw a card", variant: "outline" },
         { kind: "button", actionId: "reveal_now", label: "Reveal the session", variant: "neutral" },
       ],
@@ -524,15 +555,15 @@ if (host.grants.includes("ui.surface")) {
       if (action.actionId === "draw_one") {
         const claim = await claimCards(1);
         if (claim === null) {
-          await host.ui.toast("warn", "The deck is being dealt from somewhere else right now — try again in a moment.");
+          await say("warn", "The deck is being dealt from somewhere else right now — try again in a moment.");
           return;
         }
-        if (claim.taken.length > 0) {
-          await host.ui.toast("info", `${claim.taken[0]} (${claim.session.dealt + 1} of ${DECK.length})`);
-        } else {
-          await host.ui.toast("warn", "The deck is spent — reveal it to start a fresh shuffle.");
-        }
         await publishDeckState();
+        if (claim.taken.length > 0) {
+          await say("info", `${claim.taken[0]} (${claim.session.dealt + 1} of ${DECK.length})`);
+        } else {
+          await say("warn", "The deck is spent — reveal it to start a fresh shuffle.");
+        }
         return;
       }
       const session = await loadSession();
@@ -577,7 +608,7 @@ if (host.grants.includes("ui.surface")) {
       }
       await host.storage.delete(SESSION_KEY);
       await publishDeckState();
-      await host.ui.toast("success", "Deck retired — the next draw starts a fresh shuffle.");
+      await say("success", "Deck retired — the next draw starts a fresh shuffle.");
     },
   });
 
@@ -598,5 +629,7 @@ if (host.grants.includes("ui.surface")) {
     spec: { kind: "badge", intent: "neutral", text: "⟡ draws are committed — reveal verifies" },
   });
 }
+
+void publishDeckState();
 
 host.log.info(`oracle deck ready — ${DECK.length} cards (grants: ${host.grants.join(", ") || "none"})`);

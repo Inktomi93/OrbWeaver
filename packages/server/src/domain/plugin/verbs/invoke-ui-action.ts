@@ -38,12 +38,17 @@
 // sentence to the person, and leaving items behind would deliver them to a LATER, unrelated round-trip.
 
 import type { PluginUiOutcome } from "@orb/contracts/plugin";
-import { DomainNotFoundError } from "@orb/kit/errors";
-import { PluginNotFoundError } from "../contract/errors.ts";
+import { DomainError, DomainNotFoundError } from "@orb/kit/errors";
+import { PluginActionFailedError, PluginNotFoundError } from "../contract/errors.ts";
 import type { InvokeUiActionParams } from "../contract/params.ts";
 import type { PluginContext, PluginRegistry, PluginService } from "../contract/service.ts";
 import { getById } from "../persistence/plugins.ts";
 import { resolveUiOutcome } from "../substrate/ui-outbox.ts";
+
+/** A guest's own throw is a typed plugin refusal, not a bare server error; a host DomainError keeps its mapping. */
+function asPluginActionError(error: unknown): never {
+  throw error instanceof DomainError ? error : new PluginActionFailedError(`plugin action failed: ${error instanceof Error ? error.message : String(error)}`);
+}
 
 export function createInvokeUiAction(ctx: PluginContext, registry: PluginRegistry): PluginService["invokeUiAction"] {
   return async ({ caller, pluginId, surfaceId, actionId, values, chatId }: InvokeUiActionParams) => {
@@ -79,7 +84,7 @@ export function createInvokeUiAction(ctx: PluginContext, registry: PluginRegistr
     // with a sad toast.
     let outcome: PluginUiOutcome = { toasts: [] };
     try {
-      await resident.invoke(surface.onAction, (chatHandle) => JSON.stringify({ actionId, values, chat: chatHandle }), chat);
+      await resident.invoke(surface.onAction, (chatHandle) => JSON.stringify({ actionId, values, chat: chatHandle }), chat).catch(asPluginActionError);
     } finally {
       outcome = resolveUiOutcome(ctx.uiOutbox.drain(pluginId), resident.instance);
     }
