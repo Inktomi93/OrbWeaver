@@ -479,6 +479,7 @@ export async function gatherAssembleContext(
 
       mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds,
+      memberPersonaLore: chatRow?.metadata.memberPersonaLore,
       promptConfig: foreign.promptConfig,
       personas: foreign.personas,
       multiHuman: args.multiHuman,

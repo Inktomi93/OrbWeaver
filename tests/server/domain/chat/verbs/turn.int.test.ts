@@ -28,7 +28,8 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import { UTC_TIME_ZONE } from "@orb/kit/time";
+import type { IanaTimeZone } from "@orb/kit/time";
+import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -232,6 +233,8 @@ function harness(
     /** The tool-use ops (default null = not wired). The R2 attach pins wire a fake so the declared name can
      *  actually resolve to a wire tool. */
     tools?: ChatContext["tools"];
+    /** Pin the clock (the deferred-drain zone pin reads a known wall-clock instant through `{{time}}`). */
+    now?: ChatContext["now"];
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -280,6 +283,7 @@ function harness(
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
     ...(over.teaching !== undefined ? { teaching: over.teaching } : {}),
     ...(over.tools !== undefined ? { tools: over.tools } : {}),
+    ...(over.now !== undefined ? { now: over.now } : {}),
   });
   const emit = (event: ChatBusEvent): Promise<void> => {
     events.push(event);
@@ -709,6 +713,29 @@ describe("send — presence character-gating", () => {
 
     expect(wire).toContain("HOST-POV-LORE for host_pov");
     expect(wire).toContain("MEMBER-POV-LORE for member_pov");
+  });
+
+  test("with the host's member-persona-lore switch OFF, a member's own send carries no member persona lore; the host's still joins", async () => {
+    const room = await seedTwoHumanRoom();
+    const [seeded] = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, room.chatId));
+    await db
+      .update(chats)
+      .set({ metadata: { ...seeded?.metadata, memberPersonaLore: false } })
+      .where(eq(chats.id, room.chatId));
+    await seedPersonaLore(room.host, room.hostPersona, "hostlore", "HOST-POV-LORE");
+    await seedPersonaLore(room.member, room.memberPersona, "memberlore", "MEMBER-POV-LORE");
+    let wire = "";
+    const h = harness(db, room.names, {
+      onChatRequest: (req) => {
+        wire = JSON.stringify(req);
+      },
+    });
+
+    // The MEMBER drives the turn: their own lore still stays out, because the room's prompt is the host's call.
+    await h.turn.send({ principal: principal(room.member), chatId: room.chatId, content: "hi" });
+
+    expect(wire).toContain("HOST-POV-LORE");
+    expect(wire).not.toContain("MEMBER-POV-LORE");
   });
 
   test("a member who LEFT the room takes their persona-book lore with them; the host's survives", async () => {
@@ -1954,6 +1981,58 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
     expect(assistants[0]?.characterId).toBe(chars[0]);
+  });
+
+  /** A clock-rendering drain harness: every drained request's static prompt carries `CLOCK <date> <time>`. */
+  function clockDrainHarness(host: UserId, names: Readonly<Record<string, string>>): { h: Harness; clocks: () => string[] } {
+    const requests: unknown[] = [];
+    const promptConfig: PromptConfig = {
+      ...DEFAULT_PROMPT_CONFIG,
+      sections: [
+        { type: "literal", id: "clock", name: "clock", role: "system", content: "CLOCK {{date}} {{time}}", enabled: true },
+        ...DEFAULT_PROMPT_CONFIG.sections,
+      ],
+    };
+    // 20:00 UTC on 2026-01-15: 01:45 on the 16th in Kathmandu (+5:45), 15:00 on the 15th in New York (-5).
+    const h = harness(db, names, {
+      readPresence: hostOffline(host),
+      promptConfig,
+      onChatRequest: (r) => requests.push(r),
+      now: () => Date.UTC(2026, 0, 15, 20, 0),
+    });
+    const clocks = (): string[] => requests.map((r) => /CLOCK (\S+ \S+)/.exec((r as { prompt?: { static?: string } }).prompt?.static ?? "")?.[1] ?? "no clock");
+    return { h, clocks };
+  }
+
+  function zone(name: string): IanaTimeZone {
+    const parsed = parseIanaTimeZone(name);
+    if (parsed === null) {
+      throw new Error(`the platform must resolve ${name}`);
+    }
+    return parsed;
+  }
+
+  test("each drained turn renders the zone its sender reported when it deferred, even after the sender's zone moved", async () => {
+    const { host, member, chatId, names } = await seedMemberRoom();
+    const { h, clocks } = clockDrainHarness(host, names);
+
+    await h.turn.send({ principal: principal(member), chatId, content: "from Kathmandu", timeZone: zone("Asia/Kathmandu") });
+    // The sender travels: their next send reports a different zone; the first queued turn keeps its own.
+    await h.turn.send({ principal: principal(member), chatId, content: "from New York", timeZone: zone("America/New_York") });
+    await expect(h.turn.drainDeferredTurns({ hostUserId: host })).resolves.toStrictEqual({ ran: 2, dropped: 0 });
+
+    expect(clocks()).toEqual(["2026-01-16 01:45:00", "2026-01-15 15:00:00"]);
+  });
+
+  test("a deferred turn with no reported zone drains on the UTC clock", async () => {
+    const { host, member, chatId, names } = await seedMemberRoom();
+    const { h, clocks } = clockDrainHarness(host, names);
+
+    await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+    expect((await loadPendingTurns(db, chatId))[0]?.timeZone).toBeNull();
+    await expect(h.turn.drainDeferredTurns({ hostUserId: host })).resolves.toStrictEqual({ ran: 1, dropped: 0 });
+
+    expect(clocks()).toEqual(["2026-01-15 20:00:00"]);
   });
 
   test("deferred replay preserves the host funder frozen when the turn was queued", async () => {

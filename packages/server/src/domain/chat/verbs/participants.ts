@@ -55,6 +55,7 @@ import type {
   SetGroupConfigParams,
   SetHostDisplayScriptsParams,
   SetMemberHistoryVisibilityParams,
+  SetMemberPersonaLoreParams,
   SetOfferChoicesParams,
   SetReactionsEnabledParams,
   SetRegexAllowParams,
@@ -120,6 +121,7 @@ type ParticipantVerbs = Pick<
   | "setOfferChoices"
   | "setCharactersCanReact"
   | "setReactionsEnabled"
+  | "setMemberPersonaLore"
   | "setToolRecurseLimit"
   | "getGroupConfigForChat"
   | "getRoomOverridesForChat"
@@ -179,6 +181,7 @@ export function createParticipants(ctx: ChatContext, deps: ParticipantDeps): Par
     setOfferChoices: createSetOfferChoices(ctx, emit, claimChat),
     setCharactersCanReact: createSetCharactersCanReact(ctx, emit, claimChat),
     setReactionsEnabled: createSetReactionsEnabled(ctx, emit, claimChat),
+    setMemberPersonaLore: createSetMemberPersonaLore(ctx, emit, claimChat),
     setToolRecurseLimit: createSetToolRecurseLimit(ctx, emit, claimChat),
     getGroupConfigForChat: createGetGroupConfigForChat(ctx),
     getRoomOverridesForChat: createGetRoomOverridesForChat(ctx),
@@ -491,6 +494,23 @@ function createSetReactionsEnabled(ctx: ChatContext, emit: EmitChatEvent, claimC
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       { actorUserId: principal.userId, action: "chat.setReactionsEnabled", entityType: "chat", entityId: chatId, metadata: { enabled } },
+      ctx.now(),
+    );
+    return enabled;
+  };
+}
+
+/** `setMemberPersonaLore` — host-only. Writes `chatMetadata.memberPersonaLore`; the world-info pool reads it
+ *  to keep members' persona books out of the shared prompt when off. */
+function createSetMemberPersonaLore(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["setMemberPersonaLore"] {
+  return async ({ principal, chatId, enabled }: SetMemberPersonaLoreParams): Promise<boolean> => {
+    const { chat } = await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
+    const effective: ChatMetadata = { ...chat.metadata, memberPersonaLore: enabled };
+    await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "memberPersonaLore", value: enabled, effective, authority: "carried" });
+    await emit({ type: "chatUpdated", chatId });
+    await ctx.audit(
+      { actorUserId: principal.userId, action: "chat.setMemberPersonaLore", entityType: "chat", entityId: chatId, metadata: { enabled } },
       ctx.now(),
     );
     return enabled;

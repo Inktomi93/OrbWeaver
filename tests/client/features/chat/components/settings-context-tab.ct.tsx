@@ -25,6 +25,7 @@ const CHAT_DETAIL = {
   viewerIsHost: true,
   toolRecurseLimit: 7,
   hostDisplayScripts: false,
+  memberPersonaLore: true,
   roomOverrides: {},
   participants: [],
 } satisfies TrpcFixtureOutput<"chat.getChat">;
@@ -572,6 +573,63 @@ test("member: the offer-choices switch is ABSENT (host-only omit — this key st
   // Barrier on the member tree's last settled section before the absence read (the #629 lesson).
   await expect(component.getByText("Ashfall Canon")).toBeVisible();
   await expect(component.getByRole("switch", OFFER_CHOICES_SWITCH)).toHaveCount(0);
+});
+
+// The host's member-persona-lore switch (Storytelling, host band): seated from `ChatDetail.memberPersonaLore`,
+// writes `chat.setMemberPersonaLore`, and is omitted for a member like every prompt-steering knob here.
+const UPDATE_MEMBER_PERSONA_LORE = "chat.setMemberPersonaLore";
+const MEMBER_PERSONA_LORE_SWITCH = { name: "Members' persona lore" } as const;
+
+function stubMemberPersonaLore(page: Page, memberPersonaLore: boolean): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
+    "chat.getChat": () => ({ ...CHAT_DETAIL, memberPersonaLore }),
+    [UPDATE_MEMBER_PERSONA_LORE]: () => memberPersonaLore,
+  });
+}
+
+for (const seated of [true, false] as const) {
+  test(`host: the member-persona-lore switch seats ${seated ? "ON" : "OFF"} from the room`, async ({ mount, page }) => {
+    await stubMemberPersonaLore(page, seated);
+    const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+    await openContextSections(component, HOST_BAND);
+    const control = component.getByRole("switch", MEMBER_PERSONA_LORE_SWITCH);
+    await expect(control).toBeVisible();
+    await expect(control).toHaveAttribute("aria-checked", String(seated));
+  });
+}
+
+test("host: turning member persona lore off fires chat.setMemberPersonaLore with false", async ({ mount, page }) => {
+  const trpc = await stubMemberPersonaLore(page, true);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await openContextSections(component, HOST_BAND);
+  await component.getByRole("switch", MEMBER_PERSONA_LORE_SWITCH).click();
+  await expect.poll(() => (trpc.lastInput(UPDATE_MEMBER_PERSONA_LORE) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(false);
+});
+
+test("member: the member-persona-lore switch is ABSENT (host-only omit)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "worldInfo.listForChat": () => ROOM_BOOKS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getVariablePicks": () => VARIABLE_PICKS,
+    "settings.getUserSettings": () => USER_SETTINGS,
+    ...REGEX_READS,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+  await openContextSections(component, "World books");
+  await expect(component.getByText("Ashfall Canon")).toBeVisible();
+  await expect(component.getByRole("switch", MEMBER_PERSONA_LORE_SWITCH)).toHaveCount(0);
 });
 
 // B7 — the two reaction switches (the Reactions section of the host band): the plane's master

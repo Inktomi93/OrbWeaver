@@ -195,9 +195,9 @@
     "sha256": "2af7f983c9b165f48b1cbbc0a788ec1353d48177cc60cafba013efb8ebd68286"
   },
   "group/semi-strict/local/plain/capped": {
-    "droppedCount": 24,
-    "boundaryIndex": 42,
-    "sha256": "74d82d3ade224e2429bd7031178a4e494b43757059d11b0789045b92cf4662f0"
+    "droppedCount": 40,
+    "boundaryIndex": 40,
+    "sha256": "9c5d9d8bf4803999c8f1205573c4edd92a4ee1ab5fe99808a96ff20b3b9decf2"
   },
   "alternating/semi-strict/local/marker/roomy": {
     "droppedCount": 0,
@@ -215,9 +215,9 @@
     "sha256": "e0894dff26b780b0a1afc17948cecac6d6799e84e64b088a3251f8bab451a53e"
   },
   "group/semi-strict/local/marker/capped": {
-    "droppedCount": 24,
-    "boundaryIndex": 42,
-    "sha256": "54bfcae90b4ac62839c9e29c19a8708b01e5187cf6a6cca0ef1ec714fb1ee6ea"
+    "droppedCount": 40,
+    "boundaryIndex": 40,
+    "sha256": "d3ef9e9576a0608e0c0e1e0f56e0c6931eaade90ce19bdf6e310f171c2f0ae3d"
   },
   "alternating/semi-strict/local/compacted/roomy": {
     "droppedCount": 0,
@@ -375,9 +375,9 @@
     "sha256": "2af7f983c9b165f48b1cbbc0a788ec1353d48177cc60cafba013efb8ebd68286"
   },
   "group/strict/local/plain/capped": {
-    "droppedCount": 24,
-    "boundaryIndex": 42,
-    "sha256": "74d82d3ade224e2429bd7031178a4e494b43757059d11b0789045b92cf4662f0"
+    "droppedCount": 40,
+    "boundaryIndex": 40,
+    "sha256": "9c5d9d8bf4803999c8f1205573c4edd92a4ee1ab5fe99808a96ff20b3b9decf2"
   },
   "alternating/strict/local/marker/roomy": {
     "droppedCount": 0,
@@ -395,9 +395,9 @@
     "sha256": "e0894dff26b780b0a1afc17948cecac6d6799e84e64b088a3251f8bab451a53e"
   },
   "group/strict/local/marker/capped": {
-    "droppedCount": 24,
-    "boundaryIndex": 42,
-    "sha256": "54bfcae90b4ac62839c9e29c19a8708b01e5187cf6a6cca0ef1ec714fb1ee6ea"
+    "droppedCount": 40,
+    "boundaryIndex": 40,
+    "sha256": "d3ef9e9576a0608e0c0e1e0f56e0c6931eaade90ce19bdf6e310f171c2f0ae3d"
   },
   "alternating/strict/local/compacted/roomy": {
     "droppedCount": 0,
@@ -555,9 +555,9 @@
     "sha256": "2af7f983c9b165f48b1cbbc0a788ec1353d48177cc60cafba013efb8ebd68286"
   },
   "group/merge/local/plain/capped": {
-    "droppedCount": 24,
-    "boundaryIndex": 42,
-    "sha256": "74d82d3ade224e2429bd7031178a4e494b43757059d11b0789045b92cf4662f0"
+    "droppedCount": 40,
+    "boundaryIndex": 40,
+    "sha256": "9c5d9d8bf4803999c8f1205573c4edd92a4ee1ab5fe99808a96ff20b3b9decf2"
   },
   "alternating/merge/local/marker/roomy": {
     "droppedCount": 0,
@@ -575,9 +575,9 @@
     "sha256": "e0894dff26b780b0a1afc17948cecac6d6799e84e64b088a3251f8bab451a53e"
   },
   "group/merge/local/marker/capped": {
-    "droppedCount": 24,
-    "boundaryIndex": 42,
-    "sha256": "54bfcae90b4ac62839c9e29c19a8708b01e5187cf6a6cca0ef1ec714fb1ee6ea"
+    "droppedCount": 40,
+    "boundaryIndex": 40,
+    "sha256": "d3ef9e9576a0608e0c0e1e0f56e0c6931eaade90ce19bdf6e310f171c2f0ae3d"
   },
   "alternating/merge/local/compacted/roomy": {
     "droppedCount": 0,

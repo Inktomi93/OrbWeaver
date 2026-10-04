@@ -58,6 +58,7 @@ import { ChatDocumentsSection } from "./chat-documents-section.tsx";
 import { CommittedGroupConfigTab } from "./group-config-form.tsx";
 import { InjectionsManager, InjectionsSkeleton } from "./injections-manager.tsx";
 import { MacroPicksSection } from "./macro-picks-section.tsx";
+import { MemberPersonaLoreControl } from "./member-persona-lore-control.tsx";
 import { OfferChoicesControl } from "./offer-choices-control.tsx";
 import { CharactersCanReactControl, ReactionsEnabledControl } from "./reaction-toggles.tsx";
 import { RegexHeading, RegexSection } from "./regex-section.tsx";
@@ -354,11 +355,12 @@ function HostControls({
             matches its two neighbours' exactly. */}
         <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Storytelling" sectionId="storytelling">
           <QueryBoundary
-            fallback={<SkeletonRows count={1} shape="line" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="the offer-choices setting" onRetry={retry} />}
+            fallback={<SkeletonRows count={2} shape="line" />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the storytelling settings" onRetry={retry} />}
             reserveKey="chat.context.storytelling"
           >
             <OfferChoicesControl chatId={chatId} />
+            <MemberPersonaLoreControl chatId={chatId} />
           </QueryBoundary>
         </DisclosureSection>
         {/* Reactions (B7) — the plane's master switch + the react-tool opt-in, SIDE BY SIDE (owner ask:

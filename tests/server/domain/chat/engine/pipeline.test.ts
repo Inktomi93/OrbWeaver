@@ -3410,10 +3410,32 @@ describe("runTurnPipeline — the history fit on a squashed run", () => {
       expect(result.contextBoundaryMessageId).toBe(canon[result.droppedCount]?.id);
       expect(historyText(result.request)).toContain("reply 21 ");
     });
+
+    // The run sits BEFORE the newest row, so the post-shape fit may drop it whole while the request still fits.
+    test.each(MergingLevels)("a squashed reply run before the newest row keeps its newest part on a local 8k window at `%s`", async (level) => {
+      const canon = [
+        storedRow(1, "user", "go"),
+        ...Array.from({ length: 20 }, (_, i) => storedRow(i + 2, "assistant", `reply ${i + 2} ${Dense}`, Authors[i % 2] ?? ARIA)),
+        storedRow(22, "user", "what now"),
+      ];
+      const result = await runTurnPipeline(
+        baseArgs({ canon, connection: Wires.local(8192), assembleContext: groupCtx({ promptConfig: presetAt(level) }) }).args,
+      );
+
+      expect(fits(result)).toBe(true);
+      // The boundary opens inside the run, and the newest replies reach the wire with the user's row after them.
+      const boundary = canon.findIndex((m) => m.id === result.contextBoundaryMessageId);
+      expect(boundary).toBeGreaterThan(1);
+      expect(boundary).toBeLessThan(21);
+      expect(result.droppedCount).toBe(boundary);
+      expect(historyText(result.request)).toContain("reply 21 ");
+      expect(historyText(result.request)).toContain("what now");
+    });
   });
 
   // Every case below must reach the wire exactly as before the pre-trim existed: the goldens were recorded from the
-  // pipeline that had no pre-trim. The `overflow/` cases overrun the window without a squashed run (a lone oversized
+  // pipeline that had no pre-trim, except the six `group/<merging level>/local/*/capped` cases, whose old cut dropped
+  // a squashed reply run whole and now keeps its newest part. The `overflow/` cases overrun the window without a squashed run (a lone oversized
   // row, an oversized newest row beside a note), which the pre-trim must leave as the old fit left them.
   describe("a request without a squashed overrun is byte-identical", () => {
     const Variants = {
