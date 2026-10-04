@@ -1441,8 +1441,8 @@ const PROBES: readonly Probe[] = [
   //    predicate is now the ONLY thing between a stranger and A's row and it belongs under probe. Each takes
   //    A's REAL pluginId. `upgrade` carries a real, valid, hostile bundle so a dropped belt would actually
   //    swap A's code (the post-sweep re-read is its teeth — the verb's own leak would show as MARK.plugin in
-  //    the returned view). setGrant asks for the widest reach; setEnabled would BOOT A's guest code under the
-  //    stranger's principal, which is the confused-deputy case D147 exists to close. ──
+  //    the returned view). setGrant asks for the widest reach AND to run it; setEnabled would BOOT A's guest
+  //    code under the stranger's principal, which is the confused-deputy case D147 exists to close. ──
   { path: "plugin.upgrade", call: (c, i) => c.plugin.upgrade({ pluginId: i.pluginId, bundleBase64: hostileBundleBase64("alpha-plugin") }) },
   // ── plugin.upgradeFromStoredUrl (U8 2b) — the one-click-from-remembered-URL twin, owner-
   //    scoped the SAME way and PROBED for the SAME reason: a stranger holding A's REAL pluginId must NOT_FOUND
@@ -1469,7 +1469,7 @@ const PROBES: readonly Probe[] = [
   { path: "plugin.upgradeFromShowcase", call: (c, i) => c.plugin.upgradeFromShowcase({ pluginId: i.pluginId }) },
   {
     path: "plugin.setGrant",
-    call: (c, i) => c.plugin.setGrant({ pluginId: i.pluginId, grant: ["chat.read", "net.fetch"], acknowledgedNetHosts: ["api.vendor.example"] }),
+    call: (c, i) => c.plugin.setGrant({ pluginId: i.pluginId, grant: ["chat.read", "net.fetch"], acknowledgedNetHosts: ["api.vendor.example"], enable: true }),
   },
   { path: "plugin.setEnabled", call: (c, i) => c.plugin.setEnabled({ pluginId: i.pluginId, enabled: true }) },
   { path: "plugin.uninstall", call: (c, i) => c.plugin.uninstall({ pluginId: i.pluginId }) },

@@ -429,9 +429,9 @@ const NAME_ROW = '[data-slot="message-name-row"]';
 
 /** The name row's OUTER extent — border box PLUS its own block margins — and BOTH arms of a layout-
  *  neutrality comparison must be read this way (#1873). The height-only read the sticky comparisons used
- *  on their non-sticky arm was blind to the box that actually moved: an inside header reserves the
- *  zero-height action cluster's paint with `mb-section` (#204), which the sticky arm used to drop, taking
- *  --spacing-section out of the row at the exact moment the verdict landed — and since `exceedsViewport`
+ *  on their non-sticky arm was blind to the box that actually moved: an inside header once reserved the
+ *  action rail's paint with a bottom margin that the sticky arm dropped, taking it out of the row at the
+ *  exact moment the verdict landed — and since `exceedsViewport`
  *  (the verdict's own input) IS the measured row height, that inverted the verdict and oscillated the
  *  transcript. The margins are the whole question, so neither arm may omit them. */
 async function nameRowOuterExtent(nameRow: Locator): Promise<number> {
@@ -1398,8 +1398,10 @@ test("#204/#288 the header's height derives from the name, not the invisible act
   const rowPadPx = SNAPPED_LENGTH_BASE_PX["spacing.row"];
   const insideHeight = await inside.locator(NAME_ROW).evaluate((el) => el.getBoundingClientRect().height);
   const insideName = await inside.locator(ATTRIBUTION).evaluate((el) => el.getBoundingClientRect().height);
-  // An INSIDE header takes no plate of its own: it is exactly the name line, no padding term at all.
-  expect(Math.abs(insideHeight - insideName)).toBeLessThan(2);
+  const railHeight = await inside.locator(ACTIONS_ROW).evaluate((el) => el.getBoundingClientRect().height);
+  // An INSIDE header takes no plate of its own. The rail spends the container's top inset and the row gap
+  // below before it may add height, so the header is the name line or `rail - 2 * row`, whichever is taller.
+  expect(Math.abs(insideHeight - Math.max(insideName, railHeight - 2 * rowPadPx))).toBeLessThan(1);
   // …while the cluster's buttons keep their full interactive box (they overflow the slot, not shrink).
   const buttonBox = await inside.getByRole("button", { name: MESSAGE_EDIT_NAME }).boundingBox();
   expect(buttonBox?.height ?? 0).toBeGreaterThan(insideHeight);
@@ -1415,6 +1417,69 @@ test("#204/#288 the header's height derives from the name, not the invisible act
   // The OUTSIDE header still hugs `name + 2×py-row` — the chip's own padding and nothing else.
   expect(Math.abs(outsideHeight - (outsideName + 2 * rowPadPx))).toBeLessThan(2);
 });
+
+// ── No empty band between an inside header and its body ───────────────────────────────────────────
+// The rail used to reserve a whole --spacing-section under the header (32px name-to-body against an 8px
+// row gap). The body must follow the header at the container's own row gap, and the rail must still fit
+// inside the bubble without reaching the prose, at both pointer sizes.
+interface HeaderBodyGeometry {
+  readonly placement: string | null;
+  readonly headerBottom: number;
+  readonly nameTop: number;
+  readonly nameBottom: number;
+  readonly bodyTop: number;
+  readonly railTop: number;
+  readonly railBottom: number;
+  readonly bubbleTop: number;
+}
+
+function headerBodyGeometry(component: Locator): Promise<HeaderBodyGeometry> {
+  return component.locator(NAME_ROW).evaluate((header: HTMLElement) => {
+    const body = header.nextElementSibling;
+    const name = header.querySelector("[data-slot='message-attribution']");
+    const rail = header.querySelector("[data-slot='message-actions-row']");
+    const bubble = header.closest("[data-slot='message-bubble']");
+    if (body === null || name === null || rail === null || bubble === null) {
+      throw new Error("inside header is missing its body, name, rail or bubble");
+    }
+    return {
+      placement: header.getAttribute("data-placement"),
+      headerBottom: header.getBoundingClientRect().bottom,
+      nameTop: name.getBoundingClientRect().top,
+      nameBottom: name.getBoundingClientRect().bottom,
+      bodyTop: body.getBoundingClientRect().top,
+      railTop: rail.getBoundingClientRect().top,
+      railBottom: rail.getBoundingClientRect().bottom,
+      bubbleTop: bubble.getBoundingClientRect().top,
+    };
+  });
+}
+
+const INSIDE_CHAT_STYLES = ALL_CHAT_STYLES.filter((style) => style !== "tide");
+
+for (const coarse of [false, true] as const) {
+  test.describe(`inside header-to-body gap, ${coarse ? "coarse" : "fine"} pointer`, () => {
+    test.use({ hasTouch: coarse });
+    for (const chatStyle of INSIDE_CHAT_STYLES) {
+      test(`${chatStyle}: the body follows the header at the row gap and the rail stays clear of it`, async ({ mount, page }) => {
+        await expect.poll(async () => await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(coarse);
+        const component = await mount(<MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
+        const rowPx = SNAPPED_LENGTH_BASE_PX["spacing.row"];
+        const g = await headerBodyGeometry(component);
+        expect(g.placement).toBe("inside");
+        expect(Math.abs(g.bodyTop - g.headerBottom - rowPx)).toBeLessThan(1);
+        // The name is centred on a header no taller than the rail can borrow from the two insets, so the
+        // only space under it beyond the row gap is half of what the rail could not borrow.
+        const railPx = g.railBottom - g.railTop;
+        const namePx = g.nameBottom - g.nameTop;
+        const expectedNameGap = rowPx + Math.max(0, (railPx - 2 * rowPx - namePx) / 2);
+        expect(Math.abs(g.bodyTop - g.nameBottom - expectedNameGap)).toBeLessThan(1);
+        expect(g.railTop).toBeGreaterThanOrEqual(g.bubbleTop - 1);
+        expect(g.railBottom).toBeLessThanOrEqual(g.bodyTop + 1);
+      });
+    }
+  });
+}
 
 // ── #204: the DERIVE LAW — a plate's ink comes from the SAME palette as the plate ────────────────────
 // flat/hush painted the reading plate with NO ink token at all, so their body prose INHERITED
@@ -1844,8 +1909,8 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     await expect.poll(async () => (await readRaisedAtAssertion()).z).toBe(raised.token);
     // The chip is unconditional here (not wallpaper-gated) — it backs the row's own prose scrolling under it.
     await expect.poll(async () => await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
-    // LAYOUT-NEUTRAL: the band's padding is cancelled and the action cluster's `mb-section` reservation
-    // stands in BOTH arms (#1873), so the virtualizer's measured extent cannot move when the sticky verdict
+    // LAYOUT-NEUTRAL: the band's padding is cancelled and the inside header's minimum height stands in
+    // BOTH arms (#1873), so the virtualizer's measured extent cannot move when the sticky verdict
     // lands — which happens AFTER measurement, so any change re-enters the verdict as its own input.
     // Both arms are read as OUTER extent (`nameRowOuterExtent`): the margins ARE the invariant.
     const stuckOuter = await nameRowOuterExtent(stuck.locator(NAME_ROW));

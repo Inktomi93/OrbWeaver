@@ -554,6 +554,115 @@ test("an unfinished row is HELD through a save, and remove takes the row it name
   await expect(component.locator('[data-extra-key="stream"]')).toHaveCount(1);
 });
 
+// ── the two Custom body fields take what a server's docs print ─────────────────────────────────────────
+// Every format reads to the same object, which is what the update writes and what the field then shows as JSON.
+
+const PASTED_FORMATS = [
+  ["strict JSON", '{"chat_template_kwargs": {"enable_thinking": false}, "stop": ["</s>", "<|im_end|>"], "min_p": 0.05}'],
+  ["YAML with a nested block and a list", "chat_template_kwargs:\n  enable_thinking: false\nstop:\n  - </s>\n  - <|im_end|>\nmin_p: 0.05"],
+  ["unquoted keys, single quotes and trailing commas", "{chat_template_kwargs: {enable_thinking: false,}, stop: ['</s>', '<|im_end|>',], min_p: 0.05,}"],
+  ["key=value lines", 'chat_template_kwargs={"enable_thinking": false}\nstop=["</s>", "<|im_end|>"]\nmin_p=0.05'],
+] as const;
+const PASTED_FIELDS = { ["chat_template_kwargs"]: { ["enable_thinking"]: false }, stop: ["</s>", "<|im_end|>"], ["min_p"]: 0.05 };
+// A value that YAML would read as an object, and that must reach the wire as the text typed.
+const JINJA_TEMPLATE = "{% for message in messages %}{{ message['role'] }}: {{ message['content'] }}\n{% endfor %}\n";
+const UNPARSEABLE_BLOCK = "chat_template_kwargs:\n  documents: [unclosed";
+
+/** A paste as the browser delivers one: a cancelable `paste` event carrying the text on its clipboard data. */
+async function paste(target: Locator, text: string): Promise<void> {
+  await target.evaluate((element, pasted) => {
+    const data = new DataTransfer();
+    data.setData("text/plain", pasted);
+    element.dispatchEvent(new ClipboardEvent("paste", { clipboardData: data, bubbles: true, cancelable: true }));
+  }, text);
+}
+
+for (const [format, pasted] of PASTED_FORMATS) {
+  test(`extra request fields: a pasted block of ${format} becomes one row per field and saves the object`, async ({ mount, page }) => {
+    const recorder = await stubEditor(page);
+    const component = await mount(<ConnectionEditorStory />);
+    await tier(page, "Diagnostics").click();
+
+    await paste(component.locator('[data-slot="connection-extra-row"]').last().getByLabel("Field", { exact: true }), pasted);
+    await expect
+      .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+      .toEqual({ connectionId: CONNECTION_ID, patch: { extras: { ["top_k"]: 40, stream: false, ...PASTED_FIELDS } } });
+    await expect(component.locator('[data-extra-key="chat_template_kwargs"]').getByLabel("Value", { exact: true })).toHaveValue(
+      JSON.stringify({ ["enable_thinking"]: false }, null, 2),
+    );
+    await expect(component.locator('[data-extra-key="stop"]').getByLabel("Value", { exact: true })).toHaveValue(
+      JSON.stringify(["</s>", "<|im_end|>"], null, 2),
+    );
+  });
+
+  test(`fields to add or replace: ${format} saves the object and reads back as JSON`, async ({ mount, page }) => {
+    const recorder = await stubEditor(page);
+    const component = await mount(<ConnectionEditorStory />);
+    await tier(page, "Diagnostics").click();
+
+    const field = component.getByLabel("Fields to add or replace");
+    await field.fill(pasted);
+    await field.blur();
+    await expect
+      .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+      .toEqual({ connectionId: CONNECTION_ID, patch: { transport: { includeBody: PASTED_FIELDS } } });
+    await expect(field).toHaveValue(JSON.stringify(PASTED_FIELDS, null, 2));
+  });
+}
+
+test("extra request fields: a typed JSON value saves structured; a template value saves exactly as typed", async ({ mount, page }) => {
+  const recorder = await stubEditor(page);
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+
+  const row = component.locator('[data-slot="connection-extra-row"]').last();
+  await row.getByLabel("Field", { exact: true }).fill("chat_template_kwargs");
+  const value = row.getByLabel("Value", { exact: true });
+  await value.fill('{"enable_thinking": false, "documents": []}');
+  await value.blur();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({
+      connectionId: CONNECTION_ID,
+      patch: { extras: { ["top_k"]: 40, stream: false, ["chat_template_kwargs"]: { ["enable_thinking"]: false, documents: [] } } },
+    });
+  await expect(value).toHaveValue(JSON.stringify({ ["enable_thinking"]: false, documents: [] }, null, 2));
+
+  const template = component.locator('[data-extra-key="stream"]').getByLabel("Value", { exact: true });
+  await template.fill(JINJA_TEMPLATE);
+  await template.blur();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({
+      connectionId: CONNECTION_ID,
+      patch: { extras: { ["top_k"]: 40, stream: JINJA_TEMPLATE, ["chat_template_kwargs"]: { ["enable_thinking"]: false, documents: [] } } },
+    });
+  await expect(template).toHaveValue(JINJA_TEMPLATE);
+});
+
+test("an unparseable paste says why in either field and saves nothing", async ({ mount, page }) => {
+  const recorder = await stubEditor(page);
+  const component = await mount(<ConnectionEditorStory />);
+  await tier(page, "Diagnostics").click();
+
+  const emptyRow = component.locator('[data-slot="connection-extra-row"]').last();
+  await paste(emptyRow.getByLabel("Field", { exact: true }), UNPARSEABLE_BLOCK);
+  await expect(emptyRow.locator('[data-slot="field-error"]')).toBeVisible();
+
+  const field = component.getByLabel("Fields to add or replace");
+  await field.fill(UNPARSEABLE_BLOCK);
+  await field.blur();
+  await expect(
+    component
+      .locator('[data-slot="field-root"]')
+      .filter({ has: page.getByLabel("Fields to add or replace") })
+      .locator('[data-slot="field-error"]'),
+  ).toBeVisible();
+  await expect(field).toHaveValue(UNPARSEABLE_BLOCK);
+  // @orb-waive ct-no-oneshot-live-read-assert(expect): settled — both reasons are on screen, so both reads returned, and a refused read writes nothing after it.
+  expect(recorder.count("connection.update")).toBe(0);
+});
+
 // ── reachability + the admission affordance ────────────────────────────────────────────────────────────
 
 test("an unreachable endpoint says §5.3a's sentence, and the owner is offered the admission", async ({ mount, page }) => {

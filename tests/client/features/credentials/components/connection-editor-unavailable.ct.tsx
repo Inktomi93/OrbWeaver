@@ -257,6 +257,7 @@ test("a failed re-consent reactivation refreshes the warmed provider connection 
     .poll(() => recorder.lastInput("plugin.setGrant"))
     .toEqual({
       acknowledgedNetHosts: [],
+      enable: true,
       grant: ["chat.read"],
       pluginId: PLUGIN_ID,
     });

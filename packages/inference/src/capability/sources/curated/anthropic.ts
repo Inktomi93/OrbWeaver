@@ -13,6 +13,10 @@ const SYSTEM_ROW_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1
  *  opus-4-8 return 200 and ignore the row's instruction, so their trailing system rows fold to user text. */
 const TAIL_SYSTEM_MODELS = "^(anthropic/)?claude[-/](opus-5([-.]5)?|fable-5([-.]1)?|sonnet-5[-.]5)$";
 
+/** The Claude ids that continue a trailing assistant row: 4.5 and older, optionally a dated snapshot or an OpenRouter
+ *  `:variant`. 4.6 and later refuse it with a 400 and stay on the family cell. */
+const PREFILL_MODELS = "^(anthropic/)?claude[-/](sonnet-4([-.]5)?|opus-4[-.][15]|haiku-4[-.]5)(-20[0-9]{6})?(:[a-z-]+)?$";
+
 /** The Claude generations released before preserved thinking became the rule for new models, which run no prefix
  *  check: an exact generation, optionally a snapshot dated before 2026-10-01 and an OpenRouter `:variant`. Every
  *  other Claude id is prefix-bound by the row that reads this, so a later release fails closed to `drop_block`.
@@ -55,10 +59,8 @@ export const anthropicRows = [
         replay: "signed",
       },
       turns: {
-        // False on every Claude id and route. The newer ids 400 a trailing assistant row; the 4.5 ids accept it
-        // but answer a continue (the finished reply as the prefill) with three tokens of nothing — OpenRouter
-        // haiku-4.5 gen-1790137541-jdHgdXhju27JwK4tK9XH, opus-4.5 gen-1790141538-eBRpWlikU1TqDrHB1EWH, direct
-        // haiku-4-5 req_011CfKpkas4tLck9X6hodkK7.
+        // False on the family: 4.6 and later 400 a trailing assistant row. The PREFILL_MODELS rows below turn it on
+        // for the 4.5-and-older ids, which continue one.
         assistantPrefill: false,
         midConversationSystem: false,
         historySystemRows: false,
@@ -71,6 +73,27 @@ export const anthropicRows = [
       tier: "curated",
       dated: "2026-09-19",
       cite: "domain/connection/catalog/chat-models.ts CLAUDE_CAPABILITY_FLOOR + turns.ts NON-version cells; roleHandlingFloor strict (turns.ts:90,103). midConversationSystem/historySystemRows stay false on the family cell as the fail-closed default: SHAPING-MATRIX §7 measured a tail and a legal mid-array system row at 200 on opus-5, opus-5-5, fable-5, fable-5-1, sonnet-5 and opus-4-8 (the SYSTEM_ROW_MODELS rows below), 400 on haiku-4-5 for any system row (req_011CfKhZ8ALv97q91yH4eqep), and opus-5 failing a mid-array row on OpenRouter (the OpenRouter opus-5 row below). Where a system row folds, SHAPE sends the note bare: a fold inside the history leads the user message it joins, at its depth, and a trailing fold follows the latest user text (OR-11, scripts/probes/openrouter/RESULTS.md). Depth-2 note that must end the reply with a canary word, direct: bare before the user text sonnet-5 12/15, opus-4-8 15/15 against 9/15 and 10/15 for the framed fold after it; haiku-4-5 a next-reply note 10/10 (req_011CfNequm73NFZ9tBhNJB4g…) against 2/10, a standing note 0/10 in every placement, the latest message included. structuredLimitsFrom: platform.claude.com/docs/en/build-with-claude/structured-outputs 'Schema complexity limits' (24 optional parameters, 16 parameters with union types per request, fetched 2026-10-03); live 2026-10-03 OpenRouter anthropic/claude-sonnet-5.5 pinned to Anthropic, the rpg structured state round schema: 41 optional -> 400 'too many optional parameters (41) ... limit: 24' (req_011CffjcY1wYWAdWZwDY7zPs), strict-compatible 41 unions -> 400 'limit: 16 parameters with unions' (req_011CffjcWiZm184n3SZN3B1A)",
+    },
+  },
+  // What Anthropic's OpenAI-compatible surface takes, so a Custom endpoint proxying Claude is not offered vLLM's
+  // extras. The version rows below that state an empty set replace it; OpenRouter's advertised list replaces it too.
+  {
+    match: {
+      model: "^(anthropic/)?claude[-/]",
+      wire: "openai-compat",
+    },
+    generation: {
+      sampling: {
+        temperature: { min: 0, max: 1 },
+        topP: { min: 0, max: 1 },
+        stop: true,
+        exclusive: [["temperature", "topP"]],
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-04",
+      cite: "platform.claude.com/docs/en/cli-sdks-libraries/libraries/openai-sdk (fetched 2026-10-04): temperature 0 to 1, top_p and stop supported; presence_penalty, frequency_penalty, seed and logit_bias ignored; no top_k. scripts/probes/hosted-families/RESULTS.md, OpenRouter anthropic (2026-10-03): min_p, repetition_penalty and top_a dropped upstream on every Claude id, top_k dropped on 4.6 and later. exclusive: the direct-wire pair rule below",
     },
   },
   {
@@ -621,6 +644,39 @@ export const anthropicRows = [
       tier: "curated",
       dated: "2026-09-23",
       cite: "owner ruling on the SHAPING-MATRIX follow-up: opus-5 fails a mid-array system row on OpenRouter; the tail row stands",
+    },
+  },
+  // The Claude runtime builds its own requests and carries no prefill, so only the two request-building routes take it.
+  {
+    match: {
+      model: PREFILL_MODELS,
+      wire: "anthropic-messages",
+    },
+    generation: {
+      turns: {
+        assistantPrefill: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-04",
+      cite: "owner ruling 2026-10-04 on the hosted family sweep (scripts/probes/hosted-families/RESULTS.md, OpenRouter anthropic c5: the assistant tail 'A B C D E' CONTINUES on sonnet-4, sonnet-4.5, opus-4.1, opus-4.5 and haiku-4.5, passed upstream as a trailing assistant turn; 400 'This model does not support assistant message prefill' on 4.6 and later). Direct: claude-opus-4-5 accepts a trailing assistant row (2026-09-19, backends/anthropic-messages/chat.ts refusePrefill), and direct haiku-4-5 returned 200 (req_011CfKpkas4tLck9X6hodkK7). The ruling overrides the earlier concern that a continue of a FINISHED reply comes back nearly empty (OpenRouter haiku-4.5 gen-1790137541-jdHgdXhju27JwK4tK9XH, opus-4.5 gen-1790141538-eBRpWlikU1TqDrHB1EWH)",
+    },
+  },
+  {
+    match: {
+      model: PREFILL_MODELS,
+      provider: "openrouter",
+    },
+    generation: {
+      turns: {
+        assistantPrefill: true,
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-04",
+      cite: "owner ruling 2026-10-04 on scripts/probes/hosted-families/RESULTS.md, OpenRouter anthropic c5: CONTINUES on sonnet-4, sonnet-4.5, opus-4.1, opus-4.5 and haiku-4.5 (echoed upstream body: last=assistant)",
     },
   },
   {

@@ -334,17 +334,33 @@ function viaOpenRouter(model: string): GenerationCapability {
   return out.capability.generation;
 }
 
-// A continue by prefill sends the finished reply as a trailing assistant row, and the 4.5 Claude ids answer it
-// with three tokens of nothing, so orb raised `empty_generation` on every continue: OpenRouter haiku-4.5 3/3
-// (gen-1790136293-3HzFJAEZLWdWhVIMTuaj, gen-1790137541-jdHgdXhju27JwK4tK9XH, gen-1790137552-8L83X2LFGBxR3JUcK918),
-// and on the same body OpenRouter opus-4.5 (gen-1790141538-eBRpWlikU1TqDrHB1EWH, gen-1790141540-B9bltq0wuWN94AjGl7VH)
-// and direct haiku-4-5 (req_011CfKpkas4tLck9X6hodkK7, req_011CfKpkkjtZhF2cGfwxDHav). Without prefill, continue
-// sends its own user cue and the model writes more.
-test("no Claude route claims assistant prefill: a continue by prefill returns nothing on the 4.5 ids", () => {
-  for (const model of ["anthropic/claude-haiku-4.5", "anthropic/claude-opus-4.5", "anthropic/claude-sonnet-5", "anthropic/claude-opus-5.5"]) {
+// Owner ruling 2026-10-04 on the hosted family sweep (scripts/probes/hosted-families/RESULTS.md, OpenRouter c5): the
+// 4.5-and-older ids continue a trailing assistant row; 4.6 and later refuse it with a 400. The Claude runtime builds
+// its own requests, so it never takes one.
+test("the 4.5-and-older Claude ids take assistant prefill on the direct and OpenRouter routes; 4.6 and later do not", () => {
+  for (const model of [
+    "anthropic/claude-sonnet-4",
+    "anthropic/claude-sonnet-4.5",
+    "anthropic/claude-opus-4.1",
+    "anthropic/claude-opus-4.5",
+    "anthropic/claude-haiku-4.5",
+  ]) {
+    expect(viaOpenRouter(model).turns?.assistantPrefill, model).toBe(true);
+  }
+  for (const model of ["claude-haiku-4-5", "claude-opus-4-5-20251101", "claude-sonnet-4-20250514", "claude-opus-4-1-20250805"]) {
+    expect(direct(model).turns?.assistantPrefill, model).toBe(true);
+    expect(onRoute(AGENT_SDK_ROUTE, model).turns?.assistantPrefill, model).toBe(false);
+  }
+  for (const model of [
+    "anthropic/claude-sonnet-4.6",
+    "anthropic/claude-opus-4.6",
+    "anthropic/claude-opus-4.8",
+    "anthropic/claude-sonnet-5",
+    "anthropic/claude-opus-5.5",
+  ]) {
     expect(viaOpenRouter(model).turns?.assistantPrefill, model).toBe(false);
   }
-  for (const model of ["claude-haiku-4-5", "claude-opus-4-5-20251101"]) {
+  for (const model of ["claude-sonnet-4-6", "claude-opus-4-6", "claude-opus-4-7", "claude-fable-5-1"]) {
     expect(direct(model).turns?.assistantPrefill, model).toBe(false);
   }
 });

@@ -19,7 +19,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { ExtensionsCensusStory, ExtensionsPageStory, ExtensionsSwitcherStory } from "../_ct-stories.tsx";
+import { ExtensionsCensusStory, ExtensionsPageStory, ExtensionsSectionStory, ExtensionsSwitcherStory } from "../_ct-stories.tsx";
 
 type PluginListRow = TrpcWireOutput<"plugin.list">[number];
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
@@ -172,6 +172,15 @@ test.describe("the page switcher", () => {
     await expect(page.getByRole("button", { name: /Chips.*Scene Chips/u })).toBeVisible();
   });
 
+  test("a page row names its plugin once, not as both qualifier and subtitle", async ({ mount, page }) => {
+    await routeTrpc(page, TWO_PAGES);
+    await mount(<ExtensionsSwitcherStory />);
+
+    const row = page.getByRole("button", { name: /The Deck.*Oracle Deck/u });
+    await expect(row).toBeVisible();
+    await expect(row.getByText("Oracle Deck")).toHaveCount(1);
+  });
+
   test("a row whose page title equals its plugin name is not doubled (P3-7)", async ({ mount, page }) => {
     // The qualifier/subtitle exist to ATTRIBUTE the page to its plugin — when the two strings are equal the
     // attribution is already the title, and "Card Atlas" over a "Card Atlas" subtitle (spoken twice by AT)
@@ -215,45 +224,90 @@ test.describe("the teaching empty names WHICH emptiness", () => {
     await expect(page.getByText("No plugin pages yet")).toHaveCount(0);
   });
 
-  test("INSTALLED BUT AWAITING CONSENT ⇒ the fresh-boot fact, counted, pointing at the grant", async ({ mount, page }) => {
+  test("INSTALLED BUT AWAITING CONSENT ⇒ each waiting plugin is a LIST row of its own, under a counted group", async ({ mount, page }) => {
     await routeTrpc(page, AWAITING_CONSENT);
-    await mount(<ExtensionsSwitcherStory />);
+    const component = await mount(<ExtensionsSwitcherStory />);
 
-    await expect(page.getByText("Your plugins are waiting on you")).toBeVisible();
-    // COUNTED, because "some plugins" is the same shrug the old copy was. Two rows asking ⇒ "2 plugins are".
-    await expect(page.getByText(/2 plugins are installed but not allowed to do anything yet/u)).toBeVisible();
+    // One pickable row per plugin, named by the plugin alone, so a pick says whose ask opens.
+    await expect(component.getByRole("button", { name: "Oracle Deck", exact: true })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Scene Chips", exact: true })).toBeVisible();
+    // COUNTED: the group names how many are waiting.
+    await expect(component.getByRole("heading", { level: 2, name: /2/u })).toBeVisible();
     // The two lies this arm replaces.
     await expect(page.getByText("No plugin pages yet")).toHaveCount(0);
     await expect(page.getByText("No plugins installed yet")).toHaveCount(0);
   });
 
-  // ── #1699: THE ARM THAT NAMES ITS PLUGINS (side-eye 2026-09-05) ─────────────────────────────────────
-  // #924 made this arm state the right FACT, and it stopped there: nine installed plugins rendered as ONE
-  // `button "Review what they ask for"` — the only map row on the surface with no semantic identity. A
-  // first-timer landing here could not name a single thing they had installed. The fact and the count are
-  // unchanged (pinned above); what is added is the identity: every waiting plugin is on screen by NAME,
-  // wearing its own consent state, behind its own CTA.
-
-  test("#1699 every waiting plugin is on screen by NAME, wearing its consent state", async ({ mount, page }) => {
+  // ── 573 P1: REVIEW TARGETS THE NAMED PLUGIN. The old per-plugin "Review what X asks for" door opened the
+  // Settings list at its top, where the FIRST waiting plugin's "Approve all" was on screen, and a reviewer
+  // granted one plugin's permissions while meaning another's. Review now opens in place, for the picked plugin
+  // only, and the approval names the plugin it is for.
+  test("picking a waiting plugin opens ITS approval in place, and no other plugin's", async ({ mount, page }) => {
     await routeTrpc(page, AWAITING_CONSENT);
-    const component = await mount(<ExtensionsSwitcherStory />);
+    const component = await mount(<ExtensionsSectionStory />);
+    const content = component.getByTestId("ct-extensions-content");
 
-    // The row TITLE, exactly — the per-plugin CTA below it also contains the name, which is the point of it.
-    await expect(component.getByText("Oracle Deck", { exact: true })).toBeVisible();
-    await expect(component.getByText("Scene Chips", { exact: true })).toBeVisible();
-    // STATE IS TEXT, NEVER A VOICE (#1169) — the same `statusCopy` badge the Plugins screen paints for the
-    // same row, so the two surfaces cannot spell one plugin's state two ways.
-    await expect(component.getByText("Off — asked for more than you allowed")).toHaveCount(2);
+    await component.getByRole("button", { name: "Scene Chips", exact: true }).click();
+
+    await expect(content.getByRole("button", { name: /Approve all for Scene Chips/u })).toBeVisible();
+    await expect(content.getByRole("button", { name: /Approve all/u })).toHaveCount(1);
+    await expect(content.getByRole("button", { name: /Oracle Deck/u })).toHaveCount(0);
   });
 
-  test("#1699 the CTA names its plugin, and the anonymous one is gone", async ({ mount, page }) => {
+  test("approving sends the grant AND the enable for the picked plugin only", async ({ mount, page }) => {
+    let approved = false;
+    const waitingChips = pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", SEEDED_AWAITING_CONSENT);
+    const recorder = await routeTrpc(page, {
+      "plugin.list": () => [
+        pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck", SEEDED_AWAITING_CONSENT),
+        approved ? pluginRow(CHIPS_ID, "scene-chips", "Scene Chips") : waitingChips,
+      ],
+      "plugin.listSurfaces": () => [],
+      "plugin.getLog": () => [],
+      "plugin.setGrant": () => {
+        approved = true;
+        return pluginRow(CHIPS_ID, "scene-chips", "Scene Chips");
+      },
+    });
+    const component = await mount(<ExtensionsSectionStory />);
+    const content = component.getByTestId("ct-extensions-content");
+
+    await component.getByRole("button", { name: "Scene Chips", exact: true }).click();
+    await content.getByRole("button", { name: /Approve all for Scene Chips/u }).click();
+
+    // SETTLED: the picked plugin leaves the waiting group once the server says it is approved and on.
+    await expect(component.getByRole("button", { name: "Scene Chips", exact: true })).toHaveCount(0);
+    // @orb-waive ct-no-oneshot-live-read-assert(expect): the settle assertion above proves the call completed before this read.
+    expect(recorder.inputs("plugin.setGrant")).toEqual([
+      { pluginId: CHIPS_ID, grant: waitingChips.declaredCapabilities, acknowledgedNetHosts: [], enable: true },
+    ]);
+  });
+
+  test("the waiting landing's one action opens the first waiting plugin's approval in place, inset", async ({ mount, page }) => {
     await routeTrpc(page, AWAITING_CONSENT);
+    const component = await mount(<ExtensionsSectionStory />);
+    const content = component.getByTestId("ct-extensions-content");
+
+    await content.getByRole("button", { name: "Review plugins" }).click();
+
+    const approve = content.getByRole("button", { name: /Approve all for Oracle Deck/u });
+    await expect(approve).toBeVisible();
+    // The standard content inset: the review card does not touch the CONTENT region's start edge.
+    const regionBox = await content.boundingBox();
+    const cardBox = await content.locator('[data-slot="card-root"]').first().boundingBox();
+    expect(regionBox === null || cardBox === null).toBe(false);
+    expect((cardBox?.x ?? 0) - (regionBox?.x ?? 0)).toBeGreaterThan(0);
+  });
+
+  test("waiting plugins stay listed once some pages exist", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      "plugin.list": () => [pluginRow(ORACLE_ID, "oracle-deck", "Oracle Deck"), pluginRow(CHIPS_ID, "scene-chips", "Scene Chips", SEEDED_AWAITING_CONSENT)],
+      "plugin.listSurfaces": () => [pageRow(ORACLE_ID, "deck_page", "The Deck", DECK_SPEC)],
+    });
     const component = await mount(<ExtensionsSwitcherStory />);
 
-    await expect(component.getByRole("button", { name: "Review what Oracle Deck asks for" })).toBeVisible();
-    await expect(component.getByRole("button", { name: "Review what Scene Chips asks for" })).toBeVisible();
-    // The finding itself: one unnamed door standing in for nine plugins.
-    await expect(component.getByRole("button", { name: "Review what they ask for" })).toHaveCount(0);
+    await expect(component.getByRole("button", { name: /The Deck.*Oracle Deck/u })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Scene Chips", exact: true })).toBeVisible();
   });
 
   test("GRANTED BUT SWITCHED OFF ⇒ turn one on, not install another", async ({ mount, page }) => {
@@ -285,13 +339,11 @@ test.describe("the teaching empty names WHICH emptiness", () => {
     await routeTrpc(page, AWAITING_CONSENT);
     const component = await mount(<ExtensionsPageStory selectKey={null} />);
 
-    await expect(page.getByText("Your plugins are waiting on you")).toBeVisible();
-    // #1699 — the mirror is of the WHOLE arm, identity included: the CONTENT pane names the same plugins
-    // behind the same per-plugin doors. A CONTENT pane that kept the anonymous CTA would re-open the
-    // two-panes-two-stories defect this mirror exists to close, one level down.
-    await expect(component.getByRole("button", { name: "Review what Oracle Deck asks for" })).toBeVisible();
-    await expect(component.getByRole("button", { name: "Review what Scene Chips asks for" })).toBeVisible();
-    await expect(component.getByRole("button", { name: "Review what they ask for" })).toHaveCount(0);
+    // The CONTENT pane states the same counted fact as a landing with ONE action — the plugins themselves are
+    // the LIST's rows, so the two panes no longer repeat one roster.
+    await expect(component.getByRole("heading", { level: 2, name: /2/u })).toBeVisible();
+    await expect(component.getByRole("button")).toHaveCount(1);
+    await expect(component.getByRole("button", { name: "Review plugins" })).toBeVisible();
     await expect(page.getByText("No plugin pages yet")).toHaveCount(0);
     await expect(page.getByText("Pick a plugin page")).toHaveCount(0);
   });

@@ -32,6 +32,7 @@
     "quickjs-emscripten-core": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "yaml": "catalog:",
     "zod": "catalog:",
     "zustand": "catalog:"
   },

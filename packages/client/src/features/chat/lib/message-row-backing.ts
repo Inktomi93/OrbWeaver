@@ -319,19 +319,13 @@ export const STICKY_ATTRIBUTION_CHROME =
 // always this constant's own to cancel, and the wallpaper gate would now be the thing that breaks layout
 // neutrality.
 //
-// WHY TOP-ONLY, i.e. why `-mt-row pt-row` and not the `-my-row py-row` pair this shipped with. The arm this
-// has to be neutral AGAINST is not a bare name row: an inside header at rest reserves the action cluster's
-// paint with `mb-section` (`message-row-header.tsx`, #204's zero-height cluster). That reservation is now
-// UNCONDITIONAL — a verdict that dropped it took --spacing-section out of the row (measured 250px → 226px
-// against a 234px scrollport, #1873), and since `exceedsViewport` is computed FROM the measured row height,
-// the shrunken row stopped exceeding, the verdict inverted, the row grew back, and the transcript
-// oscillated for as long as the notice that shrank the scrollport stayed up. With the reservation constant,
-// this constant may only add the band's own padding — and a bottom padding cannot be cancelled any more,
-// because `mb-section` owns the bottom margin. So the band takes its breathing on the TOP only: the name
-// lands on exactly the pixel it occupied at rest (`-mt-row` cancels `pt-row`), the outer box is the same
-// h + --spacing-section in both arms. Same invariant as ever — "going sticky changes NO box" — now true
-// against the arm the row actually renders. Pinned by the box-neutrality CTs (message-list-surface.ct.tsx,
-// #1873).
+// WHY TOP-ONLY, i.e. why `-mt-row pt-row`. `exceedsViewport` is computed FROM the measured row height, so
+// any box this constant changed re-enters the verdict that applied it: the row stops (or starts)
+// exceeding, the verdict inverts, and the transcript oscillates (#1873). The band therefore adds only its
+// own top padding and cancels it with the matching negative margin; the name lands on exactly the pixel
+// it occupied at rest. The inside header's minimum height (`message-row-header.tsx`) is `box-content`, so
+// this padding stacks on top of it instead of being absorbed into it, and the cancellation stays exact.
+// "Going sticky changes NO box" — pinned by the box-neutrality CTs (message-list-surface.ct.tsx, #1873).
 //
 // (3) THE BAND'S FILL EXTENDS ONE --spacing-row BELOW THE NAME, AND IT IS PAINT, NOT LAYOUT (#2425).
 // The sentence (2) used to end on — "the opaque fill starts one --spacing-row above the name instead of

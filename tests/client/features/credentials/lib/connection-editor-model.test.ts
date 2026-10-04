@@ -23,6 +23,7 @@ import {
   parseIncludeBody,
   purposeNotes,
   rowsFromExtras,
+  rowWithReadValue,
 } from "../../../../../packages/client/src/features/credentials/lib/connection-editor-model.ts";
 import type { FactRow } from "../../../../../packages/client/src/features/credentials/lib/connection-fact-model.ts";
 import {
@@ -328,6 +329,29 @@ describe("the extras rows", () => {
     expect(extrasFromRows([{ id: "a", key: "tenant", value: "research" }])).toStrictEqual({ tenant: "research" });
   });
 
+  // A single value is the user's string unless it is strict JSON: bracket, brace and template text is a prompt
+  // fragment far more often than data, and YAML would read it as an object.
+  test.each([
+    ["[INST]"],
+    ["{name}"],
+    ["{{user}}"],
+    ["a: 1\nb: 2"],
+    ["{% for message in messages %}{{ message['role'] }}: {{ message['content'] }}\n{% endfor %}\n"],
+    ["40"],
+  ])("a stored string %j shows, blurs and saves back unchanged", (stored) => {
+    const [row] = rowsFromExtras({ template: stored }, (index) => `id-${String(index)}`);
+    if (row === undefined) {
+      throw new Error("expected a row");
+    }
+    expect(extrasFromRows([rowWithReadValue(row)])).toStrictEqual({ template: stored });
+  });
+
+  test("a strict JSON value still saves structured and reads back as indented JSON", () => {
+    const read = rowWithReadValue({ id: "a", key: "kwargs", value: '{"enable_thinking": false}' });
+    expect(read.value).toBe('{\n  "enable_thinking": false\n}');
+    expect(extrasFromRows([read])).toStrictEqual({ kwargs: { ["enable_thinking"]: false } });
+  });
+
   test("always offers one empty row to type into", () => {
     expect(rowsFromExtras({ ["top_k"]: 40 }, (index) => `id-${String(index)}`)).toStrictEqual([
       { id: "id-0", key: "top_k", value: "40" },
@@ -404,24 +428,24 @@ describe("the takes row is honest about a guessed modality list", () => {
 
 // "Fields to add or replace" validates with the canonical transport schema: what it refuses never reaches a save.
 describe("the request-body overrides field saves only what the transport schema accepts", () => {
-  test("a JSON object saves as written; empty text and an empty object clear it", () => {
-    expect(parseIncludeBody('{ "top_k": 40, "options": { "num_ctx": 8192 } }')).toEqual({
+  test("a JSON object saves as written; empty text and an empty object clear it", async () => {
+    expect(await parseIncludeBody('{ "top_k": 40, "options": { "num_ctx": 8192 } }')).toEqual({
       ok: true,
       includeBody: { ["top_k"]: 40, options: { ["num_ctx"]: 8192 } },
     });
-    expect(parseIncludeBody("   ")).toEqual({ ok: true, includeBody: undefined });
-    expect(parseIncludeBody("{}")).toEqual({ ok: true, includeBody: undefined });
+    expect(await parseIncludeBody("   ")).toEqual({ ok: true, includeBody: undefined });
+    expect(await parseIncludeBody("{}")).toEqual({ ok: true, includeBody: undefined });
   });
 
-  test("text that is not one JSON object is refused with a reason", () => {
+  test("text that is not one object of fields is refused with a reason", async () => {
     for (const raw of ['{ "top_k": 40', "[1, 2]", "40", '"top_k"', "null"]) {
-      expect(parseIncludeBody(raw).ok, raw).toBe(false);
+      expect((await parseIncludeBody(raw)).ok, raw).toBe(false);
     }
   });
 
-  test("the saved object reads back as the text it parses from", () => {
+  test("the saved object reads back as the text it parses from", async () => {
     const includeBody = { ["top_k"]: 40, stop: ["</s>"] };
-    expect(parseIncludeBody(includeBodyText(includeBody))).toEqual({ ok: true, includeBody });
+    expect(await parseIncludeBody(includeBodyText(includeBody))).toEqual({ ok: true, includeBody });
     expect(includeBodyText(undefined)).toBe("");
   });
 });

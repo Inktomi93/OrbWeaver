@@ -37,14 +37,9 @@ export interface ExtensionsEmptyView {
   /** `null` while the reads have not settled — the pane owes a loading skin, not a claim. */
   readonly reason: ExtensionsEmptyReason | null;
   /**
-   * The installed plugins standing on the caller's consent — EMPTY on every other arm.
-   *
-   * IT USED TO BE A COUNT, AND THE RULING SURVIVES — ITS INPUT CHANGED (#1699). #924's reason for carrying a
-   * number was that the copy spends one ("2 plugins are installed but not allowed to do anything yet"), and
-   * it still does — off `.length`, so there is one source rather than two. What the count could not do was
-   * let the pane NAME them: nine installed plugins rendered as one anonymous `Review what they ask for`, the
-   * only map row on the surface with no semantic identity. The rows themselves are what this arm is about,
-   * so the rows are what it carries, and the count is derived where it is printed.
+   * The installed plugins standing on the caller's consent, on EVERY arm: the LIST keeps them as rows after
+   * some pages exist, so they cannot hide behind a reason that only resolves when there are no pages. The
+   * count the copy spends is derived from `.length` where it is printed.
    */
   readonly awaitingPlugins: readonly PluginView[];
   /** How many rows are `errored` — the number `some-errored`'s copy spends, and 0 on every other arm. A COUNT
@@ -55,9 +50,6 @@ export interface ExtensionsEmptyView {
 }
 
 const PENDING: ExtensionsEmptyView = { reason: null, awaitingPlugins: [], erroredCount: 0 };
-
-/** Every other arm: the reason alone, with no plugins to name. */
-const NONE_AWAITING: readonly PluginView[] = [];
 
 /**
  * Resolve why the caller sees no extension pages. Ordered by what they must do next, most-blocking first:
@@ -80,19 +72,19 @@ export function useExtensionsEmpty(): ExtensionsEmptyView {
   if (plugins === undefined || surfaces === undefined) {
     return PENDING;
   }
-  if (plugins.length === 0) {
-    return { reason: "none-installed", awaitingPlugins: NONE_AWAITING, erroredCount: 0 };
-  }
   const awaitingPlugins = plugins.filter((plugin) => plugin.reconsentPending);
+  if (plugins.length === 0) {
+    return { reason: "none-installed", awaitingPlugins, erroredCount: 0 };
+  }
   if (awaitingPlugins.length > 0) {
     return { reason: "awaiting-consent", awaitingPlugins, erroredCount: 0 };
   }
   const errored = plugins.filter((plugin) => plugin.status === "errored");
   if (errored.length > 0) {
-    return { reason: "some-errored", awaitingPlugins: NONE_AWAITING, erroredCount: errored.length };
+    return { reason: "some-errored", awaitingPlugins, erroredCount: errored.length };
   }
   if (plugins.every((plugin) => plugin.status !== "enabled")) {
-    return { reason: "all-off", awaitingPlugins: NONE_AWAITING, erroredCount: 0 };
+    return { reason: "all-off", awaitingPlugins, erroredCount: 0 };
   }
-  return { reason: "no-pages", awaitingPlugins: NONE_AWAITING, erroredCount: 0 };
+  return { reason: "no-pages", awaitingPlugins, erroredCount: 0 };
 }

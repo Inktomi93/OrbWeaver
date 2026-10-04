@@ -16,6 +16,7 @@
 
 import type { ConnectionTransportDoc } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
+import { errorMessage } from "@orb/kit/error-message";
 import { Badge } from "@orb/ui/badge";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -49,6 +50,8 @@ const RESPONSE_MAP_ORDER: readonly (keyof NonNullable<ConnectionTransportDoc["re
   "errorMessagePath",
   "errorCodePath",
 ];
+
+const INCLUDE_BODY_PLACEHOLDER = "top_k: 40\nchat_template_kwargs:\n  enable_thinking: false";
 
 export interface ConnectionTransportEditorProps {
   readonly transport: ConnectionTransportDoc | null;
@@ -111,8 +114,9 @@ export function ConnectionTransportEditor({ transport, busy, onCommit }: Connect
   );
 }
 
-/** `transport.includeBody`: one JSON object merged over the request body. Text that the canonical schema
- *  refuses shows why and is never saved; the field keeps it so the user can fix it. */
+/** `transport.includeBody`: one object merged over the request body, pasted in any format a server's docs print and
+ *  rewritten as the JSON it saves when the box loses focus. Text that reads as nothing shows why and is never saved;
+ *  the field keeps it so the user can fix it. */
 function IncludeBodyField({
   transport,
   busy,
@@ -122,30 +126,33 @@ function IncludeBodyField({
   readonly busy: boolean;
   readonly onCommit: (includeBody: ConnectionTransportDoc["includeBody"]) => void;
 }): ReactElement {
+  const [text, setText] = useState(() => includeBodyText(transport?.includeBody));
   const [error, setError] = useState<string | null>(null);
+
+  const read = (): void => {
+    // @orb-waive caught-failure-ownership(parseIncludeBody): the only rejection is the lazy reader chunk failing to load; it lands in this field's error, and nothing is saved. Ends if the reader stops loading lazily.
+    parseIncludeBody(text).then(
+      (parsed) => {
+        if (!parsed.ok) {
+          setError(parsed.reason);
+          return;
+        }
+        setError(null);
+        setText(includeBodyText(parsed.includeBody));
+        onCommit(parsed.includeBody);
+      },
+      // The reader's chunk failed to load: the field says so and nothing is saved.
+      (err: unknown) => setError(errorMessage(err)),
+    );
+  };
 
   return (
     <Field
-      description="One JSON object. It is merged over the request after Extra request fields, so a key here replaces the one we would send. Don't send these fields still drops a key, even one set here. Clear the box to remove them all."
+      description="Paste JSON, YAML or key=value lines; it reads back as JSON when you leave the box. It is merged over the request after Extra request fields, so a key here replaces the one we would send. Don't send these fields still drops a key, even one set here. Clear the box to remove them all."
       error={error}
       label="Fields to add or replace"
     >
-      <Textarea
-        defaultValue={includeBodyText(transport?.includeBody)}
-        disabled={busy}
-        maxRows={8}
-        onBlur={(event): void => {
-          const parsed = parseIncludeBody(event.target.value);
-          if (!parsed.ok) {
-            setError(parsed.reason);
-            return;
-          }
-          setError(null);
-          onCommit(parsed.includeBody);
-        }}
-        placeholder='{ "top_k": 40 }'
-        rows={2}
-      />
+      <Textarea disabled={busy} maxRows={8} onBlur={read} onValueChange={setText} placeholder={INCLUDE_BODY_PLACEHOLDER} rows={2} value={text} />
     </Field>
   );
 }

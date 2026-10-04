@@ -3,8 +3,8 @@
 //
 // ONE RAIL ENTRY FOR THE PLATFORM, never one per plugin (§4.5b): rail bloat plus the largest impersonation
 // surface in the design. The switcher is where the per-plugin fan happens, and every row is PLUGIN-LABELLED —
-// the plugin's name is the row's own subtitle, so a person picking a page already knows whose it is before the
-// page paints its band.
+// the plugin's name follows the page title, so a person picking a page already knows whose it is before the
+// page paints its band. Plugins still waiting on their owner's approval follow the pages as their own rows.
 //
 // THE EMPTY STATE IS THE ADVERTISEMENT, argued in `extensions-copy.ts`: a section a person only ever sees full
 // teaches nothing about the platform, so the zero-page state is a teaching empty with the action that leads to
@@ -27,7 +27,7 @@ import { LibraryListFrame, LibrarySurfaceShell } from "#components";
 import { SkeletonRows } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { openConfigTo, selectPluginPageFromList, setExtensionsSearchQuery, useExtensionsSearchQuery, usePluginPageKey } from "#state";
-import { ExtensionsAwaitingConsent } from "../components/extensions-awaiting-consent.tsx";
+import { ExtensionsAwaitingRows } from "../components/extensions-awaiting-consent.tsx";
 import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
 import { useExtensionsRoster } from "../hooks/use-extensions-roster.ts";
 import { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
@@ -35,19 +35,15 @@ import { EXTENSIONS_SECTION_LABEL } from "../lib/extensions-section-label.ts";
 
 /** The rows, or the teaching empty. Split from the shell so the boundary wraps a component that reads. */
 function ExtensionsPageList(): ReactElement {
-  const { pages, matching } = useExtensionsRoster();
+  const { pages, matching, matchesName } = useExtensionsRoster();
   const empty = useExtensionsEmpty();
   const active = usePluginPageKey();
-  if (pages.length === 0) {
+  // THE WAITING PLUGINS ARE ROWS, NOT AN EMPTY: with no pages they are the whole list, and once pages exist they
+  // stay listed under their own group, so a plugin still waiting on its owner never drops out of sight.
+  const waiting = empty.awaitingPlugins.filter((plugin) => matchesName(plugin.name));
+  if (pages.length === 0 && empty.reason !== "awaiting-consent") {
     if (empty.reason === null) {
       return <SkeletonRows count={2} shape="line" />;
-    }
-    // THE AWAITING ARM IS NOT EMPTY (#1699): it has N installed plugins in it, and rendering them as one
-    // anonymous CTA was the finding. The block names them; the other three arms are genuinely empty and keep
-    // the teaching `EmptyState` verbatim. Both panes render the SAME block, so the mirror law holds for the
-    // identity half too.
-    if (empty.reason === "awaiting-consent") {
-      return <ExtensionsAwaitingConsent plugins={empty.awaitingPlugins} />;
     }
     const copy = EXTENSIONS_EMPTY_COPY[empty.reason];
     return (
@@ -59,12 +55,12 @@ function ExtensionsPageList(): ReactElement {
         }
         description={copy.description(empty.erroredCount)}
         icon={<Icon icon={Blocks} size="md" />}
-        title={copy.title}
+        title={copy.title()}
         titleAs="h2"
       />
     );
   }
-  if (matching.length === 0) {
+  if (matching.length === 0 && waiting.length === 0) {
     return (
       <EmptyState
         action={
@@ -79,25 +75,28 @@ function ExtensionsPageList(): ReactElement {
     );
   }
   return (
-    <Stack gap="tight">
-      {matching.map((page) => (
-        <ListRow
-          clickable={true}
-          key={page.key}
-          leading={<Icon icon={Blocks} size="sm" />}
-          onClick={(): void => selectPluginPageFromList(page.key)}
-          selected={page.key === active}
-          title={page.title}
-          // Two plugins may legitimately register a page with the same title ("Browse"), and a list of
-          // identically-named rows is unusable by voice and ambiguous by eye. The plugin name IS the
-          // disambiguator: the subtitle carries it for the eye and `titleQualifier` renders it into the
-          // accessible name — EXCEPT when the page is titled exactly like its plugin (side-eye 2026-08-29
-          // P3-7: "Card Atlas" over a "Card Atlas" subtitle, the qualifier doubling the SR name). A
-          // qualifier that repeats the title disambiguates nothing; the attribution the pair exists for is
-          // already the title itself. Spread, not `undefined` props: exactOptionalPropertyTypes.
-          {...(page.pluginName === page.title ? {} : { subtitle: page.pluginName, titleQualifier: page.pluginName })}
-        />
-      ))}
+    <Stack gap="block">
+      {matching.length === 0 ? null : (
+        <Stack gap="tight">
+          {matching.map((page) => (
+            <ListRow
+              clickable={true}
+              key={page.key}
+              leading={<Icon icon={Blocks} size="sm" />}
+              onClick={(): void => selectPluginPageFromList(page.key)}
+              selected={page.key === active}
+              title={page.title}
+              // Two plugins may legitimately register a page with the same title ("Browse"). The plugin name
+              // is the disambiguator, and `titleQualifier` both renders it after the title and carries it into
+              // the accessible name, so it is not repeated as a subtitle. A page titled exactly like its plugin
+              // needs no qualifier: the title is already the attribution. Spread, not `undefined` props:
+              // exactOptionalPropertyTypes.
+              {...(page.pluginName === page.title ? {} : { titleQualifier: page.pluginName })}
+            />
+          ))}
+        </Stack>
+      )}
+      {waiting.length === 0 ? null : <ExtensionsAwaitingRows plugins={waiting} />}
     </Stack>
   );
 }
