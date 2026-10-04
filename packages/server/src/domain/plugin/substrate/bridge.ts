@@ -109,7 +109,16 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
           readsHidden: visibility.readsHidden,
         });
       },
-      getVariables: (chatId) => ops.chat.getVariables(chatId),
+      // THE ROOM-STATE READ — the SAME viewer choke. A host-pumped continuation keeps its command's authority for
+      // the continuation window, so admission alone would let it keep reading a room its installer has left. A
+      // non-member reads the empty fold, never the room's state.
+      getVariables: async (chatId): Promise<Record<string, string>> => {
+        const visibility = await ops.chat.resolveViewerVisibility(chatId, installerUserId);
+        if (visibility === null) {
+          return {};
+        }
+        return await ops.chat.getVariables(chatId);
+      },
       // THE ROSTER READ (#788 F11) — the SAME viewer choke `listMessages` uses. Resolve the installer's
       // membership FIRST; a non-member (a chat that raced a kick/leave between admission and this call) ⇒ `[]`,
       // never a read of a room the caller is no longer in. Membership confirmed, the read is the room's own
@@ -122,7 +131,17 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         }
         return await ops.chat.listCharacters(chatId);
       },
-      applyVariableOps: (chatId, varOps, expect) => ops.chat.applyVariableOps(chatId, varOps, expect),
+      // THE ROOM WRITE re-checks the installer's standing NOW, not at admission: a continuation may run for the
+      // whole continuation window after its command, and the installer can leave or hand off the host seat in that
+      // time. The write ceiling is the host seat, the same `role === "host"` every plugin admission derives
+      // `canWrite` from; the membrane already refused a call that was never admitted with it.
+      applyVariableOps: async (chatId, varOps, expect): ReturnType<PluginBridge["chat"]["applyVariableOps"]> => {
+        const visibility = await ops.chat.resolveViewerVisibility(chatId, installerUserId);
+        if (visibility?.role !== "host") {
+          throw new Error("plugin host: chat.applyVariableOps requires host authority on the chat");
+        }
+        return await ops.chat.applyVariableOps(chatId, varOps, expect);
+      },
       // The initiator is closed over the installer (never infra/guest-supplied) — the membrane passes only the
       // admitted chatId + child depth + guest speaker/guided hints; `initiator:"plugin"`, initiator membership,
       // frozen host funding, and the cascade-depth guard are resolved inside chat's `requestTurn`.

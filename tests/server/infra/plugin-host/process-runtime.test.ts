@@ -12,7 +12,7 @@ import { unzipSync } from "fflate";
 import { afterEach, beforeAll, vi } from "vitest";
 import { env } from "../../../../packages/server/src/foundation/env/index.ts";
 import { __setEgressResolverForTest } from "../../../../packages/server/src/infra/network/egress.ts";
-import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX } from "../../../../packages/server/src/infra/plugin-host/budgets.ts";
+import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX, PLUGIN_AUTHORITY_TAIL_MS } from "../../../../packages/server/src/infra/plugin-host/budgets.ts";
 import { pluginBrokerExecArgv, pluginWatchdogExecArgv } from "../../../../packages/server/src/infra/plugin-host/process-permission.ts";
 import {
   __countLiveAuthorityTailsForTest,
@@ -586,6 +586,51 @@ test("a continuation that keeps calling after its command settled is cut off at 
   await vi.waitFor(() => expect(host.readLog(probe.instance).some((line) => line.message.startsWith("continuation stopped"))).toBe(true));
   expect(served).toBe(PLUGIN_AUTHORITY_TAIL_CALLS_MAX + 1);
   expect(host.readLog(probe.instance).find((line) => line.message.startsWith("continuation stopped"))?.message).toMatch(/continuation call budget/u);
+  host.dispose(probe.instance);
+});
+
+// The window half of the tail's bound: a SLOW chain never nears the call budget, so the refusal it meets after
+// the continuation window has to be the expired authority.
+test("a slow continuation is refused as stale once the continuation window has passed, well inside its call budget", {
+  timeout: PLUGIN_AUTHORITY_TAIL_MS + 2 * LONG,
+}, async () => {
+  let served = 0;
+  const base = bridge();
+  const slowBridge: PluginBridge = {
+    ...base,
+    storage: {
+      ...base.storage,
+      get: () =>
+        new Promise((resolve) => {
+          served += 1;
+          setTimeout(() => resolve(null), CONTINUATION_STEP_MS);
+        }),
+    },
+  };
+  const host = createPluginHost(seams());
+  const probe = await activateHandler(host, {
+    handler: `async () => {
+      void (async () => {
+        for (;;) {
+          await h.storage.get("tick");
+        }
+      })().catch((e) => h.log.warn("continuation stopped: " + e.message));
+      return "accepted";
+    }`,
+    grants: ["storage.kv"],
+    bridge: slowBridge,
+  });
+  await expect(host.invoke(probe.instance, probe.handler, "{}", noChat)).resolves.toBe("accepted");
+  // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time across two processes — the window is a wall-clock bound the app and the Worker each enforce, so no frozen clock reaches it.
+  const settledAt = performance.now();
+  const stopped = (): string | undefined => host.readLog(probe.instance).find((line) => line.message.startsWith("continuation stopped"))?.message;
+  await vi.waitFor(() => expect(stopped()).toBeDefined(), { timeout: PLUGIN_AUTHORITY_TAIL_MS + LONG, interval: 250 });
+  // @orb-waive test-determinism(performance.now): the SUBJECT is elapsed real time — see the waiver above.
+  const elapsedMs = performance.now() - settledAt;
+
+  expect(stopped()).toContain("stale command authority");
+  expect(elapsedMs).toBeGreaterThanOrEqual(PLUGIN_AUTHORITY_TAIL_MS);
+  expect(served).toBeLessThan(PLUGIN_AUTHORITY_TAIL_CALLS_MAX);
   host.dispose(probe.instance);
 });
 
