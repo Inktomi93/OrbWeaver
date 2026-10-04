@@ -533,7 +533,8 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // two reads under that one router. Notably NOT `chatGet`: a host's attach changes what the ROOM sees, but
   // that half is member-visible state on the chat bus, never a user-bus widening (`membership-fan-guard`).
   databankChanged: ["databank"],
-  corpusRecomputed: ["discovery", "similarArt", "searchQuery", "sourceWindow"],
+  // A promotion announces itself here too, so whether search is paused rides along.
+  corpusRecomputed: ["discovery", "similarArt", "searchQuery", "sourceWindow", "spaceStatus"],
   // The VIEWER TRIPLE and nothing else (W7b) — `sessions.me` plus the two reads a composed current-persona
   // derivation would need (`settings.getUserSettings`/`persona.list`). It routes through the SAME
   // `identityFilters` helper the recovery ladder's resume rung calls, so this row is also the pin that the

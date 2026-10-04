@@ -19,12 +19,14 @@ import type { Trpc } from "./trpc.ts";
 /** What a corpus recompute (`corpusRecomputed`) moves. It replaces the source rows Explore retains, so a restored
  *  `search.search` key and source resolution refresh with discovery while ordinary canon paging stays; fields/suggest
  *  keep their lexical index cache, deliberately outside this vector-source fan. A finished pass also leaves less for
- *  the next run to call a model for, so the paid-run estimate refreshes too (every confirm re-reads it fresh anyway). */
+ *  the next run to call a model for, so the paid-run estimate refreshes too (every confirm re-reads it fresh anyway).
+ *  A target promotion announces itself through this member as well, so whether search is paused refreshes with it. */
 export function corpusRecomputeReads(trpc: Trpc): readonly InvalidateFilter[] {
   return [
     trpc.discovery.pathFilter(),
     trpc.search.similarArt.pathFilter(),
     trpc.search.search.pathFilter(),
+    trpc.search.spaceStatus.pathFilter(),
     trpc.chat.getMessageWindow.pathFilter(),
     trpc.workloads.estimateModelCalls.pathFilter(),
     trpc.workloads.estimateRetryModelCalls.pathFilter(),
