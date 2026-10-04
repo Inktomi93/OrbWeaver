@@ -155,6 +155,9 @@ export function ConnectionRoleSlot({
   const [embedRefusal, setEmbedRefusal] = useState<SlotEmbedRefusal | null>(null);
   // The pick whose embedder the server is checking before the binding lands.
   const [checking, setChecking] = useState<{ readonly embedder: string | undefined } | null>(null);
+  // The pick whose change the server is still sizing, before the confirm or the write; the row says it is checking.
+  const [asked, setAsked] = useState<{ readonly embedder: string | undefined } | null>(null);
+  const shownCheck = shownCheckOf(checking, reindex.asking, asked);
   const toastRefusalIfGone = useEmbedRefusalToastAfterUnmount();
   // The PICKER's draft — `undefined` until the user touches it, which is the only state that can never
   // diverge. It is never the readout's `{X}`; it is only the other half of the comparison.
@@ -185,7 +188,7 @@ export function ConnectionRoleSlot({
   const current = draft === undefined ? persisted : (draft ?? UNSET_VALUE);
 
   return (
-    <Row aria-busy={checking !== null} gap="field" align="start" justify="between" className="flex-wrap" ref={slotRef}>
+    <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" className="flex-wrap" ref={slotRef}>
       <Row gap="field" align="start">
         <Badge
           aria-label={ROLE_STATUS_LABELS[dot]}
@@ -202,13 +205,7 @@ export function ConnectionRoleSlot({
           </Text>
           {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
           <ReadoutLine readout={readout} unsetSentence={isVectorRole && row.task === "embed" ? TEXT_EMBEDDER_UNSET : undefined} />
-          {checking === null ? (
-            <EmbedRefusalLine refused={embedRefusal} />
-          ) : (
-            <Text voice="gloss" role="status" data-embedder-check="" className={PROSE_MEASURE}>
-              {embedderCheckingText(checking.embedder)}
-            </Text>
-          )}
+          <EmbedderNote check={shownCheck} refused={embedRefusal} />
           {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
           {repairs.map((connection) => (
             <BackgroundRepair
@@ -225,7 +222,7 @@ export function ConnectionRoleSlot({
         id={controlId}
         items={items}
         value={current}
-        disabled={setBinding.isPending}
+        disabled={setBinding.isPending || reindex.asking}
         onValueChange={(value): void => {
           const pickedRow = value === UNSET_VALUE ? null : compatible.find((connection) => connection.id === value);
           if (pickedRow === undefined) {
@@ -245,6 +242,7 @@ export function ConnectionRoleSlot({
           };
           // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
           if (isVectorRole) {
+            setAsked({ embedder });
             reindex.guard({ kind: "bind", task: row.task, connectionId: picked }, write);
           } else {
             write(false);
@@ -274,6 +272,28 @@ function rollBackOnEmbedRefusal(setDraft: (draft: undefined) => void, setEmbedRe
 interface SlotEmbedRefusal {
   readonly refusal: EmbedTargetRefusal;
   readonly embedder: string | undefined;
+}
+
+/** The pick being checked: the write's own check, else the change the server is still sizing before the confirm. */
+function shownCheckOf<T>(writeCheck: T | null, sizing: boolean, sized: T | null): T | null {
+  return writeCheck ?? (sizing ? sized : null);
+}
+
+/** The row's embedder line: that the server is checking the pick, else the last refusal. */
+function EmbedderNote({
+  check,
+  refused,
+}: {
+  readonly check: { readonly embedder: string | undefined } | null;
+  readonly refused: SlotEmbedRefusal | null;
+}): ReactElement | null {
+  return check === null ? (
+    <EmbedRefusalLine refused={refused} />
+  ) : (
+    <Text voice="gloss" role="status" data-embedder-check="" className={PROSE_MEASURE}>
+      {embedderCheckingText(check.embedder)}
+    </Text>
+  );
 }
 
 function EmbedRefusalLine({ refused }: { readonly refused: SlotEmbedRefusal | null }): ReactElement | null {

@@ -227,42 +227,32 @@ async function backsVectorRole(ctx: ConnectionContext, ownerId: UserId, connecti
 /** Run a row write in the owner's write queue when the row backs a vector role: there it can move the embed space, and
  *  even a label edit must not land inside another write's probe, or that write's undo cannot tell it apart. A row no
  *  vector role is bound to is written at once, so a slow embedder check never holds an unrelated edit. A binding that
- *  lands on the row later is that write's own move, made after this one. */
+ *  lands on the row later is that write's own move, made after this one. `write` is told which case it is. */
 async function rowWrite<T>(
   ctx: ConnectionContext,
   ownerWrites: OwnerWriteQueue,
   target: { readonly ownerId: UserId; readonly connectionId: UserConnectionId },
-  write: () => Promise<T>,
+  write: (backsVector: boolean) => Promise<T>,
 ): Promise<T> {
-  return (await backsVectorRole(ctx, target.ownerId, target.connectionId)) ? await ownerWrites(target.ownerId, write) : await write();
+  return (await backsVectorRole(ctx, target.ownerId, target.connectionId)) ? await ownerWrites(target.ownerId, () => write(true)) : await write(false);
 }
 
 function createUpdate(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionService["update"] {
   return (params: UpdateConnectionParams): Promise<ConnectionView> =>
-    rowWrite(ctx, ownerWrites, { ownerId: params.principal.userId, connectionId: params.connectionId }, () => updateRow(ctx, params));
+    rowWrite(ctx, ownerWrites, { ownerId: params.principal.userId, connectionId: params.connectionId }, (backsVector) => updateRow(ctx, params, backsVector));
 }
 
-async function updateRow(ctx: ConnectionContext, params: UpdateConnectionParams): Promise<ConnectionView> {
+async function updateRow(ctx: ConnectionContext, params: UpdateConnectionParams, backsVector: boolean): Promise<ConnectionView> {
   const ownerId = params.principal.userId;
   const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
   const patch = await validatedPatch(ctx, ownerId, row, params.patch);
-  // Snapshot BEFORE the write: after it, "what did this used to resolve to" is unanswerable.
-  const before: EmbedSpaces = await vectorSpacesOf(ctx, params.principal);
   const now = ctx.now();
-  await updateOwnedConnection(ctx.db, ownerId, row.id, { ...patch, updatedAt: now });
-  try {
-    await settleEmbedSpace(ctx, {
-      ownerId,
-      before,
-      after: await vectorSpacesOf(ctx, params.principal),
-      undo: async () => {
-        await restoreOwnedConnectionIf(ctx.db, ownerId, row.id, { written: patch, prior: { ...priorColumns(row, patch), updatedAt: row.updatedAt } });
-      },
-    });
-  } catch (error) {
-    // The refused write's server was asked for its facts and may have failed; a retry once it is up must ask again.
-    await ctx.runtime.catalogs.invalidateEndpoint({ ...row, ...patch });
-    throw error;
+  if (backsVector) {
+    await updateVectorRow(ctx, params.principal, { row, patch, now });
+  } else {
+    // No vector role reads this row, so its write cannot move a space; resolving the bound embedder to compare would
+    // dial that embedder's host for nothing.
+    await updateOwnedConnection(ctx.db, ownerId, row.id, { ...patch, updatedAt: now });
   }
   await ctx.audit(
     { actorUserId: ownerId, action: "connection.update", entityType: "connection", entityId: row.id, metadata: { fields: Object.keys(params.patch) } },
@@ -273,6 +263,33 @@ async function updateRow(ctx: ConnectionContext, params: UpdateConnectionParams)
   await ctx.runtime.catalogs.invalidateEndpoint(saved);
   ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
   return toView(ctx, saved);
+}
+
+/** Write a row a vector role reads, and settle the embed space it may have moved: refused, the write is undone. */
+async function updateVectorRow(
+  ctx: ConnectionContext,
+  principal: UpdateConnectionParams["principal"],
+  write: { readonly row: UserConnection; readonly patch: Partial<UserConnection>; readonly now: number },
+): Promise<void> {
+  const { row, patch, now } = write;
+  const ownerId = principal.userId;
+  // Snapshot BEFORE the write: after it, "what did this used to resolve to" is unanswerable.
+  const before: EmbedSpaces = await vectorSpacesOf(ctx, principal);
+  await updateOwnedConnection(ctx.db, ownerId, row.id, { ...patch, updatedAt: now });
+  try {
+    await settleEmbedSpace(ctx, {
+      ownerId,
+      before,
+      after: await vectorSpacesOf(ctx, principal),
+      undo: async () => {
+        await restoreOwnedConnectionIf(ctx.db, ownerId, row.id, { written: patch, prior: { ...priorColumns(row, patch), updatedAt: row.updatedAt } });
+      },
+    });
+  } catch (error) {
+    // The refused write's server was asked for its facts and may have failed; a retry once it is up must ask again.
+    await ctx.runtime.catalogs.invalidateEndpoint({ ...row, ...patch });
+    throw error;
+  }
 }
 
 function createRemove(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionService["remove"] {

@@ -5,7 +5,7 @@
 import type { AssetKind } from "@orb/contracts/assets";
 import type { VectorScope } from "@orb/contracts/embeddings";
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
-import type { Capability, ProviderId } from "@orb/contracts/inference";
+import type { Capability, EndpointFeatures, ProviderId } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -58,7 +58,7 @@ export interface EmbeddingConnectionSnapshot {
   readonly api: string;
   readonly wire: string;
   readonly baseUrl: string | null;
-  readonly features: unknown;
+  readonly features: EndpointFeatures;
   readonly extras: unknown;
   readonly transport: unknown;
   readonly embed: (
@@ -74,10 +74,12 @@ export interface PinnedGeneration extends GenerationReceipt {
   readonly dims: number;
 }
 
+/** `cachedFacts`: read only the server facts already cached, dialing nothing (a read-only preview). */
 export type ResolveEmbeddingConnection = (
   ownerId: UserId,
   task: "embed" | "imageEmbed",
   connectionId?: UserConnectionId | undefined,
+  opts?: { readonly cachedFacts?: boolean | undefined },
 ) => Promise<EmbeddingConnectionSnapshot | null>;
 
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
@@ -149,7 +151,8 @@ export interface EmbeddingsService {
    *  is width-probed before any moves, so a refusal leaves both targets and their indexes as they were. */
   readonly syncTargetGenerations: (ownerId: UserId) => Promise<EmbedMoveRefusal | null>;
   /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
-   *  cannot resolve. Read-only, and the same rule a move is made by. */
+   *  cannot resolve. Read-only, and the same rule a move is made by, over the server facts already cached: it dials
+   *  no host. */
   readonly targetWouldMove: (args: {
     readonly ownerId: UserId;
     readonly task: GenerationTask;

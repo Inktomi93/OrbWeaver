@@ -1,6 +1,7 @@
 // verb: previewEmbedSpaceChange — would a pending embedder change move the caller's stored embedding target, and what
-// would the rebuild cover? Read-only. A rebind is measured against the stored target as the sync after the write
-// measures it; clearing a role deletes nothing, and a row that cannot resolve yet still warns.
+// would the rebuild cover? Read-only, over cached server facts: it runs before the confirm, so it dials no host. A
+// rebind is measured against the stored target as the sync after the write measures it; clearing a role deletes
+// nothing, and a row that cannot resolve yet still warns.
 
 import type { VectorScope } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
@@ -72,7 +73,7 @@ interface RolePoint {
  *  through the text role as captions. */
 async function picturesMove(ctx: ConnectionContext, principal: Principal, roles: { readonly text: RolePoint; readonly image: RolePoint }): Promise<boolean> {
   const { text, image } = roles;
-  const pixels = image.after === null ? null : await vectorResolutionOf(ctx, principal, "imageEmbed", image.after);
+  const pixels = image.after === null ? null : await vectorResolutionOf(ctx, principal, "imageEmbed", { connectionId: image.after, cachedFacts: true });
   if (image.after !== null && pixels?.servesImages === true) {
     return await targetMoves(ctx, principal, { task: "imageEmbed", via: "imageEmbed", connectionId: image.after, inPlace: image.now });
   }
@@ -125,7 +126,11 @@ async function updateScopes(ctx: ConnectionContext, principal: Principal, change
   }
   const scopes: VectorScope[] = bound.flatMap((task) => [...VECTOR_SCOPES_BY_TASK[task]]);
   // Pictures embedded through the text role move with it.
-  if (bound.includes("embed") && !bound.includes("imageEmbed") && (await vectorResolutionOf(ctx, principal, "imageEmbed"))?.servesImages !== true) {
+  if (
+    bound.includes("embed") &&
+    !bound.includes("imageEmbed") &&
+    (await vectorResolutionOf(ctx, principal, "imageEmbed", { cachedFacts: true }))?.servesImages !== true
+  ) {
     scopes.push(...VECTOR_SCOPES_BY_TASK.imageEmbed);
   }
   return scopes;

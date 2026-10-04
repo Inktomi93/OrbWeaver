@@ -354,12 +354,18 @@ test("an embedder refusal is read from the refusal's code, and a width refusal f
     stated: 1024,
     measured: 768,
     truncatable: false,
+    assumed: false,
   });
   expect(
     embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 2048, measured: 1024, truncatable: true })),
     "a model that can shorten its vectors",
   ).toMatchObject({ truncatable: true });
+  expect(
+    embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: 1024, measured: 768, truncatable: false, assumed: true })),
+    "no width was set, so the stated one was only assumed",
+  ).toMatchObject({ assumed: true });
   expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedUnreachable, {})), "no answer to the probe").toEqual({ kind: "unreachable" });
+  expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedAuth, {})), "the server refused the key").toEqual({ kind: "auth" });
   expect(embedRefusalOf(refused(CONNECTION_OP_CODES.notFound, { stated: 1024, measured: 768 })), "another refusal").toBeNull();
   expect(embedRefusalOf(refused(CONNECTION_OP_CODES.embedWidthUnmakeable, { stated: "1024" })), "no numbers to say").toBeNull();
   expect(embedRefusalOf(new Error("This model makes 768-wide vectors")), "a message is never read").toBeNull();

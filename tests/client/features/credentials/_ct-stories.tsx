@@ -357,9 +357,12 @@ function ClosableConnectionEditorInner(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [open, setOpen] = useState(true);
-  const [notified, setNotified] = useState("");
+  const [notified, setNotified] = useState<{ readonly title: string; readonly description: string }>({ title: "", description: "" });
   useState(() => {
-    const sink = (notice: NotifyInput): void => setNotified(toNotice(notice).title);
+    const sink = (notice: NotifyInput): void => {
+      const { title, description } = toNotice(notice);
+      setNotified({ title, description: description ?? "" });
+    };
     bindNotify({ error: sink, info: sink, success: sink, warn: sink });
     return null;
   });
@@ -373,7 +376,8 @@ function ClosableConnectionEditorInner(): ReactElement {
           trpc={trpc}
         />
       ) : null}
-      <p data-testid="notified">{notified}</p>
+      <p data-testid="notified">{notified.title}</p>
+      <p data-testid="notified-description">{notified.description}</p>
     </div>
   );
 }

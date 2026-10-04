@@ -59,6 +59,10 @@ export interface ResolveArgs {
   readonly actor?: BindingActor | undefined;
   /** An explicit row instead of the fold — the turn's own already-resolved connection re-read, a pane preview. */
   readonly connectionId?: UserConnection["id"] | undefined;
+  /** Read only the server facts the catalog mirrors already hold, and dial nothing. For a read-only question asked
+   *  before the user commits (the change preview): a host that does not answer must not hold it. A cold mirror
+   *  degrades to the stated and curated facts. */
+  readonly cachedFacts?: boolean | undefined;
 }
 
 /** Everything the resolver reads that is not a dep: the registry + the catalog mirrors + the warms. */
@@ -302,13 +306,17 @@ function withLocalLightEmbedDtype(
 /** The warms that must land before any step reads provider facts: a detecting row's server probe, and Google's
  *  native catalog (its kind decides which tasks the row serves). Both need the credential, which is always the
  *  REGISTERED row's: its AAD binds the registered provider id, whatever the server turned out to be. `reached` is
- *  false when the detect probe found nothing answering at the URL. */
+ *  false when the detect probe found nothing answering at the URL, or when `cachedFacts` asked for no dial at all. */
 async function warmBeforeFacts(
   ctx: ResolverContext,
   provider: ProviderDef,
   connection: UserConnection,
+  cachedFacts: boolean,
 ): Promise<{ readonly behaved: ProviderDef; readonly earlyCredential: ResolvedSecret | null; readonly reached: boolean }> {
   const detecting = detectionUrl(provider, connection) !== null;
+  if (cachedFacts) {
+    return { behaved: behaveAs(ctx, provider, connection), earlyCredential: null, reached: false };
+  }
   if (provider.wire !== "google-generative-ai" && !detecting) {
     return { behaved: provider, earlyCredential: null, reached: true };
   }
@@ -339,7 +347,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   }
   // Every fact read below goes through the behaved row; identity (`providerId`, `provider`, the credential and
   // every refusal's wording) stays the registered row's.
-  const { behaved, earlyCredential, reached } = await warmBeforeFacts(ctx, provider, connection);
+  const { behaved, earlyCredential, reached } = await warmBeforeFacts(ctx, provider, connection, args.cachedFacts === true);
   const declared = connection.declared;
   const kind = kindOf(ctx, { task: args.task, provider: behaved, connection });
   const baselineKind = includeBaseline ? kindOf(ctx, { task: args.task, provider: behaved, connection, includeDeclared: false }) : undefined;

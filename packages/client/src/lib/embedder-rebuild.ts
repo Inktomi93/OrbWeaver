@@ -86,42 +86,69 @@ export function embedRefusalOf(error: unknown): EmbedTargetRefusal | null {
   if (reason === CONNECTION_OP_CODES.embedUnreachable) {
     return { kind: "unreachable" };
   }
+  if (reason === CONNECTION_OP_CODES.embedAuth) {
+    return { kind: "auth" };
+  }
   if (reason !== CONNECTION_OP_CODES.embedWidthUnmakeable) {
     return null;
   }
   const stated = trpcErrorDetailNumber(error, "stated");
   const measured = trpcErrorDetailNumber(error, "measured");
-  return stated === null || measured === null ? null : { kind: "width", stated, measured, truncatable: trpcErrorDetailFlag(error, "truncatable") };
+  return stated === null || measured === null
+    ? null
+    : { kind: "width", stated, measured, truncatable: trpcErrorDetailFlag(error, "truncatable"), assumed: trpcErrorDetailFlag(error, "assumed") };
 }
 
 /** The `data-refusal` a refusal line carries, per refusal kind. */
-export const EMBED_REFUSAL_SLOTS = { width: "embed-width", unreachable: "embed-unreachable" } as const satisfies Record<EmbedTargetRefusal["kind"], string>;
+export const EMBED_REFUSAL_SLOTS = {
+  width: "embed-width",
+  unreachable: "embed-unreachable",
+  auth: "embed-auth",
+} as const satisfies Record<EmbedTargetRefusal["kind"], string>;
 
 /** The next step after an embedder did not answer: a sleeping or stopped server is the usual cause. */
 const UNREACHABLE_NEXT_STEP = "Check that its server is running, then try again.";
 
-/** "makes 768-wide", or "makes at most 1,024-wide" for a model that can shorten its vectors. */
-function makesWidth(refusal: Extract<EmbedTargetRefusal, { readonly kind: "width" }>): string {
-  return `makes ${refusal.truncatable ? "at most " : ""}${groupThousands(refusal.measured)}-wide vectors, not ${groupThousands(refusal.stated)}`;
+/** The next step after an embedder's server refused the key: the key is fixed where it is kept. */
+const AUTH_NEXT_STEP = "Check the key under Credentials, then try again.";
+
+type WidthRefusal = Extract<EmbedTargetRefusal, { readonly kind: "width" }>;
+
+/** "makes 768-wide vectors, not 1,024", "makes at most 1,024-wide…" for a model that can shorten its vectors, and
+ *  "…not the 1,024 assumed for it" when no width was set, so the user is not told they stated one. */
+function makesWidth(refusal: WidthRefusal): string {
+  const stated = groupThousands(refusal.stated);
+  return `makes ${refusal.truncatable ? "at most " : ""}${groupThousands(refusal.measured)}-wide vectors, not ${refusal.assumed ? `the ${stated} assumed for it` : stated}`;
 }
 
 /** Why an embedder write was refused, and what to do next. `embedder` names the connection where the control beside
  *  the line no longer shows it (a picker rolled back to what is bound). */
 export function embedRefusalText(refusal: EmbedTargetRefusal, embedder?: string): string {
-  if (refusal.kind === "unreachable") {
-    return `Couldn't reach ${embedder ?? "this embedder"} to check its vector width, so nothing changed. ${UNREACHABLE_NEXT_STEP}`;
+  switch (refusal.kind) {
+    case "unreachable":
+      return `Couldn't reach ${embedder ?? "this embedder"} to check its vector width, so nothing changed. ${UNREACHABLE_NEXT_STEP}`;
+    case "auth":
+      return `${embedder ?? "This embedder"} refused its key, so its vector width couldn't be checked and nothing changed. ${AUTH_NEXT_STEP}`;
+    case "width":
+      return `${embedder ?? "This model"} ${makesWidth(refusal)}, so nothing changed. Set its vector width under Advanced to ${groupThousands(refusal.measured)}.`;
   }
-  return `${embedder ?? "This model"} ${makesWidth(refusal)}, so nothing changed. Set its vector width under Advanced to ${groupThousands(refusal.measured)}.`;
 }
 
 /** The same refusal said on the editor row whose change it refused. The rollback already put the row back, so it says
  *  what was kept rather than what to set. */
 export function embedRefusalRowText(refusal: EmbedTargetRefusal): string {
-  if (refusal.kind === "unreachable") {
-    return `Kept as it was: couldn't reach this embedder to check its vector width. ${UNREACHABLE_NEXT_STEP}`;
+  switch (refusal.kind) {
+    case "unreachable":
+      return `Kept as it was: couldn't reach this embedder to check its vector width. ${UNREACHABLE_NEXT_STEP}`;
+    case "auth":
+      return `Kept as it was: this embedder refused its key. ${AUTH_NEXT_STEP}`;
+    case "width":
+      return `Kept as it was: this model ${makesWidth(refusal)}.`;
   }
-  return `Kept as it was: this model ${makesWidth(refusal)}.`;
 }
+
+/** The title of the toast that says a refusal after its control closed; the reason rides as its description. */
+export const EMBED_REFUSAL_TOAST_TITLE = "Embedder change not applied";
 
 /** The status line while the server checks the embedder a write would move the index onto. */
 export function embedderCheckingText(embedder?: string): string {

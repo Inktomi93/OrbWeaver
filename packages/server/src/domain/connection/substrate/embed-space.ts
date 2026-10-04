@@ -11,7 +11,7 @@ import type { EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference"
 import { embedDtypeOf, embedSpaceOf, servesImageVectors } from "@orb/contracts/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { connectionFingerprint } from "#kit/embedding-generation";
-import { EmbedUnreachableError, EmbedWidthUnmakeableError } from "../contract/errors.ts";
+import { EmbedAuthError, EmbedUnreachableError, EmbedWidthUnmakeableError } from "../contract/errors.ts";
 import type { EmbedSpace, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext } from "../contract/service.ts";
 
@@ -34,17 +34,23 @@ export async function vectorSpacesOf(ctx: SpaceResolveCtx, principal: Principal)
 /** One vector task's space and whether its encoder embeds pixels, through the bound connection or, when
  *  `connectionId` names one, through that row as if it were bound. A resolve REFUSAL is a legitimate reading of
  *  "no space" — an unbound, unservable or unfundable task has no vectors to strand — so it folds to `null`
- *  rather than failing the write that asked. */
+ *  rather than failing the write that asked. `cachedFacts` reads the server facts already cached and dials nothing. */
 export async function vectorResolutionOf(
   ctx: SpaceResolveCtx,
   principal: Principal,
   task: RoutableTask,
-  connectionId?: UserConnectionId,
+  through: { readonly connectionId?: UserConnectionId | undefined; readonly cachedFacts?: boolean } = {},
 ): Promise<{ readonly space: EmbedSpace; readonly servesImages: boolean } | null> {
+  const { connectionId, cachedFacts = false } = through;
   // @orb-waive caught-failure-ownership(catch): a refused resolve IS the "no space" answer this comparison
   // needs; nothing is swallowed, and a throw here would fail a connection write over an unrelated task.
   try {
-    const { resolved } = await ctx.runtime.resolve({ task, principal, ...(connectionId === undefined ? {} : { connectionId }) });
+    const { resolved } = await ctx.runtime.resolve({
+      task,
+      principal,
+      ...(connectionId === undefined ? {} : { connectionId }),
+      ...(cachedFacts ? { cachedFacts } : {}),
+    });
     if (resolved.capability.kind !== "embedding") {
       return null;
     }
@@ -68,7 +74,7 @@ export async function vectorSpaceOf(
   task: RoutableTask,
   connectionId?: UserConnectionId,
 ): Promise<EmbedSpace | null> {
-  return (await vectorResolutionOf(ctx, principal, task, connectionId))?.space ?? null;
+  return (await vectorResolutionOf(ctx, principal, task, { connectionId }))?.space ?? null;
 }
 
 /** Did one task's space move? Encoder identity or width — the trigger's whole condition, in one place. */
@@ -90,7 +96,7 @@ export function spacesMayMoveTarget(before: EmbedSpaces, after: EmbedSpaces): bo
  * index and the binding stay as they were. A sync that throws undoes the write too: a write never stays landed behind
  * an error. `undo` must restore only what this write still holds, since a newer write may have landed meanwhile.
  *
- * @throws {@link EmbedWidthUnmakeableError} or {@link EmbedUnreachableError} after `undo`.
+ * @throws {@link EmbedWidthUnmakeableError}, {@link EmbedUnreachableError} or {@link EmbedAuthError} after `undo`.
  */
 export async function settleEmbedSpace(
   ctx: Pick<ConnectionContext, "syncEmbedTargets">,
@@ -110,5 +116,16 @@ export async function settleEmbedSpace(
     return;
   }
   await args.undo();
-  throw refused.kind === "width" ? new EmbedWidthUnmakeableError(refused) : new EmbedUnreachableError();
+  throw refusalError(refused);
+}
+
+function refusalError(refused: EmbedTargetRefusal): Error {
+  switch (refused.kind) {
+    case "width":
+      return new EmbedWidthUnmakeableError(refused);
+    case "unreachable":
+      return new EmbedUnreachableError();
+    case "auth":
+      return new EmbedAuthError();
+  }
 }

@@ -21,11 +21,22 @@ export class ProviderUnknownError extends DomainOperationError {
 export class EmbedWidthUnmakeableError extends DomainOperationError {
   declare readonly code: typeof CONNECTION_OP_CODES.embedWidthUnmakeable;
   constructor(width: EmbedWidthRefusalDetail) {
-    super(
-      CONNECTION_OP_CODES.embedWidthUnmakeable,
-      `The model makes ${String(width.measured)}-wide vectors, not the ${String(width.stated)} its connection states.`,
-      { stated: width.stated, measured: width.measured, truncatable: width.truncatable },
-    );
+    const expected = width.assumed ? `the ${String(width.stated)} assumed for it, since no width is set` : `the ${String(width.stated)} its connection states`;
+    super(CONNECTION_OP_CODES.embedWidthUnmakeable, `The model makes ${String(width.measured)}-wide vectors, not ${expected}.`, {
+      stated: width.stated,
+      measured: width.measured,
+      truncatable: width.truncatable,
+      assumed: width.assumed,
+    });
+  }
+}
+
+/** A write that would move the caller's index onto an embedder whose server refused the row's key on the width probe.
+ *  Undone before this is thrown, like {@link EmbedUnreachableError}. */
+export class EmbedAuthError extends DomainOperationError {
+  declare readonly code: typeof CONNECTION_OP_CODES.embedAuth;
+  constructor() {
+    super(CONNECTION_OP_CODES.embedAuth, "The embedder's server refused this connection's key, so its vector width could not be checked.");
   }
 }
 

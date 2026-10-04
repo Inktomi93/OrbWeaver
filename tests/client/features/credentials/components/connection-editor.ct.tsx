@@ -1243,7 +1243,8 @@ test("a Server URL the server refuses goes back to the saved URL", async ({ moun
   await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
-// Done stays live while the server checks; closing the editor then must not lose the refusal, so a toast says it.
+// Done stays live while the server checks; closing the editor then must not lose the refusal, so a toast says it, with
+// the reason as its description so it stays up long enough to read.
 test("a refusal that arrives after the editor closed is still said", async ({ mount, page }) => {
   const hold = trpcHold();
   await stubEditor(page, {
@@ -1261,7 +1262,7 @@ test("a refusal that arrives after the editor closed is still said", async ({ mo
   await expect(component.locator('[data-slot="connection-editor"]')).toHaveCount(0);
   hold.release(trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedUnreachable }));
 
-  await expect(component.getByTestId("notified")).toContainText(connectionRow().label);
+  await expect(component.getByTestId("notified-description")).toContainText(connectionRow().label);
 });
 
 // With nothing stored to rebuild there is no confirm to hand focus back, and the button pressed goes away on save.

@@ -4,7 +4,7 @@ import type { VectorScope } from "@orb/contracts/embeddings";
 import { embedDimsOf, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { VectorWidthMismatch } from "@orb/inference";
-import { ProviderError } from "@orb/inference";
+import { embedRequestTimeoutMs, ProviderError } from "@orb/inference";
 import type { EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
@@ -51,11 +51,6 @@ export async function landProvenTarget(
  *  @public Test-anchored module surface; the write-path tests answer this probe apart from real embeds. */
 export const WIDTH_PROBE_TEXT = "width check";
 
-/** How long a remote embedder has to answer the width probe. A write waits on the probe, so a box that has not
- *  answered in this long is asleep or gone, and the write is refused rather than left hanging.
- *  @public Test-anchored module surface; the bounded-probe tests advance a fake clock past it. */
-export const WIDTH_PROBE_TIMEOUT_MS = 10_000;
-
 /** The in-process encoder's bound: it cannot be unreachable, but its first load from cold may download its weights
  *  first. 10 minutes covers the shipped encoder's 874 MB q8 weights on a ~12 Mbit/s link plus a measured 21.8 s cold
  *  load, and still frees the owner's write queue from a worker that hung.
@@ -63,11 +58,15 @@ export const WIDTH_PROBE_TIMEOUT_MS = 10_000;
 export const LOCAL_ENCODER_PROBE_TIMEOUT_MS = 600_000;
 
 /** One embed through the new connection: the vector must be as wide as the space it would be written into. One
- *  attempt, bounded by {@link WIDTH_PROBE_TIMEOUT_MS}, or by {@link LOCAL_ENCODER_PROBE_TIMEOUT_MS} on the in-process
- *  encoder, whose cold load is not a sign that it is gone. */
+ *  attempt. A remote embedder gets the row's embed request deadline ({@link embedRequestTimeoutMs}): a host that is
+ *  down already failed its connect, and one that answered may be loading its model, which a first embed waits for.
+ *  The in-process encoder gets {@link LOCAL_ENCODER_PROBE_TIMEOUT_MS}, since its cold load is not a sign it is gone. */
 export async function probeWidth(connection: EmbeddingConnectionSnapshot, via: GenerationTask, dims: number): Promise<void> {
   const bound = new AbortController();
-  const timer = setTimeout(() => bound.abort(), connection.wire === "local-light" ? LOCAL_ENCODER_PROBE_TIMEOUT_MS : WIDTH_PROBE_TIMEOUT_MS);
+  const timer = setTimeout(
+    () => bound.abort(),
+    connection.wire === "local-light" ? LOCAL_ENCODER_PROBE_TIMEOUT_MS : embedRequestTimeoutMs(connection.features),
+  );
   const opts = { signal: bound.signal };
   const result = await (via === "embed"
     ? connection.embed(WIDTH_PROBE_TEXT, opts)
@@ -135,14 +134,20 @@ interface PendingTargetMove {
 
 /**
  * Would the owner's stored target move to what `via` resolves to now, or through `connectionId` as if it were bound?
- * Read-only. `null` when nothing resolves.
+ * Read-only. `null` when nothing resolves. `cachedFacts` answers from the server facts already cached, dialing nothing.
  */
 export async function pendingTargetMove(
   ctx: Pick<TargetResolveCtx, "db" | "resolveEmbeddingConnection">,
-  args: { readonly ownerId: UserId; readonly task: GenerationTask; readonly via: GenerationTask; readonly connectionId?: UserConnectionId | undefined },
+  args: {
+    readonly ownerId: UserId;
+    readonly task: GenerationTask;
+    readonly via: GenerationTask;
+    readonly connectionId?: UserConnectionId | undefined;
+    readonly cachedFacts?: boolean | undefined;
+  },
 ): Promise<PendingTargetMove | null> {
   const { ownerId, task, via, connectionId } = args;
-  const connection = await ctx.resolveEmbeddingConnection(ownerId, via, connectionId);
+  const connection = await ctx.resolveEmbeddingConnection(ownerId, via, connectionId, { cachedFacts: args.cachedFacts });
   if (connection === null) {
     return null;
   }

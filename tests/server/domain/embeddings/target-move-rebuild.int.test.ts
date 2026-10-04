@@ -9,6 +9,7 @@ import type { EmbedResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, userCredentials } from "@orb/db";
+import type { Resolved } from "@orb/inference";
 import { ProviderError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { CharacterId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
@@ -109,12 +110,12 @@ async function drive(intercept?: HarnessOptions["intercept"]): Promise<Drive> {
     },
     roleClientsFor: roleClients,
     // A named row resolves as if it were bound (the change preview asks that); embedding still runs through the bound role.
-    resolveEmbeddingConnection: async (_ownerId, task, connectionId) => {
+    resolveEmbeddingConnection: async (_ownerId, task, connectionId, opts) => {
       const rc = await roleClients();
       const resolved =
         connectionId === undefined
           ? await rc.resolved(task)
-          : await h.runtime.resolve({ task, principal, connectionId }).then(
+          : await h.runtime.resolve({ task, principal, connectionId, cachedFacts: opts?.cachedFacts }).then(
               ({ resolved: row }) => ({ model: row.model, connectionId: row.connectionId, providerId: row.providerId, capability: row.capability }),
               () => null,
             );
@@ -527,7 +528,7 @@ test("a sync whose embedder makes the wrong width returns the refusal and moves 
 
   const refusal = await svc.syncTargetGenerations(d.userId);
 
-  expect(refusal).toEqual({ kind: "width", task: "embed", stated: 768, measured: 7, truncatable: true });
+  expect(refusal).toEqual({ kind: "width", task: "embed", stated: 768, measured: 7, truncatable: true, assumed: false });
   expect(d.moved, "a width the embedder does not make keeps both targets").toEqual([]);
 });
 
@@ -957,5 +958,202 @@ describe("the change preview measures against the stored target", () => {
 
     expect(rebind).toMatchObject({ reindex: false, embedCalls: 0 });
     expect(other).toMatchObject({ reindex: true, stored: { cards: CARDS.length } });
+  });
+
+  // The preview runs before the confirm, so a sleeping host it dialed would hold the pick with nothing on screen.
+  test("previewing a pick of a connection whose host does not answer reads stored facts, and never dials it", async () => {
+    const host = heldHost();
+    const d = await drive(host.intercept);
+    await sweep(d, false);
+    d.h.useEmbeddings(d.svc);
+    const sleeping = await stating(d, `${HELD_ORIGIN}/v1`, { kind: "embedding", embedding: { dims: 768, mrl: false } });
+    const dialsBefore = host.dials(d);
+
+    const preview = d.h.svc.previewEmbedSpaceChange({ principal: d.principal, change: { kind: "bind", task: "embed", connectionId: sleeping } });
+
+    expect(await settlesWhileHeld(preview), "the preview answered while the host was still silent").toBe(true);
+    expect(await preview).toMatchObject({ reindex: true, stored: { cards: CARDS.length } });
+    expect(host.dials(d)).toBe(dialsBefore);
+    host.release();
+  });
+});
+
+const HELD_ORIGIN = "http://203.0.113.2:18707";
+const SLOW_ORIGIN = "http://127.0.0.1:18708";
+const KEYED_ORIGIN = "http://127.0.0.1:18709";
+/** A cold Ollama load measured 7 s after the first bind gave up at 10 s; a waking server takes longer. */
+const MODEL_LOAD_MS = 15_000;
+const HTTP_UNAUTHORIZED = 401;
+
+const UNLISTED_ENCODER = "probe-embedder";
+
+/** A row at `baseUrl` on the custom endpoint, with `declared` as its stated facts. */
+async function stating(
+  d: Drive,
+  baseUrl: string,
+  declared: NonNullable<Parameters<ConnectionHarness["svc"]["create"]>[0]["declared"]>,
+  model = NARROW_ENCODER,
+): Promise<UserConnectionId> {
+  d.key.revoked = false;
+  return (
+    await d.h.svc.create({ principal: d.principal, providerId: BYO_PROVIDER, model, baseUrl, credentialId: d.credentialId, allowBackground: true, declared })
+  ).id;
+}
+
+/** A host whose every dial hangs until the test releases it, then fails the way a dead host's connect does. */
+function heldHost(): {
+  readonly intercept: NonNullable<HarnessOptions["intercept"]>;
+  readonly dials: (d: Drive) => number;
+  readonly release: () => void;
+} {
+  const gate = Promise.withResolvers<void>();
+  return {
+    intercept: (url) =>
+      url.startsWith(HELD_ORIGIN)
+        ? gate.promise.then(() => {
+            throw new TypeError("fetch failed: connect timeout");
+          })
+        : null,
+    dials: (d) => d.h.requests.filter((request) => request.url.startsWith(HELD_ORIGIN)).length,
+    release: (): void => {
+      gate.resolve();
+    },
+  };
+}
+
+/** The narrow server's embed answer to `init`'s body. */
+function narrowAnswer(init: RequestInit | undefined): Response {
+  return new Response(JSON.stringify(NARROW_ROUTE.reply(typeof init?.body === "string" ? init.body : null)), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+/** A running server still loading its model: it answers every catalog read at once, and its first embed only after
+ *  the model has loaded. */
+function loadingServer(url: string, init: RequestInit | undefined): Promise<Response> | null {
+  if (url !== `${SLOW_ORIGIN}/v1/embeddings`) {
+    return null;
+  }
+  return new Promise<Response>((resolve, reject) => {
+    const timer = setTimeout(() => resolve(narrowAnswer(init)), MODEL_LOAD_MS);
+    init?.signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new DOMException("aborted", "AbortError"));
+      },
+      { once: true },
+    );
+  });
+}
+
+/** A server that refuses the row's key on every embed. */
+function keyRefusingServer(url: string): Promise<Response> | null {
+  return url === `${KEYED_ORIGIN}/v1/embeddings`
+    ? Promise.resolve(
+        new Response(JSON.stringify({ error: { message: "Incorrect API key provided", type: "invalid_request_error" } }), {
+          status: HTTP_UNAUTHORIZED,
+          headers: { "content-type": "application/json" },
+        }),
+      )
+    : null;
+}
+
+function isTextEmbed(resolved: Resolved): resolved is Resolved<"embed"> {
+  return resolved.task === "embed";
+}
+
+/** The embeddings service over the bound role's full resolve, as the composition root builds it: its wire, its
+ *  features, and an embed that carries the caller's abort signal to the request. */
+function wiredService(d: Drive): EmbeddingsService {
+  return createEmbeddingsService({
+    ...d.ctx,
+    resolveEmbeddingConnection: async (_ownerId, task, connectionId) => {
+      const resolved = await d.h.runtime.resolve({ task, principal: d.principal, ...(connectionId === undefined ? {} : { connectionId }) }).then(
+        (outcome) => outcome.resolved,
+        () => null,
+      );
+      if (resolved === null || !isTextEmbed(resolved)) {
+        return null;
+      }
+      const embed: EmbeddingConnectionSnapshot["embed"] = (input, opts) =>
+        d.h.runtime.executor.embed({ connection: resolved, input, ...(opts?.signal === undefined ? {} : { signal: opts.signal }) });
+      return { ...resolved, api: resolved.api ?? "none", embed, imageEmbed: () => Promise.reject(new Error("no image embed in this fixture")) };
+    },
+  });
+}
+
+describe("the width probe on a server that answers", () => {
+  // The server answered its catalog read, so it is running: its first embed is waited for like any embed request.
+  test("binding an embedder whose server is still loading the model is accepted once the model answers", async () => {
+    const d = await drive(loadingServer);
+    await sweep(d, false);
+    d.h.useEmbeddings(wiredService(d));
+    const loading = await stating(d, `${SLOW_ORIGIN}/v1`, { kind: "embedding", embedding: { dims: 768, mrl: false } });
+
+    const { outcome, elapsed } = await onFakeClock(() => outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: loading })));
+
+    expect(outcome).toBe("accepted");
+    expect(elapsed).toBeGreaterThanOrEqual(MODEL_LOAD_MS);
+    expect(await boundEmbedder(d)).toBe(loading);
+  });
+
+  test("an embedder that refuses its key is refused as a key problem, and nothing moves", async () => {
+    const d = await drive(keyRefusingServer);
+    await sweep(d, false);
+    d.h.useEmbeddings(d.svc);
+    const keyed = await stating(d, `${KEYED_ORIGIN}/v1`, { kind: "embedding", embedding: { dims: 768, mrl: false } });
+
+    const outcome = await outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: keyed }));
+
+    expect(outcome).toBe(`refused ${CONNECTION_OP_CODES.embedAuth}`);
+    expect(await boundEmbedder(d)).toBe(d.builtIn);
+    expect(d.moved).toEqual([]);
+  });
+
+  test("a width refusal says whether the width was stated or only assumed", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    d.h.useEmbeddings(d.svc);
+    // A model no curated row or server listing states a width for: its width is the kind floor's guess.
+    const unstated = await stating(d, NARROW_BASE_URL, { kind: "embedding" }, UNLISTED_ENCODER);
+    const stated = await narrowStating(d, 1024);
+
+    const assumedWrite = d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: unstated });
+    await expect(assumedWrite).rejects.toMatchObject({ code: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { measured: 768, assumed: true } });
+    const statedWrite = d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: stated });
+    await expect(statedWrite).rejects.toMatchObject({ code: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 1024, assumed: false } });
+  });
+});
+
+describe("an edit that cannot move the index never dials the bound embedder", () => {
+  // The bound row's re-point stores its new URL before probing it, so a resolve of the bound role would dial that host.
+  test("a label edit on an unbound row lands while the bound embedder's new host is still being dialed", async () => {
+    const host = heldHost();
+    const d = await drive(host.intercept);
+    await sweep(d, false);
+    d.h.useEmbeddings(d.svc);
+    const fits = await narrowStating(d, 768);
+    await d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: fits });
+    const unrelated = await narrowStating(d, 768);
+
+    const repoint = outcomeOf(
+      d.h.svc.update({
+        principal: d.principal,
+        connectionId: fits,
+        patch: { baseUrl: `${HELD_ORIGIN}/v1`, declared: { kind: "embedding", embedding: { dims: 512, mrl: false } } },
+      }),
+    );
+    for (let look = 0; look < OVERLAP_LOOKS && host.dials(d) === 0; look += 1) {
+      await new Promise((resolve) => setTimeout(resolve, OVERLAP_LOOK_MS));
+    }
+    expect(host.dials(d), "the re-point is dialing its new host").toBeGreaterThan(0);
+    const renamed = d.h.svc.update({ principal: d.principal, connectionId: unrelated, patch: { label: "renamed" } });
+
+    expect(await settlesWhileHeld(renamed)).toBe(true);
+    host.release();
+    expect(await repoint).toBe(`refused ${CONNECTION_OP_CODES.embedUnreachable}`);
+    expect((await d.h.svc.get({ principal: d.principal, connectionId: unrelated })).label).toBe("renamed");
   });
 });

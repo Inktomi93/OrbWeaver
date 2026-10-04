@@ -41,7 +41,8 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     indexAsset,
     resolveGeneration: (ownerId, task, via) => resolveTargetGeneration(ctx, ownerId, task, via),
     syncTargetGenerations: createSyncTargetGenerations(ctx),
-    targetWouldMove: async (args) => (await pendingTargetMove(ctx, args))?.moves ?? null,
+    // The preview asks before the user commits; a host that does not answer must not hold the question.
+    targetWouldMove: async (args) => (await pendingTargetMove(ctx, { ...args, cachedFacts: true }))?.moves ?? null,
     targetSnapshot: (ownerId) => readTargetSnapshot(ctx.db, ownerId),
     staleGenerationOwners: createStaleGenerationOwners(ctx),
     countOwnedVectors: (ownerId) => countOwnedVectors(ctx.db, ownerId),

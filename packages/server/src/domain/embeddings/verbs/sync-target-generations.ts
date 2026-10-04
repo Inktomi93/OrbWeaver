@@ -32,26 +32,33 @@ type Proof =
 
 /**
  * Probe one target's move before anything moves. A width the encoder does not make is the refusal the waiting write
- * reports, and so is an embedder that does not answer: an unchecked width is never accepted. An unresolvable binding
+ * reports, and so is an embedder that does not answer or refuses the row's key: an unchecked width is never accepted. An unresolvable binding
  * skips the target (its first write after it can resolve moves it).
  */
 async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget): Promise<Proof> {
   let truncatable = false;
+  let assumed = false;
   try {
     const move = await pendingTargetMove(ctx, { ownerId, task: target.task, via: target.via });
     if (move?.moves !== true) {
       return { kind: "skip" };
     }
-    truncatable = move.connection.capability.kind === "embedding" && move.connection.capability.embedding.mrl;
+    const { capability } = move.connection;
+    truncatable = capability.kind === "embedding" && capability.embedding.mrl;
+    assumed = capability.kind === "embedding" && capability.embedding.dimsEstimated === true;
     await probeWidth(move.connection, target.via, move.dims);
     return { kind: "move", generationId: move.id };
   } catch (error) {
     const width = widthMismatchOf(error);
     if (width !== null) {
-      return { kind: "refused", refusal: { kind: "width", task: target.task, ...width, truncatable } };
+      return { kind: "refused", refusal: { kind: "width", task: target.task, ...width, truncatable, assumed } };
     }
     if (bindingUnresolvable(error)) {
       return { kind: "skip" };
+    }
+    if (error instanceof ProviderError && error.kind === "auth_failed") {
+      getLog().warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe was refused its key; the write is refused");
+      return { kind: "refused", refusal: { kind: "auth", task: target.task } };
     }
     if (error instanceof ProviderError || error instanceof EmbedFailedError) {
       getLog().warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe got no answer; the write is refused");

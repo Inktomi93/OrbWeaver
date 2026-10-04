@@ -696,6 +696,33 @@ test("a pick whose embedder the server is still checking says so on its row unti
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
 });
 
+// Before the confirm the server sizes the change; a pick must not look ignored meanwhile.
+test("a pick says it is checking from the moment the server is asked what it would rebuild", async ({ mount, page }) => {
+  await stubPane(page, { reindexPreview: STORED_REBUILD });
+  let releasePreview = (): void => undefined;
+  const previewHeld = new Promise<void>((resolve) => {
+    releasePreview = resolve;
+  });
+  await page.route(/embedSpaceChangePreview/, async (route) => {
+    await previewHeld;
+    await route.fallback();
+  });
+  await mount(<ConnectionsSettingsStory />);
+  const picker = roleSelect(page, "Text embedding");
+
+  await picker.click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+
+  const checking = page.locator("[data-embedder-check]");
+  await expect(checking).toHaveAttribute("role", "status");
+  expect((await rowOf(checking)).picker).toBe("Text embedding connection");
+  await expect(page.locator('[aria-busy="true"]').filter({ has: checking })).toHaveCount(1);
+  await expect(picker).toBeDisabled();
+  releasePreview();
+  await expect(page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title })).toBeVisible();
+  await expect(checking).toHaveCount(0);
+});
+
 // The app cache never goes stale on its own, and the rows only poll while a rebuild already shows as running,
 // so the confirmed re-point itself must re-read the job list or the rebuild it enqueued stays invisible.
 test("a confirmed embedder re-point shows its rebuild running, then failed", async ({ mount, page }) => {

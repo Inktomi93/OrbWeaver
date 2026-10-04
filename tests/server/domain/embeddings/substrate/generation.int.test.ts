@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
 import { documentChunks, embedGenerationTargets, embedSpaceState, userConnections } from "@orb/db";
-import { ProviderError } from "@orb/inference";
+import { embedRequestTimeoutMs, ProviderError } from "@orb/inference";
 import type { DocumentChunkId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
@@ -11,7 +11,6 @@ import {
   LOCAL_ENCODER_PROBE_TIMEOUT_MS,
   probeWidth,
   resolveTargetGeneration,
-  WIDTH_PROBE_TIMEOUT_MS,
 } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { makeFakeRoleClients } from "../../../../support/factories/role-clients.ts";
@@ -232,20 +231,35 @@ const NEVER_ANSWERS: EmbeddingConnectionSnapshot["embed"] = (_input, opts) =>
   });
 
 // A write waits on the width probe, so a remote embedder that accepts the request and never answers must not hold it.
-test("a remote embedder that never answers fails the width probe at its bound, after one attempt", async () => {
+test("a remote embedder that never answers fails the width probe at its embed request deadline, after one attempt", async () => {
   let attempts = 0;
   const target = await probeTarget("openai-compat", async (input, opts) => {
     attempts += 1;
     return await NEVER_ANSWERS(input, opts);
   });
 
-  expect(await probeAfter(target, WIDTH_PROBE_TIMEOUT_MS)).toBe("refused aborted");
+  expect(await probeAfter(target, embedRequestTimeoutMs({}))).toBe("refused aborted");
   expect(attempts).toBe(1);
+});
+
+// A running server still loading its model answers its first embed late; the probe waits as any embed request would.
+test("a remote embedder still loading its model answers the width probe", async () => {
+  const modelLoadMs = 15_000;
+  const target = await probeTarget(
+    "openai-compat",
+    (_input, opts) =>
+      new Promise((resolve, reject) => {
+        setTimeout(() => resolve({ vectors: [new Float32Array(8)], model: "embed-probe", usage: { promptTokens: null, totalTokens: null } }), modelLoadMs);
+        opts?.signal?.addEventListener("abort", () => reject(new ProviderError({ kind: "aborted", retryable: false, message: "aborted" })), { once: true });
+      }),
+  );
+
+  expect(await probeAfter(target, modelLoadMs)).toBe("answered");
 });
 
 // The built-in encoder runs in this process: a first load from cold can outlast the network bound, and it still answers.
 test("the built-in encoder's slow first load is not cut short by the probe's bound", async () => {
-  const coldLoadMs = 3 * WIDTH_PROBE_TIMEOUT_MS;
+  const coldLoadMs = 3 * embedRequestTimeoutMs({});
   const target = await probeTarget(
     "local-light",
     (_input, opts) =>

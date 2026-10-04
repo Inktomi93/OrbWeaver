@@ -132,6 +132,8 @@ export const CONNECTION_OP_CODES = {
   /** The embedder did not answer the width probe, so the width it makes is unknown; the write that would rebuild the
    *  index on it is undone rather than accepted unchecked. */
   embedUnreachable: "connection_embed_unreachable",
+  /** The embedder's server refused the row's key on the width probe; the write is undone, as for an unreachable one. */
+  embedAuth: "connection_embed_auth",
 } as const;
 
 /** The two widths an `embedWidthUnmakeable` refusal names: what the connection states, and what the model made. */
@@ -140,7 +142,9 @@ export interface EmbedWidthRefusalDetail {
   readonly measured: number;
   /** The model can shorten its vectors, so `measured` is the widest it makes rather than its only width. */
   readonly truncatable: boolean;
+  /** No one stated a width, so `stated` is the width assumed for the model rather than one the user set. */
+  readonly assumed: boolean;
 }
 
 /** Why a write that would move the owner's index was refused before anything moved. */
-export type EmbedTargetRefusal = ({ readonly kind: "width" } & EmbedWidthRefusalDetail) | { readonly kind: "unreachable" };
+export type EmbedTargetRefusal = ({ readonly kind: "width" } & EmbedWidthRefusalDetail) | { readonly kind: "unreachable" } | { readonly kind: "auth" };

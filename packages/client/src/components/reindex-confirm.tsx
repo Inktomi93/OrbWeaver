@@ -27,6 +27,8 @@ interface PendingWrite {
 export interface ReindexConfirm {
   /** Write `change` through `write`, after the user confirms when it would rebuild a non-empty index. */
   readonly guard: (change: EmbedSpaceChange, write: GuardedWrite) => void;
+  /** The server is still answering what a guarded change would rebuild; the caller says it is checking meanwhile. */
+  readonly asking: boolean;
   readonly dialog: ReactElement;
 }
 
@@ -34,8 +36,10 @@ export interface ReindexConfirm {
 export function useReindexConfirm(trpc: Trpc, finalFocus?: ConfirmDialogProps["finalFocus"]): ReindexConfirm {
   const queryClient = useQueryClient();
   const [pending, setPending] = useState<PendingWrite | null>(null);
+  const [asking, setAsking] = useState(false);
 
   const guard = (change: EmbedSpaceChange, write: GuardedWrite): void => {
+    setAsking(true);
     // `staleTime: 0`: the answer depends on rows that change between asks, so a cached one could skip the confirm.
     void queryClient
       .fetchQuery({ ...trpc.connection.embedSpaceChangePreview.queryOptions({ change }), staleTime: 0 })
@@ -47,7 +51,8 @@ export function useReindexConfirm(trpc: Trpc, finalFocus?: ConfirmDialogProps["f
         }
       })
       // An unreadable preview still asks: writing straight through could delete an index the user never weighed.
-      .catch((): void => setPending({ preview: null, write }));
+      .catch((): void => setPending({ preview: null, write }))
+      .finally((): void => setAsking(false));
   };
 
   const dialog = (
@@ -67,5 +72,5 @@ export function useReindexConfirm(trpc: Trpc, finalFocus?: ConfirmDialogProps["f
       }}
     />
   );
-  return { guard, dialog };
+  return { guard, asking, dialog };
 }

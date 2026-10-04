@@ -4,9 +4,10 @@
 
 import type { EmbedTargetRefusal } from "@orb/contracts/inference";
 import { useEffect, useRef } from "react";
-import { embedRefusalOf, notify } from "#lib";
+import { EMBED_REFUSAL_TOAST_TITLE, embedRefusalOf, notify } from "#lib";
 
-/** Watch one write: if it fails with an embedder refusal after this surface unmounted, toast `text(refusal)`. */
+/** Watch one write: if it fails with an embedder refusal after this surface unmounted, toast `text(refusal)`. The
+ *  reason rides as the description, so the toast stays long enough to read: the user has already moved on. */
 export function useEmbedRefusalToastAfterUnmount(): (write: Promise<unknown>, text: (refusal: EmbedTargetRefusal) => string) => void {
   const mounted = useRef(false);
   useEffect(() => {
@@ -21,7 +22,7 @@ export function useEmbedRefusalToastAfterUnmount(): (write: Promise<unknown>, te
     void write.catch((error: unknown) => {
       const refusal = embedRefusalOf(error);
       if (refusal !== null && !mounted.current) {
-        notify.error(text(refusal));
+        notify.error({ title: EMBED_REFUSAL_TOAST_TITLE, description: text(refusal) });
       }
     });
   };

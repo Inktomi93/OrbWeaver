@@ -20,6 +20,7 @@ import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/to
 import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { EmbedRequest } from "../../contract/roles.ts";
+import { embedRequestTimeoutMs } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { foldAbortInto } from "../kit/abort-flatten.ts";
 import type { VectorFit } from "../kit/embedding-input.ts";
@@ -33,7 +34,6 @@ import { embeddingModelFor } from "./model.ts";
 const DIMENSIONS_REJECTED_RE = /dimensions/iu;
 const PROMPT_SCAFFOLD_RESERVE_TOKENS = 64;
 const DEFAULT_CHUNK_ITEMS = 128;
-const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
 const MS_PER_SEC = 1000;
 
 export interface EmbedDeps {
@@ -129,8 +129,7 @@ async function embedOnce(args: EmbedOnceArgs): Promise<{ readonly embeddings: nu
   }
 }
 
-function postDeadlineMs(tokens: number, base: number | undefined, floorTokensPerSec: number | undefined): number {
-  const baseMs = base ?? DEFAULT_REQUEST_TIMEOUT_MS;
+function postDeadlineMs(tokens: number, baseMs: number, floorTokensPerSec: number | undefined): number {
   return floorTokensPerSec === undefined ? baseMs : Math.max(baseMs, Math.ceil((tokens / floorTokensPerSec) * MS_PER_SEC));
 }
 
@@ -164,7 +163,7 @@ async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<num
   const { req, call, model, label, secrets } = run;
   const { features } = req.connection;
   const tokens = batch.reduce((sum, item) => sum + item.tokens, 0);
-  const post = postSignal(req.signal, postDeadlineMs(tokens, features.requestTimeoutMs, features.embedBatch?.floorTokensPerSec));
+  const post = postSignal(req.signal, postDeadlineMs(tokens, embedRequestTimeoutMs(features), features.embedBatch?.floorTokensPerSec));
   try {
     const result = await embedOnce({
       call,

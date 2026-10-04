@@ -604,11 +604,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       return runtime.executor.imageEmbed({ connection: generationConnection, input, ...(opts?.signal === undefined ? {} : { signal: opts.signal }) });
     },
   });
-  const resolveEmbeddingConnection: import("#domain/embeddings").ResolveEmbeddingConnection = async (ownerId, task, connectionId) => {
+  const resolveEmbeddingConnection: import("#domain/embeddings").ResolveEmbeddingConnection = async (ownerId, task, connectionId, opts) => {
     const principal = await resolveFunderPrincipal(ownerId);
     let outcome: Awaited<ReturnType<typeof runtime.resolve>>;
     try {
-      outcome = await runtime.resolve({ task, principal, ...(connectionId === undefined ? {} : { connectionId }) });
+      outcome = await runtime.resolve({
+        task,
+        principal,
+        ...(connectionId === undefined ? {} : { connectionId }),
+        ...(opts?.cachedFacts === true ? { cachedFacts: true } : {}),
+      });
     } catch (error) {
       if (connectionId === undefined) {
         throw error;

@@ -2,7 +2,7 @@
 // credential-free call shape from `@orb/contracts/role-clients` plus the dispatcher-bound
 // `connection` + `signal`. RESULT shapes live in `@orb/contracts/providers`, not redeclared here.
 
-import type { Task } from "@orb/contracts/inference";
+import type { EndpointFeatures, Task } from "@orb/contracts/inference";
 import type { RolePresetParams } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type {
@@ -19,6 +19,15 @@ import type {
 import type { ModelId, UserId } from "@orb/kit/ids";
 import type { ResolvedSampling, ResolvedWarning } from "./resolve.ts";
 import type { Resolved } from "./resolved.ts";
+
+/** The base deadline of one remote embed request when its row states none. */
+const DEFAULT_EMBED_REQUEST_TIMEOUT_MS = 120_000;
+
+/** The deadline one remote embed request gets: the row's `requestTimeoutMs`, else the wire default. The openai-compat
+ *  wire widens it for a large batch; a single short input gets exactly this. */
+export function embedRequestTimeoutMs(features: Pick<EndpointFeatures, "requestTimeoutMs">): number {
+  return features.requestTimeoutMs ?? DEFAULT_EMBED_REQUEST_TIMEOUT_MS;
+}
 
 /** The tasks that take a request through this file — every task but the two chat-shaped ones. */
 type RoleTask = Exclude<Task, "chat" | "agent">;
