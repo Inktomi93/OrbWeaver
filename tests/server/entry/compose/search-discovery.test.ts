@@ -273,7 +273,7 @@ describe("buildSearchDiscovery — the cluster product is complete", () => {
         "workloads",
         "enqueueEmbedReindex",
         "detachEmbedReindex",
-        "detachRepointReindex",
+        "detachTargetSync",
         "detachStaleSpaceReindex",
         "vacuousMemoryReceipt",
         "listCorpusOwners",

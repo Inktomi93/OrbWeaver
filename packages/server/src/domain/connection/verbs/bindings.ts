@@ -16,7 +16,7 @@ import type { BindingView } from "../contract/results.ts";
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { listBindingsForActor, lookupBinding, upsertBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
-import { spacesNeedRebuild, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
+import { spacesMayMoveTarget, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { everywhereTasks, servableTasks } from "../substrate/kind.ts";
 import { toResolvedView } from "../substrate/resolved-view.ts";
 
@@ -135,7 +135,7 @@ function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding
       },
       ctx.now(),
     );
-    if (before !== null && spacesNeedRebuild(before, await vectorSpacesOf(ctx, params.principal))) {
+    if (before !== null && spacesMayMoveTarget(before, await vectorSpacesOf(ctx, params.principal))) {
       ctx.onEmbedSpaceChanged(userId);
     }
     ctx.emitUserEvent(userId, { type: "connectionsChanged" });
@@ -158,7 +158,7 @@ function createUseForEverything(ctx: ConnectionContext): ConnectionService["useF
       written.push(await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task, connectionId: row.id }));
     }
     await ctx.audit({ actorUserId: userId, action: "connection.bindAll", entityType: "connection", entityId: row.id, metadata: { tasks } }, ctx.now());
-    if (before !== null && spacesNeedRebuild(before, await vectorSpacesOf(ctx, params.principal))) {
+    if (before !== null && spacesMayMoveTarget(before, await vectorSpacesOf(ctx, params.principal))) {
       ctx.onEmbedSpaceChanged(userId);
     }
     ctx.emitUserEvent(userId, { type: "connectionsChanged" });

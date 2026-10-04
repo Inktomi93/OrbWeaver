@@ -82,8 +82,8 @@ export interface ConnectionContext {
     readonly result: CredentialHealth;
     readonly localEndpoint: boolean;
   }) => Promise<CredentialHealth>;
-  /** The embed-space trigger re-raised (§10-4): the caller's embed / imageEmbed space MAY have changed — the settings-blob
-   *  trigger this replaces enqueued the purge+reindex; the composition root binds the same op here. */
+  /** The embed-space trigger (§10-4): the caller's embed / imageEmbed space MAY have changed. The composition root
+   *  syncs the owner's stored targets against it; a target that moves queues their rebuild, one that matches does not. */
   readonly onEmbedSpaceChanged: (ownerId: UserId) => void;
   /** How many vectors the owner has stored per scope (the embeddings domain's count), for the change preview. */
   readonly countOwnedVectors: (ownerId: UserId) => Promise<Readonly<Record<VectorScope, number>>>;

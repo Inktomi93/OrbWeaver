@@ -131,12 +131,19 @@ export interface EmbeddingsContext {
   /** The entity OWNER by id (the sweeps' funder read; the indexer context carries the same pair). */
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
   readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
+  /** The owner's target generation just moved and its old vectors are gone: queue their full rebuild. Called
+   *  after the switch commits, by whichever caller moved it; fire-and-forget. */
+  readonly onTargetGenerationMoved: (ownerId: UserId) => void;
 }
 
 export interface EmbeddingsService {
   readonly purgeDisallowedImages: () => Promise<void>;
   readonly indexAsset: (assetId: AssetId, options?: { readonly force?: boolean; readonly signal?: AbortSignal | undefined }) => Promise<StoreResult | null>;
   readonly resolveGeneration: (ownerId: UserId, task: GenerationTask, via?: GenerationTask) => Promise<PinnedGeneration | null>;
+  /** Bring the owner's stored targets in line with what their vector bindings resolve to now, moving any that
+   *  differ (which queues the rebuild through {@link EmbeddingsContext.onTargetGenerationMoved}). A binding that
+   *  cannot resolve yet moves nothing and does not throw: its first write after it can resolve moves it. */
+  readonly syncTargetGenerations: (ownerId: UserId) => Promise<void>;
   /** The owners whose stored target generation differs from the one their binding resolves to now. Read-only. */
   readonly staleGenerationOwners: () => Promise<readonly UserId[]>;
   /** How many vectors the owner has stored per scope — what an embedder change would delete and rebuild. */

@@ -3,8 +3,8 @@
 // Compare the SAME concrete connection fingerprint generationIdOf uses,
 // without changing its serialization or invalidating any unchanged stored generation.
 //
-// A task the principal has no binding for resolves to `null` — "no space": gaining a space from it rebuilds,
-// falling back to it rebuilds nothing.
+// A task the principal has no binding for resolves to `null` — "no space": gaining a space from it asks the stored
+// target whether anything moved, falling back to it moves nothing.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { RoutableTask } from "@orb/contracts/inference";
@@ -75,8 +75,10 @@ export function spaceMoved(before: EmbedSpace | null | undefined, after: EmbedSp
   return before?.fingerprint !== after?.fingerprint || before?.dim !== after?.dim;
 }
 
-/** Did any vector task move ONTO a space its corpus must be rebuilt in? Losing a space never counts: nothing can
- *  embed there, and the old generation stays for a later re-bind (the preview's "clearing a role deletes nothing"). */
-export function spacesNeedRebuild(before: EmbedSpaces, after: EmbedSpaces): boolean {
+/** Could this write have moved the owner's stored target? Only when a vector task now resolves to a space it did
+ *  not before. A cheap filter, not the verdict: the owner's stored target decides (a re-bind of the encoder it
+ *  already names moves nothing). Losing a space never counts: nothing can embed there, and the old generation stays
+ *  for a later re-bind (the preview's "clearing a role deletes nothing"). */
+export function spacesMayMoveTarget(before: EmbedSpaces, after: EmbedSpaces): boolean {
   return VECTOR_TASKS.some((task) => (after[task] ?? null) !== null && spaceMoved(before[task], after[task]));
 }

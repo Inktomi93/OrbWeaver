@@ -132,10 +132,10 @@ export interface SearchDiscoveryComposeResult {
   /** {@link SearchDiscoveryComposeResult.enqueueEmbedReindex} for a trigger that must not wait on it: the same
    *  sweeps, started detached. */
   readonly detachEmbedReindex: (scope: UserId | null) => void;
-  /** An owner's binding or connection write moved their embed space: that owner's sweeps, forced, started
-   *  detached. Their generations are theirs alone, so nobody else's index is touched, and the jobs are theirs to
-   *  read under Jobs. */
-  readonly detachRepointReindex: (ownerId: UserId) => void;
+  /** An owner's binding or connection write may have moved their embed space: bring their stored targets in line,
+   *  detached. A target that moves queues that owner's forced rebuild through the embeddings resolver's own
+   *  trigger; one that already matches, or cannot resolve yet, moves nothing. */
+  readonly detachTargetSync: (ownerId: UserId) => void;
   /** Boot's catch-up: the same sweeps for every owner whose stored generation is no longer the one their
    *  binding resolves to, started detached. No user action raised the trigger, so autoindex does not gate it. */
   readonly detachStaleSpaceReindex: () => void;
@@ -182,6 +182,11 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     loadAssetBytes: async (assetId): Promise<Uint8Array | undefined> => (await assets.loadAssetBytes(assetId)) ?? undefined,
     loadCharacterOwner,
     loadAssetOwner,
+    // Every target move, from any caller (a write, a sweep, a sync after a re-point, boot), emptied that owner's
+    // index: their forced sweeps refill it. Derefs the sweep starter below at call time, never during compose.
+    onTargetGenerationMoved: (ownerId) => {
+      detachRepointReindex(ownerId);
+    },
   });
 
   const indexer = createEmbeddingsIndexer({
@@ -402,7 +407,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   const enqueueOwnerMemory = async (ownerId: UserId): Promise<unknown> => {
     const vacuous = await vacuousMemoryReceipt(ownerId);
     if (vacuous === null) {
-      return await workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "singular", ownerId });
+      return await workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "singular", ownerId, adoptActive: true });
     }
     return await embeddings.purgeMemoryVectors({
       ownerId,
@@ -417,12 +422,13 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   //   • a `UserId` — a seed bound that owner's encoder outside the binding verb: that owner's SINGULAR sweeps. None
   //     with the autoindex off: then nothing embeds in the background, no target is pinned, and search reads the
   //     live space with no migration to wait on.
-  //   • a `UserId` with `embedderChanged` — the owner re-pointed an embed role, or boot found their stored generation
-  //     stale: their SINGULAR sweeps, the index pass forced, whatever the autoindex says, because the sweep's
-  //     generation switch empties their index.
-  // `caller: null` is the trusted-system mode-gate bypass. Each enqueue runs in its own root span, and a duplicate
-  // run (a kind already active → DomainConflictError) or any enqueue failure is logged there, never thrown at the
-  // write that triggered it.
+  //   • a `UserId` with `embedderChanged` — the owner's target moved, or boot found their stored generation stale:
+  //     their SINGULAR sweeps, the index pass forced, whatever the autoindex says, because the switch empties
+  //     their index.
+  // `caller: null` is the trusted-system mode-gate bypass. Every start ADOPTS an active run of the same unit rather
+  // than conflicting, so two triggers for one move (the text and picture targets, boot and a write) queue one set.
+  // Each enqueue runs in its own root span, and any enqueue failure is logged there, never thrown at the write
+  // that triggered it.
   const embedSweeps = (scope: UserId | null, embedderChanged = scope === null): readonly EmbedSweep[] => {
     if (!embedderChanged && deps.getEffectiveConfig().corpusAutoindex !== true) {
       return [];
@@ -441,13 +447,22 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
           caller: null,
           mode,
           ownerId: scope,
+          adoptActive: true,
         }),
       ),
       sweep("databank-reindex", () =>
-        workloads.start({ input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } }, caller: null, mode, ownerId: scope }),
+        workloads.start({
+          input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
+          caller: null,
+          mode,
+          ownerId: scope,
+          adoptActive: true,
+        }),
       ),
       sweep("memory-backfill", () =>
-        scope === null ? workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode, ownerId: null }) : enqueueOwnerMemory(scope),
+        scope === null
+          ? workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode, ownerId: null, adoptActive: true })
+          : enqueueOwnerMemory(scope),
       ),
     ];
   };
@@ -460,10 +475,17 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
       superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
     }
   };
+  // An owner's target moved (`onTargetGenerationMoved`): their sweeps, forced. Their generations are theirs alone,
+  // so nobody else's index is touched, and the jobs are theirs to read under Jobs.
   const detachRepointReindex = (ownerId: UserId): void => {
     for (const s of embedSweeps(ownerId, true)) {
       superviseDetached(s.requestId, EMBED_REINDEX_SPAN, s.attrs, s.start);
     }
+  };
+  const detachTargetSync = (ownerId: UserId): void => {
+    superviseDetached(`embed-target-sync:${ownerId}:${String(now())}`, EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
+      embeddings.syncTargetGenerations(ownerId),
+    );
   };
 
   const detachStaleSpaceReindex = (): void => {
@@ -501,7 +523,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     workloads,
     enqueueEmbedReindex,
     detachEmbedReindex,
-    detachRepointReindex,
+    detachTargetSync,
     detachStaleSpaceReindex,
     vacuousMemoryReceipt,
     listCorpusOwners: () => distinctCorpusOwners(db),

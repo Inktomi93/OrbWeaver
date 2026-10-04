@@ -25,6 +25,7 @@ import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors.ts";
 import { createStaleGenerationOwners } from "./verbs/stale-generation-owners.ts";
 import { createStore } from "./verbs/store.ts";
 import { createStoreSegments } from "./verbs/store-segments.ts";
+import { createSyncTargetGenerations } from "./verbs/sync-target-generations.ts";
 import { createWriteHubScores } from "./verbs/write-hub-scores.ts";
 
 export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsService {
@@ -38,6 +39,7 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     purgeDisallowedImages: createPurgeDisallowedImages(ctx),
     indexAsset,
     resolveGeneration: (ownerId, task, via) => resolveTargetGeneration(ctx, ownerId, task, via),
+    syncTargetGenerations: createSyncTargetGenerations(ctx),
     staleGenerationOwners: createStaleGenerationOwners(ctx),
     countOwnedVectors: (ownerId) => countOwnedVectors(ctx.db, ownerId),
     store,

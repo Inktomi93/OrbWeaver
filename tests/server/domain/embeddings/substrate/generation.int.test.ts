@@ -48,7 +48,11 @@ test("a slow stale resolution cannot reset a newer target or promote its generat
   const newConnection = await seedConnection(db, ownerId, "new");
   const now = (): number => 1;
 
-  const oldGeneration = await resolveTargetGeneration({ db, now, resolveEmbeddingConnection: () => Promise.resolve(oldConnection) }, ownerId, "embed");
+  const oldGeneration = await resolveTargetGeneration(
+    { db, now, resolveEmbeddingConnection: () => Promise.resolve(oldConnection), onTargetGenerationMoved: () => undefined },
+    ownerId,
+    "embed",
+  );
   if (oldGeneration === null) {
     throw new Error("the old generation must resolve");
   }
@@ -97,6 +101,7 @@ test("a slow stale resolution cannot reset a newer target or promote its generat
     {
       db,
       now,
+      onTargetGenerationMoved: () => undefined,
       resolveEmbeddingConnection: () => {
         staleReads += 1;
         if (staleReads === 1) {
@@ -111,7 +116,11 @@ test("a slow stale resolution cannot reset a newer target or promote its generat
   );
   await staleStarted.promise;
 
-  const newGeneration = await resolveTargetGeneration({ db, now, resolveEmbeddingConnection: () => Promise.resolve(newConnection) }, ownerId, "embed");
+  const newGeneration = await resolveTargetGeneration(
+    { db, now, resolveEmbeddingConnection: () => Promise.resolve(newConnection), onTargetGenerationMoved: () => undefined },
+    ownerId,
+    "embed",
+  );
   if (newGeneration === null) {
     throw new Error("the new generation must resolve");
   }

@@ -291,6 +291,8 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     // test seeded; a null answer means "row gone", which the sweeps skip.
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
     loadAssetOwner: (assetId) => loadOwnerOf(db, "asset", assetId),
+    // A target move queues the owner's rebuild at compose; a domain test that cares overrides this.
+    onTargetGenerationMoved: () => undefined,
     now: (): number => clock.now(),
     newCharacterEmbeddingId: (): CharacterEmbeddingId => castId<CharacterEmbeddingId>(ids.next("character_embedding")),
     newImageEmbeddingId: (): ImageEmbeddingId => castId<ImageEmbeddingId>(ids.next("image_embedding")),

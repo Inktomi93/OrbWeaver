@@ -54,7 +54,11 @@ test("a switch and promotion between query embedding and scan retry once against
     }
     return Promise.resolve(connectionId === oldConnection.connectionId ? oldConnection : newConnection);
   };
-  const oldGeneration = await resolveTargetGeneration({ db, now: () => 1, resolveEmbeddingConnection: resolve }, ownerId, "embed");
+  const oldGeneration = await resolveTargetGeneration(
+    { db, now: () => 1, resolveEmbeddingConnection: resolve, onTargetGenerationMoved: () => undefined },
+    ownerId,
+    "embed",
+  );
   if (oldGeneration === null) {
     throw new Error("expected old generation");
   }
@@ -70,7 +74,11 @@ test("a switch and promotion between query embedding and scan retry once against
     calls += 1;
     if (calls === 1) {
       live = newConnection;
-      const newGeneration = await resolveTargetGeneration({ db, now: () => 2, resolveEmbeddingConnection: resolve }, ownerId, "embed");
+      const newGeneration = await resolveTargetGeneration(
+        { db, now: () => 2, resolveEmbeddingConnection: resolve, onTargetGenerationMoved: () => undefined },
+        ownerId,
+        "embed",
+      );
       if (newGeneration === null) {
         throw new Error("expected new generation");
       }

@@ -10,8 +10,10 @@ import type { GenerationTask } from "../contract/generation.ts";
 import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration } from "../contract/service.ts";
 import { switchTargetGeneration } from "../persistence/space-state.ts";
 
+type TargetResolveCtx = Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection" | "onTargetGenerationMoved">;
+
 export async function resolveTargetGeneration(
-  ctx: Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection">,
+  ctx: TargetResolveCtx,
   ownerId: UserId,
   task: GenerationTask,
   via: GenerationTask = task,
@@ -34,7 +36,7 @@ async function probeWidth(connection: EmbeddingConnectionSnapshot, via: Generati
 }
 
 interface ResolveAttempt {
-  readonly ctx: Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection">;
+  readonly ctx: TargetResolveCtx;
   readonly ownerId: UserId;
   readonly task: GenerationTask;
   readonly via: GenerationTask;
@@ -79,7 +81,11 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, attempt
     // A new generation never shares the index with the old one: the switch purges the old vectors with it. So
     // prove the new space can be written first; a width the embedder does not make keeps the old index.
     await probeWidth(connection, via, dims);
-    await switchTargetGeneration(ctx.db, { ownerId, task, from: prior, to: id });
+    // The switch emptied the old index; whoever moved it owes the owner the sweep that refills it, whatever the
+    // caller was (a write, a sweep, a sync after a re-point).
+    if (await switchTargetGeneration(ctx.db, { ownerId, task, from: prior, to: id })) {
+      ctx.onTargetGenerationMoved(ownerId);
+    }
   }
   const rows = await ctx.db
     .select({ generationId: embedGenerationTargets.generationId, epoch: embedGenerationTargets.epoch })

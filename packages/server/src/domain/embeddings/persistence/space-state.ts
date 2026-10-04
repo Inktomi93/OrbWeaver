@@ -103,6 +103,8 @@ export async function readGenerationTargets(db: Db): Promise<
  * @remarks Every statement runs only when THIS batch moves the target. The batch is one transaction, so each
  * statement checks the target is still the observed `from` and the target UPDATE runs last. A resolver that
  * lost the race, even to the same `to`, writes nothing: it cannot wipe a rebuild already under way.
+ *
+ * @returns Whether THIS batch moved the target (its final UPDATE matched), so exactly one caller owns the rebuild.
  */
 export async function switchTargetGeneration(
   db: Db,
@@ -112,13 +114,13 @@ export async function switchTargetGeneration(
     readonly from: { readonly generationId: GenerationReceipt["id"]; readonly epoch: number };
     readonly to: GenerationReceipt["id"];
   },
-): Promise<void> {
+): Promise<boolean> {
   const { ownerId, task, from, to } = input;
   const unmoved = sql`exists (
     select 1 from embed_generation_targets t
     where t.owner_id = ${ownerId} and t.task = ${task} and t.generation_id = ${from.generationId} and t.epoch = ${from.epoch}
   )`;
-  await db.batch(
+  const results = await db.batch(
     batchMany([
       ...retiredVectorStatements(db, { ownerId, task, keep: to, onlyIf: unmoved }),
       batchStmt(
@@ -142,6 +144,7 @@ export async function switchTargetGeneration(
       ),
     ]),
   );
+  return (results.at(-1)?.rowsAffected ?? 0) > 0;
 }
 
 /** Record one successful scope and atomically promote when every required scope proves this target. The
