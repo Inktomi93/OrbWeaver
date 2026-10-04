@@ -40,16 +40,16 @@ import { FOCAL_GLOW, FOCAL_STRIPE } from "../lib/focal-treatment.ts";
 import type { ReviewEntry } from "../lib/review-entries.ts";
 import { STAGE_NOT_RUN_COPY } from "../lib/stage-not-run-copy.ts";
 import { AcceptReview } from "./accept-review.tsx";
-import { LaneBand, LaneNotes } from "./lane-band.tsx";
+import { LaneBand, LaneNotes, RunModelCredit } from "./lane-band.tsx";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 // Re-derived locally from the wire (§7.4 — never a hand-picked exported alias).
 type RunView = inferOutput<Trpc["refinery"]["listRuns"]>[number];
-/** EXACTLY what the lane reads off a run — its round, its stage, and the provenance the band prints. The
+/** EXACTLY what the lane reads off a run — its round, its stage, and the provenance and model the band prints. The
  *  reviewable ENTRIES arrive separately (the surface joins the payload against the live card and the
  *  session pin, which is not this component's job), so taking the whole row here would be asking callers
  *  for a payload the lane never opens. Derived from the wire, never re-spelled. */
-type RewriteRunView = Pick<RunView, "iteration" | "payloadConfig" | "stage">;
+type RewriteRunView = Pick<RunView, "iteration" | "model" | "payloadConfig" | "stage">;
 
 export interface RewriteLaneProps {
   readonly run: RewriteRunView | null;
@@ -156,6 +156,7 @@ export function RewriteLane({
               <RefineryChip tone="good">{kept} kept</RefineryChip>
               <RefineryChip tone="bad">{discarded} discarded</RefineryChip>
               <RefineryChip tone="warn">{undecided} undecided</RefineryChip>
+              <RunModelCredit model={run.model} />
             </>
           ) : null}
         </LaneBand>

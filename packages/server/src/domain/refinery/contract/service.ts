@@ -29,6 +29,7 @@ import type {
   ApplyAsCopyParams,
   ApplyFieldsParams,
   CreateSchemaParams,
+  DecideRewriteParams,
   DeleteSchemaParams,
   DeleteSessionParams,
   GenerateSchemaParams,
@@ -189,6 +190,8 @@ export interface RefineryService {
   /** The branch-off terminal act (§17): same belts, but the write mints a NEW character (duplicate
    *  chassis + patch overlay + fresh signal stamp); the live card is untouched and nothing snapshots. */
   readonly applyAsCopy: (params: ApplyAsCopyParams) => Promise<ApplyAsCopyResult>;
+  /** Persist one rewrite run's Keep/Discard sheet on the session (re-entry reopens with it). */
+  readonly decideRewrite: (params: DecideRewriteParams) => Promise<RefinerySessionView>;
   /** The hand-authored rewrite arm (og-feedback gap 1): the WIP edit lands as a `{kind:"manual"}` rewrite
    *  run so analyze can judge it against the anchor exactly like a model rewrite. */
   readonly submitManualRewrite: (params: SubmitManualRewriteParams) => Promise<RefineryRun>;

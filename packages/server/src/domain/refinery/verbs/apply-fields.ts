@@ -1,7 +1,7 @@
 // verb: applyFields — the SHARP END (security pass §4.8-13, in order): the user-accepted entries of the
-// chosen rewrite run (latest, or the §16.1 operate-back `rewriteRunId`) land on the LIVE card. Per-entry
-// salvage, never a whole-payload refusal — every dropped entry is itemized with its typed reason (the
-// client renders them; nothing silently coerces or falls through to a different field).
+// chosen rewrite run (latest, or the §16.1 operate-back `rewriteRunId`) land on the LIVE card. ALL OR
+// NOTHING: one refused entry refuses the whole apply, and every refused entry is itemized with its typed
+// reason (the client renders them; nothing silently coerces, falls through, or half-applies).
 //
 // THE BELTS LIVE IN ONE PLACE — `substrate/accept-belts.ts` (intersection 9-11 + the §21 divergence
 // check + the patch construction), SHARED verbatim with `applyAsCopy` so the branch-off arm can never
@@ -72,7 +72,7 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
     // per-entry intersection (belts 9-11 + divergence), in itemized order — ONE resolver with the copy arm.
     const { session, liveCard, applied, dropped, chosen } = await resolveApplyBasis(ctx, { ownerId, sessionId, rewriteRunId, accepts });
     if (chosen.length === 0) {
-      // Nothing survived the belts — an honest ZERO-WRITE result (the client renders the drops): no
+      // A refused entry (or none kept) — an honest ZERO-WRITE result (the client renders the drops): no
       // snapshot (snapshotId null, stated in the surface copy), no update, just the current detail.
       const detail = await ctx.getCharacter({ principal, characterId: session.characterId });
       return { applied, dropped, character: detail, snapshotId: null };

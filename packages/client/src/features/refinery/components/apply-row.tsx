@@ -7,8 +7,10 @@ import type { RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { setRefineryArmedRewrite } from "#state";
@@ -24,7 +26,8 @@ type RunView = inferOutput<Trpc["refinery"]["listRuns"]>[number];
 export interface OutcomeState {
   readonly applied: ApplyWire["applied"];
   readonly dropped: ApplyWire["dropped"];
-  readonly snapshotLabel: string | null;
+  /** The apply took its pre-write snapshot (false on a copy and on the refused arm). */
+  readonly snapshotTaken: boolean;
   readonly copyName?: string;
 }
 
@@ -33,20 +36,30 @@ export interface ApplyRowProps {
   readonly keptAccepts: readonly KeptAccept[];
   readonly armedRewrite: RunView | null;
   readonly armedRewriteId: string | null;
+  /** The session's rewrite already landed — both terminal verbs are disabled until a stage run re-opens it. */
+  readonly completed: boolean;
   readonly onOutcome: (outcome: OutcomeState) => void;
 }
 
-export function ApplyRow({ sessionId, keptAccepts, armedRewrite, armedRewriteId, onOutcome }: ApplyRowProps): ReactElement {
+export function ApplyRow({ sessionId, keptAccepts, armedRewrite, armedRewriteId, completed, onOutcome }: ApplyRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const deps = { trpc, invalidation };
   const apply = useApplyRefineryFields(deps);
   const applyAsCopy = useApplyRefineryAsCopy(deps);
+  const appliedNoteId = useId();
+  const blocked = completed || apply.isPending || applyAsCopy.isPending || keptAccepts.length === 0;
   return (
-    <Row gap="row" justify="end">
+    <Row align="center" className="flex-wrap" gap="row" justify="end">
+      {completed ? (
+        <Text id={appliedNoteId} voice="gloss">
+          Applied. Run a stage to start another round.
+        </Text>
+      ) : null}
       {armedRewrite !== null ? <RefineryChip tone="good">applying round {armedRewrite.iteration}'s rewrite</RefineryChip> : null}
       <Button
-        disabled={applyAsCopy.isPending || apply.isPending || keptAccepts.length === 0}
+        {...(completed ? { "aria-describedby": appliedNoteId } : {})}
+        disabled={blocked}
         intent="secondary"
         onClick={(): void =>
           applyAsCopy.mutate(
@@ -56,7 +69,7 @@ export function ApplyRow({ sessionId, keptAccepts, armedRewrite, armedRewriteId,
                 onOutcome({
                   applied: result.applied,
                   dropped: result.dropped,
-                  snapshotLabel: null,
+                  snapshotTaken: false,
                   ...(result.character === null ? {} : { copyName: result.character.name }),
                 });
                 setRefineryArmedRewrite(null);
@@ -69,7 +82,8 @@ export function ApplyRow({ sessionId, keptAccepts, armedRewrite, armedRewriteId,
         Save as copy
       </Button>
       <Button
-        disabled={apply.isPending || applyAsCopy.isPending || keptAccepts.length === 0}
+        {...(completed ? { "aria-describedby": appliedNoteId } : {})}
+        disabled={blocked}
         onClick={(): void =>
           apply.mutate(
             { sessionId, accepts: [...keptAccepts], ...(armedRewriteId === null ? {} : { rewriteRunId: castId(armedRewriteId) }) },
@@ -78,7 +92,7 @@ export function ApplyRow({ sessionId, keptAccepts, armedRewrite, armedRewriteId,
                 onOutcome({
                   applied: result.applied,
                   dropped: result.dropped,
-                  snapshotLabel: result.snapshotId === null ? null : `auto: before refinery apply · ${sessionId}`,
+                  snapshotTaken: result.snapshotId !== null,
                 });
                 setRefineryArmedRewrite(null);
               },

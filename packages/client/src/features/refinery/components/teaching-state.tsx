@@ -44,7 +44,7 @@ import type { LucideIcon } from "@orb/ui/icons";
 import { ChartColumn, ChevronRight, Gauge, Icon, Pencil } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { CharacterPicker } from "#components";
 import { skeletonRowCountFor } from "#data";
 import { testId } from "#lib";
@@ -56,6 +56,9 @@ export interface TeachingStateProps {
    *  above it rather than greying the surface's one affordance (header). A second pick while the first is
    *  in flight is swallowed here, so the busy line is the whole of what the user needs told. */
   readonly starting: boolean;
+  /** The doors back into open sessions, painted ABOVE the picker: returning to the section must show the
+   *  work in progress first, never only an empty "start" (both side panels default collapsed). */
+  readonly resume?: ReactNode;
 }
 
 interface TeachingStep {
@@ -82,7 +85,7 @@ const STEPS: readonly TeachingStep[] = [
   { glyph: ChartColumn, name: "Analyze", detail: "Compares the rewrite against your original card, never against the previous rewrite." },
 ];
 
-export function TeachingState({ onStart, starting }: TeachingStateProps): ReactElement {
+export function TeachingState({ onStart, starting, resume }: TeachingStateProps): ReactElement {
   // The desktop list's empty-state CTA focuses THIS picker rather than opening a second one over it
   // (#307). The ref rides the root; the hook focuses+scrolls the picker's search field when the CTA bumps
   // the landing-focus nonce. At mount the nonce is 0, so nothing is stolen on first paint.
@@ -110,6 +113,7 @@ export function TeachingState({ onStart, starting }: TeachingStateProps): ReactE
           Pick a character to start. Nothing is written to the card until you accept a rewrite field by field.
         </Text>
       </Stack>
+      {resume}
       {/* THE LANDING'S JOB (header). Mounted open, first, and full-library — `CharacterPicker` walks the
           whole keyset now, so this is the same browse the characters section offers, not its first page. */}
       <Card className="w-full max-w-(--reading-measure)">

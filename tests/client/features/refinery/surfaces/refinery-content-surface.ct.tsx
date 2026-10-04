@@ -88,11 +88,18 @@ function sessionView(sessionId: RefinerySessionId = SESSION_ID): TrpcWireOutput<
     // one chip each.
     selection: { fields: ["description", "personality"] },
     stageConfig: STAGE_CONFIG,
+    rewriteDecisions: {},
     guidance: null,
     iterationCount: 1,
     createdAt: FROZEN_AT,
     updatedAt: FROZEN_AT,
   };
+}
+
+/** The session view with a few members changed — annotated, so the responder's exact-wire check sees the
+ *  procedure's own output type rather than a widened spread. */
+function sessionWith(patch: Partial<TrpcWireOutput<"refinery.getSession">>): TrpcWireOutput<"refinery.getSession"> {
+  return { ...sessionView(), ...patch };
 }
 
 function scoreRun(row: { id: string; iteration: number; overallScore: number; summary: string }): TrpcWireOutput<"refinery.listRuns">[number] {
@@ -241,13 +248,15 @@ function ledger(): TrpcWireOutput<"refinery.listRuns"> {
   ];
 }
 
-/** The three reads plus the gated card — everything the session pane joins. */
-function baseRoutes(): TrpcRoutes<"refinery.getSession" | "refinery.listRuns" | "refinery.preflight" | "character.get"> {
+/** The three reads plus the gated card — everything the session pane joins — and the per-press decision
+ *  write every Keep/Discard now makes. */
+function baseRoutes(): TrpcRoutes<"refinery.getSession" | "refinery.listRuns" | "refinery.preflight" | "character.get" | "refinery.decideRewrite"> {
   return {
     "refinery.getSession": () => sessionView(),
     "refinery.listRuns": ledger,
     "refinery.preflight": preflight,
     "character.get": () => CARD,
+    "refinery.decideRewrite": (input: TrpcInput<"refinery.decideRewrite">) => sessionWith({ rewriteDecisions: { [input.rewriteRunId]: input.decisions } }),
   };
 }
 
@@ -494,21 +503,23 @@ test("#1188 a HELD session read shows the reserved skeleton, never the surface's
 const LOCAL_WEIGHTS_PATH = "/mnt/models/storage/vllm-models/quantized/Huihui-ThinkingCap-Qwen3.6-27B-abliterated-W8A8-Dynamic-Per-Token";
 const LOCAL_WEIGHTS_DISPLAY = "Huihui-ThinkingCap-Qwen3.6-27B-abliterated · W8A8";
 
-test("the masthead credits the model by NAME — a local weights path never reaches the credit line", async ({ mount, page }) => {
+test("each lane credits the model that produced ITS result, by NAME — the masthead pins none, and a weights path never prints raw", async ({ mount, page }) => {
   await freeze(page);
   await routeTrpc(page, {
     ...baseRoutes(),
-    // The masthead reads the REWRITE run's model first, so this is the run that decides the credit line.
-    "refinery.listRuns": () => [...ledger().slice(0, 2), { ...rewriteRun(), model: LOCAL_WEIGHTS_PATH }],
+    "refinery.listRuns": () => [...ledger().slice(0, 2), { ...rewriteRun(), model: LOCAL_WEIGHTS_PATH }, analyzeRun(REWRITE_RUN)],
   });
   await mount(<RefineryContentStory sessionId={SESSION_ID} />);
 
-  const masthead = page.getByTestId(testId("refineryMasthead"));
-  await expect(masthead).toContainText(LOCAL_WEIGHTS_DISPLAY);
-  await expect(masthead, "the raw path is not printed").not.toContainText(LOCAL_WEIGHTS_PATH);
-  // LOSSLESS: the full identifier is still reachable, on the line's own tooltip (the kit's display
-  // derivation is for TYPOGRAPHY — nothing routes on it, and nothing may lose it).
-  await expect(masthead.getByTitle(LOCAL_WEIGHTS_PATH)).toBeVisible();
+  const rewrite = page.getByTestId(testId("refineryRewriteLane"));
+  await expect(rewrite).toContainText(LOCAL_WEIGHTS_DISPLAY);
+  await expect(rewrite, "the raw path is not printed").not.toContainText(LOCAL_WEIGHTS_PATH);
+  // LOSSLESS: the full identifier is still reachable, on the credit's own tooltip.
+  await expect(rewrite.getByTitle(LOCAL_WEIGHTS_PATH)).toBeVisible();
+  // Score and analyze ran on other models, and each lane says so — never the rewrite's model for all three.
+  await expect(page.locator('[data-lane="score"]')).toContainText("test-scorer");
+  await expect(page.locator('[data-lane="analyze"]')).toContainText("test-analyzer");
+  await expect(page.getByTestId(testId("refineryMasthead"))).not.toContainText(LOCAL_WEIGHTS_DISPLAY);
 });
 
 test("ALL THREE STAGES are on one canvas: the score lane's latest payload, the rewrite island's accept work, and the analyze verdict", async ({
@@ -735,9 +746,8 @@ test("a per-field KEEP/DISCARD decision drives the apply: only the kept field is
   // The TERMINAL result replaces the three-lane canvas: the itemization, the reversibility line, and the exit.
   await expect(component.getByTestId(testId("refineryApplyOutcome"))).toBeVisible();
   await expect(page.getByText("1 field written.")).toBeVisible();
-  await expect(
-    page.getByText(`A snapshot was taken first — "auto: before refinery apply · ${SESSION_ID}" — reversible from the character's History tab.`),
-  ).toBeVisible();
+  // The rollback point is named for the user, never by its raw snapshot label: no session id leaks.
+  await expect(component.getByTestId(testId("refineryApplyOutcome"))).not.toContainText(SESSION_ID);
   await expect(page.getByText("replaced")).toBeVisible();
   await expect(page.getByRole("button", { name: "Done" })).toBeVisible();
 
@@ -745,4 +755,157 @@ test("a per-field KEEP/DISCARD decision drives the apply: only the kept field is
   // outcome painted, so this reads a settled recording, not a race.
   expect(applyInputs).toHaveLength(1);
   expect(applyInputs[0]?.accepts).toEqual([{ field: "description" }]);
+});
+
+// ── FINAL-PASS FIXES (0575) ───────────────────────────────────────────────────────────────────────────
+
+/** A rewrite run as an OLDER build stored it: the model put a slot index on a non-greetings field. */
+const STRAY_INDEX_REWRITE_RUN = mintTypeId(ID_PREFIX.refineryRun);
+
+function strayIndexRewriteRun(): TrpcWireOutput<"refinery.listRuns">[number] {
+  return {
+    id: STRAY_INDEX_REWRITE_RUN,
+    sessionId: SESSION_ID,
+    iteration: 1,
+    model: "test-rewriter",
+    promptTokens: 3100,
+    outputTokens: 900,
+    durationMs: 18_000,
+    sourceRunId: null,
+    strippedKeys: [],
+    createdAt: FROZEN_AT + 2,
+    stage: "rewrite",
+    payloadConfig: { kind: "fixed", mode: "balanced" },
+    payload: {
+      fields: [
+        { field: "description", greetingIndex: 0, text: REWRITTEN_DESCRIPTION },
+        { field: "greetings", greetingIndex: 1, text: "Back again, and early." },
+      ],
+    },
+  };
+}
+
+test("a kept non-greetings field never carries a model-supplied slot index to the apply; a kept greeting keeps its own", async ({ mount, page }) => {
+  await freeze(page);
+  const applyInputs: TrpcInput<"refinery.applyFields">[] = [];
+  const card = makeCharacterDetail({ ...CARD, greetings: [{ text: "Hello." }, { text: "Back again." }] });
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.getSession": () => sessionWith({ originalCard: card, selection: { fields: ["description", "greetings"] } }),
+    "character.get": () => card,
+    "refinery.listRuns": () => [strayIndexRewriteRun()],
+    "refinery.applyFields": (input: TrpcInput<"refinery.applyFields">) => {
+      applyInputs.push(input);
+      return applyResult(input);
+    },
+  });
+  const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
+  await page.getByRole("button", { name: /^Keep greetings \[1\]$/ }).click();
+  await page.getByRole("button", { name: "Apply 2 kept" }).click();
+  await expect(component.getByTestId(testId("refineryApplyOutcome"))).toBeVisible();
+  expect(applyInputs[0]?.accepts).toEqual([{ field: "description" }, { field: "greetings", greetingIndex: 1 }]);
+});
+
+test("each Keep/Discard press persists the run's WHOLE sheet, addressed by payload position", async ({ mount, page }) => {
+  await freeze(page);
+  const decideInputs: TrpcInput<"refinery.decideRewrite">[] = [];
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.decideRewrite": (input: TrpcInput<"refinery.decideRewrite">) => {
+      decideInputs.push(input);
+      return sessionWith({ rewriteDecisions: { [input.rewriteRunId]: input.decisions } });
+    },
+  });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
+  await page.getByRole("button", { name: DISCARD_PERSONALITY }).click();
+  await expect(page.getByRole("button", { name: "Apply 1 kept" })).toBeEnabled();
+  await expect.poll(() => decideInputs.length).toBe(2);
+  expect(decideInputs.map((input) => input.decisions)).toEqual([[true], [true, false]]);
+  expect(decideInputs.every((input) => input.rewriteRunId === REWRITE_RUN && input.sessionId === SESSION_ID)).toBe(true);
+});
+
+test("RE-ENTRY reopens the persisted decisions: the kept count and each field's state come back from the session", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.getSession": () => sessionWith({ rewriteDecisions: { [REWRITE_RUN]: [true, false] } }),
+  });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await expect(page.getByRole("button", { name: "Apply 1 kept" })).toBeEnabled();
+  await expect(page.getByTestId(testId("refineryQueueRow")).and(page.locator('[data-queue-state="kept"]'))).toHaveCount(1);
+  await expect(page.getByTestId(testId("refineryQueueRow")).and(page.locator('[data-queue-state="discarded"]'))).toHaveCount(1);
+});
+
+test("a COMPLETED session keeps both terminal verbs disabled, with the reason beside them", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.getSession": () => sessionWith({ status: "completed", rewriteDecisions: { [REWRITE_RUN]: [true, true] } }),
+  });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await expect(page.getByTestId(testId("refineryQueueRow")).and(page.locator('[data-queue-state="kept"]'))).toHaveCount(2);
+  const apply = page.getByRole("button", { name: "Apply 2 kept" });
+  await expect(apply).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save as copy" })).toBeDisabled();
+  await expect(apply).toHaveAttribute("aria-describedby", /.+/u);
+});
+
+test("a run that FITS prints no token arithmetic; only a breaching stage shows its fit line", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, { ...baseRoutes(), "refinery.preflight": () => preflightOver(["analyze"]) });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await expect(page.locator('[data-lane="score"]').getByTestId("refinery-hero-value")).toHaveText("8.2");
+  await expect(page.getByTestId(testId("refineryFitLine"))).toHaveCount(1);
+  await expect(page.locator('[data-lane="analyze"]').getByTestId(testId("refineryFitLine"))).toHaveCount(1);
+});
+
+test("the score hero gives its summary the lane's full width — never a narrow column beside the figure", async ({ mount, page }) => {
+  await freeze(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await routeTrpc(page, baseRoutes());
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  const hero = page.locator('[data-lane="score"]').getByTestId(testId("refineryHeroGauge"));
+  const summary = hero.getByText("Much sharper after the rewrite.");
+  await expect(summary).toBeVisible();
+  // The figure sits above the summary, so the summary spans (nearly) the whole card.
+  await expect
+    .poll(async () => {
+      const heroBox = await hero.boundingBox();
+      const summaryBox = await summary.boundingBox();
+      return heroBox === null || summaryBox === null ? 0 : summaryBox.width / heroBox.width;
+    })
+    .toBeGreaterThan(0.75);
+});
+
+test("session chrome stays on palette: scope pills are neutral and the ACTIVE status chip is the accent tone", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, baseRoutes());
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  const masthead = page.getByTestId(testId("refineryMasthead"));
+  await expect(masthead.getByRole("group", { name: "Scope" }).locator('[data-hint-tone="info"]')).toHaveCount(0);
+  await expect(masthead.getByRole("group", { name: "Scope" }).locator('[data-hint-tone="neutral"]')).toHaveCount(2);
+  await expect(masthead.getByRole("group", { name: "Session state" }).locator('[data-hint-tone="accent"]')).toHaveText("active");
+});
+
+test("RE-ENTERING with an open session offers it on the landing, and the door opens that session", async ({ mount, page }) => {
+  await freeze(page);
+  const asked: string[] = [];
+  await routeTrpc(page, {
+    ...landingRoutes([rosterRow(NEWEST_OPEN_SESSION_ID, "active", FROZEN_AT + 10_000), rosterRow(COMPLETED_SESSION_ID, "completed", FROZEN_AT)]),
+    "refinery.getSession": (input: unknown) => {
+      const { sessionId } = input as { sessionId: RefinerySessionId };
+      asked.push(sessionId);
+      return sessionView(sessionId);
+    },
+    "refinery.decideRewrite": () => sessionView(),
+  });
+  await mount(<RefineryStartStory />);
+  // Only the OPEN session is offered — a finished one is history, reachable from the list.
+  const resume = page.getByRole("button", { name: /^Zephyrine Vale/u });
+  await expect(resume).toHaveCount(1);
+  await resume.click();
+  await expect(page.getByTestId(testId("refineryMasthead"))).toBeVisible();
+  expect(asked).toContain(NEWEST_OPEN_SESSION_ID);
 });

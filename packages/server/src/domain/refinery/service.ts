@@ -8,6 +8,7 @@ import type { RefineryService } from "./contract/service.ts";
 import { createApplyAsCopy } from "./verbs/apply-as-copy.ts";
 import { createApplyFields } from "./verbs/apply-fields.ts";
 import { createCreateSchema } from "./verbs/create-schema.ts";
+import { createDecideRewrite } from "./verbs/decide-rewrite.ts";
 import { createDeleteSchema } from "./verbs/delete-schema.ts";
 import { createDeleteSession } from "./verbs/delete-session.ts";
 import { createGenerateSchema } from "./verbs/generate-schema.ts";
@@ -39,6 +40,7 @@ export function createRefineryService(ctx: RefineryContext): RefineryService {
     iterate: createIterate(ctx, engine),
     applyFields: createApplyFields(ctx),
     applyAsCopy: createApplyAsCopy(ctx),
+    decideRewrite: createDecideRewrite(ctx),
     submitManualRewrite: createSubmitManualRewrite(ctx),
     preflight: createPreflight(ctx),
     listSchemas: createListSchemas(ctx),

@@ -21,6 +21,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
+  RefineryRewriteDecisions,
   RefinerySchemaStage,
   RefinerySelection,
   RefinerySessionStatus,
@@ -71,6 +72,10 @@ export const refinerySessions = sqliteTable(
     // splicing, the `{{input}}` guided precedent. SQLite has no length domain; the belt is the verb.
     guidance: text("guidance"),
     iterationCount: integer("iteration_count").notNull().default(0),
+    // The review's Keep/Discard sheets, keyed by rewrite run id (`refineryRewriteDecisionsSchema`), written
+    // as each block is pressed so a re-entered session shows the same decisions and the same Apply count.
+    // Read-seam parsed; a run id that no longer exists is harmless (nothing addresses it).
+    rewriteDecisions: text("rewrite_decisions", { mode: "json" }).$type<RefineryRewriteDecisions>().notNull().default(sql`'{}'`),
     // THE ROUND CLAIM (#1568) — a LEASE DEADLINE in epoch ms, not a boolean flag, and that is the whole
     // design: a flag set by a process that then crashes wedges the session forever, whereas a deadline in
     // the past IS a free session with no reaper, no heartbeat and no boot sweep to own. NULL = no round in

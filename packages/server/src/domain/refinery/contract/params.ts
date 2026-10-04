@@ -6,6 +6,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type {
   RefinableField,
   RefineryForgeArm,
+  RefineryRewriteDecision,
   RefineryRewritePayload,
   RefinerySchemaDocument,
   RefinerySchemaStage,
@@ -102,6 +103,15 @@ export interface ApplyFieldsParams extends RefineryActorParams {
   /** OPERATE-BACK (§16.1): apply THIS session rewrite run instead of the latest. Same resolution rules
    *  as {@link RunStageParams.rewriteRunId}. */
   readonly rewriteRunId?: RefineryRunId | undefined;
+}
+
+/** `decideRewrite` — persist one rewrite run's Keep/Discard sheet as the user presses. The WHOLE sheet,
+ *  not one block: each press carries every decision made so far, so whichever write lands last is complete
+ *  and two presses in flight cannot race a server-side read-modify-write. */
+export interface DecideRewriteParams extends RefineryActorParams {
+  readonly sessionId: RefinerySessionId;
+  readonly rewriteRunId: RefineryRunId;
+  readonly decisions: readonly RefineryRewriteDecision[];
 }
 
 /** `applyAsCopy` — the branch-off terminal act (schema-renderer §17): the SAME reviewed accept set, but

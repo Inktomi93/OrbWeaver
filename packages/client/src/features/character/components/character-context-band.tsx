@@ -74,7 +74,7 @@ export function CharacterContextBand({ characterId }: CharacterContextBandProps)
         <Heading level={2} data-slot="character-context-band-name" className="line-clamp-2 text-balance" title={detail.name}>
           {detail.name}
         </Heading>
-        <Text voice="gloss" className="truncate font-mono" data-slot="character-context-band-handle">
+        <Text voice="gloss" className="truncate font-mono" data-slot="character-context-band-handle" title={`@${detail.handle}`}>
           @{detail.handle}
         </Text>
         {/* THE CHIP ROW DOES NOT WRAP — IT SCROLLS (#899 N4, post-fix verification 2026-08-30). At a 383px

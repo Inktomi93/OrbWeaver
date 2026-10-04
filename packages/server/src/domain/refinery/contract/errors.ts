@@ -5,7 +5,12 @@
 // minted WITH their throw sites, in the same commit (the discovery errors-file law).
 
 import type { RefineryStage } from "@orb/contracts/refinery";
-import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
+import {
+  REFINERY_OUTPUT_BUDGET_REASON,
+  REFINERY_ROUND_IN_FLIGHT_REASON,
+  REFINERY_SESSION_COMPLETED_REASON,
+  REFINERY_STAGE_NOT_READY_REASON,
+} from "@orb/contracts/refinery";
 import { DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 import type { StageBudgetMisfit } from "./prompts.ts";
 
@@ -59,6 +64,18 @@ export class RefineryOutputBudgetError extends DomainOperationError {
 export class RefineryRoundInFlightError extends DomainOperationError {
   constructor() {
     super(REFINERY_ROUND_IN_FLIGHT_REASON, "A refinement round is already running for this session — wait for it to finish, then iterate again.");
+    this.name = this.constructor.name;
+  }
+}
+
+/**
+ * A terminal act (apply or save-as-copy) refused because the session is already COMPLETED — its rewrite
+ * was applied once. A repeat would stack a second snapshot and re-write the same texts (or mint a second
+ * copy). Not retryable (→ BAD_REQUEST): running any stage re-opens the session, which is the fix.
+ */
+export class RefinerySessionCompletedError extends DomainOperationError {
+  constructor() {
+    super(REFINERY_SESSION_COMPLETED_REASON, "This session's rewrite was already applied. Run a stage to start a new round before applying again.");
     this.name = this.constructor.name;
   }
 }

@@ -44,7 +44,7 @@
 // readout, and a readout that refused would be a readout nobody could read.
 
 import type { RefineryRun, RefineryStage } from "@orb/contracts/refinery";
-import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
+import { REFINERY_STAGE_PAYLOADS, refineryRewriteParseSchema } from "@orb/contracts/refinery";
 import type { ResponseFormat, RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import { refineryRuns, refinerySessions } from "@orb/db";
 import type { SideGenSampling } from "@orb/inference";
@@ -450,7 +450,7 @@ async function runRewriteArm(ctx: RefineryContext, pass: StagePass, arm: Rewrite
     prompts,
     sampleOpts: sampleOptsFor(pass, prompts),
     lane: "refine-rewrite",
-    payloadSchema: REFINERY_STAGE_PAYLOADS.rewrite,
+    payloadSchema: refineryRewriteParseSchema,
   });
   const view = {
     ...pass.meta,

@@ -180,6 +180,10 @@ export const REFINERY_OUTPUT_BUDGET_REASON = "refinery_output_budget_too_small";
  *  BEFORE any model call, so a loser pays nothing. */
 export const REFINERY_ROUND_IN_FLIGHT_REASON = "refinery_round_in_flight";
 
+/** The coded reason for a terminal act (apply / save-as-copy) refused on a session that is already
+ *  completed: its rewrite was applied, and running a stage re-opens it. */
+export const REFINERY_SESSION_COMPLETED_REASON = "refinery_session_completed";
+
 // ── F4 stage modes (per-stage prompt-variant enums; the extension's 8 builtin presets ARE these) ────────
 
 export const REFINERY_SCORE_MODES = ["full", "quick"] as const;
@@ -469,6 +473,37 @@ export const refineryRewritePayloadSchema = z.object({
   fields: z.array(refineryRewriteFieldSchema).max(ENTRIES_MAX),
 });
 export type RefineryRewritePayload = z.infer<typeof refineryRewritePayloadSchema>;
+
+/** Drop a `greetingIndex` from an entry whose field is not `greetings` — the address biconditional the flat
+ *  optional cannot express in the projected grammar. */
+function withoutStrayGreetingIndex(entry: RefineryRewriteField): RefineryRewriteField {
+  if (entry.field === "greetings" || isAppendedRewrite(entry) || entry.greetingIndex === undefined) {
+    return entry;
+  }
+  const { greetingIndex: _stray, ...addressed } = entry;
+  return addressed;
+}
+
+/** The PARSE-SIDE rewrite payload: every producer's payload (model reply, hand-authored rewrite) parses
+ *  through this, never the bare wire schema. A model routinely puts a `greetingIndex` on a non-greetings
+ *  field; left in place it reaches the review as a malformed address the apply verb refuses, so it is
+ *  stripped here and the parse seam's key diff itemizes it in the run's `strippedKeys`. Kept apart from
+ *  {@link refineryRewritePayloadSchema} because that one is projected to provider wires, where a transform
+ *  has no JSON-Schema spelling. */
+export const refineryRewriteParseSchema = refineryRewritePayloadSchema.transform(
+  (payload): RefineryRewritePayload => ({ fields: payload.fields.map(withoutStrayGreetingIndex) }),
+);
+
+/** One review block's Keep/Discard decision: `true` keeps, `false` discards, `null` is undecided. */
+export const refineryRewriteDecisionSchema = z.boolean().nullable();
+export type RefineryRewriteDecision = z.infer<typeof refineryRewriteDecisionSchema>;
+
+/** The session's persisted decision sheets, keyed BY REWRITE RUN: a re-run reopens every block undecided,
+ *  because a verdict pressed against old text is not a judgement about the new text. Index = the entry's
+ *  position in that run's payload `fields` (immutable, unlike the selection-filtered review list). Keys are
+ *  run ids the `decideRewrite` verb verified belong to the session. */
+export const refineryRewriteDecisionsSchema = z.record(z.string(), z.array(refineryRewriteDecisionSchema).max(ENTRIES_MAX));
+export type RefineryRewriteDecisions = z.infer<typeof refineryRewriteDecisionsSchema>;
 
 /** The anti-drift comparison verdict — ALWAYS rewrite-vs-ORIGINAL (the session's `original_card`
  *  snapshot), never rewrite-vs-previous-rewrite. The soul check is the 1-10 "does it still feel like

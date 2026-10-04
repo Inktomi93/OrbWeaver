@@ -3,7 +3,7 @@
 // is byte-untouched; no snapshot is minted (nothing existing was written); the zero-write arm mints no
 // copy; a diverged field drops without `confirmDiverged` and lands with it.
 
-import { characterSnapshots } from "@orb/db";
+import { characterSnapshots, characters } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -55,6 +55,22 @@ test("the zero-write arm mints NO copy: every accept dead on the belts returns c
   // setup's two ticks (startSession + the rewrite run) — a freshness event for a write that never happened
   // would be a lie the whole fleet refetches on.
   expect(h.userEvents).toHaveLength(2);
+});
+
+test("a copy is all-or-nothing too: one refused accept mints no copy even when another would apply", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_ac_all" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "ac-card-all");
+  const p = principal(owner);
+  const session = await h.svc.startSession({ principal: p, characterId });
+  h.queueReply(rewriteReply({ fields: [{ field: "description", text: "REFINED." }] }));
+  await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
+  const result = await h.svc.applyAsCopy({ principal: p, sessionId: session.id, accepts: [{ field: "description" }, { field: "scenario" }] });
+  expect(result.character).toBeNull();
+  expect(result.applied).toEqual([]);
+  expect(result.dropped).toEqual([{ field: "scenario", greetingIndex: undefined, reason: "not_in_rewrite" }]);
+  expect(await db.select().from(characters)).toHaveLength(1);
 });
 
 test("the §21 divergence belt: a field edited under the session drops without confirmDiverged, lands with it", async () => {

@@ -34,7 +34,7 @@ export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyA
     // arm (the shared preamble resolver).
     const { session, liveCard, applied, dropped, chosen, rewriteRunCutoff } = await resolveApplyBasis(ctx, { ownerId, sessionId, rewriteRunId, accepts });
     if (chosen.length === 0) {
-      // Every accept died on the belts — no copy is minted for nothing (the honest zero-write arm).
+      // An accept died on the belts — the apply is all-or-nothing, so no copy is minted (the zero-write arm).
       return { applied, dropped, character: null };
     }
 

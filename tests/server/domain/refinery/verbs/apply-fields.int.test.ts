@@ -1,11 +1,12 @@
 // .int tests for `applyFields` — the sharp end (security pass §4.8-13): the accept∩rewrite∩selection
-// intersection with per-entry itemized drops (the model/caller cannot widen the apply scope), the LIVE
+// intersection with per-entry itemized refusals that refuse the WHOLE apply (the model/caller cannot widen
+// the apply scope, and a kept set never half-lands), the completed-session refusal, the LIVE
 // greeting-index assert, snapshot-first reversibility, the real `character.update` write, and the honest
 // zero-write arm. The REAL character service runs under the apply (its own belts included).
 
 import { GREETING_SLOTS_MAX } from "@orb/contracts/refinery";
 import { characterSnapshots } from "@orb/db";
-import { RefineryStageNotReadyError } from "@orb/server/domain/refinery";
+import { RefinerySessionCompletedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
 import { eq } from "drizzle-orm";
 import { freshDb, freshHeldDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -13,7 +14,7 @@ import { makeRefineryHarness, principal, rewriteReply, scoreReply, seedOwnedChar
 
 const SNAPSHOT_INSERT = /insert into "character_snapshots"/iu;
 
-test("accepted entries land on the LIVE card, snapshot-first, per-entry drops itemized, session completes", async () => {
+test("accepted entries land on the LIVE card, snapshot-first, session completes", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_af_a" });
   const h = makeRefineryHarness(db);
@@ -25,24 +26,14 @@ test("accepted entries land on the LIVE card, snapshot-first, per-entry drops it
   const result = await h.svc.applyFields({
     principal: principal(owner),
     sessionId: session.id,
-    accepts: [
-      { field: "description" },
-      { field: "greetings", greetingIndex: 1 },
-      // NOT in the rewrite payload → itemized drop, never a whole-payload refusal.
-      { field: "systemPrompt" },
-      // greetingIndex on a non-greetings field → the biconditional's other arm.
-      { field: "personality", greetingIndex: 0 },
-    ],
+    accepts: [{ field: "description" }, { field: "greetings", greetingIndex: 1 }],
   });
 
   expect(result.applied).toEqual([
     { field: "description", greetingIndex: undefined, kind: "replaced" },
     { field: "greetings", greetingIndex: 1, kind: "replaced" },
   ]);
-  expect(result.dropped).toEqual([
-    { field: "systemPrompt", greetingIndex: undefined, reason: "not_in_rewrite" },
-    { field: "personality", greetingIndex: 0, reason: "greeting_index_forbidden" },
-  ]);
+  expect(result.dropped).toEqual([]);
   // The LIVE card took exactly the accepted texts (through the REAL character.update belt).
   expect(result.character.description).toBe("A meticulous keeper of records; {{char}} files every memory of {{user}}.");
   expect(result.character.greetings[1]?.text).toBe("Back again? The stacks kept your seat warm.");
@@ -61,6 +52,67 @@ test("accepted entries land on the LIVE card, snapshot-first, per-entry drops it
   // else: the card half is `charactersChanged`, fanned from inside the injected `character.update` on
   // character's OWN emit port (its suite pins it). Re-spelling it here would be the double-invalidate storm.
   expect(h.userEvents.map((e) => e.event.type)).toEqual(["refineryChanged", "refineryChanged", "refineryChanged"]);
+});
+
+test("one refused entry refuses the WHOLE apply: nothing lands, no snapshot, every refusal itemized, session stays open", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_af_all" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-all");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  h.queueReply(rewriteReply());
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+
+  const result = await h.svc.applyFields({
+    principal: principal(owner),
+    sessionId: session.id,
+    accepts: [
+      { field: "description" },
+      { field: "greetings", greetingIndex: 1 },
+      // NOT in the rewrite payload.
+      { field: "systemPrompt" },
+      // greetingIndex on a non-greetings field — the biconditional's other arm.
+      { field: "personality", greetingIndex: 0 },
+    ],
+  });
+
+  // Two of four were applicable; none landed — a user who kept four changes never silently gets two.
+  expect(result.applied).toEqual([]);
+  expect(result.dropped).toEqual([
+    { field: "systemPrompt", greetingIndex: undefined, reason: "not_in_rewrite" },
+    { field: "personality", greetingIndex: 0, reason: "greeting_index_forbidden" },
+  ]);
+  expect(result.snapshotId).toBeNull();
+  const live = await h.character.get({ principal: principal(owner), characterId });
+  expect(live.description).toBe("A meticulous keeper of records who says {{char}} likes {{user}}.");
+  expect(live.greetings[1]?.text).toBe("Back again? The stacks missed you.");
+  expect(await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId))).toHaveLength(0);
+  expect((await h.svc.getSession({ principal: principal(owner), sessionId: session.id })).status).toBe("active");
+});
+
+test("a completed session refuses a repeat apply and a copy until a stage run re-opens it", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_af_done" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-done");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  h.queueReply(rewriteReply());
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  await h.svc.applyFields({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "description" }] });
+
+  await expect(h.svc.applyFields({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "description" }] })).rejects.toBeInstanceOf(
+    RefinerySessionCompletedError,
+  );
+  await expect(h.svc.applyAsCopy({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "description" }] })).rejects.toBeInstanceOf(
+    RefinerySessionCompletedError,
+  );
+  // Exactly the one snapshot the first apply took.
+  expect(await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId))).toHaveLength(1);
+
+  h.queueReply(rewriteReply());
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  const again = await h.svc.applyFields({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "greetings", greetingIndex: 1 }] });
+  expect(again.applied).toEqual([{ field: "greetings", greetingIndex: 1, kind: "replaced" }]);
 });
 
 test("the selection intersection stops scope-widening: a rewritten-but-UNSELECTED field is dropped", async () => {
@@ -260,7 +312,7 @@ test("a cleared GREETING removes the slot — an entry removal, never an empty-s
   expect(readBack.greetings.some((g) => g.text === "")).toBe(false);
 });
 
-test("the last greeting cannot be cleared away — would_leave_no_greeting, itemized not thrown", async () => {
+test("the last greeting cannot be cleared away — would_leave_no_greeting refuses the batch, itemized not thrown", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_af_last" });
   const h = makeRefineryHarness(db);
@@ -284,11 +336,11 @@ test("the last greeting cannot be cleared away — would_leave_no_greeting, item
       { field: "greetings", greetingIndex: 1 },
     ],
   });
-  // The FIRST clear lands; the second would leave a card with zero greetings, which is a worse authoring
-  // state than any empty field — refused per entry with its own typed reason.
-  expect(result.applied).toEqual([{ field: "greetings", greetingIndex: 0, kind: "cleared" }]);
+  // The second clear would leave a card with zero greetings, which is a worse authoring state than any
+  // empty field — itemized with its own typed reason, and the whole batch refuses (the first clear too).
+  expect(result.applied).toEqual([]);
   expect(result.dropped).toEqual([{ field: "greetings", greetingIndex: 1, reason: "would_leave_no_greeting" }]);
-  expect(result.character.greetings).toHaveLength(1);
+  expect(result.character.greetings).toHaveLength(2);
 });
 
 test("removing a greeting REMAPS the session's selected indexes (survivors shift down, in the same act)", async () => {

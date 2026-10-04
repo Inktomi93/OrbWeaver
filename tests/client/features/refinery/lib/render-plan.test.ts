@@ -163,7 +163,8 @@ test("the assay ROW's score member is the REQUIRED bounded number — an optiona
   const widget = plan.fields.find((f) => f.key === "fieldScores")?.widget as Extract<PlanField["widget"], { kind: "rows" }>;
   expect(widget.kind).toBe("rows");
   expect(widget.row.score?.key).toBe("score");
-  expect(widget.row.header.map((f) => f.key)).toEqual(["field", "greetingIndex"]);
+  // …and the address does not head the row either: printed bare it read "greetings 0 9".
+  expect(widget.row.header.map((f) => f.key)).toEqual(["field"]);
   expect(widget.row.body.map((f) => f.key)).toEqual(["strengths", "weaknesses", "suggestions"]);
 });
 

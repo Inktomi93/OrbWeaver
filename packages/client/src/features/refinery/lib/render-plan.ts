@@ -278,7 +278,9 @@ function rowPlanOf(items: Record<string, unknown>, path: string, overlay: HintOv
   });
   const score = hinted ?? fields.find((f) => f.widget.kind === "gauge" && f.required) ?? fields.find((f) => f.widget.kind === "gauge") ?? null;
   const body = fields.filter((f) => f.widget.kind === "prose" || f.widget.kind === "section" || f.widget.kind === "rows" || f.widget.kind === "bullets");
-  const header = fields.filter((f) => f !== score && !body.includes(f));
+  // A bounded number that is not the score is an ADDRESS (`greetingIndex`): printed bare in the header it
+  // read as a stray value ("greetings 0 9"), so the header carries only the words.
+  const header = fields.filter((f) => f !== score && !body.includes(f) && f.widget.kind !== "gauge");
   return { header, score, body };
 }
 

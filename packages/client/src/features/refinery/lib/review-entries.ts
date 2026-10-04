@@ -20,6 +20,9 @@ export interface ReviewEntry {
   /** The APPEND ordinal this entry carries on the wire (`appendedRewrites`' index) — the address the accept
    *  sends back. Absent on every other arm. */
   readonly appendIndex?: number;
+  /** The entry's position in the run payload's `fields` — the stable address its persisted Keep/Discard
+   *  decision is stored under (the in-scope list shifts when the selection changes; the payload never does). */
+  readonly payloadIndex: number;
 }
 
 /** Derive the reviewable entries from a rewrite payload + the two cards (pure — unit-tested through the
@@ -56,11 +59,14 @@ export function reviewEntriesOf(
       appendCount += 1;
     }
   }
-  return fields.filter(inScope).map((entry) => {
+  return fields.flatMap((entry, payloadIndex): ReviewEntry[] => {
+    if (!inScope(entry)) {
+      return [];
+    }
     const live = cardTextOf(liveCard, entry);
     const original = cardTextOf(originalCard, entry);
     const appendIndex = appendIndexOf.get(entry);
-    return { entry, live, original, diverged: live !== original, ...(appendIndex === undefined ? {} : { appendIndex }) };
+    return [{ entry, live, original, diverged: live !== original, payloadIndex, ...(appendIndex === undefined ? {} : { appendIndex }) }];
   });
 }
 

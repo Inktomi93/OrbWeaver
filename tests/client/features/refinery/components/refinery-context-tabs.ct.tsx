@@ -53,6 +53,7 @@ function sessionView(): RefinerySessionView {
       rewrite: { kind: "fixed", mode: "balanced" },
       analyze: { kind: "fixed", mode: "full" },
     },
+    rewriteDecisions: {},
     guidance: null,
     iterationCount: 1,
     createdAt: FROZEN_AT,

@@ -26,15 +26,59 @@
 // `component-size` cap; the split is also the honest one — the landing joins a different read set than the
 // session pipeline does and shares none of its state.
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
+import { Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useOpenRefinery } from "#data";
+import { selectRefinerySession } from "#state";
+import { useRefinerySessions } from "../hooks/use-refinery-sessions.ts";
 import { TeachingState } from "./teaching-state.tsx";
+
+/** The open (active) sessions, newest-updated first, as doors back in. Re-entering the section lands here
+ *  with the LIST collapsed by default, so without these the work in progress was invisible and the user
+ *  read it as lost. Nothing renders when no session is open. */
+function ResumeSessions(): ReactElement | null {
+  const sessions = useRefinerySessions();
+  const active = (sessions.data ?? []).filter((session) => session.status === "active");
+  if (active.length === 0) {
+    return null;
+  }
+  return (
+    <Card className="w-full max-w-(--reading-measure)">
+      <Stack gap="row" padding="block">
+        <Text voice="kicker">Continue a session</Text>
+        <Stack gap="tight">
+          {active.map((session) => (
+            <Button
+              className="justify-start"
+              intent="secondary"
+              key={session.id}
+              onClick={(): void => selectRefinerySession(castId<RefinerySessionId>(session.id))}
+              size="sm"
+            >
+              <Text as="span" className="min-w-0 truncate" ink="inherit" voice="label">
+                {session.name ?? session.characterName}
+              </Text>
+              <Text as="span" ink="inherit" voice="gloss">
+                round {session.iterationCount}
+              </Text>
+            </Button>
+          ))}
+        </Stack>
+      </Stack>
+    </Card>
+  );
+}
 
 export function RefineryStartPane(): ReactElement {
   const { openRefinery, isPending } = useOpenRefinery();
   return (
     <TeachingState
+      resume={<ResumeSessions />}
       onStart={(characterId: CharacterId): void => {
         // The flow owns the whole outcome — resume or mint, then the selection write. Errors are already
         // toasted by the mutation's own `errorToast`, and a failed open leaves the user on this pane with
