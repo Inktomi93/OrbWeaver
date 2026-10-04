@@ -101,7 +101,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
         <Input
           aria-label="Character name"
           onValueChange={onNameChange}
-          placeholder="Elara Vance"
+          placeholder="e.g. Elara Vance"
           value={name}
           {...(refusal === null ? {} : { "aria-errormessage": refusalId, "aria-invalid": true })}
         />

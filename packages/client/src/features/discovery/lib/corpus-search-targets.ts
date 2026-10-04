@@ -33,11 +33,11 @@ export const CORPUS_TEXT_TARGET_ID = "fields" satisfies CorpusSearchTargetId;
  *  the catalog's own framing (shown only if the catalog can't render). A mapped Record over the id
  *  union keeps this exhaustive — a new target fails `tsc`. */
 export const CORPUS_TARGET_REST_HINTS: Record<CorpusSearchTargetId, string> = {
-  characters: "Browse your distilled character catalog, or type a name or theme to search.",
+  characters: "Browse your characters, or type a name or theme to search.",
   discover: "Search chat scenes across your library — type a line, moment, or vibe to find it.",
   digests: "Search your saved memory digests — type what you're trying to recall.",
   images: "Search your images by likeness and caption — type what an image shows. A hit opens its asset detail.",
-  fields: "Lexical card search — type a name or keyword; prefix and fuzzy matches are included.",
+  fields: "Find characters by name or keyword.",
 };
 
 /** How many hits the omnibox pulls per query — a bounded preview, not the whole ranked pool. */

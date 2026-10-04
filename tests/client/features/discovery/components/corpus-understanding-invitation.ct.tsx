@@ -26,13 +26,13 @@ import { CorpusUnderstandingInvitationStory } from "../_ct-stories.tsx";
 const VIEWER = { userId: "user_me", globalRole: "user", handle: "me" } satisfies TrpcWireOutput<"sessions.me">;
 
 /** The affordance names, as locator patterns — the door's label carries state, so both spellings are pinned. */
-const RUN_DOOR = /Run the understanding pass/;
-const RETRY_DOOR = /Try the understanding pass again/;
+const RUN_DOOR = /Sort my characters/;
+const RETRY_DOOR = /Try again/;
 const FAILURE_REASON = /the summarizer connection refused/;
 const MEMORY_OFF_NOTE = /Story themes need chat memory, which is off/;
 const MEMORY_SWITCH = /Turn on memory/;
 const MODEL_ROLES_DOOR = "Open Model roles";
-const PAID_CONFIRM = "Run the understanding pass?";
+const PAID_CONFIRM = "Sort your characters?";
 
 /** A `workloads.list` row, in the shape the card reads it (id · kind · status · owner · progress · error). */
 type DistillRow = Extract<TrpcWireOutput<"workloads.list">[number], { readonly kind: "distill-characters" }>;

@@ -17,6 +17,7 @@ import {
   SIGN_IN_MODE_KEYS,
   signInModeEnvLines,
 } from "@orb/contracts/identity";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { CopyButton } from "@orb/ui/copy-button";
 import { Kbd } from "@orb/ui/kbd";
 import { Stack } from "@orb/ui/layout";
@@ -134,27 +135,36 @@ export function SharingPosturePanel(): ReactElement {
         Who can sign in
       </Heading>
       <ShareProse>{POSTURE[view.mode]}</ShareProse>
-      <ShareProse>
-        The sign-in mode is <ShareCode>{`${AUTH_MODE_KEY}=${view.mode}`}</ShareCode>. {sourceSentence(view.source, view.install)}
-      </ShareProse>
-      {offerSetup ? (
-        <>
-          <ShareProse>{`To let other devices sign in, stop the server, run this command and choose "${SETUP_FRIENDS_ANSWER}".`}</ShareProse>
-          <CopyButton text={SETUP_COMMAND} what={`the command ${SETUP_COMMAND}`}>
-            <Kbd size="command" data-testid={testId("adminSharingLine")}>
-              {SETUP_COMMAND}
-            </Kbd>
-          </CopyButton>
-        </>
-      ) : null}
-      <ShareProse>{CHANGE_STEP[view.install]}</ShareProse>
-      <Stack gap="field">
-        {view.targets
-          .filter((target) => target.mode !== view.mode)
-          .map((target) => (
-            <TargetBlock key={target.mode} mode={target.mode} install={view.install} shareRefusal={target.shareRefusal} />
-          ))}
-      </Stack>
+      <ShareProse>Sign-in mode: {MODE_NAME[view.mode]}.</ShareProse>
+      {/* The environment settings that change the mode live here, out of the way; the steps stay complete. */}
+      <Collapsible>
+        <CollapsibleTrigger>How to change sign-in mode</CollapsibleTrigger>
+        <CollapsiblePanel className="pt-row">
+          <Stack gap="tight">
+            <ShareProse>
+              The current mode is <ShareCode>{`${AUTH_MODE_KEY}=${view.mode}`}</ShareCode>. {sourceSentence(view.source, view.install)}
+            </ShareProse>
+            {offerSetup ? (
+              <>
+                <ShareProse>{`To let other devices sign in, stop the server, run this command and choose "${SETUP_FRIENDS_ANSWER}".`}</ShareProse>
+                <CopyButton text={SETUP_COMMAND} what={`the command ${SETUP_COMMAND}`}>
+                  <Kbd size="command" data-testid={testId("adminSharingLine")}>
+                    {SETUP_COMMAND}
+                  </Kbd>
+                </CopyButton>
+              </>
+            ) : null}
+            <ShareProse>{CHANGE_STEP[view.install]}</ShareProse>
+            <Stack gap="field">
+              {view.targets
+                .filter((target) => target.mode !== view.mode)
+                .map((target) => (
+                  <TargetBlock key={target.mode} mode={target.mode} install={view.install} shareRefusal={target.shareRefusal} />
+                ))}
+            </Stack>
+          </Stack>
+        </CollapsiblePanel>
+      </Collapsible>
     </Stack>
   );
 }

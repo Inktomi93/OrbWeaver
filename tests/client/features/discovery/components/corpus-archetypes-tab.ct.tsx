@@ -173,7 +173,7 @@ test("with the understanding pass un-run the tab points to Explore without dupli
 
   // SETTLED: the un-run arm has painted (the invitation's heading is unique to it).
   await expect(component.getByRole("button", { name: RUN_DOOR })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Run the understanding pass", exact: true })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Sort my characters", exact: true })).toHaveCount(0);
 
   // …and none of the cluster surface exists. Each of these is a thing the audited screenshot showed.
   await expect(component.getByText("Brooding rogues")).toHaveCount(0);

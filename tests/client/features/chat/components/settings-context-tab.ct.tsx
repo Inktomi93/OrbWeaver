@@ -1287,7 +1287,7 @@ test("#821: the Injections fallback is the section's own shape, not a line", asy
   await expect(busy).toBeVisible();
   // The section's OWN intro line is painted for real inside the fallback — it depends on no read, so
   // reserving a placeholder for it would be one more thing to shift on arrival.
-  await expect(busy.getByText("Ad-hoc context spliced into this chat's prompt. Changes save automatically.")).toBeVisible();
+  await expect(busy.getByText("Notes you add here are sent with this chat's prompt. Changes save automatically.")).toBeVisible();
   // …and this is the LOADING arm, not the ERROR arm wearing its clothes (#629).
   await expect(component.getByText("Couldn't load injections.")).toHaveCount(0);
 

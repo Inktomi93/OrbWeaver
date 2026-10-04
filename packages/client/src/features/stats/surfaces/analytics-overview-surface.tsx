@@ -1,4 +1,4 @@
-// The Analytics CONTENT dashboard (nothing drilled) — the composed turn-economics home. Reads five
+// The Analytics CONTENT dashboard (nothing drilled) — the composed usage-and-cost home. Reads five
 // owner-scoped stats verbs: `freshness` (the rollup recency + the has-any-data gate), `wrapped` (the
 // highlight reel), `timeseries` (the activity timeline the rhythm trio folds onto the viewer's calendar),
 // `overview` (the full economics figures), and `momentum` (rising / falling characters over the last two
@@ -17,6 +17,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { formatUsd } from "@orb/kit/strings";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { EmptyState } from "@orb/ui/empty-state";
 import { ChartColumn, Crown, Icon } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
@@ -35,6 +36,7 @@ import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recom
 import {
   formatAccountingLabel,
   formatCompact,
+  formatCompactNoun,
   formatCount,
   formatDecimal,
   formatDurationMs,
@@ -42,6 +44,7 @@ import {
   formatPercent,
   formatSignedDelta,
   formatThroughput,
+  LATENCY_LABELS,
   momentumBarItems,
   REASONING_LABEL,
   THROUGHPUT_LABEL,
@@ -171,7 +174,7 @@ function OverviewBody(): ReactElement {
               subtitle={topCharacterSubtitle}
               actions={
                 <Text voice="gloss" className="whitespace-nowrap font-mono">
-                  {formatCompact(wrapped.topCharacter.assistantTurns)} replies
+                  {formatCompactNoun(wrapped.topCharacter.assistantTurns, "reply", "replies")}
                 </Text>
               }
             />
@@ -181,7 +184,7 @@ function OverviewBody(): ReactElement {
 
       <RhythmFigures rhythm={rhythm} />
 
-      <Section heading="Economics">
+      <Section heading="Tokens and cost">
         <Stack gap="block">
           <Grid cols="cell" gap="block">
             <StatFigure
@@ -191,14 +194,6 @@ function OverviewBody(): ReactElement {
             <StatFigure
               label={formatAccountingLabel("Tokens out", overview.tokensOut, overview.tokensOutProvenance)}
               value={formatCount(overview.tokensOut, overview.tokensOutProvenance)}
-            />
-            <StatFigure label="Avg gen" value={formatMs(overview.avgGenMs)} />
-            <StatFigure label="p50 gen" value={formatMs(overview.p50GenMs)} />
-            <StatFigure label="p90 gen" value={formatMs(overview.p90GenMs)} />
-            <StatFigure label="Avg TTFT" value={formatMs(overview.avgTtftMs)} />
-            <StatFigure
-              label={THROUGHPUT_LABEL}
-              value={formatThroughput(overview.throughputTps, throughputProvenance(overview.totalGenTimeMs, overview.tokensOutProvenance))}
             />
             {/* THE DENOMINATOR IS IN THE LABEL (P1a/P3d). "Cache hits" alone read 100% on every backend
                 that reports cache READS but not cache WRITES — the old ratio's denominator was the two
@@ -213,8 +208,26 @@ function OverviewBody(): ReactElement {
           </Grid>
           <Text voice="gloss">
             Cache hits is the share of the tokens you sent that the provider served from its prompt cache; Reasoning is the share of replies and swipes that
-            produced a thinking pass. Throughput divides output tokens by recorded generation time. {UNRECORDED_NOTE}
+            produced a thinking pass. {UNRECORDED_NOTE}
           </Text>
+          <Collapsible>
+            <CollapsibleTrigger>Details</CollapsibleTrigger>
+            <CollapsiblePanel className="pt-row">
+              <Stack gap="block">
+                <Grid cols="cell" gap="block">
+                  <StatFigure label={LATENCY_LABELS.avgGen} value={formatMs(overview.avgGenMs)} />
+                  <StatFigure label={LATENCY_LABELS.p50Gen} value={formatMs(overview.p50GenMs)} />
+                  <StatFigure label={LATENCY_LABELS.p90Gen} value={formatMs(overview.p90GenMs)} />
+                  <StatFigure label={LATENCY_LABELS.avgTtft} value={formatMs(overview.avgTtftMs)} />
+                  <StatFigure
+                    label={THROUGHPUT_LABEL}
+                    value={formatThroughput(overview.throughputTps, throughputProvenance(overview.totalGenTimeMs, overview.tokensOutProvenance))}
+                  />
+                </Grid>
+                <Text voice="gloss">Speed divides the tokens written by the time spent generating.</Text>
+              </Stack>
+            </CollapsiblePanel>
+          </Collapsible>
         </Stack>
       </Section>
 
@@ -301,7 +314,7 @@ function EmptyStateNoData(): ReactElement {
     <EmptyState
       icon={<Icon icon={ChartColumn} size="lg" />}
       title="No insights yet"
-      description="Play a chat and your turn economics — tokens, cost, latency — will show up here."
+      description="Play a chat and your replies, words, time and cost will show up here."
       action={
         <Button intent="primary" size="sm" onClick={(): void => setActiveSection("chats")}>
           Go to Chats

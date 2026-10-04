@@ -1018,7 +1018,7 @@ test("clicking it LANDS on the library's own empty surface — the collection's 
   await component.locator(EMPTY_BAND).click();
   // The pane is no longer the generic welcome: it is this library, saying it is empty, with the one act.
   const content = component.getByRole("region", { name: "Settings", exact: true });
-  await expect(content.getByText("No scripts yet.")).toBeVisible();
+  await expect(content.getByText("A script finds a pattern in text and replaces it", { exact: false })).toBeVisible();
   await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
   // The landing is the pane's whole content, so it carries the pane's heading.
   await expect(content.getByRole("heading", { level: 2 })).toBeVisible();
@@ -1297,7 +1297,7 @@ test("the empty landing shows the library's blurb AND its empty sentence AND its
   await component.locator(EMPTY_BAND).click();
   const content = component.getByRole("region", { name: "Settings", exact: true });
   await expect(content.getByText(REGEX_BLURB), "the blurb the settling arm and the LIST both show").toBeVisible();
-  await expect(content.getByText("No scripts yet.")).toBeVisible();
+  await expect(content.getByText("A script finds a pattern in text and replaces it", { exact: false })).toBeVisible();
   await expect(content.getByRole("button", { name: "New script" })).toBeVisible();
 });
 

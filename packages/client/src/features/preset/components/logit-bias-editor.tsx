@@ -28,8 +28,7 @@ type Bias = Readonly<Record<string, number>>;
 const BIAS_MIN = -100;
 const BIAS_MAX = 100;
 const LEGEND = SAMPLING_FLAG_LABELS.logitBias;
-const HINT =
-  "Nudges or blocks specific tokens: -100 bans one, 100 all but forces it. Enter a token id, or a word where the chat connection's server can look words up; each word shows the tokens it becomes.";
+const HINT = "Make words more or less likely: -100 bans a word, 100 almost forces it. Type a word, or a token number if your server can't look words up.";
 
 type Lookup =
   | { readonly state: "pending" }
@@ -102,10 +101,10 @@ function BiasEntries({ bias, onChange }: { readonly bias: Bias | undefined; read
       </Stack>
       <Row align="center" gap="field">
         <Input
-          aria-label={takesWords ? "Token id or word to bias" : "Token id to bias"}
+          aria-label={takesWords ? "Word or token number to bias" : "Token number to bias"}
           onChange={(event): void => setDraftKey(event.currentTarget.value)}
           onKeyDown={addOnEnter}
-          placeholder={takesWords ? "token id or word" : "token id"}
+          placeholder={takesWords ? "word or token number" : "token number"}
           value={draftKey}
         />
         <NumberField aria-label="Bias" max={BIAS_MAX} min={BIAS_MIN} onValueChange={(next): void => setDraftBias(next)} value={draftBias} />
@@ -125,11 +124,11 @@ function BiasEntries({ bias, onChange }: { readonly bias: Bias | undefined; read
 /** Why the draft entry cannot be added, or `null` when it can. */
 function draftRefusal(key: string, bias: number | null, held: { readonly takesWords: boolean; readonly words: number }): string | null {
   if (key === "") {
-    return "Type a token id or a word first.";
+    return "Type a word or token number first.";
   }
   if (!TOKEN_ID_KEY.test(key)) {
     if (!held.takesWords) {
-      return "This connection's server can't look words up, so it takes token ids only.";
+      return "This connection's server can't look words up, so it takes token numbers only.";
     }
     if (key.length > TOKENIZE_WORD_CHARS_MAX) {
       return `A word or phrase is at most ${String(TOKENIZE_WORD_CHARS_MAX)} characters.`;

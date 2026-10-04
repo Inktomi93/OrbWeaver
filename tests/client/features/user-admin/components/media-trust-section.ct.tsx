@@ -31,7 +31,7 @@ const RESOLVED: Partial<EffectiveAppSettings> = {
 const INTERACTIVE_SWITCH = "Let interactive cards run their own scripts";
 /** The disclosure clause. Pinned because it is the ONLY place an admin is told the grant's residual cannot
  *  be taken back by policy — softening it later would make this a plain feature toggle. */
-const WEBRTC_DISCLOSURE_RE = /beacon out over WebRTC, which no browser policy can block/u;
+const WEBRTC_DISCLOSURE_RE = /A script can still tell its author that you viewed it, and your IP address/u;
 
 function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {

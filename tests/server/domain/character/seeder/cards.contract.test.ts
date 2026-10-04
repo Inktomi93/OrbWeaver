@@ -23,7 +23,7 @@
 import { AUTHORED_CARD_CREATOR, characterProvenanceOf, createCharacterSchema } from "@orb/contracts/character";
 import { CARD_EMBEDDABLE_THEME_KEYS, themeOverrideSchema } from "@orb/contracts/theme";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
-import { SEED_BACKGROUND_PLATES } from "@orb/default-content";
+import { readSeedAvatar, SEED_BACKGROUND_PLATES, SEED_MANIFEST } from "@orb/default-content";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -141,6 +141,16 @@ describe("DEFAULT_CHARACTER_CARDS — the authored pack parses at the write boun
     const handles = DEFAULT_CHARACTER_CARDS.map((c) => c.input.handle);
     expect(new Set(handles).size).toBe(handles.length);
     expect(handles).toContain(WELCOME_ASSISTANT_HANDLE);
+  });
+
+  test("Charlotte's handle is her name, and the manifest, avatar and scene plate follow it", async () => {
+    expect(WELCOME_ASSISTANT_HANDLE).toBe("charlotte");
+    const manifestHandles = SEED_MANIFEST.flatMap((item) => (item.kind === "character" ? [item.handle] : []));
+    expect(manifestHandles).toContain(WELCOME_ASSISTANT_HANDLE);
+    expect((await readSeedAvatar(WELCOME_ASSISTANT_HANDLE))?.bytes.length ?? 0).toBeGreaterThan(0);
+    expect(SHIPPED_PLATE_SLUGS.has(`${WELCOME_ASSISTANT_HANDLE}-bg`)).toBe(true);
+    const seated = SEED_MANIFEST.flatMap((item) => (item.kind === "rosterPreset" ? item.characters : []));
+    expect(seated).not.toContain("assistant");
   });
 
   test("the purged CardRefinery meta-cards are gone from the pack", () => {

@@ -89,7 +89,7 @@ test("F3 exactly a full page of rooms reads the true count, never 'and more'", a
 
   const heading = (await mount(<ChatMastheadTileStory />)).getByRole("heading", { level: 1 });
 
-  await expect(heading).toHaveText("Eight rooms, still warm.");
+  await expect(heading).toHaveText("You have eight rooms.");
   await expect(heading).not.toContainText("and more");
 });
 
@@ -101,7 +101,7 @@ test("F3 more rooms than a page holds prints the census, not the page size", asy
 
   const heading = (await mount(<ChatMastheadTileStory />)).getByRole("heading", { level: 1 });
 
-  await expect(heading).toHaveText("12 rooms, still warm.");
+  await expect(heading).toHaveText("You have 12 rooms.");
 });
 
 test("F3 a short page spells its count (census and page agree below the limit)", async ({ mount, page }) => {
@@ -110,7 +110,7 @@ test("F3 a short page spells its count (census and page agree below the limit)",
 
   const heading = (await mount(<ChatMastheadTileStory />)).getByRole("heading", { level: 1 });
 
-  await expect(heading).toHaveText("Three rooms, still warm.");
+  await expect(heading).toHaveText("You have three rooms.");
 });
 
 // P2-4 — a friend who has just joined a room and never spoken has left off nowhere: the masthead greets them.
@@ -120,7 +120,7 @@ test("an account that has never spoken gets the first-run title and line, never 
   await routeTrpc(page, { "chat.listChats": chatListResponder([joined]) });
 
   const home = await mount(<ChatMastheadTileStory />);
-  await expect(home.getByRole("heading", { level: 1 })).toHaveText("Welcome in");
+  await expect(home.getByRole("heading", { level: 1 })).toHaveText("Welcome");
   await expect(home.getByText("Choose a room to begin", { exact: true })).toBeVisible();
   await expect(home.getByText(LEFT_OFF)).toHaveCount(0);
 });
@@ -131,7 +131,7 @@ test("F3 an empty library opens the empty house, never 'No rooms, still warm.'",
 
   const heading = (await mount(<ChatMastheadTileStory />)).getByRole("heading", { level: 1 });
 
-  await expect(heading).toHaveText("An empty house.");
+  await expect(heading).toHaveText("No chats yet.");
 });
 
 for (const [polarity, background, ambientBackground, ambientInk] of [

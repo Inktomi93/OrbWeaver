@@ -25,7 +25,7 @@ export function ReExtractBanner(): ReactElement | null {
         </Text>
         <Button className="shrink-0" disabled={sweep.pending} intent="secondary" onClick={(): void => sweep.ask("re-extract")} size="sm" type="button">
           <Icon icon={RefreshCw} size="sm" />
-          Re-extract
+          Re-read
         </Button>
       </Row>
       {sweep.confirm}

@@ -259,7 +259,7 @@ type FlagSamplingKey = Exclude<keyof Sampling, NumericSamplingKey | "exclusive" 
  *  `mirostatSkips` state facts about other knobs, not controls, so they have no name. */
 export const SAMPLING_FLAG_LABELS: Readonly<Record<FlagSamplingKey, string>> = {
   seed: "Seed",
-  logitBias: "Logit bias",
+  logitBias: "Word bias",
   stop: "Stop sequences",
   drySequenceBreakers: "DRY sequence breakers",
   bannedStrings: "Banned phrases",

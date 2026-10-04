@@ -145,11 +145,11 @@ function TempChatContent({ ttlHours, placeholder }: { readonly ttlHours: number;
         tone="muted"
         {...(placeholder ? { "aria-hidden": true } : {})}
       >
-        A room that never joins your chats list, deleted after{" "}
+        Temporary chats stay out of your list and are deleted after{" "}
         <Text as="span" size="code">
-          {ttlHours}h
+          {`${ttlHours} ${ttlHours === 1 ? "hour" : "hours"}`}
         </Text>
-        . Marked Temporary from the moment it opens, and you can't switch a room over later. Turns, canon and the tracker all work normally while it lives.
+        . You can't change the room later.
       </Text>
       {placeholder ? <Skeleton className="absolute inset-0" /> : null}
     </Stack>

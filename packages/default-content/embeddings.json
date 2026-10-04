@@ -1,7 +1,7 @@
 [
   {
     "kind": "card-text",
-    "source": "assistant",
+    "source": "charlotte",
     "hash": "3495e7d91a30095d985b2082dace0356f1648511a5bf1110bfb621da457c05c0",
     "model": "jinaai/jina-clip-v2@q8",
     "dim": 1024,
@@ -1694,7 +1694,7 @@
   },
   {
     "kind": "image-raw",
-    "source": "assistant",
+    "source": "charlotte",
     "hash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa",
     "model": "jinaai/jina-clip-v2@q8",
     "dim": 1024,

@@ -106,7 +106,7 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
         <Text voice="gloss">Deployment-wide content-render gates. A per-character override may TIGHTEN these, never loosen them.</Text>
         <AdminOverrideSwitch
           label="Block external media"
-          hint="Stop rendered chat content from loading http/https media URLs — a privacy/SSRF guard (the load itself is the tracking-pixel). Enforced by the page's Content-Security-Policy as well as the renderer, so it is a deployment CEILING and a change only reaches an open tab on RELOAD."
+          hint="Stops chat content from loading images and other media from the internet, which also blocks tracking pixels. It applies to everyone and takes effect when a tab reloads."
           value={resolved.forbidExternalMedia}
           overridden={forbidOverridden}
           floorLabel={envFloor(forbidOverridden, resolved.forbidExternalMedia ? "on" : "off")}
@@ -114,7 +114,7 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
         />
         <AdminOverrideSwitch
           label="Render rich HTML as trusted"
-          hint="The rendering for characters on “Inherit default” while interactive cards are switched off: on renders their messages as rich HTML, off keeps them as sanitized text. While interactive cards are on, those characters already render rich HTML. A character's own Trust tab choice still wins."
+          hint="How messages look for characters set to “Inherit default” while interactive cards are off: on shows styled messages, off shows plain text. A character's own Trust tab choice still wins."
           value={resolved.trustHtml}
           overridden={trustOverridden}
           floorLabel={envFloor(trustOverridden, resolved.trustHtml ? "on" : "off")}
@@ -126,7 +126,7 @@ function MediaTrustBody({ sectionId }: { readonly sectionId: string }): ReactEle
             also turn card scripts off for themselves (`UserSettings.chat.runCardScripts`). */}
         <AdminOverrideSwitch
           label="Let interactive cards run their own scripts"
-          hint="On by default. While on, cards from every character on “Interactive” or “Inherit default” run their own JavaScript inside a locked-down frame: no cookies, no storage, no access to the app or to other cards, and no way to fetch anything. They CAN still beacon out over WebRTC, which no browser policy can block, so an interactive card can tell its author you looked at it, reveal your IP address, and capture anything you type inside the card itself. Turn this off to stop every card from running scripts; a card already on screen stops the next time it loads. One character's cards can be switched down to Render HTML on its Trust tab."
+          hint="On by default. Cards from characters set to “Interactive” or “Inherit default” can run scripts in a sealed frame: no cookies, no storage, no access to the app or to other cards. A script can still tell its author that you viewed it, and your IP address. Turn this off to stop all cards from running scripts. A card already on screen stops the next time it loads. Any character can be switched to Rich HTML on its Trust tab."
           value={resolved.allowInteractiveCards}
           overridden={interactiveOverridden}
           floorLabel={envFloor(interactiveOverridden, resolved.allowInteractiveCards ? "on" : "off")}

@@ -119,10 +119,10 @@ function economicsSummary(routes: readonly ModelRoute[]): string {
   const estimated = routes.some((route) => route.tokensOutProvenance === "estimated");
   const counted = routes.filter((route) => route.tokensOut !== null).length;
   return [
-    `${formatCount(generations)} generations across ${formatCount(models)} models`,
+    `${formatCount(generations)} ${generations === 1 ? "generation" : "generations"} across ${formatCount(models)} ${models === 1 ? "model" : "models"}`,
     counted === 0
-      ? "returned tokens not recorded"
-      : `${estimated ? "~" : ""}${formatCount(tokens)} tokens returned; accounting available for ${formatCount(counted)} of ${formatCount(routes.length)} routes`,
+      ? "tokens written not recorded"
+      : `${estimated ? "~" : ""}${formatCount(tokens)} tokens written, recorded for ${formatCount(counted)} of ${formatCount(routes.length)} routes`,
     ...costClause(routes),
   ].join(" · ");
 }
@@ -170,7 +170,7 @@ export function CorpusModelEconomicsSection({
     return <SkeletonRows count={SKELETON_ROWS} shape="line" />;
   }
   if (failed) {
-    return <QueryErrorState label="your model economics" onRetry={onRetry} />;
+    return <QueryErrorState label="your model usage" onRetry={onRetry} />;
   }
   if (routes === undefined || routes.length === 0) {
     return null;
@@ -179,14 +179,13 @@ export function CorpusModelEconomicsSection({
   // `toBarItems` treats array order as the rank and does not sort, so the head is taken here.
   const busiest = topRanked(routes, (route) => route.generations, ROUTE_BAR_CAP);
   return (
-    <Section kicker="Model economics" level={2}>
+    <Section kicker="Models by genre" level={2}>
       <Stack gap="block">
         <Text className="max-w-(--reading-measure-prose)" voice="gloss">
           {economicsSummary(routes)}
         </Text>
         <Text className="max-w-(--reading-measure-prose)" voice="gloss">
-          Aggregate routing for characters with a distilled genre. Token estimates remain approximate; accounting coverage counts routes, not individual
-          generations. Cost classifications are not retained in this aggregate.
+          How often each model answered for each genre of character. A ~ marks an estimate.
         </Text>
         <BarList
           // `quiet`, not the default accent: this is reference data at the foot of a surface whose accent
@@ -207,7 +206,7 @@ export function CorpusModelEconomicsSection({
             <ListRow
               clickable={true}
               title={routeLabel(route)}
-              subtitle={`${route.generations} generations`}
+              subtitle={`${route.generations} ${route.generations === 1 ? "generation" : "generations"}`}
               onClick={(): void => selectCorpusArtifact({ kind: "modelroute", route })}
             />
           )}
