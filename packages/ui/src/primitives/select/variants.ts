@@ -27,7 +27,9 @@ export const selectVariants = tv({
     item: [ITEM_ROW, "group/select-item justify-between gap-row data-disabled:opacity-100"],
     // An option that carries a `description` stacks label-over-gloss; the column keeps the check
     // indicator centred against the pair instead of against a single line.
-    itemBody: "flex min-w-0 flex-col",
+    // `flex-1` gives the body the row's full width: a description that does not size the popup must still be
+    // laid out across it, or it wraps at its label's width.
+    itemBody: "flex min-w-0 flex-1 flex-col",
     itemLabel: "group-data-disabled/select-item:opacity-50",
     // The SAME spelling `option-strip` uses for its description slot — one look for "the secondary line
     // of an option row", whichever listbox renders it. Deliberately NOT truncated: a mode's gloss is the

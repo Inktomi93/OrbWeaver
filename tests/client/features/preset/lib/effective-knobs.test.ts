@@ -4,6 +4,7 @@
 import { samplingCapabilitySchema } from "@orb/contracts/inference";
 import { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "@orb/server/domain/preset";
 import { honoredKnobLabels, knobGhost, knobLabel, provenanceSuffix } from "../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
+import { SAMPLING_FLAG_LABELS, SAMPLING_KNOBS } from "../../../../../packages/client/src/features/preset/lib/sampling-knob-catalog.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A camelCase key is a schema identifier; a one-word key (`seed`) may stand as its own label. */
@@ -37,6 +38,13 @@ test("the Capability honors line reads every sampling-schema key as a knob word,
   // `exclusive` is a pairing constraint between knobs, not a knob the model honors.
   expect(honored).not.toContain(knobLabel("exclusive"));
   expect(honored).toHaveLength(keys.length - 1);
+});
+
+test("a sampling knob reads as the deck names it: same words, the readout's lowercase register", () => {
+  const misnamed = [...SAMPLING_KNOBS.map((spec) => [spec.key, spec.label] as const), ...Object.entries(SAMPLING_FLAG_LABELS)].filter(
+    ([key, deckLabel]) => knobLabel(key) !== deckLabel.toLowerCase(),
+  );
+  expect(misnamed).toEqual([]);
 });
 
 test("an unmapped key still prints itself rather than being hidden", () => {

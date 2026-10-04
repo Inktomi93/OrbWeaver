@@ -3,7 +3,7 @@
 // silently searched as text), the partial-token detector the `@` menu keys on, and the literal-substring
 // highlight ranges. Pure logic → a browser-free unit test (Spine-Testing.md §7).
 
-import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken } from "@orb/client/lib";
+import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "@orb/client/lib";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -58,6 +58,17 @@ describe("partialConfigToken / applyConfigToken", () => {
 
   test("the menu's vocabulary is total and insertable — every token either bare or value-taking", () => {
     expect(CONFIG_QUERY_TOKENS.map((t) => t.token)).toEqual(["@modified", "@shelf:", "@in:", "@plugin:", "@advanced"]);
+  });
+});
+
+describe("partialValueToken", () => {
+  test("past a value token's colon the word is a value, typed so far; a flag or an unknown token is not", () => {
+    expect(partialValueToken("@shelf:plu")).toEqual({ kind: "shelf", value: "plu" });
+    expect(partialValueToken("@IN:")).toEqual({ kind: "in", value: "" });
+    expect(partialValueToken("@plugin:weather")).toEqual({ kind: "plugin", value: "weather" });
+    expect(partialValueToken("@shel")).toBeNull();
+    expect(partialValueToken("@modified")).toBeNull();
+    expect(partialValueToken("@ext:weather")).toBeNull();
   });
 });
 

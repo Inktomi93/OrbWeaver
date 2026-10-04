@@ -14,8 +14,9 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { SAMPLER_STAGE_LABELS } from "../lib/capability-panel-model.ts";
+import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 
-const LEGEND = "Sampler order";
+const LEGEND = SAMPLING_FLAG_LABELS.samplerOrder;
 const HINT = "The order the server applies its samplers in. Drag a row, or focus its grip and use Space and the arrow keys.";
 
 export function SamplerOrder({ form, stages }: { readonly form: AppFormInstance<PromptConfig>; readonly stages: readonly SamplerStage[] }): ReactElement {

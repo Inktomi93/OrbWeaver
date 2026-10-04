@@ -20,8 +20,8 @@ export interface ConfigQueryToken {
 export const CONFIG_QUERY_TOKENS: readonly ConfigQueryToken[] = [
   { token: "@modified", hint: "only settings that differ from their default" },
   { token: "@shelf:", hint: "one shelf — user, app, collections or plugins" },
-  { token: "@in:", hint: "one group, by its id (appearance, chat-behavior, …)" },
-  { token: "@plugin:", hint: "one plugin's rows, by its slug" },
+  { token: "@in:", hint: "one group by its name, with hyphens for spaces (chat-behavior)" },
+  { token: "@plugin:", hint: "one plugin's rows, by its name" },
   { token: "@advanced", hint: "include the advanced rows hidden by default" },
 ];
 
@@ -113,6 +113,17 @@ export function partialConfigToken(text: string): string | null {
   }
   const last = text.split(/\s+/u).at(-1) ?? "";
   return last.startsWith("@") ? last : null;
+}
+
+/** A trailing partial that is a value-taking token (`@shelf:plu`): its kind and the value typed so far, or null.
+ *  Past the `:` the reader is typing a VALUE, so the token menu has nothing left to offer for that word. */
+export function partialValueToken(partial: string): { readonly kind: "shelf" | "in" | "plugin"; readonly value: string } | null {
+  const valued = VALUE_TOKEN_RE.exec(partial);
+  const kind = valued?.[1]?.toLowerCase();
+  if (kind !== "shelf" && kind !== "in" && kind !== "plugin") {
+    return null;
+  }
+  return { kind, value: valued?.[2] ?? "" };
 }
 
 /** Replace the trailing partial `@` token with a chosen one (the token-menu select). A value-taking token

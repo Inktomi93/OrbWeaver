@@ -289,33 +289,82 @@ const EXPLAINED = [
   { label: "Smart", value: "smart", disabled: true, description: "Needs a rerank model; pick one in Model roles to turn this on." },
 ];
 
-test("a glossed field popup keeps to its trigger's width, so long descriptions wrap instead of covering the page", async ({ mount, page }) => {
+/** Most lines any one description may take: the reasons above run about 150 characters, which reads in four
+ *  lines at the popup floor. A description laid out at its label's width ran one or two words per line. */
+const MAX_DESCRIPTION_LINES = 5;
+
+// A glossed popup is never narrower than its trigger or the popup floor, never wider than the reading cap, and
+// its descriptions wrap across that width rather than sizing it: narrow, mid and wide triggers alike.
+for (const triggerPx of [120, 240, 367]) {
+  test(`a glossed popup under a ${String(triggerPx)}px trigger stays readable: floored, capped, descriptions wrap short`, async ({ mount, page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await mount(
+      <div style={{ width: triggerPx }}>
+        <Select aria-label="Explained modes" items={EXPLAINED} />
+      </div>,
+    );
+    const trigger = page.getByRole("combobox", { name: "Explained modes" });
+    await trigger.click();
+    const popup = page.locator('[data-slot="select-popup"]');
+    // The open transition scales the popup up from 95%; measure its settled box.
+    await expect(popup).toHaveCSS("opacity", "1");
+
+    const triggerWidth = (await trigger.boundingBox())?.width ?? 0;
+    const geometry = await popup.evaluate((element) => {
+      const probe = (value: string): number => {
+        const node = document.createElement("div");
+        node.style.width = value;
+        element.append(node);
+        const width = node.getBoundingClientRect().width;
+        node.remove();
+        return width;
+      };
+      const descriptions = [...element.querySelectorAll('[data-slot="select-item-description"]')];
+      return {
+        width: element.getBoundingClientRect().width,
+        floor: probe("var(--width-popup-floor)"),
+        cap: probe("var(--reading-measure)"),
+        overflow: element.scrollWidth - element.clientWidth,
+        clipped: descriptions.filter((desc) => desc.scrollWidth > desc.clientWidth + 1).length,
+        lines: descriptions.map((desc) => Math.round(desc.getBoundingClientRect().height / Number.parseFloat(getComputedStyle(desc).lineHeight))),
+      };
+    });
+    expect(geometry.floor, "the floor token resolves").toBeGreaterThan(0);
+    expect(geometry.width, "never narrower than the trigger or the floor").toBeGreaterThanOrEqual(Math.max(triggerWidth, geometry.floor) - 1);
+    expect(geometry.width, "a description never widens it past the larger of the two").toBeLessThanOrEqual(Math.max(triggerWidth, geometry.floor) + 1);
+    expect(geometry.width, "and never past the reading cap").toBeLessThanOrEqual(geometry.cap + 1);
+    expect(geometry.overflow, "nothing scrolls sideways").toBeLessThanOrEqual(0);
+    expect(geometry.clipped, "no description is clipped").toBe(0);
+    expect(Math.max(...geometry.lines), JSON.stringify(geometry.lines)).toBeLessThanOrEqual(MAX_DESCRIPTION_LINES);
+    expect(geometry.lines[0], "the long description wraps").toBeGreaterThan(1);
+  });
+}
+
+// An option label wider than the control column, and no descriptions: only the alignment decides where the popup ends.
+const DOCKED_ITEMS = [
+  { label: "Recall every stored scene, the sharpest first", value: "sharp" },
+  { label: "Off", value: "off" },
+];
+
+// A settings row docks its control at the row's END; the popup opens end-aligned so it grows back into the pane
+// instead of overhanging its right edge.
+test("a select docked at the end of a horizontal Field opens its popup end-aligned, inside the pane", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await mount(
-    <div style={{ width: 240 }}>
-      <Select aria-label="Explained modes" items={EXPLAINED} />
+    <div data-testid="pane" style={{ width: 640, overflow: "hidden" }}>
+      <Field label="Recall mode" orientation="horizontal">
+        <Select aria-label="Recall mode" items={DOCKED_ITEMS} />
+      </Field>
     </div>,
   );
-  const trigger = page.getByRole("combobox", { name: "Explained modes" });
+  const trigger = page.getByRole("combobox", { name: "Recall mode" });
   await trigger.click();
   const popup = page.locator('[data-slot="select-popup"]');
-  // The open transition scales the popup up from 95%; measure its settled box.
   await expect(popup).toHaveCSS("opacity", "1");
-
-  const triggerWidth = (await trigger.boundingBox())?.width ?? 0;
-  const geometry = await popup.evaluate((element) => {
-    const desc = element.querySelector('[data-slot="select-item-description"]');
-    const line = desc === null ? 0 : Number.parseFloat(getComputedStyle(desc).lineHeight);
-    return {
-      width: element.getBoundingClientRect().width,
-      overflow: element.scrollWidth - element.clientWidth,
-      descLines: desc === null || line === 0 ? 0 : Math.round(desc.getBoundingClientRect().height / line),
-    };
-  });
-  expect(triggerWidth).toBeGreaterThan(0);
-  expect(geometry.width, "the popup never grows past its anchor").toBeLessThanOrEqual(triggerWidth + 1);
-  expect(geometry.overflow, "nothing is clipped or scrolls sideways").toBeLessThanOrEqual(0);
-  expect(geometry.descLines, "the long description wraps").toBeGreaterThan(1);
+  const [triggerBox, popupBox, paneBox] = await Promise.all([trigger.boundingBox(), popup.boundingBox(), page.getByTestId("pane").boundingBox()]);
+  const right = (box: { x: number; width: number } | null): number => (box === null ? Number.NaN : box.x + box.width);
+  expect(Math.abs(right(popupBox) - right(triggerBox)), "the popup's end meets the trigger's end").toBeLessThanOrEqual(1);
+  expect(right(popupBox), "the popup stays inside the pane").toBeLessThanOrEqual(right(paneBox) + 1);
 });
 
 // A content-width trigger (the library sort: `w-auto`, showing only the selected label) is narrower than its

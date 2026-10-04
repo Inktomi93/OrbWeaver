@@ -14,6 +14,7 @@
 // (`use-modified-sections.ts` derives both grains; this file only consumes them).
 
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigShelf, ConfigSubcategory } from "#state";
+import { CONFIG_SHELVES } from "#state";
 import { CONFIG_SHELF_LABELS } from "./config-nav-model.ts";
 
 /** One flattened, fuzzy-searchable entry. `subId: null` = a group-level hit (open the group, no scroll);
@@ -112,6 +113,25 @@ export interface ConfigEntryFilter {
   readonly plugin?: string;
 }
 
+/** The shelf names a partial `@shelf:` value can complete to, in paint order: the visible names it prefixes,
+ *  minus an exact match (a complete name is a filter, not a completion). */
+export function shelfCompletions(typed: string): readonly string[] {
+  const prefix = typed.toLowerCase();
+  return CONFIG_SHELVES.map((shelf) => CONFIG_SHELF_LABELS[shelf].toLowerCase()).filter((name) => name.startsWith(prefix) && name !== prefix);
+}
+
+// A group name typed into one whitespace-delimited token: case, spaces and hyphens fold away, so
+// `chat-behavior`, `chatbehavior` and the id `chat-behavior` all name "Chat behavior".
+function foldGroupName(name: string): string {
+  return name.toLowerCase().replaceAll(/[^a-z0-9]/gu, "");
+}
+
+/** Whether a typed `@in:` value names the group, by its visible name or its id. */
+export function groupMatches(group: { readonly id: string; readonly label: string }, typed: string): boolean {
+  const folded = foldGroupName(typed);
+  return foldGroupName(group.label) === folded || foldGroupName(group.id) === folded;
+}
+
 /** Whether a typed `@shelf:` value names `shelf`. The user types the shelf's visible name, never its code id
  *  (D291: `@shelf:plugins` reaches the `extensions` shelf). */
 export function shelfMatches(shelf: ConfigShelf, typed: string): boolean {
@@ -147,7 +167,7 @@ export function filterConfigEntries(
     if (filter.shelf !== undefined && !shelfMatches(entry.shelf, filter.shelf)) {
       return false;
     }
-    if (filter.group !== undefined && entry.groupId.toLowerCase() !== filter.group.toLowerCase()) {
+    if (filter.group !== undefined && !groupMatches({ id: entry.groupId, label: entry.groupLabel }, filter.group)) {
       return false;
     }
     if (filter.plugin !== undefined && entry.groupId !== "plugins") {

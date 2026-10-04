@@ -8,7 +8,12 @@
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigSubcategory } from "@orb/client/state";
 import { Settings } from "@orb/ui/icons";
 import type { ConfigSearchEntry } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
-import { buildConfigSearchEntries, filterConfigEntries, isConfigEntryModified } from "../../../../../packages/client/src/features/config/lib/config-search.ts";
+import {
+  buildConfigSearchEntries,
+  filterConfigEntries,
+  isConfigEntryModified,
+  shelfCompletions,
+} from "../../../../../packages/client/src/features/config/lib/config-search.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function group(id: ConfigGroupId, shelf: ConfigGroupDefinition["shelf"], label: string): ConfigGroupDefinition {
@@ -99,6 +104,25 @@ test("@shelf: takes the shelf's visible name, never its code id (D291: Plugins, 
   );
   expect(filterConfigEntries(entries, { ...NO_FILTER, shelf: "plugins" }, NO_MODIFIED).map((e) => e.groupId)).toEqual(["plugins"]);
   expect(filterConfigEntries(entries, { ...NO_FILTER, shelf: "extensions" }, NO_MODIFIED)).toEqual([]);
+});
+
+test("@in: takes the group's visible name, case, spaces and hyphens folded, as well as its id", () => {
+  const entries = buildConfigSearchEntries(
+    registryOf([group("chat-behavior", "user", "Chat behavior"), APPEARANCE]),
+    () => true,
+    () => [],
+  );
+  for (const typed of ["chat-behavior", "chatbehavior", "Chat-Behavior"]) {
+    expect(filterConfigEntries(entries, { ...NO_FILTER, group: typed }, NO_MODIFIED).map((e) => e.groupId)).toEqual(["chat-behavior"]);
+  }
+  expect(filterConfigEntries(entries, { ...NO_FILTER, group: "chat" }, NO_MODIFIED)).toEqual([]);
+});
+
+test("a partial @shelf: value completes to the visible shelf names it prefixes; a complete name completes to nothing", () => {
+  expect(shelfCompletions("")).toEqual(["user", "app", "collections", "plugins"]);
+  expect(shelfCompletions("PL")).toEqual(["plugins"]);
+  expect(shelfCompletions("plugins")).toEqual([]);
+  expect(shelfCompletions("ext")).toEqual([]);
 });
 
 test("@advanced FLIPS the axis: advanced leaves are hidden by default and are the ONLY rows when asked", () => {

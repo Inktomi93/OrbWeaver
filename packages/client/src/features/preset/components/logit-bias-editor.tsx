@@ -19,6 +19,7 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useTRPC } from "#data";
 import type { AppFormInstance } from "#forms/editor";
+import { SAMPLING_FLAG_LABELS } from "../lib/sampling-knob-catalog.ts";
 
 type AppForm = AppFormInstance<PromptConfig>;
 type Bias = Readonly<Record<string, number>>;
@@ -26,7 +27,7 @@ type Bias = Readonly<Record<string, number>>;
 // The OpenAI-family bias scale every local server also takes: -100 bans a token, 100 all but forces it.
 const BIAS_MIN = -100;
 const BIAS_MAX = 100;
-const LEGEND = "Logit bias";
+const LEGEND = SAMPLING_FLAG_LABELS.logitBias;
 const HINT =
   "Nudges or blocks specific tokens: -100 bans one, 100 all but forces it. Enter a token id, or a word where the chat connection's server can look words up; each word shows the tokens it becomes.";
 
