@@ -420,3 +420,8 @@ export const unifiedSearchResultSchema = z.discriminatedUnion("over", [
   imageRows.extend(searchCoverageFields),
   documentRows.extend(searchCoverageFields),
 ]) satisfies z.ZodType<UnifiedSearchResult>;
+
+/** Whether the owner's search is paused for an embedding rebuild: a target moved and its scopes have not all
+ *  completed on the new generation, so vector search refuses as re-indexing. */
+export const searchSpaceStatusSchema = z.strictObject({ paused: z.boolean() });
+export type SearchSpaceStatus = z.infer<typeof searchSpaceStatusSchema>;

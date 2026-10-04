@@ -272,6 +272,9 @@ test("the rebuild confirm names only what pauses and whether chat memory can re-
   expect(reindexConfirmDescription(null)).not.toMatch(/\d/u);
 });
 
+/** The rows below judge a rebuild while search refuses for it; the space status decides that first. */
+const SEARCH_PAUSED = { paused: true } as const;
+
 // The vector role row speaks for the viewer's newest embedder rebuild only: a later success buries an older failure,
 // and an ordinary index pass or another user's rebuild says nothing.
 test("the role row's rebuild state follows the viewer's newest embedder rebuild", () => {
@@ -282,11 +285,11 @@ test("the role row's rebuild state follows the viewer's newest embedder rebuild"
     createdAt,
     params: { source: "all", force: true, embedderChanged: true },
   });
-  expect(embedderRebuildState([rebuild("running", 2), rebuild("failed", 1)], "user_me")).toBe("running");
-  expect(embedderRebuildState([rebuild("failed", 2, null)], "user_me")).toBe("failed");
-  expect(embedderRebuildState([rebuild("succeeded", 3), rebuild("failed", 2)], "user_me")).toBeNull();
-  expect(embedderRebuildState([rebuild("failed", 2, "user_other")], "user_me")).toBeNull();
-  expect(embedderRebuildState([{ ...rebuild("running", 2), params: { source: "all" } }], "user_me")).toBeNull();
+  expect(embedderRebuildState([rebuild("running", 2), rebuild("failed", 1)], "user_me", SEARCH_PAUSED)).toBe("running");
+  expect(embedderRebuildState([rebuild("failed", 2, null)], "user_me", SEARCH_PAUSED)).toBe("failed");
+  expect(embedderRebuildState([rebuild("succeeded", 3), rebuild("failed", 2)], "user_me", SEARCH_PAUSED)).toBeNull();
+  expect(embedderRebuildState([rebuild("failed", 2, "user_other")], "user_me", SEARCH_PAUSED)).toBeNull();
+  expect(embedderRebuildState([{ ...rebuild("running", 2), params: { source: "all" } }], "user_me", SEARCH_PAUSED)).toBeNull();
 });
 
 // A move rebuilds three scopes, and search waits on all of them: the row stays on while any one still runs, and a
@@ -301,9 +304,35 @@ test("the role row's rebuild state covers the move's databank and memory rebuild
   });
   const indexDone = row("index", "succeeded", 3);
 
-  expect(embedderRebuildState([indexDone, row("databank-reindex", "succeeded", 2), row("memory-backfill", "running", 2)], "user_me")).toBe("running");
-  expect(embedderRebuildState([indexDone, row("databank-reindex", "queued", 2)], "user_me")).toBe("running");
-  expect(embedderRebuildState([indexDone, row("memory-backfill", "failed", 2)], "user_me")).toBe("failed");
-  expect(embedderRebuildState([indexDone, row("memory-backfill", "failed", 1), row("memory-backfill", "succeeded", 2)], "user_me")).toBeNull();
-  expect(embedderRebuildState([indexDone, row("memory-backfill", "running", 2, false)], "user_me"), "a plain sweep is no rebuild").toBeNull();
+  expect(embedderRebuildState([indexDone, row("databank-reindex", "succeeded", 2), row("memory-backfill", "running", 2)], "user_me", SEARCH_PAUSED)).toBe(
+    "running",
+  );
+  expect(embedderRebuildState([indexDone, row("databank-reindex", "queued", 2)], "user_me", SEARCH_PAUSED)).toBe("running");
+  expect(embedderRebuildState([indexDone, row("memory-backfill", "failed", 2)], "user_me", SEARCH_PAUSED)).toBe("failed");
+  expect(embedderRebuildState([indexDone, row("memory-backfill", "failed", 1), row("memory-backfill", "succeeded", 2)], "user_me", SEARCH_PAUSED)).toBeNull();
+  expect(embedderRebuildState([indexDone, row("memory-backfill", "running", 2, false)], "user_me", SEARCH_PAUSED), "a plain sweep is no rebuild").toBeNull();
+});
+
+// The live probe's cell 2 (scripts/probes/embed-width/RESULTS.md): a move's memory rebuild failed, the next move
+// (memory off) rebuilt cards and documents and search answers again. The old failure is no longer the state.
+test("the role row says nothing once search answers, whatever an earlier rebuild left behind", () => {
+  const row = (kind: string, status: WorkloadStatus, createdAt: number): Parameters<typeof embedderRebuildState>[0][number] => ({
+    kind,
+    status,
+    ownerId: "user_me",
+    createdAt,
+    params: { embedderChanged: true },
+  });
+  const cells = [
+    row("memory-backfill", "failed", 1_791_081_353_599),
+    row("databank-reindex", "succeeded", 1_791_081_353_588),
+    row("index", "succeeded", 1_791_081_353_588),
+    row("databank-reindex", "succeeded", 1_791_081_441_345),
+    row("index", "succeeded", 1_791_081_441_345),
+  ];
+
+  expect(embedderRebuildState(cells, "user_me", { paused: false })).toBeNull();
+  expect(embedderRebuildState(cells, "user_me", { paused: true }), "search still refuses: the failure stands").toBe("failed");
+  expect(embedderRebuildState([...cells, row("memory-backfill", "queued", 1_791_081_500_000)], "user_me", { paused: true })).toBe("running");
+  expect(embedderRebuildState(cells, "user_me", undefined), "an unread status claims nothing").toBeNull();
 });

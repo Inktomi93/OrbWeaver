@@ -235,6 +235,11 @@ interface WorkloadRow {
   readonly error: string | null;
 }
 
+/** Whether the caller's search is paused for a rebuild: the read the role row judges first. */
+async function spaceStatus(trpc: Trpc): Promise<{ readonly paused: boolean }> {
+  return (await trpc.query("search.spaceStatus")) as { readonly paused: boolean };
+}
+
 async function rebuildRows(trpc: Trpc): Promise<WorkloadRow[]> {
   const perKind = await Promise.all(EMBEDDER_REBUILD_KINDS.map(async (kind) => (await trpc.query("workloads.list", { kind })) as WorkloadRow[]));
   return perKind.flat();
@@ -247,7 +252,7 @@ async function settle(trpc: Trpc, viewerId: string, since: number): Promise<{ re
   let lastLine: string | null | undefined;
   for (;;) {
     const all = (await trpc.query("workloads.list", { since })) as WorkloadRow[];
-    const line = embedderRebuildState(await rebuildRows(trpc), viewerId);
+    const line = embedderRebuildState(await rebuildRows(trpc), viewerId, await spaceStatus(trpc));
     if (line !== lastLine) {
       timeline.push({
         atMs: Date.now() - started,
@@ -343,7 +348,8 @@ async function evidence(opts: Opts, trpc: Trpc, label: string, extra: Record<str
     bindings: await trpc.query("connection.listBindings"),
     widths: widths(opts),
     searches: await searches(opts, trpc),
-    roleRowLineNow: embedderRebuildState(await rebuildRows(trpc), me),
+    spaceStatus: await spaceStatus(trpc),
+    roleRowLineNow: embedderRebuildState(await rebuildRows(trpc), me, await spaceStatus(trpc)),
   };
   const file = archive(opts, label, record);
   process.stdout.write(`${JSON.stringify({ label, file, searches: record.searches, roleRowLineNow: record.roleRowLineNow })}\n`);

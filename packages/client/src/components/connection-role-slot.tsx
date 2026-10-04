@@ -226,19 +226,26 @@ const REBUILD_POLL_MS = 5000;
 /** The viewer's embedder rebuild, read only for their own vector roles. */
 function useEmbedderRebuild(trpc: Trpc, enabled: boolean): ReturnType<typeof embedderRebuildState> {
   const viewer = useQuery({ ...trpc.sessions.me.queryOptions(), enabled });
-  // One read per rebuild kind, each polling while its own rebuild runs, so the line holds until the last scope lands.
+  // Search's own paused state decides whether there is a line at all; it re-reads while paused so it clears on promotion.
+  const space = useQuery({
+    ...trpc.search.spaceStatus.queryOptions(),
+    enabled,
+    refetchInterval: (query) => (query.state.data?.paused === true ? REBUILD_POLL_MS : false),
+  });
+  // One read per rebuild kind, each polling while it holds an active rebuild, so the line holds until the last scope lands.
   const rows = useQueries({
     queries: EMBEDDER_REBUILD_KINDS.map((kind) => ({
       ...trpc.workloads.list.queryOptions({ kind }),
       enabled,
       refetchInterval: (query: { readonly state: { readonly data?: Parameters<typeof embedderRebuildState>[0] | undefined } }): number | false =>
-        embedderRebuildState(query.state.data ?? [], viewer.data?.userId ?? null) === "running" ? REBUILD_POLL_MS : false,
+        embedderRebuildState(query.state.data ?? [], viewer.data?.userId ?? null, { paused: true }) === "running" ? REBUILD_POLL_MS : false,
     })),
   });
   return enabled
     ? embedderRebuildState(
         rows.flatMap((query) => query.data ?? []),
         viewer.data?.userId ?? null,
+        space.data,
       )
     : null;
 }

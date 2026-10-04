@@ -31,11 +31,12 @@ export function corpusRecomputeReads(trpc: Trpc): readonly InvalidateFilter[] {
   ];
 }
 
-/** What a connection write moves: the `connection.*` reads, and the job list, because a write that changes the
- *  owner's embed space enqueues an index rebuild the vector role rows only start polling once they see it. The
- *  rebuild is queued detached, so `workloadsChanged` is what reliably lands it; this read is the same-tab try. */
+/** What a connection write moves: the `connection.*` reads, the job list and search's paused state, because a write
+ *  that changes the owner's embed space pauses search and enqueues a rebuild the vector role rows only start polling
+ *  once they see it. The rebuild is queued detached, so `workloadsChanged` is what reliably lands it; this read is the
+ *  same-tab try. */
 export function connectionWriteReads(trpc: Trpc): readonly InvalidateFilter[] {
-  return [trpc.connection.pathFilter(), trpc.workloads.list.pathFilter()];
+  return [trpc.connection.pathFilter(), trpc.workloads.list.pathFilter(), trpc.search.spaceStatus.pathFilter()];
 }
 
 /** What the proxy's `.queryFilter()`/`.pathFilter()` return — accepted by `invalidateQueries`. */

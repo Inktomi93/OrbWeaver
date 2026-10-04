@@ -108,9 +108,21 @@ function isEmbedderRebuild(row: RebuildRow): boolean {
   );
 }
 
-/** The viewer's embedder rebuild (their own, or a box-wide sweep), read from the newest rebuild of each kind: running
- *  while any of them is active, failed when one failed, else neither. A later success of a kind buries its older failure. */
-export function embedderRebuildState(rows: readonly RebuildRow[], viewerId: string | null): RebuildState | null {
+/**
+ * The viewer's embedder rebuild (their own, or a box-wide sweep), shown only while their search is paused for it:
+ * running while the newest rebuild of any kind is active, failed when one of them failed, else nothing.
+ *
+ * @remarks The space status decides first: once search answers, an older failed row is history, not the state. A move
+ * whose memory is off queues no memory rebuild, so a failed memory row can outlive the rebuild that superseded it.
+ */
+export function embedderRebuildState(
+  rows: readonly RebuildRow[],
+  viewerId: string | null,
+  space: { readonly paused: boolean } | undefined,
+): RebuildState | null {
+  if (space?.paused !== true) {
+    return null;
+  }
   const newestByKind = new Map<string, RebuildRow>();
   for (const row of rows.filter((candidate) => isEmbedderRebuild(candidate) && (candidate.ownerId === null || candidate.ownerId === viewerId))) {
     const newest = newestByKind.get(row.kind);

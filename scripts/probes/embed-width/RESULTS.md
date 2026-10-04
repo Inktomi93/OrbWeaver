@@ -12,7 +12,7 @@
 | # | cell | embedder | stored width (cards / document / memory) | search: cards / document / memory | role row | verdict |
 | - | - | - | - | - | - | - |
 | 0 | seed, memory on, no Utility model | built-in `jinaai/jina-clip-v2@q8` | 1024 / 1024 / 1024 | hit / hit / hit | none | the memory sweep **failed** (finding 1); search still answered, because memory was complete vacuously from before it was switched on |
-| 1 | width change, memory on, no Utility model | built-in, declared 512 | 512 / 512 / 512 | refused `search_space_reindexing` / refused / refused | running, then failed | **FAIL** (finding 1) |
+| 1 | width change, memory on, no Utility model | built-in, declared 512 | 512 / 512 / 512 | refused `search_space_reindexing` / refused / refused | running, then failed | **FAIL** (finding 1); re-run pending 0521 |
 | 2 | re-point back, memory off | built-in, 1024 | 1024 / 1024 / none (memory off) | hit / hit / none (memory off) | running, then **failed** | widths and search pass; role row **FAIL** (finding 2) |
 | 3 to 9 | local server (Ollama, nomic-embed-text 768 and 256, all-minilm 384), OpenAI text-embedding-3-small 1536 and 512, OpenRouter, race, bad key, member | | | | | not run |
 
@@ -50,5 +50,7 @@ Records: `2026-10-04T02-37-memory-off-setting-response.json` (memory switched of
 - The role row still says "Rebuild failed — see Jobs". `embedderRebuildState` (commit `a02aaa6a76`) takes the
   newest rebuild of each kind. The newest memory rebuild is cell 1's failed row, and no newer memory row
   replaces it.
-- This is a defect in this lane's own client change. The rule should judge the newest move's rows, not the newest row of each
-  kind.
+- This was a defect in this lane's own client change. Fixed after the stop: the row now asks search first, through
+  `search.spaceStatus`, which reads the same generation state search refuses on. Once search answers it shows nothing;
+  while search is paused it shows running or failed from the rebuild rows. The unit and connections-roles CT
+  regressions replay this cell's rows. The fixed rule still has to be confirmed live in the resumed matrix.

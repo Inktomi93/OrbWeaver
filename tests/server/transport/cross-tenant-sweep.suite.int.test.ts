@@ -2018,6 +2018,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // so with the `assets.ownerId` belt DELETED the stranger's seed read still returns null → []. The belt is
   // proven where the data exists: verbs/similar-art.int.test.ts ("REFUSES a cross-tenant seed", model-
   // populated) and persistence/image-nearest.int.test.ts ("never returns another owner's image").
+  "search.spaceStatus": "self-scoped: ownerId = principal.userId (the caller's own generation state; no input)",
   "search.similarArt":
     "caller-precondition + unprobeable under vllmDisabled: the caller's own imageEmbed binding is resolved before the seed read (identical refusal for any seed id), and A has no avatar vectors to leak here. Belt proven in verbs/similar-art.int.test.ts + persistence/image-nearest.int.test.ts",
   "search.search":

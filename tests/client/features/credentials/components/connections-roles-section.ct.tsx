@@ -177,6 +177,8 @@ async function stubPane(
     readonly settings?: ReturnType<typeof userSettingsView>;
     readonly reindexPreview?: ReindexPreview;
     readonly workloads?: () => TrpcWireOutput<"workloads.list">;
+    /** Whether search refuses for a rebuild; read at call time, so a test can pause it when the re-point lands. */
+    readonly paused?: () => boolean;
   } = {},
 ): Promise<RolesStub> {
   const recorder = await routeTrpc(page, {
@@ -196,6 +198,7 @@ async function stubPane(
     "settings.getUserSettings": () => opts.settings ?? userSettingsView(),
     "settings.updateUserSettingsSection": () => opts.settings ?? userSettingsView(),
     // The vector rows read the viewer's embedder rebuild from the job list, one kind per read, as the server filters it.
+    "search.spaceStatus": () => ({ paused: opts.paused?.() ?? false }),
     "workloads.list": (input) => (opts.workloads?.() ?? []).filter((row) => input?.kind === undefined || row.kind === input.kind),
   });
   return { recorder };
@@ -540,14 +543,26 @@ function memoryRebuildRow(status: TrpcWireOutput<"workloads.list">[number]["stat
 
 // Search waits on every scope the move rebuilds, so the line stays while the memory rebuild still runs.
 test("the embedding rows keep the rebuild line while the memory rebuild outlasts the index one", async ({ mount, page }) => {
-  await stubPane(page, { workloads: () => [rebuildRow("succeeded"), memoryRebuildRow("running")] });
+  await stubPane(page, { workloads: () => [rebuildRow("succeeded"), memoryRebuildRow("running")], paused: () => true });
   await mount(<ConnectionsSettingsStory />);
 
   await expect(page.locator('[data-rebuild="running"]')).toHaveCount(2);
 });
 
+// The live probe's cell 2 (scripts/probes/embed-width/RESULTS.md): an earlier move's memory rebuild failed, a later
+// move rebuilt the rest and search answers. The old failure is not the state, so the rows say nothing.
+test("the embedding rows say nothing once search answers, whatever an earlier rebuild left behind", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, { workloads: () => [memoryRebuildRow("failed"), rebuildRow("succeeded")], paused: () => false });
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect.poll(() => recorder.count("workloads.list"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(3);
+  await expect.poll(() => recorder.count("search.spaceStatus"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+  await expect(roleSelect(page, "Text embedding")).toBeVisible();
+  await expect(page.locator("[data-rebuild]")).toHaveCount(0);
+});
+
 test("the embedding rows say when a rebuild runs and when it failed", async ({ mount, page }) => {
-  await stubPane(page, { workloads: () => [rebuildRow("failed")] });
+  await stubPane(page, { workloads: () => [rebuildRow("failed")], paused: () => true });
   await mount(<ConnectionsSettingsStory />);
 
   await expect(page.getByText(REBUILD_STATUS_COPY.failed, { exact: true })).toHaveCount(2);
@@ -558,10 +573,12 @@ test("the embedding rows say when a rebuild runs and when it failed", async ({ m
 // so the confirmed re-point itself must re-read the job list or the rebuild it enqueued stays invisible.
 test("a confirmed embedder re-point shows its rebuild running, then failed", async ({ mount, page }) => {
   let rebuild: TrpcWireOutput<"workloads.list"> = [];
-  const { recorder } = await stubPane(page, { reindexPreview: STORED_REBUILD, workloads: () => rebuild });
-  // The server enqueues the rebuild inside the binding write, so the job exists from the moment it lands.
+  let paused = false;
+  const { recorder } = await stubPane(page, { reindexPreview: STORED_REBUILD, workloads: () => rebuild, paused: () => paused });
+  // The server pauses search and enqueues the rebuild inside the binding write, so both hold from the moment it lands.
   await page.route(SET_BINDING_ROUTE, async (route) => {
     rebuild = [rebuildRow("running")];
+    paused = true;
     await route.fallback();
   });
   await mount(<ConnectionsSettingsStory />);

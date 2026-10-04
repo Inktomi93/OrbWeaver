@@ -495,6 +495,8 @@ const USER_TRACKED_KEYS = [
   "pluginSurfaceState",
   // The job list the vector role rows read their embed rebuild from.
   "workloadList",
+  // Whether search is paused for a rebuild, which decides whether those rows show a rebuild line at all.
+  "spaceStatus",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
@@ -544,8 +546,8 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // It path-invalidates the WHOLE connection router, so the capability read under it goes stale too. NOT the job
   // list: a re-point's rebuild is queued after this tick and announces itself through `workloadsChanged`.
   connectionsChanged: ["connection", "chatCapability"],
-  // A system-started job of yours: the job list and nothing else.
-  workloadsChanged: ["workloadList"],
+  // A system-started job of yours: the job list, and whether search is paused for it.
+  workloadsChanged: ["spaceStatus", "workloadList"],
 };
 
 // The user events carry no chatId EXCEPT `chatsChanged` (which reads it for the getChat branch). A `chatId`
@@ -612,6 +614,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         sessionsMe: trpc.sessions.me.queryKey(),
         pluginSurfaceState: trpc.plugin.getSurfaceState.queryKey({ pluginId: PLUGIN_ID, surfaceId: "panel" }),
         workloadList: trpc.workloads.list.queryKey({ kind: "index" }),
+        spaceStatus: trpc.search.spaceStatus.queryKey(),
       };
       for (const key of Object.values(keys)) {
         // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
