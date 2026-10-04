@@ -564,6 +564,8 @@ const PASTED_FORMATS = [
   ["key=value lines", 'chat_template_kwargs={"enable_thinking": false}\nstop=["</s>", "<|im_end|>"]\nmin_p=0.05'],
 ] as const;
 const PASTED_FIELDS = { ["chat_template_kwargs"]: { ["enable_thinking"]: false }, stop: ["</s>", "<|im_end|>"], ["min_p"]: 0.05 };
+// A value that YAML would read as an object, and that must reach the wire as the text typed.
+const JINJA_TEMPLATE = "{% for message in messages %}{{ message['role'] }}: {{ message['content'] }}\n{% endfor %}\n";
 const UNPARSEABLE_BLOCK = "chat_template_kwargs:\n  documents: [unclosed";
 
 /** A paste as the browser delivers one: a cancelable `paste` event carrying the text on its clipboard data. */
@@ -608,7 +610,7 @@ for (const [format, pasted] of PASTED_FORMATS) {
   });
 }
 
-test("extra request fields: a nested block typed as a value saves as an object and reads back as JSON", async ({ mount, page }) => {
+test("extra request fields: a typed JSON value saves structured; a template value saves exactly as typed", async ({ mount, page }) => {
   const recorder = await stubEditor(page);
   const component = await mount(<ConnectionEditorStory />);
   await tier(page, "Diagnostics").click();
@@ -616,7 +618,7 @@ test("extra request fields: a nested block typed as a value saves as an object a
   const row = component.locator('[data-slot="connection-extra-row"]').last();
   await row.getByLabel("Field", { exact: true }).fill("chat_template_kwargs");
   const value = row.getByLabel("Value", { exact: true });
-  await value.fill("enable_thinking: false\ndocuments: []");
+  await value.fill('{"enable_thinking": false, "documents": []}');
   await value.blur();
   await expect
     .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
@@ -625,6 +627,17 @@ test("extra request fields: a nested block typed as a value saves as an object a
       patch: { extras: { ["top_k"]: 40, stream: false, ["chat_template_kwargs"]: { ["enable_thinking"]: false, documents: [] } } },
     });
   await expect(value).toHaveValue(JSON.stringify({ ["enable_thinking"]: false, documents: [] }, null, 2));
+
+  const template = component.locator('[data-extra-key="stream"]').getByLabel("Value", { exact: true });
+  await template.fill(JINJA_TEMPLATE);
+  await template.blur();
+  await expect
+    .poll(() => recorder.lastInput("connection.update"), { intervals: [20, 50, 100] })
+    .toEqual({
+      connectionId: CONNECTION_ID,
+      patch: { extras: { ["top_k"]: 40, stream: JINJA_TEMPLATE, ["chat_template_kwargs"]: { ["enable_thinking"]: false, documents: [] } } },
+    });
+  await expect(template).toHaveValue(JINJA_TEMPLATE);
 });
 
 test("an unparseable paste says why in either field and saves nothing", async ({ mount, page }) => {

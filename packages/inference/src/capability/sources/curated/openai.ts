@@ -4,6 +4,20 @@
 
 import type { CapabilityOverrideInput } from "@orb/contracts/inference";
 
+// The OpenAI ids the hosted family sweep (scripts/probes/hosted-families/RESULTS.md) measured, per route: exact ids, no
+// dated snapshots. o1 was reached on the direct API only.
+const SWEPT_IDS =
+  "gpt-4\\.1(-mini|-nano)?|gpt-4o(-mini)?|gpt-5(-mini|-nano)?|gpt-5\\.[125]|gpt-5\\.4(-mini|-nano)?|gpt-5\\.6-(luna|sol|terra)|gpt-6-(astra|luna|sol)|gpt-6\\.1-sol|o3(-mini)?|o4-mini";
+const SWEPT_DIRECT_IDS = `^(${SWEPT_IDS}|o1)$`;
+const SWEPT_OPENROUTER_IDS = `^openai/(${SWEPT_IDS})$`;
+
+const SWEPT_TURNS = {
+  assistantPrefill: false,
+  midConversationSystem: true,
+  historySystemRows: true,
+  roleHandlingFloor: "none",
+} as const;
+
 export const openaiRows = [
   {
     match: { model: "^(openai/)?gpt-(4\\.1|5\\.4-mini|5\\.5)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$", wire: "openai-compat", api: "chat-completions" },
@@ -58,22 +72,22 @@ export const openaiRows = [
       cite: "developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create (fetched 2026-10-04): temperature 0 to 2, top_p, frequency_penalty and presence_penalty -2.0 to 2.0, seed, stop, logit_bias. scripts/probes/hosted-families/RESULTS.md, OpenAI direct samplers (2026-10-03): top_k, min_p, repetition_penalty and top_a each 400 'Unknown parameter' on gpt-4.1, gpt-4.1-mini, gpt-4.1-nano, gpt-4o, gpt-4o-mini",
     },
   },
-  // The ids the hosted family sweep reached. A trailing assistant row is plain history there: the model restarts or
-  // continues from call to call, so a continue keeps its cue. The `none` floor lets a history open on the assistant's
-  // greeting with no user row first, measured separately (cite).
+  // The routes and ids the hosted family sweep reached; a local or Custom server serving an aliased id keeps the floor
+  // its own template earns. A trailing assistant row is plain history there: the model restarts or continues from
+  // call to call, so a continue keeps its cue. The `none` floor lets a history open on the assistant's greeting with no
+  // user row first, measured separately (cite).
   {
-    match: {
-      model:
-        "^(openai/)?(gpt-4\\.1(-mini|-nano)?|gpt-4o(-mini)?|gpt-5(-mini|-nano)?|gpt-5\\.[125]|gpt-5\\.4(-mini|-nano)?|gpt-5\\.6-(luna|sol|terra)|gpt-6-(astra|luna|sol)|gpt-6\\.1-sol|o1|o3(-mini)?|o4-mini)(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+    match: { model: SWEPT_DIRECT_IDS, provider: "openai" },
+    generation: { turns: SWEPT_TURNS },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-03",
+      cite: "scripts/probes/hosted-families/RESULTS.md, OpenAI direct and OpenRouter openai: a mid-history system row (c1) and a trailing system row (c2) 200 and obeyed on every id, kept in place upstream on OpenRouter; user,user (c3, first turn kept) and assistant,assistant (c4) 200 everywhere; a trailing assistant row (c5) restarted on most ids and continued on gpt-4o-mini, gpt-5.1, gpt-5.2, gpt-6-sol direct and gpt-4o, gpt-5.1, gpt-5.4 through OpenRouter, so a continue cannot rely on it. Opening on the assistant (measured by the orchestrator 2026-10-04, history [system, assistant greeting, user]): 200 with an in-character reply on direct gpt-4.1, gpt-4o-mini, gpt-5-mini and OpenRouter openai/gpt-4.1, openai/gpt-5-mini",
     },
-    generation: {
-      turns: {
-        assistantPrefill: false,
-        midConversationSystem: true,
-        historySystemRows: true,
-        roleHandlingFloor: "none",
-      },
-    },
+  },
+  {
+    match: { model: SWEPT_OPENROUTER_IDS, provider: "openrouter" },
+    generation: { turns: SWEPT_TURNS },
     evidence: {
       tier: "curated",
       dated: "2026-10-03",

@@ -23,6 +23,7 @@ import {
   parseIncludeBody,
   purposeNotes,
   rowsFromExtras,
+  rowWithReadValue,
 } from "../../../../../packages/client/src/features/credentials/lib/connection-editor-model.ts";
 import type { FactRow } from "../../../../../packages/client/src/features/credentials/lib/connection-fact-model.ts";
 import {
@@ -326,6 +327,29 @@ describe("the extras rows", () => {
 
   test("keeps a non-JSON value as the string the user typed", () => {
     expect(extrasFromRows([{ id: "a", key: "tenant", value: "research" }])).toStrictEqual({ tenant: "research" });
+  });
+
+  // A single value is the user's string unless it is strict JSON: bracket, brace and template text is a prompt
+  // fragment far more often than data, and YAML would read it as an object.
+  test.each([
+    ["[INST]"],
+    ["{name}"],
+    ["{{user}}"],
+    ["a: 1\nb: 2"],
+    ["{% for message in messages %}{{ message['role'] }}: {{ message['content'] }}\n{% endfor %}\n"],
+    ["40"],
+  ])("a stored string %j shows, blurs and saves back unchanged", (stored) => {
+    const [row] = rowsFromExtras({ template: stored }, (index) => `id-${String(index)}`);
+    if (row === undefined) {
+      throw new Error("expected a row");
+    }
+    expect(extrasFromRows([rowWithReadValue(row)])).toStrictEqual({ template: stored });
+  });
+
+  test("a strict JSON value still saves structured and reads back as indented JSON", () => {
+    const read = rowWithReadValue({ id: "a", key: "kwargs", value: '{"enable_thinking": false}' });
+    expect(read.value).toBe('{\n  "enable_thinking": false\n}');
+    expect(extrasFromRows([read])).toStrictEqual({ kwargs: { ["enable_thinking"]: false } });
   });
 
   test("always offers one empty row to type into", () => {

@@ -23,7 +23,7 @@ import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 // Direct, not through `#lib`: node-side CT specs import this module.
 import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
 import { grouped } from "./connection-fact-model.ts";
-import { fieldText, looksStructured, parsePastedObject, parsePastedStructure } from "./pasted-fields.ts";
+import { fieldText, parsePastedObject } from "./pasted-fields.ts";
 
 // ── the Purpose tier: the inferred-kind verdict ────────────────────────────────────────────────────────
 
@@ -222,14 +222,14 @@ export interface ExtraRow {
   readonly id: string;
   readonly key: string;
   readonly value: string;
-  /** Why the value text reads as nothing: the row's field says so, and no save goes out until it is fixed. */
-  readonly error?: string;
 }
 
+// A value is strict JSON or exactly the text typed, surrounding whitespace included: a chat template or a
+// `[INST]` marker is a string, and only a Field-box paste reads the looser formats.
 function parseExtraValue(raw: string): unknown {
   const text = raw.trim();
   if (text === "") {
-    return "";
+    return raw;
   }
   // @orb-waive caught-failure-ownership(catch): a PARSE PROBE, not an operation — "this text is not JSON"
   // is the ANSWER, not a failure. A server extra is as often the string `research` as the number 40, and
@@ -238,7 +238,7 @@ function parseExtraValue(raw: string): unknown {
   try {
     return JSON.parse(text) as unknown;
   } catch {
-    return text;
+    return raw;
   }
 }
 
@@ -282,15 +282,10 @@ export function rowsWithPastedFields(
   return [...rows.slice(0, replaces ? at : at + 1), ...pasted, ...rows.slice(at + 1)];
 }
 
-/** The row with its value read: a structured value is rewritten as the JSON it saves, and one that reads as nothing
- *  keeps its text and says why. A plain value is left as typed. */
-export async function rowWithReadValue(row: ExtraRow): Promise<ExtraRow> {
-  const { error: _previous, ...rest } = row;
-  if (!looksStructured(row.value)) {
-    return rest;
-  }
-  const read = await parsePastedStructure(row.value);
-  return read.ok ? { ...rest, value: fieldText(read.value) } : { ...rest, error: read.reason };
+/** The row with a JSON object or list value rewritten as the indented JSON it saves; any other value stays as typed. */
+export function rowWithReadValue(row: ExtraRow): ExtraRow {
+  const value = parseExtraValue(row.value);
+  return typeof value === "object" && value !== null ? { ...row, value: fieldText(value) } : row;
 }
 
 // ── the Diagnostics tier: request-body overrides (`transport.includeBody`) ─────────────────────────────

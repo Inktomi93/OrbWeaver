@@ -209,6 +209,21 @@ test("the swept OpenAI ids state their turn cells on every route; an unswept ope
   }
 });
 
+// The facts were measured on OpenAI and OpenRouter, so a local or Custom server serving an aliased id keeps the
+// floor its own template earns, and an id or snapshot the sweep never reached states nothing.
+test("the swept turn cells hold only on the routes and ids the sweep measured", () => {
+  for (const providerId of ["llama-cpp", "vllm", "custom-openai"]) {
+    const { capability } = synthesizeCapability("generation", "openai", {
+      curated: curatedRows({ model: "gpt-4o", providerId: castId<ProviderId>(providerId), wire: "openai-compat", api: "chat-completions" }),
+    });
+    expect(capability.kind === "generation" ? capability.generation.turnsEstimated : undefined, providerId).toBeDefined();
+  }
+  for (const model of ["openai/o1", "gpt-4o-2024-08-06", "openai/gpt-4.1-2025-04-14"]) {
+    expect(generation(model).turnsEstimated, model).toBeDefined();
+  }
+  expect(generation("o1").turnsEstimated).toBeUndefined();
+});
+
 test("a non-reasoning GPT id offers OpenAI's samplers, none of the extras OpenAI refuses by name", () => {
   for (const model of ["gpt-4.1", "gpt-4.1-nano", "gpt-4o", "openai/gpt-4o-mini"]) {
     expect(Object.keys(generation(model).sampling).toSorted(), model).toEqual([

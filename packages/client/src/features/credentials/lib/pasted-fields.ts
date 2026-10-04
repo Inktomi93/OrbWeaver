@@ -27,17 +27,6 @@ export function looksLikeFields(text: string): boolean {
   return text.trim().startsWith("{") || KEY_LINE.test(first);
 }
 
-/** Is a field VALUE meant as structured data: a JSON-style object or array, or an indented block? A single line
- *  of plain text is a string, however it reads. */
-export function looksStructured(text: string): boolean {
-  const trimmed = text.trim();
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-    return true;
-  }
-  const lines = contentLines(trimmed);
-  return lines.length > 1 && (KEY_LINE.test(lines[0] ?? "") || (lines[0] ?? "").trimStart().startsWith("- "));
-}
-
 // Not strict JSON is an answer, not a failure: the text goes on to the lenient reader.
 function tryJson(text: string): PastedParse<unknown> {
   try {
@@ -107,19 +96,6 @@ export async function parsePastedObject(raw: string): Promise<PastedParse<Record
     return read;
   }
   return isPlainObject(read.value) ? { ok: true, value: read.value } : { ok: false, reason: `That is a single value, not fields. ${FORMATS_HINT}` };
-}
-
-/** A structured field value (see {@link looksStructured}) as the object or array it states. */
-export async function parsePastedStructure(raw: string): Promise<PastedParse<unknown>> {
-  const text = raw.trim();
-  const json = tryJson(text);
-  const read = json.ok ? json : await readYaml(text);
-  if (!read.ok) {
-    return read;
-  }
-  return typeof read.value === "object" && read.value !== null
-    ? read
-    : { ok: false, reason: "That didn't read as an object or a list. Write it as JSON, or as YAML nested by indenting." };
 }
 
 /** A value as the text its field shows: a string as typed, unless it would read back as something else (`"40"`),

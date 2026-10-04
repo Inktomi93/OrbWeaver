@@ -2,13 +2,7 @@
 // carries, and text that reads as nothing names why instead of saving.
 
 import { describe } from "vitest";
-import {
-  fieldText,
-  looksLikeFields,
-  looksStructured,
-  parsePastedObject,
-  parsePastedStructure,
-} from "../../../../../packages/client/src/features/credentials/lib/pasted-fields.ts";
+import { fieldText, looksLikeFields, parsePastedObject } from "../../../../../packages/client/src/features/credentials/lib/pasted-fields.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const VLLM_FIELDS = { ["chat_template_kwargs"]: { ["enable_thinking"]: false }, stop: ["</s>", "<|im_end|>"], ["top_k"]: 40 };
@@ -55,22 +49,12 @@ describe("parsePastedObject reads every pasted format to the same object", () =>
   });
 });
 
-test("a structured field value reads to its object or list; a scalar block is refused", async () => {
-  expect(await parsePastedStructure("enable_thinking: false\ndocuments: []")).toEqual({ ok: true, value: { ["enable_thinking"]: false, documents: [] } });
-  expect(await parsePastedStructure("[1, 2,]")).toEqual({ ok: true, value: [1, 2] });
-  expect((await parsePastedStructure("{enable_thinking: false")).ok).toBe(false);
-});
-
-test("which text is fields, which is a structured value, and which is one plain value", () => {
+test("which pasted text is fields and which is one plain value", () => {
   expect(looksLikeFields("top_k: 40")).toBe(true);
   expect(looksLikeFields("top_k=40")).toBe(true);
   expect(looksLikeFields('{"top_k": 40}')).toBe(true);
   expect(looksLikeFields("top_k")).toBe(false);
   expect(looksLikeFields("http://proxy.test/v1")).toBe(false);
-  expect(looksStructured("[1, 2]")).toBe(true);
-  expect(looksStructured("enable_thinking: false\ndocuments: []")).toBe(true);
-  expect(looksStructured("a: b")).toBe(false);
-  expect(looksStructured("first line\nsecond line")).toBe(false);
 });
 
 test("a field shows a string as typed unless it would read back as another type", () => {

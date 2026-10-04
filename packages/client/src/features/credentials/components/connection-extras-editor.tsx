@@ -44,9 +44,11 @@ interface ConnectionExtrasEditorProps {
   readonly onCommit: (rows: readonly ExtraRow[]) => void;
   /** Mints the id of a newly added row — injected so the editor stays deterministic under test. */
   readonly mintRowId: () => string;
+  /** The rows as they stand now, for a handler that resumes after an await: the render's `rows` may be stale by then. */
+  readonly currentRows: () => readonly ExtraRow[];
 }
 
-function ConnectionExtrasEditor({ rows, busy, onChange, onCommit, mintRowId }: ConnectionExtrasEditorProps): ReactElement {
+function ConnectionExtrasEditor({ rows, busy, onChange, onCommit, mintRowId, currentRows }: ConnectionExtrasEditorProps): ReactElement {
   const patch = (id: string, part: Partial<ExtraRow>): void => {
     onChange(rows.map((row) => (row.id === id ? { ...row, ...part } : row)));
   };
@@ -63,16 +65,9 @@ function ConnectionExtrasEditor({ rows, busy, onChange, onCommit, mintRowId }: C
           index={index}
           key={row.id}
           onCommit={(): void => onCommit(rows)}
-          onPasteFields={(fields): void => update(rowsWithPastedFields(rows, row.id, fields, mintRowId))}
+          onPasteFields={(fields): void => update(rowsWithPastedFields(currentRows(), row.id, fields, mintRowId))}
           onPatch={patch}
-          onReadValue={(): void => {
-            // @orb-waive caught-failure-ownership(rowWithReadValue): the only rejection is the lazy reader chunk failing to load; it lands in the row's Value error, which holds the save. Ends if the reader stops loading lazily.
-            rowWithReadValue(row).then(
-              (read) => update(rows.map((other) => (other.id === row.id ? read : other))),
-              // The reader's chunk failed to load: the row holds its text and the save, and says why.
-              (err: unknown) => onChange(rows.map((other) => (other.id === row.id ? { ...other, error: errorMessage(err) } : other))),
-            );
-          }}
+          onReadValue={(): void => update(rows.map((other) => (other.id === row.id ? rowWithReadValue(other) : other)))}
           onRemove={(id): void => update(rows.filter((other) => other.id !== id))}
           row={row}
         />
@@ -84,8 +79,8 @@ function ConnectionExtrasEditor({ rows, busy, onChange, onCommit, mintRowId }: C
         </Button>
       </Row>
       <Text voice="gloss">
-        Paste a block of fields into a Field box, as JSON, YAML or key=value lines, and each becomes its own row. A value that is an object or a list reads back
-        as JSON. Empty rows stay while you're typing; nothing is saved until the row has a key.
+        Paste a block of fields into a Field box, as JSON, YAML or key=value lines, and each becomes its own row. A value is sent as typed unless it is JSON; a
+        JSON object or list reads back indented. Empty rows stay while you're typing; nothing is saved until the row has a key.
       </Text>
     </Stack>
   );
@@ -115,11 +110,11 @@ function ExtraRowView({
   const gloss = beltKeyGloss(key);
   const [pasteError, setPasteError] = useState<string | null>(null);
 
-  // A block of fields lands as rows wherever it is pasted into the key, or into the value of a row with no key yet.
-  // Anything else pastes as plain text.
-  const pasteFields = (event: ClipboardEvent<HTMLElement>, intoValue: boolean): void => {
+  // A block of fields pasted into the key lands as rows. A value is never read that way: it is strict JSON or the
+  // exact text typed, so a template or a bracketed marker stays a string.
+  const pasteFields = (event: ClipboardEvent<HTMLElement>): void => {
     const text = event.clipboardData.getData("text/plain");
-    if ((intoValue && key !== "") || !looksLikeFields(text)) {
+    if (!looksLikeFields(text)) {
       return;
     }
     event.preventDefault();
@@ -143,7 +138,7 @@ function ExtraRowView({
           <Input
             autoComplete="off"
             onBlur={onCommit}
-            onPaste={(event): void => pasteFields(event, false)}
+            onPaste={pasteFields}
             onValueChange={(next): void => {
               setPasteError(null);
               onPatch(row.id, { key: next });
@@ -152,12 +147,11 @@ function ExtraRowView({
             value={row.key}
           />
         </Field>
-        <Field className="min-w-0 grow" error={row.error ?? null} label="Value">
+        <Field className="min-w-0 grow" label="Value">
           <Textarea
             autoComplete="off"
             maxRows={8}
             onBlur={onReadValue}
-            onPaste={(event): void => pasteFields(event, true)}
             onValueChange={(next): void => onPatch(row.id, { value: next })}
             placeholder="value"
             rows={1}
@@ -199,6 +193,12 @@ export function ConnectionExtrasBlock({
   const [rows, setRows] = useState<readonly ExtraRow[]>(() => rowsFromExtras(extras, (index) => `${idPrefix}-${String(index)}`));
   // A ref, not state: one paste mints several ids inside a single handler, and each must differ.
   const minted = useRef(0);
+  // The rows as last set, read by a paste that resumes after the lazy reader loads. Written only by `change`.
+  const latest = useRef(rows);
+  const change = (next: readonly ExtraRow[]): void => {
+    latest.current = next;
+    setRows(next);
+  };
 
   return (
     <Stack gap="tight">
@@ -213,13 +213,9 @@ export function ConnectionExtrasBlock({
           minted.current += 1;
           return `${idPrefix}-new-${String(minted.current)}`;
         }}
-        onChange={setRows}
-        onCommit={(next): void => {
-          // A value that reads as nothing holds every save: saving the rest would drop that key from the connection.
-          if (next.every((row) => row.error === undefined)) {
-            onCommit(extrasFromRows(next));
-          }
-        }}
+        currentRows={(): readonly ExtraRow[] => latest.current}
+        onChange={change}
+        onCommit={(next): void => onCommit(extrasFromRows(next))}
         rows={rows}
       />
     </Stack>
