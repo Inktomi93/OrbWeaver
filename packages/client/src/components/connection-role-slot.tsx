@@ -55,6 +55,14 @@ type BindingActorInput = NonNullable<inferInput<Trpc["connection"]["setBinding"]
 type RoleStatus = keyof typeof ROLE_STATUS_LABELS;
 type RoleReadout = ReturnType<typeof roleReadout>;
 
+/** Why a vector role that resolves is still not running: its target's rebuild failed, so search stays paused. */
+const REBUILD_FAILED_CAUSE = "its search index failed to rebuild";
+
+/** The readout repeats the dot's name, so when a failed rebuild takes the dot off running, the steady arm follows it. */
+function readoutForDot(readout: RoleReadout, dotIsStatus: boolean): RoleReadout {
+  return !dotIsStatus && readout.kind === "steady" ? { kind: "blocked", cause: REBUILD_FAILED_CAUSE } : readout;
+}
+
 /** The DOT's skin per state. `unset` is a RING — `ghost` is the only tone with no fill, and the border is
  *  restated on the muted ink because the default hairline (`--color-border`, 8% alpha) is invisible at 6px. */
 const DOT_SKIN = {
@@ -164,7 +172,7 @@ export function ConnectionRoleSlot({
   const status = roleStatus(view);
   // A failed rebuild leaves search paused, so the dot does not say the role is running.
   const dot: RoleStatus = rebuild === "failed" && status === "running" ? "blocked" : status;
-  const readout = roleReadout({ view, draftConnectionId: draft, factsOf });
+  const readout = readoutForDot(roleReadout({ view, draftConnectionId: draft, factsOf }), dot === status);
   const verdicts = roleRequirementVerdicts(row, view?.resolved?.capability ?? null);
   const repairs = backgroundRepairs({ row, connections, status });
   const persisted = view?.binding?.connectionId ?? UNSET_VALUE;

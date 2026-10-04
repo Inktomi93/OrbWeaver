@@ -38,7 +38,6 @@
 // SAVED row invalidates its credential, its base URL, its model and its kind at once; a control that starts
 // that cascade and handles none of it is worse than no control. The row says so and points at the add flow.
 
-import type { EmbedTargetRefusal } from "@orb/contracts/inference";
 import { EMBED_SPACE_FIELDS, providerDisplayLabel } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -54,7 +53,7 @@ import { useRef, useState } from "react";
 import { QueryBoundary, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
-import { EMBED_REFUSAL_SLOTS, embedRefusalOf, embedRefusalText } from "#lib";
+import { embedRefusalOf } from "#lib";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 import { capabilityFactRows, VECTOR_WIDTH_FACT_PATH } from "../lib/connection-capability-fact-model.ts";
 import { capabilityBadges, declaredOverrideCount, diagnosticsSetCount, hostLabel, inferredKindOf, purposeNotes } from "../lib/connection-editor-model.ts";
@@ -65,8 +64,11 @@ import { ClaudeSubscriptionNotice } from "./claude-subscription-notice.tsx";
 import { ConnectionAccount } from "./connection-account.tsx";
 import { ModelField, SavedTextField } from "./connection-editor-essential.tsx";
 import { CapabilityRail, KindVerdict, PurposeNotes } from "./connection-editor-purpose.tsx";
+import type { EditorEmbedRefusal } from "./connection-editor-refusal.tsx";
+import { EmbedRefusalAlert } from "./connection-editor-refusal.tsx";
 import { ConnectionEditorHeader, ConnectionEditorUnavailable } from "./connection-editor-unavailable.tsx";
 import { ConnectionExtrasBlock } from "./connection-extras-editor.tsx";
+import type { FactRowNote } from "./connection-fact-rows.tsx";
 import { FactRowList, QuirksBlock } from "./connection-fact-rows.tsx";
 import { ConnectionInspector } from "./connection-inspector.tsx";
 import { ConnectionPromptCache } from "./connection-prompt-cache.tsx";
@@ -131,6 +133,17 @@ function ConnectionEditorBody({ connectionId, onDone, onRemoved, removalFinalFoc
   );
 }
 
+function refusalNoteOf(refused: EditorEmbedRefusal | null): FactRowNote | undefined {
+  return refused === null || refused.path === null ? undefined : { path: refused.path, content: <EmbedRefusalAlert onRow={true} refusal={refused.refusal} /> };
+}
+
+/** The pressed Override or Reset goes away with the change, so focus returns to its row once the write settles. */
+function focusFact(facts: HTMLElement | null, path: string | null): void {
+  if (path !== null) {
+    facts?.querySelector<HTMLElement>(`[data-fact="${path}"]`)?.focus();
+  }
+}
+
 function AvailableConnectionEditorBody({
   connection,
   connectionId,
@@ -150,8 +163,9 @@ function AvailableConnectionEditorBody({
     widthRow?.focus();
     return widthRow === null;
   });
-  // The last write the server refused because the embedder does not make the width it would state, or did not answer.
-  const [embedRefusal, setEmbedRefusal] = useState<EmbedTargetRefusal | null>(null);
+  // The last write the server refused because the embedder does not make the width it would state, or did not answer,
+  // and the fact row it came from (`null` for a field above Advanced), so the reason is drawn where focus returns.
+  const [embedRefusal, setEmbedRefusal] = useState<EditorEmbedRefusal | null>(null);
   const providerLabel = providerDisplayLabel(provider);
   // A detecting row (`features.detectServer`) reads the quirks of the server it found; its own knob stays listed.
   const detected = providers.find((row) => row.id === capabilityView.detectedProviderId);
@@ -162,13 +176,19 @@ function AvailableConnectionEditorBody({
 
   // A patch to an identity field of a row that backs the user's embedder can rebuild their index; the server says
   // whether it would. Any other field (a label, a switch) cannot move a space and is written straight through.
-  const patch = (part: Parameters<typeof update.mutate>[0]["patch"]): void => {
+  // A fact row's Override or Reset button goes away with the change, so focus returns to the row (the confirm, when
+  // there is one, already does this).
+  const patch = (part: Parameters<typeof update.mutate>[0]["patch"], factPath: string | null = null): void => {
     const write = (): void =>
       update.mutate(
         { connectionId, patch: part },
         {
           onSuccess: (): void => setEmbedRefusal(null),
-          onError: (error): void => setEmbedRefusal(embedRefusalOf(error)),
+          onError: (error): void => {
+            const refusal = embedRefusalOf(error);
+            setEmbedRefusal(refusal === null ? null : { refusal, path: factPath });
+          },
+          onSettled: (): void => focusFact(factsRef.current, factPath),
         },
       );
     if (EMBED_SPACE_FIELDS.some((field) => part[field] !== undefined)) {
@@ -178,17 +198,15 @@ function AvailableConnectionEditorBody({
     }
   };
 
+  const refusalNote = refusalNoteOf(embedRefusal);
+
   return (
     // THE NAMED CONTAINER (see the header): every reflow below keys off THIS box, not the viewport.
     <Container className="@container/connection-editor" name="connection-editor">
       <Stack data-slot="connection-editor" gap="block">
         <ConnectionEditorHeader label={connection.label} onDone={onDone} />
         {reindex.dialog}
-        {embedRefusal === null ? null : (
-          <Text className="text-warning" data-refusal={EMBED_REFUSAL_SLOTS[embedRefusal.kind]} role="alert" voice="gloss">
-            {embedRefusalText(embedRefusal)}
-          </Text>
-        )}
+        {embedRefusal === null || embedRefusal.path !== null ? null : <EmbedRefusalAlert onRow={false} refusal={embedRefusal.refusal} />}
 
         <EditorTier defaultOpen={true} title="Essential">
           <Stack gap="row">
@@ -300,8 +318,8 @@ function AvailableConnectionEditorBody({
           kicker="What this server accepts · Endpoint quirks"
           title="Advanced"
         >
-          <Stack gap="block">
-            <Stack gap="tight" ref={factsRef}>
+          <Stack gap="block" ref={factsRef}>
+            <Stack gap="tight">
               <Text voice="label">What this server accepts</Text>
               <Text voice="gloss">
                 What we measured or were told about this model. It is a statement about the server, not a setting — changing a line here tells us what to
@@ -309,16 +327,18 @@ function AvailableConnectionEditorBody({
               </Text>
               <FactRowList
                 busy={busy}
-                onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) })}
-                onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) })}
+                note={refusalNote}
+                onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) }, row.path)}
+                onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) }, row.path)}
                 rows={capabilityFactRows(capabilityView.capability, declared, capabilityView.baseline)}
               />
             </Stack>
             <QuirksBlock
               busy={busy}
               declared={declared}
-              onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) })}
-              onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) })}
+              note={refusalNote}
+              onOverride={(row, value): void => patch({ declared: withDeclaredOverride(declared, row, value) }, row.path)}
+              onReset={(row): void => patch({ declared: withoutDeclaredOverride(declared, row) }, row.path)}
               ownServer={provider.auth === "endpoint"}
               providerFeatures={quirkFeatures}
               providerLabel={quirkLabel}

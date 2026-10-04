@@ -124,6 +124,7 @@ export {
   EMBEDDER_REBUILD_KINDS,
   embedderRebuildState,
   embedRefusalOf,
+  embedRefusalRowText,
   embedRefusalText,
   REBUILD_JOBS_LABEL,
   REBUILD_STATUS_COPY,

@@ -106,6 +106,15 @@ export function embedRefusalText(refusal: EmbedTargetRefusal): string {
   return `This model makes ${made}-wide vectors, not ${groupThousands(refusal.stated)}, so nothing changed. Set its vector width under Advanced to ${made}.`;
 }
 
+/** The same refusal said on the editor row whose change it refused. The rollback already put the row back, so it says
+ *  what was kept rather than what to set. */
+export function embedRefusalRowText(refusal: EmbedTargetRefusal): string {
+  if (refusal.kind === "unreachable") {
+    return "Kept as it was: couldn't reach this embedder to check its vector width. Try again.";
+  }
+  return `Kept as it was: this model makes ${groupThousands(refusal.measured)}-wide vectors, not ${groupThousands(refusal.stated)}.`;
+}
+
 /** The vector role row's rebuild line while an embedder change re-indexes, and after one failed. */
 export const REBUILD_STATUS_COPY = {
   running: "Re-indexing — search paused.",

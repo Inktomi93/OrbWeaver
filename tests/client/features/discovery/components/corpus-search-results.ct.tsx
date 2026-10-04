@@ -777,6 +777,8 @@ test("a search during a rebuild says it is paused and switches to the text searc
   await expect(component.getByRole("button", { name: "Retry" })).toHaveCount(0);
   await paused.getByRole("button", { name: SEARCH_PAUSED_COPY.textInstead }).click();
 
+  // The pressed button goes away with the paused state; focus lands back in the search field, not on the page.
+  await expect(component.getByRole("combobox", { name: "Search your corpus" })).toBeFocused();
   await expect(component.getByText("The Crimson Court")).toBeVisible();
   await expect.poll(() => trpc.count("search.fields"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
 });

@@ -1198,6 +1198,31 @@ test("a vector width the embedder cannot make is refused in the editor with both
   await saveVectorWidth(page, component, "2048");
 
   await expect.poll(() => recorder.count("connection.update"), { intervals: [20, 50, 100] }).toBe(1);
-  await expect(component.locator('[data-refusal="embed-width"]')).toHaveAttribute("role", "alert");
+  // The reason sits on the width row, where the confirm returned focus, not at the top of the editor.
+  const refusal = component.locator('[data-fact="embedding.dims"] [data-refusal="embed-width"]');
+  await expect(refusal).toHaveAttribute("role", "alert");
+  await expect(refusal).toBeInViewport();
+  await expect(component.locator("[data-refusal]")).toHaveCount(1);
   await expect(component.getByRole("button", { name: "Override vector width" })).toBeVisible();
+});
+
+// With nothing stored to rebuild there is no confirm to hand focus back, and the button pressed goes away on save.
+test("a vector width saved with no rebuild to confirm leaves focus on its row", async ({ mount, page }) => {
+  const embedding: NonNullable<TrpcWireOutput<"connection.capabilities">["capability"]> = {
+    kind: "embedding",
+    embedding: { ...EMBEDDING_FLOOR, dims: 1024, mrl: true, input: ["text", "image"] },
+  };
+  await stubEditor(page, {
+    capabilities: { capability: embedding, baseline: embedding, warnings: [], tasks: ["embed", "imageEmbed"] },
+    reindexPreview: { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true },
+  });
+  const component = await mount(<ConnectionEditorStory />);
+
+  await tier(page, "Advanced").click();
+  await component.getByRole("button", { name: "Override vector width" }).click();
+  await component.getByRole("textbox", { name: "vector width — your value" }).fill("512");
+  await component.getByRole("button", { name: "Save your vector width" }).click();
+
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  await expect(component.locator('[data-fact="embedding.dims"]')).toBeFocused();
 });

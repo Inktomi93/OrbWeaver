@@ -625,6 +625,9 @@ test("a failed rebuild of the text target is announced on its own row, with a do
   await expect(page.getByRole("status").filter({ has: line })).toHaveCount(1);
   await expect(page.getByRole("status").filter({ has: line }).getByRole("button", { name: REBUILD_JOBS_LABEL })).toBeVisible();
   expect(await rowOf(line)).toEqual({ picker: "Text embedding connection", dot: ROLE_STATUS_LABELS.blocked });
+  // The readout repeats the dot's name, so it must not still say the role is running.
+  await expect(page.getByText(`${ROLE_STATUS_LABELS.running} on`)).toHaveCount(0);
+  await expect(page.getByText(`${ROLE_STATUS_LABELS.blocked} —`)).toHaveCount(1);
 });
 
 // The server undoes a write onto a width the embedder cannot make; the picker goes back to what is bound and the row

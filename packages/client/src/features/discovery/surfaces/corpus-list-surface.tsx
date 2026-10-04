@@ -117,7 +117,11 @@ export function CorpusListSurface(): ReactElement {
             query={deferredQuery}
             targetId={targetId}
             retainFinderScroll={true}
-            onTextInstead={(): void => setCorpusSearchTarget(CORPUS_TEXT_TARGET_ID)}
+            // The pressed button goes away with the paused state, so focus returns to the field the query is in.
+            onTextInstead={(): void => {
+              setCorpusSearchTarget(CORPUS_TEXT_TARGET_ID);
+              omniboxRef.current?.focus();
+            }}
           />
         ) : (
           <CorpusRestState targetId={targetId} />
