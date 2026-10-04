@@ -1,0 +1,233 @@
+{
+  "summary": {
+    "cell": "ollama-27b-gpu",
+    "server": "ollama",
+    "model": "qwen3.8-27b",
+    "template": "ollama-gguf-default",
+    "mode": "stream",
+    "rep": 1,
+    "body": {
+      "reasoning_effort": "none"
+    },
+    "strict": false,
+    "turns": 10,
+    "both": 4,
+    "proseOnly": 6,
+    "toolsOnly": 0,
+    "empty": 0,
+    "errors": 0,
+    "leaks": 0,
+    "maxPromptTokens": 4330,
+    "medianTokPerSec": 20.9,
+    "medianServerTokPerSec": 33.7,
+    "ranAt": "2026-10-03T17:10:38.405Z"
+  },
+  "rows": [
+    {
+      "turn": 1,
+      "shape": "both",
+      "proseChars": 1837,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 170847,
+      "decodeMs": 36297,
+      "promptTokens": 3538,
+      "completionTokens": 769,
+      "tokPerSec": 4.5,
+      "serverTokPerSec": 21.2,
+      "content": "The tap opens like a lung exhaling — warmth, stale beer, someone's fiddle sawing at a song half-remembered. Rain hammers the glass panes behind you and the room smells of brine, wet wool, and the faintly rotten sweetness of spilled ale. Lantern oil sways above a bar crowded with dockers, a couple laughing too loud by the hearth, and a girl at the door watching you watch her, waiting to see if you look like trouble.\n\nYou don't. You look tired, which is almost better.\n\n\"Marro?\" The girl squints. \"Fence? You don't know the way in, do you. He don't sit in the bar, he sits *over* the bar.\" She nods toward a narrow stair behind the tapper. \"Back room. Tell him Dottie sent you, and if he's one of the wrong Marros, you'll learn fast.\"\n\nThe stair exhales cold cellar air. Below the landing, a half-doors stands ajar and you can just see the corner of a table where someone's boots are crossed under it and a hand is dealing cards with steady, slow precision — the hand of a man in no hurry, which at the Drowned Lantern is the signature of a fence at work.\n\n:::card title=\"The Drowned Lantern\"\n<div style=\"background:#1a1510;border:2px solid #4a3b28;border-radius:6px;padding:16px;font-family:Georgia,serif;color:#c9a86b;max-width:340px\">\n  <div style=\"text-align:center;border-bottom:1px solid #4a3b28;padding-bottom:10px;margin-bottom:10px;letter-spacing:3px;font-size:18px\">THE DROWNED LANTERN</div>\n  <div style=\"text-align:center;font-size:12px;color:#8a7450;margin-bottom:14px\">— since the harbour took the old one —</div>\n  <div style=\"font-size:13px;line-height:1.7\">\n    <div>🍺 Dockers' ale — two coppers</div>\n    <div>🥩 Brine fish pie — one sixpence</div>\n    <div>🃏 Cards & dice — house keeps a tab</div>\n    <div style=\"color:#8a7450;margin-top:8px;font-style:italic\">Back stair: by appointment</div>\n  </div>\n</div>\n:::\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\":\"evening\",\"presentUpsert\":[{\"mood\":\"wet and watchful\",\"name\":\"Rook\",\"thoughts\":\"get the delivery off my back, keep my head on\"},{\"emoji\":\"🚪\",\"mood\":\"sly, assessing\",\"name\":\"Dottie\",\"outfit\":\"tap apron, hair pinned up\",\"thoughts\":\"weighing whether you're worth a coin's worth of warning\"}],\"location\":\"the Drowned Lantern, Saltmere\",\"weather\":{\"label\":\"steady rain on the glass\",\"type\":\"rain\"},\"recentEvent\":\"Rook ducks into the Drowned Lantern and is pointed toward Marro's back room by a girl at the door\"}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "shape": "both",
+      "proseChars": 652,
+      "calls": ["update_scene", "set_tracker", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 16396,
+      "decodeMs": 12197,
+      "promptTokens": 3668,
+      "completionTokens": 415,
+      "tokPerSec": 25.3,
+      "serverTokPerSec": 34,
+      "content": "Marro doesn't reach for the satchel. He rolls his ink-stained fingers over each other, watching the seal like it might bite him.\n\n\"Forty gold is what we *agreed*,\" he says, quiet, \"and I still want to know what's inside before I name the face who takes it up the Saltworks Quarter.\" He leans in. \"There's talk at the docks. Watch are posting extra eyes on the chandler's row after midnight. If this thing touches anything that smells of the Harbormaster, I want you to know the roof on your head is getting thinner.\"\n\nHis eyes flick to the door. Two sailors at the bar had gone quiet when you slid in—quiet in the way men get when a coin changes hands.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"recentEvent\":\"Rook slides into Marro's booth with the sealed satchel and names the forty gold; Marro hesitates and mentions the watch doubling down on the Saltworks Quarter\",\"presentUpsert\":[{\"mood\":\"guarded\",\"name\":\"Marro\",\"outfit\":\"ink-stained fingers, dark coat\",\"relationship\":{\"kind\":\"ally\",\"label\":\"fence\"},\"thoughts\":\"nervous about what's in the satchel, weighing his own exposure\"}]}"
+        },
+        {
+          "name": "set_tracker",
+          "arguments": "{\"key\":\"heat\",\"value\":40}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"completeObjectives\":[\"Deliver the sealed satchel to Marro at the Drowned Lantern\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "shape": "prose-only",
+      "proseChars": 293,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 4234,
+      "decodeMs": 2297,
+      "promptTokens": 3818,
+      "completionTokens": 77,
+      "tokPerSec": 18.2,
+      "serverTokPerSec": 33.1,
+      "content": "Marro taps a folded paper on the table. A sketch of a loading dock — *Pier Seven, Saltworks Quarter* — with a little flag marking a rusted hatch. \"It was last seen being carted here by a man in a grey coat. Watch has posted the docks since. If you want it, you'll have to go quiet or go loud.\"",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 4,
+      "shape": "prose-only",
+      "proseChars": 319,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 3400,
+      "decodeMs": 2446,
+      "promptTokens": 3842,
+      "completionTokens": 87,
+      "tokPerSec": 25.6,
+      "serverTokPerSec": 35.1,
+      "content": "Rain hammers the alley. The chandlery's back door is splintered, half-loose. Inside: stacked pitch barrels, the stink of tallow, and a squat, heavyset woman leaning against a shelf, one eye swollen shut.\n\nGessa spots you at the door.\n\n\"Little courier.\" Her free eye narrows. \"You want my book, or you want to get beat?\"",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 5,
+      "shape": "both",
+      "proseChars": 498,
+      "calls": ["update_party"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 7751,
+      "decodeMs": 6673,
+      "promptTokens": 3927,
+      "completionTokens": 222,
+      "tokPerSec": 28.6,
+      "serverTokPerSec": 33.3,
+      "content": "The cudgel cracks across your ribs and your breath leaves in a sharp rush. You stagger back against a crate of tar barrels, your hand sliding to your blade.\n\nThe one-eyed thug grins through rain-curtained gaps in the warehouse shutter. A heavy, oil-stained figure blocking the alley mouth. The single eye is small and yellow, the other side of her face a ruin of old scar tissue.\n\nBehind her, a stack of chandlery crates. Beyond those, a narrow gap to the alley wall.\n\nThe rain hammers the gutters.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"trackerDeltas\":[{\"delta\":-2,\"key\":\"stamina\"}],\"addCondition\":{\"modifier\":-1,\"name\":\"Aching Ribs\"},\"status\":\"bleeding from the blow, breathing short against the barrel crates\"}"
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "shape": "both",
+      "proseChars": 235,
+      "calls": ["update_party", "update_inventory", "update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 14592,
+      "decodeMs": 9843,
+      "promptTokens": 4063,
+      "completionTokens": 319,
+      "tokPerSec": 21.9,
+      "serverTokPerSec": 32.6,
+      "content": "You twist away from the cudgel and drag the blade low across her thigh. The cut opens deep, and Gessa staggers, dropping the weapon. The ledger slips from her coat.\n\nShe snarls and grabs for her belt knife, but you're already past her.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"Rook\",\"trackerDeltas\":[{\"delta\":1,\"key\":\"stamina\"}],\"status\":\"cut taken, favoring the bad rib.\",\"removeCondition\":\"Aching Ribs\"}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"Rook\",\"add\":[{\"description\":\"Leather-bound, heavy and damp — a stack of tallied cargo manifests.\",\"name\":\"Harbormaster's Ledger\",\"quantity\":1}]}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"recentEvent\":\"Rook draws first blood on Gessa and seizes the ledger from her coat.\",\"presentUpsert\":[{\"mood\":\"wounded and furious\",\"name\":\"Gessa\",\"thoughts\":\"She's going to get her knife back one way or another.\"}]}"
+        }
+      ]
+    },
+    {
+      "turn": 7,
+      "shape": "prose-only",
+      "proseChars": 209,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 4063,
+      "decodeMs": 1448,
+      "promptTokens": 4181,
+      "completionTokens": 50,
+      "tokPerSec": 12.3,
+      "serverTokPerSec": 33.8,
+      "content": "The alley narrows and then opens back onto the wet cobbles of the Saltworks Quarter. Rain slicks the stone under your boots. You've got the ledger wrapped in your pack, and the rib aches with every breath now.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 8,
+      "shape": "prose-only",
+      "proseChars": 205,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2544,
+      "decodeMs": 1388,
+      "promptTokens": 4188,
+      "completionTokens": 48,
+      "tokPerSec": 18.9,
+      "serverTokPerSec": 33.8,
+      "content": "The fish market is a maze of soaking barrels and gutted gutters. Your ribs throb with every stride; you're breathing harder than you'd like. Ahead the harbor yawns black, and the watch bell is still going.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 9,
+      "shape": "prose-only",
+      "proseChars": 220,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2706,
+      "decodeMs": 1601,
+      "promptTokens": 4250,
+      "completionTokens": 56,
+      "tokPerSec": 20.7,
+      "serverTokPerSec": 34.4,
+      "content": "The harbormaster takes the ledger with a look that could curdle milk. 'Thirteen days late.' He counts twenty gold onto a waxed cloth between you, his eyes on you over the coins. 'You owe me a favor, Rook. Remember that.'",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 10,
+      "shape": "prose-only",
+      "proseChars": 243,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2813,
+      "decodeMs": 1723,
+      "promptTokens": 4330,
+      "completionTokens": 59,
+      "tokPerSec": 21,
+      "serverTokPerSec": 33.6,
+      "content": "The door sticks on its hinges as you work it open. Marro is still at his booth, but a second man sits across him this time — a watch captain in the soaked livery of the city guard, map unrolled between them. He looks up as you cross the floor.",
+      "reasoning": "",
+      "rawCalls": []
+    }
+  ]
+}

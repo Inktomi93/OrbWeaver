@@ -1,0 +1,244 @@
+{
+  "summary": {
+    "cell": "kobold-27b-jinjatools",
+    "server": "koboldcpp",
+    "model": "koboldcpp/Qwen3.8-27B-UD-Q4_K_M",
+    "template": "served",
+    "mode": "nonstream",
+    "rep": 1,
+    "body": {},
+    "strict": false,
+    "turns": 10,
+    "both": 4,
+    "proseOnly": 5,
+    "toolsOnly": 1,
+    "empty": 0,
+    "errors": 0,
+    "leaks": 0,
+    "maxPromptTokens": 4613,
+    "medianTokPerSec": 16.5,
+    "medianServerTokPerSec": null,
+    "ranAt": "2026-10-03T16:59:11.441Z"
+  },
+  "rows": [
+    {
+      "turn": 1,
+      "shape": "both",
+      "proseChars": 951,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 20705,
+      "decodeMs": null,
+      "promptTokens": 3793,
+      "completionTokens": 485,
+      "tokPerSec": 23.4,
+      "serverTokPerSec": null,
+      "content": "The Drowned Lantern smells of tar, wet wool, and something sweetly rotten. Lanterns gutter low over a bar of warped oak, and a handful of dockhands hunch at the far end, their faces half-swallowed by shadow. The rain keeps its steady drum on the roof, loud enough to bury small talk.\n\nYou scan the room. Marro is where fences keep: wedged into a corner booth, elbows on a scarred table, a half-empty mug of something amber sweating before him. He's a broad man, close-cropped, with a scar that pulls at his left lip and eyes that do the counting before the nodding. His gaze finds yours, and he doesn't smile.\n\nHe leans in, voice low under the rain.\n\n\"Rook. You got the satchel, or are you here to spend what little you've got on bad ale?\" A beat. \"I can tell you're wet. Sit. Talk. But I don't like long talks, and I don't like the watch's boots on my doorstep.\" His eyes flick toward the door, then back. \"So. What's in the bag, and how loud is it?\"",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\": \"evening\", \"weather\": {\"type\": \"rain\", \"label\": \"steady rain\"}, \"location\": \"the Drowned Lantern, Saltmere\", \"presentUpsert\": [{\"name\": \"Rook\", \"emoji\": \"\\ud83d\\udce6\", \"mood\": \"watchful\", \"thoughts\": \"weighing how much to say\", \"relationship\": {\"kind\": \"neutral\"}}, {\"name\": \"Marro\", \"emoji\": \"\\ud83c\\udf7a\", \"mood\": \"wary, impatient\", \"appearance\": \"broad, close-cropped, scar pulling at his left lip\", \"outfit\": \"dark wool coat, sleeves rolled\", \"thoughts\": \"counting risk before he counts coin\", \"relationship\": {\"kind\": \"ally\", \"label\": \"fence\"}}], \"recentEvent\": \"Rook found Marro in the corner booth of the Drowned Lantern\"}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "shape": "both",
+      "proseChars": 243,
+      "calls": ["update_inventory", "update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 13489,
+      "decodeMs": null,
+      "promptTokens": 3900,
+      "completionTokens": 256,
+      "tokPerSec": 19,
+      "serverTokPerSec": null,
+      "content": "Marro's eyes go straight to the satchel. He doesn't touch it. \"Forty, and the seal stays whole,\" he says, tapping the table twice. \"I don't open what I don't need to.\"\n\nHe slides a leather pouch across the wood. It's heavy enough to be honest.",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"Rook\",\"walletDeltas\":[{\"name\": \"gold\", \"delta\": 40}]}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"presentUpsert\":[{\"name\": \"Marro\", \"emoji\": \"🕯️\", \"mood\": \"businesslike\", \"appearance\": \"thin, ink-stained fingers\", \"outfit\": \"dark coat, sleeves rolled\", \"thoughts\": \"weighing what the sealed satchel is worth\", \"relationship\": {\"kind\": \"ally\", \"label\": \"fence\"}}],\"recentEvent\":\"Rook paid Marro forty gold for the sealed courier satchel\"}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "shape": "prose-only",
+      "proseChars": 209,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 3826,
+      "decodeMs": null,
+      "promptTokens": 3983,
+      "completionTokens": 53,
+      "tokPerSec": 13.9,
+      "serverTokPerSec": null,
+      "content": "Marro leans in. 'The customs house. They moved it to the harbor master's office last night. It's in the bottom drawer of the desk.' He taps the table. 'The watch is on high alert. One mistake and you're done.'",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 4,
+      "shape": "prose-only",
+      "proseChars": 174,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 3451,
+      "decodeMs": null,
+      "promptTokens": 4034,
+      "completionTokens": 47,
+      "tokPerSec": 13.6,
+      "serverTokPerSec": null,
+      "content": "Rain hammers the alley's slick stones. A one-eyed woman leans against the chandlery door, a knife loose in her fist. 'Rook,' she says flatly. 'You're either brave or stupid.'",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 5,
+      "shape": "both",
+      "proseChars": 204,
+      "calls": ["update_party", "update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 16691,
+      "decodeMs": null,
+      "promptTokens": 4119,
+      "completionTokens": 433,
+      "tokPerSec": 25.9,
+      "serverTokPerSec": null,
+      "content": "The cudgel cracks across your ribs and the world tilts. You catch the flat of Gessa's arm with your shortsword and she snarls, one eye milky, the other burning.\n\n\"Ledger, courier. Or you leave in pieces.\"",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"Rook\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -3}],\"addCondition\":{\"name\": \"Bruised Ribs\", \"modifier\": -1},\"status\":\"staggered, breathing hard\"}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"Rat Alley, behind the chandlery\",\"timeOfDay\":\"evening\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"presentUpsert\":[{\"name\": \"Gessa\", \"emoji\": \"👁️\", \"mood\": \"furious\", \"appearance\": \"broad, scarred, one milky eye\", \"outfit\": \"leather apron, heavy boots\", \"thoughts\": \"this courier is trouble\", \"relationship\": {\"kind\": \"enemy\", \"label\": \"\"}}],\"recentEvent\":\"Gessa opened with a cudgel; Rook took a hit to the ribs and drew steel\"}"
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "shape": "both",
+      "proseChars": 175,
+      "calls": ["update_party", "update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 14778,
+      "decodeMs": null,
+      "promptTokens": 4294,
+      "completionTokens": 303,
+      "tokPerSec": 20.5,
+      "serverTokPerSec": null,
+      "content": "Gessa's leg gives out and she drops to one knee, clutching the cut. The ledger skitters across the wet stones. You're still breathing hard, ribs screaming, but the job's done.",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"Rook\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -3}],\"addCondition\":{\"name\": \"Bruised Ribs\"},\"status\":\"staggered, breathing hard\"}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"Rat Alley, behind the chandlery\",\"timeOfDay\":\"evening\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"presentUpsert\":[{\"name\": \"Gessa\", \"mood\": \"wounded\", \"appearance\": \"broad, one-eyed\", \"outfit\": \"soaked leather coat\", \"thoughts\": \"bleeding, furious\", \"relationship\": {\"kind\": \"enemy\"}}],\"recentEvent\":\"Rook opened a cut across Gessa's thigh; she dropped the ledger\"}"
+        }
+      ]
+    },
+    {
+      "turn": 7,
+      "shape": "prose-only",
+      "proseChars": 174,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 3309,
+      "decodeMs": null,
+      "promptTokens": 4356,
+      "completionTokens": 42,
+      "tokPerSec": 12.7,
+      "serverTokPerSec": null,
+      "content": "The linen bites as you wind it tight over the bruise. Rain keeps falling. Ahead, the alley opens onto the quay, and the harbormaster's office glows warm through its shutters.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 8,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene", "set_tracker", "update_party", "update_inventory"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 18202,
+      "decodeMs": null,
+      "promptTokens": 4391,
+      "completionTokens": 480,
+      "tokPerSec": 26.4,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"Saltmere fish market, cutting for the harbor\",\"timeOfDay\":\"midnight\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"presentUpsert\":[{\"name\": \"Rook\", \"mood\": \"winded, on the run\", \"thoughts\": \"bind holds but every breath bites\", \"relationship\": {\"kind\": \"neutral\"}}],\"recentEvent\":\"Rook grabbed the ledger, bound his ribs, and ran for the harbor as the midnight bells rang\"}"
+        },
+        {
+          "name": "set_tracker",
+          "arguments": "{\"key\":\"heat\",\"value\":40}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"Rook\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -2}],\"status\":\"winded, ribs bound, running\"}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"Rook\",\"add\":[{\"name\": \"Harbormaster's Ledger\", \"description\": \"leather-bound, brass clasp shut, stolen from Gessa\", \"quantity\": 1, \"location\": \"pack\"}],\"update\":[{\"name\": \"Linen Strips\", \"quantity\": 1, \"description\": \"one strip used to bind ribs, one clean left\", \"location\": \"pack\"}]}"
+        }
+      ]
+    },
+    {
+      "turn": 9,
+      "shape": "prose-only",
+      "proseChars": 186,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 3872,
+      "decodeMs": null,
+      "promptTokens": 4613,
+      "completionTokens": 44,
+      "tokPerSec": 11.4,
+      "serverTokPerSec": null,
+      "content": "The harbormaster takes the ledger with dry, careful hands. 'You're late. The watch is already asking questions.' He presses a small brass key into your palm. 'The cellar door. One hour.'",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 10,
+      "shape": "prose-only",
+      "proseChars": 208,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 3900,
+      "decodeMs": null,
+      "promptTokens": 4591,
+      "completionTokens": 53,
+      "tokPerSec": 13.6,
+      "serverTokPerSec": null,
+      "content": "The Drowned Lantern's door is still open, a square of warm tallow light in the rain. Marro is in the same booth, a cup of something amber in front of him. He sees the ledger in your pack and his eyes go flat.",
+      "reasoning": "",
+      "rawCalls": []
+    }
+  ]
+}

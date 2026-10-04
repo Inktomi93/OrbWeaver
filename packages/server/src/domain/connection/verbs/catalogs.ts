@@ -24,6 +24,8 @@ function createCatalogModels(ctx: ConnectionContext): ConnectionService["catalog
     }
     // A saved row is re-judged, not trusted: it may name a plugin provider the owner no longer holds enabled.
     const provider = requireProvider(ctx, row.ownerId, row.providerId);
+    // The whole list, every kind: "Add another model on this key" lists it for a new row of any kind. On a built-in
+    // row only, the editor's own picker narrows it to the row's kind on the client.
     return ctx.runtime.catalogs.models({
       principal: params.principal,
       providerId: provider.id,

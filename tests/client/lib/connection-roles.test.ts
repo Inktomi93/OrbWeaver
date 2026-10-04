@@ -253,7 +253,7 @@ test("labelNamesModel never counts the provider segment as naming the model", ()
 // org-scoped model id read as a person would say them, never as provider ids and repository paths.
 test("connectionSummary names a model by its own name, and the seeded local rows by what they do", () => {
   expect(connectionSummary({ label: "work key", model: "openai/gpt-5-mini" })).toBe("work key · gpt-5-mini");
-  expect(LOCAL_LIGHT_SEED_ROWS.map(connectionSummary)).toEqual(["Built-in embeddings · jina-clip-v2", "Built-in reranker · ms-marco-MiniLM-L-6-v2"]);
+  expect(LOCAL_LIGHT_SEED_ROWS.map(connectionSummary)).toEqual(["Built-in embeddings · jina-clip-v2", "Built-in reranker · ettin-reranker-32m-v1"]);
 });
 
 // The embedder-change confirm asks only when a change both moves to a new generation AND has something stored to

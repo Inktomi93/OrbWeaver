@@ -226,10 +226,10 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
     embedClipTexts: (modelId, texts): Promise<Float32Array[]> => (texts.length === 0 ? Promise.resolve([]) : vectors({ op: "embedClipTexts", modelId, texts })),
     embedImages: async (modelId, images): Promise<Float32Array[]> =>
       images.length === 0 ? [] : await vectors({ op: "embedImages", modelId, images: images.map(requireImageBytes) }),
-    scorePairs: async (modelId, query, documents): Promise<number[]> =>
-      documents.length === 0 ? [] : ((await call({ op: "scorePairs", modelId, query, documents })) as number[]),
-    preload: async (slot, modelId): Promise<void> => {
-      await call({ op: "preload", modelId, slot });
+    scorePairs: async (modelId, query, documents, serving): Promise<number[]> =>
+      documents.length === 0 ? [] : ((await call({ op: "scorePairs", modelId, query, documents, serving })) as number[]),
+    preload: async (slot, modelId, onnx): Promise<void> => {
+      await call({ op: "preload", modelId, slot, onnx });
     },
     loadFailed: (modelId): boolean => failedModels.has(modelId),
     // Never `terminate()`: stopping the thread while onnxruntime-node is inside a run makes its binding throw a

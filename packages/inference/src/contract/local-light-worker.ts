@@ -1,6 +1,7 @@
 // The message protocol between the local-light host (`backends/local-light/worker-cache.ts`) and its worker
 // thread (`backends/local-light/model-worker.ts`). Every value here crosses `postMessage`, so it stays structured-cloneable.
 
+import type { RerankOnnx } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import type { ProviderErrorInit } from "./errors.ts";
 import type { InferenceLog, LocalLightModelSlot } from "./runtime.ts";
@@ -14,13 +15,26 @@ export interface LocalLightLoadProgress {
 
 export type LocalLightLogLevel = keyof InferenceLog;
 
+/** How one rerank call is served, from the bound model's capability: the window every pair is cut to, and the
+ *  curated ONNX serving (head, file, dtype, revision), or none for the export convention. */
+export interface LocalLightRerankServing {
+  readonly maxInputTokens: number;
+  readonly onnx: RerankOnnx | undefined;
+}
+
 /** One model-cache call, named by the cache member it runs. Images cross as bytes only: a string image is a URL
  *  or path the worker would fetch or read outside the server thread's egress firewall. */
 export type LocalLightWorkerCall =
   | { readonly op: "embedTexts" | "embedClipTexts"; readonly modelId: ModelId; readonly texts: readonly string[] }
-  | { readonly op: "scorePairs"; readonly modelId: ModelId; readonly query: string; readonly documents: readonly string[] }
+  | {
+      readonly op: "scorePairs";
+      readonly modelId: ModelId;
+      readonly query: string;
+      readonly documents: readonly string[];
+      readonly serving: LocalLightRerankServing;
+    }
   | { readonly op: "embedImages"; readonly modelId: ModelId; readonly images: readonly Uint8Array[] }
-  | { readonly op: "preload"; readonly modelId: ModelId; readonly slot: LocalLightModelSlot };
+  | { readonly op: "preload"; readonly modelId: ModelId; readonly slot: LocalLightModelSlot; readonly onnx: RerankOnnx | undefined };
 
 /** A thrown value as it crosses the thread boundary: a `ProviderError` keeps every field. */
 export type LocalLightWorkerFailure = { readonly kind: "provider"; readonly init: ProviderErrorInit } | { readonly kind: "error"; readonly message: string };

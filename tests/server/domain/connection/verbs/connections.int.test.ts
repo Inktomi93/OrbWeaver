@@ -7,7 +7,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDefInput, ProviderId } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import { characterEmbeddings } from "@orb/db";
 import type { PluginId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -414,6 +414,42 @@ describe("update", () => {
       code: CONNECTION_OP_CODES.modelNotInCatalog,
     });
     expect((await h.svc.get({ principal: owner.principal, connectionId: created.id })).model).toBe("jinaai/jina-clip-v2");
+  });
+
+  // A declared reranker window describes the model it was declared on. Carried onto MiniLM, a 4,096 window would
+  // feed pairs eight times longer than its 512 positions; the seed's own move drops these facts for the same reason.
+  test("a manual model change drops the declared rerank facts of the earlier model, unless the patch states its own", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const [, reranker] = LOCAL_LIGHT_SEED_ROWS;
+    const earlier = reranker.earlierModels[0];
+    const created = await h.svc.create({
+      principal: owner.principal,
+      providerId: "local-light",
+      credentialId: null,
+      baseUrl: null,
+      model: reranker.model,
+      declared: { kind: "rerank", rerank: { maxInputTokens: 4096 } },
+    });
+    const windowOf = async (): Promise<number | undefined> => {
+      const view = await h.svc.capabilities({ principal: owner.principal, connectionId: created.id });
+      return view.capability.kind === "rerank" ? view.capability.rerank.maxInputTokens : undefined;
+    };
+
+    await h.svc.update({ principal: owner.principal, connectionId: created.id, patch: { model: earlier } });
+    const baseline = await h.svc.capabilities({ principal: owner.principal, connectionId: created.id });
+    expect(await windowOf()).toBe(baseline.baseline.kind === "rerank" ? baseline.baseline.rerank.maxInputTokens : null);
+    expect((await h.svc.get({ principal: owner.principal, connectionId: created.id })).declared, "the row's own kind stays declared").toEqual({
+      kind: "rerank",
+    });
+
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: created.id,
+      patch: { model: reranker.model, declared: { kind: "rerank", rerank: { maxInputTokens: 1024 } } },
+    });
+    expect(await windowOf(), "a window stated with the move is the user's choice for the new model").toBe(1024);
   });
 
   test("a stranger cannot patch the row, and the stored row is untouched", async () => {

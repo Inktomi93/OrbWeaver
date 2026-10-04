@@ -1,0 +1,137 @@
+{
+  "label": "shipped-ettin32m-r1",
+  "batch": 1,
+  "model": "cross-encoder/ettin-reranker-32m-v1",
+  "onnx": {
+    "head": "sentence-transformers",
+    "dtype": "fp32",
+    "files": {
+      "x64": "model_quint8_avx2",
+      "arm64": "model_qint8_arm64"
+    },
+    "revision": "b33e5ceb5110773ea9cf5e00c9bedc83a8c2afdd",
+    "dynamicQuantized": true
+  },
+  "threads": 4,
+  "loadMs": 19732,
+  "rss": {
+    "baselineMib": 105,
+    "afterLoadMib": 247,
+    "peakMib": 1746,
+    "peakOverBaselineMib": 1641
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 9.261137962341309,
+      "irrelevant": -2.1806020736694336,
+      "ok": true,
+      "docTokens": 33
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": 3.4605467319488525,
+      "irrelevant": -1.2340235710144043,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": 5.4772796630859375,
+      "irrelevant": 4.635685920715332,
+      "ok": true,
+      "docTokens": 1221
+    }
+  ],
+  "golden": [6.150576114654541, 10.691163063049316, 8.573250770568848, 9.261883735656738],
+  "clamp": [
+    {
+      "case": "digits",
+      "pairTokens": 2048,
+      "window": 2048,
+      "ok": true
+    },
+    {
+      "case": "csv",
+      "pairTokens": 2048,
+      "window": 2048,
+      "ok": true
+    },
+    {
+      "case": "emojiZwj",
+      "pairTokens": 2048,
+      "window": 2048,
+      "ok": true
+    },
+    {
+      "case": "cjk",
+      "pairTokens": 2048,
+      "window": 2048,
+      "ok": true
+    },
+    {
+      "case": "hugeQuery",
+      "pairTokens": 1030,
+      "window": 2048,
+      "ok": true
+    }
+  ],
+  "window": 2048,
+  "workloads": [
+    {
+      "name": "smart-4x500",
+      "docs": 4,
+      "queryTokens": 60,
+      "docTokens": 500,
+      "msPerTurnMedian": 375
+    },
+    {
+      "name": "smart-6x1500",
+      "docs": 6,
+      "queryTokens": 60,
+      "docTokens": 1500,
+      "msPerTurnMedian": 3346
+    },
+    {
+      "name": "recall-8x400",
+      "docs": 8,
+      "queryTokens": 400,
+      "docTokens": 400,
+      "msPerTurnMedian": 2020
+    },
+    {
+      "name": "recall-8x1024",
+      "docs": 8,
+      "queryTokens": 600,
+      "docTokens": 1024,
+      "msPerTurnMedian": 6188
+    }
+  ],
+  "latency": [
+    {
+      "pairTokens": 512,
+      "msPerPairMedian": 350,
+      "after": {
+        "rssMib": 604,
+        "hwmMib": 604
+      }
+    },
+    {
+      "pairTokens": 2048,
+      "msPerPairMedian": 1592,
+      "after": {
+        "rssMib": 743,
+        "hwmMib": 743
+      }
+    },
+    {
+      "pairTokens": 4096,
+      "msPerPairMedian": 4506,
+      "after": {
+        "rssMib": 1746,
+        "hwmMib": 1746
+      }
+    }
+  ],
+  "heapMib": 156
+}

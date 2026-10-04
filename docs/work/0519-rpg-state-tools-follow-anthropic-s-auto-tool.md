@@ -1,10 +1,9 @@
 ---
 kind: work
-status: blocked
-updated: 2026-10-03
+status: open
+updated: 2026-10-04
 priority: P2
 area: rpg
-blocked: on 511
 ---
 
 # RPG state tools follow Anthropic's auto tool-use guidance

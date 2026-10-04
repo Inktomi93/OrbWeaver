@@ -115,6 +115,16 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
   );
 }
 
+/** Each issue with a stable key: a call can repeat one issue verbatim, so the key counts its earlier twins. */
+function keyedIssues(issues: readonly string[]): readonly { readonly key: string; readonly issue: string }[] {
+  const seen = new Map<string, number>();
+  return issues.map((issue) => {
+    const count = seen.get(issue) ?? 0;
+    seen.set(issue, count + 1);
+    return { key: `${issue}#${String(count)}`, issue };
+  });
+}
+
 /** One call: what it was, whether it landed, and — when it did not — WHY, as visible text.
  *
  *  The reason is TEXT, never a tooltip: `SCENE-DROPPED` cost a live session hours precisely because the
@@ -131,9 +141,13 @@ function CallLine({ call }: { readonly call: RpgToolCallDisclosure }): ReactElem
         <Badge intent={VERDICT_INTENT[call.verdict]}>{VERDICT_LABEL[call.verdict]}</Badge>
       </Row>
       {call.issues.length === 0 ? null : (
-        <Text className="block" voice="gloss">
-          {call.issues.join(" · ")}
-        </Text>
+        <Stack data-slot="turn-tool-call-issues" gap="tight">
+          {keyedIssues(call.issues).map(({ key, issue }) => (
+            <Text className="block" key={key} voice="gloss">
+              {issue}
+            </Text>
+          ))}
+        </Stack>
       )}
       {/* #1690 — SAID, not silently empty. The server withholds args it could not belt for this viewer, and a
           reader who is told nothing about that reads the absence as "the model sent nothing". */}

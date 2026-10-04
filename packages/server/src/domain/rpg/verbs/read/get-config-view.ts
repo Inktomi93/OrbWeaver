@@ -24,6 +24,7 @@ export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfi
       extractionMode: game.config.extractionMode,
       // The §1.3 extraction-depth knobs (host editor).
       extractionContext: game.config.extractionContext,
+      stateCaptureVehicle: game.config.stateCaptureVehicle,
       extractionWindowTokens: game.config.extractionWindowTokens,
       reconcileEveryBeats: game.config.reconcileEveryBeats,
       dateMode: game.config.dateMode, // #9 — the ambient-date mode knob

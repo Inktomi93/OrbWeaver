@@ -1,0 +1,112 @@
+{
+  "label": "shipped-minilm-r2",
+  "batch": 1,
+  "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+  "onnx": null,
+  "threads": 4,
+  "loadMs": 226,
+  "rss": {
+    "baselineMib": 105,
+    "afterLoadMib": 288,
+    "peakMib": 556,
+    "peakOverBaselineMib": 451
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 8.817596435546875,
+      "irrelevant": -11.128292083740234,
+      "ok": true,
+      "docTokens": 35
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": -9.556486129760742,
+      "irrelevant": -11.06210708618164,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": -11.284584999084473,
+      "irrelevant": -11.284584999084473,
+      "ok": false,
+      "docTokens": 1231
+    }
+  ],
+  "golden": [-6.524738788604736, 9.69094467163086, 6.923761367797852, 6.66822624206543],
+  "clamp": [
+    {
+      "case": "digits",
+      "pairTokens": 512,
+      "window": 512,
+      "ok": true
+    },
+    {
+      "case": "csv",
+      "pairTokens": 512,
+      "window": 512,
+      "ok": true
+    },
+    {
+      "case": "emojiZwj",
+      "pairTokens": 5,
+      "window": 512,
+      "ok": true
+    },
+    {
+      "case": "cjk",
+      "pairTokens": 423,
+      "window": 512,
+      "ok": true
+    },
+    {
+      "case": "hugeQuery",
+      "pairTokens": 261,
+      "window": 512,
+      "ok": true
+    }
+  ],
+  "window": 512,
+  "workloads": [
+    {
+      "name": "smart-4x500",
+      "docs": 4,
+      "queryTokens": 60,
+      "docTokens": 448,
+      "msPerTurnMedian": 285
+    },
+    {
+      "name": "smart-6x1500",
+      "docs": 6,
+      "queryTokens": 60,
+      "docTokens": 448,
+      "msPerTurnMedian": 412
+    },
+    {
+      "name": "recall-8x400",
+      "docs": 8,
+      "queryTokens": 256,
+      "docTokens": 252,
+      "msPerTurnMedian": 549
+    },
+    {
+      "name": "recall-8x1024",
+      "docs": 8,
+      "queryTokens": 256,
+      "docTokens": 252,
+      "msPerTurnMedian": 546
+    }
+  ],
+  "latency": [
+    {
+      "pairTokens": 512,
+      "msPerPairMedian": 68,
+      "after": {
+        "rssMib": 556,
+        "hwmMib": 556
+      }
+    }
+  ],
+  "heapMib": 52
+}

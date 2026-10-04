@@ -34,7 +34,7 @@ import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/con
 import { cardWireStub, tokenizeContent } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
 import type { ResolvedMediaRef, TurnMessage } from "../contract/results.ts";
-import type { shapeTurn } from "./assembly-access.ts";
+import type { shapeTurn, toShapeCanon } from "./assembly-access.ts";
 import { fitHistory, historyTurnTokens } from "./assembly-access.ts";
 
 /** A media-only row whose every part drops must not collapse to an empty text part — the runner's
@@ -567,6 +567,90 @@ export function fitWireHistory(
   const kept = withNewChatMarkerAtHead(converted.slice(trimmed.droppedCount), marker);
   const history = wireCostRows(kept);
   return { fitted: { ...trimmed, history, usedTokens: history.reduce((sum, row) => sum + historyTurnTokens(row), 0) }, kept };
+}
+
+/** The stored rows SHAPE takes, derived from `toShapeCanon` like {@link ShapedHistoryRow}. */
+type ShapeCanonRows = ReturnType<typeof toShapeCanon>;
+
+interface ShapedFit {
+  readonly shaped: ReturnType<typeof shapeTurn>;
+  readonly fitted: ReturnType<typeof fitHistory>;
+  readonly kept: WireRow[];
+  /** What every delivered row costs before the fit drops any. */
+  readonly deliveredTokens: number;
+}
+
+function costOf(rows: readonly ShapedHistoryRow[]): number {
+  return rows.reduce((sum, row) => sum + historyTurnTokens(row), 0);
+}
+
+// How far system + kept history overruns the room the fit packs them into. Zero when they fit or nothing bounds them.
+function overrun(fitted: ReturnType<typeof fitHistory>, budget: Parameters<typeof fitHistory>[1]): number {
+  return fitted.ceilingTokens === null ? 0 : Math.max(0, budget.systemTokens + fitted.usedTokens - fitted.ceilingTokens);
+}
+
+// Whether SHAPE's squash joined stored rows into the newest id-bearing delivered row. A squashed row carries its run's
+// first stored id, so a non-empty stored row after that id has no delivered row of its own: it rode in the tail.
+function tailSquashesStoredRows(canon: ShapeCanonRows, history: readonly ShapedHistoryRow[]): boolean {
+  const tailId = history.findLast((row) => row.messageId !== undefined)?.messageId;
+  const at = canon.findIndex((row) => row.messageId !== undefined && row.messageId === tailId);
+  return at !== -1 && canon.slice(at + 1).some((row) => row.content.trim().length > 0);
+}
+
+/** SHAPE → CONVERT → FIT over the stored rows, the one sequence the turn pipeline and the read previews both run.
+ *
+ *  @remarks The post-shape fit can only drop whole delivered rows older than the newest id-bearing one. A merging
+ *  level on a wire that does not keep stored rows apart joins a same-role run into ONE row, so a run larger than the
+ *  room becomes an irreducible tail and the request overruns the window. Only then, when the overrunning tail is such
+ *  a squash, are the oldest STORED rows trimmed before SHAPE, by the fit's own rule (same estimator over the converted
+ *  rows, same room, same chunk grid, the newest row kept), with the room lowered by what SHAPE adds over the rows it
+ *  was handed; SHAPE then shapes the survivors as the turn's level says, and that result is taken only when it fits.
+ *  Every other request, including one that overruns for another reason (a lone oversized row, stored rows kept
+ *  apart, level `none`), runs SHAPE once and is returned as the post-shape fit left it, so its wire bytes, its cut and
+ *  its cache prefix are what they were without the pre-trim. After a pre-trim the dropped count is the stored rows
+ *  before the first one kept, which the boundary names. */
+export async function shapeConvertFit(args: {
+  readonly canon: ShapeCanonRows;
+  readonly shape: (canon: ShapeCanonRows) => ReturnType<typeof shapeTurn>;
+  readonly convert: (history: readonly ShapedHistoryRow[]) => Promise<WireRow[]>;
+  readonly budget: Parameters<typeof fitHistory>[1];
+}): Promise<Omit<ShapedFit, "deliveredTokens">> {
+  const run = async (canon: ShapeCanonRows): Promise<ShapedFit> => {
+    const shaped = args.shape(canon);
+    const converted = await args.convert(shaped.history);
+    return { shaped, ...fitWireHistory(converted, args.budget, shaped.newChatMarker), deliveredTokens: costOf(wireCostRows(converted)) };
+  };
+  const whole = await run(args.canon);
+  if (overrun(whole.fitted, args.budget) === 0 || !tailSquashesStoredRows(args.canon, whole.shaped.history)) {
+    return whole;
+  }
+  const stored = wireCostRows(await args.convert(args.canon.map((row) => ({ role: row.role, content: row.content, messageId: row.messageId }))));
+  let attempt = whole;
+  let trimmed = 0;
+  // Each pass either cuts deeper or stops: a cut no deeper than the last means the stored rows already fit with
+  // SHAPE's cost added, so the attempt fits, or the cut reached the newest row, which is never dropped.
+  while (overrun(attempt.fitted, args.budget) > 0) {
+    const shapingTokens = attempt.deliveredTokens - costOf(stored.slice(trimmed));
+    const cut = fitHistory(stored, { ...args.budget, systemTokens: args.budget.systemTokens + shapingTokens }).droppedCount;
+    if (cut <= trimmed) {
+      break;
+    }
+    trimmed = cut;
+    attempt = await run(args.canon.slice(cut));
+  }
+  // A trim that still overruns (the system prompt or one oversized row is the overrun) changes bytes for nothing.
+  if (trimmed === 0 || overrun(attempt.fitted, args.budget) > 0) {
+    return whole;
+  }
+  const { fitted } = attempt;
+  const earliestKeptMessageId = fitted.earliestKeptMessageId ?? fitted.history.find((row) => row.messageId !== undefined)?.messageId ?? null;
+  // Counted in stored rows: a synthetic row the post-shape fit dropped (a new-chat marker SHAPE could no longer merge
+  // into the survivors' head) is not a message the turn left out.
+  const keptFrom = args.canon.findIndex((row) => row.messageId !== undefined && row.messageId === earliestKeptMessageId);
+  return {
+    ...attempt,
+    fitted: { ...fitted, droppedCount: keptFrom === -1 ? trimmed + fitted.droppedCount : keptFrom, earliestKeptMessageId },
+  };
 }
 
 /** Re-anchor the §8 cache breakpoint after a MID-ARRAY drop (#1543).

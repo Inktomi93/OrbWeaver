@@ -1,0 +1,50 @@
+{
+  "label": "ettin17m-fp32-golden",
+  "batch": 1,
+  "model": "cross-encoder/ettin-reranker-17m-v1",
+  "threads": 4,
+  "loadMs": 39573,
+  "rss": {
+    "baselineMib": 105,
+    "afterLoadMib": 246,
+    "peakMib": 395,
+    "peakOverBaselineMib": 290
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 9.284709930419922,
+      "irrelevant": -0.21761734783649445,
+      "ok": true,
+      "docTokens": 33
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": 2.64847993850708,
+      "irrelevant": -0.549484133720398,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": 3.2006428241729736,
+      "irrelevant": 0.9589831829071045,
+      "ok": true,
+      "docTokens": 1221
+    }
+  ],
+  "golden": [6.575215816497803, 10.525599479675293, 8.54642105102539, 10.027092933654785],
+  "window": null,
+  "workloads": [],
+  "latency": [
+    {
+      "pairTokens": 512,
+      "msPerPairMedian": 52,
+      "after": {
+        "rssMib": 395,
+        "hwmMib": 395
+      }
+    }
+  ],
+  "heapMib": 67
+}

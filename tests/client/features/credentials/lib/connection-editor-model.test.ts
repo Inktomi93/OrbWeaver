@@ -7,13 +7,14 @@
 // line that is merely plausible is the defect.
 
 import type { Capability, DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
-import { declaredCapabilitySchema } from "@orb/contracts/inference";
+import { declaredCapabilitySchema, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
 import { describe } from "vitest";
 import { capabilityFactRows } from "../../../../../packages/client/src/features/credentials/lib/connection-capability-fact-model.ts";
 import {
   beltKeyGloss,
   capabilityBadges,
   declaredOverrideCount,
+  editorPickerModels,
   endpointAuthorityOf,
   endpointNamedInAllowlist,
   extrasFromRows,
@@ -25,6 +26,7 @@ import {
 } from "../../../../../packages/client/src/features/credentials/lib/connection-editor-model.ts";
 import type { FactRow } from "../../../../../packages/client/src/features/credentials/lib/connection-fact-model.ts";
 import {
+  minimumRefusal,
   parseFactValue,
   QUIRK_LEAF_PATH_LIST,
   QUIRK_ROW_PATHS,
@@ -119,6 +121,28 @@ describe("the capability block is honest about what it cannot know", () => {
     const baseline: Capability = { kind: "generation", generation: { ...GENERATION.generation, context: { window: 32_768 } } };
     const rows = capabilityFactRows(GENERATION, declared, baseline);
     expect(rowFor(rows, "generation.context.window").source).toBe("your override — it was 32,768 tokens");
+  });
+
+  // A declared reranker window below the resolver's floor is raised; the row must not present the raised value as
+  // the number the user typed, nor restate the generic override line as if the typed value were in effect.
+  test("a declared value the fold raised to its floor is shown as raised, never as the user's own number", () => {
+    const baseline: Capability = { kind: "rerank", rerank: { maxInputTokens: 512, input: ["text"], instructionAware: false } };
+    const folded: Capability = { kind: "rerank", rerank: { ...baseline.rerank, maxInputTokens: RERANK_MIN_WINDOW_TOKENS } };
+    const row = rowFor(capabilityFactRows(folded, { rerank: { maxInputTokens: 2 } }, baseline), "rerank.maxInputTokens");
+    expect(row.overridden).toBe(true);
+    expect(row.value).toBe(rowFor(capabilityFactRows(folded, null, folded), "rerank.maxInputTokens").value);
+    const plain = rowFor(capabilityFactRows(folded, { rerank: { maxInputTokens: RERANK_MIN_WINDOW_TOKENS } }, baseline), "rerank.maxInputTokens");
+    expect(row.source).not.toBe(plain.source);
+  });
+
+  // The resolver raises a smaller window to its floor, so the override editor refuses one where it is typed.
+  test("a reranker window under the floor is refused at entry; the floor itself and every other fact are not", () => {
+    const rerank: Capability = { kind: "rerank", rerank: { maxInputTokens: 512, input: ["text"], instructionAware: false } };
+    const window = rowFor(capabilityFactRows(rerank, null, rerank), "rerank.maxInputTokens");
+    expect(minimumRefusal(window.edit, String(RERANK_MIN_WINDOW_TOKENS - 1))).not.toBeNull();
+    expect(minimumRefusal(window.edit, String(RERANK_MIN_WINDOW_TOKENS))).toBeNull();
+    const context = rowFor(capabilityFactRows(GENERATION, null, GENERATION), "generation.context.window");
+    expect(minimumRefusal(context.edit, "1")).toBeNull();
   });
 
   test("a row nobody declared says where the value comes from without claiming a tier it cannot prove", () => {
@@ -265,6 +289,28 @@ describe("the capability rail", () => {
       embedding: { dims: 768, mrl: true, maxInputTokens: 8192, input: ["text"], output: ["vector"], instructionAware: false },
     };
     expect(capabilityBadges(narrow, ["embed", "imageEmbed"]).find((badge) => badge.task === "embed")).toMatchObject({ ok: true, reason: null });
+  });
+});
+
+// The row's model list is the provider's whole catalog (the add-model dialog needs every kind). Only a built-in
+// catalog states every entry's kind, so only there may the editor's picker narrow to the row's kind; elsewhere a
+// row's kind can be the "generation" fallback for an embedder its own list names.
+describe("the editor's model picker", () => {
+  const rerank = { id: "cross-encoder/ettin-reranker-32m-v1", kind: "rerank" as const };
+  const encoder = { id: "jinaai/jina-clip-v2", kind: "embedding" as const };
+  const embedder = { id: "bge-m3", kind: "embedding" as const };
+  const chat = { id: "llama3.2", kind: "generation" as const };
+
+  test("a built-in row offers its own kind only", () => {
+    expect(editorPickerModels([rerank, encoder], { catalog: "builtin", kind: "rerank", savedModel: rerank.id })).toEqual([rerank]);
+  });
+
+  test("any other row offers the whole list, even when its kind is only the generation fallback", () => {
+    expect(editorPickerModels([embedder, chat], { catalog: "url", kind: "generation", savedModel: embedder.id })).toEqual([embedder, chat]);
+  });
+
+  test("the row's own saved model is never filtered out", () => {
+    expect(editorPickerModels([rerank, encoder], { catalog: "builtin", kind: "rerank", savedModel: encoder.id })).toEqual([rerank, encoder]);
   });
 });
 

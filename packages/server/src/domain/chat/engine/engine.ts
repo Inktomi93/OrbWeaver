@@ -50,7 +50,6 @@ import type { Resolved, ResolvedWarning } from "@orb/inference";
 import { generationOf, ProviderError } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
-import { estimateTokens } from "@orb/kit/tokens";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
@@ -105,6 +104,7 @@ import {
   loadVariableDeltas,
 } from "../persistence/queries.ts";
 import { insertChatStreamEventStatements } from "../persistence/stream-events.ts";
+import { buildHistoryBudget, fitCeiling, historyTurnTokens } from "../substrate/assembly-access.ts";
 import { continuedSignatureMetadata } from "../substrate/content-signatures.ts";
 import { digestsDerivable } from "../substrate/digests-derivable.ts";
 import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
@@ -892,6 +892,7 @@ const compactionInFlight = new Set<ChatId>();
 function resolveEffectiveCompaction(prep: TurnPrep): {
   readonly compaction: NonNullable<UserIntent["compaction"]>;
   readonly maxContextTokens: number | undefined;
+  readonly maxOutputTokens: number | undefined;
 } {
   const presetParams = prep.assembleContext.promptConfig.params;
   // The whole `compaction` object folds atomically (per-send replaces preset when present), matching the
@@ -905,6 +906,7 @@ function resolveEffectiveCompaction(prep: TurnPrep): {
   return {
     compaction: configured ?? { mode: DEFAULT_COMPACTION_MODE, thresholdPct: MANAGED_COMPACT_DEFAULT_PCT },
     maxContextTokens: prep.intent.maxContextTokens ?? presetParams.maxContextTokens,
+    maxOutputTokens: prep.intent.maxOutputTokens ?? presetParams.maxOutputTokens,
   };
 }
 
@@ -917,7 +919,7 @@ function resolveEffectiveCompaction(prep: TurnPrep): {
  *  ≈ 2 after the first turn), so `tokensIn/window` never crosses the pct there. Provider usage is used ONLY as a
  *  corroborating BUMP — if the backend reports a bigger cumulative usage than we estimated (a full-prompt stateless
  *  send), that wins. So the pct arm bites correctly on both paths; the reactive fit-drop arm is the backstop the
- *  hosted stateful path relies on (its fit ceiling = min(window, maxContextTokens) still trims the full canon). */
+ *  hosted stateful path relies on (its fit ceiling still trims the full canon). */
 function compactionTriggered(compaction: NonNullable<UserIntent["compaction"]>, result: Awaited<ReturnType<typeof runTurnPipeline>>): boolean {
   const pct = compaction.thresholdPct ?? MANAGED_COMPACT_DEFAULT_PCT;
   const ceiling = result.fitCeilingTokens;
@@ -950,6 +952,34 @@ function resolveCoveragePoint(
   return coverage > 0 ? coverage : undefined;
 }
 
+/** The context the next dispatch would carry, priced as the turn's fit prices it, against the fit's ceiling — what
+ *  the pre-turn compaction trigger reads. `used` = the prompt-eligible rows above the current coverage plus the
+ *  output reserve. The system prompt is not assembled yet and no per-chat figure is recorded, so it counts as zero:
+ *  this trigger fires later than the post-turn one by the system prompt's cost. `null` ⇒ no window or soft cap
+ *  bounds the context. */
+function preTurnFitUsage(args: {
+  readonly connection: Resolved<"chat">;
+  readonly maxContextTokens: number | undefined;
+  readonly maxOutputTokens: number | undefined;
+  readonly canonAll: readonly MessageView[];
+  readonly currentCoverage: number;
+}): { readonly used: number; readonly ceiling: number } | null {
+  const generation = generationOf(args.connection);
+  const budget = buildHistoryBudget({
+    windowTokens: generation.context.window,
+    maxContextTokens: args.maxContextTokens,
+    maxOutputTokens: args.maxOutputTokens,
+    systemTokens: 0,
+    outputCeiling: generation.output.maxTokens.max,
+  });
+  const ceiling = fitCeiling(budget);
+  if (ceiling === null) {
+    return null;
+  }
+  const eligible = args.canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > args.currentCoverage);
+  return { used: eligible.reduce((sum, m) => sum + historyTurnTokens(m), 0) + budget.reserveOutputTokens, ceiling };
+}
+
 /** The PRE-TURN managed-compaction decision (the wedge-state fix): estimate the CUMULATIVE prompt-eligible token
  *  cost the NEXT dispatch would carry (above the current coverage point), and if it is already ≥ the managed pct
  *  of the effective ceiling, return the coverage point to compact THROUGH before dispatch. This closes the
@@ -960,19 +990,16 @@ function preTurnCoveragePoint(args: {
   readonly compaction: NonNullable<UserIntent["compaction"]>;
   readonly connection: Resolved<"chat">;
   readonly maxContextTokens: number | undefined;
+  readonly maxOutputTokens: number | undefined;
   readonly canonAll: readonly MessageView[];
   readonly currentCoverage: number;
 }): number | undefined {
   const pct = args.compaction.thresholdPct ?? MANAGED_COMPACT_DEFAULT_PCT;
-  const window = generationOf(args.connection).context.window;
-  const ceiling = Math.min(window, args.maxContextTokens ?? Number.POSITIVE_INFINITY);
-  if (!Number.isFinite(ceiling) || ceiling <= 0) {
+  const usage = preTurnFitUsage(args);
+  if (usage === null) {
     return; // no trustworthy ceiling → the pre-check can't threshold (the reactive arm still fires).
   }
-  // Cumulative estimate = the prompt-eligible rows ABOVE the current coverage (what the next seed/prompt carries).
-  const eligible = args.canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > args.currentCoverage);
-  const cumulative = eligible.reduce((sum, m) => sum + estimateTokens(m.content), 0);
-  if (cumulative < pct * ceiling) {
+  if (usage.used < pct * usage.ceiling) {
     return;
   }
   // Over threshold → compact through everything older than the recent verbatim tail (same rule as the post-turn
@@ -1021,12 +1048,12 @@ async function preTurnCompactionPlan(
   prep: TurnPrep,
   canonAll: readonly MessageView[],
 ): Promise<{ readonly coveragePoint: number | undefined; readonly currentCoverage: number; readonly instructions: string }> {
-  const { compaction, maxContextTokens } = resolveEffectiveCompaction(prep);
+  const { compaction, maxContextTokens, maxOutputTokens } = resolveEffectiveCompaction(prep);
   const chat = await loadChatRow(ctx.db, prep.chatId);
   const currentCoverage = chat?.compactedAtSeq ?? 0;
   const coveragePoint =
     compaction.mode === "managed" && prep.connection.api === "agent-sdk"
-      ? preTurnCoveragePoint({ compaction, connection: prep.connection, maxContextTokens, canonAll, currentCoverage })
+      ? preTurnCoveragePoint({ compaction, connection: prep.connection, maxContextTokens, maxOutputTokens, canonAll, currentCoverage })
       : undefined;
   return { coveragePoint, currentCoverage, instructions: compaction.instructions ?? DEFAULT_COMPACT_INSTRUCTIONS };
 }
@@ -1038,16 +1065,12 @@ async function preTurnCompactionPlan(
  *  CANCELLABLE (#1436): the turn's signal rides into the generation, and a cancelled one propagates instead of
  *  being absorbed as a failure. Returns the (possibly reloaded) canon + maxSeq + a marker overlay (null when
  *  nothing compacted). */
-async function runPreTurnCompaction(
-  ctx: ChatContext,
-  deps: EngineDeps,
-  prep: TurnPrep,
-): Promise<{ readonly canonAll: readonly MessageView[]; readonly maxSeq: number; readonly compactionOverlay: CompactionOverlay | null }> {
+async function runPreTurnCompaction(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): Promise<PreTurnCompaction> {
   const canonAll = await loadCanonHistory(ctx.db, prep.chatId);
-  const { coveragePoint, currentCoverage, instructions } = await preTurnCompactionPlan(ctx, prep, canonAll);
+  const { coveragePoint, instructions } = await preTurnCompactionPlan(ctx, prep, canonAll);
   // No pre-turn compaction: return the loaded canon untouched (still avoids a second DB read for maxSeq).
   if (coveragePoint === undefined || compactionInFlight.has(prep.chatId)) {
-    return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null };
+    return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null, markerFailed: false };
   }
   const { chatId } = prep;
   compactionInFlight.add(chatId);
@@ -1091,30 +1114,29 @@ async function runPreTurnCompaction(
   if (overlay !== null) {
     const reloaded = await loadCanonHistory(ctx.db, chatId);
     await emitQuiet(deps, { type: "chatUpdated", chatId });
-    return { canonAll: reloaded, maxSeq: reloaded.at(-1)?.seq ?? 0, compactionOverlay: overlay };
+    return { canonAll: reloaded, maxSeq: reloaded.at(-1)?.seq ?? 0, compactionOverlay: overlay, markerFailed: false };
   }
-  // THE NO-WALL BELT (owner ruling — compaction is a safety property): the pre-turn arm wanted to compact but NO
-  // usable marker materialized (the generation kept failing/empty). If the context is already AT/OVER the effective
-  // WINDOW, the turn would march into the wall — so we DEGRADE loudly: the DOMAIN fit-pass drop-oldest trims the
-  // shaped history at the window (→ a shorter agent-sdk seed → a reseed; the turn SURVIVES, no summary), and we
-  // emit a VISIBLE warning. Degraded-and-loud, never error-and-dead.
-  if (contextAtOrOverWindow(prep.connection, canonAll, currentCoverage)) {
-    await emitQuiet(deps, { type: "warning", chatId, code: "context_trimmed_no_summary" });
-  }
-  return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null };
+  // The marker failed: the turn proceeds on the current canon, and `emitTrimmedNoSummary` raises the no-wall
+  // warning once the turn's own fit shows it dropped rows.
+  return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null, markerFailed: true };
 }
 
-/** Whether the prompt-eligible context above the current coverage is AT/OVER the model's effective context WINDOW
- *  — the no-wall belt's trip condition (a turn dispatched now would overflow). Estimator-based (the same
- *  `estimateTokens` the fit uses); the fit-pass then does the actual drop-oldest trim at the window. */
-function contextAtOrOverWindow(connection: Resolved<"chat">, canonAll: readonly MessageView[], currentCoverage: number): boolean {
-  const window = generationOf(connection).context.window;
-  if (!Number.isFinite(window) || window <= 0) {
-    return false;
+/** What the pre-turn compaction arm hands the turn: the canon to assemble from, a fresh marker overlay (null when
+ *  none ran), and whether it wanted a marker that never materialized. */
+interface PreTurnCompaction {
+  readonly canonAll: readonly MessageView[];
+  readonly maxSeq: number;
+  readonly compactionOverlay: CompactionOverlay | null;
+  readonly markerFailed: boolean;
+}
+
+/** THE NO-WALL BELT (owner ruling — compaction is a safety property): the pre-turn arm wanted a marker and none
+ *  materialized, so the turn ran on the full canon and the fit-pass's drop-oldest trim is what kept it alive.
+ *  Degraded-and-loud: the warning reads the turn's REAL drop count, the one source that knows the fit trimmed. */
+async function emitTrimmedNoSummary(deps: EngineDeps, chatId: ChatId, pre: PreTurnCompaction, result: { readonly droppedCount: number }): Promise<void> {
+  if (pre.markerFailed && result.droppedCount > 0) {
+    await emitQuiet(deps, { type: "warning", chatId, code: "context_trimmed_no_summary" });
   }
-  const eligible = canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > currentCoverage);
-  const cumulative = eligible.reduce((sum, m) => sum + estimateTokens(m.content), 0);
-  return cumulative >= window;
 }
 
 /** The managed-compaction marker build's own trace root (I-7 finding: found alongside the three named holes —
@@ -1863,6 +1885,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     await deltaTail;
     const genFinishedAt = ctx.now();
     await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
+    await emitTrimmedNoSummary(deps, prep.chatId, pre, result);
     // §6.7 — the model's own pictures become canon HERE: stored under the host, spliced into the body as
     // `![alt](asset:<id>)` spans, and handed to the commit as the ids it must link `inline-reply`. It runs
     // AHEAD of the prose-less refusal below because those spans ARE the body of a picture-only reply.

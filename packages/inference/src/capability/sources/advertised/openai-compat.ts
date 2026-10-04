@@ -1,7 +1,7 @@
 // The ADVERTISED tier from an OpenAI-compatible `/v1/models` row: ids and, when the server reports one, a chat
 // model's context window (vLLM `max_model_len`, LM Studio `max_context_length`, llama.cpp `meta.n_ctx`, Ollama's
 // pinned `num_ctx`, else its default floor as assumed), an embedder's width, and — where the row's native model-info API states them (D292) — the
-// modalities a turn may carry, whether the model takes `tools[]`, schema-constrained output, and whether a
+// modalities a turn may carry, whether the model takes `tools[]` and whether it thinks, schema-constrained output, and whether a
 // delivered assistant row is continued (the server's rendered prompt leaves it open), and the sampler values the
 // server runs when a request leaves a knob unset. Everything else is curated or declared (§5.7, §6.3).
 
@@ -35,7 +35,7 @@ function samplingDefaultsOf(serverDefaults: EndpointModel["serverDefaults"], fea
 }
 
 export function advertisedFromOpenAiCompat(
-  entry: Pick<EndpointModel, "contextLength" | "contextFloor" | "embeddingDims" | "input" | "tools" | "structured" | "prefill" | "serverDefaults">,
+  entry: Pick<EndpointModel, "contextLength" | "contextFloor" | "embeddingDims" | "input" | "tools" | "structured" | "prefill" | "serverDefaults" | "thinks">,
   kind: ModelKind,
   features: EndpointFeatures,
 ): GenerationPatch | Partial<EmbeddingCapability> {
@@ -51,6 +51,8 @@ export function advertisedFromOpenAiCompat(
     ...(entry.input === undefined ? {} : { input: [...entry.input] }),
     ...(entry.tools === undefined ? {} : { tools: { parallel: entry.tools.parallel } }),
     ...(entry.structured === true ? { output: { structured: true } } : {}),
+    // A stated thinker reasons by a switch, not a budget: `reasoning_effort` (Ollama's `think`) turns it on or off.
+    ...(entry.thinks === true ? { reasoning: { mode: "effort", enabled: true } } : {}),
     // The server rendered a trailing assistant row and left it open: a delivered prefill is continued.
     ...(entry.prefill === undefined ? {} : { turns: { assistantPrefill: entry.prefill === "deliver" } }),
     ...(samplingDefaults === undefined ? {} : { samplingDefaults }),

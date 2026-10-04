@@ -67,6 +67,18 @@ export type GroupPolicy = (typeof GROUP_POLICIES)[number];
  *  degrade says so out loud (D41). A NARRATOR round never buys either pick (see the arm below). */
 export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural") satisfies z.ZodType<GroupPolicy>;
 
+/** The policies a NARRATOR room can hold: every one but `smart`. A narrator round voices all the seated characters in
+ *  one generation and schedules no speaker, so a Smart pick there would decide nothing. */
+export type NarratorGroupPolicy = Exclude<GroupPolicy, "smart">;
+/** The policy a narrator room holds for `policy`: `smart` becomes `natural`, every other policy is kept. The ONE
+ *  mapping the narrator arm's parse, the importer and the Group tab share. */
+export function narratorPolicyOf(policy: GroupPolicy): NarratorGroupPolicy {
+  return policy === "smart" ? "natural" : policy;
+}
+/** The narrator arm's policy: any stored or written `smart` (an ST import, an old room) reads as `natural`, the
+ *  same as every other parse heals a bad value. One behavior at every boundary: normalized, never refused. */
+const narratorPolicySchema = groupPolicySchema.transform(narratorPolicyOf);
+
 /** The policy names the host reads on the room's Group tab. A guest's invite preview says how the room plays in its
  *  own words instead. */
 export const GROUP_POLICY_LABELS: Record<GroupPolicy, string> = {
@@ -142,16 +154,12 @@ const memberCardVisibilityField = {
 export const groupConfigSchema = z.discriminatedUnion("output", [
   z.strictObject({
     output: z.literal("narrator"),
-    /** PER-SPEAKER-ONLY IN EFFECT, retained deliberately: a narrator round voices all the seated characters in ONE
-     *  generation authored by the synthetic group character, so it consumes no arbitrated speaker. The field
-     *  STAYS on this arm so flipping output narrator→per-speaker→narrator round-trips the host's choice
-     *  instead of resetting it to `natural`. What it must NOT do is BUY anything: the turn verb
-     *  short-circuits the `smart` side-LLM arbiter here (no model call, no `smart_arbitration_degraded`
-     *  warning about a verdict nothing reads). Nor does it gate the ROUND: a narrator room narrates every
-     *  send, `manual` included (the narrator turn is the room's output, not a scheduled speaker) — the one thing
-     *  it still governs here is the auto-chain's cheap deterministic continue/stop probe, so `manual` ends a
-     *  narrator chain after the first beat. */
-    policy: groupPolicySchema,
+    /** A narrator round voices all the seated characters in ONE generation authored by the synthetic group
+     *  character, so it consumes no arbitrated speaker and `smart` is not a narrator policy (it heals to
+     *  `natural`). Nor does the policy gate the ROUND: a narrator room narrates every send, `manual` included —
+     *  the one thing it governs here is the auto-chain's cheap deterministic continue/stop probe, so `manual`
+     *  ends a narrator chain after the first beat. */
+    policy: narratorPolicySchema,
     ...smartPickerField,
     speakerTags: z.boolean().catch(true).default(true),
     groupNudge: z.boolean().catch(true).default(true),
@@ -221,9 +229,17 @@ const groupInputFields = {
   memberCardVisibility: memberCardVisibilityField.memberCardVisibility.unwrap().unwrap().optional(),
 };
 
-/** Validates the raw input plane without applying the parsed room defaults or corruption heals. */
+/** Validates the raw input plane without applying the parsed room defaults or corruption heals. The one
+ *  normalization it shares with the room parse is the narrator arm's {@link narratorPolicyOf}, so no reader of a
+ *  stored input (a roster preset's view) ever shows a narrator room holding Smart. */
 export const groupConfigInputSchema = z.discriminatedUnion("output", [
-  z.strictObject({ output: narratorGroupSchema.shape.output, ...groupInputFields }),
+  z.strictObject({
+    output: narratorGroupSchema.shape.output,
+    ...groupInputFields,
+    // A transform has no JSON Schema output form, so this schema (and the roster preset view that embeds it)
+    // can only be projected with `io: "input"`; the contract test pins that limit.
+    policy: groupInputFields.policy.unwrap().transform(narratorPolicyOf).optional(),
+  }),
   z.strictObject({
     output: perSpeakerGroupSchema.shape.output,
     ...groupInputFields,

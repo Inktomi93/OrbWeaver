@@ -1,0 +1,229 @@
+{
+  "summary": {
+    "cell": "ollama-qwen25-0.5b-cpu",
+    "server": "ollama",
+    "model": "qwen2.5:0.5b",
+    "template": "ollama-library",
+    "mode": "stream",
+    "body": {},
+    "strict": false,
+    "turns": 10,
+    "both": 0,
+    "proseOnly": 0,
+    "toolsOnly": 7,
+    "empty": 3,
+    "errors": 0,
+    "leaks": 0,
+    "maxPromptTokens": 3572,
+    "medianTokPerSec": 16360687.1,
+    "medianServerTokPerSec": 25.85,
+    "ranAt": "2026-10-03T16:41:13.587Z"
+  },
+  "rows": [
+    {
+      "turn": 1,
+      "shape": "empty",
+      "proseChars": 0,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 30953,
+      "decodeMs": null,
+      "promptTokens": 2944,
+      "completionTokens": 40,
+      "tokPerSec": 1.3,
+      "serverTokPerSec": 28.6,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 2,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["set_tracker"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 7675,
+      "decodeMs": 0,
+      "promptTokens": 3011,
+      "completionTokens": 41,
+      "tokPerSec": 11832611.8,
+      "serverTokPerSec": 32.9,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "set_tracker",
+          "arguments": "{\"TrackerType\":\"Stamina\",\"TrackerName\":\"wind you spend pushing on\",\"TrackerValue\":15}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["no_changes"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 7937,
+      "decodeMs": 0,
+      "promptTokens": 3086,
+      "completionTokens": 16,
+      "tokPerSec": 15825915,
+      "serverTokPerSec": 28.9,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "no_changes",
+          "arguments": "{}"
+        }
+      ]
+    },
+    {
+      "turn": 4,
+      "shape": "empty",
+      "proseChars": 0,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 10769,
+      "decodeMs": null,
+      "promptTokens": 3154,
+      "completionTokens": 81,
+      "tokPerSec": 7.5,
+      "serverTokPerSec": 21.9,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 5,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["no_changes"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 12288,
+      "decodeMs": 0,
+      "promptTokens": 3235,
+      "completionTokens": 64,
+      "tokPerSec": 53646269.7,
+      "serverTokPerSec": 14.7,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "no_changes",
+          "arguments": "{\"timestamp\":1674080425316,\"description\":\"Roth takes out his Satchel at the Drowned Lantern, carrying a sealant item that matches the description on the chest.\"}"
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["no_changes"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 5856,
+      "decodeMs": 0,
+      "promptTokens": 3306,
+      "completionTokens": 16,
+      "tokPerSec": 16895459.2,
+      "serverTokPerSec": 29.5,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "no_changes",
+          "arguments": "{}"
+        }
+      ]
+    },
+    {
+      "turn": 7,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["no_changes"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 6572,
+      "decodeMs": 0,
+      "promptTokens": 3381,
+      "completionTokens": 16,
+      "tokPerSec": 34632033.8,
+      "serverTokPerSec": 23.1,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "no_changes",
+          "arguments": "{}"
+        }
+      ]
+    },
+    {
+      "turn": 8,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["set_tracker"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 9367,
+      "decodeMs": 0,
+      "promptTokens": 3438,
+      "completionTokens": 37,
+      "tokPerSec": 55059524.2,
+      "serverTokPerSec": 16.3,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "set_tracker",
+          "arguments": "{\"trackerDeltas\":0,\"trackerSets\":{\"heat\":1500}}"
+        }
+      ]
+    },
+    {
+      "turn": 9,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_party"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 8467,
+      "decodeMs": 0,
+      "promptTokens": 3496,
+      "completionTokens": 43,
+      "tokPerSec": 75438596,
+      "serverTokPerSec": 32.3,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"party\":{\"addCondition\":{},\"trackerDeltas\":[{\"delta\":-1,\"key\":\"stamina\"}]}}"
+        }
+      ]
+    },
+    {
+      "turn": 10,
+      "shape": "empty",
+      "proseChars": 0,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 11530,
+      "decodeMs": null,
+      "promptTokens": 3572,
+      "completionTokens": 48,
+      "tokPerSec": 4.2,
+      "serverTokPerSec": 12.4,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": []
+    }
+  ]
+}

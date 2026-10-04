@@ -72,7 +72,7 @@ function dialOf(req: ListModelsRequest): AnthropicModelsDial {
   };
 }
 
-async function fetchModels(dial: AnthropicModelsDial, fetchImpl: typeof fetch): Promise<ModelCatalogEntry[]> {
+export async function fetchAnthropicModels(dial: AnthropicModelsDial, fetchImpl: typeof fetch): Promise<ModelCatalogEntry[]> {
   const result = await fetchJson({
     fetch: fetchImpl,
     url: `${anthropicBaseUrl(dial, dial.label)}${MODELS_PATH}`,
@@ -87,7 +87,7 @@ async function fetchModels(dial: AnthropicModelsDial, fetchImpl: typeof fetch): 
 /** The model list for one dial, a saved row's or a draft's (`catalog/listing.ts`). */
 export async function listAnthropicModels(dial: AnthropicModelsDial, fetchImpl: typeof fetch): Promise<ModelListing> {
   try {
-    return listingOf(await fetchModels(dial, fetchImpl));
+    return listingOf(await fetchAnthropicModels(dial, fetchImpl));
     // @orb-waive caught-failure-ownership(err): optional model discovery owns refusal as `listed:false` with the scrubbed reason; generation remains usable with an explicit model. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.
   } catch (err) {
     return failedListing(err, dial.secrets);
@@ -97,7 +97,7 @@ export async function listAnthropicModels(dial: AnthropicModelsDial, fetchImpl: 
 async function probe(req: ProbeRequest, fetchImpl: typeof fetch, now: () => number): Promise<CredentialHealth> {
   const checkedAt = now();
   try {
-    await fetchModels(dialOf(req), fetchImpl);
+    await fetchAnthropicModels(dialOf(req), fetchImpl);
     return { status: "ok", checkedAt };
     // @orb-waive caught-failure-ownership(err): credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition.
   } catch (err) {

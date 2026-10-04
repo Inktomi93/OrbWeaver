@@ -27,7 +27,7 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { NAME_END_BOUNDARY } from "@orb/kit/speaker-label";
 import { UNICODE_WORD_CHARS } from "@orb/kit/strings";
-import type { ArbiterCandidate, NameMention, SpeakerCandidate } from "../contract/arbitration.ts";
+import type { ArbiterCandidate, LineAddress, NameMention, SpeakerCandidate, TranscriptLine } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
 
 /** The arbitration inputs (file-local — callers pass a literal). */
@@ -172,11 +172,10 @@ function applyPolicy(
   switch (policy) {
     case "natural":
     // `smart` is the model-picked path (`engine/rerank-pick`, or `engine/smart-arbitrate` when the room's
-    // `smartPicker` is the Utility arbiter), which the turn verb routes a per-speaker smart round to — so this
-    // arm is reached only where it did NOT: a `smart` room whose human `@mention` resolved to nobody eligible
-    // (the named seat is muted/left), and a NARRATOR room, where the pick is short-circuited because its
-    // verdict governs nothing. No model was consulted in either case, so this is a plain `natural` activation,
-    // not the degrade path (the picker FAILING is the degrade path, surfaced as a warning by the caller).
+    // `smartPicker` is the Utility arbiter): the turn verb routes every Smart round there unless a forced
+    // `@mention` schedules, which returns above before any policy, and a narrator room cannot hold `smart` at
+    // all. This arm is the safe total case for the union: a plain `natural` activation, not the degrade path (the
+    // picker FAILING is the degrade path, surfaced as a warning by the caller).
     case "smart":
       return naturalOrder(pool, state.mentionedIds, rng);
     // `list` — roster order, all of them, every round (no rotation: that is `pooled`).
@@ -329,6 +328,20 @@ function phraseAt(words: readonly string[], seq: readonly string[]): number {
   return words.findIndex((_, start) => seq.every((w, k) => words[start + k] === w));
 }
 
+/** Every start index where `seq` occurs as consecutive words of `words`. */
+function phraseStarts(words: readonly string[], seq: readonly string[]): number[] {
+  if (seq.length === 0) {
+    return [];
+  }
+  return words.flatMap((_, start) => (seq.every((w, k) => words[start + k] === w) ? [start] : []));
+}
+
+// A text word is written as a name when it is capitalized, or when the card spells that name word lowercase too:
+// "Will, come here" names Will, "we will find it" does not.
+function writtenAsName(textWord: string, cardWord: string | undefined): boolean {
+  return startsUpper(textWord) || (cardWord !== undefined && !startsUpper(cardWord));
+}
+
 /**
  * Characters a trigger text names. `natural`'s mention activation passes a human post's body only; Smart's
  * reranker pick (`rerank-pick.ts`) passes the last line whoever wrote it, since a character handing the floor
@@ -339,8 +352,17 @@ function phraseAt(words: readonly string[], seq: readonly string[]): number {
  * named by its whole name as a phrase. Ordered by where each is first named, then roster order.
  */
 export function nameMentionsOf(triggerText: string, candidates: readonly SpeakerCandidate[]): NameMention[] {
-  const rawText = rawWordsOf(triggerText);
-  const text = rawText.map((w) => w.toLowerCase());
+  return mentionHits(rawWordsOf(triggerText), candidates, new Set()).map(({ id, hits, strong }) => ({ id, hits, strong }));
+}
+
+/** A {@link NameMention} with the text word indices it was named at (`words`, the ones written as a name). */
+interface MentionHit extends NameMention {
+  readonly words: readonly number[];
+}
+
+/** The {@link nameMentionsOf} read over pre-split words, skipping the word indices in `ignore`. */
+function mentionHits(rawText: readonly string[], candidates: readonly SpeakerCandidate[], ignore: ReadonlySet<number>): MentionHit[] {
+  const text = rawText.map((w, i) => (ignore.has(i) ? "" : w.toLowerCase()));
   const found = candidates.flatMap((c, rosterIdx) => {
     const rawName = rawWordsOf(c.name);
     const nameWords = rawName.map((w) => w.toLowerCase());
@@ -353,16 +375,105 @@ export function nameMentionsOf(triggerText: string, candidates: readonly Speaker
     const written = keys.size > 0 ? hitIdx : [at];
     // A word counts toward `hits` only when it is written as a name, so an ordinary lowercase "hook" cannot
     // break a tie between characters the text addresses by another word.
-    const asName = written.filter((i) => {
-      const nameWord = rawName[nameWords.indexOf(text[i] ?? "")];
-      return startsUpper(rawText[i] ?? "") || (nameWord !== undefined && !startsUpper(nameWord));
-    });
+    const asName = written.filter((i) => writtenAsName(rawText[i] ?? "", rawName[nameWords.indexOf(text[i] ?? "")]));
     const strong = asName.length > 0;
     const phraseHits = strong ? nameWords.length : 0;
     const hits = keys.size > 0 ? new Set(asName.map((i) => text[i])).size : phraseHits;
-    return [{ id: c.ref.characterId, at, rosterIdx, hits, strong }];
+    const words = keys.size > 0 ? asName : nameWords.map((_, k) => at + k);
+    return [{ id: c.ref.characterId, at, rosterIdx, hits, strong, words }];
   });
-  return found.sort((a, b) => a.at - b.at || a.rosterIdx - b.rosterIdx).map(({ id, hits, strong }) => ({ id, hits, strong }));
+  return found.sort((a, b) => a.at - b.at || a.rosterIdx - b.rosterIdx).map(({ id, hits, strong, words }) => ({ id, hits, strong, words }));
+}
+
+/** The most responders a Smart pick schedules in one round, however many the line or the model named. */
+export const MAX_SMART_RESPONDERS = 3;
+
+/** The word indices of `text` a human player's name occupies, outside any character's whole name spelled out
+ *  there. "Rook, your move." to the player Rook is an address to the human; "Rook the Bard" is the character. A
+ *  whole name made only of a human's words ("Grace" for the player Grace, "Bran" for the player Bran Stark) could
+ *  be either, so it shields nothing, and when it is written as a name outside a longer whole name the picker
+ *  decides; "move with grace" is an ordinary word and no address at all. */
+function humanWordIndices(
+  rawText: readonly string[],
+  speakerCandidates: readonly SpeakerCandidate[],
+  humanNames: readonly string[],
+): { readonly indices: Set<number>; readonly ambiguous: boolean } {
+  const text = rawText.map((w) => w.toLowerCase());
+  const human = new Set(humanNames.flatMap((n) => rawWordsOf(n).map((w) => w.toLowerCase())).filter((w) => !isNonNaming(w)));
+  const names = speakerCandidates.map((c) => {
+    const rawName = rawWordsOf(c.name);
+    const nameWords = rawName.map((w) => w.toLowerCase());
+    return { rawName, nameWords, humanOnly: nameWords.length > 0 && nameWords.every((w) => human.has(w)) };
+  });
+  // Every spelled-out whole name that is not purely a human's claims its words first, so "Rook the Bard" addresses
+  // the Bard even beside a character named just "Rook" and a player named Rook.
+  const characterSpans = new Set<number>();
+  for (const { nameWords } of names.filter((n) => !n.humanOnly)) {
+    for (const start of phraseStarts(text, nameWords)) {
+      for (let k = 0; k < nameWords.length; k += 1) {
+        characterSpans.add(start + k);
+      }
+    }
+  }
+  const ambiguous = names
+    .filter((n) => n.humanOnly)
+    .some(({ rawName, nameWords }) =>
+      phraseStarts(text, nameWords).some(
+        (start) => rawName.some((w, k) => writtenAsName(rawText[start + k] ?? "", w)) && nameWords.some((_, k) => !characterSpans.has(start + k)),
+      ),
+    );
+  return { indices: new Set(text.flatMap((w, i) => (human.has(w) && !characterSpans.has(i) ? [i] : []))), ambiguous };
+}
+
+/**
+ * Who a canon line addresses by name, for both Smart pickers: the ELIGIBLE characters it names AS A NAME (a
+ * {@link NameMention} that is `strong`), whoever wrote it, as ordered groups. Characters named by overlapping
+ * words compete for one address: the most fully named win the group ("The Black Knight" over "The Knight"),
+ * and a tie is an ambiguous group the caller settles. A word a human player's name occupies addresses the human,
+ * not a character; a whole character name that is also a human's ("Grace" for the player Grace) marks the line
+ * `humanAmbiguous`. A muted or departed character is dropped, and a speaker naming itself is no address.
+ */
+export function addressedGroups(
+  line: TranscriptLine,
+  candidates: readonly ArbiterCandidate[],
+  speakerCandidates: readonly SpeakerCandidate[],
+  humanNames: readonly string[],
+): LineAddress {
+  const eligible = new Set(candidates.filter((c) => isArbiterEligible({ leftSeq: c.leftSeq, disabled: c.disabled })).map((c) => speakerKey(c.ref)));
+  const rawText = rawWordsOf(line.text);
+  const named = speakerCandidates.filter((c) => c.ref.characterId !== line.characterId && eligible.has(speakerKey(c.ref)));
+  const human = humanWordIndices(rawText, named, humanNames);
+  const hits = mentionHits(rawText, named, human.indices).filter((m) => m.strong);
+  const groups: MentionHit[][] = [];
+  for (const hit of hits) {
+    const overlapping = groups.find((g) => g.some((other) => other.words.some((w) => hit.words.includes(w))));
+    if (overlapping === undefined) {
+      groups.push([hit]);
+    } else {
+      overlapping.push(hit);
+    }
+  }
+  return {
+    groups: groups.map((group) => {
+      const best = Math.max(...group.map((m) => m.hits));
+      return group.filter((m) => m.hits === best).map((m) => m.id);
+    }),
+    humanAmbiguous: human.ambiguous,
+  };
+}
+
+/** The human players' names as the arbiter and the mention check read them: the room's personas plus every named
+ *  human line in the window, deduped case-insensitively. A line with no character and a speaker name is a human's
+ *  (an unnamed system or assistant row stays bare). */
+export function humanPlayerNames(personaNames: readonly (string | undefined)[], transcript: readonly TranscriptLine[]): string[] {
+  const seen = new Map<string, string>();
+  for (const name of [...personaNames, ...transcript.filter((l) => l.characterId === null).map((l) => l.speakerName)]) {
+    const trimmed = name?.trim() ?? "";
+    if (trimmed.length > 0 && !seen.has(trimmed.toLowerCase())) {
+      seen.set(trimmed.toLowerCase(), trimmed);
+    }
+  }
+  return [...seen.values()];
 }
 
 export function resolveNameMentions(triggerText: string, candidates: readonly SpeakerCandidate[]): CharacterId[] {

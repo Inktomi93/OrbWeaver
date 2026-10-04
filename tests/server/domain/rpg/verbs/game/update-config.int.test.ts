@@ -207,6 +207,15 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect(game?.config.reconcileEveryBeats).toBe(0);
   });
 
+  test("0511 state-capture vehicle: born `auto`, a host choice lands, and it survives an unrelated edit", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    expect((await findGameByChat(db, chatId))?.config.stateCaptureVehicle).toBe("auto");
+    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { stateCaptureVehicle: "structured" } });
+    expect((await findGameByChat(db, chatId))?.config.stateCaptureVehicle).toBe("structured");
+    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { steeringNote: "unrelated" } });
+    expect((await findGameByChat(db, chatId))?.config.stateCaptureVehicle).toBe("structured");
+  });
+
   test("#40 engaged toggle: OFF disengages + re-writes the pointer mirror; survives an unrelated edit; ON restores", async () => {
     const { chatId, h } = await seedLiteGame(db);
     // Born engaged (the createGame pointer carries engaged:true).

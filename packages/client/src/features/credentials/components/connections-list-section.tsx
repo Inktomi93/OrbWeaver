@@ -46,6 +46,7 @@ import { configAnchorId, configSettingControlId } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { CONNECTION_FORM_COPY } from "../lib/add-connection-form-model.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
+import { useClearConnectionEditorRequest, useRequestedConnectionEditor } from "../lib/connection-editor-request-store.ts";
 import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRebindsEmbedder, sweepRoleLabels } from "../lib/connections-model.ts";
 import { ADD_CONNECTION_SETTING, CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
@@ -95,6 +96,17 @@ function ConnectionsBody(): ReactElement {
   const addConnectionFocus = useRef<HTMLButtonElement>(null);
   const listFocusIntent = useRef<ListFocusIntent | null>(null);
   const rowRoots = useRef(new Map<ConnectionListItem["id"], HTMLDivElement>());
+  // A Model roles door asks for one row's editor; the request is taken once, then cleared from the store.
+  const requestedEditor = useRequestedConnectionEditor();
+  const clearEditorRequest = useClearConnectionEditorRequest();
+  if (requestedEditor !== null && requestedEditor !== editingId) {
+    setEditingId(requestedEditor);
+  }
+  useEffect(() => {
+    if (requestedEditor !== null) {
+      clearEditorRequest();
+    }
+  }, [requestedEditor, clearEditorRequest]);
 
   useEffect(() => {
     const intent = listFocusIntent.current;

@@ -239,6 +239,7 @@ const PHONE_ROOM_STUB: TrpcRoutes<"chat.previewContextFit" | "chat.listMessages"
     usedTokens: 120,
     ceilingTokens: 32_768,
     ceilingEstimated: false,
+    limit: null,
     reserveOutputTokens: 2048,
     droppedCount: 0,
     compactSummary: null,

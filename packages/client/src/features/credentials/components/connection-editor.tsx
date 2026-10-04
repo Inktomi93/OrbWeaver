@@ -222,6 +222,7 @@ function AvailableConnectionEditorBody({
             <ModelField
               busy={busy}
               connectionId={connectionId}
+              kind={inferredKindOf(connection.tasks)}
               listOwner={hostLabel(connection.baseUrl, providerLabel)}
               model={connection.model}
               modelCheck={connection.modelCheck}

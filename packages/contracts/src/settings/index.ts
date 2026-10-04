@@ -401,9 +401,9 @@ export const USER_SETTINGS_SCHEMA_VERSION = 10;
  *  own posture with no preset params. `same-as-chat` follows the active preset; `preset` names one. */
 export const ROLE_PRESET_CHOICE_KINDS = { sameAsChat: "same-as-chat", preset: "preset" } as const;
 export const rolePresetChoiceSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.sameAsChat) }),
+  z.strictObject({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.sameAsChat) }),
   // @orb-waive no-raw-id(presetId): lenient UserSettings tier — a stale/unowned id degrades to task defaults at consumption, so it stays plain.
-  z.object({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.preset), presetId: z.string().min(1) }),
+  z.strictObject({ kind: z.literal(ROLE_PRESET_CHOICE_KINDS.preset), presetId: z.string().min(1) }),
 ]);
 export type RolePresetChoice = z.infer<typeof rolePresetChoiceSchema>;
 

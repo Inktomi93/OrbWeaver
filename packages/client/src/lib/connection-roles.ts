@@ -113,7 +113,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     task: "rerank",
     label: CONNECTION_ROLE_LABELS.rerank,
     heading: "Rerank",
-    description: "Reorders retrieved results by relevance.",
+    description: "Reorders retrieved results by relevance, and picks who replies in rooms set to Smart.",
     optional: false,
     requirements: [],
   },
@@ -165,8 +165,11 @@ export const RERANK_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "rerank-model
 /** Where a door to the Chat role lands: Model roles, at the Chat picker. */
 export const CHAT_ROLE_DOOR = { ...MODEL_ROLES_ADDRESS, setting: "chat-model" } as const;
 
+/** Settings → Connections → the Connections list, as `openConfigTo` addresses it. */
+export const CONNECTIONS_LIST_ADDRESS = { group: "connections", sub: "connections" } as const;
+
 /** Settings → Connections → the Connections list's add flow, as `openConfigTo` addresses it. */
-export const ADD_CONNECTION_DOOR = { group: "connections", sub: "connections", setting: "add-connection" } as const;
+export const ADD_CONNECTION_DOOR = { ...CONNECTIONS_LIST_ADDRESS, setting: "add-connection" } as const;
 
 /** Whether a resolved Utility model reads pictures, which avatar analysis and picture families need. */
 export function utilityReadsImages(capability: Capability): boolean {
@@ -176,8 +179,9 @@ export function utilityReadsImages(capability: Capability): boolean {
 /** What Memory costs, said wherever a person turns it on or picks the model it runs on. */
 export const MEMORY_COST_SENTENCE = `Memory makes about one extra summary call on your Utility model for every ${DEFAULT_MEMORY_DEFAULTS.blockSize} messages once a chat grows long.`;
 
-/** What the Smart speaker order costs, said wherever a host picks it. */
-export const SMART_POLICY_COST_SENTENCE = "Smart makes one extra call on your Utility model every round to pick who replies.";
+/** What Smart's Utility-model picker costs, said under the switch that turns it on. */
+export const SMART_POLICY_COST_SENTENCE =
+  "Turning this on adds one extra call on your Utility model each time Smart picks who replies. The call is skipped when the last message names characters and every name is clear.";
 
 /** The inline refusal a Model-roles row shows BEFORE writing a binding (§5.3a — the slot is the first
  *  enforcement point): a background task on a row with `allowBackground` off. `null` = bindable. */

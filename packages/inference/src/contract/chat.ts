@@ -164,6 +164,8 @@ type HistoryChatRequest = ChatRequestCommon & {
    *  happens at STREAM time (the F-table "Adopt" row); every other shape, and every other wire, leaves the
    *  engine's post-hoc split to do it. Absent ⇒ no inline split is wanted at all. */
   readonly reasoningTags?: { readonly prefix: string; readonly suffix: string } | undefined;
+  /** `tools` carries TERMINAL declarations (D112 R1), so the turn must co-emit prose and state calls. */
+  readonly terminalToolsAttached?: boolean | undefined;
 };
 
 /**

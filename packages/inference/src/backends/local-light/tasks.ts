@@ -8,6 +8,7 @@ import { LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult, RerankResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, ImageInput, RerankQuery } from "@orb/contracts/role-clients";
 import type { ModelId } from "@orb/kit/ids";
+import { clampToTokenBudget } from "@orb/kit/tokens";
 import { ProviderError } from "../../contract/errors.ts";
 import type { EmbedRequest, ImageEmbedRequest, RerankRequest } from "../../contract/roles.ts";
 import type { LocalLightModelCache } from "./model-cache.ts";
@@ -101,6 +102,10 @@ function rerankQueryText(query: RerankQuery): string {
   return (typeof query === "string" ? query : (query.text ?? "")).trim();
 }
 
+// A cheap first pass only: the worker cuts each pair to the window in the model's own tokens. This bound just keeps
+// the tokenizer from encoding a huge input whole, so it is loose enough never to cut what the window could hold.
+const PRETRIM_ESTIMATED_TOKENS_PER_WINDOW_TOKEN = 4;
+
 export function createLocalLightRerank(cache: LocalLightModelCache): (req: RerankRequest) => Promise<RerankResult> {
   return async (req) => {
     throwIfAborted(req.signal);
@@ -109,16 +114,27 @@ export function createLocalLightRerank(cache: LocalLightModelCache): (req: Reran
     if (baseQuery.length === 0) {
       throw new ProviderError({ kind: "invalid", retryable: false, message: "local-light rerank requires query text (the ONNX cross-encoder is text-only)" });
     }
+    const { capability } = req.connection;
+    if (capability.kind !== "rerank") {
+      throw new ProviderError({
+        kind: "invalid",
+        retryable: false,
+        message: `local-light rerank: the model "${modelId}" is a ${capability.kind} model, not a reranker`,
+      });
+    }
     const query = req.instruction !== undefined && req.instruction.length > 0 ? `${req.instruction} ${baseQuery}` : baseQuery;
     const kept = req.documents.filter((doc) => (doc.text ?? "").trim().length > 0);
     if (kept.length === 0) {
       return { hits: [], model: modelId, usage: { totalTokens: null } };
     }
+    const { maxInputTokens, onnx } = capability.rerank;
+    const pretrim = (text: string): string => clampToTokenBudget(text, maxInputTokens * PRETRIM_ESTIMATED_TOKENS_PER_WINDOW_TOKEN);
     const scores = await abortableWait(
       cache.scorePairs(
         modelId,
-        query,
-        kept.map((doc) => doc.text ?? ""),
+        pretrim(query),
+        kept.map((doc) => pretrim(doc.text ?? "")),
+        { maxInputTokens, onnx },
       ),
       req.signal,
     );

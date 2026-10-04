@@ -19,7 +19,7 @@ import type {
   ModelKind,
   RerankCapability,
 } from "@orb/contracts/inference";
-import { EMBEDDING_FLOOR, ESTIMABLE_TURNS, GENERATION_FLOOR, RERANK_FLOOR, TURNS_FLOOR } from "@orb/contracts/inference";
+import { EMBEDDING_FLOOR, ESTIMABLE_TURNS, GENERATION_FLOOR, RERANK_FLOOR, RERANK_MIN_WINDOW_TOKENS, TURNS_FLOOR } from "@orb/contracts/inference";
 import { assertNever } from "../contract/errors.ts";
 import type { ResolvedWarning } from "../contract/resolve.ts";
 import type { ModelFamily } from "../contract/runtime.ts";
@@ -206,7 +206,8 @@ function synthesizeRerank(evidence: Evidence): SynthesizedCapability {
   const stated =
     [...(evidence.curated ?? []), ...(evidence.measured ?? [])].some((row) => row.rerank?.maxInputTokens !== undefined) ||
     declared?.maxInputTokens !== undefined;
-  const { windowEstimated: _dropped, ...rest } = capability;
+  const { windowEstimated: _dropped, ...merged } = capability;
+  const rest = { ...merged, maxInputTokens: Math.max(merged.maxInputTokens, RERANK_MIN_WINDOW_TOKENS) };
   return {
     capability: { kind: "rerank", rerank: stated ? rest : { ...rest, windowEstimated: true } },
     warnings: declaredOverridesMeasured(declared, measuredRows),

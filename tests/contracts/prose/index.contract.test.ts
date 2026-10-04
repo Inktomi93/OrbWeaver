@@ -168,13 +168,13 @@ test("the adapted compaction slot ships the exact bytes DEFAULT_COMPACT_INSTRUCT
 const S1_FROZEN_DEFAULTS: Readonly<Partial<Record<ProseSlotId, string>>> = {
   // packages/server/src/domain/chat/assembly/context.ts — ANCHOR_IDENTITY_PREFIX
   "chat.assembly.anchorIdentity": "The person the character knows as the user is",
-  // packages/server/src/domain/chat/engine/smart-arbitrate.ts — SYSTEM_PROMPT. v2 is a one-word VOCABULARY
-  // fix ("turn director" → "turn arbiter", the name every id/symbol/control around this slot already uses);
-  // the rest of the bytes are the pre-PROSE-1 constant verbatim.
+  // packages/server/src/domain/chat/engine/smart-arbitrate.ts — SYSTEM_PROMPT. Rewritten for the structured-output
+  // arbiter, whose schema carries the format and the candidate set; these are the current bytes.
   "chat.arbiter.system":
-    "You are a turn arbiter for a multi-character roleplay. Read the recent conversation and the list of " +
-    "characters who may speak next, then choose the single character who should speak next. Respond with " +
-    "ONLY that character's exact name from the list — no punctuation, no explanation.",
+    "You choose who speaks next in a group roleplay. The human players write their own lines. Choose the " +
+    "character the last message is addressed to, by name or by role (a question about the road goes to the " +
+    "guide), or else whoever would most naturally answer. Usually choose one. Choose several only when several " +
+    "are addressed directly or each has a strong, immediate reason to respond.",
   // packages/server/src/domain/chat/verbs/compaction.ts — COMPACTION_SYSTEM_PROMPT
   "chat.compaction.system":
     "You are a precise conversation summarizer. Produce a faithful, compact summary of the roleplay so far " +
@@ -559,6 +559,8 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "rpg.extract.tool.noChanges",
     "rpg.extract.systemHeader",
     "rpg.extract.toolRoundHeader",
+    "rpg.extract.structuredRoundFrame",
+    "rpg.extract.patchRoundFrame",
     "rpg.extract.reconcilePass",
     "rpg.extract.foldedReconcile",
     "rpg.extract.lockedPaths",

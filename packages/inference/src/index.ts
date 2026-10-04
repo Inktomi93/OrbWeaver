@@ -24,6 +24,7 @@ import { agentSdkModelSchema, connectionTasks, modelCatalogEntrySchema } from "@
 import type { UserIntent } from "@orb/contracts/preset";
 import type { UserId } from "@orb/kit/ids";
 import { z } from "zod";
+import { fetchAnthropicModels } from "./backends/anthropic-messages/index.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "./backends/kit/sanitize.ts";
 import type { LocalLightBackend } from "./backends/local-light/index.ts";
 import { tokenTargetOf } from "./backends/openai-compat/tokens.ts";
@@ -308,24 +309,28 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
     }
     const secrets = resolvedScrubSet({ credential: { secret }, transport: connection.transport });
     const modelInfoApi = modelInfoApiOf({ detectedServer }, provider, connection);
-    await endpointModels(baseUrl, modelInfoApi, endpointMirrorTenant(connection)).warm(
-      () =>
-        provider.wire === "google-generative-ai"
-          ? fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models" }, fetchImpl)
-          : fetchEndpointModels({
-              fetch: fetchImpl,
-              baseUrl,
-              secret,
-              headers: connection.transport?.headers,
-              secrets,
-              modelInfoApi,
-              probeModel: connection.model,
-              warn: (message) => {
-                deps.log.warn({ providerId: provider.id }, message);
-              },
-            }),
-      secrets,
-    );
+    // The Anthropic list needs its `anthropic-version` header, which only the provider's own lister sends.
+    const fetchRows = (): Promise<EndpointModel[]> => {
+      if (provider.wire === "google-generative-ai") {
+        return fetchGoogleModels({ baseUrl, secret, secrets, label: "Google models" }, fetchImpl);
+      }
+      if (provider.wire === "anthropic-messages") {
+        return fetchAnthropicModels({ baseUrl, secret, secrets, label: "Anthropic models" }, fetchImpl);
+      }
+      return fetchEndpointModels({
+        fetch: fetchImpl,
+        baseUrl,
+        secret,
+        headers: connection.transport?.headers,
+        secrets,
+        modelInfoApi,
+        probeModel: connection.model,
+        warn: (message) => {
+          deps.log.warn({ providerId: provider.id }, message);
+        },
+      });
+    };
+    await endpointModels(baseUrl, modelInfoApi, endpointMirrorTenant(connection)).warm(fetchRows, secrets);
   };
   // The daemon runs under the USER's token (`identity.credential`, re-read by id through the credentials door,
   // never hand-minted), and the warm's failure reason is scrubbed of that same token.

@@ -112,10 +112,12 @@ export const STRICT_JSON_MODES = ["default-on", "declared-only", "never"] as con
 /** How a generic effort level is spelled on this server's wire, if at all. */
 export const EFFORT_SPELLINGS = ["reasoning_effort", "none"] as const;
 
-/** How a turn with reasoning chosen off tells the server's chat template not to think. `chat_template_kwargs`
- *  = `{enable_thinking: false}` in the template kwargs (Qwen3-style templates on vLLM, llama.cpp and KoboldCpp
- *  under `--jinja`); `none` = no off switch beyond the effort field. */
-export const THINKING_OFF_SPELLINGS = ["chat_template_kwargs", "none"] as const;
+/** How a turn tells the server's chat template whether to think. `chat_template_kwargs` = `enable_thinking`
+ *  in the template kwargs, `false` on a reasoning-off turn and `true` on a reasoning-on one (Qwen3-style
+ *  templates on vLLM, llama.cpp and KoboldCpp under `--jinja`); `reasoning_effort` = the effort field is the
+ *  switch, so a turn the template must not think on sends `reasoning_effort: "none"` even with the preset unset
+ *  (Ollama, which reads it as `think: false`); `none` = no switch beyond the effort field. */
+export const THINKING_OFF_SPELLINGS = ["chat_template_kwargs", "reasoning_effort", "none"] as const;
 
 /** Which image-generation arm the server exposes: the images API (`imageModel(id)` against
  *  `/v1/images/generations` + `/edits`) or chat-with-image-output (`modalities: ["text","image"]`). */
@@ -175,7 +177,7 @@ export const endpointFeaturesSchema = z.object({
   bannedStrings: z.enum(BANNED_STRINGS_SPELLINGS).optional(),
   /** The tokenize endpoint behind word-keyed logit bias ({@link TOKENIZE_APIS}); absent ⇒ word keys cannot ride. */
   tokenizeApi: z.enum(TOKENIZE_APIS).optional(),
-  /** The template-level off switch a reasoning-off turn sends ({@link THINKING_OFF_SPELLINGS}); absent ⇒ none. */
+  /** The template-level thinking switch a turn sends, off or on ({@link THINKING_OFF_SPELLINGS}); absent ⇒ none. */
   thinkingOff: z.enum(THINKING_OFF_SPELLINGS).optional(),
   /** The body field a reasoning token budget rides under ({@link REASONING_BUDGET_FIELDS}). */
   reasoningBudgetField: z.enum(REASONING_BUDGET_FIELDS).optional(),

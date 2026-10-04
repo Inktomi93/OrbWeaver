@@ -556,19 +556,19 @@ test("SIDE_GEN_POSTURES: every kind carries today's exact floor values (byte-ide
   // gets exactly these values. Caption's EMPTY posture is the honest encoding of a call
   // that historically passed nothing.
   expect(SIDE_GEN_POSTURES.quiet_generate).toEqual({ temperature: 0.3, maxOutputTokens: 1024 });
-  expect(SIDE_GEN_POSTURES.extract_quiet).toEqual({ temperature: 0.4, maxOutputTokens: 320 });
+  expect(SIDE_GEN_POSTURES.extract_quiet).toEqual({ temperature: 0.4, maxOutputTokens: 320, effort: "none" });
   expect(SIDE_GEN_POSTURES.compaction).toEqual({ temperature: 0.3 });
-  expect(SIDE_GEN_POSTURES.distill).toEqual({ temperature: 0.2, maxOutputTokens: 512 });
-  expect(SIDE_GEN_POSTURES.analyze).toEqual({ temperature: 0.3, maxOutputTokens: 400 });
+  expect(SIDE_GEN_POSTURES.distill).toEqual({ temperature: 0.2, maxOutputTokens: 512, effort: "none" });
+  expect(SIDE_GEN_POSTURES.analyze).toEqual({ temperature: 0.3, maxOutputTokens: 400, effort: "none" });
   expect(SIDE_GEN_POSTURES.greeting_studio).toEqual({ temperature: 0.3, maxOutputTokens: 1024 });
-  expect(SIDE_GEN_POSTURES.autobg).toEqual({ temperature: 0.2, maxOutputTokens: 32 });
+  expect(SIDE_GEN_POSTURES.autobg).toEqual({ temperature: 0.2, maxOutputTokens: 32, effort: "none" });
   expect(SIDE_GEN_POSTURES.rule_analysis).toEqual({ temperature: 0.3, maxOutputTokens: 1024 });
-  expect(SIDE_GEN_POSTURES.caption).toEqual({ temperature: 0.2, maxOutputTokens: 512 });
-  expect(SIDE_GEN_POSTURES.theme_name).toEqual({ temperature: 0.3, maxOutputTokens: 24 });
+  expect(SIDE_GEN_POSTURES.caption).toEqual({ temperature: 0.2, maxOutputTokens: 512, effort: "none" });
+  expect(SIDE_GEN_POSTURES.theme_name).toEqual({ temperature: 0.3, maxOutputTokens: 24, effort: "none" });
 });
 
-test("the arbiter posture leaves room for one name plus a margin, so a verbose model does not return empty (#492)", () => {
-  expect(SIDE_GEN_POSTURES.arbiter).toEqual({ temperature: 0.2, maxOutputTokens: 128 });
+test("the arbiter posture leaves room for one name plus a margin and switches thinking off, so no model returns empty (#492)", () => {
+  expect(SIDE_GEN_POSTURES.arbiter).toEqual({ temperature: 0.2, maxOutputTokens: 128, effort: "none" });
 });
 
 test("greeting_rewrite default carries the {{base}} token; greeting_new does not (audit §3)", () => {

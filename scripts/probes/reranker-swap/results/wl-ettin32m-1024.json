@@ -1,0 +1,70 @@
+{
+  "label": "wl-ettin32m-1024",
+  "batch": 8,
+  "model": "cross-encoder/ettin-reranker-32m-v1",
+  "threads": 4,
+  "loadMs": 593,
+  "rss": {
+    "baselineMib": 104,
+    "afterLoadMib": 257,
+    "peakMib": 547,
+    "peakOverBaselineMib": 443
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 9.314197540283203,
+      "irrelevant": -3.2547335624694824,
+      "ok": true,
+      "docTokens": 33
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": 3.6358089447021484,
+      "irrelevant": -1.281111240386963,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": 5.4772796630859375,
+      "irrelevant": 4.635685920715332,
+      "ok": true,
+      "docTokens": 1221
+    }
+  ],
+  "golden": [6.927842617034912, 10.635523796081543, 8.336706161499023, 9.401516914367676],
+  "window": 1024,
+  "workloads": [
+    {
+      "name": "smart-4x500",
+      "docs": 4,
+      "queryTokens": 60,
+      "docTokens": 500,
+      "msPerTurnMedian": 818
+    },
+    {
+      "name": "smart-6x1500",
+      "docs": 6,
+      "queryTokens": 60,
+      "docTokens": 960,
+      "msPerTurnMedian": 2157
+    },
+    {
+      "name": "recall-8x400",
+      "docs": 8,
+      "queryTokens": 400,
+      "docTokens": 400,
+      "msPerTurnMedian": 1624
+    },
+    {
+      "name": "recall-8x1024",
+      "docs": 8,
+      "queryTokens": 512,
+      "docTokens": 508,
+      "msPerTurnMedian": 1997
+    }
+  ],
+  "latency": [],
+  "heapMib": 74
+}

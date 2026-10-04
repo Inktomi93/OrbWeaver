@@ -240,7 +240,7 @@ project's network (`docker network inspect orbweaver_default`), or `127.0.0.1/32
   layout on the first boot, in place, and the log says what moved; a boot that cannot move an entry (a
   mount at its new place) refuses and names the entry and its way out, such as `DATA_LAYOUT_SKIP`.
 - The built-in CPU model tier keeps its weights in `cache/models/transformers/` in the same volume: ~3.5 GB
-  embedder, ~92 MB reranker, ~176 MB background-removal. They download in the background shortly after the
+  embedder, ~37 MB reranker (ettin-reranker-32m, quantized), ~176 MB background-removal. They download in the background shortly after the
   server starts answering, smallest first, and only for the jobs this box actually serves on the CPU tier;
   `LOCAL_LIGHT_PREFETCH=off` leaves them to download on first use instead, and `LOCAL_LIGHT_CACHE_DIR`
   moves the directory elsewhere. It must stay writable — the rest of the image is read-only, which is why

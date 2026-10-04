@@ -50,6 +50,7 @@ export {
   bindRefusal,
   CHAT_ROLE_DOOR,
   CONNECTION_ROLE_LABELS,
+  CONNECTIONS_LIST_ADDRESS,
   connectionHost,
   connectionSummary,
   labelNamesModel,

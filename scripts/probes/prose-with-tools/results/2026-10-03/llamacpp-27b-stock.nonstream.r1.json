@@ -1,0 +1,285 @@
+{
+  "summary": {
+    "cell": "llamacpp-27b-stock",
+    "server": "llama-cpp",
+    "model": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+    "template": "stock",
+    "mode": "nonstream",
+    "body": {
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      }
+    },
+    "strict": false,
+    "turns": 10,
+    "both": 7,
+    "proseOnly": 3,
+    "toolsOnly": 0,
+    "empty": 0,
+    "errors": 0,
+    "leaks": 0,
+    "maxPromptTokens": 4732,
+    "medianTokPerSec": 30.65,
+    "medianServerTokPerSec": 34.1,
+    "ranAt": "2026-10-03T16:42:53.584Z"
+  },
+  "rows": [
+    {
+      "turn": 1,
+      "shape": "both",
+      "proseChars": 1388,
+      "calls": ["update_scene", "set_tracker"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 23351,
+      "decodeMs": null,
+      "promptTokens": 3740,
+      "completionTokens": 752,
+      "tokPerSec": 32.2,
+      "serverTokPerSec": 34.2,
+      "content": "The door sighs shut behind you, cutting the rain in half. The Drowned Lantern is a cellar bar wedged into the harbor district's bones — low ceilings, the smell of tar and old beer, and a slow drip from a loose pipe somewhere overhead. The room is thin tonight: two sailors nursing mugs, a woman with ink-stained fingers reading a broadsheet, and a one-eyed man at the corner table nursing a bowl of stew.\n\nMarro is not at her usual table by the hearth.\n\nThe barkeep, a broad-shouldered woman named Tess, eyes the sealed satchel on your shoulder and doesn't ask questions — she just slides a tankard of dark stout across the wet bar. \"Fence's gone early tonight,\" she says, wiping a mug with a rag that's seen better centuries. \"Said word would come at the tide. Something's moving in the harbor — too much for her to be loose and talk. She'll be back when the water turns.\" She leans in, lowering her voice a fraction. \"And Rook? You're not the only one looking for her tonight. That man in the corner — he's been asking about the courier with the sealed bag. I've been telling him I don't know you.\"\n\nThe one-eyed man hasn't looked up from his stew. He stirs it with deliberate, slow circles.\n\n:::choices\n1. Wait for the tide — sit, drink, and let Marro come to you.\n2. Slip out the back way and watch the harbor for her yourself.\n3. Talk to the corner man before he finds you first.\n:::\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\":\"evening\",\"presentUpsert\":[{\"name\": \"Rook\", \"mood\": \"wet and watchful\", \"outfit\": \"soaked cloak, sealed courier satchel on shoulder\", \"thoughts\": \"Marro is late, and someone else is hunting for her — and for the bag\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"\"}}, {\"name\": \"Tess\", \"emoji\": \"🍺\", \"mood\": \"tight-lipped, protective\", \"appearance\": \"broad-shouldered barkeep\", \"outfit\": \"stained apron over a rolled-sleeve shirt\", \"thoughts\": \"Keeping a quiet secret for the courier, eyeing the stranger\", \"relationship\": {\"kind\": \"ally\", \"label\": \"tavern keeper\"}}, {\"name\": \"One-Eyed Man\", \"emoji\": \"👁️\", \"mood\": \"still, deliberate\", \"appearance\": \"one missing eye, scarred\", \"outfit\": \"dark oilskin coat, collar up\", \"thoughts\": \"Patient; has been asking about the courier with the sealed bag\", \"relationship\": {\"kind\": \"enemy\", \"label\": \"unknown watcher\"}}],\"location\":\"the Drowned Lantern, Saltmere\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"recentEvent\":\"Rook arrived at the Drowned Lantern seeking the fence Marro; she's gone, and a one-eyed stranger is watching for him\"}"
+        },
+        {
+          "name": "set_tracker",
+          "arguments": "{\"key\":\"heat\",\"value\":20}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "shape": "both",
+      "proseChars": 779,
+      "calls": ["update_scene", "add_journal_entry", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 23170,
+      "decodeMs": null,
+      "promptTokens": 3898,
+      "completionTokens": 725,
+      "tokPerSec": 31.3,
+      "serverTokPerSec": 34.2,
+      "content": "The booth you slide into is empty. Marro's chair is still warm, his cup of small beer half-finished on the table, but the ink-stained man who greeted you is gone from the room.\n\nYou're not alone. In the corner booth, a one-eyed man in a salt-stiffened coat has been watching the door since you pushed it open. He watches you now. He slides a folded slip of paper across the table. You don't move. He doesn't. The rain hammers the window glass between you.\n\nThe slip bears a single line in Marro's cramped hand: *I was taken. Bring the satchel to the Salt Gate at the last bell. Come alone or it stays. — M.*\n\nThe city watch is on a short leash tonight. You feel the weight of it in the way the two soldiers at the bar keep their hands near their belts and their eyes on the door.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"The Drowned Lantern, Saltmere\",\"timeOfDay\":\"evening\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"presentUpsert\":[{\"name\": \"Tess\", \"emoji\": \"🕯️\", \"mood\": \"unseen — left before Rook arrived\", \"appearance\": \"—\", \"outfit\": \"—\", \"thoughts\": \"—\", \"relationship\": {\"kind\": \"ally\", \"label\": \"—\"}}, {\"name\": \"One-Eyed Man\", \"emoji\": \"🧥\", \"mood\": \"wary, watchful\", \"appearance\": \"salt-stiffened coat, one eye, watchful\", \"outfit\": \"salt-stiffened coat\", \"thoughts\": \"waiting for the satchel to move\", \"relationship\": {\"kind\": \"enemy\", \"label\": \"Marro's man? Or the watch's?\"}}],\"recentEvent\":\"Rook found Marro's booth empty; a one-eyed stranger left a note: bring the satchel to the Salt Gate at the last bell, alone.\"}"
+        },
+        {
+          "name": "add_journal_entry",
+          "arguments": "{\"type\":\"event\",\"content\":\"Marro is missing. A note from him, left by a one-eyed man in a corner booth, orders Rook to bring the sealed satchel to the Salt Gate at the last bell, alone. The city watch has two soldiers in the taproom, eyes on the door.\",\"title\":\"Marro's Note\"}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"create\",\"description\":\"Marro, the fence, has been taken. He left a note: bring the sealed courier satchel to the Salt Gate at the last bell, come alone or it stays.\",\"objectives\":[\"Reach the Salt Gate at the last bell\", \"Deliver the sealed satchel to Marro (or whoever is waiting)\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "shape": "both",
+      "proseChars": 434,
+      "calls": ["update_scene", "upsert_quest", "update_inventory"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 15495,
+      "decodeMs": null,
+      "promptTokens": 4060,
+      "completionTokens": 490,
+      "tokPerSec": 31.6,
+      "serverTokPerSec": 33.9,
+      "content": "There's a problem. Marro isn't here. His booth is empty, the chair still warm, a cold cup of ale gone flat in the rain. A note is pinned to the back of it — rough ink, hurried:\n\n*Bring the satchel to the Salt Gate at the last bell. Come alone or it stays. — M.*\n\nThe room shifts around you. In the corner, a one-eyed man in a long coat has been sitting where you can see him for a while now. He watches you read the note, then stands.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"presentUpsert\":[{\"name\": \"Marro\", \"mood\": \"gone\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"fence\"}}, {\"name\": \"One-Eyed Stranger\", \"emoji\": \"👁️\", \"mood\": \"watchful\", \"appearance\": \"tall, long coat, missing left eye, thin scarred face\", \"outfit\": \"long dark coat, wet\", \"thoughts\": \"waiting for the courier to move\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"watching Rook\"}}],\"recentEvent\":\"Marro's booth empty; one-eyed stranger left a note: bring the satchel to the Salt Gate at the last bell, alone.\"}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"create\",\"description\":\"Marro, the fence, has been taken. He left a note: bring the sealed courier satchel to the Salt Gate at the last bell, come alone or it stays.\",\"objectives\":[\"Reach the Salt Gate at the last bell\", \"Deliver the sealed satchel to Marro (or whoever is waiting)\"]}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"walletDeltas\":[{\"name\": \"gold\", \"delta\": 40}]}"
+        }
+      ]
+    },
+    {
+      "turn": 4,
+      "shape": "both",
+      "proseChars": 459,
+      "calls": ["update_scene", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 14155,
+      "decodeMs": null,
+      "promptTokens": 4167,
+      "completionTokens": 446,
+      "tokPerSec": 31.5,
+      "serverTokPerSec": 34.2,
+      "content": "Wait — that's not what happened. Marro's booth was empty.\n\nYou're already halfway down Rat Alley, boots slapping wet stone, when the rain hisses against a window above the chandlery. A one-eyed face watches you from the dark. No words. Just that eye, tracking you.\n\nThen a scrap of parchment, slid under the alley's archway — you pick it up as you pass:\n\n*The satchel goes to the Salt Gate. Last bell. Come alone or it stays.*\n\nThe handwriting is not Marro's.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"Rat Alley, behind the chandlery\",\"timeOfDay\":\"evening\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"presentUpsert\":[{\"name\": \"One-Eyed Stranger\", \"mood\": \"watchful\", \"appearance\": \"one eye, face in shadow\", \"thoughts\": \"waiting, tracking Rook\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"unknown\"}}],\"recentEvent\":\"Rook heads to Rat Alley for the ledger job; a one-eyed stranger watches from above, and a note appears — the satchel goes to the Salt Gate at the last bell, alone.\"}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"description\":\"Marro, the fence, has been taken. He left a note: bring the sealed courier satchel to the Salt Gate at the last bell, come alone or it stays.\",\"objectives\":[\"Reach the Salt Gate at the last bell\", \"Deliver the sealed satchel to Marro (or whoever is waiting)\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 5,
+      "shape": "prose-only",
+      "proseChars": 278,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 3422,
+      "decodeMs": null,
+      "promptTokens": 4283,
+      "completionTokens": 75,
+      "tokPerSec": 21.9,
+      "serverTokPerSec": 33.5,
+      "content": "The cudgel cracks across your ribs and you're on your knees in the runoff. Gessa looms, one blind eye milky, the other fixed on your sword. She swings again — you roll, come up, and the flat of your shortsword kisses her wrist. She hisses.\n\n\"Ledger,\" she growls. \"Or a beating.\"",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 6,
+      "shape": "both",
+      "proseChars": 304,
+      "calls": ["update_party", "update_inventory", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 10559,
+      "decodeMs": null,
+      "promptTokens": 4338,
+      "completionTokens": 321,
+      "tokPerSec": 30.4,
+      "serverTokPerSec": 33.9,
+      "content": "Gessa's leg buckles, a hot line of blood darkening the rain-slick stone. She goes down hard, clutching the cut, and the ledger clatters into the gutter. You're breathing hard, the rib where her cudgel landed aching with every breath.\n\nThe one-eyed stranger is still up there on the fire escape, watching.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -2}],\"addCondition\":{\"name\": \"Rib bruise\", \"modifier\": -1},\"status\":\"winded, rib aching from Gessa's cudgel\"}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"add\":[{\"name\": \"Harbormaster's Ledger\", \"description\": \"leather-bound, stolen last night, still damp with rain\", \"quantity\": 1, \"location\": \"in hand\"}]}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"completeObjectives\":[\"Retrieve the ledger from Gessa\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 7,
+      "shape": "both",
+      "proseChars": 272,
+      "calls": ["update_party", "update_inventory", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 16426,
+      "decodeMs": null,
+      "promptTokens": 4510,
+      "completionTokens": 375,
+      "tokPerSec": 22.8,
+      "serverTokPerSec": 34.1,
+      "content": "The linen bites against the bruise but holds. You tuck the ledger deep in your pack, where it squats against your hip, damp and heavy.\n\nRain hammers the alley. Above, a window glows — the one-eyed figure has not moved.\n\nYou're behind schedule. The Salt Gate bell is close.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -2}],\"addCondition\":{\"name\": \"Rib bruise\"},\"status\":\"winded, rib aching from Gessa's cudgel\"}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"add\":[{\"name\": \"Harbormaster's Ledger\", \"description\": \"leather-bound, stolen last night, still damp with rain\", \"quantity\": 1, \"location\": \"pack\"}]}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"description\":\"Marro, the fence, has been taken. He left a note: bring the sealed courier satchel to the Salt Gate at the last bell, come alone or it stays.\",\"objectives\":[\"Reach the Salt Gate at the last bell\", \"Deliver the sealed satchel to Marro (or whoever is waiting)\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 8,
+      "shape": "both",
+      "proseChars": 361,
+      "calls": ["update_scene", "update_party", "set_tracker", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 11957,
+      "decodeMs": null,
+      "promptTokens": 4583,
+      "completionTokens": 369,
+      "tokPerSec": 30.9,
+      "serverTokPerSec": 34.1,
+      "content": "The fish market is a maze of splintered stalls and gutted carcasses. You duck beneath a canvas flap and come out the far side with your breath ragged and your ribs screaming. The Salt Gate is ahead, its arch lit by a single lantern.\n\nThe midnight bells are still echoing when you reach it. Under the arch, a one-eyed figure in a long coat stands alone, waiting.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\":\"night\",\"location\":\"Salt Gate, harbor entrance\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"recentEvent\":\"Rook flees Rat Alley through the fish market as the midnight bells ring; a one-eyed stranger waits under the Salt Gate.\"}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"Rook\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -2}],\"status\":\"winded, rib aching, ribs bound with linen\"}"
+        },
+        {
+          "name": "set_tracker",
+          "arguments": "{\"key\":\"heat\",\"value\":30}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"completeObjectives\":[\"Reach the Salt Gate at the last bell\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 9,
+      "shape": "prose-only",
+      "proseChars": 216,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2693,
+      "decodeMs": null,
+      "promptTokens": 4720,
+      "completionTokens": 49,
+      "tokPerSec": 18.2,
+      "serverTokPerSec": 33.9,
+      "content": "The harbormaster takes the ledger without looking, his face a mask of relief and suspicion. 'You're late.' He presses a small brass key into your palm. 'Vault under the crane house. Take it before the watch returns.'",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 10,
+      "shape": "prose-only",
+      "proseChars": 588,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 5361,
+      "decodeMs": null,
+      "promptTokens": 4732,
+      "completionTokens": 144,
+      "tokPerSec": 26.9,
+      "serverTokPerSec": 34.2,
+      "content": "The rain is still falling, steady and cold. Your ribs ache with every step. You follow the cobbled road back toward the Drowned Lantern.\n\nBut the booth is empty. Marro's chair sits alone in the back corner, a folded note resting where he would have been sitting.\n\nYou unfold the paper. A single line in scratchy ink:\n\n*\"Satchel to the Salt Gate. Last bell. Come alone or it stays.\"*\n\nYour blood turns to ice. The last bell will ring in less than an hour. And you already know—because you saw him, a shadow under the harbor arch who didn't blink at the rain—whoever is waiting isn't Marro.",
+      "reasoning": "",
+      "rawCalls": []
+    }
+  ]
+}

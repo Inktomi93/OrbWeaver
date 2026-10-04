@@ -1,4 +1,4 @@
-import { clampToTokenBudget, estimateTokens, safeTokenWindow, splitToTokenBudget } from "@orb/kit/tokens";
+import { clampToTokenBudget, estimateTokens, safeTokenWindow, splitToTokenBudget, TOKEN_HEADROOM_SLACK_CAP, TOKENIZER_HEADROOM_FACTOR } from "@orb/kit/tokens";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("empty string is zero tokens", () => {
@@ -93,6 +93,21 @@ test("safeTokenWindow discounts a hard model window by the measured headroom fac
   expect(safeTokenWindow(8192)).toBeLessThan(8192);
   // The worst measured estimate→engine ratio was 1.4156; the discounted window must survive it.
   expect(safeTokenWindow(8192) * 1.4156).toBeLessThanOrEqual(8192);
+});
+
+// The slack is proportional on a small window and capped on a large one, so a 200k window keeps ~96%.
+test("safeTokenWindow caps the slack on a large window at TOKEN_HEADROOM_SLACK_CAP", () => {
+  expect(TOKEN_HEADROOM_SLACK_CAP).toBe(8192);
+  expect(safeTokenWindow(200_000)).toBe(200_000 - TOKEN_HEADROOM_SLACK_CAP);
+  expect(safeTokenWindow(4096)).toBe(Math.floor(4096 * TOKENIZER_HEADROOM_FACTOR));
+});
+
+test("the crossover is exact: the last proportional window and the first capped one", () => {
+  // 27306 × 0.3 rounds to the cap exactly; one token more and the proportional slack would pass it.
+  expect(safeTokenWindow(27_306)).toBe(Math.floor(27_306 * TOKENIZER_HEADROOM_FACTOR));
+  expect(safeTokenWindow(27_306)).toBe(27_306 - TOKEN_HEADROOM_SLACK_CAP);
+  expect(Math.floor(27_307 * TOKENIZER_HEADROOM_FACTOR)).toBe(27_307 - TOKEN_HEADROOM_SLACK_CAP - 1);
+  expect(safeTokenWindow(27_307)).toBe(27_307 - TOKEN_HEADROOM_SLACK_CAP);
 });
 
 test("safeTokenWindow is monotonic and never negative", () => {
