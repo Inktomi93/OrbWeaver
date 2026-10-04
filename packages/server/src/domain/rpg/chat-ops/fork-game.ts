@@ -61,7 +61,7 @@
 //     strip for a non-host viewer, so this is no longer defense-in-depth over bytes the same human had already
 //     read in the panel — the two sides agree by construction. Same `stripHiddenSpans` as
 //     `verbs/fork.ts::copyVariantStmt`.
-// The remaining host-only config fields are SCALARS and COPY (`extractionContext`/`extractionWindowTokens`/
+// The remaining host-only config fields are SCALARS and COPY (`stateCaptureVehicle`/`extractionContext`/`extractionWindowTokens`/
 // `reconcileEveryBeats`/`deception`/`omniscience`/`hiddenContentReveal`/`recentBeatsKeepLast`/
 // `immersiveHtmlInteractive`/`cardKeepLastX`): no authored prose is representable in an enum or a bounded
 // number, and blanking them would silently re-tune the fork's own game for zero secrecy gain (the
@@ -114,6 +114,7 @@ function stripConfigForForker(config: RpgGameConfig, readsHidden: boolean): RpgG
     statProfile: config.statProfile,
     trackers: config.trackers,
     extractionMode: config.extractionMode,
+    stateCaptureVehicle: config.stateCaptureVehicle,
     extractionContext: config.extractionContext,
     extractionWindowTokens: config.extractionWindowTokens,
     reconcileEveryBeats: config.reconcileEveryBeats,

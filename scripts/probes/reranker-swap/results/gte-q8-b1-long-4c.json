@@ -1,0 +1,55 @@
+{
+  "label": "gte-q8-b1-long-4c",
+  "batch": 1,
+  "model": "Alibaba-NLP/gte-reranker-modernbert-base",
+  "threads": 4,
+  "loadMs": 597,
+  "rss": {
+    "baselineMib": 104,
+    "afterLoadMib": 477,
+    "peakMib": 11609,
+    "peakOverBaselineMib": 11505
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 3.231485605239868,
+      "irrelevant": -0.8593299984931946,
+      "ok": true,
+      "docTokens": 33
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": 1.7483289241790771,
+      "irrelevant": 1.5684298276901245,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": 2.413276195526123,
+      "irrelevant": 1.1703619956970215,
+      "ok": true,
+      "docTokens": 1221
+    }
+  ],
+  "latency": [
+    {
+      "pairTokens": 4096,
+      "msPerPairMedian": 18428,
+      "after": {
+        "rssMib": 3128,
+        "hwmMib": 3132
+      }
+    },
+    {
+      "pairTokens": 8192,
+      "msPerPairMedian": 74387,
+      "after": {
+        "rssMib": 11528,
+        "hwmMib": 11609
+      }
+    }
+  ],
+  "heapMib": 51
+}

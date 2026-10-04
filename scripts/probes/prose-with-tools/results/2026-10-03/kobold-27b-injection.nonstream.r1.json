@@ -1,0 +1,245 @@
+{
+  "summary": {
+    "cell": "kobold-27b-injection",
+    "server": "koboldcpp",
+    "model": "koboldcpp/Qwen3.8-27B-UD-Q4_K_M",
+    "template": "served-plus-kobold-tool-injection",
+    "mode": "nonstream",
+    "rep": 1,
+    "body": {},
+    "strict": false,
+    "turns": 10,
+    "both": 0,
+    "proseOnly": 0,
+    "toolsOnly": 10,
+    "empty": 0,
+    "errors": 0,
+    "leaks": 0,
+    "maxPromptTokens": 4119,
+    "medianTokPerSec": 13.1,
+    "medianServerTokPerSec": null,
+    "ranAt": "2026-10-03T17:09:37.035Z"
+  },
+  "rows": [
+    {
+      "turn": 1,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 14811,
+      "decodeMs": null,
+      "promptTokens": 3313,
+      "completionTokens": 208,
+      "tokPerSec": 14,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\": \"evening\", \"presentUpsert\": [{\"name\": \"Marro\", \"emoji\": \"\\ud83d\\udd6f\\ufe0f\", \"mood\": \"wary\", \"appearance\": \"lean, scarred, dark-skinned\", \"outfit\": \"tattered green coat, brass ring on thumb\", \"thoughts\": \"checking who's watching the door before he talks\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"fence\"}}], \"recentEvent\": \"Rook entered the Drowned Lantern looking for Marro\"}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 17417,
+      "decodeMs": null,
+      "promptTokens": 3403,
+      "completionTokens": 246,
+      "tokPerSec": 14.1,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"day\": 1, \"timeOfDay\": \"evening\", \"weather\": {\"type\": \"rain\", \"label\": \"steady rain\"}, \"presentUpsert\": [{\"name\": \"Marro\", \"emoji\": \"\\ud83d\\udd8b\\ufe0f\", \"mood\": \"calculating\", \"appearance\": \"thin, ink-stained fingers\", \"outfit\": \"worn dark coat\", \"thoughts\": \"weighing whether the satchel is worth the risk\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"fence\"}}], \"recentEvent\": \"Rook slid into the booth and placed the sealed satchel on the table, offering forty gold\"}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_inventory"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 15630,
+      "decodeMs": null,
+      "promptTokens": 3307,
+      "completionTokens": 195,
+      "tokPerSec": 12.5,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\": \"player\", \"add\": [{\"name\": \"Purse of Forty Gold\", \"description\": \"small leather purse, forty gold coins from Marro\", \"quantity\": 1, \"location\": \"belt pouch\"}], \"remove\": [{\"name\": \"Sealed Courier Satchel\", \"quantity\": 1}], \"walletDeltas\": [{\"name\": \"gold\", \"delta\": 40}]}"
+        }
+      ]
+    },
+    {
+      "turn": 4,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 12572,
+      "decodeMs": null,
+      "promptTokens": 3594,
+      "completionTokens": 160,
+      "tokPerSec": 12.7,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\": \"Rat Alley, behind the chandlery, Saltmere\", \"timeOfDay\": \"night\", \"weather\": {\"type\": \"rain\", \"label\": \"steady rain\"}, \"presentUpsert\": [{\"name\": \"Rook\", \"mood\": \"watchful\", \"thoughts\": \"keeping to the shadows, waiting for Gessa\"}], \"recentEvent\": \"Rook made his way through the rain to Rat Alley behind the chandlery\"}"
+        }
+      ]
+    },
+    {
+      "turn": 5,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_party"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 12381,
+      "decodeMs": null,
+      "promptTokens": 3341,
+      "completionTokens": 138,
+      "tokPerSec": 11.1,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\": \"Rook\", \"trackerDeltas\": [{\"key\": \"stamina\", \"delta\": -3}], \"addCondition\": {\"name\": \"Bruised\", \"modifier\": -1}, \"status\": \"bruised, breathing hard\"}"
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_party"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 10965,
+      "decodeMs": null,
+      "promptTokens": 3429,
+      "completionTokens": 119,
+      "tokPerSec": 10.9,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\": \"player\", \"trackerDeltas\": [{\"key\": \"stamina\", \"delta\": -1}], \"status\": \"bruised, breathing hard, bleeding from a cut on the thigh\"}"
+        }
+      ]
+    },
+    {
+      "turn": 7,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_inventory"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 13804,
+      "decodeMs": null,
+      "promptTokens": 3673,
+      "completionTokens": 173,
+      "tokPerSec": 12.5,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\": \"player\", \"add\": [{\"name\": \"Harbormaster's Ledger\", \"description\": \"leather-bound ledger with a brass clasp, stolen from the harbormaster, taken from Gessa's coat\", \"quantity\": 1, \"location\": \"pack\"}], \"remove\": [{\"name\": \"Linen Strips\", \"quantity\": 1}]}"
+        }
+      ]
+    },
+    {
+      "turn": 8,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 15393,
+      "decodeMs": null,
+      "promptTokens": 3924,
+      "completionTokens": 208,
+      "tokPerSec": 13.5,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\": \"Fish market, Saltmere harbor\", \"timeOfDay\": \"midnight\", \"weather\": {\"type\": \"rain\", \"label\": \"steady rain\"}, \"recentEvent\": \"Rook fled Rat Alley through the fish market as the watch bells rang midnight\", \"plot\": {\"act\": 1, \"title\": \"The Harbormaster's Ledger\", \"actTitle\": \"The Harbormaster's Ledger\", \"actSummary\": \"Rook recovered the stolen ledger from Gessa in Rat Alley and is now fleeing to the harbor as the city watch closes in.\"}}"
+        }
+      ]
+    },
+    {
+      "turn": 9,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 19637,
+      "decodeMs": null,
+      "promptTokens": 4017,
+      "completionTokens": 311,
+      "tokPerSec": 15.8,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\": \"Harbormaster's Tower, Saltmere harbor\", \"timeOfDay\": \"midnight\", \"weather\": {\"type\": \"rain\", \"label\": \"steady rain\"}, \"presentUpsert\": [{\"name\": \"Harbormaster\", \"emoji\": \"\\u2693\", \"mood\": \"relieved\", \"appearance\": \"broad, weathered, silver-streaked beard\", \"outfit\": \"dark wool coat, brass buttons\", \"thoughts\": \"glad the ledger is back before the watch finds it\", \"relationship\": {\"kind\": \"neutral\"}}], \"recentEvent\": \"Rook climbed the tower stairs and handed the ledger to the harbormaster\", \"plot\": {\"act\": 1, \"title\": \"The Harbormaster's Ledger\", \"actSummary\": \"Rook recovered the stolen ledger from Gessa in Rat Alley and fled to the harbor as the city watch closed in.\"}}"
+        }
+      ]
+    },
+    {
+      "turn": 10,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 21721,
+      "decodeMs": null,
+      "promptTokens": 4119,
+      "completionTokens": 303,
+      "tokPerSec": 13.9,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\": \"Drowned Lantern, Saltmere\", \"timeOfDay\": \"midnight\", \"weather\": {\"type\": \"rain\", \"label\": \"steady rain\"}, \"presentUpsert\": [{\"name\": \"Marro\", \"emoji\": \"\\ud83d\\udd6f\\ufe0f\", \"mood\": \"expectant\", \"appearance\": \"thin, ink-stained fingers\", \"outfit\": \"worn coat\", \"thoughts\": \"waiting to see if the courier came through\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"fence\"}}], \"recentEvent\": \"Rook returned to the Drowned Lantern to collect from Marro\", \"plot\": {\"act\": 1, \"title\": \"The Harbormaster's Ledger\", \"actSummary\": \"Rook recovered the stolen ledger from Gessa in Rat Alley and returned it to Harbormaster Ilse before dawn.\"}}"
+        }
+      ]
+    }
+  ]
+}

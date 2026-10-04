@@ -46,7 +46,8 @@ export interface Resolved<T extends Task = Task> extends ResolvedConnectionView 
   readonly baseUrl: string | null;
   /** `wire default ← provider row ← connection.declared.features`, folded once at resolve. */
   readonly features: EndpointFeatures;
-  /** The connection's extra BODY fields (merged last behind the belt, MODELLED WINS — D143(b)/D156). */
+  /** The connection's extra BODY fields. On the openai-compatible transport every key but a belt-owned one
+   *  merges over the computed body (the user's body wins); the hosted wires read their allowlisted keys. */
   readonly extras: Readonly<Record<string, JsonValue>> | null;
   readonly transport: ConnectionTransport | null;
   readonly allowBackground: boolean;

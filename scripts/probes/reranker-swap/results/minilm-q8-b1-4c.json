@@ -1,0 +1,48 @@
+{
+  "label": "minilm-q8-b1-4c",
+  "batch": 1,
+  "model": "Xenova/ms-marco-MiniLM-L-6-v2",
+  "threads": 4,
+  "loadMs": 466,
+  "rss": {
+    "baselineMib": 104,
+    "afterLoadMib": 203,
+    "peakMib": 297,
+    "peakOverBaselineMib": 193
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 8.770368576049805,
+      "irrelevant": -11.115623474121094,
+      "ok": true,
+      "docTokens": 35
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": -9.565007209777832,
+      "irrelevant": -10.967143058776855,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": -11.242992401123047,
+      "irrelevant": -11.242992401123047,
+      "ok": false,
+      "docTokens": 1231
+    }
+  ],
+  "golden": [-6.8560872077941895, 9.695063591003418, 6.821194171905518, 6.6791205406188965],
+  "latency": [
+    {
+      "pairTokens": 512,
+      "msPerPairMedian": 117,
+      "after": {
+        "rssMib": 297,
+        "hwmMib": 297
+      }
+    }
+  ],
+  "heapMib": 43
+}

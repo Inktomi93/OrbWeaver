@@ -33,6 +33,8 @@ export interface PickerEntry {
   readonly promptPrice: number | null;
   readonly inputModalities: readonly string[];
   readonly supportedParameters: readonly string[];
+  /** When to pick this model over its neighbours, where the catalog says. */
+  readonly description: string | null;
 }
 
 /** A catalog row's display name. Most `/v1/models` lists carry no name, so theirs is the id.
@@ -51,6 +53,7 @@ export function pickerEntryOf(entry: ModelCatalogEntry): PickerEntry {
     promptPrice: entry.promptPrice,
     inputModalities: entry.inputModalities,
     supportedParameters: entry.supportedParameters,
+    description: entry.description ?? null,
   };
 }
 

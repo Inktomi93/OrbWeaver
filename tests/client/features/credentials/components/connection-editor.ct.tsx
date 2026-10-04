@@ -296,6 +296,52 @@ test("a listed catalog shows the searchable list with the saved model picked, an
     .toEqual({ connectionId: CONNECTION_ID, patch: { model: "Qwen/Qwen3-8B", modelCheck: "listed" } });
 });
 
+// The row's list is the provider's whole catalog (the add-model dialog needs every kind); this picker changes the
+// row's own model, and a model of another kind would break the role the row is bound to.
+test("the editor's picker offers only models of the row's kind", async ({ mount, page }) => {
+  const reranker = "cross-encoder/ettin-reranker-32m-v1";
+  const encoder = "jinaai/jina-clip-v2";
+  const kindless = "orb-test/kindless-model";
+  await stubEditor(page, {
+    connection: connectionRow({ label: "Built-in reranker", providerId: "local-light", providerLabel: "Built-in", model: reranker, tasks: ["rerank"] }),
+    providers: ALL_AVAILABLE,
+    catalogModels: catalogOf([
+      { ...catalogEntry(reranker), kind: "rerank" },
+      { ...catalogEntry("Xenova/ms-marco-MiniLM-L-6-v2"), kind: "rerank" },
+      { ...catalogEntry(encoder), kind: "embedding" },
+      catalogEntry(kindless),
+    ]),
+  });
+  const component = await mount(<ConnectionEditorStory />);
+
+  await expect(component.getByRole("option", { name: /ms-marco-MiniLM/u })).toBeVisible();
+  await expect(component.getByRole("option", { name: new RegExp(kindless, "u") })).toBeVisible();
+  await expect(component.getByRole("option", { name: new RegExp(encoder, "u") })).toHaveCount(0);
+});
+
+// An Ollama embedder nothing curated names reads as the "generation" fallback, while Ollama's own list states it is
+// an embedder. The list still carries the saved model, so the row stays listed and its picker still offers it.
+test("a row whose kind is only the fallback keeps its listed model in the picker and its check listed", async ({ mount, page }) => {
+  const embedder = "bge-m3";
+  const trpc = await stubEditor(page, {
+    connection: connectionRow({ label: "Ollama · bge-m3", providerId: "ollama", providerLabel: "Ollama", model: embedder, modelCheck: "listed" }),
+    providers: ALL_AVAILABLE,
+    catalogModels: catalogOf([
+      { ...catalogEntry(embedder), kind: "embedding" },
+      { ...catalogEntry("llama3.2"), kind: "generation" },
+    ]),
+  });
+  const component = await mount(<ConnectionEditorStory />);
+
+  // The option is the list landing; after it, the picked line and the correction effect have both run.
+  await expect(component.getByRole("option", { name: new RegExp(`^${embedder}`, "u") })).toBeVisible();
+  const picked = component.locator('[data-slot="model-picker-picked"]');
+  await expect(picked).toContainText(embedder);
+  await expect(picked, "the unlisted arm paints the picked line as a warning").not.toHaveClass(/text-warning/u);
+  await expect(component.getByRole("button", { name: "Check the list again" })).toHaveCount(0);
+  await expect.poll(() => trpc.count("connection.update"), { intervals: [20, 50, 100] }).toBe(0);
+});
+
 test("an unchecked model the list does not carry is saved as unlisted, and the re-check reads the list again", async ({ mount, page }) => {
   const trpc = await stubEditor(page, { connection: connectionRow({ modelCheck: "unchecked" }), catalogModels: catalogOf([catalogEntry("Qwen/Qwen3-8B")]) });
   const component = await mount(<ConnectionEditorStory />);

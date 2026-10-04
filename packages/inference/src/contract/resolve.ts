@@ -28,9 +28,9 @@ export const WARNING_CODES = [
   // A budget-mode reasoning budget was clamped DOWN to leave visible-output headroom below the resolved
   // `maxOutputTokens` (the budget counts against the output cap on Anthropic/OR-responses).
   "reasoning_budget_clamped",
-  // A connection's `extras` key was DROPPED: the openrouter transport takes no extras at all (the modelled
-  // surface is the surface), and on openai-compatible a belt-owned key or a collision with a modelled param
-  // loses — MODELLED WINS (D143(b)/D156). Carries `key`. Emitted at AUTHORING time by the Extras editor too.
+  // A connection's `extras` key was DROPPED: the openrouter transport takes no extras beyond its modelled
+  // ones, and on openai-compatible a belt-owned key is dropped (any other key merges over the computed body).
+  // Carries `key`. Emitted at AUTHORING time by the Extras editor too.
   "custom_parameters_ignored",
   // A history `tool-result` part carried `isError:true`, which the OpenAI-shaped wires cannot express.
   "tool_result_error_dropped",

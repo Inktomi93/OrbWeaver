@@ -4,17 +4,20 @@
 // a per-model, per-route measurement expressible at all — until 2026-09-20 the resolver handed the whole
 // anthropic list to every anthropic-family id (`resolve-task.ts` `family === "anthropic" ? MEASURED_ANTHROPIC : []`),
 // so a row measured for opus-5 would have hit haiku too. Files are grouped by the ROUTE the probe ran on:
-// `openrouter.ts` = measured THROUGH OpenRouter (any family), `anthropic.ts` = measured on the direct wire.
+// `openrouter.ts` = measured THROUGH OpenRouter (any family), `anthropic.ts` = measured on the direct wire,
+// `local-servers.ts` = measured on a local server (vLLM, llama.cpp, …).
 
 import type { CapabilityOverride } from "@orb/contracts/inference";
 import type { CompiledRow, RowQuery } from "../rows.ts";
 import { compileRows, matchingRows } from "../rows.ts";
 import { measuredAnthropicRows } from "./anthropic.ts";
+import { measuredLocalServerRows } from "./local-servers.ts";
 import { measuredOpenRouterRows } from "./openrouter.ts";
 
 const MEASURED: readonly CompiledRow[] = [
   ...compileRows("measured/anthropic.ts", measuredAnthropicRows),
   ...compileRows("measured/openrouter.ts", measuredOpenRouterRows),
+  ...compileRows("measured/local-servers.ts", measuredLocalServerRows),
 ];
 
 /** Every dated measurement that matches this (model × route), in file order. Empty ⇒ nothing measured. */

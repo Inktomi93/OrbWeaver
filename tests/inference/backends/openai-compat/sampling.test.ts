@@ -299,8 +299,8 @@ test("reasoning off reaches vLLM, llama.cpp and KoboldCpp as enable_thinking fal
   }
 });
 
-test("reasoning off adds no template kwargs on Custom, which may front a strict proxy", async () => {
-  expect((await turnBody("custom-openai", { effort: "none" })).body).not.toHaveProperty("chat_template_kwargs");
+test("reasoning off reaches Custom as enable_thinking false too; a strict proxy is the connection's to answer", async () => {
+  expect((await turnBody("custom-openai", { effort: "none" })).body["chat_template_kwargs"]).toEqual({ enable_thinking: false });
 });
 
 test("reasoning off on Ollama's native route adds no template kwargs", async () => {

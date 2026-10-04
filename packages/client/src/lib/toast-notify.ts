@@ -23,8 +23,18 @@ const DESCRIBED_NOTICE_TIMEOUT_MS = 12_000;
 export function createToastNotify(toastManager: ToastManager): Notify {
   function add(notice: NotifyInput, type: "success" | "warning" | "error" | undefined, priority: "high" | undefined): void {
     const { title, description, action } = toNotice(notice);
-    toastManager.add({
-      actionProps: action === undefined ? undefined : { children: action.label, onClick: action.onClick },
+    // The user has acted on the notice, so the action dismisses it — after the handler runs, once, here for every caller.
+    const id = toastManager.add({
+      actionProps:
+        action === undefined
+          ? undefined
+          : {
+              children: action.label,
+              onClick: (): void => {
+                action.onClick();
+                toastManager.close(id);
+              },
+            },
       description,
       priority,
       timeout: description === undefined ? undefined : DESCRIBED_NOTICE_TIMEOUT_MS,

@@ -17,7 +17,7 @@ import { describe } from "vitest";
 import type { InferenceDeps, InferenceLog } from "../../../packages/inference/src/deps.ts";
 import { principal } from "../../support/factories/principal.ts";
 import { expect, test } from "../../support/fixtures.ts";
-import { fakeApiKeySecret, fakeDeps, newUserId } from "../_support.ts";
+import { fakeApiKeySecret, fakeConnection, fakeDeps, newUserId } from "../_support.ts";
 import { localServerFetch } from "./_local-servers-fetch.ts";
 
 const PLANTED = "sk-planted-0123456789abcdef0123456789abcdef";
@@ -84,6 +84,7 @@ interface Stage {
   readonly credentialReads: CredentialRead[];
   readonly log: ReturnType<typeof capturingLog>;
   readonly deps: InferenceDeps;
+  readonly stores: ReturnType<typeof fakeDeps>["stores"];
 }
 
 /** A runtime whose credentials door hands out ONE secret, and only to its owner — any other owner is refused,
@@ -112,7 +113,7 @@ function stage(options: { routes?: readonly Route[]; claudeExecutable?: string; 
         : Promise.reject(new Error(`no credential for ${args.providerId}`));
     },
   };
-  return { alice: principal(aliceId), credentialId, requests, credentialReads, log, deps };
+  return { alice: principal(aliceId), credentialId, requests, credentialReads, log, deps, stores: base.stores };
 }
 
 function provider(id: string): ProviderId {
@@ -196,7 +197,19 @@ describe("a draft lists by the provider's catalog strategy, with no connection r
     });
     expect(listing).toMatchObject({ listed: true, models: [{ id: "claude-opus-5", name: "Claude Opus 5" }] });
     expect(s.requests.map((request) => [request.url, request.headers["x-api-key"]])).toEqual([["https://api.anthropic.com/v1/models", PLANTED]]);
+    expect(s.requests.at(0)?.headers["anthropic-version"]).toBeTruthy();
     expect(s.credentialReads).toEqual([{ credentialId: s.credentialId, ownerId: s.alice.userId, providerId: provider("anthropic") }]);
+  });
+
+  test("anthropic: a saved row's resolve-time warm lists through the Anthropic lister, sending anthropic-version", async () => {
+    const s = stage({ routes: [{ match: "https://api.anthropic.com/v1/models", json: { data: [{ id: "claude-opus-5", display_name: "Claude Opus 5" }] } }] });
+    const row = fakeConnection({ ownerId: s.alice.userId, providerId: "anthropic", model: "claude-opus-5", credentialId: s.credentialId });
+    s.stores.connections.rows.set(row.id, row);
+    s.stores.bindings.bind({ actorKind: "user", actorId: s.alice.userId, task: "chat", connectionId: row.id });
+    const runtime = await createInferenceRuntime(s.deps);
+    await runtime.resolve({ task: "chat", principal: s.alice });
+    expect(s.requests.map((request) => request.url)).toEqual(["https://api.anthropic.com/v1/models"]);
+    expect(s.requests.at(0)?.headers["anthropic-version"]).toBeTruthy();
   });
 
   test("agent-sdk: the daemon's list under the caller's token, re-read by id", async () => {

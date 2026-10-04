@@ -303,6 +303,81 @@ test("B1 (positive control): a row that spells reasoning_effort records the word
   expect(turn.appliedEffort).toBe("high");
 });
 
+// ── the template thinking state (body rule 5b) ───────────────────────────────────────────────────────────
+// A server's own thinking default decides a turn the preset left unset. On a folded RPG turn (terminal tools
+// attached) a template that thinks answers with the state calls alone, so an unset preset is spelled off there.
+
+const REASONING_EFFORT_CAPABILITY = generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } });
+
+function rowRequest(providerId: string, params: UserIntent, terminalToolsAttached: boolean): OpenAiCompatChatRequest {
+  const connection = fakeResolved({
+    task: "chat",
+    providerId,
+    model: "m",
+    capability: REASONING_EFFORT_CAPABILITY,
+    baseUrl: "http://127.0.0.1:1/v1",
+    secret: fakeApiKeySecret("sk-not-a-real-key"),
+  });
+  return orRequest({ connection, params, ...(terminalToolsAttached ? { terminalToolsAttached: true } : {}) });
+}
+
+const kwargsOf = (body: Record<string, unknown>): unknown => body["chat_template_kwargs"];
+
+test("a folded turn on a row with a thinking switch sends thinking off when the preset leaves reasoning unset", async () => {
+  expect(kwargsOf(await sentBody(rowRequest("vllm", {}, true)))).toEqual({ enable_thinking: false });
+  // Outside a folded turn the unset choice still falls to the server's default: nothing rides.
+  expect(kwargsOf(await sentBody(rowRequest("vllm", {}, false)))).toBeUndefined();
+});
+
+test("a folded turn with reasoning unset never tells a mandatory-reasoning model's template off", async () => {
+  const mandatory = generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], mandatory: true } });
+  const req = rowRequest("vllm", {}, true);
+  const body = await sentBody({ ...req, connection: { ...req.connection, capability: mandatory } });
+  expect(kwargsOf(body)).toBeUndefined();
+});
+
+test("the preset's own reasoning choice rides on a row with a thinking switch, folded or not", async () => {
+  for (const terminal of [true, false]) {
+    expect(kwargsOf(await sentBody(rowRequest("llama-cpp", { effort: "high" }, terminal))), `terminal ${String(terminal)}`).toEqual({ enable_thinking: true });
+    expect(kwargsOf(await sentBody(rowRequest("llama-cpp", { effort: "none" }, terminal))), `terminal ${String(terminal)}`).toEqual({ enable_thinking: false });
+  }
+});
+
+test("a Custom connection sends the switch, and the user's own body or a declared none outranks it", async () => {
+  expect(kwargsOf(await sentBody(rowRequest("custom-openai", {}, true)))).toEqual({ enable_thinking: false });
+  expect(kwargsOf(await sentBody(rowRequest("custom-openai", { effort: "none" }, false)))).toEqual({ enable_thinking: false });
+  const custom = (overrides: Omit<Parameters<typeof fakeResolved<"chat">>[0], "task">): OpenAiCompatChatRequest =>
+    orRequest({ connection: fakeResolved({ ...overrides, task: "chat" }), params: {}, terminalToolsAttached: true });
+  const base = {
+    providerId: "custom-openai",
+    model: "m",
+    capability: REASONING_EFFORT_CAPABILITY,
+    baseUrl: "http://127.0.0.1:1/v1",
+    secret: fakeApiKeySecret("sk-not-a-real-key"),
+  } as const;
+  // The user's extras state thinking on: theirs rides, not the folded turn's off.
+  expect(kwargsOf(await sentBody(custom({ ...base, extras: { chat_template_kwargs: { enable_thinking: true } } })))).toEqual({ enable_thinking: true });
+  // The preset's temperature reaches the SDK; the connection's own body says otherwise, and the body wins.
+  const hot = await sentBody({
+    ...custom({ ...base, extras: { temperature: 1.2, top_p: 0.5 } }),
+    params: { temperature: 0.8, topP: 0.9 },
+  });
+  expect([hot["temperature"], hot["top_p"]]).toEqual([1.2, 0.5]);
+  // A strict proxy: the connection excludes the key, or declares the row has no switch. Nothing rides.
+  expect(kwargsOf(await sentBody(custom({ ...base, transport: { excludeBody: ["chat_template_kwargs"] } })))).toBeUndefined();
+  expect(kwargsOf(await sentBody(custom({ ...base, declaredFeatures: { thinkingOff: "none" } })))).toBeUndefined();
+});
+
+test("hosted rows without a thinking switch are byte-identical whether or not the turn folds", async () => {
+  for (const providerId of ["openrouter", "openai"]) {
+    for (const params of [{}, { effort: "high" }, { effort: "none" }] satisfies UserIntent[]) {
+      const folded = await sentBody(rowRequest(providerId, params, true));
+      expect(kwargsOf(folded), providerId).toBeUndefined();
+      expect(folded, `${providerId} ${JSON.stringify(params)}`).toEqual(await sentBody(rowRequest(providerId, params, false)));
+    }
+  }
+});
+
 // Off is a choice the wire has to carry: a reasoning model left without `reasoning_effort` reasons at its own
 // default, which spends the tokens and latency the user turned off.
 function offRequest(
@@ -533,6 +608,8 @@ test("byte-equality (openai-compatible dialect): the FULL request body for a min
     ],
     stream: true,
     stream_options: { include_usage: true },
+    // The preset's effort turns the template's thinking on, spelled where the row has a switch (Custom does).
+    chat_template_kwargs: { enable_thinking: true },
   });
 });
 

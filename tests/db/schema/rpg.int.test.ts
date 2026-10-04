@@ -48,6 +48,7 @@ const CONFIG: RpgGameConfig = {
   statProfile: RPG_PROFILE_FREEFORM,
   lite: { steeringNote: "" },
   extractionMode: "folded",
+  stateCaptureVehicle: "auto",
   extractionContext: "window",
   extractionWindowTokens: 4096,
   reconcileEveryBeats: 10,

@@ -417,6 +417,9 @@ interface RpgStateDeliveryVerdict {
    *  button enabled on a round that can only no-op). Rides this ONE resolve because the connection resolve is
    *  the expensive part — the panel read must never pay for it twice. */
   readonly canPopulate: boolean;
+  /** The game asks for a structured state round (`stateCaptureVehicle: "structured"`) and this wire has no
+   *  structured output, so the round runs as tool calls instead (`structuredVehicleUnavailable`). */
+  readonly structuredUnavailable: boolean;
 }
 
 /** The DEEP canon-window read (crunchy-cluster §1.3 — the `resyncFromStory` host escape hatch's story feed). An

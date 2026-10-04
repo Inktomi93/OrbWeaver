@@ -22,4 +22,4 @@ Both gates read the subject card and avatar as runAs with the owner check intact
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Not reachable today: chat.generateImage carries no subjectCharacterId (packages/contracts/src/imagery/index.ts generatePictureRequestSchema) and the chat op passes no subject (packages/server/src/domain/chat/verbs/generate-image.ts), so reuseGate and avatarReferenceGate return early for a member (ADR 0298). Owner direction when it becomes reachable: a host room switch, "Let members make pictures of my characters", default on; off refuses clearly instead of not-found. Applies once the picture request carries a subject.

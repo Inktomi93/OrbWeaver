@@ -46,4 +46,6 @@ test("notify.warn renders a split title/description, the warning identity, and a
   // handler the call site gave, which is the whole point of adding the channel.
   await toast.locator('[data-slot="toast-action"]').click();
   await expect(page.locator('[data-slot="toast-root"][data-type="success"]')).toContainText("Connections opened.");
+  // Acting on the notice dismisses it: the warning is gone, only the handler's own success notice remains.
+  await expect(page.locator('[data-slot="toast-root"][data-type="warning"]')).toHaveCount(0);
 });

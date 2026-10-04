@@ -166,6 +166,19 @@ interface WireSubset {
    *  or the keyword is gone before the clamp ever sees it. Off everywhere else BY DESIGN: `hosted-common` is
    *  the family-agnostic intersection and guided-decoding sends the real value. */
   readonly clampMinItems: boolean;
+  /** The grammar's per-REQUEST ceilings, summed across every strict schema the request carries; absent ⇒ none
+   *  stated. They belong to the upstream that compiles the grammar, so a model whose vendor enforces them names
+   *  this subset (`output.structuredLimitsFrom`) whatever wire class carries its request. Checked by
+   *  `checkWireSchema` (wire-limits.ts). */
+  readonly limits?: WireSchemaLimits;
+}
+
+/** Ceilings a structured-output grammar states per request. `maxStrictTools` is stated, not yet checked: no caller
+ *  counts strict tools against it until the follow-up structured-limits validator (work item 0518). */
+export interface WireSchemaLimits {
+  readonly maxOptionalProps: number;
+  readonly maxUnionProps: number;
+  readonly maxStrictTools: number;
 }
 
 /** The Anthropic wire's bound strip: everything except `minItems`, which is clamped instead (header). */
@@ -196,15 +209,18 @@ export const WIRE_SUBSETS: Readonly<Record<WireSchemaMode, WireSubset>> = {
     pinClosed: false,
     requireAllAsNullable: false,
     clampMinItems: true,
+    // platform.claude.com/docs/en/build-with-claude/structured-outputs "Schema complexity limits" (fetched
+    // 2026-10-03): one global table for every request with `output_config.format` or `strict: true` tools.
+    limits: { maxOptionalProps: 24, maxUnionProps: 16, maxStrictTools: 20 },
   },
   // STRICT-COMPATIBLE (built 2026-08-03, owner ruling — an OPTION, OFF by default but SELECTABLE at runtime:
   // `AppSettings.structuredOutputShape` picks it per deployment, Settings › Admin › Structured output, D126;
   // the extraction request builder `entry/compose/rpg.ts` is the caller that passes this mode). The hosted subset
   // PLUS the documented optional-as-null reshape: OpenAI strict demands "All fields or function parameters must
   // be specified as `required`" and names the escape — "Emulate optional parameters using union with null"
-  // (`https://developers.openai.com/api/docs/guides/structured-outputs`). Anthropic's grammar compiler refuses a
-  // schema for having too many OPTIONALS (an undocumented runtime ceiling, measured at 46), so a schema with
-  // zero optionals clears that wall too — the same reshape unlocks BOTH vendors. The union is spelled `anyOf`
+  // (`https://developers.openai.com/api/docs/guides/structured-outputs`). It does NOT clear Anthropic's wall: each
+  // optional becomes a nullable union, and Anthropic caps those at 16 per request (the `anthropic-format` row's
+  // `limits`; a 41-optional schema sent this way 400s on the union cap). The union is spelled `anyOf`
   // and never `"type":["string","null"]`: only OpenAI documents the type-array form, while `anyOf` + the `null`
   // type are inside BOTH documented subsets.
   "strict-compatible": {

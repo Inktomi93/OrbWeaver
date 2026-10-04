@@ -26,7 +26,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
-import { PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
+import { minimumRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
 
 export interface FactRowListProps {
   readonly rows: readonly FactRow[];
@@ -105,12 +105,19 @@ function FactOverrideEditor({
   readonly onCancel: () => void;
 }): ReactElement {
   const [draft, setDraft] = useState(row.draft);
+  const refusal = minimumRefusal(row.edit, draft);
 
   return (
     <Row align="end" className="@max-lg:flex-col @max-lg:items-stretch" gap="field">
       <Stack className="min-w-0 grow" gap="tight">
         <FactEditControl edit={row.edit} label={`${row.name} — your value`} value={draft} onChange={setDraft} />
-        <Text voice="gloss">{editHint(row.edit)}</Text>
+        {refusal === null ? (
+          <Text voice="gloss">{editHint(row.edit)}</Text>
+        ) : (
+          <Text className="text-destructive" role="alert" voice="gloss">
+            {refusal}
+          </Text>
+        )}
       </Stack>
       <Row className="shrink-0 @max-lg:justify-end" gap="field">
         <Button intent="ghost" onClick={onCancel} size="sm">
@@ -118,7 +125,7 @@ function FactOverrideEditor({
         </Button>
         <Button
           aria-label={`Save your ${row.name}`}
-          disabled={busy || draft.trim() === ""}
+          disabled={busy || draft.trim() === "" || refusal !== null}
           intent="primary"
           onClick={(): void => onCommit(parseFactValue(row.edit, draft))}
           size="sm"

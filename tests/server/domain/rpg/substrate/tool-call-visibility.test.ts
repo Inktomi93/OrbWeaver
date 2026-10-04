@@ -3,8 +3,8 @@
 // running the strip over the ENCODED JSON matches nothing and reports `hadHidden: false`, so this suite pins
 // (1) that the naive strip really does leak — the control — and (2) that the projection does not.
 
-import type { RpgRecordedToolCall } from "@orb/contracts/rpg";
-import { RPG_STATE_ROUND_FAILED_SUMMARY } from "@orb/contracts/rpg";
+import type { RpgRecordedToolCall, RpgStateRoundTool } from "@orb/contracts/rpg";
+import { patchChangesToToolCalls, RPG_STATE_ROUND_FAILED_SUMMARY, recordToolCalls } from "@orb/contracts/rpg";
 import { stripHiddenSpans } from "@orb/kit/content";
 import { describe } from "vitest";
 import { projectFailureForViewer, projectToolCallsForViewer } from "../../../../../packages/server/src/domain/rpg/substrate/tool-call-visibility.ts";
@@ -87,6 +87,44 @@ describe("projectToolCallsForViewer", () => {
   test("an issue line with no sent value is untouched (the salvage arm is pure schema paths)", () => {
     const [call] = projectToolCallsForViewer([sceneCall("{}", ["update_scene.weather"])], false);
     expect(call?.issues).toEqual(["update_scene.weather"]);
+  });
+});
+
+describe("a structured patch reply's model-sent names (0511)", () => {
+  const tools: readonly RpgStateRoundTool[] = [
+    { name: "update_scene", description: "", parameters: { type: "object", properties: { location: { type: "string" } } } },
+  ];
+  // Every row the turn records for this reply: the assembled calls' shared record, then the unassembled rows.
+  const recorded = (changes: readonly Record<string, unknown>[]): readonly RpgRecordedToolCall[] => {
+    const decoded = patchChangesToToolCalls({ changes }, tools);
+    return [...recordToolCalls(decoded?.calls ?? []), ...(decoded?.unassembled ?? [])];
+  };
+  const inField = [
+    { plane: "update_scene", call: 0, field: "location", item: 0, value: "inn" },
+    { plane: "update_scene", call: 0, field: `location ${LIE}`, item: 0, value: "x" },
+  ];
+  const inPlane = [{ plane: `update_scene ${LIE}`, call: 0, field: "location", item: 0, value: "x" }];
+  const inId = [{ plane: "update_scene", call: -1, field: `location ${LIE}`, item: 0, value: "x" }];
+
+  test("a hidden span in a field name never reaches a member, in the issue line or anywhere else", () => {
+    expect(JSON.stringify(projectToolCallsForViewer(recorded(inField), false))).not.toContain(TRUTH);
+    expect(JSON.stringify(projectToolCallsForViewer(recorded(inId), false))).not.toContain(TRUTH);
+  });
+
+  test("a hidden span in a plane name never reaches a member, in the name column or the issue line", () => {
+    expect(JSON.stringify(projectToolCallsForViewer(recorded(inPlane), false))).not.toContain(TRUTH);
+  });
+
+  test("CONTROL: the host reads the same rows verbatim, so the span really was in them", () => {
+    for (const changes of [inField, inPlane, inId]) {
+      expect(JSON.stringify(projectToolCallsForViewer(recorded(changes), true))).toContain(TRUTH);
+    }
+  });
+
+  test("a tool round's invented tool name is belted in the name column too", () => {
+    const [call] = projectToolCallsForViewer([{ name: `hack_db ${LIE}`, args: "{}", verdict: "applied", issues: [] }], false);
+    expect(call?.name).not.toContain(TRUTH);
+    expect(call?.name).toContain("hack_db");
   });
 });
 

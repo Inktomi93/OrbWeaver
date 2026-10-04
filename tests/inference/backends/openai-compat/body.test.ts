@@ -1,10 +1,6 @@
-// backends/openai-compat/body — the outbound-body shaper's seven rules (§8.1, D143(b)/D156): a belt key or
-// a modelled collision in `extras` is DROPPED with `custom_parameters_ignored{key}` and a non-colliding key
-// reaches the wire (the H4 order pin); the openrouter transport drops everything but its two modelled keys;
-// a prototype-pollution key never lands (the Layer-2 merge); include/exclude apply AFTER extras; the
-// assistant-media + name re-attachment walks the plan by index and refuses on a length mismatch; the prefill
-// pair only when features + capability + array agree, with the measured thinking interlock; `modalities`
-// on replyImages; `reasoning_effort` stripped with `effort_dropped` when the row spells no effort.
+// backends/openai-compat/body — the outbound-body shaper's rules in the order `body.ts`'s header lists them (§8.1,
+// D143(b)/D156): the user's extras and includeBody/excludeBody merge first, and every later rule leaves a key
+// they settled as the user set it.
 
 import type { EndpointFeatures } from "@orb/contracts/inference";
 import { connectionExtrasSchema, WIRE_DEFAULT_FEATURES } from "@orb/contracts/inference";
@@ -25,7 +21,8 @@ function args(overrides: Partial<ShapeArgs> = {}): ShapeArgs & { readonly warnin
     transport: null,
     dialect: "openai-compatible",
     prefillAllowed: false,
-    thinkingOff: false,
+    templateThinking: undefined,
+    reasoningMandatory: false,
     foldSameRole: false,
     replyImages: false,
     warnings: [],
@@ -89,17 +86,22 @@ function recordsAt(body: Record<string, unknown>, key: string): Record<string, u
   return value;
 }
 
-test("extras: belt keys and modelled collisions drop with the key named; a fresh key reaches the wire (H4 order)", () => {
-  const a = args({ extras: { model: "evil", stream: true, temperature: 0.1, chat_template_kwargs: { enable_thinking: false } } });
+test("extras: belt keys drop with the key named; the user's value beats a modelled one; a fresh key reaches the wire", () => {
+  const a = args({
+    extras: { model: "evil", stream: true, temperature: 1.2, reasoning_effort: "low", chat_template_kwargs: { enable_thinking: false }, mirostat_tau: 5 },
+  });
   const out = shapeOutboundBody(RAW, a);
   expect(out["model"]).toBe("m");
   expect(out["stream"]).toBeUndefined();
-  expect(out["temperature"]).toBe(0.7);
+  // The preset sent temperature 0.7 and effort high; the connection's own body says 1.2 and low, and wins.
+  expect(out["temperature"]).toBe(1.2);
+  expect(out["reasoning_effort"]).toBe("low");
   expect(out["chat_template_kwargs"]).toEqual({ enable_thinking: false });
+  // A key nothing models passes through untouched.
+  expect(out["mirostat_tau"]).toBe(5);
   expect(a.warnings.map((w) => [w.code, w.key])).toEqual([
     ["custom_parameters_ignored", "model"],
     ["custom_parameters_ignored", "stream"],
-    ["custom_parameters_ignored", "temperature"],
   ]);
   // Pure: the SDK's object is untouched.
   expect(RAW["model"]).toBe("m");
@@ -221,16 +223,165 @@ test("prefill pair only when the row, the capability and the array all agree; th
 const KWARGS_OFF: EndpointFeatures = { ...SPELLS_EFFORT, thinkingOff: "chat_template_kwargs" };
 
 test("a reasoning-off turn tells the template not to think, keeping the user's own kwargs from extras and includeBody", () => {
-  const fromExtras = shapeOutboundBody(RAW, args({ features: KWARGS_OFF, thinkingOff: true, extras: { chat_template_kwargs: { custom_flag: "x" } } }));
+  const fromExtras = shapeOutboundBody(RAW, args({ features: KWARGS_OFF, templateThinking: false, extras: { chat_template_kwargs: { custom_flag: "x" } } }));
   expect(fromExtras["chat_template_kwargs"]).toEqual({ custom_flag: "x", enable_thinking: false });
   const fromInclude = shapeOutboundBody(
     RAW,
-    args({ features: KWARGS_OFF, thinkingOff: true, transport: { includeBody: { chat_template_kwargs: { documents: [] } } } }),
+    args({ features: KWARGS_OFF, templateThinking: false, transport: { includeBody: { chat_template_kwargs: { documents: [] } } } }),
   );
   expect(fromInclude["chat_template_kwargs"]).toEqual({ documents: [], enable_thinking: false });
-  // On (or unset) sends nothing new, and a row with no template switch is left alone.
-  expect("chat_template_kwargs" in shapeOutboundBody(RAW, args({ features: KWARGS_OFF, thinkingOff: false }))).toBe(false);
-  expect("chat_template_kwargs" in shapeOutboundBody(RAW, args({ features: { ...KWARGS_OFF, thinkingOff: "none" }, thinkingOff: true }))).toBe(false);
+  // Unset sends nothing new, and a row with no template switch is left alone.
+  expect("chat_template_kwargs" in shapeOutboundBody(RAW, args({ features: KWARGS_OFF, templateThinking: undefined }))).toBe(false);
+  expect("chat_template_kwargs" in shapeOutboundBody(RAW, args({ features: { ...KWARGS_OFF, thinkingOff: "none" }, templateThinking: false }))).toBe(false);
+});
+
+test("the user's own body outranks every computed key after the merge: the switch, modalities, the effort strip, the cap rename", () => {
+  // Their kwargs' enable_thinking beats the folded turn's off.
+  const kwargs = shapeOutboundBody(RAW, args({ features: KWARGS_OFF, templateThinking: false, extras: { chat_template_kwargs: { enable_thinking: true } } }));
+  expect(kwargs["chat_template_kwargs"]).toEqual({ enable_thinking: true });
+  // An excluded key stays excluded.
+  const excluded = shapeOutboundBody(RAW, args({ features: KWARGS_OFF, templateThinking: false, transport: { excludeBody: ["chat_template_kwargs"] } }));
+  expect("chat_template_kwargs" in excluded).toBe(false);
+  // Their modalities stand over replyImages'.
+  expect(shapeOutboundBody(RAW, args({ replyImages: true, extras: { modalities: ["text"] } }))["modalities"]).toEqual(["text"]);
+  // Their reasoning_effort survives a row that spells no effort field.
+  expect(shapeOutboundBody(RAW, args({ features: WIRE_DEFAULT_FEATURES, transport: { includeBody: { reasoning_effort: "low" } } }))["reasoning_effort"]).toBe(
+    "low",
+  );
+  // Their max_tokens is not renamed.
+  const capped = shapeOutboundBody(
+    { ...RAW, max_tokens: 100 },
+    args({ features: { ...SPELLS_EFFORT, outputCapField: "max_completion_tokens" }, extras: { max_tokens: 50 } }),
+  );
+  expect([capped["max_tokens"], capped["max_completion_tokens"]]).toEqual([50, undefined]);
+});
+
+// One pin per later rule that writes a key: a top-level key the user's own body settled (extras, includeBody or
+// excludeBody) leaves that rule's computed value off the wire.
+const MAX_COMPLETION: EndpointFeatures = { ...SPELLS_EFFORT, outputCapField: "max_completion_tokens" };
+
+test("rule 8: the cap rename never overwrites the user's own max_completion_tokens, and the preset's max_tokens does not ride beside it", () => {
+  const capped = { ...RAW, max_tokens: 512 };
+  const fromExtras = shapeOutboundBody(capped, args({ features: MAX_COMPLETION, extras: { max_completion_tokens: 4096 } }));
+  expect([fromExtras["max_completion_tokens"], "max_tokens" in fromExtras]).toEqual([4096, false]);
+  const fromInclude = shapeOutboundBody(capped, args({ features: MAX_COMPLETION, transport: { includeBody: { max_completion_tokens: 2048 } } }));
+  expect([fromInclude["max_completion_tokens"], "max_tokens" in fromInclude]).toEqual([2048, false]);
+  // An excluded max_completion_tokens is not brought back by the rename.
+  const excluded = shapeOutboundBody(capped, args({ features: MAX_COMPLETION, transport: { excludeBody: ["max_completion_tokens"] } }));
+  expect(["max_completion_tokens" in excluded, "max_tokens" in excluded]).toEqual([false, false]);
+});
+
+test("rule 5: on a model whose reasoning is mandatory the interlock sends the prefill pair but never turns thinking off", () => {
+  const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
+  const a = args({ plan: ends, features: CONTINUE, prefillAllowed: true, reasoningMandatory: true });
+  const out = shapeOutboundBody(RAW, a);
+  expect([out["continue_final_message"], out["add_generation_prompt"]]).toEqual([true, false]);
+  expect(["chat_template_kwargs" in out, out["reasoning_effort"]]).toEqual([false, "high"]);
+  expect(a.warnings).toEqual([]);
+});
+
+test("rule 5: the prefill interlock turns the template off but keeps the user's own reasoning_effort", () => {
+  const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
+  const fromExtras = args({ plan: ends, features: CONTINUE, prefillAllowed: true, extras: { reasoning_effort: "low" } });
+  const out = shapeOutboundBody(RAW, fromExtras);
+  expect(out["reasoning_effort"]).toBe("low");
+  expect(out["chat_template_kwargs"]).toEqual({ enable_thinking: false });
+  expect(fromExtras.warnings.map((w) => w.code)).toEqual(["reasoning_dropped_for_prefill"]);
+  const fromInclude = shapeOutboundBody(
+    RAW,
+    args({ plan: ends, features: CONTINUE, prefillAllowed: true, transport: { includeBody: { reasoning_effort: "medium" } } }),
+  );
+  expect(fromInclude["reasoning_effort"]).toBe("medium");
+});
+
+test("rule 5: a user who sets or excludes either prefill key decides the prefill: no pair, no interlock, no warning", () => {
+  const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
+  const transports = [
+    { includeBody: { continue_final_message: false } },
+    { includeBody: { add_generation_prompt: true } },
+    { excludeBody: ["continue_final_message"] },
+    { excludeBody: ["add_generation_prompt"] },
+  ];
+  for (const transport of transports) {
+    const a = args({ plan: ends, features: { ...CONTINUE, thinkingOff: "chat_template_kwargs" }, prefillAllowed: true, templateThinking: true, transport });
+    const out = shapeOutboundBody(RAW, a);
+    const label = JSON.stringify(transport);
+    expect(out["continue_final_message"], label).toBe(transport.includeBody?.continue_final_message);
+    expect(out["add_generation_prompt"], label).toBe(transport.includeBody?.add_generation_prompt);
+    // The interlock's off did not run, so the turn's own on reaches the template, and the effort stays.
+    expect([out["chat_template_kwargs"], out["reasoning_effort"]], label).toEqual([{ enable_thinking: true }, "high"]);
+    expect(a.warnings, label).toEqual([]);
+  }
+});
+
+test("rule 6: modalities the user excluded stay off a replyImages turn", () => {
+  expect("modalities" in shapeOutboundBody(RAW, args({ replyImages: true, transport: { excludeBody: ["modalities"] } }))).toBe(false);
+});
+
+test("rule 7: the effort strip keeps a reasoning_effort the user's extras set", () => {
+  const a = args({ features: { ...WIRE_DEFAULT_FEATURES, effort: "none" }, extras: { reasoning_effort: "low" } });
+  expect(shapeOutboundBody(RAW, a)["reasoning_effort"]).toBe("low");
+  expect(a.warnings).toEqual([]);
+});
+
+// A `messages` array the user's includeBody set is theirs whole: no rule rewrites its rows.
+test("rule 9: a messages array the user set keeps its message-level marker", () => {
+  const marked = [{ role: "user", content: "b", cache_control: { type: "ephemeral" } }];
+  expect(shapeOutboundBody(RAW, args({ dialect: "openrouter", transport: { includeBody: { messages: marked } } }))["messages"]).toEqual(marked);
+});
+
+test("rules 3 and 4 and image detail: a messages array the user set gets no name, media or detail stamped on it", () => {
+  const theirs = [{ role: "user", content: [{ type: "image_url", image_url: { url: "https://cdn/u.png" } }] }];
+  const p = plan([{ role: "user", toolExchange: false, text: "" }], {
+    names: new Map([[0, "Alice"]]),
+    assistantMedia: new Map([[0, [{ kind: "image", url: "https://cdn/x.png" }]]]),
+  });
+  const out = shapeOutboundBody(RAW, { ...args({ plan: p, transport: { includeBody: { messages: theirs } } }), imageDetail: "high" });
+  expect(out["messages"]).toEqual(theirs);
+});
+
+test("rules 5 and 5b: kwargs the user set to a non-object stay as set, under the switch and the prefill interlock", () => {
+  const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
+  for (const value of [null, "none", 0, []]) {
+    for (const own of [{ extras: { chat_template_kwargs: value } }, { transport: { includeBody: { chat_template_kwargs: value } } }]) {
+      for (const templateThinking of [false, true]) {
+        expect(shapeOutboundBody(RAW, args({ ...own, features: KWARGS_OFF, templateThinking }))["chat_template_kwargs"]).toEqual(value);
+      }
+      const interlock = args({ ...own, plan: ends, features: { ...CONTINUE, thinkingOff: "chat_template_kwargs" }, prefillAllowed: true });
+      const out = shapeOutboundBody(RAW, interlock);
+      expect([out["chat_template_kwargs"], out["reasoning_effort"]]).toEqual([value, "high"]);
+      expect(interlock.warnings).toEqual([]);
+    }
+  }
+});
+
+test("rule 5: a messages array the user set takes no prefill pair and no interlock from the app's plan", () => {
+  const ends = plan([{ role: "assistant", toolExchange: false, text: "…" }], { endsOnAssistant: true });
+  const theirs = [{ role: "user", content: "a" }];
+  const a = args({ plan: ends, features: CONTINUE, prefillAllowed: true, transport: { includeBody: { messages: theirs } } });
+  const out = shapeOutboundBody(RAW, a);
+  expect(["continue_final_message" in out, "add_generation_prompt" in out, "chat_template_kwargs" in out, out["reasoning_effort"]]).toEqual([
+    false,
+    false,
+    false,
+    "high",
+  ]);
+  expect(a.warnings).toEqual([]);
+});
+
+test("rule 10: a messages array the user set is not folded", () => {
+  const plainRun = [
+    { role: "user", content: "a" },
+    { role: "user", content: "b" },
+  ];
+  expect(shapeOutboundBody(RAW, args({ foldSameRole: true, transport: { includeBody: { messages: plainRun } } }))["messages"]).toEqual(plainRun);
+});
+
+test("a reasoning-on turn tells the template to think, but never over an off already in the kwargs", () => {
+  expect(shapeOutboundBody(RAW, args({ features: KWARGS_OFF, templateThinking: true }))["chat_template_kwargs"]).toEqual({ enable_thinking: true });
+  // The user's own off (extras), like the prefill interlock's, outranks a preset that asks for thinking.
+  const userOff = shapeOutboundBody(RAW, args({ features: KWARGS_OFF, templateThinking: true, extras: { chat_template_kwargs: { enable_thinking: false } } }));
+  expect(userOff["chat_template_kwargs"]).toEqual({ enable_thinking: false });
 });
 
 test("replyImages spells modalities; an effort the row cannot spell is stripped with effort_dropped", () => {

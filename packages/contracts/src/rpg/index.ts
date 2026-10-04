@@ -76,7 +76,16 @@ export {
 } from "./ambient.ts";
 export type { EmitRpgEvent, RpgBusEvent, RpgBusEventType } from "./bus.ts";
 export { RPG_BUS_EVENT_TYPES } from "./bus.ts";
-export type { RpgDateMode, RpgDeliveryPath, RpgExtractionContext, RpgExtractionMode, RpgFoldFallbackReason, RpgGameConfig, RpgGameFeatures } from "./config.ts";
+export type {
+  RpgDateMode,
+  RpgDeliveryPath,
+  RpgExtractionContext,
+  RpgExtractionMode,
+  RpgFoldFallbackReason,
+  RpgGameConfig,
+  RpgGameFeatures,
+  RpgStateCaptureVehicle,
+} from "./config.ts";
 export {
   isDeceptionActive,
   RPG_CARD_KEEP_LAST_DEFAULT,
@@ -92,6 +101,7 @@ export {
   RPG_RECENT_BEATS_KEEP_DEFAULT,
   RPG_RECONCILE_EVERY_BEATS_DEFAULT,
   RPG_RECONCILE_EVERY_BEATS_MAX,
+  RPG_STATE_CAPTURE_VEHICLES,
   RPG_STEERING_NOTE_MAX,
   rpgGameConfigSchema,
   rpgGameFeaturesSchema,
@@ -285,6 +295,21 @@ export {
   rpgQuestSchema,
   rpgSnapshotStateSchema,
 } from "./snapshot.ts";
+export {
+  describePatchFields,
+  patchChangesToToolCalls,
+  patchFieldPaths,
+  patchToolsOnlyFields,
+  RPG_PATCH_INDEX_MAX,
+  stateRoundPatchSchema,
+} from "./structured-patch.ts";
+export type { RpgStateRoundTool, RpgStructuredChanges, RpgStructuredRoundShape } from "./structured-round.ts";
+export {
+  RPG_STATE_CHANGES_FIELD,
+  RPG_STRUCTURED_ROUND_SHAPES,
+  stateRoundChangesSchema,
+  structuredChangesToToolCalls,
+} from "./structured-round.ts";
 export type {
   AddJournalEntryArgs,
   RollDiceArgs,

@@ -722,6 +722,40 @@ For example, a three-line sign is enough:
     title: "Tool-round header",
     fires: "Opens the cheap TOOL ROUND's system prompt — the plane-by-plane decomposition checklist.",
   },
+  "rpg.extract.structuredRoundFrame": {
+    id: "rpg.extract.structuredRoundFrame",
+    home: "preset",
+    version: 1,
+    text:
+      "Answer with ONE JSON object and nothing else. Its `changes` array holds every tool call you would make this " +
+      'turn, one entry each: `{"tool": <tool name>, "args": <that tool\'s arguments>}`. A beat that changed ' +
+      'NOTHING trackable is the single entry `{"tool": "no_changes", "args": {}}`. The tools:',
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Structured-round frame",
+    fires: "Follows the tool-round header when the model cannot be forced to call a tool and answers the state round as one JSON object instead.",
+  },
+  "rpg.extract.patchRoundFrame": {
+    id: "rpg.extract.patchRoundFrame",
+    home: "preset",
+    version: 2,
+    text:
+      "Answer with ONE JSON object and nothing else. Its `changes` array holds one entry per value you set: " +
+      '`{"plane": <tool name>, "call": <number>, "field": <one of that tool\'s fields>, "item": <number>, "value": ' +
+      "<the value as text>}`. Every entry of ONE tool call shares its `call` number; give each further call of the " +
+      "same tool its own number (another character, another journal entry). A field that is a list of things (a " +
+      "present character, an inventory item, a tracker write) takes one `item` number per thing, shared by that " +
+      "thing's fields; everywhere else `item` is 0. A list of plain words takes one entry per word. Numbers are " +
+      "written as digits. A field you leave out keeps its current value. A beat that changed NOTHING trackable is " +
+      'the single entry `{"plane": "no_changes"}`. The tools and their fields:',
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Patch-list frame",
+    fires:
+      "Follows the tool-round header when the state round answers as a flat list of field changes, the shape a model with tight structured-output limits can take.",
+  },
   "rpg.extract.reconcilePass": {
     id: "rpg.extract.reconcilePass",
     home: "preset",

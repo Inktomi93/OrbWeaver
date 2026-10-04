@@ -4,7 +4,8 @@
 // `presentRemove` drops presence and NOTHING else), the MA-4 scene patch (omit keeps), the timeOfDay→hour
 // mapping, quest create-vs-flip, and item add/remove.
 
-import type { RpgSnapshotState } from "@orb/contracts/rpg";
+import type { RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
+import { toolCallsToExtraction } from "@orb/contracts/rpg";
 import type { CharacterId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {
@@ -685,4 +686,94 @@ test("no user-kind actor in the participants → no self-alias entries (a charac
   const idx = buildActorRefIndex([{ actorRef: { kind: "character", characterId: charId }, name: "Kael" }]);
   expect(idx.get("player")).toBeUndefined();
   expect(idx.get("you")).toBeUndefined();
+});
+
+// ── several update_scene calls in one round fold exactly as the calls apply one by one ─────────────────────────
+
+const sceneCall = (args: Record<string, unknown>): RpgToolCall => ({ name: "update_scene", arguments: JSON.stringify(args) });
+
+/** The round's calls folded into ONE extraction and applied once. */
+function foldedTogether(base: RpgSnapshotState, calls: readonly RpgToolCall[]): RpgSnapshotState {
+  const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
+  return { ...base, ...extractionToStateDelta(base, toolCallsToExtraction(calls), mints, NO_PARTICIPANTS).statePatch };
+}
+
+/** The same calls applied one at a time, each over the state the previous one left. */
+function appliedOneByOne(base: RpgSnapshotState, calls: readonly RpgToolCall[]): RpgSnapshotState {
+  const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
+  return calls.reduce(
+    (state, call) => ({ ...state, ...extractionToStateDelta(state, toolCallsToExtraction([call]), mints, NO_PARTICIPANTS).statePatch }),
+    base,
+  );
+}
+
+const vesnaPresent = (): RpgSnapshotState => emptyState({ actorState: [castRow("vesna", { name: "Vesna", mood: "calm" })], presentCharacters: ["npc:vesna"] });
+const vesnaAbsent = (): RpgSnapshotState => emptyState({ actorState: [castRow("vesna", { name: "Vesna", mood: "calm" })] });
+
+const SCENE_SEQUENCES: readonly { readonly label: string; readonly base: () => RpgSnapshotState; readonly calls: readonly RpgToolCall[] }[] = [
+  {
+    label: "an upsert then a remove of the same actor",
+    base: vesnaPresent,
+    calls: [sceneCall({ presentUpsert: [{ name: "Vesna", mood: "furious" }] }), sceneCall({ presentRemove: ["Vesna"] })],
+  },
+  {
+    label: "a remove then an upsert of the same actor",
+    base: vesnaPresent,
+    calls: [sceneCall({ presentRemove: ["Vesna"] }), sceneCall({ presentUpsert: [{ name: "Vesna", mood: "sheepish" }] })],
+  },
+  {
+    label: "a remove then an upsert of an absent actor",
+    base: vesnaAbsent,
+    calls: [sceneCall({ presentRemove: ["Vesna"] }), sceneCall({ presentUpsert: [{ name: "Vesna" }] })],
+  },
+  {
+    label: "two upserts of one actor, spelled two ways",
+    base: () => emptyState(),
+    calls: [sceneCall({ presentUpsert: [{ name: "Mira", mood: "wary" }] }), sceneCall({ presentUpsert: [{ name: "mira", mood: "warm", emoji: "x" }] })],
+  },
+  {
+    label: "the same upsert twice",
+    base: () => emptyState(),
+    calls: [sceneCall({ presentUpsert: [{ name: "Mira" }] }), sceneCall({ presentUpsert: [{ name: "Mira" }] })],
+  },
+  {
+    label: "a restated scalar, a whole weather and a plot patch",
+    base: () => emptyState(),
+    calls: [
+      sceneCall({ location: "inn", weather: { type: "rain", label: "drizzle" }, plot: { act: 1 } }),
+      sceneCall({ location: "dock", weather: { type: "clear" }, plot: { title: "T" } }),
+    ],
+  },
+  {
+    label: "two beats",
+    base: () => emptyState(),
+    calls: [sceneCall({ recentEvent: "A happened" }), sceneCall({ recentEvent: "B happened" })],
+  },
+  {
+    label: "the same remove twice",
+    base: vesnaPresent,
+    calls: [sceneCall({ presentRemove: ["Vesna"] }), sceneCall({ presentRemove: ["Vesna"] })],
+  },
+  {
+    label: "fields split across three calls",
+    base: () => emptyState(),
+    calls: [sceneCall({ location: "the inn" }), sceneCall({ timeOfDay: "evening" }), sceneCall({ recentEvent: "Mira lit the lamps.", day: 2 })],
+  },
+];
+
+test("several update_scene calls in one round leave exactly the state the calls leave applied one by one", () => {
+  for (const sequence of SCENE_SEQUENCES) {
+    expect({ label: sequence.label, state: foldedTogether(sequence.base(), sequence.calls) }).toEqual({
+      label: sequence.label,
+      state: appliedOneByOne(sequence.base(), sequence.calls),
+    });
+  }
+});
+
+test("presence follows call order: a later remove leaves the actor absent, a later upsert brings her back", () => {
+  const [removedLast, upsertedLast, , , , , beats] = SCENE_SEQUENCES;
+  expect(foldedTogether(vesnaPresent(), removedLast?.calls ?? []).presentCharacters).toEqual([]);
+  expect(foldedTogether(vesnaPresent(), upsertedLast?.calls ?? []).presentCharacters).toEqual(["npc:vesna"]);
+  // The beat log keeps both beats, in order.
+  expect(foldedTogether(emptyState(), beats?.calls ?? []).recentEvents).toEqual(["A happened", "B happened"]);
 });

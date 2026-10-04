@@ -1,0 +1,224 @@
+{
+  "summary": {
+    "cell": "ollama-qwen25-0.5b-cpu",
+    "server": "ollama",
+    "model": "qwen2.5:0.5b",
+    "template": "ollama-library",
+    "mode": "nonstream",
+    "body": {},
+    "strict": false,
+    "turns": 10,
+    "both": 0,
+    "proseOnly": 0,
+    "toolsOnly": 6,
+    "empty": 4,
+    "errors": 0,
+    "leaks": 0,
+    "maxPromptTokens": 3572,
+    "medianTokPerSec": 3.4000000000000004,
+    "medianServerTokPerSec": null,
+    "ranAt": "2026-10-03T16:42:51.769Z"
+  },
+  "rows": [
+    {
+      "turn": 1,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_party"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 6372,
+      "decodeMs": null,
+      "promptTokens": 2944,
+      "completionTokens": 20,
+      "tokPerSec": 3.1,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"triggers\":[]}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["no_changes"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 7523,
+      "decodeMs": null,
+      "promptTokens": 3011,
+      "completionTokens": 16,
+      "tokPerSec": 2.1,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "no_changes",
+          "arguments": "{}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "shape": "empty",
+      "proseChars": 0,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 10891,
+      "decodeMs": null,
+      "promptTokens": 3086,
+      "completionTokens": 96,
+      "tokPerSec": 8.8,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 4,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["set_tracker"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 7801,
+      "decodeMs": null,
+      "promptTokens": 3154,
+      "completionTokens": 29,
+      "tokPerSec": 3.7,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "set_tracker",
+          "arguments": "{\"trackerName\":\"Heat\",\"trackerValue\":50}"
+        }
+      ]
+    },
+    {
+      "turn": 5,
+      "shape": "empty",
+      "proseChars": 0,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 8760,
+      "decodeMs": null,
+      "promptTokens": 3235,
+      "completionTokens": 44,
+      "tokPerSec": 5,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 6,
+      "shape": "empty",
+      "proseChars": 0,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 31564,
+      "decodeMs": null,
+      "promptTokens": 3306,
+      "completionTokens": 690,
+      "tokPerSec": 21.9,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 7,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["no_changes"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 6335,
+      "decodeMs": null,
+      "promptTokens": 3381,
+      "completionTokens": 16,
+      "tokPerSec": 2.5,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "no_changes",
+          "arguments": "{}"
+        }
+      ]
+    },
+    {
+      "turn": 8,
+      "shape": "empty",
+      "proseChars": 0,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 5636,
+      "decodeMs": null,
+      "promptTokens": 3438,
+      "completionTokens": 16,
+      "tokPerSec": 2.8,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 9,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_party"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 7173,
+      "decodeMs": null,
+      "promptTokens": 3496,
+      "completionTokens": 32,
+      "tokPerSec": 4.5,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"trackerDeltas\":[-150]}"
+        }
+      ]
+    },
+    {
+      "turn": 10,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["no_changes"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 6107,
+      "decodeMs": null,
+      "promptTokens": 3572,
+      "completionTokens": 16,
+      "tokPerSec": 2.6,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "no_changes",
+          "arguments": "{}"
+        }
+      ]
+    }
+  ]
+}

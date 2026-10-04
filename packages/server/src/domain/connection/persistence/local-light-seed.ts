@@ -2,11 +2,11 @@
 // Existing bindings, including explicit null choices, are never overwritten.
 
 import type { LocalLightSeedSlot, ProviderId, RoutableTask } from "@orb/contracts/inference";
-import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
+import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema, taskDef } from "@orb/contracts/inference";
 import { connectionBindings, userConnections } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { UserId } from "@orb/kit/ids";
-import { and, eq, inArray, isNull, notExists, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { LocalLightSeedDeps } from "../contract/params.ts";
 import type { LocalLightSeedResult } from "../contract/results.ts";
@@ -28,8 +28,10 @@ const SEED_BINDINGS = [
 const SEED_TASKS: readonly RoutableTask[] = SEED_BINDINGS.map((binding) => binding.task);
 const taken = alias(userConnections, "seed_slot_taken");
 
-/** Give each empty slot the user's pre-slot seeded row for it: the unslotted local-light row on the seed's model
- *  that their binding for the task points at. Skipped when the slot is filled or today's label is already in use. */
+/** Give each empty slot the user's pre-slot seeded row for it: the unslotted local-light row on the seed's model (or an
+ *  earlier seed model), under a label the seed gave it, that their binding for the task points at. A row the user
+ *  made carries none of those labels and is never adopted. Skipped when the slot is filled or another row holds
+ *  today's label. */
 async function adoptEarlierSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, now: number): Promise<void> {
   const { db } = deps;
   const adoptions = LOCAL_LIGHT_SEED_ROWS.map((seed) => {
@@ -37,10 +39,11 @@ async function adoptEarlierSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, n
       .select({ id: connectionBindings.connectionId })
       .from(connectionBindings)
       .where(and(eq(connectionBindings.actorKind, "user"), eq(connectionBindings.userId, ownerId), eq(connectionBindings.task, seed.task)));
+    // A row seeded under today's label holds that label itself, which must not block its own adoption.
     const slotOrLabelInUse = db
       .select({ id: taken.id })
       .from(taken)
-      .where(and(eq(taken.ownerId, ownerId), or(eq(taken.seedSlot, seed.task), eq(taken.label, seed.label))));
+      .where(and(eq(taken.ownerId, ownerId), or(eq(taken.seedSlot, seed.task), and(eq(taken.label, seed.label), ne(taken.id, userConnections.id)))));
     return batchStmt(
       db
         .update(userConnections)
@@ -49,7 +52,12 @@ async function adoptEarlierSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, n
           and(
             eq(userConnections.ownerId, ownerId),
             eq(userConnections.providerId, LOCAL_LIGHT_PROVIDER_ID),
-            eq(userConnections.model, modelIdSchema.parse(seed.model)),
+            // A pre-slot row on an earlier seed model is adopted too; the move below then puts it on today's model.
+            inArray(
+              userConnections.model,
+              [seed.model, ...seed.earlierModels].map((model) => modelIdSchema.parse(model)),
+            ),
+            inArray(userConnections.label, [seed.label, ...seed.earlierLabels]),
             isNull(userConnections.seedSlot),
             inArray(userConnections.id, boundRow),
             notExists(slotOrLabelInUse),
@@ -60,12 +68,54 @@ async function adoptEarlierSeedRows(deps: LocalLightSeedDeps, ownerId: UserId, n
   await db.batch(batchMany(adoptions));
 }
 
+/** Move each slot row still on the model the seed last gave it onto today's seed model, when that model is one an
+ *  earlier release seeded. Only a slot row moves, and only the seed fills a slot, so a row the user made never moves.
+ *  `seed_model` records what the seed gave the row (NULL on rows from before the column, which every earlier release
+ *  wrote, when the earlier model was the only built-in choice). Once moved, the row records
+ *  today's model, so a later pick of the earlier model (still in the catalog) is the user's own and stays. The binding
+ *  points at the row, so a bound role follows it. The row's declared facts for the task described the earlier model
+ *  (a 512 window, say), so they are dropped with the move rather than constraining the new one. */
+async function moveSeedRowsOffEarlierModels(deps: LocalLightSeedDeps, ownerId: UserId, now: number): Promise<void> {
+  const { db } = deps;
+  const moves = LOCAL_LIGHT_SEED_ROWS.flatMap((seed) =>
+    seed.earlierModels.length === 0
+      ? []
+      : [
+          batchStmt(
+            db
+              .update(userConnections)
+              .set({
+                model: modelIdSchema.parse(seed.model),
+                seedModel: modelIdSchema.parse(seed.model),
+                // The capability block a declared override states facts under is named by the task's model kind.
+                declared: sql`json_remove(${userConnections.declared}, ${`$.${taskDef(seed.task).kind}`})`,
+                updatedAt: now,
+              })
+              .where(
+                and(
+                  eq(userConnections.ownerId, ownerId),
+                  eq(userConnections.providerId, LOCAL_LIGHT_PROVIDER_ID),
+                  eq(userConnections.seedSlot, seed.task),
+                  inArray(
+                    userConnections.model,
+                    seed.earlierModels.map((model) => modelIdSchema.parse(model)),
+                  ),
+                  or(isNull(userConnections.seedModel), eq(userConnections.seedModel, userConnections.model)),
+                ),
+              ),
+          ),
+        ],
+  );
+  await db.batch(batchMany(moves));
+}
+
 /** Seed ONE user's two local-light rows + bindings. Returns how many connection rows were newly inserted and
  *  which tasks this call newly bound. */
 export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerId: UserId): Promise<LocalLightSeedResult> {
   const { db } = deps;
   const now = deps.now();
   await adoptEarlierSeedRows(deps, ownerId, now);
+  await moveSeedRowsOffEarlierModels(deps, ownerId, now);
   const inserted = await db
     .insert(userConnections)
     .values(
@@ -78,6 +128,7 @@ export async function seedLocalLightConnections(deps: LocalLightSeedDeps, ownerI
         credentialId: null,
         baseUrl: null,
         model: modelIdSchema.parse(seed.model),
+        seedModel: modelIdSchema.parse(seed.model),
         api: "auto" as const,
         declared: null,
         extras: null,

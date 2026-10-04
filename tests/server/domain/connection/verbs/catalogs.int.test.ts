@@ -4,7 +4,7 @@
 // after the dial would have already made the request it was there to prevent). Both reads answer one shape: a
 // failed or empty dial is the typed-id FALLBACK — `{ listed: false, reason }`, with no model list — never a throw.
 
-import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCredentialsService } from "@orb/server/domain/credentials";
@@ -212,6 +212,20 @@ describe("catalogModels", () => {
     const result = await h.svc.catalogModels({ principal: owner.principal, connectionId: row.id });
     expect(result.listed && result.models.map((entry) => entry.id)).toContain("jinaai/jina-clip-v2");
     expect(h.requests, "the builtin strategy must not dial anything").toEqual([]);
+  });
+
+  // The same list feeds "Add another model on this key", which adds a NEW row of any kind: from the encoder row it
+  // must offer the rerankers, which a closed built-in catalog cannot take typed. Only the editor's own picker narrows.
+  test("a saved row lists the whole catalog, every kind and every entry described", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const [encoder, reranker] = LOCAL_LIGHT_SEED_ROWS;
+    const row = await h.svc.create({ principal: owner.principal, providerId: "local-light", credentialId: null, baseUrl: null, model: encoder.model });
+    const result = await h.svc.catalogModels({ principal: owner.principal, connectionId: row.id });
+    const models = result.listed ? result.models : [];
+    expect(models.map((entry) => entry.id)).toEqual(expect.arrayContaining([encoder.model, reranker.model, ...reranker.earlierModels]));
+    expect(models.filter((entry) => (entry.description ?? "") === "").map((entry) => entry.id)).toEqual([]);
   });
 });
 

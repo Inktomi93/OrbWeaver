@@ -1,0 +1,255 @@
+{
+  "summary": {
+    "cell": "llamacpp-27b-served",
+    "server": "llama-cpp",
+    "model": "Qwen3.8-27B-UD-Q4_K_M.gguf",
+    "template": "served",
+    "mode": "nonstream",
+    "body": {
+      "chat_template_kwargs": {
+        "enable_thinking": false
+      }
+    },
+    "strict": false,
+    "turns": 10,
+    "both": 3,
+    "proseOnly": 5,
+    "toolsOnly": 2,
+    "empty": 0,
+    "errors": 0,
+    "leaks": 0,
+    "maxPromptTokens": 4587,
+    "medianTokPerSec": 25.45,
+    "medianServerTokPerSec": 34.45,
+    "ranAt": "2026-10-03T16:38:36.589Z"
+  },
+  "rows": [
+    {
+      "turn": 1,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 7832,
+      "decodeMs": null,
+      "promptTokens": 3792,
+      "completionTokens": 209,
+      "tokPerSec": 26.7,
+      "serverTokPerSec": 33.8,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\":\"evening\",\"presentUpsert\":[{\"name\": \"Marro\", \"emoji\": \"🃏\", \"mood\": \"appraising\", \"appearance\": \"gaunt, ink-stained fingers, one pale eye under a flattened cap\", \"outfit\": \"oilskin jacket, leather satchel cross-strapped\", \"thoughts\": \"weighing whether this courier is worth the trouble of trusting\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"fence\"}}, {\"name\": \"Rook\", \"mood\": \"wet and watchful\", \"thoughts\": \"just need the ledger, just need the coin\", \"relationship\": {\"kind\": \"neutral\", \"label\": \"courier\"}}],\"recentEvent\":\"Rook shakes off the rain and comes looking for Marro\"}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_inventory", "update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 7236,
+      "decodeMs": null,
+      "promptTokens": 3892,
+      "completionTokens": 193,
+      "tokPerSec": 26.7,
+      "serverTokPerSec": 34.6,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"walletDeltas\":[{\"name\": \"gold\", \"delta\": -6}]}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"presentUpsert\":[{\"name\": \"Marro\", \"emoji\": \"🕯️\", \"mood\": \"sharp, appraising\", \"appearance\": \"thin, ink-stained fingers, close-cropped hair\", \"outfit\": \"worn leather vest over a faded shirt\", \"thoughts\": \"weighing whether the job is worth the trouble\", \"relationship\": {\"kind\": \"custom\", \"label\": \"fence\"}}],\"recentEvent\":\"Rook pays Marro forty gold for the courier job\"}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "shape": "both",
+      "proseChars": 406,
+      "calls": ["update_scene", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 12952,
+      "decodeMs": null,
+      "promptTokens": 3981,
+      "completionTokens": 416,
+      "tokPerSec": 32.1,
+      "serverTokPerSec": 34.5,
+      "content": "Marro taps the table. 'The salt docks. A crew of red-bearded men broke into the master's study while the man was at his brother's funeral. They hauled the ledger out through the scullery window.' He leans in. 'Word is the watch is sniffing around. Quiet feet, Rook. Don't make a name for yourself tonight.'\n\nRain hammers the taproom roof. Through the window, the street beyond is slick and half-lit by gas.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"recentEvent\":\"Rook accepted Marro's job to retrieve the harbormaster's stolen ledger from the salt docks before dawn\",\"plot\":{\"act\": 1, \"title\": \"The Harbormaster's Ledger\", \"actTitle\": \"The Ledger\"},\"presentUpsert\":[{\"name\": \"Marro\", \"emoji\": \"🖋️\", \"mood\": \"expectant\", \"appearance\": \"thin, ink-stained fingers\", \"outfit\": \"dark coat\", \"thoughts\": \"hoping Rook stays quiet and gets the job done\", \"relationship\": {\"kind\": \"ally\", \"label\": \"fence\"}}]}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"create\",\"description\":\"Retrieve the stolen harbormaster's ledger from the salt docks before dawn. A crew of red-bearded men stole it through the scullery window. Stay quiet — the watch is sniffing around.\",\"objectives\":[\"Find the red-bearded crew at the salt docks\", \"Recover the harbormaster's ledger\", \"Return it before dawn\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 4,
+      "shape": "prose-only",
+      "proseChars": 323,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 3300,
+      "decodeMs": null,
+      "promptTokens": 4169,
+      "completionTokens": 80,
+      "tokPerSec": 24.2,
+      "serverTokPerSec": 34.4,
+      "content": "Rat Alley is a throat of dripping stone between two leaning walls. The rain hammers the chandlery's back door, and beyond it, a single lantern swings on a hook. Under the light sits a woman with a scarred eye patch and a ledger tucked under her arm — Gessa. She hasn't seen you yet, but her hand rests easy on a heavy club.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 5,
+      "shape": "prose-only",
+      "proseChars": 168,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2195,
+      "decodeMs": null,
+      "promptTokens": 4227,
+      "completionTokens": 43,
+      "tokPerSec": 19.6,
+      "serverTokPerSec": 33.9,
+      "content": "You're hit hard on the ribs and stagger back. The blade comes up just in time to stop the next swing, sparks biting off the rain. Gessa is a big woman, and she's angry.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 6,
+      "shape": "prose-only",
+      "proseChars": 160,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2251,
+      "decodeMs": null,
+      "promptTokens": 4302,
+      "completionTokens": 42,
+      "tokPerSec": 18.7,
+      "serverTokPerSec": 33.9,
+      "content": "The edge bites and Gessa snarls, but she doesn't go down. She kicks you in the shin and dives for the cudgel, one hand already in her coat where the ledger was.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 7,
+      "shape": "both",
+      "proseChars": 135,
+      "calls": ["update_inventory", "update_party", "upsert_quest"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 9101,
+      "decodeMs": null,
+      "promptTokens": 4381,
+      "completionTokens": 282,
+      "tokPerSec": 31,
+      "serverTokPerSec": 34.5,
+      "content": "The ledger is heavier than it looks. You knot the linen tight around your ribs and keep moving, rain masking the wet drag of each step.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"add\":[{\"name\": \"Harbormaster's Ledger\", \"description\": \"Leather-bound, brass-clasped, taken from Gessa\", \"quantity\": 1, \"location\": \"pack\"}],\"remove\":[{\"name\": \"Sealed Courier Satchel\", \"quantity\": 1}]}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"trackerDeltas\":[{\"key\": \"stamina\", \"delta\": -2}],\"status\":\"ribs bound, bruised, moving through the rain\"}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"update\",\"completeObjectives\":[\"Recover the harbormaster's ledger\"]}"
+        }
+      ]
+    },
+    {
+      "turn": 8,
+      "shape": "prose-only",
+      "proseChars": 310,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2904,
+      "decodeMs": null,
+      "promptTokens": 4514,
+      "completionTokens": 67,
+      "tokPerSec": 23.1,
+      "serverTokPerSec": 34.7,
+      "content": "The fish market is a river of mud and offal. You weave between overturned crates and a collapsed gut-barrel, ribs screaming with every stride. The bells still hammer. Ahead, the harbor mouth opens black and wide, and the watch lanterns are already fanning out toward Rat Alley—close enough to hear their boots.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 9,
+      "shape": "prose-only",
+      "proseChars": 162,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2071,
+      "decodeMs": null,
+      "promptTokens": 4507,
+      "completionTokens": 39,
+      "tokPerSec": 18.8,
+      "serverTokPerSec": 34.2,
+      "content": "The harbormaster takes the ledger with white knuckles. He counts out a heavy purse and slides it across the desk. 'You're paid in full. Get out before the watch.'",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 10,
+      "shape": "both",
+      "proseChars": 422,
+      "calls": ["update_scene", "upsert_quest", "update_inventory", "set_tracker", "add_journal_entry"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 22698,
+      "decodeMs": null,
+      "promptTokens": 4587,
+      "completionTokens": 750,
+      "tokPerSec": 33,
+      "serverTokPerSec": 34.5,
+      "content": "The tavern door groans open on wet wood. Marro is still in his corner, ink on his fingers, watching you come in with the ledger.\n\n'Got it.' His voice is flat. He slides a leather pouch across the board — heavier than the first. 'Fifty. And that ring?'\n\nYou set Ilse's signet down beside it. Marro flips it over once, slow, and something flickers behind his eyes. 'You've made yourself known. Word moves fast in this port.'\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"the Drowned Lantern, Saltmere\",\"timeOfDay\":\"night\",\"weather\":{\"type\": \"rain\", \"label\": \"steady rain\"},\"presentUpsert\":[{\"name\": \"Marro\", \"emoji\": \"🖋️\", \"mood\": \"measured\", \"appearance\": \"thin, ink-stained fingers\", \"outfit\": \"faded coat\", \"thoughts\": \"weighing how much Rook knows\", \"relationship\": {\"kind\": \"ally\", \"label\": \"fence\"}}, {\"name\": \"player\", \"mood\": \"exhausted\", \"appearance\": \"soaked cloak, ribs bound in linen\", \"outfit\": \"wet cloak, shortsword sheathed\", \"thoughts\": \"just one more stop before collapse\"}],\"recentEvent\":\"Rook delivers the ledger and Ilse's signet to Marro\",\"plot\":{\"act\": 1, \"title\": \"The Ledger\", \"actSummary\": \"Rook retrieves the harbormaster's ledger from Gessa in Rat Alley and delivers it to Marro, collecting payment and a silver signet ring.\"}}"
+        },
+        {
+          "name": "upsert_quest",
+          "arguments": "{\"name\":\"The Harbormaster's Ledger\",\"action\":\"complete\"}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"add\":[{\"name\": \"Silver Signet Ring\", \"description\": \"Harbormaster Ilse's seal, heavy and engraved\", \"quantity\": 1, \"location\": \"palm, then belt pouch\"}, {\"name\": \"Coin Purse\", \"description\": \"Fifty gold from Marro for the ledger job\", \"quantity\": 1, \"location\": \"belt pouch\"}],\"remove\":[{\"name\": \"Harbormaster's Ledger\", \"quantity\": 1}],\"walletDeltas\":[{\"name\": \"gold\", \"delta\": 50}]}"
+        },
+        {
+          "name": "set_tracker",
+          "arguments": "{\"key\":\"heat\",\"value\":20}"
+        },
+        {
+          "name": "add_journal_entry",
+          "arguments": "{\"type\":\"event\",\"content\":\"Rook returns to Marro with the ledger and Ilse's signet. Marro pays fifty gold but notes Rook has made themselves known — word moves fast in Saltmere.\",\"title\":\"Ledger Delivered\"}"
+        }
+      ]
+    }
+  ]
+}

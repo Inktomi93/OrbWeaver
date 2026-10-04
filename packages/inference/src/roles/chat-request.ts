@@ -48,6 +48,7 @@ function toArrayWireChatRequest(input: ChatTurnInput, api: Exclude<ChatApi, "age
     // The cache breakpoint DEPTH (role switches from the end — `backends/kit/cache-control.ts` owns the axis).
     cacheBreakpointDepth: input.cacheBreakpointDepth,
     ...(tools !== null ? { tools, toolChoice: OFFERED_TOOL_CHOICE } : {}),
+    ...((input.tools?.terminal?.length ?? 0) > 0 ? { terminalToolsAttached: true } : {}),
     ...(input.responseFormat !== undefined ? { responseFormat: input.responseFormat } : {}),
     // The inline-reasoning tags (the F-table "Adopt" row) — only the openai-compat transport reads them, and
     // only when the row declares no native reasoning delta field.

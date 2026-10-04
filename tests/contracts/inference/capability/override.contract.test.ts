@@ -74,3 +74,12 @@ test("a `declared` block carries no `match` and no `evidence` — it IS that row
   expect(declared).not.toHaveProperty("evidence");
   expect(declared.embedding?.dims).toBe(2048);
 });
+
+// A reranker's ONNX serving decides which files the shared in-process cache loads for every user of that model, so a
+// connection may restate its window but never its serving: refused at parse, never silently dropped.
+test("a declared block may state a reranker's window but is refused when it states the ONNX serving", () => {
+  expect(declaredCapabilitySchema.safeParse({ rerank: { maxInputTokens: 1024 } }).success).toBe(true);
+  const serving = { head: "sequence-classification", dtype: "fp32", files: { x64: "model" } };
+  expect(declaredCapabilitySchema.safeParse({ rerank: { onnx: serving } }).success).toBe(false);
+  expect(capabilityOverrideSchema.safeParse({ rerank: { onnx: serving } }).success, "curated rows still state it").toBe(true);
+});

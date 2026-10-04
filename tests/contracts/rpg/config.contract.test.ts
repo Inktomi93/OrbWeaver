@@ -119,3 +119,12 @@ test("hand-door output verdicts preserve refusal and no-op distinctions without 
   expect(populateResultSchema.parse({ ok: true, populated: false })).toEqual({ ok: true, populated: false });
   expect(promoteActorResultSchema.parse({ ok: true, issues: ["name shortened"] })).toEqual({ ok: true, issues: ["name shortened"] });
 });
+
+// 0511: the state-capture vehicle is additive — a blob stored before it existed parses to `auto` (the capability
+// picks), and the schema refuses a vehicle outside the closed tuple.
+test("stateCaptureVehicle self-heals to `auto` on a pre-knob blob and refuses a vehicle outside the tuple", () => {
+  const stored = { extractionMode: "cheap", extractionContext: "full", lite: { steeringNote: "lean darker" } };
+  expect(rpgGameConfigSchema.parse(stored).stateCaptureVehicle).toBe("auto");
+  expect(rpgGameConfigSchema.parse({ ...stored, stateCaptureVehicle: "structured" }).stateCaptureVehicle).toBe("structured");
+  expect(rpgGameConfigSchema.safeParse({ ...stored, stateCaptureVehicle: "carrier-pigeon" }).success).toBe(false);
+});
