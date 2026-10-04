@@ -75,10 +75,19 @@ export function buildActorRefIndex(participants: readonly { readonly actorRef: R
  *  The ONE resolution rule, shared by the party/inventory appliers AND the scene applier's presence writes, so
  *  an npc introduced by `presentUpsert` and wounded by `update_party` in the same round is ONE actor. */
 function refForTarget(targetRef: string, participantIndex: ActorRefIndex): RpgActorRef {
-  // The span-free name addresses the same person the slug does, so a participant written with a hidden span
-  // still resolves to her own ref instead of minting an npc twin.
-  const name = stripHiddenSpans(targetRef).content.trim();
+  const name = addressName(targetRef);
   return participantIndex.get(name.toLowerCase()) ?? { kind: "npc", npcKey: rpgNpcSlug(name) };
+}
+
+// The span-free name addresses the same person the slug does: a participant written with a hidden span still
+// resolves to her own ref, and the ghost guard recognises an npc introduced under one.
+function addressName(targetRef: string): string {
+  return stripHiddenSpans(targetRef).content.trim();
+}
+
+// The case-folded `addressName`: what the ghost guard compares.
+function addressMatchKey(name: string): string {
+  return addressName(name).toLowerCase();
 }
 
 /** Resolve the actor a `targetRef` NAME addresses (the model never sees ids). Match order:
@@ -588,7 +597,7 @@ export function reachableActorRefs(base: RpgSnapshotState, participantIndex: Act
       known.add(actor.actorRef.npcKey.toLowerCase());
       const name = actor.identity?.name;
       if (name !== undefined) {
-        known.add(name.toLowerCase());
+        known.add(addressMatchKey(name));
       }
     }
   }
@@ -614,10 +623,10 @@ function sceneCallsOf(extraction: RpgExtraction): readonly UpdateSceneArgs[] {
 export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtraction, participantIndex: ActorRefIndex): string[] {
   const known = reachableActorRefs(base, participantIndex);
   for (const up of sceneCallsOf(extraction).flatMap((scene) => scene.presentUpsert ?? [])) {
-    known.add(up.name.toLowerCase());
+    known.add(addressMatchKey(up.name));
   }
   const named = [...extraction.party, ...extraction.inventory].map((e) => e.targetRef);
-  return [...new Set(named.filter((n) => !known.has(n.toLowerCase())))];
+  return [...new Set(named.filter((n) => !known.has(addressMatchKey(n))))];
 }
 
 /** The ACTOR-plane arms of the fold (`party` + `inventory`) applied over the running state — hoisted out of
@@ -626,16 +635,16 @@ export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtractio
  *  whole (errors-as-data — never a throw, never a hallucinated mint). */
 function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, fold: ExtractionFoldRefs): RpgSnapshotState {
   const { participantIndex, trackerDefs } = fold;
-  const ghosts = new Set(ghostTargetRefs(base, extraction, participantIndex).map((r) => r.toLowerCase()));
+  const ghosts = new Set(ghostTargetRefs(base, extraction, participantIndex).map(addressMatchKey));
   let state = base;
   for (const args of extraction.party) {
-    if (ghosts.has(args.targetRef.toLowerCase())) {
+    if (ghosts.has(addressMatchKey(args.targetRef))) {
       continue;
     }
     state = { ...state, ...applyUpdateParty(state, args, participantIndex, trackerDefs) };
   }
   for (const args of extraction.inventory) {
-    if (ghosts.has(args.targetRef.toLowerCase())) {
+    if (ghosts.has(addressMatchKey(args.targetRef))) {
       continue;
     }
     state = { ...state, ...applyUpdateInventory(state, args, mints.item, participantIndex) };

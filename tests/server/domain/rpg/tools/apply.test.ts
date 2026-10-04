@@ -557,6 +557,23 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
   expect(delta.journal).toHaveLength(1); // and the turn is otherwise untouched (errors-as-data, never a throw)
 });
 
+test("an npc introduced under a hidden span and targeted by her bare name in the same round is no ghost", () => {
+  const extraction = {
+    scene: { presentUpsert: [{ name: 'Mara <lie truth="the informant"/>' }] },
+    party: [{ targetRef: "Mara", status: "wounded" }],
+    inventory: [],
+    trackers: [],
+    quests: [],
+    journal: [],
+  };
+  const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
+  expect(ghostTargetRefs(emptyState(), extraction, NO_PARTICIPANTS)).toEqual([]);
+  const delta = extractionToStateDelta(emptyState(), extraction, mints, { participantIndex: NO_PARTICIPANTS, trackerDefs: NO_DEFS });
+  const actors = delta.statePatch["actorState"] as { actorRef: unknown; volatile: { status: string } }[];
+  expect(actors).toHaveLength(1);
+  expect(actors[0]).toMatchObject({ actorRef: { kind: "npc", npcKey: "mara" }, volatile: { status: "wounded" } });
+});
+
 test("ghostTargetRefs names ONLY the unreachable targets (participants / tracked npcs / scene npcs are reachable)", () => {
   const userId = castId<UserId>("user_g2");
   const participantIndex = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
