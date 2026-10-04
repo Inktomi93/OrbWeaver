@@ -118,6 +118,9 @@ const TRACKED_KEYS = [
   // are driven by the chat bus's variantSelected event.
   "rpgTrackerView",
   "rpgJournal",
+  // The game read's delivery verdicts and state-round notice price the room HOST's connection, so a host
+  // handoff (the `chatUpdated` catch-all) refetches it with the tracker view's read-only pill.
+  "rpgGame",
   // The injections manager's own read of `chat_injections` (`chat.listChatInjections`). Every injection write
   // emits the `chatUpdated` catch-all (verbs/chat-lifecycle.ts), but only the writing tab reconciled — the
   // `getGroupConfig` case, one proc over.
@@ -212,7 +215,8 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   // …PLUS the per-chat document rack (#2471): `chatUpdated` is the documented roster/handoff event and the
   // D85 union is membership-derived, so a seat joining/leaving credits or withdraws its documents — and
   // `chat.setChatDocumentVisibility` emits this same catch-all.
-  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections", "reactions", "databankRack"],
+  // …PLUS the game and tracker reads: their delivery verdicts follow the room host, and a handoff emits only this.
+  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections", "reactions", "databankRack", "rpgGame", "rpgTrackerView"],
   // Room + the prompt preview: a re-anchored persona rewrites `{{user}}` in the next turn's prompt.
   personaSwitched: ["getChat", "previewAssembly", "getShapeTrace"],
   // B6 — NARROW on purpose (the `roomEntityChanged` argument): the pill row is its own read, so exactly one
@@ -285,6 +289,7 @@ describe("invalidation — the bus half (invalidate)", () => {
         revealHidden: trpc.rpg.revealHidden.queryKey({ chatId: CHAT_ID }),
         rpgTrackerView: trpc.rpg.getTrackerView.queryKey({ chatId: CHAT_ID }),
         rpgJournal: trpc.rpg.listJournal.queryKey({ chatId: CHAT_ID, limit: 50 }),
+        rpgGame: trpc.rpg.getGame.queryKey({ chatId: CHAT_ID }),
         listChatInjections: trpc.chat.listChatInjections.queryKey({ chatId: CHAT_ID }),
         getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID, timeZone: UTC_TIME_ZONE }),
         runtimeVariables: trpc.chat.getRuntimeVariables.queryKey({ chatId: CHAT_ID }),
@@ -439,7 +444,7 @@ const USER_TRACKED_KEYS = [
   // from `connection` because `settingsChanged` invalidates it NARROWLY (the roleDefaults edit re-resolves the
   // chat capability; the catalog reads under the same router must NOT be dropped — they cold-fetch).
   "chatCapability",
-  // The game read (`rpg.getGame`): its delivery verdicts are derived from the viewer's resolved connection, so a
+  // The game read (`rpg.getGame`): its delivery verdicts are derived from the room host's resolved connection, so a
   // connection write (a declared context window) refetches it.
   "rpgGame",
   // The transcript divider's fit budget also refetches on a settings/preset change (the resolved capability +
