@@ -5,8 +5,8 @@
 // delivered assistant row is continued (the server's rendered prompt leaves it open), and the sampler values the
 // server runs when a request leaves a knob unset. Everything else is curated or declared (§5.7, §6.3).
 
-import type { CapabilityOverride, EmbeddingCapability, EndpointFeatures, ModelKind } from "@orb/contracts/inference";
-import { DEFAULT_SAMPLER_KEYS, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
+import type { CapabilityOverride, EffortLevel, EmbeddingCapability, EndpointFeatures, ModelKind } from "@orb/contracts/inference";
+import { DEFAULT_SAMPLER_KEYS, EFFORT_LEVELS, SAMPLING_RANGE_KNOBS } from "@orb/contracts/inference";
 import type { EndpointModel } from "../../../contract/runtime.ts";
 
 type GenerationPatch = NonNullable<CapabilityOverride["generation"]>;
@@ -44,10 +44,47 @@ function advertisedEmbedding(entry: Pick<EndpointModel, "contextFloor" | "embedd
   return entry.contextFloor === undefined ? dims : { ...dims, maxInputTokens: entry.contextFloor, windowEstimated: true };
 }
 
+function isEffortLevel(value: boolean | string): value is EffortLevel {
+  return (EFFORT_LEVELS as readonly (boolean | string)[]).includes(value);
+}
+
+/** A stated thinker reasons by a switch, not a budget: `reasoning_effort` (Ollama's `think`) turns it on or off. Its
+ *  descriptor, where the server states one, names the levels `think` takes (none: on or off only), whether `false`
+ *  is among them, and what an omitted `think` runs. A name outside our levels is not one a preset can choose. */
+function advertisedReasoning(entry: Pick<EndpointModel, "thinks" | "thinking">): Pick<GenerationPatch, "reasoning"> {
+  const descriptor = entry.thinking;
+  if (descriptor === undefined) {
+    return entry.thinks === true ? { reasoning: { mode: "effort", enabled: true } } : {};
+  }
+  if (descriptor.values.every((value) => value === false)) {
+    return {};
+  }
+  return {
+    reasoning: {
+      mode: "effort",
+      enabled: true,
+      effortLevels: EFFORT_LEVELS.filter((level) => descriptor.values.includes(level)),
+      ...(descriptor.values.includes(false) ? {} : { mandatory: true }),
+      defaultEnabled: descriptor.default !== false,
+      ...(isEffortLevel(descriptor.default) ? { defaultEffort: descriptor.default } : {}),
+    },
+  };
+}
+
 export function advertisedFromOpenAiCompat(
   entry: Pick<
     EndpointModel,
-    "contextLength" | "contextFloor" | "embeddingDims" | "embedInputTokens" | "input" | "tools" | "structured" | "prefill" | "serverDefaults" | "thinks"
+    | "contextLength"
+    | "contextFloor"
+    | "embeddingDims"
+    | "embedInputTokens"
+    | "input"
+    | "tools"
+    | "structured"
+    | "prefill"
+    | "serverDefaults"
+    | "thinks"
+    | "thinking"
   >,
   kind: ModelKind,
   features: EndpointFeatures,
@@ -64,8 +101,7 @@ export function advertisedFromOpenAiCompat(
     ...(entry.input === undefined ? {} : { input: [...entry.input] }),
     ...(entry.tools === undefined ? {} : { tools: { parallel: entry.tools.parallel } }),
     ...(entry.structured === true ? { output: { structured: true } } : {}),
-    // A stated thinker reasons by a switch, not a budget: `reasoning_effort` (Ollama's `think`) turns it on or off.
-    ...(entry.thinks === true ? { reasoning: { mode: "effort", enabled: true } } : {}),
+    ...advertisedReasoning(entry),
     // The server rendered a trailing assistant row and left it open: a delivered prefill is continued.
     ...(entry.prefill === undefined ? {} : { turns: { assistantPrefill: entry.prefill === "deliver" } }),
     ...(samplingDefaults === undefined ? {} : { samplingDefaults }),

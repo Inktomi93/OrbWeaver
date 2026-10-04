@@ -59,6 +59,17 @@ export function acceptsNamedToolChoice(capability: GenerationCapability): boolea
   return capability.tools?.namedChoice !== false;
 }
 
+/** MAY a request tell the model to call NO tool (`none`)? `tools.noneChoice`, absent ⇒ true. The structured plan
+ *  withdraws the offered tools where it cannot. */
+export function acceptsNoneToolChoice(capability: GenerationCapability): boolean {
+  return capability.tools?.noneChoice !== false;
+}
+
+/** Does a request's `parallel_tool_calls: false` reach the model? `tools.parallelControl`, absent ⇒ true. */
+export function honoursParallelControl(capability: GenerationCapability): boolean {
+  return capability.tools?.parallelControl !== false;
+}
+
 /** Whether a `turns` cell holds the floor's guess because no evidence tier stated it. */
 export function isTurnEstimated(capability: GenerationCapability, cell: EstimableTurn): boolean {
   return capability.turnsEstimated?.includes(cell) === true;

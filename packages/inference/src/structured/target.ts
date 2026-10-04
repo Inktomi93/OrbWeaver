@@ -2,7 +2,13 @@
 // enforces and the vehicles its wire and capability offer. Read only from the folded capability and features.
 
 import type { EndpointFeatures, StructuredSchemaTarget, StructuredVehicle, Wire } from "@orb/contracts/inference";
-import { acceptsNamedToolChoice, acceptsRequiredToolChoice, effectiveStructuredLimits, WIRE_STRUCTURED_MODE_DEFAULT } from "@orb/contracts/inference";
+import {
+  acceptsNamedToolChoice,
+  acceptsNoneToolChoice,
+  acceptsRequiredToolChoice,
+  effectiveStructuredLimits,
+  WIRE_STRUCTURED_MODE_DEFAULT,
+} from "@orb/contracts/inference";
 import type { Resolved } from "../contract/resolved.ts";
 
 /** The planner's view of one endpoint. `mode` is `features.structuredMode`, else the wire default; `limits` are
@@ -16,6 +22,8 @@ export interface StructuredTarget extends StructuredSchemaTarget {
   readonly requiredChoice: boolean;
   /** The model can be forced to call one named tool. */
   readonly namedChoice: boolean;
+  /** A `none` choice reaches the model. */
+  readonly noneChoice: boolean;
 }
 
 /** Wires whose request has a native schema carrier (`response_format`, `output_config.format`,
@@ -54,7 +62,7 @@ export function structuredTargetOf(connection: Resolved): StructuredTarget {
   const mode = connection.features.structuredMode ?? WIRE_STRUCTURED_MODE_DEFAULT[connection.wire];
   const strictTools = connection.features.strictJson;
   if (connection.capability.kind !== "generation") {
-    return { mode, limits: undefined, vehicles: [], strictTools, requiredChoice: false, namedChoice: false };
+    return { mode, limits: undefined, vehicles: [], strictTools, requiredChoice: false, namedChoice: false, noneChoice: false };
   }
   const generation = connection.capability.generation;
   const takesTools = generation.tools !== undefined && SENDS_TOOLS[connection.wire];
@@ -78,5 +86,6 @@ export function structuredTargetOf(connection: Resolved): StructuredTarget {
     strictTools,
     requiredChoice: acceptsRequiredToolChoice(generation),
     namedChoice,
+    noneChoice: acceptsNoneToolChoice(generation),
   };
 }

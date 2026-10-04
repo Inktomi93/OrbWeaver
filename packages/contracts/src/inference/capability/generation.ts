@@ -315,13 +315,20 @@ export const generationCapabilitySchema = z.object({
    *  400, llama.cpp runs a named choice as `auto`, Ollama and KoboldCpp take neither. A wire downgrades that
    *  form to `auto` loudly, and the structured vehicle avoids the named tool. Absent ⇒ ACCEPTED, deliberately not
    *  fail-closed: `required` is live-verified and load-bearing on the vLLM and OpenRouter routes (the rpg state
-   *  round). Read through `acceptsRequiredToolChoice` / `acceptsNamedToolChoice`. */
+   *  round). Read through `acceptsRequiredToolChoice` / `acceptsNamedToolChoice`.
+   *
+   *  `noneChoice: false` = a `none` choice does not reach the model either (Ollama, and KoboldCpp, whose chat route
+   *  reads it as no constraint), so a turn that asks for none offers no tools there. `parallelControl: false` = a
+   *  request's `parallel_tool_calls: false` reaches no model on this server, so it is dropped by name. Absent ⇒
+   *  honoured, like the forced forms. Read through `acceptsNoneToolChoice` / `honoursParallelControl`. */
   tools: z
     .object({
       parallel: z.boolean(),
       silencesProse: z.boolean().optional(),
       requiredChoice: z.boolean().optional(),
       namedChoice: z.boolean().optional(),
+      noneChoice: z.boolean().optional(),
+      parallelControl: z.boolean().optional(),
     })
     .optional(),
   output: z.object({

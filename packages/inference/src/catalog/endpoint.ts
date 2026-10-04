@@ -250,6 +250,12 @@ const ollamaShowSchema = z
     model_info: z.record(z.string(), z.unknown()).nullable().optional(),
     /** `completion` · `tools` · `vision` · `embedding` · `insert` · `thinking` and newer members; absent on an older build. */
     capabilities: z.array(z.string()).optional(),
+    /** What `think` takes for this model and what an omitted one runs (types/model/thinking.go); absent ⇒ unknown. */
+    thinking: z
+      .object({ values: z.array(z.unknown()), default: z.unknown() })
+      .loose()
+      .nullable()
+      .optional(),
   })
   .loose();
 const ollamaVersionSchema = z.object({ version: z.string() }).loose();
@@ -325,9 +331,9 @@ async function ollamaLateFacts(args: EndpointFetchArgs, row: EndpointModel): Pro
   return { ...shown, ...(await ollamaModelFacts(args, withStated(row, shown))) };
 }
 
-/** Neither chat route takes `tool_choice` (`openai.go` ChatCompletionRequest has no such field; `/api/chat`
- *  neither), so a forced choice cannot reach the model. */
-const OLLAMA_TOOL_CHOICE = { required: false, named: false } as const;
+/** Neither chat route takes `tool_choice` or `parallel_tool_calls` (`openai.go` ChatCompletionRequest has no such
+ *  field; `/api/chat` neither), so no choice, `none` included, and no parallel switch reaches the model. */
+const OLLAMA_TOOL_CHOICE = { required: false, named: false, none: false, parallel: false } as const;
 
 const ollamaRenderSchema = z.object({ ["_debug_info"]: z.object({ ["rendered_template"]: z.string() }).loose() }).loose();
 
@@ -433,8 +439,21 @@ function ollamaFacts(show: z.infer<typeof ollamaShowSchema> | null, contextFloor
     kind,
     input: modalitiesOf({ vision: capabilities.includes("vision") }),
     tools: capabilities.includes("tools") ? { parallel: false } : undefined,
-    ...(capabilities.includes("thinking") ? { thinks: true } : {}),
+    ...(capabilities.includes("thinking") ? { thinks: true, thinking: thinkingDescriptor(show?.thinking) } : {}),
   };
+}
+
+const THINK_VALUE = z.union([z.boolean(), z.string().min(1)]);
+
+/** A descriptor as the server validates it (`Thinking.Valid`): distinct boolean or named values, and a default among
+ *  them. Anything else describes nothing, and the model's levels stay unknown. */
+function thinkingDescriptor(raw: { readonly values: readonly unknown[]; readonly default: unknown } | null | undefined): EndpointModel["thinking"] {
+  const values = z.array(THINK_VALUE).min(1).safeParse(raw?.values);
+  const fallback = THINK_VALUE.safeParse(raw?.default);
+  if (!(values.success && fallback.success) || new Set(values.data).size !== values.data.length || !values.data.includes(fallback.data)) {
+    return;
+  }
+  return { values: values.data, default: fallback.data };
 }
 
 // ── llama.cpp server ─────────────────────────────────────────────────────────────────────────────────
@@ -474,8 +493,9 @@ const LLAMA_CPP_BUILD_RE = /^b(\d+)/u;
  *  5978, merged 2024-03-21 between the b2460 and b2480 tags). Conservative on purpose: the exact tag is not
  *  recoverable from the release pages. */
 const LLAMA_CPP_STRUCTURED_FLOOR_BUILD = 2480;
-/** `required` is grammar-enforced; a named choice is not a value the server parses and runs as `auto`. */
-const LLAMA_CPP_TOOL_CHOICE = { required: true, named: false } as const;
+/** The server parses `auto`, `none` and `required` (grammar-enforced); a named choice is not a value it parses and
+ *  runs as `auto`. `parallel_tool_calls` is read into the template (server-common.cpp). */
+const LLAMA_CPP_TOOL_CHOICE = { required: true, named: false, none: true, parallel: true } as const;
 const HTTP_NOT_IMPLEMENTED = 501;
 const HTTP_BAD_REQUEST = 400;
 /** The handlers' own refusal text for an empty body, which names what a request must carry. */
@@ -687,8 +707,8 @@ const koboldCppValueSchema = z.object({ value: z.number().int().positive() }).lo
 /** The release that added `response_format` with a JSON schema to the OpenAI chat endpoint. */
 const KOBOLDCPP_STRUCTURED_FLOOR = "1.90";
 /** Without `--jinja_tools` the server picks ONE tool itself and grammar-forces it; with it, the choice is ignored
- *  for generation. Neither honours a forced choice the request names. */
-const KOBOLDCPP_TOOL_CHOICE = { required: false, named: false } as const;
+ *  for generation. Neither honours a forced choice or `none` the request names, nor `parallel_tool_calls`. */
+const KOBOLDCPP_TOOL_CHOICE = { required: false, named: false, none: false, parallel: false } as const;
 
 /** What the listed row is: a server with no text model and an embedder lists that embedder as its one row. With
  *  both loaded, the embedder is not listed at all and the row is the text model. */

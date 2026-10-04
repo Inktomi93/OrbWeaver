@@ -142,6 +142,7 @@ function runBatch(req: BatchRequest, deps: BatchDeps): Promise<SummarizeResult> 
       // The template switch follows the resolved side-gen reasoning: off when it does not run, on when it does.
       templateThinking: reasoning.enabled,
       templatePreserveReasoning: undefined,
+      reasoningEffort: reasoning.enabled ? reasoning.effort : undefined,
       foldSameRole: false,
       replyImages: false,
       warnings: [],

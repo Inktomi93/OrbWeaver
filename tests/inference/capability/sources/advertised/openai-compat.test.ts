@@ -34,6 +34,34 @@ test("a model the server says thinks reasons by a switch, so an off can be spell
   expect(advertisedFromOpenAiCompat({ contextLength: null }, "generation", ROW)).toStrictEqual({});
 });
 
+test("a thinking descriptor states the model's own levels, its default, and whether thinking can be turned off", () => {
+  // Named levels with an off: the levels in our order, the default level, switchable.
+  expect(
+    advertisedFromOpenAiCompat(
+      { contextLength: null, thinks: true, thinking: { values: ["high", false, "low", "medium"], default: "medium" } },
+      "generation",
+      ROW,
+    ),
+  ).toStrictEqual({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], defaultEnabled: true, defaultEffort: "medium" } });
+  // On or off only: no level to spell.
+  expect(
+    advertisedFromOpenAiCompat({ contextLength: null, thinks: true, thinking: { values: [false, true], default: true } }, "generation", ROW),
+  ).toStrictEqual({
+    reasoning: { mode: "effort", enabled: true, effortLevels: [], defaultEnabled: true },
+  });
+  // No off value: thinking is mandatory.
+  expect(advertisedFromOpenAiCompat({ contextLength: null, thinks: true, thinking: { values: [true], default: true } }, "generation", ROW)).toStrictEqual({
+    reasoning: { mode: "effort", enabled: true, effortLevels: [], mandatory: true, defaultEnabled: true },
+  });
+  expect(
+    advertisedFromOpenAiCompat({ contextLength: null, thinks: true, thinking: { values: ["low", "medium", "high"], default: "medium" } }, "generation", ROW),
+  ).toStrictEqual({
+    reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"], mandatory: true, defaultEnabled: true, defaultEffort: "medium" },
+  });
+  // A descriptor that admits no thinking states nothing about it.
+  expect(advertisedFromOpenAiCompat({ contextLength: null, thinking: { values: [false], default: false } }, "generation", ROW)).toStrictEqual({});
+});
+
 test("an embedding row states its width and never a chat model's facts", () => {
   expect(advertisedFromOpenAiCompat({ contextLength: 2048, embeddingDims: 768, input: ["text"], tools: { parallel: false } }, "embedding", ROW)).toStrictEqual({
     dims: 768,

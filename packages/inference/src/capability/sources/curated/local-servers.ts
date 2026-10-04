@@ -142,6 +142,22 @@ export const localServerRows = [
     evidence: { tier: "curated", dated: DATED, cite: "ollama 42e911bc api/types.go Options (568-596) decoded by Options.FromMap (1022-1123)" },
   },
   {
+    // The same server with its native route turned off (`nativeChat: none`): `/v1/chat/completions` converts only
+    // these into options and drops `top_k`, `min_p`, `repeat_penalty`, `repeat_last_n` and `num_ctx` unread.
+    match: { model: ANY_MODEL, provider: "ollama", nativeChat: "none" },
+    generation: {
+      sampling: {
+        temperature: LOCAL_TEMPERATURE,
+        topP: PROBABILITY,
+        frequencyPenalty: PENALTY,
+        presencePenalty: PENALTY,
+        seed: true,
+        stop: true,
+      },
+    },
+    evidence: { tier: "curated", dated: DATED, cite: "ollama 42e911bc openai/openai.go ChatCompletionRequest (118-144) and fromChatRequest (604-816)" },
+  },
+  {
     match: { model: ANY_MODEL, provider: "lm-studio" },
     generation: {
       sampling: {

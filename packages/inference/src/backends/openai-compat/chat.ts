@@ -8,7 +8,7 @@
 
 import type { JSONObject, LanguageModelV4CallOptions, SharedV4Headers, SharedV4ProviderOptions } from "@ai-sdk/provider";
 import type { Dialect, GenerationCapability } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
+import { acceptsAssistantPrefill, cacheMinTokensOf, DEFAULT_ATTACHMENT_QUALITY, honoursParallelControl } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import type { JsonValue } from "@orb/kit/json";
@@ -64,6 +64,7 @@ const CONTEXT_COMPRESSION_PLUGIN = "context-compression";
 const MIDDLE_OUT_ENGINE = "middle-out";
 const OPENROUTER_KEY = "openrouter";
 const REASONING_OFF = "none";
+const OLLAMA_THINK_KEY = "think";
 
 export interface OpenAiCompatChatDeps {
   readonly now: () => number;
@@ -180,6 +181,8 @@ interface TurnKnobs {
   readonly templateThinking: boolean | undefined;
   /** The turn's tools, tool choice and structured payload as planned (`structured/plan.ts`). */
   readonly plan: StructuredPlan;
+  /** `parallel_tool_calls: false` rides ({@link disablesParallelToolCalls}). */
+  readonly parallelOff: boolean;
 }
 
 /** The planned response format's strictness, where one rides natively. */
@@ -271,20 +274,32 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, wa
       ...plannedOptions(turn.plan),
       providerOptions,
     },
-    extraBody: parallelToolCallsBody(req, turn.plan),
+    extraBody: parallelToolCallsBody(turn),
   };
 }
 
 /** The preset asked for one tool call at a time on a tools request. Only `false` goes out: a stored `true` is the
  *  endpoint's own default, and some OpenAI-compatible layers refuse the field (Gemini answers
- *  `Unknown name "parallel_tool_calls"`). */
-function disablesParallelToolCalls(req: OpenAiCompatChatRequest, plan: StructuredPlan): boolean {
-  return plan.tools !== undefined && req.params.advanced?.parallelToolCalls === false;
+ *  `Unknown name "parallel_tool_calls"`). A server that does not read the field (`tools.parallelControl: false`)
+ *  is not sent it, and the turn says so: no local serialization makes the model emit one call. */
+function disablesParallelToolCalls(req: OpenAiCompatChatRequest, plan: StructuredPlan, generation: GenerationCapability, warnings: ResolvedWarning[]): boolean {
+  if (plan.tools === undefined || req.params.advanced?.parallelToolCalls !== false) {
+    return false;
+  }
+  if (honoursParallelControl(generation)) {
+    return true;
+  }
+  warnings.push({
+    code: "sampling_knob_dropped",
+    knob: "parallelToolCalls",
+    message: "parallelToolCalls ignored: this server does not read parallel_tool_calls, so the model may still call several tools at once",
+  });
+  return false;
 }
 
 // The @ai-sdk/openai-compatible provider models no `parallel_tool_calls`, so the switch rides the raw body.
-function parallelToolCallsBody(req: OpenAiCompatChatRequest, plan: StructuredPlan): Record<string, unknown> {
-  return disablesParallelToolCalls(req, plan) ? { parallel_tool_calls: false } : {};
+function parallelToolCallsBody(turn: TurnKnobs): Record<string, unknown> {
+  return turn.parallelOff ? { parallel_tool_calls: false } : {};
 }
 
 /** THE OPENROUTER PLUGIN UNION (audit C3), validated against the 3.0.0 dist's own shape
@@ -450,7 +465,7 @@ function openRouterShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings
       ...(debug !== undefined ? { debug } : {}),
     },
     openRouterChat: {
-      ...(disablesParallelToolCalls(req, turn.plan) || turn.plan.parallelToolCalls === false ? { parallelToolCalls: false } : {}),
+      ...(turn.parallelOff || turn.plan.parallelToolCalls === false ? { parallelToolCalls: false } : {}),
       ...(strict !== undefined ? { strict } : {}),
     },
   };
@@ -463,8 +478,13 @@ function isJsonObject(value: unknown): value is JSONObject {
 /** B1: the effort the LAST attempt's options carried, read off the shape (never recomputed from the knobs):
  *  openrouter — `providerOptions.openrouter.reasoning.effort` (`"none"` when off; a budget or the mandatory
  *  replay carries no effort word ⇒ `null`); openai-compatible — the V4 `reasoning` word when the row spells
- *  `reasoning_effort`, else nothing was sent ⇒ `null`. */
-function appliedEffortOf(shape: TurnShape | undefined, dialect: Dialect): EffortLevel | null {
+ *  `reasoning_effort`, else nothing was sent ⇒ `null`. A native route records what its own body carried: Ollama's
+ *  `think` as sent, where `false` is off and `true` is on at no level. That is what was asked, not what ran. */
+function appliedEffortOf(shape: TurnShape | undefined, dialect: Dialect, nativeBody: Readonly<Record<string, unknown>> | undefined): EffortLevel | null {
+  if (nativeBody !== undefined) {
+    const think = nativeBody[OLLAMA_THINK_KEY];
+    return think === false ? REASONING_OFF : effortWordOf(think);
+  }
   if (shape === undefined) {
     return null;
   }
@@ -610,7 +630,11 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   // narrows a `let` read after an `await` to its initializer): the shape it was built with — the mandatory-reasoning
   // replay rebuilds it without the reasoning block, so the applied effort is read off THIS, never the first
   // attempt's intent — and the rate-limit snapshot off its response headers.
-  const attempt: { shape: TurnShape | undefined; rateLimit: RateLimitSnapshot | null } = { shape: undefined, rateLimit: null };
+  const attempt: { shape: TurnShape | undefined; nativeBody: Readonly<Record<string, unknown>> | undefined; rateLimit: RateLimitSnapshot | null } = {
+    shape: undefined,
+    nativeBody: undefined,
+    rateLimit: null,
+  };
   const secrets = resolvedScrubSet(connection);
   const anthropicRoute = dialect === "openrouter" && isAnthropicModel(connection);
   const cachePlan = openRouterCachePlan(req, generation, log);
@@ -667,8 +691,13 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     sampling: wireSampling(sampling, connection.features, dialect, warnings),
     templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true),
     plan: structured,
+    parallelOff: disablesParallelToolCalls(req, structured, generation, warnings),
   };
 
+  const reasoningEffort = knobs.reasoning.enabled ? knobs.reasoning.effort : undefined;
+  const onNativeBody = (body: Readonly<Record<string, unknown>>): void => {
+    attempt.nativeBody = body;
+  };
   const run = (includeReasoning: boolean): Promise<StreamDrain> =>
     runWithPreCommitRetry(
       (markCommitted) => {
@@ -687,6 +716,8 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
           prefillAllowed: acceptsAssistantPrefill(generation) && req.tools === undefined,
           templateThinking: turnKnobs.templateThinking,
           templatePreserveReasoning: knobs.carryReasoning === "off" ? false : undefined,
+          reasoningEffort,
+          onNativeBody,
           foldSameRole: cachesByAnthropicMarkers(connection, generation),
           replyImages: knobs.replyImages,
           ...(generation.imageDetail === true ? { imageDetail: req.attachmentQuality?.imageDetail ?? DEFAULT_ATTACHMENT_QUALITY.imageDetail } : {}),
@@ -743,7 +774,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
     // The provider's response id (B7): OpenRouter's `gen-…` (the cost-settlement key) or an endpoint's own
     // `chatcmpl-…` — both opaque provenance on the row.
     generationId: drain.responseId ?? null,
-    appliedEffort: appliedEffortOf(attempt.shape, dialect),
+    appliedEffort: appliedEffortOf(attempt.shape, dialect, attempt.nativeBody),
     rateLimit: attempt.rateLimit,
     warnings,
   });

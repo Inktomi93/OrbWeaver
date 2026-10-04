@@ -144,6 +144,19 @@ function servableToolChoice(choice: ToolChoice, target: StructuredTarget, downgr
   }
 }
 
+/** A `none` choice the endpoint cannot carry would leave every offered tool callable, so the tools are not offered,
+ *  loudly: the caller asked for no call, and only withholding the tools guarantees one. */
+function withdrawnForNone(ask: StructuredAsk, target: StructuredTarget, downgrades: ResolvedWarning[]): boolean {
+  if (ask.toolChoice?.mode !== "none" || target.noneChoice || (ask.tools ?? []).length === 0) {
+    return false;
+  }
+  downgrades.push({
+    code: "tool_choice_downgraded",
+    message: 'tool choice "none" sent as no tools: this model\'s server takes no tool choice, so offered tools would stay callable',
+  });
+  return true;
+}
+
 /** The violations a request's strict schemas break together. */
 function ceilingViolations(target: StructuredTarget, schemas: readonly Record<string, unknown>[], strictTools: number): readonly WireSchemaViolation[] {
   return countWireSchemas(schemas, { mode: target.mode, limits: target.limits, strictTools });
@@ -238,12 +251,13 @@ function turnTarget(ask: StructuredAsk, endpoint: StructuredTarget): StructuredT
 export function planStructured(ask: StructuredAsk, endpoint: StructuredTarget): StructuredPlan | StructuredRefusal {
   const target = turnTarget(ask, endpoint);
   const downgrades: ResolvedWarning[] = [];
+  const withdrawn = withdrawnForNone(ask, target, downgrades);
   const turn: PlanningTurn = {
     prefillDroppedNative: ask.nativeFormat === false && endpoint.vehicles.includes("response-format"),
     target,
     downgrades,
-    callerTools: (ask.tools ?? []).map((tool) => planCallerTool(tool, target, downgrades)),
-    toolChoice: ask.toolChoice === undefined ? undefined : servableToolChoice(ask.toolChoice, target, downgrades),
+    callerTools: (withdrawn ? [] : (ask.tools ?? [])).map((tool) => planCallerTool(tool, target, downgrades)),
+    toolChoice: ask.toolChoice === undefined || withdrawn ? undefined : servableToolChoice(ask.toolChoice, target, downgrades),
   };
   const formats = ask.formats ?? [];
   return formats.length === 0 ? planToolTurn(turn) : planFormats(formats, turn);

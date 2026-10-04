@@ -33,7 +33,8 @@ import type { ModelId } from "@orb/kit/ids";
 import { googleModelId } from "../backends/google/model.ts";
 import { resolveEmbedDtype } from "../backends/local-light/model-cache.ts";
 import { detectModelFamily } from "../capability/families.ts";
-import { applyEndpointPosture, applyServerToolChoice, clampToTrainedWindow } from "../capability/floor.ts";
+import type { ServedWindow } from "../capability/floor.ts";
+import { applyEndpointPosture, applyServerToolChoice, clampToServedWindow, clampToTrainedWindow } from "../capability/floor.ts";
 import { advertisedFromAgentSdk, agentSdkRowFor } from "../capability/sources/advertised/agent-sdk.ts";
 import { advertisedFromGoogle } from "../capability/sources/advertised/google.ts";
 import { advertisedFromOpenAiCompat, advertisedStatesInput } from "../capability/sources/advertised/openai-compat.ts";
@@ -182,6 +183,18 @@ function endpointEntryFor(
     .endpointModels(baseUrl, reader, endpointMirrorTenant(connection))
     .get()
     ?.find((candidate) => sameModelId(reader, candidate.id, catalogId));
+}
+
+/** The window the server runs where the row's chat route sends none (`nativeChat: none` turns a native route that sends
+ *  one off, D296): the one its reader states, or its default floor, which stays an estimate. */
+function servedWindowOf(features: EndpointFeatures, entry: EndpointModel | undefined): ServedWindow | undefined {
+  if (features.nativeChat !== "none" || entry === undefined) {
+    return;
+  }
+  if (entry.contextLength !== null) {
+    return { window: entry.contextLength, estimated: false };
+  }
+  return entry.contextFloor === undefined ? undefined : { window: entry.contextFloor, estimated: true };
 }
 
 /** Whose list a row's endpoint mirror holds. A server that authenticates the caller may answer each credential with a
@@ -472,7 +485,8 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   const model = normalizeModelId(connection.model, provider.wire === "agent-sdk" ? ctx.agentSdkCatalog.get() : null);
   const factsModel = factsModelFor(ctx, behaved, model);
   const family = detectModelFamily(factsModel);
-  const rowQuery = { model: factsModel, providerId: behaved.id, wire: behaved.wire, api };
+  const features = behavedFeatures(provider, behaved, connection);
+  const rowQuery = { model: factsModel, providerId: behaved.id, wire: behaved.wire, api, nativeChat: features.nativeChat };
   const evidence: Evidence = {
     declared,
     // Matched per (model × route) like the curated rows — a measurement through OpenRouter never reaches the
@@ -489,9 +503,13 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
   // D292: the row's own declaration or its server's advertisement states what a turn may carry; only a row
   // nobody described gets the permissive posture.
   const advertisedInput = advertisedStatesInput(entry);
-  // The server-side floors, after synthesis: the endpoint posture, the server's tool-choice support, the trained clamp.
+  // The server-side floors, after synthesis: the endpoint posture, the server's tool-choice support, the trained
+  // clamp, and the window a route that sends none runs.
   const postured = (synthesizedCapability: Capability, inputStated: boolean): Capability =>
-    clampToTrainedWindow(applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated), entry?.toolChoice), entry?.contextTrained);
+    clampToServedWindow(
+      clampToTrainedWindow(applyServerToolChoice(applyEndpointPosture(behaved, synthesizedCapability, inputStated), entry?.toolChoice), entry?.contextTrained),
+      servedWindowOf(features, entry),
+    );
   const capability = withLocalLightEmbedDtype(
     postured(synthesized.capability, declared?.generation?.input !== undefined || advertisedInput),
     provider,
@@ -514,7 +532,6 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
           undefined,
           ctx.deps.localLight?.embedDtype,
         );
-  const features = behavedFeatures(provider, behaved, connection);
   const requirement = withWireRequirement(requirementMet(capability, taskDef(args.task).requires), args.task, provider, features);
   const resolved: Resolved = {
     task: args.task,

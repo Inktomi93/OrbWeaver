@@ -23,6 +23,7 @@ function target(overrides: Partial<StructuredTarget> = {}): StructuredTarget {
     strictTools: undefined,
     requiredChoice: true,
     namedChoice: true,
+    noneChoice: true,
     ...overrides,
   };
 }
@@ -83,6 +84,19 @@ test("a model that refuses forced tool use (Claude 5.x) has `required` and a nam
   // PLANTED CONTROL: a model that takes forced use keeps the choice and raises nothing.
   const kept = planStructured({ tools, toolChoice: { mode: "required" } }, target());
   expect(kept).toMatchObject({ ok: true, toolChoice: { mode: "required" }, downgrades: [] });
+});
+
+test("a `none` the server cannot carry offers no tools, loudly; where it can, the tools ride under none", () => {
+  const tools = [{ name: "set", description: "Set.", parameters: { type: "object", properties: {} } }];
+  const withdrawn = planStructured({ tools, toolChoice: { mode: "none" } }, target({ noneChoice: false }));
+  expect(withdrawn.ok && withdrawn.tools).toBeUndefined();
+  expect(withdrawn.ok && withdrawn.toolChoice).toBeUndefined();
+  expect(withdrawn.ok && withdrawn.downgrades.map((warning) => warning.code)).toEqual(["tool_choice_downgraded"]);
+  const carried = planStructured({ tools, toolChoice: { mode: "none" } }, target());
+  expect(carried).toMatchObject({ ok: true, toolChoice: { mode: "none" }, downgrades: [] });
+  expect(carried.ok && carried.tools?.map((tool) => tool.name)).toEqual(["set"]);
+  // `auto` on the same server keeps its tools: only an unsendable none withdraws them.
+  expect(planStructured({ tools, toolChoice: { mode: "auto" } }, target({ noneChoice: false }))).toMatchObject({ ok: true, downgrades: [] });
 });
 
 test("reshapedPaths lists exactly the reshaped properties, with [*] for an array of objects, and only under a reshaping mode", () => {

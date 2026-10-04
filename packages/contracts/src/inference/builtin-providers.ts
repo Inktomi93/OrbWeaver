@@ -159,6 +159,9 @@ export const BUILTIN_PROVIDER_ROWS = [
     features: {
       prefill: "none",
       modelInfoApi: "llama-cpp",
+      // server.cpp registers `/rerank` and `/v1/rerank` alike, so the path joins under a root or a `/v1` base URL;
+      // the server refuses it unless launched with `--reranking`, and the resolver only routes a rerank-kind model.
+      rerankPath: "/rerank",
       samplerKeys: { repetitionPenalty: "repeat_penalty" },
       samplerOrder: "llama-cpp",
       bannedStrings: "logit-bias-ban",

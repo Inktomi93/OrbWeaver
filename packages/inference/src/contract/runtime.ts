@@ -78,9 +78,12 @@ const endpointModelSchema = z.object({
   thinks: z.literal(true).optional(),
   /** The server's version is at or past the build that added JSON-schema constrained output. Absent ⇒ not stated. */
   structured: z.boolean().optional(),
-  /** Which forced tool choices the SERVER honours: `required`, and a named function. The two map one-to-one onto
-   *  the capability's per-mode tool-choice facts. Absent ⇒ not stated. */
-  toolChoice: z.object({ required: z.boolean(), named: z.boolean() }).optional(),
+  /** Which tool choices the SERVER honours: `required`, a named function, `none`, and `parallel_tool_calls`. Each maps
+   *  one-to-one onto the capability's per-mode tool-choice facts. Absent ⇒ not stated. */
+  toolChoice: z.object({ required: z.boolean(), named: z.boolean(), none: z.boolean(), parallel: z.boolean() }).optional(),
+  /** The model's thinking controls as its server describes them (Ollama `/api/show` `thinking`): the boolean and named
+   *  values `think` takes, and the one an omitted `think` runs. Absent ⇒ not stated; `thinks` alone names no level. */
+  thinking: z.object({ values: z.array(z.union([z.boolean(), z.string()])).min(1), default: z.union([z.boolean(), z.string()]) }).optional(),
   /** Whether the server continues a delivered trailing assistant row as sent today: `deliver` = it continues,
    *  `none` = it closes the turn and starts a new one. Measured per model where the server can render a prompt. */
   prefill: z.enum(PREFILL_MODES).optional(),
