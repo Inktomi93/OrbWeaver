@@ -16,6 +16,7 @@ import {
   CorpusMapTab,
   CorpusSimilarityTab,
   CorpusUnderstandingInvitation,
+  CorpusVisualsTab,
   corpusModePaletteSource,
   useCorpusListHeader,
 } from "@orb/client/features/discovery";
@@ -305,6 +306,17 @@ export function CorpusMapTabStory(): ReactElement {
         <CorpusMapTab />
       </div>
       <DoorLandingReadout />
+    </CtDataProviders>
+  );
+}
+
+/** The Corpus CONTEXT "Visuals" tab (portrait fit + facet explorer) at the CONTEXT pane's real width. */
+export function CorpusVisualsTabStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 420 }}>
+        <CorpusVisualsTab />
+      </div>
     </CtDataProviders>
   );
 }

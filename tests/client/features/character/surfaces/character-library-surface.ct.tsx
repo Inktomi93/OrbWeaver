@@ -2021,6 +2021,33 @@ test("#519 the collapsed disclosure advertises what it opens — and the resting
   expect((listBox?.y ?? 0) - (paneBox?.y ?? 0)).toBeLessThan(RAIL_CHROME_CEILING_PX);
 });
 
+// The accessible name only says "no tags yet" once the vocabulary read SUCCEEDED empty. Cold (the read is
+// gated) it knows nothing, so a tagged library must not be told it has none.
+test("the cold disclosure's accessible name never claims 'no tags yet' for a tagged library", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const disclosure = filtersDisclosure(component);
+  await expect(disclosure).toBeVisible();
+  await expect(disclosure).not.toHaveAccessibleName(/no tags yet/u);
+});
+
+test("once the tag read settles empty, the closed disclosure says 'no tags yet'", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
+    "character.list": characterListResponder([ARIA, BOLT]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": () => [],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(row(component, "Bolt")).toBeVisible();
+
+  await openFilters(component);
+  await component.getByRole("button", { name: /^Fewer filters/u }).click();
+  await expect(filtersDisclosure(component)).toHaveAccessibleName(/no tags yet/u);
+});
+
 // #523 — the bounded vocabulary's scroller is a keyboard stop (Base UI makes an overflowing viewport
 // focusable, correctly: a scroll region a keyboard user cannot reach is a trap). It announced as an
 // unnamed generic between "Show fewer tags" and the tag toolbar. It is a NAMED region now.

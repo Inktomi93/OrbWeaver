@@ -304,6 +304,7 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
           resultLabel={resultCountLabel(items.length, collection.totalCount)}
           showArchived={showArchived}
           tagFilter={tagFilter}
+          vocabularyEmpty={scope.vocabularyEmpty}
           vocabularyPending={scope.vocabularyPending}
         />
         {/* The favorites strip is the shared `FaceStrip` composite now — the
