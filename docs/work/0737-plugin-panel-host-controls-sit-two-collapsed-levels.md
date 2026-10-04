@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P2
 area: plugin
-lane: wt/agent-ad435ab6e19d39557
 ---
 
 # Plugin panel host controls sit two collapsed levels deep
@@ -12,6 +11,8 @@ lane: wt/agent-ad435ab6e19d39557
 ## What
 
 Story Clocks host controls are under This chat, then Host controls, then Plugin panels, all collapsed. The flank says the host starts one below, but nothing shows below it. Screenshot: main-1990041-2026-10-04T21-23-26-528Z/fp2-stc-band.png. Final pass leg 2; review: ~/homelab/development/probe-archive/side-eye-reviews/final-pass-2-plugins.md.
+
+Owner ruling: keep other grafted sections closed, but the section a plugin's flank points at opens by default, and the flank's pointer is accurate.
 
 ## Why
 
@@ -23,4 +24,4 @@ The flank's pointer leads to visible host controls, or the controls sit where th
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S6: grafted host-control sections start closed by an earlier ruling (Rules measured 704px on desktop); the fix is either flank copy in the Story Clocks bundle or changing graft defaults against that ruling.

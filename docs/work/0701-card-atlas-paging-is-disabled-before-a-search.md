@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-04
 priority: P3
 area: plugin
-lane: wt/agent-a708baaa4eae9cb9b
 ---
 
 # Card Atlas paging is disabled before a search
@@ -12,6 +11,8 @@ lane: wt/agent-a708baaa4eae9cb9b
 ## What
 
 Previous and Next are enabled before any search and answer 'Search first…' (fp2-ca-page.png). Final pass leg 2 (plugins); review: ~/homelab/development/probe-archive/side-eye-reviews/final-pass-2-plugins.md.
+
+Owner ruling: add a bound disabled field to the plugin button node (contract, SDK types, renderer) and use it for the Card Atlas pager.
 
 ## Why
 
@@ -23,4 +24,4 @@ Both are disabled until a search exists.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S5: the plugin button node has no disabled prop (packages/contracts/src/plugin/ui.ts:597-603); needs a bound disabled field on the button in the contract, SDK types, leaf renderer and CTs.
