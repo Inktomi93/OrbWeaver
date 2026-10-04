@@ -634,43 +634,114 @@ async function outcomeOf(write: Promise<unknown>): Promise<string> {
   );
 }
 
+/** How many times a held probe looks for the overlapping write before it answers anyway, and how long apart: a write
+ *  that waits its turn never lands while the probe is held, so the hold has to end on its own. */
+const OVERLAP_LOOKS = 20;
+const OVERLAP_LOOK_MS = 5;
+
+/** One probe held open until the test lets it answer, so a second write can be made while the first is unsettled. */
+function heldProbe(): {
+  readonly hold: (real: () => Promise<EmbedResult>) => Promise<EmbedResult>;
+  readonly reached: Promise<void>;
+  readonly releaseWhen: (landed: () => Promise<boolean>) => Promise<void>;
+} {
+  const reached = Promise.withResolvers<void>();
+  const released = Promise.withResolvers<void>();
+  return {
+    hold: async (real): Promise<EmbedResult> => {
+      reached.resolve();
+      await released.promise;
+      return await real();
+    },
+    reached: reached.promise,
+    // Answer as soon as the overlapping write has landed, or once it is clear it is waiting for this one.
+    releaseWhen: async (landed): Promise<void> => {
+      for (let look = 0; look < OVERLAP_LOOKS && !(await landed()); look += 1) {
+        await new Promise((resolve) => setTimeout(resolve, OVERLAP_LOOK_MS));
+      }
+      released.resolve();
+    },
+  };
+}
+
 const PROBE_DOWN = (): Promise<never> => Promise.reject(new ProviderError({ kind: "server", retryable: true, message: "socket hang up" }));
 
 // A refused write is undone after its probe answers, and a newer write may have landed meanwhile: the undo restores only
 // what this write put there, so the newer write and its moved target agree.
 describe("a refused write's undo, and a probe that does not answer", () => {
-  test("a write refused after a newer write landed leaves the newer binding, which its target matches", async () => {
+  test("a write refused while a newer write was made leaves the newer binding, which its target matches", async () => {
     const d = await drive();
     await sweep(d, false);
-    let release: () => void = () => undefined;
-    const gate = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    let reached: () => void = () => undefined;
-    const atGate = new Promise<void>((resolve) => {
-      reached = resolve;
-    });
-    d.h.useEmbeddings(
-      probedService(d, async (n, real) => {
-        if (n === 1) {
-          reached();
-          await gate;
-        }
-        return await real();
-      }),
-    );
+    const first = heldProbe();
+    d.h.useEmbeddings(probedService(d, async (n, real) => (n === 1 ? await first.hold(real) : await real())));
     const wide = await narrowStating(d, 1024);
     const fits = await narrowStating(d, 768);
 
-    const first = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: wide }));
-    await atGate;
-    const second = await outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: fits }));
-    release();
+    const refused = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: wide }));
+    await first.reached;
+    const accepted = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: fits }));
+    await first.releaseWhen(async () => (await boundEmbedder(d)) === fits);
 
-    expect(await first).toBe(`refused ${CONNECTION_OP_CODES.embedWidthUnmakeable}`);
-    expect(second).toBe("accepted");
+    expect(await refused).toBe(`refused ${CONNECTION_OP_CODES.embedWidthUnmakeable}`);
+    expect(await accepted).toBe("accepted");
     expect(await boundEmbedder(d)).toBe(fits);
     expect(await targetConnection(d)).toBe(fits);
+  });
+
+  test("a write accepted while a newer refused write was made still moves the target it bound", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    const first = heldProbe();
+    let firstDone: Promise<unknown> = Promise.resolve();
+    // The newer write's probe answers only once the older write has finished, so the older one lands first.
+    d.h.useEmbeddings(
+      probedService(d, async (n, real) => {
+        if (n === 1) {
+          return await first.hold(real);
+        }
+        await firstDone;
+        return await real();
+      }),
+    );
+    const fits = await narrowStating(d, 768);
+    const wide = await narrowStating(d, 1024);
+
+    const accepted = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: fits }));
+    firstDone = accepted;
+    await first.reached;
+    const refused = outcomeOf(d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: wide }));
+    await first.releaseWhen(async () => (await boundEmbedder(d)) === wide);
+
+    expect(await accepted).toBe("accepted");
+    expect(await refused).toBe(`refused ${CONNECTION_OP_CODES.embedWidthUnmakeable}`);
+    expect(await boundEmbedder(d)).toBe(fits);
+    expect(await targetConnection(d), "the accepted write's target moved, and its rebuild was queued").toBe(fits);
+    expect(d.moved).toContain(d.userId);
+  });
+
+  test("a refused width edit made alongside another edit of the same row does not stay saved", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    d.h.useEmbeddings(d.svc);
+    const fits = await narrowStating(d, 768);
+    await d.h.svc.setBinding({ principal: d.principal, task: "embed", connectionId: fits });
+    const widthEdit = heldProbe();
+    d.h.useEmbeddings(probedService(d, async (n, real) => (n === 1 ? await widthEdit.hold(real) : await real())));
+
+    d.h.advance(5);
+    const refused = outcomeOf(
+      d.h.svc.update({ principal: d.principal, connectionId: fits, patch: { declared: { kind: "embedding", embedding: { dims: 1024, mrl: false } } } }),
+    );
+    await widthEdit.reached;
+    d.h.advance(5);
+    const renamed = outcomeOf(d.h.svc.update({ principal: d.principal, connectionId: fits, patch: { label: "renamed" } }));
+    await widthEdit.releaseWhen(async () => (await d.h.svc.get({ principal: d.principal, connectionId: fits })).label === "renamed");
+
+    expect(await refused).toBe(`refused ${CONNECTION_OP_CODES.embedWidthUnmakeable}`);
+    expect(await renamed).toBe("accepted");
+    const row = await d.h.svc.get({ principal: d.principal, connectionId: fits });
+    expect(row.declared, "the refused width is not kept").toEqual({ kind: "embedding", embedding: { dims: 768, mrl: false } });
+    expect(row.label).toBe("renamed");
   });
 
   test("a write's target move probes the width once, so a later failure cannot strand the write half done", async () => {

@@ -36,9 +36,8 @@ export async function resolveTargetGeneration(
   return await resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven: undefined, attempt: 0 });
 }
 
-/** {@link resolveTargetGeneration} for a move the caller already probed: it lands `proven`, the generation that proof
- *  probed, without probing again. A resolve that lands anywhere else moves nothing and returns `null`, since a newer
- *  write owns that move. */
+/** {@link resolveTargetGeneration} for a move the caller already probed: landing `proven`, the generation that proof
+ *  probed, does not probe again. */
 export async function landProvenTarget(
   ctx: TargetResolveCtx,
   ownerId: UserId,
@@ -163,9 +162,6 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven,
   }
   const { id, space, dims } = candidateOf(ownerId, task, via, connection);
   const moves = movesTarget(prior, id);
-  if (moves && proven !== undefined && proven !== id) {
-    return null;
-  }
   const fingerprint = vectorSpaceFingerprint(connection);
   const now = ctx.now();
   await ctx.db
@@ -177,7 +173,9 @@ async function resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven,
   } else if (moves) {
     // A new generation never shares the index with the old one: the switch purges the old vectors with it. So
     // prove the new space can be written first; a width the embedder does not make keeps the old index.
-    if (proven === undefined) {
+    // The owner's writes are serialized, so this resolve lands what the proof probed. Anything else (an endpoint's
+    // facts re-read in between) is probed here: no purge happens on an unprobed width.
+    if (proven !== id) {
       await probeWidth(connection, via, dims);
     }
     // The switch emptied the old index; whoever moved it owes the owner the sweep that refills it, whatever the

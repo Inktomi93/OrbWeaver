@@ -79,9 +79,10 @@ export async function updateOwnedConnection(
 
 type ConnectionPatch = Partial<Omit<ConnectionInsert, "id" | "ownerId" | "createdAt">>;
 
-/** Write `prior` back, only while the row still holds every column `written` set: undoing a write never overwrites a
- *  newer write that landed after it. One conditional UPDATE, so the check and the write cannot interleave; each value
- *  binds through its column's own encoding, so a JSON column compares as the text it was stored as. */
+/** Write `prior` back, only while the row still holds every column `written` set. The owner's writes are queued, so
+ *  this guards the writers outside that queue (a boot seed): an undo never overwrites a column one of them changed.
+ *  It compares the written columns only, never `updatedAt`, which any writer bumps without touching them. One
+ *  conditional UPDATE; each value binds through its column's own encoding, so a JSON column compares as stored text. */
 export async function restoreOwnedConnectionIf(
   db: Db,
   ownerId: UserId,

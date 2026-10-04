@@ -5,8 +5,9 @@
 // off (`canFund`, F5 — resolve re-checks because the flag can flip after the binding is written), and a task
 // the row's kind cannot serve (`connectionTasks`). (§10-4) re-pointing `embed`/`imageEmbed` re-raises
 // the purge+reindex trigger. Any embedder width is admitted that the embedder makes; a stated width it does not make
-// undoes the write and refuses it.
+// undoes the write and refuses it. A write that can move the owner's index runs in the owner's write queue.
 
+import type { Principal } from "@orb/contracts/identity";
 import type { ConnectionBinding, RoutableTask, UserConnection } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, canFund, providerDisplayLabel, ROUTABLE_TASKS } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -19,7 +20,10 @@ import { listBindingsForActor, lookupBinding, restoreBindingIf, upsertBinding } 
 import { fetchOwnedConnection } from "../persistence/connections.ts";
 import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { everywhereTasks, servableTasks } from "../substrate/kind.ts";
+import type { createOwnerWriteQueue } from "../substrate/owner-queue.ts";
 import { toResolvedView } from "../substrate/resolved-view.ts";
+
+type OwnerWriteQueue = ReturnType<typeof createOwnerWriteQueue>;
 
 /** The caller's actor, proven: absent ⇒ their own `user` arm; a rule/plugin arm must be theirs. A plugin grant
  *  that `binds` a connection must name a task the plugin routes: an inert grant on any other task would go live
@@ -111,7 +115,7 @@ async function bindingReadout(
   }
 }
 
-function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding"] {
+function createSetBinding(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionService["setBinding"] {
   return async (params: SetBindingParams): Promise<ConnectionBinding> => {
     const userId = params.principal.userId;
     const actor = await storedActorFor(ctx, userId, params.actor, params.connectionId === null ? undefined : params.task);
@@ -123,80 +127,103 @@ function createSetBinding(ctx: ConnectionContext): ConnectionService["setBinding
       requireServable(ctx, row, params.task);
     }
     // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
-    const movesSpace = actor.actorKind === "user" && VECTOR_TASKS.includes(params.task);
-    const before = movesSpace ? await vectorSpacesOf(ctx, params.principal) : null;
-    const prior = movesSpace ? ((await lookupBinding(ctx.db, actor, params.task))?.connectionId ?? null) : null;
-    const written = await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task: params.task, connectionId: params.connectionId });
-    if (before !== null) {
-      await settleEmbedSpace(ctx, {
-        ownerId: userId,
-        before,
-        after: await vectorSpacesOf(ctx, params.principal),
-        undo: async () => {
-          await restoreBindingIf(ctx.db, { actor, task: params.task, from: params.connectionId, to: prior });
-        },
-      });
+    if (actor.actorKind !== "user" || !VECTOR_TASKS.includes(params.task)) {
+      return await writeBinding(ctx, params, actor);
     }
-    await ctx.audit(
-      {
-        actorUserId: userId,
-        action: "connection.bind",
-        entityType: "connection",
-        entityId: params.connectionId,
-        metadata: { task: params.task, actorKind: actor.actorKind },
-      },
-      ctx.now(),
-    );
-    ctx.emitUserEvent(userId, { type: "connectionsChanged" });
-    return written;
+    return await ownerWrites(userId, () => writeVectorBinding(ctx, params, actor));
   };
 }
 
-function createUseForEverything(ctx: ConnectionContext): ConnectionService["useForEverything"] {
+/** A vector role's write: it may move the owner's embed space, so it settles before the next same-owner write runs. */
+async function writeVectorBinding(ctx: ConnectionContext, params: SetBindingParams, actor: StoredActor): Promise<ConnectionBinding> {
+  const before = await vectorSpacesOf(ctx, params.principal);
+  const prior = (await lookupBinding(ctx.db, actor, params.task))?.connectionId ?? null;
+  return await writeBinding(ctx, params, actor, async () => {
+    await settleEmbedSpace(ctx, {
+      ownerId: params.principal.userId,
+      before,
+      after: await vectorSpacesOf(ctx, params.principal),
+      undo: async () => {
+        await restoreBindingIf(ctx.db, { actor, task: params.task, from: params.connectionId, to: prior });
+      },
+    });
+  });
+}
+
+async function writeBinding(
+  ctx: ConnectionContext,
+  params: SetBindingParams,
+  actor: StoredActor,
+  settle: () => Promise<void> = () => Promise.resolve(),
+): Promise<ConnectionBinding> {
+  const userId = params.principal.userId;
+  const written = await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task: params.task, connectionId: params.connectionId });
+  await settle();
+  await ctx.audit(
+    {
+      actorUserId: userId,
+      action: "connection.bind",
+      entityType: "connection",
+      entityId: params.connectionId,
+      metadata: { task: params.task, actorKind: actor.actorKind },
+    },
+    ctx.now(),
+  );
+  ctx.emitUserEvent(userId, { type: "connectionsChanged" });
+  return written;
+}
+
+function createUseForEverything(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionService["useForEverything"] {
   return async (params): Promise<readonly ConnectionBinding[]> => {
     const userId = params.principal.userId;
     const row = await fetchOwnedConnection(ctx.db, userId, params.connectionId);
     if (row === null) {
       throw new ConnectionNotFoundError(params.connectionId);
     }
-    const tasks = everywhereTasks(ctx, row);
-    const actor: StoredActor = { actorKind: "user", actorId: userId };
-    const before = tasks.some((task) => VECTOR_TASKS.includes(task)) ? await vectorSpacesOf(ctx, params.principal) : null;
-    const priors = new Map<RoutableTask, ConnectionBinding["connectionId"]>();
-    for (const task of tasks) {
-      priors.set(task, (await lookupBinding(ctx.db, actor, task))?.connectionId ?? null);
-    }
-    const written: ConnectionBinding[] = [];
-    for (const task of tasks) {
-      written.push(await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task, connectionId: row.id }));
-    }
-    if (before !== null) {
-      await settleEmbedSpace(ctx, {
-        ownerId: userId,
-        before,
-        after: await vectorSpacesOf(ctx, params.principal),
-        undo: async () => {
-          for (const [task, connectionId] of priors) {
-            await restoreBindingIf(ctx.db, { actor, task, from: row.id, to: connectionId });
-          }
-        },
-      });
-    }
-    await ctx.audit({ actorUserId: userId, action: "connection.bindAll", entityType: "connection", entityId: row.id, metadata: { tasks } }, ctx.now());
-    ctx.emitUserEvent(userId, { type: "connectionsChanged" });
-    return written;
+    return await ownerWrites(userId, () => bindEverywhere(ctx, params.principal, row));
   };
+}
+
+/** Bind every task the row can serve. It may move the owner's embed space, so it settles before the next write. */
+async function bindEverywhere(ctx: ConnectionContext, principal: Principal, row: UserConnection): Promise<readonly ConnectionBinding[]> {
+  const userId = principal.userId;
+  const tasks = everywhereTasks(ctx, row);
+  const actor: StoredActor = { actorKind: "user", actorId: userId };
+  const before = tasks.some((task) => VECTOR_TASKS.includes(task)) ? await vectorSpacesOf(ctx, principal) : null;
+  const priors = new Map<RoutableTask, ConnectionBinding["connectionId"]>();
+  for (const task of tasks) {
+    priors.set(task, (await lookupBinding(ctx.db, actor, task))?.connectionId ?? null);
+  }
+  const written: ConnectionBinding[] = [];
+  for (const task of tasks) {
+    written.push(await upsertBinding(ctx.db, { id: ctx.newBindingId(), actor, task, connectionId: row.id }));
+  }
+  if (before !== null) {
+    await settleEmbedSpace(ctx, {
+      ownerId: userId,
+      before,
+      after: await vectorSpacesOf(ctx, principal),
+      undo: async () => {
+        for (const [task, connectionId] of priors) {
+          await restoreBindingIf(ctx.db, { actor, task, from: row.id, to: connectionId });
+        }
+      },
+    });
+  }
+  await ctx.audit({ actorUserId: userId, action: "connection.bindAll", entityType: "connection", entityId: row.id, metadata: { tasks } }, ctx.now());
+  ctx.emitUserEvent(userId, { type: "connectionsChanged" });
+  return written;
 }
 
 /** The binding slice of `ConnectionService` this grouped file owns. */
 type BindingVerbs = Pick<ConnectionService, "listBindings" | "getBoundConnection" | "setBinding" | "useForEverything">;
 
 /** The `connection_bindings` verb bundle (`verb-naming`: one factory named for the file). */
-export function createBindings(ctx: ConnectionContext): BindingVerbs {
+export function createBindings(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): BindingVerbs {
   return {
     listBindings: createListBindings(ctx),
     getBoundConnection: createGetBoundConnection(ctx),
-    setBinding: createSetBinding(ctx),
-    useForEverything: createUseForEverything(ctx),
+    setBinding: createSetBinding(ctx, ownerWrites),
+    useForEverything: createUseForEverything(ctx, ownerWrites),
   };
 }

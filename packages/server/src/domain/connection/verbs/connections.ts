@@ -31,6 +31,9 @@ import {
 import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
 import { settleEmbedSpace, vectorSpacesOf } from "../substrate/embed-space.ts";
 import { curatedKindOf } from "../substrate/kind.ts";
+import type { createOwnerWriteQueue } from "../substrate/owner-queue.ts";
+
+type OwnerWriteQueue = ReturnType<typeof createOwnerWriteQueue>;
 
 function requireLabel(raw: string): string {
   const label = raw.trim();
@@ -209,57 +212,61 @@ function priorColumns(row: UserConnection, patch: Partial<UserConnection>): Part
   return Object.fromEntries(Object.keys(patch).map((column) => [column, row[column as keyof UserConnection]]));
 }
 
-function createUpdate(ctx: ConnectionContext): ConnectionService["update"] {
-  return async (params: UpdateConnectionParams): Promise<ConnectionView> => {
-    const ownerId = params.principal.userId;
-    const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
-    const patch = await validatedPatch(ctx, ownerId, row, params.patch);
-    // Snapshot BEFORE the write: after it, "what did this used to resolve to" is unanswerable.
-    const before: EmbedSpaces = await vectorSpacesOf(ctx, params.principal);
-    const now = ctx.now();
-    const written = { ...patch, updatedAt: now };
-    await updateOwnedConnection(ctx.db, ownerId, row.id, written);
-    await settleEmbedSpace(ctx, {
-      ownerId,
-      before,
-      after: await vectorSpacesOf(ctx, params.principal),
-      undo: async () => {
-        await restoreOwnedConnectionIf(ctx.db, ownerId, row.id, { written, prior: { ...priorColumns(row, patch), updatedAt: row.updatedAt } });
-      },
-    });
-    await ctx.audit(
-      { actorUserId: ownerId, action: "connection.update", entityType: "connection", entityId: row.id, metadata: { fields: Object.keys(params.patch) } },
-      now,
-    );
-    const saved = await requireOwnedRow(ctx, ownerId, row.id);
-    // A save is the user's "ask the server again": the row's advertised facts are re-read on its next resolve.
-    await ctx.runtime.catalogs.invalidateEndpoint(saved);
-    ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
-    return toView(ctx, saved);
-  };
+// Every row write runs in the owner's write queue, the ones that cannot move a space too: a write that skips the
+// settle must still not land in the middle of another write's probe, or that write's undo cannot tell it apart.
+function createUpdate(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionService["update"] {
+  return (params: UpdateConnectionParams): Promise<ConnectionView> => ownerWrites(params.principal.userId, () => updateRow(ctx, params));
 }
 
-function createRemove(ctx: ConnectionContext): ConnectionService["remove"] {
-  return async (params): Promise<void> => {
-    const ownerId = params.principal.userId;
-    const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
-    // No embed-space trigger: the delete sets every binding on the row to nothing, and nothing can embed there.
-    await deleteOwnedConnection(ctx.db, ownerId, row.id);
-    await ctx.audit({ actorUserId: ownerId, action: "connection.remove", entityType: "connection", entityId: row.id }, ctx.now());
-    ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
-  };
+async function updateRow(ctx: ConnectionContext, params: UpdateConnectionParams): Promise<ConnectionView> {
+  const ownerId = params.principal.userId;
+  const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
+  const patch = await validatedPatch(ctx, ownerId, row, params.patch);
+  // Snapshot BEFORE the write: after it, "what did this used to resolve to" is unanswerable.
+  const before: EmbedSpaces = await vectorSpacesOf(ctx, params.principal);
+  const now = ctx.now();
+  await updateOwnedConnection(ctx.db, ownerId, row.id, { ...patch, updatedAt: now });
+  await settleEmbedSpace(ctx, {
+    ownerId,
+    before,
+    after: await vectorSpacesOf(ctx, params.principal),
+    undo: async () => {
+      await restoreOwnedConnectionIf(ctx.db, ownerId, row.id, { written: patch, prior: { ...priorColumns(row, patch), updatedAt: row.updatedAt } });
+    },
+  });
+  await ctx.audit(
+    { actorUserId: ownerId, action: "connection.update", entityType: "connection", entityId: row.id, metadata: { fields: Object.keys(params.patch) } },
+    now,
+  );
+  const saved = await requireOwnedRow(ctx, ownerId, row.id);
+  // A save is the user's "ask the server again": the row's advertised facts are re-read on its next resolve.
+  await ctx.runtime.catalogs.invalidateEndpoint(saved);
+  ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
+  return toView(ctx, saved);
+}
+
+function createRemove(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionService["remove"] {
+  return (params): Promise<void> =>
+    ownerWrites(params.principal.userId, async () => {
+      const ownerId = params.principal.userId;
+      const row = await requireOwnedRow(ctx, ownerId, params.connectionId);
+      // No embed-space trigger: the delete sets every binding on the row to nothing, and nothing can embed there.
+      await deleteOwnedConnection(ctx.db, ownerId, row.id);
+      await ctx.audit({ actorUserId: ownerId, action: "connection.remove", entityType: "connection", entityId: row.id }, ctx.now());
+      ctx.emitUserEvent(ownerId, { type: "connectionsChanged" });
+    });
 }
 
 /** The slice of `ConnectionService` this grouped file owns. */
 type ConnectionRowVerbs = Pick<ConnectionService, "list" | "get" | "create" | "update" | "remove">;
 
 /** The `user_connections` verb bundle (`verb-naming`: one factory named for the file). */
-export function createConnections(ctx: ConnectionContext): ConnectionRowVerbs {
+export function createConnections(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionRowVerbs {
   return {
     list: createList(ctx),
     get: createGet(ctx),
     create: createCreate(ctx),
-    update: createUpdate(ctx),
-    remove: createRemove(ctx),
+    update: createUpdate(ctx, ownerWrites),
+    remove: createRemove(ctx, ownerWrites),
   };
 }
