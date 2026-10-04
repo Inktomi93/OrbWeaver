@@ -11,11 +11,11 @@
 // when the handler THREW, because a handler that toasts "couldn't reach the API" and then throws should still
 // reach the person who acted.
 
-import { DomainNotFoundError } from "@orb/kit/errors";
+import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CreateInstanceOutcome, PluginHandlerRef, PluginHostPort, PluginInstance } from "@orb/server/domain/plugin";
-import { PluginNotFoundError } from "@orb/server/domain/plugin";
+import { PluginActionFailedError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
@@ -219,4 +219,36 @@ test("the UI OUTCOME is drained onto the result — and still drains when the ha
   // The rejection propagated (a crash must not read as a success with a sad toast) AND the outbox was drained,
   // so the queued notice never leaks into a LATER, unrelated round-trip.
   expect(h.ctx.uiOutbox.drain(installed.id)).toEqual({ toasts: [] });
+});
+
+async function runCommandThatRejects(reason: unknown): Promise<{ result: Promise<unknown>; drainedAfter: () => unknown }> {
+  const db = await freshDb();
+  const failing: PluginHostPort = {
+    createInstance: (): Promise<CreateInstanceOutcome> => Promise.resolve({ ok: true, instance: instanceWithCommands(DRAW) }),
+    invoke: () => Promise.reject(reason),
+    runSnippet: () => Promise.reject(new Error("runSnippet is not exercised here")),
+    readLog: () => [],
+    dispose: () => undefined,
+  };
+  const h = makePluginHarness(db, { port: failing });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck", name: "Oracle Deck" }), grant: [] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+  h.ctx.uiOutbox.pushToast({ id: installed.id, name: "Oracle Deck", slug: "oracle-deck" }, "warn", "queued before the throw");
+  const result = h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "draw", args: "", chatId: null });
+  return { result, drainedAfter: () => h.ctx.uiOutbox.drain(installed.id) };
+}
+
+test("a guest throw in a command is a typed plugin error, and the outbox still drains", async () => {
+  const run = await runCommandThatRejects(new Error("the guest threw"));
+
+  await expect(run.result).rejects.toBeInstanceOf(PluginActionFailedError);
+  expect(run.drainedAfter()).toEqual({ toasts: [] });
+});
+
+test("a host DomainError from a command passes through unchanged", async () => {
+  const refusal = new DomainConflictError("turn budget spent");
+  const run = await runCommandThatRejects(refusal);
+
+  await expect(run.result).rejects.toBe(refusal);
 });
