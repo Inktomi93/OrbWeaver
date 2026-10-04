@@ -29,7 +29,7 @@ import {
   PLUGIN_MODEL_UNSET,
   pluginModelBackgroundRefused,
   pluginModelReadout,
-} from "../lib/plugin-copy.ts";
+} from "../lib/plugin-model-copy.ts";
 import { useSetPluginGrantBinding } from "../lib/plugin-mutations.ts";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];

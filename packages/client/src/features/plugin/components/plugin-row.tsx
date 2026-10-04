@@ -56,14 +56,8 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
-import {
-  builtAgainstLine,
-  PLUGIN_ERROR_COPY_SUBJECT,
-  PLUGIN_ERROR_SENTENCE,
-  PLUGIN_MODEL_HEADING,
-  REMOVE_PLUGIN_DESCRIPTION,
-  statusCopy,
-} from "../lib/plugin-copy.ts";
+import { builtAgainstLine, PLUGIN_ERROR_COPY_SUBJECT, PLUGIN_ERROR_SENTENCE, REMOVE_PLUGIN_DESCRIPTION, statusCopy } from "../lib/plugin-copy.ts";
+import { PLUGIN_MODEL_HEADING } from "../lib/plugin-model-copy.ts";
 import { useSetPluginEnabled, useSetPluginGrant, useUninstallPlugin, useUpgradePlugin } from "../lib/plugin-mutations.ts";
 import { PluginGrantList } from "./plugin-grant-list.tsx";
 import { PluginLogPanel } from "./plugin-log-panel.tsx";

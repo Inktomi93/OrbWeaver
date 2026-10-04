@@ -2,21 +2,21 @@
   "format": 1,
   "bundles": {
     "affinity-tracker": {
-      "main.js": "18f7bed361575e06383b5704ec27979496c2e041eaa4fd7333538271949c25ad",
-      "manifest.json": "f3548f68dd670f7c63cc5d6c67fe48fe009af0103d55bd7f2ef1b83187ec606a",
+      "main.js": "adaee875f0537e1fb6b80ce9a2a1b8a10f70832c26037fae1b00e0ede46c1117",
+      "manifest.json": "00011638ce8d1eb7ead892003e773b243879f6dc9dfd39a8dbcf629b3f431721",
       "ui.js": "ca1df2a0b2126ba3dddde9df181a065b2b9e948c656619687f4d86a1dc4f7f36"
     },
     "card-atlas": {
-      "main.js": "d4329349a71ffd75c4347535a4c6a2e29853ac8cf9f815c617c40dbe2cacc3a8",
-      "manifest.json": "b753467bf2c9ecfd6389b31990fc80509feb0539fd4c484fd6e8332b641a2e49"
+      "main.js": "ccf8e27d96a74d2a9a5232c7fe0306331c4e400673c5b84208cb952ee26ddeaf",
+      "manifest.json": "acd1e271a574bec37e028d84f6e2312599c4512b8fc78dd05716a3aafc556e69"
     },
     "draft-polish": {
       "main.js": "57922b280ec0f678fdebf7421240ebebe78f8723b3ed25d8d76d3920490fb27e",
       "manifest.json": "3cb85dbd6c2796a91e004398610b0b0fa580da145e0aa7c1ef6d19847823bb73"
     },
     "keepsake-camera": {
-      "main.js": "5e21a38245b92bb3dd50faef41a0b5babd46a7ef959eec13dae711dd3e06b0e4",
-      "manifest.json": "81e58c0550d1af875c7b291601f84c65ed9e6d57c77b65030850004b3c847584"
+      "main.js": "8374d4453887496174bf94cbf16fb089ab49b25d282c2f69707b490ef57793a8",
+      "manifest.json": "31c479ff02f6fb62951dcc811dc25f4db58f150640e457def180925d7722c44d"
     },
     "oracle-deck": {
       "main.js": "bc389e87881347cc9091b6c182a70eb78580754a1249849deea1e5c12dd8fcf3",

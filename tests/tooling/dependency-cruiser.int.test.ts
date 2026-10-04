@@ -361,6 +361,13 @@ function writeAllFixtures(): void {
   fx("packages/client/src/lib/__dc_up_components.ts", `import "../components/__dc_t/i.ts";\n`);
   // client-state-below-components (G5): a store reaching UP into components/.
   fx("packages/client/src/state/__dc_up_components.ts", `import "../components/__dc_t/i.ts";\n`);
+  // plugin-ui-guest-worker-no-react: the guest Worker reaches the `#lib` barrel (and the React module behind it)
+  // only through a realm hop; the plain wire leaf it imports directly is the negative control.
+  fx("packages/client/src/lib/__dc_component.tsx", VAL);
+  fx("packages/client/src/lib/index.ts", `export * from "./__dc_component.tsx";\n`);
+  fx("packages/client/src/lib/__dc_wire_leaf.ts", VAL);
+  fx("packages/client/src/features/plugin/lib/ui-guest/__dc_realm.ts", `import "../../../../lib/index.ts";\n`);
+  fx("packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts", `import "./__dc_realm.ts";\nimport "../../../../lib/__dc_wire_leaf.ts";\n`);
 
   // ── Test-helper worlds (iso ← node/browser; node ↛ browser) ──
   fx("tests/support/browser/__dc/target.ts", VAL);
@@ -474,6 +481,13 @@ test("the plugin Worker entry may not reach the DB through any chain, except the
   const reached = allViolations.filter((violation) => violation.rule.name === "plugin-worker-no-db").map((violation) => violation.to);
   expect(reached).toContain("packages/db/src/__dc/target.ts");
   expect(reached).not.toContain("packages/db/src/client/backup-names.ts");
+});
+
+test("the plugin guest Worker may not reach the #lib barrel or a React module through any chain, only the wire leaf", () => {
+  const reached = allViolations.filter((violation) => violation.rule.name === "plugin-ui-guest-worker-no-react").map((violation) => violation.to);
+  expect(reached).toContain("packages/client/src/lib/index.ts");
+  expect(reached).toContain("packages/client/src/lib/__dc_component.tsx");
+  expect(reached).not.toContain("packages/client/src/lib/__dc_wire_leaf.ts");
 });
 
 test("allows only data/trpc.ts → server root as the client backend type seam", () => {

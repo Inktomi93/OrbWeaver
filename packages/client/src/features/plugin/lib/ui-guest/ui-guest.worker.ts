@@ -39,8 +39,11 @@ import baseVariant from "@jitl/quickjs-ng-wasmfile-release-sync";
 import wasmUrl from "@jitl/quickjs-ng-wasmfile-release-sync/wasm?url";
 import type { QuickJSContext, QuickJSHandle, QuickJSWASMModule } from "quickjs-emscripten-core";
 import { newQuickJSWASMModuleFromVariant, newVariant } from "quickjs-emscripten-core";
-import type { UiGuestBootMessage, UiGuestEventMessage, UiGuestInbound } from "#lib";
-import { UI_GUEST_BUDGETS } from "#lib";
+// The wire LEAF, never the `#lib` barrel: the barrel re-exports React modules, and in dev each carries the
+// react-refresh preamble that reads `window`, which a worker does not have (depcruise
+// `plugin-ui-guest-worker-no-react`).
+import type { UiGuestBootMessage, UiGuestEventMessage, UiGuestInbound } from "../../../../lib/plugin-ui-guest-protocol.ts";
+import { UI_GUEST_BUDGETS } from "../../../../lib/plugin-ui-guest-protocol.ts";
 // This module DRIVES; `ui-guest-realm` BUILDS — the same split `sandbox.ts` and `realm.ts` draw on the server.
 import type { GuestState } from "./ui-guest-realm.ts";
 import { callJsonParse, installRealm, LogRing, makeSeams, post } from "./ui-guest-realm.ts";

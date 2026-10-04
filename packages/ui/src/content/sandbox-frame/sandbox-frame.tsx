@@ -141,6 +141,42 @@ export function SandboxFrame({
     };
   }, [fill, deliveryKey, onHostMessage]);
 
+  // NO FOCUS ON MOUNT. A framed document that focuses itself while it loads (an autofocused game board) would
+  // pull the page's keyboard focus into a third party's document every time the frame mounts — a room opening
+  // would drop a keyboard or screen-reader user inside it unannounced. The document cannot be stopped from
+  // calling `focus()`, so the host takes focus back: if the frame holds focus when it finishes loading, focus
+  // returns to wherever it last was outside the frame. A person who wants the frame clicks or tabs into it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliveryKey + complete are the re-arm triggers — the iframe is re-keyed per delivery and absent while incomplete, so the ref's target changes with them.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (frame === null) {
+      return;
+    }
+    let outside: Element | null = document.activeElement === frame ? null : document.activeElement;
+    const onFocusIn = (event: FocusEvent): void => {
+      if (event.target instanceof Element && event.target !== frame) {
+        outside = event.target;
+      }
+    };
+    const onLoad = (): void => {
+      document.removeEventListener("focusin", onFocusIn);
+      if (document.activeElement !== frame) {
+        return;
+      }
+      if (outside instanceof HTMLElement && outside !== document.body && outside.isConnected) {
+        outside.focus({ preventScroll: true });
+      } else {
+        frame.blur();
+      }
+    };
+    document.addEventListener("focusin", onFocusIn);
+    frame.addEventListener("load", onLoad, { once: true });
+    return (): void => {
+      document.removeEventListener("focusin", onFocusIn);
+      frame.removeEventListener("load", onLoad);
+    };
+  }, [deliveryKey, complete]);
+
   // `fill` = the lightbox arm, where the PARENT owns height and a self-report must not participate.
   const appliedPx = (measured?.delivery === deliveryKey ? measured.px : undefined) ?? heightPx;
   const style: CSSProperties | undefined = fill ? undefined : { height: `${appliedPx}px` };

@@ -13,7 +13,7 @@ import {
   PLUGIN_MODEL_UNSET,
   pluginModelBackgroundRefused,
   pluginModelReadout,
-} from "../../../../../packages/client/src/features/plugin/lib/plugin-copy.ts";
+} from "../../../../../packages/client/src/features/plugin/lib/plugin-model-copy.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { PluginsSurfaceStory } from "../_ct-stories.tsx";

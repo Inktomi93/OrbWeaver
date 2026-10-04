@@ -48,11 +48,46 @@ const FIRST_INT_RE = /-?\d+/;
 const countKey = (chatId: string): string => `count:${chatId}`;
 const scoreKey = (chatId: string): string => `score:${chatId}`;
 
+/** The whole prompt's ceiling. The host REFUSES (never truncates) an `llm.quiet` prompt over 8192 characters,
+ *  and a dozen roleplay-length replies blow far past that — so a plugin that joins its window unclamped gets
+ *  every reading refused in exactly the chats it exists for. Kept a little under the host cap so a change to
+ *  the instruction cannot tip a full transcript over it. */
+const PROMPT_MAX_CHARS = 8000;
+
+/** One message's ceiling inside the transcript. Without it a single wall-of-text reply would spend the whole
+ *  budget and the reading would be taken over one message instead of a scene. */
+const LINE_MAX_CHARS = 1500;
+
+const TRIM_MARK = "…";
+
+const INSTRUCTION = `Read this excerpt from a roleplay scene and rate how warm and close the participants are toward each other, from ${SCORE_MIN} (hostile) to ${SCORE_MAX} (intimate). Answer with the number and nothing else.`;
+
+/** The transcript, clamped to what fits beside the instruction: NEWEST lines first (the reading is about how
+ *  the scene is going now), each trimmed to {@link LINE_MAX_CHARS}, stopping at the first line that no longer
+ *  fits — then put back in reading order. An older line that would fit after a skipped one is NOT taken: a
+ *  transcript with a hole in the middle reads as a different scene. */
+function clampTranscript(messages: readonly PluginMessageView[], budget: number): string {
+  const kept: string[] = [];
+  let room = budget;
+  for (const m of [...messages].reverse()) {
+    const full = `${m.authorDisplayName}: ${m.content}`;
+    const line = full.length > LINE_MAX_CHARS ? `${full.slice(0, LINE_MAX_CHARS - TRIM_MARK.length)}${TRIM_MARK}` : full;
+    // +1 for the newline that joins this line to the next one.
+    const cost = line.length + (kept.length === 0 ? 0 : 1);
+    if (cost > room) {
+      break;
+    }
+    kept.push(line);
+    room -= cost;
+  }
+  return kept.reverse().join("\n");
+}
+
 /** The prompt. Short, closed, and stated as a FORMAT instruction, because the parse below is the contract:
  *  every word you spend asking for prose is a word you then have to defend against. */
 function buildPrompt(messages: readonly PluginMessageView[]): string {
-  const transcript = messages.map((m) => `${m.authorDisplayName}: ${m.content}`).join("\n");
-  return `Read this excerpt from a roleplay scene and rate how warm and close the participants are toward each other, from ${SCORE_MIN} (hostile) to ${SCORE_MAX} (intimate). Answer with the number and nothing else.\n\n${transcript}`;
+  const separator = "\n\n";
+  return `${INSTRUCTION}${separator}${clampTranscript(messages, PROMPT_MAX_CHARS - INSTRUCTION.length - separator.length)}`;
 }
 
 /** How many times a contended compare-and-set is retried before this plugin gives up on the write. There is
