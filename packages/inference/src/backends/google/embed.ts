@@ -12,10 +12,9 @@ import { embedRequestTimeoutMs } from "../../contract/roles.ts";
 import { embeddingPrompt, fitToDim } from "../kit/embedding-input.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { turnAbortSignal } from "../kit/idle-timeout.ts";
-import { createImageNormalizer, passthroughImageNormalizer } from "../kit/image-normalize.ts";
+import { createImageNormalizer, passthroughImageNormalizer, toImageUrl } from "../kit/image-normalize.ts";
 import { providerLogger } from "../kit/provider-log.ts";
 import { resolvedScrubSet } from "../kit/sanitize.ts";
-import { toImageUrl } from "../v4/batch.ts";
 import { mediaFilePart } from "../v4/prompt.ts";
 import { GOOGLE_KEY, googleModelId, googleProviderFor } from "./model.ts";
 

@@ -20,6 +20,7 @@ import type {
   SDKAssistantMessageError,
   SDKControlGetContextUsageResponse,
   SDKMessage,
+  SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatUsage } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
@@ -34,10 +35,13 @@ import type { AgentSdkSessionId } from "../../contract/identity.ts";
 import { agentSdkSessionIdSchema } from "../../contract/identity.ts";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
+import type { AnthImageBlock } from "../../contract/runtime.ts";
 import type { PlannedResponseFormat } from "../../structured/plan.ts";
 import { requireStructuredPlan } from "../../structured/plan.ts";
 import { normalizeStructuredValue } from "../../structured/reply.ts";
+import { toAnthImageBlock } from "../kit/anth-image-block.ts";
 import { classifyHttpStatus } from "../kit/error-classify.ts";
+import type { NormalizeImageBytes } from "../kit/image-normalize.ts";
 import { redactSecretsFromText } from "../kit/openai-body.ts";
 import { agentSdkVariantMetadata } from "../kit/provider-metadata.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../kit/sanitize.ts";
@@ -83,6 +87,8 @@ const TRUNCATED_TERMINAL_REASON = "stream_truncated";
 const OUTPUT_CAP_ERROR: SDKAssistantMessageError = "max_output_tokens";
 // The Messages API's own stop word for a capped reply; the shared finish fold maps it to `length`.
 const OUTPUT_CAP_STOP_REASON = "max_tokens";
+const TEXT_BLOCK = "text";
+const USER_ROLE = "user";
 
 function chatMaxTurns(req: AgentSdkChatRequest): number {
   const toolTurns = req.toolServer !== undefined ? 1 + (req.toolTurnLimit ?? DEFAULT_CHAT_TOOL_ROUNDS) : 1;
@@ -162,13 +168,31 @@ export function linkAbort(signal: AbortSignal | undefined): AbortController {
   return controller;
 }
 
+type UserContentBlock = { readonly type: "text"; readonly text: string } | AnthImageBlock;
+
+/** The query prompt: a plain string, or, when images ride the user turn, the SDK's streaming-input form (one full
+ *  `MessageParam`) so the model receives real image blocks. */
+async function queryPromptOf(req: AgentSdkChatRequest, normalize: NormalizeImageBytes): Promise<string | AsyncIterable<SDKUserMessage>> {
+  const images = req.promptImages ?? [];
+  if (images.length === 0) {
+    return req.prompt;
+  }
+  const blocks = await Promise.all(images.map((image) => toAnthImageBlock(image, normalize)));
+  const content: UserContentBlock[] = [{ type: TEXT_BLOCK, text: req.prompt }, ...blocks];
+  const message: SDKUserMessage = { type: USER_ROLE, message: { role: USER_ROLE, content }, parent_tool_use_id: null };
+  return (async function* single(): AsyncIterable<SDKUserMessage> {
+    await Promise.resolve();
+    yield message;
+  })();
+}
+
 export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, sessions: SessionCache, log: AgentSdkLog): Promise<ChatResult> {
   const { connection } = req;
   if (connection.capability.kind !== "generation") {
     throw new ProviderError({ kind: "invalid", retryable: false, message: `agent-sdk chat: the connection's model is a ${connection.capability.kind} model` });
   }
   const generation = connection.capability.generation;
-  const gen = toSdkGeneration(req.params, generation);
+  const gen = toSdkGeneration(req.params, generation, req.posture);
   const warnings = [...gen.warnings, ...parallelToolWarnings(req)];
   log.capability({
     turnId: gen.turnId,
@@ -189,7 +213,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
   const structured = sdkOutputFormatOf(connection, req.responseFormat, `agent-sdk chat (${connection.model})`);
   captureAgentSdkWire(req, deps, { systemPrompt, dynamicHook, resume, gen, terminalMounted: terminal !== null });
   const stream = deps.query({
-    prompt: req.prompt,
+    prompt: await queryPromptOf(req, deps.normalizeImageBytes),
     options: {
       ...disciplineOptions(deps.childEnv(connection, gen.envOverrides)),
       ...observabilityOptions(deps.debug, log),
@@ -199,7 +223,8 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
       includePartialMessages: req.onDelta !== undefined,
       model: connection.model,
       maxTurns: chatMaxTurns(req),
-      sessionStore: sessions.store,
+      // A chatless turn is never resumed, so its transcript stays out of the session store.
+      ...(chatId !== undefined ? { sessionStore: sessions.store } : {}),
       stderr: (data: string): void => stderrTail.append(data),
       ...(resume !== undefined ? { resume } : {}),
       ...(systemPrompt !== undefined ? { systemPrompt } : {}),
@@ -276,6 +301,7 @@ function captureAgentSdkWire(
     model: req.connection.model,
     body: {
       prompt: req.prompt,
+      promptImages: req.promptImages?.length ?? 0,
       systemPrompt: ctx.systemPrompt ?? null,
       hookContext: ctx.dynamicHook.hooks === undefined || req.tailSystem === undefined ? null : hookContextOf(req.tailSystem),
       model: req.connection.model,
@@ -395,6 +421,17 @@ export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: 
         model: ctx.model,
         terminalReason: TRUNCATED_TERMINAL_REASON,
         ...(acc.errorSessionId !== undefined ? { sessionId: acc.errorSessionId } : {}),
+      }),
+    );
+  }
+  // A structured turn's payload is the `structured_output` frame; the prose beside it is never read as the payload.
+  if (ctx.structured !== undefined && acc.structuredOutput === undefined) {
+    return acc.finishWithError(
+      new ProviderError({
+        kind: "invalid",
+        retryable: false,
+        message: "agent-sdk: the turn asked for structured output and produced no structured_output frame",
+        model: ctx.model,
       }),
     );
   }
@@ -580,8 +617,7 @@ class TurnAccumulator {
   finish(contextUsage?: ContextUsage): ChatResult {
     this.logTurn(true, contextUsage);
     const planned = this.ctx.structured;
-    const structuredReply =
-      planned !== undefined && this.structuredOutput !== undefined ? JSON.stringify(normalizeStructuredValue(this.structuredOutput, planned)) : undefined;
+    const structuredReply = planned === undefined ? undefined : JSON.stringify(normalizeStructuredValue(this.structuredOutput, planned));
     // The subscription's own receipts, narrowed to the closed per-provider sidecar the variant stores
     // (`backends/kit/provider-metadata.ts`). `modelUsage` and `apiKeySource` stay OUT of the record on purpose:
     // the first is a per-model breakdown the stats plane already rolls up from the variant rows themselves, the

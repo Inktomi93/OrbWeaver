@@ -10,12 +10,6 @@ export const CHAT_ROLE_TARGET: CapabilityTarget = { kind: "role", task: "chat" }
 /** The roles whose connection the funnel's sampling and effort apply to — the text-generation roles. */
 export const SWITCHER_ROLES = ["chat", "summarize"] as const satisfies readonly RoutableTask[];
 
-/** Whether sends on this target carry the preset's Max context. Only chat sends do; a picked connection is described
- *  as chat. Other roles send the connection's own window. */
-export function sendsPresetWindow(target: CapabilityTarget): boolean {
-  return target.kind === "connection" || target.task === "chat";
-}
-
 const ROLE_PREFIX = "role:";
 const CONNECTION_PREFIX = "connection:";
 

@@ -23,6 +23,9 @@ its own. A vendor's schema subset or ceiling is a mode row in
 
 ## Backends
 
+- A summarize or structured item is a chat turn with the `side-gen` posture
+  (`packages/inference/src/roles/side-gen.ts`). Fix side-generation behavior in the wire's chat path
+  or the funnel, never beside them, so chat and side generation cannot drift.
 - Wire vocabulary differs per backend. Read each backend's own wire key or schema; never assume
   one backend's field name holds for another.
 - Audit a vendor SDK's own default retry config, not only the wrapper code

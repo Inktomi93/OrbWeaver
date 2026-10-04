@@ -1,7 +1,7 @@
 // The two non-turn calls a caller makes on a CHAT connection, each behind one neutral input so the caller never
 // branches on the connection's backend: a one-shot structured-output call (`runStructuredChat`) and a forced
-// tool round (`toForcedToolRoundRequest`, gated by `carriesForcedToolRound`). Which executor method or request
-// arm serves each backend is decided here; what to ask for and when to ask stays with the caller.
+// tool round (`toForcedToolRoundRequest`, gated by `carriesForcedToolRound`). Which request arm serves each backend
+// is decided here; what to ask for and when to ask stays with the caller.
 
 import type { ChatApi } from "@orb/contracts/inference";
 import type { ProviderExecutor } from "../contract/backend.ts";
@@ -10,6 +10,7 @@ import { ProviderError } from "../contract/errors.ts";
 import type { Resolved } from "../contract/resolved.ts";
 import { planStructuredFor } from "../structured/plan.ts";
 import { structuredTargetOf } from "../structured/target.ts";
+import { sideGenChatRequest, sideGenReplyOf } from "./side-gen.ts";
 
 /** A forced round's choice: the model answers with calls, never prose. The structured plan sends it as `auto`
  *  where the model rejects forced tool use, and says so. */
@@ -65,46 +66,18 @@ export function toForcedToolRoundRequest(input: ForcedToolRoundInput): ChatReque
   };
 }
 
-type StructuredChatRunner = (executor: Pick<ProviderExecutor, "structured" | "runChatTurn">, input: StructuredChatInput) => Promise<string>;
-
-/** The Agent SDK serves a structured call as a tool-less chat turn with an output format: the `structured`
- *  task's batch path does not serve that backend. */
-const viaChatTurn: StructuredChatRunner = async (executor, input) => {
-  const result = await executor.runChatTurn({
-    api: "agent-sdk",
-    chatId: input.chatId,
-    connection: input.connection,
-    params: {},
-    systemPrompt: { static: input.systemPrompt, dynamic: "" },
-    prompt: input.userPrompt,
-    responseFormat: input.responseFormat,
-    signal: input.signal,
-  });
-  return result.reply;
-};
-
-/** Every history wire serves it as the `structured` task on the SAME resolved row. That task's request is
- *  chatless by contract, so the chat id does not ride this arm. */
-const viaStructuredTask: StructuredChatRunner = async (executor, input) => {
-  const result = await executor.structured({
-    connection: { ...input.connection, task: "structured" },
-    inputs: [{ systemPrompt: input.systemPrompt, userPrompt: input.userPrompt }],
-    responseFormat: input.responseFormat,
-    signal: input.signal,
-  });
-  return result.items.at(0)?.text ?? "";
-};
-
-/** One runner per chat api — a mapped Record, so a new `CHAT_APIS` member fails `tsc` here. */
-const STRUCTURED_CHAT: Record<ChatApi, StructuredChatRunner> = {
-  "agent-sdk": viaChatTurn,
-  "chat-completions": viaStructuredTask,
-  "anthropic-messages": viaStructuredTask,
-  "google-generative-ai": viaStructuredTask,
-};
-
-/** Run a structured-output call and return the model's JSON text (`""` when a batch answered with no item). */
-export function runStructuredChat(executor: Pick<ProviderExecutor, "structured" | "runChatTurn">, input: StructuredChatInput): Promise<string> {
-  const api = input.connection.api;
-  return (api === null ? viaStructuredTask : STRUCTURED_CHAT[api])(executor, input);
+/** Run a structured-output call as one side-generation chat turn on the connection's own api, and return the model's
+ *  JSON payload (`""` where a tool vehicle went uncalled). The chat id rides for wire-capture correlation. */
+export async function runStructuredChat(executor: Pick<ProviderExecutor, "runChatTurn">, input: StructuredChatInput): Promise<string> {
+  const result = await executor.runChatTurn(
+    sideGenChatRequest({
+      connection: input.connection,
+      item: { systemPrompt: input.systemPrompt, userPrompt: input.userPrompt },
+      params: {},
+      responseFormat: input.responseFormat,
+      chatId: input.chatId,
+      signal: input.signal,
+    }),
+  );
+  return sideGenReplyOf(result, input.connection.model);
 }

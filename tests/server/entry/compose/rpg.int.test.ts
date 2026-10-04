@@ -27,12 +27,11 @@ import type { ChatApi, ProviderId } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
-import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
 import { RPG_STATE_ROUND_FAILED_SUMMARY, RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, messages, messageVariants, ownerStats, presets } from "@orb/db";
-import type { ChatResult, ResolveOutcome } from "@orb/inference";
+import type { ChatRequest, ChatResult, ResolveOutcome } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -415,6 +414,55 @@ function buildCannedRpgWithText(args: {
 }): ReturnType<typeof buildRpg> {
   const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows, chatThrows, capability } = args;
   const structuredReplies = [...(args.structuredReplies ?? [])];
+  // `reply` (the extraction), `toolCalls` (a cheap tool round), `events` and `usage`/`finishReason`/`durationApiMs`
+  // (the round's §10.1a economics line) are read; the rest of the ~18-field ChatResult is inert, so a full
+  // construction would be noise.
+  const replyOf = (reply: string, toolCalls?: readonly { readonly name: string; readonly arguments: string }[]): ChatResult =>
+    // @orb-waive no-test-fabrication(unknown): minimal ChatResult double — only the fields the arms actually read; the others never run. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
+    ({
+      reply,
+      ...(toolCalls === undefined ? {} : { toolCalls }),
+      events: [],
+      usage: {
+        model: "fake-chat-model",
+        tokensIn: 1200,
+        tokensOut: 90,
+        cacheReadTokens: 800,
+        cacheWriteTokens: 0,
+        reasoningTokens: null,
+        costUsd: 0.0042,
+      },
+      durationApiMs: 310,
+      finishReason: "stop",
+    }) as unknown as ChatResult;
+  // The structured call: the spy records the model, the constrained schema and both prompts, on any api.
+  const structuredTurn = (req: ChatRequest): Promise<ChatResult> => {
+    if (structuredThrows !== undefined) {
+      return Promise.reject(structuredThrows);
+    }
+    spy.summarizeModels.push(req.connection.model);
+    if (req.responseFormat !== undefined) {
+      spy.schemas.push(req.responseFormat.schema);
+      spy.formatKeys.push(Object.keys(req.responseFormat).toSorted());
+    }
+    spy.systemPrompts.push(req.systemPrompt.static);
+    spy.userPrompts.push(
+      req.api === "agent-sdk" ? req.prompt : (req.history[0]?.content.map((part) => (part.type === "text" ? part.text : "")).join("") ?? ""),
+    );
+    spy.signals.push(req.signal);
+    spy.windows.push(generationOf(req.connection).context.window);
+    return Promise.resolve(replyOf(structuredReplies.shift() ?? cannedText));
+  };
+  // The chat and tool-round arm: the spy records that the request carried tools or a response format.
+  const chatTurn = (req: ChatRequest): Promise<ChatResult> => {
+    recordChatTurn(spy, req);
+    const inventoryAudit =
+      args.inventoryAuditToolCalls !== undefined &&
+      "tools" in req &&
+      req.tools?.some((tool) => tool.name === "update_inventory") === true &&
+      req.tools.every((tool) => tool.name === "update_inventory" || tool.name === "no_changes");
+    return Promise.resolve(replyOf(cannedText, inventoryAudit ? args.inventoryAuditToolCalls : cannedToolCalls));
+  };
   return buildRpg({
     db,
     now: () => FROZEN_AT,
@@ -445,60 +493,12 @@ function buildCannedRpgWithText(args: {
         }),
     },
     executor: {
-      // The array/vLLM extraction arm now rides the `structured` role (owner ruling 2026-07-27 — split from
-      // summarize). The spy records the model + the constrained schema + the prompt.
-      structured: (req): Promise<SummarizeResult> => {
-        if (structuredThrows !== undefined) {
-          return Promise.reject(structuredThrows);
-        }
-        spy.summarizeModels.push(req.connection.model);
-        spy.schemas.push(req.responseFormat.schema);
-        spy.formatKeys.push(Object.keys(req.responseFormat).toSorted());
-        spy.systemPrompts.push(req.inputs[0]?.systemPrompt ?? "");
-        spy.userPrompts.push(req.inputs[0]?.userPrompt ?? "");
-        spy.signals.push(req.signal);
-        spy.windows.push(generationOf(req.connection).context.window);
-        return Promise.resolve({
-          items: [{ text: structuredReplies.shift() ?? cannedText, usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
-          model: "fake-chat-model",
-        } satisfies SummarizeResult);
-      },
-      // The structured chat arm: the reducer replies with the compact extraction JSON. The spy records that
-      // the request carried a responseFormat and NO tool server (extraction is a read-only structured emission).
-      // A `chatThrows` harness REPLACES the arm outright (rather than branching inside it) so the recording
-      // arm below stays byte-identical to what every existing pin exercises.
-      runChatTurn:
-        args.chatArm ??
-        (chatThrows !== undefined
-          ? (): Promise<ChatResult> => Promise.reject(chatThrows)
-          : (req) => {
-              recordChatTurn(spy, req);
-              // `reply` (the extraction), `toolCalls` (a cheap tool round) and `usage`/`finishReason`/`durationApiMs`
-              // (the round's §10.1a economics line) are read; the rest of the ~18-field ChatResult is inert, so a
-              // full construction would be noise.
-              const inventoryAudit =
-                args.inventoryAuditToolCalls !== undefined &&
-                "tools" in req &&
-                req.tools?.some((tool) => tool.name === "update_inventory") === true &&
-                req.tools.every((tool) => tool.name === "update_inventory" || tool.name === "no_changes");
-              const toolCalls = inventoryAudit ? args.inventoryAuditToolCalls : cannedToolCalls;
-              // @orb-waive no-test-fabrication(unknown): minimal ChatResult double — only the fields the arms actually read; the others never run. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-              return Promise.resolve({
-                reply: cannedText,
-                ...(toolCalls === undefined ? {} : { toolCalls }),
-                usage: {
-                  model: "fake-chat-model",
-                  tokensIn: 1200,
-                  tokensOut: 90,
-                  cacheReadTokens: 800,
-                  cacheWriteTokens: 0,
-                  reasoningTokens: null,
-                  costUsd: 0.0042,
-                },
-                durationApiMs: 310,
-                finishReason: "stop",
-              } as unknown as ChatResult);
-            }),
+      // A structured extraction is one side-generation chat turn (`runStructuredChat`), told apart from the round's
+      // chat and tool turns by its posture; the spy records the model, the constrained schema and the prompts.
+      runChatTurn: (req) =>
+        req.posture === "side-gen"
+          ? structuredTurn(req)
+          : (args.chatArm ?? (chatThrows !== undefined ? (): Promise<ChatResult> => Promise.reject(chatThrows) : chatTurn))(req),
     },
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
     // The fork preset-ownership gate is unreached on the extraction path; a benign stub.
@@ -631,12 +631,12 @@ test("CHEAP turn (agent-sdk degrade) — a wire with no `tools[]` runs ONE struc
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
-  // The chat arm fired with a responseFormat + NO tool server (read-only structured emission, firewall intact);
-  // the `structured` dispatcher did NOT (the branch, proven — the metered-sub firewall was never touched).
-  expect(spy.summarizeModels).toEqual([]);
-  expect(spy.chatTurns).toEqual([{ model: "fake-chat-model", hasResponseFormat: true, hasToolServer: false }]);
+  // ONE structured call fired, the same side-generation turn every api takes, with a response format and no tool
+  // server (read-only structured emission, firewall intact); no tool round ran.
+  expect(spy.summarizeModels).toEqual(["fake-chat-model"]);
+  expect(spy.chatTurns).toEqual([]);
 
-  // IDENTICAL state lands via the chat arm (same canned delta, one fold path — the routing changed, not the result).
+  // IDENTICAL state lands via the structured call (same canned delta, one fold path).
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the obsidian tower");
   const journal = await rpgCompose.service.listJournal({ principal: hostPrincipal(hostId), chatId, limit: 50 });
@@ -1252,8 +1252,7 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
       resolve: (): Promise<ResolveOutcome> => Promise.reject(err),
     },
     executor: {
-      structured: () => Promise.reject(new Error("unreached — the round never fires on a readonly READ")),
-      runChatTurn: () => Promise.reject(new Error("unreached")),
+      runChatTurn: () => Promise.reject(new Error("unreached — the round never fires on a readonly READ")),
     },
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
     resolvePresetOwned: () => Promise.resolve(false),
@@ -1476,7 +1475,7 @@ test("#1468: the AGENT-SDK degrade (structured extraction) carries the same fail
     api: "agent-sdk",
     spy: emptySpy(),
     cannedText: "{}",
-    chatThrows: new Error("agent-sdk transport closed"),
+    structuredThrows: new Error("agent-sdk transport closed"),
     trace: recorder.sink,
   });
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
@@ -2737,17 +2736,14 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
         }),
     },
     executor: {
-      structured: (req): Promise<SummarizeResult> => {
-        spy.summarizeModels.push(req.connection.model);
-        return Promise.resolve({
-          items: [{ text: "{}", usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
-          model: "fake-chat-model",
-        } satisfies SummarizeResult);
-      },
-      runChatTurn: (): Promise<ChatResult> => {
-        spy.chatTurns.push({ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false });
+      runChatTurn: (req): Promise<ChatResult> => {
+        if (req.posture === "side-gen") {
+          spy.summarizeModels.push(req.connection.model);
+        } else {
+          spy.chatTurns.push({ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false });
+        }
         // @orb-waive no-test-fabrication(unknown): this arm must never fire on this test — a minimal double proves it by staying unused. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-        return Promise.resolve({ reply: "" } as unknown as ChatResult);
+        return Promise.resolve({ reply: "{}", events: [] } as unknown as ChatResult);
       },
     },
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),

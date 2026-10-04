@@ -941,6 +941,11 @@
       "reason": "strike-out is a passenger side effect; its failure is warning-logged and the provider's original error is rethrown. Precedent: packages/server/src/entry/import/run-profile-import.ts accepts the same passenger-side-effect failure while preserving the primary owner. Ends if either owner changes."
     },
     {
+      "siteId": "packages/inference/src/roles/side-gen.ts::runSideGen.worker::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the first item failure is held so the items already running settle, then runSideGen rethrows it unchanged as the batch's failure; the item itself was logged by runItem. Ends if the rethrow after the workers settle is removed."
+    },
+    {
       "siteId": "packages/inference/src/roles/structured-turn.ts::tryParse::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "null flows to extractJsonObject's null → the typed \"no JSON object found in the reply\" refusal path. Ends if that refusal path is removed."

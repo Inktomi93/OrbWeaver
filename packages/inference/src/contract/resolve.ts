@@ -141,7 +141,11 @@ export interface ResolvedChatKnobs {
    *  the policy has one home. The chat engine reads the same answer through `resolveCarryReasoning`. */
   readonly carryReasoning: CarryReasoning;
   readonly sampling: ResolvedSampling;
+  /** The output cap the wire sends: the caller's visible cap, plus room for reasoning on a side-generation turn. */
   readonly maxOutputTokens?: number | undefined;
+  /** The output cap a replay sends when the wire refuses this turn's chosen off and the model then reasons at its
+   *  own default (OpenRouter's mandatory-reasoning replay): room for that reasoning where the posture grows the cap. */
+  readonly replayMaxOutputTokens?: number | undefined;
   readonly verbosity?: Verbosity | undefined;
   /** Emit `modalities: ["text","image"]` on the wire — the preset asked (`replyMedia: text+image`) AND the
    *  model's `output.modalities ∋ image` (§6.7). */

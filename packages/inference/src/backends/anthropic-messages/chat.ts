@@ -295,7 +295,7 @@ interface StreamOnceArgs {
 async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
   const { call, req, markCommitted } = args;
   const deltaTarget = req.chatId === undefined || req.onDelta === undefined ? undefined : { chatId: req.chatId, onDelta: req.onDelta };
-  const idle = turnAbortSignal(req.signal);
+  const idle = turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs);
   let first = true;
   const commit = (): void => {
     if (first) {
@@ -364,7 +364,7 @@ export async function runAnthropicChatTurn(req: AnthropicChatRequest, deps: Anth
   const { connection } = req;
   const label = `${connection.providerId} chat (${connection.model})`;
   const generation = requireGeneration(connection, label);
-  const knobs = resolveChat(req.params, generation);
+  const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [...knobs.warnings];
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();

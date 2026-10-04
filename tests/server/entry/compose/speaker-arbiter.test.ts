@@ -19,6 +19,7 @@ import { createRoleClientsFor } from "../../../../packages/inference/src/roles/r
 import { planStructuredFor } from "../../../../packages/inference/src/structured/plan.ts";
 import { speakerArbiterFor } from "../../../../packages/server/src/entry/compose/chat.ts";
 import { fakeConnection, fakeDeps, newUserId } from "../../../inference/_support.ts";
+import { makeResolved } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
 
@@ -130,5 +131,25 @@ describe("speakerArbiterFor — Smart's Utility arbiter gate", () => {
   test("the arbiter carries the bound model's context window", async () => {
     const { arbiter } = await arbiterFor("custom-openai", "qwen-local", local({ output: { structured: true }, context: { window: 4096 } }));
     expect(arbiter?.contextTokens).toBe(4096);
+  });
+
+  // 0565: on a route whose window the request sets, the arbiter's call sends the Utility preset's Max context, so the
+  // window it budgets against is that one; a route that sends no window keeps the model's own.
+  test("the arbiter reads the Utility preset's window where the route sets one, and the model's own elsewhere", async () => {
+    const roles = (settable: boolean): Parameters<typeof speakerArbiterFor>[0] => ({
+      resolved: () =>
+        Promise.resolve(
+          makeResolved({
+            task: "structured",
+            generation: {
+              output: { maxTokens: { min: 1, max: 8192 }, structured: true, modalities: ["text"] },
+              context: { window: 4096, ...(settable ? { settable: { max: 32_768 } } : {}) },
+            },
+          }),
+        ),
+      structured: () => Promise.resolve({ items: [], model: "test-model" }),
+    });
+    expect((await speakerArbiterFor(roles(true), 16_384))?.contextTokens).toBe(16_384);
+    expect((await speakerArbiterFor(roles(false), 16_384))?.contextTokens).toBe(4096);
   });
 });
