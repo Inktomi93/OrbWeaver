@@ -461,6 +461,22 @@ test("anthropic-format refuses what Anthropic's subset lists as unsupported: com
     $defs: { Node: { type: "object", required: [], properties: { next: { $ref: "#/$defs/Node" } } } },
   };
   expect(keywordsRefused(recursive, "anthropic-format")).toEqual(["recursive $ref"]);
+  // A root-recursive zod schema projects its self-reference as `"$ref": "#"`.
+  interface TreeNode {
+    name: string;
+    kids: TreeNode[];
+  }
+  const treeNode: z.ZodType<TreeNode> = z.object({
+    name: z.string(),
+    get kids() {
+      return z.array(treeNode);
+    },
+  });
+  const rootRecursive = projectJsonSchema(treeNode);
+  expect(JSON.stringify(rootRecursive)).toContain('"$ref":"#"');
+  expect(checkWireSchema([rootRecursive], "anthropic-format", undefined).violations).toEqual([
+    { kind: "refused-keyword", mode: "anthropic-format", keyword: "recursive $ref", path: "" },
+  ]);
   // PLANTED CONTROL: a documented format, a plain anchored pattern and a flat reference all fit.
   const fine = {
     type: "object",

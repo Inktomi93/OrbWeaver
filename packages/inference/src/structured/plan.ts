@@ -239,6 +239,7 @@ export function planStructured(ask: StructuredAsk, endpoint: StructuredTarget): 
   const target = turnTarget(ask, endpoint);
   const downgrades: ResolvedWarning[] = [];
   const turn: PlanningTurn = {
+    prefillDroppedNative: ask.nativeFormat === false && endpoint.vehicles.includes("response-format"),
     target,
     downgrades,
     callerTools: (ask.tools ?? []).map((tool) => planCallerTool(tool, target, downgrades)),
@@ -249,6 +250,8 @@ export function planStructured(ask: StructuredAsk, endpoint: StructuredTarget): 
 }
 
 interface PlanningTurn {
+  /** The endpoint takes the native carrier, but this turn's assistant prefill removed it. */
+  readonly prefillDroppedNative: boolean;
   readonly target: StructuredTarget;
   readonly downgrades: ResolvedWarning[];
   readonly callerTools: readonly PlannedToolScrub[];
@@ -279,17 +282,18 @@ function vehicleAttempt(format: ResponseFormat, vehicle: StructuredVehicle, { ta
   return vehicle === "response-format" ? responseFormatAttempt(format, target, callerTools) : toolVehicleAttempt(format, vehicle, target, downgrades);
 }
 
-function planFormats(formats: readonly ResponseFormat[], { target, downgrades, callerTools, toolChoice }: PlanningTurn): StructuredPlan | StructuredRefusal {
+function planFormats(formats: readonly ResponseFormat[], turn: PlanningTurn): StructuredPlan | StructuredRefusal {
+  const { target, downgrades, callerTools, toolChoice } = turn;
   // A request that also carries the caller's tools keeps them, so its payload can only ride the native carrier.
   const vehicles = callerTools.length > 0 ? target.vehicles.filter((vehicle) => vehicle === "response-format") : target.vehicles;
   if (vehicles.length === 0) {
-    return { ok: false, violations: [{ kind: "no-vehicle", mode: target.mode }] };
+    return { ok: false, violations: [{ kind: "no-vehicle", mode: target.mode, cause: turn.prefillDroppedNative ? "assistant-prefill" : "unsupported" }] };
   }
   const violations: WireSchemaViolation[] = [];
   // Vehicles outer: an enforcing carrier with the caller's fallback shape beats a weaker carrier with its first one.
   for (const vehicle of vehicles) {
     for (const [shape, format] of formats.entries()) {
-      const attempt = vehicleAttempt(format, vehicle, { target, downgrades, callerTools, toolChoice });
+      const attempt = vehicleAttempt(format, vehicle, turn);
       if (attempt.ok) {
         return {
           ok: true,

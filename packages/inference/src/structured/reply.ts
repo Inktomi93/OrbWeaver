@@ -1,7 +1,7 @@
 // The reply half of the plan: a structured reply leaves the backend already normalized. Under a reshaping mode
 // the model writes an explicit null for an optional it would have omitted; that null is dropped at exactly the
-// paths the plan reshaped. A null the author's schema declared is the author's value and always stays. An enum or
-// const value that differs from the schema's only in letter case is the schema's value (Anthropic does not
+// paths the plan reshaped. A null the author's schema declared is the author's value and always stays. A value no
+// arm accepts as written, which one enum or const member matches ignoring case, is that member (Anthropic does not
 // guarantee casing); every other value is left exactly as the model wrote it.
 
 import { ARRAY_ITEMS_SEGMENT, MAP_VALUES_SEGMENT } from "@orb/contracts/inference";
@@ -103,9 +103,31 @@ function pinnedStrings(node: Record<string, unknown>, root: unknown): readonly s
   return [...own, ...unionArms(node, root).flatMap((arm) => pinnedStrings(arm, root))].filter((value): value is string => typeof value === "string");
 }
 
+function typeAllowsString(type: unknown): boolean {
+  return type === undefined || type === "string" || (Array.isArray(type) && type.includes("string"));
+}
+
+// Whether the string is valid at this node as written, by its enum, const, type and union arms. Bounds, patterns and
+// formats are not evaluated: a value they would refuse is left as written, never rewritten.
+function acceptsAsWritten(value: string, node: Record<string, unknown>, root: unknown): boolean {
+  if (Array.isArray(node["enum"]) && !node["enum"].includes(value)) {
+    return false;
+  }
+  if ("const" in node && node["const"] !== value) {
+    return false;
+  }
+  const arms = unionArms(node, root);
+  if (arms.length > 0 && !arms.some((arm) => acceptsAsWritten(value, arm, root))) {
+    return false;
+  }
+  return typeAllowsString(node["type"]);
+}
+
+// A value is restored only where nothing at its path accepts it as written, so a sibling free-string arm keeps the
+// model's own spelling.
 function caseFixed(value: string, node: Record<string, unknown>, root: unknown): string {
   const pinned = pinnedStrings(node, root);
-  if (pinned.length === 0 || pinned.includes(value)) {
+  if (pinned.length === 0 || acceptsAsWritten(value, node, root)) {
     return value;
   }
   const matches = pinned.filter((candidate) => candidate.toLowerCase() === value.toLowerCase());

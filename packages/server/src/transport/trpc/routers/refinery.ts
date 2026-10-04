@@ -219,8 +219,10 @@ export const refineryRouter = t.router({
       ctx.services.refinery.testSchema({ principal: ctx.auth, schema: input.schema, stage: input.stage, characterId: input.characterId }),
     ),
 
+  // A mutation although it writes nothing: a query's input rides the URL, and a large draft outgrows the server's
+  // request-header limit.
   schemaPlan: authedProcedure
     .output(refinerySchemaPlanSchema.nullable())
     .input(z.object({ schema: rawSchemaSchema, stage: refinerySchemaStageSchema }))
-    .query(({ ctx, input }) => ctx.services.refinery.previewSchemaPlan({ principal: ctx.auth, schema: input.schema, stage: input.stage })),
+    .mutation(({ ctx, input }) => ctx.services.refinery.previewSchemaPlan({ principal: ctx.auth, schema: input.schema, stage: input.stage })),
 });

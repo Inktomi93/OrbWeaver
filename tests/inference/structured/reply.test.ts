@@ -126,3 +126,17 @@ test("an enum or const value that differs from the schema's only in case becomes
   const exact = { topic: "Conversation Topic 1" };
   expect(normalizeStructuredValue(exact, { schema, reshapedPaths: [] })).toBe(exact);
 });
+
+test("a value a sibling free-string arm accepts as written is the model's value, not a miscased choice", () => {
+  const schema = {
+    type: "object",
+    properties: {
+      gender: { anyOf: [{ enum: ["Male", "Female"] }, { type: "string" }] },
+      label: { oneOf: [{ const: "None" }, { type: "string" }] },
+      tag: { anyOf: [{ enum: ["Hot"] }, { type: "null" }] },
+    },
+  };
+  const reply = { gender: "male", label: "none", tag: "hot" };
+  // The free-string arm takes "male" and "none" as written; only the enum-or-null field is otherwise invalid.
+  expect(normalizeStructuredValue(reply, { schema, reshapedPaths: [] })).toEqual({ gender: "male", label: "none", tag: "Hot" });
+});

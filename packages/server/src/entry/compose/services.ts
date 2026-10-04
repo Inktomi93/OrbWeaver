@@ -53,7 +53,7 @@ import { automationRules, chatParticipants, plugins, userCredentials } from "@or
 import { fetchOwned } from "@orb/db/kit";
 import { SEED_MANIFEST } from "@orb/default-content";
 import type { BindingActor, InferenceDeps, InferenceRuntime, Resolved, RoleClientsWithSignal } from "@orb/inference";
-import { createInferenceRuntime, resolveClaudeExecutable } from "@orb/inference";
+import { createInferenceRuntime, NoConnectionError, resolveClaudeExecutable } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, PluginId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { packShowcaseBundle, readShowcaseManifest } from "@orb/showcase-plugins";
@@ -823,6 +823,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     db,
     now,
     roleClientsFor,
+    resolveStructuredBinding: async (ownerId) => {
+      try {
+        return (await runtime.resolve({ task: "structured", principal: await resolveFunderPrincipal(ownerId) })).resolved;
+      } catch (error) {
+        if (error instanceof NoConnectionError) {
+          return null;
+        }
+        throw error;
+      }
+    },
     character,
     resolveUtilityPresetParams,
     loadUserSettings: settings.loadUserSettings,

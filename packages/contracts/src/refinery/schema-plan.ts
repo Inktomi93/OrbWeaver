@@ -11,6 +11,8 @@ export const REFINERY_SCHEMA_CARRIERS = ["native", "tool"] as const;
 
 export const refinerySchemaPlanSchema = z.discriminatedUnion("outcome", [
   z.strictObject({ outcome: z.literal("unbound") }),
+  // Refinery runs are background work, which the bound connection does not allow.
+  z.strictObject({ outcome: z.literal("background-refused"), model: z.string() }),
   z.strictObject({ outcome: z.literal("sends"), model: z.string(), carrier: z.enum(REFINERY_SCHEMA_CARRIERS) }),
   z.strictObject({ outcome: z.literal("refused"), model: z.string(), reasons: z.array(z.string()) }),
 ]);
@@ -52,10 +54,16 @@ export function schemaPlanReasonOf(violation: WireSchemaViolation): string {
   }
 }
 
+/** The line the editor shows when the plan could not be asked (the server or the network failed). */
+export const REFINERY_SCHEMA_PLAN_UNCHECKED_LINE = "Couldn't check this shape against your Utility model just now. It will still save.";
+
 /** The one line the editor shows for a plan. */
 export function refinerySchemaPlanLine(plan: RefinerySchemaPlan): string {
   if (plan.outcome === "unbound") {
     return "Whether this fits depends on the model bound to Utility in Model roles, and none is bound yet. It will still save.";
+  }
+  if (plan.outcome === "background-refused") {
+    return `Your Utility model (${plan.model}) is on a connection that doesn't allow background work, so refinery runs can't use it — allow background work for it in Connections. It will still save.`;
   }
   if (plan.outcome === "refused") {
     return `Your Utility model (${plan.model}) cannot take this shape, so refinery runs with it would fail: ${plan.reasons.join("; ")}. It will still save.`;

@@ -53,8 +53,13 @@ interface PathViolation extends ViolationOrigin {
   readonly path: string;
 }
 
+/** Why no carrier was left: the model takes neither structured output nor tools, or this turn ends on an assistant
+ *  prefill, which the native carrier cannot follow, and the model has no tool to carry the payload instead. */
+type NoVehicleCause = "unsupported" | "assistant-prefill";
+
 interface NoVehicleViolation extends ViolationOrigin {
   readonly kind: "no-vehicle";
+  readonly cause: NoVehicleCause;
 }
 
 /** A vendor refused the schema without naming a count: `rule` is the matched refusal's name, never its body. */
@@ -76,7 +81,9 @@ export function describeWireSchemaViolation(violation: WireSchemaViolation): str
     case "ambiguous-null":
       return `${violation.path} is both optional and nullable, so absent and null would collide under ${violation.mode}`;
     case "no-vehicle":
-      return "this model takes neither structured output nor tool calls";
+      return violation.cause === "assistant-prefill"
+        ? "structured output cannot be used on a turn that ends with a prefilled assistant message, and this model has no tool calls to carry it instead"
+        : "this model takes neither structured output nor tool calls";
     case "vendor-refused":
       return `the provider refused the schema (${violation.rule})`;
     case "optional-props":

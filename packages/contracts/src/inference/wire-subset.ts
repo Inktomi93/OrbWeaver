@@ -443,15 +443,15 @@ function noteNode(node: Record<string, unknown>, walk: Walk, path: string): void
   }
 }
 
-// The `$defs` members a reference reaches itself from: an edge runs from the def a `$ref` sits in to the def it names.
+// The references that reach themselves: an edge runs from the def a `$ref` sits in to the def it names. A use outside
+// every `$defs` member sits in the root document, which `"$ref": "#"` names.
 function recursiveRefs(refUses: ReadonlyMap<string, readonly string[]>): readonly string[] {
   const edges = new Map<string, string[]>();
   for (const [target, uses] of refUses) {
     for (const use of uses) {
-      for (const source of refUses.keys()) {
-        if (isUnderRef(use, source)) {
-          edges.set(source, [...(edges.get(source) ?? []), target]);
-        }
+      const inRoot = !use.startsWith(`${LOCAL_REF_PREFIX}/`);
+      for (const source of inRoot ? [LOCAL_REF_PREFIX] : [...refUses.keys()].filter((ref) => isUnderRef(use, ref))) {
+        edges.set(source, [...(edges.get(source) ?? []), target]);
       }
     }
   }
@@ -598,7 +598,7 @@ export function scrubWireSchema<S extends Record<string, unknown>>(schema: S, mo
   const scrubbed = walkNode(schema, walk, "") as S;
   if (walk.subset.refuseRecursion === true) {
     for (const ref of recursiveRefs(walk.refUses)) {
-      refuse(walk, "recursive $ref", ref);
+      refuse(walk, "recursive $ref", ref === LOCAL_REF_PREFIX ? "" : ref);
     }
   }
   const reshapedPaths = placeDefPaths(walk.reshaped, walk.refUses);

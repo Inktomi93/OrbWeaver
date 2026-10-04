@@ -2323,7 +2323,7 @@ describe("runTurnPipeline — a structured turn rides the plan, with no free-tex
       retryable: false,
       message: "the structured request does not fit this model",
       detail: "schema_rejected",
-      violations: [{ kind: "no-vehicle", mode: "hosted-common" }],
+      violations: [{ kind: "no-vehicle", mode: "hosted-common", cause: "unsupported" }],
     });
     const { args } = baseArgs({
       responseFormat: RESPONSE_FORMAT,

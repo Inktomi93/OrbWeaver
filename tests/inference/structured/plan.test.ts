@@ -63,7 +63,10 @@ test("the recorded Anthropic refusals reproduce: 41 optionals as projected, 41 u
 });
 
 test("a capability with neither structured output nor tools has no vehicle; one with tools only plans the forced tool", () => {
-  expect(planStructured({ formats: [SMALL] }, target({ vehicles: [] }))).toEqual({ ok: false, violations: [{ kind: "no-vehicle", mode: "hosted-common" }] });
+  expect(planStructured({ formats: [SMALL] }, target({ vehicles: [] }))).toEqual({
+    ok: false,
+    violations: [{ kind: "no-vehicle", mode: "hosted-common", cause: "unsupported" }],
+  });
   const forced = planStructured({ formats: [SMALL] }, target({ vehicles: ["forced-tool", "offered-tool"] }));
   expect(forced).toMatchObject({ ok: true, responseFormat: { vehicle: "forced-tool" }, toolChoice: { mode: "tool", name: "small" }, parallelToolCalls: false });
   expect(forced.ok && forced.tools?.map((tool) => tool.name)).toEqual(["small"]);
@@ -190,9 +193,14 @@ test("a turn whose own settings refuse forced tool use gets no forced choice and
 test("a turn whose shape refuses the native carrier (an Anthropic prefill) rides the payload on a tool instead", () => {
   const plan = planStructured({ formats: [SMALL], nativeFormat: false }, target());
   expect(plan).toMatchObject({ ok: true, responseFormat: { vehicle: "forced-tool" } });
-  // With no tool to fall back on, the plan refuses before the call instead of sending a request that 400s.
-  expect(planStructured({ formats: [SMALL], nativeFormat: false }, target({ vehicles: ["response-format"] }))).toMatchObject({
+  // With no tool to fall back on, the plan refuses before the call instead of sending a request that 400s, and names
+  // the prefill as the reason: the model does take structured output, just not on a turn that ends on one.
+  expect(planStructured({ formats: [SMALL], nativeFormat: false }, target({ vehicles: ["response-format"] }))).toEqual({
     ok: false,
-    violations: [{ kind: "no-vehicle" }],
+    violations: [{ kind: "no-vehicle", mode: "hosted-common", cause: "assistant-prefill" }],
+  });
+  // PLANTED CONTROL: a model with no carrier at all is refused for that, prefill or not.
+  expect(planStructured({ formats: [SMALL], nativeFormat: false }, target({ vehicles: [] }))).toMatchObject({
+    violations: [{ kind: "no-vehicle", cause: "unsupported" }],
   });
 });

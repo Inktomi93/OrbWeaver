@@ -109,6 +109,49 @@ test("the preflight names what the bound Utility model would do with the draft, 
   await expect.poll(() => trpc.lastInput("refinery.schemaPlan")).toMatchObject({ stage: "score", schema: PLAIN_SCHEMA });
 });
 
+/** A score schema the save belt accepts whose URL-encoded query input runs past Node's request-header limit. */
+const LONG_DESCRIPTION =
+  "Explain, in two or three sentences, how this aspect of the character card holds up: cite the specific lines that support the judgement and say what would raise it. ".repeat(
+    2,
+  );
+const BIG_SCHEMA = {
+  type: "object",
+  properties: {
+    ...Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`axis_${String(i)}`, { type: "string", description: LONG_DESCRIPTION }])),
+    overallScore: { type: "number", minimum: 1, maximum: 10 },
+  },
+};
+const PLAN_PROC = "refinery.schemaPlan";
+
+test("the plan is asked once the draft settles, by POST, so a draft too long for a URL still gets its line", async ({ mount, page }) => {
+  const trpc = await stubEditor(page, {});
+  const methods: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes(PLAN_PROC)) {
+      methods.push(request.method());
+    }
+  });
+  await mount(<SchemaEditorStory />);
+
+  // The first draft is asked at once, so the line is never blank on open.
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(PLAIN_SCHEMA));
+  await expect(page.getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unbound");
+  // Two later drafts in quick succession: only the settled one is asked about.
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(BOUNDED_SCHEMA));
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(BIG_SCHEMA));
+  await expect.poll(() => trpc.lastInput(PLAN_PROC)).toMatchObject({ stage: "score", schema: BIG_SCHEMA });
+  await expect(page.getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unbound");
+  await expect.poll(() => methods).toEqual(["POST", "POST"]);
+});
+
+test("a plan ask that fails says the draft could not be checked instead of dropping the line", async ({ mount, page }) => {
+  await stubEditor(page, { [PLAN_PROC]: () => trpcError() });
+  await mount(<SchemaEditorStory />);
+
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(PLAIN_SCHEMA));
+  await expect(page.getByTestId("refinery-schema-plan")).toHaveAttribute("data-plan", "unchecked");
+});
+
 test("the preflight stays SILENT when there is nothing to warn about, and disappears on an unparseable draft", async ({ mount, page }) => {
   await stubEditor(page, {});
   await mount(<SchemaEditorStory />);
