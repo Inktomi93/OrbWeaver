@@ -404,10 +404,10 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
 
   // An owner's memory sweep: a memory-backfill run, or for a memory-off owner (refused at admission, and it
   // would derive nothing) the vacuous receipt recorded directly.
-  const enqueueOwnerMemory = async (ownerId: UserId): Promise<unknown> => {
+  const enqueueOwnerMemory = async (ownerId: UserId, params: { readonly embedderChanged?: boolean }): Promise<unknown> => {
     const vacuous = await vacuousMemoryReceipt(ownerId);
     if (vacuous === null) {
-      return await workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "singular", ownerId, adoptActive: true });
+      return await workloads.start({ input: { kind: "memory-backfill", params }, caller: null, mode: "singular", ownerId, adoptActive: true });
     }
     return await embeddings.purgeMemoryVectors({
       ownerId,
@@ -435,6 +435,8 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     }
     const at = String(now());
     const mode = scope === null ? "bulk" : "singular";
+    // A rebuild's databank and memory runs carry the flag too, so each holds its own slot beside a plain run.
+    const rebuild = embedderChanged ? { embedderChanged } : {};
     const sweep = (workloadKind: string, start: () => Promise<unknown>): EmbedSweep => ({
       requestId: `embed-reindex:${workloadKind}:${scope ?? "all"}:${at}`,
       attrs: { workloadKind },
@@ -452,7 +454,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
       ),
       sweep("databank-reindex", () =>
         workloads.start({
-          input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
+          input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed", ...rebuild } },
           caller: null,
           mode,
           ownerId: scope,
@@ -461,8 +463,8 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
       ),
       sweep("memory-backfill", () =>
         scope === null
-          ? workloads.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode, ownerId: null, adoptActive: true })
-          : enqueueOwnerMemory(scope),
+          ? workloads.start({ input: { kind: "memory-backfill", params: rebuild }, caller: null, mode, ownerId: null, adoptActive: true })
+          : enqueueOwnerMemory(scope, rebuild),
       ),
     ];
   };

@@ -23,6 +23,7 @@
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { getLog } from "#foundation/observability";
+import { GenerationSupersededError } from "#kit/embedding-generation";
 import type { ChatContext } from "../../context.ts";
 import type { StoreSegmentParams } from "../../contract/context.ts";
 import { resolveCfg } from "../constants.ts";
@@ -164,14 +165,12 @@ export async function storeSegments(ctx: ChatContext, collected: CollectedSegmen
     for (const [index, receipt] of receipts.entries()) {
       const expected = collected.pending[index];
       // @orb-waive membership-enforcer(ownerId): receipt integrity, not chat authority — `expected.ownerId` is the embedding-generation principal (the room's roster-resolved present host in production), while `receipt.ownerId` is the batch-store receipt; equality rejects a cross-principal result during the sweep. Ends when the batch receipt type makes owner mismatch unrepresentable.
-      if (
-        expected === undefined ||
-        receipt.ownerId !== expected.ownerId ||
-        receipt.model !== expected.model ||
-        receipt.generationId !== expected.generationId ||
-        receipt.generationEpoch !== expected.generationEpoch
-      ) {
+      if (expected === undefined || receipt.ownerId !== expected.ownerId) {
         throw new Error("memory segment embed space changed during sweep");
+      }
+      // The store wrote into the owner's current target, which moved after this batch was planned.
+      if (receipt.model !== expected.model || receipt.generationId !== expected.generationId || receipt.generationEpoch !== expected.generationEpoch) {
+        throw new GenerationSupersededError(expected.ownerId, "memory");
       }
     }
   }

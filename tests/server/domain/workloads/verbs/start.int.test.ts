@@ -141,6 +141,46 @@ describe("workloads.start — an embedder rebuild beside a plain index run", () 
     expect(second.id).toBe(first.id);
     expect(await s.list({ caller: principal("user_alice") })).toHaveLength(2);
   });
+
+  // The move's two sibling sweeps hold the same rule: a plain run already going pinned the old generation.
+  test("a rebuild start of the owner's databank or memory sweep does not adopt a running plain one; a second adopts the first", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const runningDatabank = await seedWorkloadRow(db, {
+      id: "workload_running_databank",
+      kind: "databank-reindex",
+      status: "running",
+      mode: "singular",
+      admissionKey: "owner",
+      ownerId: owner,
+      params: { scope: { kind: "owner" }, mode: "chunk-embed" },
+    });
+    const runningMemory = await seedWorkloadRow(db, {
+      id: "workload_running_memory",
+      kind: "memory-backfill",
+      status: "running",
+      mode: "singular",
+      admissionKey: "none",
+      ownerId: owner,
+      params: {},
+    });
+    const start = { caller: null, mode: "singular", ownerId: owner, adoptActive: true } as const;
+    const databankRebuild = {
+      ...start,
+      input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed", embedderChanged: true } },
+    } as const;
+    const memoryRebuild = { ...start, input: { kind: "memory-backfill", params: { embedderChanged: true } } } as const;
+
+    const databank = [await s.start(databankRebuild), await s.start(databankRebuild)];
+    const memory = [await s.start(memoryRebuild), await s.start(memoryRebuild)];
+
+    expect(databank[0]?.id).not.toBe(runningDatabank);
+    expect(databank[1]?.id).toBe(databank[0]?.id);
+    expect(memory[0]?.id).not.toBe(runningMemory);
+    expect(memory[1]?.id).toBe(memory[0]?.id);
+    expect(await s.list({ caller: principal("user_alice") })).toHaveLength(4);
+  });
 });
 
 describe("workloads.start — MODE authz", () => {

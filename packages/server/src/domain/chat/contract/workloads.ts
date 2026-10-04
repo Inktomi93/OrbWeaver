@@ -48,4 +48,6 @@ export interface ChatWorkloadDeps {
    *  the admission gate cannot drift from the sweep's own per-host skip (#54) or from the live turn. Injected
    *  because settings is not chat's to read — the same seam shape `ResolveBackfillMemoryConfig` uses. */
   readonly isMemoryEnabled: (hostUserId: UserId) => Promise<boolean>;
+  /** Every stored embedding target in the enumeration scope as one comparable string; any target move changes it. */
+  readonly targetSnapshot: (enumerationScope: UserId | null) => Promise<string>;
 }

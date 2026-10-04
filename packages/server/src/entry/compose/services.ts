@@ -1275,6 +1275,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         await embeddings.purgeDocumentVectors(receipt);
       }
     },
+    // The databank and memory sweeps settle on it the way the `index` sweep does.
+    targetSnapshot: embeddings.targetSnapshot,
     backfillMemory: (args) => chatCompose.backfill.memory(args),
     estimateMemoryBackfill: (args) => chatCompose.backfill.estimateMemory(args),
     // The #156 admission gate's read — one hop to the ONE memory-config merge, never a second settings read.

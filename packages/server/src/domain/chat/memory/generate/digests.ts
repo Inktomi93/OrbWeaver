@@ -19,6 +19,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
+import { GenerationSupersededError } from "#kit/embedding-generation";
 import type { ChatContext } from "../../context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries.ts";
@@ -135,13 +136,12 @@ const EMPTY_TIER0_COUNTS: Tier0Counts = { written: 0, skipped: 0, skippedTokenGu
 
 function assertStoreSpace(expected: MemoryEmbedSpace, actual: MemoryEmbedSpace): void {
   // @orb-waive membership-enforcer(ownerId): receipt integrity, not chat authority — `expected.ownerId` is the embedding-generation principal (the room's roster-resolved present host in production), while `actual.ownerId` is the store receipt; equality rejects a cross-principal result during the sweep. Ends when the store receipt type makes owner mismatch unrepresentable.
-  if (
-    actual.ownerId !== expected.ownerId ||
-    actual.model !== expected.model ||
-    actual.generationId !== expected.generationId ||
-    actual.generationEpoch !== expected.generationEpoch
-  ) {
+  if (actual.ownerId !== expected.ownerId) {
     throw new Error(`memory digest embed space changed during sweep for owner ${expected.ownerId}`);
+  }
+  // The store wrote into the owner's current target, which moved after this digest was planned.
+  if (actual.model !== expected.model || actual.generationId !== expected.generationId || actual.generationEpoch !== expected.generationEpoch) {
+    throw new GenerationSupersededError(expected.ownerId, "memory");
   }
 }
 

@@ -103,6 +103,7 @@ function chatDeps(
       }
     },
     isMemoryEnabled: vi.fn(async () => true),
+    targetSnapshot: svc.targetSnapshot,
   };
 }
 
@@ -129,6 +130,7 @@ function databankDeps(svc: EmbeddingsService, harness: StoreHarness, owners: rea
         await svc.purgeDocumentVectors(receipt);
       }
     },
+    targetSnapshot: svc.targetSnapshot,
   };
 }
 

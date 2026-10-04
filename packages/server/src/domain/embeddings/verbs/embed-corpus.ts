@@ -9,8 +9,8 @@
 // §7.5); an aborted one records nothing, leaves a partial new-generation index, and the rerun finishes it.
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { GenerationSupersededError } from "#kit/embedding-generation";
 import type { EmbeddingsContext } from "../context.ts";
-import { GenerationSupersededError } from "../contract/errors.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";

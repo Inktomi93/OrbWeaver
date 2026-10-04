@@ -52,8 +52,13 @@ export const databankIngestWorkloadParams = z.object({ documentId: documentIdSch
 
 /** databank-reindex: bulk derived-layer maintenance (param/model change, extractor upgrade). `scope` selects
  *  one document or every document the row owner owns; `mode` is a tunable (the contribution floors it to
- *  `chunk-embed`). The owner is `ctx.ownerId` (`null` = the box-wide bulk sweep). */
-export const databankReindexWorkloadParams = z.object({ scope: reindexScopeSchema, mode: reindexModeSchema.optional() });
+ *  `chunk-embed`). The owner is `ctx.ownerId` (`null` = the box-wide bulk sweep). `embedderChanged` marks the
+ *  rebuild an embedder change queued. */
+export const databankReindexWorkloadParams = z.object({
+  scope: reindexScopeSchema,
+  mode: reindexModeSchema.optional(),
+  embedderChanged: z.boolean().optional(),
+});
 
 /** index: the embeddings reindex. Its ONE required field is `source` — which is the queue's OWN
  *  single-active lock sub-partition (stamped into `workloads.source`), so unlike every other kind this

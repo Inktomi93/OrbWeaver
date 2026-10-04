@@ -41,6 +41,8 @@ function build(
     backfillGroupCharacters: vi.fn(async () => ({ scanned: 5, changed: 1 })),
     purgeMemoryVectors: vi.fn(async () => undefined),
     isMemoryEnabled: vi.fn(async () => memoryEnabled),
+    // No target moves during these runs, so every round is the last.
+    targetSnapshot: vi.fn(async () => "unmoved"),
   };
   return { deps, contributions: createChatWorkloadContributions(deps) };
 }

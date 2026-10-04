@@ -7,6 +7,9 @@ import { castId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { sha256Hex } from "#kit/content-hash";
 
+export type { SettleRun } from "./settle.ts";
+export { GenerationSupersededError, runUntilSettled } from "./settle.ts";
+
 interface EmbeddingConnectionIdentity {
   readonly connectionId: unknown;
   readonly providerId: unknown;

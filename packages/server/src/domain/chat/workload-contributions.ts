@@ -15,8 +15,10 @@
 
 import type { BackfillPassResult, MemoryBackfillResult, MemoryBackfillWorkloadParams } from "@orb/contracts/chat";
 import { memoryBackfillWorkloadParams } from "@orb/contracts/chat";
-import { DEFAULT_ADMISSION_KEY, emptyWorkloadParams } from "@orb/contracts/workloads";
+import type { ReportProgress, WorkloadRunContext } from "@orb/contracts/workloads";
+import { DEFAULT_ADMISSION_KEY, emptyWorkloadParams, REBUILD_ADMISSION_KEY_SUFFIX } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
+import { runUntilSettled } from "#kit/embedding-generation";
 import type { ChatWorkloadDeps } from "./contract/workloads.ts";
 import { MEMORY_SWEEP_STEPS } from "./contract/workloads.ts";
 
@@ -34,9 +36,82 @@ type ChatContributions = readonly [WorkloadContribution<"memory-backfill">, Work
 function memoryAdmissionKey(params: MemoryBackfillWorkloadParams): string {
   const pass = params.segmentsOnly === true ? "segments" : "memory";
   if (params.importWindow === undefined) {
-    return params.segmentsOnly === true ? pass : DEFAULT_ADMISSION_KEY;
+    if (params.segmentsOnly === true) {
+      return pass;
+    }
+    // An embedder change's rebuild holds its own slot, so it never adopts a plain sweep that pinned the old generation.
+    return params.embedderChanged === true ? `${DEFAULT_ADMISSION_KEY}${REBUILD_ADMISSION_KEY_SUFFIX}` : DEFAULT_ADMISSION_KEY;
   }
   return `${pass}:${String(params.importWindow.from)}-${String(params.importWindow.to)}`;
+}
+
+/** One memory-backfill run's inputs. */
+interface MemorySweepRun {
+  readonly ctx: WorkloadRunContext;
+  readonly params: MemoryBackfillWorkloadParams;
+  readonly report: ReportProgress;
+  readonly signal: AbortSignal;
+}
+
+/** One memory sweep round, its terminal included. */
+async function sweepMemoryOnce(deps: ChatWorkloadDeps, { ctx, params, report, signal }: MemorySweepRun): Promise<MemoryBackfillResult> {
+  report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
+  const importWindow = params.importWindow ?? null;
+  const segmentsOnly = params.segmentsOnly === true;
+  const counts = await deps.backfillMemory({
+    ownerId: ctx.ownerId,
+    funderUserId: ctx.userId,
+    importWindow,
+    segmentsOnly,
+    signal,
+    onProgress: (step) => {
+      const current = MEMORY_SWEEP_STEPS.indexOf(step) + 1;
+      report({ message: `Rebuilding chat memory — step ${current} of ${MEMORY_SWEEP_STEPS.length}: ${step}`, current, total: MEMORY_SWEEP_STEPS.length });
+    },
+  });
+  report({
+    message:
+      `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)` +
+      `${counts.segmentsSkippedOverWindow > 0 ? `, ${counts.segmentsSkippedOverWindow} blocks TOO LARGE EVEN TO CHUNK for the embed model (skipped whole, NOT truncated — see the warn log)` : ""}` +
+      `${counts.failed > 0 ? `, ${counts.failed} chats FAILED (skipped — see error log)` : ""}`,
+  });
+  // THE SWEEP'S TERMINAL — record `embed_space_state`'s `memory` completion for the scope this run
+  // actually covered; the promotion lands once cards, memory and documents all name the same target
+  // generation. The old generation's rows were deleted when the target moved
+  // (`embeddings/persistence/space-state.ts switchTargetGeneration`). The op enumerates the scope it is
+  // handed, so a singular run reaches only its own owner (`enumerationScope` is the WORKLOAD ROW's scope,
+  // not a chat owner — chats stay membership-scoped, D18).
+  const enumerationScope = ctx.ownerId;
+  // A sweep that skipped chats or was cancelled did not re-derive the corpus (#165), so it may not claim
+  // the scope; the new index stays partial and the rerun completes it.
+  //
+  // An IMPORT-SCOPED run or a SEGMENTS-ONLY pass never reaches the terminal: it re-derived only part of the
+  // owner's memory, so it may not claim the owner's memory space complete, and the op's vacuous receipt
+  // would claim exactly that.
+  if (importWindow === null && !segmentsOnly && !signal.aborted && counts.failed === 0) {
+    await deps.purgeMemoryVectors(counts.completedSpaces, enumerationScope);
+  }
+  // HONEST ACCOUNTING (#165, the #156 family): a per-chat skip is a chat whose memory silently did not
+  // build. Returning the tally landed `succeeded` on a run that skipped every chat it touched, so the
+  // tally now FAILS the row — the sweep is `idempotent-restart`, so everything durable already landed
+  // and the rerun resumes from it. Zero failures is still the only success.
+  if (counts.failed > 0) {
+    // THE SENTENCE IS READ BY A PERSON, in a row and on the corpus rail (side-eye corpus re-pass C4).
+    // It shipped as "1 chat FAILED during the sweep and were skipped" — a number/verb disagreement on
+    // the singular arm, a shout the surrounding copy never uses, and one ~99-char line. Two short
+    // sentences, agreeing with their own count, saying the same two facts.
+    const skipped = counts.failed === 1 ? "1 chat failed and was skipped" : `${counts.failed} chats failed and were skipped`;
+    throw new Error(
+      `Memory backfill: ${skipped} — see the error log for each cause. ` +
+        `${counts.segments.changed} segments and ${counts.digests.changed} digests did build.`,
+    );
+  }
+  return {
+    segments: counts.segments,
+    segmentsSkippedOverWindow: counts.segmentsSkippedOverWindow,
+    digests: counts.digests,
+    failed: counts.failed,
+  };
 }
 
 export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatContributions {
@@ -50,7 +125,7 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
       // that structurally cannot produce anything is refused at the enqueue door instead.
       // A BULK pass sweeps EVERY host, so it is admitted regardless: one host's opt-out says nothing about
       // the box, and the per-host skip is the right instrument there. (`enumerationScope` — the WORKLOAD
-      // ROW's scope, not a chat owner; chats stay membership-scoped, D18. Same rename as `run` below.)
+      // ROW's scope, not a chat owner; chats stay membership-scoped, D18. Same rename as the sweep's terminal.)
       admit: async ({ ownerId: enumerationScope }): Promise<string | null> => {
         if (enumerationScope === null || (await deps.isMemoryEnabled(enumerationScope))) {
           return null;
@@ -65,65 +140,9 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
       lane: "sweep",
       // Hash-diff self-healing end to end; the signal aborts cooperatively between chats and at an embed's model wait.
       resume: "idempotent-restart",
-      run: async (ctx, params, report, signal): Promise<MemoryBackfillResult> => {
-        report({ message: "memory backfill: sweeping chats (segments + digests per scope)" });
-        const importWindow = params.importWindow ?? null;
-        const segmentsOnly = params.segmentsOnly === true;
-        const counts = await deps.backfillMemory({
-          ownerId: ctx.ownerId,
-          funderUserId: ctx.userId,
-          importWindow,
-          segmentsOnly,
-          signal,
-          onProgress: (step) => {
-            const current = MEMORY_SWEEP_STEPS.indexOf(step) + 1;
-            report({ message: `Rebuilding chat memory — step ${current} of ${MEMORY_SWEEP_STEPS.length}: ${step}`, current, total: MEMORY_SWEEP_STEPS.length });
-          },
-        });
-        report({
-          message:
-            `memory backfill: ${counts.segments.scanned} chats (${counts.segments.changed} segments), ${counts.digests.scanned} scope buckets (${counts.digests.changed} digests)` +
-            `${counts.segmentsSkippedOverWindow > 0 ? `, ${counts.segmentsSkippedOverWindow} blocks TOO LARGE EVEN TO CHUNK for the embed model (skipped whole, NOT truncated — see the warn log)` : ""}` +
-            `${counts.failed > 0 ? `, ${counts.failed} chats FAILED (skipped — see error log)` : ""}`,
-        });
-        // THE SWEEP'S TERMINAL — record `embed_space_state`'s `memory` completion for the scope this run
-        // actually covered; the promotion lands once cards, memory and documents all name the same target
-        // generation. The old generation's rows were deleted when the target moved
-        // (`embeddings/persistence/space-state.ts switchTargetGeneration`). The op enumerates the scope it is
-        // handed, so a singular run reaches only its own owner (`enumerationScope` is the WORKLOAD ROW's scope,
-        // not a chat owner — chats stay membership-scoped, D18).
-        const enumerationScope = ctx.ownerId;
-        // A sweep that skipped chats or was cancelled did not re-derive the corpus (#165), so it may not claim
-        // the scope; the new index stays partial and the rerun completes it.
-        //
-        // An IMPORT-SCOPED run or a SEGMENTS-ONLY pass never reaches the terminal: it re-derived only part of the
-        // owner's memory, so it may not claim the owner's memory space complete, and the op's vacuous receipt
-        // would claim exactly that.
-        if (importWindow === null && !segmentsOnly && !signal.aborted && counts.failed === 0) {
-          await deps.purgeMemoryVectors(counts.completedSpaces, enumerationScope);
-        }
-        // HONEST ACCOUNTING (#165, the #156 family): a per-chat skip is a chat whose memory silently did not
-        // build. Returning the tally landed `succeeded` on a run that skipped every chat it touched, so the
-        // tally now FAILS the row — the sweep is `idempotent-restart`, so everything durable already landed
-        // and the rerun resumes from it. Zero failures is still the only success.
-        if (counts.failed > 0) {
-          // THE SENTENCE IS READ BY A PERSON, in a row and on the corpus rail (side-eye corpus re-pass C4).
-          // It shipped as "1 chat FAILED during the sweep and were skipped" — a number/verb disagreement on
-          // the singular arm, a shout the surrounding copy never uses, and one ~99-char line. Two short
-          // sentences, agreeing with their own count, saying the same two facts.
-          const skipped = counts.failed === 1 ? "1 chat failed and was skipped" : `${counts.failed} chats failed and were skipped`;
-          throw new Error(
-            `Memory backfill: ${skipped} — see the error log for each cause. ` +
-              `${counts.segments.changed} segments and ${counts.digests.changed} digests did build.`,
-          );
-        }
-        return {
-          segments: counts.segments,
-          segmentsSkippedOverWindow: counts.segmentsSkippedOverWindow,
-          digests: counts.digests,
-          failed: counts.failed,
-        };
-      },
+      // A target move mid-sweep refuses its terminal (or stops its planning), so the sweep goes round again.
+      run: (ctx, params, report, signal): Promise<MemoryBackfillResult> =>
+        runUntilSettled({ snapshot: () => deps.targetSnapshot(ctx.ownerId), signal, round: () => sweepMemoryOnce(deps, { ctx, params, report, signal }) }),
     },
     {
       kind: "group-character-backfill",

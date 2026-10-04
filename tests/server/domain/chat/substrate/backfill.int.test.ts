@@ -104,7 +104,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect((await db.select().from(chatDigests)).map((row) => row.model)).toEqual([EMBED_MODEL, EMBED_MODEL]);
   });
 
-  test("a provider space drift during the segment flood fails the sweep receipt", async () => {
+  test("a generation drift during the segment flood ends the sweep as superseded, with no receipt", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const room = await seedChat(db, "room_drift");
@@ -127,10 +127,37 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     });
     const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
 
-    const counts = await backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS }, cfg);
+    await expect(backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS }, cfg)).rejects.toMatchObject({
+      name: "GenerationSupersededError",
+    });
+  });
 
-    expect(counts.failed).toBe(1);
-    expect(counts.completedSpaces).toEqual([]);
+  // A target move is not a poisoned chat: it ends the whole sweep so its workload goes round again on the new target.
+  test("a target move while the sweep plans ends the sweep as superseded rather than counting a failed chat", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, host, "aria");
+    const room = await seedChat(db, "room_move_in_plan");
+    await seedParticipant(db, { chatId: room, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: room, key: "c", characterId: aria });
+    await seedTurns(db, room, aria, 4);
+    let epoch = 0;
+    const ctx = makeChatContext(db, {
+      summarize: fakeSummarize().op,
+      resolveMemoryEmbedSpace: (ownerId) => {
+        epoch += 1;
+        return Promise.resolve({
+          ownerId,
+          model: "test-embed-1024",
+          generationId: castId<EmbedGenerationId>(`embed_generation_memory_${ownerId}`),
+          generationEpoch: epoch,
+        });
+      },
+    });
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 });
+
+    await expect(backfillMemory(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS }, cfg)).rejects.toMatchObject({
+      name: "GenerationSupersededError",
+    });
   });
 
   // The re-index progress row names the phase that is RUNNING: a slow segment flood reads "embedding transcripts".

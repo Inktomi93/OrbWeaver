@@ -8,9 +8,9 @@
 
 import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import type { ReportProgress, WorkloadParamsByKind, WorkloadRunContext } from "@orb/contracts/workloads";
-import { indexWorkloadParams } from "@orb/contracts/workloads";
+import { indexWorkloadParams, REBUILD_ADMISSION_KEY_SUFFIX } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
-import { GenerationSupersededError } from "./contract/errors.ts";
+import { runUntilSettled } from "#kit/embedding-generation";
 import type { EmbeddingsWorkloadDeps } from "./contract/service.ts";
 
 /**
@@ -28,9 +28,6 @@ async function announceCorpus(deps: EmbeddingsWorkloadDeps, ctx: WorkloadRunCont
     deps.emitUserEvent(owner, { type: "corpusRecomputed" });
   }
 }
-
-/** An embedder rebuild's admission key: its own slot beside the plain run of the same source. */
-const REBUILD_KEY_SUFFIX = ":rebuild";
 
 /** The progress row's headline: a re-index after an embedder change says why the library is being rebuilt. */
 const EMBEDDER_CHANGED_LABEL = "Rebuilding search";
@@ -94,34 +91,6 @@ async function runPasses({ deps, ctx, params, report, signal }: IndexRun, force:
   return { embedded, skipped };
 }
 
-/** One round, or `null` when a target move cut it short (what it wrote went with the old index). */
-async function runRound(run: IndexRun, force: boolean): Promise<EmbedPassResult | null> {
-  // A superseded generation is the one failure absorbed, by running the passes again on the new target.
-  try {
-    return await runPasses(run, force);
-  } catch (error) {
-    if (error instanceof GenerationSupersededError && !run.signal.aborted) {
-      return null;
-    }
-    throw error;
-  }
-}
-
-/** Rounds until one finishes with no target in scope moved since it began. A repeat round is never forced: the
- *  switch left nothing in the new generation to skip. */
-async function runUntilSettled(run: IndexRun): Promise<EmbedPassResult> {
-  let force = run.params.force ?? false;
-  for (;;) {
-    const pinned = await run.deps.embeddings.targetSnapshot(run.ctx.ownerId);
-    const result = await runRound(run, force);
-    force = false;
-    if (result !== null && (run.signal.aborted || (await run.deps.embeddings.targetSnapshot(run.ctx.ownerId)) === pinned)) {
-      run.report({ message: "indexed", current: result.embedded, total: result.embedded + result.skipped });
-      return result;
-    }
-  }
-}
-
 /**
  * `index` — the parameterized embeddings reindex: text (corpus + chat-block memory), image (avatars), or
  * all (both, one atomic result). Its ADMISSION KEY is the embed source, so a text reindex and an image
@@ -140,7 +109,7 @@ export function createEmbeddingsWorkloadContributions(deps: EmbeddingsWorkloadDe
       // contracts module (see its comment there) — the only kind whose params aren't owner-authored.
       params: indexWorkloadParams,
       // The CONCURRENCY UNIT is one embed space: text and image sweep independently, two text sweeps do not.
-      admissionKey: (params) => (params.embedderChanged === true ? `${params.source}${REBUILD_KEY_SUFFIX}` : params.source),
+      admissionKey: (params) => (params.embedderChanged === true ? `${params.source}${REBUILD_ADMISSION_KEY_SUFFIX}` : params.source),
       // Only the image lens spends a generative call (one avatar analysis each); text embedding calls none.
       modelCalls: ({ ownerId, params }) =>
         params.source === "text" ? Promise.resolve(0) : deps.embeddings.countAssetAnalysisCalls({ ownerId, force: params.force ?? false }),
@@ -150,7 +119,14 @@ export function createEmbeddingsWorkloadContributions(deps: EmbeddingsWorkloadDe
       resume: "idempotent-restart",
       run: async (ctx, params, report, signal): Promise<EmbedPassResult> => {
         try {
-          return await runUntilSettled({ deps, ctx, params, report, signal });
+          // A repeat round is never forced: the move left nothing in the new generation to skip.
+          const result = await runUntilSettled({
+            snapshot: () => deps.embeddings.targetSnapshot(ctx.ownerId),
+            signal,
+            round: (first) => runPasses({ deps, ctx, params, report, signal }, first && params.force === true),
+          });
+          report({ message: "indexed", current: result.embedded, total: result.embedded + result.skipped });
+          return result;
         } finally {
           await announceCorpus(deps, ctx);
         }

@@ -279,4 +279,6 @@ export interface DatabankWorkloadDeps {
     enumerationScope: UserId | null,
   ) => Promise<readonly { readonly ownerId: UserId; readonly generation: GenerationReceipt }[]>;
   readonly purgeDocumentVectors: (receipts: readonly { readonly ownerId: UserId; readonly generation: GenerationReceipt }[]) => Promise<void>;
+  /** Every stored embedding target in the enumeration scope, as one comparable string (`EmbeddingsService.targetSnapshot`). */
+  readonly targetSnapshot: EmbeddingsService["targetSnapshot"];
 }

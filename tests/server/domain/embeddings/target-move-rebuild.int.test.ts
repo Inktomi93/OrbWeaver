@@ -13,10 +13,14 @@ import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, createEmbeddingsWorkloadContributions } from "@orb/server/domain/embeddings";
 import { logger } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
+import type { MemoryEmbedSpace } from "../../../../packages/server/src/domain/chat/contract/memory.ts";
+import { createChatWorkloadContributions } from "../../../../packages/server/src/domain/chat/workload-contributions.ts";
+import { createDatabankWorkloadContributions } from "../../../../packages/server/src/domain/databank/workload-contributions.ts";
 import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
 import type { EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
 import { nearestCharacters } from "../../../../packages/server/src/domain/search/persistence/nearest.ts";
 import { withActiveQuerySpace } from "../../../../packages/server/src/domain/search/substrate/space.ts";
+import { GenerationSupersededError } from "../../../../packages/server/src/kit/embedding-generation/index.ts";
 import { freshDb } from "../../../support/db.ts";
 import { makeResolvedSecret } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -312,6 +316,154 @@ describe("a move that lands inside a running index run", () => {
 
     expect(outcome).toBe("fulfilled");
     await completeSiblingScopes(d);
+    expect(await searchState(d)).toEqual(ALL_CARDS);
+  });
+});
+
+/** Run the move's rebuild of the owner's cards. */
+async function runRebuild(d: Drive): Promise<void> {
+  const [index] = createEmbeddingsWorkloadContributions({
+    embeddings: d.svc,
+    emitUserEvent: () => undefined,
+    listCorpusOwners: () => Promise.resolve([d.userId]),
+  });
+  await index.run(
+    { userId: d.userId, ownerId: d.userId, now: () => 0 },
+    { source: "all", force: true, embedderChanged: true },
+    vi.fn(),
+    new AbortController().signal,
+  );
+}
+
+async function completeScope(d: Drive, scope: "memory" | "documents"): Promise<void> {
+  const generation = await d.svc.resolveGeneration(d.userId, "embed");
+  if (generation !== null) {
+    await (scope === "memory" ? d.svc.purgeMemoryVectors({ ownerId: d.userId, generation }) : d.svc.purgeDocumentVectors({ ownerId: d.userId, generation }));
+  }
+}
+
+const NO_DOCUMENTS = { documents: 0, chunksUpserted: 0, chunksNoop: 0, chunksPruned: 0, reExtracted: 0, failed: [] };
+const NO_MEMORY = { segments: { scanned: 0, changed: 0 }, segmentsSkippedOverWindow: 0, digests: { scanned: 0, changed: 0 }, failed: 0 };
+
+/** The owner's databank pass as the worker runs it, the real receipts and completion behind a reindex that `during` hooks. */
+async function runDatabankPass(d: Drive, during: () => Promise<void>): Promise<void> {
+  const [, reindex] = createDatabankWorkloadContributions({
+    databankIngest: {
+      ingestDocument: () => Promise.resolve(NO_DOCUMENTS),
+      reindex: async () => {
+        await during();
+        return NO_DOCUMENTS;
+      },
+    },
+    beginDocumentVectorSweep: async (scope) => {
+      const generation = scope === null ? null : await d.svc.resolveGeneration(scope, "embed");
+      return generation === null || scope === null ? [] : [{ ownerId: scope, generation }];
+    },
+    purgeDocumentVectors: async (receipts) => {
+      for (const receipt of receipts) {
+        await d.svc.purgeDocumentVectors(receipt);
+      }
+    },
+    targetSnapshot: d.svc.targetSnapshot,
+  });
+  await reindex.run(
+    { userId: d.userId, ownerId: d.userId, now: () => 0 },
+    { scope: { kind: "owner" }, mode: "chunk-embed" },
+    vi.fn(),
+    new AbortController().signal,
+  );
+}
+
+/** The owner's memory sweep as the worker runs it: `plan` stands in for the planner and returns the space it
+ *  pinned; the completion behind it is real. */
+async function runMemorySweep(d: Drive, plan: (pinned: MemoryEmbedSpace) => Promise<MemoryEmbedSpace>): Promise<void> {
+  const [memory] = createChatWorkloadContributions({
+    backfillMemory: async () => {
+      const generation = await d.svc.resolveGeneration(d.userId, "embed");
+      if (generation === null) {
+        throw new Error("the fixture owner must resolve an embed generation");
+      }
+      const pinned = await plan({ ownerId: d.userId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch });
+      return { ...NO_MEMORY, completedSpaces: [pinned] };
+    },
+    estimateMemoryBackfill: () => Promise.resolve(0),
+    backfillGroupCharacters: () => Promise.resolve({ scanned: 0, changed: 0 }),
+    purgeMemoryVectors: async (spaces) => {
+      for (const space of spaces) {
+        await d.svc.purgeMemoryVectors({
+          ownerId: space.ownerId,
+          generation: { id: space.generationId, task: "embed", via: "embed", epoch: space.generationEpoch, space: space.model },
+        });
+      }
+    },
+    isMemoryEnabled: () => Promise.resolve(true),
+    targetSnapshot: d.svc.targetSnapshot,
+  });
+  await memory.run({ userId: d.userId, ownerId: d.userId, now: () => 0 }, {}, vi.fn(), new AbortController().signal);
+}
+
+/** Land the move once, however often the hook fires. */
+function moveOnce(d: Drive): () => Promise<void> {
+  let moved = false;
+  return async () => {
+    if (!moved) {
+      moved = true;
+      await repointNarrow(d);
+      await d.svc.syncTargetGenerations(d.userId);
+    }
+  };
+}
+
+// The move's rebuild of the documents and memory scopes can fold into a run of the same unit that is already going and
+// pinned the old generation. Its terminal then names the old target, so the run must go round again on the new one.
+describe("a move that lands inside a running databank or memory sweep", () => {
+  test("in the owner's databank pass: the pass goes round again and documents complete on the new target", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    const move = moveOnce(d);
+
+    await runDatabankPass(d, move);
+
+    expect(d.moved, "the move landed inside the pass").not.toEqual([]);
+    await runRebuild(d);
+    await completeScope(d, "memory");
+    expect(await searchState(d)).toEqual(ALL_CARDS);
+  });
+
+  test("after the memory sweep planned: the sweep goes round again and memory completes on the new target", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    const move = moveOnce(d);
+
+    await runMemorySweep(d, async (pinned) => {
+      await move();
+      return pinned;
+    });
+
+    expect(d.moved, "the move landed inside the sweep").not.toEqual([]);
+    await runRebuild(d);
+    await completeScope(d, "documents");
+    expect(await searchState(d)).toEqual(ALL_CARDS);
+  });
+
+  test("while the memory sweep plans: the planner's typed refusal sends the sweep round again", async () => {
+    const d = await drive();
+    await sweep(d, false);
+    const move = moveOnce(d);
+    let rounds = 0;
+
+    await runMemorySweep(d, async (pinned) => {
+      rounds += 1;
+      if (rounds === 1) {
+        await move();
+        throw new GenerationSupersededError(d.userId, "memory");
+      }
+      return pinned;
+    });
+
+    expect(rounds).toBe(2);
+    await runRebuild(d);
+    await completeScope(d, "documents");
     expect(await searchState(d)).toEqual(ALL_CARDS);
   });
 });

@@ -103,6 +103,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       // The #156 admission precondition's read — the ONE dep here whose VALUE matters to a verb test, since
       // `memory-backfill` refuses enqueue when memory is off for the row's owner.
       isMemoryEnabled: stub(opts.memoryEnabled ?? true),
+      targetSnapshot: stub("unmoved"),
     }),
     // Only the contribution's params schema is read from this stub frame (see above).
     ...createDatabankWorkloadContributions({
@@ -110,6 +111,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       databankIngest: { ingestDocument: stub({}), reindex: stub({}) } as never,
       beginDocumentVectorSweep: stub([]),
       purgeDocumentVectors: stub(undefined),
+      targetSnapshot: stub("unmoved"),
     }),
     ...createImportWorkloadContributions({
       stagingRoot: "/tmp/orb-test-staging",

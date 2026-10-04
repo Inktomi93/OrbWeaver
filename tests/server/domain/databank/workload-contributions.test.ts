@@ -47,6 +47,8 @@ function build(): { readonly deps: DatabankWorkloadDeps; readonly contributions:
     databankIngest: { ingestDocument: vi.fn(async () => RUN), reindex: vi.fn(async () => RUN) },
     beginDocumentVectorSweep: vi.fn(async (_enumerationScope: UserId | null) => [SWEEP_RECEIPT]),
     purgeDocumentVectors: vi.fn(async () => undefined),
+    // No target moves during these runs, so every round is the last.
+    targetSnapshot: vi.fn(async () => "unmoved"),
   } satisfies DatabankWorkloadDeps;
   return { deps, contributions: createDatabankWorkloadContributions(deps) };
 }

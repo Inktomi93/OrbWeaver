@@ -890,6 +890,8 @@ describe("embed-space rebuild trigger (DBK-B(b))", () => {
     expect(rows.filter((row) => row.mode === "bulk")).toHaveLength(0);
     const index = rows.find((row) => row.kind === "index");
     expect(index).toMatchObject({ ownerId: member, mode: "singular", params: { source: "all", force: true, embedderChanged: true } });
+    // The documents sweep is the move's rebuild too, in its own slot beside any plain owner pass.
+    expect(rows.find((row) => row.kind === "databank-reindex")).toMatchObject({ admissionKey: "owner:rebuild", params: { embedderChanged: true } });
     const listed = await result.services.workloads.list({ caller: principal(member), kind: "index" });
     expect(listed.map((row) => row.id)).toEqual([index?.id]);
     expect(heard).toContainEqual({ type: WORKLOADS_CHANGED });
