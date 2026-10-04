@@ -1,2 +1,0 @@
-ALTER TABLE `automation_rules` ADD `creation_request_id` text;--> statement-breakpoint
-CREATE UNIQUE INDEX `automation_rules_owner_creation_request_unique` ON `automation_rules` (`owner_id`,`creation_request_id`);

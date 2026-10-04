@@ -10,8 +10,6 @@
 // `LibSqlWrap` seam — the SAME seam `foundation/observability`'s `wrapLibSqlClient` uses for OTel spans
 // in production — so what a budget test counts is exactly what shows up as `db.*` spans at runtime.
 
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import type { Db, LibSqlWrap } from "@orb/db";
 import { createDb } from "@orb/db";
 // biome-ignore lint/performance/noNamespaceImport: drizzle-kit's snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table.
@@ -31,23 +29,6 @@ async function pushLiveSchema(db: Db): Promise<void> {
 
 /** The shipped migration chain, relative to the repo root the test runner starts in. */
 export const SHIPPED_MIGRATIONS = "packages/db/src/migrations";
-
-/** Write the shipped chain up to and including `lastTag` into `dir` and return that folder, so a test can
- *  build the schema a forward migration upgrades from, seed it, then run {@link SHIPPED_MIGRATIONS}. */
-export function shippedChainThrough(dir: string, lastTag: string): string {
-  const journal = JSON.parse(readFileSync(join(SHIPPED_MIGRATIONS, "meta", "_journal.json"), "utf8")) as { entries: { tag: string }[] };
-  const end = journal.entries.findIndex((entry) => entry.tag === lastTag);
-  if (end === -1) {
-    throw new Error(`no shipped migration ${lastTag}`);
-  }
-  const entries = journal.entries.slice(0, end + 1);
-  mkdirSync(join(dir, "meta"), { recursive: true });
-  for (const entry of entries) {
-    copyFileSync(join(SHIPPED_MIGRATIONS, `${entry.tag}.sql`), join(dir, `${entry.tag}.sql`));
-  }
-  writeFileSync(join(dir, "meta", "_journal.json"), JSON.stringify({ ...journal, entries }));
-  return dir;
-}
 
 /** A fresh in-memory db with the full schema applied (FK enforcement ON, via createDb). */
 export async function freshDb(): Promise<Db> {

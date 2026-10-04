@@ -67,6 +67,7 @@ CREATE TABLE `automation_rule_state` (
 CREATE TABLE `automation_rules` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
+	`creation_request_id` text,
 	`chat_id` text,
 	`name` text NOT NULL,
 	`description` text,
@@ -82,6 +83,7 @@ CREATE TABLE `automation_rules` (
 	`suggest_on_refusal` integer DEFAULT true NOT NULL,
 	`cooldown_seconds` integer DEFAULT 0 NOT NULL,
 	`max_fires_per_hour` integer DEFAULT 30 NOT NULL,
+	`time_zone` text,
 	`consecutive_errors` integer DEFAULT 0 NOT NULL,
 	`last_error` text,
 	`last_fired_at` integer,
@@ -98,6 +100,7 @@ CREATE TABLE `automation_rules` (
 --> statement-breakpoint
 CREATE INDEX `automation_rules_chat_enabled` ON `automation_rules` (`chat_id`,`enabled`,`trigger_type`);--> statement-breakpoint
 CREATE INDEX `automation_rules_owner_idx` ON `automation_rules` (`owner_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `automation_rules_owner_creation_request_unique` ON `automation_rules` (`owner_id`,`creation_request_id`);--> statement-breakpoint
 CREATE TABLE `global_variables` (
 	`owner_id` text NOT NULL,
 	`key` text NOT NULL,
@@ -143,6 +146,7 @@ CREATE TABLE `characters` (
 	`background_override` text,
 	`imported_from` text,
 	`import_hash` text,
+	`import_text_hash` text,
 	`content_hash` text NOT NULL,
 	`token_size` integer DEFAULT 0 NOT NULL,
 	`name` text NOT NULL,
@@ -335,6 +339,15 @@ CREATE TABLE `chats` (
 CREATE INDEX `chats_parent_idx` ON `chats` (`parent_chat_id`);--> statement-breakpoint
 CREATE INDEX `chats_anchor_persona_idx` ON `chats` (`anchor_persona_id`);--> statement-breakpoint
 CREATE INDEX `chats_pending_host_idx` ON `chats` (`pending_host_user_id`);--> statement-breakpoint
+CREATE TABLE `compaction_spend` (
+	`id` text PRIMARY KEY NOT NULL,
+	`owner_id` text NOT NULL,
+	`cost_usd` real NOT NULL,
+	`created_at` integer NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict
+);
+--> statement-breakpoint
+CREATE INDEX `compaction_spend_owner_idx` ON `compaction_spend` (`owner_id`,`created_at`);--> statement-breakpoint
 CREATE TABLE `message_assets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`message_id` text NOT NULL,
@@ -492,12 +505,13 @@ CREATE TABLE `user_connections` (
 	`allow_background` integer DEFAULT false NOT NULL,
 	`prompt_cache` text,
 	`seed_slot` text,
+	`seed_model` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`credential_id`) REFERENCES `user_credentials`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "user_connections_seed_slot_check" CHECK(seed_slot is null or seed_slot in ('embed', 'rerank')),
-	CONSTRAINT "user_connections_api_check" CHECK(api in ('chat-completions', 'agent-sdk', 'anthropic-messages', 'auto')),
+	CONSTRAINT "user_connections_api_check" CHECK(api in ('chat-completions', 'agent-sdk', 'anthropic-messages', 'google-generative-ai', 'auto')),
 	CONSTRAINT "user_connections_model_check_check" CHECK(model_check in ('listed', 'unlisted', 'unchecked'))
 );
 --> statement-breakpoint
@@ -559,7 +573,7 @@ CREATE TABLE `provider_rows` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	PRIMARY KEY(`id`, `definition_hash`),
 	FOREIGN KEY (`origin_user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE set null,
-	CONSTRAINT "provider_rows_wire_check" CHECK(wire in ('openai-compat', 'anthropic-messages', 'agent-sdk', 'local-light')),
+	CONSTRAINT "provider_rows_wire_check" CHECK(wire in ('openai-compat', 'anthropic-messages', 'google-generative-ai', 'agent-sdk', 'local-light')),
 	CONSTRAINT "provider_rows_dialect_check" CHECK(dialect is null or dialect in ('openai-compatible', 'openrouter')),
 	CONSTRAINT "provider_rows_auth_check" CHECK(auth in ('apiKey', 'oauthToken', 'endpoint', 'none')),
 	CONSTRAINT "provider_rows_catalog_check" CHECK(catalog in ('url', 'builtin')),
@@ -932,6 +946,7 @@ CREATE TABLE `imagery_generations` (
 	`cost_usd` real,
 	`edited` integer DEFAULT false NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`call_id` text,
 	FOREIGN KEY (`asset_id`) REFERENCES `assets`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE set null,
 	FOREIGN KEY (`subject_character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE set null,
@@ -1422,7 +1437,7 @@ CREATE TABLE `user_seed_ledger` (
 --> statement-breakpoint
 CREATE TABLE `user_settings` (
 	`user_id` text PRIMARY KEY NOT NULL,
-	`schema_version` integer DEFAULT 9 NOT NULL,
+	`schema_version` integer DEFAULT 10 NOT NULL,
 	`config` text NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
@@ -1454,7 +1469,7 @@ CREATE TABLE `character_stats` (
 	`active_idx_sum` integer DEFAULT 0 NOT NULL,
 	`variant_messages` integer DEFAULT 0 NOT NULL,
 	`forked_chats` integer DEFAULT 0 NOT NULL,
-	`content_bytes` integer DEFAULT 0 NOT NULL,
+	`content_chars` integer DEFAULT 0 NOT NULL,
 	`first_chat_at` integer,
 	`last_activity_at` integer,
 	`computed_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
@@ -1465,7 +1480,7 @@ CREATE UNIQUE INDEX `character_stats_character_unique` ON `character_stats` (`ch
 CREATE TABLE `daily_stats` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
-	`day` text NOT NULL,
+	`bucket_start` integer NOT NULL,
 	`chats_created` integer DEFAULT 0 NOT NULL,
 	`user_turns` integer DEFAULT 0 NOT NULL,
 	`assistant_turns` integer DEFAULT 0 NOT NULL,
@@ -1487,7 +1502,7 @@ CREATE TABLE `daily_stats` (
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `daily_stats_owner_day_unique` ON `daily_stats` (`owner_id`,`day`);--> statement-breakpoint
+CREATE UNIQUE INDEX `daily_stats_owner_bucket_unique` ON `daily_stats` (`owner_id`,`bucket_start`);--> statement-breakpoint
 CREATE TABLE `model_stats` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -1539,7 +1554,7 @@ CREATE TABLE `owner_stats` (
 	`active_idx_sum` integer DEFAULT 0 NOT NULL,
 	`variant_messages` integer DEFAULT 0 NOT NULL,
 	`forked_chats` integer DEFAULT 0 NOT NULL,
-	`content_bytes` integer DEFAULT 0 NOT NULL,
+	`content_chars` integer DEFAULT 0 NOT NULL,
 	`cache_read_tokens` integer DEFAULT 0 NOT NULL,
 	`cache_write_tokens` integer DEFAULT 0 NOT NULL,
 	`max_context_tokens` integer,

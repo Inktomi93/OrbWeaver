@@ -10,7 +10,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "@orb/server/entry/boot";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
-import { seedCharacterAtBaseline } from "../../../support/factories/character.ts";
+import { seedCharacter } from "../../../support/factories/character.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedHostChat, seedUser } from "../../domain/automation/_support.ts";
 
@@ -24,33 +24,44 @@ const ALREADY_EXISTS_RE = /already exists/i;
 // `backupBeforeMigrate`'s own refusal, not just "something threw" — the abort must be the BACKUP failing.
 const BACKUP_FAILED_RE = /pre-migrate backup of .* FAILED/;
 const LAUNCHED_FATAL_RE = /launched/i;
+const FORWARD_TAG = "0001_probe";
+const FORWARD_SQL = "ALTER TABLE `automation_rules` ADD `probe_note` text;";
 
-test("0003 preserves a populated actual 0002 chain, all prior rule/child bytes and renamed stats metrics", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "orb-rule-birth-migration-"));
+/** The shipped chain plus one synthetic forward migration, so a launched boot has a real upgrade to apply. */
+function chainWithForwardMigration(dir: string): string {
+  const shipped = resolveMigrationsFolder();
+  const folder = join(dir, "forward-chain");
+  mkdirSync(join(folder, "meta"), { recursive: true });
+  const journalSchema = z.object({
+    version: z.string(),
+    dialect: z.string(),
+    entries: z.array(z.object({ idx: z.number(), version: z.string(), when: z.number(), tag: z.string(), breakpoints: z.boolean() })),
+  });
+  const journal = journalSchema.parse(JSON.parse(readFileSync(join(shipped, "meta", "_journal.json"), "utf8")));
+  for (const entry of journal.entries) {
+    copyFileSync(join(shipped, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`));
+  }
+  const tip = journal.entries.at(-1);
+  if (tip === undefined) {
+    throw new Error("the shipped migration journal is empty");
+  }
+  writeFileSync(join(folder, `${FORWARD_TAG}.sql`), FORWARD_SQL);
+  const forward = { ...tip, idx: tip.idx + 1, when: tip.when + 1, tag: FORWARD_TAG };
+  writeFileSync(join(folder, "meta", "_journal.json"), JSON.stringify({ ...journal, entries: [...journal.entries, forward] }));
+  return folder;
+}
+
+test("a launched boot applies a pending forward migration over a populated baseline and keeps every prior byte", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "orb-forward-migration-"));
   const url = `file:${join(dir, "fixture.db")}`;
   const db = await createDb(url);
   try {
-    const shipped = resolveMigrationsFolder();
-    const oldFolder = join(dir, "through-0002");
-    mkdirSync(join(oldFolder, "meta"), { recursive: true });
-    const journalSchema = z.object({
-      version: z.string(),
-      dialect: z.string(),
-      entries: z.array(z.object({ idx: z.number(), version: z.string(), when: z.number(), tag: z.string(), breakpoints: z.boolean() })),
-    });
-    const journal = journalSchema.parse(JSON.parse(readFileSync(join(shipped, "meta", "_journal.json"), "utf8")));
-    const prior = journal.entries.filter((entry) => entry.idx <= 2);
-    expect(prior.at(-1)?.tag).toBe("0002_rename-stats-content-chars");
-    expect(journal.entries.find((entry) => entry.idx === 3)?.tag).toBe("0003_automation-rule-creation-request");
-    for (const entry of prior) {
-      copyFileSync(join(shipped, `${entry.tag}.sql`), join(oldFolder, `${entry.tag}.sql`));
-    }
-    writeFileSync(join(oldFolder, "meta", "_journal.json"), JSON.stringify({ ...journal, entries: prior }));
-    await runMigrations(db, oldFolder);
+    const forwardChain = chainWithForwardMigration(dir);
+    await runMigrations(db, resolveMigrationsFolder());
     const owner = await seedUser(db);
     const other = await seedUser(db, "migration-other");
     const chatId = await seedHostChat(db, owner);
-    const character = await seedCharacterAtBaseline(db, { ownerId: owner });
+    const character = await seedCharacter(db, { ownerId: owner });
     const ruleId = mintTypeId(ID_PREFIX.automationRule);
     const legacyId = mintTypeId(ID_PREFIX.automationRule);
     const actions = ' [ { "type":"run_tool", "name":"plugin_old", "argsTemplate":"{}", "resultVar":"keep", "resultScope":"chat" } ] ';
@@ -78,17 +89,15 @@ test("0003 preserves a populated actual 0002 chain, all prior rule/child bytes a
       })),
     );
     const backups = join(dir, "fixture-backups");
-    await runBootMigrations({ db, databaseUrl: url, backupDir: backups, launched: true });
-    expect((await checkBaseline(db, shipped)).status).toBe("current");
+    await runBootMigrations({ db, databaseUrl: url, backupDir: backups, migrationsFolder: forwardChain, launched: true });
+    expect((await checkBaseline(db, forwardChain)).status).toBe("current");
     for (const snapshot of snapshots) {
       const columns = snapshot.columns.map((column) => `"${column}"`).join(",");
       const after = await db.values(sql.raw(`SELECT ${columns} FROM ${snapshot.table} ORDER BY 1`));
       expect(after).toEqual(snapshot.rows);
     }
-    expect(await db.all(sql`SELECT creation_request_id AS creationRequestId FROM automation_rules`)).toEqual([
-      { creationRequestId: null },
-      { creationRequestId: null },
-    ]);
+    expect(await db.all(sql`SELECT probe_note AS probeNote FROM automation_rules`)).toEqual([{ probeNote: null }, { probeNote: null }]);
+    // The baseline's creation-request key is unique per owner, not globally.
     const request = mintTypeId(ID_PREFIX.automationRuleCreation);
     await db.run(sql`UPDATE automation_rules SET creation_request_id=${request} WHERE id=${ruleId}`);
     await expect(db.run(sql`UPDATE automation_rules SET creation_request_id=${request} WHERE id=${legacyId}`)).rejects.toThrow();
@@ -97,7 +106,7 @@ test("0003 preserves a populated actual 0002 chain, all prior rule/child bytes a
     );
     expect(await db.all(sql`PRAGMA foreign_key_check`)).toEqual([]);
     expect(readdirSync(backups).filter((name) => BACKUP_RE.test(name))).toHaveLength(1);
-    await runBootMigrations({ db, databaseUrl: url, backupDir: backups, launched: true });
+    await runBootMigrations({ db, databaseUrl: url, backupDir: backups, migrationsFolder: forwardChain, launched: true });
     expect(readdirSync(backups).filter((name) => BACKUP_RE.test(name))).toHaveLength(1);
   } finally {
     closeDb(db);

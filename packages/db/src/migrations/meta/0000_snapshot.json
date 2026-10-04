@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b7743eee-6c5d-45e9-9fa6-aa5423d0b136",
+  "id": "ff436d0e-7d4f-479b-aec6-01ad100d47b5",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -427,6 +427,13 @@
           "notNull": true,
           "autoincrement": false
         },
+        "creation_request_id": {
+          "name": "creation_request_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "chat_id": {
           "name": "chat_id",
           "type": "text",
@@ -537,6 +544,13 @@
           "autoincrement": false,
           "default": 30
         },
+        "time_zone": {
+          "name": "time_zone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "consecutive_errors": {
           "name": "consecutive_errors",
           "type": "integer",
@@ -586,6 +600,11 @@
           "name": "automation_rules_owner_idx",
           "columns": ["owner_id"],
           "isUnique": false
+        },
+        "automation_rules_owner_creation_request_unique": {
+          "name": "automation_rules_owner_creation_request_unique",
+          "columns": ["owner_id", "creation_request_id"],
+          "isUnique": true
         }
       },
       "foreignKeys": {
@@ -912,6 +931,13 @@
         },
         "import_hash": {
           "name": "import_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "import_text_hash": {
+          "name": "import_text_hash",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -2160,6 +2186,60 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "compaction_spend": {
+      "name": "compaction_spend",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "cost_usd": {
+          "name": "cost_usd",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "compaction_spend_owner_idx": {
+          "name": "compaction_spend_owner_idx",
+          "columns": ["owner_id", "created_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "compaction_spend_owner_id_users_id_fk": {
+          "name": "compaction_spend_owner_id_users_id_fk",
+          "tableFrom": "compaction_spend",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "message_assets": {
       "name": "message_assets",
       "columns": {
@@ -3187,6 +3267,13 @@
           "notNull": false,
           "autoincrement": false
         },
+        "seed_model": {
+          "name": "seed_model",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -3250,7 +3337,7 @@
         },
         "user_connections_api_check": {
           "name": "user_connections_api_check",
-          "value": "api in ('chat-completions', 'agent-sdk', 'anthropic-messages', 'auto')"
+          "value": "api in ('chat-completions', 'agent-sdk', 'anthropic-messages', 'google-generative-ai', 'auto')"
         },
         "user_connections_model_check_check": {
           "name": "user_connections_model_check_check",
@@ -3637,7 +3724,7 @@
       "checkConstraints": {
         "provider_rows_wire_check": {
           "name": "provider_rows_wire_check",
-          "value": "wire in ('openai-compat', 'anthropic-messages', 'agent-sdk', 'local-light')"
+          "value": "wire in ('openai-compat', 'anthropic-messages', 'google-generative-ai', 'agent-sdk', 'local-light')"
         },
         "provider_rows_dialect_check": {
           "name": "provider_rows_dialect_check",
@@ -5968,6 +6055,13 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(unixepoch() * 1000)"
+        },
+        "call_id": {
+          "name": "call_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {
@@ -9098,7 +9192,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 9
+          "default": 10
         },
         "config": {
           "name": "config",
@@ -9333,8 +9427,8 @@
           "autoincrement": false,
           "default": 0
         },
-        "content_bytes": {
-          "name": "content_bytes",
+        "content_chars": {
+          "name": "content_chars",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
@@ -9403,9 +9497,9 @@
           "notNull": true,
           "autoincrement": false
         },
-        "day": {
-          "name": "day",
-          "type": "text",
+        "bucket_start": {
+          "name": "bucket_start",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
@@ -9556,9 +9650,9 @@
         }
       },
       "indexes": {
-        "daily_stats_owner_day_unique": {
-          "name": "daily_stats_owner_day_unique",
-          "columns": ["owner_id", "day"],
+        "daily_stats_owner_bucket_unique": {
+          "name": "daily_stats_owner_bucket_unique",
+          "columns": ["owner_id", "bucket_start"],
           "isUnique": true
         }
       },
@@ -9962,8 +10056,8 @@
           "autoincrement": false,
           "default": 0
         },
-        "content_bytes": {
-          "name": "content_bytes",
+        "content_chars": {
+          "name": "content_chars",
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
