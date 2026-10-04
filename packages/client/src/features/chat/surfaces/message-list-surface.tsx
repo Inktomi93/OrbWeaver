@@ -12,7 +12,7 @@
 // draft row had no `participants` plane, so its per-speaker tints differed from the committed room's) is not
 // fixed here — it is UNREACHABLE, which is the better outcome.
 
-import type { ChatIdentity, ContextFitPreview, MessageKind } from "@orb/contracts/chat";
+import type { ChatIdentity, MessageKind } from "@orb/contracts/chat";
 import { buildIdentityAvatarMaps, buildIdentityNameContext, identityKey } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
@@ -44,7 +44,9 @@ import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } 
 import { resolveRowAttribution } from "../lib/attribution.ts";
 import { CHAT_TRACK } from "../lib/chat-track.ts";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
+import { contextFitLabel } from "../lib/context-room.ts";
 import { isGreetingWindowOpen, resolveGreetingBinding } from "../lib/greeting-window.ts";
+import { liveCardRowIds } from "../lib/live-card-rows.ts";
 import { BG_PHOTO_ERROR_PLATE, BG_PHOTO_LOADING_PLATE } from "../lib/message-row-backing.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
@@ -237,6 +239,9 @@ function ChatThread({
   // Stepping a greeting is a host verb, and a member cannot read the host's cards: only the host reads them.
   const greetingAlternates = useGreetingAlternates(seatedCharacterIds, greetingWindowOpen && chatDetail.viewerIsHost === true);
   const items = useMessageItems(messages, chatId);
+  const liveCardRows = liveCardRowIds(items, (view) =>
+    resolveRowRenderPolicy({ role: view.role, authorUserId: view.authorUserId, characterId: view.characterId, viewerUserId, participants, lenientHtmlCards }),
+  );
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
   // every scrollback, so "mounted" != "new".
   const newArrivalKeys = useNewArrivalKeys(items, chatId);
@@ -391,6 +396,7 @@ function ChatThread({
         items={items}
         getItemKey={messageItemKey}
         estimateSize={(index): number => estimateMessageRow(items[index] ?? { kind: "ghost" })}
+        keepMounted={(item): boolean => liveCardRows.has(messageItemKey(item))}
         renderItem={(item, index, meta): ReactNode => {
           const highlighted =
             item.kind === "message" &&
@@ -420,16 +426,6 @@ function ChatThread({
       <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
     </Stack>
   );
-}
-
-/** The newest assistant message's id (drives swipe-strip visibility), or null for none. */
-/** The context-boundary divider's budget line. A ratio is drawn ONLY against a real model window: when the
- *  window is a fallback guess (`ceilingEstimated`) the line reports the used total and names the window
- *  unknown, because "N of 200,000 used" against a number nobody published is a lie the divider would tell on
- *  every scroll (D41 no-silent-degrade). */
-function contextFitLabel(fit: ContextFitPreview): string {
-  const reserved = `${fit.reserveOutputTokens} reserved`;
-  return fit.ceilingEstimated ? `${fit.usedTokens} used · window unknown · ${reserved}` : `${fit.usedTokens} of ${fit.ceilingTokens} used · ${reserved}`;
 }
 
 /** The empty-transcript state — a room whose opening policy seeded nothing, before its first turn. */

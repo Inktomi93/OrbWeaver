@@ -98,7 +98,8 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
       const knobbed = await previewFit(chatId);
       const apiBoundary = knobbed.boundaryMessageId;
       expect(canon.findIndex((c) => c.id === apiBoundary)).toBeGreaterThan(0);
-      expect(knobbed.ceilingTokens).toBe(TINY_CEILING);
+      // The reported ceiling is the fit's system + history room: the soft cap less the reserve, floored at one token.
+      expect(knobbed.ceilingTokens).toBe(Math.max(1, TINY_CEILING - knobbed.reserveOutputTokens));
 
       // …and the DOM divider appears on exactly that row (settingsChanged invalidation refetches the preview —
       // no reload, no turn). The boundary row is addressed by its KNOWN id via the identity-scoped `messageRow()`

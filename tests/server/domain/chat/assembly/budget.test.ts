@@ -32,6 +32,8 @@ test("the source rows partition the total exactly, in prompt order, empties omit
     history: { usedTokens: 120, keptCount: 8, droppedCount: 2, rows: [] },
     ceilingTokens: 8192,
     ceilingEstimated: false,
+    reserveOutputTokens: 0,
+    limit: null,
     sections: [],
   });
 
@@ -48,6 +50,8 @@ test("a plain (non-game) chat has NO game-state row; a game chat does", () => {
     history: NO_HISTORY,
     ceilingTokens: 0,
     ceilingEstimated: false,
+    reserveOutputTokens: 0,
+    limit: null,
     sections: [],
   });
   expect(plain.sources.map((s) => s.source)).toEqual(["system"]);
@@ -57,6 +61,8 @@ test("a plain (non-game) chat has NO game-state row; a game chat does", () => {
     history: NO_HISTORY,
     ceilingTokens: 0,
     ceilingEstimated: false,
+    reserveOutputTokens: 0,
+    limit: null,
     sections: [],
   });
   expect(game.sources.map((s) => s.source)).toEqual(["system", "game-state"]);
@@ -69,6 +75,8 @@ test("the history row carries COST and shape, never content", () => {
     history: { usedTokens: 1624, keptCount: 41, droppedCount: 3, rows: [] },
     ceilingTokens: 8192,
     ceilingEstimated: false,
+    reserveOutputTokens: 0,
+    limit: null,
     sections: [],
   });
 
@@ -80,11 +88,16 @@ test("the history row carries COST and shape, never content", () => {
     history: { usedTokens: 40, keptCount: 1, droppedCount: 0, rows: [] },
     ceilingTokens: 8192,
     ceilingEstimated: false,
+    reserveOutputTokens: 0,
+    limit: null,
     sections: [],
   });
   expect(single.sources.find((s) => s.source === "history")?.detail).toBe("1 turn");
   // An empty chat has no history row at all.
-  expect(buildAssemblyBudget({ slices: [], history: NO_HISTORY, ceilingTokens: 0, ceilingEstimated: false, sections: [] }).sources).toEqual([]);
+  expect(
+    buildAssemblyBudget({ slices: [], history: NO_HISTORY, ceilingTokens: 0, ceilingEstimated: false, reserveOutputTokens: 0, limit: null, sections: [] })
+      .sources,
+  ).toEqual([]);
 });
 
 test("the detail line dedupes contributors and caps the spelled-out set", () => {
@@ -99,6 +112,8 @@ test("the detail line dedupes contributors and caps the spelled-out set", () => 
     history: NO_HISTORY,
     ceilingTokens: 0,
     ceilingEstimated: false,
+    reserveOutputTokens: 0,
+    limit: null,
     sections: [],
   });
 
@@ -124,6 +139,8 @@ test("the section partition keys on RACK IDS, in rack order, and omits what rend
     history: NO_HISTORY,
     ceilingTokens: 0,
     ceilingEstimated: false,
+    reserveOutputTokens: 0,
+    limit: null,
   });
 
   expect(budget.sections.map((s) => s.sectionId)).toEqual(["main", "wi-before"]);
@@ -143,6 +160,8 @@ test("the history PIVOT is priced off the FIT, with one materialized row per kep
     history: { usedTokens: 1224, keptCount: 2, droppedCount: 3, rows },
     ceilingTokens: 8192,
     ceilingEstimated: false,
+    reserveOutputTokens: 0,
+    limit: null,
   });
 
   // The pivot renders nothing in the BUILD walk (it IS the split), so its cost comes from the fit — and the
@@ -164,6 +183,8 @@ test("a section's rows FOLD by contributor — a merged card section is one row 
     history: NO_HISTORY,
     ceilingTokens: 0,
     ceilingEstimated: false,
+    reserveOutputTokens: 0,
+    limit: null,
   });
 
   const desc = budget.sections[0];
@@ -185,6 +206,8 @@ test("each source carries its per-CONTRIBUTOR parts — a room member is ONE lin
     history: { usedTokens: 40, keptCount: 2, droppedCount: 0, rows: [] },
     ceilingTokens: 8192,
     ceilingEstimated: false,
+    reserveOutputTokens: 0,
+    limit: null,
     sections: [],
   });
 
