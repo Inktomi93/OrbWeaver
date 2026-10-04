@@ -69,9 +69,9 @@ export class RefineryRoundInFlightError extends DomainOperationError {
 }
 
 /**
- * A terminal act (apply or save-as-copy) refused because the session is already COMPLETED — its rewrite
- * was applied once. A repeat would stack a second snapshot and re-write the same texts (or mint a second
- * copy). Not retryable (→ BAD_REQUEST): running any stage re-opens the session, which is the fix.
+ * An Apply to the live card refused because the session is already COMPLETED — its rewrite was applied
+ * once, and a repeat would stack a second snapshot over the same texts. Save as copy is never refused (a
+ * branch, not the commit). Not retryable (→ BAD_REQUEST): running any stage re-opens the session.
  */
 export class RefinerySessionCompletedError extends DomainOperationError {
   constructor() {

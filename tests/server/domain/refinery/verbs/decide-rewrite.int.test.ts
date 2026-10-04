@@ -54,5 +54,12 @@ test("a sheet for a non-rewrite run or another session's run is NOT_FOUND, and a
   await expect(
     h.svc.decideRewrite({ principal: principal(stranger), sessionId: session.id, rewriteRunId: rewrite.id, decisions: [true] }),
   ).rejects.toBeInstanceOf(DomainNotFoundError);
+  // A real rewrite run of ANOTHER session the same owner holds — the sheet may only describe this session's runs.
+  const other = await h.svc.startSession({ principal: p, characterId });
+  h.queueReply(rewriteReply());
+  const otherRewrite = await h.svc.runStage({ principal: p, sessionId: other.id, stage: "rewrite" });
+  await expect(h.svc.decideRewrite({ principal: p, sessionId: session.id, rewriteRunId: otherRewrite.id, decisions: [true] })).rejects.toBeInstanceOf(
+    DomainNotFoundError,
+  );
   expect((await h.svc.getSession({ principal: p, sessionId: session.id })).rewriteDecisions).toEqual({});
 });

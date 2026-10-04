@@ -30,6 +30,9 @@ export interface ApplyOutcomeProps {
   readonly onEditScope: () => void;
   readonly onRerunRewrite: () => void;
   readonly onDone: () => void;
+  /** The recovery from an atomic refusal: discard the refused entries and run the same act on the rest.
+   *  Null when nothing would remain to apply. */
+  readonly recovery: { readonly remaining: number; readonly refused: number; readonly onPress: () => void } | null;
 }
 
 /** The itemized row's target words. An APPEND names the act, not a slot — the new greeting's position is
@@ -47,7 +50,7 @@ function refKeyOf(ref: { field: string; greetingIndex?: number | undefined; appe
   return `${ref.field}-${ref.greetingIndex ?? "f"}-${ref.appendIndex === undefined ? "n" : `a${ref.appendIndex}`}`;
 }
 
-export function ApplyOutcome({ applied, dropped, snapshotTaken, copyName, onEditScope, onRerunRewrite, onDone }: ApplyOutcomeProps): ReactElement {
+export function ApplyOutcome({ applied, dropped, snapshotTaken, copyName, onEditScope, onRerunRewrite, onDone, recovery }: ApplyOutcomeProps): ReactElement {
   const zeroWrite = applied.length === 0;
   return (
     <Stack data-testid={testId("refineryApplyOutcome")} gap="row">
@@ -89,22 +92,42 @@ export function ApplyOutcome({ applied, dropped, snapshotTaken, copyName, onEdit
           );
         })}
       </Stack>
-      <Row gap="row" justify="end">
-        {zeroWrite ? (
-          <>
-            <Button intent="secondary" onClick={onEditScope} size="sm">
-              Edit scope
-            </Button>
-            <Button onClick={onRerunRewrite} size="sm">
-              Re-run rewrite
-            </Button>
-          </>
-        ) : (
-          <Button onClick={onDone} size="sm">
-            Done
-          </Button>
-        )}
-      </Row>
+      <OutcomeActions onDone={onDone} onEditScope={onEditScope} onRerunRewrite={onRerunRewrite} recovery={recovery} zeroWrite={zeroWrite} />
     </Stack>
+  );
+}
+
+/** The panel's exits: Done after a write; after an atomic refusal, the explicit-discard recovery (when
+ *  something would remain), Edit scope and Re-run rewrite. */
+function OutcomeActions({
+  zeroWrite,
+  recovery,
+  onEditScope,
+  onRerunRewrite,
+  onDone,
+}: Pick<ApplyOutcomeProps, "recovery" | "onEditScope" | "onRerunRewrite" | "onDone"> & { readonly zeroWrite: boolean }): ReactElement {
+  if (!zeroWrite) {
+    return (
+      <Row gap="row" justify="end">
+        <Button onClick={onDone} size="sm">
+          Done
+        </Button>
+      </Row>
+    );
+  }
+  return (
+    <Row className="flex-wrap" gap="row" justify="end">
+      {recovery === null ? null : (
+        <Button intent="secondary" onClick={recovery.onPress} size="sm">
+          Discard the refused {recovery.refused === 1 ? "field" : "fields"} and apply the other {recovery.remaining}
+        </Button>
+      )}
+      <Button intent="secondary" onClick={onEditScope} size="sm">
+        Edit scope
+      </Button>
+      <Button onClick={onRerunRewrite} size="sm">
+        Re-run rewrite
+      </Button>
+    </Row>
   );
 }

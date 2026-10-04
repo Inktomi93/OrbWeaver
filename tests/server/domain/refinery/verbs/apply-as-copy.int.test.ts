@@ -30,12 +30,15 @@ test("applyAsCopy mints a fresh character with the accepted patch; the live card
   expect(original.description).toContain("{{char}} likes {{user}}");
   // NO snapshot on either card — nothing existing was written (the §17 no-snapshot contract).
   expect(await db.select().from(characterSnapshots)).toHaveLength(0);
-  // The terminal act completes the session.
+  // A copy is a branch, not the commit: the session stays active and a later Apply to the live card still lands.
   const view = await h.svc.getSession({ principal: p, sessionId: session.id });
-  expect(view.status).toBe("completed");
+  expect(view.status).toBe("active");
   // Three refinery ticks (start · rewrite run · this terminal act); the NEW card's arrival is announced by
   // `duplicate`/`update` on character's own port, never re-spelled here.
   expect(h.userEvents.map((e) => e.event.type)).toEqual(["refineryChanged", "refineryChanged", "refineryChanged"]);
+  // …and a later Apply to the live card is not locked by the copy.
+  const applied = await h.svc.applyFields({ principal: p, sessionId: session.id, accepts: [{ field: "description" }] });
+  expect(applied.applied).toEqual([{ field: "description", greetingIndex: undefined, kind: "replaced" }]);
 });
 
 test("the zero-write arm mints NO copy: every accept dead on the belts returns character:null", async () => {

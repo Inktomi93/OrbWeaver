@@ -1,7 +1,8 @@
 // verb: applyFields — the SHARP END (security pass §4.8-13, in order): the user-accepted entries of the
-// chosen rewrite run (latest, or the §16.1 operate-back `rewriteRunId`) land on the LIVE card. ALL OR
-// NOTHING: one refused entry refuses the whole apply, and every refused entry is itemized with its typed
-// reason (the client renders them; nothing silently coerces, falls through, or half-applies).
+// chosen rewrite run (latest, or the §16.1 operate-back `rewriteRunId`) land on the LIVE card. OWNER RULING:
+// Apply is an ATOMIC COMMIT and Keep/Discard is staging — one refused entry refuses the whole apply, every
+// refused entry is itemized with its typed reason, and recovery is the user's explicit discard of those
+// entries, never a partial write.
 //
 // THE BELTS LIVE IN ONE PLACE — `substrate/accept-belts.ts` (intersection 9-11 + the §21 divergence
 // check + the patch construction), SHARED verbatim with `applyAsCopy` so the branch-off arm can never
@@ -31,6 +32,7 @@ import type { CardWriteBasis } from "#domain/character";
 import type { CardIdentityField } from "#kit/serde/card";
 import { cardContentHash } from "#kit/serde/card";
 import type { RefineryContext } from "../context.ts";
+import { RefinerySessionCompletedError } from "../contract/errors.ts";
 import type { RefineryService } from "../contract/service.ts";
 import { buildPatch, remapSelection, resolveApplyBasis } from "../substrate/accept-belts.ts";
 
@@ -71,6 +73,11 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
     // The shared preamble: owned session → chosen rewrite (latest or operate-back) → LIVE card → the
     // per-entry intersection (belts 9-11 + divergence), in itemized order — ONE resolver with the copy arm.
     const { session, liveCard, applied, dropped, chosen } = await resolveApplyBasis(ctx, { ownerId, sessionId, rewriteRunId, accepts });
+    // THE LIVE-CARD LOCK: an applied session's commit already landed, so a second apply would stack another
+    // snapshot over the same texts. Running a stage re-opens it. A copy (the branch) never sets or reads it.
+    if (session.status === "completed") {
+      throw new RefinerySessionCompletedError();
+    }
     if (chosen.length === 0) {
       // A refused entry (or none kept) — an honest ZERO-WRITE result (the client renders the drops): no
       // snapshot (snapshotId null, stated in the surface copy), no update, just the current detail.
@@ -112,7 +119,7 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
       throw err;
     }
 
-    // An apply completes the session (a later run/iterate flips it back active — a label, not a lock), and
+    // An apply completes the session — the lock above, until a run/iterate flips it back active — and
     // a greeting removal REMAPS the selection in the same write: the session speaks in positions, so an
     // un-remapped index would silently re-point at a different greeting.
     await ctx.db

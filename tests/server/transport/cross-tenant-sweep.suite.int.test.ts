@@ -470,6 +470,13 @@ const PROBES: readonly Probe[] = [
     path: "refinery.submitManualRewrite",
     call: (c, i) => c.refinery.submitManualRewrite({ sessionId: i.refinerySessionId, fields: [{ field: "description", text: "hacked" }] }),
   },
+  // The review's Keep/Discard sheet — a session-scoped WRITE onto `rewrite_decisions`. The ownership belt runs
+  // before the run lookup, so a stranger collapses to NOT_FOUND whatever run id it names; post-sweep the
+  // sheet is re-read empty.
+  {
+    path: "refinery.decideRewrite",
+    call: (c, i) => c.refinery.decideRewrite({ sessionId: i.refinerySessionId, rewriteRunId: mintTypeId(ID_PREFIX.refineryRun), decisions: [true] }),
+  },
   // The output-budget readout: a READ that assembles A's REAL stage prompts (A's whole selected card
   // content) to MEASURE them. PROBED, but say the limit plainly: its result is numbers + the deployment's
   // summarizer model name and carries NO free text, so the marker detector is toothless on it — a dropped
@@ -2791,10 +2798,11 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(schemaStill?.version).toBe(1); // no content bump — the stranger's patch never reached A's row
     // refinery R1: A's session survived every stranger write. The run log is still EMPTY — no stranger
     // `submitManualRewrite` injected a hand-authored rewrite into A's pipeline and no `runStage`/`iterate`
-    // appended a model run — and the status is still the born `active`, which is what proves `applyAsCopy`
-    // (whose terminal act flips it to `completed`) never reached A's session.
+    // appended a model run — the status is still the born `active` (no stranger `applyFields` completed it),
+    // and the Keep/Discard sheet is still empty (no stranger `decideRewrite` staged a decision).
     const sessionStill = await ownerCaller.refinery.getSession({ sessionId: ids.refinerySessionId });
     expect(sessionStill.status).toBe("active");
+    expect(sessionStill.rewriteDecisions).toEqual({});
     expect(await ownerCaller.refinery.listRuns({ sessionId: ids.refinerySessionId })).toEqual([]);
     // plugin (D147): every one of the four probes is a WRITE that returns void or a view, so A's row is the
     // only evidence a silent IDOR would leave — and each field below is moved by a DIFFERENT probe, which is

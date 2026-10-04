@@ -37,7 +37,9 @@ import type { ReactElement, ReactNode } from "react";
 import type { Trpc } from "#data";
 import { testId } from "#lib";
 import { FOCAL_GLOW, FOCAL_STRIPE } from "../lib/focal-treatment.ts";
+import { DROP_REASON_COPY } from "../lib/reason-copy.ts";
 import type { ReviewEntry } from "../lib/review-entries.ts";
+import { reviewTargetLabel } from "../lib/review-entries.ts";
 import { STAGE_NOT_RUN_COPY } from "../lib/stage-not-run-copy.ts";
 import { AcceptReview } from "./accept-review.tsx";
 import { LaneBand, LaneNotes, RunModelCredit } from "./lane-band.tsx";
@@ -54,6 +56,9 @@ type RewriteRunView = Pick<RunView, "iteration" | "model" | "payloadConfig" | "s
 export interface RewriteLaneProps {
   readonly run: RewriteRunView | null;
   readonly entries: readonly ReviewEntry[];
+  /** Entries the apply verb would refuse whatever is decided (`ReviewEntry.refusal`) — shown with the
+   *  reason, never offered a Keep. @defaultValue [] */
+  readonly unapplicable?: readonly ReviewEntry[];
   readonly decided: readonly CompareDecision[];
   readonly onDecide: (index: number, decision: CompareDecision) => void;
   /** A rewrite call is in flight (a bare `runStage`, or the rewrite half of an `iterate` round). */
@@ -80,6 +85,29 @@ function provenanceOf(run: RewriteRunView | null): string | null {
     return config.mode;
   }
   return config.kind === "manual" ? "hand-authored" : "custom";
+}
+
+/** The entries the rewrite produced that cannot land on the live card, each with the verb's own reason. */
+function UnapplicableEntries({ entries }: { entries: readonly ReviewEntry[] }): ReactElement | null {
+  if (entries.length === 0) {
+    return null;
+  }
+  return (
+    <Stack data-testid={testId("refineryUnapplicable")} gap="tight">
+      <Text voice="kicker">Not applicable to this card</Text>
+      {entries.map((review) => {
+        const copy = review.refusal === undefined ? null : DROP_REASON_COPY[review.refusal];
+        return copy === null ? null : (
+          <Stack gap="tight" key={review.payloadIndex}>
+            <Text voice="label">
+              {reviewTargetLabel(review.entry)} <RefineryChip tone={copy.tone}>{copy.chip}</RefineryChip>
+            </Text>
+            <Text voice="gloss">{copy.why}</Text>
+          </Stack>
+        );
+      })}
+    </Stack>
+  );
 }
 
 /** The lane's body, in its three arms. A total dispatch in one function rather than nested ternaries in the
@@ -126,6 +154,7 @@ function RewriteBody({
 export function RewriteLane({
   run,
   entries,
+  unapplicable = [],
   decided,
   onDecide,
   running,
@@ -163,6 +192,7 @@ export function RewriteLane({
         {runControl}
         <LaneNotes behind={behind} iteration={run?.iteration ?? null} onBackToLatest={onBackToLatest} viewingBack={viewingBack} />
         <RewriteBody decided={decided} entries={entries} onDecide={onDecide} running={running} settled={settled} />
+        {settled ? <UnapplicableEntries entries={unapplicable} /> : null}
       </Stack>
     </Section>
   );

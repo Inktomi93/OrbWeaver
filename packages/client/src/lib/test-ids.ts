@@ -204,6 +204,7 @@ export const TEST_IDS = {
   refineryRewriteLane: "refinery-rewrite-lane",
   /** One row of the accept queue — pair with `data-queue-state` (open/kept/discarded/undecided). */
   refineryQueueRow: "refinery-queue-row",
+  refineryUnapplicable: "refinery-unapplicable",
   /** The foot run bar (guidance · hand-edit · iterate · the terminal apply cluster). */
   refineryRunBar: "refinery-run-bar",
   refineryPayloadView: "refinery-payload-view",

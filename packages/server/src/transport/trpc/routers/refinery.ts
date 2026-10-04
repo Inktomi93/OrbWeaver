@@ -12,8 +12,8 @@ import {
   refinableFieldSchema,
   refineryForgeArmSchema,
   refineryGuidanceSchema,
-  refineryRewriteDecisionSchema,
   refineryRewriteFieldSchema,
+  refineryRewriteSheetSchema,
   refineryRunViewSchema,
   refinerySchemaPlanSchema,
   refinerySchemaStageSchema,
@@ -158,7 +158,7 @@ export const refineryRouter = t.router({
       z.object({
         sessionId: typeIdSchema(ID_PREFIX.refinerySession),
         rewriteRunId: typeIdSchema(ID_PREFIX.refineryRun),
-        decisions: z.array(refineryRewriteDecisionSchema),
+        decisions: refineryRewriteSheetSchema,
       }),
     )
     .mutation(({ ctx, input }) =>

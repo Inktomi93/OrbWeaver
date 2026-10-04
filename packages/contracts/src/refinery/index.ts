@@ -180,8 +180,8 @@ export const REFINERY_OUTPUT_BUDGET_REASON = "refinery_output_budget_too_small";
  *  BEFORE any model call, so a loser pays nothing. */
 export const REFINERY_ROUND_IN_FLIGHT_REASON = "refinery_round_in_flight";
 
-/** The coded reason for a terminal act (apply / save-as-copy) refused on a session that is already
- *  completed: its rewrite was applied, and running a stage re-opens it. */
+/** The coded reason for an Apply refused on a session that is already completed: its rewrite was applied
+ *  to the live card, and running a stage re-opens it. */
 export const REFINERY_SESSION_COMPLETED_REASON = "refinery_session_completed";
 
 // ── F4 stage modes (per-stage prompt-variant enums; the extension's 8 builtin presets ARE these) ────────
@@ -502,7 +502,9 @@ export type RefineryRewriteDecision = z.infer<typeof refineryRewriteDecisionSche
  *  because a verdict pressed against old text is not a judgement about the new text. Index = the entry's
  *  position in that run's payload `fields` (immutable, unlike the selection-filtered review list). Keys are
  *  run ids the `decideRewrite` verb verified belong to the session. */
-export const refineryRewriteDecisionsSchema = z.record(z.string(), z.array(refineryRewriteDecisionSchema).max(ENTRIES_MAX));
+/** One rewrite run's sheet — one decision per payload entry, so never longer than a payload can be. */
+export const refineryRewriteSheetSchema = z.array(refineryRewriteDecisionSchema).max(ENTRIES_MAX);
+export const refineryRewriteDecisionsSchema = z.record(z.string(), refineryRewriteSheetSchema);
 export type RefineryRewriteDecisions = z.infer<typeof refineryRewriteDecisionsSchema>;
 
 /** The anti-drift comparison verdict — ALWAYS rewrite-vs-ORIGINAL (the session's `original_card`

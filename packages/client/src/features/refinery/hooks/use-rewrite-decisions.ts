@@ -7,7 +7,7 @@ import { isAppendedRewrite } from "@orb/contracts/refinery";
 import type { RefineryRunId, RefinerySessionId } from "@orb/kit/ids";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import type { inferInput } from "@trpc/tanstack-react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import type { ReviewEntry } from "../lib/review-entries.ts";
@@ -15,11 +15,14 @@ import { useDecideRefineryRewrite } from "./use-refinery-mutations.ts";
 
 // Re-derived locally from the wire (§7.4).
 type KeptAccept = inferInput<Trpc["refinery"]["applyFields"]>["accepts"][number];
+type SheetWrite = inferInput<Trpc["refinery"]["decideRewrite"]>;
 
 export interface RewriteDecisions {
   /** One decision per review entry, in review order. */
   readonly decided: readonly CompareDecision[];
   readonly decide: (index: number, decision: CompareDecision) => void;
+  /** Several entries at once, in ONE sheet write (a loop of `decide` would each start from the same stale sheet). */
+  readonly decideEach: (indexes: readonly number[], decision: CompareDecision) => void;
 }
 
 export function useRewriteDecisions(args: {
@@ -33,20 +36,49 @@ export function useRewriteDecisions(args: {
   const invalidation = useInvalidation();
   const save = useDecideRefineryRewrite({ trpc, invalidation });
   const [pressedByRun, setPressedByRun] = useState<Readonly<Record<string, readonly CompareDecision[]>>>({});
+  // Touched only inside press handlers and mutation callbacks, never during render.
+  const writing = useRef(false);
+  const waiting = useRef<SheetWrite | null>(null);
   const sheet: readonly CompareDecision[] = rewriteRunId === null ? [] : (pressedByRun[rewriteRunId] ?? persisted[rewriteRunId] ?? []);
   const decided = entries.map((entry) => sheet[entry.payloadIndex] ?? null);
-  const decide = (index: number, decision: CompareDecision): void => {
-    const entry = entries[index];
-    if (rewriteRunId === null || entry === undefined) {
+  const decideEach = (indexes: readonly number[], decision: CompareDecision): void => {
+    const targets = indexes.flatMap((i) => (entries[i] === undefined ? [] : [entries[i].payloadIndex]));
+    if (rewriteRunId === null || targets.length === 0) {
       return;
     }
-    const next = Array.from({ length: Math.max(sheet.length, entry.payloadIndex + 1) }, (_, i): CompareDecision => sheet[i] ?? null);
-    next[entry.payloadIndex] = decision;
+    const next = Array.from({ length: Math.max(sheet.length, ...targets.map((t) => t + 1)) }, (_, i): CompareDecision => sheet[i] ?? null);
+    for (const target of targets) {
+      next[target] = decision;
+    }
     setPressedByRun((prev) => ({ ...prev, [rewriteRunId]: next }));
-    // The WHOLE sheet rides every press, so the last write to land is always complete.
-    save.mutate({ sessionId, rewriteRunId, decisions: next });
+    send({ sessionId, rewriteRunId, decisions: next });
   };
-  return { decided, decide };
+  // ONE WRITE IN FLIGHT, LATEST SHEET WINS: the whole sheet rides every press, and a press made while a write
+  // is out waits and replaces any earlier waiting one — so writes land in press order and the last is
+  // complete. A refused write drops the overlay back to the server's copy, so no phantom decision shows.
+  const send = (sheetWrite: SheetWrite): void => {
+    if (writing.current) {
+      waiting.current = sheetWrite;
+      return;
+    }
+    writing.current = true;
+    save.mutate(sheetWrite, {
+      onSuccess: (): void => {
+        writing.current = false;
+        const next = waiting.current;
+        waiting.current = null;
+        if (next !== null) {
+          send(next);
+        }
+      },
+      onError: (): void => {
+        writing.current = false;
+        waiting.current = null;
+        setPressedByRun((prev) => Object.fromEntries(Object.entries(prev).filter(([runId]) => runId !== sheetWrite.rewriteRunId)));
+      },
+    });
+  };
+  return { decided, decide: (index, decision): void => decideEach([index], decision), decideEach };
 }
 
 /** The kept accepts the terminal verbs send: each Keep press's target, with `confirmDiverged` riding
@@ -71,5 +103,29 @@ export function keptAcceptsOf(entries: readonly ReviewEntry[], decided: readonly
         ...(entry.diverged ? { confirmDiverged: true as const } : {}),
       },
     ];
+  });
+}
+
+/** Where an itemized refusal pointed (the apply result's `dropped` rows). */
+interface RefusedRef {
+  readonly field: string;
+  readonly greetingIndex?: number | undefined;
+  readonly appendIndex?: number | undefined;
+}
+
+/** The review indexes of the entries an apply refused — the same address the accept carried: an append by its
+ *  ordinal, a greeting by its slot, any other field by name. */
+export function refusedIndexesOf(entries: readonly ReviewEntry[], refused: readonly RefusedRef[]): number[] {
+  return entries.flatMap((entry, i): number[] => {
+    const hit = refused.some((ref) => {
+      if (ref.field !== entry.entry.field) {
+        return false;
+      }
+      if (entry.appendIndex !== undefined || ref.appendIndex !== undefined) {
+        return ref.appendIndex === entry.appendIndex;
+      }
+      return entry.entry.field !== "greetings" || (!isAppendedRewrite(entry.entry) && ref.greetingIndex === entry.entry.greetingIndex);
+    });
+    return hit ? [i] : [];
   });
 }

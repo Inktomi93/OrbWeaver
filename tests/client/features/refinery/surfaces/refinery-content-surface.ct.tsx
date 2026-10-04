@@ -33,7 +33,7 @@ import type { Page } from "@playwright/test";
 import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import type { TrpcFixtureOutput, TrpcInput, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { characterListResponder, makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
 import { RefineryContentStory, RefineryStartStory } from "../_ct-stories.tsx";
 import { makeRefinerySessionSummary } from "../fixtures.ts";
@@ -762,6 +762,13 @@ test("a per-field KEEP/DISCARD decision drives the apply: only the kept field is
 /** A rewrite run as an OLDER build stored it: the model put a slot index on a non-greetings field. */
 const STRAY_INDEX_REWRITE_RUN = mintTypeId(ID_PREFIX.refineryRun);
 
+/** The stray-index run's id and economics, carrying any payload a test needs. */
+function rewriteRunWith(
+  fields: Extract<TrpcWireOutput<"refinery.listRuns">[number], { stage: "rewrite" }>["payload"]["fields"],
+): TrpcWireOutput<"refinery.listRuns">[number] {
+  return { ...strayIndexRewriteRun(), stage: "rewrite", payloadConfig: { kind: "fixed", mode: "balanced" }, payload: { fields } };
+}
+
 function strayIndexRewriteRun(): TrpcWireOutput<"refinery.listRuns">[number] {
   return {
     id: STRAY_INDEX_REWRITE_RUN,
@@ -838,7 +845,10 @@ test("RE-ENTRY reopens the persisted decisions: the kept count and each field's 
   await expect(page.getByTestId(testId("refineryQueueRow")).and(page.locator('[data-queue-state="discarded"]'))).toHaveCount(1);
 });
 
-test("a COMPLETED session keeps both terminal verbs disabled, with the reason beside them", async ({ mount, page }) => {
+test("a COMPLETED session locks Apply with the reason beside it; Save as copy (a branch) stays available; the masthead says applied", async ({
+  mount,
+  page,
+}) => {
   await freeze(page);
   await routeTrpc(page, {
     ...baseRoutes(),
@@ -848,8 +858,10 @@ test("a COMPLETED session keeps both terminal verbs disabled, with the reason be
   await expect(page.getByTestId(testId("refineryQueueRow")).and(page.locator('[data-queue-state="kept"]'))).toHaveCount(2);
   const apply = page.getByRole("button", { name: "Apply 2 kept" });
   await expect(apply).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Save as copy" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save as copy" })).toBeEnabled();
   await expect(apply).toHaveAttribute("aria-describedby", /.+/u);
+  // The masthead reads the session's real state, never only this view's own outcome.
+  await expect(page.getByTestId(testId("refineryMasthead"))).toContainText("applied · snapshot taken");
 });
 
 test("a run that FITS prints no token arithmetic; only a breaching stage shows its fit line", async ({ mount, page }) => {
@@ -908,4 +920,147 @@ test("RE-ENTERING with an open session offers it on the landing, and the door op
   await resume.click();
   await expect(page.getByTestId(testId("refineryMasthead"))).toBeVisible();
   expect(asked).toContain(NEWEST_OPEN_SESSION_ID);
+});
+
+// ── ATOMIC APPLY, RECOVERY BY EXPLICIT DISCARD (owner ruling) ────────────────────────────────────────
+
+const RECOVER_ONE = "Discard the refused field and apply the other 1";
+
+/** The atomic refusal: nothing written, no snapshot, the one refused entry itemized. */
+function refusedResult(dropped: TrpcWireOutput<"refinery.applyFields">["dropped"][number]): TrpcWireOutput<"refinery.applyFields"> {
+  return { applied: [], dropped: [dropped], character: CARD, snapshotId: null };
+}
+
+test("a refused apply offers to discard exactly the refused entries and apply the rest; the discard is staged and persists", async ({ mount, page }) => {
+  await freeze(page);
+  const applyInputs: TrpcInput<"refinery.applyFields">[] = [];
+  const decideInputs: TrpcInput<"refinery.decideRewrite">[] = [];
+  // The SERVER's copy of the sheet — what a re-entry would read back.
+  let stored: TrpcWireOutput<"refinery.getSession">["rewriteDecisions"] = {};
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.getSession": () => sessionWith({ rewriteDecisions: stored }),
+    "refinery.decideRewrite": (input: TrpcInput<"refinery.decideRewrite">) => {
+      decideInputs.push(input);
+      stored = { ...stored, [input.rewriteRunId]: input.decisions };
+      return sessionWith({ rewriteDecisions: stored });
+    },
+    // Atomic: while personality is kept the verb refuses the whole batch; without it, it applies.
+    "refinery.applyFields": (input: TrpcInput<"refinery.applyFields">) => {
+      applyInputs.push(input);
+      return input.accepts.some((accept) => accept.field === "personality")
+        ? refusedResult({ field: "personality", reason: "diverged_since_session" })
+        : applyResult(input);
+    },
+  });
+  const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
+  await page.getByRole("button", { name: /^Keep personality$/ }).click();
+  await page.getByRole("button", { name: "Apply 2 kept" }).click();
+
+  const outcome = component.getByTestId(testId("refineryApplyOutcome"));
+  await expect(outcome.getByRole("button", { name: RECOVER_ONE })).toBeVisible();
+  await outcome.getByRole("button", { name: RECOVER_ONE }).click();
+
+  await expect(page.getByText("1 field written.")).toBeVisible();
+  // Exactly the refused entry was discarded (payload position 1), the other stays kept…
+  await expect.poll(() => decideInputs.at(-1)?.decisions).toEqual([true, false]);
+  // …and the retry sent only what remained.
+  expect(applyInputs.map((input) => input.accepts)).toEqual([[{ field: "description" }, { field: "personality" }], [{ field: "description" }]]);
+  // Re-entry reads the persisted sheet: personality is Discarded there too.
+  expect(stored[REWRITE_RUN]).toEqual([true, false]);
+});
+
+test("no recovery is offered when every kept entry was refused — nothing would remain to apply", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.applyFields": () => refusedResult({ field: "description", reason: "not_selected" }),
+  });
+  const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
+  await page.getByRole("button", { name: DISCARD_PERSONALITY }).click();
+  await page.getByRole("button", { name: "Apply 1 kept" }).click();
+  const outcome = component.getByTestId(testId("refineryApplyOutcome"));
+  await expect(outcome.getByRole("button", { name: "Edit scope" })).toBeVisible();
+  await expect(outcome.getByRole("button", { name: /^Discard the refused/u })).toHaveCount(0);
+});
+
+// ── VERIFIER ROUND (0575) ─────────────────────────────────────────────────────────────────────────────
+
+function copyResult(input: TrpcInput<"refinery.applyAsCopy">): TrpcWireOutput<"refinery.applyAsCopy"> {
+  const result = applyResult({ sessionId: input.sessionId, accepts: input.accepts });
+  return { applied: result.applied, dropped: result.dropped, character: makeCharacterDetail({ ...CARD, name: "Zephyrine Vale (refined)" }) };
+}
+
+test("a Save as copy never tells the masthead the live card took a snapshot", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.applyAsCopy": (input: TrpcInput<"refinery.applyAsCopy">) => copyResult(input),
+  });
+  const component = await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
+  await page.getByRole("button", { name: "Save as copy" }).click();
+  await expect(component.getByTestId(testId("refineryApplyOutcome"))).toBeVisible();
+  const masthead = page.getByTestId(testId("refineryMasthead"));
+  await expect(masthead).toContainText("draft — the live card is untouched");
+  await expect(masthead).not.toContainText("snapshot taken");
+});
+
+test("a rewrite entry the verb always refuses is shown NOT APPLICABLE with its reason, never offered a Keep, never counted", async ({ mount, page }) => {
+  await freeze(page);
+  const card = makeCharacterDetail({ ...CARD, greetings: [{ text: "Hello." }] });
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.getSession": () => sessionWith({ originalCard: card, selection: { fields: ["description", "greetings"] } }),
+    "character.get": () => card,
+    "refinery.listRuns": () => [
+      rewriteRunWith([
+        { field: "description", text: REWRITTEN_DESCRIPTION },
+        // No slot index on a greetings replace, and a slot past the live card's one greeting.
+        { field: "greetings", text: "Which greeting?" },
+        { field: "greetings", greetingIndex: 4, text: "A slot that is gone." },
+      ]),
+    ],
+  });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  const notApplicable = page.getByTestId(testId("refineryUnapplicable"));
+  await expect(notApplicable).toContainText("greetings [?]");
+  await expect(notApplicable).toContainText("greetings [4]");
+  await expect(page.getByRole("button", { name: /^Keep greetings/u })).toHaveCount(0);
+  await expect(page.getByTestId(testId("refineryQueueRow"))).toHaveCount(1);
+  await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
+  await expect(page.getByRole("button", { name: "Apply 1 kept" })).toBeEnabled();
+});
+
+test("decision writes are SERIALIZED: a press made while one is in flight waits, and the latest sheet lands last", async ({ mount, page }) => {
+  await freeze(page);
+  const decideInputs: TrpcInput<"refinery.decideRewrite">[] = [];
+  const firstWrite = trpcHold();
+  await routeTrpc(page, {
+    ...baseRoutes(),
+    "refinery.decideRewrite": (input: TrpcInput<"refinery.decideRewrite">) => {
+      decideInputs.push(input);
+      return decideInputs.length === 1 ? firstWrite : sessionWith({ rewriteDecisions: { [input.rewriteRunId]: input.decisions } });
+    },
+  });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
+  await firstWrite.requested;
+  await page.getByRole("button", { name: DISCARD_PERSONALITY }).click();
+  // The second press is visible at once, but its write has not left the browser while the first is out.
+  await expect(page.getByRole("button", { name: "Apply 1 kept" })).toBeEnabled();
+  expect(decideInputs).toHaveLength(1);
+  firstWrite.release(sessionWith({ rewriteDecisions: { [REWRITE_RUN]: [true] } }));
+  await expect.poll(() => decideInputs.map((input) => input.decisions)).toEqual([[true], [true, false]]);
+});
+
+test("a REFUSED decision write reverts the press — no phantom Keep is left on screen", async ({ mount, page }) => {
+  await freeze(page);
+  await routeTrpc(page, { ...baseRoutes(), "refinery.decideRewrite": () => trpcError({ message: "write refused" }) });
+  await mount(<RefineryContentStory sessionId={SESSION_ID} />);
+  await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
+  await expect(page.getByTestId(testId("refineryQueueRow")).and(page.locator('[data-queue-state="kept"]'))).toHaveCount(0);
+  await expect(page.getByRole("button", { name: ANY_APPLY_COUNT })).toBeDisabled();
 });

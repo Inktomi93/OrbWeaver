@@ -23,6 +23,37 @@ export interface ReviewEntry {
   /** The entry's position in the run payload's `fields` — the stable address its persisted Keep/Discard
    *  decision is stored under (the in-scope list shifts when the selection changes; the payload never does). */
   readonly payloadIndex: number;
+  /** Why the apply verb would refuse this entry whatever the user decides — set only for an entry that can
+   *  never land on the LIVE card (the verb's own applicability belts, mirrored). Such an entry is shown as
+   *  not applicable and is never keepable, so it can never refuse an otherwise good batch. */
+  readonly refusal?: ReviewRefusal;
+}
+
+/** The verb's applicability refusals the review can predict from the payload and the live card alone. */
+type ReviewRefusal = "greeting_index_missing" | "greeting_index_invalid" | "not_applicable";
+
+/** The entry's target in words — `greetings [2]`, `greetings [new]` for an append, else the field. */
+export function reviewTargetLabel(entry: RefineryRewriteField): string {
+  if (isAppendedRewrite(entry)) {
+    // No slot number exists yet — the label says what the block DOES rather than inventing a position the
+    // card does not have (and would not keep, since the slot lands at whatever the tail is at apply time).
+    return "greetings [new]";
+  }
+  return entry.field === "greetings" ? `greetings [${entry.greetingIndex ?? "?"}]` : entry.field;
+}
+
+/** The applicability belts of the apply verb that depend only on the entry and the LIVE card. */
+function refusalOf(entry: RefineryRewriteField, liveCard: CharacterCard): ReviewRefusal | undefined {
+  if (isAppendedRewrite(entry)) {
+    return;
+  }
+  if (entry.field === "greetings") {
+    if (entry.greetingIndex === undefined) {
+      return "greeting_index_missing";
+    }
+    return entry.greetingIndex >= liveCard.greetings.length ? "greeting_index_invalid" : undefined;
+  }
+  return entry.field === "depthPrompt" && liveCard.depthPrompt === null ? "not_applicable" : undefined;
 }
 
 /** Derive the reviewable entries from a rewrite payload + the two cards (pure — unit-tested through the
@@ -66,7 +97,18 @@ export function reviewEntriesOf(
     const live = cardTextOf(liveCard, entry);
     const original = cardTextOf(originalCard, entry);
     const appendIndex = appendIndexOf.get(entry);
-    return [{ entry, live, original, diverged: live !== original, payloadIndex, ...(appendIndex === undefined ? {} : { appendIndex }) }];
+    const refusal = refusalOf(entry, liveCard);
+    return [
+      {
+        entry,
+        live,
+        original,
+        diverged: live !== original,
+        payloadIndex,
+        ...(appendIndex === undefined ? {} : { appendIndex }),
+        ...(refusal === undefined ? {} : { refusal }),
+      },
+    ];
   });
 }
 

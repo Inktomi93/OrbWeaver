@@ -24,7 +24,7 @@
 // relief for a stack of open blocks, and the queue is that relief now — collapsing the focal too would
 // blank the island for the frame between a press and the advance.
 
-import type { RefinableField, RefineryRewriteField } from "@orb/contracts/refinery";
+import type { RefinableField } from "@orb/contracts/refinery";
 import { isAppendedRewrite, isClearedRewrite } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
 import type { CompareBlock, CompareDecision } from "@orb/ui/compare-blocks";
@@ -36,6 +36,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { testId } from "#lib";
 import type { ReviewEntry } from "../lib/review-entries.ts";
+import { reviewTargetLabel } from "../lib/review-entries.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 export interface AcceptReviewProps {
@@ -45,15 +46,6 @@ export interface AcceptReviewProps {
 }
 
 const INLINE_DIFF_THRESHOLD = 200;
-
-function targetLabel(entry: RefineryRewriteField): string {
-  if (isAppendedRewrite(entry)) {
-    // No slot number exists yet — the label says what the block DOES rather than inventing a position the
-    // card does not have (and would not keep, since the slot lands at whatever the tail is at apply time).
-    return "greetings [new]";
-  }
-  return entry.field === "greetings" ? `greetings [${entry.greetingIndex ?? "?"}]` : entry.field;
-}
 
 /** The consent copy: destruction is STATED per field kind, never inferred from a blank side. */
 function clearNoteOf(field: RefinableField): string {
@@ -68,7 +60,7 @@ function clearNoteOf(field: RefinableField): string {
 
 function blockOf(review: ReviewEntry): CompareBlock {
   const { entry, live, original, diverged } = review;
-  const label = targetLabel(entry);
+  const label = reviewTargetLabel(entry);
   if (isAppendedRewrite(entry)) {
     // The ADDED arm: `after` alone, so the primitive renders its Added state panel in the before slot
     // instead of a fabricated empty pane. Nothing can have diverged — the slot has no history to move.
@@ -132,7 +124,7 @@ type QueueState = (typeof QUEUE_STATES)[number];
  *  round that appends two greetings (both read "greetings [new]"), so the append ordinal joins it; every
  *  other arm is already unique by field + greeting slot. */
 function queueKeyOf(review: ReviewEntry): string {
-  return `${targetLabel(review.entry)}#${review.appendIndex ?? ""}`;
+  return `${reviewTargetLabel(review.entry)}#${review.appendIndex ?? ""}`;
 }
 
 function queueStateOf(index: number, openIndex: number | null, decision: CompareDecision): QueueState {
@@ -165,7 +157,7 @@ function QueueRow({
   onOpen: () => void;
   onDecide: (decision: CompareDecision) => void;
 }): ReactElement {
-  const label = targetLabel(review.entry);
+  const label = reviewTargetLabel(review.entry);
   const cleared = isClearedRewrite(review.entry);
   return (
     <Row

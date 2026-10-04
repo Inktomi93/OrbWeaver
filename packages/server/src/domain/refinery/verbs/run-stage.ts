@@ -162,7 +162,8 @@ async function executeResolved(
   assertStageBudgetFits(pass);
   const view = await dispatchStage(ctx, { ownerId, stage, isRefinement, prior, pass });
 
-  // A run makes the session live again (status is a roster label, never a lock — design §9.2).
+  // A run makes the session live again: `completed` locks only a repeat Apply to the live card, and a new
+  // run is a new round to apply.
   await ctx.db.update(refinerySessions).set({ status: "active", updatedAt: pass.meta.createdAt }).where(eq(refinerySessions.id, sessionId));
   return view;
 }

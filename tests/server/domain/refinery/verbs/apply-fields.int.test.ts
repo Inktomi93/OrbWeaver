@@ -45,7 +45,7 @@ test("accepted entries land on the LIVE card, snapshot-first, session completes"
   expect(snaps[0]?.label).toBe(`auto: before refinery apply · ${session.id}`);
   // …and it holds the PRE-apply description (reversibility — the snapshot is the undo).
   expect(snaps[0]?.content.description).toBe("A meticulous keeper of records who says {{char}} likes {{user}}.");
-  // An apply completes the session (a label, not a lock).
+  // An apply completes the session: the lock on a repeat Apply until a run re-opens it.
   const updated = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
   expect(updated.status).toBe("completed");
   // The REFINERY half announces exactly once per write (start · rewrite run · this apply) and NOTHING
@@ -90,7 +90,7 @@ test("one refused entry refuses the WHOLE apply: nothing lands, no snapshot, eve
   expect((await h.svc.getSession({ principal: principal(owner), sessionId: session.id })).status).toBe("active");
 });
 
-test("a completed session refuses a repeat apply and a copy until a stage run re-opens it", async () => {
+test("a completed session refuses a repeat apply until a stage run re-opens it; a copy is still allowed", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_af_done" });
   const h = makeRefineryHarness(db);
@@ -103,11 +103,12 @@ test("a completed session refuses a repeat apply and a copy until a stage run re
   await expect(h.svc.applyFields({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "description" }] })).rejects.toBeInstanceOf(
     RefinerySessionCompletedError,
   );
-  await expect(h.svc.applyAsCopy({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "description" }] })).rejects.toBeInstanceOf(
-    RefinerySessionCompletedError,
-  );
   // Exactly the one snapshot the first apply took.
   expect(await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId))).toHaveLength(1);
+  // A copy is a branch off the reviewed rewrite, never the commit — the lock does not apply to it. (The live
+  // description moved under the pin when the apply landed, so the copy re-confirms that conflict.)
+  const copy = await h.svc.applyAsCopy({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "description", confirmDiverged: true }] });
+  expect(copy.character).not.toBeNull();
 
   h.queueReply(rewriteReply());
   await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });

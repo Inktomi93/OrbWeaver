@@ -18,7 +18,7 @@ import { appendedRewrites, GREETING_SLOTS_MAX, isAppendedRewrite, isClearedRewri
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { RefineryContext } from "../context.ts";
-import { RefinerySessionCompletedError, RefineryStageNotReadyError } from "../contract/errors.ts";
+import { RefineryStageNotReadyError } from "../contract/errors.ts";
 import type { AcceptedField } from "../contract/params.ts";
 import type { AcceptBelts, AcceptVerdict, AppliedFieldKind, AppliedFieldRef, ApplyDropReason, DroppedField, RefinerySessionView } from "../contract/results.ts";
 import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
@@ -365,9 +365,6 @@ export async function resolveApplyBasis(
   if (liveCard === undefined) {
     throw new DomainNotFoundError("character", session.characterId);
   }
-  if (session.status === "completed") {
-    throw new RefinerySessionCompletedError();
-  }
   const { applied, dropped, chosen } = partitionAccepts(accepts, {
     rewriteFields: rewrite.data.fields,
     selectedFields: session.selection.fields,
@@ -379,8 +376,8 @@ export async function resolveApplyBasis(
     liveCard,
   });
   const cutoff = { createdAt: rewriteRow.createdAt, id: rewriteRow.id };
-  // ALL-OR-NOTHING: the kept set is one reviewed decision, so one refused entry refuses the whole apply.
-  // Writing the survivors would tell the user "applied" while silently leaving some kept changes out.
+  // ATOMIC (owner ruling — Apply is a commit, Keep/Discard is staging): one refused entry refuses the whole
+  // apply. Recovery is the user discarding the refused entries explicitly, never a silent partial write.
   if (dropped.length > 0) {
     return { session, liveCard, applied: [], dropped, chosen: [], rewriteRunCutoff: cutoff };
   }

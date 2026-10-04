@@ -33,6 +33,7 @@
 import type { RefinerySelection, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { RefinerySessionId } from "@orb/kit/ids";
+import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -51,7 +52,6 @@ import {
   useSelectedRefinerySessionId,
 } from "#state";
 import { ApplyOutcome } from "../components/apply-outcome.tsx";
-import type { OutcomeState } from "../components/apply-row.tsx";
 import { ApplyRow } from "../components/apply-row.tsx";
 import { LaneRunControl, SessionPreflightWarn } from "../components/lane-run-control.tsx";
 import { ManualRewriteDialog } from "../components/manual-rewrite-dialog.tsx";
@@ -64,7 +64,9 @@ import { SessionMasthead } from "../components/session-masthead.tsx";
 import { useIterateRefinery, useRunRefineryStage, useSubmitManualRewrite, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns } from "../hooks/use-refinery-sessions.ts";
-import { keptAcceptsOf, useRewriteDecisions } from "../hooks/use-rewrite-decisions.ts";
+import { keptAcceptsOf, refusedIndexesOf, useRewriteDecisions } from "../hooks/use-rewrite-decisions.ts";
+import type { OutcomeState } from "../hooks/use-terminal-acts.ts";
+import { useTerminalActs } from "../hooks/use-terminal-acts.ts";
 import { manualTargetsOf } from "../lib/manual-targets.ts";
 import { preflightViewOf } from "../lib/preflight-warn.ts";
 import { reviewEntriesOf } from "../lib/review-entries.ts";
@@ -144,14 +146,22 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
   );
   const running = runStage.isPending || iterate.isPending;
 
-  const rewriteEntries = rewriteEntriesFor(lanes.rewriteRun, card, view);
-  const { decided, decide } = useRewriteDecisions({
+  const allRewriteEntries = rewriteEntriesFor(lanes.rewriteRun, card, view);
+  // An entry the verb would refuse whatever is decided is never offered a Keep (it would refuse the batch).
+  const rewriteEntries = allRewriteEntries.filter((entry) => entry.refusal === undefined);
+  const { decided, decide, decideEach } = useRewriteDecisions({
     sessionId,
     rewriteRunId: lanes.rewriteRun?.id ?? null,
     entries: rewriteEntries,
     persisted: view.rewriteDecisions,
   });
   const keptAccepts = keptAcceptsOf(rewriteEntries, decided);
+  const acts = useTerminalActs({ sessionId, armedRewriteId, onOutcome: setOutcome });
+  const recovery = recoveryOf(outcome, rewriteEntries, decided, (refused, remaining): void => {
+    // Staged first, so the discard is visible and persists; then the same atomic act on what is left.
+    decideEach(refused, false);
+    acts.run(outcome?.verb ?? "apply", remaining);
+  });
   const manualTargets = manualTargetsOf(view.selection, card);
   const backToLatest = (): void => setRefineryViewedRun(null);
 
@@ -183,7 +193,9 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
       <Stack className="pt-block pb-gutter" data-testid={testId("refineryContent")} gap="block">
         <SessionMasthead
           anchoredAt={view.createdAt}
-          applied={outcome !== null && outcome.applied.length > 0}
+          // The live card took this session's commit: the server's lock, or an Apply this view just made. A copy
+          // is a branch and leaves the live card untouched, so it never flips this.
+          applied={view.status === "completed" || (outcome?.verb === "apply" && outcome.applied.length > 0)}
           cardName={card.name}
           characterId={view.characterId}
           onEditScope={(): void => setScopeOpen(true)}
@@ -223,6 +235,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
                 behind={lanes.rewrite.behind}
                 decided={decided}
                 entries={rewriteEntries}
+                unapplicable={allRewriteEntries.filter((entry) => entry.refusal !== undefined)}
                 focal={lanes.rewrite.focal}
                 onBackToLatest={backToLatest}
                 onDecide={decide}
@@ -256,6 +269,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
               setOutcome(null);
               setScopeOpen(true);
             }}
+            recovery={recovery}
             onRerunRewrite={(): void => {
               setOutcome(null);
               runStage.mutate({ sessionId, stage: "rewrite" }, { onSuccess: (run): void => noteLanded(run.id) });
@@ -330,6 +344,28 @@ function useScopeDoor(): { readonly open: boolean; readonly setOpen: (open: bool
     }
   };
   return { open: openedHere || requestedDoor === "scope", setOpen };
+}
+
+/** The refused-apply recovery (owner ruling: Apply is atomic, recovery is an explicit discard): which kept
+ *  entries the act refused and what would remain. Null when nothing was refused or nothing would remain. */
+function recoveryOf(
+  outcome: OutcomeState | null,
+  entries: ReturnType<typeof reviewEntriesOf>,
+  decided: readonly CompareDecision[],
+  run: (refused: readonly number[], remaining: ReturnType<typeof keptAcceptsOf>) => void,
+): { remaining: number; refused: number; onPress: () => void } | null {
+  if (outcome === null || outcome.applied.length > 0 || outcome.dropped.length === 0) {
+    return null;
+  }
+  const refused = refusedIndexesOf(entries, outcome.dropped).filter((i) => decided[i] === true);
+  const remaining = keptAcceptsOf(
+    entries,
+    decided.map((d, i) => (refused.includes(i) ? false : d)),
+  );
+  if (refused.length === 0 || remaining.length === 0) {
+    return null;
+  }
+  return { remaining: remaining.length, refused: refused.length, onPress: (): void => run(refused, remaining) };
 }
 
 /** The reviewable entries for the chosen rewrite run (empty until one settles). */
