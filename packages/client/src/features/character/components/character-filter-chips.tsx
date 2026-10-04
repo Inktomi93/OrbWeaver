@@ -58,6 +58,8 @@ export interface CharacterFilterChipsProps {
   /** The tag-library read is still in flight — the rail RESERVES the lines the vocabulary will land as,
    *  instead of shoving the character list down when it arrives. */
   readonly vocabularyPending: boolean;
+  /** The tag-library read succeeded with nothing in it — the only state that may say "no tags yet". */
+  readonly vocabularyEmpty: boolean;
   /** What the pane's live region SAYS about the current lens ("12 characters"). Spoken, not printed
    *  (#518): the visible census has one home and it is the LIST band. See the datum line's own note. */
   readonly resultLabel: string;
@@ -88,6 +90,7 @@ export function CharacterFilterChips({
   tagFilter,
   availableTags,
   vocabularyPending,
+  vocabularyEmpty,
   resultLabel,
   open,
   onToggleOpen,
@@ -154,7 +157,7 @@ export function CharacterFilterChips({
           a two-list rail re-orders under the pointer the moment a chip is switched on (the exact reshuffle
           the datum line was moved out of the control line to stop). `aria-expanded` is the load-bearing
           half; APG lists `aria-controls` as optional for a disclosure. */}
-      <VocabularyDisclosure hasTags={vocabularyPending || availableTags.length > 0} onToggle={onToggleOpen} open={open} />
+      <VocabularyDisclosure hasTags={availableTags.length > 0} noTagsYet={vocabularyEmpty} onToggle={onToggleOpen} open={open} />
       {activeCount > 0 ? <RailAction accessibleName="Clear all filters" label="Clear all" onClick={onClearFilters} /> : null}
       {/* The panel element exists in BOTH states so the collapsed trigger's `aria-controls` resolves to a
           real node; only its contents are conditional. `hidden` (the Tailwind utility, i.e. `display:none`)
@@ -256,22 +259,21 @@ const CLOSED_DISCLOSURE_LABEL_NO_TAGS = "Favorites & archived";
 function VocabularyDisclosure({
   open,
   hasTags,
+  noTagsYet,
   onToggle,
 }: {
   readonly open: boolean;
-  /** Is there a tag vocabulary behind this door at all? `true` WHENEVER THE ANSWER IS NOT IN HAND, which is
-   *  the honest polarity and also a bounded claim: `tag.listTagFilterVocabulary` is READ ONLY FOR A REASON
-   *  (#502 — the disclosure is open, or a tag filter is persisted), so on a cold first visit the query is
-   *  `enabled: false`, reports `isPending`, and this control genuinely does not know. It says the shorter,
-   *  true-either-way thing only once the read has SETTLED EMPTY — after which the answer is cached and the
-   *  collapsed label stays honest too. An un-computable fact is never badged; #502's gate is not reopened
-   *  to make a label shorter. */
+  /** Is there a tag vocabulary behind this door? Only a LOADED, non-empty one says so: the read is gated
+   *  (#502 — the disclosure is open, or a tag filter is persisted), so on a cold visit the label stays the
+   *  shorter, true-either-way one and the tags join it once the list has arrived. */
   readonly hasTags: boolean;
+  /** The read settled EMPTY. A cold (gated) or errored read knows nothing, so it never says "no tags yet". */
+  readonly noTagsYet: boolean;
   readonly onToggle: () => void;
 }): ReactElement {
   const closedLabel = hasTags ? CLOSED_DISCLOSURE_LABEL : CLOSED_DISCLOSURE_LABEL_NO_TAGS;
   const openName = hasTags ? "Fewer filters — hide the tag vocabulary" : "Fewer filters — hide the filter options";
-  const closedName = hasTags ? `${closedLabel} — show more filters` : `${closedLabel} — show more filters, no tags yet`;
+  const closedName = noTagsYet ? `${closedLabel} — show more filters, no tags yet` : `${closedLabel} — show more filters`;
   return <RailAction accessibleName={open ? openName : closedName} expanded={open} label={open ? "Fewer filters" : closedLabel} onClick={onToggle} />;
 }
 

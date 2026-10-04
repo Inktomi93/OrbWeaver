@@ -228,16 +228,7 @@ function FieldsResults({
       <CorpusResultsList label={label} retainFinderScroll={retainFinderScroll}>
         {hits.data.hits.map((hit, index) => (
           <Stack key={hit.characterId} role="listitem">
-            <CharacterHitRow
-              characterId={hit.characterId}
-              name={hit.name}
-              avatarHash={hit.avatarHash}
-              genre={null}
-              tone={null}
-              pitch={null}
-              rank={index + 1}
-              relevance={null}
-            />
+            <CharacterHitRow characterId={hit.characterId} name={hit.name} avatarHash={hit.avatarHash} genre={null} tone={null} pitch={null} rank={index + 1} />
           </Stack>
         ))}
       </CorpusResultsList>
@@ -279,7 +270,6 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
               tone={hit.tone}
               pitch={hit.elevatorPitch}
               rank={index + 1}
-              relevance={hit.relevance}
             />
           </Stack>
         ))}
@@ -301,7 +291,7 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
               title={segment.chatTitle ?? "Untitled chat"}
               subtitle={snippetForDisplay(segment.snippet)}
               subtitleWrap={true}
-              meta={`${index + 1} · ${percent(segment.relevance)}`}
+              meta={String(index + 1)}
             />
           </Stack>
         ))}

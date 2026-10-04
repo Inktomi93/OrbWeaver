@@ -41,3 +41,13 @@ export function ListBandInShell({ accent, count, withAction = false }: BandInShe
     </div>
   );
 }
+
+/** The band cluster in a flex box narrower than its title plus a census — the width a docked list gives it
+ *  beside its action. */
+export function NarrowBand({ count, title }: { readonly count: string; readonly title: string }): ReactElement {
+  return (
+    <div style={{ display: "flex", width: "11rem", alignItems: "center", justifyContent: "space-between" }}>
+      <ListPaneHeader count={count} title={title} />
+    </div>
+  );
+}

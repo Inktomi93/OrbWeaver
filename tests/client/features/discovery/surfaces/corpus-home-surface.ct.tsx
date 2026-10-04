@@ -1132,6 +1132,27 @@ test("#556: the overview's chart canvases stay inside a budget (the 287ms attrib
 // 200 of 320 characters — rendered as eight names under a bare heading, with no
 // denominator anywhere. A reader concludes they have eight unplayed cards.
 
+/** The rows Never played shows before Show all. */
+const NEVER_PLAYED_HEAD_ROWS = 8;
+
+// Never played flows in the page: a short head, no scroller of its own, and "Show all" for the rest.
+test("the never-played list flows with the page and reveals the rest on Show all", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
+  const component = await mount(<CorpusHomePopulatedStory />);
+  await settled(page);
+
+  const list = component.getByRole("list", { name: "Never played characters" });
+  await expect(list).toBeVisible();
+  // Head only: fewer rows than the library holds, and none of them in a scroller of their own.
+  await expect(list.getByRole("listitem")).toHaveCount(NEVER_PLAYED_HEAD_ROWS);
+  const holdsAllRows = (): Promise<boolean> => list.evaluate((el) => el.scrollHeight <= el.clientHeight);
+  await expect.poll(holdsAllRows).toBe(true);
+
+  await component.getByRole("button", { name: /^Show all/u }).click();
+  await expect(list.getByRole("listitem")).toHaveCount(UNUSED.length);
+  await expect.poll(holdsAllRows).toBe(true);
+});
+
 test("#557: the never-played section states how many there are (P2-4)", async ({ mount, page }) => {
   await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);

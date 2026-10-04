@@ -134,11 +134,7 @@ const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => 
     <ExampleMessagesField form={form} trusted={trusted} allowExternalMedia={allowExternalMedia} spoilerBlur={spoilerBlur} suggestions={suggestions} />
   ),
   creatorNotes: ({ form, suggestions }) => (
-    <form.AppField name="creatorNotes">
-      {(field): ReactElement => (
-        <field.MacroField label="Creator notes" hint="Notes for humans — never sent to the model." suggestions={suggestions} rows={8} />
-      )}
-    </form.AppField>
+    <form.AppField name="creatorNotes">{(field): ReactElement => <field.MacroField label="Creator notes" suggestions={suggestions} rows={8} />}</form.AppField>
   ),
   systemPrompt: ({ form, suggestions }) => (
     <SpoilerMacroField

@@ -33,7 +33,7 @@ import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { CorpusRunJobEmptyState } from "../components/corpus-run-job-empty-state.tsx";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
-import { percent } from "../lib/corpus-vocabulary.ts";
+import { matchWord, percent } from "../lib/corpus-vocabulary.ts";
 
 /** The refinery rubric is a weighted average, so one decimal is the honest resolution (the character
  *  overview card's own `REFINERY_SCORE_DECIMALS` reads the same value the same way). */
@@ -161,11 +161,8 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
 
       {dossier.portrait !== null ? (
         <Section heading="Portrait alignment">
-          {/* ONE SIMILARITY VOCABULARY (side-eye corpus re-pass B8). This shipped "Card ↔ art cosine: 0.25" —
-              an engineer's unit with no stated scale, on a surface that says 66% for the same KIND of number
-              two sections down. Same rounding as {@link Relevance}, so a reader who has learned what 74%
-              means beside a neighbour does not have to learn a second scale to read this line. */}
-          <Text voice="gloss">Card ↔ art match: {percent(dossier.portrait.alignment)}</Text>
+          {/* Spoken in words (`matchWord`), the same reading the Visuals tab uses — never a bare percentage. */}
+          <Text voice="gloss">Card ↔ art match: {matchWord(dossier.portrait.alignment)}</Text>
         </Section>
       ) : null}
 

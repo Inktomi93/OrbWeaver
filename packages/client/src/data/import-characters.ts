@@ -19,6 +19,8 @@ const IMPORT_FIELD = "file";
  *  route — so a caller reading an older/incomplete body must not assume the field survived the cast. */
 interface ImportedCardResult {
   readonly filename: string | null;
+  /** The character the card became — or, for a byte-identical re-import, the one already in the library. */
+  readonly characterId: string;
   readonly created: boolean;
   readonly notes?: readonly string[];
 }

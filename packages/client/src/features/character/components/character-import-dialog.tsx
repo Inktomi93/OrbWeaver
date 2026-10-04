@@ -6,12 +6,15 @@
 // so "it didn't throw" is never a success signal: an all-failed batch says WHY (the server's own reason —
 // the `card_unreadable` throw in domain/import), and a partial says how many of how many.
 
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { ReactElement } from "react";
 import { FormDialog } from "#components";
 import type { CardImportResult } from "#data";
 import { importCharacters, useInvalidation } from "#data";
 import { notify } from "#lib";
+import { selectCharacter } from "#state";
 
 const CARD_ACCEPT = ".png,.json,image/png,application/json";
 
@@ -46,7 +49,7 @@ export interface CharacterImportDialogProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-/** The card-import dialog: drop PNG/JSON → upload → toast the real outcome → close when something landed. */
+/** The card-import dialog: drop PNG/JSON → upload → toast the real outcome → open the imported card and close when something landed. */
 export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDialogProps): ReactElement {
   const invalidation = useInvalidation();
 
@@ -64,6 +67,11 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
         }
         // A raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate manually.
         invalidation.invalidateUser({ type: "charactersChanged" });
+        // Open what landed, like Create does — the first card of the batch when several came in.
+        const [first] = result.imported;
+        if (first !== undefined) {
+          selectCharacter(castId<CharacterId>(first.characterId));
+        }
         onOpenChange(false);
       },
       () => notify.error("Couldn't import the card."),

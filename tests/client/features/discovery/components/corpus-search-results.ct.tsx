@@ -38,6 +38,7 @@ import { CORPUS_PREVIEW_COVERAGE, corpusDigestSource, corpusSceneSource } from "
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { CorpusFieldsSearchStory, CorpusListSurfaceBusStory, CorpusListSurfaceNavStory, CorpusSearchToDossierStory } from "../_ct-stories.tsx";
+import { pickSearchTarget } from "../search-target.ts";
 
 /**
  * THE CORPUS SECTION'S AMBIENT READS (#649) — spread FIRST into every `routeTrpc` call in this file.
@@ -146,36 +147,30 @@ const MEMORY_HITS: TrpcRoutes<"search.search"> = {
  *  hit's TEXT, never its role — a role barrier would make every test in this file fail on the same line and
  *  hide which assertion is actually red. */
 async function searchMemories(component: ReturnType<Page["locator"]>): Promise<void> {
-  await component.getByRole("button", { name: "Search Memories" }).click();
+  await pickSearchTarget(component, "Memories");
   await component.getByRole("combobox", { name: "Search your corpus" }).fill("parcel sorting");
   await expect(component.getByText(DEPOT_TEXT)).toBeVisible();
 }
 
-test("a closer memory reads a HIGHER relevance than a further one", async ({ mount, page }) => {
+test("a search row prints its rank, never a raw similarity percentage", async ({ mount, page }) => {
   await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...MEMORY_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
-  await expect(component.getByText("88%")).toBeVisible();
-  await expect(component.getByText("61%")).toBeVisible();
-  // The anti-informative reading the forensics measured: every good hit rendered `0.00`.
+  await expect(component.getByText("88%")).toHaveCount(0);
+  await expect(component.getByText("61%")).toHaveCount(0);
   await expect(component.getByText("0.00")).toHaveCount(0);
 });
 
-// #537 — the score used to ride ListRow's `actions`, which is a SIBLING of the clickable body by the
-// primitive's own contract: the number every sighted reader ranks the list by reached a screen reader as
-// nothing at all. `meta` is the slot for exactly this (its prop doc names the defect: "unlike a stamp
-// stranded in the `actions` sibling") — rendered inside the row's accessible content and carried on the
-// body's `aria-describedby`, so the row is announced as "<room>, <memory> 88%".
-test("#537 a hit's relevance is INSIDE the row's own button, on its accessible description", async ({ mount, page }) => {
+// #537 — the rank datum rides ListRow's `meta`, not the `actions` sibling (which reaches a screen reader as
+// nothing): inside the row's own button and carried on the body's `aria-describedby`.
+test("#537 a hit's rank is INSIDE the row's own button, on its accessible description", async ({ mount, page }) => {
   await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...MEMORY_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
   await searchMemories(component);
   const row = component.getByRole("button", { name: NAMED_ROOM });
-  // The percent is a descendant of the row's BODY (the button itself), not of a sibling cluster.
-  await expect(row.getByText("88%")).toBeVisible();
-  // …and it is wired: the body's aria-describedby resolves to text containing the number.
+  await expect(row.getByText("1", { exact: true })).toBeVisible();
   await expect
     .poll(
       async () =>
@@ -184,7 +179,7 @@ test("#537 a hit's relevance is INSIDE the row's own button, on its accessible d
           return ids.map((id) => el.ownerDocument.getElementById(id)?.textContent ?? "").join(" ");
         }),
     )
-    .toContain("88%");
+    .toContain("1");
 });
 
 test("a memory hit retains its complete generated-summary destination", async ({ mount, page }) => {
@@ -302,7 +297,7 @@ test("coverage follows the returned pool and zero results remain a preview claim
     "search.search": { over: "digests", hits: [], coverage: { requestLimit: 7, candidateLimit: 37, evidencePerCharacter: null, reranked: true } },
   });
   const component = await mount(<CorpusListSurfaceNavStory />);
-  await component.getByRole("button", { name: "Search Memories" }).click();
+  await pickSearchTarget(component, "Memories");
   await component.getByRole("combobox", { name: "Search your corpus" }).fill("absent evidence");
   await expect(component.getByText("No result in this preview.")).toBeVisible();
   await component.getByRole("button", { name: "How search works" }).click();
@@ -372,7 +367,7 @@ const ARIA_DOSSIER = {
 async function searchImages(component: ReturnType<Page["locator"]>, page: Page, extra: TrpcRoutes = {}): Promise<void> {
   await page.route("**/api/blob/*", async (route) => route.fulfill({ body: PIXEL, contentType: "image/png", status: 200 }));
   await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...IMAGE_HITS, ...extra });
-  await component.getByRole("button", { name: "Search Images" }).click();
+  await pickSearchTarget(component, "Images");
   await component.getByRole("combobox", { name: "Search your corpus" }).fill("knight in the rain");
   await expect(component.getByText(WORN_CAPTION)).toBeVisible();
 }
@@ -559,7 +554,7 @@ const SCENE_ROOMS = ["Elora Jan 28", "Elora Jan 28 (2)", "Elora Jan 26"];
 const NUMBERED_HINT = /numbered/;
 
 async function searchScenes(component: ReturnType<Page["locator"]>): Promise<void> {
-  await component.getByRole("button", { name: "Search Scenes" }).click();
+  await pickSearchTarget(component, "Scenes");
   await component.getByRole("combobox", { name: "Search your corpus" }).fill("harbour rain");
   await expect(component.getByText(PASSAGE)).toBeVisible();
 }
@@ -683,7 +678,7 @@ test("a memory body reads as prose — flattened markdown, no raw syntax — and
   await routeTrpc(page, { ...CORPUS_AMBIENT_ROUTES, ...DUPLICATE_HITS });
   const component = await mount(<CorpusListSurfaceNavStory />);
 
-  await component.getByRole("button", { name: "Search Memories" }).click();
+  await pickSearchTarget(component, "Memories");
   await component.getByRole("combobox", { name: "Search your corpus" }).fill("blue parcel");
 
   // Group the prose while preserving every source occurrence as a destination.
@@ -713,6 +708,14 @@ test("a lexical hit renders the name the search returned, with no card-list read
   await expect(results.getByText("The Crimson Court")).toBeVisible();
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the named row above is the settle; no page read may have fired before it.
   expect(trpc.count("character.list")).toBe(0);
+});
+
+test("a hit with nothing to say under its name renders no filler line", async ({ mount, page }) => {
+  await routeTrpc(page, { "search.fields": () => FIELDS_RESULT });
+  const results = await mount(<CorpusFieldsSearchStory />);
+
+  await expect(results.getByText("The Crimson Court")).toBeVisible();
+  await expect(results.locator('[data-slot="list-row-subtitle"]')).toHaveCount(0);
 });
 
 test("a FAILED text search says so, and its Retry re-runs the search", async ({ mount, page }) => {
@@ -852,7 +855,7 @@ test("SCENES: a standalone indexed transcript opens its genuine source moment", 
     },
   });
   const component = await mount(<CorpusListSurfaceNavStory />);
-  await component.getByRole("button", { name: "Search Scenes" }).click();
+  await pickSearchTarget(component, "Scenes");
   await component.getByRole("combobox", { name: "Search your corpus" }).fill("retained transcript");
   await expect(component.getByText("The retained standalone transcript.")).toBeVisible();
   await component.getByRole("button", { name: "Standalone room", exact: true }).click();

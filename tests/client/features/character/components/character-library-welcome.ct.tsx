@@ -25,6 +25,7 @@
 // responder is left alone deliberately: its header states "ordering is the ARRAY's", and thirty-one other
 // mounts are written against that.
 
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { TrpcRoutes } from "../../../../support/node/route-trpc.ts";
@@ -219,7 +220,15 @@ test("#864 the FRESH INSTALL arm — cards exist, nothing chatted, nothing starr
   // The count is the CENSUS — the whole library fits in the page, so it is a number the pane can prove.
   await expect(pane.getByRole("heading", { name: "Shipped with Orbweaver · 3" })).toBeVisible();
   await expect(shelf(pane, "Shipped with Orbweaver · 3").getByRole("button")).toHaveCount(3);
-  await expect(pane.getByText(/the shelves appear when they have something to show/u)).toBeVisible();
+  await expect(pane.getByText(/show up here under Recently chatted/u)).toBeVisible();
+});
+
+test("the landing's intro reads at the body step, not the footnote step", async ({ mount, page }) => {
+  await routeTrpc(page, landingRoutes({ recent: SHIPPED, newest: SHIPPED }));
+  const pane = await mount(<CharacterLibraryWelcomeListModeStory />);
+
+  const intro = pane.getByRole("heading", { name: "Meet your characters" }).locator("xpath=following-sibling::p");
+  await expect(intro).toHaveCSS("font-size", `${Number.parseFloat(TOKENS["text.body"].value) * 16}px`);
 });
 
 test("#520/#532 ONE New door on the plane — the landing's exists only while the list is off screen", async ({ mount, page }) => {

@@ -49,6 +49,8 @@ export interface LibraryScope {
   readonly availableTags: readonly LibraryChipTag[];
   /** The tag-library read is still in flight — the rail reserves the lines the vocabulary will land as. */
   readonly vocabularyPending: boolean;
+  /** The vocabulary read SUCCEEDED and came back empty — the only state that proves the library has no tags. */
+  readonly vocabularyEmpty: boolean;
 }
 
 /** Resolve the library's current scope. Safe to call from BOTH regions in one screen: every read inside is
@@ -90,5 +92,6 @@ export function useLibraryScope(): LibraryScope {
     filtersActive: lens.filtersActive,
     availableTags: tagVocabulary(tagLibrary, tagFilter),
     vocabularyPending: tagLibraryQuery.isPending,
+    vocabularyEmpty: tagLibraryQuery.isSuccess && tagLibrary.length === 0,
   };
 }

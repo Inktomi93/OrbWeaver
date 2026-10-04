@@ -24,6 +24,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { expectInstrumentTierLive } from "../../../../support/browser/tier-liveness.ts";
+import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 import type { TrpcInput, TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { ChatListBandAndSurfaceStory, ChatListHeaderStory, ChatListSurfaceStory } from "../_ct-stories.tsx";
@@ -165,6 +166,31 @@ test("the empty-state New button fires onNewChat (the J2 picker trigger)", async
   await component.getByRole("button", { name: "New chat" }).click();
 
   await expect(page.getByTestId("new-count")).toHaveText("1");
+});
+
+// A room opened from a character's New chat stays out of the library until its first message, so an empty
+// list beside it says the room is coming — but only for a room that WILL join (not a temporary one).
+test("an empty list beside an open, listable room says that room joins after its first message", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], temporary: false, archived: false },
+    "chat.listChats": chatListResponder([]),
+  });
+
+  const component = await mount(<ChatListSurfaceStory activeChatId="chat_started" />);
+  await expect(component.getByText("This chat joins your list after your first message.")).toBeVisible();
+});
+
+test("an empty list beside a temporary room does not promise it a place", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...CHAT_ROOM_ROUTES,
+    "chat.getChat": { ...CHAT_ROOM_ROUTES["chat.getChat"], temporary: true, archived: false },
+    "chat.listChats": chatListResponder([]),
+  });
+
+  const component = await mount(<ChatListSurfaceStory activeChatId="chat_scratch" />);
+  await expect(component.locator('[data-slot="empty-state-title"]')).toHaveText("No chats yet");
+  await expect(component.getByText("This chat joins your list after your first message.")).toHaveCount(0);
 });
 
 test("the search field narrows the rows — the predicate rides the SERVER query, not a client pass", async ({ mount, page }) => {
@@ -621,6 +647,17 @@ test("the per-row kebab opens the actions menu", async ({ mount, page }) => {
   await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
 });
 
+test("the delete confirm names the chat it is about to delete", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE, UNTITLED]) });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).hover();
+  await component.getByRole("button", { name: ADVENTURE_MENU }).click();
+  await page.getByRole("menuitem", { name: "Delete" }).click();
+
+  await expect(page.getByRole("alertdialog", { name: /A grand adventure/u })).toBeVisible();
+});
+
 // The lifecycle one-home ruling: EXPORT homes on the row kebab (import is the band's ghost; the room
 // carries no lifecycle chrome). All THREE formats the host-gated route serves are plain download links —
 // a non-host member's GET 404s at the verb, so the item can't leak a plane the requester can't already
@@ -907,6 +944,15 @@ test("Arm B: the faces strip curates the recent cast, and tapping one SCOPES the
   // library's favorites strip, which OPENS an editor, keeps aria-current). The source moved in the nightly
   // fix-all; this assertion was its unswept half.
   await expect(face).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the character filter chip wears the accent token, not the info blue", async ({ mount, page }) => {
+  await routeTrpc(page, { ...CHAT_ROOM_ROUTES, "chat.listChats": chatListResponder([ADVENTURE]), "character.list": CHARACTERS });
+  const component = await mount(<ChatListSurfaceStory />);
+
+  await component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true }).click();
+  const chip = component.locator('[data-slot="badge"]').getByText("Aria Nightshade", { exact: true });
+  await expect(chip).toHaveCSS("color", resolvedTokenColor("color.primary"));
 });
 
 // Mock order (side-eye P2b/P2a): the faces are the shortcut you arrive for, so the strip is the FIRST thing

@@ -35,6 +35,8 @@ export interface ChatListRowMenuProps {
   readonly chatId: ChatId;
   /** The row's current AUTHORED title (seeds the rename input) — null renders as an empty field. */
   readonly title: string | null;
+  /** The title the row shows (authored, else the participants' names) — the delete confirm names the chat by it. */
+  readonly displayTitle: string;
   /** The row's DISAMBIGUATED name (`chatRowActionName` — derived display title + the stamp the row shows) —
    *  names the kebab trigger so the per-row menus are distinguishable, not N identical "Chat actions"
    *  (finding #4), and not N identical "Chat actions for Aveline" in her projection (side-eye P3a). */
@@ -46,7 +48,7 @@ export interface ChatListRowMenuProps {
 }
 
 /** The kebab menu + its rename/delete overlays for one chat-list row. */
-export function ChatListRowMenu({ actions, chatId, title, rowName, starred, archived, onDeleted }: ChatListRowMenuProps): ReactElement {
+export function ChatListRowMenu({ actions, chatId, title, displayTitle, rowName, starred, archived, onDeleted }: ChatListRowMenuProps): ReactElement {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameValue, setRenameValue] = useState("");
 
@@ -74,7 +76,7 @@ export function ChatListRowMenu({ actions, chatId, title, rowName, starred, arch
         label={`Chat actions for ${rowName}`}
         reveal={true}
         destructive={{
-          title: "Delete this chat?",
+          title: `Delete "${displayTitle}"?`,
           description: "This permanently deletes the chat and its messages for everyone. This can't be undone.",
           onConfirm: confirmDelete,
         }}

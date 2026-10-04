@@ -24,7 +24,7 @@ import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter } from "#state";
 import { toBarItems } from "../lib/corpus-charts.ts";
-import { facetLabel, percent } from "../lib/corpus-vocabulary.ts";
+import { facetLabel, matchWord } from "../lib/corpus-vocabulary.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 import { ParamSelect } from "./corpus-controls.tsx";
 
@@ -92,14 +92,11 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
         <Text voice="gloss">No portrait↔card alignment computed yet.</Text>
       ) : (
         <Stack gap="block">
-          {/* ONE SIMILARITY VOCABULARY, EVERYWHERE (side-eye corpus re-pass #2, P2-5). These read "Mean fit
-              0.31" and a per-row badge of "0.09" while the dossier one pane over said 25% for the SAME
-              measurement — a portrait↔card cosine. Three scales for one number is three things to learn;
-              the surface has one spelling and it lives in `../lib/corpus-vocabulary.ts`. */}
+          {/* The portrait↔card cosine is spoken in WORDS here and in the dossier (`matchWord`), never as a bare percentage. */}
           <Row gap="block" className="flex-wrap">
             <StatFigure label="Scored" value={report.count.toString()} />
-            <StatFigure label="Mean fit" value={percent(report.mean)} />
-            <StatFigure label="Median fit" value={percent(report.median)} />
+            <StatFigure label="Mean fit" value={matchWord(report.mean)} />
+            <StatFigure label="Median fit" value={matchWord(report.median)} />
           </Row>
           <Text voice="kicker">Worst-matched art</Text>
           <Stack gap="row" role="list">
@@ -113,7 +110,7 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
                 subtitle={[character.artStyle, character.rating].filter((v) => v !== null && v !== "").join(" · ")}
                 actions={
                   <Badge intent="neutral" size="sm">
-                    {percent(character.alignment)}
+                    {matchWord(character.alignment)}
                   </Badge>
                 }
               />

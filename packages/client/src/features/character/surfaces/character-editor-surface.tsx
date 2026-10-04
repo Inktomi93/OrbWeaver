@@ -28,7 +28,7 @@ import { notify, useFocusOnMount } from "#lib";
 import { clearCharacterFacet, selectCharacterFacet, useSelectedCharacterFacetId } from "#state";
 import { CharacterFacetEditor } from "../components/character-facet-editor.tsx";
 import { CharacterFacetList } from "../components/character-facet-list.tsx";
-import { CharacterHeroBand } from "../components/character-hero-band.tsx";
+import { CharacterHeroBand, HERO_ECHO_CLASS } from "../components/character-hero-band.tsx";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
@@ -259,7 +259,8 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
                 {(values): ReactElement => (
                   <Text
                     aria-label={`${totalTokenCount(values, activeGreetingIndex)} tokens total, ${permanentTokenCount(values)} always sent`}
-                    className="font-mono tabular-nums"
+                    // Yields while the CONTEXT band is open: its `N tokens` chip is the same number.
+                    className={`font-mono tabular-nums ${HERO_ECHO_CLASS}`}
                     title={`${permanentTokenCount(values)} tokens are always sent; the rest depend on the greeting in use.`}
                     voice="gloss"
                   >

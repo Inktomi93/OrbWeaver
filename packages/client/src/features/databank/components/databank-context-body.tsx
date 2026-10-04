@@ -31,12 +31,11 @@ import type { DocumentId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FileText, Icon, SlidersHorizontal } from "@orb/ui/icons";
-import { Row, Section, Stack, Surface } from "@orb/ui/layout";
-import { Switch } from "@orb/ui/switch";
+import { Section, Stack, Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryBoundary } from "#components";
+import { QueryBoundary, SettingSwitchRow } from "#components";
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { openConfigTo, useSelectedDocumentId } from "#state";
 import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations.ts";
@@ -194,26 +193,26 @@ function EverywhereSection({ documentId, name }: { readonly documentId: Document
 
   return (
     <Section kicker="Everywhere">
-      <Row align="center" gap="row" justify="between">
-        <Text voice="gloss">Feed this document to every chat, on top of any per-chat or per-character attachments.</Text>
-        {isPending ? (
-          <Text role="status" voice="gloss">
-            {isGlobal ? `Stopping ${name} everywhere…` : `Feeding ${name} everywhere…`}
-          </Text>
-        ) : null}
-        <Switch
-          aria-label={isGlobal ? `Stop feeding ${name} to every chat` : `Feed ${name} to every chat`}
-          checked={isGlobal}
-          disabled={isPending}
-          onCheckedChange={(on): void => {
-            if (on) {
-              attach.mutate({ documentId });
-            } else {
-              detach.mutate({ documentId });
-            }
-          }}
-        />
-      </Row>
+      {/* A VISIBLE, CONSTANT NAME: the switch is labelled "Use in every chat" and `checked` carries the state,
+          so the name never flips with it. */}
+      <SettingSwitchRow
+        checked={isGlobal}
+        description="Feed this document to every chat, on top of any per-chat or per-character attachments."
+        disabled={isPending}
+        label="Use in every chat"
+        onChange={(on): void => {
+          if (on) {
+            attach.mutate({ documentId });
+          } else {
+            detach.mutate({ documentId });
+          }
+        }}
+      />
+      {isPending ? (
+        <Text role="status" voice="gloss">
+          {isGlobal ? `Stopping ${name} everywhere…` : `Feeding ${name} everywhere…`}
+        </Text>
+      ) : null}
     </Section>
   );
 }

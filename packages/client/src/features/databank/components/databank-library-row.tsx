@@ -71,9 +71,9 @@ export function DatabankLibraryRow({
   // 2026-08-19 N-5) the empty extraction's re-upload/paste, which Reindex cannot fix. Mutually exclusive by
   // arithmetic (`empty` is terminal, so it can never be the stall overlay), so one `??` is the whole rule.
   const remedy = ingestStallHint(document, nowMs) ?? ingestEmptyHint(document);
-  // ONE pair of names for both the inline toggle and its kebab mirror, so the two can never drift.
-  const everywhereOn = `Stop feeding ${document.name} to every chat`;
-  const everywhereOff = `Feed ${document.name} to every chat`;
+  // ONE name for the inline toggle in both states: `aria-pressed` carries the state, so a name that also
+  // flipped would announce the opposite of what is on ("Stop feeding…, pressed").
+  const everywhereName = `Use ${document.name} in every chat`;
   const toggleGlobal = (): void => onToggleGlobal(document.id, !global);
 
   return (
@@ -112,11 +112,13 @@ export function DatabankLibraryRow({
           // never fills. Its rest delta is PRESENCE, not hue: at `when-on` an un-global row renders no globe
           // at all until the row is hovered / focused within.
           icon={Globe}
-          labelOff={everywhereOff}
-          labelOn={everywhereOn}
+          labelOff={everywhereName}
+          labelOn={everywhereName}
           onToggle={toggleGlobal}
           pressed={global}
-          pressedClassName="text-primary"
+          // ON IS A FILLED CHIP, not only a hue: the unpressed globe a hover reveals and the pressed one
+          // otherwise read as the same outline.
+          pressedClassName="bg-primary/15 text-primary"
           rest="when-on"
         />
       }

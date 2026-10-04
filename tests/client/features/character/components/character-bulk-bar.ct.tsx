@@ -4,6 +4,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { resolvedTokenColor } from "../../../../support/node/resolved-token-color.ts";
 import type {} from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { CharacterBulkBarStory } from "../_ct-stories.tsx";
@@ -26,6 +27,21 @@ test("the bulk actions fit the narrow panel — Delete is not clipped past the e
   const panelRight = (panelBox?.x ?? 0) + (panelBox?.width ?? 0);
   const delRight = (delBox?.x ?? Number.POSITIVE_INFINITY) + (delBox?.width ?? 0);
   expect(delRight).toBeLessThanOrEqual(panelRight);
+});
+
+// The three verbs are one cluster: at the narrowest docked list width they stay on ONE row (the cluster
+// wraps as a whole, never Delete alone), and Delete is the one destructive control.
+test("Tag, Archive and Delete share one row at the narrowest list width, and Delete is destructive", async ({ mount }) => {
+  const component = await mount(<CharacterBulkBarStory width={272} />);
+  const tag = component.getByRole("button", { name: "Tag", exact: true });
+  const archive = component.getByRole("button", { name: "Archive", exact: true });
+  const del = component.getByRole("button", { name: "Delete", exact: true });
+  const [tagBox, archiveBox, delBox] = await Promise.all([tag.boundingBox(), archive.boundingBox(), del.boundingBox()]);
+  expect(tagBox?.y).toBe(archiveBox?.y);
+  expect(archiveBox?.y).toBe(delBox?.y);
+
+  await expect(del).toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
+  await expect(archive).not.toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
 });
 
 test("bulk selection clears only after the durable archive succeeds and remains for retry on rejection", async ({ mount, page }) => {

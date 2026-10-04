@@ -62,7 +62,7 @@ test("CONTENT with nothing open TEACHES what the bank is — never a blank pane"
   await stubDatabank(page);
   const content = await mount(<DatabankDetailStory />);
 
-  await expect(content.getByText("Your databank")).toBeVisible();
+  await expect(content.getByText("Your databank", { exact: true })).toBeVisible();
   // SIDE-AGNOSTIC (side-eye 2026-08-19 N-10, the chat landing's own correction carried here): the LIST pane
   // is a docked column, a slide-over or collapsed, and on a phone the panes stack — a sentence that points
   // "left" is wrong more often than it is right.
@@ -84,9 +84,9 @@ test("the two empty panes do not print the same sentence, and only ONE offers Ad
   await stubDatabank(page, { "databank.listGlobal": () => [] }, []);
   const workspace = await mount(<DatabankWorkspaceStory />);
   await expect(workspace.getByText("No documents yet")).toBeVisible();
-  // The CONTENT pane's welcome is GONE on an empty bank: "Pick a document from the list" names an act the
-  // reader cannot perform, beside a list that is already teaching the real one.
-  await expect(workspace.getByText("Your databank")).toHaveCount(0);
+  // The CONTENT pane explains the Databank instead of standing blank, but never says "Pick a document from
+  // the list" — an act the reader cannot perform on an empty bank.
+  await expect(workspace.getByText("Your databank", { exact: true })).toBeVisible();
   await expect(workspace.getByText(FROM_THE_LIST)).toHaveCount(0);
 
   // The teaching gloss survives exactly once, in the pane that owns the first step.
@@ -100,15 +100,16 @@ test("the two empty panes do not print the same sentence, and only ONE offers Ad
 // both panes — deferring to a pane that is not there would leave a blank CONTENT region and no door at all.
 // The REFUSED arm is pinned in the same breath: the way out is the NAMED shell affordance, never a second Add
 // button minted in this pane (the two-Add-doors finding).
-test("#434 on an empty bank the CONTENT pane stands down — unless the LIST is off screen, where it names the door", async ({ mount, page }) => {
+test("#434 on an empty bank the CONTENT pane explains the Databank — and names the shell door only when the LIST is off screen", async ({ mount, page }) => {
   await stubDatabank(page, { "databank.listGlobal": () => [] }, []);
   const content = await mount(<DatabankDetailListModeStory />);
-  // Boot layout: the LIST is docked (on screen), so this pane says nothing at all.
+  // Boot layout: the LIST is docked (on screen), so this pane explains the Databank without naming a shell door.
   await expect(content.getByRole("button", { name: "take the list off screen" })).toBeVisible();
-  await expect(content.getByText("Your databank")).toHaveCount(0);
+  await expect(content.getByText("Your databank", { exact: true })).toBeVisible();
+  await expect(content.getByText(LIST_PANEL_DOOR)).toHaveCount(0);
 
   await content.getByRole("button", { name: "take the list off screen" }).click();
-  await expect(content.getByText("Your databank")).toBeVisible();
+  await expect(content.getByText("Your databank", { exact: true })).toBeVisible();
   await expect(content.getByText(LIST_PANEL_DOOR)).toBeVisible();
   // No second Add door: the invitation names the shell control that reaches the one real door.
   await expect(content.getByRole("button", { name: "Add a document" })).toHaveCount(0);
@@ -116,7 +117,7 @@ test("#434 on an empty bank the CONTENT pane stands down — unless the LIST is 
   await expect(content.getByText(INGEST_GLOSS_TAIL)).toHaveCount(0);
 
   await content.getByRole("button", { name: "put the list back" }).click();
-  await expect(content.getByText("Your databank")).toHaveCount(0);
+  await expect(content.getByText(LIST_PANEL_DOOR)).toHaveCount(0);
 });
 
 // The POPULATED arm still teaches: with rows in the bank and nothing open, the pane says what it will show —
@@ -132,7 +133,7 @@ test("#434/#445 with documents in the bank and nothing selected, the welcome tea
 }) => {
   await stubDatabank(page);
   const content = await mount(<DatabankDetailListModeStory />);
-  await expect(content.getByText("Your databank")).toBeVisible();
+  await expect(content.getByText("Your databank", { exact: true })).toBeVisible();
   await expect(content.getByText(FROM_THE_LIST)).toBeVisible();
   await expect(content.getByText(LIST_PANEL_DOOR)).toHaveCount(0);
 
@@ -197,6 +198,20 @@ test("the detail states its metadata, keeps its Ready chip, and offers Reindex",
 
   await workspace.getByRole("button", { name: "Rebuild search index for this document" }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "document", documentId: READY_DOC.id } });
+});
+
+// EACH FACT ONCE, ON ONE BASELINE: origin, size and passages are the readout's rows, so the header does not
+// restate them in a subtitle, and a label shares its value's baseline instead of top-aligning two type sizes.
+test("the detail prints origin, size and passages once, and aligns each label to its value's baseline", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const workspace = await mount(<DatabankWorkspaceStory />);
+  await workspace.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  const editor = workspace.locator('[data-slot="databank-detail-editor"]');
+  await expect(editor.getByRole("heading", { name: "The Crimson Court" })).toBeVisible();
+
+  await expect(editor.getByText(/ · .*passages?$/u)).toHaveCount(0);
+  const grid = editor.getByText("Origin", { exact: true }).locator("xpath=..");
+  await expect(grid).toHaveCSS("align-items", "baseline");
 });
 
 // THE DETAIL KEEPS A MEASURE (side-eye sweep 2026-08-03). `justify="between"` label/value rows spend

@@ -222,8 +222,13 @@ const MORE_FILTERS = "Favorites, archived & tags — show more filters";
 const FEWER_FILTERS = "Fewer filters — hide the tag vocabulary";
 const MORE_FILTERS_LABEL = "Favorites, archived & tags";
 
+/** The closed disclosure, by its place in the Filters group — its label depends on whether the tag list has loaded. */
+function filtersDisclosure(component: Locator): Locator {
+  return component.getByRole("group", { name: "Filters" }).getByRole("button", { expanded: false });
+}
+
 async function openFilters(component: Locator): Promise<void> {
-  await component.getByRole("button", { name: MORE_FILTERS }).click();
+  await filtersDisclosure(component).click();
 }
 
 /** The FOOT-of-list progress line (#493) — "30 of 320 loaded", absent once the matched set is fully paged
@@ -422,6 +427,21 @@ test("§4.6 bulk mode reveals row checkboxes + the selection bar", async ({ moun
   await expect(component.getByRole("button", { name: "Tag", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Archive", exact: true })).toBeVisible();
   await expect(component.getByRole("button", { name: "Delete", exact: true })).toBeVisible();
+});
+
+test("Escape leaves select mode from a focused row and drops the selection bar", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  const selectMode = component.getByRole("button", { name: "Select multiple" });
+  await selectMode.click();
+  const pick = component.getByRole("checkbox", { name: selectActionName("Bolt") });
+  await pick.click();
+  await expect(component.getByRole("button", { name: "Tag", exact: true })).toBeVisible();
+
+  await pick.focus();
+  await page.keyboard.press("Escape");
+  await expect(component.getByRole("button", { name: "Tag", exact: true })).toHaveCount(0);
+  await expect(selectMode).toHaveAttribute("aria-pressed", "false");
 });
 
 // D1, RE-AIMED (2026-08-13). The old shape of this pin was "a favorite that lives only on a LATER page is
@@ -744,17 +764,19 @@ test("dropping a card on the Import dialog fires the multipart POST and reports 
     await route.fulfill({
       status: 200,
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ imported: [{ filename: "villain.png", created: true }], failed: [] }),
+      body: JSON.stringify({ imported: [{ filename: "villain.png", characterId: "char_imported_villain", created: true }], failed: [] }),
     });
   });
 
-  await mount(<CharacterLibrarySurfaceStory />);
+  await mount(<CharacterLibrarySurfaceStory showSelection={true} />);
+  await expect(page.getByText("selected: nobody")).toBeVisible();
   await dropFiles(await openImportDialog(page), [A_DROPPED_CARD]);
 
   await expect.poll(() => uploads, { intervals: [20, 50, 100] }).toEqual(["POST"]);
   await expect(page.locator(TOAST_ROOT)).toContainText("Card imported.");
-  // A successful import closes the dialog.
+  // A successful import closes the dialog and opens the card that landed.
   await expect(page.getByRole("dialog", { name: IMPORT_DIALOG_TITLE })).toHaveCount(0);
+  await expect(page.getByText("selected: char_imported_villain")).toBeVisible();
 });
 
 test("a PNG with no character data gets a LOUD toast naming why, and the dialog stays open", async ({ mount, page }) => {
@@ -1930,7 +1952,7 @@ test("#502 the tag vocabulary is NOT read while the filter disclosure is shut �
   // SETTLE on the rendered library — the count below is only meaningful once the pane has finished the
   // reads it does make (a count taken mid-mount would pass for the wrong reason).
   await expect(component.getByText("Tagged One")).toBeVisible();
-  await expect(component.getByRole("button", { name: MORE_FILTERS })).toBeVisible();
+  await expect(filtersDisclosure(component)).toBeVisible();
 
   // Settled snapshot: settled by construction — the two barriers above are the LAST things this pane paints on a
   // cold mount, so every request it was ever going to fire has been recorded. Polling a zero would only
@@ -1984,6 +2006,11 @@ test("#519 the collapsed disclosure advertises what it opens — and the resting
   const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
   await expect(component.getByText("Tagged One")).toBeVisible();
 
+  // Cold, the tag list has not loaded, so the label names only what is certainly there…
+  await expect(filtersDisclosure(component)).not.toContainText("tags");
+  // …and once the list has loaded (open, then close) it names the tags too.
+  await openFilters(component);
+  await component.getByRole("button", { name: FEWER_FILTERS }).click();
   const disclosure = component.getByRole("button", { name: MORE_FILTERS });
   await expect(disclosure).toHaveText(MORE_FILTERS_LABEL);
   await expect(disclosure).toHaveAttribute("aria-expanded", "false");
@@ -1992,6 +2019,33 @@ test("#519 the collapsed disclosure advertises what it opens — and the resting
   const list = component.getByRole("list", { name: "Character library" });
   const [paneBox, listBox] = await Promise.all([component.boundingBox(), list.boundingBox()]);
   expect((listBox?.y ?? 0) - (paneBox?.y ?? 0)).toBeLessThan(RAIL_CHROME_CEILING_PX);
+});
+
+// The accessible name only says "no tags yet" once the vocabulary read SUCCEEDED empty. Cold (the read is
+// gated) it knows nothing, so a tagged library must not be told it has none.
+test("the cold disclosure's accessible name never claims 'no tags yet' for a tagged library", async ({ mount, page }) => {
+  await routeManyTags(page, 12);
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const disclosure = filtersDisclosure(component);
+  await expect(disclosure).toBeVisible();
+  await expect(disclosure).not.toHaveAccessibleName(/no tags yet/u);
+});
+
+test("once the tag read settles empty, the closed disclosure says 'no tags yet'", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...LIBRARY_AMBIENT_ROUTES,
+    "character.list": characterListResponder([ARIA, BOLT]),
+    "chat.listChats": chatListResponder([]),
+    "tag.listTagFilterVocabulary": () => [],
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory width={RAIL_PANE_PX} />);
+  await expect(row(component, "Bolt")).toBeVisible();
+
+  await openFilters(component);
+  await component.getByRole("button", { name: /^Fewer filters/u }).click();
+  await expect(filtersDisclosure(component)).toHaveAccessibleName(/no tags yet/u);
 });
 
 // #523 — the bounded vocabulary's scroller is a keyboard stop (Base UI makes an overflowing viewport

@@ -14,6 +14,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Row } from "@orb/ui/layout";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -79,19 +80,24 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
       {/* `size="sm"` (the SelectionBar usage default) so count + the three actions + clear fit a narrow LIST
           panel without clipping the trailing Delete (the ~337px panel regression). */}
       <SelectionBar count={selectedCount} onClear={onClear}>
-        {characterActionsForScope("bulk").map((action) => (
-          // Bulk archive never toggles (it always archives), so the label is the verb's one name — never
-          // `characterActionLabel`'s toggled face.
-          // QUIETER, AND THE SAME WEIGHT AS ITS SIBLINGS (side-eye 2026-09-02 F10). Delete was the ONLY
-          // filled control in the bar — `bg oklch(0.72 0.19 25)` at the right edge, i.e. the scan position a
-          // reader takes as "confirm", beside two transparent ghosts. §5 error prevention: the irreversible
-          // act must not be the visually primary one. It is a `secondary` like Tag and Archive now; the
-          // destructive INTENT is carried where it belongs, by the AlertDialog confirm below, which states
-          // the count and spells out that it cannot be undone.
-          <Button disabled={isPending} intent="secondary" key={action.id} onClick={bulkHandlers[action.id]} size="sm">
-            {action.label}
-          </Button>
-        ))}
+        {/* ONE CLUSTER, so a narrow pane wraps the three verbs together onto the bar's second line instead of
+            stranding Delete alone. */}
+        <Row gap="field">
+          {characterActionsForScope("bulk").map((action) => (
+            // Bulk archive never toggles (it always archives), so the label is the verb's one name — never
+            // `characterActionLabel`'s toggled face. Delete wears the destructive intent so the irreversible
+            // act reads as one; the AlertDialog confirm below still states the count.
+            <Button
+              disabled={isPending}
+              intent={action.id === "delete" ? "destructive" : "secondary"}
+              key={action.id}
+              onClick={bulkHandlers[action.id]}
+              size="sm"
+            >
+              {action.label}
+            </Button>
+          ))}
+        </Row>
       </SelectionBar>
       <TagPickerDialog
         confirmLabel="Apply"

@@ -95,8 +95,8 @@ test("summarizeBundleCounts carries the counts + notes with an empty per-file li
 test("summarizeCardImport maps the server's REAL result — created→imported, deduped→skipped", () => {
   const summary = summarizeCardImport({
     imported: [
-      { filename: "elara.png", created: true, notes: [] },
-      { filename: "kai.json", created: false, notes: [] },
+      { filename: "elara.png", characterId: "char_elara", created: true, notes: [] },
+      { filename: "kai.json", characterId: "char_kai", created: false, notes: [] },
     ],
     failed: [],
   });
@@ -119,8 +119,8 @@ test("summarizeCardImport maps the server's REAL result — created→imported, 
 test("summarizeCardImport carries each card's own notes onto its outcome — created and deduped alike", () => {
   const summary = summarizeCardImport({
     imported: [
-      { filename: "elara.png", created: true, notes: ["book kept: primary already exists"] },
-      { filename: "kai.json", created: false, notes: ["book kept: primary already exists"] },
+      { filename: "elara.png", characterId: "char_elara", created: true, notes: ["book kept: primary already exists"] },
+      { filename: "kai.json", characterId: "char_kai", created: false, notes: ["book kept: primary already exists"] },
     ],
     failed: [],
   });

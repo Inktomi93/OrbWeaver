@@ -62,7 +62,7 @@ const TAG_SUGGESTION_SKELETON_ROWS = 1;
  *  and avatar-replace affordances on the surface — the band's `h2` and its 36px avatar are a GLANCE, these
  *  are the EDITOR — and hiding an affordance because a read-only copy of its value sits elsewhere would be
  *  a new defect one screen over. */
-const HERO_ECHO_CLASS = "shell-character-hero-echo";
+export const HERO_ECHO_CLASS = "shell-character-hero-echo";
 
 /** The identity/preview subset of the owner card the hero renders — draft card fields flow through `form`. */
 export interface CharacterHeroDetail {
