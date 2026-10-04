@@ -147,7 +147,7 @@ Every surface is reviewed inside a fixed four-region shell:
 Physics to enforce (a violation is a finding, cite §4.2):
 
 1. LIST selection drives CONTENT; CONTEXT follows CONTENT.
-2. Modals are for interrupts and pickers only. Settings is a modal — not a section, not a pane. Section content never lives in a modal.
+2. Modals are for interrupts and pickers only. Settings is the `config` section (rail label "Settings"), with its own list, content and context; there is no settings modal. Section content never lives in a modal.
 3. Nothing replaces the three main panes. A feature that mints its own frame, hijacks the pane geometry, adds a rail section past the sanctioned tuple, or full-screens over the shell is a defect — flag any new geography on sight.
 4. One primary action per region at rest; chrome quiet, content loud (accent no more than about 10% of viewport); the same action keeps the same home and label everywhere; switching rails away and back restores the section.
 
