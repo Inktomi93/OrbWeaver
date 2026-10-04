@@ -50,7 +50,6 @@ import type { Resolved, ResolvedWarning } from "@orb/inference";
 import { generationOf, ProviderError } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
-import { estimateTokens } from "@orb/kit/tokens";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
@@ -953,6 +952,33 @@ function resolveCoveragePoint(
   return coverage > 0 ? coverage : undefined;
 }
 
+/** The context the next dispatch would carry, priced as the turn's fit prices it, against the fit's ceiling — the
+ *  ONE measure the pre-turn compaction trigger and the no-wall warning read, so both trip where the fit does.
+ *  `used` = the prompt-eligible rows above the current coverage plus the output reserve; the system prompt is not
+ *  assembled yet, so it counts as zero. `null` ⇒ no window or soft cap bounds the context. */
+function preTurnFitUsage(args: {
+  readonly connection: Resolved<"chat">;
+  readonly maxContextTokens: number | undefined;
+  readonly maxOutputTokens: number | undefined;
+  readonly canonAll: readonly MessageView[];
+  readonly currentCoverage: number;
+}): { readonly used: number; readonly ceiling: number } | null {
+  const generation = generationOf(args.connection);
+  const budget = buildHistoryBudget({
+    windowTokens: generation.context.window,
+    maxContextTokens: args.maxContextTokens,
+    maxOutputTokens: args.maxOutputTokens,
+    systemTokens: 0,
+    outputCeiling: generation.output.maxTokens.max,
+  });
+  const ceiling = fitCeiling(budget);
+  if (ceiling === null) {
+    return null;
+  }
+  const eligible = args.canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > args.currentCoverage);
+  return { used: eligible.reduce((sum, m) => sum + historyTurnTokens(m), 0) + budget.reserveOutputTokens, ceiling };
+}
+
 /** The PRE-TURN managed-compaction decision (the wedge-state fix): estimate the CUMULATIVE prompt-eligible token
  *  cost the NEXT dispatch would carry (above the current coverage point), and if it is already ≥ the managed pct
  *  of the effective ceiling, return the coverage point to compact THROUGH before dispatch. This closes the
@@ -968,25 +994,11 @@ function preTurnCoveragePoint(args: {
   readonly currentCoverage: number;
 }): number | undefined {
   const pct = args.compaction.thresholdPct ?? MANAGED_COMPACT_DEFAULT_PCT;
-  const generation = generationOf(args.connection);
-  // The SAME budget and ceiling the turn's fit reads, so the pre-turn and post-turn arms trip at one point. The
-  // system prompt is not assembled yet, so it counts as zero here.
-  const budget = buildHistoryBudget({
-    windowTokens: generation.context.window,
-    maxContextTokens: args.maxContextTokens,
-    maxOutputTokens: args.maxOutputTokens,
-    systemTokens: 0,
-    outputCeiling: generation.output.maxTokens.max,
-  });
-  const ceiling = fitCeiling(budget);
-  if (ceiling === null) {
+  const usage = preTurnFitUsage(args);
+  if (usage === null) {
     return; // no trustworthy ceiling → the pre-check can't threshold (the reactive arm still fires).
   }
-  // Cumulative estimate = the prompt-eligible rows ABOVE the current coverage (what the next seed/prompt carries),
-  // priced per row as the fit prices it, plus the reserve the post-turn usage also counts.
-  const eligible = args.canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > args.currentCoverage);
-  const cumulative = eligible.reduce((sum, m) => sum + historyTurnTokens(m), 0) + budget.reserveOutputTokens;
-  if (cumulative < pct * ceiling) {
+  if (usage.used < pct * usage.ceiling) {
     return;
   }
   // Over threshold → compact through everything older than the recent verbatim tail (same rule as the post-turn
@@ -1108,27 +1120,22 @@ async function runPreTurnCompaction(
     return { canonAll: reloaded, maxSeq: reloaded.at(-1)?.seq ?? 0, compactionOverlay: overlay };
   }
   // THE NO-WALL BELT (owner ruling — compaction is a safety property): the pre-turn arm wanted to compact but NO
-  // usable marker materialized (the generation kept failing/empty). If the context is already AT/OVER the effective
-  // WINDOW, the turn would march into the wall — so we DEGRADE loudly: the DOMAIN fit-pass drop-oldest trims the
-  // shaped history at the window (→ a shorter agent-sdk seed → a reseed; the turn SURVIVES, no summary), and we
+  // usable marker materialized (the generation kept failing/empty). If the context is already AT/OVER the fit's
+  // ceiling, the turn would march into the wall — so we DEGRADE loudly: the DOMAIN fit-pass drop-oldest trims the
+  // shaped history there (→ a shorter agent-sdk seed → a reseed; the turn SURVIVES, no summary), and we
   // emit a VISIBLE warning. Degraded-and-loud, never error-and-dead.
-  if (contextAtOrOverWindow(prep.connection, canonAll, currentCoverage)) {
+  if (contextAtOrOverFit(prep, canonAll, currentCoverage)) {
     await emitQuiet(deps, { type: "warning", chatId, code: "context_trimmed_no_summary" });
   }
   return { canonAll, maxSeq: canonAll.at(-1)?.seq ?? 0, compactionOverlay: null };
 }
 
-/** Whether the prompt-eligible context above the current coverage is AT/OVER the model's effective context WINDOW
- *  — the no-wall belt's trip condition (a turn dispatched now would overflow). Estimator-based (the same
- *  `estimateTokens` the fit uses); the fit-pass then does the actual drop-oldest trim at the window. */
-function contextAtOrOverWindow(connection: Resolved<"chat">, canonAll: readonly MessageView[], currentCoverage: number): boolean {
-  const window = generationOf(connection).context.window;
-  if (!Number.isFinite(window) || window <= 0) {
-    return false;
-  }
-  const eligible = canonAll.filter((m) => !m.excludedFromPrompt && m.role !== "system" && m.seq > currentCoverage);
-  const cumulative = eligible.reduce((sum, m) => sum + estimateTokens(m.content), 0);
-  return cumulative >= window;
+/** Whether the prompt-eligible context above the current coverage is AT/OVER the fit's ceiling — the no-wall
+ *  belt's trip condition, so its warning fires exactly where the fit-pass's drop-oldest trim begins. */
+function contextAtOrOverFit(prep: TurnPrep, canonAll: readonly MessageView[], currentCoverage: number): boolean {
+  const { maxContextTokens, maxOutputTokens } = resolveEffectiveCompaction(prep);
+  const usage = preTurnFitUsage({ connection: prep.connection, maxContextTokens, maxOutputTokens, canonAll, currentCoverage });
+  return usage !== null && usage.used >= usage.ceiling;
 }
 
 /** The managed-compaction marker build's own trace root (I-7 finding: found alongside the three named holes —

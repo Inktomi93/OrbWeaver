@@ -20,10 +20,16 @@ import { generationOf } from "@orb/inference";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { estimateTokens } from "@orb/kit/tokens";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import { buildHistoryBudget, fitCeilingTokens, historyTurnTokens } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
+import {
+  buildHistoryBudget,
+  fitCeilingTokens,
+  fitHistoryToWindow,
+  historyTurnTokens,
+} from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
 import type { QuietGenerateParams } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { TurnMessage, TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
@@ -423,6 +429,62 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.compactSummary).toBeNull();
     // …but the degradation is LOUD: the no-wall belt emitted the visible warning.
+    expect(emitted.some((e) => e.type === "warning" && e.code === "context_trimmed_no_summary")).toBe(true);
+  });
+
+  // The warning names a trim, so it fires where the fit trims: at the fit's ceiling, not at the raw window.
+  test("NO-WALL warning fires where the fit trims, even while the raw history is still under the raw window", async () => {
+    const window = 4000;
+    const maxOutputTokens = 100;
+    const sdk: Resolved<"chat"> = {
+      ...AGENT_SDK,
+      capability: makeCapability({ ...generationOf(AGENT_SDK), context: { ...generationOf(AGENT_SDK).context, window } }),
+    };
+    const budget = buildHistoryBudget({
+      windowTokens: window,
+      maxContextTokens: undefined,
+      maxOutputTokens,
+      systemTokens: 0,
+      outputCeiling: generationOf(sdk).output.maxTokens.max,
+    });
+    const ceiling = fitCeilingTokens(budget) ?? Number.NaN;
+    let used = budget.reserveOutputTokens;
+    let rows = 0;
+    while (used < ceiling) {
+      rows += 1;
+      used += historyTurnTokens({ content: historyRowContent(rows) });
+    }
+    const seeded = Array.from({ length: rows }, (_, i) => ({ role: "user" as const, content: historyRowContent(i + 1) }));
+    // The premise: the fit trims these rows, yet their raw estimate is well under the raw window.
+    expect(fitHistoryToWindow(seeded, budget).droppedCount).toBeGreaterThan(0);
+    expect(seeded.reduce((sum, row) => sum + estimateTokens(row.content), 0)).toBeLessThan(window);
+
+    const chatId = await seedChatWithHistory(rows);
+    const emitted: ChatBusEvent[] = [];
+    const failingMarker: ChatContext["runChatTurn"] = () => {
+      throw new Error("summarizer permanently down");
+    };
+    const { runCompaction } = createCompaction(makeChatContext(db, { runChatTurn: failingMarker }), {
+      emit: () => Promise.resolve(),
+      quietGenerate: createQuietGenerate({ runChatTurn: failingMarker, resolveChatPresetParams: () => Promise.resolve({}) }),
+      resolveConnection: () => Promise.resolve(sdk),
+    });
+    const engine = createTurnEngine(makeChatContext(db, { runChatTurn: turnWithUsage({ tokensIn: 4, tokensOut: 2 }) }), {
+      emit: (e: ChatBusEvent) => {
+        emitted.push(e);
+        return Promise.resolve();
+      },
+      holder: "r1",
+      lockTtlMs: 60_000,
+      generateSegments,
+      generateDigests,
+      loadWitnessHorizons,
+      recallMemory,
+      runCompaction,
+    });
+
+    const outcome = await engine.runTurn(prepOf(chatId, sdk, { intent: { compaction: { mode: "managed" }, maxOutputTokens } }));
+    expect(outcome.aborted).toBe(false);
     expect(emitted.some((e) => e.type === "warning" && e.code === "context_trimmed_no_summary")).toBe(true);
   });
 
