@@ -32,6 +32,21 @@ export const MIME_TO_FORMAT: Readonly<Record<string, DocFormat>> = {
   [EPUB_MIME]: "epub",
 };
 
+/** The filename suffixes each format arrives with (a browser often reports no mime for `.md` or `.epub`). Total
+ *  over {@link DocFormat}, so a new format fails `tsc` until it names its suffixes. */
+const DOC_FORMAT_EXTENSIONS: { readonly [F in DocFormat]: readonly string[] } = {
+  pdf: [".pdf"],
+  html: [".html", ".htm"],
+  markdown: [".md", ".markdown"],
+  text: [".txt"],
+  docx: [".docx"],
+  epub: [".epub"],
+};
+
+/** The upload picker/dropzone `accept` string (HTML grammar), derived from {@link MIME_TO_FORMAT} and the
+ *  suffix table so the accepted-type list has one home. */
+export const DOC_UPLOAD_ACCEPT: string = [...Object.values(DOC_FORMAT_EXTENSIONS).flat(), ...Object.keys(MIME_TO_FORMAT)].join(",");
+
 /** The format a declared mime dispatches to, ignoring parameters and case (`text/html; charset=utf-8` →
  *  `html`); `undefined` for a mime extraction does not do. */
 export function docFormatForMime(mime: string): DocFormat | undefined {

@@ -1,6 +1,6 @@
-// The chats pane's MONTH BOUND — the native `input[type=month]` that sets `beforeRecencyAt`, plus the phone
-// arm that folds it behind a disclosure. Split out of `chat-list-surface.tsx` (#1350): the surface sits on
-// the 450-line component cap and this control now has two shapes.
+// The chats pane's MONTH BOUND — the native `input[type=month]` that sets `beforeRecencyAt`. The desktop
+// column folds it behind an "Any time" control; the phone renders the plain field inside its shared Filters
+// panel. Split out of `chat-list-surface.tsx` (#1350): the surface sits on the 450-line component cap.
 //
 // THE MONTH CONTROL SAYS WHAT IT DOES (#490). It read "Jump to month", and the verb was a promise the
 // mechanism does not keep: `beforeRecencyAt` is an EXCLUSIVE UPPER BOUND, so picking a month RE-ROOTS the

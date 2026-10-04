@@ -80,7 +80,11 @@ test("#378 interactive preset subtitles use the readable label step without losi
   await expect(subtitle).toHaveAttribute("id", NONEMPTY_ID);
   const subtitleId = await subtitle.getAttribute("id");
   // The row is the active pick, so its Active chip rides the description beside the subtitle.
-  await expect(row.locator('[data-slot="list-row-body"]')).toHaveAttribute("aria-describedby", new RegExp(`(^| )${subtitleId ?? "missing-subtitle-id"}( |$)`));
+  const markersId = await row.locator('[data-slot="list-row-markers"]').getAttribute("id");
+  await expect(row.locator('[data-slot="list-row-body"]')).toHaveAttribute(
+    "aria-describedby",
+    `${subtitleId ?? "missing-subtitle-id"} ${markersId ?? "missing-markers-id"}`,
+  );
 });
 
 async function focalHierarchyRatio(component: import("@playwright/test").Locator): Promise<number> {

@@ -30,7 +30,8 @@
 //
 // STATE IS THE TOGGLE (O-1): pressed = a FILLED lucide dot (the seal's `fill` axis on the `Circle`
 // FillableIcon), unpressed = a hollow ring that reveals with the row. One element carries both the datum
-// and the affordance, so the row cannot paint the state twice — and the pressed dot NEVER hides.
+// and the affordance — and the pressed dot NEVER hides. A static "Active" chip on the title line names the
+// same state in words (it never swaps on hover, so it cannot cause the old hover loop).
 //
 // ACTIVATE HAS ONE HOME ON THIS ROW: the radio (side-eye 2026-08-22 P2-6, issue #481). Both kebabs used to
 // carry an `Activate` menuitem — the ordinary row's and the built-in's — sitting 40px from the radio that
@@ -172,7 +173,7 @@ export function PresetLibraryRow({
           pressedFill={true}
           // `when-on`, the D11 default: the PRESSED dot is permanently visible and only the unpressed ring
           // rides the reveal. It must never be `never`/`hidden` — that swap is the P0 loop. The row's
-          // subtitle chip names the same state in words.
+          // title-line Active chip names the same state in words.
           rest="when-on"
           // ONE-OF-N, not a toggle (side-eye F-19 / ARIA rec 3): pressing the active row is a NO-OP, so
           // `aria-pressed`'s "press to release" contract was a promise this control refuses to keep.

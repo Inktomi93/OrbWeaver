@@ -15,6 +15,9 @@
 // store carries a rack-section id. `null` = nothing picked this session; the tab strip resolves it to the
 // first view, so the default lives with the tuple and cannot drift into a re-spelled literal here.
 //
+// The same store also carries `readoutTarget`: the connection or role the Params readout describes, written
+// only by the readout's `CapabilityPanel` so "Connection in view" survives leaving and re-entering Params.
+//
 // Device-transient, never persisted: landing on Params after a hard reload is the intended reset.
 
 import type { CapabilityTarget } from "@orb/contracts/inference";

@@ -3,7 +3,7 @@
 // so they are the one place a wrong answer becomes a wrong badge on every surface at once.
 
 import type { BankHealthView, DocumentView } from "@orb/contracts/databank";
-import { MIME_TO_FORMAT } from "@orb/contracts/extraction";
+import { DOC_UPLOAD_ACCEPT, MIME_TO_FORMAT } from "@orb/contracts/extraction";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
@@ -23,6 +23,7 @@ import {
   passageTally,
   showsPhaseChip,
 } from "../../../../../packages/client/src/features/databank/lib/databank-model.ts";
+import { matchesAccept } from "../../../../../packages/ui/src/primitives/file-dropzone/accept.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
@@ -320,6 +321,17 @@ describe("ingestEmptyHint — the failed extraction's own remedy", () => {
     const empty = doc({ charCount: 0, chunkCount: 0, embeddedCount: 0, updatedAt: AT - FIVE_MINUTES * 100 });
     expect(ingestStallHint(empty, AT)).toBeNull();
     expect(ingestEmptyHint(empty)).not.toBeNull();
+  });
+});
+
+describe("DOC_UPLOAD_ACCEPT", () => {
+  test("the dropzone gate admits every extractor format by suffix, with or without a browser mime", () => {
+    const docx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    expect(matchesAccept(new File(["x"], "brief.docx", { type: docx }), DOC_UPLOAD_ACCEPT)).toBe(true);
+    expect(matchesAccept(new File(["x"], "novel.epub", { type: "" }), DOC_UPLOAD_ACCEPT)).toBe(true);
+    expect(matchesAccept(new File(["x"], "novel.epub", { type: "application/epub+zip" }), DOC_UPLOAD_ACCEPT)).toBe(true);
+    expect(matchesAccept(new File(["x"], "notes.md", { type: "text/x-markdown" }), DOC_UPLOAD_ACCEPT)).toBe(true);
+    expect(matchesAccept(new File(["x"], "pic.png", { type: "image/png" }), DOC_UPLOAD_ACCEPT)).toBe(false);
   });
 });
 

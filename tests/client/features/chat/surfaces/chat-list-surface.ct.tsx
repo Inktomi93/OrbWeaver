@@ -404,11 +404,17 @@ for (const width of [1280, 720, 430, 390, 320] as const) {
     const month = component.getByLabel("Show chats up to");
     await month.fill("2020-06");
     const clear = component.getByRole("button", { name: "Clear the month" });
-    const [monthBox, clearBox] = await Promise.all([month.boundingBox(), clear.boundingBox()]);
-
-    expect(monthBox).not.toBeNull();
-    expect(clearBox).not.toBeNull();
-    expect(Math.abs((monthBox?.y ?? 0) + (monthBox?.height ?? 0) / 2 - ((clearBox?.y ?? 0) + (clearBox?.height ?? 0) / 2))).toBeLessThanOrEqual(1);
+    // The Any time panel opens with a height transition, so poll until the two centres agree instead of
+    // reading them once mid-animation.
+    await expect
+      .poll(async () => {
+        const [monthBox, clearBox] = await Promise.all([month.boundingBox(), clear.boundingBox()]);
+        if (monthBox === null || clearBox === null) {
+          return Number.POSITIVE_INFINITY;
+        }
+        return Math.abs(monthBox.y + monthBox.height / 2 - (clearBox.y + clearBox.height / 2));
+      })
+      .toBeLessThanOrEqual(1);
   });
 }
 
