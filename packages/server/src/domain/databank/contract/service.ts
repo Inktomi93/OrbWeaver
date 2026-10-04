@@ -74,12 +74,11 @@ type EnsureChatHostOp = (principal: Principal, chatId: ChatId) => Promise<void>;
  *  participant deserves to SEE what feeds the room's prompts (even though only the host's docs are retrieved). */
 type EnsureChatMemberOp = (principal: Principal, chatId: ChatId) => Promise<void>;
 
-/** The active embed space `(model, dim)` the chunk-store arm tags rows with — PER OWNER (the owner's `embed`
- *  binding defines it, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed into,
- *  and every chunk-count read answers zero through {@link NO_EMBED_SPACE_MODEL}. */
+/** The active embed space tag the chunk-store arm tags rows with — PER OWNER (the owner's `embed` binding
+ *  defines it and its width, inference program §7.5/§10), read per call. `null` = no binding: nothing to embed
+ *  into, and every chunk-count read answers zero through {@link NO_EMBED_SPACE_MODEL}. */
 interface ActiveEmbedSpace {
   readonly model: string;
-  readonly dim: number;
 }
 
 /** The model tag a count read uses when the owner has NO space: no stored chunk ever carries the empty tag, so
@@ -257,7 +256,14 @@ export interface DatabankIngest {
   /** chunk+embed+prune ONE document (the databank-ingest runner's body). */
   readonly ingestDocument: (args: { documentId: DocumentId; signal: AbortSignal }) => Promise<IngestRunResult>;
   /** Re-run the derived layer for one document or every document of an owner (`null` = box-wide). */
-  readonly reindex: (args: { ownerId: UserId | null; scope: ReindexScope; mode: ReindexMode; signal: AbortSignal }) => Promise<IngestRunResult>;
+  readonly reindex: (args: {
+    ownerId: UserId | null;
+    scope: ReindexScope;
+    mode: ReindexMode;
+    signal: AbortSignal;
+    /** Each document's position as it finishes, so an embedder switch's re-index reads N of M. */
+    onProgress?: ((done: number, total: number) => void) | undefined;
+  }) => Promise<IngestRunResult>;
 }
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the two RAG kinds).
@@ -273,4 +279,6 @@ export interface DatabankWorkloadDeps {
     enumerationScope: UserId | null,
   ) => Promise<readonly { readonly ownerId: UserId; readonly generation: GenerationReceipt }[]>;
   readonly purgeDocumentVectors: (receipts: readonly { readonly ownerId: UserId; readonly generation: GenerationReceipt }[]) => Promise<void>;
+  /** Every stored embedding target in the enumeration scope, as one comparable string (`EmbeddingsService.targetSnapshot`). */
+  readonly targetSnapshot: EmbeddingsService["targetSnapshot"];
 }

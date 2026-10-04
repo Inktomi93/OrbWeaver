@@ -1,0 +1,459 @@
+{
+  "model": "qwen3.8-27b",
+  "max_tokens": 2048,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are Saltmere in an immersive, ongoing roleplay with Traveler. Stay in character. Address Traveler in the second person; use their name only when it is one they have chosen for themselves.\n\nYou are the game master of an immersive tabletop role-play. Narrate the world in vivid second person for the player character, Rook, a courier in the port city of Saltmere. Voice any present cast in dialogue. Keep replies to 2-3 short paragraphs.\n\nThis is you — the person on the other side of the conversation. Edit this description to tell characters who you are: your name, how you speak, what you're like, whatever you want them to react to. Until you do, you're simply Traveler: curious, present, and here to see where the story goes."
+    },
+    {
+      "role": "user",
+      "content": "[Start a new chat]"
+    },
+    {
+      "role": "assistant",
+      "content": "Rain hammers the cobbles of Saltmere's harbor district."
+    },
+    {
+      "role": "user",
+      "content": "I push open the door of the Drowned Lantern and shake the rain off my cloak. I look for the fence called Marro."
+    },
+    {
+      "role": "assistant",
+      "content": "The taproom smells of wet wool and tallow. In the back booth a thin man with ink-stained fingers lifts two fingers in greeting. That's Marro, and he's already counting what you owe him."
+    },
+    {
+      "role": "user",
+      "content": "I slide into the booth and put the sealed courier satchel on the table. 'Forty gold, like we agreed.'"
+    },
+    {
+      "role": "assistant",
+      "content": "Marro weighs the satchel with one hand, then pushes a small purse across the boards. 'Forty. And a job, if you want one: the harbormaster's ledger, stolen last night. Bring it back by dawn.'"
+    },
+    {
+      "role": "user",
+      "content": "I take the purse and the job. 'Where was it last seen?'"
+    },
+    {
+      "role": "assistant",
+      "content": "'Rat Alley, behind the chandlery,' Marro says. 'A one-eyed thug named Gessa. She hits hard.' He slides you a crude map scratched on bark."
+    },
+    {
+      "role": "user",
+      "content": "I head out into the rain and make my way to Rat Alley, keeping to the shadows.\n\n[Game notes for the narrator — not the player's words:\n\n# Game state\nScene: the Drowned Lantern\nTrackers: Heat (how hard the city watch is looking) · Stamina (wind you spend pushing on)\nParty:\n- Traveler — Stamina\n- Saltmere — Stamina\nGame trackers:\n- Heat\n\nSCENE OPENS: the Drowned Lantern\n\nThese tracked values are live state for THIS story — let them visibly shape behaviour, dialogue, and the scene as you narrate. When a value changes, let the change land in the fiction. Never recite the raw numbers back at the player; weave them into the prose.\n\nWhen it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title=\"a short label\"` on its own line, then your HTML/CSS/JS, then `:::` on its own line. Make whatever fits the moment — animations, layouts, interactive bits are all welcome. Everything must be self-contained markup and CSS — no images at all (external URLs and inline data: URIs are BOTH blocked by the platform security policy; a card with an <img> renders with a hole in it). Paint textures, shapes and iconography with CSS instead. Do not wrap it in a code fence. Close the card with its own `:::` line BEFORE you open any other directive (a `:::choices` block never goes inside a card). Cards are for things the CHARACTERS see in the world — never a status readout, stat block, or tracker display; the tracked values stay woven into your prose, never recited.\n\nFor example, a three-line sign is enough:\n[card: Crossing sign]\n]"
+    }
+  ],
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "update_party",
+        "description": "Record changes to any actor's body, condition, or tracked values. trackerDeltas: spend/restore a tracked RESOURCE (negative = spent, e.g. damage on an HP meter). trackerSets: record the new reading of a tracked STATE. addCondition: a new status effect (e.g. Blessed, Bleeding, Poisoned) with an optional numeric modifier. removeCondition: when an effect ends. status: a short current-state line ('bleeding, on edge').\nTRACKED RESOURCES — party[].trackerDeltas: spend or restore these by a signed amount when the beat moves them (negative = spent):\n  • Stamina (key: stamina, 0-14) — wind you spend pushing on\nOnly write a tracker on an actor the schema offers it for — not every character carries every tracker.\nEXAMPLE — took a cut and spent themselves fighting: `{targetRef:'player', trackerDeltas:[{key:'stamina',delta:-3}], addCondition:{name:'Bleeding',modifier:-1}, status:'bleeding, breathing hard'}`.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "targetRef": {
+              "type": "string",
+              "minLength": 1
+            },
+            "trackerDeltas": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1,
+                    "enum": ["stamina"]
+                  },
+                  "delta": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["key", "delta"],
+                "additionalProperties": false
+              }
+            },
+            "addCondition": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "modifier": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": ["name"],
+              "additionalProperties": false
+            },
+            "removeCondition": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "type": "string"
+            }
+          },
+          "required": ["targetRef"],
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "update_inventory",
+        "description": "Items and coin on an actor. add: new items — ALWAYS give a `description` and a `location` (where it's carried: 'belt pouch', 'sheathed'), plus quantity. A beat where anyone buys, takes, pockets, receives, or stows something ALWAYS calls add — an EMPTY pack is never a reason to skip; first acquisitions are what add exists for. update: existing items whose description, quantity, or carrying location changed. remove: items used/lost/given away. walletDeltas: coin gained/spent (negative=spent). EXAMPLE — an existing key moves from a pocket onto a necklace: `{targetRef:'Tamsin', update:[{name:'Small brass key', description:'key hanging on a silver chain', location:'silver chain around her neck'}]}`. EXAMPLE — gifted an oil vial, paid 20 gold: `{targetRef:'player', add:[{name:'Vial of Sanctified Oil', description:'warded holy oil, faintly glowing', quantity:1, location:'belt pouch'}], walletDeltas:[{name:'gold', delta:-20}]}`.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "targetRef": {
+              "type": "string",
+              "minLength": 1
+            },
+            "add": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "location": {
+                    "type": "string"
+                  }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            },
+            "update": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
+                  "location": {
+                    "type": "string"
+                  }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            },
+            "remove": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "quantity": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            },
+            "walletDeltas": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "delta": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": ["name", "delta"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": ["targetRef"],
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "update_scene",
+        "description": "The scene + who is present. Set location/timeOfDay/weather when they change — specifically whenever the beat spends time (rest, travel, a cut to later), so the day actually moves, and whenever the sky turns; calendarDate/day as days pass; advance plot.act/title/actSummary as the story moves. weather is the WORLD'S weather — the sky, never the room: set it whenever the story says what the sky is doing, indoors or out (a blizzard past the cabin window counts); when the story says nothing about the sky, omit it and it keeps, and a room's own atmosphere goes in location instead. weather.type is one of clear/cloudy/rain/storm/snow/fog/wind/ash/indoors — use \"indoors\" when the scene is enclosed with no sky visible from it at all, and if none fits what the sky is doing, OMIT weather rather than forcing the nearest; the vivid phrasing goes in weather.label (\"torrential sleet\"). presentUpsert: for EACH character on screen set mood (every demeanor shift — 1-3 words, \"wary\", \"quietly furious\", NEVER a sentence), appearance + outfit (when described), thoughts (their implied inner state), and relationship {kind,label}. recentEvent: a one-line beat. EXAMPLE — a priest warms to you: `{timeOfDay:'evening', presentUpsert:[{name:'Sister Vesna', emoji:'🕯️', mood:'warming', appearance:'tall, silver-haired', outfit:'patched grey habit', thoughts:'weighing whether to trust you', relationship:{kind:'ally',label:''}}], recentEvent:'Vesna softened as you shared road news'}`.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string"
+            },
+            "calendarDate": {
+              "type": "string"
+            },
+            "day": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            },
+            "timeOfDay": {
+              "type": "string",
+              "enum": ["dawn", "morning", "afternoon", "evening", "night", "midnight"]
+            },
+            "weather": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["clear", "cloudy", "rain", "storm", "snow", "fog", "wind", "ash", "indoors"]
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 40
+                }
+              },
+              "required": ["type"],
+              "additionalProperties": false
+            },
+            "presentUpsert": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "emoji": {
+                    "type": "string"
+                  },
+                  "mood": {
+                    "type": "string"
+                  },
+                  "appearance": {
+                    "type": "string"
+                  },
+                  "outfit": {
+                    "type": "string"
+                  },
+                  "thoughts": {
+                    "type": "string"
+                  },
+                  "relationship": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": ["lover", "friend", "ally", "neutral", "enemy", "custom"]
+                      },
+                      "label": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["kind"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["name"],
+                "additionalProperties": false
+              },
+              "minItems": 1
+            },
+            "presentRemove": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "recentEvent": {
+              "type": "string"
+            },
+            "plot": {
+              "type": "object",
+              "properties": {
+                "act": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "title": {
+                  "type": "string"
+                },
+                "actTitle": {
+                  "type": "string"
+                },
+                "actSummary": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false,
+          "required": ["timeOfDay", "presentUpsert"]
+        },
+        "strict": true
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "set_tracker",
+        "description": "Write a GAME-WIDE tracked reading (not tied to one character). A resource tracker takes a signed `delta`; a state tracker takes the new `value` (or `items` for a list).\n  • Heat (key: heat, 0-100) — how hard the city watch is looking\nEXAMPLE — the town's alarm rises: `{key:'heat', value:35}`.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "key": {
+              "type": "string",
+              "minLength": 1,
+              "enum": ["heat"]
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": ["key"],
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "upsert_quest",
+        "description": "Create/update/complete/fail a quest. Give a description and objectives[] on create; use action 'complete'/'fail' when the WHOLE quest resolves. To tick ONE objective off, pass its exact text in completeObjectives — never re-send objectives[] to report progress (send objectives[] only to change the list itself; repeated lines keep the progress already on them). EXAMPLE — a new task opens: `{name:'Reach the Vault of Ash', action:'create', description:'Get to the vault before the new moon', objectives:['Find the road north','Enter the vault']}`. EXAMPLE — the road is found: `{name:'Reach the Vault of Ash', action:'update', completeObjectives:['Find the road north']}`.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "action": {
+              "type": "string",
+              "enum": ["create", "update", "complete", "fail"]
+            },
+            "description": {
+              "type": "string"
+            },
+            "objectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "completeObjectives": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "required": ["name", "action"],
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "add_journal_entry",
+        "description": "Log a notable beat with the right type (location/npc/combat/quest/item/event/note, or 'custom' with a short `label` when none of those fits) + a short title + content. EXAMPLE: `{type:'combat', title:'Ambush at the Chapel', content:'Corvin drew on you at the altar; you took a cut but stayed up.'}`.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["location", "npc", "combat", "quest", "item", "event", "note", "custom"]
+            },
+            "label": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": ["content", "type"],
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "no_changes",
+        "description": "Every turn MUST emit at least one state-bookkeeping tool call. Call this ONLY when the latest beat changed NOTHING trackable. Do NOT use this to avoid filling fields — if anything in the fiction moved, record it.",
+        "parameters": {
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "strict": true
+      }
+    }
+  ],
+  "tool_choice": "auto",
+  "stream": true,
+  "stream_options": {
+    "include_usage": true
+  }
+}

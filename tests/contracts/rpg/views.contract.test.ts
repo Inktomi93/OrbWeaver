@@ -28,6 +28,7 @@ test("the produced config carries a native nullable preset pointer without alter
     ruleset: config.ruleset,
     extractionMode: config.extractionMode,
     extractionContext: config.extractionContext,
+    stateCaptureVehicle: config.stateCaptureVehicle,
     extractionWindowTokens: config.extractionWindowTokens,
     reconcileEveryBeats: config.reconcileEveryBeats,
     dateMode: config.dateMode,

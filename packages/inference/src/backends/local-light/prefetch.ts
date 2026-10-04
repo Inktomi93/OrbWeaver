@@ -1,13 +1,14 @@
 // The BOOT WARM-UP for the in-process tier: local-light's weights download LAZILY on first use, and on the
 // GPU-less box this tier exists for that makes the FIRST search stall for minutes. The prefetch moves the
 // download to just after the listener binds — but fires ONLY for the slots a task has ACTUALLY resolved to
-// (§8.3: embed/imageEmbed → the encoder; rerank → MiniLM).
+// (§8.3: embed/imageEmbed → the encoder; rerank → the bound reranker).
 // State is PER BACKEND INSTANCE (not module globals): a `downloading / ready / failed` record per slot, read
 // in-process by the composition root. It has NO tRPC route and is owed none (owner ruling 2026-09-20, §8.3):
 // the prefetch is a latency optimisation whose failure path is automatic, so there is no user-actionable
 // state to render — an earlier draft promised a Connections-pane readout and that surface was struck.
 // ONE attempt per slot per boot; a failure is a WARN, never a crash — the lazy path is untouched.
 
+import type { RerankOnnx } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { formatBytes } from "@orb/kit/strings";
 import type { LocalLightLoadProgress } from "../../contract/local-light-worker.ts";
@@ -28,6 +29,8 @@ export interface LocalLightPrefetchRecord {
 export interface LocalLightPrefetchTarget {
   readonly slot: LocalLightModelSlot;
   readonly modelId: ModelId;
+  /** The reranker's capability `rerank.onnx`, so the warm-up loads the files the first request will. */
+  readonly onnx?: RerankOnnx | undefined;
 }
 
 export interface LocalLightPrefetchHandle {
@@ -60,7 +63,7 @@ function downloadDetail(progress: LocalLightLoadProgress): string {
 export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLightPrefetchHandle {
   const registry = new Map<LocalLightModelSlot, LocalLightPrefetchRecord>();
   const slotByModelId = new Map<ModelId, LocalLightModelSlot>();
-  const modelIdBySlot = new Map<LocalLightModelSlot, ModelId>();
+  const targetBySlot = new Map<LocalLightModelSlot, LocalLightPrefetchTarget>();
   const inFlight = new Map<LocalLightModelSlot, Promise<void>>();
   let stopped = false;
 
@@ -68,7 +71,7 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
     registry.set(slot, { status, detail, updatedAt: deps.now() });
   };
 
-  async function warm(slot: LocalLightModelSlot, modelId: ModelId): Promise<void> {
+  async function warm({ slot, modelId, onnx }: LocalLightPrefetchTarget): Promise<void> {
     const existing = inFlight.get(slot);
     if (existing !== undefined) {
       return await existing;
@@ -77,7 +80,7 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
     const run = deps
       .cache()
       // @orb-waive caught-failure-ownership(preload): speculative prefetch owns failure through a warning and published `failed` state; first use retains the lazy load path. Precedent: packages/server/src/entry/boot/local-light-prefetch.ts accepts the same warning plus lazy-path fallback. Ends if prefetch becomes required.
-      .preload(slot, modelId)
+      .preload(slot, modelId, onnx)
       .then(() => publish(slot, "ready", `${modelId} ready`))
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
@@ -91,11 +94,11 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
 
   // SEQUENTIAL by design: concurrent fetches on a home connection make the one a user waits for arrive last.
   async function walk(targets: readonly LocalLightPrefetchTarget[]): Promise<void> {
-    for (const { slot, modelId } of targets) {
+    for (const target of targets) {
       if (stopped) {
         return;
       }
-      await warm(slot, modelId);
+      await warm(target);
     }
   }
 
@@ -104,10 +107,10 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
       if (targets.length === 0) {
         return (): void => undefined;
       }
-      for (const { slot, modelId } of targets) {
-        slotByModelId.set(modelId, slot);
-        modelIdBySlot.set(slot, modelId);
-        publish(slot, "queued", `queued — ${modelId}`);
+      for (const target of targets) {
+        slotByModelId.set(target.modelId, target.slot);
+        targetBySlot.set(target.slot, target);
+        publish(target.slot, "queued", `queued — ${target.modelId}`);
       }
       deps.log.info({ targets: targets.map((t) => `${t.slot}:${t.modelId}`) }, "boot: local-light model prefetch scheduled (background, non-blocking)");
       deps.detach("local-light.prefetch.walk", () => walk(targets));
@@ -116,13 +119,13 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
       };
     },
     async retry(slot): Promise<string> {
-      const modelId = modelIdBySlot.get(slot);
-      if (modelId === undefined) {
+      const target = targetBySlot.get(slot);
+      if (target === undefined) {
         return "not a scheduled local-light slot";
       }
       stopped = false;
-      await warm(slot, modelId);
-      return registry.get(slot)?.detail ?? `${modelId} retried`;
+      await warm(target);
+      return registry.get(slot)?.detail ?? `${target.modelId} retried`;
     },
     status: () =>
       Object.fromEntries(LOCAL_LIGHT_MODEL_SLOTS.map((slot) => [slot, registry.get(slot)])) as Record<

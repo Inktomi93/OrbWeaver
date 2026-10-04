@@ -8,8 +8,17 @@
 // write path) is the other half, at `connection-fact-model.ts` — split at the `component-size` cap, and the
 // honesty rules that govern what a source line may say live in THAT file's header.
 
-import type { Capability, ConnectionTransportDoc, DeclaredCapability, ModelKind, RoutableTask, Task } from "@orb/contracts/inference";
-import { BELT_OWNED_BODY_KEYS, connectionTransportSchema, EMBED_SPACE_DIMS, requirementMet, spaceMisfitReason, taskDef } from "@orb/contracts/inference";
+import type {
+  Capability,
+  CatalogStrategy,
+  ConnectionTransportDoc,
+  DeclaredCapability,
+  ModelCatalogEntry,
+  ModelKind,
+  RoutableTask,
+  Task,
+} from "@orb/contracts/inference";
+import { BELT_OWNED_BODY_KEYS, connectionTransportSchema, requirementMet, taskDef } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import { effectiveHttpPort } from "@orb/kit/http-endpoint";
 // Direct, not through `#lib`: node-side CT specs import this module.
@@ -31,6 +40,21 @@ export const KIND_VERDICT_ITEMS: readonly { readonly label: string; readonly val
   { label: "Search vectors", value: "embedding" },
   { label: "Reranking search results", value: "rerank" },
 ];
+
+/** The models the editor's picker offers a saved row. Only a built-in catalog states every entry's kind, so only
+ *  there is the list narrowed to the row's kind, since another kind would break the roles the row is bound to.
+ *  Elsewhere the row's kind can be the `"generation"` fallback for an embedder its own list names, so the whole
+ *  list is offered. The row's saved model is always offered. The add-model dialog never narrows: a new row takes
+ *  any kind. */
+export function editorPickerModels<T extends Pick<ModelCatalogEntry, "id" | "kind">>(
+  models: readonly T[],
+  row: { readonly catalog: CatalogStrategy; readonly kind: ModelKind; readonly savedModel: string },
+): T[] {
+  if (row.catalog !== "builtin") {
+    return [...models];
+  }
+  return models.filter((entry) => entry.id === row.savedModel || entry.kind === undefined || entry.kind === row.kind);
+}
 
 /** The row's kind, from the SERVER'S OWN verdict rather than a second client copy of the id heuristic: the
  *  domain already folded `declared.kind ?? curatedKind(...) ?? "generation"` into `ConnectionView.tasks`
@@ -65,11 +89,7 @@ const CLAUSE_WORDS: Readonly<Record<string, string>> = {
   "output:image": "no image output",
   tools: "no tools",
   structured: "no structured output",
-  dims: "wrong vector width",
 };
-
-/** `requirementMet`'s width clause spelling (`dims:1024`). */
-const DIMS_CLAUSE_PREFIX = "dims:";
 
 function clauseWords(clause: string): string {
   const axis = clause.split(":")[0] ?? clause;
@@ -89,10 +109,7 @@ function badgeFor(task: RoutableTask, label: string, capability: Capability, tas
   // fallback for a task nothing more specific refused.
   const verdict = requirementMet(capability, def.requires);
   if (!verdict.ok) {
-    // A width clause names both widths: "wrong vector width" alone leaves the user guessing which way.
-    const width = capability.kind === "embedding" && def.requires?.dims !== undefined ? spaceMisfitReason(capability.embedding, def.requires.dims) : null;
-    const clauses = verdict.missing.map((clause) => (width !== null && clause.startsWith(DIMS_CLAUSE_PREFIX) ? width : clauseWords(clause)));
-    return { task, label, ok: false, reason: clauses.join(", ") };
+    return { task, label, ok: false, reason: verdict.missing.map(clauseWords).join(", ") };
   }
   if (!tasks.includes(task)) {
     return { task, label, ok: false, reason: "this provider doesn't serve it" };
@@ -116,7 +133,7 @@ export function purposeNotes(capability: Capability, ownServer: boolean): readon
   if (capability.kind === "embedding") {
     return capability.embedding.dimsEstimated === true
       ? [
-          `This server doesn't report the vector width, so we assume ${grouped(capability.embedding.dims)}. Search needs ${grouped(EMBED_SPACE_DIMS)}-wide vectors; check the model's card and set the vector width under Advanced.`,
+          `This server doesn't report the vector width, so we assume ${grouped(capability.embedding.dims)}. If the guess is wrong, indexing stops. Check the model's card for its output size and set the vector width under Advanced — changing it rebuilds your search index.`,
         ]
       : [];
   }

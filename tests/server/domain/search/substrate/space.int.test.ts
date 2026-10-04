@@ -91,7 +91,12 @@ async function drive(controls: FakeRoleClientControls = {}): Promise<{
 
 async function target(db: Db, ownerId: UserId, clients: RoleClients, task: "embed" | "imageEmbed"): Promise<GenerationReceipt> {
   const generation = await resolveTargetGeneration(
-    { db, now: () => NOW, resolveEmbeddingConnection: (_ownerId, resolvedTask) => connectionOf(clients, resolvedTask) },
+    {
+      db,
+      now: () => NOW,
+      resolveEmbeddingConnection: (_ownerId, resolvedTask) => connectionOf(clients, resolvedTask),
+      onTargetGenerationMoved: () => undefined,
+    },
     ownerId,
     task,
   );
@@ -224,7 +229,11 @@ test.each([
     model: modelIdSchema.parse(model),
     capability: { kind: "embedding", embedding: legacy },
   };
-  const oldGeneration = await resolveTargetGeneration({ db, now: () => NOW, resolveEmbeddingConnection: async () => before }, ownerId, "embed");
+  const oldGeneration = await resolveTargetGeneration(
+    { db, now: () => NOW, resolveEmbeddingConnection: async () => before, onTargetGenerationMoved: () => undefined },
+    ownerId,
+    "embed",
+  );
   if (oldGeneration === null) {
     throw new Error("the pre-change generation must resolve");
   }
@@ -240,7 +249,7 @@ test.each([
     fingerprint: space.fingerprint,
   }));
   expect(served).toMatchObject({ id: oldGeneration.id, model });
-  const again = await resolveTargetGeneration({ ...ctx, now: () => NOW }, ownerId, "embed");
+  const again = await resolveTargetGeneration({ ...ctx, now: () => NOW, onTargetGenerationMoved: () => undefined }, ownerId, "embed");
   expect(again?.id).toBe(oldGeneration.id);
   expect(again?.epoch).toBe(oldGeneration.epoch);
   // Positive control: actual encoder evidence drift still closes the read rather than serving it blindly.

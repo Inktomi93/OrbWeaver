@@ -287,6 +287,19 @@ export interface AssembleTrace {
  *  tab's per-source accounting). Declared ONCE as a tuple and DERIVED (§5.5); the order IS prompt order, which
  *  is also the stacked bar's segment order and the client's colour-ramp keying. `history` is the shaped wire
  *  history (SHAPE + FIT), every other member is a BUILD-walk contribution. */
+/** Which limit bounds the context: the connected model's `window`, or the preset's own `cap`
+ *  (`maxContextTokens`), whichever leaves less room. */
+export const CONTEXT_LIMIT_KINDS = ["window", "cap"] as const;
+export type ContextLimitKind = (typeof CONTEXT_LIMIT_KINDS)[number];
+
+/** The limit the fit's room comes from, in the user's own terms: the model window or the preset cap. A surface
+ *  explains the room against it: the reply reserve, and on a window the estimator's safety margin
+ *  (`tokens − reserve − room`), are what separate the two. */
+export interface ContextLimit {
+  kind: ContextLimitKind;
+  tokens: number;
+}
+
 export const ASSEMBLY_SOURCES = ["system", "cards", "world-info", "steering", "game-state", "history"] as const;
 export type AssemblySource = (typeof ASSEMBLY_SOURCES)[number];
 
@@ -349,11 +362,16 @@ export interface AssemblySectionCost {
 }
 
 /** The next turn's context accounting (`previewAssembly`) — the stacked budget bar + its per-source breakdown.
- *  `ceilingTokens` = the SAME `min(capability window, preset maxContextTokens)` the engine's history fit uses,
+ *  `ceilingTokens` = the SAME room the engine's history fit packs system + history into and trims at (the
+ *  window after the output reserve and the estimator headroom, or the soft cap less the reserve, the smaller),
  *  `0` ⇒ unbounded (no capability window and no soft cap — the bar then renders proportions with no ratio).
  *  `totalTokens` = Σ `sources[].tokens`, so the segments always partition the bar exactly. */
 export interface AssemblyBudgetPreview {
   ceilingTokens: number;
+  /** The tokens held back for the reply (the materialized `max_tokens`). */
+  reserveOutputTokens: number;
+  /** What bounds the room; `null` when nothing does (`ceilingTokens` is then `0`). */
+  limit: ContextLimit | null;
   /** The ceiling is a FALLBACK GUESS, not the connected model's published window (see
    *  `ModelCapability.context.windowEstimated` — an OR catalog that could not be fetched, a BYO endpoint that
    *  declared no window). The FIT still runs against it (we never trim blind), but a surface MUST NOT present
@@ -459,7 +477,8 @@ export interface ShapeTrace {
  *  changes live. Computed by the SAME `fitHistoryToWindow` + kit estimator the engine's turn pipeline
  *  runs, so `boundaryMessageId` equals the `contextBoundaryMessageId` the next real turn would stamp on canon.
  *  `boundaryMessageId` is the earliest KEPT message id (null = everything fits / no id-bearing kept row).
- *  `usedTokens` = the kept history's estimated cost; `ceilingTokens` = min(window, maxContextTokens);
+ *  `usedTokens` = the system prompt plus the kept history, the same total the Preview bar draws; `ceilingTokens` =
+ *  the fit's system + history room (see {@link AssemblyBudgetPreview}); `limit` = what bounds that room;
  *  `reserveOutputTokens` = the materialized output reserve; `droppedCount` = oldest turns trimmed. */
 export interface ContextFitPreview {
   boundaryMessageId: MessageId | null;
@@ -469,6 +488,7 @@ export interface ContextFitPreview {
    *  {@link AssemblyBudgetPreview.ceilingEstimated}. Any "N of M used" line must say so. */
   ceilingEstimated: boolean;
   reserveOutputTokens: number;
+  limit: ContextLimit | null;
   droppedCount: number;
   /** The chat's LINEAR-tier compaction summary (`chats.compactSummary`) when it covers the span ABOVE the fit
    *  boundary — the divider then reports that older messages are compacted into a summary + offers a peek at this
@@ -809,8 +829,12 @@ const assemblySectionCostSchema = z.strictObject({
   rows: z.array(assemblySectionRowSchema).readonly(),
 }) satisfies z.ZodType<AssemblySectionCost>;
 
+const contextLimitSchema = z.strictObject({ kind: z.enum(CONTEXT_LIMIT_KINDS), tokens: z.number() }) satisfies z.ZodType<ContextLimit>;
+
 export const assemblyBudgetPreviewSchema = z.strictObject({
   ceilingTokens: z.number(),
+  reserveOutputTokens: z.number(),
+  limit: contextLimitSchema.nullable(),
   ceilingEstimated: z.boolean(),
   totalTokens: z.number(),
   sources: z.array(assemblyBudgetSliceSchema).readonly(),
@@ -841,6 +865,7 @@ const contextFitPreviewSchema = z.strictObject({
   ceilingTokens: z.number(),
   ceilingEstimated: z.boolean(),
   reserveOutputTokens: z.number(),
+  limit: contextLimitSchema.nullable(),
   droppedCount: z.number(),
   compactSummary: z.string().nullable(),
 }) satisfies z.ZodType<ContextFitPreview>;

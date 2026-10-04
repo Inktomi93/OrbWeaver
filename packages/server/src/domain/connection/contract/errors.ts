@@ -2,6 +2,7 @@
 // `@orb/contracts/inference` (`CONNECTION_OP_CODES`), because the client keys on them (no inline re-spell,
 // §7.5); every reader imports them from there.
 
+import type { EmbedWidthRefusalDetail } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserConnectionId } from "@orb/kit/ids";
@@ -12,6 +13,39 @@ export class ProviderUnknownError extends DomainOperationError {
   declare readonly code: typeof CONNECTION_OP_CODES.providerUnknown;
   constructor(providerId: string) {
     super(CONNECTION_OP_CODES.providerUnknown, `"${providerId}" is not a registered provider.`);
+  }
+}
+
+/** A write that would move the caller's index onto an embedder whose vectors are not the width its connection
+ *  states. The write is undone before this is thrown, so nothing was rebuilt or deleted. */
+export class EmbedWidthUnmakeableError extends DomainOperationError {
+  declare readonly code: typeof CONNECTION_OP_CODES.embedWidthUnmakeable;
+  constructor(width: EmbedWidthRefusalDetail) {
+    const expected = width.assumed ? `the ${String(width.stated)} assumed for it, since no width is set` : `the ${String(width.stated)} its connection states`;
+    super(CONNECTION_OP_CODES.embedWidthUnmakeable, `The model makes ${String(width.measured)}-wide vectors, not ${expected}.`, {
+      stated: width.stated,
+      measured: width.measured,
+      truncatable: width.truncatable,
+      assumed: width.assumed,
+    });
+  }
+}
+
+/** A write that would move the caller's index onto an embedder whose server refused the row's key on the width probe.
+ *  Undone before this is thrown, like {@link EmbedUnreachableError}. */
+export class EmbedAuthError extends DomainOperationError {
+  declare readonly code: typeof CONNECTION_OP_CODES.embedAuth;
+  constructor() {
+    super(CONNECTION_OP_CODES.embedAuth, "The embedder's server refused this connection's key, so its vector width could not be checked.");
+  }
+}
+
+/** A write that would move the caller's index onto an embedder that did not answer the width probe. Undone before
+ *  this is thrown, like {@link EmbedWidthUnmakeableError}: an unchecked width is never accepted. */
+export class EmbedUnreachableError extends DomainOperationError {
+  declare readonly code: typeof CONNECTION_OP_CODES.embedUnreachable;
+  constructor() {
+    super(CONNECTION_OP_CODES.embedUnreachable, "Couldn't reach this embedder to check its vector width. Try again.");
   }
 }
 

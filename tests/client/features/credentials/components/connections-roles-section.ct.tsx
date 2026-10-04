@@ -18,7 +18,7 @@
 // Drives the PRODUCTION path: the real contributed sections through the config host's own resolver, with
 // every read and the write stubbed at the network (routeTrpc).
 
-import { TASKS } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, TASKS } from "@orb/contracts/inference";
 import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -27,14 +27,28 @@ import type { Locator, Page } from "@playwright/test";
 // precedent in the sibling key-row CT): this module is pure `.ts`, so it is safe in a node-side CT spec,
 // while the feature's own front door is a barrel that would pull `.tsx` in with it.
 import { ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS } from "../../../../../packages/client/src/lib/connection-roles.ts";
+import type { ReindexPreview } from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
+import {
+  REBUILD_JOBS_LABEL,
+  REBUILD_STATUS_COPY,
+  REINDEX_CONFIRM_COPY,
+  reindexConfirmDescription,
+} from "../../../../../packages/client/src/lib/embedder-rebuild.ts";
 import { hitExtent, touchFloorPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/node/route-trpc.ts";
 import { userSettingsView } from "../../../../support/node/user-settings-view.ts";
 // The floor capability: the CHEAP model §5.3a warns about, legal on the Utility slot and unable to do two of its three jobs.
 import { TEXT_ONLY_CAPABILITY } from "../../../../support/node/utility-role.ts";
 import { ALL_AVAILABLE } from "../_connection-fixtures.ts";
-import { ConnectionsPaneNarrowStory, ConnectionsPaneWideStory, ConnectionsSettingsHostedStory, ConnectionsSettingsStory } from "../_ct-stories.tsx";
+import {
+  ConnectionsPaneNarrowStory,
+  ConnectionsPaneWideStory,
+  ConnectionsSettingsHostedStory,
+  ConnectionsSettingsRequestedStory,
+  ConnectionsSettingsReRequestedStory,
+  ConnectionsSettingsStory,
+} from "../_ct-stories.tsx";
 
 const AUTOSAVE_STATUS = '[data-slot="autosave-status"]';
 const UTILITY_PRESET_LABEL = "Utility preset";
@@ -57,6 +71,20 @@ const CHAT_CONNECTION_ID = "user_connection_ctroles00001";
 const UTILITY_CONNECTION_ID = "user_connection_ctroles00002";
 const EMBED_CONNECTION_ID = "user_connection_ctroles00003";
 const LOCAL_CHAT_CONNECTION_ID = "user_connection_ctroles00004";
+// A plain member, not the box owner: `workloads.list` pins a member to their own rows, so an owner viewer would
+// hide a rebuild queued for nobody in particular.
+const VIEWER_ID = "user_ct_connections";
+const RERANK_CONNECTION_ID = "user_connection_ctroles00005";
+const RERANK_CAPABILITY: TrpcWireOutput<"connection.capabilities">["capability"] = {
+  kind: "rerank",
+  rerank: { maxInputTokens: 2048, input: ["text"], instructionAware: false },
+};
+const RERANK_CAPABILITY_VIEW: TrpcWireOutput<"connection.capabilities"> = {
+  capability: RERANK_CAPABILITY,
+  baseline: RERANK_CAPABILITY,
+  warnings: [],
+  tasks: ["rerank"],
+};
 
 /** A `connection.list` row — `UserConnection` plus the two derived fields the pane renders beside it
  *  (`ConnectionView`: the provider's label and the tasks this row may be bound to). */
@@ -68,7 +96,7 @@ type CredentialRow = TrpcWireOutput<"credentials.list">[number];
 function connectionRow(over: Partial<ConnectionRow>): ConnectionRow {
   return {
     id: CHAT_CONNECTION_ID,
-    ownerId: "user_ct_connections",
+    ownerId: VIEWER_ID,
     label: "OpenRouter · Claude Sonnet 5",
     providerId: "openrouter",
     providerLabel: "OpenRouter",
@@ -125,7 +153,7 @@ function bindingView(task: BindingView["task"], over: Partial<BindingView> = {})
 }
 
 function binding(task: ConnectionBinding["task"], connectionId: string | null): ConnectionBinding {
-  return { id: `connection_binding_ct${task}`, actorKind: "user", userId: "user_ct_connections", ruleId: null, pluginId: null, task, connectionId };
+  return { id: `connection_binding_ct${task}`, actorKind: "user", userId: VIEWER_ID, ruleId: null, pluginId: null, task, connectionId };
 }
 
 /** A view whose binding RESOLVES — what a turn runs on today. */
@@ -170,11 +198,21 @@ async function stubPane(
     readonly bindings?: readonly BindingView[];
     readonly credentials?: readonly CredentialRow[];
     readonly settings?: ReturnType<typeof userSettingsView>;
+    readonly reindexPreview?: ReindexPreview;
+    readonly workloads?: () => TrpcWireOutput<"workloads.list">;
+    /** Whether search refuses for a text-target rebuild; read at call time, so a test can pause it when the re-point lands. */
+    readonly paused?: () => boolean;
+    /** The binding write's answer; absent, it succeeds. */
+    readonly bindAnswer?: () => ReturnType<typeof trpcError>;
   } = {},
 ): Promise<RolesStub> {
   const recorder = await routeTrpc(page, {
-    "sessions.me": () => ({ userId: "user_ct_connections", handle: "owner", globalRole: "owner" }),
+    "sessions.me": () => ({ userId: VIEWER_ID, handle: "member", globalRole: "user" }),
     "connection.list": () => opts.connections ?? [CHAT_ROW, UTILITY_ROW, EMBED_ROW],
+    // The three reads an opened connection editor makes, for the door from a role to its row.
+    "connection.get": (input) => (opts.connections ?? [CHAT_ROW]).find((row) => row.id === (input as { connectionId: string }).connectionId) ?? CHAT_ROW,
+    "connection.capabilities": () => RERANK_CAPABILITY_VIEW,
+    "connection.catalogModels": () => ({ listed: false, reason: "not listed in this test" }),
     "connection.listBindings": () => opts.bindings ?? UNBOUND,
     // Saved keys turns a credential's registry id into the provider's user-facing LABEL through the
     // registry rows — the one home for `ProviderDef.label`. The connections list row also reads this to
@@ -182,14 +220,28 @@ async function stubPane(
     // so every fixture row's `providerId` needs a matching entry here.
     "connection.providersAvailable": () => ALL_AVAILABLE,
     "credentials.list": () => opts.credentials ?? [],
-    "connection.setBinding": () => binding("chat", CHAT_CONNECTION_ID),
+    "connection.setBinding": () => opts.bindAnswer?.() ?? binding("chat", CHAT_CONNECTION_ID),
+    "connection.embedSpaceChangePreview": () => opts.reindexPreview ?? NO_REBUILD,
     "connection.update": () => CHAT_ROW,
     "preset.list": () => PRESET_ROWS,
     "settings.getUserSettings": () => opts.settings ?? userSettingsView(),
     "settings.updateUserSettingsSection": () => opts.settings ?? userSettingsView(),
+    // The vector rows read the viewer's embedder rebuild from the job list, one kind per read, as the server filters it.
+    // Only the text target moves in these fixtures, so only the Text embedding row may carry the line.
+    "search.spaceStatus": () => {
+      const paused = opts.paused?.() ?? false;
+      return { paused, embed: paused, imageEmbed: false };
+    },
+    "workloads.list": (input) => (opts.workloads?.() ?? []).filter((row) => input?.kind === undefined || row.kind === input.kind),
   });
   return { recorder };
 }
+
+/** The server's answer for a change that keeps the owner's embedding generation: nothing to rebuild. */
+const NO_REBUILD: ReindexPreview = { reindex: false, stored: { cards: 0, memory: 0, documents: 0, images: 0 }, embedCalls: 0, utilityModelSet: true };
+
+/** A change that would delete and rebuild a stored index. */
+const STORED_REBUILD: ReindexPreview = { reindex: true, stored: { cards: 12, memory: 40, documents: 0, images: 3 }, embedCalls: 55, utilityModelSet: true };
 
 /** Hold `connection.setBinding` open; the returned fn lets it through. Registered AFTER routeTrpc so it wins
  *  the route, then `fallback()`s into the stub once released. */
@@ -425,6 +477,349 @@ test("picking a connection writes EXACTLY that task's binding", async ({ mount, 
   await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
+// An embedder change that moves to a new generation deletes the stored index and rebuilds it, so the pane asks
+// first — and only when there is something stored to lose.
+test("a new embedder with nothing stored to rebuild is written without asking", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, { reindexPreview: { ...STORED_REBUILD, stored: NO_REBUILD.stored, embedCalls: 0, utilityModelSet: true } });
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+});
+
+test("a new embedder over a stored index asks first, and Cancel writes nothing", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, { reindexPreview: STORED_REBUILD });
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+
+  const confirm = page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title });
+  await expect(confirm).toBeVisible();
+  await expect(confirm.getByText(reindexConfirmDescription(STORED_REBUILD), { exact: true })).toBeVisible();
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+
+  await expect(confirm).toHaveCount(0);
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(0);
+});
+
+test("confirming the rebuild writes the binding once", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, { reindexPreview: STORED_REBUILD });
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  await expect
+    .poll(() => recorder.lastInput("connection.setBinding"), { intervals: [20, 50, 100] })
+    .toEqual({ task: "embed", connectionId: EMBED_CONNECTION_ID });
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("dismissing the rebuild confirm returns focus to the role's picker", async ({ mount, page }) => {
+  await stubPane(page, { reindexPreview: STORED_REBUILD });
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await expect(page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  await expect(roleSelect(page, "Text embedding")).toBeFocused();
+});
+
+/** The viewer's own embedder-change rebuild as `workloads.list` returns it: a re-point queues it for its owner. */
+function rebuildRow(status: TrpcWireOutput<"workloads.list">[number]["status"]): TrpcWireOutput<"workloads.list">[number] {
+  return {
+    id: "workload_01jct0rebuild000000000000000",
+    kind: "index",
+    status,
+    mode: "singular",
+    lane: "sweep",
+    ownerId: VIEWER_ID,
+    dependsOn: null,
+    error: status === "failed" ? "embeddings.store: vector dim mismatch for model 'm' — declared space dim 512, embedder returned 1024" : null,
+    progress: null,
+    scheduledAt: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    params: { source: "all", force: true, embedderChanged: true },
+    result: null,
+    poison: false,
+  };
+}
+
+/** The same move's chat-memory rebuild, which outlasts the index one. */
+function memoryRebuildRow(status: TrpcWireOutput<"workloads.list">[number]["status"]): TrpcWireOutput<"workloads.list">[number] {
+  return {
+    id: "workload_01jct0memrebuild0000000000000",
+    kind: "memory-backfill",
+    status,
+    mode: "singular",
+    lane: "sweep",
+    ownerId: VIEWER_ID,
+    dependsOn: null,
+    error: null,
+    progress: null,
+    scheduledAt: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    params: { embedderChanged: true },
+    result: null,
+    poison: false,
+  };
+}
+
+// Search waits on every scope the move rebuilds, so the line stays while the memory rebuild still runs.
+test("the embedding rows keep the rebuild line while the memory rebuild outlasts the index one", async ({ mount, page }) => {
+  await stubPane(page, { workloads: () => [rebuildRow("succeeded"), memoryRebuildRow("running")], paused: () => true });
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect(page.locator('[data-rebuild="running"]')).toHaveCount(1);
+});
+
+// The live probe's cell 2 (scripts/probes/embed-width/RESULTS.md): an earlier move's memory rebuild failed, a later
+// move rebuilt the rest and search answers. The old failure is not the state, so the rows say nothing.
+test("the embedding rows say nothing once search answers, whatever an earlier rebuild left behind", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, { workloads: () => [memoryRebuildRow("failed"), rebuildRow("succeeded")], paused: () => false });
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect.poll(() => recorder.count("workloads.list"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(3);
+  await expect.poll(() => recorder.count("search.spaceStatus"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+  await expect(roleSelect(page, "Text embedding")).toBeVisible();
+  await expect(page.locator("[data-rebuild]")).toHaveCount(0);
+});
+
+test("the embedding rows say when a rebuild runs and when it failed", async ({ mount, page }) => {
+  await stubPane(page, { workloads: () => [rebuildRow("failed")], paused: () => true });
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect(page.getByText(REBUILD_STATUS_COPY.failed, { exact: true })).toHaveCount(1);
+  await expect(page.getByText(REBUILD_STATUS_COPY.running, { exact: true })).toHaveCount(0);
+});
+
+/** The nearest role row around `node`: its picker's name, and its status dot's. */
+async function rowOf(node: Locator): Promise<{ readonly picker: string | null; readonly dot: string | null }> {
+  return await node.evaluate((element) => {
+    for (let at = element.parentElement; at !== null; at = at.parentElement) {
+      const picker = at.querySelector('[role="combobox"]');
+      if (picker !== null) {
+        return { picker: picker.getAttribute("aria-label"), dot: at.querySelector('[role="img"]')?.getAttribute("aria-label") ?? null };
+      }
+    }
+    return { picker: null, dot: null };
+  });
+}
+
+// The line belongs to the row whose target moved; the picture row's target did not, so it says nothing.
+test("a failed rebuild of the text target is announced on its own row, with a door to Jobs and no running dot", async ({ mount, page }) => {
+  await stubPane(page, {
+    workloads: () => [rebuildRow("failed")],
+    paused: () => true,
+    bindings: [
+      ...UNBOUND.filter((view) => view.task !== "embed"),
+      resolvedView("embed", EMBED_CONNECTION_ID, { providerId: "custom-openai", model: "Qwen3-VL-Embedding-2B" }),
+    ],
+  });
+  await mount(<ConnectionsSettingsStory />);
+  const line = page.locator('[data-rebuild="failed"]');
+
+  await expect(line).toHaveCount(1);
+  await expect(page.getByRole("status").filter({ has: line })).toHaveCount(1);
+  await expect(page.getByRole("status").filter({ has: line }).getByRole("button", { name: REBUILD_JOBS_LABEL })).toBeVisible();
+  expect(await rowOf(line)).toEqual({ picker: "Text embedding connection", dot: ROLE_STATUS_LABELS.blocked });
+  // The readout repeats the dot's name, so it must not still say the role is running.
+  await expect(page.getByText(`${ROLE_STATUS_LABELS.running} on`)).toHaveCount(0);
+  await expect(page.getByText(`${ROLE_STATUS_LABELS.blocked} —`)).toHaveCount(1);
+});
+
+// The server undoes a write onto a width the embedder cannot make; the picker goes back to what is bound and the row
+// says why, in place of the generic toast.
+test("a pick the server refuses for its width rolls the picker back and says why on the row", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, {
+    reindexPreview: STORED_REBUILD,
+    bindAnswer: () => trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedWidthUnmakeable, detail: { stated: 1024, measured: 768 } }),
+  });
+  await mount(<ConnectionsSettingsStory />);
+  const picker = roleSelect(page, "Text embedding");
+  const before = await picker.textContent();
+
+  await picker.click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(page.locator('[data-refusal="embed-width"]')).toHaveAttribute("role", "alert");
+  expect((await rowOf(page.locator('[data-refusal="embed-width"]'))).picker).toBe("Text embedding connection");
+  await expect(picker).toHaveText(before ?? "");
+});
+
+// An embedder that did not answer the width probe is refused the same way: the width is unknown, so nothing changed.
+test("a pick the server refuses because the embedder did not answer rolls the picker back and says so on the row", async ({ mount, page }) => {
+  const { recorder } = await stubPane(page, {
+    reindexPreview: STORED_REBUILD,
+    bindAnswer: () => trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedUnreachable }),
+  });
+  await mount(<ConnectionsSettingsStory />);
+  const picker = roleSelect(page, "Text embedding");
+  const before = await picker.textContent();
+
+  await picker.click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  await expect.poll(() => recorder.count("connection.setBinding"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(page.locator('[data-refusal="embed-unreachable"]')).toHaveAttribute("role", "alert");
+  expect((await rowOf(page.locator('[data-refusal="embed-unreachable"]'))).picker).toBe("Text embedding connection");
+  await expect(picker).toHaveText(before ?? "");
+  // The picker no longer shows the pick, so the line names the connection that did not answer.
+  await expect(page.locator('[data-refusal="embed-unreachable"]')).toContainText(EMBED_ROW.label);
+});
+
+// The server checks the new embedder before the binding lands, which can take a while; the row says so meanwhile.
+test("a pick whose embedder the server is still checking says so on its row until the answer", async ({ mount, page }) => {
+  await stubPane(page, {
+    reindexPreview: STORED_REBUILD,
+    bindAnswer: () => trpcError({ code: "BAD_REQUEST", reason: CONNECTION_OP_CODES.embedUnreachable }),
+  });
+  const release = await gateTheWrite(page);
+  await mount(<ConnectionsSettingsStory />);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  const checking = page.locator("[data-embedder-check]");
+  await expect(checking).toHaveAttribute("role", "status");
+  expect((await rowOf(checking)).picker).toBe("Text embedding connection");
+  await expect(page.locator('[aria-busy="true"]').filter({ has: checking })).toHaveCount(1);
+  release();
+  await expect(page.locator('[data-refusal="embed-unreachable"]')).toBeVisible();
+  await expect(checking).toHaveCount(0);
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+});
+
+// Before the confirm the server sizes the change; a pick must not look ignored meanwhile.
+test("a pick says it is checking from the moment the server is asked what it would rebuild", async ({ mount, page }) => {
+  await stubPane(page, { reindexPreview: STORED_REBUILD });
+  let releasePreview = (): void => undefined;
+  const previewHeld = new Promise<void>((resolve) => {
+    releasePreview = resolve;
+  });
+  await page.route(/embedSpaceChangePreview/, async (route) => {
+    await previewHeld;
+    await route.fallback();
+  });
+  await mount(<ConnectionsSettingsStory />);
+  const picker = roleSelect(page, "Text embedding");
+
+  await picker.click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+
+  const checking = page.locator("[data-embedder-check]");
+  await expect(checking).toHaveAttribute("role", "status");
+  expect((await rowOf(checking)).picker).toBe("Text embedding connection");
+  await expect(page.locator('[aria-busy="true"]').filter({ has: checking })).toHaveCount(1);
+  await expect(picker).toBeDisabled();
+  releasePreview();
+  await expect(page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title })).toBeVisible();
+  await expect(checking).toHaveCount(0);
+});
+
+// The app cache never goes stale on its own, and the rows only poll while a rebuild already shows as running,
+// so the confirmed re-point itself must re-read the job list or the rebuild it enqueued stays invisible.
+test("a confirmed embedder re-point shows its rebuild running, then failed", async ({ mount, page }) => {
+  let rebuild: TrpcWireOutput<"workloads.list"> = [];
+  let paused = false;
+  const { recorder } = await stubPane(page, { reindexPreview: STORED_REBUILD, workloads: () => rebuild, paused: () => paused });
+  // The server pauses search and enqueues the rebuild inside the binding write, so both hold from the moment it lands.
+  await page.route(SET_BINDING_ROUTE, async (route) => {
+    rebuild = [rebuildRow("running")];
+    paused = true;
+    await route.fallback();
+  });
+  await mount(<ConnectionsSettingsStory />);
+  const rebuildLines = (state: string): Locator => page.locator(`[data-rebuild="${state}"]`);
+  // The empty job list has been read and cached before the re-point.
+  await expect.poll(() => recorder.count("workloads.list"), { intervals: [20, 50, 100] }).toBeGreaterThan(0);
+  await expect(roleSelect(page, "Text embedding")).toBeVisible();
+  await expect(page.locator("[data-rebuild]")).toHaveCount(0);
+
+  await roleSelect(page, "Text embedding").click();
+  await page.getByRole("option", { name: "Local embedder · Qwen3-VL-Embedding-2B" }).click();
+  await page.getByRole("alertdialog", { name: REINDEX_CONFIRM_COPY.title }).getByRole("button", { name: REINDEX_CONFIRM_COPY.confirmLabel }).click();
+
+  await expect(rebuildLines("running")).toHaveCount(1);
+
+  rebuild = [rebuildRow("failed")];
+  // The running line's own poll picks the end up; it re-reads every 5 s.
+  await expect(rebuildLines("failed")).toHaveCount(1, { timeout: 10_000 });
+  await expect(rebuildLines("running")).toHaveCount(0);
+});
+
+// The Rerank picker lists connections, and the built-in rerankers are models of one connection, so the role's door
+// opens that connection's editor, where the model is picked.
+test("a Rerank role on the built-in row has a door that opens that row's editor", async ({ mount, page }) => {
+  const rerankRow = connectionRow({
+    id: RERANK_CONNECTION_ID,
+    label: "Built-in reranker",
+    providerId: "local-light",
+    providerLabel: "Built-in (this device)",
+    model: "cross-encoder/ettin-reranker-32m-v1",
+    tasks: ["rerank"],
+  });
+  const onBuiltin = UNBOUND.map((view) => (view.task === "rerank" ? bindingView("rerank", { binding: binding("rerank", RERANK_CONNECTION_ID) }) : view));
+  await stubPane(page, { connections: [CHAT_ROW, rerankRow], bindings: onBuiltin });
+  await mount(<ConnectionsSettingsStory />);
+
+  await page.getByRole("button", { name: `Open ${rerankRow.label}`, exact: true }).click();
+
+  const editor = page.locator('[data-slot="connection-editor"]');
+  await expect(editor).toBeVisible();
+  await expect(editor.getByText(rerankRow.label, { exact: true })).toBeVisible();
+});
+
+// A door from outside the pane (a game whose state round does not fit the model's window) lands on that row's editor
+// with Advanced open, where the context window is stated.
+test("a door asking for a row's Advanced tier opens that row's editor with Advanced expanded", async ({ mount, page }) => {
+  await stubPane(page);
+  await mount(<ConnectionsSettingsRequestedStory connectionId={CHAT_ROW.id} />);
+
+  const editor = page.locator('[data-slot="connection-editor"]');
+  await expect(editor).toBeVisible();
+  await expect(editor.getByText(CHAT_ROW.label, { exact: true })).toBeVisible();
+  await expect(editor.locator('[data-tier="Advanced"]').getByRole("button", { expanded: true })).toHaveCount(1);
+  await expect(editor.locator('[data-tier="Diagnostics"]').getByRole("button", { expanded: true })).toHaveCount(0);
+});
+
+test("a door asking for Advanced on the row whose editor is already open still expands Advanced", async ({ mount, page }) => {
+  await stubPane(page);
+  await mount(<ConnectionsSettingsReRequestedStory connectionId={CHAT_ROW.id} />);
+
+  const editor = page.locator('[data-slot="connection-editor"]');
+  await expect(editor.getByText(CHAT_ROW.label, { exact: true })).toBeVisible();
+  const advanced = editor.locator('[data-tier="Advanced"]');
+  await expect(advanced.getByRole("button", { expanded: false })).toHaveCount(1);
+
+  await page.getByRole("button", { name: "door to Advanced", exact: true }).click();
+  await expect(advanced.getByRole("button", { expanded: true })).toHaveCount(1);
+  await expect(editor.getByText(CHAT_ROW.label, { exact: true })).toBeVisible();
+});
+
+test("a Rerank role on a row the user added offers no door to the built-in row", async ({ mount, page }) => {
+  const rerankRow = connectionRow({ id: RERANK_CONNECTION_ID, label: "Hosted reranker", tasks: ["rerank"] });
+  const onHosted = UNBOUND.map((view) => (view.task === "rerank" ? bindingView("rerank", { binding: binding("rerank", RERANK_CONNECTION_ID) }) : view));
+  await stubPane(page, { connections: [CHAT_ROW, rerankRow], bindings: onHosted });
+  await mount(<ConnectionsSettingsStory />);
+
+  await expect(page.locator("#config-anchor-connections-model-roles").getByRole("combobox").first()).toBeVisible();
+  await expect(page.getByRole("button", { name: `Open ${rerankRow.label}` })).toHaveCount(0);
+});
+
 // D299: the Utility role picks its preset beside its connection. Absent is task defaults; the other two arms
 // are explicit, and each pick is one `seeds` patch of exactly that key.
 test("the Utility preset starts on task defaults and writes each choice as one seeds patch", async ({ mount, page }) => {
@@ -497,13 +892,14 @@ test("an unreconciled pick says 'Not applied yet' and still names what a turn US
 });
 
 // The unconfigured pane has no default to name (§7.2 — there is no default connection), and it must SAY so
-// rather than rendering a blank that reads like a value.
+// rather than rendering a blank that reads like a value. The text embedding row is the one exception: unbinding it
+// keeps the stored index answering, so it says that instead of "nothing".
 test("an unbound row says nothing is set, and names no model", async ({ mount, page }) => {
   await stubPane(page);
   await mount(<ConnectionsSettingsStory />);
 
   await expect(page.getByText("Nothing — no connection is set.", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Nothing — no connection is set.", { exact: true })).toHaveCount(ROLE_ROWS_ORDERED.length);
+  await expect(page.getByText("Nothing — no connection is set.", { exact: true })).toHaveCount(ROLE_ROWS_ORDERED.filter((row) => row.task !== "embed").length);
   // The shipped sentence read "A turn uses nothing — …", in which "uses nothing" parses for a beat as
   // "uses [the thing called] nothing". It is gone.
   await expect(page.getByText("A turn uses nothing", { exact: false })).toHaveCount(0);
@@ -592,7 +988,7 @@ test("an UNJUDGED rail still states the requirement — a requirement the user c
   // Nothing resolves anywhere, so there is no capability to judge against — and the rail is still drawn.
   await expect(roles.getByText("prose", { exact: true })).toBeVisible();
   await expect(roles.getByText("structured JSON", { exact: true })).toBeVisible();
-  await expect(roles.getByText("1024-wide vectors", { exact: true }).first()).toBeVisible();
+  await expect(roles.getByText("image input", { exact: true }).first()).toBeVisible();
 });
 
 // P2, RE-DERIVED: this pane used to add a SECOND home and a second wording for "Saved" (a bare chip
@@ -652,7 +1048,7 @@ const COPY_THAT_NEVER_CUTS = [
   "Unset falls back to the captioned-text lens.",
   // The badge rail is the row's one unbounded element and it WRAPS rather than truncating — a requirement
   // the user cannot see is the exact failure the badges exist to prevent.
-  "1024-wide vectors",
+  "structured JSON",
 ];
 
 /** How many rendered nodes escape the section's own right edge — the honest "does it fit" measure at a

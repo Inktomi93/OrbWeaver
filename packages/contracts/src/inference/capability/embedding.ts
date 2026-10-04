@@ -1,7 +1,8 @@
-// The EMBEDDING capability — the admission facts for a vector model. `dims` + `dtype` are what the space tag
-// `(model, dim[@dtype])` is derived from (`embeddings.ts:22-28`'s law: two providers serving the same
-// weights at the same dtype ARE one space, so there is deliberately no provider id here). `mrl` says a
-// longer vector may be TRUNCATED to `EMBED_SPACE_DIMS`; a shorter one is REFUSED, never padded (#1635).
+// The EMBEDDING capability — the admission facts for a vector model. `dtype` folds into the space tag
+// `model[@dtype]` (two providers serving the same weights at the same dtype ARE one space, so there is
+// deliberately no provider id here). `dims` IS the owner's space width; it rides the generation identity, not
+// the tag. A vector is never padded. An MRL model is asked for exactly `dims` and only its longer vector is
+// cut to that width; any other width mismatch is refused, which is how a declared shorter width is honoured.
 
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
@@ -29,6 +30,10 @@ export const embeddingCapabilitySchema = z.object({
   dimsEstimated: z.boolean().optional(),
 });
 export type EmbeddingCapability = z.infer<typeof embeddingCapabilitySchema>;
+
+/** The connection-row fields a vector space's identity is derived from. A patch touching none of them cannot move
+ *  an owner to a new embedding generation, so neither the server preview nor the pane's confirm needs to ask. */
+export const EMBED_SPACE_FIELDS = ["providerId", "baseUrl", "model", "api", "declared", "extras", "transport"] as const;
 
 /** THE VECTOR-SPACE IDENTITY of an embedding — `<model>` or `<model>@<dtype>`. THE ONE derivation of the
  *  space tag every vector row is keyed on, every retrieval scan filters on, and a generation's identity is

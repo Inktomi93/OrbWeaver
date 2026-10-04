@@ -28,7 +28,7 @@
 
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgActorView, RpgDateMode, RpgQuestView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } from "@orb/contracts/rpg";
-import { RPG_NPC_GUIDE_FIELDS } from "@orb/contracts/rpg";
+import { RPG_NPC_GUIDE_FIELDS, RPG_SCENE_LINE_LABEL } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
 import type { DeltaContext } from "../contract/delta.ts";
 import type { RpgMacroFeed } from "../contract/params.ts";
@@ -66,7 +66,7 @@ function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, ctx: NpcR
   if (view.ambient !== null) {
     const ambient = ambientLine(view.ambient, dateMode);
     if (ambient !== "") {
-      lines.push(`Scene: ${ambient}`);
+      lines.push(`${RPG_SCENE_LINE_LABEL}${ambient}`);
     }
   }
   // The P5 plot spine (same line grammar as the reminder's Story line — one helper, two consumers).

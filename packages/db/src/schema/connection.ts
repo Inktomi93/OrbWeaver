@@ -91,6 +91,9 @@ export const userConnections = sqliteTable(
     // The local-light seed slot this row fills (its task), NULL for every row a user made. The seed keys on it,
     // never on the label, so relabelling the seed renames the user's row in place instead of adding one.
     seedSlot: text("seed_slot").$type<LocalLightSeedSlot>(),
+    // The model the local-light seed last put this slot row on (NULL on rows seeded before the column). The seed
+    // moves a row to a new default only while the row is still on the model it gave it, so a user's own pick stays.
+    seedModel: text("seed_model").$type<ModelId>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

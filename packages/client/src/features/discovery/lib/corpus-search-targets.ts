@@ -25,6 +25,9 @@ type CorpusSearchTarget = (typeof CORPUS_SEARCH_TARGETS)[number];
 /** The omnibox target axis id (file-local — consumers resolve via `resolveSearchTarget`). */
 type CorpusSearchTargetId = CorpusSearchTarget["id"];
 
+/** The lexical text target: it answers from card text, so it still works while vector search is paused. */
+export const CORPUS_TEXT_TARGET_ID = "fields" satisfies CorpusSearchTargetId;
+
 /** The empty-query rest-state hint per target — one honest line each: WHAT the target searches and
  *  WHAT to type. The Characters target rests on the browse catalog instead of a hint, so its entry is
  *  the catalog's own framing (shown only if the catalog can't render). A mapped Record over the id

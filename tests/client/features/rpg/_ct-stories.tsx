@@ -13,9 +13,9 @@
 import { QueryBoundary } from "@orb/client/components";
 import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
-import type { ChatContextState, ContextRegionDef, ContextTabDef, NotifyInput } from "@orb/client/lib";
+import type { ChatContextState, ContextRegionDef, ContextTabDef, NotifyInput, NotifyNotice } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
-import { selectChat, useSectionRegistry } from "@orb/client/state";
+import { selectChat, useRequestedConnectionEditor, useSectionRegistry } from "@orb/client/state";
 import type { MessageView } from "@orb/contracts/chat";
 import type { RpgActorVolatile, RpgInventoryItem } from "@orb/contracts/rpg";
 import { isRpgEngaged } from "@orb/contracts/rpg";
@@ -220,6 +220,36 @@ export function RpgTakeoverNotifyStory(): ReactElement {
   );
 }
 
+/** The takeover with every notice recorded (and the door the last one offers), a control that remounts the game
+ *  panel over the cached reads, and the connection-editor request a door leaves behind — nothing here consumes that
+ *  request, so it stays readable after the click. */
+export function RpgTakeoverWindowNoticeStory(): ReactElement {
+  const [notices, setNotices] = useState<readonly NotifyNotice[]>([]);
+  const [mountCount, setMountCount] = useState(0);
+  const requested = useRequestedConnectionEditor();
+  useEffect(() => {
+    selectChat(CHAT_ID);
+    const sink = (notice: NotifyInput): void => setNotices((prior) => [...prior, toNotice(notice)]);
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
+  }, []);
+  const door = notices.at(-1)?.action;
+  return (
+    <CtDataProviders>
+      <RpgTakeoverHarness key={mountCount} width={320} height={640} />
+      <p data-testid="rpg-notice-count">{notices.length}</p>
+      <button type="button" onClick={(): void => setMountCount((n) => n + 1)}>
+        Remount game panel
+      </button>
+      {door === undefined ? null : (
+        <button type="button" data-testid="rpg-notice-door" onClick={door.onClick}>
+          {door.label}
+        </button>
+      )}
+      <p data-testid="requested-editor">{requested === null ? "" : `${requested.connectionId} advanced=${String(requested.openAdvanced)}`}</p>
+    </CtDataProviders>
+  );
+}
+
 /** The SAME takeover at HUD-1 §7.1's stated budget reference — a 30rem × 900px docked context panel (the
  *  panel's `clamp(17rem, 30vw, 30rem)` ceiling, at a full-height desktop window). The vertical-budget rule
  *  is written against exactly this geometry, so the CT that pins it must mount exactly this geometry: a
@@ -293,7 +323,7 @@ export function RpgTakeoverHeaderWhenLongStory({
         trackerOrbs={[]}
         viewerUserId="user_ct"
         trackersReadOnly={false}
-        delivery={{ path: "tool-round", fallbackReason: null }}
+        delivery={{ path: "tool-round", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null }}
         dateMode="narrated"
         freshnessPending={false}
       />
@@ -308,26 +338,46 @@ export function RpgTakeoverHeaderWhenLongStory({
 
 /** The host picked the two-call arm, idle — the last successfully recorded state is named honestly. */
 export function RpgFreshnessCheapIdleStory(): ReactElement {
-  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null }} pending={false} />;
+  return (
+    <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null }} pending={false} />
+  );
 }
 
 /** The two-call arm with the post-commit round's window open — the transient "Updating…" (pulse aria-hidden).
  *  (`cheap` claimed "Live" from D108's inline-tools shape, which D109 replaced with a dedicated round.) */
 export function RpgFreshnessCheapStory(): ReactElement {
-  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null }} pending={true} />;
+  return (
+    <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null }} pending={true} />
+  );
 }
 
 /** The fold actually ran (R1) — the reply records its own state, so there is no post-commit call to wait on: a
  *  minimal "Live" affordance, never a fake lag label. `pending` is true to prove it does NOT flip to "Updating…". */
 export function RpgFreshnessFoldedStory(): ReactElement {
-  return <RpgFreshnessIndicator delivery={{ path: "folded", fallbackReason: null }} pending={false} />;
+  return <RpgFreshnessIndicator delivery={{ path: "folded", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null }} pending={false} />;
 }
 
 /** THE EFF-3 ARM: a `folded` game on a wire that goes mute under tool attachment. It uses a fallback round, and
  *  before EFF-3 this exact room rendered "Live" (D112 (4)'s KNOWN GAP). The label is the lag; the title carries
  *  the reason. `pending` true proves the fallback arm still opens the honest transient. */
 export function RpgFreshnessGuardedStory(): ReactElement {
-  return <RpgFreshnessIndicator delivery={{ path: "tool-round", fallbackReason: "local-engine-fold-guard" }} pending={false} />;
+  return (
+    <RpgFreshnessIndicator
+      delivery={{ path: "tool-round", fallbackReason: "local-engine-fold-guard", structuredUnavailable: false, stateRoundOverflow: null }}
+      pending={false}
+    />
+  );
+}
+
+/** 0511: the game asks for a structured reply the room's model cannot give, so its post-commit pass runs tool calls.
+ *  On a fold-guarded room both causes apply, and the title states both. */
+export function RpgFreshnessStructuredUnavailableStory(): ReactElement {
+  return (
+    <RpgFreshnessIndicator
+      delivery={{ path: "tool-round", fallbackReason: "local-engine-fold-guard", structuredUnavailable: true, stateRoundOverflow: null }}
+      pending={false}
+    />
+  );
 }
 
 /** No model write path at all — nothing delivers state, so the pill renders NOTHING (the band's Read-only pill
@@ -337,7 +387,7 @@ export function RpgFreshnessNoneStory(): ReactElement {
   // hold a locator on — the wrapper is the anchor the "nothing here" assertion counts children against.
   return (
     <div data-testid="freshness-slot">
-      <RpgFreshnessIndicator delivery={{ path: "none", fallbackReason: null }} pending={true} />
+      <RpgFreshnessIndicator delivery={{ path: "none", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null }} pending={true} />
     </div>
   );
 }

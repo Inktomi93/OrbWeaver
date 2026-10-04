@@ -10,7 +10,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ArbiterCandidate, SpeakerReranker, TranscriptLine } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
-import { personaSummaryOf, rerankPick } from "../../../../../packages/server/src/domain/chat/engine/rerank-pick.ts";
+import { rerankPick } from "../../../../../packages/server/src/domain/chat/engine/rerank-pick.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
@@ -23,7 +23,7 @@ const SPEAKERS = [
   { ref: ref("bran"), name: "Bran" },
   { ref: ref("cara"), name: "Cara" },
 ];
-const PERSONAS = new Map(KEYS.map((k) => [cid(k), `${k} is a traveller with a long and winding story`] as const));
+const LINES = new Map(KEYS.map((k) => [cid(k), `${k} is a traveller with a long and winding story`] as const));
 const WIDE: RerankCapability = { maxInputTokens: 8192, input: ["text"], instructionAware: false };
 
 /** A rerank role scoring each document by the character it names; records what it was sent. */
@@ -55,8 +55,9 @@ function pick(over: Partial<Parameters<typeof rerankPick>[0]> & Pick<Parameters<
   return rerankPick({
     candidates: CANDIDATES,
     speakerCandidates: SPEAKERS,
-    personas: PERSONAS,
+    characterLines: LINES,
     lastLine: line("what do we do now?"),
+    humanNames: ["Sam"],
     lastSpeaker: null,
     rng: () => 0.5,
     ...over,
@@ -72,10 +73,16 @@ describe("rerankPick — the rules over injected scores", () => {
     expect((await pick({ reranker: unit.op })).speakers).toEqual([ref("aria")]);
   });
 
-  test("the last speaker sits out when the round bans it, and may answer when it does not", async () => {
+  test("the last speaker sits out of a reply to its own line when the round bans it, and may answer when it does not", async () => {
     const scores = fakeReranker({ aria: 5, bran: 1, cara: 0 });
-    expect((await pick({ reranker: scores.op, lastSpeaker: ref("aria") })).speakers).toEqual([ref("bran")]);
-    expect((await pick({ reranker: scores.op, lastSpeaker: ref("aria"), banLast: false })).speakers).toEqual([ref("aria")]);
+    const own = line("Where does the road lead?", "Aria", cid("aria"));
+    expect((await pick({ reranker: scores.op, lastLine: own, lastSpeaker: ref("aria") })).speakers).toEqual([ref("bran")]);
+    expect((await pick({ reranker: scores.op, lastLine: own, lastSpeaker: ref("aria"), banLast: false })).speakers).toEqual([ref("aria")]);
+  });
+
+  test("after a human line the last speaker stays in the ranking: they are often exactly who was asked", async () => {
+    const scores = fakeReranker({ aria: 5, bran: 1, cara: 0 });
+    expect((await pick({ reranker: scores.op, lastLine: line("Who can treat this wound?"), lastSpeaker: ref("aria") })).speakers).toEqual([ref("aria")]);
   });
 
   test("a character named in the last line wins over the ranking and the ban, whoever wrote the line", async () => {
@@ -116,7 +123,7 @@ describe("rerankPick — an ambiguous or common-word name does not win outright"
       reranker,
       candidates: CastKeys.map(candidate),
       speakerCandidates: Cast,
-      personas: new Map(CastKeys.map((k) => [cid(k), `${k} persona`] as const)),
+      characterLines: new Map(CastKeys.map((k) => [cid(k), `${k} persona`] as const)),
       lastLine: line(text),
     });
 
@@ -139,7 +146,7 @@ describe("rerankPick — an ambiguous or common-word name does not win outright"
       reranker: scores.op,
       candidates: ["hook", "nemo", "smee"].map(candidate),
       speakerCandidates: crew,
-      personas: new Map(["hook", "nemo", "smee"].map((k) => [cid(k), `${k} persona`] as const)),
+      characterLines: new Map(["hook", "nemo", "smee"].map((k) => [cid(k), `${k} persona`] as const)),
       lastLine: line("Captain, grab the hook."),
     });
     expect(out.speakers).toEqual([ref("nemo")]);
@@ -159,12 +166,48 @@ describe("rerankPick — an ambiguous or common-word name does not win outright"
     expect(out.speakers).toEqual([ref("aria")]);
     expect(scores.sent[0]).toHaveLength(4);
   });
+
+  test("one ambiguous name sends the whole line to the ranking for one pick, the clear names in it included", async () => {
+    const scores = fakeReranker({ hale: 1, rook: 9, will: 50, aria: 100 });
+    // A shared title beside a clear name: one pick within the characters the line names.
+    const named = await castPick(scores.op, "Captain, Will, report.");
+    expect(named.speakers).toEqual([ref("will")]);
+    expect(scores.sent.at(-1)?.map((d) => d.text?.split(":")[0])).toEqual(["Captain Hale", "Captain Rook", "Will"]);
+    // A name a human player shares beside a clear name: one pick over everyone.
+    const cast = [
+      { ref: ref("hale"), name: "Grace" },
+      { ref: ref("rook"), name: "Bryn" },
+      { ref: ref("will"), name: "Will" },
+      { ref: ref("aria"), name: "Aria" },
+    ];
+    const human = await pick({
+      reranker: scores.op,
+      candidates: CastKeys.map(candidate),
+      speakerCandidates: cast,
+      humanNames: ["Grace"],
+      lastLine: line("Grace, Bryn, help me."),
+    });
+    expect(human.speakers).toEqual([ref("aria")]);
+    expect(scores.sent.at(-1)).toHaveLength(4);
+  });
+
+  test("after a human line the last speaker stays in an ambiguous name's field", async () => {
+    const scores = fakeReranker({ hale: 1, rook: 9, will: 0, aria: 0 });
+    const out = await pick({
+      reranker: scores.op,
+      candidates: CastKeys.map(candidate),
+      speakerCandidates: Cast,
+      lastLine: line("Captain, what now?"),
+      lastSpeaker: ref("rook"),
+    });
+    expect(out.speakers).toEqual([ref("rook")]);
+  });
 });
 
 describe("rerankPick — documents fit the bound model's window", () => {
   test("a small window clips each persona and keeps the name; a large one sends it whole", async () => {
     const small = fakeReranker({ aria: 1 }, { maxInputTokens: 64, input: ["text"], instructionAware: false });
-    await pick({ reranker: small.op, personas: new Map(KEYS.map((k) => [cid(k), `${k} ${"remembers every road and river ".repeat(20)}`] as const)) });
+    await pick({ reranker: small.op, characterLines: new Map(KEYS.map((k) => [cid(k), `${k} ${"remembers every road and river ".repeat(20)}`] as const)) });
     const clipped = small.sent[0] ?? [];
     expect(clipped.map((d) => d.text?.split(":")[0])).toEqual(["Aria", "Bran", "Cara"]);
     expect(clipped.every((d) => (d.text?.length ?? 0) < 200)).toBe(true);
@@ -175,7 +218,114 @@ describe("rerankPick — documents fit the bound model's window", () => {
   });
 });
 
-describe("rerankPick — cancellation and persona text", () => {
+describe("rerankPick — several characters addressed", () => {
+  test("every character the line names answers, ordered by rank, and only they are ranked", async () => {
+    const scores = fakeReranker({ aria: 9, bran: 3, cara: 5 });
+    const out = await pick({ reranker: scores.op, lastLine: line("Bran and Cara, report."), lastSpeaker: ref("bran") });
+    expect(out).toEqual({ speakers: [ref("cara"), ref("bran")], degraded: false, aborted: false });
+    expect(scores.sent.map((docs) => docs.map((d) => d.text?.split(":")[0]))).toEqual([["Bran", "Cara"]]);
+  });
+
+  test("an ambiguous name is settled by rank within the characters it names", async () => {
+    const knights = [
+      { ref: ref("aria"), name: "The Knight" },
+      { ref: ref("bran"), name: "The Black Knight" },
+      { ref: ref("cara"), name: "Cara" },
+    ];
+    const scores = fakeReranker({ aria: 1, bran: 4, cara: 9 });
+    const out = await pick({ reranker: scores.op, speakerCandidates: knights, lastLine: line("Knight, hold the gate!") });
+    expect(out).toEqual({ speakers: [ref("bran")], degraded: false, aborted: false });
+  });
+
+  test("a name a human player shares addresses the human; the character's whole name still addresses it", async () => {
+    const rooms = [
+      { ref: ref("aria"), name: "Rook the Bard" },
+      { ref: ref("bran"), name: "Bran" },
+      { ref: ref("cara"), name: "Cara" },
+    ];
+    const scores = fakeReranker({ aria: 9, bran: 1, cara: 4 });
+    const toHuman = await pick({
+      reranker: scores.op,
+      speakerCandidates: rooms,
+      humanNames: ["Rook"],
+      lastLine: line("Rook, your move.", "Bran", cid("bran")),
+    });
+    expect(toHuman.speakers).toEqual([ref("aria")]);
+    expect(scores.sent).toHaveLength(1);
+    const toBard = await pick({
+      reranker: scores.op,
+      speakerCandidates: rooms,
+      humanNames: ["Rook"],
+      lastLine: line("Rook the Bard, your move.", "Bran", cid("bran")),
+    });
+    expect(toBard).toEqual({ speakers: [ref("aria")], degraded: false, aborted: false });
+    expect(scores.sent).toHaveLength(1);
+  });
+
+  test("a player's name written as an ordinary word is no address: the named character answers with no ranking", async () => {
+    const scores = fakeReranker({ aria: 1, bran: 4, cara: 9 });
+    const grace = [
+      { ref: ref("aria"), name: "Mara" },
+      { ref: ref("bran"), name: "Grace" },
+      { ref: ref("cara"), name: "Cara" },
+    ];
+    const withGrace = await pick({ reranker: scores.op, speakerCandidates: grace, humanNames: ["Sam", "Grace"], lastLine: line("Mara, move with grace.") });
+    expect(withGrace).toEqual({ speakers: [ref("aria")], degraded: false, aborted: false });
+    const will = [
+      { ref: ref("aria"), name: "Mara" },
+      { ref: ref("bran"), name: "Will" },
+      { ref: ref("cara"), name: "Cara" },
+    ];
+    const withWill = await pick({ reranker: scores.op, speakerCandidates: will, humanNames: ["Sam", "Will"], lastLine: line("Mara, I will hold the door.") });
+    expect(withWill).toEqual({ speakers: [ref("aria")], degraded: false, aborted: false });
+    expect(scores.sent).toHaveLength(0);
+
+    // Written as a name, the shared name is ambiguous: one pick ranked over everyone.
+    const addressed = await pick({ reranker: scores.op, speakerCandidates: grace, humanNames: ["Sam", "Grace"], lastLine: line("Mara, Grace, go.") });
+    expect(addressed.speakers).toEqual([ref("cara")]);
+    expect(scores.sent).toHaveLength(1);
+  });
+
+  test("a seat with a blank name is never ranked", async () => {
+    const scores = fakeReranker({ aria: 9, bran: 1, cara: 4 });
+    const blank = [
+      { ref: ref("aria"), name: "  " },
+      { ref: ref("bran"), name: "Bran" },
+      { ref: ref("cara"), name: "Cara" },
+    ];
+    const out = await pick({ reranker: scores.op, speakerCandidates: blank });
+    expect(out).toEqual({ speakers: [ref("cara")], degraded: false, aborted: false });
+    expect(scores.sent.map((docs) => docs.map((d) => d.id))).toEqual([["c:character_bran", "c:character_cara"]]);
+  });
+
+  test("eligible characters that all have blank names leave nothing to rank: a visible natural degrade, never a silent []", async () => {
+    const scores = fakeReranker({ aria: 9, bran: 1, cara: 4 });
+    const blank = KEYS.map((k) => ({ ref: ref(k), name: " " }));
+    const out = await pick({ reranker: scores.op, speakerCandidates: blank });
+    expect(out.speakers).toHaveLength(1);
+    expect(out).toMatchObject({ degraded: true, aborted: false });
+    expect(scores.sent).toHaveLength(0);
+  });
+
+  test("a failing role still answers the addressed characters, in mention order, and says so", async () => {
+    const out = await pick({ reranker: () => Promise.reject(new Error("rerank down")), lastLine: line("Cara, Aria: now.") });
+    expect(out).toEqual({ speakers: [ref("cara"), ref("aria")], degraded: true, aborted: false });
+  });
+
+  test("a muted mention is dropped; naming only muted characters ranks as if none was named", async () => {
+    const roster = [candidate("aria"), candidate("bran"), { ...candidate("cara"), disabled: true }];
+    const scores = fakeReranker({ aria: 1, bran: 4, cara: 9 });
+    const mixed = await pick({ reranker: scores.op, candidates: roster, lastLine: line("Cara and Aria, look!") });
+    expect(mixed.speakers).toEqual([ref("aria")]);
+    expect(scores.sent).toHaveLength(0);
+
+    const mutedOnly = await pick({ reranker: scores.op, candidates: roster, lastLine: line("Cara, look!") });
+    expect(mutedOnly).toEqual({ speakers: [ref("bran")], degraded: false, aborted: false });
+    expect(scores.sent).toHaveLength(1);
+  });
+});
+
+describe("rerankPick — cancellation", () => {
   test("a turn aborted while the role is unbound is cancelled, not degraded to a natural pick", async () => {
     const controller = new AbortController();
     const out = await pick({
@@ -193,13 +343,5 @@ describe("rerankPick — cancellation and persona text", () => {
     const out = await pick({ reranker: scores.op, lastLine: line("Cara, your turn."), signal: AbortSignal.abort() });
     expect(out).toEqual({ speakers: [], degraded: false, aborted: true });
     expect(scores.sent).toHaveLength(0);
-  });
-
-  test("a blank description falls back to the personality, macros rendered against the card's name", () => {
-    const card = { name: "Aria", personality: "{{char}} is wry and patient" };
-    expect(personaSummaryOf({ ...card, description: "" }, 0)).toBe("Aria is wry and patient");
-    expect(personaSummaryOf({ ...card, description: "  \n " }, 0)).toBe("Aria is wry and patient");
-    expect(personaSummaryOf({ ...card, description: "A keeper of lights" }, 0)).toBe("A keeper of lights");
-    expect(personaSummaryOf({ name: "Aria", description: " ", personality: null }, 0)).toBe("");
   });
 });

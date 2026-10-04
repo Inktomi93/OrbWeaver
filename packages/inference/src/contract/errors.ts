@@ -59,7 +59,16 @@ export interface ProviderErrorInit {
   readonly sessionId?: AgentSdkSessionId;
   /** The upstream request/generation id, when the response exposes one. */
   readonly requestId?: string;
+  /** An `invalid` embed whose vector width is not the width the connection states: the caller can say both
+   *  numbers instead of reading them out of the message. */
+  readonly width?: VectorWidthMismatch;
   readonly cause?: unknown;
+}
+
+/** The width a connection states for its vectors, and the width the model actually returned. */
+export interface VectorWidthMismatch {
+  readonly stated: number;
+  readonly measured: number;
 }
 
 export class ProviderError extends Error {
@@ -72,6 +81,7 @@ export class ProviderError extends Error {
   readonly detail: string | undefined;
   readonly sessionId: AgentSdkSessionId | undefined;
   readonly requestId: string | undefined;
+  readonly width: VectorWidthMismatch | undefined;
 
   constructor(init: ProviderErrorInit) {
     super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
@@ -85,6 +95,7 @@ export class ProviderError extends Error {
     this.detail = init.detail;
     this.sessionId = init.sessionId;
     this.requestId = init.requestId;
+    this.width = init.width;
   }
 
   /** Every carried field as its own log key. A field added to {@link ProviderErrorInit} MUST be mirrored
@@ -101,6 +112,7 @@ export class ProviderError extends Error {
       ...(this.apiErrorStatus !== undefined ? { apiErrorStatus: this.apiErrorStatus } : {}),
       ...(this.sessionId !== undefined ? { sessionId: this.sessionId } : {}),
       ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
+      ...(this.width !== undefined ? { width: this.width } : {}),
     };
   }
 
@@ -120,6 +132,7 @@ export class ProviderError extends Error {
       ...(this.detail !== undefined ? { detail: this.detail } : {}),
       ...(this.sessionId !== undefined ? { sessionId: this.sessionId } : {}),
       ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
+      ...(this.width !== undefined ? { width: this.width } : {}),
       cause: this,
     });
   }

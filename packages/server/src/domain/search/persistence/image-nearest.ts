@@ -1,6 +1,6 @@
 // domain/search/persistence/image-nearest — cross-modal text→image vector scan (row shape + fetch); the
-// image_embeddings analogue of nearest.ts. Three belts in the WHERE: owner (via the joined assets row,
-// never users), space (embed model), and lens. hub_score is selected but deliberately not CSLS-adjusted
+// image_embeddings analogue of nearest.ts. Four belts in the WHERE: owner (via the joined assets row,
+// never users), space (embed model), the query's width, and lens. hub_score is selected but deliberately not CSLS-adjusted
 // here (see verbs/images.ts).
 
 import type { ImageLens } from "@orb/contracts/embeddings";
@@ -46,6 +46,7 @@ export async function nearestImages(db: ReadOnlyDb, params: NearestImagesParams)
       and(
         eq(assets.ownerId, params.ownerId),
         eq(imageEmbeddings.model, params.model),
+        eq(imageEmbeddings.dim, params.queryVector.length),
         params.generationId === undefined ? undefined : eq(imageEmbeddings.generationId, params.generationId),
         eq(imageEmbeddings.lens, params.lens),
       ),
@@ -123,6 +124,7 @@ export async function nearestAvatarCharacters(db: ReadOnlyDb, params: NearestAva
         eq(characters.ownerId, params.ownerId),
         eq(characters.synthetic, false),
         eq(imageEmbeddings.model, params.model),
+        eq(imageEmbeddings.dim, params.queryVector.length),
         params.generationId === undefined ? undefined : eq(imageEmbeddings.generationId, params.generationId),
         eq(imageEmbeddings.lens, params.lens),
         ne(characters.id, params.excludeCharacterId),

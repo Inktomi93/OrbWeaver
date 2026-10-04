@@ -2,7 +2,8 @@
 // chat-style `messages` body (vLLM's documented multimodal embedding request: images cannot ride the raw
 // `input` path; `add_generation_prompt: true` reproduces the official similarity matrix). Served only when
 // the resolved embedding capability declares `input ∋ image` (`connectionTasks` + `requirementMet` decide
-// at resolve, re-asserted here). Same space, same dim as the text task (one unified multimodal space).
+// at resolve, re-asserted here). Same space, same width as the text task (one unified multimodal space): the
+// connection's stated `dims`.
 
 import { canEmbedImages } from "@orb/contracts/inference";
 import type { ImageEmbedResult } from "@orb/contracts/providers";
@@ -23,7 +24,6 @@ const EMBEDDINGS_PATH = "/embeddings";
 export interface ImageEmbedDeps {
   readonly fetch: typeof fetch;
   readonly normalize: NormalizeImageBytes;
-  readonly spaceDims: number;
 }
 
 type ContentPart = { readonly type: "text"; readonly text: string } | { readonly type: "image_url"; readonly image_url: { readonly url: string } };
@@ -110,7 +110,7 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
   if (connection.baseUrl === null) {
     throw new ProviderError({ kind: "invalid", retryable: false, message: `${label}: the connection carries no base URL` });
   }
-  const dim = deps.spaceDims;
+  const { dims: dim, mrl } = connection.capability.embedding;
   const conversations = await toConversations(req.input, deps.normalize);
   const vectors: (Float32Array<ArrayBuffer> | null)[] = new Array(conversations.length).fill(null);
   let next = 0;
@@ -128,7 +128,7 @@ export async function runOpenAiCompatImageEmbed(req: ImageEmbedRequest, deps: Im
       const response = await embedOne({ req, deps, label, messages, dim });
       const item = response.data[0];
       if (item !== undefined) {
-        vectors[i] = fitToDim(Array.from(decodeEmbeddingVector(item.embedding, label)), dim, label);
+        vectors[i] = fitToDim(Array.from(decodeEmbeddingVector(item.embedding, label)), { dims: dim, mrl }, label);
       }
     }
   };

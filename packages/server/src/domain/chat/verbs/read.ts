@@ -150,6 +150,7 @@ import {
   buildShapeTrace,
   buildTurnMacroContext,
   buildTurnUserMacros,
+  contextLimitOf,
   loadCharacterCardLore,
   previewActionText,
   previewSection,
@@ -163,13 +164,19 @@ import {
 import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
-import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import {
+  projectViewForMember,
+  scrubChatEventReplayForMember,
+  scrubStreamReplayForMember,
+  stripMemberCardForViewer,
+  viewerReadsHidden,
+} from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
-import { buildWireHistory, convertsToEmptyWireRow, fitWireHistory } from "../substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow, shapeConvertFit } from "../substrate/wire-history.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -976,18 +983,22 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     // an above-level card-field macro (`{{charsysinfo}}`/`{{charposthistory}}`/…) inside a surviving field can
     // ONLY resolve to the clamped (empty) value, so no macro can smuggle a nulled secret back onto the wire.
     const renderCtx = cardRenderContext(clamped, anchorPersona, { timezone: assemblyTimeZone(timeZone), nowMs: ctx.now() });
-    return {
-      ...clamped,
-      editableTags: principal.userId === hostUserId && clamped.tags !== null ? tags : null,
-      description: renderCardField(clamped.description, renderCtx),
-      personality: renderCardField(clamped.personality, renderCtx),
-      scenario: renderCardField(clamped.scenario, renderCtx),
-      greetings: clamped.greetings === null ? null : clamped.greetings.map((g) => renderMacros(g, renderCtx, renderCtx.pinnedPersona)),
-      exampleMessages: renderCardField(clamped.exampleMessages, renderCtx),
-      creatorNotes: renderCardField(clamped.creatorNotes, renderCtx),
-      systemPrompt: renderCardField(clamped.systemPrompt, renderCtx),
-      postHistoryInstructions: renderCardField(clamped.postHistoryInstructions, renderCtx),
-    };
+    // The hidden-span strip runs LAST, over the rendered bytes, so no macro expansion can reintroduce a span.
+    return stripMemberCardForViewer(
+      {
+        ...clamped,
+        editableTags: principal.userId === hostUserId && clamped.tags !== null ? tags : null,
+        description: renderCardField(clamped.description, renderCtx),
+        personality: renderCardField(clamped.personality, renderCtx),
+        scenario: renderCardField(clamped.scenario, renderCtx),
+        greetings: clamped.greetings === null ? null : clamped.greetings.map((g) => renderMacros(g, renderCtx, renderCtx.pinnedPersona)),
+        exampleMessages: renderCardField(clamped.exampleMessages, renderCtx),
+        creatorNotes: renderCardField(clamped.creatorNotes, renderCtx),
+        systemPrompt: renderCardField(clamped.systemPrompt, renderCtx),
+        postHistoryInstructions: renderCardField(clamped.postHistoryInstructions, renderCtx),
+      },
+      membership,
+    );
   };
 }
 
@@ -1162,7 +1173,11 @@ async function shapeNextTurn(
     readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
     readonly assembled: AssembledPrompt;
   },
-): Promise<{ canon: readonly MessageView[]; shaped: ReturnType<typeof shapeTurn> }> {
+): Promise<{
+  canon: readonly MessageView[];
+  rows: ReturnType<typeof toShapeCanon>;
+  shape: (rows: ReturnType<typeof toShapeCanon>) => ReturnType<typeof shapeTurn>;
+}> {
   const { chatId, inputs, assembleContext, assembled } = args;
   // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
   // (client-display parity), exactly as the engine builds it for a real turn.
@@ -1180,39 +1195,41 @@ async function shapeNextTurn(
     inputs.capability === undefined
       ? undefined
       : await cueReplayFor(inputs.capability, resolveCarryReasoning(params, inputs.capability, []), () => loadCanonCues(ctx.db, chatId));
-  const shaped = shapeTurn({
-    canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs)) : [],
-    appendUserTurn: null,
-    injections: inChatInjections,
-    // The room's own output axis (see `buildPreviewContext`) — a narrator preview shapes its history as the
-    // narrator turn will. `cardScope`/`scopedTargetId` stay pinned (merged / no fold): narrator is always merged,
-    // and a shapeless peek makes no per-speaker scoped selection, so per-speaker rooms stay byte-identical.
-    output: inputs.group.output,
-    cardScope: "merged",
-    scopedTargetId: null,
-    namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
-    speakers: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, assistant: assembleContext.character.name },
-    multiHuman: assembleContext.multiHuman === true,
-    // The preview voices the primary's turn, with the cue a turn carries when its system block names no speaker.
-    groupNudge: speakerCue(assembleContext, previewVoice(assembleContext, inputs.group.output)),
-    cueReplay,
-    assistantPrefill: inputs.capability !== undefined && acceptsAssistantPrefill(inputs.capability),
-    convertsToEmptyWireRow,
-    // The same two system-row facts the turn reads. The preview must show the SAME delivery the wire carries —
-    // this read is what a host debugs the prompt with, so a divergence would make the trace lie about the role
-    // sequence and the fold reasons.
-    midConversationSystem: level?.midConversationSystem === true,
-    historySystemRows: level?.historySystemRows === true,
-    roleHandling: params.advanced?.roleHandling,
-    roleHandlingFloor: level?.roleHandlingFloor,
-    explicitCacheMarkers: inputs.explicitCacheMarkers,
-    squashSystemMessages: params.advanced?.squashSystemMessages,
-    prose: assembleContext.prose,
-  });
-  return { canon, shaped };
+  const rows = assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs)) : [];
+  const shape = (shapeRows: ReturnType<typeof toShapeCanon>): ReturnType<typeof shapeTurn> =>
+    shapeTurn({
+      canon: shapeRows,
+      appendUserTurn: null,
+      injections: inChatInjections,
+      // The room's own output axis (see `buildPreviewContext`) — a narrator preview shapes its history as the
+      // narrator turn will. `cardScope`/`scopedTargetId` stay pinned (merged / no fold): narrator is always merged,
+      // and a shapeless peek makes no per-speaker scoped selection, so per-speaker rooms stay byte-identical.
+      output: inputs.group.output,
+      cardScope: "merged",
+      scopedTargetId: null,
+      namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
+      speakers: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, assistant: assembleContext.character.name },
+      multiHuman: assembleContext.multiHuman === true,
+      // The preview voices the primary's turn, with the cue a turn carries when its system block names no speaker.
+      groupNudge: speakerCue(assembleContext, previewVoice(assembleContext, inputs.group.output)),
+      cueReplay,
+      assistantPrefill: inputs.capability !== undefined && acceptsAssistantPrefill(inputs.capability),
+      convertsToEmptyWireRow,
+      // The same two system-row facts the turn reads. The preview must show the SAME delivery the wire carries —
+      // this read is what a host debugs the prompt with, so a divergence would make the trace lie about the role
+      // sequence and the fold reasons.
+      midConversationSystem: level?.midConversationSystem === true,
+      historySystemRows: level?.historySystemRows === true,
+      roleHandling: params.advanced?.roleHandling,
+      roleHandlingFloor: level?.roleHandlingFloor,
+      explicitCacheMarkers: inputs.explicitCacheMarkers,
+      squashSystemMessages: params.advanced?.squashSystemMessages,
+      prose: assembleContext.prose,
+    });
+  return { canon, rows, shape };
 }
 
-/** Run the SAME CONVERT → FIT pair the engine's turn pipeline runs over an already-shaped history: the budget
+/** Run the SAME SHAPE → CONVERT → FIT sequence the engine's turn pipeline runs over the stored rows: the budget
  *  is the model window soft-capped by the preset's `maxContextTokens`, reserving the materialized output
  *  budget + the assembled system tokens. One home for the preview reads that need a boundary/ceiling.
  *
@@ -1230,7 +1247,8 @@ async function fitShapedHistory(args: {
   readonly assembleContext: Awaited<ReturnType<typeof gatherAssembleContext>>;
   readonly assembled: AssembledPrompt;
   readonly capability: GenerationCapability | undefined;
-  readonly shaped: ReturnType<typeof shapeTurn>;
+  /** The stored rows and the turn's SHAPE over them ({@link shapeNextTurn}). */
+  readonly next: Pick<Awaited<ReturnType<typeof shapeNextTurn>>, "rows" | "shape">;
   /** The CONVERT env — the previews' twin of the turn's (`runTurnPipeline`), resolved under the HOST because
    *  every preview already is (`resolvePreviewInputs`: connection, preset, `{{user}}`). */
   readonly convert: {
@@ -1244,7 +1262,7 @@ async function fitShapedHistory(args: {
     readonly canon: readonly MessageView[];
   };
   readonly ctx: ChatContext;
-}): Promise<{ fitted: ReturnType<typeof fitHistory>; budget: ReturnType<typeof buildHistoryBudget> }> {
+}): Promise<{ shaped: ReturnType<typeof shapeTurn>; fitted: ReturnType<typeof fitHistory>; budget: ReturnType<typeof buildHistoryBudget> }> {
   const params = args.assembleContext.promptConfig.params;
   const systemTokens = estimateTokens([args.assembled.static, args.assembled.dynamic].join("\n\n"));
   const budget = buildHistoryBudget({
@@ -1254,30 +1272,33 @@ async function fitShapedHistory(args: {
     systemTokens,
     outputCeiling: args.capability?.output.maxTokens.max,
   });
-  const converted = await buildWireHistory(
-    {
-      visionOk: args.capability !== undefined && acceptsImageInput(args.capability),
-      videoOk: args.capability !== undefined && acceptsVideoInput(args.capability),
-      resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref, quality: args.convert.quality }),
-      cardKeepLastX: args.convert.cardKeepLastX,
-      canon: args.convert.canon,
-      // §8.8: the preview prices the SAME rows the next turn sends, so it resolves the carry rung the way
-      // the turn will (`resolveCarryReasoning`, the one policy home) and reads the replay material only on
-      // the `conversation` rung. A capability-less preview (no resolved connection) cannot know the rung and
-      // takes the `off` floor rather than a guess that over-prices the window. Warnings are the TURN's to
-      // raise, so the sink is a throwaway here.
-      reasoningByMessage:
-        args.capability !== undefined && resolveCarryReasoning(params, args.capability, []) === "conversation"
-          ? await loadCanonReasoningParts(args.ctx.db, args.convert.chatId)
-          : new Map<MessageId, readonly ChatReasoningPart[]>(),
-      // §6.7: the SAME fence input the turn passes, from the SAME query — a preview that priced an
-      // assistant-row picture differently from the turn would put the transcript divider in the wrong place
-      // on exactly the chats this feature creates. LAZY: untouched on a history with no model-emitted image.
-      loadInlineReplyAssetIds: () => loadInlineReplyAssetIds(args.ctx.db, args.convert.chatId),
-    },
-    args.shaped.history,
-  );
-  return { fitted: fitWireHistory(converted, budget, args.shaped.newChatMarker).fitted, budget };
+  const convertEnv: Parameters<typeof buildWireHistory>[0] = {
+    visionOk: args.capability !== undefined && acceptsImageInput(args.capability),
+    videoOk: args.capability !== undefined && acceptsVideoInput(args.capability),
+    resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref, quality: args.convert.quality }),
+    cardKeepLastX: args.convert.cardKeepLastX,
+    canon: args.convert.canon,
+    // §8.8: the preview prices the SAME rows the next turn sends, so it resolves the carry rung the way
+    // the turn will (`resolveCarryReasoning`, the one policy home) and reads the replay material only on
+    // the `conversation` rung. A capability-less preview (no resolved connection) cannot know the rung and
+    // takes the `off` floor rather than a guess that over-prices the window. Warnings are the TURN's to
+    // raise, so the sink is a throwaway here.
+    reasoningByMessage:
+      args.capability !== undefined && resolveCarryReasoning(params, args.capability, []) === "conversation"
+        ? await loadCanonReasoningParts(args.ctx.db, args.convert.chatId)
+        : new Map<MessageId, readonly ChatReasoningPart[]>(),
+    // §6.7: the SAME fence input the turn passes, from the SAME query — a preview that priced an
+    // assistant-row picture differently from the turn would put the transcript divider in the wrong place
+    // on exactly the chats this feature creates. LAZY: untouched on a history with no model-emitted image.
+    loadInlineReplyAssetIds: () => loadInlineReplyAssetIds(args.ctx.db, args.convert.chatId),
+  };
+  const { shaped, fitted } = await shapeConvertFit({
+    canon: args.next.rows,
+    shape: args.next.shape,
+    convert: (rows) => buildWireHistory(convertEnv, rows),
+    budget,
+  });
+  return { shaped, fitted, budget };
 }
 
 /** Is the fit's ceiling a GUESS rather than the connected model's real window? True only when the capability's
@@ -1339,12 +1360,12 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided, timeZone });
     const { prompt, slices } = buildPromptWithSlices(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
-    const { canon, shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
-    const { fitted } = await fitShapedHistory({
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled: prompt });
+    const { fitted, budget: fitBudget } = await fitShapedHistory({
       assembleContext,
       assembled: prompt,
       capability: inputs.capability,
-      shaped,
+      next,
       convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
     });
@@ -1357,6 +1378,8 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
       // `null` ⇒ no trustworthy ceiling (no window + no soft cap) ⇒ `0`, the wire's "unbounded" (the bar then
       // renders proportions with no ratio) — never a fabricated number.
       ceilingTokens: fitted.ceilingTokens ?? 0,
+      reserveOutputTokens: fitBudget.reserveOutputTokens,
+      limit: contextLimitOf(fitBudget),
       ceilingEstimated: ceilingIsEstimated(inputs.capability, assembleContext.promptConfig.params.maxContextTokens),
     });
     // Route through the host-audience redaction seam (D59). The verdict is DERIVED
@@ -1387,9 +1410,9 @@ function createPeekPrompt(ctx: ChatContext, deps: ReadDeps): ChatService["peekPr
 
 /** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon.
  *  HOST/ADMIN (`requireHost`): the SHAPE-phase debug surface, gate-classified `host` in the auth matrix.
- *  Re-runs SHAPE on demand (the same `buildPrompt` → `toShapeCanon` → `shapeTurn` a real turn's peek uses),
- *  then projects the stage snapshots + the resolved breakpoint offset onto the content-free `ShapeTrace` —
- *  no content bytes by construction, nothing persists (mirrors `peekPrompt`'s dry-run frame). */
+ *  Re-runs SHAPE on demand through the turn's own SHAPE → CONVERT → FIT ({@link fitShapedHistory}), so a chat whose
+ *  squashed run overruns the window traces the survivors the turn shapes, then projects the stage snapshots + the
+ *  resolved breakpoint offset onto the content-free `ShapeTrace` — no content bytes by construction, nothing persists (mirrors `peekPrompt`'s dry-run frame). */
 function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["getShapeTrace"] {
   return async ({ principal, chatId, speakerCharacterId }: GetShapeTraceParams): Promise<ShapeTrace> => {
     const membership = await requireHost(ctx, principal, chatId);
@@ -1398,10 +1421,18 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
       speakerCharacterId,
     });
     const registry = buildPreviewRegistry(inputs);
-    const { assembleContext } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
+    const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
     // SHAPE the next-turn peek — the trace describes how the CURRENT canon shapes for the next turn.
-    const { shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    const { shaped } = await fitShapedHistory({
+      assembleContext,
+      assembled,
+      capability: inputs.capability,
+      next,
+      convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
+      ctx,
+    });
     return buildShapeTrace(shaped.stages, shaped.cacheBreakpointFromEnd, shaped.breakpointDecision);
   };
 }
@@ -1465,10 +1496,12 @@ function resolveContextFitPreview(env: {
   const { fitted, canon, compactSummary, coveragePoint } = env;
   const hasSummary = compactSummary !== null && compactSummary.length > 0;
   const common = {
-    usedTokens: fitted.usedTokens,
+    // The system prompt plus the kept history: the same total the Preview bar draws against the same room.
+    usedTokens: env.budget.systemTokens + fitted.usedTokens,
     ceilingTokens: fitted.ceilingTokens ?? 0,
     ceilingEstimated: env.ceilingEstimated,
     reserveOutputTokens: env.budget.reserveOutputTokens,
+    limit: contextLimitOf(env.budget),
     droppedCount: fitted.droppedCount,
   };
   if (!hasSummary) {
@@ -1501,14 +1534,14 @@ function createPreviewContextFit(ctx: ChatContext, deps: ReadDeps): ChatService[
     const registry = buildPreviewRegistry(inputs);
     const { assembleContext, cardKeepLastX } = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
     const assembled = buildPrompt(inputs.foreign.promptConfig, assembleContext, registry ?? undefined);
-    const { canon, shaped } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
-    // CONVERT → FIT — the same pair, in the same order, over the same rows the engine's turn pipeline runs
-    // (one home: `fitShapedHistory` → `substrate/wire-history`).
+    const { canon, ...next } = await shapeNextTurn(ctx, { chatId, inputs, assembleContext, assembled });
+    // SHAPE → CONVERT → FIT — the same sequence, in the same order, over the same rows the engine's turn pipeline
+    // runs (one home: `fitShapedHistory` → `substrate/wire-history` shapeConvertFit).
     const { fitted, budget } = await fitShapedHistory({
       assembleContext,
       assembled,
       capability: inputs.capability,
-      shaped,
+      next,
       convert: { hostUserId: inputs.hostUserId, chatId, cardKeepLastX, canon, quality: inputs.foreign.chatBehavior?.attachmentQuality },
       ctx,
     });

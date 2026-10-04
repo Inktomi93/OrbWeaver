@@ -94,6 +94,7 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
     messageId: turn.messageId,
     variantId: turn.variantId,
     baseState,
+    trackerDefs: game.config.trackers,
     turnConnection: turn.turnConnection,
     signal: turn.signal,
     reconcile,

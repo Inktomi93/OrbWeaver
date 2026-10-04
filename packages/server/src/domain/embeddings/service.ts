@@ -10,7 +10,9 @@ import type { AvatarAnalysis } from "./contract/results.ts";
 import type { EmbeddingsService } from "./contract/service.ts";
 import { analyzeAvatarImage, avatarAnalysisCallsModel } from "./indexer/caption.ts";
 import { createImageAnalysisCounter, createImageIndexer } from "./indexer/image.ts";
-import { resolveTargetGeneration } from "./substrate/generation.ts";
+import { countOwnedVectors } from "./persistence/owned-vector-counts.ts";
+import { readTargetSnapshot } from "./persistence/space-state.ts";
+import { pendingTargetMove, resolveTargetGeneration } from "./substrate/generation.ts";
 import { createClearTable } from "./verbs/clear-table.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
 import { createCountDocumentChunksByOwner } from "./verbs/count-document-chunks-by-owner.ts";
@@ -21,8 +23,10 @@ import { createPruneMemoryBlocks } from "./verbs/prune-memory-blocks.ts";
 import { createPurgeDisallowedImages } from "./verbs/purge-disallowed-images.ts";
 import { createPurgeDocumentVectors } from "./verbs/purge-document-vectors.ts";
 import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors.ts";
+import { createStaleGenerationOwners } from "./verbs/stale-generation-owners.ts";
 import { createStore } from "./verbs/store.ts";
 import { createStoreSegments } from "./verbs/store-segments.ts";
+import { createSyncTargetGenerations } from "./verbs/sync-target-generations.ts";
 import { createWriteHubScores } from "./verbs/write-hub-scores.ts";
 
 export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsService {
@@ -36,6 +40,12 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     purgeDisallowedImages: createPurgeDisallowedImages(ctx),
     indexAsset,
     resolveGeneration: (ownerId, task, via) => resolveTargetGeneration(ctx, ownerId, task, via),
+    syncTargetGenerations: createSyncTargetGenerations(ctx),
+    // The preview asks before the user commits; a host that does not answer must not hold the question.
+    targetWouldMove: async (args) => (await pendingTargetMove(ctx, { ...args, cachedFacts: true }))?.moves ?? null,
+    targetSnapshot: (ownerId) => readTargetSnapshot(ctx.db, ownerId),
+    staleGenerationOwners: createStaleGenerationOwners(ctx),
+    countOwnedVectors: (ownerId) => countOwnedVectors(ctx.db, ownerId),
     store,
     storeSegments: createStoreSegments(ctx),
     writeHubScores: createWriteHubScores(ctx),

@@ -14,7 +14,7 @@
 import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 interface CardFacetRow {
   readonly characterId: CharacterId;
@@ -54,6 +54,25 @@ export async function readOwnedCardFacets(db: Db, ownerId: UserId): Promise<Card
     .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
     .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
     .where(eq(characters.ownerId, ownerId));
+}
+
+interface DistillateRow {
+  readonly characterId: CharacterId;
+  readonly elevatorPitch: string | null;
+  readonly tags: readonly string[];
+}
+
+/** The pitch and facet tags of the owner's distilled cards among `characterIds`. An undistilled or foreign id is
+ *  simply absent. Chat's speaker pick reads it through an op bound at the composition root. */
+export async function readOwnedDistillates(db: Db, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<readonly DistillateRow[]> {
+  if (characterIds.length === 0) {
+    return [];
+  }
+  return await db
+    .select({ characterId: characterSummaries.characterId, elevatorPitch: characterSummaries.elevatorPitch, tags: characterSummaries.tags })
+    .from(characterSummaries)
+    .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
+    .where(and(eq(characters.ownerId, ownerId), inArray(characterSummaries.characterId, [...characterIds])));
 }
 
 /** ONE owned/distilled card's facets — the owner belt for `askCard`/`characterDossier` (`undefined` when the

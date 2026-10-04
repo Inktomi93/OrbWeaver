@@ -84,7 +84,7 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
     captureWireReply: deps.captureWireReply,
     imageToPng: deps.imageToPng,
   };
-  const openAiCompat = createOpenAiCompatBackend({ ...shared, app: deps.app, embedSpaceDims: deps.embedSpace.dims, snapshotStore: deps.snapshotStore });
+  const openAiCompat = createOpenAiCompatBackend({ ...shared, app: deps.app, snapshotStore: deps.snapshotStore });
   const anthropic = createAnthropicBackend(shared);
   const localLight = createLocalLightBackend({ now: deps.now, log: deps.log, superviseDetached: deps.superviseDetached, config: deps.localLight });
   const createAgent = (): AgentSdkBackend =>
@@ -108,7 +108,7 @@ export function buildBackends(deps: InferenceDeps): BuiltBackends {
   const built: [Wire, ProviderBackend | undefined][] = [
     ["openai-compat", openAiCompat.backend],
     ["anthropic-messages", anthropic],
-    ["google-generative-ai", createGoogleBackend({ ...shared, embedSpaceDims: deps.embedSpace.dims })],
+    ["google-generative-ai", createGoogleBackend(shared)],
     ["agent-sdk", agentSdk?.backend],
     ["local-light", localLight.backend],
   ];

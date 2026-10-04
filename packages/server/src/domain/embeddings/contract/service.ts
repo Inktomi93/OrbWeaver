@@ -3,8 +3,9 @@
 // no principal/guard on any bundle — the vector substrate carries no ownerId.
 
 import type { AssetKind } from "@orb/contracts/assets";
+import type { VectorScope } from "@orb/contracts/embeddings";
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
-import type { Capability, ProviderId } from "@orb/contracts/inference";
+import type { Capability, EndpointFeatures, ProviderId } from "@orb/contracts/inference";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -22,7 +23,7 @@ import type {
   UserConnectionId,
   UserId,
 } from "@orb/kit/ids";
-import type { GenerationReceipt, GenerationTask } from "./generation.ts";
+import type { EmbedMoveRefusal, GenerationReceipt, GenerationTask } from "./generation.ts";
 import type {
   ClearTableParams,
   CountDocumentChunksParams,
@@ -57,7 +58,7 @@ export interface EmbeddingConnectionSnapshot {
   readonly api: string;
   readonly wire: string;
   readonly baseUrl: string | null;
-  readonly features: unknown;
+  readonly features: EndpointFeatures;
   readonly extras: unknown;
   readonly transport: unknown;
   readonly embed: (
@@ -69,12 +70,16 @@ export interface EmbeddingConnectionSnapshot {
 
 export interface PinnedGeneration extends GenerationReceipt {
   readonly connection: EmbeddingConnectionSnapshot;
+  /** The width every vector of this generation is written at — the bound embedder's, never the deployment's. */
+  readonly dims: number;
 }
 
+/** `cachedFacts`: read only the server facts already cached, dialing nothing (a read-only preview). */
 export type ResolveEmbeddingConnection = (
   ownerId: UserId,
   task: "embed" | "imageEmbed",
   connectionId?: UserConnectionId | undefined,
+  opts?: { readonly cachedFacts?: boolean | undefined },
 ) => Promise<EmbeddingConnectionSnapshot | null>;
 
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
@@ -128,14 +133,39 @@ export interface EmbeddingsContext {
   /** The entity OWNER by id (the sweeps' funder read; the indexer context carries the same pair). */
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
   readonly loadAssetOwner: (assetId: AssetId) => Promise<UserId | null>;
-  readonly embedDim: number;
-  readonly imageEmbedDim: number;
+  /** The owner's target generation just moved and its old vectors are gone: queue their full rebuild. Called
+   *  after the switch commits, by whichever caller moved it; fire-and-forget. */
+  readonly onTargetGenerationMoved: (ownerId: UserId) => void;
+  /** The owner's target just promoted: every scope holds it, so their paused search answers again. Called once, by
+   *  the scope completion that promoted it; fire-and-forget. */
+  readonly onTargetPromoted: (ownerId: UserId) => void;
 }
 
 export interface EmbeddingsService {
   readonly purgeDisallowedImages: () => Promise<void>;
   readonly indexAsset: (assetId: AssetId, options?: { readonly force?: boolean; readonly signal?: AbortSignal | undefined }) => Promise<StoreResult | null>;
   readonly resolveGeneration: (ownerId: UserId, task: GenerationTask, via?: GenerationTask) => Promise<PinnedGeneration | null>;
+  /** Bring the owner's stored targets in line with what their vector bindings resolve to now, moving any that
+   *  differ (which queues the rebuild through {@link EmbeddingsContext.onTargetGenerationMoved}). A binding that
+   *  cannot resolve yet moves nothing and does not throw: its first write after it can resolve moves it. Every move
+   *  is width-probed before any moves, so a refusal leaves both targets and their indexes as they were. */
+  readonly syncTargetGenerations: (ownerId: UserId) => Promise<EmbedMoveRefusal | null>;
+  /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
+   *  cannot resolve. Read-only, and the same rule a move is made by, over the server facts already cached: it dials
+   *  no host. */
+  readonly targetWouldMove: (args: {
+    readonly ownerId: UserId;
+    readonly task: GenerationTask;
+    readonly via: GenerationTask;
+    readonly connectionId: UserConnectionId;
+  }) => Promise<boolean | null>;
+  /** Every stored target in scope (one owner, or every owner for `null`) as one comparable value: two equal
+   *  snapshots mean no target in scope moved between them. Read-only. */
+  readonly targetSnapshot: (ownerId: UserId | null) => Promise<string>;
+  /** The owners whose stored target generation differs from the one their binding resolves to now. Read-only. */
+  readonly staleGenerationOwners: () => Promise<readonly UserId[]>;
+  /** How many vectors the owner has stored per scope — what an embedder change would delete and rebuild. */
+  readonly countOwnedVectors: (ownerId: UserId) => Promise<Readonly<Record<VectorScope, number>>>;
   /** The only vector inserter for the single-item lenses. Hash-gates on `(key, model)` — a matched
    *  `content_hash` is a noop; else embeds, asserts the vector matches the declared space `dim`, and upserts.
    *  Never touches `hub_score`. Verbatim SEGMENTS go through {@link storeSegments} instead. */
@@ -196,7 +226,6 @@ export interface EmbeddingsIndexerContext {
   readonly loadCardText: LoadCardText;
   readonly loadCharacterOwner: (characterId: CharacterId) => Promise<UserId | null>;
   readonly roleClientsFor: RoleClientsFor;
-  readonly embedDim: number;
 }
 
 /** The event subscription shape `entry/` binds onto the bus: `character.updated` re-embeds the card,
@@ -209,7 +238,7 @@ export interface EmbeddingsIndexer {
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the `index` kind) —
  *  this domain's own verbs, plus the freshness plane the sweep's terminal fans on. */
 export interface EmbeddingsWorkloadDeps {
-  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets" | "countAssetAnalysisCalls">;
+  readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets" | "countAssetAnalysisCalls" | "targetSnapshot">;
   /**
    * The per-user freshness plane (`corpusRecomputed`) — injected, never a sideways reach at the bus (D38).
    * The `index` sweep rewrites the vectors every `discovery.*` read and `search.similarArt` are derived from,

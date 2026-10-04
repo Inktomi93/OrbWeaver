@@ -12,7 +12,7 @@ import type { RpgExtractionMode, RpgTrackerCarrier, RpgTrackerDef } from "@orb/c
 import { actorRefKey, carriesTracker } from "@orb/contracts/rpg";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { EXTRACTION_CONTEXT_LABEL } from "../../../../../packages/client/src/features/rpg/lib/host-console-labels.ts";
@@ -23,7 +23,14 @@ import { REGEX_READS_EMPTY } from "../../../../support/node/regex-reads-empty.ts
 import type { TrpcFixtureOutput, TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { ctSnapPath } from "../../../../support/node/snap-out.ts";
-import { RpgTakeoverDockedStory, RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories.tsx";
+import {
+  RpgTakeoverDockedStory,
+  RpgTakeoverFloorStory,
+  RpgTakeoverNotifyStory,
+  RpgTakeoverReferenceStory,
+  RpgTakeoverStory,
+  RpgTakeoverWindowNoticeStory,
+} from "../_ct-stories.tsx";
 
 const GAME_ID = "rpg_game_ct_keystone";
 const PERSONA_ID = "persona_ct_keystone";
@@ -69,8 +76,8 @@ function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode =
     // What the knob RESOLVES to on this room's connection — the server derives it (`deriveEffectiveDelivery`);
     // the stub mirrors the un-degraded arm of that derivation, plus the readonly case's no-vehicle verdict.
     effectiveDelivery: trackersReadOnly
-      ? { path: "none", fallbackReason: null }
-      : { path: extractionMode === "folded" ? "folded" : "tool-round", fallbackReason: null },
+      ? { path: "none", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null }
+      : { path: extractionMode === "folded" ? "folded" : "tool-round", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null },
     publicConfig: {
       statProfile: {
         attributes: [],
@@ -239,6 +246,7 @@ function configView(
     recentBeatsKeepLast: 6,
     // The §1.3 extraction-depth trio the scalar form now edits (`toHostConsoleForm` reads all three).
     extractionContext: "window",
+    stateCaptureVehicle: "auto",
     extractionWindowTokens: 4096,
     reconcileEveryBeats: 10,
     // The P4/P5 knobs the scalar form projects (`toHostConsoleForm`).
@@ -330,7 +338,7 @@ const CHAT_PANEL_AMBIENT_ROUTES: TrpcRoutes<
   "chat.previewAssembly": {
     prompt: { static: "", dynamic: "", afterHistory: [], sendHistory: true, trace: EMPTY_ASSEMBLE_TRACE },
     trace: EMPTY_ASSEMBLE_TRACE,
-    budget: { ceilingTokens: 8192, ceilingEstimated: false, totalTokens: 0, sources: [], sections: [] },
+    budget: { ceilingTokens: 8192, ceilingEstimated: false, reserveOutputTokens: 0, limit: null, totalTokens: 0, sources: [], sections: [] },
   },
   // The viewer's settings row. A CASCADE row, not a census one: it does not appear in the #649 ledger for
   // this file because it was UNREACHABLE while the reads above answered null — the panel's meta tabs died in
@@ -581,6 +589,53 @@ test("a DANGLING pick shows as its own degraded option, never silently as the de
   const trigger = component.locator('[data-slot="rpg-gm-voice"]').getByRole("combobox", { name: "GM voice preset" });
   await expect(trigger).toContainText("preset_gone_ct");
   await expect(trigger).not.toContainText("Your own preset");
+});
+
+// 0511: the state-capture vehicle knob — the stored `auto` shows pressed, and a pick autosaves through the same
+// `updateConfig` patch every scalar rides.
+test("the state-capture knob shows the game's vehicle and a pick autosaves it through updateConfig", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+
+  const knob = component.getByRole("group", { name: "State capture" });
+  await expect(knob.getByRole("button", { name: "Automatic" })).toHaveAttribute("aria-pressed", "true");
+  // A room whose model can give a structured reply carries no unavailable line.
+  await expect(component.locator('[data-slot="rpg-structured-unavailable"]')).toHaveCount(0);
+  await knob.getByRole("button", { name: "Structured reply" }).click();
+  await expect.poll(() => trpc.lastInput("rpg.updateConfig")).toMatchObject({ patch: { stateCaptureVehicle: "structured" } });
+});
+
+/** The gloss's box sits under its group and is at least as wide: the side-by-side Row squeezed it to a few px. */
+async function expectGlossUnder(group: Locator, gloss: Locator): Promise<void> {
+  const [groupBox, glossBox] = [await group.boundingBox(), await gloss.boundingBox()];
+  expect(groupBox).not.toBeNull();
+  expect(glossBox).not.toBeNull();
+  expect(glossBox?.y ?? 0).toBeGreaterThanOrEqual((groupBox?.y ?? 0) + (groupBox?.height ?? 0));
+  expect(glossBox?.width ?? 0).toBeGreaterThanOrEqual(groupBox?.width ?? Number.POSITIVE_INFINITY);
+}
+
+test("the state-capture group is described by its glosses, which read under it at full width; an unhonoured knob adds its line", async ({ mount, page }) => {
+  const game = gameView(false);
+  await stubTakeover(page, {
+    game: { ...game, effectiveDelivery: { path: "tool-round", fallbackReason: null, structuredUnavailable: true, stateRoundOverflow: null } },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+
+  const knob = component.getByRole("group", { name: "State capture" });
+  const unavailable = component.locator('[data-slot="rpg-structured-unavailable"]');
+  await expect(unavailable).toBeVisible();
+  const described = ((await knob.getAttribute("aria-describedby")) ?? "").split(" ").filter((id) => id !== "");
+  expect(described).toContain(await unavailable.getAttribute("id"));
+  for (const id of described) {
+    await expect(component.locator(`[id="${id}"]`)).toBeVisible();
+  }
+  // The consequence gloss is the description that follows the group.
+  await expectGlossUnder(knob, component.locator(`[id="${described[1] ?? ""}"]`));
+
+  const delivery = component.getByRole("group", { name: "Delivery model" });
+  await expectGlossUnder(delivery, delivery.locator("xpath=following-sibling::*[1]"));
 });
 
 test("the GM console BAND toggle fires updateConfig (host) — the mutation COUNT", async ({ mount, page }) => {
@@ -928,6 +983,41 @@ test("EDITSNAP-OK: a hand door's errors-as-data REFUSAL surfaces the server's re
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // … and the host is TOLD, with the server's own reason intact rather than a generic "couldn't save".
   await expect(component.getByTestId("rpg-notified")).toContainText(reason);
+});
+
+// 0532 — an unpinned local model resolves to a small default window that the state round does not fit, so state
+// capture drops every turn. The game read names the viewer's connection; the panel says so ONCE, with a door that
+// lands on that connection's Advanced tier. Reading the same verdict again is not a second notice. (A window declared
+// large enough reading clean is the server's verdict, pinned in the compose rpg integration test.)
+const SMALL_WINDOW_CONNECTION = mintTypeId(ID_PREFIX.userConnection);
+
+function windowVerdict(overflow: { readonly connectionId: string; readonly windowTokens: number } | null): TrpcWireOutput<"rpg.getGame"> {
+  const base = gameView(false);
+  return { ...base, effectiveDelivery: { ...base.effectiveDelivery, stateRoundOverflow: overflow } };
+}
+
+test("0532: a state round too big for the window warns once, and its door opens that connection's Advanced tier", async ({ mount, page }) => {
+  await stubTakeover(page, { game: windowVerdict({ connectionId: SMALL_WINDOW_CONNECTION, windowTokens: 4096 }) });
+  const component = await mount(<RpgTakeoverWindowNoticeStory />);
+
+  await expect(component.getByTestId("rpg-notice-count")).toHaveText("1");
+  // The same verdict read again by a fresh panel is not news.
+  await component.getByRole("button", { name: "Remount game panel" }).click();
+  await expect(component.locator('[data-slot="rpg-freshness"]')).toBeVisible();
+  await expect(component.getByTestId("rpg-notice-count")).toHaveText("1");
+
+  await component.getByTestId("rpg-notice-door").click();
+  await expect(component.getByTestId("requested-editor")).toHaveText(`${SMALL_WINDOW_CONNECTION} advanced=true`);
+});
+
+test("0532: a state round that fits raises no window notice", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { game: windowVerdict(null) });
+  const component = await mount(<RpgTakeoverWindowNoticeStory />);
+
+  await expect.poll(() => trpc.count("rpg.getGame"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  await expect(component.locator('[data-slot="rpg-freshness"]')).toBeVisible();
+  await expect(component.getByTestId("rpg-notice-count")).toHaveText("0");
+  await expect(component.getByTestId("rpg-notice-door")).toHaveCount(0);
 });
 
 test("EDITSNAP-OK: an APPLIED hand write stays silent — `ok:true` is not an occasion for a toast", async ({ mount, page }) => {
@@ -1784,7 +1874,7 @@ function d20Game(): TrpcWireOutput<"rpg.getGame"> {
     trackersReadOnly: false,
     canPopulate: true,
     extractionMode: "cheap",
-    effectiveDelivery: { path: "tool-round", fallbackReason: null },
+    effectiveDelivery: { path: "tool-round", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null },
     publicConfig: {
       ...base.publicConfig,
       statProfile: {

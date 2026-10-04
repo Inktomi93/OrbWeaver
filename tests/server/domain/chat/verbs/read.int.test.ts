@@ -45,6 +45,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseIanaTimeZone } from "@orb/kit/time";
+import { safeTokenWindow } from "@orb/kit/tokens";
 import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { createTurnPersonaResolver, resolveImageRefToUrl, voicePersonaFor } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
@@ -1862,7 +1863,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
   test("previewAssembly's BUDGET partitions the next turn's context by source (D-4)", async () => {
     // The host preview's honesty contract: `Σ sources[].tokens === totalTokens`, every source's `text` is
-    // text the model actually receives, the ceiling is the SAME `min(window, maxContextTokens)` the fit uses,
+    // text the model actually receives, the ceiling is the SAME system + history room the fit trims at,
     // and a PLAIN chat carries no `game-state` row.
     const me = await seedUser(db, castId<Handle>("budget_host"));
     const chatId = await seedRoom("budget", me);
@@ -1878,7 +1879,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     expect(budget.sources.reduce((sum, s) => sum + s.tokens, 0)).toBe(budget.totalTokens);
     expect(budget.totalTokens).toBeGreaterThan(0);
-    expect(budget.ceilingTokens).toBe(8192);
+    expect(budget.ceilingTokens).toBe(safeTokenWindow(8192 - DEFAULT_MAX_OUTPUT_TOKENS));
     // The preset sections land in `system`, and the drill-in body is the assembled text VERBATIM (the panel
     // shows what the wire carries, never a re-derivation).
     const system = budget.sources.find((s) => s.source === "system");
@@ -2078,7 +2079,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const small = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] }, context: { window: 40_960 } });
     const { previewAssembly } = createRead(makeChatContext(db), makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: small })) }));
     const known = await previewAssembly({ principal: principal(me), chatId });
-    expect(known.budget.ceilingTokens).toBe(40_960);
+    expect(known.budget.ceilingTokens).toBe(safeTokenWindow(40_960 - DEFAULT_MAX_OUTPUT_TOKENS));
     expect(known.budget.ceilingEstimated).toBe(false);
 
     // The SAME window, but the capability marks it a guess (cold catalog): the number still drives the fit,
@@ -2092,7 +2093,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: guessed })) }),
     );
     const unknown = await previewGuessed({ principal: principal(me), chatId });
-    expect(unknown.budget.ceilingTokens).toBe(200_000);
+    expect(unknown.budget.ceilingTokens).toBe(safeTokenWindow(200_000 - DEFAULT_MAX_OUTPUT_TOKENS));
     expect(unknown.budget.ceilingEstimated).toBe(true);
   });
 
@@ -2122,7 +2123,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     const preview = await previewAssembly({ principal: principal(me), chatId });
 
-    expect(preview.budget.ceilingTokens).toBe(16_000);
+    expect(preview.budget.ceilingTokens).toBe(16_000 - DEFAULT_MAX_OUTPUT_TOKENS);
     expect(preview.budget.ceilingEstimated).toBe(false);
   });
 
@@ -3128,7 +3129,8 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     expect(fit.droppedCount).toBeGreaterThan(0);
     expect(fit.droppedCount).toBeLessThan(11);
     expect(fit.boundaryMessageId).toBe(castId(`message_${chatId}_${fit.droppedCount + 1}`));
-    expect(fit.ceilingTokens).toBe(400); // min(window, ∞) — no soft cap set
+    // The reserve outgrows this window, so the fit's room is its one-token floor (`0` is the wire's unbounded).
+    expect(fit.ceilingTokens).toBe(1);
     expect(fit.reserveOutputTokens).toBe(DEFAULT_MAX_OUTPUT_TOKENS); // no preset maxOutputTokens ⇒ the default reserve
     expect(fit.usedTokens).toBeGreaterThan(0);
   });
@@ -3155,7 +3157,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     // uncounted as a drop), and the boundary NAMES the survivor — the newest seeded row.
     expect(fit.droppedCount).toBe(5);
     expect(fit.boundaryMessageId).toBe(castId(`message_${chatId}_6`));
-    expect(fit.ceilingTokens).toBe(200);
+    expect(fit.ceilingTokens).toBe(1);
   });
 
   test("everything fits under a wide window ⇒ null boundary, zero dropped", async () => {
@@ -3171,7 +3173,34 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
 
     expect(fit.droppedCount).toBe(0);
     expect(fit.boundaryMessageId).toBeNull();
-    expect(fit.ceilingTokens).toBe(1_000_000);
+    expect(fit.ceilingTokens).toBe(safeTokenWindow(1_000_000 - DEFAULT_MAX_OUTPUT_TOKENS));
+  });
+
+  // A run of same-role rows squashes into ONE delivered row on a merging level. The fit must still hold the
+  // request inside the window: the kept history never costs more than the room the preview reports, and the
+  // dropped count and boundary name the stored rows the turn leaves out.
+  test("a long run of consecutive user rows still fits the room", async () => {
+    const host = await seedUser(db, castId<Handle>("fit_host_run"));
+    const chatId = await seedRoom("fitrun", host);
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "greeting" });
+    await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        seedMessage(db, chatId, i + 2, { role: "user", authorUserId: host, content: `note ${i + 2} ${"word ".repeat(300)}` }),
+      ),
+    );
+    const eightK = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 8192 } });
+
+    const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(eightK));
+    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+
+    expect(fit.droppedCount).toBeGreaterThan(0);
+    expect(fit.usedTokens).toBeLessThanOrEqual(fit.ceilingTokens);
+    expect(fit.boundaryMessageId).toBe(castId(`message_${chatId}_${fit.droppedCount + 1}`));
+
+    // The shape trace runs the same sequence, so it traces the survivors the turn shapes, not the whole run.
+    const { getShapeTrace } = createRead(makeChatContext(db), makeFitDeps(eightK));
+    const trace = await getShapeTrace({ principal: principal(host), chatId });
+    expect(trace.stageCounts.withTail).toBe(21 - fit.droppedCount);
   });
 
   // COMPACTION-COVERED shrinkage (#9 verifier fix): a chat with a marker covering through seq N excludes seq
@@ -3746,6 +3775,34 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     const bytes = JSON.stringify(view);
     expect(bytes).not.toContain("SECRET");
     expect(bytes).not.toContain("hidden lore");
+  });
+
+  // A card can carry a GM secret (a promoted game NPC's guides do): the host and the model keep it, and the
+  // member read is where it is stripped, on every text field the level lets through.
+  test("a MEMBER reads every card text field without its hidden spans; the HOST reads them verbatim", async () => {
+    const { host, member, chatId } = await seedCardRoom("mc_hidden", "full");
+    const lie = '<lie truth="the abbess poisoned the well"/>';
+    await seedCardLore(host, "mc_hidden_lore", `The well ${lie}`);
+    const card: CharacterCard = {
+      ...macroCard,
+      name: `Vesna ${lie}`,
+      description: `Ash-grey habit ${lie}`,
+      personality: `guarded ${lie}`,
+      scenario: `the chapel ${lie}`,
+      greetings: [{ text: `Peace ${lie}` }],
+      exampleMessages: `{{char}}: hush ${lie}`,
+      systemPrompt: `stay calm ${lie}`,
+      postHistoryInstructions: `never confess ${lie}`,
+      creatorNotes: `promoted ${lie}`,
+    };
+    const { getMemberCard } = createRead(makeCardCtx({ card, tags: [`relic ${lie}`] }), makeCardDeps());
+
+    const memberView = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    expect(memberView.description).toBe("Ash-grey habit ");
+    expect(JSON.stringify(memberView)).not.toContain("abbess");
+    const hostView = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
+    expect(hostView.description).toBe(`Ash-grey habit ${lie}`);
+    expect(hostView.systemPrompt).toBe(`stay calm ${lie}`);
   });
 
   test("a DISABLED member drops from getMemberCard's anchor-persona foreign-input consent set (#73 second-commit fix)", async () => {

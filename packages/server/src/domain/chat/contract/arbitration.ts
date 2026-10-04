@@ -10,6 +10,7 @@ import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 import type { RerankCapability } from "@orb/contracts/inference";
 import type { RerankResult } from "@orb/contracts/providers";
 import type { RerankDocument } from "@orb/contracts/role-clients";
+import type { RoleClientsWithSignal } from "@orb/inference";
 import type { CharacterId } from "@orb/kit/ids";
 
 /** One candidate the 7a/7b arbitration ranks — a present AI-driven `chat_participants` row's
@@ -50,6 +51,22 @@ export interface SpeakerReranker {
   readonly rerank: (query: string, documents: RerankDocument[], opts?: { readonly instruction: string }) => Promise<RerankResult>;
 }
 
+/** The funder's Utility role as Smart's arbiter reads it: a schema-constrained call. Resolved only when the bound
+ *  row can serve structured output, so the arbiter never reads free text. */
+export interface SpeakerArbiter {
+  readonly structured: RoleClientsWithSignal["structured"];
+  /** The bound model's context window in tokens; the arbiter caps the line it answers to a share of it. */
+  readonly contextTokens: number;
+}
+
+/** What a canon line addresses, for both Smart pickers: the ordered groups of characters it names (a group of
+ *  several is one ambiguous name), and whether any name in it could be a human player's as well as a character's.
+ *  Either ambiguity sends the line to the picker instead of short-circuiting it. */
+export interface LineAddress {
+  readonly groups: readonly (readonly CharacterId[])[];
+  readonly humanAmbiguous: boolean;
+}
+
 /** One canon line as the speaker pick reads it: the text, its speaker's display name (null for an unnamed
  *  row) and the character who wrote it (null for a human or an unattributed row). */
 export interface TranscriptLine {
@@ -58,11 +75,19 @@ export interface TranscriptLine {
   readonly characterId: CharacterId | null;
 }
 
+/** What discovery's distill pass learned about one card: its one-line pitch and its facet tags. Absent for an
+ *  undistilled card. Read by the shared "who is this" line both Smart pickers describe a character with. */
+export interface CharacterDistillate {
+  readonly elevatorPitch: string | null;
+  readonly tags: readonly string[];
+}
+
 /** The 7b (`smart`) arbitration outcome: WHO speaks, plus whether the side-LLM actually decided it. Shared
  *  across modules (the engine produces it, the turn verb reads `degraded` to emit the honest-degrade warning
  *  — D41 bans a silent degrade), so it lives here rather than inline on the engine file. */
 export interface SmartArbitrationResult {
-  /** The chosen next speaker (one element), or `[]` when NO candidate is eligible. */
+  /** The round's responders in speaking order (usually one, several when the last line addressed several or
+   *  the Utility model named several), or `[]` when NO candidate is eligible. */
   readonly speakers: readonly SpeakerRef[];
   /** True ⇒ the side-LLM was consulted and its answer was unusable (it threw, or named nothing on the
    *  eligible roster), so `speakers` came from the deterministic `natural` fallback instead of the model.

@@ -4,7 +4,7 @@
 // widening the member type). The panel is swipe-consistent BY CONSTRUCTION — every tab reads the SAME
 // resolved-current snapshot, so a swipe re-resolves everything at once (the owner's ratification demand).
 
-import type { ChatId, MessageId, MessageVariantId, PresetId, RpgGameId } from "@orb/kit/ids";
+import type { ChatId, MessageId, MessageVariantId, PresetId, RpgGameId, UserConnectionId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroViewSchema } from "#preset";
@@ -40,6 +40,20 @@ export interface RpgEffectiveDelivery {
   /** Set only when the KNOB and the PATH disagree — a `folded` game that will not fold. `null` when the host
    *  got what they asked for (`folded` folding, an explicit `cheap` rounding) or when nothing runs at all. */
   readonly fallbackReason: RpgFoldFallbackReason | null;
+  /** The game's state-capture knob asks for a structured reply and this room's model cannot give one, so the pass
+   *  after the turn runs as tool calls. Separate from `fallbackReason` because it is not a fold cause: a folded room
+   *  whose model cannot fold can carry both, and the panel states both. `false` when no post-commit pass runs. */
+  readonly structuredUnavailable: boolean;
+  /** The pass after the turn cannot fit the host's connection window (the one every turn here rides), so it would
+   *  lose the game state every turn. Names the connection whose context-window setting fixes it. `null` when it
+   *  fits, when no such pass runs, and for every reader but the host, who alone can change that setting. */
+  readonly stateRoundOverflow: RpgStateRoundOverflow | null;
+}
+
+/** A state round that does not fit: the host's own connection that runs it, and the window it was priced against. */
+export interface RpgStateRoundOverflow {
+  readonly connectionId: UserConnectionId;
+  readonly windowTokens: number;
 }
 
 /** `getGame` (member) — the takeover's mode read. The pointer fires the takeover; THIS carries the
@@ -282,6 +296,8 @@ export interface RpgConfigView {
   /** The §1.3 extraction-depth knobs (host editor) — how much story the state round reads, the `window` arm's
    *  token budget, and the reconcile cadence (0 = off). */
   readonly extractionContext: RpgGameConfig["extractionContext"];
+  /** How the dedicated state round asks for the beat's changes (host editor). */
+  readonly stateCaptureVehicle: RpgGameConfig["stateCaptureVehicle"];
   readonly extractionWindowTokens: RpgGameConfig["extractionWindowTokens"];
   readonly reconcileEveryBeats: RpgGameConfig["reconcileEveryBeats"];
   /** The #9 ambient-date mode knob (host editor). */
@@ -379,6 +395,8 @@ const plotViewSchema = rpgPlotSchema.strict().extend({ acts: z.array(rpgPlotSche
 const rpgEffectiveDeliverySchema = z.strictObject({
   path: z.enum(RPG_DELIVERY_PATHS),
   fallbackReason: z.enum(RPG_FOLD_FALLBACK_REASONS).nullable(),
+  structuredUnavailable: z.boolean(),
+  stateRoundOverflow: z.strictObject({ connectionId: typeIdSchema(ID_PREFIX.userConnection), windowTokens: z.number().int() }).nullable(),
 }) satisfies z.ZodType<RpgEffectiveDelivery>;
 export const rpgGameViewSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.rpgGame),
@@ -477,6 +495,7 @@ export const rpgConfigViewSchema = rpgGameConfigSchema
     ruleset: true,
     extractionMode: true,
     extractionContext: true,
+    stateCaptureVehicle: true,
     extractionWindowTokens: true,
     reconcileEveryBeats: true,
     dateMode: true,

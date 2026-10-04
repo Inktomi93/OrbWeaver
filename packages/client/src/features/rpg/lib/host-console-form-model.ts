@@ -10,7 +10,7 @@
 // The form↔wire mapping lives here (the room-overrides precedent): the surface deals in `RpgConfigView` +
 // the `updateConfig` patch shape, never the form's own value bag.
 
-import type { RpgConfigView, RpgDateMode, RpgExtractionContext, RpgExtractionMode } from "@orb/contracts/rpg";
+import type { RpgConfigView, RpgDateMode, RpgExtractionContext, RpgExtractionMode, RpgStateCaptureVehicle } from "@orb/contracts/rpg";
 import {
   RPG_CARD_KEEP_LAST_DEFAULT,
   RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT,
@@ -33,6 +33,8 @@ function orDefault(value: number | null, fallback: number): number {
 export interface HostConsoleFormValues {
   readonly steeringNote: string;
   readonly extractionMode: RpgExtractionMode;
+  /** How the dedicated state round asks the model for the beat's changes (auto | tools | structured). */
+  readonly stateCaptureVehicle: RpgStateCaptureVehicle;
   readonly deception: boolean;
   readonly omniscience: boolean;
   readonly cyoa: boolean;
@@ -66,6 +68,7 @@ export interface HostConsoleFormValues {
 export const EMPTY_HOST_CONSOLE_FORM: HostConsoleFormValues = {
   steeringNote: "",
   extractionMode: "folded",
+  stateCaptureVehicle: "auto",
   deception: false,
   omniscience: false,
   cyoa: false,
@@ -87,6 +90,7 @@ export function toHostConsoleForm(config: RpgConfigView): HostConsoleFormValues 
   return {
     steeringNote: config.steeringNote,
     extractionMode: config.extractionMode,
+    stateCaptureVehicle: config.stateCaptureVehicle,
     deception: config.deception,
     omniscience: config.omniscience,
     cyoa: config.cyoa,
@@ -121,6 +125,7 @@ export interface HostConsoleScalarPatch {
     readonly recentBeatsKeepLast: number;
     readonly cardKeepLastX: number;
     readonly extractionContext: RpgExtractionContext;
+    readonly stateCaptureVehicle: RpgStateCaptureVehicle;
     readonly extractionWindowTokens: number;
     readonly reconcileEveryBeats: number;
   };
@@ -143,6 +148,7 @@ export function fromHostConsoleForm(values: HostConsoleFormValues): HostConsoleS
       recentBeatsKeepLast: orDefault(values.recentBeatsKeepLast, RPG_RECENT_BEATS_KEEP_DEFAULT),
       cardKeepLastX: orDefault(values.cardKeepLastX, RPG_CARD_KEEP_LAST_DEFAULT),
       extractionContext: values.extractionContext,
+      stateCaptureVehicle: values.stateCaptureVehicle,
       extractionWindowTokens: orDefault(values.extractionWindowTokens, RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT),
       reconcileEveryBeats: orDefault(values.reconcileEveryBeats, RPG_RECONCILE_EVERY_BEATS_DEFAULT),
     },

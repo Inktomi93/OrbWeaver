@@ -56,6 +56,10 @@ const ROUNDING_REASON: Readonly<Record<RpgFoldFallbackReason, string>> = {
   "terminal-declaration-collided": "Another tool in this room claimed a name the state bookkeeping needs, so a second pass records the beat instead.",
 };
 const HOST_CHOSE_ROUNDING = "A dedicated pass records each beat's state after the turn commits — the delivery model you picked.";
+// The host picked "Structured reply" on the Game tab and this room's model can't give one. Independent of the
+// rounding reason above, so a folded room whose model can neither fold nor give a structured reply states both.
+const STRUCTURED_UNAVAILABLE_REASON =
+  "This game asks for a structured reply, but this room's model can't give one, so a pass after the turn records state with tool calls instead.";
 
 /** The calm freshness hint — one soft pill whose label IS the accessible datum. `null` when nothing delivers
  *  state at all (the Read-only pill speaks for that room; two contradictory pills is the lie, not the fix). */
@@ -74,7 +78,10 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
       </Badge>
     );
   }
-  const why = delivery.fallbackReason === null ? HOST_CHOSE_ROUNDING : ROUNDING_REASON[delivery.fallbackReason];
+  const why = [
+    delivery.fallbackReason === null ? HOST_CHOSE_ROUNDING : ROUNDING_REASON[delivery.fallbackReason],
+    ...(delivery.structuredUnavailable ? [STRUCTURED_UNAVAILABLE_REASON] : []),
+  ].join(" ");
   if (pending) {
     // The window between the turn committing and the state round landing — this beat's state is being
     // written by a second model call. The pulse is decorative (aria-hidden); the label is the datum.

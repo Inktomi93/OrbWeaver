@@ -48,9 +48,11 @@ export function curatedRows(query: CuratedQuery): readonly CapabilityOverride[] 
   return matchingRows(CURATED, query);
 }
 
-/** The curated KIND for a model id, when any matching row states one (the `kindOf` fallback, §5.7). */
+/** The curated KIND for a model id, when any matching row states one (the `kindOf` fallback, §5.7). The LAST row
+ *  that states one wins, as every field does: a later row refines an earlier one, so a model row (a Qwen embedder)
+ *  overrides its family row (Qwen, generation). */
 export function curatedKind(query: CuratedQuery): CapabilityOverride["kind"] | undefined {
-  return curatedRows(query).find((row) => row.kind !== undefined)?.kind;
+  return curatedRows(query).findLast((row) => row.kind !== undefined)?.kind;
 }
 
 /** Every curated id list flattened — the builtin catalog for a `catalog: "builtin"` provider. */

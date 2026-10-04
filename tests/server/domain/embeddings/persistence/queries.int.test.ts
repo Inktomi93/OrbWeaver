@@ -4,7 +4,7 @@
 // hub_score; the round-trip Float32Array survives the F32_BLOB column.
 
 import type { Db } from "@orb/db";
-import { characterEmbeddings, embedGenerations, imageEmbeddings } from "@orb/db";
+import { characterEmbeddings, embedGenerations, embedGenerationTargets, imageEmbeddings } from "@orb/db";
 import type { CharacterEmbeddingId, EmbedGenerationId, Handle, ImageEmbeddingId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
@@ -39,6 +39,11 @@ async function seedGeneration(db: Db, ownerId: UserId, model: string, task: "emb
       createdAt: NOW,
     })
     .onConflictDoNothing();
+  // The owner's current target: an upsert lands only while its generation is one.
+  await db
+    .insert(embedGenerationTargets)
+    .values({ ownerId, task, generationId: id, epoch: 1 })
+    .onConflictDoUpdate({ target: [embedGenerationTargets.ownerId, embedGenerationTargets.task], set: { generationId: id } });
   return id;
 }
 

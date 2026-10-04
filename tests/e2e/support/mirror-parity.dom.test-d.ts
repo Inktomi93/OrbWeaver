@@ -213,6 +213,7 @@ test("GameView / ConfigView mirror the member + host game reads", () => {
       | "recentBeatsKeepLast"
       | "immersiveHtmlInteractive"
       | "ruleset"
+      | "stateCaptureVehicle"
     >
   >(keys<ConfigView, RpgConfigView>());
   expectTypeOf<RpgConfigView>().toExtend<ConfigView>();

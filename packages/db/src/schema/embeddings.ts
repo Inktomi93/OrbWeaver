@@ -24,10 +24,11 @@
 //     space (re-index workload). ALL FIVE producers key their idempotent upsert ON `model`
 //     (character/image/document_chunks always did; chat_segments/chat_digests were fixed to match — they
 //     used to OMIT model and overwrite the old space in place, an inconsistency with the orphaning
-//     character/image tables). So a model change is uniformly PURGE + REINDEX: the new space is written
-//     additively (no overwrite, no inconsistent orphan), then the rows of every non-active generation are
-//     retired inside the promotion transaction (`embeddings/persistence/space-state.ts`
-//     `retiredVectorStatements`) — never stranded.
+//     character/image tables). So a model or width change is uniformly PURGE + REINDEX: the batch that moves
+//     the owner's target generation deletes their old vectors (`embeddings/persistence/space-state.ts`
+//     `switchTargetGeneration`) and the sweeps rebuild the new one. Every vector upsert lands only while its
+//     generation is still the owner's target (`embeddings/persistence/queries.ts`), so a write in flight across
+//     the switch never lands — an index never holds two generations at rest.
 //
 // `image_embeddings.lens` DERIVES the canonical `IMAGE_LENSES` tuple from `@orb/contracts/embeddings`
 // (D34 — promoted out of the server tier so db can derive; db deps are kit + contracts + drizzle only).
@@ -79,17 +80,15 @@ import { userConnections } from "./connection.ts";
 import { documents } from "./databank.ts";
 import { users } from "./users.ts";
 
-// The one 1024-dim space (Qwen3-VL, text↔image cosine-comparable — docs/law/Knowledge-Cluster.md §1). Every
-// `embedding` column is F32_BLOB(1024); the row's `dim` column records it for the `(model, dim)` space tag.
-//
-// `dim` IS DELIBERATELY UNCONSTRAINED against the physical F32_BLOB width, and this is a recorded
-// ACCEPTANCE rather than a gap (#1378 item 5, reachability traced): a writer cannot diverge — every store
-// goes through `domain/embeddings/verbs/store.ts`, whose `assertSpace` THROWS on a mismatch before the
-// insert — and the only reader of `dim` uses it as a filter TAG (`domain/search/persistence/nearest.ts`
-// scopes a query to a `(model, dim)` space), never to size-decode a blob. A CHECK pinning `dim = 1024`
-// would also have to be edited the day a second space is added, which is exactly the migration the tag
-// exists to make possible. Not worth a constraint; worth not re-deriving.
-const VECTOR_DIM = 1024;
+// THE DECLARED WIDTH IS NOT THE STORED WIDTH. An owner's space is as wide as the embedder they bound, so one
+// table holds vectors of several widths; the row's `dim` column records each one. libSQL enforces
+// `F32_BLOB(N)` only through a vector (ANN) index, and this schema builds none (exact scan, Tier-1-DB
+// esoteric #1), so the declared 1024 is inert DDL kept byte-identical to the existing tables rather than
+// rebuilt. Re-introducing an ANN index would need one sized column per width. Two rules make mixed widths
+// safe: every store asserts the vector against its generation's width (`domain/embeddings/verbs/store.ts`
+// `assertSpace`), and every scan filters `dim` to its query's width (`domain/search/persistence/nearest.ts`),
+// because `vector_distance_cos` throws on a cross-width pair.
+const DECLARED_VECTOR_DIM = 1024;
 
 // CHECK list derived from the canonical tuple (NOT re-spelled): `lens in ('image-raw', 'image-captioned')`.
 const IMAGE_LENS_CHECK_LIST = checkList(IMAGE_LENSES);
@@ -169,8 +168,8 @@ export const characterEmbeddings = sqliteTable(
       .$type<CharacterId>()
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
-    // The native vector (F32_BLOB(1024), raw little-endian — ../custom-types).
-    embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
+    // The native vector (raw little-endian, `dim` wide — ../custom-types).
+    embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // The staleness gate + cross-chat collapse key (replaces neo's `sourceText` comparison). NOT NULL.
     contentHash: text("content_hash").notNull(),
     // The advisory-stale CSLS mean-cosine ranking signal (a FLOAT) — written ONLY by `discovery` via
@@ -210,8 +209,8 @@ export const imageEmbeddings = sqliteTable(
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
-    // The native vector (F32_BLOB(1024)).
-    embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
+    // The native vector (`dim` wide).
+    embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // image-raw | image-captioned — derives IMAGE_LENSES (@orb/contracts/embeddings, D34). The `enum`
     // option is type-only; the CHECK below is the SQL-level guard. Both lenses coexist per (asset, model).
     lens: text("lens", { enum: IMAGE_LENSES }).notNull(),
@@ -287,8 +286,8 @@ export const chatDigests = sqliteTable(
     // The distilled digest body (§2b: topicAnchor + significance-filtered facts + keywords, folded into one
     // stored text). What fills `{{memory}}` AND what is embedded. A digest always has a body — NOT NULL.
     text: text("text").notNull(),
-    // The native vector (F32_BLOB(1024)) — the distilled lens embedding (the sharp search key).
-    embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
+    // The native vector (`dim` wide) — the distilled lens embedding (the sharp search key).
+    embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // The staleness/collapse key. NOT NULL.
     contentHash: text("content_hash").notNull(),
     // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — discovery-only write, never nulled by a store.
@@ -362,8 +361,8 @@ export const chatSegments = sqliteTable(
     // The verbatim transcript of the chunk (§2a) — stored + embedded; the ground truth a digest hit resolves
     // back to, returned directly so cross-chat reads never re-read N chats' canon per hit. NOT NULL.
     text: text("text").notNull(),
-    // The native vector (F32_BLOB(1024)) — the verbatim lens embedding.
-    embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
+    // The native vector (`dim` wide) — the verbatim lens embedding.
+    embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // The staleness/collapse key. NOT NULL.
     contentHash: text("content_hash").notNull(),
     // Advisory-stale CSLS mean-cosine hub score (a FLOAT) — discovery-only write, never nulled by a store.
@@ -446,8 +445,8 @@ export const documentChunks = sqliteTable(
     // Offsets into documents.extractedText (exclusive end; the non-overlap span).
     charStart: integer("char_start").notNull(),
     charEnd: integer("char_end").notNull(),
-    // The native vector (F32_BLOB(1024), the one Qwen3-VL space).
-    embedding: vector32("embedding", { dimensions: VECTOR_DIM }).notNull(),
+    // The native vector (`dim` wide).
+    embedding: vector32("embedding", { dimensions: DECLARED_VECTOR_DIM }).notNull(),
     // Staleness gate + dedup collapse key. NOT NULL.
     contentHash: text("content_hash").notNull(),
     // Advisory-stale hub score (a FLOAT) — discovery-only write, never nulled by a store; v1 always NULL.
@@ -533,8 +532,8 @@ export const imageIndexSkips = sqliteTable(
 // The getter folds scopes → task through `VECTOR_SCOPES_BY_TASK` and calls the space complete only when
 // every scope of that task agrees.
 //
-// NO `dim` COLUMN, deliberately: the width is the DEPLOYMENT's (`EMBED_SPACE_DIMS`, the §10-1 admission
-// rule — every admitted embedder is 1024), never a per-owner fact. The tag is the whole per-owner axis.
+// NO `dim` COLUMN, deliberately: the width is per-owner, but it is a property of the generation (its id hashes
+// the encoder's stated width — `kit/embedding-generation`), so the generation ids here already carry it.
 // `ownerId` IS a real column here (not a D20 violation): the row's subject IS the owner — there is no
 // producer FK to derive scope from, and a per-user embedder makes completion a per-user fact.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

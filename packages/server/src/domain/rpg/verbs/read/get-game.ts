@@ -6,12 +6,22 @@ import type { RpgGameView } from "@orb/contracts/rpg";
 import type { ReadGameParams } from "../../contract/params.ts";
 import type { RpgContext, RpgService } from "../../contract/service.ts";
 import { resolveMember } from "../../guard.ts";
+import { currentSnapshotState } from "../../snapshot-edit.ts";
 import { deriveEffectiveDelivery } from "../../substrate/readonly-axis.ts";
 
 export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
   async function getGame(params: ReadGameParams): Promise<RpgGameView> {
     const { game } = await resolveMember(ctx, params.principal, params.chatId);
-    const { trackersReadOnly, foldGuarded, canPopulate } = await ctx.resolveStateDelivery(params.chatId, params.principal.userId);
+    const funderUserId = await ctx.resolveRoomFunder(params.chatId);
+    const { trackersReadOnly, foldGuarded, canPopulate, structuredUnavailable } = await ctx.resolveStateDelivery(params.chatId, funderUserId);
+    const verdicts = { trackersReadOnly, foldGuarded, structuredUnavailable, stateRoundOverflow: null };
+    // Price the round only when one runs (a read-only or folding room sends no post-commit request), and only for
+    // the funder: the fix is their own connection's setting, which no other member can reach.
+    const roundRuns = deriveEffectiveDelivery(game.config.extractionMode, verdicts).path === "tool-round";
+    const stateRoundOverflow =
+      roundRuns && funderUserId === params.principal.userId
+        ? await ctx.resolveStateRoundFit(params.chatId, funderUserId, await currentSnapshotState(ctx, game))
+        : null;
     return {
       id: game.id,
       chatId: game.chatId,
@@ -23,7 +33,7 @@ export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
       // EFF-3 — the knob is what the host ASKED for; this is what the room's connection actually does with it,
       // off the SAME one resolve above (D112 (4)'s freshness lie: a fold-guarded room read "Live" while it
       // rounded a beat behind). The derivation is rpg's law, homed beside the readonly axis it shares inputs with.
-      effectiveDelivery: deriveEffectiveDelivery(game.config.extractionMode, { trackersReadOnly, foldGuarded }),
+      effectiveDelivery: deriveEffectiveDelivery(game.config.extractionMode, { ...verdicts, stateRoundOverflow }),
       publicConfig: {
         statProfile: game.config.statProfile,
         // #862 — the ruleset setting: member-safe AND member-needed (the dice-ask row above the composer

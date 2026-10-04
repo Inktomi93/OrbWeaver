@@ -118,6 +118,9 @@ const TRACKED_KEYS = [
   // are driven by the chat bus's variantSelected event.
   "rpgTrackerView",
   "rpgJournal",
+  // The game read's delivery verdicts and state-round notice price the room HOST's connection, so a host
+  // handoff (the `chatUpdated` catch-all) refetches it with the tracker view's read-only pill.
+  "rpgGame",
   // The injections manager's own read of `chat_injections` (`chat.listChatInjections`). Every injection write
   // emits the `chatUpdated` catch-all (verbs/chat-lifecycle.ts), but only the writing tab reconciled — the
   // `getGroupConfig` case, one proc over.
@@ -212,7 +215,8 @@ const EXPECTED: Record<ChatBusEvent["type"], readonly TrackedKey[]> = {
   // …PLUS the per-chat document rack (#2471): `chatUpdated` is the documented roster/handoff event and the
   // D85 union is membership-derived, so a seat joining/leaving credits or withdraws its documents — and
   // `chat.setChatDocumentVisibility` emits this same catch-all.
-  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections", "reactions", "databankRack"],
+  // …PLUS the game and tracker reads: their delivery verdicts follow the room host, and a handoff emits only this.
+  chatUpdated: [...CHAT_READS, "getChat", "getGroupConfig", "listChatInjections", "reactions", "databankRack", "rpgGame", "rpgTrackerView"],
   // Room + the prompt preview: a re-anchored persona rewrites `{{user}}` in the next turn's prompt.
   personaSwitched: ["getChat", "previewAssembly", "getShapeTrace"],
   // B6 — NARROW on purpose (the `roomEntityChanged` argument): the pill row is its own read, so exactly one
@@ -285,6 +289,7 @@ describe("invalidation — the bus half (invalidate)", () => {
         revealHidden: trpc.rpg.revealHidden.queryKey({ chatId: CHAT_ID }),
         rpgTrackerView: trpc.rpg.getTrackerView.queryKey({ chatId: CHAT_ID }),
         rpgJournal: trpc.rpg.listJournal.queryKey({ chatId: CHAT_ID, limit: 50 }),
+        rpgGame: trpc.rpg.getGame.queryKey({ chatId: CHAT_ID }),
         listChatInjections: trpc.chat.listChatInjections.queryKey({ chatId: CHAT_ID }),
         getMemberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID, timeZone: UTC_TIME_ZONE }),
         runtimeVariables: trpc.chat.getRuntimeVariables.queryKey({ chatId: CHAT_ID }),
@@ -439,6 +444,9 @@ const USER_TRACKED_KEYS = [
   // from `connection` because `settingsChanged` invalidates it NARROWLY (the roleDefaults edit re-resolves the
   // chat capability; the catalog reads under the same router must NOT be dropped — they cold-fetch).
   "chatCapability",
+  // The game read (`rpg.getGame`): its delivery verdicts are derived from the room host's resolved connection, so a
+  // connection write (a declared context window) refetches it.
+  "rpgGame",
   // The transcript divider's fit budget also refetches on a settings/preset change (the resolved capability +
   // effective params drive the fit).
   "previewContextFit",
@@ -493,6 +501,10 @@ const USER_TRACKED_KEYS = [
   // `pluginSurfaceStateChanged` it had no driver — `staleTime:Infinity` would freeze a rendered surface at its
   // first fetch; the member path-invalidates the read so `host.ui.setState` reaches the installer's own client.
   "pluginSurfaceState",
+  // The job list the vector role rows read their embed rebuild from.
+  "workloadList",
+  // Whether search is paused for a rebuild, which decides whether those rows show a rebuild line at all.
+  "spaceStatus",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
@@ -529,7 +541,8 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // two reads under that one router. Notably NOT `chatGet`: a host's attach changes what the ROOM sees, but
   // that half is member-visible state on the chat bus, never a user-bus widening (`membership-fan-guard`).
   databankChanged: ["databank"],
-  corpusRecomputed: ["discovery", "similarArt", "searchQuery", "sourceWindow"],
+  // A promotion announces itself here too, so whether search is paused rides along.
+  corpusRecomputed: ["discovery", "similarArt", "searchQuery", "sourceWindow", "spaceStatus"],
   // The VIEWER TRIPLE and nothing else (W7b) — `sessions.me` plus the two reads a composed current-persona
   // derivation would need (`settings.getUserSettings`/`persona.list`). It routes through the SAME
   // `identityFilters` helper the recovery ladder's resume rung calls, so this row is also the pin that the
@@ -539,9 +552,11 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // A plugin surface published new state: path-invalidates the surface-state read so
   // the installer's own client refetches. Coarse by design — NOT `listSurfaces` (registration is unmoved).
   pluginSurfaceStateChanged: ["pluginSurfaceState"],
-  // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection
-  // router, so the capability read under it goes stale too.
-  connectionsChanged: ["connection", "chatCapability"],
+  // It path-invalidates the WHOLE connection router, so the capability read under it goes stale too. NOT the job
+  // list: a re-point's rebuild is queued after this tick and announces itself through `workloadsChanged`.
+  connectionsChanged: ["connection", "chatCapability", "rpgGame"],
+  // A system-started job of yours: the job list, and whether search is paused for it.
+  workloadsChanged: ["spaceStatus", "workloadList"],
 };
 
 // The user events carry no chatId EXCEPT `chatsChanged` (which reads it for the getChat branch). A `chatId`
@@ -592,6 +607,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         chatLineage: trpc.chat.getChatLineage.queryKey({ chatId: CHAT_ID }),
         connection: trpc.connection.providersAvailable.queryKey(),
         chatCapability: trpc.connection.resolveChatCapability.queryKey(),
+        rpgGame: trpc.rpg.getGame.queryKey({ chatId: CHAT_ID }),
         previewContextFit: trpc.chat.previewContextFit.queryKey({ chatId: CHAT_ID }),
         previewAssembly: trpc.chat.previewAssembly.queryKey({ chatId: CHAT_ID }),
         memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID, timeZone: UTC_TIME_ZONE }),
@@ -607,6 +623,8 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         sourceWindow: trpc.chat.getMessageWindow.queryKey({ chatId: CHAT_ID, target: { kind: "message", messageId: MESSAGE_ID } }),
         sessionsMe: trpc.sessions.me.queryKey(),
         pluginSurfaceState: trpc.plugin.getSurfaceState.queryKey({ pluginId: PLUGIN_ID, surfaceId: "panel" }),
+        workloadList: trpc.workloads.list.queryKey({ kind: "index" }),
+        spaceStatus: trpc.search.spaceStatus.queryKey(),
       };
       for (const key of Object.values(keys)) {
         // @orb-waive no-test-fabrication(never): cache-presence seed; the test asserts isInvalidated only, never the data bytes. Ends when this deliberate test boundary can be expressed without a fabricated typed value.

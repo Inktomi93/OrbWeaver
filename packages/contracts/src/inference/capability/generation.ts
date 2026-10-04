@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { modalitySchema } from "../modalities.ts";
 import { PROMPT_CACHE_TTLS } from "../prompt-cache.ts";
+import { WIRE_SCHEMA_MODES } from "../wire-subset.ts";
 
 /** How a model reasons — distinct from on/off (`reasoning.enabled`); `EFFORT_LEVELS` has no `'none'`. */
 export const REASONING_MODES = ["none", "effort", "budget", "adaptive"] as const;
@@ -329,6 +330,10 @@ export const generationCapabilitySchema = z.object({
     maxTokensEstimated: z.boolean().optional(),
     /** Accepts `response_format`/JSON-schema constrained output — separate from `tools`. */
     structured: z.boolean().optional(),
+    /** The wire subset whose grammar ceilings (`WireSubset.limits`) this model's vendor enforces, whichever wire
+     *  class carries the request. Absent ⇒ no stated ceiling. A caller that can shape its request another way
+     *  checks a schema against them first (`fitsEveryWire`). */
+    structuredLimitsFrom: z.enum(WIRE_SCHEMA_MODES).optional(),
     /** What the model can PRODUCE. `image` here is what makes a chat model answer with pictures (§6.7) and
      *  what `generateImage` requires. */
     modalities: z.array(modalitySchema),

@@ -73,7 +73,7 @@ const TRACKERS = [
     color: "#e05a5a",
     pinned: true,
     sort: -1,
-    hint: "physical health — damage lowers it, rest and care restore it; unset counts as 0",
+    hint: "physical health — damage lowers it, rest and care restore it; unset counts as full",
   },
   {
     key: "mana",

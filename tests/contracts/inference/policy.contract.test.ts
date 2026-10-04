@@ -83,11 +83,6 @@ test("requirementMet names every missing clause; a satisfied requirement is ok",
     embedding: { dims: 1024, mrl: true, maxInputTokens: 512, input: ["text"], output: ["vector"], instructionAware: false },
   };
   expect(requirementMet(embedding, { output: ["image"] }).ok).toBe(false);
-  expect(requirementMet(embedding, { dims: 1024 })).toEqual({ ok: true });
-  // A wider MRL model FITS a narrower space (it truncates); a narrower model never fits (it would pad).
-  expect(requirementMet(embedding, { dims: 768 })).toEqual({ ok: true });
-  const narrow: Capability = { kind: "embedding", embedding: { ...embedding.embedding, dims: 512 } };
-  expect(requirementMet(narrow, { dims: 1024 })).toEqual({ ok: false, missing: ["dims:1024"] });
 });
 
 test("foldFeatures: connection > provider row > wire default, field-wise", () => {
@@ -96,9 +91,10 @@ test("foldFeatures: connection > provider row > wire default, field-wise", () =>
   expect(folded.prefill).toBe("none");
   expect(folded.strictJson).toBe(vllm.features?.strictJson);
   expect(folded.sleep).toEqual(vllm.features?.sleep);
-  // A bare custom row gets the wire default plus its one knob: detect the server behind it.
+  // A bare custom row gets the wire default plus its two knobs: detect the server behind it, and the template
+  // thinking switch.
   const custom = foldFeatures(provider("custom-openai").features, undefined);
-  expect(custom).toEqual({ ...WIRE_DEFAULT_FEATURES, detectServer: true });
+  expect(custom).toEqual({ ...WIRE_DEFAULT_FEATURES, detectServer: true, thinkingOff: "chat_template_kwargs" });
   const override: EndpointFeatures = { effort: "reasoning_effort" };
   expect(foldFeatures(undefined, override).effort).toBe("reasoning_effort");
 });

@@ -564,6 +564,26 @@ describe("memory/generate/digests", () => {
     expect(build?.note).toBe("no aged-out block");
     expect(build?.event === "memory.build" && build.trace.blocksBuilt).toBe(0);
   });
+
+  // A funder with no Utility model has no summarize window to read; a pass with nothing aged out must not ask.
+  test("a funder with no summarize window still completes a pass that has no aged-out block", async () => {
+    const chatId = await seedChat(db, "noutility");
+    await seedTurns(db, chatId, aria, 2);
+    const entries: MemoryLogEntry[] = [];
+    const ctx = makeChatContext(db, {
+      summarize: fakeSummarize().op,
+      embeddingsStore: fakeEmbeddingsStore(db).store,
+      summarizerContextTokens: () => Promise.reject(new Error("no summarize connection is bound")),
+      log: (e) => entries.push(e),
+    });
+    const counts = await generateDigests(ctx, {
+      scope: sharedScope(chatId),
+      config: { blockSize: 2, verbatimWindow: 8, fanOut: 4, maxTier: 1 },
+      funderUserId: owner,
+    });
+    expect(counts).toEqual({ written: 0, skipped: 0 });
+    expect(entries.find((e) => e.event === "memory.build")?.note).toBe("no aged-out block");
+  });
 });
 
 describe("memory/generate/digests — adversarial (self-heal re-digest, tiering, token-guard, trigger discipline)", () => {

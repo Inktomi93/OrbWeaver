@@ -1,0 +1,254 @@
+{
+  "summary": {
+    "cell": "ollama-27b-gpu",
+    "server": "ollama",
+    "model": "qwen3.8-27b",
+    "template": "ollama-gguf-default",
+    "mode": "nonstream",
+    "rep": 1,
+    "body": {
+      "reasoning_effort": "none"
+    },
+    "strict": false,
+    "turns": 10,
+    "both": 3,
+    "proseOnly": 5,
+    "toolsOnly": 2,
+    "empty": 0,
+    "errors": 0,
+    "leaks": 0,
+    "maxPromptTokens": 4307,
+    "medianTokPerSec": 23.4,
+    "medianServerTokPerSec": null,
+    "ranAt": "2026-10-03T17:11:50.950Z"
+  },
+  "rows": [
+    {
+      "turn": 1,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene", "add_journal_entry"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 8527,
+      "decodeMs": null,
+      "promptTokens": 3538,
+      "completionTokens": 198,
+      "tokPerSec": 23.2,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\":\"evening\",\"presentUpsert\":[{\"mood\":\"wet and watchful\",\"name\":\"Rook\",\"thoughts\":\"weighing if Marro pays before the rain does his work on the satchel seals\"}],\"weather\":{\"label\":\"steady rain\",\"type\":\"rain\"},\"location\":\"the Drowned Lantern, Saltmere\"}"
+        },
+        {
+          "name": "add_journal_entry",
+          "arguments": "{\"type\":\"npc\",\"content\":\"Inside the Drowned Lantern, Rook asks for Marro, the fence.\",\"title\":\"Met Marro in the Drowned Lantern\"}"
+        }
+      ]
+    },
+    {
+      "turn": 2,
+      "shape": "tools-only",
+      "proseChars": 0,
+      "calls": ["update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 5473,
+      "decodeMs": null,
+      "promptTokens": 3623,
+      "completionTokens": 131,
+      "tokPerSec": 23.9,
+      "serverTokPerSec": null,
+      "content": "",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"weather\":{\"label\":\"steady rain\",\"type\":\"rain\"},\"recentEvent\":\"Rook made the first payment to Marro for the sealed satchel\",\"presentUpsert\":[{\"mood\":\"shrewd, wary\",\"name\":\"Marro\",\"outfit\":\"ink-stained fingers, saltmerchant's coat\",\"relationship\":{\"kind\":\"custom\",\"label\":\"contact/fence\"}}]}"
+        }
+      ]
+    },
+    {
+      "turn": 3,
+      "shape": "prose-only",
+      "proseChars": 252,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2635,
+      "decodeMs": null,
+      "promptTokens": 3719,
+      "completionTokens": 56,
+      "tokPerSec": 21.3,
+      "serverTokPerSec": null,
+      "content": "Marro pulls a folded sheet from inside his coat and spreads it across the table.\n\n\"Last known in the harbor office before the lock changed. That was Tuesday. Since then—nothing. The watch knows somebody's been asking questions, so don't look too hard.\"",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 4,
+      "shape": "prose-only",
+      "proseChars": 276,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2895,
+      "decodeMs": null,
+      "promptTokens": 3771,
+      "completionTokens": 68,
+      "tokPerSec": 23.5,
+      "serverTokPerSec": null,
+      "content": "The rain hammers the alley's corrugated roof as you slip through the back. A single lantern swings, casting long shadows across wet flagstones. Ahead: the chandlery's loading dock, a rusted gate, and the silhouette of a woman perched on a barrel, one eye glinting like a coin.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 5,
+      "shape": "both",
+      "proseChars": 350,
+      "calls": ["update_party", "update_scene"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 10172,
+      "decodeMs": null,
+      "promptTokens": 3856,
+      "completionTokens": 310,
+      "tokPerSec": 30.5,
+      "serverTokPerSec": null,
+      "content": "The cudgel bites your ribs. You stagger, but the shortsword is out and under her elbow before she can swing again.\n\nGessa snarls through cracked teeth. \"Where'd Marro get you, courier? Too small to hurt.\"\n\nHer free hand goes for her belt. The alley mouth is behind you. To your left, a rotted rope ladder hangs down to a lower drain.\n\nWhat do you do?\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"trackerDeltas\":[{\"delta\":-3,\"key\":\"stamina\"}],\"status\":\"rib wound, breathing hard\"}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\":\"night\",\"weather\":{\"label\":\"steady rain\",\"type\":\"rain\"},\"location\":\"Rat Alley, behind the chandlery — Saltmere\",\"recentEvent\":\"Gessa attacked; Rook took a cudgel hit to the ribs and drew the shortsword\",\"presentUpsert\":[{\"mood\":\"aggressive\",\"name\":\"Gessa\",\"relationship\":{\"kind\":\"enemy\",\"label\":\"\"}}]}"
+        }
+      ]
+    },
+    {
+      "turn": 6,
+      "shape": "both",
+      "proseChars": 452,
+      "calls": ["update_party", "update_party", "update_inventory", "update_scene", "update_scene", "set_tracker"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 20768,
+      "decodeMs": null,
+      "promptTokens": 4014,
+      "completionTokens": 651,
+      "tokPerSec": 31.3,
+      "serverTokPerSec": null,
+      "content": "The cut opens with a hot line of red. Gessa's leg gives; she drops her cudgel, and the leather-bound ledger clatters across the wet flagstones. She staggers back a step, hand on her thigh, face twisted.\n\n'You little —' she snarls.\n\nThe rain drums the alley walls. Your ribs ache every time you breathe. Behind you, a distant bell strikes midnight, and the sound of boot-steps echoes off the chandlery's brick — a city watch patrol, rounding the corner.\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"trackerDeltas\":[{\"delta\":-1,\"key\":\"stamina\"}],\"status\":\"ribs aching, steady breathing\"}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"Rook\",\"addCondition\":{\"modifier\":-1,\"name\":\"Bleeding\"},\"trackerDeltas\":[{\"delta\":-1,\"key\":\"stamina\"}],\"status\":\"rib wound aching, steady\"}"
+        },
+        {
+          "name": "update_inventory",
+          "arguments": "{\"targetRef\":\"player\",\"add\":[{\"description\":\"A battered leather-bound book, pages swollen where rain has seeped in.\",\"location\":\"in hand, tucked under the arm\",\"name\":\"Harbormaster's Ledger\",\"quantity\":1}]}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"timeOfDay\":\"midnight\",\"recentEvent\":\"Rook cut Gessa's thigh; the ledger is in hand, but a watch patrol is rounding the corner.\",\"presentUpsert\":[{\"mood\":\"snarling\",\"name\":\"Gessa\",\"relationship\":{\"kind\":\"enemy\"},\"thoughts\":\"bleeding out, furious\"}]}"
+        },
+        {
+          "name": "update_scene",
+          "arguments": "{\"location\":\"Rat Alley, behind the chandlery\",\"presentUpsert\":[{\"mood\":\"wounded, snarling\",\"name\":\"Gessa\",\"thoughts\":\"thigh open and bleeding, fury\"}],\"timeOfDay\":\"midnight\",\"recentEvent\":\"Rook cut Gessa's thigh; she dropped the ledger; a watch patrol rounds the corner.\"}"
+        },
+        {
+          "name": "set_tracker",
+          "arguments": "{\"key\":\"heat\",\"value\":35}"
+        }
+      ]
+    },
+    {
+      "turn": 7,
+      "shape": "prose-only",
+      "proseChars": 107,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 5764,
+      "decodeMs": null,
+      "promptTokens": 4185,
+      "completionTokens": 23,
+      "tokPerSec": 4,
+      "serverTokPerSec": null,
+      "content": "The linen binds tight against the wound, and the rain beads on the wet cloth. Your breathing stays shallow.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 8,
+      "shape": "prose-only",
+      "proseChars": 103,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2062,
+      "decodeMs": null,
+      "promptTokens": 4165,
+      "completionTokens": 29,
+      "tokPerSec": 14.1,
+      "serverTokPerSec": null,
+      "content": "You slam through the market's fish-gut stench, boots slapping wet cobbles. Bell-stone shakes the eaves.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 9,
+      "shape": "prose-only",
+      "proseChars": 245,
+      "calls": [],
+      "leakedCallMarkup": false,
+      "finish": "stop",
+      "totalMs": 2893,
+      "decodeMs": null,
+      "promptTokens": 4227,
+      "completionTokens": 58,
+      "tokPerSec": 20,
+      "serverTokPerSec": null,
+      "content": "The harbormaster, a stout woman with salt-white hair, takes the ledger without a word. Her eyes sweep the rain-streaked dark behind you. \"Quick work. You owe me a drink when you're not bleeding.\" She presses two small brass coins into your palm.",
+      "reasoning": "",
+      "rawCalls": []
+    },
+    {
+      "turn": 10,
+      "shape": "both",
+      "proseChars": 354,
+      "calls": ["update_scene", "update_party"],
+      "leakedCallMarkup": false,
+      "finish": "tool_calls",
+      "totalMs": 11332,
+      "decodeMs": null,
+      "promptTokens": 4307,
+      "completionTokens": 332,
+      "tokPerSec": 29.3,
+      "serverTokPerSec": null,
+      "content": "You're on your way back toward the Lantern—Rain's steady against your face, ribs aching with each step—when a shape peels off the wall of a narrow lane between you and the taproom.\n\nNot the watch. Too still, too quiet, and holding a blade low and close.\n\n\"Gotta be a bit careless,\" the voice says, flat and flat and patient. \"But you're new around here.\"\n\n",
+      "reasoning": "",
+      "rawCalls": [
+        {
+          "name": "update_scene",
+          "arguments": "{\"presentUpsert\":[{\"mood\":\"exhausted and wary\",\"name\":\"Rook\",\"thoughts\":\"Rib hurts. Watch is out. This is the worst possible timing.\"},{\"emoji\":\"🌃\",\"mood\":\"exhausted, wary\",\"name\":\"Rook\",\"thoughts\":\"Ribs ache, rain cold, someone's waiting in the lane ahead.\"}],\"timeOfDay\":\"midnight\",\"recentEvent\":\"Rook leaves the tower with the silver signet and heads back to the tavern; a blade-drawn shadow steps out from the lane wall ahead.\"}"
+        },
+        {
+          "name": "update_party",
+          "arguments": "{\"targetRef\":\"player\",\"status\":\"rib wound aching, blade at the wall\",\"trackerDeltas\":[{\"delta\":-1,\"key\":\"stamina\"}]}"
+        }
+      ]
+    }
+  ]
+}

@@ -22,7 +22,7 @@ import type { WrapFetchArgs } from "../v4/fetch.ts";
 import { wrapFetch } from "../v4/fetch.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import type { ShapeArgs } from "./body.ts";
-import { shapeOutboundBody } from "./body.ts";
+import { shapeOutboundBody, userOwnedKeys } from "./body.ts";
 import { ollamaNativeFetch, toOllamaChat } from "./ollama-native.ts";
 import { samplerBodyKeys } from "./sampling.ts";
 import type { ReasoningTags } from "./think-tags.ts";
@@ -51,8 +51,8 @@ export interface ModelCall {
   readonly chatId?: ChatId | undefined;
   readonly plan: WirePlan | null;
   readonly prefillAllowed: boolean;
-  /** Reasoning is chosen off for this call (body rule 5b). */
-  readonly thinkingOff: boolean;
+  /** What body rule 5b tells the template's thinking switch; `undefined` leaves the server's default. */
+  readonly templateThinking: boolean | undefined;
   /** Fold consecutive plain same-role rows into one message of parts (`body.ts` rule 10). */
   readonly foldSameRole: boolean;
   readonly replyImages: boolean;
@@ -78,7 +78,8 @@ function shapeArgs(call: ModelCall, dialect: Dialect): ShapeArgs {
     transport: call.connection.transport,
     dialect,
     prefillAllowed: call.prefillAllowed,
-    thinkingOff: call.thinkingOff,
+    templateThinking: call.templateThinking,
+    reasoningMandatory: call.connection.capability.kind === "generation" && call.connection.capability.generation.reasoning.mandatory === true,
     foldSameRole: call.foldSameRole,
     replyImages: call.replyImages,
     imageDetail: call.imageDetail,
@@ -172,12 +173,14 @@ function ollamaNativeProvider(call: ModelCall): ReturnType<typeof createOpenAICo
   const args = shapeArgs(call, "openai-compatible");
   const withExtra = (body: Record<string, unknown>): Record<string, unknown> => shapeOutboundBody({ ...body, ...(call.extraBody ?? {}) }, args);
   const samplerKeys = samplerBodyKeys(connection.features);
+  const userOwned = userOwnedKeys(args);
   const toNative = (body: Record<string, unknown>): Record<string, unknown> =>
     toOllamaChat(body, {
       numCtx: nativeWindow(call),
       samplerKeys,
       label: call.label,
       namedThinkLevels: namedThinkLevels(call),
+      userOwned,
       keepAlive: connection.features.keepAlive,
       numBatch: connection.features.numBatch,
     });

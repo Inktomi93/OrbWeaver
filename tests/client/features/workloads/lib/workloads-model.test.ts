@@ -122,3 +122,25 @@ test("cancel/retry affordance predicates: active holds the slot; failure termina
   expect(isRetryableWorkloadStatus("worker_died")).toBe(true);
   expect(isRetryableWorkloadStatus("running")).toBe(false);
 });
+
+// The store's width check and the backends' fit spell the same mismatch with the widths in opposite order; both
+// must read as one line, and a different width pair must not read as the same line.
+test("an embedder width mismatch maps to one rebuild line from either spelling", () => {
+  const store = friendlyWorkloadError("embeddings.store: vector dim mismatch for model 'm@q8' — declared space dim 512, embedder returned 1024");
+  const backend = friendlyWorkloadError("vllm embed: the model returned a 1024-wide vector, but the connection states 512; set the vector width");
+  expect(store).not.toBeNull();
+  expect(backend).toBe(store);
+  expect(friendlyWorkloadError("embeddings.store: vector dim mismatch for model 'm' — declared space dim 768, embedder returned 1024")).not.toBe(store);
+});
+
+// A rebuild whose embedding server is down must say which server to check, not the generic network line; an embed
+// that the server answered with a refusal (a bad key) is not that class.
+test("an embed call to a server that did not answer maps to its own class", () => {
+  const down = friendlyWorkloadError("custom-openai embed (mock-embed-768): mock embed server is down");
+  const refused = friendlyWorkloadError("vllm embed (bge-m3): fetch failed (ECONNREFUSED 127.0.0.1:8000)");
+  const network = friendlyWorkloadError("ECONNREFUSED 127.0.0.1:8000");
+  expect(down).not.toBeNull();
+  expect(refused).toBe(down);
+  expect(down).not.toBe(network);
+  expect(friendlyWorkloadError("custom-openai embed (mock-embed-768): Incorrect API key provided")).not.toBe(down);
+});

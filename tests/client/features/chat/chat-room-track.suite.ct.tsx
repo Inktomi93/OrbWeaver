@@ -77,6 +77,7 @@ const PREVIEW_FIT_STUB: TrpcRoutes<"chat.previewContextFit"> = {
     usedTokens: 120,
     ceilingTokens: 32_768,
     ceilingEstimated: false,
+    limit: null,
     reserveOutputTokens: 2048,
     droppedCount: 0,
     compactSummary: null,

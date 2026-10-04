@@ -163,6 +163,8 @@ const PREVIEW = {
   budget: {
     ceilingTokens: 8192,
     ceilingEstimated: false,
+    reserveOutputTokens: 2048,
+    limit: { kind: "window", tokens: 8192 },
     totalTokens: 120,
     sources: [
       {
@@ -1081,6 +1083,7 @@ test("a chatDeleted for the OPEN room takes the reader to landing, not a room wh
       usedTokens: 0,
       ceilingTokens: 32_768,
       ceilingEstimated: false,
+      limit: null,
       reserveOutputTokens: 2048,
       droppedCount: 0,
       compactSummary: null,

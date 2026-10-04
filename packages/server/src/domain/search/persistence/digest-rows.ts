@@ -1,4 +1,4 @@
-// Ranked digest and segment pools enforce current host scope in SQL before any limit.
+// Ranked digest and segment pools enforce current host scope, and the query's width, in SQL before any limit.
 import type { BlockKey } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
 import { chatDigests, chatParticipants, chatSegments, embedGenerations } from "@orb/db";
@@ -56,15 +56,18 @@ export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParam
     .from(chatDigests)
     .leftJoin(embedGenerations, eq(embedGenerations.id, chatDigests.generationId))
     .where(
-      digestScopeCond({
-        model: params.model,
-        generationId: params.generationId,
-        chatIds: params.chatIds,
-        ownerId: params.ownerId,
-        scopedCharacterId: params.scopedCharacterId,
-        speakerCharacterId: params.speakerCharacterId,
-        candidates: params.candidates,
-      }),
+      and(
+        digestScopeCond({
+          model: params.model,
+          generationId: params.generationId,
+          chatIds: params.chatIds,
+          ownerId: params.ownerId,
+          scopedCharacterId: params.scopedCharacterId,
+          speakerCharacterId: params.speakerCharacterId,
+          candidates: params.candidates,
+        }),
+        eq(chatDigests.dim, params.queryVector.length),
+      ),
     )
     .orderBy(distance)
     .limit(params.limit);
@@ -150,13 +153,16 @@ export async function nearestSegments(db: ReadOnlyDb, params: NearestSegmentsPar
     .from(chatSegments)
     .leftJoin(embedGenerations, eq(embedGenerations.id, chatSegments.generationId))
     .where(
-      segmentScopeCond({
-        ownerId: params.ownerId,
-        model: params.model,
-        generationId: params.generationId,
-        chatIds: params.chatIds,
-        candidates: params.candidates,
-      }),
+      and(
+        segmentScopeCond({
+          ownerId: params.ownerId,
+          model: params.model,
+          generationId: params.generationId,
+          chatIds: params.chatIds,
+          candidates: params.candidates,
+        }),
+        eq(chatSegments.dim, params.queryVector.length),
+      ),
     )
     .orderBy(distance)
     .limit(params.limit);

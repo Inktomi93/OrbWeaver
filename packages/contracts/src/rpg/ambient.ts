@@ -165,3 +165,7 @@ export function timeOfDayAtHour(hour: number): TimeOfDay {
   }
   return current ?? wrapping;
 }
+
+/** The label that opens the scene line (location · date · time · weather) in the steering reminder and the
+ *  `{{rpgSceneState}}` macro. Chat's Smart arbiter reads that line back off the macro to name the scene. */
+export const RPG_SCENE_LINE_LABEL = "Scene: ";

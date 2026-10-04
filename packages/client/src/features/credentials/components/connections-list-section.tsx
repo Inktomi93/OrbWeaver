@@ -12,7 +12,8 @@
 // to six `user` bindings in one act — the pane's most consequential and least frequent action. A button on
 // every row makes the loudest affordance the rarest one; the menu also gives it room for the gloss that
 // NAMES the roles it will write, so the undo is knowable BEFORE the click rather than after it (there is no
-// default to fall back to — §7.2 F2/F16).
+// default to fall back to — §7.2 F2/F16). When it would re-point an embedder it asks first, like the role picker:
+// a new embedder can delete and rebuild the search index.
 //
 // "ADD ANOTHER MODEL ON THIS KEY" IS THE MENU'S SECOND §5.3a ACTION. It is offered only where it can work:
 // a hosted row whose key is gone has no catalog to list and no key to share (`addModelScope`), and its words
@@ -37,15 +38,15 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { QueryBoundary, RowActionsMenu, useUpdateConnection } from "#components";
+import { QueryBoundary, RowActionsMenu, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { connectionSummary } from "#lib";
-import { configAnchorId, configSettingControlId } from "#state";
+import { clearConnectionEditorRequest, configAnchorId, configSettingControlId, useRequestedConnectionEditor } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { CONNECTION_FORM_COPY } from "../lib/add-connection-form-model.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
-import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRoleLabels } from "../lib/connections-model.ts";
+import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRebindsEmbedder, sweepRoleLabels } from "../lib/connections-model.ts";
 import { ADD_CONNECTION_SETTING, CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
 import { AddModelOnKeyDialog } from "./add-model-on-key-dialog.tsx";
@@ -94,6 +95,23 @@ function ConnectionsBody(): ReactElement {
   const addConnectionFocus = useRef<HTMLButtonElement>(null);
   const listFocusIntent = useRef<ListFocusIntent | null>(null);
   const rowRoots = useRef(new Map<ConnectionListItem["id"], HTMLDivElement>());
+  // A door elsewhere asks for one row's editor; the request is taken once, then cleared from the store. Each taken
+  // request remounts the editor, so a door to the row already open still lands its tiers as asked.
+  const requestedEditor = useRequestedConnectionEditor();
+  const [takenRequest, setTakenRequest] = useState<typeof requestedEditor>(null);
+  const [requestCount, setRequestCount] = useState(0);
+  const [advancedOpenFor, setAdvancedOpenFor] = useState<ConnectionListItem["id"] | null>(null);
+  if (requestedEditor !== null && requestedEditor !== takenRequest) {
+    setTakenRequest(requestedEditor);
+    setRequestCount((count) => count + 1);
+    setEditingId(requestedEditor.connectionId);
+    setAdvancedOpenFor(requestedEditor.openAdvanced ? requestedEditor.connectionId : null);
+  }
+  useEffect(() => {
+    if (requestedEditor !== null) {
+      clearConnectionEditorRequest();
+    }
+  }, [requestedEditor]);
 
   useEffect(() => {
     const intent = listFocusIntent.current;
@@ -113,11 +131,14 @@ function ConnectionsBody(): ReactElement {
     return (
       <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_LIST_SUBCATEGORY.id)}>
         <ConnectionEditor
+          key={requestCount}
+          advancedOpen={advancedOpenFor === editingId}
           connectionId={editingId}
           invalidation={invalidation}
           onDone={(): void => {
             listFocusIntent.current = { kind: "row", connectionId: editingId };
             setEditingId(null);
+            setAdvancedOpenFor(null);
           }}
           onRemoved={(): void => {
             listFocusIntent.current = {
@@ -231,6 +252,7 @@ function ConnectionRow({
   const remove = useRemoveConnection(deps);
   const update = useUpdateConnection(deps);
   const applyEverywhere = useUseForEverything(deps);
+  const reindex = useReindexConfirm(trpc);
   const [addModelOpen, setAddModelOpen] = useState(false);
   const providerUnavailable = provider === null;
   const addModel = provider === null ? null : addModelScope({ auth: provider.auth, credentialId: connection.credentialId });
@@ -311,7 +333,14 @@ function ConnectionRow({
                 <MenuItem
                   className="flex-col items-start"
                   disabled={applyEverywhere.isPending}
-                  onClick={(): void => applyEverywhere.mutate({ connectionId: connection.id })}
+                  onClick={(): void => {
+                    const write = (): void => applyEverywhere.mutate({ connectionId: connection.id });
+                    if (sweepRebindsEmbedder(connection)) {
+                      reindex.guard({ kind: "everywhere", connectionId: connection.id }, write);
+                    } else {
+                      write();
+                    }
+                  }}
                 >
                   <Text voice="label" as="span" ink="inherit">
                     Use this connection for everything it can serve
@@ -336,6 +365,7 @@ function ConnectionRow({
         }
       />
       <ConnectionBadges connection={connection} providerUnavailable={providerUnavailable} />
+      {reindex.dialog}
       {provider === null || addModel === null ? null : (
         <AddModelOnKeyDialog
           connection={connection}

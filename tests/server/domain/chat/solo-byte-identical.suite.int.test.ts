@@ -13,7 +13,7 @@
 // it ON still pins the config-carrying room end-to-end.)
 
 import type { AssembleContext, ChatBusEvent, GroupConfig } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, narratorPolicyOf } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
@@ -64,7 +64,7 @@ const GROUP_OF_ONE: GroupConfig = {
 //  `cardScope` by construction (narrator ⇒ merged is unrepresentable, not merely unwritten).
 const NARRATOR_OF_ONE: GroupConfig = {
   output: "narrator",
-  policy: DEFAULT_GROUP_CONFIG.policy,
+  policy: narratorPolicyOf(DEFAULT_GROUP_CONFIG.policy),
   smartPicker: DEFAULT_GROUP_CONFIG.smartPicker,
   speakerTags: true,
   groupNudge: DEFAULT_GROUP_CONFIG.groupNudge,

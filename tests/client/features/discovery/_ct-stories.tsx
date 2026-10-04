@@ -3,7 +3,7 @@
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 
 import { ListPaneHeaderHost } from "@orb/client/components";
-import { useTRPC } from "@orb/client/data";
+import { useInvalidation, useTRPC } from "@orb/client/data";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
   CorpusArchetypesTab,
@@ -107,6 +107,28 @@ export function CorpusListSurfaceNavStory(): ReactElement {
         <CorpusListSurface />
         <NavReadout />
       </div>
+    </CtDataProviders>
+  );
+}
+
+/** The server's `corpusRecomputed` frame as `use-user-bus` hands it to the invalidation seam: the last hop only. */
+function CorpusRecomputedTick(): ReactElement {
+  const invalidation = useInvalidation();
+  return (
+    <button type="button" onClick={(): void => invalidation.invalidateUser({ type: "corpusRecomputed" })}>
+      corpus recomputed
+    </button>
+  );
+}
+
+/** The Corpus LIST navigator beside a user-bus `corpusRecomputed` tick, for what a promotion announces. */
+export function CorpusListSurfaceBusStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 360 }}>
+        <CorpusListSurface />
+      </div>
+      <CorpusRecomputedTick />
     </CtDataProviders>
   );
 }

@@ -66,6 +66,7 @@ export { OVER_FILE_CAP_REASON, planTreeImport, skippedByReason } from "./import-
 export type { InvalidateFilter, Invalidation } from "./invalidation.ts";
 export { createInvalidation } from "./invalidation.ts";
 export { applyCanonView } from "./invalidation-carrier.ts";
+export { connectionWriteReads } from "./invalidation-reads.ts";
 export { consumeInboundJoinToken, peekInboundJoinToken, stashInboundJoinToken } from "./join-token.ts";
 export { peekQueryData } from "./peek-query.ts";
 export type { AppMeta } from "./query-client.ts";

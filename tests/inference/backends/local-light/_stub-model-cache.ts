@@ -29,6 +29,7 @@ export const EVERY_PROVIDER_ERROR_FIELD: Required<Omit<ProviderErrorInit, "cause
   detail: "stub-detail",
   sessionId: agentSdkSessionIdSchema.parse("00000000-0000-4000-8000-000000000001"),
   requestId: "stub-request",
+  width: { stated: 1024, measured: 768 },
 };
 
 /** Hold the calling thread for `ms` without yielding, the way `onnxruntime-node` holds it for a run. */

@@ -39,7 +39,9 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { SQL } from "drizzle-orm";
 import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { getLog } from "#foundation/observability";
 
 import type { HubScoreUpdate, VectorTable } from "../contract/params.ts";
 import type { ExistingCaptionedRow } from "../contract/results.ts";
@@ -58,6 +60,22 @@ export async function purgeDisallowedImageRows(db: Db): Promise<void> {
 }
 
 const LIMIT_ONE = 1;
+
+// A store pins its generation before it embeds, so its write can land after the owner's target moved on. Each
+// upsert's batch takes such a row straight back out: a vector lands only while its generation is still a target,
+// and a generation id is minted per owner and task, so that is this owner's target for this task.
+function retiredGeneration(generationId: EmbedGenerationId): SQL {
+  return sql`not exists (select 1 from embed_generation_targets t where t.generation_id = ${generationId})`;
+}
+
+/** Whether a guarded upsert's row survived its batch. A refused late write is the expected end of a race. */
+function landed(table: VectorTable, generationId: EmbedGenerationId, refused: readonly unknown[]): boolean {
+  if (refused.length === 0) {
+    return true;
+  }
+  getLog().debug({ table, generationId }, "embeddings store: a write for a generation that is no longer the target was refused");
+  return false;
+}
 
 /** The lens whose row carries the caption + its facet breakdown (the other lens is pure pixels). */
 const IMAGE_CAPTION_LENS: ImageLens = "image-captioned";
@@ -156,10 +174,10 @@ interface UpsertCharacterInput {
   readonly now: number;
 }
 
-/** Upsert a card-text vector by `(characterId, model)`. On conflict updates `embedding`/`content_hash`/`dim`
- *  only — `hub_score`, `model`, `created_at` are left as-is. */
-export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInput): Promise<void> {
-  await db
+/** Upsert a card-text vector by `(characterId, generationId)`. On conflict updates `embedding`/`content_hash`/`dim`
+ *  only — `hub_score`, `model`, `created_at` are left as-is. Returns `false` when the generation was retired. */
+export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInput): Promise<boolean> {
+  const upsert = db
     .insert(characterEmbeddings)
     .values({
       id: input.id,
@@ -179,6 +197,18 @@ export async function upsertCharacterEmbedding(db: Db, input: UpsertCharacterInp
         dim: input.dim,
       },
     });
+  const refuse = db
+    .delete(characterEmbeddings)
+    .where(
+      and(
+        eq(characterEmbeddings.characterId, input.characterId),
+        eq(characterEmbeddings.generationId, input.generationId),
+        retiredGeneration(input.generationId),
+      ),
+    )
+    .returning({ id: characterEmbeddings.id });
+  const [, refused] = await db.batch([upsert, refuse]);
+  return landed("character_embeddings", input.generationId, refused);
 }
 
 /** The persistence-internal arg bundle for {@link upsertImageEmbedding} (file-local). */
@@ -201,10 +231,10 @@ interface UpsertImageInput {
 
 /** Upsert an image vector by `(assetId, model, lens)`. Non-null caption metadata is parsed once before either
  *  insert or update. On conflict updates the vector + caption + hash + dim only — `hub_score`, the key
- *  columns, and `created_at` are left as-is. */
-export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Promise<void> {
+ *  columns, and `created_at` are left as-is. Returns `false` when the generation was retired. */
+export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Promise<boolean> {
   const captionMeta = input.captionMeta === null ? null : imageCaptionMetaSchema.parse(input.captionMeta);
-  await db
+  const upsert = db
     .insert(imageEmbeddings)
     .values({
       id: input.id,
@@ -229,6 +259,19 @@ export async function upsertImageEmbedding(db: Db, input: UpsertImageInput): Pro
         dim: input.dim,
       },
     });
+  const refuse = db
+    .delete(imageEmbeddings)
+    .where(
+      and(
+        eq(imageEmbeddings.assetId, input.assetId),
+        eq(imageEmbeddings.generationId, input.generationId),
+        eq(imageEmbeddings.lens, input.lens),
+        retiredGeneration(input.generationId),
+      ),
+    )
+    .returning({ id: imageEmbeddings.id });
+  const [, refused] = await db.batch([upsert, refuse]);
+  return landed("image_embeddings", input.generationId, refused);
 }
 
 /** The stored `content_hash` for a chat segment CHUNK `(chatId, blockIdx, chunkIdx, model)`, or `undefined`
@@ -304,9 +347,10 @@ interface UpsertSegmentInput {
 /** Upsert a verbatim segment CHUNK by `(chatId, blockIdx, chunkIdx, model)`. On conflict updates the vector +
  *  text + seq-span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is
  *  (§invariant 2). `model` is in the conflict key: a new space inserts, never overwrites the old
- *  one. `chunkIdx` joined it with #172 — a block over the embed window is N rows, never a truncated one. */
-export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Promise<void> {
-  await db
+ *  one. `chunkIdx` joined it with #172 — a block over the embed window is N rows, never a truncated one.
+ *  Returns `false` when the generation was retired. */
+export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Promise<boolean> {
+  const upsert = db
     .insert(chatSegments)
     .values({
       id: input.id,
@@ -334,6 +378,20 @@ export async function upsertChatSegment(db: Db, input: UpsertSegmentInput): Prom
         dim: input.dim,
       },
     });
+  const refuse = db
+    .delete(chatSegments)
+    .where(
+      and(
+        eq(chatSegments.chatId, input.chatId),
+        eq(chatSegments.blockIdx, input.blockIdx),
+        eq(chatSegments.chunkIdx, input.chunkIdx),
+        eq(chatSegments.generationId, input.generationId),
+        retiredGeneration(input.generationId),
+      ),
+    )
+    .returning({ id: chatSegments.id });
+  const [, refused] = await db.batch([upsert, refuse]);
+  return landed("chat_segments", input.generationId, refused);
 }
 
 /** The persistence-internal arg bundle for {@link upsertChatDigest} (file-local). */
@@ -357,11 +415,10 @@ interface UpsertDigestInput {
   readonly speakerCharacterIds: readonly CharacterId[];
 }
 
-/** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx, model)` and replace its speaker
- *  projection in the SAME batch. Returns the persisted row's id — on conflict the kept id differs from the
- *  freshly-minted `input.id`. `model` is in the conflict key: a new space inserts additively rather
- *  than overwriting the old space in place. */
-export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promise<ChatDigestId> {
+/** Upsert a distilled digest by `(chatId, scopedCharacterId, tier, blockIdx, generationId)` and replace its
+ *  speaker projection in the SAME batch. The generation is in the conflict key: a new space inserts additively
+ *  rather than overwriting the old space in place. Returns `false` when the generation was retired. */
+export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promise<boolean> {
   const key = and(
     eq(chatDigests.chatId, input.chatId),
     eq(chatDigests.scopedCharacterId, input.scopedCharacterId),
@@ -418,10 +475,14 @@ export async function upsertChatDigest(db: Db, input: UpsertDigestInput): Promis
       ),
     );
   }
-  await db.batch(batchMany(statements));
-  const rows = await digestId;
-  // INSERT-or-UPDATE always affects exactly the one row keyed by (chatId, scopedCharacterId, tier, blockIdx).
-  return rows[0]?.id ?? input.id;
+  // Its speaker rows cascade with it.
+  const refuse = db
+    .delete(chatDigests)
+    .where(and(key, retiredGeneration(input.generationId)))
+    .returning({ id: chatDigests.id });
+  statements.push(batchStmt(refuse));
+  const results = await db.batch(batchMany(statements));
+  return landed("chat_digests", input.generationId, results.at(-1) ?? []);
 }
 
 /** The stored `content_hash` for a document chunk `(documentId, chunkIdx, model)`, or `undefined` when no row
@@ -489,9 +550,10 @@ interface UpsertDocumentChunkInput {
 
 /** Upsert a document chunk by `(documentId, chunkIdx, model)`. On conflict updates the vector + content +
  *  span + hash + dim only — `hub_score`, the key columns, and `created_at` are left as-is (§invariant 2).
- *  `model` is in the conflict key: a new space inserts additively rather than overwriting the old. */
-export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInput): Promise<void> {
-  await db
+ *  `model` is in the conflict key: a new space inserts additively rather than overwriting the old. Returns
+ *  `false` when the generation was retired. */
+export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInput): Promise<boolean> {
+  const upsert = db
     .insert(documentChunks)
     .values({
       id: input.id,
@@ -518,6 +580,19 @@ export async function upsertDocumentChunk(db: Db, input: UpsertDocumentChunkInpu
         dim: input.dim,
       },
     });
+  const refuse = db
+    .delete(documentChunks)
+    .where(
+      and(
+        eq(documentChunks.documentId, input.documentId),
+        eq(documentChunks.chunkIdx, input.chunkIdx),
+        eq(documentChunks.generationId, input.generationId),
+        retiredGeneration(input.generationId),
+      ),
+    )
+    .returning({ id: documentChunks.id });
+  const [, refused] = await db.batch([upsert, refuse]);
+  return landed("document_chunks", input.generationId, refused);
 }
 
 function assertNever(value: never): never {

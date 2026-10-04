@@ -60,7 +60,7 @@ export const embeddersRows = [
     evidence: {
       tier: "curated",
       dated: "2026-09-19",
-      cite: "the owner's vLLM embed engine (vllm/surfaces/embed.ts ChatML scaffold + query/doc instructions, engine/embedding.ts DOC_INSTRUCTION/QUERY_INSTRUCTION); dims = the deployment's EMBED_SPACE_DIMS",
+      cite: "the owner's vLLM embed engine (vllm/surfaces/embed.ts ChatML scaffold + query/doc instructions, engine/embedding.ts DOC_INSTRUCTION/QUERY_INSTRUCTION); dims = the width that engine serves",
     },
   },
   {
@@ -79,8 +79,8 @@ export const embeddersRows = [
       cite: "vllm/surfaces/rerank.ts: the multimodal ScoreMultiModalParam body (`:58-68`) + the per-task `<Instruct>` override (`:152-153`)",
     },
   },
-  // The common local embedders (Ollama tags, LM Studio and Hugging Face ids). Their widths decide up front
-  // whether a row fits the owner's space; a narrower one is refused at the role, never padded.
+  // The common local embedders (Ollama tags, LM Studio and Hugging Face ids). Each width becomes the owner's
+  // space width when the row is bound, so stating it here spares the user a guessed `dims`.
   {
     match: {
       model: "nomic-embed-text",

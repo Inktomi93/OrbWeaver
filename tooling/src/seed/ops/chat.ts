@@ -17,7 +17,7 @@
 // to that live connection, so a seed run WHILE the stack is up may land in the file yet stay invisible until
 // the stack RESTARTS. Either restart after seeding, or point a fresh DATABASE_URL at a scratch file.
 
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -134,7 +134,7 @@ export async function runChatSeed(argv: readonly string[]): Promise<ExitCode> {
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
     // The seeded local-light rows embed through the scripted cache — no download, no GPU, byte-stable.
-    providerSeams: { localLight: { cache: fakeLocalLightCache(EMBED_SPACE_DIMS) } },
+    providerSeams: { localLight: { cache: fakeLocalLightCache(BUILT_IN_EMBED_DIMS) } },
   });
 
   for (const boundOwner of ownersBoundBeforeCompose) {

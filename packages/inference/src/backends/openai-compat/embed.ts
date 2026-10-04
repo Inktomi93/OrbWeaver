@@ -7,7 +7,7 @@
 //   • THE TRANSPORT BATCH IS BOUNDED BY TOKENS AS WELL AS ITEMS (#187): `features.embedBatch.maxTokens` caps
 //     a POST; the deadline scales with the tokens it carries at `floorTokensPerSec`.
 //   • the `dimensions` REJECTION fallback: a pooling combo that 400s on the MRL knob is re-asked without it and
-//     the vector is truncated client-side (`fitToDim` refuses a NARROWER one — #1635).
+//     the MRL vector is cut client-side; `fitToDim` refuses every other width mismatch.
 //   • the ChatML scaffold when the capability says `promptScaffold: "chatml"` (Qwen3-VL-Embedding); the
 //     query/document instructions when `instructionAware`.
 // Empty inputs filter to `null` (the `EmbedResult` contract); vectors land L2-normalized (the same primitive
@@ -20,8 +20,10 @@ import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/to
 import { ProviderError } from "../../contract/errors.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { EmbedRequest } from "../../contract/roles.ts";
+import { embedRequestTimeoutMs } from "../../contract/roles.ts";
 import type { InferenceLog } from "../../deps.ts";
 import { foldAbortInto } from "../kit/abort-flatten.ts";
+import type { VectorFit } from "../kit/embedding-input.ts";
 import { embeddingPrompt, fitToDim } from "../kit/embedding-input.ts";
 import { providerErrorFromHttp } from "../kit/error-classify.ts";
 import { providerLogger } from "../kit/provider-log.ts";
@@ -32,7 +34,6 @@ import { embeddingModelFor } from "./model.ts";
 const DIMENSIONS_REJECTED_RE = /dimensions/iu;
 const PROMPT_SCAFFOLD_RESERVE_TOKENS = 64;
 const DEFAULT_CHUNK_ITEMS = 128;
-const DEFAULT_REQUEST_TIMEOUT_MS = 120_000;
 const MS_PER_SEC = 1000;
 
 export interface EmbedDeps {
@@ -128,8 +129,7 @@ async function embedOnce(args: EmbedOnceArgs): Promise<{ readonly embeddings: nu
   }
 }
 
-function postDeadlineMs(tokens: number, base: number | undefined, floorTokensPerSec: number | undefined): number {
-  const baseMs = base ?? DEFAULT_REQUEST_TIMEOUT_MS;
+function postDeadlineMs(tokens: number, baseMs: number, floorTokensPerSec: number | undefined): number {
   return floorTokensPerSec === undefined ? baseMs : Math.max(baseMs, Math.ceil((tokens / floorTokensPerSec) * MS_PER_SEC));
 }
 
@@ -154,7 +154,7 @@ interface BatchRun {
   readonly label: string;
   readonly secrets: ReturnType<typeof resolvedScrubSet>;
   readonly dimensions: number | undefined;
-  readonly fitDim: number | undefined;
+  readonly fit: VectorFit;
   readonly vectors: (Float32Array<ArrayBuffer> | null)[];
 }
 
@@ -163,7 +163,7 @@ async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<num
   const { req, call, model, label, secrets } = run;
   const { features } = req.connection;
   const tokens = batch.reduce((sum, item) => sum + item.tokens, 0);
-  const post = postSignal(req.signal, postDeadlineMs(tokens, features.requestTimeoutMs, features.embedBatch?.floorTokensPerSec));
+  const post = postSignal(req.signal, postDeadlineMs(tokens, embedRequestTimeoutMs(features), features.embedBatch?.floorTokensPerSec));
   try {
     const result = await embedOnce({
       call,
@@ -185,7 +185,7 @@ async function runBatch(run: BatchRun, batch: readonly KeptInput[]): Promise<num
     for (const [j, vec] of result.embeddings.entries()) {
       const slot = batch[j];
       if (slot !== undefined) {
-        run.vectors[slot.index] = fitToDim(vec, run.fitDim, label);
+        run.vectors[slot.index] = fitToDim(vec, run.fit, label);
       }
     }
     return result.tokens;
@@ -215,7 +215,7 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
     api: "embed",
     plan: null,
     prefillAllowed: false,
-    thinkingOff: false,
+    templateThinking: undefined,
     foldSameRole: false,
     replyImages: false,
     warnings: [],
@@ -231,7 +231,7 @@ export async function runOpenAiCompatEmbed(req: EmbedRequest, deps: EmbedDeps): 
     label,
     secrets: resolvedScrubSet(connection),
     dimensions: isOpenRouter ? undefined : req.dimensions,
-    fitDim: req.dimensions ?? req.truncateTo,
+    fit: { dims: req.dimensions ?? capability.dims, mrl: capability.mrl },
     vectors,
   };
   const usages: (number | undefined)[] = new Array(batches.length).fill(undefined);

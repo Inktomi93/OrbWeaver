@@ -62,8 +62,9 @@ describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
     const generation = await seedHarnessGeneration(owner, harness);
     const staleGenerationId = await seedDetachedGeneration(db, owner, STALE_MODEL);
     // One OLD-space + one active-space row in each model-keyed chat-memory table (both coexist because the
-    // upsert key now includes `model`).
-    await upsertChatSegment(db, {
+    // upsert key now includes `model`). The old rows are inserted raw: the store refuses a write for a
+    // generation that is no target.
+    await db.insert(chatSegments).values({
       id: castId<ChatSegmentId>("chat_segment_old"),
       chatId,
       blockIdx: 0,
@@ -76,7 +77,7 @@ describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
       model: STALE_MODEL,
       generationId: staleGenerationId,
       dim: EMBED_DIM,
-      now: NOW,
+      createdAt: NOW,
     });
     await upsertChatSegment(db, {
       id: castId<ChatSegmentId>("chat_segment_new"),
@@ -93,7 +94,7 @@ describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
       dim: EMBED_DIM,
       now: NOW,
     });
-    await upsertChatDigest(db, {
+    await db.insert(chatDigests).values({
       id: castId<ChatDigestId>("chat_digest_old"),
       chatId,
       scopedCharacterId: characterId,
@@ -108,8 +109,7 @@ describe("purgeMemoryVectors — chat-memory old-space reclaim", () => {
       model: STALE_MODEL,
       generationId: staleGenerationId,
       dim: EMBED_DIM,
-      now: NOW,
-      speakerCharacterIds: [],
+      createdAt: NOW,
     });
     await upsertChatDigest(db, {
       id: castId<ChatDigestId>("chat_digest_new"),

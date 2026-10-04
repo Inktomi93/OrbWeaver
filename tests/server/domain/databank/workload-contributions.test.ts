@@ -47,6 +47,8 @@ function build(): { readonly deps: DatabankWorkloadDeps; readonly contributions:
     databankIngest: { ingestDocument: vi.fn(async () => RUN), reindex: vi.fn(async () => RUN) },
     beginDocumentVectorSweep: vi.fn(async (_enumerationScope: UserId | null) => [SWEEP_RECEIPT]),
     purgeDocumentVectors: vi.fn(async () => undefined),
+    // No target moves during these runs, so every round is the last.
+    targetSnapshot: vi.fn(async () => "unmoved"),
   } satisfies DatabankWorkloadDeps;
   return { deps, contributions: createDatabankWorkloadContributions(deps) };
 }
@@ -84,7 +86,19 @@ describe("databank-reindex", () => {
       scope: { kind: "owner" },
       mode: "chunk-embed",
       signal: expect.any(AbortSignal),
+      onProgress: expect.any(Function),
     });
+  });
+
+  test("turns the pass's document positions into progress rows", async () => {
+    const { deps, contributions } = build();
+    vi.mocked(deps.databankIngest.reindex).mockImplementationOnce((args) => {
+      args.onProgress?.(2, 5);
+      return Promise.resolve({ documents: 0, chunksUpserted: 0, chunksNoop: 0, chunksPruned: 0, reExtracted: 0, failed: [] });
+    });
+    const report = vi.fn();
+    await contributions[1].run(ctx, { scope: { kind: "owner" } }, report, sig());
+    expect(report).toHaveBeenCalledWith(expect.objectContaining({ current: 2, total: 5 }));
   });
 
   test("an explicit mode wins over the floor", async () => {

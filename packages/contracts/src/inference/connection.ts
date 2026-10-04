@@ -126,4 +126,25 @@ export const CONNECTION_OP_CODES = {
   actorTaskUnrouted: "connection_actor_task_unrouted",
   /** The row cannot serve the task (`connectionTasks` — one connection = one model = one kind). */
   taskUnservable: "connection_task_unservable",
+  /** The embedder does not make vectors as wide as its connection states; the write that would rebuild the index
+   *  on it is undone. The refusal's detail carries {@link EmbedWidthRefusalDetail}. */
+  embedWidthUnmakeable: "connection_embed_width_unmakeable",
+  /** The embedder did not answer the width probe, so the width it makes is unknown; the write that would rebuild the
+   *  index on it is undone rather than accepted unchecked. */
+  embedUnreachable: "connection_embed_unreachable",
+  /** The embedder's server refused the row's key on the width probe; the write is undone, as for an unreachable one. */
+  embedAuth: "connection_embed_auth",
 } as const;
+
+/** The two widths an `embedWidthUnmakeable` refusal names: what the connection states, and what the model made. */
+export interface EmbedWidthRefusalDetail {
+  readonly stated: number;
+  readonly measured: number;
+  /** The model can shorten its vectors, so `measured` is the widest it makes rather than its only width. */
+  readonly truncatable: boolean;
+  /** No one stated a width, so `stated` is the width assumed for the model rather than one the user set. */
+  readonly assumed: boolean;
+}
+
+/** Why a write that would move the owner's index was refused before anything moved. */
+export type EmbedTargetRefusal = ({ readonly kind: "width" } & EmbedWidthRefusalDetail) | { readonly kind: "unreachable" } | { readonly kind: "auth" };

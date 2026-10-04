@@ -767,6 +767,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     for (const boundOwner of ownersBoundBeforeCompose) {
       built.detachEmbedReindex(boundOwner);
     }
+    // An owner whose stored generation no longer matches their binding (a release moved generation identity), or
+    // whose rebuild died before promotion, has no user action to raise the re-index trigger, so boot raises it.
+    // Idempotent: a rebuilt, promoted owner matches.
+    built.detachStaleSpaceReindex();
 
     // Owner-DEPENDENT boot seeds: guarded behind ownerId so a fresh OIDC box (no owner yet) can still boot.
     // In OIDC mode without an owner, these are deferred: per-user seeds (the user seed's characters, persona and rosters,

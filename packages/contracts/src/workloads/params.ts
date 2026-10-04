@@ -52,14 +52,24 @@ export const databankIngestWorkloadParams = z.object({ documentId: documentIdSch
 
 /** databank-reindex: bulk derived-layer maintenance (param/model change, extractor upgrade). `scope` selects
  *  one document or every document the row owner owns; `mode` is a tunable (the contribution floors it to
- *  `chunk-embed`). The owner is `ctx.ownerId` (`null` = the box-wide bulk sweep). */
-export const databankReindexWorkloadParams = z.object({ scope: reindexScopeSchema, mode: reindexModeSchema.optional() });
+ *  `chunk-embed`). The owner is `ctx.ownerId` (`null` = the box-wide bulk sweep). `embedderChanged` marks the
+ *  rebuild an embedder change queued. */
+export const databankReindexWorkloadParams = z.object({
+  scope: reindexScopeSchema,
+  mode: reindexModeSchema.optional(),
+  embedderChanged: z.boolean().optional(),
+});
 
 /** index: the embeddings reindex. Its ONE required field is `source` — which is the queue's OWN
  *  single-active lock sub-partition (stamped into `workloads.source`), so unlike every other kind this
  *  schema stays here rather than in `@orb/contracts/embeddings`: the field is queue vocabulary, and moving
  *  it would make `contracts/embeddings` and `contracts/workloads` import each other. */
-export const indexWorkloadParams = z.object({ source: indexSourceSchema, force: z.boolean().optional() });
+export const indexWorkloadParams = z.object({
+  source: indexSourceSchema,
+  force: z.boolean().optional(),
+  /** The run rebuilds an index the owner's new embedder emptied; its progress row says so. */
+  embedderChanged: z.boolean().optional(),
+});
 
 /** The shared maintenance tunable — `dryRun` reports what a pass WOULD change without mutating. */
 export const maintenanceWorkloadParams = z.object({ dryRun: z.boolean().optional() });

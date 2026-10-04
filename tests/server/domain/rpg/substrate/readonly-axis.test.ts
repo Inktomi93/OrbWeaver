@@ -4,7 +4,13 @@
 // keyed by capability alone (`hasStructuredWriter`). NO silent downgrade.
 
 import type { GenerationCapability } from "@orb/contracts/inference";
-import { deriveEffectiveDelivery, deriveTrackersReadOnly, hasStructuredWriter } from "../../../../../packages/server/src/domain/rpg/substrate/readonly-axis.ts";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import {
+  deriveEffectiveDelivery,
+  deriveTrackersReadOnly,
+  hasStructuredWriter,
+  structuredVehicleUnavailable,
+} from "../../../../../packages/server/src/domain/rpg/substrate/readonly-axis.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A minimal capability with the two write-relevant axes toggleable. */
@@ -44,29 +50,61 @@ test("the STRUCTURED write path (resync / the agent-sdk degrade) keys on structu
 // post-commit round (D112 (4)'s KNOWN GAP).
 
 test("EFF-3: a folded game that folds is `folded` with no downgrade cause", () => {
-  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: false, foldGuarded: false })).toEqual({ path: "folded", fallbackReason: null });
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: false, foldGuarded: false, structuredUnavailable: false, stateRoundOverflow: null })).toEqual({
+    path: "folded",
+    fallbackReason: null,
+    structuredUnavailable: false,
+    stateRoundOverflow: null,
+  });
 });
 
 test("EFF-3: a FOLD-GUARDED folded game reports the round it actually runs, and NAMES the cause", () => {
-  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: false, foldGuarded: true })).toEqual({
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: false, foldGuarded: true, structuredUnavailable: false, stateRoundOverflow: null })).toEqual({
     path: "tool-round",
     fallbackReason: "local-engine-fold-guard",
+    structuredUnavailable: false,
+    stateRoundOverflow: null,
   });
 });
 
 test("EFF-3: an EXPLICIT cheap game rounds with NO cause — the host got what they asked for, nothing was downgraded", () => {
-  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: false, foldGuarded: false })).toEqual({ path: "tool-round", fallbackReason: null });
+  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: false, foldGuarded: false, structuredUnavailable: false, stateRoundOverflow: null })).toEqual({
+    path: "tool-round",
+    fallbackReason: null,
+    structuredUnavailable: false,
+    stateRoundOverflow: null,
+  });
   // The guard governs only where `folded` lands (D112 as amended): it must never re-label an explicit choice
   // as a degrade, or the panel would blame the model for the host's own knob.
-  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: false, foldGuarded: true })).toEqual({ path: "tool-round", fallbackReason: null });
+  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: false, foldGuarded: true, structuredUnavailable: false, stateRoundOverflow: null })).toEqual({
+    path: "tool-round",
+    fallbackReason: null,
+    structuredUnavailable: false,
+    stateRoundOverflow: null,
+  });
 });
 
 test("EFF-3: no model write path ⇒ `none` — no vehicle runs, so neither freshness claim is true", () => {
   // The readonly verdict WINS over both other inputs: the flush's F2 gate returns before any round, so a
   // "one beat behind" label would be as false as "Live". Every input combination collapses to the same answer.
-  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: true, foldGuarded: false })).toEqual({ path: "none", fallbackReason: null });
-  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: true, foldGuarded: true })).toEqual({ path: "none", fallbackReason: null });
-  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: true, foldGuarded: false })).toEqual({ path: "none", fallbackReason: null });
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: true, foldGuarded: false, structuredUnavailable: false, stateRoundOverflow: null })).toEqual({
+    path: "none",
+    fallbackReason: null,
+    structuredUnavailable: false,
+    stateRoundOverflow: null,
+  });
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: true, foldGuarded: true, structuredUnavailable: false, stateRoundOverflow: null })).toEqual({
+    path: "none",
+    fallbackReason: null,
+    structuredUnavailable: false,
+    stateRoundOverflow: null,
+  });
+  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: true, foldGuarded: false, structuredUnavailable: false, stateRoundOverflow: null })).toEqual({
+    path: "none",
+    fallbackReason: null,
+    structuredUnavailable: false,
+    stateRoundOverflow: null,
+  });
 });
 
 test("R1: folded keys on tools too — it mounts the SAME tools, just on the character turn", () => {
@@ -75,4 +113,49 @@ test("R1: folded keys on tools too — it mounts the SAME tools, just on the cha
   // A structured-only model has NO write path in folded mode: the fold's vehicle is tools, and the honest
   // verdict is manual-steering — never a silent re-route to a schema round (D108 honest-arms).
   expect(deriveTrackersReadOnly("folded", capability({ structured: true, tools: false }))).toBe(true);
+});
+
+test("0511: a `structured` knob on a wire with no structured output is its own flag, beside any fold cause", () => {
+  const toolsOnly = capability({ tools: true });
+  const structured = capability({ tools: true, structured: true });
+  expect(structuredVehicleUnavailable("structured", toolsOnly)).toBe(true);
+  expect(structuredVehicleUnavailable("structured", structured)).toBe(false);
+  expect(structuredVehicleUnavailable("auto", toolsOnly)).toBe(false);
+
+  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: false, foldGuarded: false, structuredUnavailable: true, stateRoundOverflow: null })).toEqual({
+    path: "tool-round",
+    fallbackReason: null,
+    structuredUnavailable: true,
+    stateRoundOverflow: null,
+  });
+  // A room with no write path at all says nothing about vehicles; a folded room's fold is not the knob's round.
+  expect(deriveEffectiveDelivery("cheap", { trackersReadOnly: true, foldGuarded: false, structuredUnavailable: true, stateRoundOverflow: null })).toEqual({
+    path: "none",
+    fallbackReason: null,
+    structuredUnavailable: false,
+    stateRoundOverflow: null,
+  });
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: false, foldGuarded: false, structuredUnavailable: true, stateRoundOverflow: null })).toEqual({
+    path: "folded",
+    fallbackReason: null,
+    structuredUnavailable: false,
+    stateRoundOverflow: null,
+  });
+  // A fold-guarded room runs the post-commit round too: the fold cause and the unhonoured knob are both kept.
+  expect(deriveEffectiveDelivery("folded", { trackersReadOnly: false, foldGuarded: true, structuredUnavailable: true, stateRoundOverflow: null })).toEqual({
+    path: "tool-round",
+    fallbackReason: "local-engine-fold-guard",
+    structuredUnavailable: true,
+    stateRoundOverflow: null,
+  });
+});
+
+test("0532: a state round too big for the window is named only where a post-commit round runs", () => {
+  const overflow = { connectionId: mintTypeId(ID_PREFIX.userConnection), windowTokens: 4096 };
+  const verdicts = { trackersReadOnly: false, foldGuarded: false, structuredUnavailable: false, stateRoundOverflow: overflow };
+  expect(deriveEffectiveDelivery("cheap", verdicts).stateRoundOverflow).toEqual(overflow);
+  expect(deriveEffectiveDelivery("folded", { ...verdicts, foldGuarded: true }).stateRoundOverflow).toEqual(overflow);
+  // A folding room and a room with no write path run no such round, so there is nothing to fit.
+  expect(deriveEffectiveDelivery("folded", verdicts).stateRoundOverflow).toBeNull();
+  expect(deriveEffectiveDelivery("cheap", { ...verdicts, trackersReadOnly: true }).stateRoundOverflow).toBeNull();
 });

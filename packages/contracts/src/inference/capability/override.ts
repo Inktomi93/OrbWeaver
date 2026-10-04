@@ -50,8 +50,15 @@ const deepPartialGeneration = generationCapabilitySchema.partial().extend({
   tools: generationCapabilitySchema.shape.tools.unwrap().nullable().optional(),
 });
 
+/** How a built-in catalog presents the model in the picker: a readable name and one line on when to pick it. */
+const catalogPresentationSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+});
+
 export const capabilityOverrideSchema = z.object({
   match: capabilityMatchSchema.optional(),
+  catalog: catalogPresentationSchema.optional(),
   kind: modelKindSchema.optional(),
   generation: deepPartialGeneration.optional(),
   embedding: embeddingCapabilitySchema.partial().optional(),
@@ -64,7 +71,11 @@ export type CapabilityOverride = z.infer<typeof capabilityOverrideSchema>;
  *  the zod parse ever runs. */
 export type CapabilityOverrideInput = z.input<typeof capabilityOverrideSchema>;
 
-/** A connection's `declared` block: an override with no `match` (it is that row's) and no `evidence`
- *  (it IS the `declared` tier). */
-export const declaredCapabilitySchema = capabilityOverrideSchema.omit({ match: true, evidence: true });
+/** A connection's `declared` block: an override with no `match` (it is that row's), no `evidence` (it IS the
+ *  `declared` tier) and no `catalog` (a row is not a catalog entry). */
+export const declaredCapabilitySchema = capabilityOverrideSchema.omit({ match: true, evidence: true, catalog: true }).extend({
+  // A reranker's ONNX serving picks the files the shared in-process cache loads for every user of that model, so
+  // it is shipped curated data only; a connection that states it is refused, never silently dropped.
+  rerank: rerankCapabilitySchema.omit({ onnx: true }).partial().strict().optional(),
+});
 export type DeclaredCapability = z.infer<typeof declaredCapabilitySchema>;

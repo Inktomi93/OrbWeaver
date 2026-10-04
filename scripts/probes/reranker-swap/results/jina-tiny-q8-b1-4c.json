@@ -1,0 +1,71 @@
+{
+  "label": "jina-tiny-q8-b1-4c",
+  "batch": 1,
+  "model": "jinaai/jina-reranker-v1-tiny-en",
+  "threads": 4,
+  "loadMs": 2473,
+  "rss": {
+    "baselineMib": 105,
+    "afterLoadMib": 284,
+    "peakMib": 17428,
+    "peakOverBaselineMib": 17323
+  },
+  "sanity": [
+    {
+      "case": "short-qa",
+      "relevant": 2.8808014392852783,
+      "irrelevant": -1.4807884693145752,
+      "ok": true,
+      "docTokens": 33
+    },
+    {
+      "case": "speaker-persona",
+      "relevant": -1.1167443990707397,
+      "irrelevant": -1.3916007280349731,
+      "ok": true,
+      "docTokens": 29
+    },
+    {
+      "case": "fact-past-1200-tokens",
+      "relevant": -1.111304759979248,
+      "irrelevant": -1.1098110675811768,
+      "ok": false,
+      "docTokens": 1231
+    }
+  ],
+  "latency": [
+    {
+      "pairTokens": 512,
+      "msPerPairMedian": 63,
+      "after": {
+        "rssMib": 839,
+        "hwmMib": 839
+      }
+    },
+    {
+      "pairTokens": 2048,
+      "msPerPairMedian": 610,
+      "after": {
+        "rssMib": 1256,
+        "hwmMib": 1256
+      }
+    },
+    {
+      "pairTokens": 4096,
+      "msPerPairMedian": 2766,
+      "after": {
+        "rssMib": 4455,
+        "hwmMib": 4462
+      }
+    },
+    {
+      "pairTokens": 8192,
+      "msPerPairMedian": 10897,
+      "after": {
+        "rssMib": 17348,
+        "hwmMib": 17428
+      }
+    }
+  ],
+  "heapMib": 55
+}

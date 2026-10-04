@@ -23,8 +23,6 @@ export interface CapabilityRequirement {
   readonly output?: readonly Modality[] | undefined;
   readonly tools?: boolean | undefined;
   readonly structured?: boolean | undefined;
-  /** The vector width the owner's space admits (`embed`/`imageEmbed`). */
-  readonly dims?: number | undefined;
 }
 
 export interface TaskDef {
@@ -37,16 +35,27 @@ export interface TaskDef {
   readonly ridesOn?: Task | undefined;
 }
 
-/** The deployment's vector width — `F32_BLOB(1024)` never changes, so admission is a task requirement. */
-export const EMBED_SPACE_DIMS = 1024;
+/** The built-in encoder's vector width (the seed `embed` row below). An owner's space is as wide as whatever
+ *  embedder they bind; this is only the width a default install's space has. */
+export const BUILT_IN_EMBED_DIMS = 1024;
 
 /** The two rows every user is SEEDED with (§7.2 — the vector floor is a convenience seed, never a special
  *  row): the local-light encoder and reranker, both ordinary `user_connections` on the `local-light`
  *  provider with a `user` binding for `embed` / `rerank`. The ids are the curated `local-light` rows'. The label
- *  is what Model roles shows, so it says what the row does, and it is the seed's idempotency key. */
+ *  is what Model roles shows, so it says what the row does; the seed keys on the slot, never the label.
+ *  `earlierModels` are models a previous release seeded into the same slot: the seed moves a slot row the user
+ *  never edited off them onto `model`. Each stays in the built-in catalog, so a user can still pick it.
+ *  `earlierLabels` are labels a previous release seeded the row under: with `label`, the only labels that mark an
+ *  unslotted row as the seed's own, so a row the user made is never adopted. */
 export const LOCAL_LIGHT_SEED_ROWS = [
-  { task: "embed", model: "jinaai/jina-clip-v2", label: "Built-in embeddings" },
-  { task: "rerank", model: "Xenova/ms-marco-MiniLM-L-6-v2", label: "Built-in reranker" },
+  { task: "embed", model: "jinaai/jina-clip-v2", label: "Built-in embeddings", earlierModels: [], earlierLabels: ["local-light · encoder"] },
+  {
+    task: "rerank",
+    model: "cross-encoder/ettin-reranker-32m-v1",
+    label: "Built-in reranker",
+    earlierModels: ["Xenova/ms-marco-MiniLM-L-6-v2"],
+    earlierLabels: ["local-light · reranker"],
+  },
 ] as const;
 
 /** The seed slot a seeded row fills (`user_connections.seed_slot`): its task. The seed's idempotency key, so a
@@ -65,8 +74,8 @@ export const TASK_DEFS = {
   // the summarize binding in the pane (F4: one Utility slot, three requirement badges).
   structured: { kind: "generation", requires: { structured: true }, scope: "actor", spend: "background", routable: false, ridesOn: "summarize" },
   generateImage: { kind: "generation", requires: { output: ["image"] }, scope: "actor", spend: "foreground", routable: true },
-  embed: { kind: "embedding", requires: { dims: EMBED_SPACE_DIMS }, scope: "owner", spend: "background", routable: true },
-  imageEmbed: { kind: "embedding", requires: { input: ["image"], dims: EMBED_SPACE_DIMS }, scope: "owner", spend: "background", routable: true },
+  embed: { kind: "embedding", scope: "owner", spend: "background", routable: true },
+  imageEmbed: { kind: "embedding", requires: { input: ["image"] }, scope: "owner", spend: "background", routable: true },
   rerank: { kind: "rerank", scope: "owner", spend: "background", routable: true },
 } as const satisfies Record<Task, TaskDef>;
 

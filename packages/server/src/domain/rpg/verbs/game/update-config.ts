@@ -133,9 +133,10 @@ function mergeFeatures(patch: UpdateConfigParams["patch"], current: RpgGameFeatu
 function mergeExtractionKnobs(
   patch: UpdateConfigParams["patch"],
   current: RpgGameConfig,
-): Pick<RpgGameConfig, "extractionContext" | "extractionWindowTokens" | "reconcileEveryBeats"> {
+): Pick<RpgGameConfig, "extractionContext" | "extractionWindowTokens" | "reconcileEveryBeats" | "stateCaptureVehicle"> {
   return {
     extractionContext: patch?.extractionContext ?? current.extractionContext,
+    stateCaptureVehicle: patch?.stateCaptureVehicle ?? current.stateCaptureVehicle,
     extractionWindowTokens: patch?.extractionWindowTokens ?? current.extractionWindowTokens,
     reconcileEveryBeats: patch?.reconcileEveryBeats ?? current.reconcileEveryBeats,
   };

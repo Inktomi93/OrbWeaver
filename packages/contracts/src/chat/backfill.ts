@@ -35,8 +35,13 @@ export function mergeImportWindows(a: ImportWindow, b: ImportWindow): ImportWind
 /** memory-backfill: `importWindow` narrows the sweep to the chats an import wrote, intersected with the row's
  *  enumeration scope (absent = every chat in scope); the sweep never widens. `segmentsOnly` builds the free
  *  verbatim-segment embeddings and no digest, so it makes no Utility-model call: an import enqueues that pass
- *  itself, and offers the digest build behind the model-run confirm. */
-export const memoryBackfillWorkloadParams = z.object({ importWindow: importWindowSchema.optional(), segmentsOnly: z.boolean().optional() });
+ *  itself, and offers the digest build behind the model-run confirm. `embedderChanged` marks the whole-corpus
+ *  rebuild an embedder change queued. */
+export const memoryBackfillWorkloadParams = z.object({
+  importWindow: importWindowSchema.optional(),
+  segmentsOnly: z.boolean().optional(),
+  embedderChanged: z.boolean().optional(),
+});
 export type MemoryBackfillWorkloadParams = z.infer<typeof memoryBackfillWorkloadParams>;
 
 /** A backfill sweep's counts: rows examined, rows changed. Shared by both sweeps. */

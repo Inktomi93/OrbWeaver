@@ -128,6 +128,21 @@ test("the re-key carries the WHOLE person across: state row, scene presence, and
   expect(description).not.toContain("guarded");
 });
 
+// The card's name and handle are what the room's members see of a seated character, so a hidden span in the
+// story's name for her must not reach either.
+test("a promoted actor named under a hidden span gets a card name and handle with no truth words", async () => {
+  const { chatId, service, fakes } = await seedGame();
+  await seedVesna(service, chatId);
+  await service.patchActor({
+    principal: HOST,
+    chatId,
+    targetRef: VESNA,
+    ops: [{ op: "setIdentityText", field: "name", text: 'Sister Vesna <lie truth="the abbess poisoned the well"/>' }],
+  });
+  expect(await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).toMatchObject({ ok: true });
+  expect(fakes.promoteMints[0]).toMatchObject({ name: "Sister Vesna", handle: "sister-vesna" });
+});
+
 test("the promoted actor is projected as a PARTICIPANT carrying her state — not as an npc, and not twice", async () => {
   const { chatId, service } = await seedGame();
   await seedVesna(service, chatId);

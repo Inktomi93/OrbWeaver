@@ -367,6 +367,8 @@ const gamePlan = view<GameOut>({
   effectiveDelivery: view<GameOut["effectiveDelivery"]>({
     path: z.enum(RPG_DELIVERY_PATHS),
     fallbackReason: z.enum(RPG_FOLD_FALLBACK_REASONS).nullable(),
+    structuredUnavailable: TYPED_ONLY,
+    stateRoundOverflow: TYPED_ONLY,
   }),
   publicConfig: view<GameOut["publicConfig"]>({
     statProfile: rpgGameConfigSchema.shape.statProfile,

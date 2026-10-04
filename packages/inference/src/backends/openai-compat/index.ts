@@ -41,7 +41,6 @@ export interface OpenAiCompatBackendDeps {
   readonly captureWireReply?: InferenceDeps["captureWireReply"];
   readonly app: InferenceDeps["app"];
   readonly imageToPng?: InferenceDeps["imageToPng"];
-  readonly embedSpaceDims: number;
   /** Where the tokenize lookups persist, beside the endpoint facts. */
   readonly snapshotStore: InferenceDeps["snapshotStore"];
 }
@@ -80,7 +79,7 @@ export function createOpenAiCompatBackend(deps: OpenAiCompatBackendDeps): OpenAi
       },
       embed: (req) => runOpenAiCompatEmbed(req, { log: deps.log, transport }),
       rerank: (req) => runOpenAiCompatRerank(req, { fetch: deps.fetch, normalize, log: deps.log }),
-      imageEmbed: (req) => runOpenAiCompatImageEmbed(req, { fetch: deps.fetch, normalize, spaceDims: deps.embedSpaceDims }),
+      imageEmbed: (req) => runOpenAiCompatImageEmbed(req, { fetch: deps.fetch, normalize }),
       summarize: (req) => runOpenAiCompatSummarize(req, batchDeps),
       structured: (req) => runOpenAiCompatStructured(req, batchDeps),
       generateImage: (req) => runOpenAiCompatGenerateImage(req, { transport, normalize }),

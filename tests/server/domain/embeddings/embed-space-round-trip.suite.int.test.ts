@@ -23,19 +23,23 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, documentChunks } from "@orb/db";
-import type { CharacterId, UserConnectionId, UserId } from "@orb/kit/ids";
+import type { CharacterEmbeddingId, CharacterId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { readOwnedCharacterVectors } from "../../../../packages/server/src/domain/discovery/persistence/embed-store-reads.ts";
 import type { EmbeddingsContext } from "../../../../packages/server/src/domain/embeddings/context.ts";
 import type { EmbeddingsService } from "../../../../packages/server/src/domain/embeddings/contract/service.ts";
+import { upsertCharacterEmbedding } from "../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { requireTaskModel } from "../../../../packages/server/src/domain/embeddings/substrate/task-model.ts";
 import { SEARCH_SPACE_REINDEXING } from "../../../../packages/server/src/domain/search/contract/errors.ts";
+import type { ActiveQuerySpace } from "../../../../packages/server/src/domain/search/contract/service.ts";
+import { nearestDigests, nearestSegments } from "../../../../packages/server/src/domain/search/persistence/digest-rows.ts";
 import { nearestCharacters, nearestDocumentChunks } from "../../../../packages/server/src/domain/search/persistence/nearest.ts";
 import { withActiveQuerySpace } from "../../../../packages/server/src/domain/search/substrate/space.ts";
 import { freshDb } from "../../../support/db.ts";
@@ -43,11 +47,15 @@ import { expect, test } from "../../../support/fixtures.ts";
 import type { ConnectionHarness } from "../connection/_support.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../connection/_support.ts";
 import type { StoreHarnessSources } from "./_support.ts";
-import { makeStoreHarness, seedCharacter, seedDocument } from "./_support.ts";
+import { makeStoreHarness, seedCharacter, seedChat, seedDocument } from "./_support.ts";
 
 const LOCAL_LIGHT = castId<ProviderId>("local-light");
 /** The curated local-light encoder — the row `entry/boot/seed-local-light.ts` seeds on every fresh box. */
 const ENCODER = "jinaai/jina-clip-v2";
+/** A common local embedder the curated rows know as 768 wide and MRL, served by the owner's own endpoint. */
+const NARROW_ENCODER = "nomic-embed-text";
+const NARROW_DIMS = 768;
+const NARROW_BASE_URL = "http://127.0.0.1:18705/v1";
 /** A SECOND encoder the owner re-binds to mid-drive, served by their own OpenAI-compatible endpoint. The
  *  builtin local-light catalog is closed (`requireCatalogModel`), so a swapped encoder is an endpoint row,
  *  whose `url` catalog admits the id; the model id differs, so the `(model[@dtype])` space differs. */
@@ -61,19 +69,49 @@ const SECOND_ENCODER_ROUTE = {
   match: `${BYO_BASE_URL}/embeddings`,
   json: {
     object: "list",
-    data: [{ object: "embedding", index: 0, embedding: Array.from({ length: EMBED_SPACE_DIMS }, (_value, i) => ((i % 7) + 1) / 10) }],
+    data: [{ object: "embedding", index: 0, embedding: Array.from({ length: BUILT_IN_EMBED_DIMS }, (_value, i) => ((i % 7) + 1) / 10) }],
     model: SECOND_ENCODER,
   },
 };
 
-/** A non-degenerate query vector at the deployment width — cosine needs a non-zero magnitude. */
-function queryVector(): Float32Array {
-  const v = new Float32Array(EMBED_SPACE_DIMS);
-  for (let i = 0; i < EMBED_SPACE_DIMS; i += 1) {
+/** The narrow endpoint behaves like a real MRL server: one vector per input, at the `dimensions` it was asked
+ *  for, else its native width. */
+const NARROW_ENCODER_ROUTE = {
+  match: `${NARROW_BASE_URL}/embeddings`,
+  reply: (body: string | null): unknown => {
+    const request = JSON.parse(body ?? "{}") as { readonly input?: unknown; readonly dimensions?: number };
+    const inputs = Array.isArray(request.input) ? request.input.length : 1;
+    const width = request.dimensions ?? NARROW_DIMS;
+    return {
+      object: "list",
+      data: Array.from({ length: inputs }, (_input, index) => ({
+        object: "embedding",
+        index,
+        embedding: Array.from({ length: width }, (_value, i) => (((i + index) % 7) + 1) / 10),
+      })),
+      model: NARROW_ENCODER,
+    };
+  },
+};
+
+/** A non-degenerate query vector — cosine needs a non-zero magnitude. */
+function queryVector(width = BUILT_IN_EMBED_DIMS): Float32Array {
+  const v = new Float32Array(width);
+  for (let i = 0; i < width; i += 1) {
     v[i] = ((i % 5) + 1) / 5;
   }
   return v;
 }
+
+/** The connection row an owner binds for `embed`. */
+interface EncoderRow {
+  readonly providerId: ProviderId;
+  readonly model: string;
+  readonly baseUrl: string | null;
+}
+
+const BUILT_IN_ROW: EncoderRow = { providerId: LOCAL_LIGHT, model: ENCODER, baseUrl: null };
+const NARROW_ROW: EncoderRow = { providerId: BYO_PROVIDER, model: NARROW_ENCODER, baseUrl: NARROW_BASE_URL };
 
 interface Drive {
   readonly harness: ConnectionHarness;
@@ -87,18 +125,23 @@ interface Drive {
 
 /** The whole graph one drive needs: a real runtime over a real db, an owner holding a bound `local-light`
  *  encoder connection, and an embeddings service whose role clients come from THAT runtime. */
-async function driveOwnerWithBoundEncoder(db: Db, sources: StoreHarnessSources = {}, localLightEmbedDtype?: string): Promise<Drive> {
+async function driveOwnerWithBoundEncoder(
+  db: Db,
+  sources: StoreHarnessSources = {},
+  localLightEmbedDtype?: string,
+  encoder: EncoderRow = BUILT_IN_ROW,
+): Promise<Drive> {
   const harness = await makeHarness(db, {
     localLight: true,
-    routes: [SECOND_ENCODER_ROUTE],
+    routes: [SECOND_ENCODER_ROUTE, NARROW_ENCODER_ROUTE],
     ...(localLightEmbedDtype === undefined ? {} : { localLightEmbedDtype }),
   });
   const { userId, principal } = await seedOwner(db, "user_roundtrip");
   const connection = await harness.svc.create({
     principal,
-    providerId: LOCAL_LIGHT,
-    model: ENCODER,
-    baseUrl: null,
+    providerId: encoder.providerId,
+    model: encoder.model,
+    baseUrl: encoder.baseUrl,
     credentialId: null,
     allowBackground: true,
   });
@@ -125,8 +168,6 @@ async function driveOwnerWithBoundEncoder(db: Db, sources: StoreHarnessSources =
             imageEmbed: rc.imageEmbed,
           };
     },
-    embedDim: EMBED_SPACE_DIMS,
-    imageEmbedDim: EMBED_SPACE_DIMS,
   };
   return { harness, principal, userId, connectionId: connection.id, svc: createEmbeddingsService(ctx), ctx, roleClients };
 }
@@ -162,7 +203,6 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       characterId,
       content: CARD_TEXT,
       model: writeTag ?? "",
-      dim: EMBED_SPACE_DIMS,
       ownerId: drive.userId,
     });
     expect(written.outcome).toBe("written");
@@ -193,7 +233,6 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       lens: "chunk",
       content: CHUNK_TEXT,
       model: writeTag ?? "",
-      dim: EMBED_SPACE_DIMS,
       fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: CHUNK_TEXT.length },
       ownerId: drive.userId,
     });
@@ -215,7 +254,6 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       documentIds: [documentId],
       queryVector: queryVector(),
       model: readTag,
-      dim: EMBED_SPACE_DIMS,
       limit: 5,
     });
     expect(hits).toHaveLength(1);
@@ -234,7 +272,6 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       characterId,
       content: CARD_TEXT,
       model: tag ?? "",
-      dim: EMBED_SPACE_DIMS,
       ownerId: drive.userId,
     });
     const rows = await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId));
@@ -256,7 +293,6 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       lens: "chunk",
       content: CHUNK_TEXT,
       model: servedTag ?? "",
-      dim: EMBED_SPACE_DIMS,
       fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: CHUNK_TEXT.length },
       ownerId: drive.userId,
     });
@@ -266,7 +302,6 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
         documentIds: [documentId],
         queryVector: queryVector(),
         model: servedTag ?? "",
-        dim: EMBED_SPACE_DIMS,
         limit: 5,
       }),
     ).toHaveLength(1);
@@ -283,7 +318,6 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
         lens: "chunk",
         content: `${CHUNK_TEXT} changed`,
         model: `${ENCODER}@fp16`,
-        dim: EMBED_SPACE_DIMS,
         fkRefs: { documentId, chunkIdx: 1, charStart: 0, charEnd: CHUNK_TEXT.length },
         ownerId: drive.userId,
       }),
@@ -337,7 +371,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       // `declared` is the TOP evidence tier (§6.2) — the user telling us what their own box serves. It is
       // what makes an endpoint model the curated rows have never heard of an encoder, which is exactly the
       // shape of "I swapped my encoder" that this whole transition exists for.
-      declared: { kind: "embedding", embedding: { dims: EMBED_SPACE_DIMS, input: ["text", "image"] } },
+      declared: { kind: "embedding", embedding: { dims: BUILT_IN_EMBED_DIMS, input: ["text", "image"] } },
     });
     await drive.harness.svc.setBinding({ principal: drive.principal, task: "embed", connectionId: second.id });
     const newTag = await requireTaskModel(drive.ctx, drive.userId, "embed");
@@ -364,7 +398,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     ]);
   });
 
-  test("a partial reindex cannot purge the last-complete document corpus before replacement", async () => {
+  test("a generation switch deletes the old corpus at once, and a partial rebuild leaves nothing stale", async () => {
     const db = await freshDb();
     const drive = await driveOwnerWithBoundEncoder(db);
     const documentId = await seedDocument(db, drive.userId, { text: CHUNK_TEXT });
@@ -375,11 +409,11 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       lens: "chunk",
       content: CHUNK_TEXT,
       model: oldTag ?? "",
-      dim: EMBED_SPACE_DIMS,
       fkRefs: { documentId, chunkIdx: 0, charStart: 0, charEnd: CHUNK_TEXT.length },
       ownerId: drive.userId,
     });
     await runEmbedSweeps(drive);
+    expect(await db.select().from(documentChunks)).toHaveLength(1);
 
     const second = await drive.harness.svc.create({
       principal: drive.principal,
@@ -388,29 +422,23 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
       baseUrl: BYO_BASE_URL,
       credentialId: null,
       allowBackground: true,
-      declared: { kind: "embedding", embedding: { dims: EMBED_SPACE_DIMS, input: ["text", "image"] } },
+      declared: { kind: "embedding", embedding: { dims: BUILT_IN_EMBED_DIMS, input: ["text", "image"] } },
     });
     await drive.harness.svc.setBinding({ principal: drive.principal, task: "embed", connectionId: second.id });
 
-    // Documents finish independently from cards and memory. The terminal must retain the complete
-    // generation until all three scopes can promote together; it cannot delete first and hope that the
-    // other refill jobs catch up later.
+    // The sweep's first step moves the target, and that one batch deletes the old generation's rows.
     const generation = await drive.svc.resolveGeneration(drive.userId, "embed");
     if (generation === null) {
       throw new Error("expected generation");
     }
-    const purged = await drive.svc.purgeDocumentVectors({ ownerId: drive.userId, generation });
-    expect(purged.chunks).toBe(0);
-    expect(await db.select().from(documentChunks)).toHaveLength(1);
-    expect(
-      await nearestDocumentChunks(db, {
-        documentIds: [documentId],
-        queryVector: queryVector(),
-        model: oldTag ?? "",
-        dim: EMBED_SPACE_DIMS,
-        limit: 5,
-      }),
-    ).toHaveLength(1);
+    expect(await db.select().from(documentChunks)).toEqual([]);
+    await expect(spaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
+
+    // Only the documents scope finishes (the card and memory sweeps were cut short): the index holds no old
+    // row, and reads keep refusing until every scope promotes the new generation.
+    await drive.svc.purgeDocumentVectors({ ownerId: drive.userId, generation });
+    expect((await db.select().from(documentChunks)).filter((row) => row.generationId !== generation.id)).toEqual([]);
+    await expect(spaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
   });
 
   test("the derived read tag carries the encoder's curated dtype — the fact the backend stamps", async () => {
@@ -422,5 +450,176 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     // is the pre-fix shape.
     expect(readTag).not.toBe(ENCODER);
     expect(readTag.startsWith(`${ENCODER}@`)).toBe(true);
+  });
+});
+
+// ── The space width follows the bound embedder ──────────────────────────────────────────────────────────
+//
+// An owner's space is as wide as the embedder they bound: nothing is padded, nothing is refused for being
+// narrower, and a width change is a space change that re-indexes like a model change. Every read below goes
+// through the same `withActiveQuerySpace` door the query verbs use, with the query embedded by the space's own
+// connection, so a hit proves the stored rows and the query share one width.
+
+const CARD_ID = castId<CharacterId>("character_width");
+const DIGEST_TEXT = "[Mara — the lighthouse] Mara keeps the lamp lit through the storm.";
+const SEGMENT_TEXT = "Mara: The lamp has to stay lit.";
+
+/** Every scan a search or a recall runs, taken in the owner's settled space. */
+async function readAll(
+  drive: Drive,
+  chatId: ChatId,
+): Promise<{
+  readonly cards: readonly CharacterId[];
+  readonly digests: readonly string[];
+  readonly segments: readonly string[];
+}> {
+  const db = drive.ctx.db;
+  return await withActiveQuerySpace(drive.ctx, drive.userId, "embed", async (space: ActiveQuerySpace) => {
+    const query = (await space.connection.embed("who keeps the lamp lit", { inputType: "query" })).vectors[0];
+    if (query === null || query === undefined) {
+      throw new Error("the space's connection must embed the query");
+    }
+    const scope = { ownerId: drive.userId, queryVector: query, model: space.model, generationId: space.generationId, limit: 5 };
+    return {
+      cards: (await nearestCharacters(db, scope)).map((hit) => hit.characterId),
+      digests: (await nearestDigests(db, { ...scope, chatIds: [chatId] })).map((hit) => hit.text),
+      segments: (await nearestSegments(db, { ...scope, chatIds: [chatId] })).map((hit) => hit.text),
+    };
+  });
+}
+
+/** A card and its chat, with the chat's memory written through the production store verbs. */
+async function seedCorpus(db: Db, drive: Drive): Promise<ChatId> {
+  await seedCharacter(db, drive.userId, { id: CARD_ID, name: "Mara" });
+  const chatId = await seedChat(db, "chat_width", drive.userId);
+  await storeMemory(drive, chatId);
+  return chatId;
+}
+
+/** One memory digest and one verbatim segment, written into the owner's current space. */
+async function storeMemory(drive: Drive, chatId: ChatId): Promise<void> {
+  const tag = (await requireTaskModel(drive.ctx, drive.userId, "embed")) ?? "";
+  await drive.svc.store({
+    kind: "chat-block",
+    lens: "digest",
+    ownerId: drive.userId,
+    chatId,
+    scopedCharacterId: CARD_ID,
+    isGroup: false,
+    tier: 0,
+    blockIdx: 0,
+    text: DIGEST_TEXT,
+    topicAnchor: "[Mara — the lighthouse]",
+    keywords: [],
+    speakerCharacterIds: [CARD_ID],
+    contentHash: "digest-width",
+    model: tag,
+  });
+  await drive.svc.storeSegments([
+    {
+      kind: "chat-block",
+      lens: "segment",
+      ownerId: drive.userId,
+      chatId,
+      blockIdx: 0,
+      chunkIdx: 0,
+      seqStart: 0,
+      seqEnd: 1,
+      text: SEGMENT_TEXT,
+      contentHash: "segment-width",
+      model: tag,
+    },
+  ]);
+}
+
+async function storedWidths(db: Db): Promise<readonly (readonly [string, number, number])[]> {
+  const rows = await db.select().from(characterEmbeddings);
+  return rows.map((row) => [row.model, row.dim, row.embedding.length] as const).toSorted((a, b) => a[1] - b[1]);
+}
+
+describe("the space width follows the bound embedder", () => {
+  test("a 768-wide embedder binds and serves index, search and recall at its own width", async () => {
+    const db = await freshDb();
+    const drive = await driveOwnerWithBoundEncoder(db, { characterIds: [CARD_ID], cardTexts: new Map([[CARD_ID, CARD_TEXT]]) }, undefined, NARROW_ROW);
+    const chatId = await seedCorpus(db, drive);
+    await runEmbedSweeps(drive);
+
+    expect(await storedWidths(db)).toEqual([[NARROW_ENCODER, NARROW_DIMS, NARROW_DIMS]]);
+    expect(await readAll(drive, chatId)).toEqual({ cards: [CARD_ID], digests: [DIGEST_TEXT], segments: [SEGMENT_TEXT] });
+  });
+
+  test("switching from the built-in 1024 encoder to a 768 one re-indexes the corpus into the new width", async () => {
+    const db = await freshDb();
+    const drive = await driveOwnerWithBoundEncoder(db, { characterIds: [CARD_ID], cardTexts: new Map([[CARD_ID, CARD_TEXT]]) });
+    const chatId = await seedCorpus(db, drive);
+    await runEmbedSweeps(drive);
+    const builtInTag = await spaceModel(drive.ctx, drive.userId, "embed");
+    expect(await storedWidths(db)).toEqual([[builtInTag, BUILT_IN_EMBED_DIMS, BUILT_IN_EMBED_DIMS]]);
+
+    const narrow = await drive.harness.svc.create({
+      principal: drive.principal,
+      providerId: BYO_PROVIDER,
+      model: NARROW_ENCODER,
+      baseUrl: NARROW_BASE_URL,
+      credentialId: null,
+      allowBackground: true,
+    });
+    await drive.harness.svc.setBinding({ principal: drive.principal, task: "embed", connectionId: narrow.id });
+    // The binding write raised the re-index trigger, and reads refuse rather than scan a half-built space.
+    expect(drive.harness.embedSpaceChanges).toContain(drive.userId);
+    await expect(spaceModel(drive.ctx, drive.userId, "embed")).rejects.toMatchObject({ code: SEARCH_SPACE_REINDEXING });
+
+    // The memory sweep rewrites a chat's blocks into the new space; this fixture stores them the way it would.
+    await storeMemory(drive, chatId);
+    await runEmbedSweeps(drive);
+
+    expect(await storedWidths(db)).toEqual([[NARROW_ENCODER, NARROW_DIMS, NARROW_DIMS]]);
+    expect(await readAll(drive, chatId)).toEqual({ cards: [CARD_ID], digests: [DIGEST_TEXT], segments: [SEGMENT_TEXT] });
+  });
+
+  test("narrowing an MRL embedder's width rebuilds at the new width, and a late old-generation write is never ranked", async () => {
+    const db = await freshDb();
+    const drive = await driveOwnerWithBoundEncoder(db, { characterIds: [CARD_ID], cardTexts: new Map([[CARD_ID, CARD_TEXT]]) }, undefined, NARROW_ROW);
+    await seedCharacter(db, drive.userId, { id: CARD_ID, name: "Mara" });
+    await runEmbedSweeps(drive);
+    const oldGeneration = await drive.svc.resolveGeneration(drive.userId, "embed");
+    if (oldGeneration === null) {
+      throw new Error("expected the bound generation");
+    }
+
+    const shorter = 512;
+    await drive.harness.svc.update({
+      principal: drive.principal,
+      connectionId: drive.connectionId,
+      patch: { declared: { kind: "embedding", embedding: { dims: shorter } } },
+    });
+    expect(drive.harness.embedSpaceChanges).toContain(drive.userId);
+    await drive.svc.embedCorpus({ force: false, signal: new AbortController().signal, ownerId: drive.userId });
+
+    // The MRL server was asked for the declared width, and the switch left only the new width behind.
+    const lastEmbed = drive.harness.requests.filter((request) => request.url.includes(NARROW_ENCODER_ROUTE.match)).at(-1);
+    expect(JSON.parse(lastEmbed?.body ?? "{}")).toMatchObject({ dimensions: shorter });
+    expect(await storedWidths(db)).toEqual([[NARROW_ENCODER, shorter, shorter]]);
+
+    // A store that pinned the old generation before the switch lands its row afterwards.
+    await upsertCharacterEmbedding(db, {
+      id: castId<CharacterEmbeddingId>("character_embedding_late"),
+      characterId: CARD_ID,
+      embedding: queryVector(NARROW_DIMS),
+      contentHash: "late-write",
+      model: NARROW_ENCODER,
+      generationId: oldGeneration.id,
+      dim: NARROW_DIMS,
+      now: 0,
+    });
+    // Search ranks only rows of its query's width under one tag, so the late row cannot make libSQL throw…
+    const hits = await nearestCharacters(db, { ownerId: drive.userId, queryVector: queryVector(shorter), model: NARROW_ENCODER, limit: 5 });
+    expect(hits.map((hit) => hit.characterId)).toEqual([CARD_ID]);
+    // …and discovery reads only the owner's current generation, so no pass meets the late row.
+    expect((await readOwnedCharacterVectors(db, drive.userId)).map((row) => row.embedding.length)).toEqual([shorter]);
+
+    // The promotion deletes the late row: the index holds one generation at rest.
+    await runEmbedSweeps(drive);
+    expect(await storedWidths(db)).toEqual([[NARROW_ENCODER, shorter, shorter]]);
   });
 });

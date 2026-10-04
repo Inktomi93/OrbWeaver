@@ -8,6 +8,7 @@ import { bindingTaskOf, canFund, providerDisplayLabel } from "@orb/contracts/inf
 import type { SelectItems, SelectOptionGroup } from "@orb/ui/select/items";
 // Direct, not through `#lib`: this module stays barrel-free because node-side CT specs import it.
 import { ROLE_ROWS_ORDERED } from "../../../lib/connection-roles.ts";
+import { VECTOR_ROLES } from "../../../lib/embedder-rebuild.ts";
 
 /** The user-facing Model-role labels a connection may serve. Non-routable tasks fold through their
  *  binding (`agent` → Chat, `structured` → Utility model), so schema task names never leak into copy. */
@@ -76,6 +77,12 @@ export const CHAT_API_LABELS: Record<ProviderDef["apis"][number], string> = Obje
  *  Mirrors the verb's own filter: every routable task the row can serve AND fund. */
 export function sweepRoleLabels(connection: { readonly allowBackground: boolean; readonly tasks: readonly Task[] }): readonly string[] {
   return ROLE_ROWS_ORDERED.filter((row) => connection.tasks.includes(row.task) && canFund(connection, row.task)).map((row) => row.label);
+}
+
+/** Whether that sweep re-points one of the user's vector roles, which can rebuild their search index — then the
+ *  pane asks the server what it would rebuild before writing. Same filter as {@link sweepRoleLabels}. */
+export function sweepRebindsEmbedder(connection: { readonly allowBackground: boolean; readonly tasks: readonly Task[] }): boolean {
+  return VECTOR_ROLES.some((task) => connection.tasks.includes(task) && canFund(connection, task));
 }
 
 /** The Model-role names a connection's REMOVAL would unset — the confirm's count and list (§5.3a/side-eye:

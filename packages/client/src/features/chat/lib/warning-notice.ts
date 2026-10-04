@@ -97,12 +97,12 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
       };
     case "smart_arbitration_degraded":
       return {
-        description: "The turn-arbiter model wasn't available, so who speaks next was picked automatically.",
-        title: "Who speaks next was picked automatically",
+        description: "Natural picked who speaks next. Characters you name clearly still answer without it.",
+        title: "Smart couldn't use your Utility model",
       };
     case "speaker_rerank_unavailable":
       return {
-        description: "Smart ranks speakers with your Rerank model, and none was available, so who speaks next was picked automatically.",
+        description: "Characters you name still answer, in the order you name them. Anyone else is picked by Natural until a Rerank model is available.",
         title: "No Rerank model to pick who speaks next",
       };
     case "guided_placed_as_injection":

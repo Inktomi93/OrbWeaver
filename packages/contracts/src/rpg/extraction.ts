@@ -42,6 +42,8 @@
 // a structured-output JSON Schema without throwing (the contract test pins it, mirroring the tools pin).
 import { z } from "zod";
 import { dropNullValues } from "#inference";
+import { rpgNpcSlug } from "./actor.ts";
+import type { UpdateSceneArgs } from "./tools.ts";
 import {
   addJournalEntryArgsSchema,
   setTrackerArgsSchema,
@@ -72,7 +74,13 @@ export const rpgExtractionSchema = z.object({
   quests: z.array(upsertQuestArgsSchema).default([]),
   journal: z.array(addJournalEntryArgsSchema).default([]),
 });
-export type RpgExtraction = z.infer<typeof rpgExtractionSchema>;
+export type RpgExtraction = z.infer<typeof rpgExtractionSchema> & {
+  /** Every `update_scene` call after the one in `scene`, in call order (the tool vehicles only; the structured
+   *  extraction states one scene). The fold applies `scene` and then each of these over the running state, so
+   *  several scene calls in one round leave exactly what they leave applied one by one: a later `presentRemove`
+   *  undoes an earlier upsert's presence, every `recentEvent` is a beat, and an unstated field keeps its value. */
+  readonly sceneFollowUps?: readonly UpdateSceneArgs[];
+};
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // The MIS-TARGET fix (R1) — per-call REF CONSTRAINT injected into the PROJECTED schema.
@@ -511,7 +519,8 @@ type ToolRoundArrayArmByKey = {
 
 // The ARRAY-plane tool name → { schema, extraction field } — authored once as a kind-correlated mapped
 // contract, then indexed as a Map because tool names arrive as untrusted string values. The `scene` plane is
-// handled separately (single, last-wins, not an array). `no_changes`/unknown names are absent ⇒ no contribution.
+// handled separately (one scene, merged field by field across calls). `no_changes`/unknown names are absent ⇒ no
+// contribution.
 const TOOL_ROUND_ARRAY_ARM_DEFS = {
   party: { name: "update_party", schema: updatePartyArgsSchema, field: "party" },
   inventory: { name: "update_inventory", schema: updateInventoryArgsSchema, field: "inventory" },
@@ -533,11 +542,13 @@ const TOOL_ROUND_ARRAY_ARMS: ReadonlyMap<string, ToolRoundArrayRuntimeArm> = new
  * Fold a tool round's PARALLEL tool calls into ONE `RpgExtraction` — each call's args are re-validated against
  * its own arg schema (a malformed/unknown call is DROPPED, errors-as-data), and same-plane calls accumulate
  * (several `update_party` calls in one round → several `party` entries, exactly like the model firing them
- * sequentially). `no_changes` (and any unknown name) contributes nothing. `scene` is single (last `update_scene`
- * wins — one scene per turn). The result feeds the SAME `extractionToStateDelta` fold the structured arm uses.
+ * sequentially). `no_changes` (and any unknown name) contributes nothing. Several `update_scene` calls keep their
+ * order: the first is `scene` and the rest are `sceneFollowUps`, so a model that splits one scene update across
+ * calls loses none of it. The result feeds the SAME `extractionToStateDelta` fold the structured arm uses.
  */
 export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtraction {
   const out: RpgExtraction = { party: [], inventory: [], trackers: [], quests: [], journal: [] };
+  const scenes: UpdateSceneArgs[] = [];
   for (const call of calls) {
     const args = parseToolCallArgs(call.arguments);
     if (args === null) {
@@ -546,7 +557,7 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
     if (call.name === "update_scene") {
       const salvaged = salvageArgs(updateSceneArgsSchema, args);
       if (salvaged !== null) {
-        out.scene = salvaged.data; // last-wins: one scene per turn
+        scenes.push(salvaged.data);
       }
       continue;
     }
@@ -562,7 +573,8 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
       (out[arm.field] as unknown[]).push(salvaged.data);
     }
   }
-  return out;
+  const [scene, ...sceneFollowUps] = scenes;
+  return { ...out, ...(scene === undefined ? {} : { scene }), ...(sceneFollowUps.length > 0 ? { sceneFollowUps } : {}) };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1001,16 +1013,95 @@ export interface RpgRecordedToolCall {
  *  rule this section exists for: the verdicts still come from those two functions, never from a third copy of
  *  their logic. Cost is one extra `parseArgs` per call over a turn's handful of calls. */
 export function recordToolCalls(calls: readonly RpgToolCall[]): readonly RpgRecordedToolCall[] {
-  return calls.map((call): RpgRecordedToolCall => {
+  const replaced = replacedSceneValues(calls);
+  return calls.map((call, index): RpgRecordedToolCall => {
     const [dropped] = malformedToolCallDetails([call]);
     if (dropped !== undefined) {
       return { name: call.name, args: call.arguments, verdict: "dropped", issues: dropped.issues };
     }
-    const fields = salvagedToolCallFields([call]);
-    return fields.length > 0
-      ? { name: call.name, args: call.arguments, verdict: "salvaged", issues: fields }
-      : { name: call.name, args: call.arguments, verdict: "applied", issues: [] };
+    const issues = [...salvagedToolCallFields([call]), ...(replaced.get(index) ?? [])];
+    return { name: call.name, args: call.arguments, verdict: issues.length > 0 ? "salvaged" : "applied", issues };
   });
+}
+
+const SCENE_VALUE_REPLACED = "a later update_scene this turn set this field again, so this value was replaced";
+
+/** One value a scene call states that a later call can replace: `key` identifies it across calls (an upsert is
+ *  keyed by its actor's slug), `path` is the schema's own words for the issue line, and `sent` is what the issue's
+ *  sent half carries (an upsert's names the actor, which is model text and so belongs there). */
+interface SceneValue {
+  readonly key: string;
+  readonly path: string;
+  readonly value: unknown;
+  readonly sent: unknown;
+}
+
+const SCENE_SCALARS = ["location", "calendarDate", "day", "timeOfDay", "weather"] as const;
+
+/** The replaceable values one parsed scene call states. `weather` and an upsert's `relationship` are written
+ *  whole, so they compare whole; `recentEvent` appends a beat and the presence lists apply in order, so none of
+ *  those is ever replaced. */
+function sceneValues(args: UpdateSceneArgs): SceneValue[] {
+  const out: SceneValue[] = [];
+  for (const field of SCENE_SCALARS) {
+    if (args[field] !== undefined) {
+      out.push({ key: field, path: field, value: args[field], sent: args[field] });
+    }
+  }
+  for (const [field, value] of Object.entries(args.plot ?? {})) {
+    out.push({ key: `plot.${field}`, path: `plot.${field}`, value, sent: value });
+  }
+  for (const upsert of args.presentUpsert ?? []) {
+    for (const [field, value] of Object.entries(upsert)) {
+      const actor = rpgNpcSlug(upsert.name);
+      out.push({ key: `presentUpsert:${actor}.${field}`, path: `presentUpsert.${field}`, value, sent: { name: upsert.name, [field]: value } });
+    }
+  }
+  return out;
+}
+
+/** The scene values a LATER `update_scene` in the same turn restated differently, as issue lines keyed by the
+ *  index of the call that sent them. The fold applies the calls in order, so the later value stands; this keeps
+ *  the replaced one visible. The path half is schema words only; the replaced value rides the sent half. */
+function replacedSceneValues(calls: readonly RpgToolCall[]): ReadonlyMap<number, readonly string[]> {
+  const latest = new Map<string, { readonly index: number; readonly value: SceneValue }>();
+  const replaced = new Map<number, string[]>();
+  for (const [index, call] of calls.entries()) {
+    const args = call.name === "update_scene" ? parseToolCallArgs(call.arguments) : null;
+    const parsed = args === null ? null : salvageArgs(updateSceneArgsSchema, args);
+    for (const value of parsed === null ? [] : sceneValues(parsed.data)) {
+      const prior = latest.get(value.key);
+      // Only a LATER call replaces: one call that upserts an actor twice is that call's own business.
+      if (prior !== undefined && prior.index !== index && JSON.stringify(prior.value.value) !== JSON.stringify(value.value)) {
+        const line = `${prior.value.path}: ${SCENE_VALUE_REPLACED}${SENT_VALUE_MARKER}${sentValueAtPath(prior.value.sent, [])}`;
+        replaced.set(prior.index, [...(replaced.get(prior.index) ?? []), line]);
+      }
+      latest.set(value.key, { index, value });
+    }
+  }
+  return replaced;
+}
+
+/** One thing the model sent that could not even be assembled into a call's arguments, with why. */
+export interface RpgUnassembledValue {
+  /** Schema words only, never model bytes: a member's view belts hidden spans out of the sent half alone, so any
+   *  name the model sent belongs in `sent`. */
+  readonly path: string;
+  readonly message: string;
+  readonly sent: unknown;
+}
+
+/** The record row for a call that never reached the per-call parse because nothing in it could be assembled into
+ *  arguments (a structured patch entry naming a tool or field the round lacks, or an id out of range). A `dropped` row in
+ *  the parse's own `<path>: <message> — sent <value>` issue vocabulary, so every reader of the record, and the
+ *  member projection that re-renders the sent half, reads it like any other drop. `args` is what was sent. */
+export function recordUnassembledCall(name: string, args: string, values: readonly RpgUnassembledValue[]): RpgRecordedToolCall {
+  return {
+    name,
+    args,
+    verdict: "dropped",
+    issues: values.map((value) => `${value.path}: ${value.message}${SENT_VALUE_MARKER}${sentValueAtPath(value.sent, [])}`),
+  };
 }
 
 /** One suppressed path as the disclosure says it. The PATH is the load-bearing half — it is what lets a

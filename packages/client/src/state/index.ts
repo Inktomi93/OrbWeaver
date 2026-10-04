@@ -177,6 +177,7 @@ export {
   useCollectionSelection,
 } from "./config-selection-store.ts";
 export { assertTeachHonesty } from "./config-teach.ts";
+export { clearConnectionEditorRequest, requestConnectionEditor, useRequestedConnectionEditor } from "./connection-editor-request-store.ts";
 export {
   compareCorpusPair,
   setCorpusCompareA,
@@ -215,8 +216,7 @@ export type { KindedSelection } from "./create-kinded-selection-store.ts";
 export { createKindedSelectionStore } from "./create-kinded-selection-store.ts";
 export type { PersistedStoreOptions } from "./create-persisted-store.ts";
 export { createPersistedStore } from "./create-persisted-store.ts";
-// `IngestPhase`/`INGEST_PHASES` are NOT re-exported here any more: the axis became a `databank.list` INPUT
-// (owner ruling 2026-08-13), so its home is `@orb/contracts/databank` and every consumer reads it from there.
+// `IngestPhase`/`INGEST_PHASES` are a `databank.list` input homed in `@orb/contracts/databank`; never re-export them here.
 export { clearDatabankPhaseFilter, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
 export { __resetDeploymentBootHint, rememberMultiHumanCapable, useMultiHumanCapableHint } from "./deployment-boot-hint.ts";

@@ -17,14 +17,14 @@ export function runGoogleBatch(req: SummarizeRequest | StructuredRequest, deps: 
   const label = `${connection.providerId} ${task} (${connection.model})`;
   const warnings: ResolvedWarning[] = [];
   const batch = batchRequestOf(req, task);
-  const reasoning = resolveSideGenReasoning(generation, warnings, batch.sampling);
+  const sideGen = resolveSideGenReasoning(generation, connection.wire, warnings, batch.sampling);
   return runV4Batch({
     req: batch,
     model: googleProviderFor({ connection, deps, label, api: task }).chat(googleModelId(connection.model)),
     options: {
-      ...standardSampling(batch.sampling, batch.sampling.maxTokens),
+      ...standardSampling(batch.sampling, sideGen.maxTokens),
       ...("responseFormat" in req ? { responseFormat: jsonResponseFormat(req.responseFormat, req.responseFormat.schema) } : {}),
-      providerOptions: { [GOOGLE_KEY]: { ...googleExtras(connection, warnings), ...googleThinking(reasoning) } },
+      providerOptions: { [GOOGLE_KEY]: { ...googleExtras(connection, warnings), ...googleThinking(sideGen.reasoning) } },
     },
     warnings,
     label,

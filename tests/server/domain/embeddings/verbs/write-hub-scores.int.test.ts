@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { EMBED_DIM, EMBED_MODEL, makeStoreHarness, seedCharacter, seedUser } from "../_support.ts";
+import { EMBED_MODEL, makeStoreHarness, seedCharacter, seedUser } from "../_support.ts";
 
 const CARD_TEXT = "a card to score";
 
@@ -28,7 +28,6 @@ async function seedOneEmbedding(db: Awaited<ReturnType<typeof freshDb>>): Promis
     characterId,
     content: CARD_TEXT,
     model: EMBED_MODEL,
-    dim: EMBED_DIM,
     ownerId: owner,
   });
   const row = (await db.select().from(characterEmbeddings).where(eq(characterEmbeddings.characterId, characterId)))[0];

@@ -50,6 +50,7 @@ export {
   bindRefusal,
   CHAT_ROLE_DOOR,
   CONNECTION_ROLE_LABELS,
+  CONNECTIONS_LIST_ADDRESS,
   connectionHost,
   connectionSummary,
   labelNamesModel,
@@ -117,6 +118,24 @@ export { IS_DEV } from "./dev-flag.ts";
 export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
 export type { EditSession } from "./edit-session.ts";
 export { resolveCommit } from "./edit-session.ts";
+export type { ReindexPreview } from "./embedder-rebuild.ts";
+export {
+  EMBED_REFUSAL_SLOTS,
+  EMBED_REFUSAL_TOAST_TITLE,
+  EMBEDDER_REBUILD_KINDS,
+  embedderCheckingText,
+  embedderRebuildState,
+  embedRefusalOf,
+  embedRefusalRowText,
+  embedRefusalText,
+  REBUILD_JOBS_LABEL,
+  REBUILD_STATUS_COPY,
+  REINDEX_CONFIRM_COPY,
+  reindexConfirmDescription,
+  reindexNeedsConfirm,
+  SEARCH_PAUSED_COPY,
+  VECTOR_ROLES,
+} from "./embedder-rebuild.ts";
 export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
 export { AppErrorBoundary } from "./error-boundary.tsx";
 export type { SendRefusalKey } from "./injection-copy.ts";
@@ -279,7 +298,7 @@ export { timeLib, viewerTimeZone } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export type { TrpcOpLogEntry } from "./trpc-devlog.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
-export { trpcErrorReason } from "./trpc-error-reason.ts";
+export { trpcErrorDetailNumber, trpcErrorReason } from "./trpc-error-reason.ts";
 export { isSilencedTurnAbort, TURN_LOCKED_COPY, TURN_STALE_ABORT_COPY, turnAbortNotice, turnMutationToast } from "./turn-abort-notice.ts";
 export { oversizeUploadMessage } from "./upload-cap-check.ts";
 export { withoutUrlSearchParam } from "./url-search.ts";

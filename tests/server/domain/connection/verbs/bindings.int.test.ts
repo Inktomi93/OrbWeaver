@@ -140,7 +140,9 @@ describe("setBinding", () => {
     expect(bound.task).toBe("embed");
   });
 
-  test("clearing a task writes `null` and raises the embed-space trigger for a vector task only", async () => {
+  // Only a move ONTO a space that can embed is worth a rebuild: clearing an embed role leaves nothing to embed with,
+  // and re-binding the same encoder moves nothing.
+  test("clearing a task writes `null`; only a bind onto a new embed space raises the trigger", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     const owner = await seedOwner(db);
@@ -161,6 +163,11 @@ describe("setBinding", () => {
     });
     await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: embedder.id });
     expect(h.embedSpaceChanges).toEqual([owner.userId]);
+    h.embedSpaceChanges.length = 0;
+    await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: embedder.id });
+    expect(h.embedSpaceChanges, "the same encoder again moves no space").toEqual([]);
+    await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: null });
+    expect(h.embedSpaceChanges, "an unbind leaves nothing that can embed").toEqual([]);
   });
 });
 
@@ -307,10 +314,10 @@ describe("useForEverything", () => {
   });
 });
 
-// 768 is what the usual local embedder makes, and the space admits 1024; a narrower vector is never padded.
-// The refusal lands at the role, before a document is indexed, and names both widths.
-describe("a vector role refuses an embedder whose width does not fit the space", () => {
-  test("a 768-wide local embedder is refused for search vectors, and the sweep skips the vector roles it cannot hold", async () => {
+// 768 is what the usual local embedder makes. The owner's space takes the bound embedder's width, so it binds
+// for search vectors and the space-change trigger fires to re-index at that width.
+describe("a vector role admits an embedder of any width", () => {
+  test("a 768-wide local embedder binds for search vectors and raises the re-index trigger", async () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     const owner = await seedOwner(db);
@@ -322,15 +329,9 @@ describe("a vector role refuses an embedder whose width does not fit the space",
       model: "nomic-embed-text:latest",
       allowBackground: true,
     });
-    await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: narrow.id })).rejects.toMatchObject({
-      code: CONNECTION_OP_CODES.taskUnservable,
-      message: expect.stringContaining("768"),
-    });
-    expect(await h.svc.useForEverything({ principal: owner.principal, connectionId: narrow.id })).toEqual([]);
-    expect(h.embedSpaceChanges).toEqual([]);
-
-    // Control: the same row declared at the space's width binds.
-    await h.svc.update({ principal: owner.principal, connectionId: narrow.id, patch: { declared: { embedding: { dims: 1024 } } } });
     await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: narrow.id })).resolves.toMatchObject({ task: "embed" });
+    expect(h.embedSpaceChanges).toEqual([owner.userId]);
+    const written = await h.svc.useForEverything({ principal: owner.principal, connectionId: narrow.id });
+    expect(written.map((binding) => binding.task).toSorted()).toEqual(["embed", "imageEmbed"]);
   });
 });

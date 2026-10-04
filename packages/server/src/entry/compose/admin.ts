@@ -3,7 +3,6 @@
 // Owns no business logic — it wires admin's session/vllm/embed sub-bundles onto the already-built sessions
 // service, the provider backend registry's engine handle, and character/embeddings front doors.
 
-import { EMBED_SPACE_DIMS } from "@orb/contracts/inference";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { RoleClientsWithSignal } from "@orb/inference";
@@ -147,7 +146,6 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
           characterId,
           content: text,
           model: space.model,
-          dim: EMBED_SPACE_DIMS,
         });
         return true;
       },

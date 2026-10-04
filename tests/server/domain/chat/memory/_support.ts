@@ -331,7 +331,6 @@ export async function realMemoryWiring(
         speakerCharacterIds: params.speakerCharacterIds,
         contentHash: params.contentHash,
         model: EMBED_MODEL,
-        dim: EMBED_DIM,
       });
       if (result.generationId === undefined || result.generationEpoch === undefined) {
         throw new Error("expected generation receipt");
