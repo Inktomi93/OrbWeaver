@@ -3777,6 +3777,34 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     expect(bytes).not.toContain("hidden lore");
   });
 
+  // A card can carry a GM secret (a promoted game NPC's guides do): the host and the model keep it, and the
+  // member read is where it is stripped, on every text field the level lets through.
+  test("a MEMBER reads every card text field without its hidden spans; the HOST reads them verbatim", async () => {
+    const { host, member, chatId } = await seedCardRoom("mc_hidden", "full");
+    const lie = '<lie truth="the abbess poisoned the well"/>';
+    await seedCardLore(host, "mc_hidden_lore", `The well ${lie}`);
+    const card: CharacterCard = {
+      ...macroCard,
+      name: `Vesna ${lie}`,
+      description: `Ash-grey habit ${lie}`,
+      personality: `guarded ${lie}`,
+      scenario: `the chapel ${lie}`,
+      greetings: [{ text: `Peace ${lie}` }],
+      exampleMessages: `{{char}}: hush ${lie}`,
+      systemPrompt: `stay calm ${lie}`,
+      postHistoryInstructions: `never confess ${lie}`,
+      creatorNotes: `promoted ${lie}`,
+    };
+    const { getMemberCard } = createRead(makeCardCtx({ card, tags: [`relic ${lie}`] }), makeCardDeps());
+
+    const memberView = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    expect(memberView.description).toBe("Ash-grey habit ");
+    expect(JSON.stringify(memberView)).not.toContain("abbess");
+    const hostView = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
+    expect(hostView.description).toBe(`Ash-grey habit ${lie}`);
+    expect(hostView.systemPrompt).toBe(`stay calm ${lie}`);
+  });
+
   test("a DISABLED member drops from getMemberCard's anchor-persona foreign-input consent set (#73 second-commit fix)", async () => {
     const { host, member, chatId } = await seedCardRoom("mc_disabled", "sheet");
     let presentHumanUserIds: readonly UserId[] = [];

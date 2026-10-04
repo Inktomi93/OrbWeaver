@@ -101,6 +101,12 @@ test("the slug is IDEMPOTENT — which is what lets the wire use it as its own c
   }
 });
 
+test("a hidden span is no part of the key: the masked name and the bare name are one actor, and no truth word survives", () => {
+  expect(rpgNpcSlug('Mara <lie truth="the informant"/>')).toBe(rpgNpcSlug("Mara"));
+  // A name that is nothing but a hidden span keys the nameless bucket rather than its truth.
+  expect(rpgNpcSlug('<lie truth="the informant"/>')).toBe(rpgNpcSlug(""));
+});
+
 test("a NON-CANONICAL npc key is unrepresentable at the wire (prevent-at-schema, not refuse-downstream)", () => {
   // The hole this closes: a raw API caller `patchActor`-ing with `npcKey: "Sister Vesna"` minted a SIBLING
   // row beside the model's `npc:sister-vesna` — a duplicate person in the panel, unreachable by every model

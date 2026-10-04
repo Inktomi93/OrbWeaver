@@ -41,11 +41,10 @@ import { QueryBoundary, RowActionsMenu, useUpdateConnection } from "#components"
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { connectionSummary } from "#lib";
-import { configAnchorId, configSettingControlId } from "#state";
+import { clearConnectionEditorRequest, configAnchorId, configSettingControlId, useRequestedConnectionEditor } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { CONNECTION_FORM_COPY } from "../lib/add-connection-form-model.ts";
 import { addModelActionGloss, addModelActionLabel, addModelScope } from "../lib/add-model-on-key-form-model.ts";
-import { useClearConnectionEditorRequest, useRequestedConnectionEditor } from "../lib/connection-editor-request-store.ts";
 import { boundRoleLabels, connectionRoleLabels, joinRoleLabels, sweepRoleLabels } from "../lib/connections-model.ts";
 import { ADD_CONNECTION_SETTING, CONNECTIONS_LIST_SUBCATEGORY } from "../lib/connections-nav.ts";
 import { AddConnectionDialog } from "./add-connection-dialog.tsx";
@@ -95,17 +94,23 @@ function ConnectionsBody(): ReactElement {
   const addConnectionFocus = useRef<HTMLButtonElement>(null);
   const listFocusIntent = useRef<ListFocusIntent | null>(null);
   const rowRoots = useRef(new Map<ConnectionListItem["id"], HTMLDivElement>());
-  // A Model roles door asks for one row's editor; the request is taken once, then cleared from the store.
+  // A door elsewhere asks for one row's editor; the request is taken once, then cleared from the store. Each taken
+  // request remounts the editor, so a door to the row already open still lands its tiers as asked.
   const requestedEditor = useRequestedConnectionEditor();
-  const clearEditorRequest = useClearConnectionEditorRequest();
-  if (requestedEditor !== null && requestedEditor !== editingId) {
-    setEditingId(requestedEditor);
+  const [takenRequest, setTakenRequest] = useState<typeof requestedEditor>(null);
+  const [requestCount, setRequestCount] = useState(0);
+  const [advancedOpenFor, setAdvancedOpenFor] = useState<ConnectionListItem["id"] | null>(null);
+  if (requestedEditor !== null && requestedEditor !== takenRequest) {
+    setTakenRequest(requestedEditor);
+    setRequestCount((count) => count + 1);
+    setEditingId(requestedEditor.connectionId);
+    setAdvancedOpenFor(requestedEditor.openAdvanced ? requestedEditor.connectionId : null);
   }
   useEffect(() => {
     if (requestedEditor !== null) {
-      clearEditorRequest();
+      clearConnectionEditorRequest();
     }
-  }, [requestedEditor, clearEditorRequest]);
+  }, [requestedEditor]);
 
   useEffect(() => {
     const intent = listFocusIntent.current;
@@ -125,11 +130,14 @@ function ConnectionsBody(): ReactElement {
     return (
       <Section divider={true} heading={CONNECTIONS_LIST_SUBCATEGORY.label} id={configAnchorId("connections", CONNECTIONS_LIST_SUBCATEGORY.id)}>
         <ConnectionEditor
+          key={requestCount}
+          advancedOpen={advancedOpenFor === editingId}
           connectionId={editingId}
           invalidation={invalidation}
           onDone={(): void => {
             listFocusIntent.current = { kind: "row", connectionId: editingId };
             setEditingId(null);
+            setAdvancedOpenFor(null);
           }}
           onRemoved={(): void => {
             listFocusIntent.current = {

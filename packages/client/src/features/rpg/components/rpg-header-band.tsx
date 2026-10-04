@@ -14,6 +14,7 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { isLiveTurnPhase, revealContextPanel, useTurnPhase } from "#state";
 import { useRpgContextState } from "../hooks/use-rpg-context-state.ts";
+import { useStateRoundOverflowNotice } from "../hooks/use-state-round-overflow-notice.ts";
 import { RpgTakeoverHeader } from "./rpg-takeover-header.tsx";
 
 export interface RpgHeaderBandProps {
@@ -68,6 +69,7 @@ function RpgVeiledCue({ chatId }: { readonly chatId: ChatId }): ReactElement | n
 export function RpgHeaderBand({ chatId }: RpgHeaderBandProps): ReactElement | null {
   const state = useRpgContextState(chatId);
   const turnLive = isLiveTurnPhase(useTurnPhase(chatId));
+  useStateRoundOverflowNotice(state === null ? null : state.game);
   if (state === null) {
     return null;
   }

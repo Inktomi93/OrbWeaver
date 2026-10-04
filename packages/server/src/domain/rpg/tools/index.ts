@@ -113,7 +113,10 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
         // TOTAL since R3 — the one refusal arm (`hpDelta` on a null-hp actor) left with `hp`'s demotion to an
         // ordinary tracker, whose per-actor key enum makes the illegal write untypeable instead of refusable.
-        ctx.staging.stage(resolved.turn.turnId, applyUpdateParty(state, args, await participantIndexFor(ctx, resolved.turn.game)));
+        ctx.staging.stage(
+          resolved.turn.turnId,
+          applyUpdateParty(state, args, await participantIndexFor(ctx, resolved.turn.game), resolved.turn.game.config.trackers),
+        );
         return { ok: true, value: { targetRef: args.targetRef } };
       },
     }),
@@ -164,7 +167,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
           return resolved.result;
         }
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
-        ctx.staging.stage(resolved.turn.turnId, applySetTracker(state, args));
+        ctx.staging.stage(resolved.turn.turnId, applySetTracker(state, args, resolved.turn.game.config.trackers));
         return { ok: true, value: { key: args.key } };
       },
     }),

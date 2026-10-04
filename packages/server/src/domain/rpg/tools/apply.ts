@@ -23,6 +23,7 @@ import type {
   RpgQuestObjective,
   RpgQuestStatus,
   RpgSnapshotState,
+  RpgTrackerDef,
   RpgTrackerValue,
   SetTrackerArgs,
   UpdateInventoryArgs,
@@ -30,9 +31,19 @@ import type {
   UpdateSceneArgs,
   UpsertQuestArgs,
 } from "@orb/contracts/rpg";
-import { actorRefKey, journalTitleFor, journalTypeFor, RPG_TRACKER_VALUE_EMPTY, rpgNpcSlug, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
+import {
+  actorRefKey,
+  journalTitleFor,
+  journalTypeFor,
+  RPG_TRACKER_VALUE_EMPTY,
+  rpgNpcSlug,
+  TIME_OF_DAY_HOURS,
+  trackerCeiling,
+  trackerNumber,
+} from "@orb/contracts/rpg";
+import { stripHiddenSpans } from "@orb/kit/content";
 import type { RpgQuestId } from "@orb/kit/ids";
-import type { ActorRefIndex, ExtractionMints, ScenePatch, StagedJournalEntry } from "../contract/params.ts";
+import type { ActorRefIndex, ExtractionFoldRefs, ExtractionMints, ScenePatch, StagedJournalEntry } from "../contract/params.ts";
 import type { RpgStateDelta } from "../contract/service.ts";
 import { emptyActorEntry } from "../substrate/actor-ops.ts";
 
@@ -64,7 +75,19 @@ export function buildActorRefIndex(participants: readonly { readonly actorRef: R
  *  The ONE resolution rule, shared by the party/inventory appliers AND the scene applier's presence writes, so
  *  an npc introduced by `presentUpsert` and wounded by `update_party` in the same round is ONE actor. */
 function refForTarget(targetRef: string, participantIndex: ActorRefIndex): RpgActorRef {
-  return participantIndex.get(targetRef.toLowerCase()) ?? { kind: "npc", npcKey: rpgNpcSlug(targetRef) };
+  const name = addressName(targetRef);
+  return participantIndex.get(name.toLowerCase()) ?? { kind: "npc", npcKey: rpgNpcSlug(name) };
+}
+
+// The span-free name addresses the same person the slug does: a participant written with a hidden span still
+// resolves to her own ref, and the ghost guard recognises an npc introduced under one.
+function addressName(targetRef: string): string {
+  return stripHiddenSpans(targetRef).content.trim();
+}
+
+// The case-folded `addressName`: what the ghost guard compares.
+function addressMatchKey(name: string): string {
+  return addressName(name).toLowerCase();
 }
 
 /** Resolve the actor a `targetRef` NAME addresses (the model never sees ids). Match order:
@@ -115,30 +138,38 @@ function applyWalletDeltas(
   return out;
 }
 
+/** Where a `delta` starts on a meter with no numeric reading: the carrier's ceiling (a full stamina bar is
+ *  spent from 10, not from 0). The def declares no other starting value, so an uncapped meter, a non-meter, or
+ *  a key with no def starts from 0. */
+function unsetMeterStart(defs: readonly RpgTrackerDef[], key: string, current: RpgTrackerValue | undefined): number {
+  const def = defs.find((d) => d.key === key);
+  return def?.shape === "meter" ? (trackerCeiling(def, current) ?? 0) : 0;
+}
+
 /** The tracked-value WRITE (the tracked-field unification): apply the two arms — `delta` (spend/restore a
  *  resource) and `set` (record a new reading) — over a `trackerValues` record, keyed by tracker `key`.
  *  TOTAL by construction: every write produces a whole `{value,max,items}` value, so the snapshot merge (which
  *  recurses into objects) can never strand a previous reading's `max` on a new one. A `delta` against a
- *  non-numeric/absent reading starts from 0 (the "spend from a resource you never had" arm — the old pool
- *  applier floored at 0 for exactly this case; a negative reading is legal here because a tracker's floor is
- *  the host's business, and the contract no longer forces `max >= 1`).
+ *  non-numeric/absent reading starts from {@link unsetMeterStart}. Nothing clamps the result at either end: a
+ *  tracker's floor is the host's business, and the contract no longer forces `max >= 1`.
  *
  *  `max` (the per-carrier ceiling OVERRIDE) is HOST-AUTHORED: neither arm carries
  *  a max, and the spread PRESERVES an existing override — the model moves the reading, never the ceiling.
  *
- *  The def catalogue is NOT consulted: an unknown key is written as-is. The write surface already made an
- *  unknown key unrepresentable at the schema (R6 per-actor enums), and the panel projects only DEFINED
+ *  The def catalogue only prices that starting value: an unknown key is written as-is. The write surface already
+ *  made an unknown key unrepresentable at the schema (R6 per-actor enums), and the panel projects only DEFINED
  *  trackers — so a stray key is inert data, never a phantom row, and dropping it here would silently discard
  *  a legitimate write during the beat where a host adds the def. */
 function applyTrackerWrites(
   base: Readonly<Record<string, RpgTrackerValue>>,
+  defs: readonly RpgTrackerDef[],
   deltas: readonly { key: string; delta: number }[] | undefined,
   sets: readonly { key: string; value?: number | string | undefined; items?: readonly string[] | undefined }[] | undefined,
 ): Record<string, RpgTrackerValue> {
   const out: Record<string, RpgTrackerValue> = { ...base };
   for (const d of deltas ?? []) {
     const current = out[d.key];
-    out[d.key] = { ...(current ?? RPG_TRACKER_VALUE_EMPTY), value: (trackerNumber(current) ?? 0) + d.delta };
+    out[d.key] = { ...(current ?? RPG_TRACKER_VALUE_EMPTY), value: (trackerNumber(current) ?? unsetMeterStart(defs, d.key, current)) + d.delta };
   }
   for (const s of sets ?? []) {
     if (s.value === undefined && s.items === undefined) {
@@ -161,14 +192,19 @@ function applyTrackerWrites(
  *  disappeared with `hp`'s demotion to an ordinary meter: health now rides `trackerDeltas`, whose keys the
  *  per-actor enum already constrains to the trackers that actor CARRIES, so the illegal write is untypeable
  *  rather than refused after the fact. */
-export function applyUpdateParty(state: RpgSnapshotState, args: UpdatePartyArgs, participantIndex: ActorRefIndex): { actorState: RpgActorEntry[] } {
+export function applyUpdateParty(
+  state: RpgSnapshotState,
+  args: UpdatePartyArgs,
+  participantIndex: ActorRefIndex,
+  trackerDefs: readonly RpgTrackerDef[],
+): { actorState: RpgActorEntry[] } {
   const resolved = resolveActor(state.actorState, args.targetRef, participantIndex);
   const actor = resolved.actor.volatile;
 
   const nextTrackers =
     args.trackerDeltas === undefined && args.trackerSets === undefined
       ? actor.trackerValues
-      : applyTrackerWrites(actor.trackerValues, args.trackerDeltas, args.trackerSets);
+      : applyTrackerWrites(actor.trackerValues, trackerDefs, args.trackerDeltas, args.trackerSets);
   const conditions = args.removeCondition === undefined ? actor.conditions : actor.conditions.filter((c) => c.name !== args.removeCondition);
   const nextConditions =
     args.addCondition === undefined
@@ -440,13 +476,17 @@ export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs,
 /** `set_tracker` → the GAME-subject `trackerValues` patch (keyed by tracker `key`). Runs through the SAME
  *  {@link applyTrackerWrites} the per-actor arm uses — one write mechanic for both subjects, so a delta on a
  *  game tracker behaves exactly like a delta on an actor's. */
-export function applySetTracker(state: RpgSnapshotState, args: SetTrackerArgs): { trackerValues: RpgSnapshotState["trackerValues"] } {
+export function applySetTracker(
+  state: RpgSnapshotState,
+  args: SetTrackerArgs,
+  trackerDefs: readonly RpgTrackerDef[],
+): { trackerValues: RpgSnapshotState["trackerValues"] } {
   const deltas = args.delta === undefined ? [] : [{ key: args.key, delta: args.delta }];
   const sets =
     args.value === undefined && args.items === undefined
       ? []
       : [{ key: args.key, ...(args.value !== undefined ? { value: args.value } : {}), ...(args.items !== undefined ? { items: args.items } : {}) }];
-  return { trackerValues: applyTrackerWrites(state.trackerValues, deltas, sets) };
+  return { trackerValues: applyTrackerWrites(state.trackerValues, trackerDefs, deltas, sets) };
 }
 
 /** The MATCH key for an objective line (EXT-4c): trimmed + case-folded. A model restating its own objective
@@ -557,7 +597,7 @@ export function reachableActorRefs(base: RpgSnapshotState, participantIndex: Act
       known.add(actor.actorRef.npcKey.toLowerCase());
       const name = actor.identity?.name;
       if (name !== undefined) {
-        known.add(name.toLowerCase());
+        known.add(addressMatchKey(name));
       }
     }
   }
@@ -583,27 +623,28 @@ function sceneCallsOf(extraction: RpgExtraction): readonly UpdateSceneArgs[] {
 export function ghostTargetRefs(base: RpgSnapshotState, extraction: RpgExtraction, participantIndex: ActorRefIndex): string[] {
   const known = reachableActorRefs(base, participantIndex);
   for (const up of sceneCallsOf(extraction).flatMap((scene) => scene.presentUpsert ?? [])) {
-    known.add(up.name.toLowerCase());
+    known.add(addressMatchKey(up.name));
   }
   const named = [...extraction.party, ...extraction.inventory].map((e) => e.targetRef);
-  return [...new Set(named.filter((n) => !known.has(n.toLowerCase())))];
+  return [...new Set(named.filter((n) => !known.has(addressMatchKey(n))))];
 }
 
 /** The ACTOR-plane arms of the fold (`party` + `inventory`) applied over the running state — hoisted out of
  *  {@link extractionToStateDelta} so the R5 ghost drop stays under the cognitive-complexity ceiling. Each entry
  *  reads the previous entry's write (the staging-accumulator read-through); a GHOST-targeted arg is dropped
  *  whole (errors-as-data — never a throw, never a hallucinated mint). */
-function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, participantIndex: ActorRefIndex): RpgSnapshotState {
-  const ghosts = new Set(ghostTargetRefs(base, extraction, participantIndex).map((r) => r.toLowerCase()));
+function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, fold: ExtractionFoldRefs): RpgSnapshotState {
+  const { participantIndex, trackerDefs } = fold;
+  const ghosts = new Set(ghostTargetRefs(base, extraction, participantIndex).map(addressMatchKey));
   let state = base;
   for (const args of extraction.party) {
-    if (ghosts.has(args.targetRef.toLowerCase())) {
+    if (ghosts.has(addressMatchKey(args.targetRef))) {
       continue;
     }
-    state = { ...state, ...applyUpdateParty(state, args, participantIndex) };
+    state = { ...state, ...applyUpdateParty(state, args, participantIndex, trackerDefs) };
   }
   for (const args of extraction.inventory) {
-    if (ghosts.has(args.targetRef.toLowerCase())) {
+    if (ghosts.has(addressMatchKey(args.targetRef))) {
       continue;
     }
     state = { ...state, ...applyUpdateInventory(state, args, mints.item, participantIndex) };
@@ -618,18 +659,14 @@ function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints
  *  final ABSOLUTE plane values (the accumulator overlays them under the [merge-clear] contract + locks).
  *  A GHOST-targeted party/inventory arg is DROPPED ({@link ghostTargetRefs}, R5 — errors-as-data: a
  *  hallucinated name never fails the turn and never mints an actor). */
-export function extractionToStateDelta(
-  base: RpgSnapshotState,
-  extraction: RpgExtraction,
-  mints: ExtractionMints,
-  participantIndex: ActorRefIndex,
-): RpgStateDelta {
+export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, fold: ExtractionFoldRefs): RpgStateDelta {
+  const { participantIndex, trackerDefs } = fold;
   let state = base;
   const overlay = (patch: Partial<RpgSnapshotState>): void => {
     state = { ...state, ...patch };
   };
 
-  state = applyActorArgs(state, extraction, mints, participantIndex);
+  state = applyActorArgs(state, extraction, mints, fold);
   // Every scene call of the round, in call order, each over the state the previous one left: exactly what the
   // calls would do applied one by one (presence ops keep their order, each `recentEvent` is its own beat).
   for (const args of sceneCallsOf(extraction)) {
@@ -639,7 +676,7 @@ export function extractionToStateDelta(
     overlay({ ...scene, ...(recentEvents !== undefined ? { recentEvents: [...recentEvents] } : {}) });
   }
   for (const args of extraction.trackers) {
-    overlay(applySetTracker(state, args));
+    overlay(applySetTracker(state, args, trackerDefs));
   }
   for (const args of extraction.quests) {
     overlay(applyUpsertQuest(state, args, mints.quest, mints.objective));

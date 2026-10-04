@@ -23,6 +23,7 @@
 // table). The arm is spelled `libraryNpc`, not `npc`, because #906 spends the bare word on the SCENE npc
 // above: a cross-game library ROW and a scene-only extra are two different addresses.
 
+import { stripHiddenSpans } from "@orb/kit/content";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -85,7 +86,9 @@ const CODE_POINT_RADIX = 16;
  *  and never truncates. What they shared was the BUG, an ASCII-only kept set; the fix belongs on each side
  *  in its own terms, which is why this one does not call the other. */
 export function rpgNpcSlug(name: string): string {
-  const trimmed = name.trim();
+  // A key is an address every viewer receives, and the member belt rewrites values, never addresses: a hidden
+  // span's markup would fold away below but its truth words would survive into the key.
+  const trimmed = stripHiddenSpans(name).content.trim();
   if (NPC_SLUG_FALLBACK_RE.test(trimmed)) {
     return trimmed; // an already-minted fallback key — idempotent by recognition (see the regex's note).
   }

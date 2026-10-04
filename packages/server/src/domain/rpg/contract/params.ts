@@ -118,6 +118,13 @@ export interface StagedPatch {
  *  read, never an orphan `npc:<name>` the panel can't render. */
 export type ActorRefIndex = ReadonlyMap<string, RpgActorRef>;
 
+/** What the extraction fold resolves a round's writes against: the target-name index and the game's tracker
+ *  catalogue (a first delta on an unset meter starts from the def's ceiling). */
+export interface ExtractionFoldRefs {
+  readonly participantIndex: ActorRefIndex;
+  readonly trackerDefs: readonly RpgTrackerDef[];
+}
+
 /** The state patch `update_scene` produces — an ambient/presence/identity/beat overlay under the [merge-clear]
  *  contract. Since R2 a cast write touches TWO planes: `presentCharacters` (who is on stage — a flat
  *  `actorRefKey` list) and `actorState` (the NPC's own identity half, retained across departures). */

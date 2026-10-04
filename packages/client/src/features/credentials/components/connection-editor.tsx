@@ -83,6 +83,8 @@ import { ConnectionTransportEditor } from "./connection-transport-editor.tsx";
 
 export interface ConnectionEditorProps {
   readonly connectionId: UserConnectionId;
+  /** Land with the Advanced tier expanded: a door that sends the user to a stated fact (the context window). */
+  readonly advancedOpen?: boolean | undefined;
   /** Back out of the editor — the list section owns which view it shows. */
   readonly onDone: () => void;
   /** Return to the list after a successful removal, where the list restores focus to a live control. */
@@ -108,7 +110,7 @@ export function ConnectionEditor(props: ConnectionEditorProps): ReactElement {
   );
 }
 
-function ConnectionEditorBody({ connectionId, onDone, onRemoved, removalFinalFocus, trpc, invalidation }: ConnectionEditorProps): ReactElement {
+function ConnectionEditorBody({ connectionId, advancedOpen, onDone, onRemoved, removalFinalFocus, trpc, invalidation }: ConnectionEditorProps): ReactElement {
   const { data: connection } = useSuspenseQuery(trpc.connection.get.queryOptions({ connectionId }));
   const { data: available } = useSuspenseQuery(trpc.connection.providersAvailable.queryOptions());
   const provider = available.find((row) => row.provider.id === connection.providerId)?.provider;
@@ -128,6 +130,7 @@ function ConnectionEditorBody({ connectionId, onDone, onRemoved, removalFinalFoc
 
   return (
     <AvailableConnectionEditorBody
+      advancedOpen={advancedOpen}
       connection={connection}
       connectionId={connectionId}
       invalidation={invalidation}
@@ -140,6 +143,7 @@ function ConnectionEditorBody({ connectionId, onDone, onRemoved, removalFinalFoc
 }
 
 function AvailableConnectionEditorBody({
+  advancedOpen,
   connection,
   connectionId,
   onDone,
@@ -274,7 +278,7 @@ function AvailableConnectionEditorBody({
 
         <EditorTier
           badge={overrideBadge(declaredOverrideCount(declared))}
-          defaultOpen={false}
+          defaultOpen={advancedOpen === true}
           kicker="What this server accepts · Endpoint quirks"
           title="Advanced"
         >

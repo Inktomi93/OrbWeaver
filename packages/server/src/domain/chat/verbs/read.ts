@@ -164,7 +164,13 @@ import {
 import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
-import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import {
+  projectViewForMember,
+  scrubChatEventReplayForMember,
+  scrubStreamReplayForMember,
+  stripMemberCardForViewer,
+  viewerReadsHidden,
+} from "../substrate/member-visibility.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsOf, seatsMultipleHumans } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
@@ -977,18 +983,22 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     // an above-level card-field macro (`{{charsysinfo}}`/`{{charposthistory}}`/…) inside a surviving field can
     // ONLY resolve to the clamped (empty) value, so no macro can smuggle a nulled secret back onto the wire.
     const renderCtx = cardRenderContext(clamped, anchorPersona, { timezone: assemblyTimeZone(timeZone), nowMs: ctx.now() });
-    return {
-      ...clamped,
-      editableTags: principal.userId === hostUserId && clamped.tags !== null ? tags : null,
-      description: renderCardField(clamped.description, renderCtx),
-      personality: renderCardField(clamped.personality, renderCtx),
-      scenario: renderCardField(clamped.scenario, renderCtx),
-      greetings: clamped.greetings === null ? null : clamped.greetings.map((g) => renderMacros(g, renderCtx, renderCtx.pinnedPersona)),
-      exampleMessages: renderCardField(clamped.exampleMessages, renderCtx),
-      creatorNotes: renderCardField(clamped.creatorNotes, renderCtx),
-      systemPrompt: renderCardField(clamped.systemPrompt, renderCtx),
-      postHistoryInstructions: renderCardField(clamped.postHistoryInstructions, renderCtx),
-    };
+    // The hidden-span strip runs LAST, over the rendered bytes, so no macro expansion can reintroduce a span.
+    return stripMemberCardForViewer(
+      {
+        ...clamped,
+        editableTags: principal.userId === hostUserId && clamped.tags !== null ? tags : null,
+        description: renderCardField(clamped.description, renderCtx),
+        personality: renderCardField(clamped.personality, renderCtx),
+        scenario: renderCardField(clamped.scenario, renderCtx),
+        greetings: clamped.greetings === null ? null : clamped.greetings.map((g) => renderMacros(g, renderCtx, renderCtx.pinnedPersona)),
+        exampleMessages: renderCardField(clamped.exampleMessages, renderCtx),
+        creatorNotes: renderCardField(clamped.creatorNotes, renderCtx),
+        systemPrompt: renderCardField(clamped.systemPrompt, renderCtx),
+        postHistoryInstructions: renderCardField(clamped.postHistoryInstructions, renderCtx),
+      },
+      membership,
+    );
   };
 }
 

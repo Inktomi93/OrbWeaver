@@ -4,8 +4,8 @@
 // `presentRemove` drops presence and NOTHING else), the MA-4 scene patch (omit keeps), the timeOfDay→hour
 // mapping, quest create-vs-flip, and item add/remove.
 
-import type { RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
-import { toolCallsToExtraction } from "@orb/contracts/rpg";
+import type { RpgSnapshotState, RpgToolCall, RpgTrackerDef } from "@orb/contracts/rpg";
+import { RPG_RULESET_PROFILE, RPG_SEED_HP_MAX, rpgSeedTrackers, toolCallsToExtraction } from "@orb/contracts/rpg";
 import type { CharacterId, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {
@@ -39,6 +39,9 @@ function castRow(
  *  scene-NPC path). Tests that exercise the participant resolution build a populated index instead. */
 const NO_PARTICIPANTS = buildActorRefIndex([]);
 
+/** A game with no tracker catalogue — every unset meter starts from 0. */
+const NO_DEFS: readonly RpgTrackerDef[] = [];
+
 function emptyState(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
   return {
     clock: null,
@@ -64,7 +67,7 @@ const idSeq = <T extends string = string>(prefix: string): (() => T) => {
 };
 
 test("update_party mints a fresh npc + applies a tracker DELTA", () => {
-  const result = applyUpdateParty(emptyState(), { targetRef: "Goblin", trackerDeltas: [{ key: "rage", delta: 5 }] }, NO_PARTICIPANTS);
+  const result = applyUpdateParty(emptyState(), { targetRef: "Goblin", trackerDeltas: [{ key: "rage", delta: 5 }] }, NO_PARTICIPANTS, NO_DEFS);
   const actor = result.actorState[0];
   // The ref key is the SLUG (R2); the model's own spelling rides the identity half as the display name.
   expect(actor?.actorRef).toEqual({ kind: "npc", npcKey: "goblin" });
@@ -85,6 +88,7 @@ test("update_party writes a tracker SET arm — a text reading and a list, keyed
       ],
     },
     NO_PARTICIPANTS,
+    NO_DEFS,
   );
   const values = result.actorState[0]?.volatile.trackerValues;
   expect(values?.["role"]).toEqual({ value: "sellsword", items: null, max: null });
@@ -93,20 +97,20 @@ test("update_party writes a tracker SET arm — a text reading and a list, keyed
 
 test("update_party: a SET arm naming neither a value nor items is a no-op, never a blanked tracker", () => {
   const base = emptyState({ actorState: [actorRow("mira", { trackerValues: { trust: { value: 62, items: null, max: null } } })] });
-  const result = applyUpdateParty(base, { targetRef: "Mira", trackerSets: [{ key: "trust" }] }, NO_PARTICIPANTS);
+  const result = applyUpdateParty(base, { targetRef: "Mira", trackerSets: [{ key: "trust" }] }, NO_PARTICIPANTS, NO_DEFS);
   expect(result.actorState[0]?.volatile.trackerValues["trust"]).toEqual({ value: 62, items: null, max: null });
 });
 
 test("update_party on a PARTICIPANT name mints under the participant ref, not a npc key (F2)", () => {
   const kaelId = castId<CharacterId>("character_kael");
   const participantIndex = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
-  const result = applyUpdateParty(emptyState(), { targetRef: "Kael", trackerDeltas: [{ key: "focus", delta: 7 }] }, participantIndex);
+  const result = applyUpdateParty(emptyState(), { targetRef: "Kael", trackerDeltas: [{ key: "focus", delta: 7 }] }, participantIndex, NO_DEFS);
   // The write lands under the participant CHARACTER ref — the key the tracker view + reminder read.
   expect(result.actorState[0]?.actorRef).toEqual({ kind: "character", characterId: kaelId });
 });
 
 test("a DELTA on a tracker with no reading yet starts from zero (spend-from-what-you-never-had)", () => {
-  const result = applyUpdateParty(emptyState(), { targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, NO_PARTICIPANTS);
+  const result = applyUpdateParty(emptyState(), { targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, NO_PARTICIPANTS, NO_DEFS);
   // A negative reading is legal: a tracker's floor is the host's business (the def owns the ceiling), and the
   // old `max >= 1` mint belt existed only because the retired pool shape carried its own max.
   expect(result.actorState[0]?.volatile.trackerValues["mana"]).toEqual({ value: -3, items: null, max: null });
@@ -115,25 +119,108 @@ test("a DELTA on a tracker with no reading yet starts from zero (spend-from-what
 test("a DELTA accumulates over an existing reading and PRESERVES the carrier's ceiling override (host-authored)", () => {
   // This carrier deliberately tops out at 34 (the host set it) — the model moves the READING only.
   const base = emptyState({ actorState: [actorRow("wizard", { trackerValues: { mana: { value: 28, items: null, max: 34 } } })] });
-  const result = applyUpdateParty(base, { targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, NO_PARTICIPANTS);
+  const result = applyUpdateParty(base, { targetRef: "Wizard", trackerDeltas: [{ key: "mana", delta: -3 }] }, NO_PARTICIPANTS, NO_DEFS);
   // No tool arm carries a max, and the write is a spread — a model turn can never wipe the host's ceiling.
   expect(result.actorState[0]?.volatile.trackerValues["mana"]).toEqual({ value: 25, items: null, max: 34 });
 });
 
 test("HEALTH rides the ordinary tracker-delta arm since R3 (no bespoke hp field, no refusal lane)", () => {
   const state = emptyState({ actorState: [actorRow("hero", { trackerValues: { hp: { value: 10, items: null, max: 20 } } })] });
-  const result = applyUpdateParty(state, { targetRef: "Hero", trackerDeltas: [{ key: "hp", delta: -3 }] }, NO_PARTICIPANTS);
+  const result = applyUpdateParty(state, { targetRef: "Hero", trackerDeltas: [{ key: "hp", delta: -3 }] }, NO_PARTICIPANTS, NO_DEFS);
   // The per-carrier ceiling the host set survives the model's write, exactly like any other meter.
   expect(result.actorState[0]?.volatile.trackerValues["hp"]).toEqual({ value: 7, items: null, max: 20 });
 });
 
-test("a health delta on an actor with NO hp reading starts from 0 — the ACCEPTED semantic delta (ruled)", () => {
-  // The retired `hpDelta` arm REFUSED here ("set a max HP by hand first"). Under the north star (steering, not
-  // simulation) delta-from-0 on a CARRIED meter is the right trade, and the write surface is the real gate:
-  // the per-actor key enum makes hp untypeable on an actor who does not carry it, so this arm is only ever
-  // reached by an actor who does. The seeded def's own hint states the rule to the host.
-  const result = applyUpdateParty(emptyState(), { targetRef: "Ghost", trackerDeltas: [{ key: "hp", delta: -1 }] }, NO_PARTICIPANTS);
-  expect(result.actorState[0]?.volatile.trackerValues["hp"]).toEqual({ value: -1, items: null, max: null });
+test("a health delta on an actor with NO hp reading spends from the seeded def's ceiling", () => {
+  // The per-actor key enum makes hp untypeable on an actor who does not carry it, so this arm is only reached
+  // by a carrier — one whose health the story never moved, which reads as full.
+  const result = applyUpdateParty(
+    emptyState(),
+    { targetRef: "Ghost", trackerDeltas: [{ key: "hp", delta: -1 }] },
+    NO_PARTICIPANTS,
+    rpgSeedTrackers(RPG_RULESET_PROFILE.d20),
+  );
+  expect(result.actorState[0]?.volatile.trackerValues["hp"]).toEqual({ value: RPG_SEED_HP_MAX - 1, items: null, max: null });
+});
+
+// ── a first DELTA on an unset meter starts where the meter starts: its ceiling ────────────────────────────────
+
+const meterDef = (key: string, subject: RpgTrackerDef["subject"], max: number | null): RpgTrackerDef => ({
+  key,
+  label: key,
+  shape: "meter",
+  write: "delta",
+  subject,
+  appliesTo: "everyone",
+  max,
+  hint: "",
+  color: null,
+  icon: null,
+  sort: 0,
+  pinned: false,
+  locked: false,
+});
+
+test("a DELTA on an unset meter applies from the def's ceiling, not from zero", () => {
+  const result = applyUpdateParty(emptyState(), { targetRef: "Wizard", trackerDeltas: [{ key: "stamina", delta: -3 }] }, NO_PARTICIPANTS, [
+    meterDef("stamina", "actor", 10),
+  ]);
+  expect(result.actorState[0]?.volatile.trackerValues["stamina"]).toEqual({ value: 7, items: null, max: null });
+});
+
+test("an unset meter with a per-carrier ceiling override starts from THAT carrier's ceiling", () => {
+  const base = emptyState({ actorState: [actorRow("wizard", { trackerValues: { stamina: { value: null, items: null, max: 34 } } })] });
+  const result = applyUpdateParty(base, { targetRef: "Wizard", trackerDeltas: [{ key: "stamina", delta: -4 }] }, NO_PARTICIPANTS, [
+    meterDef("stamina", "actor", 10),
+  ]);
+  expect(result.actorState[0]?.volatile.trackerValues["stamina"]).toEqual({ value: 30, items: null, max: 34 });
+});
+
+test("an unset UNCAPPED meter, or a key with no def, still starts from zero", () => {
+  const result = applyUpdateParty(
+    emptyState(),
+    {
+      targetRef: "Wizard",
+      trackerDeltas: [
+        { key: "rage", delta: 2 },
+        { key: "stray", delta: -1 },
+      ],
+    },
+    NO_PARTICIPANTS,
+    [meterDef("rage", "actor", null)],
+  );
+  const values = result.actorState[0]?.volatile.trackerValues;
+  expect(values?.["rage"]?.value).toBe(2);
+  expect(values?.["stray"]?.value).toBe(-1);
+});
+
+test("a DELTA on a SET meter is unchanged by the def: it moves the reading, and nothing clamps it", () => {
+  const base = emptyState({ actorState: [actorRow("wizard", { trackerValues: { stamina: { value: 2, items: null, max: null } } })] });
+  const result = applyUpdateParty(base, { targetRef: "Wizard", trackerDeltas: [{ key: "stamina", delta: -5 }] }, NO_PARTICIPANTS, [
+    meterDef("stamina", "actor", 10),
+  ]);
+  expect(result.actorState[0]?.volatile.trackerValues["stamina"]?.value).toBe(-3);
+});
+
+test("a game tracker's first DELTA starts from its ceiling too (set_tracker shares the mechanic)", () => {
+  const defs = [meterDef("morale", "game", 10)];
+  expect(applySetTracker(emptyState(), { key: "morale", delta: -2 }, defs).trackerValues["morale"]?.value).toBe(8);
+});
+
+test("the round fold applies the ceiling start through the same applier, for both actor and game planes", () => {
+  const extraction = toolCallsToExtraction([
+    { name: "update_party", arguments: JSON.stringify({ targetRef: "Wizard", trackerDeltas: [{ key: "stamina", delta: -3 }] }) },
+    { name: "set_tracker", arguments: JSON.stringify({ key: "morale", delta: -1 }) },
+  ]);
+  const base = emptyState({ actorState: [actorRow("wizard")] });
+  const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
+  const delta = extractionToStateDelta(base, extraction, mints, {
+    participantIndex: NO_PARTICIPANTS,
+    trackerDefs: [meterDef("stamina", "actor", 10), meterDef("morale", "game", 5)],
+  });
+  const actors = delta.statePatch["actorState"] as RpgSnapshotState["actorState"];
+  expect(actors[0]?.volatile.trackerValues["stamina"]?.value).toBe(7);
+  expect((delta.statePatch["trackerValues"] as RpgSnapshotState["trackerValues"])["morale"]?.value).toBe(4);
 });
 
 test("update_inventory adds an item + applies a wallet delta on the same actor", () => {
@@ -337,6 +424,13 @@ test("a presentUpsert naming a PARTICIPANT adds PRESENCE and writes no identity 
   expect(patch.actorState?.[0]?.identity).toBeUndefined();
 });
 
+test("a participant named with a hidden span is still that participant, never an npc twin", () => {
+  const kaelId = castId<CharacterId>("character_kael");
+  const participantIndex = buildActorRefIndex([{ actorRef: { kind: "character", characterId: kaelId }, name: "Kael" }]);
+  const patch = applyUpdateScene(emptyState(), { presentUpsert: [{ name: 'Kael <lie truth="the traitor"/>' }] }, participantIndex);
+  expect(patch.presentCharacters).toEqual([`character:${kaelId}`]);
+});
+
 test("update_scene writes a relationship — a custom kind carries its label, a built-in clears it (§2.1)", () => {
   const state = emptyState({ actorState: [castRow("mari", { name: "Mari", relationship: { kind: "friend", label: "" } })], presentCharacters: ["npc:mari"] });
   const toEnemy = applyUpdateScene(state, { presentUpsert: [{ name: "Mari", relationship: { kind: "enemy" } }] }, NO_PARTICIPANTS);
@@ -395,7 +489,7 @@ test("extractionToStateDelta includes the plot plane in the statePatch when the 
     emptyState(),
     { party: [], inventory: [], scene: { plot: { act: 2, actTitle: "Descent" } }, trackers: [], quests: [], journal: [] },
     { item: () => "i", quest: () => castId<RpgQuestId>("q"), objective: () => "o" },
-    NO_PARTICIPANTS,
+    { participantIndex: NO_PARTICIPANTS, trackerDefs: NO_DEFS },
   );
   expect(delta.statePatch["plot"]).toEqual({
     act: 2,
@@ -418,7 +512,7 @@ test("extractionToStateDelta DERIVES a relationship-change journal beat (§2.4 �
     journal: [],
   };
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
-  const delta = extractionToStateDelta(base, extraction, mints, NO_PARTICIPANTS);
+  const delta = extractionToStateDelta(base, extraction, mints, { participantIndex: NO_PARTICIPANTS, trackerDefs: NO_DEFS });
   const beat = delta.journal.find((e) => e.title.startsWith("Mari:"));
   expect(beat).toBeDefined();
   expect(beat?.title).toBe("Mari: friend → enemy");
@@ -430,7 +524,7 @@ test("extractionToStateDelta does NOT derive a beat when the relationship is unc
   // A scene write that changes mood but NOT relationship — no relationship beat.
   const extraction = { party: [], inventory: [], scene: { presentUpsert: [{ name: "Mari", mood: "wary" }] }, trackers: [], quests: [], journal: [] };
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
-  const delta = extractionToStateDelta(base, extraction, mints, NO_PARTICIPANTS);
+  const delta = extractionToStateDelta(base, extraction, mints, { participantIndex: NO_PARTICIPANTS, trackerDefs: NO_DEFS });
   expect(delta.journal.find((e) => e.title.startsWith("Mari:"))).toBeUndefined();
 });
 
@@ -452,7 +546,7 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
     journal: [{ type: "event" as const, content: "A stranger is named." }],
   };
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
-  const delta = extractionToStateDelta(base, extraction, mints, participantIndex);
+  const delta = extractionToStateDelta(base, extraction, mints, { participantIndex, trackerDefs: NO_DEFS });
 
   const actors = delta.statePatch["actorState"] as { actorRef: { kind: string }; volatile: { status: string; inventory: unknown[] } }[];
   // NO npc:aldric-vane mint — the ghost never becomes a tracked actor the panel renders forever.
@@ -461,6 +555,23 @@ test("extractionToStateDelta DROPS a ghost-actor party arg and still applies the
   expect(actors[0]?.volatile.status).toBe("wounded"); // the legitimate write in the SAME extraction still landed
   expect(actors[0]?.volatile.inventory).toEqual([]); // the ghost's inventory arg was dropped, not re-targeted
   expect(delta.journal).toHaveLength(1); // and the turn is otherwise untouched (errors-as-data, never a throw)
+});
+
+test("an npc introduced under a hidden span and targeted by her bare name in the same round is no ghost", () => {
+  const extraction = {
+    scene: { presentUpsert: [{ name: 'Mara <lie truth="the informant"/>' }] },
+    party: [{ targetRef: "Mara", status: "wounded" }],
+    inventory: [],
+    trackers: [],
+    quests: [],
+    journal: [],
+  };
+  const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
+  expect(ghostTargetRefs(emptyState(), extraction, NO_PARTICIPANTS)).toEqual([]);
+  const delta = extractionToStateDelta(emptyState(), extraction, mints, { participantIndex: NO_PARTICIPANTS, trackerDefs: NO_DEFS });
+  const actors = delta.statePatch["actorState"] as { actorRef: unknown; volatile: { status: string } }[];
+  expect(actors).toHaveLength(1);
+  expect(actors[0]).toMatchObject({ actorRef: { kind: "npc", npcKey: "mara" }, volatile: { status: "wounded" } });
 });
 
 test("ghostTargetRefs names ONLY the unreachable targets (participants / tracked npcs / scene npcs are reachable)", () => {
@@ -498,7 +609,7 @@ test("an actor the SAME extraction puts on stage is NOT a ghost (introduce-and-w
   };
   expect(ghostTargetRefs(base, extraction, NO_PARTICIPANTS)).toEqual([]);
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
-  const delta = extractionToStateDelta(base, extraction, mints, NO_PARTICIPANTS);
+  const delta = extractionToStateDelta(base, extraction, mints, { participantIndex: NO_PARTICIPANTS, trackerDefs: NO_DEFS });
   // ONE actor came out of both arms — the party write and the scene upsert resolve through the same slug, so
   // the wound and the introduction land on the same person (they used to be two rows on two planes).
   expect(delta.statePatch["presentCharacters"]).toEqual(["npc:mari"]);
@@ -510,9 +621,9 @@ test("an actor the SAME extraction puts on stage is NOT a ghost (introduce-and-w
 
 test("set_tracker writes the GAME-subject plane by KEY, keeping the untouched fields", () => {
   const state = emptyState({ trackerValues: { corruption: { value: 10, items: null, max: null } } });
-  expect(applySetTracker(state, { key: "corruption", value: 70 }).trackerValues["corruption"]).toEqual({ value: 70, items: null, max: null });
+  expect(applySetTracker(state, { key: "corruption", value: 70 }, NO_DEFS).trackerValues["corruption"]).toEqual({ value: 70, items: null, max: null });
   // Both write arms run through the SAME mechanic the per-actor arm uses — one write behaviour, two subjects.
-  expect(applySetTracker(state, { key: "corruption", delta: -4 }).trackerValues["corruption"]).toEqual({ value: 6, items: null, max: null });
+  expect(applySetTracker(state, { key: "corruption", delta: -4 }, NO_DEFS).trackerValues["corruption"]).toEqual({ value: 6, items: null, max: null });
 });
 
 test("upsert_quest create mints a quest; a later flip addresses it by name", () => {
@@ -665,7 +776,7 @@ test("the player (user-kind) actor answers to the universal self-aliases (player
 test('a "player" targetRef on a user-participant game lands on the user ref — NOT a npc:player phantom (R2)', () => {
   const userId = castId<UserId>("user_p");
   const participantIndex = buildActorRefIndex([{ actorRef: { kind: "user", userId }, name: "You" }]);
-  const result = applyUpdateParty(emptyState(), { targetRef: "player", status: "wounded" }, participantIndex);
+  const result = applyUpdateParty(emptyState(), { targetRef: "player", status: "wounded" }, participantIndex, NO_DEFS);
   expect(result.actorState[0]?.actorRef).toEqual({ kind: "user", userId });
 });
 
@@ -695,14 +806,20 @@ const sceneCall = (args: Record<string, unknown>): RpgToolCall => ({ name: "upda
 /** The round's calls folded into ONE extraction and applied once. */
 function foldedTogether(base: RpgSnapshotState, calls: readonly RpgToolCall[]): RpgSnapshotState {
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
-  return { ...base, ...extractionToStateDelta(base, toolCallsToExtraction(calls), mints, NO_PARTICIPANTS).statePatch };
+  return {
+    ...base,
+    ...extractionToStateDelta(base, toolCallsToExtraction(calls), mints, { participantIndex: NO_PARTICIPANTS, trackerDefs: NO_DEFS }).statePatch,
+  };
 }
 
 /** The same calls applied one at a time, each over the state the previous one left. */
 function appliedOneByOne(base: RpgSnapshotState, calls: readonly RpgToolCall[]): RpgSnapshotState {
   const mints = { item: idSeq("item"), quest: idSeq<RpgQuestId>("q"), objective: idSeq("obj") };
   return calls.reduce(
-    (state, call) => ({ ...state, ...extractionToStateDelta(state, toolCallsToExtraction([call]), mints, NO_PARTICIPANTS).statePatch }),
+    (state, call) => ({
+      ...state,
+      ...extractionToStateDelta(state, toolCallsToExtraction([call]), mints, { participantIndex: NO_PARTICIPANTS, trackerDefs: NO_DEFS }).statePatch,
+    }),
     base,
   );
 }
