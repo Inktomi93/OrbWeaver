@@ -604,7 +604,7 @@ function tailSquashesStoredRows(canon: ShapeCanonRows, history: readonly ShapedH
  *  room becomes an irreducible tail and the request overruns the window. Only then, when the overrunning tail is such
  *  a squash, are the oldest STORED rows trimmed before SHAPE, by the fit's own rule (same estimator over the converted
  *  rows, same room, same chunk grid, the newest row kept), with the room lowered by what SHAPE adds over the rows it
- *  was handed; SHAPE then shapes the survivors as the turn's level says, and the post-shape fit stays the backstop.
+ *  was handed; SHAPE then shapes the survivors as the turn's level says, and that result is taken only when it fits.
  *  Every other request, including one that overruns for another reason (a lone oversized row, stored rows kept
  *  apart, level `none`), runs SHAPE once and is returned as the post-shape fit left it, so its wire bytes, its cut and
  *  its cache prefix are what they were without the pre-trim. After a pre-trim the dropped count is the stored rows
@@ -638,7 +638,8 @@ export async function shapeConvertFit(args: {
     trimmed = cut;
     attempt = await run(args.canon.slice(cut));
   }
-  if (trimmed === 0) {
+  // A trim that still overruns (the system prompt or one oversized row is the overrun) changes bytes for nothing.
+  if (trimmed === 0 || overrun(attempt.fitted, args.budget) > 0) {
     return whole;
   }
   const { fitted } = attempt;

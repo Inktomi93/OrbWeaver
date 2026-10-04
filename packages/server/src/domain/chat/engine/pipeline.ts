@@ -687,7 +687,8 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
 
   // SHAPE → CONVERT → FIT, one home with the previews. The fit keeps the newest rows and places the new-chat marker at
   // their head. The oldest stored rows are trimmed before a second SHAPE only when the fitted request still overruns
-  // the room AND its newest id-bearing row is a squash of several stored rows; any other overrun ships as fitted.
+  // the room AND its newest id-bearing row is a squash of several stored rows, and that trim is kept only when it
+  // fits; any other overrun ships as fitted.
   const {
     shaped,
     fitted,

@@ -734,6 +734,16 @@
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
   },
+  "overflow/group-oversized-reply/none/local": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "97a869a0bd16f12f17ed21b86ee8f0b81b08191f4d0def7a7b59fa0121d80f87"
+  },
+  "overflow/group-oversized-system/none/local": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "ce36d99b0aea9c16d0717430e7d12be9bd65dba1040bb8f09ebd0b3163ff1275"
+  },
   "overflow/lone/none/anthropic": {
     "droppedCount": 0,
     "boundaryIndex": -1,
@@ -748,6 +758,16 @@
     "droppedCount": 4,
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/group-oversized-reply/none/anthropic": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "97a869a0bd16f12f17ed21b86ee8f0b81b08191f4d0def7a7b59fa0121d80f87"
+  },
+  "overflow/group-oversized-system/none/anthropic": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "ce36d99b0aea9c16d0717430e7d12be9bd65dba1040bb8f09ebd0b3163ff1275"
   },
   "overflow/lone/none/openrouter": {
     "droppedCount": 0,
@@ -764,6 +784,16 @@
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
   },
+  "overflow/group-oversized-reply/none/openrouter": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "97a869a0bd16f12f17ed21b86ee8f0b81b08191f4d0def7a7b59fa0121d80f87"
+  },
+  "overflow/group-oversized-system/none/openrouter": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "ce36d99b0aea9c16d0717430e7d12be9bd65dba1040bb8f09ebd0b3163ff1275"
+  },
   "overflow/lone/semi-strict/local": {
     "droppedCount": 0,
     "boundaryIndex": -1,
@@ -778,6 +808,16 @@
     "droppedCount": 3,
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/group-oversized-reply/semi-strict/local": {
+    "droppedCount": 1,
+    "boundaryIndex": 1,
+    "sha256": "4cfb2120061afdac4cf1b5728498e957b57c6847b090a7adb24831978ce2819f"
+  },
+  "overflow/group-oversized-system/semi-strict/local": {
+    "droppedCount": 1,
+    "boundaryIndex": 1,
+    "sha256": "77878051dd204479bab584bbf9675a5a3e0f26bd3b9b1544333e4c01f5e3172e"
   },
   "overflow/lone/semi-strict/anthropic": {
     "droppedCount": 0,
@@ -794,6 +834,16 @@
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
   },
+  "overflow/group-oversized-reply/semi-strict/anthropic": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "97a869a0bd16f12f17ed21b86ee8f0b81b08191f4d0def7a7b59fa0121d80f87"
+  },
+  "overflow/group-oversized-system/semi-strict/anthropic": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "ce36d99b0aea9c16d0717430e7d12be9bd65dba1040bb8f09ebd0b3163ff1275"
+  },
   "overflow/lone/semi-strict/openrouter": {
     "droppedCount": 0,
     "boundaryIndex": -1,
@@ -808,6 +858,16 @@
     "droppedCount": 3,
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/group-oversized-reply/semi-strict/openrouter": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "97a869a0bd16f12f17ed21b86ee8f0b81b08191f4d0def7a7b59fa0121d80f87"
+  },
+  "overflow/group-oversized-system/semi-strict/openrouter": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "ce36d99b0aea9c16d0717430e7d12be9bd65dba1040bb8f09ebd0b3163ff1275"
   },
   "overflow/lone/strict/local": {
     "droppedCount": 0,
@@ -824,6 +884,16 @@
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
   },
+  "overflow/group-oversized-reply/strict/local": {
+    "droppedCount": 1,
+    "boundaryIndex": 1,
+    "sha256": "4cfb2120061afdac4cf1b5728498e957b57c6847b090a7adb24831978ce2819f"
+  },
+  "overflow/group-oversized-system/strict/local": {
+    "droppedCount": 1,
+    "boundaryIndex": 1,
+    "sha256": "77878051dd204479bab584bbf9675a5a3e0f26bd3b9b1544333e4c01f5e3172e"
+  },
   "overflow/lone/strict/anthropic": {
     "droppedCount": 0,
     "boundaryIndex": -1,
@@ -838,6 +908,16 @@
     "droppedCount": 3,
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/group-oversized-reply/strict/anthropic": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "97a869a0bd16f12f17ed21b86ee8f0b81b08191f4d0def7a7b59fa0121d80f87"
+  },
+  "overflow/group-oversized-system/strict/anthropic": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "ce36d99b0aea9c16d0717430e7d12be9bd65dba1040bb8f09ebd0b3163ff1275"
   },
   "overflow/lone/strict/openrouter": {
     "droppedCount": 0,
@@ -854,6 +934,16 @@
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
   },
+  "overflow/group-oversized-reply/strict/openrouter": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "97a869a0bd16f12f17ed21b86ee8f0b81b08191f4d0def7a7b59fa0121d80f87"
+  },
+  "overflow/group-oversized-system/strict/openrouter": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "ce36d99b0aea9c16d0717430e7d12be9bd65dba1040bb8f09ebd0b3163ff1275"
+  },
   "overflow/lone/merge/local": {
     "droppedCount": 0,
     "boundaryIndex": -1,
@@ -868,6 +958,16 @@
     "droppedCount": 3,
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/group-oversized-reply/merge/local": {
+    "droppedCount": 1,
+    "boundaryIndex": 1,
+    "sha256": "4cfb2120061afdac4cf1b5728498e957b57c6847b090a7adb24831978ce2819f"
+  },
+  "overflow/group-oversized-system/merge/local": {
+    "droppedCount": 1,
+    "boundaryIndex": 1,
+    "sha256": "77878051dd204479bab584bbf9675a5a3e0f26bd3b9b1544333e4c01f5e3172e"
   },
   "overflow/lone/merge/anthropic": {
     "droppedCount": 0,
@@ -884,6 +984,16 @@
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
   },
+  "overflow/group-oversized-reply/merge/anthropic": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "97a869a0bd16f12f17ed21b86ee8f0b81b08191f4d0def7a7b59fa0121d80f87"
+  },
+  "overflow/group-oversized-system/merge/anthropic": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "ce36d99b0aea9c16d0717430e7d12be9bd65dba1040bb8f09ebd0b3163ff1275"
+  },
   "overflow/lone/merge/openrouter": {
     "droppedCount": 0,
     "boundaryIndex": -1,
@@ -898,5 +1008,15 @@
     "droppedCount": 3,
     "boundaryIndex": 3,
     "sha256": "f8ed80e3a8ec1be3aeb9e595d54a061af38116fe6d024751c8ee672e9c817f60"
+  },
+  "overflow/group-oversized-reply/merge/openrouter": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "97a869a0bd16f12f17ed21b86ee8f0b81b08191f4d0def7a7b59fa0121d80f87"
+  },
+  "overflow/group-oversized-system/merge/openrouter": {
+    "droppedCount": 2,
+    "boundaryIndex": 2,
+    "sha256": "ce36d99b0aea9c16d0717430e7d12be9bd65dba1040bb8f09ebd0b3163ff1275"
   }
 }

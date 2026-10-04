@@ -3494,6 +3494,19 @@ describe("runTurnPipeline — the history fit on a squashed run", () => {
             ctx: ctxOf({ promptConfig, chatInjections: [note] }),
             intent: {},
           };
+          // A squashed reply run that overruns for another reason: one oversized reply, or an oversized system prompt.
+          out[`overflow/group-oversized-reply/${level}/${wireName}`] = {
+            canon: [storedRow(1, "user", "go"), storedRow(2, "assistant", "small", ARIA), storedRow(3, "assistant", oversized, KAI)],
+            connection: wireAt(8192),
+            ctx: groupCtx({ promptConfig }),
+            intent: {},
+          };
+          out[`overflow/group-oversized-system/${level}/${wireName}`] = {
+            canon: [storedRow(1, "user", "go"), storedRow(2, "assistant", "first small", ARIA), storedRow(3, "assistant", "second small", KAI)],
+            connection: wireAt(8192),
+            ctx: groupCtx({ promptConfig, character: { name: "Aria", description: oversized } }),
+            intent: {},
+          };
         }
       }
       return out;
