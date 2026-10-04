@@ -36,13 +36,17 @@ chat id to the invocation's admitted chat, rechecks `canWrite`, and rechecks req
 operation names, malformed argument envelopes, oversized frames, and stale ids are refused.
 
 An authority id stays live after its command returns while a bridge call posted under it is still pending, for
-at most `PLUGIN_AUTHORITY_TAIL_MS` after the command completed. A guest continuation resumed by that call's late
-result runs in the Worker's job pump under the same id, so its own host calls are re-authorized against the phase
-and chat of the command that started the chain. The Worker sends `authority-released` once the command has
-completed and no call posted under the id remains pending, or when the tail expires; the app deletes the id on
-that message and runs the same tail timer itself, so a Worker that never reports cannot extend an authority. A
-call under an expired id is refused as stale. Retire, crash and disconnect clear every id and timer at once. A
-runtime holding a tail authority is still reusable by its own logical plugin and evictable: reuse carries the same
+at most `PLUGIN_AUTHORITY_TAIL_MS` (the contract's `PLUGIN_CONTINUATION_WINDOW_MS`) after the command completed,
+and for at most `PLUGIN_AUTHORITY_TAIL_CALLS_MAX` bridge calls in that tail. Action handlers return at once and
+float their wire work, so the tail is what lets that continuation publish its result or its error. A guest
+continuation resumed by a call's late result runs in the Worker's job pump under the same id, so its own host
+calls are re-authorized against the grants, phase and chat of the command that started the chain; it can never
+reach beyond them, and no guest code can mint or name an id. The Worker sends `authority-released` once the
+command has completed and no call posted under the id remains pending, or when the tail expires; the app deletes
+the id on that message and enforces the same time and call bound itself, so a Worker that never reports cannot
+extend an authority. A call under an expired id is refused as stale, and one past the call bound is refused.
+Retire, crash, disconnect, a refused activation and a finished snippet clear every id and timer of that runtime
+at once. A runtime holding a tail authority is still reusable by its own logical plugin and evictable: reuse carries the same
 grants, a chat-scoped call must match both the membrane's current handle and the frozen authority's chat, and
 eviction retires the runtime, which drops the chain.
 
@@ -62,7 +66,11 @@ logical registration catalog and accumulated bounded owner log stay app-side so 
 reads do not depend on a warm Worker. Plugins must derive handler state from durable host reads when cold/warm
 equivalence matters; closure-only counters reset on wake by design.
 
-The app and watchdog create the inherited IPC channels. The broker owns no network listener and receives no network grant. The watchdog assigns each broker a fresh generation. Frames from a stopped generation cannot reach a replacement broker or dispatch in the app. Serialized frames and pending IPC writes have finite byte limits. The private working directory contains no app data; the broker receives no filesystem write grant.
+The app and watchdog create the inherited IPC channels. The broker owns no network listener and receives no network
+grant. The app performs every plugin fetch: the Worker forwards `net.fetch` and `net.fetchAsset` as bridge calls
+carrying only the guest's URL and init, and the app runs them through `net-egress.ts` against its own copy of the
+plugin's `netHosts`, so `safeFetch`'s SSRF wall, the byte caps, the image guard and the hourly belts all run
+app-side. The watchdog assigns each broker a fresh generation. Frames from a stopped generation cannot reach a replacement broker or dispatch in the app. Serialized frames and pending IPC writes have finite byte limits. The private working directory contains no app data; the broker receives no filesystem write grant.
 
 Production has no in-process fallback. On Linux, macOS, Windows, and in the default Docker container, the app
 starts the same process tree: app → watchdog → broker → bounded Workers. The broker reports whole-process RSS,

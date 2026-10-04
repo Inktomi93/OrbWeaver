@@ -45,6 +45,7 @@ import { createAdmission } from "./admission.ts";
 import type { BridgeAuthority } from "./bridge-rpc.ts";
 import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyncCall } from "./bridge-rpc.ts";
 import {
+  PLUGIN_AUTHORITY_TAIL_CALLS_MAX,
   PLUGIN_AUTHORITY_TAIL_MS,
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
@@ -53,6 +54,8 @@ import {
 } from "./budgets.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, PluginLogLineOut, SnippetRunOut } from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage } from "./contract/process-protocol.ts";
+import type { PluginNetEgress } from "./net-egress.ts";
+import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
 import { fromRpcError, isBridgeOperation, parseBrokerParentMessage, parseMessageLine, rpcError, serializeMessage } from "./process-protocol.ts";
@@ -71,10 +74,12 @@ interface Binding {
   runtimeId: string | undefined;
   lifecycleGeneration: number;
   readonly bridge: PluginBridge;
+  /** Built from the domain-supplied `netHosts` held here, never from anything the broker sends. */
+  readonly netEgress: PluginNetEgress;
   readonly grants: ReadonlySet<PluginCapability>;
   readonly authorities: Map<string, BridgeAuthority>;
-  /** Per-authority tail timers armed when a command completes; the parent's own bound on a lying Worker. */
-  readonly authorityTails: Map<string, NodeJS.Timeout>;
+  /** Per-authority tails armed when a command completes; the parent's own time and call bound on a lying Worker. */
+  readonly authorityTails: Map<string, AuthorityTail>;
   readonly seams: PluginHostSeamDeps;
   readonly invokeArgs: Map<string, (chatHandle: string | null) => string>;
   readonly log: PluginLogLineOut[];
@@ -99,6 +104,12 @@ interface CreateLogicalInstanceInputIn extends CreateInstanceInputIn {
   /** Low-level process-host tests may omit this only when they never force a cold wake. The domain-facing
    *  PluginHostPort requires the loader, so every installed production runtime has durable replay source. */
   readonly reloadMainJs?: () => Promise<string>;
+}
+
+interface AuthorityTail {
+  readonly timer: NodeJS.Timeout;
+  /** Bridge calls admitted under the authority since its command returned. */
+  calls: number;
 }
 
 interface PendingCommand {
@@ -179,11 +190,11 @@ function releaseBinding(binding: Binding): void {
 let liveAuthorityTails = 0;
 
 function disarmAuthorityTail(binding: Binding, authorityId: string): void {
-  const timer = binding.authorityTails.get(authorityId);
-  if (timer === undefined) {
+  const tail = binding.authorityTails.get(authorityId);
+  if (tail === undefined) {
     return;
   }
-  clearTimeout(timer);
+  clearTimeout(tail.timer);
   binding.authorityTails.delete(authorityId);
   liveAuthorityTails -= 1;
 }
@@ -200,16 +211,40 @@ function clearAuthorities(binding: Binding): void {
   binding.authorities.clear();
 }
 
-// Armed once the command has returned. The Worker reports release when its calls have settled; this timer is
-// the parent's own bound, so a hung or lying Worker cannot keep the command's frozen phase and chat alive.
+// Armed once the command has returned. The Worker reports release when its calls have settled; this timer and
+// the call count are the parent's own bound, so a hung or lying Worker cannot keep the command's frozen phase and
+// chat alive past the continuation window or spend it on unbounded effects.
 function armAuthorityTail(binding: Binding, authorityId: string): void {
   if (!binding.authorities.has(authorityId) || binding.authorityTails.has(authorityId)) {
     return;
   }
   const timer = setTimeout(() => releaseAuthority(binding, authorityId), PLUGIN_AUTHORITY_TAIL_MS);
   timer.unref();
-  binding.authorityTails.set(authorityId, timer);
+  binding.authorityTails.set(authorityId, { timer, calls: 0 });
   liveAuthorityTails += 1;
+}
+
+// The Worker's `authority-released` is looked up through `bindings`, so a runtime dropped from it can no longer
+// release its authorities; clear them with it, or each tail lingers for the whole continuation window.
+function forgetRuntime(binding: Binding, runtimeId: string): void {
+  bindings.delete(runtimeId);
+  if (binding.runtimeId === runtimeId) {
+    binding.runtimeId = undefined;
+    clearAuthorities(binding);
+  }
+}
+
+// A command's own calls are uncounted; a continuation's calls after the command returned draw on the tail.
+function admitTailCall(binding: Binding, authorityId: string): boolean {
+  const tail = binding.authorityTails.get(authorityId);
+  if (tail === undefined) {
+    return true;
+  }
+  if (tail.calls >= PLUGIN_AUTHORITY_TAIL_CALLS_MAX) {
+    return false;
+  }
+  tail.calls += 1;
+  return true;
 }
 
 function retainLog(binding: Binding, level: PluginLogLevel, message: string): void {
@@ -655,6 +690,10 @@ class BrokerClient {
       return;
     }
     if (isBridgeOperation(message.operation)) {
+      if (!admitTailCall(binding, message.authorityId)) {
+        this.sendBridgeResult(message.id, false, undefined, new Error("plugin broker: command authority spent its continuation call budget"));
+        return;
+      }
       try {
         authorizeBridgeCall(authority, message.operation, message.args);
         // @orb-waive caught-failure-ownership(error): authorization refusal is serialized back to the worker as this bridge call's explicit failure result. Ends if sendBridgeResult stops carrying the caught error.
@@ -665,7 +704,7 @@ class BrokerClient {
       const liveness = createLiveness();
       this.liveness.set(message.id, liveness);
       // @orb-waive caught-failure-ownership(dispatchBridgeCall): the failed host operation is sent as the matching bridge error and its liveness record is removed. Ends if either action is removed.
-      dispatchBridgeCall(binding.bridge, message.operation, message.args, liveness).then(
+      dispatchBridgeCall(binding, message.operation, message.args, liveness).then(
         (value) => {
           this.liveness.delete(message.id);
           this.sendBridgeResult(message.id, true, value);
@@ -681,7 +720,6 @@ class BrokerClient {
       authorizeSyncCall(authority, message.operation);
       const value = dispatchSyncCall(message.operation, message.args, {
         seams: binding.seams,
-        bridge: binding.bridge,
         invokeArgs: binding.invokeArgs,
       });
       this.sendBridgeResult(message.id, true, value);
@@ -1082,10 +1120,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       try {
         await retireRuntime(binding);
       } catch (cleanupError) {
-        bindings.delete(runtimeId);
-        if (binding.runtimeId === runtimeId) {
-          binding.runtimeId = undefined;
-        }
+        forgetRuntime(binding, runtimeId);
         throw activationCleanupError(error, cleanupError);
       }
     }
@@ -1135,10 +1170,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       return await cleanupFailedActivation(binding, runtimeId, error);
     }
     if (!outcome.ok) {
-      bindings.delete(runtimeId);
-      if (binding.runtimeId === runtimeId) {
-        binding.runtimeId = undefined;
-      }
+      forgetRuntime(binding, runtimeId);
       return outcome;
     }
     try {
@@ -1220,6 +1252,8 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       runtimeId: undefined,
       lifecycleGeneration: 0,
       bridge,
+      // A snippet carries no runtimeConfig and so no hosts: every snippet fetch is refused, as in-process.
+      netEgress: createPluginNetEgress(runtimeConfig?.netHosts ?? [], bridge),
       grants: new Set(grants),
       authorities: new Map(),
       authorityTails: new Map(),
@@ -1314,10 +1348,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
           }),
         );
       } finally {
-        bindings.delete(runtimeId);
-        if (binding.runtimeId === runtimeId) {
-          binding.runtimeId = undefined;
-        }
+        forgetRuntime(binding, runtimeId);
         pool.discard(binding);
         lease.release();
         releaseBinding(binding);

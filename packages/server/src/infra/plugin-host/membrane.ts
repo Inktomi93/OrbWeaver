@@ -64,22 +64,18 @@ import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
 import { z } from "zod";
 import { superviseDetached } from "../../foundation/observability/tracing.ts";
-import type { SafeFetchOptions } from "../network/egress.ts";
-import { safeFetch } from "../network/egress.ts";
-import { isAllowedImageBuffer } from "../network/image-guard.ts";
 import {
   HOST_CALLS_IN_FLIGHT_MAX,
   HOST_FN_ARGS_MAX_BYTES,
   HOST_FN_DEADLINE_MS,
   HOST_FN_RESULT_CAP_BYTES,
-  PLUGIN_ASSET_MAX_BYTES,
   PLUGIN_DUMP_DEPTH_GUARD,
   PLUGIN_DUMP_NODE_GUARD,
-  PLUGIN_NET_MAX_BYTES,
   PLUGIN_QUIET_PROMPT_MAX_CHARS,
 } from "./budgets.ts";
 import { pumpGuestJobs } from "./cpu-guard.ts";
 import { jsToHandle } from "./marshal.ts";
+import type { PluginNetEgress } from "./net-egress.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
 
@@ -182,10 +178,9 @@ export interface MembraneRuntime {
    *  soft-diagnostic seam: `ui.register` uses it to record a refused surface WITHOUT throwing — an invalid surface
    *  spec must not be activation-fatal (a plugin's tools/chips outlive its stale panel). */
   readonly logWarn: (message: string) => void;
-  /** The manifest-declared `net.fetch` allowlist (the SSRF wall). Threaded as plain-string DATA from
-   *  the validated manifest (`netHosts`); NEVER `ANY_HOST`, NEVER guest-supplied. Empty ⇒ every fetch is
-   *  refused (fail-closed): a `net.fetch` grant with no declared host reaches nothing. */
-  readonly netHosts: readonly string[];
+  /** Performs `net.fetch`/`net.fetchAsset` against the manifest `netHosts` wall. In the broker Worker it forwards
+   *  to the app, which holds the network and its own copy of the allowlist; the membrane only gates the grant. */
+  readonly netEgress: PluginNetEgress;
 }
 
 /** The two fixed points a D50 transform hooks — the ONE home is the contract's `PluginTransformRegistration`
@@ -1594,13 +1589,11 @@ function setPubsub(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
   ctx.setProp(surface, "pubsub", pubsub);
 }
 
-/** net.fetch — capability net.fetch. The host performs the fetch through the AUDITED SSRF guard (`safeFetch`,
- *  D61) pinned to the manifest-declared `netHosts` allowlist (the wall — NEVER `ANY_HOST`, NEVER a
- *  guest-supplied host). The guest supplies ONLY the URL + a GET/POST init; the host list is fixed data. Every
- *  hop re-validates https + the allowlist + private-range denial, so an off-allowlist redirect / private IP /
- *  scheme downgrade is refused. The response crosses back as JSON-safe primitives — `{status, body}` (body =
- *  the UTF-8-decoded, byte-capped response text); no live `Response` object crosses the marshalling boundary.
- *  Bounded by `safeFetch`'s own caps (PLUGIN_NET_MAX_BYTES body + the 5 s host deadline). */
+/** net.fetch — capability net.fetch; net.fetchAsset — capability net.fetch_asset. The membrane gates the grant and
+ *  the URL's type; {@link PluginNetEgress} performs the request through the audited SSRF guard (`safeFetch`, D61)
+ *  pinned to the manifest `netHosts`, in the app process. The guest supplies ONLY the URL (+ a GET/POST init for
+ *  `fetch`). `fetch` answers `{status, body}`; `fetchAsset` lands a guarded image in the installer's own CAS and
+ *  answers only its assetId, so no fetched URL or bytes ever reach the guest realm. */
 function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
   using net = ctx.newObject();
   attachAsync(ctx, net, {
@@ -1613,27 +1606,9 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
       if (typeof url !== "string") {
         throw new Error("plugin host: net.fetch requires a URL string");
       }
-      // THE HOURLY EGRESS FLOOR — claimed BEFORE the fetch and before the first await, so the check-and-claim
-      // is atomic against the ≤32 concurrent host calls this membrane admits. The belt itself is domain state
-      // (per installed plugin); infra only calls the closure the bridge handed it, and stays authority-blind.
-      // `safeFetch` bounds each REQUEST and the manifest bounds the DESTINATIONS; this is the only thing that
-      // bounds the RATE (the D46 review's tracked finding — see `PluginBridge.admitEgress`).
-      runtime.bridge.admitEgress();
-      const res = await safeFetch(url, buildNetOptions(runtime.netHosts, args[1], signal));
-      const body = NET_TEXT_DECODER.decode(await res.bytes());
-      return { status: res.status, body };
+      return await runtime.netEgress.fetch(url, args[1] ?? null, invocationLiveness(signal));
     },
   });
-
-  // fetchAsset — capability net.fetch_asset (#798). Download a REMOTE IMAGE into the INSTALLER's OWN CAS and
-  // return an assetId. The whole point is that NO URL and NO BYTES ever reach the guest realm: the host GETs the
-  // url through the SAME audited SSRF guard + manifest allowlist `net.fetch` uses (never ANY_HOST, never a
-  // guest-supplied host), validates the downloaded bytes with the remote-image guard (magic bytes — the remote
-  // Content-Type is never trusted — plus the dimension/pixel decompression-bomb caps), then hands the domain
-  // ONLY the validated bytes + the SNIFFED mime to write into the installer's own CAS. The guest gets back an
-  // assetId string. Egress REACH delta zero: it claims its OWN hourly belt (`admitAssetEgress`, #801 — split
-  // from `net.fetch`'s so an art grid can't starve text egress) and reaches only the manifest hosts, so it
-  // adds a CAS-write, not egress reach.
   attachAsync(ctx, net, {
     name: "fetchAsset",
     inFlight: runtime.inFlight,
@@ -1644,81 +1619,10 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
       if (typeof url !== "string") {
         throw new Error("plugin host: net.fetchAsset requires a URL string");
       }
-      // Its OWN hourly belt (#801 — split from `net.fetch`'s so covers never starve text egress), claimed
-      // BEFORE the fetch and the first await (atomic against the ≤32 concurrent host calls) — egress REACH
-      // delta still zero (same allowlist, GET-only), keyed by a pluginId infra never sees.
-      runtime.bridge.admitAssetEgress();
-      const res = await safeFetch(url, buildAssetFetchOptions(runtime.netHosts, signal));
-      if (res.status < HTTP_OK_MIN || res.status >= HTTP_OK_MAX) {
-        res.dispose?.(); // drop the non-2xx body + close the pinned Agent before throwing
-        throw new Error(`plugin host: net.fetchAsset got a non-2xx response (HTTP ${res.status})`);
-      }
-      const bytes = await res.bytes();
-      // The remote-image guard: magic-byte sniff (NEVER the remote Content-Type) + dimension/pixel bomb caps.
-      // Throws `ImageRejectedError` on a non-image / oversize / over-dimension body → a guest promise rejection.
-      // The SNIFFED mime (from the magic bytes) is what the CAS write records — never the header the server sent.
-      // The ASSET byte cap, not net.fetch's (#801): these bytes never cross into the guest, so the marshalling
-      // result cap that sizes PLUGIN_NET_MAX_BYTES does not apply here.
-      const sniffed = isAllowedImageBuffer(bytes, { maxBytes: PLUGIN_ASSET_MAX_BYTES });
-      return await runtime.bridge.assets.storeFetched(bytes, sniffed.mime, invocationLiveness(signal));
+      return await runtime.netEgress.fetchAsset(url, invocationLiveness(signal));
     },
   });
   ctx.setProp(surface, "net", net);
-}
-
-/** The 2xx status window `net.fetchAsset` requires (a non-2xx has no asset to return). */
-const HTTP_OK_MIN = 200;
-const HTTP_OK_MAX = 300;
-
-/** UTF-8 decoder for the net.fetch body (stateless without `{stream}`, so one shared instance is safe). */
-const NET_TEXT_DECODER = new TextDecoder();
-
-/** Assemble the `SafeFetchOptions` from the manifest allowlist + the (already JSON-dumped) guest init. Only
- *  GET/POST, a string→string header map, and a string body are honored — any other shape is DROPPED (fail-safe:
- *  an unrecognized method defaults to GET, never an arbitrary verb). `allowedHosts` is the manifest wall; the
- *  guest cannot widen it. Optional fields stay ABSENT (exactOptionalPropertyTypes), not `undefined`. */
-function buildNetOptions(netHosts: readonly string[], rawInit: unknown, signal: AbortSignal): SafeFetchOptions {
-  const init = (typeof rawInit === "object" && rawInit !== null ? rawInit : {}) as {
-    method?: unknown;
-    headers?: unknown;
-    body?: unknown;
-  };
-  const method = init.method === "POST" || init.method === "GET" ? init.method : undefined;
-  const headers = isStringRecord(init.headers) ? init.headers : undefined;
-  const body = typeof init.body === "string" ? init.body : undefined;
-  return {
-    allowedHosts: netHosts,
-    maxBytes: PLUGIN_NET_MAX_BYTES,
-    deadlineMs: HOST_FN_DEADLINE_MS,
-    signal,
-    ...(method !== undefined ? { method } : {}),
-    ...(headers !== undefined ? { headers } : {}),
-    ...(body !== undefined ? { body } : {}),
-  };
-}
-
-/** The `net.fetchAsset` fetch options (#798): a plain GET pinned to the manifest allowlist (never `ANY_HOST`,
- *  never a guest-supplied host), the ASSET byte cap (`PLUGIN_ASSET_MAX_BYTES`, #801 — real hub art outgrows
- *  the wire cap and these bytes never enter the guest) + the same host deadline `net.fetch` carries. No guest
- *  init at all — no method, no headers, no body — so the attack surface is exactly "download this allowlisted
- *  image". The scheme/allowlist/private-range/redirect walls all live inside `safeFetch`, re-run per hop. */
-function buildAssetFetchOptions(netHosts: readonly string[], signal: AbortSignal): SafeFetchOptions {
-  return {
-    allowedHosts: netHosts,
-    method: "GET",
-    maxBytes: PLUGIN_ASSET_MAX_BYTES,
-    deadlineMs: HOST_FN_DEADLINE_MS,
-    signal,
-  };
-}
-
-/** True iff every own value is a string (a guest header map crosses as inert dumped data — reject a
- *  non-string-valued shape rather than coerce it). */
-function isStringRecord(value: unknown): value is Record<string, string> {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-  return Object.values(value).every((v) => typeof v === "string");
 }
 
 /** True once the already-dumped guest arguments exceed `cap` serialized bytes. An ITERATIVE walk that

@@ -9,6 +9,8 @@
 // time jump) must never be able to disable the DoS kill — so the interrupt reads real monotonic time, the
 // guest reads the seam.
 
+import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
+
 const BYTES_PER_MEBIBYTE = 1_048_576;
 const WASM_INITIAL_MEBIBYTES = 16;
 const WASM_MAX_MEBIBYTES = 48;
@@ -88,11 +90,17 @@ export const GUEST_MAX_STACK_BYTES = 262_144;
 export const HOST_FN_DEADLINE_MS = 5000;
 
 /** How long a command authority stays live in the parent after its command returned while a bridge call posted
- *  under it is still pending. The legitimate late case is one call fired inside the command settling at most
- *  {@link HOST_FN_DEADLINE_MS} later, then one job pump (bounded by {@link PLUGIN_INVOCATION_CPU_MS}) posting its
- *  follow-on; the sum admits that and nothing longer. Without the tail a guest keeps an authority alive forever
- *  by chaining `storage.get(k).then(loop)`, each settlement re-arming the pending count before the idle check. */
-export const PLUGIN_AUTHORITY_TAIL_MS = PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS;
+ *  under it is still pending: the host-pumped continuation window `PLUGIN_CONTINUATION_WINDOW_MS` names in the
+ *  contract. An action handler returns at once and floats its wire work, so the late case is a chain of host
+ *  calls, each up to {@link HOST_FN_DEADLINE_MS}, that must still publish its result or its error. Without a tail
+ *  a guest keeps an authority alive forever by chaining `storage.get(k).then(loop)`, each settlement re-arming
+ *  the pending count before the idle check. */
+export const PLUGIN_AUTHORITY_TAIL_MS = PLUGIN_CONTINUATION_WINDOW_MS;
+
+/** Bridge calls the parent admits under one authority after its command returned; the count half of the tail's
+ *  bound. A full browse page is about a hundred: two publishes that each read thirty owned badges, thirty cover
+ *  fetches, and the hub requests. */
+export const PLUGIN_AUTHORITY_TAIL_CALLS_MAX = 256;
 
 /** Max serialized (JSON) byte size of any host-function result crossing back into the guest (= 1 MiB). */
 export const HOST_FN_RESULT_CAP_BYTES = 1_048_576;

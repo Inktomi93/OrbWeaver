@@ -7,7 +7,7 @@ import process from "node:process";
 import type { MessagePort } from "node:worker_threads";
 import { parentPort, workerData } from "node:worker_threads";
 import type { PluginHandlerRef, PluginInstance, PluginInvocationLiveness, PluginInvokeArgs } from "@orb/contracts/plugin";
-import { createRemoteBridge } from "./bridge-rpc.ts";
+import { createRemoteBridge, createRemoteNetEgress } from "./bridge-rpc.ts";
 import { PLUGIN_AUTHORITY_TAIL_MS } from "./budgets.ts";
 import type { CreateInstanceInputIn } from "./contract/port.ts";
 import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, WorkerBrokerMessage } from "./contract/process-protocol.ts";
@@ -202,12 +202,13 @@ function callSync(operation: PluginSyncOperation, args: readonly unknown[]): unk
   return response.value;
 }
 
-const bridge = createRemoteBridge(callAsync, callSync);
+const bridge = createRemoteBridge(callAsync);
 const host = createLocalPluginHost({
   nowEpochMs: () => callSync("seam.nowEpochMs", []) as number,
   nextRandom: () => callSync("seam.nextRandom", []) as number,
   mintId: () => callSync("seam.mintId", []) as string,
   mirrorLog: (label, level, message) => post({ kind: "log", label, level, message }),
+  netEgress: createRemoteNetEgress(callAsync),
 });
 
 let instance: PluginInstance | undefined;
