@@ -333,7 +333,7 @@ in its own module header, never restated here.
 | `stale-draft-commit` | draft-commit | ordinary/error | @client | a once-seeded draft is being… |
 | `stale-draft-decision-health` | draft-commit | hard/error | @client,@db\* | the draft decision home no longer… |
 | `state-files` | — | ordinary/error | @client\* | the minted store handle is exported… |
-| `structured-plan-one-home` | — | ordinary/error | @server,@client,@contracts,@kit\* | a structured-output or tool-call spelling… |
+| `structured-plan-one-home` | — | ordinary/error | @server,@client,@contracts,@kit\* | a structured-output or tool-call… |
 | `sub-floor-disclosure` | — | ordinary/error | @client,@ui | a size="text" CollapsibleTrigger with… |
 | `sub-floor-disclosure-health` | sub-floor-disclosure | hard/error | @ui\* | a collapsible size member is no… |
 | `suppressions` | — | reviewed-grant/error | all | a foreign-tool suppression directive… |

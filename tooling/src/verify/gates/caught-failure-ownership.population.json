@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 670,
+    "sites": 689,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 670,
+      "deliberate-absorb": 689,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 155,
-      "empty": 348,
-      "promise": 167
+      "default": 158,
+      "empty": 357,
+      "promise": 174
     }
   },
   "rows": [
@@ -44,6 +44,26 @@
       "siteId": "packages/client/src/agent-seed/retry-attempt.ts::GameSeedFlights.run::Promise.resolve::1",
       "verdict": "deliberate-absorb",
       "reason": "feeds the deferred's resolve/reject, which settles `result.promise` — the same object as the returned `flight.promise` the caller awaits. Ends if `result`/`flight.promise` stop being the same object."
+    },
+    {
+      "siteId": "packages/client/src/components/connection-role-slot.tsx::ConnectionRoleSlot.write::bound::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refusal becomes the row's alert; any other failure keeps the draft (the row says \"not applied yet\") and toasts through the mutation's errorToast. Ends if that toast goes."
+    },
+    {
+      "siteId": "packages/client/src/components/embedder-refusal-toast.ts::useEmbedRefusalToastAfterUnmount::write::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the caller owns the write's failure through its own handlers and the mutation's error toast; this only adds the toast no unmounted control can say. Ends if a caller stops handling it."
+    },
+    {
+      "siteId": "packages/client/src/components/imported-chats-memory-offer.tsx::ImportedChatsMemoryOffer.build::confirmThen::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the start mutation's errorToast surfaces a failed run, a conflict renders as the already-running note, and `confirmThen` toasts a failed count. Ends if any of those stops surfacing its own failure."
+    },
+    {
+      "siteId": "packages/client/src/components/imported-chats-memory-offer.tsx::ImportedChatsMemoryOffer.runBuild::error::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a CONFLICT is owned by the offer's own state (the already-running note); every other failure rethrows to `confirmThen` and the mutation's errorToast. Ends if the conflict arm stops setting that state."
     },
     {
       "siteId": "packages/client/src/components/regex-script-picker.tsx::PickerRow::toggle::1",
@@ -296,6 +316,11 @@
       "reason": "useStartChat's mutation carries errorToast: \"Couldn't start the chat.\" — the toast is the surface; not closing lets the picked characters survive a retry. Ends if useStartChat drops errorToast."
     },
     {
+      "siteId": "packages/client/src/features/credentials/components/connection-editor.tsx::AvailableConnectionEditorBody.patch.write::saved::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a refusal becomes the editor's alert state; any other failure toasts through the mutation's errorToast. Ends if that toast goes."
+    },
+    {
       "siteId": "packages/client/src/features/credentials/components/first-model-setup.tsx::FirstModelSetup.finish::bindRoles::1",
       "verdict": "deliberate-absorb",
       "reason": "owned by the step's inline failure line (`first-model-setup-failure`, role=alert), which stays open as the retry surface. Ends if that line is removed."
@@ -424,11 +449,6 @@
       "siteId": "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts::runToSettlement::err::1",
       "verdict": "deliberate-absorb",
       "reason": "the failure message is returned to the caller (boot/deliver both post it back over the wire) — fully propagated, never swallowed. Ends if a caller stops forwarding this return value."
-    },
-    {
-      "siteId": "packages/client/src/features/preset/components/params-limits.tsx::parseLogitBias::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the doc comment above explains — an unparseable value returns undefined, which the caller treats as \"not set\", and the server re-validates via userIntentSchema. Ends if the caller starts trusting this return without server-side re-validation."
     },
     {
       "siteId": "packages/client/src/features/preset/components/preset-import-dialog.tsx::PresetImportDialog.onFile::text::1",
@@ -816,9 +836,29 @@
       "reason": "credential probes own failures as typed revoked/unreachable health with a sanitized reason. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the returned health stops carrying that disposition."
     },
     {
-      "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::createReachabilityProber.wake::fetch::1",
+      "siteId": "packages/inference/src/backends/openai-compat/ollama-native.ts::failedResponse::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a non-JSON error body is still the server's message; it is handed on as the error text, and the SDK raises it. Ends if a body here could be anything but an error."
+    },
+    {
+      "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::createReachabilityProber.asleep::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a sleep read the server does not answer is owned by the task it guards, which meets the same server and surfaces its own classified error; only a cancel is rethrown here. Ends if a caller needs the read's own failure."
+    },
+    {
+      "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::createReachabilityProber.wake::started.run::1",
+      "verdict": "deliberate-absorb",
+      "reason": "map cleanup only; every waiting task receives the wake's rejection through joinWake. Ends if the cleanup grows work of its own."
+    },
+    {
+      "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::createReachabilityProber.wakeOnce::fetch::1",
       "verdict": "deliberate-absorb",
       "reason": "wake POST failure falls through to the bounded probe loop, whose final false is the wake verdict. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if the following loop stops deciding success or timeout."
+    },
+    {
+      "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::joinWake::flight.run::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the rejection is forwarded to this task's own promise, which its caller awaits. Ends if the handler stops rejecting with the error."
     },
     {
       "siteId": "packages/inference/src/backends/openai-compat/reachability.ts::probeOnce::catch::1",
@@ -846,9 +886,19 @@
       "reason": "malformed model-emitted arguments remain the raw string, preserving the model's bytes instead of dropping the tool call. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if raw stops being serialized."
     },
     {
+      "siteId": "packages/inference/src/catalog/detect.ts::answer::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a 2xx that is not JSON is a server that is not this one; the probe moves on. Ends if a probed route can answer anything but JSON on the server it identifies."
+    },
+    {
       "siteId": "packages/inference/src/catalog/endpoint.ts::nativeRead::err::1",
       "verdict": "deliberate-absorb",
       "reason": "the native read is optional evidence beside a list that already answered; its failure is reported through `warn` and degrades to \"not reported\", which the capability marks assumed. Ends if a caller ever needs the native facts to list a model."
+    },
+    {
+      "siteId": "packages/inference/src/catalog/endpoint.ts::probeNativeWithin::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a probe answer that is not JSON states nothing; the caller reads the status alone. Ends if a probed route can answer a fact in a non-JSON body."
     },
     {
       "siteId": "packages/inference/src/catalog/google.ts::listGoogleModels::err::1",
@@ -859,6 +909,11 @@
       "siteId": "packages/inference/src/catalog/listing.ts::createCatalogListing.endpointListing::err::1",
       "verdict": "deliberate-absorb",
       "reason": "optional model discovery owns refusal as `listed:false` with the scrubbed reason; the pane offers a typed id. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog."
+    },
+    {
+      "siteId": "packages/inference/src/catalog/mirror.ts::createMirror.warmOnce::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "owned by the returned `ok: false` warm, whose reason the model-list read reports and the resolve degrades on, and by the structured warn; held so a burst shares it. Ends if a caller needs a throw."
     },
     {
       "siteId": "packages/inference/src/registry/providers.ts::createProviderRegistry.publishInOrder::publication::1",
@@ -876,6 +931,11 @@
       "reason": "the rejection is retained as the `ok:false` snapshot and rethrown inside `publishInOrder`; it is never treated as an empty provider list. Ends if the `!listed.ok` arm stops throwing."
     },
     {
+      "siteId": "packages/inference/src/resolve/resolve-task.ts::warmedOrCached::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the failed warm is owned by the next resolve of a task on this row, which runs the same warm and surfaces its error; the kind read degrades to the cached facts. Ends if a caller needs the kind read to refuse."
+    },
+    {
       "siteId": "packages/inference/src/roles/role-clients.ts::runWithStrikeOut::Promise.resolve::1",
       "verdict": "deliberate-absorb",
       "reason": "strike-out is a passenger side effect; its failure is warning-logged and the provider's original error is rethrown. Precedent: packages/server/src/entry/import/run-profile-import.ts accepts the same passenger-side-effect failure while preserving the primary owner. Ends if either owner changes."
@@ -884,6 +944,11 @@
       "siteId": "packages/inference/src/roles/structured-turn.ts::tryParse::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "null flows to extractJsonObject's null → the typed \"no JSON object found in the reply\" refusal path. Ends if that refusal path is removed."
+    },
+    {
+      "siteId": "packages/inference/src/structured/reply.ts::parseReply::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "a reply that is not bare JSON falls to the tolerant extractor, and a reply with no object is returned untouched for the caller's own parse to refuse. Ends if normalization starts failing the call."
     },
     {
       "siteId": "packages/kit/src/cel/index.ts::parseCel::err::1",
@@ -964,6 +1029,11 @@
       "siteId": "packages/kit/src/time/index.ts::naiveIsoMs::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "documented — null on an invalid/impossible reading, consumed by isoToMs (this function's sole caller) as the terminal fallback arm. Ends if isoToMs stops handling the null."
+    },
+    {
+      "siteId": "packages/kit/src/time/index.ts::parseIanaTimeZone::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "documented in the JSDoc — null when the platform does not know the zone, part of this function's stated contract. Ends if a caller stops treating null as \"unknown zone\"."
     },
     {
       "siteId": "packages/kit/src/time/index.ts::wallClockToMs::catch::1",
@@ -1091,9 +1161,14 @@
       "reason": "this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise."
     },
     {
+      "siteId": "packages/server/src/domain/chat/engine/rerank-pick.ts::rerankPick::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an unbound, refused or failing rerank role is the documented degrade, consumed as the visible fallback; an abort is classified by the turn's signal instead."
+    },
+    {
       "siteId": "packages/server/src/domain/chat/engine/smart-arbitrate.ts::smartArbitrate::catch::1",
       "verdict": "deliberate-absorb",
-      "reason": "classified below by signal state — a settled signal returns CANCELLED (the user stopped it, not a failure); anything else degrades to the deterministic `fallback()`, the consumed result the side-LLM's best-effort contract promises. Ends if the arbiter becomes load-bearing (then a failure must surface, not fall back)."
+      "reason": "classified by signal state — a settled signal returns CANCELLED (the user stopped it); an unservable row, a failed call or an invalid payload after the one bounded retry degrades to the visible `fallback()`, the arbiter's documented best-effort contract."
     },
     {
       "siteId": "packages/server/src/domain/chat/memory/generate/digests.ts::summarizeBatchIsolated::catch::1",
@@ -1131,9 +1206,14 @@
       "reason": "documented above — non-fatal, mirrors neo: the already-committed reply stands and the loop stops; the `null` is the consumed result the caller checks. Ends if a follow-up failure needs to surface to the turn's own caller."
     },
     {
-      "siteId": "packages/server/src/domain/connection/substrate/embed-space.ts::spaceFor::catch::1",
+      "siteId": "packages/server/src/domain/connection/substrate/embed-space.ts::vectorResolutionOf::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a refused resolve IS the \"no space\" answer this comparison needs; nothing is swallowed, and a throw here would fail a connection write over an unrelated task."
+    },
+    {
+      "siteId": "packages/server/src/domain/connection/substrate/owner-queue.ts::createOwnerWriteQueue::next::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the queue only waits for this write to settle before the next one runs; the write's caller receives its rejection through the returned `next`."
     },
     {
       "siteId": "packages/server/src/domain/connection/verbs/bindings.ts::bindingReadout::catch::1",
@@ -1169,6 +1249,11 @@
       "siteId": "packages/server/src/domain/discovery/verbs/distill.ts::parseOneDistill::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "bookkeeping — the header states the contract: `null` counts THIS card `failed` in the caller's sweep counts so one bad card never aborts the batch; the caller reads `failed > 0` and throws the retryable `DistillFailedError`. Ends if a per-card cause needs to travel past this boundary."
+    },
+    {
+      "siteId": "packages/server/src/domain/embeddings/verbs/stale-generation-owners.ts::currentConnection::catch::1",
+      "verdict": "deliberate-absorb",
+      "reason": "an owner whose binding cannot resolve at boot has nothing a re-index could embed with; their next store or sweep raises the same failure where it is owned. Ends if this read ever gates a write."
     },
     {
       "siteId": "packages/server/src/domain/import/loader/collect.ts::collectAppearance::error::1",
@@ -1461,6 +1546,11 @@
       "reason": "an attacker-influenceable provider image URL whose every belt refusal is ALREADY owned twice — `blockEgress` (infra/network/egress.ts:624) securityEvent's every `EgressBlockedError` before it throws, and the caller's `absorbInlineReplyImages` (domain/chat/engine/engine.ts:1498) emits the `reply_image_failed` bus warning the author reads as \"the picture didn't save\" (pinned: tests/server/domain/chat/engine/inline-reply-images.suite.int.test.ts:240). The same reasoning and the same marker sit on the sibling fetch at egress.ts:530. Ends if a refusal can reach here un-securityEvent'd, or if the engine stops emitting that warning."
     },
     {
+      "siteId": "packages/server/src/entry/compose/portability-runner.ts::createSettleImportMemory::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the one absorbed failure is the memory-off admission refusal, a normal outcome whose span still returns for the client to judge; every other failure rethrows and fails the import run. Ends if another refusal code is absorbed here."
+    },
+    {
       "siteId": "packages/server/src/entry/compose/rpg.ts::buildRunExtraction::err::1",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — documented above: a failed extraction never corrupts state (returns the empty delta), but the throw is made observable by the `logger.warn` below (the diagnosis that surfaced the fix). Ends if the warn log is removed."
@@ -1469,6 +1559,11 @@
       "siteId": "packages/server/src/entry/compose/rpg.ts::buildRunToolRound::err::1",
       "verdict": "deliberate-absorb",
       "reason": "errors-as-data — the structured arm's twin: a CANCEL is read off the signal (not the error shape) and returns `empty`; any other failure is observed via `logger.warn` below. Ends if the warn log is removed."
+    },
+    {
+      "siteId": "packages/server/src/entry/compose/rpg.ts::requestStructuredCalls::err::1",
+      "verdict": "deliberate-absorb",
+      "reason": "errors-as-data — returned as `failed` and warned on the caller's own event, the tool round's posture; a cancel is read off the signal. Ends if the warn is removed."
     },
     {
       "siteId": "packages/server/src/entry/compose/rpg.ts::safeJson::catch::1",
