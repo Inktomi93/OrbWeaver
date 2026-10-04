@@ -37,7 +37,7 @@ import { BUILTIN_STAGE_HINTS } from "../lib/builtin-hints.ts";
 import { FOCAL_GLOW, FOCAL_STRIPE } from "../lib/focal-treatment.ts";
 import { buildRenderPlan } from "../lib/render-plan.ts";
 import { STAGE_NOT_RUN_COPY } from "../lib/stage-not-run-copy.ts";
-import { LaneBand, LaneNotes } from "./lane-band.tsx";
+import { LaneBand, LaneNotes, RunModelCredit } from "./lane-band.tsx";
 import { PayloadView } from "./payload-view.tsx";
 
 // Re-derived locally from the wire (§7.4 — never a hand-picked exported alias).
@@ -125,7 +125,7 @@ export function PayloadLane({
       data-lane={stage}
       {...(focal ? { style: FOCAL_STRIPE } : {})}
     >
-      <LaneBand kicker={`${LANE_ORDINAL[stage]} · ${LANE_LABEL[stage]}`} />
+      <LaneBand kicker={`${LANE_ORDINAL[stage]} · ${LANE_LABEL[stage]}`}>{run === null ? null : <RunModelCredit model={run.model} />}</LaneBand>
       {runControl}
       <LaneNotes behind={behind} iteration={run?.iteration ?? null} onBackToLatest={onBackToLatest} viewingBack={viewingBack} />
       <LaneBody arrived={arrived} run={run} running={running} stage={stage} />

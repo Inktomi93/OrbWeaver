@@ -44,7 +44,7 @@
 // readout, and a readout that refused would be a readout nobody could read.
 
 import type { RefineryRun, RefineryStage } from "@orb/contracts/refinery";
-import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
+import { REFINERY_STAGE_PAYLOADS, refineryRewriteParseSchema } from "@orb/contracts/refinery";
 import type { ResponseFormat, RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import { refineryRuns, refinerySessions } from "@orb/db";
 import type { SideGenSampling } from "@orb/inference";
@@ -162,7 +162,8 @@ async function executeResolved(
   assertStageBudgetFits(pass);
   const view = await dispatchStage(ctx, { ownerId, stage, isRefinement, prior, pass });
 
-  // A run makes the session live again (status is a roster label, never a lock — design §9.2).
+  // A run makes the session live again: `completed` locks only a repeat Apply to the live card, and a new
+  // run is a new round to apply.
   await ctx.db.update(refinerySessions).set({ status: "active", updatedAt: pass.meta.createdAt }).where(eq(refinerySessions.id, sessionId));
   return view;
 }
@@ -450,7 +451,7 @@ async function runRewriteArm(ctx: RefineryContext, pass: StagePass, arm: Rewrite
     prompts,
     sampleOpts: sampleOptsFor(pass, prompts),
     lane: "refine-rewrite",
-    payloadSchema: REFINERY_STAGE_PAYLOADS.rewrite,
+    payloadSchema: refineryRewriteParseSchema,
   });
   const view = {
     ...pass.meta,

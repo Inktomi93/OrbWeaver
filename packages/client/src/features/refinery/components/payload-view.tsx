@@ -218,30 +218,29 @@ function HeroGauge({
   const danger = value !== null && value < dangerBelowOf(widget);
   return (
     <Card data-testid={testId("refineryHeroGauge")}>
-      <Row align="center" gap="block" padding="block">
-        <Stack align="center" gap="tight">
-          <Row align="baseline" gap="tight">
-            <Text as="span" data-testid={testId("refineryHeroValue")} voice="hero">
-              {value === null ? ABSENT_TEXT : String(shown)}
-            </Text>
-            <Text as="span" voice="gloss">
-              /{widget.max}
-            </Text>
-          </Row>
+      {/* STACKED, NEVER SIDE BY SIDE: the hero lives in a 15rem rail, where a numeral column beside the
+          summary left the critique a ~90px column of one word per line. The figure, the meter and the
+          summary each take the card's full width. */}
+      <Stack gap="field" padding="block">
+        <Row align="baseline" gap="tight">
+          <Text as="span" data-testid={testId("refineryHeroValue")} voice="hero">
+            {value === null ? ABSENT_TEXT : String(shown)}
+          </Text>
+          <Text as="span" voice="gloss">
+            /{widget.max}
+          </Text>
           <Text voice="kicker">{field.label}</Text>
-        </Stack>
-        <Stack className="min-w-0 flex-1" gap="field">
-          <Meter
-            {...(danger ? { dangerBelow: dangerBelowOf(widget) } : {})}
-            kind="linear"
-            label={field.label}
-            max={widget.max}
-            min={widget.min}
-            value={value === null ? widget.min : shown}
-          />
-          {prose !== null ? <Text prose={true}>{scalarText(payload[prose.key])}</Text> : null}
-        </Stack>
-      </Row>
+        </Row>
+        <Meter
+          {...(danger ? { dangerBelow: dangerBelowOf(widget) } : {})}
+          kind="linear"
+          label={field.label}
+          max={widget.max}
+          min={widget.min}
+          value={value === null ? widget.min : shown}
+        />
+        {prose !== null ? <Text prose={true}>{scalarText(payload[prose.key])}</Text> : null}
+      </Stack>
     </Card>
   );
 }
@@ -424,7 +423,7 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
                   ))}
                   {scoreValue !== null && scoreWidget !== undefined ? (
                     <Text as="span" voice="datum">
-                      {scoreValue}
+                      — {scoreValue}
                     </Text>
                   ) : null}
                 </Row>

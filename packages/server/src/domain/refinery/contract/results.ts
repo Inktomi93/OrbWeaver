@@ -6,8 +6,21 @@
 
 import type { CharacterCard, CharacterDetail } from "@orb/contracts/character";
 import { characterCardViewSchema, characterDetailSchema } from "@orb/contracts/character";
-import type { RefinableField, RefineryRewriteField, RefinerySelection, RefinerySessionStatus, RefineryStageConfig } from "@orb/contracts/refinery";
-import { refinableFieldSchema, refinerySelectionSchema, refinerySessionStatusSchema, refineryStageConfigViewSchema } from "@orb/contracts/refinery";
+import type {
+  RefinableField,
+  RefineryRewriteDecisions,
+  RefineryRewriteField,
+  RefinerySelection,
+  RefinerySessionStatus,
+  RefineryStageConfig,
+} from "@orb/contracts/refinery";
+import {
+  refinableFieldSchema,
+  refineryRewriteDecisionsSchema,
+  refinerySelectionSchema,
+  refinerySessionStatusSchema,
+  refineryStageConfigViewSchema,
+} from "@orb/contracts/refinery";
 import type { CharacterId, CharacterSnapshotId, ModelId, RefinerySessionId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -39,14 +52,17 @@ export interface RefinerySessionView {
   readonly originalCard: CharacterCard;
   readonly selection: RefinerySelection;
   readonly stageConfig: RefineryStageConfig;
+  /** The review's Keep/Discard sheets, keyed by rewrite run id — what the workbench reopens with. */
+  readonly rewriteDecisions: RefineryRewriteDecisions;
   readonly guidance: string | null;
   readonly iterationCount: number;
   readonly createdAt: number;
   readonly updatedAt: number;
 }
 
-/** Why one accepted entry was DROPPED instead of applied — the per-entry salvage itemization (never a
- *  whole-payload refusal; security pass §1 gap 3). A closed axis so the client renders typed copy. The
+/** Why one accepted entry was REFUSED — itemized per entry so the user learns which field and why. Owner
+ *  ruling: the apply is atomic, so any refusal refuses the whole act, and the user recovers by discarding the
+ *  refused entries. A closed axis so the client renders typed copy. The
  *  tuple stays UNEXPORTED until a runtime consumer exists (R3's reason-copy map re-exports it then);
  *  the derived union below is the wire surface. */
 const APPLY_DROP_REASONS = [
@@ -158,6 +174,7 @@ export const refinerySessionViewSchema = z.strictObject({
   originalCard: characterCardViewSchema,
   selection: refinerySelectionSchema.strict(),
   stageConfig: refineryStageConfigViewSchema,
+  rewriteDecisions: refineryRewriteDecisionsSchema,
   guidance: z.string().nullable(),
   iterationCount: z.number(),
   createdAt: z.number(),

@@ -13,6 +13,7 @@ import {
   refineryForgeArmSchema,
   refineryGuidanceSchema,
   refineryRewriteFieldSchema,
+  refineryRewriteSheetSchema,
   refineryRunViewSchema,
   refinerySchemaPlanSchema,
   refinerySchemaStageSchema,
@@ -149,6 +150,19 @@ export const refineryRouter = t.router({
         name: input.name,
         rewriteRunId: input.rewriteRunId,
       }),
+    ),
+
+  decideRewrite: authedProcedure
+    .output(refinerySessionViewSchema)
+    .input(
+      z.object({
+        sessionId: typeIdSchema(ID_PREFIX.refinerySession),
+        rewriteRunId: typeIdSchema(ID_PREFIX.refineryRun),
+        decisions: refineryRewriteSheetSchema,
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      ctx.services.refinery.decideRewrite({ principal: ctx.auth, sessionId: input.sessionId, rewriteRunId: input.rewriteRunId, decisions: input.decisions }),
     ),
 
   submitManualRewrite: authedProcedure

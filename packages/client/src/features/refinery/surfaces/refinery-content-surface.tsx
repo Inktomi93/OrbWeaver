@@ -31,12 +31,12 @@
 // pick resolves.
 
 import type { RefinerySelection, RefineryStage } from "@orb/contracts/refinery";
-import { isAppendedRewrite, REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
+import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
+import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary } from "#components";
@@ -52,7 +52,6 @@ import {
   useSelectedRefinerySessionId,
 } from "#state";
 import { ApplyOutcome } from "../components/apply-outcome.tsx";
-import type { OutcomeState } from "../components/apply-row.tsx";
 import { ApplyRow } from "../components/apply-row.tsx";
 import { LaneRunControl, SessionPreflightWarn } from "../components/lane-run-control.tsx";
 import { ManualRewriteDialog } from "../components/manual-rewrite-dialog.tsx";
@@ -65,6 +64,9 @@ import { SessionMasthead } from "../components/session-masthead.tsx";
 import { useIterateRefinery, useRunRefineryStage, useSubmitManualRewrite, useUpdateRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns } from "../hooks/use-refinery-sessions.ts";
+import { keptAcceptsOf, refusedIndexesOf, useRewriteDecisions } from "../hooks/use-rewrite-decisions.ts";
+import type { OutcomeState } from "../hooks/use-terminal-acts.ts";
+import { useTerminalActs } from "../hooks/use-terminal-acts.ts";
 import { manualTargetsOf } from "../lib/manual-targets.ts";
 import { preflightViewOf } from "../lib/preflight-warn.ts";
 import { reviewEntriesOf } from "../lib/review-entries.ts";
@@ -73,8 +75,6 @@ import type { LaneView } from "../lib/workbench-lanes.ts";
 import { workbenchLanesOf } from "../lib/workbench-lanes.ts";
 
 type RunView = inferOutput<Trpc["refinery"]["listRuns"]>[number];
-// Re-derived locally from the wire (§7.4).
-type KeptAccept = inferInput<Trpc["refinery"]["applyFields"]>["accepts"][number];
 type StagePreflightView = NonNullable<ReturnType<typeof useRefineryPreflight>["data"]>["stages"][number];
 
 export function RefineryContentSurface(): ReactElement {
@@ -144,13 +144,27 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
     { viewedRunId, armedRewriteId },
     { pendingStage: runStage.pendingVariables?.stage ?? null, iterating: iterate.isPending },
   );
-  const { sheet, decide } = useRewriteDecisions(lanes.rewriteRunId);
-
   const running = runStage.isPending || iterate.isPending;
 
-  const rewriteEntries = rewriteEntriesFor(lanes.rewriteRun, card, view);
-  const decided = sheet ?? Array.from({ length: rewriteEntries.length }, (): CompareDecision => null);
+  const allRewriteEntries = rewriteEntriesFor(lanes.rewriteRun, card, view);
+  // An entry the verb would refuse whatever is decided is never offered a Keep (it would refuse the batch).
+  const rewriteEntries = allRewriteEntries.filter((entry) => entry.refusal === undefined);
+  const { decided, decide, decideEach } = useRewriteDecisions({
+    sessionId,
+    rewriteRunId: lanes.rewriteRun?.id ?? null,
+    entries: rewriteEntries,
+    persisted: view.rewriteDecisions,
+  });
   const keptAccepts = keptAcceptsOf(rewriteEntries, decided);
+  const acts = useTerminalActs({ sessionId, armedRewriteId, onOutcome: setOutcome });
+  const recovery = recoveryOf(outcome, rewriteEntries, decided, {
+    pending: acts.pending,
+    run: (refused, remaining): void => {
+      // Staged first, so the discard is visible and persists; then the same atomic act on what is left.
+      decideEach(refused, false);
+      acts.run(outcome?.verb ?? "apply", remaining);
+    },
+  });
   const manualTargets = manualTargetsOf(view.selection, card);
   const backToLatest = (): void => setRefineryViewedRun(null);
 
@@ -182,10 +196,11 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
       <Stack className="pt-block pb-gutter" data-testid={testId("refineryContent")} gap="block">
         <SessionMasthead
           anchoredAt={view.createdAt}
-          applied={outcome !== null && outcome.applied.length > 0}
+          // The live card took this session's commit: the server's lock, or an Apply this view just made. A copy
+          // is a branch and leaves the live card untouched, so it never flips this.
+          applied={view.status === "completed" || (outcome?.verb === "apply" && outcome.applied.length > 0)}
           cardName={card.name}
           characterId={view.characterId}
-          model={lanes.rewrite.run?.model ?? lanes.score.run?.model ?? null}
           onEditScope={(): void => setScopeOpen(true)}
           round={view.iterationCount}
           selection={view.selection}
@@ -223,9 +238,10 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
                 behind={lanes.rewrite.behind}
                 decided={decided}
                 entries={rewriteEntries}
+                unapplicable={allRewriteEntries.filter((entry) => entry.refusal !== undefined)}
                 focal={lanes.rewrite.focal}
                 onBackToLatest={backToLatest}
-                onDecide={(index, decision): void => decide(index, decision, rewriteEntries.length)}
+                onDecide={decide}
                 run={lanes.rewriteRun}
                 runControl={runControlFor(lanes.rewrite)}
                 running={lanes.rewrite.running}
@@ -256,11 +272,12 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
               setOutcome(null);
               setScopeOpen(true);
             }}
+            recovery={recovery}
             onRerunRewrite={(): void => {
               setOutcome(null);
               runStage.mutate({ sessionId, stage: "rewrite" }, { onSuccess: (run): void => noteLanded(run.id) });
             }}
-            snapshotLabel={outcome.snapshotLabel}
+            snapshotTaken={outcome.snapshotTaken}
           />
         )}
 
@@ -268,11 +285,12 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
           apply={
             lanes.rewriteRun === null ? null : (
               <ApplyRow
+                // The SAME acts the outcome's recovery runs: one pending flag for every terminal control.
+                acts={acts}
                 armedRewrite={lanes.armedRewrite}
-                armedRewriteId={armedRewriteId}
+                // A completed session's rewrite already landed; running any stage re-opens it.
+                completed={view.status === "completed"}
                 keptAccepts={keptAccepts}
-                onOutcome={setOutcome}
-                sessionId={sessionId}
               />
             )
           }
@@ -330,25 +348,26 @@ function useScopeDoor(): { readonly open: boolean; readonly setOpen: (open: bool
   return { open: openedHere || requestedDoor === "scope", setOpen };
 }
 
-/** The per-rewrite-run decision sheet (keyed BY REWRITE RUN — a re-run reopens every block Undecided;
- *  the ruled fork: a verb pressed against old text is not a judgement about the new text). */
-function useRewriteDecisions(rewriteRunId: string | null): {
-  sheet: readonly CompareDecision[] | undefined;
-  decide: (index: number, decision: CompareDecision, count: number) => void;
-} {
-  const [decidedByRun, setDecidedByRun] = useState<Readonly<Record<string, readonly CompareDecision[]>>>({});
-  const sheet = rewriteRunId === null ? undefined : decidedByRun[rewriteRunId];
-  const decide = (index: number, decision: CompareDecision, count: number): void => {
-    if (rewriteRunId === null) {
-      return;
-    }
-    setDecidedByRun((prev) => {
-      const next = [...(prev[rewriteRunId] ?? Array.from({ length: count }, (): CompareDecision => null))];
-      next[index] = decision;
-      return { ...prev, [rewriteRunId]: next };
-    });
-  };
-  return { sheet, decide };
+/** The refused-apply recovery (owner ruling: Apply is atomic, recovery is an explicit discard): which kept
+ *  entries the act refused and what would remain. Null when nothing was refused or nothing would remain. */
+function recoveryOf(
+  outcome: OutcomeState | null,
+  entries: ReturnType<typeof reviewEntriesOf>,
+  decided: readonly CompareDecision[],
+  acts: { readonly pending: boolean; readonly run: (refused: readonly number[], remaining: ReturnType<typeof keptAcceptsOf>) => void },
+): { remaining: number; refused: number; verb: OutcomeState["verb"]; pending: boolean; onPress: () => void } | null {
+  if (outcome === null || outcome.applied.length > 0 || outcome.dropped.length === 0) {
+    return null;
+  }
+  const refused = refusedIndexesOf(entries, outcome.dropped).filter((i) => decided[i] === true);
+  const remaining = keptAcceptsOf(
+    entries,
+    decided.map((d, i) => (refused.includes(i) ? false : d)),
+  );
+  if (refused.length === 0 || remaining.length === 0) {
+    return null;
+  }
+  return { remaining: remaining.length, refused: refused.length, verb: outcome.verb, pending: acts.pending, onPress: (): void => acts.run(refused, remaining) };
 }
 
 /** The reviewable entries for the chosen rewrite run (empty until one settles). */
@@ -377,26 +396,4 @@ function rewriteEntriesFor(
 /** The preflight slice one lane reads. */
 function preflightSliceOf(data: ReturnType<typeof useRefineryPreflight>["data"], stage: RefineryStage): StagePreflightView | undefined {
   return data?.stages.find((s) => s.stage === stage);
-}
-
-/** The kept accepts the terminal verbs send: each Keep press's target, with `confirmDiverged` riding
- *  exactly the diverged entries (the §21 informed re-confirmation — never a blanket flag). */
-function keptAcceptsOf(rewriteEntries: ReturnType<typeof reviewEntriesOf>, decided: readonly CompareDecision[]): KeptAccept[] {
-  return rewriteEntries.flatMap((entry, i): KeptAccept[] => {
-    if (decided[i] !== true) {
-      return [];
-    }
-    // An APPEND is addressed by its ordinal and NOTHING else: it has no slot to name and no history to have
-    // diverged from, so sending either key would be a malformed address the verb drops.
-    if (entry.appendIndex !== undefined) {
-      return [{ field: entry.entry.field, appendIndex: entry.appendIndex }];
-    }
-    return [
-      {
-        field: entry.entry.field,
-        ...(isAppendedRewrite(entry.entry) || entry.entry.greetingIndex === undefined ? {} : { greetingIndex: entry.entry.greetingIndex }),
-        ...(entry.diverged ? { confirmDiverged: true as const } : {}),
-      },
-    ];
-  });
 }

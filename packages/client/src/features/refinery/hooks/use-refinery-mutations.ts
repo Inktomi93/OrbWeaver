@@ -36,7 +36,12 @@
 // server's own sentence for them; "try again" stays the honest copy for the codeless arm alone.
 
 import { CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
-import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
+import {
+  REFINERY_OUTPUT_BUDGET_REASON,
+  REFINERY_ROUND_IN_FLIGHT_REASON,
+  REFINERY_SESSION_COMPLETED_REASON,
+  REFINERY_STAGE_NOT_READY_REASON,
+} from "@orb/contracts/refinery";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -56,7 +61,12 @@ function refineryFailureMessage(error: unknown): string | null {
 /** The refusals whose server sentence IS the deliverable — every CODED refinery error. Kept as a set rather
  *  than an `||` chain so adding a fourth typed error is a one-line decision at the contract's own vocabulary,
  *  not an edit to a predicate. */
-const QUOTED_REFUSAL_REASONS: ReadonlySet<string> = new Set([REFINERY_STAGE_NOT_READY_REASON, REFINERY_OUTPUT_BUDGET_REASON, REFINERY_ROUND_IN_FLIGHT_REASON]);
+const QUOTED_REFUSAL_REASONS: ReadonlySet<string> = new Set([
+  REFINERY_STAGE_NOT_READY_REASON,
+  REFINERY_OUTPUT_BUDGET_REASON,
+  REFINERY_ROUND_IN_FLIGHT_REASON,
+  REFINERY_SESSION_COMPLETED_REASON,
+]);
 
 /**
  * The toast for a write that can be refused with a REASON: the server's own sentence when the wire carries
@@ -158,11 +168,11 @@ type ApplyFieldsResult = inferOutput<Trpc["refinery"]["applyFields"]>;
  * the user nothing while their card is untouched. That is the silent-failure shape, and it rides the FACTORY
  * because it is a property of the VERB.
  *
- * Only the TOTAL drop. A partial apply DID write, and its per-entry reasons are structured data the R3
- * surface renders beside the fields; toasting an error over a successful write would be a lie about it.
+ * The apply is all-or-nothing, so any refused entry is this arm: nothing was written, and the per-entry
+ * reasons are structured data the outcome panel renders.
  */
 function applyRefusal(data: ApplyFieldsResult): string | null {
-  return data.applied.length === 0 && data.dropped.length > 0 ? "Nothing was applied — every accepted rewrite was dropped." : null;
+  return data.applied.length === 0 && data.dropped.length > 0 ? "Nothing was applied — a kept change was refused. The reasons are listed below." : null;
 }
 
 /** The accepted rewrite entries onto the LIVE card — the merge terminal act. */
@@ -170,7 +180,7 @@ export const useApplyRefineryFields = createEntityMutation<inferInput<Trpc["refi
   options: (trpc) => trpc.refinery.applyFields.mutationOptions(),
   // TWO events, both from the server, neither re-spelled here: `refineryChanged` for the completed session
   // (`status`/`updatedAt`, both list columns) and `charactersChanged` from the injected `character.update`
-  // for the card. The TOTAL-DROP arm writes nothing and emits nothing — correct: no row moved, and the
+  // for the card. The refused arm writes nothing and emits nothing — correct: no row moved, and the
   // refusal below is the whole outcome.
   busDriven: true,
   refusal: applyRefusal,
@@ -182,7 +192,7 @@ type ApplyAsCopyResult = inferOutput<Trpc["refinery"]["applyAsCopy"]>;
 /** The zero-write branch-off (every accept dead on the belts ⇒ no copy minted) — the same errors-as-data
  *  refusal class as the apply arm. */
 function copyRefusal(data: ApplyAsCopyResult): string | null {
-  return data.character === null && data.dropped.length > 0 ? "No copy was made — every accepted rewrite was dropped." : null;
+  return data.character === null && data.dropped.length > 0 ? "No copy was made — a kept change was refused. The reasons are listed below." : null;
 }
 
 /** The BRANCH-OFF terminal act: the reviewed accepts land on a NEW character; the
@@ -193,6 +203,13 @@ export const useApplyRefineryAsCopy = createEntityMutation<inferInput<Trpc["refi
   busDriven: true,
   refusal: copyRefusal,
   errorToast: codedRefusalAwareToast("Couldn't save the copy."),
+});
+
+/** One rewrite run's Keep/Discard sheet onto the session, per press — re-entry reopens with it. */
+export const useDecideRefineryRewrite = createEntityMutation<inferInput<Trpc["refinery"]["decideRewrite"]>, inferOutput<Trpc["refinery"]["decideRewrite"]>>({
+  options: (trpc) => trpc.refinery.decideRewrite.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't save that decision.",
 });
 
 /** The hand-authored rewrite arm (og-feedback gap 1): the WIP edit lands as a `{kind:"manual"}` rewrite

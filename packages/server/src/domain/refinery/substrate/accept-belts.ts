@@ -179,8 +179,8 @@ function slotBeltReasonOf(accept: AcceptedField, belts: AcceptBelts): ApplyDropR
  *  The belts that cannot live in the per-entry classifier are the two greeting BUDGETS: whether the next
  *  removal is legal depends on how many earlier accepts in THIS batch already removed a slot, and whether
  *  the next append fits depends on how many earlier accepts already added one. Both are evaluated here, in
- *  accept order, so the outcome is deterministic and every refusal is itemized rather than the batch being
- *  refused whole. The two budgets share one running count — a batch that removes two and adds two ends where
+ *  accept order, so the outcome is deterministic and every refusal is itemized (the caller then refuses
+ *  the batch whole when any entry dropped). The two budgets share one running count — a batch that removes two and adds two ends where
  *  it started, and each entry is judged against the card the earlier accepts would have produced. */
 function partitionAccepts(
   accepts: readonly AcceptedField[],
@@ -375,5 +375,11 @@ export async function resolveApplyBasis(
     originalCard: session.originalCard,
     liveCard,
   });
-  return { session, liveCard, applied, dropped, chosen, rewriteRunCutoff: { createdAt: rewriteRow.createdAt, id: rewriteRow.id } };
+  const cutoff = { createdAt: rewriteRow.createdAt, id: rewriteRow.id };
+  // ATOMIC (owner ruling — Apply is a commit, Keep/Discard is staging): one refused entry refuses the whole
+  // apply. Recovery is the user discarding the refused entries explicitly, never a silent partial write.
+  if (dropped.length > 0) {
+    return { session, liveCard, applied: [], dropped, chosen: [], rewriteRunCutoff: cutoff };
+  }
+  return { session, liveCard, applied, dropped, chosen, rewriteRunCutoff: cutoff };
 }

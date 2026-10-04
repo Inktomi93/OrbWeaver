@@ -36,7 +36,8 @@ export const compareBlocksVariants = tv({
     root: "flex flex-col gap-block",
     acceptAllRow: "flex cursor-pointer items-center gap-row rounded-control border border-border bg-muted px-block py-row",
     acceptAllLabel: "text-label leading-label font-medium text-foreground",
-    block: "flex flex-col gap-field rounded-base border border-transparent",
+    // Padded so the label sits INSIDE the box the decision border draws, never on the border itself.
+    block: "flex flex-col gap-field rounded-base border border-transparent p-block",
     blockHeader: "flex items-center gap-row",
     blockLabel: "text-label leading-label font-medium text-muted-foreground",
     blockSpacer: "flex-1",

@@ -19,6 +19,7 @@ import {
   refineryCustomRunConfigSchema,
   refineryManualRewriteConfigSchema,
   refineryRewriteConfigSchema,
+  refineryRewriteDecisionsSchema,
   refineryScoreFixedConfigSchema,
   refinerySelectionSchema,
   refineryStageConfigSchema,
@@ -48,6 +49,10 @@ const selectionParser = refinerySelectionSchema.catch(() => {
 const stageConfigParser = refineryStageConfigSchema.catch(() => {
   addSpanEvent(HEAL_EVENT, { arm: "stageConfig" });
   return DEFAULT_REFINERY_STAGE_CONFIG;
+});
+const rewriteDecisionsParser = refineryRewriteDecisionsSchema.catch(() => {
+  addSpanEvent(HEAL_EVENT, { arm: "rewriteDecisions" });
+  return {};
 });
 const strippedKeysParser = z.array(z.string()).catch(() => {
   addSpanEvent(HEAL_EVENT, { arm: "strippedKeys" });
@@ -205,6 +210,7 @@ export function sessionViewOf(row: RefinerySessionRow): RefinerySessionView {
     originalCard: row.originalCard,
     selection: selectionParser.parse(row.selection),
     stageConfig: stageConfigParser.parse(row.stageConfig),
+    rewriteDecisions: rewriteDecisionsParser.parse(row.rewriteDecisions),
     guidance: row.guidance,
     iterationCount: row.iterationCount,
     createdAt: row.createdAt,

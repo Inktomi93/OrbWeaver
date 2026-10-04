@@ -191,7 +191,7 @@ test("a run FAILURE keeps the RETRY copy — the reason branch is narrow", async
   await expect(toast).not.toContainText("nothing usable");
 });
 
-test("an apply that dropped EVERY accepted entry toasts the refusal — the write RESOLVED, so nothing else would", async ({ mount, page }) => {
+test("an apply that refused an accepted entry toasts the refusal — the write RESOLVED, so nothing else would", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...REFINERY_SESSION_ROUTES,
     "refinery.listSessions": () => [rosterRow("Rev")],
@@ -212,7 +212,7 @@ test("an apply that dropped EVERY accepted entry toasts the refusal — the writ
 
   const toast = page.locator(TOAST);
   await expect(toast).toHaveCount(1);
-  await expect(toast).toContainText("Nothing was applied — every accepted rewrite was dropped.");
+  await expect(toast).toContainText("Nothing was applied — a kept change was refused.");
   await expect(toast).toHaveAttribute("data-type", "error");
 });
 

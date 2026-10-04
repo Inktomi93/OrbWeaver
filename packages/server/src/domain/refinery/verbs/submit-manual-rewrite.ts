@@ -10,7 +10,7 @@
 // (the apply-side intersection still runs at the terminal act regardless).
 
 import type { RefineryRewriteField } from "@orb/contracts/refinery";
-import { isAppendedRewrite, refineryRewritePayloadSchema } from "@orb/contracts/refinery";
+import { isAppendedRewrite, refineryRewriteParseSchema } from "@orb/contracts/refinery";
 import { refineryRuns, refinerySessions } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
@@ -58,7 +58,7 @@ export function createSubmitManualRewrite(ctx: RefineryContext): RefineryService
     const session = sessionViewOf(row);
     // The internal-boundary parse (the wire parse does not cover a future internal caller) — the SAME
     // typed rewrite contract a model run produces, cleared arm included.
-    const payload = refineryRewritePayloadSchema.parse({ fields });
+    const payload = refineryRewriteParseSchema.parse({ fields });
     const outside = payload.fields.filter((entry) => !inSelection(entry, session.selection));
     if (outside.length > 0) {
       const names = outside.map(targetNameOf).join(", ");

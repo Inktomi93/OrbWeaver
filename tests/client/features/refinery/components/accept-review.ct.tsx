@@ -32,11 +32,11 @@ const PATIENT_SEGMENT = /patient/;
 
 const ENTRIES: readonly ReviewEntry[] = [
   // Replaced, prose-length → the side-by-side pair.
-  { entry: { field: "description", text: `${LONG}Rewritten.` }, live: LONG, original: LONG, diverged: false },
+  { entry: { field: "description", text: `${LONG}Rewritten.` }, live: LONG, original: LONG, diverged: false, payloadIndex: 0 },
   // Emptied → the cleared arm with its consequence copy.
-  { entry: { field: "scenario", cleared: true }, live: "An old scenario.", original: "An old scenario.", diverged: false },
+  { entry: { field: "scenario", cleared: true }, live: "An old scenario.", original: "An old scenario.", diverged: false, payloadIndex: 1 },
   // Replaced, short → the inline word diff (FORK C).
-  { entry: { field: "personality", text: "Wry and patient." }, live: "Wry.", original: "Wry.", diverged: false },
+  { entry: { field: "personality", text: "Wry and patient." }, live: "Wry.", original: "Wry.", diverged: false, payloadIndex: 2 },
 ];
 
 /** One queue row by the field it names — `data-queue-state` is the row's whole accounting. */
@@ -114,6 +114,7 @@ test("a DIVERGED field renders the three-pane conflict — base, live, rewrite �
           live: "Edited under the session.",
           original: "The session pin's text.",
           diverged: true,
+          payloadIndex: 0,
         },
       ]}
     />,
@@ -143,8 +144,8 @@ test("an APPENDED greeting renders the Added state panel — no fabricated empty
       entries={[
         // The SPLIT round: slot 0 is replaced (prose-length, so it takes the before/after PAIR — the
         // control this test needs), and a NEW slot carries the rest.
-        { entry: { field: "greetings", greetingIndex: 0, text: `${LONG}The first half.` }, live: LONG, original: LONG, diverged: false },
-        { entry: { field: "greetings", append: true, text: "The second half." }, live: "", original: "", diverged: false, appendIndex: 0 },
+        { entry: { field: "greetings", greetingIndex: 0, text: `${LONG}The first half.` }, live: LONG, original: LONG, diverged: false, payloadIndex: 0 },
+        { entry: { field: "greetings", append: true, text: "The second half." }, live: "", original: "", diverged: false, appendIndex: 0, payloadIndex: 1 },
       ]}
     />,
   );
@@ -169,4 +170,24 @@ test("an APPENDED greeting renders the Added state panel — no fabricated empty
   // …and it decides like every other field (belt 10 — fail-closed until an individual press).
   await page.getByRole("button", { name: KEEP_NEW_GREETING }).click();
   await expect(queueRow(page, "greetings [new]")).toHaveAttribute("data-queue-state", "kept");
+});
+
+test("the open block's field label sits INSIDE the box its decision border draws, never on the border", async ({ mount, page }) => {
+  await mount(<AcceptReviewStory entries={ENTRIES} />);
+  const block = page.locator('[data-slot="compare-block"]');
+  const label = block.getByRole("heading", { name: "description" });
+  await expect(label).toBeVisible();
+  const inset = await block.evaluate((node) => {
+    const heading = node.querySelector("h3");
+    if (heading === null) {
+      return null;
+    }
+    const outer = node.getBoundingClientRect();
+    const inner = heading.getBoundingClientRect();
+    const border = Number.parseFloat(getComputedStyle(node).borderTopWidth);
+    return { top: inner.top - outer.top - border, left: inner.left - outer.left - border };
+  });
+  // Clear of the border on both edges it could touch — the padding, not a hairline.
+  expect(inset?.top ?? 0).toBeGreaterThan(4);
+  expect(inset?.left ?? 0).toBeGreaterThan(4);
 });

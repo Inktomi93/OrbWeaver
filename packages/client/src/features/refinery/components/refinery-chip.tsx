@@ -9,12 +9,17 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
 
-const TONE_CLASSES: Record<RenderHintTone, string> = {
+/** The chip's tones: the render-hint vocabulary plus `accent`, the palette's own state tint for session chrome
+ *  (a status, not a payload verdict — so it never borrows a semantic hue such as `info`). */
+type RefineryChipTone = RenderHintTone | "accent";
+
+const TONE_CLASSES: Record<RefineryChipTone, string> = {
   good: "bg-success text-success-foreground",
   warn: "bg-warning text-warning-foreground",
   bad: "bg-destructive text-destructive-foreground",
   info: "bg-info text-info-foreground",
   neutral: "bg-muted text-muted-foreground",
+  accent: "bg-accent text-accent-foreground",
 };
 
 // THE RENDER-HINT TONE HAS ITS OWN ATTRIBUTE NAME (#1097). This chip used to write `data-tone={tone}` —
@@ -29,7 +34,7 @@ const TONE_CLASSES: Record<RenderHintTone, string> = {
 // does not own.
 
 export interface RefineryChipProps {
-  readonly tone?: RenderHintTone;
+  readonly tone?: RefineryChipTone;
   readonly children: ReactNode;
 }
 

@@ -53,6 +53,7 @@ function sessionView(): RefinerySessionView {
       rewrite: { kind: "fixed", mode: "balanced" },
       analyze: { kind: "fixed", mode: "full" },
     },
+    rewriteDecisions: {},
     guidance: null,
     iterationCount: 1,
     createdAt: FROZEN_AT,
@@ -97,8 +98,11 @@ function preflight(): TrpcWireOutput<"refinery.preflight"> {
   };
 }
 
-function baseRoutes(): TrpcRoutes<"refinery.getSession" | "refinery.preflight" | "refinery.listSchemas" | "character.get"> {
+function baseRoutes(): TrpcRoutes<"refinery.getSession" | "refinery.preflight" | "refinery.listSchemas" | "character.get" | "refinery.schemaPlan"> {
   return {
+    // The schema editor's plan line asks this; `null` is the server's own answer for a draft the save belt
+    // refuses, so the line renders its settled "no plan" state rather than an unfed read.
+    "refinery.schemaPlan": () => null,
     "refinery.getSession": sessionView,
     "refinery.preflight": preflight,
     "refinery.listSchemas": schemaLibrary,

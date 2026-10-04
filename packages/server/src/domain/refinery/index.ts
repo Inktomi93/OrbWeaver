@@ -5,7 +5,13 @@
 // ownerId on refinery tables); `characters.*` is written ONLY through injected character ops (F6).
 
 export type { RefineryContext } from "./context.ts";
-export { RefineryOutputBudgetError, RefineryRoundInFlightError, RefineryRunFailedError, RefineryStageNotReadyError } from "./contract/errors.ts";
+export {
+  RefineryOutputBudgetError,
+  RefineryRoundInFlightError,
+  RefineryRunFailedError,
+  RefinerySessionCompletedError,
+  RefineryStageNotReadyError,
+} from "./contract/errors.ts";
 export type {
   AcceptedField,
   ApplyAsCopyParams,

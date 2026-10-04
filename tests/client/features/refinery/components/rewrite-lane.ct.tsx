@@ -15,8 +15,14 @@ import type { Page } from "@playwright/test";
 import { RewriteLaneStory } from "../_ct-stories.tsx";
 
 const ENTRIES: readonly ReviewEntry[] = [
-  { entry: { field: "description", text: "A rewritten description." }, live: "The live description.", original: "The live description.", diverged: false },
-  { entry: { field: "personality", text: "Wry and patient." }, live: "Wry.", original: "Wry.", diverged: false },
+  {
+    entry: { field: "description", text: "A rewritten description." },
+    live: "The live description.",
+    original: "The live description.",
+    diverged: false,
+    payloadIndex: 0,
+  },
+  { entry: { field: "personality", text: "Wry and patient." }, live: "Wry.", original: "Wry.", diverged: false, payloadIndex: 1 },
 ];
 
 const KEEP_DESCRIPTION = /^Keep description$/;

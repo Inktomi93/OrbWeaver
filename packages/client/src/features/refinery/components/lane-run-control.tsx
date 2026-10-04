@@ -68,8 +68,8 @@ export interface LaneRunControlProps {
   readonly warnHoisted?: boolean;
 }
 
-/** The fit readout: both directions, ceilings included where resolved, the ⚠ on either overrun. */
-function FitLine({ stagePre, contextTokens, warn }: { stagePre: StagePreflightView; contextTokens: number | null; warn: boolean }): ReactElement {
+/** The fit readout of a stage that would not fit: both directions, ceilings included where resolved. */
+function FitLine({ stagePre, contextTokens }: { stagePre: StagePreflightView; contextTokens: number | null }): ReactElement {
   return (
     // NEVER `truncate`, and never shrinkable: a rail is 15rem and the readout is ~34 characters, so
     // shrinking it ellipsed the OUT half away ("in ≈ 2736 / 8000 · out ≈ 1490…") — half a budget line is
@@ -85,7 +85,7 @@ function FitLine({ stagePre, contextTokens, warn }: { stagePre: StagePreflightVi
     <Text className="whitespace-nowrap" data-testid={testId("refineryFitLine")} voice="gloss">
       in ≈ {stagePre.inputEstimate}
       {contextTokens === null ? "" : ` / ${contextTokens}`} · out ≈ {stagePre.outputEstimate}
-      {stagePre.maxOutputTokens === null ? "" : ` / ${stagePre.maxOutputTokens}`} tok{warn ? " ⚠" : ""}
+      {stagePre.maxOutputTokens === null ? "" : ` / ${stagePre.maxOutputTokens}`} tok ⚠
     </Text>
   );
 }
@@ -160,7 +160,9 @@ export function LaneRunControl({
           verb cannot share one line's slack there, and the verb is the thing that must never shrink under
           its own label (the run-bar overlap this exact pair produced at 3-pane width, side-eye P1). */}
       <Row align="center" className="flex-wrap" gap="field">
-        {stagePre === undefined ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} warn={warn.message !== null} />}
+        {/* Token arithmetic is shown only when it is the reason to act (this stage would not fit): on a run
+            that fits, "in ≈ 517 / 1048576" is jargon with nothing to do about it. */}
+        {stagePre === undefined || warn.message === null ? null : <FitLine contextTokens={contextTokens} stagePre={stagePre} />}
         <Row className="flex-1 justify-end" gap="field">
           {/* THE NON-FOCAL LANES RECEDE (#1256, 2026-09-02 — the #1141/#1244/#1249 fork, fourth instance).
               242bfaecb (#969) flipped `secondary` to `text-current`, so a non-focal lane's Run button now

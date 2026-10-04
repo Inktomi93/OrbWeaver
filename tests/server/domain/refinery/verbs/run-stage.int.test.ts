@@ -376,6 +376,38 @@ test("a null reaching the parse is the model's error, retried once: the structur
   expect(run.strippedKeys).toEqual([]);
 });
 
+test("a model greetingIndex on a non-greetings rewrite entry is stripped at the parse and itemized; a greetings slot keeps its index", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_rs_gi" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "rs-card-gi");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  await h.svc.updateSession({
+    principal: principal(owner),
+    sessionId: session.id,
+    patch: { selection: { fields: ["description", "personality", "greetings"] } },
+  });
+
+  h.queueReply(
+    JSON.stringify({
+      fields: [
+        { field: "description", greetingIndex: 0, text: "richer records" },
+        { field: "personality", greetingIndex: 9, cleared: true },
+        { field: "greetings", greetingIndex: 0, text: "Hello again." },
+      ],
+    }),
+  );
+  const run = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  expect(run.payload).toEqual({
+    fields: [
+      { field: "description", text: "richer records" },
+      { field: "personality", cleared: true },
+      { field: "greetings", greetingIndex: 0, text: "Hello again." },
+    ],
+  });
+  expect(run.strippedKeys).toEqual(["fields.0.greetingIndex", "fields.1.greetingIndex"]);
+});
+
 test("a double schema failure is the typed RETRYABLE refusal — no run row, no stamp (never a fallback write)", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_rs_h" });

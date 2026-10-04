@@ -21,10 +21,11 @@
 // walking back would strand a user on a superseded run forever without an explicit verb, so "Back to
 // latest" ships beside the chip that announces the walk.
 
+import { modelDisplayName } from "@orb/kit/model-name";
 import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
-import { Heading } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
 import { RefineryChip } from "./refinery-chip.tsx";
@@ -45,6 +46,21 @@ export function LaneBand({ kicker, children }: LaneBandProps): ReactElement {
       <Separator className="flex-1" />
       {children}
     </Row>
+  );
+}
+
+/** The model that produced THIS lane's result — each stage can run on a different model, so the credit
+ *  rides the result, not the session. A readable name; the full identifier (a local weights path can run
+ *  past 100 characters) rides `title` only when the derivation shortened it. Nothing for a hand-authored run. */
+export function RunModelCredit({ model }: { readonly model: string | null }): ReactElement | null {
+  if (model === null) {
+    return null;
+  }
+  const shown = modelDisplayName(model);
+  return (
+    <Text as="span" voice="credit" {...(shown === model ? {} : { title: model })}>
+      {shown}
+    </Text>
   );
 }
 

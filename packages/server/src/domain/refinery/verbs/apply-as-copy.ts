@@ -12,7 +12,8 @@
 // must not stamp a newer run describing different content) — they describe exactly the copy's content
 // (§17's carry decision; unlike the handoff-clear precedent, where the signals described someone else's
 // critique). The session stays anchored to the ORIGINAL character (a card is canon, not a pipeline
-// artifact) and flips to completed like any terminal act.
+// artifact) and stays ACTIVE: a copy is a branch, not the commit, so it neither sets nor honours the
+// live-card apply lock (`completed`).
 
 import { updateCharacterSchema } from "@orb/contracts/character";
 import { REFINERY_STAGE_PAYLOADS, refineryCustomRunConfigSchema, refinerySessionNameSchema } from "@orb/contracts/refinery";
@@ -34,7 +35,7 @@ export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyA
     // arm (the shared preamble resolver).
     const { session, liveCard, applied, dropped, chosen, rewriteRunCutoff } = await resolveApplyBasis(ctx, { ownerId, sessionId, rewriteRunId, accepts });
     if (chosen.length === 0) {
-      // Every accept died on the belts — no copy is minted for nothing (the honest zero-write arm).
+      // An accept died on the belts — the apply is all-or-nothing, so no copy is minted (the zero-write arm).
       return { applied, dropped, character: null };
     }
 
@@ -63,8 +64,8 @@ export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyA
       await ctx.stampRefinerySignals({ ownerId, characterId: duplicated.id, patch: { analysis: analysis.data } });
     }
 
-    // The terminal act completes the session — anchored to the ORIGINAL character, untouched.
-    await ctx.db.update(refinerySessions).set({ status: "completed", updatedAt: ctx.now() }).where(eq(refinerySessions.id, sessionId));
+    // A branch, not the commit: the session stays as it was (status untouched), only its freshness moves.
+    await ctx.db.update(refinerySessions).set({ updatedAt: ctx.now() }).where(eq(refinerySessions.id, sessionId));
     // The refinery half only — the NEW card's arrival already fanned `charactersChanged` through
     // `duplicate`/`update`. The zero-write arm returned above (no copy, no session flip, nothing to announce).
     ctx.emitUserEvent(ownerId, { type: "refineryChanged", sessionId });

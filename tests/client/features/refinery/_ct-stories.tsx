@@ -553,7 +553,8 @@ export function LaneRunControlStory({ stage, running, width }: LaneRunControlSto
           model: castId<ModelId>("test-model"),
           temperature: null,
           maxOutputTokens: 4096,
-          inputEstimate: 2736,
+          // Over the 8000-token context: the fit line renders only for a stage that would not fit.
+          inputEstimate: 12_000,
           outputEstimate: 1490,
         }}
       />
@@ -599,7 +600,7 @@ export function RewriteLaneStory({ entries, empty = false }: RewriteLaneStoryPro
   // Exactly what the lane READS off a run (`RewriteLaneProps["run"]` is the narrowed view): its round, its
   // stage and the provenance its band prints. The reviewable entries arrive on their own prop — the surface
   // joins the payload against the live card and the session pin before the lane ever sees it.
-  const run: NonNullable<RewriteLaneProps["run"]> = { iteration: 1, stage: "rewrite", payloadConfig: { kind: "fixed", mode: "balanced" } };
+  const run: NonNullable<RewriteLaneProps["run"]> = { iteration: 1, model: null, stage: "rewrite", payloadConfig: { kind: "fixed", mode: "balanced" } };
   return (
     <RewriteLane
       behind={null}

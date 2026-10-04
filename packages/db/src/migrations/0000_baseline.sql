@@ -1130,6 +1130,7 @@ CREATE TABLE `refinery_sessions` (
 	`stage_config` text NOT NULL,
 	`guidance` text,
 	`iteration_count` integer DEFAULT 0 NOT NULL,
+	`rewrite_decisions` text DEFAULT '{}' NOT NULL,
 	`inflight_until` integer,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,

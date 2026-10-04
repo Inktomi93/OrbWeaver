@@ -1,90 +1,50 @@
 // The apply/save-as-copy verb row (extracted from the content surface under the component-size cap) —
 // the TERMINAL acts: apply is the ONE live-card write (snapshot-first, belt 13), save-as-copy is its
-// branch-off twin (no snapshot by construction). Owns its two mutations; the parent only receives the
-// OUTCOME (which flips §20b's draft line to written).
+// branch-off twin (no snapshot by construction). The acts are the workbench's ONE `useTerminalActs`
+// instance, handed in, so a recovery in flight disables these buttons too.
 
-import type { RefinerySessionId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
-import { setRefineryArmedRewrite } from "#state";
-import { useApplyRefineryAsCopy, useApplyRefineryFields } from "../hooks/use-refinery-mutations.ts";
+import type { TerminalActs } from "../hooks/use-terminal-acts.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
 
 // Re-derived locally from the wire (§7.4 — never an exported alias).
-type ApplyWire = inferOutput<Trpc["refinery"]["applyFields"]>;
 type KeptAccept = inferInput<Trpc["refinery"]["applyFields"]>["accepts"][number];
 type RunView = inferOutput<Trpc["refinery"]["listRuns"]>[number];
 
-/** The apply outcome the parent renders (§20a's itemized panel feed). */
-export interface OutcomeState {
-  readonly applied: ApplyWire["applied"];
-  readonly dropped: ApplyWire["dropped"];
-  readonly snapshotLabel: string | null;
-  readonly copyName?: string;
-}
-
 export interface ApplyRowProps {
-  readonly sessionId: RefinerySessionId;
   readonly keptAccepts: readonly KeptAccept[];
   readonly armedRewrite: RunView | null;
-  readonly armedRewriteId: string | null;
-  readonly onOutcome: (outcome: OutcomeState) => void;
+  /** The workbench's shared terminal acts (one pending flag for every terminal control). */
+  readonly acts: TerminalActs;
+  /** The session's rewrite already landed on the live card — Apply is locked until a stage run re-opens it.
+   *  Save as copy stays available: a copy is a branch, not the commit. */
+  readonly completed: boolean;
 }
 
-export function ApplyRow({ sessionId, keptAccepts, armedRewrite, armedRewriteId, onOutcome }: ApplyRowProps): ReactElement {
-  const trpc = useTRPC();
-  const invalidation = useInvalidation();
-  const deps = { trpc, invalidation };
-  const apply = useApplyRefineryFields(deps);
-  const applyAsCopy = useApplyRefineryAsCopy(deps);
+export function ApplyRow({ keptAccepts, armedRewrite, acts, completed }: ApplyRowProps): ReactElement {
+  const appliedNoteId = useId();
+  const unsendable = acts.pending || keptAccepts.length === 0;
   return (
-    <Row gap="row" justify="end">
+    <Row align="center" className="flex-wrap" gap="row" justify="end">
+      {completed ? (
+        <Text id={appliedNoteId} voice="gloss">
+          Applied. Run a stage to start another round.
+        </Text>
+      ) : null}
       {armedRewrite !== null ? <RefineryChip tone="good">applying round {armedRewrite.iteration}'s rewrite</RefineryChip> : null}
-      <Button
-        disabled={applyAsCopy.isPending || apply.isPending || keptAccepts.length === 0}
-        intent="secondary"
-        onClick={(): void =>
-          applyAsCopy.mutate(
-            { sessionId, accepts: [...keptAccepts], ...(armedRewriteId === null ? {} : { rewriteRunId: castId(armedRewriteId) }) },
-            {
-              onSuccess: (result): void => {
-                onOutcome({
-                  applied: result.applied,
-                  dropped: result.dropped,
-                  snapshotLabel: null,
-                  ...(result.character === null ? {} : { copyName: result.character.name }),
-                });
-                setRefineryArmedRewrite(null);
-              },
-            },
-          )
-        }
-        size="sm"
-      >
+      <Button disabled={unsendable} intent="secondary" onClick={(): void => acts.run("copy", keptAccepts)} size="sm">
         Save as copy
       </Button>
       <Button
-        disabled={apply.isPending || applyAsCopy.isPending || keptAccepts.length === 0}
-        onClick={(): void =>
-          apply.mutate(
-            { sessionId, accepts: [...keptAccepts], ...(armedRewriteId === null ? {} : { rewriteRunId: castId(armedRewriteId) }) },
-            {
-              onSuccess: (result): void => {
-                onOutcome({
-                  applied: result.applied,
-                  dropped: result.dropped,
-                  snapshotLabel: result.snapshotId === null ? null : `auto: before refinery apply · ${sessionId}`,
-                });
-                setRefineryArmedRewrite(null);
-              },
-            },
-          )
-        }
+        {...(completed ? { "aria-describedby": appliedNoteId } : {})}
+        disabled={completed || unsendable}
+        onClick={(): void => acts.run("apply", keptAccepts)}
         size="sm"
       >
         Apply {keptAccepts.length} kept
