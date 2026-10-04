@@ -335,6 +335,12 @@ test("sampler order: no stated stages drops it; stated stages complete it and na
   expect(ordered.warnings.find((w) => w.knob === "samplerOrder")?.message).toContain("xtc");
 });
 
+test("sampler order: adaptive-P stored mid-chain resolves last, the place the server runs it", () => {
+  const llama = generation({ sampling: { samplerOrder: ["penalties", "topK", "temperature", "adaptiveP"], adaptiveTarget: { min: 0, max: 1 } } });
+  const knobs = resolveChat({ samplerOrder: ["adaptiveP", "temperature", "topK"], adaptiveTarget: 0.5 } satisfies UserIntent, llama);
+  expect(knobs.sampling.samplerOrder).toEqual(["temperature", "topK", "penalties", "adaptiveP"]);
+});
+
 test("an unset sampler order sends nothing and warns about nothing, even where the server orders stages", () => {
   const knobs = resolveChat({} satisfies UserIntent, generation({ sampling: { samplerOrder: ["topK", "temperature"] } }));
   expect(knobs.sampling.samplerOrder).toBeUndefined();

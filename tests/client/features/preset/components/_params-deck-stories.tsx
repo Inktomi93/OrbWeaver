@@ -134,6 +134,37 @@ export function ParamsDeckStaleStory(): ReactElement {
   return <DeckHarness effective={STALE_EFFECTIVE} params={{ topA: 0.2 }} />;
 }
 
+// A llama.cpp-shaped sampler set: an order whose last stage is adaptive-P, and the knobs its Mirostat branch skips.
+const LLAMA_MIROSTAT_CAPABILITY = makeGenerationCapability({
+  sampling: {
+    temperature: { min: 0, max: 5 },
+    topP: { min: 0, max: 1 },
+    topK: { min: 0, max: 200 },
+    mirostatMode: { min: 0, max: 2 },
+    mirostatTau: { min: 0, max: 10 },
+    samplerOrder: ["penalties", "topK", "topP", "temperature", "adaptiveP"],
+    mirostatSkips: ["topP", "topK"],
+  },
+  output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] },
+  context: { window: 32_768 },
+});
+
+/** Mirostat 2 is on, and the stored order put adaptive-P first: the server runs it last, and skips top-p and top-k. */
+export function ParamsDeckMirostatStory(): ReactElement {
+  return (
+    <DeckHarness
+      capability={LLAMA_MIROSTAT_CAPABILITY}
+      effective={{
+        model: "qwen3-8b",
+        knobs: { mirostatMode: { value: 2, provenance: "explicit" }, topP: { value: 0.95, provenance: "serverDefault" } },
+        stale: [],
+        qualityMapping: null,
+      }}
+      params={{ mirostatMode: 2, samplerOrder: ["adaptiveP", "temperature", "topK"] }}
+    />
+  );
+}
+
 /** The deck while the capability read is still PENDING (no descriptor, no error) — the gate's skeleton arm,
  *  with QUALITY/CONTEXT/ADVANCED still live. This used to be the "no model" story, but a settled read with no
  *  descriptor does not exist: `connection.resolveChatCapability` returns a REQUIRED descriptor or throws, so

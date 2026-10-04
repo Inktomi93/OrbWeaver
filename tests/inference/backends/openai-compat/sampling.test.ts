@@ -206,6 +206,62 @@ test("KoboldCpp: its own spellings, no frequency penalty, and the order as sampl
   expect(droppedKnobs(turn).toSorted()).toEqual(["frequencyPenalty", "minKeep", "samplerOrder"]);
 });
 
+/** KoboldCpp's repetition penalty as its chat route reads it: the largest of its three spellings, each missing one
+ *  counting as 1 (koboldcpp.py transform_genparams 4654-4657, run on both its legacy and batched paths). */
+function koboldRepetitionPenalty(body: Record<string, unknown>): number {
+  return Math.max(...["rep_pen", "repeat_penalty", "repetition_penalty"].map((key) => (typeof body[key] === "number" ? body[key] : 1)));
+}
+
+const KOBOLD_PENALTY_KEYS = ["rep_pen", "repeat_penalty", "repetition_penalty"] as const;
+
+test("KoboldCpp: a repetition penalty below 1 rides all three spellings, so the server keeps it", async () => {
+  const { body } = await turnBody("koboldcpp", { repetitionPenalty: 0.8 });
+  expect(KOBOLD_PENALTY_KEYS.map((key) => body[key])).toEqual([0.8, 0.8, 0.8]);
+  expect(koboldRepetitionPenalty(body)).toBe(0.8);
+  expect(koboldRepetitionPenalty((await turnBody("koboldcpp", { repetitionPenalty: 1.2 })).body)).toBe(1.2);
+});
+
+/** A KoboldCpp row whose user body carries `transport`/`extras`, for the chat turn and a side-generation call. */
+function koboldRow(over: { readonly extras?: Record<string, number>; readonly includeBody?: Record<string, number> }): OpenAiCompatChatRequest["connection"] {
+  const base = chatRequest("koboldcpp", {}).connection;
+  return {
+    ...base,
+    ...(over.extras === undefined ? {} : { extras: over.extras }),
+    ...(over.includeBody === undefined ? {} : { transport: { includeBody: over.includeBody } }),
+  };
+}
+
+test("KoboldCpp: a penalty spelling the user's own body sets stands alone, on a chat turn and a side-generation call", async () => {
+  const sent = async (connection: OpenAiCompatChatRequest["connection"]): Promise<readonly Record<string, unknown>[]> => {
+    const chat: RecordedRequest[] = [];
+    await runOpenAiCompatChatTurn(
+      { ...chatRequest("koboldcpp", { repetitionPenalty: 1.2 }), connection },
+      { now: () => NOW, log: silentLog(), transport: { fetch: scriptedSseFetch([openAiTextStream("ok")], chat), app: APP }, tokens: memoryTokenLexicon() },
+    );
+    const batch: RecordedRequest[] = [];
+    await runOpenAiCompatSummarize(
+      { connection: { ...connection, task: "summarize" }, inputs: [{ systemPrompt: "Sum.", userPrompt: "Text." }], repetitionPenalty: 1.2, signal: undefined },
+      {
+        now: () => NOW,
+        log: silentLog(),
+        transport: { fetch: scriptedJsonFetch([COMPLETION], batch), app: APP },
+        normalize: passthroughImageNormalizer,
+      },
+    );
+    return [chat[0]?.body ?? {}, batch[0]?.body ?? {}];
+  };
+  // The preset asks 1.2; the user's lower value is what runs, where ours on the other two spellings would win the
+  // server's maximum. Their body is sent as written: a single spelling below 1 is the server's to read as 1.
+  for (const body of await sent(koboldRow({ extras: { ["rep_pen"]: 1.05 } }))) {
+    expect(KOBOLD_PENALTY_KEYS.filter((key) => key in body)).toEqual(["rep_pen"]);
+    expect(koboldRepetitionPenalty(body)).toBe(1.05);
+  }
+  for (const body of await sent(koboldRow({ includeBody: { ["repeat_penalty"]: 1.1 } }))) {
+    expect(KOBOLD_PENALTY_KEYS.filter((key) => key in body)).toEqual(["repeat_penalty"]);
+    expect(koboldRepetitionPenalty(body)).toBe(1.1);
+  }
+});
+
 test("Ollama (native /api/chat): every knob its options take rides in `options` under Ollama's names", async () => {
   const { body, turn } = await turnBody("ollama", EVERY_SAMPLER);
   expect(body["options"]).toMatchObject({

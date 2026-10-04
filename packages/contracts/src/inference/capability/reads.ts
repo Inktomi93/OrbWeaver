@@ -9,7 +9,15 @@ import type { CapabilityRequirement } from "../tasks.ts";
 import type { Capability } from "./capability.ts";
 import type { EmbeddingCapability } from "./embedding.ts";
 import type { EstimableTurn, GenerationCapability, ReasoningOffMode, ReasoningReplayMode, RoleHandling, SamplerStage, UserRoleHandling } from "./generation.ts";
-import { CACHE_MIN_FLOOR, REASONING_OFF_DEFAULT, REASONING_REPLAY_FLOOR, ROLE_HANDLING, TURNS_FLOOR, USER_ROLE_HANDLING } from "./generation.ts";
+import {
+  CACHE_MIN_FLOOR,
+  REASONING_OFF_DEFAULT,
+  REASONING_REPLAY_FLOOR,
+  ROLE_HANDLING,
+  TERMINAL_SAMPLER_STAGES,
+  TURNS_FLOOR,
+  USER_ROLE_HANDLING,
+} from "./generation.ts";
 import type { RerankCapability } from "./rerank.ts";
 
 /** Does this generation model accept/produce a modality on the named side? */
@@ -255,8 +263,10 @@ function missingForRerank(cap: RerankCapability, requires: CapabilityRequirement
 
 /** The order a server runs for a preset's `samplerOrder` (D295): the preset's stages this server orders, in
  *  the preset's order, then the server's other stages in its own default order, so a preset written against
- *  another server never switches a sampler off. The funnel sends it and the editor shows it. */
+ *  another server never switches a sampler off. A stage that picks the token ({@link TERMINAL_SAMPLER_STAGES}) runs
+ *  last wherever the preset put it. The funnel sends it and the editor shows it. */
 export function completeSamplerOrder(wanted: readonly SamplerStage[] | undefined, orderable: readonly SamplerStage[]): readonly SamplerStage[] {
-  const kept = (wanted ?? []).filter((stage) => orderable.includes(stage));
-  return [...kept, ...orderable.filter((stage) => !kept.includes(stage))];
+  const movable = orderable.filter((stage) => !TERMINAL_SAMPLER_STAGES.includes(stage));
+  const kept = (wanted ?? []).filter((stage) => movable.includes(stage));
+  return [...kept, ...movable.filter((stage) => !kept.includes(stage)), ...orderable.filter((stage) => TERMINAL_SAMPLER_STAGES.includes(stage))];
 }

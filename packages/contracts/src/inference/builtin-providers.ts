@@ -193,6 +193,8 @@ export const BUILTIN_PROVIDER_ROWS = [
         mirostatMode: "mirostat_mode",
         banEos: "ban_eos_token",
       },
+      // transform_genparams keeps the largest of the three penalty spellings, a missing one counting as 1.
+      samplerAliases: { repetitionPenalty: ["rep_pen", "repeat_penalty"] },
       samplerOrder: "koboldcpp",
       tokenizeApi: "koboldcpp",
       reasoningBudgetField: "thinking_budget_tokens",

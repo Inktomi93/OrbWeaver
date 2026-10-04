@@ -68,4 +68,10 @@ describe("completeSamplerOrder — the order a server runs for a preset's (D295)
   test("no preset order is the server's own default order", () => {
     expect(completeSamplerOrder(undefined, server)).toStrictEqual(server);
   });
+
+  // llama.cpp appends adaptive-P after the chain whatever its place in `samplers` (common/sampling.cpp).
+  test("a stage that picks the token runs last wherever the preset put it", () => {
+    const llama = ["penalties", "dry", "topK", "topP", "temperature", "adaptiveP"] as const;
+    expect(completeSamplerOrder(["adaptiveP", "temperature", "topK"], llama)).toStrictEqual(["temperature", "topK", "penalties", "dry", "topP", "adaptiveP"]);
+  });
 });

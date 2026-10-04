@@ -27,11 +27,14 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
+import { MIROSTAT_SKIPPED_GLOSS } from "../../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
 import { makeCapability, makeGenerationCapability, makeResolvedView, TEST_CONNECTION_ID } from "../../../../../support/factories/resolved-connection.ts";
 import type { TrpcResponder, TrpcRoutes, TrpcWireOutput } from "../../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../../support/node/route-trpc.ts";
 import {
   EffectiveProfileFailedStory,
+  EffectiveProfileMirostatStory,
   EffectiveProfileMissingPresetStory,
   EffectiveProfilePendingStory,
   EffectiveProfileSettledStory,
@@ -178,6 +181,14 @@ test("SETTLED — the funnel's own row renders with its provenance rung and the 
   await expect(probe.getByText("32,768", { exact: true })).toBeVisible();
   await expect(probe.getByText(RESOLVED_FOR_RE)).toBeVisible();
   await expect(probe.locator('[data-slot="skeleton"]')).toHaveCount(0);
+});
+
+test("SETTLED under Mirostat — a knob the server's Mirostat branch skips is marked; a knob that runs keeps its rung", async ({ mount }) => {
+  const probe = await mount(<EffectiveProfileMirostatStory />);
+  // Rows are label · value · suffix; the suffix is the only element after the value.
+  const suffixOf = (label: string): Locator => probe.getByText(label, { exact: true }).locator("xpath=following-sibling::*[1]/*[last()]");
+  await expect(suffixOf("top-p")).toHaveText(MIROSTAT_SKIPPED_GLOSS);
+  await expect(suffixOf("temperature")).not.toHaveText(MIROSTAT_SKIPPED_GLOSS);
 });
 
 // ── THE SKELETON'S ONE JOB IS TO NOT MOVE (side-eye 2026-08-08 P2) ──────────────────────────────────────

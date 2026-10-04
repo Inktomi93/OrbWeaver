@@ -184,6 +184,9 @@ export type SamplerStage = (typeof SAMPLER_STAGES)[number];
  *  in `samplers`). Where the server orders that stage, a set knob makes the order ride even when the preset stores
  *  none, so the server's default chain with the stage is sent. */
 export const SAMPLER_KNOB_STAGES: Readonly<Partial<Record<SamplingRangeKnob, SamplerStage>>> = { adaptiveTarget: "adaptiveP" };
+/** A stage that picks the token rather than narrowing the candidates, as a server's final draw does: the server
+ *  runs it after every other stage, wherever an order lists it (llama.cpp common/sampling.cpp appends adaptive-P). */
+export const TERMINAL_SAMPLER_STAGES: readonly SamplerStage[] = ["adaptiveP"];
 export const samplerStageSchema = z.enum(SAMPLER_STAGES) satisfies z.ZodType<SamplerStage>;
 /** A stage order, each stage at most once: a repeat would put one token on the wire twice. The shape a
  *  capability states and a preset stores. */
@@ -206,6 +209,9 @@ export const samplingCapabilitySchema = z.object({
   banEos: z.boolean().optional(),
   samplerOrder: samplerOrderSchema.optional(),
   exclusive: z.array(z.tuple([z.string(), z.string()])).optional(),
+  /** The knobs this server's Mirostat branch does not run: while `mirostatMode` is on, Mirostat replaces them. They
+   *  still ride, so the editor and the readout mark them rather than drop them. Absent ⇒ unstated. */
+  mirostatSkips: z.array(z.enum(SAMPLER_KNOBS)).optional(),
 });
 export type SamplingCapability = z.infer<typeof samplingCapabilitySchema>;
 

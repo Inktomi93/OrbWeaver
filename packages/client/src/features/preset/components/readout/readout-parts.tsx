@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SkeletonRows } from "#data";
 import type { EffectiveProfileRow } from "../../lib/effective-knobs.ts";
-import { knobLabel, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
+import { knobLabel, MIROSTAT_SKIPPED_GLOSS, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
 import { formatCount } from "../../lib/format-count.ts";
 import { PARAMS_VIEW_LABEL } from "../../lib/preset-nav.ts";
 import { resolveFailureCopy, resolveFailureMessage } from "../../lib/resolve-failure.ts";
@@ -72,6 +72,14 @@ export function DatumRow({ label, value, suffix, valueTitle }: DatumRowProps): R
  *  a value bar on one text-height line, stacked on `tight`), so pending and settled are the same box. */
 const PENDING_ROWS = 4;
 
+// A knob the server skips this turn says so in place of the rung that produced its value.
+function readingSuffix(knob: string, reading: EffectiveProfileRow["knobs"][string], skipped: ReadonlySet<string> | undefined): string | null {
+  if (skipped?.has(knob) === true) {
+    return MIROSTAT_SKIPPED_GLOSS;
+  }
+  return reading === undefined ? null : provenanceSuffix(reading.provenance);
+}
+
 /** The resolved generation profile — the funnel's OWN output (§4.3), never a client re-derivation.
  *
  *  PENDING IS NOT AN EMPTY STATE (the F-02 class, applied here 2026-08-07 — the same fix `CapabilityGate`
@@ -97,8 +105,11 @@ export function EffectiveProfile({
   onRetry,
   contextWindow,
   subject,
+  skipped,
 }: {
   readonly effective: EffectiveProfileRow | undefined;
+  /** The knobs the server will not run this turn (`mirostatSkipped`): their rows say so in place of a rung. */
+  readonly skipped?: ReadonlySet<string> | undefined;
   /** What the profile was resolved against, as the signature line names it (`chat role`, a connection's name). */
   readonly subject: string;
   /** The resolve's THROWN error — `null` while the read is still PENDING. With `effective` undefined those
@@ -142,12 +153,7 @@ export function EffectiveProfile({
           {/* DISPLAY names, never the schema key (side-eye F-13): the read is keyed by `maxOutputTokens`,
               the reader wants "max output". */}
           {rows.map(([knob, reading]) => (
-            <DatumRow
-              key={knob}
-              label={knobLabel(knob)}
-              suffix={reading === undefined ? null : provenanceSuffix(reading.provenance)}
-              value={formatKnobValue(reading?.value)}
-            />
+            <DatumRow key={knob} label={knobLabel(knob)} suffix={readingSuffix(knob, reading, skipped)} value={formatKnobValue(reading?.value)} />
           ))}
           {contextWindow === undefined ? null : <DatumRow label={knobLabel("maxContextTokens")} suffix="window" value={formatKnobValue(contextWindow)} />}
         </Stack>

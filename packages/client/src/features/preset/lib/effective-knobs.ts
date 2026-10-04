@@ -54,6 +54,16 @@ const KNOB_LABELS: Readonly<Record<string, string>> = {
   banEos: "ban end of reply",
 };
 
+/** What a knob's row says while the server's Mirostat branch replaces it: the value still rides, and nothing runs it. */
+export const MIROSTAT_SKIPPED_GLOSS = "not run while Mirostat is on";
+
+/** The knobs the server will not run this turn because the effective Mirostat mode is on: the capability's own
+ *  list for this server (`sampling.mirostatSkips`), read against the funnel's resolved mode. */
+export function mirostatSkipped(effective: EffectiveProfileRow | undefined, skips: readonly string[] | undefined): ReadonlySet<string> {
+  const mode = effective?.knobs["mirostatMode"]?.value;
+  return typeof mode === "number" && mode > 0 ? new Set(skips ?? []) : new Set();
+}
+
 /** The read's rung for a value the server advertised for a knob the preset leaves unset. */
 const SERVER_DEFAULT = "serverDefault";
 const SERVER_DEFAULT_GLOSS = "server default";

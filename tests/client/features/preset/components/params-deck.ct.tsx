@@ -20,6 +20,7 @@ import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import { MIROSTAT_SKIPPED_GLOSS } from "../../../../../packages/client/src/features/preset/lib/effective-knobs.ts";
 import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav.ts";
 import { boxWithBeforeFloor, resolveSpacingPxIn } from "../../../../support/browser/touch-floor.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
@@ -32,6 +33,7 @@ import {
   ParamsDeckExplicitStory,
   ParamsDeckGhostStory,
   ParamsDeckLogitBiasSwitchStory,
+  ParamsDeckMirostatStory,
   ParamsDeckNoBansStory,
   ParamsDeckPendingCapabilityStory,
   ParamsDeckStaleKoboldStory,
@@ -221,6 +223,28 @@ test("F-21 — the provenance gloss BELONGS to its row: both modalities point ar
 
   // A row with NO gloss claims none, rather than pointing at an empty node.
   await expect(deck.getByRole("slider", { name: "Min-P", exact: true })).not.toHaveAttribute("aria-describedby", ANY);
+});
+
+// llama.cpp appends adaptive-P after the chain whatever its place, and its Mirostat branch runs temperature alone.
+test("MIROSTAT + ORDER — adaptive-P shows fixed after the movable stages, and a knob Mirostat skips says so", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckMirostatStory />);
+
+  const order = deck.getByRole("list", { name: "Sampler order", exact: true });
+  await expect(order.getByRole("listitem")).toHaveCount(4);
+  await expect(order.getByText("Adaptive-P", { exact: true })).toHaveCount(0);
+  // The stored order leads with temperature and top-k; the token-picking stage sits after every movable row.
+  await expect(order.getByRole("listitem").first()).toContainText("Temperature");
+  const fixed = deck.locator('[data-fixed-stage="adaptiveP"]');
+  await expect(fixed).toBeVisible();
+  const listBottom = await order.evaluate((node) => node.getBoundingClientRect().bottom);
+  await expect.poll(() => fixed.evaluate((node) => node.getBoundingClientRect().top)).toBeGreaterThanOrEqual(listBottom);
+
+  // Top-p and top-k are skipped while Mirostat is on, and their rows carry the note; temperature still runs.
+  for (const label of ["Top-P", "Top-K"]) {
+    const glossId = await deck.getByRole("slider", { name: label, exact: true }).getAttribute("aria-describedby");
+    await expect(deck.locator(`#${glossId ?? ""}`)).toHaveText(MIROSTAT_SKIPPED_GLOSS);
+  }
+  await expect(deck.getByRole("slider", { name: "Temperature", exact: true })).not.toHaveAttribute("aria-describedby", ANY);
 });
 
 test("RESET is INERT while a row is inherited — no stray affordance, no focus stop", async ({ mount }) => {

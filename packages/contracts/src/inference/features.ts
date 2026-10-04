@@ -175,6 +175,11 @@ export const endpointFeaturesSchema = z.object({
    *  reads `repeat_penalty`; KoboldCpp reads `typical`, `nsigma`, `rep_pen_range`, and on its OpenAI route
    *  only `mirostat_mode`). Folds key by key. */
   samplerKeys: z.partialRecord(z.enum(SAMPLER_KNOBS), z.string().min(1)).optional(),
+  /** Further keys a sampler also rides under, on a server that reads several spellings and keeps the largest:
+   *  KoboldCpp's chat route takes the repetition penalty as the maximum of `rep_pen`, `repeat_penalty` and
+   *  `repetition_penalty`, each missing one counting as 1, so a value below 1 holds only when all three carry it
+   *  (koboldcpp.py transform_genparams). A key the user's own body sets stands alone. */
+  samplerAliases: z.partialRecord(z.enum(SAMPLER_KNOBS), z.array(z.string().min(1)).min(1)).optional(),
   /** The sampler-order vocabulary this server reads ({@link SAMPLER_ORDER_TOKENS}). */
   samplerOrder: z.enum(SAMPLER_ORDER_SPELLINGS).optional(),
   /** How the phrase ban rides ({@link BANNED_STRINGS_SPELLINGS}); absent ⇒ `list`. */

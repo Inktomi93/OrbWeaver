@@ -16,6 +16,7 @@ import { useTRPC } from "#data";
 import { CONNECTION_ROLE_LABELS } from "#lib";
 import { CHAT_ROLE_TARGET, effectiveTarget, SWITCHER_ROLES, targetFromValue, targetValue } from "../../lib/capability-target.ts";
 import { chatCapabilityOf } from "../../lib/chat-capability.ts";
+import { mirostatSkipped } from "../../lib/effective-knobs.ts";
 import { CapabilityCard, EffectiveProfile } from "./readout-parts.tsx";
 
 type ConnectionRow = inferOutput<Trpc["connection"]["list"]>[number];
@@ -86,6 +87,7 @@ export function CapabilityPanel({ presetId, footer }: CapabilityPanelProps): Rea
         onRetry={(): void => {
           effective.refetch().catch(() => undefined); // The query's error state owns the retry failure.
         }}
+        skipped={mirostatSkipped(effective.data ?? undefined, chatCapabilityOf(capability.data)?.sampling.mirostatSkips)}
         subject={subjectOf(target)}
       />
       <CapabilityCard capability={chatCapabilityOf(capability.data)} model={effective.data?.model} />

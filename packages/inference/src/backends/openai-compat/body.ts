@@ -7,6 +7,8 @@
 //      `custom_parameters_ignored{key}`; the openrouter transport reads only its modelled keys off extras
 //      and drops the rest loudly.
 //   2. `transport.includeBody` / `excludeBody` — the endpoint's final word, applied AFTER extras (§8.1).
+//   2b. a sampler the row spells several ways (`features.samplerAliases`): where the user's body set or excluded one
+//      spelling, ours on the others are removed, since the server keeps the largest and would outvote theirs.
 //   3. the assistant-image re-attachment (§8.0, verify4 H1): both converters drop an assistant `file` part.
 //   4. the per-participant `name` (neither converter forwards it).
 //   5. the prefill pair (`continue_final_message` + `add_generation_prompt: false`) when the row's folded
@@ -38,7 +40,7 @@
 // Warnings are collected on a per-call sink the caller folds into the turn's `warning` events (D41).
 
 import type { Dialect, EndpointFeatures, ImageDetail } from "@orb/contracts/inference";
-import { isBeltOwnedBodyKey } from "@orb/contracts/inference";
+import { DEFAULT_SAMPLER_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
 import type { JsonValue } from "@orb/kit/json";
 import type { ResolvedWarning } from "../../contract/resolve.ts";
@@ -129,6 +131,20 @@ function mergeExtras(body: Record<string, unknown>, args: ShapeArgs): Record<str
     admitted[key] = value;
   }
   return deepMergeRequestBody(body, admitted);
+}
+
+/** Rule 2b: a sampler spelled several ways, one of which the user's own body settles, keeps only the spellings the
+ *  user owns. */
+function applySamplerAliasOwnership(body: Record<string, unknown>, args: ShapeArgs, owned: ReadonlySet<string>): Record<string, unknown> {
+  const keys: Readonly<Record<string, string>> = { ...DEFAULT_SAMPLER_KEYS, ...args.features.samplerKeys };
+  let out = body;
+  for (const [knob, aliases] of Object.entries(args.features.samplerAliases ?? {})) {
+    const spellings = [keys[knob], ...aliases];
+    if (spellings.some((key) => key !== undefined && owned.has(key))) {
+      out = Object.fromEntries(Object.entries(out).filter(([key]) => owned.has(key) || !spellings.includes(key)));
+    }
+  }
+  return out;
 }
 
 function mediaPart(media: OutboundMedia): Record<string, unknown> {
@@ -378,6 +394,7 @@ export function shapeOutboundBody(raw: Record<string, unknown>, args: ShapeArgs)
   const owned = userOwnedKeys(args);
   let body = mergeExtras(raw, args);
   body = applyIncludeExclude(body, args.transport?.includeBody ?? null, args.transport?.excludeBody ?? null);
+  body = applySamplerAliasOwnership(body, args, owned);
   const rowsOwned = owned.has(MESSAGES_KEY);
   if (args.plan !== null && !rowsOwned) {
     body = reattachRows(body, args.plan, args.warnings);

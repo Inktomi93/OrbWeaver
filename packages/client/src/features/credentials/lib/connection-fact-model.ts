@@ -315,6 +315,9 @@ const QUIRK_LEAF_PATHS: Record<keyof Required<EndpointFeatures>, readonly string
   embedBatch: ["embedBatch.maxTokens", "embedBatch.floorTokensPerSec"],
   requestTimeoutMs: ["requestTimeoutMs"],
   samplerKeys: SAMPLER_KNOBS.map((knob) => `samplerKeys.${knob}`),
+  // Not an editor field: which extra spellings a server folds is the provider row's fact, and a user who wants one
+  // spelling sets it in their own body, where it stands alone.
+  samplerAliases: [],
   samplerOrder: ["samplerOrder"],
   bannedStrings: ["bannedStrings"],
   tokenizeApi: ["tokenizeApi"],
