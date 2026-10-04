@@ -2798,7 +2798,7 @@ for (const direction of [
 test("#112: the rail keeps ONE tab stop with arrow keys inside it — the toolbar's contract, not a lost one", async ({ mount, page }) => {
   // Arm B's stated cost was Base UI's roving focus. It is not paid: the composite that provides it is the
   // LIST, not the `tab` role, so dropping the role leaves the keyboard model untouched. Receipted as a real
-  // traversal — reach the rail by Tab, walk it by Arrow, and prove one more Tab LEAVES it (six cells, one
+  // traversal — reach the rail by Tab, walk it by Arrow, and prove one more Tab LEAVES it (five cells, one
   // stop) rather than stepping to the next cell.
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverReferenceStory />);
@@ -2815,7 +2815,7 @@ test("#112: the rail keeps ONE tab stop with arrow keys inside it — the toolba
   // Still inside the SAME rail — the arrow walked the group, it did not escape it.
   await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[role="toolbar"]')?.getAttribute("aria-label") ?? "")).toBe("Game state");
 
-  // One Tab leaves the whole rail: six cells share a single stop (the #107 tab-budget law still holds).
+  // One Tab leaves the whole rail: five cells share a single stop (the #107 tab-budget law still holds).
   await page.keyboard.press("Tab");
   await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-slot="context-rail"]') !== null)).toBe(false);
 });
@@ -3384,6 +3384,16 @@ test("#102: the kicker's hairline IS the rail's edge — the rule bleeds to the 
   expect(ruleBox.x + ruleBox.width).toBeCloseTo(railBox.x + railBox.width, 0);
   // …and the WORD keeps the band's inline rhythm, which is the half that should stay inset.
   expect(wordBox.x - railBox.x).toBeCloseTo(block, 0);
+});
+
+test("side-eye 08-01: at the panel's 17rem FLOOR the five-cell game rail keeps every caption whole — it scrolls, it does not clip", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverFloorStory />);
+  const list = component.getByRole("toolbar", { name: "Game state" });
+  await expect(list.getByRole("button")).toHaveCount(5);
+
+  const clipped = await list.locator('[data-slot="context-cell-caption"]').evaluateAll((els) => els.filter((el) => el.scrollWidth > el.clientWidth + 1).length);
+  expect(clipped).toBe(0);
 });
 
 // ── HUD-1 H3, THE WAYSTONE COMPACT + THE VERTICAL BUDGET (F6 defect 4's second half) ─────────────────
@@ -4089,7 +4099,7 @@ test("GLYPHFIX: at the 272px floor the tracker-def row's SWATCH and its three gl
 // The pane is composed for the phone now instead of hidden into it: the satellite orbs (whose numbers are
 // tracker rows in Status) stand down at a coarse pointer, each rail's kicker sheds its selection half while
 // keeping the group's name (#102 variant A — the band's floating echo used to be dropped whole here), and
-// the six game cells stay ONE scrollable row. This fences the BUDGET, not the pixel — the assertion is the share of
+// the game cells stay ONE scrollable row. This fences the BUDGET, not the pixel — the assertion is the share of
 // the pane the reading surface gets, so it survives a token retune of the band's padding.
 //
 // The heights are the PRODUCTION panes, not story convenience: 464 is what a 320×568 phone leaves after the
@@ -4184,8 +4194,8 @@ test.describe("coarse HUD budget", () => {
       await stubTakeover(page);
       const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
 
-      // All six cells are present and each caption renders WHOLE — the `auto-cols-max` half of the fix.
-      // (Six is the declared game rail: Status · Inventory · Scene · Quests · Journal · Map.)
+      // All five cells are present and each caption renders WHOLE — the `auto-cols-max` half of the fix.
+      // (The game rail is Status · Inventory · Scene · Quests · Journal while Map is parked.)
       const cells = component.locator('[data-slot="context-rail"]').first().getByRole("button");
       await expect(cells).toHaveCount(5);
       await expect
@@ -4221,7 +4231,7 @@ test.describe("coarse HUD budget", () => {
 });
 
 // ── THE COARSE GAME RAIL'S CELL WIDTH (side-eye 2026-08-07 §① P2) ───────────────────────────────────
-// `pointer-coarse:auto-cols-max` sized the six cells at their CONTENT width, which does two things the
+// `pointer-coarse:auto-cols-max` sized the game cells at their CONTENT width, which does two things the
 // budget fix above never intended. MEASURED at 430 coarse: Status 43 · Inventory 60 · Scene 41 · Quests 46 ·
 // Journal 47 · Map 34 — three of six under the 44px touch floor (D62 P1 / §4b axis 3), and `TabsTab` carries
 // no hit-area pseudo to make up the difference. And the six cells ended at x=302, leaving 127px of DEAD

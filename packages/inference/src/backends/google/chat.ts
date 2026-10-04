@@ -41,7 +41,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
   const { connection } = req;
   const label = `${connection.providerId} chat (${connection.model})`;
   const generation = requireGoogleGeneration(connection);
-  const knobs = resolveChat(req.params, generation);
+  const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [...knobs.warnings];
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
@@ -65,7 +65,7 @@ export async function runGoogleChat(req: GoogleChatRequest, deps: GoogleBackendD
       : withSchemaRejection(providerErrorFromHttp(err, label, secrets), err, { log, model: connection.model, mode: structured.mode, secrets });
   const drain = await runWithPreCommitRetry(
     async (markCommitted) => {
-      const idle = turnAbortSignal(req.signal);
+      const idle = turnAbortSignal(req.signal, connection.features.requestTimeoutMs);
       const commit = (): void => {
         firstDeltaAt ??= deps.now();
         markCommitted();

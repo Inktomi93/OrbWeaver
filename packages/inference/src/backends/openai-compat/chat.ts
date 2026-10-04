@@ -16,7 +16,7 @@ import { z } from "zod";
 import type { ChatHistoryMessage, ChatResult, OpenAiCompatChatRequest } from "../../contract/chat.ts";
 import { ProviderError } from "../../contract/errors.ts";
 import type { RateLimitSnapshot } from "../../contract/events.ts";
-import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract/resolve.ts";
+import type { ResolvedChatKnobs, ResolvedWarning } from "../../contract/resolve.ts";
 import type { Resolved } from "../../contract/resolved.ts";
 import type { AddSpanEvent } from "../../contract/runtime.ts";
 import type { InferenceLog } from "../../deps.ts";
@@ -35,7 +35,7 @@ import { rateLimitCanaryEvent, rateLimitFromHeaders } from "../kit/rate-limit-he
 import { runWithPreCommitRetry } from "../kit/retry.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "../kit/sanitize.ts";
 import { emitTurnSpanEvents } from "../kit/turn-span.ts";
-import { plannedOptions, standardSampling, wireEffortOf } from "../v4/options.ts";
+import { plannedOptions, standardSampling } from "../v4/options.ts";
 import type { WirePlan } from "../v4/prompt.ts";
 import { buildWirePlan, withMessageOptions } from "../v4/prompt.ts";
 import { appliedSampling, DROPPED_SAMPLING_CODES, measuredCostOf, sdkWarnings, toChatResult } from "../v4/result.ts";
@@ -43,11 +43,12 @@ import type { StreamDrain } from "../v4/stream.ts";
 import { drainStream } from "../v4/stream.ts";
 import type { ModelCall, TransportDeps } from "./model.ts";
 import { languageModelFor, providerOptionsKey } from "./model.ts";
+import { compatibleReasoning, isMandatoryReasoningRejection, openRouterReasoning, sendsOpenRouterReasoning } from "./reasoning.ts";
 import { wireSampling } from "./sampling.ts";
 import type { TokenLexicon } from "./tokens.ts";
 import { resolveWordBias } from "./tokens.ts";
 
-const MANDATORY_REASONING_RE = /reasoning is mandatory/iu;
+const MANDATORY_REPLAY_WARNING = "reasoning is mandatory on this endpoint: the turn ran at the model's own effort";
 /** llama.cpp server refuses `tools[]` under `--no-jinja` while its `/props` still reports the template's tool
  *  support, so the reader cannot see it coming; the 400 is the first signal and it must read as the fix. */
 const JINJA_TOOLS_RE = /requires --jinja flag/iu;
@@ -100,13 +101,6 @@ function requireGeneration(connection: Resolved, label: string): GenerationCapab
     });
   }
   return connection.capability.generation;
-}
-
-// True when the upstream 400 is a mandatory-reasoning endpoint rejecting `reasoning.effort:"none"` — the
-// openrouter strip-and-replay-once recovery. The peeled strings never leave this function (no scrub sink).
-function isMandatoryReasoningRejection(error: unknown): boolean {
-  const diag = extractHttpErrorDiagnostic(error, NO_PROVIDER_SECRETS);
-  return MANDATORY_REASONING_RE.test(`${diag.body ?? ""} ${diag.cause ?? ""} ${errorMessage(error)}`);
 }
 
 function upstreamText(error: unknown): string {
@@ -194,70 +188,17 @@ interface TurnShape {
   readonly options: Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal">;
   readonly extraBody: Record<string, unknown>;
   readonly openRouterChat?: ModelCall["openRouterChat"];
+  /** The template kwarg alone spells thinking off on this turn (`compatibleReasoning`). */
+  readonly templateOff?: boolean | undefined;
 }
 
-function openRouterReasoning(reasoning: ResolvedReasoning): JSONObject {
-  if (!reasoning.enabled) {
-    return { effort: REASONING_OFF };
-  }
-  if (reasoning.budgetTokens !== undefined) {
-    return { max_tokens: reasoning.budgetTokens };
-  }
-  // `max` rides verbatim only where it was measured: on the adaptive (Claude) rows OpenRouter forwards it upstream
-  // as `output_config.effort: "max"` (gen-1790144375-ED228ncR3pymYMrZ25L3). Every other model keeps the V4 mapping
-  // it always had (`max` → `xhigh`), because a catalog with no allowlist folds to every level and cannot prove
-  // the upstream takes `max`.
-  if (reasoning.effort === undefined) {
-    return { effort: "high" };
-  }
-  return { effort: reasoning.mode === "adaptive" ? reasoning.effort : wireEffortOf(reasoning.effort) };
-}
-
-// The effort word a row that spells `reasoning_effort` sends. A chosen off spells `none` (the funnel clamps a
-// mandatory model up instead); an unset effort sends nothing, so the model reasons at its own default. A row whose
-// thinking switch is the effort field sends `none` whenever the template must not think, an unset effort included.
-function compatibleEffortWord(reasoning: ResolvedReasoning, switchOff: boolean): LanguageModelV4CallOptions["reasoning"] {
-  if (switchOff) {
-    return REASONING_OFF;
-  }
-  if (reasoning.enabled) {
-    return reasoning.effort === undefined ? undefined : wireEffortOf(reasoning.effort);
-  }
-  return reasoning.offChosen === true ? REASONING_OFF : undefined;
-}
-
-/** The thinking budget under the row's own body field, or a warning and nothing where the row names none. */
-function budgetBody(field: Resolved["features"]["reasoningBudgetField"], reasoning: ResolvedReasoning, warnings: ResolvedWarning[]): Record<string, number> {
-  const budget = reasoning.enabled ? reasoning.budgetTokens : undefined;
-  if (budget === undefined) {
-    return {};
-  }
-  if (field === undefined) {
-    warnings.push({
-      code: "sampling_knob_dropped",
-      knob: "thinkingBudgetTokens",
-      message: "thinkingBudgetTokens ignored: this endpoint's row spells no reasoning-budget field",
-    });
-    return {};
-  }
-  return { [field]: budget };
-}
-
-/** The openai-compatible transport: effort rides V4 `reasoning` iff the row spells `reasoning_effort`; a
- *  budget rides the row's `reasoningBudgetField` where it names one; verbosity rides the SDK's `textVerbosity`
- *  option; the unmodelled sampler knobs ride `providerOptions[name]` under the row's own spelling, which the SDK
- *  spreads into the body. */
+/** The openai-compatible transport: effort and the budget spelled by the row (`reasoning.ts`); verbosity rides the
+ *  SDK's `textVerbosity` option; the unmodelled sampler knobs ride `providerOptions[name]` under the row's own
+ *  spelling, which the SDK spreads into the body. */
 function openAiCompatibleShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings: ResolvedWarning[], key: string): TurnShape {
   const { connection } = req;
   const { knobs, sampling } = turn;
-  const reasoning = knobs.reasoning;
-  const spellsEffort = connection.features.effort === "reasoning_effort";
-  const switchOff = turn.templateThinking === false && connection.features.thinkingOff === "reasoning_effort";
-  const effort = spellsEffort ? compatibleEffortWord(reasoning, switchOff) : undefined;
-  const budget = budgetBody(connection.features.reasoningBudgetField, reasoning, warnings);
-  if (reasoning.enabled && reasoning.effort !== undefined && !spellsEffort) {
-    warnings.push({ code: "effort_dropped", message: "effort ignored: this endpoint's row spells no reasoning-effort field" });
-  }
+  const { word: effort, body: budget, templateOff } = compatibleReasoning(connection.features, knobs.reasoning, turn.templateThinking, warnings);
   const strict = plannedStrict(turn.plan);
   const providerOptions: SharedV4ProviderOptions = {
     [key]: {
@@ -275,6 +216,7 @@ function openAiCompatibleShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, wa
       providerOptions,
     },
     extraBody: parallelToolCallsBody(turn),
+    templateOff,
   };
 }
 
@@ -441,14 +383,13 @@ function openRouterShape(req: OpenAiCompatChatRequest, turn: TurnKnobs, warnings
       : { id: CONTEXT_COMPRESSION_PLUGIN, enabled: false };
   const providerOptions: SharedV4ProviderOptions = {
     [OPENROUTER_KEY]: {
-      // An unset effort sends no reasoning block: the model runs at its own default rather than a hidden off.
-      ...(includeReasoning && (knobs.reasoning.enabled || knobs.reasoning.offChosen === true) ? { reasoning: openRouterReasoning(knobs.reasoning) } : {}),
+      ...(includeReasoning && sendsOpenRouterReasoning(knobs.reasoning) ? { reasoning: openRouterReasoning(knobs.reasoning) } : {}),
       ...(models !== undefined ? { models: [...models] } : {}),
     },
   };
   return {
     options: {
-      ...standardSampling(sampling.v4, knobs.maxOutputTokens),
+      ...standardSampling(sampling.v4, includeReasoning ? knobs.maxOutputTokens : knobs.replayMaxOutputTokens),
       ...plannedOptions(turn.plan),
       providerOptions,
     },
@@ -478,8 +419,9 @@ function isJsonObject(value: unknown): value is JSONObject {
 /** B1: the effort the LAST attempt's options carried, read off the shape (never recomputed from the knobs):
  *  openrouter — `providerOptions.openrouter.reasoning.effort` (`"none"` when off; a budget or the mandatory
  *  replay carries no effort word ⇒ `null`); openai-compatible — the V4 `reasoning` word when the row spells
- *  `reasoning_effort`, else nothing was sent ⇒ `null`. A native route records what its own body carried: Ollama's
- *  `think` as sent, where `false` is off and `true` is on at no level. That is what was asked, not what ran. */
+ *  `reasoning_effort`, `none` where the template kwarg alone spelled thinking off, else nothing was sent ⇒ `null`. A
+ *  native route records what its own body carried: Ollama's `think` as sent, where `false` is off and `true` is on at
+ *  no level. That is what was asked, not what ran. */
 function appliedEffortOf(shape: TurnShape | undefined, dialect: Dialect, nativeBody: Readonly<Record<string, unknown>> | undefined): EffortLevel | null {
   if (nativeBody !== undefined) {
     const think = nativeBody[OLLAMA_THINK_KEY];
@@ -492,7 +434,7 @@ function appliedEffortOf(shape: TurnShape | undefined, dialect: Dialect, nativeB
     const reasoning = shape.options.providerOptions?.[OPENROUTER_KEY]?.["reasoning"];
     return isJsonObject(reasoning) ? effortWordOf(reasoning["effort"]) : null;
   }
-  return effortWordOf(shape.options.reasoning);
+  return shape.templateOff === true ? REASONING_OFF : effortWordOf(shape.options.reasoning);
 }
 
 // ── the stream ────────────────────────────────────────────────────────────────────────────────────────────
@@ -512,7 +454,7 @@ interface StreamOnceArgs {
 async function streamOnce(args: StreamOnceArgs): Promise<StreamDrain> {
   const { call, req, label, markCommitted } = args;
   const deltaTarget = req.chatId === undefined || req.onDelta === undefined ? undefined : { chatId: req.chatId, onDelta: req.onDelta };
-  const idle = turnAbortSignal(req.signal);
+  const idle = turnAbortSignal(req.signal, req.connection.features.requestTimeoutMs);
   let first = true;
   const commit = (): void => {
     if (first) {
@@ -593,12 +535,17 @@ function rowOptionsFor(
 }
 
 /** The openrouter mandatory-reasoning strip-and-replay-once: an endpoint that rejects `effort:"none"` gets
- *  ONE replay with the reasoning block omitted; every other failure propagates verbatim. */
-async function drainWithReplay(run: (includeReasoning: boolean) => Promise<StreamDrain>, replayable: boolean): Promise<StreamDrain> {
+ *  ONE replay with the reasoning block omitted, and the turn says so; every other failure propagates verbatim. */
+async function drainWithReplay(
+  run: (includeReasoning: boolean) => Promise<StreamDrain>,
+  replayable: boolean,
+  warnings: ResolvedWarning[],
+): Promise<StreamDrain> {
   try {
     return await run(true);
   } catch (err) {
     if (replayable && isMandatoryReasoningRejection(err)) {
+      warnings.push({ code: "reasoning_mandatory_clamp", message: MANDATORY_REPLAY_WARNING });
       return await run(false);
     }
     throw err;
@@ -621,7 +568,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const label = `${connection.providerId} chat (${connection.model})`;
   const generation = requireGeneration(connection, label);
   const dialect = connection.provider.dialect ?? "openai-compatible";
-  const knobs = resolveChat(req.params, generation);
+  const knobs = resolveChat(req.params, generation, { posture: req.posture, wire: connection.wire });
   const warnings: ResolvedWarning[] = [...knobs.warnings];
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const startedAt = deps.now();
@@ -689,7 +636,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   const turnKnobs: TurnKnobs = {
     knobs,
     sampling: wireSampling(sampling, connection.features, dialect, warnings),
-    templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true),
+    templateThinking: templateThinkingFor(req.params, generation, req.terminalToolsAttached === true, req.posture),
     plan: structured,
     parallelOff: disablesParallelToolCalls(req, structured, generation, warnings),
   };
@@ -755,7 +702,7 @@ export async function runOpenAiCompatChatTurn(req: OpenAiCompatChatRequest, deps
   // surfaced `ProviderError{kind:"aborted"}`, and `entry/compose/chat.ts` hands the rejection straight on
   // without normalising. So the classify happens HERE, outside everything that needs the raw error and
   // inside nothing that does. `classify` returns an existing `ProviderError` untouched.
-  const drain = await drainWithReplay(run, dialect === "openrouter" && knobs.reasoning.offChosen === true).catch((err: unknown): never => {
+  const drain = await drainWithReplay(run, dialect === "openrouter" && knobs.reasoning.offChosen === true, warnings).catch((err: unknown): never => {
     throw classify(err);
   });
   // The SDK's OWN drops (§A3), folded into the same array as the funnel's before the result is built.

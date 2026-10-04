@@ -34,7 +34,7 @@ import { CHARACTER_EDITOR_AMBIENT_ROUTES, characterListResponder, makeCharacterD
 // The census SAYS WHAT IT COUNTS (#1131 F11): `1,257 tokens · 1,017 permanent`. It read `N total ·
 // M permanent` — the same datum the CONTEXT band prints as `1,257 tokens`, one home naming its unit and
 // one not. The pin follows the visible line, which is the thing a reader compares across the two homes.
-const TOKEN_SPLIT_RE = /[\d,]+ tokens · [\d,]+ permanent/;
+const TOKEN_SPLIT_RE = /[\d,]+ tokens · [\d,]+ always sent/;
 const BLUR_CLASS_RE = /blur-md/;
 // Facet-row accessible names (the row's label-button wraps label + subtitle, so match by substring).
 const SYSTEM_PROMPT_ROW = /System prompt/;
@@ -454,9 +454,9 @@ const ACCEPT_BUTTON_RE = /^Accept /;
 const MORE_BUTTON_RE = /more$/;
 const TRANSPARENT = "rgba(0, 0, 0, 0)";
 const TOKEN_TOTAL_RE = /\d+ tokens/;
-const TOKEN_PERMANENT_RE = /permanent — sent every turn/;
+const TOKEN_PERMANENT_RE = /always sent/;
 /** The content header's own gloss (#493) — the pointer half of the same explanation. */
-const TOKEN_SENT_EVERY_TURN_RE = /sent every turn/;
+const TOKEN_SENT_EVERY_TURN_RE = /always sent/;
 const INSPECT_HINT_RE = /to inspect it here/;
 
 /** Twelve pending suggestions on this character (`TagSuggestionView` = a TagView + its characterId). */

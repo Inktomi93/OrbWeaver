@@ -7,7 +7,7 @@
 // The rest pin the LABEL half the parity test cannot see: which rung produced each value (explicit /
 // quality / modelDefault / clamped / floor) and the stored-but-unhonored (staleness) list.
 
-import type { GenerationCapability } from "@orb/contracts/inference";
+import type { CapabilityTarget, GenerationCapability, Wire } from "@orb/contracts/inference";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import { resolveChat } from "@orb/inference";
@@ -38,13 +38,18 @@ function configWith(params: UserIntent): PromptConfig {
   return { ...DEFAULT_PROMPT_CONFIG, params };
 }
 
-/** Seed one owned preset carrying `params` and resolve it against `capability`. */
-async function resolveWith(params: UserIntent, capability: GenerationCapability): Promise<EffectivePreset> {
+/** Seed one owned preset carrying `params` and resolve it against `capability`, on the target's wire. */
+async function resolveWith(
+  params: UserIntent,
+  capability: GenerationCapability,
+  on: { readonly wire?: Wire; readonly target?: CapabilityTarget } = {},
+): Promise<EffectivePreset> {
   const db = await freshDb();
-  const svc = createPresetService(makeHarness(db, { capability: makeResolvedView({ capability: makeCapability(capability) }) }).ctx);
+  const view = makeResolvedView({ capability: makeCapability(capability), ...(on.wire !== undefined ? { wire: on.wire } : {}) });
+  const svc = createPresetService(makeHarness(db, { capability: view }).ctx);
   const owner = await seedUser(db);
   await seedPreset(db, { id: PRESET_ID, ownerId: owner, config: configWith(params) });
-  return await svc.resolveEffective({ principal: principal(owner), id: PRESET_ID });
+  return await svc.resolveEffective({ principal: principal(owner), id: PRESET_ID, ...(on.target !== undefined ? { target: on.target } : {}) });
 }
 
 describe("resolveEffective — parity with the turn pipeline's own funnel", () => {
@@ -70,6 +75,30 @@ describe("resolveEffective — parity with the turn pipeline's own funnel", () =
     expect(effective.knobs.verbosity?.value).toBe(turn.verbosity);
     // …and the clamp is REAL, not a pass-through: 1.9 cannot survive a max of 1.2.
     expect(turn.sampling.temperature).toBe(1.2);
+  });
+
+  test("the reasoning budget and output cap read as the target's wire and role send them", async () => {
+    // The Anthropic SDK adds the budget to the cap it sends, so the turn sizes the two differently there.
+    const capability = makeGenerationCapability({
+      reasoning: { mode: "budget", enabled: true, budgetRange: { min: 1024, max: 64_000 } },
+      output: { maxTokens: { min: 1, max: 64_000 }, modalities: ["text"] },
+    });
+    const cases: readonly UserIntent[] = [
+      { effort: "high", maxOutputTokens: 4096 },
+      { thinkingBudgetTokens: 8000, maxOutputTokens: 64_000 },
+    ];
+    const ons = [
+      { wire: "anthropic-messages", posture: "chat", target: undefined },
+      { wire: "anthropic-messages", posture: "side-gen", target: { kind: "role", task: "summarize" } },
+    ] as const;
+    for (const params of cases) {
+      for (const on of ons) {
+        const effective = await resolveWith(params, capability, { wire: on.wire, ...(on.target !== undefined ? { target: on.target } : {}) });
+        const turn = resolveChat(params, capability, { wire: on.wire, posture: on.posture });
+        expect(effective.knobs.thinkingBudgetTokens?.value).toBe(turn.reasoning.budgetTokens);
+        expect(effective.knobs.maxOutputTokens?.value).toBe(turn.maxOutputTokens);
+      }
+    }
   });
 
   test("an unset sampling knob reports the QUALITY dial's value, from the funnel", async () => {

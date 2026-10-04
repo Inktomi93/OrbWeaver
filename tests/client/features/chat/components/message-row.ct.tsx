@@ -15,6 +15,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { SNAPPED_LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import type { ReactElement } from "react";
 import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
@@ -439,6 +440,44 @@ async function nameRowOuterExtent(nameRow: Locator): Promise<number> {
     const cs = getComputedStyle(el);
     return el.getBoundingClientRect().height + Number.parseFloat(cs.marginTop) + Number.parseFloat(cs.marginBottom);
   });
+}
+
+// A body several viewports tall (prose + a code block + a table + a blockquote, the shapes a real reply
+// carries), for the mounts that drive a real scroll under a sticky header.
+const STUCK_BAND_BODY = ((): string => {
+  const prose = Array.from({ length: 20 }, (_, i) => `Line ${i} of a long reply that scrolls under the pinned band.`).join("\n\n");
+  return `${prose}\n\n\`\`\`js\nconst x = 1;\n\`\`\`\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n> a quotation\n\n${prose}`;
+})();
+
+const STUCK_BAND_SCROLLPORT_PX = 240;
+const PINNED_SCROLL_TOP_PX = 400;
+
+/** Scrolls a sticky row's own scrollport into the turn and waits until its header reports pinned. The
+ *  band paints only while pinned, so every assertion about the band's paint starts here. */
+async function pinHeader(port: Locator): Promise<Locator> {
+  await expect.poll(() => port.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(PINNED_SCROLL_TOP_PX);
+  await port.evaluate((el: HTMLElement, y: number) => {
+    el.scrollTop = y;
+  }, PINNED_SCROLL_TOP_PX);
+  const nameRow = port.locator(NAME_ROW);
+  await expect(nameRow).toHaveAttribute("data-pinned", "");
+  return nameRow;
+}
+
+/** A sticky-verdict row in its own bounded scrollport, tall enough for {@link pinHeader} to pin. */
+function pinnableRow(chatStyle: (typeof THEME_CHAT_STYLES)[number], participant: ParticipantView): ReactElement {
+  return (
+    <MessageRowStory
+      chatStyle={chatStyle}
+      messageRole="assistant"
+      characterId={ALICE_ID}
+      participants={[participant]}
+      stickyAttribution={true}
+      content={STUCK_BAND_BODY}
+      width={360}
+      scrollportHeight={STUCK_BAND_SCROLLPORT_PX}
+    />
+  );
 }
 
 test("the avatar is a SIBLING of the content column, never nested inside the name row (§B.1)", async ({ mount }) => {
@@ -1554,10 +1593,8 @@ test("#204 over art, metadata gloss steps up to the FULL foreground (the muted b
 });
 
 test("#204/#241 the sticky band's ink is the base's derived foreground — the palette its fill now derives from", async ({ mount }) => {
-  const component = await mount(
-    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} stickyAttribution={true} />,
-  );
-  const nameRow = component.locator(NAME_ROW);
+  const component = await mount(pinnableRow("bubble", alice()));
+  const nameRow = await pinHeader(component);
   const inkVar = await cssVar(nameRow, "--color-foreground");
   const readRenderedAtAssertion = async (): Promise<typeof rendered> => await nameRow.evaluate((el) => getComputedStyle(el).color);
   const rendered = await nameRow.evaluate((el) => getComputedStyle(el).color);
@@ -1572,10 +1609,8 @@ test("#204/#241 the sticky band's ink is the base's derived foreground — the p
 // SAME derived colour, at alpha 1. Measured through the RENDERED fill, not the class, because the class
 // is what a refactor changes and the step is what a reader sees.
 test("#241 the pinned band's fill IS the reading plate's colour at alpha 1 — the ΔL step is gone", async ({ mount }) => {
-  const component = await mount(
-    <MessageRowStory chatStyle="bubble" messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} stickyAttribution={true} />,
-  );
-  const nameRow = component.locator(NAME_ROW);
+  const component = await mount(pinnableRow("bubble", alice()));
+  const nameRow = await pinHeader(component);
   const [bandL, bandC, bandH, bandAlpha] = parseOklch(await nameRow.evaluate((el) => getComputedStyle(el).backgroundColor));
   const [plateL, plateC, plateH, plateAlpha] = parseOklch(await cssVar(nameRow, "--color-reading-plate"));
   expect(bandL).toBeCloseTo(plateL, 2);
@@ -1880,7 +1915,7 @@ test("at a desktop-width column the portrait keeps its full size — the step-do
 // importing the skin table directly into a spec drags a second copy of the client module graph into the
 // CT bundle and breaks its build; the tuple is the same axis with no such cost.
 for (const chatStyle of THEME_CHAT_STYLES) {
-  test(`#113 ${chatStyle}: a viewport-exceeding row pins its name row and backs it, without changing the row's height`, async ({ mount }) => {
+  test(`#113 ${chatStyle}: a viewport-exceeding row makes its name row sticky without changing the row's height`, async ({ mount }) => {
     const bare = await mount(<MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} />);
     const bareOuter = await nameRowOuterExtent(bare.locator(NAME_ROW));
     await expect(bare.locator(NAME_ROW)).toHaveCSS("position", "static");
@@ -1890,7 +1925,8 @@ for (const chatStyle of THEME_CHAT_STYLES) {
       <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} stickyAttribution={true} />,
     );
     await expect(stuck.locator(NAME_ROW)).toHaveCSS("position", "sticky");
-    await expect(stuck.locator(NAME_ROW)).toHaveCSS("top", "0px");
+    // One pixel above the scrollport edge: the pin detector reads a pinned header as a one-pixel top clip.
+    await expect(stuck.locator(NAME_ROW)).toHaveCSS("top", "-1px");
     // …AND IT IS ACTUALLY RAISED (side-eye #102, 2026-08-17). The chrome shipped `z-raised`, which
     // generates NO utility — `--z-raised` is a plain custom property, not a `--z-index-*` theme entry —
     // so the class was inert, `snap` reported it as dead CSS on every drive, and the chip stuck at
@@ -1907,14 +1943,62 @@ for (const chatStyle of THEME_CHAT_STYLES) {
     }));
     await expect.poll(async () => (await readRaisedAtAssertion()).token).not.toBe("");
     await expect.poll(async () => (await readRaisedAtAssertion()).z).toBe(raised.token);
-    // The chip is unconditional here (not wallpaper-gated) — it backs the row's own prose scrolling under it.
-    await expect.poll(async () => await stuck.locator(NAME_ROW).evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor)).not.toBe(TRANSPARENT);
     // LAYOUT-NEUTRAL: the band's padding is cancelled and the inside header's minimum height stands in
     // BOTH arms (#1873), so the virtualizer's measured extent cannot move when the sticky verdict
     // lands — which happens AFTER measurement, so any change re-enters the verdict as its own input.
     // Both arms are read as OUTER extent (`nameRowOuterExtent`): the margins ARE the invariant.
     const stuckOuter = await nameRowOuterExtent(stuck.locator(NAME_ROW));
     expect(Math.abs(stuckOuter - bareOuter)).toBeLessThan(1);
+  });
+}
+
+// ── ONE CARD AT REST: the band paints only while the header is pinned ──────────────────────────────
+// The sticky verdict is true for every reply taller than the scrollport, including while its header sits
+// at rest at the top of the reply. A band painted there drew a second object over the bubble: a strip in
+// the reading-band tone, with base/speaker ink instead of the bubble's. At rest the header must be the
+// container's own surface and ink, exactly like a short reply's. Once pinned over the prose, the band paints,
+// and toggling it changes no box. RED on the pre-fix source: the at-rest header painted the band.
+// The seven INSIDE skins: `tide`'s header is outside any container, and its `-my-row` box starts above the
+// row, so in this flush mount it is already pinned at scroll 0.
+for (const chatStyle of INSIDE_CHAT_STYLES) {
+  test(`${chatStyle}: a long reply's header is unbacked at rest and backed once pinned, with no box change`, async ({ mount }) => {
+    const component = await mount(
+      <MessageRowStory
+        chatStyle={chatStyle}
+        messageRole="assistant"
+        characterId={ALICE_ID}
+        participants={[alice()]}
+        stickyAttribution={true}
+        content={STUCK_BAND_BODY}
+        width={360}
+        scrollportHeight={STUCK_BAND_SCROLLPORT_PX}
+      />,
+    );
+    const nameRow = component.locator(NAME_ROW);
+    await expect(nameRow).toHaveCSS("position", "sticky");
+    const paint = async (): Promise<{ readonly bg: string; readonly nameInk: string; readonly bubbleInk: string; readonly outer: number }> =>
+      await nameRow.evaluate((el: HTMLElement) => {
+        const cs = getComputedStyle(el);
+        const name = el.querySelector("[data-slot='message-attribution'] *");
+        const bubble = el.closest("[data-slot='message-bubble']");
+        return {
+          bg: cs.backgroundColor,
+          nameInk: name === null ? "" : getComputedStyle(name).color,
+          bubbleInk: bubble === null ? "" : getComputedStyle(bubble).color,
+          outer: el.getBoundingClientRect().height + Number.parseFloat(cs.marginTop) + Number.parseFloat(cs.marginBottom),
+        };
+      });
+
+    await expect(nameRow).not.toHaveAttribute("data-pinned");
+    const rest = await paint();
+    expect(rest.bg).toBe(TRANSPARENT);
+    // Inside its container the header takes the container's own ink.
+    expect(parseOklch(rest.nameInk)).toEqual(parseOklch(rest.bubbleInk));
+
+    await pinHeader(component);
+    const pinned = await paint();
+    expect(pinned.bg).not.toBe(TRANSPARENT);
+    expect(Math.abs(pinned.outer - rest.outer)).toBeLessThan(1);
   });
 }
 
@@ -1954,13 +2038,6 @@ test("#106 metadata row: over a background photo it paints a scrim backing, not 
 // running under the pinned band stayed visible through it. These two mount a REAL bounded scrollport with
 // a body several viewports tall (prose + a code block + a table + a blockquote, the shapes a real reply
 // carries) and drive an actual scroll under the band.
-const STUCK_BAND_BODY = ((): string => {
-  const prose = Array.from({ length: 20 }, (_, i) => `Line ${i} of a long reply that scrolls under the pinned band.`).join("\n\n");
-  return `${prose}\n\n\`\`\`js\nconst x = 1;\n\`\`\`\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n> a quotation\n\n${prose}`;
-})();
-
-const STUCK_BAND_SCROLLPORT_PX = 240;
-
 for (const overArt of [false, true] as const) {
   test(`#168 ${overArt ? "over art" : "plain"}: the pinned band OCCLUDES the prose scrolling under it (its pixels do not move with the scroll)`, async ({
     mount,
@@ -1983,8 +2060,7 @@ for (const overArt of [false, true] as const) {
     // stays broken for the owner.
     const component = await mount(overArt ? <div data-has-bg-image="">{row}</div> : row);
     const port = overArt ? component.getByTestId("row-scrollport") : component;
-    await expect.poll(() => port.evaluate((el: HTMLElement) => el.scrollHeight - el.clientHeight)).toBeGreaterThan(400);
-    const nameRow = component.locator(NAME_ROW);
+    const nameRow = await pinHeader(port);
     await expect(nameRow).toHaveCSS("position", "sticky");
 
     // The comparison rect is the band's FULLY-OWNED region: since #204 the chip's height derives from
@@ -2004,6 +2080,7 @@ for (const overArt of [false, true] as const) {
         el.scrollTop = y;
       }, top);
       await expect.poll(() => port.evaluate((el: HTMLElement) => el.scrollTop)).toBe(top);
+      await expect(nameRow).toHaveAttribute("data-pinned", "");
       return await page.screenshot({ clip });
     };
     // Two scroll depths deep inside the same turn: the band's OWN content (name, timestamp, actions) is
@@ -2895,10 +2972,8 @@ function sameRgb(a: { r: number; g: number; b: number }, b: { r: number; g: numb
 
 for (const chatStyle of THEME_CHAT_STYLES) {
   test(`#2425 ${chatStyle}: the pinned band paints one --spacing-row of fill below the speaker name`, async ({ mount, page }) => {
-    const component = await mount(
-      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[alice()]} stickyAttribution={true} />,
-    );
-    const nameRow = component.locator(NAME_ROW);
+    const component = await mount(pinnableRow(chatStyle, alice()));
+    const nameRow = await pinHeader(component);
     await expect(nameRow).toHaveCSS("position", "sticky");
 
     // ONE --spacing-row, read as the band's OWN resolved top padding rather than as a literal 8 or a raw
@@ -2946,10 +3021,8 @@ test("#2425 the OUTSIDE skin's band takes the speaker's palette, exactly like th
   // palettes" defect at the surface #288's anatomy move left outside the container. The scope is the
   // content COLUMN's now, so the two agree.
   const bandFill = async (chatStyle: (typeof THEME_CHAT_STYLES)[number], participant: ParticipantView): Promise<string> => {
-    const component = await mount(
-      <MessageRowStory chatStyle={chatStyle} messageRole="assistant" characterId={ALICE_ID} participants={[participant]} stickyAttribution={true} />,
-    );
-    const fill = await component.locator(NAME_ROW).evaluate((el) => getComputedStyle(el).backgroundColor);
+    const component = await mount(pinnableRow(chatStyle, participant));
+    const fill = await (await pinHeader(component)).evaluate((el) => getComputedStyle(el).backgroundColor);
     await component.unmount();
     return fill;
   };

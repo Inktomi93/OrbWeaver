@@ -1,37 +1,55 @@
-// backends/openai-compat/batch — the `structured` task on the openai-compat wire. The pins are WIRE BODIES: the
-// structured plan picks the carrier per row (OpenRouter Claude in the strict-compatible shape, vLLM in the
-// guided-decoding subset, a Custom row in the hosted subset or one forced tool where it states no structured output),
-// and a model with no carrier is refused before any request.
+// The `summarize` and `structured` tasks on the openai-compat wire, each item one chat turn (`roles/side-gen.ts`).
+// The pins are WIRE BODIES: the structured plan picks the carrier per row (OpenRouter Claude in the strict-compatible
+// shape, vLLM in the guided-decoding subset, a Custom row in the hosted subset or one forced tool where it states no
+// structured output), a model with no carrier is refused before any request, and the side-generation posture's
+// reasoning and output room ride as the chat turn spells them.
 
 import type { ProviderId, WireSchemaMode } from "@orb/contracts/inference";
 import { scrubWireSchema } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { stateRoundChangesSchema } from "@orb/contracts/rpg";
 import { castId } from "@orb/kit/ids";
-import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
-import type { BatchDeps } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
-import { runOpenAiCompatStructured, runOpenAiCompatSummarize } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
+import { createOpenAiCompatBackend } from "../../../../packages/inference/src/backends/openai-compat/index.ts";
 import { curatedRows } from "../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { measuredRows } from "../../../../packages/inference/src/capability/sources/measured/loader.ts";
 import { synthesizeCapability } from "../../../../packages/inference/src/capability/synthesize.ts";
+import type { StructuredRequest, SummarizeRequest } from "../../../../packages/inference/src/contract/roles.ts";
 import type { InferenceLog } from "../../../../packages/inference/src/deps.ts";
 import { makeCapability, makeGenerationCapability } from "../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
-import { fakeApiKeySecret, fakeResolved } from "../../_support.ts";
+import { fakeApiKeySecret, fakeResolved, memoryStores } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
-import { generationCapability, scriptedJsonFetch } from "../_hosted-support.ts";
+import { generationCapability, openAiTextStream, scriptedSseFetch } from "../_hosted-support.ts";
 
 const NOW = 1_700_000_000_000;
 const APP = { name: "orbweaver-test", url: "http://localhost:0" };
-const COMPLETION = JSON.stringify({
-  id: "gen-batch",
-  object: "chat.completion",
-  created: 1_700_000_000,
-  model: "m",
-  choices: [{ index: 0, message: { role: "assistant", content: '{"ok":true}' }, finish_reason: "stop" }],
-  usage: { prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 },
-});
+const COMPLETION = openAiTextStream('{"ok":true}');
+/** The vLLM row's sleep probe, which a task on that row asks first; answered awake and never recorded. */
+const SLEEP_PROBE_SUFFIX = "/is_sleeping";
+
+/** The wire's backend over `fetch`, its sleep probe answered awake. */
+function backendOver(fetchImpl: typeof fetch, log: InferenceLog): ReturnType<typeof createOpenAiCompatBackend>["backend"] {
+  const awake: typeof fetch = (input, init) =>
+    String(input).endsWith(SLEEP_PROBE_SUFFIX) ? Promise.resolve(Response.json({ is_sleeping: false })) : fetchImpl(input, init);
+  return createOpenAiCompatBackend({ now: () => NOW, log, fetch: awake, app: APP, snapshotStore: memoryStores().snapshotStore }).backend;
+}
+
+function summarizeOn(fetchImpl: typeof fetch, log: InferenceLog, req: SummarizeRequest): Promise<unknown> {
+  const run = backendOver(fetchImpl, log).summarize;
+  if (run === undefined) {
+    throw new Error("the openai-compat backend serves summarize");
+  }
+  return run(req);
+}
+
+function structuredOn(fetchImpl: typeof fetch, log: InferenceLog, req: StructuredRequest): Promise<unknown> {
+  const run = backendOver(fetchImpl, log).structured;
+  if (run === undefined) {
+    throw new Error("the openai-compat backend serves structured");
+  }
+  return run(req);
+}
 const FORMAT: ResponseFormat = {
   name: "row",
   schema: wireSchema({ type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"], additionalProperties: false }),
@@ -76,13 +94,7 @@ async function structuredBody(
 ): Promise<{ readonly body: Record<string, unknown>; readonly lines: LogLine[] }> {
   const recorded: RecordedRequest[] = [];
   const lines: LogLine[] = [];
-  const deps: BatchDeps = {
-    now: () => NOW,
-    log: recordingLog(lines),
-    transport: { fetch: scriptedJsonFetch([COMPLETION], recorded), app: APP },
-    normalize: passthroughImageNormalizer,
-  };
-  await runOpenAiCompatStructured({ connection, inputs: INPUTS, responseFormat: format, signal: undefined }, deps);
+  await structuredOn(scriptedSseFetch([COMPLETION], recorded), recordingLog(lines), { connection, inputs: INPUTS, responseFormat: format, signal: undefined });
   return { body: recorded[0]?.body ?? {}, lines };
 }
 
@@ -184,16 +196,16 @@ test("D299: a role preset's seed, stop and effort reach a summarize body; the ca
     capability: generationCapability({ sampling: { temperature: { min: 0, max: 2 }, seed: true, stop: true } }),
     baseUrl: "http://127.0.0.1:8000/v1",
   });
-  const deps: BatchDeps = {
-    now: () => NOW,
-    log: recordingLog(lines),
-    transport: { fetch: scriptedJsonFetch([COMPLETION], recorded), app: APP },
-    normalize: passthroughImageNormalizer,
-  };
-  await runOpenAiCompatSummarize(
-    { connection, inputs: INPUTS, temperature: 0.5, seed: 7, stop: ["END"], effort: "high", maxTokens: 64, signal: undefined },
-    deps,
-  );
+  await summarizeOn(scriptedSseFetch([COMPLETION], recorded), recordingLog(lines), {
+    connection,
+    inputs: INPUTS,
+    temperature: 0.5,
+    seed: 7,
+    stop: ["END"],
+    effort: "high",
+    maxTokens: 64,
+    signal: undefined,
+  });
   const body = recorded[0]?.body ?? {};
   // The model reasons and the row spells `reasoning_effort`, so the preset's level rides; thinking is paid out of
   // `max_tokens`, so the cap grows to the model's own 8192 rather than leaving the 64-token answer to starve.
@@ -221,13 +233,8 @@ async function sideGenBodies(
 ): Promise<{ readonly bodies: readonly Record<string, unknown>[]; readonly lines: LogLine[] }> {
   const recorded: RecordedRequest[] = [];
   const lines: LogLine[] = [];
-  const deps: BatchDeps = {
-    now: () => NOW,
-    log: recordingLog(lines),
-    transport: { fetch: fetchImpl?.(recorded) ?? scriptedJsonFetch([COMPLETION], recorded), app: APP },
-    normalize: passthroughImageNormalizer,
-  };
-  await runOpenAiCompatSummarize({ connection, inputs: INPUTS, ...sampling, signal: undefined }, deps);
+  const fetchFor = fetchImpl?.(recorded) ?? scriptedSseFetch([COMPLETION], recorded);
+  await summarizeOn(fetchFor, recordingLog(lines), { connection, inputs: INPUTS, ...sampling, signal: undefined });
   return { bodies: recorded.map((r) => r.body), lines };
 }
 
@@ -259,13 +266,12 @@ test("OpenRouter: an endpoint that refuses the off as mandatory gets one replay 
   const refusal = JSON.stringify({ error: { message: "Reasoning is mandatory for this endpoint and cannot be disabled.", code: 400 } });
   const once =
     (recorded: RecordedRequest[]): typeof fetch =>
-    (_input, init): Promise<Response> => {
-      recorded.push({ url: "", body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
-      return Promise.resolve(
-        recorded.length === 1
-          ? new Response(refusal, { status: 400, headers: { "content-type": "application/json" } })
-          : new Response(COMPLETION, { status: 200, headers: { "content-type": "application/json" } }),
-      );
+    (input, init): Promise<Response> => {
+      if (recorded.length === 0) {
+        recorded.push({ url: "", body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
+        return Promise.resolve(new Response(refusal, { status: 400, headers: { "content-type": "application/json" } }));
+      }
+      return scriptedSseFetch([COMPLETION], recorded)(input, init);
     };
   const { bodies, lines } = await sideGenBodies(hostedConnection("openrouter", "anthropic/claude-sonnet-5"), { effort: "none", maxTokens: ARBITER_CAP }, once);
   expect(bodies).toHaveLength(2);

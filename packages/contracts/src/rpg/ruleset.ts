@@ -51,10 +51,10 @@ export const RPG_RULESET_LABEL: Readonly<Record<RpgRuleset, string>> = {
 };
 export const RPG_RULESET_CONSEQUENCE: Readonly<Record<RpgRuleset, string>> = {
   freeform: "no dice, no attributes — the story is steered by prose alone",
-  d20: "adds the six d20 attributes, a health meter and the dice row above the composer",
+  d20: "adds the six d20 attributes, a health meter and dice rolls in the Message tools menu",
 };
 
-/** The dice a ruleset offers above the composer (the B8 ask row). Notation is the server's own
+/** The dice a ruleset offers in the Message tools menu. Notation is the server's own
  *  `NdM(+/-K)?` grammar (`domain/rpg/verbs/roll-dice.ts`); the row is capped to the band's four chips.
  *  `freeform` offers NONE — a freeform table rolls nothing, and four d20-family chips over a freeform game
  *  contradicted the door's own copy (side-eye 2026-08-30). An empty set publishes no controls at all, so the

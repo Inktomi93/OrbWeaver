@@ -7,7 +7,7 @@
 
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
-import { resolveChat } from "../../../packages/inference/src/funnel/resolve-chat.ts";
+import { resolveCarryReasoning, resolveChat } from "../../../packages/inference/src/funnel/resolve-chat.ts";
 import { expect, test } from "../../support/fixtures.ts";
 
 function generation(overrides: Partial<GenerationCapability> = {}): GenerationCapability {
@@ -345,6 +345,91 @@ test("an unset sampler order sends nothing and warns about nothing, even where t
   const knobs = resolveChat({} satisfies UserIntent, generation({ sampling: { samplerOrder: ["topK", "temperature"] } }));
   expect(knobs.sampling.samplerOrder).toBeUndefined();
   expect(droppedKnobs(knobs)).toEqual([]);
+});
+
+// ── one reasoning resolver for chat and side generation ─────────────────────────────────────────────────
+
+const BUDGET_NO_DEFAULT: GenerationCapability["reasoning"] = { mode: "budget", enabled: true, budgetRange: { min: 1024, max: 63_000 } };
+
+test("a budget-only preset turns thinking on at that budget, in chat as in side generation", () => {
+  for (const posture of ["chat", "side-gen"] as const) {
+    const knobs = resolveChat({ thinkingBudgetTokens: 2048 } satisfies UserIntent, generation({ reasoning: BUDGET_NO_DEFAULT }), { posture });
+    expect(knobs.reasoning, posture).toMatchObject({ mode: "budget", enabled: true, budgetTokens: 2048 });
+  }
+});
+
+test("side generation: a role preset's own off beside a budget stays off; the posture's floor alone does not hide a budget", () => {
+  const cap = generation({ reasoning: BUDGET_NO_DEFAULT });
+  expect(resolveChat({ effort: "none", thinkingBudgetTokens: 2048 } satisfies UserIntent, cap, { posture: "side-gen" }).reasoning.enabled).toBe(false);
+  expect(resolveChat({ thinkingBudgetTokens: 2048 } satisfies UserIntent, cap, { posture: "side-gen" }).reasoning).toMatchObject({
+    enabled: true,
+    budgetTokens: 2048,
+  });
+});
+
+test("carry: the engine's raw-params read agrees with the turn on a budget-only preset", () => {
+  const cap = generation({ reasoning: { ...BUDGET_NO_DEFAULT, defaultEnabled: false, replay: "signed" } });
+  const params = { thinkingBudgetTokens: 2048, carryReasoning: "tool-chain" } satisfies UserIntent;
+  expect(resolveCarryReasoning(params, cap, [])).toBe("tool-chain");
+  expect(resolveChat(params, cap).carryReasoning).toBe("tool-chain");
+});
+
+test("a budget-only preset on an effort model runs the level that covers it, and says so", () => {
+  const knobs = resolveChat(
+    { thinkingBudgetTokens: 2048 } satisfies UserIntent,
+    generation({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } }),
+  );
+  expect(knobs.reasoning).toMatchObject({ enabled: true, effort: "low" });
+  expect(knobs.warnings.map((w) => w.knob)).toContain("thinkingBudgetTokens");
+});
+
+test("an effort level on a model whose budget range starts near zero gets a budget a model can think in", () => {
+  const flash = generation({ reasoning: { mode: "budget", enabled: true, budgetRange: { min: 1, max: 24_576 } } });
+  expect(resolveChat({ effort: "low" } satisfies UserIntent, flash).reasoning.budgetTokens).toBeGreaterThanOrEqual(1024);
+  const ladder = (["minimal", "low", "medium", "high", "xhigh", "max"] as const).map((effort) => resolveChat({ effort }, flash).reasoning.budgetTokens ?? 0);
+  expect(ladder).toEqual([...ladder].sort((a, b) => a - b));
+  expect(ladder.at(-1)).toBe(24_576);
+});
+
+test("side generation: with no preset reasoning the posture is off, and a mandatory model clamps it up with room to think", () => {
+  const optional = resolveChat({ maxOutputTokens: 128 } satisfies UserIntent, generation(), { posture: "side-gen" });
+  expect(optional.reasoning).toMatchObject({ enabled: false, offChosen: true });
+  expect(optional.maxOutputTokens).toBe(128);
+  const mandatory = resolveChat({ maxOutputTokens: 128 } satisfies UserIntent, generation({ reasoning: { ...SIGNED_REPLAY, mandatory: true } }), {
+    posture: "side-gen",
+  });
+  expect(mandatory.reasoning).toMatchObject({ enabled: true, effort: "low" });
+  expect(mandatory.maxOutputTokens).toBeGreaterThan(128 + 1024);
+  expect(mandatory.warnings.map((w) => w.code)).toContain("reasoning_mandatory_clamp");
+});
+
+test("side generation: reasoning room never takes the visible reserve; the budget shrinks instead", () => {
+  const cap = generation({ reasoning: BUDGET_NO_DEFAULT, output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] } });
+  const knobs = resolveChat({ thinkingBudgetTokens: 60_000, maxOutputTokens: 8000 } satisfies UserIntent, cap, { posture: "side-gen" });
+  expect(knobs.maxOutputTokens).toBe(8192);
+  const budget = knobs.reasoning.budgetTokens ?? 0;
+  expect(8192 - budget).toBeGreaterThanOrEqual(4000);
+  expect(knobs.warnings.map((w) => w.code)).toContain("reasoning_budget_clamped");
+});
+
+test("a budget beside the visible cap never runs under the model's least budget; the visible reply gives way, loudly", () => {
+  // [visible cap, model cap]: the least budget fits beside neither the visible cap nor its reserve.
+  const cramped = [
+    [1000, 2000],
+    [1500, 1500],
+    [100, 1100],
+  ] as const;
+  for (const [visible, modelMax] of cramped) {
+    const cap = generation({ reasoning: BUDGET_NO_DEFAULT, output: { maxTokens: { min: 1, max: modelMax }, modalities: ["text"] } });
+    const sideGen = resolveChat({ thinkingBudgetTokens: 5000, maxOutputTokens: visible } satisfies UserIntent, cap, { posture: "side-gen" });
+    const anthropic = resolveChat({ thinkingBudgetTokens: 5000, maxOutputTokens: visible } satisfies UserIntent, cap, { wire: "anthropic-messages" });
+    for (const knobs of [sideGen, anthropic]) {
+      expect(knobs.reasoning.budgetTokens).toBe(1024);
+      expect(knobs.warnings).toContainEqual(expect.objectContaining({ code: "reasoning_budget_clamped", appliedBudget: 1024 }));
+    }
+    expect(sideGen.maxOutputTokens).toBe(modelMax);
+    expect((anthropic.maxOutputTokens ?? 0) + 1024).toBe(Math.min(modelMax, visible + 1024));
+  }
 });
 
 test("replyMedia: the DEFAULT (absent / text) asks for nothing and warns about nothing, on either model", () => {

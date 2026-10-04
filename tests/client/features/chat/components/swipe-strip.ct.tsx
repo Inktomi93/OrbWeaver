@@ -98,7 +98,7 @@ test("a SINGLE variant renders no pager at all — no counter, no dead back-step
   await expect(component.getByRole("button", { name: VARIANT_PREV_NAME })).toHaveCount(0);
   await expect(component.getByText("1 / 1")).toHaveCount(0);
   // …and the one affordance that CAN act is still there — labelled for what it DOES at this count
-  // (#570 RULED: it generates, not steps, so the name is "Generate a variant", not the pager's
+  // (#570 RULED: it generates, not steps, so the name is "Regenerate a variant", not the pager's
   // "Next variant"). The stale "Next variant" name is asserted absent as the honesty regression pin.
   await expect(component.getByRole("button", { name: VARIANT_GENERATE_NAME })).toBeEnabled();
   await expect(component.getByRole("button", { name: VARIANT_NEXT_NAME })).toHaveCount(0);
@@ -126,7 +126,7 @@ test("#849: the single-variant generate control carries a VISIBLE label, not a b
       const name = await generate.getAttribute("aria-label");
       return { visible, containedInName: visible.length > 0 && name?.includes(visible) === true };
     })
-    .toEqual({ visible: "Generate", containedInName: true });
+    .toEqual({ visible: "Regenerate", containedInName: true });
   // The counter stays gone — this arm is the verb alone (the "A PAGER NEEDS PAGES" ruling, untouched).
   await expect(component.getByText("1 / 1")).toHaveCount(0);
 });

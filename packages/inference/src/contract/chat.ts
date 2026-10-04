@@ -11,6 +11,7 @@ import type { ZodRawShape } from "zod";
 import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 import type { Resolved } from "./resolved.ts";
 import type { GeneratedImage } from "./roles.ts";
+import type { ChatPosture } from "./side-gen.ts";
 
 export type { ResponseFormat } from "@orb/contracts/role-clients";
 
@@ -127,6 +128,8 @@ interface ChatRequestBase {
   readonly attachmentQuality?: AttachmentQuality | undefined;
   readonly connection: Resolved<"chat">;
   readonly params: UserIntent;
+  /** How the turn's reasoning resolves ({@link ChatPosture}); absent is a delivered chat turn. */
+  readonly posture?: ChatPosture | undefined;
   /** Split system prompt: a stable static prefix + a volatile dynamic tail (cache placement). */
   readonly systemPrompt: { readonly static: string; readonly dynamic: string };
   readonly signal?: AbortSignal | undefined;
@@ -177,6 +180,8 @@ export type ChatRequest =
   | (ChatRequestCommon & {
       readonly api: "agent-sdk";
       readonly prompt: string;
+      /** Images on the prompt's user turn, as URLs or data URLs; they ride beside the prompt text. Absent ⇒ none. */
+      readonly promptImages?: readonly string[] | undefined;
       /** The system rows below the history (a depth-0 system injection the capability kept), lifted off the
        *  transcript. The runner delivers them beside the prompt through the `UserPromptSubmit` hook, their own
        *  position. Absent ⇒ none. */
@@ -210,8 +215,8 @@ export type ChatTurnInput = ChatRequestCommon & {
 
 /**
  * A one-shot SCHEMA-CONSTRAINED generation on a CHAT connection, whatever its wire: the caller hands over the two
- * prompts and the response format, and `runStructuredChat` (`roles/chat-rounds.ts`) picks the executor method the
- * connection's backend serves it with. The format passes through untouched — no vehicle is resolved for it.
+ * prompts and the response format, and `runStructuredChat` (`roles/chat-rounds.ts`) runs it as one side-generation
+ * chat turn. The format passes through untouched — the backend plans how it rides.
  */
 export interface StructuredChatInput {
   readonly connection: Resolved<"chat">;

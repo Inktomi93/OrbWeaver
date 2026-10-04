@@ -6,20 +6,20 @@
 import type { Capability, GenerationCapability } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
+import type { SummarizeResult } from "@orb/contracts/providers";
 import { stateRoundChangesSchema, structuredChangesToToolCalls } from "@orb/contracts/rpg";
-import { passthroughImageNormalizer } from "../../../../packages/inference/src/backends/kit/image-normalize.ts";
-import type { BatchDeps } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
-import { runOpenAiCompatStructured, runOpenAiCompatSummarize } from "../../../../packages/inference/src/backends/openai-compat/batch.ts";
 import { runOpenAiCompatChatTurn } from "../../../../packages/inference/src/backends/openai-compat/chat.ts";
+import { createOpenAiCompatBackend } from "../../../../packages/inference/src/backends/openai-compat/index.ts";
 import { fromOllamaChat, ollamaNativeFetch, toOllamaChat } from "../../../../packages/inference/src/backends/openai-compat/ollama-native.ts";
 import { samplerBodyKeys } from "../../../../packages/inference/src/backends/openai-compat/sampling.ts";
 import type { WireCaptureSink } from "../../../../packages/inference/src/contract/backend.ts";
 import type { ChatResult, OpenAiCompatChatRequest } from "../../../../packages/inference/src/contract/chat.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
 import { withPresetWindow } from "../../../../packages/inference/src/contract/resolved.ts";
+import type { StructuredRequest, SummarizeRequest } from "../../../../packages/inference/src/contract/roles.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
-import { fakeResolved, memoryTokenLexicon } from "../../_support.ts";
+import { fakeResolved, memoryStores, memoryTokenLexicon } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
 import { generationCapability } from "../_hosted-support.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "./_ollama-native-recordings.ts";
@@ -451,37 +451,49 @@ test("a recorded non-streaming answer (the structured path) reads back as one Op
   });
 });
 
-/** An Ollama `/api/chat`: it streams NDJSON unless the body says `stream: false`, which gets one JSON object. */
-function ollamaServer(posted: RecordedRequest[]): typeof fetch {
+/** A recorded non-streamed answer as the one NDJSON line a streamed request reads: the server's own object, which
+ *  carries the same fields as a stream's final line. */
+function streamedOf(recording: Recording): Response {
+  return new Response(`${JSON.stringify(JSON.parse(recording.body))}\n`, { status: recording.status, headers: { "content-type": "application/x-ndjson" } });
+}
+
+/** An Ollama `/api/chat` answering every request with `recording` as one streamed line, recording what was posted. */
+function ollamaServer(posted: RecordedRequest[], recording: Recording = OLLAMA_NATIVE_RECORDINGS.format): typeof fetch {
   return (input, init): Promise<Response> => {
-    const body = JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown>;
-    posted.push({ url: String(input), body });
-    const recording = body["stream"] === false ? OLLAMA_NATIVE_RECORDINGS.format : OLLAMA_NATIVE_RECORDINGS.text;
-    return Promise.resolve(new Response(recording.body, { status: recording.status, headers: { "content-type": recording.contentType } }));
+    posted.push({ url: String(input), body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
+    return Promise.resolve(streamedOf(recording));
   };
 }
 
-function batchDeps(posted: RecordedRequest[]): BatchDeps {
-  return {
+/** The wire's side-generation tasks over a scripted Ollama, each item a chat turn on the native route. */
+function sideGenOver(fetchImpl: typeof fetch): {
+  readonly summarize: (req: SummarizeRequest) => Promise<SummarizeResult>;
+  readonly structured: (req: StructuredRequest) => Promise<SummarizeResult>;
+} {
+  const { summarize, structured } = createOpenAiCompatBackend({
     now: () => NOW,
     log: silentLog(),
-    transport: { fetch: ollamaServer(posted), app: { name: "t", url: "http://localhost:0" } },
-    normalize: passthroughImageNormalizer,
-  };
+    fetch: fetchImpl,
+    app: { name: "t", url: "http://localhost:0" },
+    snapshotStore: memoryStores().snapshotStore,
+  }).backend;
+  if (summarize === undefined || structured === undefined) {
+    throw new Error("the openai-compat backend serves summarize and structured");
+  }
+  return { summarize, structured };
 }
 
 const PARIS = '{\n  "city": "Paris"\n}';
 
-// The batch tasks call the SDK's non-streaming generate, which sends no `stream` key, and Ollama streams unless
-// told not to.
-test("a summarize call asks Ollama not to stream and reads the one JSON answer", async () => {
+test("a summarize call streams from Ollama's native route and reads the answer and its usage", async () => {
   const posted: RecordedRequest[] = [];
   const connection = fakeResolved({ task: "summarize", providerId: "ollama", model: "qwen2.5:0.5b", capability: capability(), baseUrl: BASE_URL });
-  const result = await runOpenAiCompatSummarize(
-    { connection, inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long text." }], signal: undefined },
-    batchDeps(posted),
-  );
-  expect(posted[0]?.body["stream"]).toBe(false);
+  const result = await sideGenOver(ollamaServer(posted)).summarize({
+    connection,
+    inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long text." }],
+    signal: undefined,
+  });
+  expect(posted[0]?.body["stream"]).toBe(true);
   expect(result.items[0]).toMatchObject({ text: PARIS, usage: { tokensIn: 37, tokensOut: 10 } });
 });
 
@@ -489,27 +501,25 @@ test("a side-generation call spells a chosen max in the model's own word, as a c
   const posted: RecordedRequest[] = [];
   const reasoning: GenerationCapability["reasoning"] = { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high", "max"] };
   const connection = fakeResolved({ task: "summarize", providerId: "ollama", model: "qwen3:0.6b", capability: capability({ reasoning }), baseUrl: BASE_URL });
-  await runOpenAiCompatSummarize(
-    { connection, inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long text." }], effort: "max", signal: undefined },
-    batchDeps(posted),
-  );
+  await sideGenOver(ollamaServer(posted)).summarize({
+    connection,
+    inputs: [{ systemPrompt: "Summarize.", userPrompt: "A long text." }],
+    effort: "max",
+    signal: undefined,
+  });
   expect(posted[0]?.body["think"]).toBe("max");
 });
 
-test("a structured call asks Ollama not to stream, sends the schema as `format`, and reads the answer", async () => {
+test("a structured call sends the schema as `format` on Ollama's native route and reads the answer", async () => {
   const posted: RecordedRequest[] = [];
   const connection = fakeResolved({ task: "structured", providerId: "ollama", model: "qwen2.5:0.5b", capability: capability(), baseUrl: BASE_URL });
   const schema = wireSchema({ type: "object", properties: { city: { type: "string" } }, required: ["city"], additionalProperties: false });
-  const result = await runOpenAiCompatStructured(
-    {
-      connection,
-      inputs: [{ systemPrompt: "Extract.", userPrompt: "France." }],
-      responseFormat: { name: "capital", schema },
-      signal: undefined,
-    },
-    batchDeps(posted),
-  );
-  expect(posted[0]?.body["stream"]).toBe(false);
+  const result = await sideGenOver(ollamaServer(posted)).structured({
+    connection,
+    inputs: [{ systemPrompt: "Extract.", userPrompt: "France." }],
+    responseFormat: { name: "capital", schema },
+    signal: undefined,
+  });
   expect(posted[0]?.body["format"]).toMatchObject({ type: "object", properties: { city: { type: "string" } } });
   expect(JSON.parse(result.items[0]?.text ?? "{}")).toEqual({ city: "Paris" });
 });
@@ -520,17 +530,14 @@ test("a side-generation call with reasoning off sends `think: false` to a model 
   const thinker = capability({ reasoning: { mode: "effort", enabled: true } });
   const connection = fakeResolved({ task: "structured", providerId: "ollama", model: "gemma4:e4b", capability: thinker, baseUrl: BASE_URL });
   const schema = wireSchema({ type: "object", properties: { city: { type: "string" } }, required: ["city"], additionalProperties: false });
-  await runOpenAiCompatStructured(
-    {
-      connection,
-      inputs: [{ systemPrompt: "Extract.", userPrompt: "France." }],
-      responseFormat: { name: "capital", schema },
-      effort: "none",
-      maxTokens: 128,
-      signal: undefined,
-    },
-    batchDeps(posted),
-  );
+  await sideGenOver(ollamaServer(posted)).structured({
+    connection,
+    inputs: [{ systemPrompt: "Extract.", userPrompt: "France." }],
+    responseFormat: { name: "capital", schema },
+    effort: "none",
+    maxTokens: 128,
+    signal: undefined,
+  });
   expect(posted[0]?.body["think"]).toBe(false);
   expect(posted[0]?.body["options"]).toMatchObject({ num_predict: 128 });
 });
@@ -679,26 +686,18 @@ test("a row that turns the native route off rides /v1 as before", async () => {
 
 test("0511: the rpg structured state round sends its changes schema as `format`, and the recorded reply decodes to the tool calls", async () => {
   const posted: RecordedRequest[] = [];
-  const replying: typeof fetch = (input, init) => {
-    posted.push({ url: String(input), body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
-    const recording = OLLAMA_NATIVE_RECORDINGS.stateRound;
-    return Promise.resolve(new Response(recording.body, { status: recording.status, headers: { "content-type": recording.contentType } }));
-  };
   const schema = stateRoundChangesSchema(wireSchema({}), [
     { name: "update_party", description: "Party.", parameters: { type: "object", properties: { targetRef: { type: "string" } }, additionalProperties: false } },
     { name: "no_changes", description: "Nothing.", parameters: { type: "object", properties: {}, additionalProperties: false } },
   ]);
   const connection = fakeResolved({ task: "structured", providerId: "ollama", model: "qwen2.5:0.5b", capability: capability(), baseUrl: BASE_URL });
 
-  const result = await runOpenAiCompatStructured(
-    {
-      connection,
-      inputs: [{ systemPrompt: "Track state.", userPrompt: "Mira is bleeding." }],
-      responseFormat: { name: "rpg_state_changes", schema },
-      signal: undefined,
-    },
-    { ...batchDeps([]), transport: { fetch: replying, app: { name: "t", url: "http://localhost:0" } } },
-  );
+  const result = await sideGenOver(ollamaServer(posted, OLLAMA_NATIVE_RECORDINGS.stateRound)).structured({
+    connection,
+    inputs: [{ systemPrompt: "Track state.", userPrompt: "Mira is bleeding." }],
+    responseFormat: { name: "rpg_state_changes", schema },
+    signal: undefined,
+  });
 
   expect(posted[0]?.url).toBe("http://127.0.0.1:11434/api/chat");
   expect(posted[0]?.body["format"]).toEqual(schema);

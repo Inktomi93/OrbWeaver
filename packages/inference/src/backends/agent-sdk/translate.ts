@@ -9,6 +9,7 @@ import { ADJUSTED_KNOBS } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract/resolve.ts";
+import type { ChatPosture } from "../../contract/side-gen.ts";
 import { resolveChat } from "../../funnel/resolve-chat.ts";
 import type { ClaudeRuntimeOverrides } from "./env.ts";
 import type { AgentSdkLog } from "./log.ts";
@@ -218,6 +219,7 @@ function droppedSamplerWarnings(resolved: ResolvedChatKnobs): ResolvedWarning[] 
 export function toSdkGeneration(
   params: UserIntent,
   capability: GenerationCapability,
+  posture?: ChatPosture | undefined,
 ): {
   envOverrides: ClaudeRuntimeOverrides;
   options: SdkGenerationOptions;
@@ -225,7 +227,7 @@ export function toSdkGeneration(
   turnId: string;
   knobs: ResolvedChatKnobs;
 } {
-  const resolved = resolveChat(params, capability);
+  const resolved = resolveChat(params, capability, { posture, wire: "agent-sdk" });
   return {
     envOverrides: buildEnvOverrides(params, resolved),
     options: buildGenerationOptions(resolved),

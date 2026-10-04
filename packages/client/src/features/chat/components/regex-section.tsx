@@ -141,11 +141,7 @@ function HostRegexBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const groups = view.tiers.filter((tier) => tier.scope === "chat" || populated.includes(tier));
   return (
     <Stack data-slot="regex-section" gap="block">
-      {/* The two facts a debugger must know before touching anything, in the canvas's own words. */}
-      <Text voice="gloss">
-        Prompt rules apply from the next reply; the switches below say <b>where they run here</b>. A row’s own switch is the script’s — <b>off everywhere</b>.
-        What you see on screen is the last group.
-      </Text>
+      <Text voice="gloss">Regex scripts change the text of messages. Use the switches below to choose where each one runs.</Text>
       <RegexLeverStrip chatId={chatId} enabled={view.enabled} homes={homes} labels={labels} tiers={populated} />
       <StageLegend />
       {groups.map((tier) => (

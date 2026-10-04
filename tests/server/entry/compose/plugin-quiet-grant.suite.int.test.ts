@@ -19,12 +19,19 @@ const USER_HOST = "user-default.example";
 const GRANT_HOST = "plugin-grant.example";
 const MODEL = "quiet-model";
 
+/** The endpoint lists its one model, and answers a chat completion (each summarize item streams one) with its own
+ *  host name, so a reply names the connection that served it. */
 function endpoint(input: Parameters<typeof fetch>[0]): Promise<Response> {
   const url = new URL(input instanceof Request ? input.url : String(input));
-  const body = url.pathname.endsWith("/models")
-    ? { object: "list", data: [{ id: MODEL, object: "model" }] }
-    : { model: MODEL, choices: [{ index: 0, message: { role: "assistant", content: url.hostname } }] };
-  return Promise.resolve(new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } }));
+  if (url.pathname.endsWith("/models")) {
+    return Promise.resolve(Response.json({ object: "list", data: [{ id: MODEL, object: "model" }] }));
+  }
+  const chunks = [
+    { model: MODEL, choices: [{ index: 0, delta: { role: "assistant", content: url.hostname }, ["finish_reason"]: null }] },
+    { model: MODEL, choices: [{ index: 0, delta: {}, ["finish_reason"]: "stop" }], usage: { ["prompt_tokens"]: 1, ["completion_tokens"]: 1 } },
+  ];
+  const stream = `${chunks.map((chunk) => `data: ${JSON.stringify(chunk)}\n\n`).join("")}data: [DONE]\n\n`;
+  return Promise.resolve(new Response(stream, { status: 200, headers: { "content-type": "text/event-stream" } }));
 }
 
 /** An installed, enabled plugin row owned by `ownerId`, seeded directly (the install door stores the bundle in the real CAS). */

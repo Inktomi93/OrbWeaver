@@ -75,7 +75,7 @@ test("an all-excluded first page advances until an available character is render
   await expect(component.getByText("Page1 0")).toHaveCount(0);
   await expect.poll(() => trpc.count("character.list"), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(2);
   await expect(component.getByText("Page2 0")).toBeVisible();
-  await expect(component.getByText("Showing 30 available · checked 130 of 130")).toBeVisible();
+  await expect(component.getByText("30 characters")).toBeVisible();
 });
 
 test("a filtered first page with one visible row advances until pointer scrolling can reach the tail", async ({ mount, page }) => {
@@ -86,7 +86,7 @@ test("a filtered first page with one visible row advances until pointer scrollin
   await expect(component.getByText("Page1 99")).toBeVisible();
   await expect.poll(() => trpc.count("character.list"), { intervals: [50, 100, 200] }).toBeGreaterThanOrEqual(2);
   await expect(component.getByText("Page2 0")).toBeVisible();
-  await expect(component.getByText("Showing 31 available · checked 130 of 130")).toBeVisible();
+  await expect(component.getByText("31 characters")).toBeVisible();
 });
 
 test("a failed later page keeps loaded rows visible and offers a working retry", async ({ mount, page }) => {

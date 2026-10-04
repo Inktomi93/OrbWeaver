@@ -469,10 +469,14 @@ const CONFORMANCE_RESPONSE_FORMAT: ResponseFormat = {
   schema: projectJsonSchema(z.object({ answer: z.string() })),
 };
 
-/** THE MALFORMED NON-STREAM BODY (#1400): a truncated JSON object. A wire that answers this with a RESOLVED
- *  result holding an empty item is the collapse-to-null defect class; a wire that answers with a typed
- *  `ProviderError` is conformant. */
-const TRUNCATED_JSON_BODY = '{"choices": ';
+/** THE MALFORMED STREAM (#1400): one server-sent event whose JSON is cut off mid-object, the shape a socket cut
+ *  mid-event produces. A wire that answers this with a RESOLVED result holding an empty item is the
+ *  collapse-to-null defect class; a wire that answers with a typed `ProviderError` is conformant. */
+const TRUNCATED_JSON_EVENT = 'data: {"choices": \n\n';
+
+/** A `fetch` that answers every call with {@link TRUNCATED_JSON_EVENT} as an event stream. */
+const truncatedEventFetch: typeof fetch = () =>
+  Promise.resolve(new Response(TRUNCATED_JSON_EVENT, { status: 200, headers: { "content-type": "text/event-stream" } }));
 
 /** The agent-sdk analogue of a malformed structured payload: a `result` frame with NO `structured_output`,
  *  which is what that wire produces when the runtime's schema pass yields nothing. */
@@ -502,11 +506,10 @@ function agentSdkStructuredFrames(model: string, structuredOutput: unknown): Rec
  *  can assert on BOTH shapes — a rejection is conformant, a resolution is the defect. */
 export function driveStructuredMalformed(wire: Wire): Promise<unknown> {
   const model = modelForWire(wire);
-  const recorded: RecordedRequest[] = [];
   const runtime =
     wire === "agent-sdk"
       ? buildRuntime({ agentSdkQuery: fakeQuery(agentSdkStructuredFrames(model, undefined)) })
-      : buildRuntime({ fetch: abortAware(scriptedJsonFetch([TRUNCATED_JSON_BODY], recorded)) });
+      : buildRuntime({ fetch: abortAware(truncatedEventFetch) });
   const request: StructuredRequest = {
     connection: fakeResolved({
       task: "structured",

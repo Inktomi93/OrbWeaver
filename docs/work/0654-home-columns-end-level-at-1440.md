@@ -22,4 +22,4 @@ Columns balance at 1440.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S3 shipped nothing: balancing the Home columns needs measurement against the Home layout balance tests and live data.

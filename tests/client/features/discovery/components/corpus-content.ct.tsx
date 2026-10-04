@@ -212,10 +212,10 @@ test("UN-ANALYSED: the invitation holds the focal and the family map renders qui
 
   // ONE door on the screen, and it names the two jobs by the picker's own labels. NO ELLIPSIS since #155:
   // the button RUNS the pass now (it used to open the Settings → Jobs picker, and the ellipsis said so).
-  await expect(component.getByRole("button", { name: "Run the understanding pass" })).toHaveCount(1);
+  await expect(component.getByRole("button", { name: "Sort my characters" })).toHaveCount(1);
   // The prose names each stage's REAL input (issue #166): themes clusters chat summaries, not cards, and the
   // old copy claimed both jobs "read the same portrait and card embeddings".
-  await expect(component.getByText("then Memory backfill over your chats, then Compute themes over those chat summaries", { exact: false })).toBeVisible();
+  await expect(component.getByText("It also reads your chat summaries to find story themes", { exact: false })).toBeVisible();
   await expect(component.getByRole("button", { name: "Run the passes again" })).toHaveCount(0);
 });
 
@@ -229,7 +229,7 @@ test("ANALYSED: the map reclaims the focal, the invitation is gone, and the rail
   await expect(page.locator('[data-corpus-focal="invitation"]')).toHaveCount(0);
   await expect(page.locator('[data-corpus-family-map="quiet"]')).toHaveCount(0);
 
-  await expect(component.getByRole("button", { name: "Run the understanding pass" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Sort my characters" })).toHaveCount(0);
   await expect(component.getByRole("button", { name: "Run the passes again" })).toBeVisible();
 
   // The analysis drills are back — the diet is CONDITIONAL, not a removal.
@@ -270,7 +270,7 @@ test("AN EMPTY LIBRARY is not an un-analysed one: no invitation, no focal island
   await expect(component.getByText("Nothing in your library yet")).toBeVisible();
   await expect(page.locator("[data-corpus-focal]")).toHaveCount(0);
   await expect(component.getByRole("button", { name: "Go to Characters" })).toBeVisible();
-  await expect(component.getByRole("button", { name: "Run the understanding pass" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Sort my characters" })).toHaveCount(0);
 });
 
 // SUPERSEDED CARRIER, SAME CLAIM (#244 P2-1). This test used to assert the focal island painted a
@@ -356,7 +356,7 @@ test("THE ZERO WALL IS GONE: no coverage strip, no dead-end notes, no cost colum
   // TWO LINES SINCE B1 (side-eye corpus re-pass 2026-08-19): the magnitudes and the last-opened fact each
   // get their own, because one truncating 10.5px line inside the tile's button always cut the tail — which
   // is the very fact the shelf ranks by. Both are asserted; the split is the fix, not a loss.
-  await expect(component.getByText("1,200 tokens returned · 42 exchanges")).toBeVisible();
+  await expect(component.getByText("1,200 tokens written · 42 exchanges")).toBeVisible();
   await expect(component.getByText("last opened 2w ago")).toBeVisible();
   await expect(component.getByText("1,200 words", { exact: false })).toHaveCount(0);
   // The lifetime framing is stated ONCE, so the aggregate is not mistaken for one conversation.
@@ -369,7 +369,7 @@ test("an estimated imported token total keeps its approximation marker", async (
     "discovery.forgottenGems": GEMS.map((gem) => ({ ...gem, tokensOutProvenance: "estimated" as const })),
   });
   const component = await mount(<CorpusContentStory />);
-  await expect(component.getByText("~1,200 tokens returned · 42 exchanges")).toBeVisible();
+  await expect(component.getByText("~1,200 tokens written · 42 exchanges")).toBeVisible();
 });
 
 test("an unsettled legacy token number renders neither a claimed count nor a comparison bar", async ({ mount, page }) => {
@@ -468,7 +468,7 @@ test("MODEL ECONOMICS REPORTS WHAT THE ROUTES DID, and invents no dollars to do 
 
   // It RENDERS on a library that never spent a cent — the quantities it charts are the ones every route
   // carries, and a corpus with no cost accounting still has economics.
-  await expect(component.getByRole("heading", { name: "Model economics" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Models by genre" })).toBeVisible();
   // …and not one currency figure appears: the zero-cost routes contribute a generation count, never a
   // fabricated `$0.00` (the old ruling's real concern, kept).
   await expect(component.getByText(MONEY_CELL)).toHaveCount(0);
@@ -487,7 +487,7 @@ test("…and a PAID route is annotated, never promoted over the quantities (#553
     ],
   });
   const component = await mount(<CorpusContentStory />);
-  await expect(component.getByRole("heading", { name: "Model economics" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Models by genre" })).toBeVisible();
 
   // The canvas's hidden table equivalent is the honest read of the series. Every route is a row — the
   // reader is no longer shown 1 of 4 — and the VALUE column is generations, not dollars.

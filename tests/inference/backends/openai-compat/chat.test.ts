@@ -393,6 +393,7 @@ test("hosted rows without a thinking switch are byte-identical whether or not th
 function offRequest(
   reasoning: Parameters<typeof generationCapability>[0],
   params: OpenAiCompatChatRequest["params"] = { effort: "none" },
+  thinkingOff?: "none" | undefined,
 ): OpenAiCompatChatRequest {
   const connection = fakeResolved({
     task: "chat",
@@ -401,7 +402,7 @@ function offRequest(
     capability: generationCapability(reasoning),
     baseUrl: "https://box.local/v1",
     secret: fakeApiKeySecret("sk-box-not-a-real-key"),
-    declaredFeatures: { effort: "reasoning_effort" },
+    declaredFeatures: { effort: "reasoning_effort", ...(thinkingOff === undefined ? {} : { thinkingOff }) },
   });
   return orRequest({ connection, params, tools: undefined });
 }
@@ -428,10 +429,22 @@ test("parallelToolCalls true sends no parallel_tool_calls field on either dialec
 test("off sends reasoning_effort none where the model can turn reasoning off, and records none as applied", async () => {
   const recorded: RecordedRequest[] = [];
   const turn = await runOpenAiCompatChatTurn(
-    offRequest({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } }),
+    offRequest({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } }, { effort: "none" }, "none"),
     turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)),
   );
   expect(recorded[0]?.body["reasoning_effort"]).toBe("none");
+  expect(turn.appliedEffort).toBe("none");
+});
+
+// Where the row's thinking switch is the template kwarg, the kwarg is the off: `none` beside it would contradict it.
+test("off on a row whose switch is the template kwarg sends enable_thinking false alone, and records none as applied", async () => {
+  const recorded: RecordedRequest[] = [];
+  const turn = await runOpenAiCompatChatTurn(
+    offRequest({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } }),
+    turnDeps(scriptedSseFetch([openAiTextStream("ok")], recorded)),
+  );
+  expect(recorded[0]?.body["chat_template_kwargs"]).toMatchObject({ enable_thinking: false });
+  expect(recorded[0]?.body).not.toHaveProperty("reasoning_effort");
   expect(turn.appliedEffort).toBe("none");
 });
 

@@ -149,9 +149,9 @@ function BrowseRows({
     ) : (
       // The overview owns the run control; this door reaches it when the finder is the phone screen.
       <Stack gap="field" align="center">
-        <CorpusRunJobEmptyState title="No characters distilled yet" description="Run Distill characters to build this catalog." offerDoor={false} />
+        <CorpusRunJobEmptyState title="No characters sorted yet" description="Sort your characters to build this catalog." offerDoor={false} />
         <Button intent="secondary" size="sm" onClick={openCorpusOverview}>
-          Open understanding pass
+          Go to sorting
         </Button>
       </Stack>
     );

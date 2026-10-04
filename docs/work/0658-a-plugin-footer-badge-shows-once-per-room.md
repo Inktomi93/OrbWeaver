@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-04
 priority: P2
 area: plugin
+lane: wt/agent-ad435ab6e19d39557
 ---
 
 # A plugin footer badge shows once per room

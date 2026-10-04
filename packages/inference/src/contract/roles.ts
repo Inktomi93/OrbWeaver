@@ -17,7 +17,7 @@ import type {
   SummarizeOptions,
 } from "@orb/contracts/role-clients";
 import type { ModelId, UserId } from "@orb/kit/ids";
-import type { ResolvedSampling, ResolvedWarning } from "./resolve.ts";
+import type { ResolvedWarning } from "./resolve.ts";
 import type { Resolved } from "./resolved.ts";
 
 /** The base deadline of one remote embed request when its row states none. */
@@ -68,9 +68,9 @@ export interface SummarizeRequestItem {
   readonly images?: readonly ImageInput[] | undefined;
 }
 
-/** The per-item sampling a summarize/structured call carries: the role preset folded over the task posture
- *  (D299), already resolved. The backend request names the output cap `maxTokens`. */
-export type TaskSampling = ResolvedSampling & Readonly<Pick<RolePresetParams, "effort" | "thinkingBudgetTokens">> & { readonly maxTokens?: number | undefined };
+/** The per-item params a summarize/structured call carries: the role preset folded over the task posture (D299). The
+ *  chat turn each item rides gates them against the model. The backend request names the output cap `maxTokens`. */
+export type TaskSampling = Readonly<Omit<RolePresetParams, "maxOutputTokens">> & { readonly maxTokens?: number | undefined };
 
 /** SUMMARIZE IS SUMMARIZATION — a prose task. Schema-constrained generation is the DISTINCT `structured`
  *  task (owner ruling 2026-07-27); this request carries NO `responseFormat`, by type. */

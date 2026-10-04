@@ -30,7 +30,7 @@ export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] 
  * client-facing names. One home for both the LIST surface's toggle and the header's shared-cache count key. */
 export const ANALYTICS_SORT_OPTIONS = [
   { id: "assistantTurns", label: "Replies" },
-  { id: "totalGenTimeMs", label: "Gen time" },
+  { id: "totalGenTimeMs", label: "Time" },
   { id: "swipes", label: "Swipes" },
   { id: "lastActivityAt", label: "Recent" },
 ] as const;
@@ -63,7 +63,17 @@ const EM_DASH = "—";
 export const UNRECORDED_NOTE = "A dash means the figure was never recorded. ~ marks estimates. Token and cost totals omit turns with missing accounting.";
 
 export const REASONING_LABEL = "Reasoning (of replies + swipes)";
-export const THROUGHPUT_LABEL = "Throughput (output / gen time)";
+export const THROUGHPUT_LABEL = "Speed (tokens per second)";
+
+/** The latency figures, named in plain words; they sit under Details on both stats surfaces. */
+export const LATENCY_LABELS = {
+  avgGen: "Average reply time",
+  p50Gen: "Median reply time",
+  p90Gen: "Slowest 10% of replies",
+  avgTtft: "Average wait for the first word",
+  p50Ttft: "Median wait for the first word",
+  p90Ttft: "Slowest 10% of waits",
+} as const;
 
 const ACCOUNTING_ORIGINS = { measured: "Recorded", estimated: "Estimated", unrecorded: "Not recorded" } satisfies Record<TokenProvenance, string>;
 
@@ -108,6 +118,11 @@ export function formatDurationMs(ms: number): string {
 /** A nullable millisecond figure — `—` when the metric has no samples yet. */
 export function formatMs(ms: number | null): string {
   return ms === null ? EM_DASH : formatDurationMs(ms);
+}
+
+/** A compact count with its noun, singular at exactly one: `1 reply` · `842 replies` · `1.2k replies`. */
+export function formatCompactNoun(n: number, one: string, many: string): string {
+  return `${formatCompact(n)} ${n === 1 ? one : many}`;
 }
 
 /** Compact count: `842` · `1.2k` · `3.4M` (trailing `.0` trimmed). */

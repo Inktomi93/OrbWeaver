@@ -22,4 +22,4 @@ The section tops align.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Lane S3 tried a minimum band height on every Home tile band; it broke the Home REGIONS layout tests, so it was reverted. Needs measurement against those tests and live data.

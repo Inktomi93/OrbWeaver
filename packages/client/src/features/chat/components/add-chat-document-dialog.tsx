@@ -82,6 +82,8 @@ export function AddChatDocumentDialog({ chatId, open, onOpenChange, activeIds }:
 
   return (
     <FormDialog
+      closeButton={true}
+      dismissLabel="Cancel"
       description="Its indexed passages join what this chat can pull from — for everyone in the room. You can take it back out here at any time."
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {

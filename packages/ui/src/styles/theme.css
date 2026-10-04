@@ -30,6 +30,7 @@
   --color-accolade: light-dark(oklch(0.48 0.12 100), oklch(0.82 0.16 100));
   --color-border: oklch(0.99 0.005 60 / 0.08);
   --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-field-fill: light-dark(oklch(0.995 0.003 75), oklch(0.99 0.005 60 / 0.12));
   --color-input-border: light-dark(oklch(0.51 0.008 70), oklch(0.68 0.005 70));
   --color-selection-quiet: light-dark(oklch(0.54 0.008 70), oklch(0.66 0.005 70));
   --color-selection-quiet-foreground: light-dark(oklch(0.98 0.004 75), oklch(0.17 0.008 70));
@@ -264,7 +265,7 @@
   --color-accent: oklch(0.93 0.01 70);
   --color-accent-foreground: oklch(0.28 0.01 60);
   --color-border: oklch(0.2 0.01 60 / 0.12);
-  --color-input: oklch(0.995 0.003 75);
+  --color-input: oklch(0.2 0.01 60 / 0.16);
   --color-ring: oklch(0.5 0.16 50);
   --color-sidebar: oklch(0.955 0.006 72);
   --color-sidebar-foreground: oklch(0.3 0.01 60);

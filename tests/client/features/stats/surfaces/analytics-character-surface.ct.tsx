@@ -83,7 +83,8 @@ for (const width of [320, 720] as const) {
         await expect(component.getByText("This character · Aggregate only", { exact: true })).toBeVisible();
         await expect(component.getByText("~ marks estimates", { exact: false })).toBeVisible();
         await expect(component.getByText("Reasoning (of replies + swipes)", { exact: true })).toBeVisible();
-        await expect(component.getByText("Throughput (output / gen time)", { exact: true })).toBeVisible();
+        await component.getByRole("button", { name: "Details" }).click();
+        await expect(component.getByText("Speed (tokens per second)", { exact: true })).toBeVisible();
         await expect.poll(() => component.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
       });
     }
@@ -117,8 +118,8 @@ test("the drill mounts its economics landmarks with the character's real figures
   await expect(component.getByText("Kethryl")).toBeVisible();
 
   await expect(component.getByRole("heading", { name: "Activity" })).toBeVisible();
-  await expect(component.getByRole("heading", { name: "Economics" })).toBeVisible();
-  await expect(component.getByRole("heading", { name: "Latency" })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Tokens and cost" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Details" })).toBeVisible();
 
   const words = component.locator('[data-slot="stat-figure"]', { hasText: "Words" }).first();
   // userWords (1200) + assistantWords (3400) = 4.6k — the ONE-definition rule the overview shares (P2d).

@@ -10,7 +10,7 @@ export const colorFieldVariants = tv({
     // `data-unset` is the display swatch's NO-COLOUR state: outlined and unfilled, so it never reads as a
     // picked colour (the input fill could pass for a dark grey).
     swatch:
-      "shrink-0 rounded-control border border-input-border bg-input data-unset:border-dashed data-unset:border-muted-foreground data-unset:bg-transparent",
+      "shrink-0 rounded-control border border-input-border bg-field-fill data-unset:border-dashed data-unset:border-muted-foreground data-unset:bg-transparent",
     hexText: "text-label leading-label text-muted-foreground",
     swatchTrigger: [
       "inline-flex size-control-sm shrink-0 items-center justify-center rounded-control border border-border p-0",

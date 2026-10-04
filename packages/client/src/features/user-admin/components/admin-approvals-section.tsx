@@ -53,7 +53,7 @@ function AdminApprovalsBody(): ReactElement {
     <Section className="@container" divider={true} heading={ADMIN_APPROVALS_SUBCATEGORY.label} id={configAnchorId("admin", ADMIN_APPROVALS_SUBCATEGORY.id)}>
       <Stack gap="row" data-testid={testId("adminApprovalsSection")}>
         <Text voice="label" className="text-muted-foreground">
-          Accounts awaiting approval can't sign in until you enable them. New SSO users land here when OIDC_REQUIRE_APPROVAL is on.
+          Accounts awaiting approval can't sign in until you enable them. New sign-ins through your identity provider land here when approval is required.
         </Text>
 
         {pending.length === 0 ? (

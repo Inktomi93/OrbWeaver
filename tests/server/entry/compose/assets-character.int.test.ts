@@ -226,10 +226,16 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
   test("a genuinely stale/unowned default preset id still degrades to the contract default template", async () => {
     const db = await freshDb();
     const clock = createFrozenClock();
-    // The wire body's field names are OpenAI's, not ours — a raw JSON string sidesteps
-    // `useNamingConvention` on an object literal whose keys this test does not own.
-    const wireBody = `{"id":"chatcmpl-test","choices":[{"index":0,"message":{"role":"assistant","content":${JSON.stringify(fakeGreetingText)}},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`;
-    const fakeFetch: typeof fetch = () => Promise.resolve(new Response(wireBody, { status: 200, headers: { "content-type": "application/json" } }));
+    // The wire body's field names are OpenAI's, not ours — raw JSON strings sidestep `useNamingConvention` on an
+    // object literal whose keys this test does not own. The summarize item is a chat turn, so it streams.
+    const wireBody = [
+      `{"id":"chatcmpl-test","choices":[{"index":0,"delta":{"role":"assistant","content":${JSON.stringify(fakeGreetingText)}},"finish_reason":null}]}`,
+      `{"id":"chatcmpl-test","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`,
+    ]
+      .map((chunk) => `data: ${chunk}\n\n`)
+      .join("");
+    const fakeFetch: typeof fetch = () =>
+      Promise.resolve(new Response(`${wireBody}data: [DONE]\n\n`, { status: 200, headers: { "content-type": "text/event-stream" } }));
     const { services } = await createServices({
       serverRestart: UNSUPERVISED_RESTART,
       share: NO_SHARE_RELAY,
