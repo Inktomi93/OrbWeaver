@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-02
+updated: 2026-10-05
 ---
 
 # Orbweaver — `@orb/inference`: the provider runtime (wires · providers · resolution · execution)

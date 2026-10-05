@@ -11,7 +11,7 @@ lane: codex/launch-caching
 
 ## What
 
-Read each provider's OpenRouter caching details and its direct API documentation. Separate implicit caching, explicit prefix controls, routing affinity and complete response replay. Implement supported controls through existing configuration and request paths. Preserve prompt placement, provider precedence and fresh generation. Normalize reported usage and free response hits into canonical accounting and provenance.
+Read each provider's OpenRouter caching details and its direct API documentation. Separate implicit caching, explicit prefix controls, routing affinity and complete response replay. Implement supported controls through existing configuration and request paths. Preserve prompt placement, provider precedence and fresh generation. Normalize reported usage and free response hits into canonical accounting and provenance. Direct Gemini uses automatic implicit caching. Managed cached-content resources are outside the alpha scope.
 
 Verify successive turns through real persisted chats on OpenRouter and direct routes. Cover one human with one character, two humans with one character, and multiple humans with multiple characters. Include consecutive human messages and consecutive character turns. Test conversation chunking, shaping, Default and Always naming, and each permitted merge setting above the family's required minimum.
 

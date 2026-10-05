@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-09-22
+updated: 2026-10-05
 ---
 
 # Orbweaver — `@orb/db`: the schema floor (drizzle + libSQL + migrations)
