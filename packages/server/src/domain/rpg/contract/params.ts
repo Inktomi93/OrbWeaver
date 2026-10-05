@@ -398,6 +398,7 @@ export interface RollDiceParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
   readonly notation: string;
+  readonly ability?: string | undefined;
 }
 
 /** A read scoped to a chat's game (member for `getGame`/`getTrackerView`; host for `getConfigView`). */

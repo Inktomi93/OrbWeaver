@@ -1,3 +1,4 @@
+import { stateRoundNeededTokens } from "../../../../packages/server/src/domain/rpg/substrate/state-round-fit.ts";
 // entry/compose/rpg — the lite-rpg vertical, COMPOSED-REAL (docs/plans/rpg/design.md). The [compose-stub-goes-stale]/
 // [ct-stub-lie] antidote: drive the domain end-to-end through the ACTUAL `buildRpg` wiring — the real
 // `RpgService` over the real db, the real staging accumulator, the real `ChatRpgOps` flush, the REAL chat-side
@@ -30,9 +31,9 @@ import { resolveProseText } from "@orb/contracts/prose";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
 import { RPG_STATE_ROUND_FAILED_SUMMARY, RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import { characters, chatParticipants, messages, messageVariants, ownerStats, presets } from "@orb/db";
+import { characters, chatParticipants, connectionBindings, messages, messageVariants, ownerStats, presets, userConnections } from "@orb/db";
 import type { ChatRequest, ChatResult, ResolveOutcome } from "@orb/inference";
-import { generationOf } from "@orb/inference";
+import { forcesToolRound, generationOf } from "@orb/inference";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
@@ -411,6 +412,7 @@ function buildCannedRpgWithText(args: {
   readonly chatArm?: NonNullable<Parameters<typeof buildRpg>[0]["executor"]["runChatTurn"]>;
   /** The room preset's Max context, as chat's preset ladder resolves it; omitted ⇒ the real ladder answers. */
   readonly presetMaxContext?: number;
+  readonly onRequest?: (request: ChatRequest) => void;
 }): ReturnType<typeof buildRpg> {
   const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows, chatThrows, capability } = args;
   const structuredReplies = [...(args.structuredReplies ?? [])];
@@ -495,10 +497,12 @@ function buildCannedRpgWithText(args: {
     executor: {
       // A structured extraction is one side-generation chat turn (`runStructuredChat`), told apart from the round's
       // chat and tool turns by its posture; the spy records the model, the constrained schema and the prompts.
-      runChatTurn: (req) =>
-        req.posture === "side-gen"
+      runChatTurn: (req) => {
+        args.onRequest?.(req);
+        return req.posture === "side-gen"
           ? structuredTurn(req)
-          : (args.chatArm ?? (chatThrows !== undefined ? (): Promise<ChatResult> => Promise.reject(chatThrows) : chatTurn))(req),
+          : (args.chatArm ?? (chatThrows !== undefined ? (): Promise<ChatResult> => Promise.reject(chatThrows) : chatTurn))(req);
+      },
     },
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
     // The fork preset-ownership gate is unreached on the extraction path; a benign stub.
@@ -3591,4 +3595,130 @@ test("0511: a patch reply whose every value was refused is a recorded DROP namin
   expect(record?.calls).toEqual([
     expect.objectContaining({ name: "update_scene", verdict: "dropped", issues: [expect.stringMatching(/^timeOfDay: .* — sent "Evening"$/u)] }),
   ]);
+});
+
+test("0567: resync refuses a room window smaller than its fixed request instead of sending an overflowing read", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "resync-small-window");
+  const principal = hostPrincipal(hostId);
+  const spy = emptySpy();
+  const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}", capability: OLLAMA_FLOOR });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+  await seedMessage(db, chatId, 1, { role: "assistant", content: "The story begins." });
+  const verdict = await compose.service.resyncFromStory({ principal, chatId });
+  expect(verdict).toMatchObject({ ok: false, reason: expect.stringMatching(/window.*4096/i) });
+  expect(spy.chatTurns).toEqual([]);
+  expect(spy.summarizeModels).toEqual([]);
+});
+
+test("0567: a larger room window admits resync and the actual sent request fits it", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "resync-fit-window");
+  const principal = hostPrincipal(hostId);
+  const spy = emptySpy();
+  const compose = buildCannedRpgWithText({ app, db, api: "agent-sdk", spy, cannedText: "{}", capability: OLLAMA_FLOOR, presetMaxContext: 16_384 });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+  await seedMessage(db, chatId, 1, { role: "assistant", content: "old-story ".repeat(4500) });
+  await seedMessage(db, chatId, 2, { role: "assistant", content: "The latest story fits." });
+  const verdict = await compose.service.resyncFromStory({ principal, chatId });
+  expect(verdict).toEqual({ ok: true, rebuilt: false });
+  expect(spy.userPrompts[0]).toContain("The latest story fits.");
+  expect(spy.windows).toEqual([16_384]);
+  expect(stateRoundNeededTokens([spy.systemPrompts[0] ?? "", spy.userPrompts[0] ?? "", JSON.stringify(spy.schemas[0])])).toBeLessThanOrEqual(16_384);
+});
+
+test("0681: an ability roll persists in canon through Simple send and survives a room re-read", async ({ app, services, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "ability-canon");
+  const principal = hostPrincipal(hostId);
+  const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}" });
+  await compose.service.createGame({ principal, chatId, mode: "lite", ruleset: "d20" });
+  await compose.service.patchSheet({ principal, chatId, actorRef: { kind: "user", userId: hostId }, patch: { attributes: { str: 15 } } });
+  const roll = await compose.service.rollDice({ principal, chatId, notation: "d20", ability: "str" });
+  const content = `I push the door. ${roll.stamp}`;
+  await db
+    .insert(userConnections)
+    .values({ id: TEST_CONNECTION_ID, ownerId: hostId, label: "ability test connection", providerId: makeResolved().providerId, model: makeResolved().model });
+  await db.insert(connectionBindings).values({
+    id: mintTypeId(ID_PREFIX.connectionBinding),
+    actorKind: "user",
+    userId: hostId,
+    ruleId: null,
+    pluginId: null,
+    task: "chat",
+    connectionId: TEST_CONNECTION_ID,
+  });
+  await services.chat.commitMessage({ principal, chatId, content });
+  const reread = await services.chat.listMessages({ principal, chatId, limit: 20 });
+  expect(reread.messages.map((message) => message.content)).toContain(content);
+  const canon = await app.chatRpgOps.resolveCanonWindow(chatId, { maxTokens: 4096 });
+  expect(canon.map((message) => message.content)).toContain(content);
+  expect(roll.modifier).toBe(2);
+});
+
+test("RPG-R2: a structured-only chat-completions resync fits its actual request in 8000 tokens", async ({ app, db }) => {
+  for (const window of [10_000, 8000]) {
+    const { chatId, hostId } = await seedHostGameChat(db, `r2-structured-${window}`);
+    const principal = hostPrincipal(hostId);
+    const spy = emptySpy();
+    const compose = buildCannedRpgWithText({
+      app,
+      db,
+      api: "chat-completions",
+      spy,
+      cannedText: "{}",
+      capability: makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] }, context: { window } }),
+    });
+    await compose.service.createGame({ principal, chatId, mode: "lite" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "story ".repeat(2000) });
+    const verdict = await compose.service.resyncFromStory({ principal, chatId });
+    expect(verdict).toEqual({ ok: true, rebuilt: false });
+    expect(spy.schemas).toHaveLength(1);
+    expect(spy.chatTurns).toEqual([]);
+    const actual = stateRoundNeededTokens([spy.systemPrompts[0] ?? "", spy.userPrompts[0] ?? "", JSON.stringify(spy.schemas[0])]);
+    expect(actual).toBeLessThanOrEqual(8000);
+    expect(spy.userPrompts[0]).toContain("story ".repeat(2000).trimEnd());
+    expect(spy.windows).toEqual([window]);
+  }
+});
+
+test("RPG-R2: a forced tool resync reserves only requests its dispatcher can send", async ({ app, db }) => {
+  let tightWindow = 20_000;
+  for (const pass of ["control", "tight"] as const) {
+    const { chatId, hostId } = await seedHostGameChat(db, `r2-tool-${pass}`);
+    const principal = hostPrincipal(hostId);
+    const requests: ChatRequest[] = [];
+    const compose = buildCannedRpgWithText({
+      app,
+      db,
+      api: "chat-completions",
+      spy: emptySpy(),
+      cannedText: "{}",
+      cannedToolCalls: [{ name: "no_changes", arguments: "{}" }],
+      capability: makeGenerationCapability({
+        output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] },
+        tools: { parallel: true },
+        context: { window: tightWindow },
+      }),
+      onRequest: (incoming) => {
+        requests.push(incoming);
+      },
+    });
+    await compose.service.createGame({ principal, chatId, mode: "lite" });
+    await compose.service.updateConfig({ principal, chatId, patch: { stateCaptureVehicle: "tools" } });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "story ".repeat(2000) });
+    expect(await compose.service.resyncFromStory({ principal, chatId })).toEqual({ ok: true, rebuilt: false });
+    expect(requests).toHaveLength(1);
+    const request = requests[0];
+    if (request === undefined || request.api !== "chat-completions" || request.tools === undefined) {
+      throw new Error("expected the forced tool request");
+    }
+    expect(request.responseFormat).toBeUndefined();
+    expect(forcesToolRound(request.connection, request.tools)).toBe(true);
+    const userPrompt = request.history[0]?.content.map((part) => (part.type === "text" ? part.text : "")).join("") ?? "";
+    expect(userPrompt).toContain("story ".repeat(2000).trimEnd());
+    const actual = stateRoundNeededTokens([request.systemPrompt.static, userPrompt, JSON.stringify(request.tools)]);
+    expect(actual).toBeLessThanOrEqual(tightWindow);
+    // Leave only a small allowance for different room-name tokens; no unused retry may consume it.
+    if (pass === "control") {
+      tightWindow = actual + 128;
+    }
+  }
 });

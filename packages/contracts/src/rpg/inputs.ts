@@ -298,6 +298,7 @@ export const rpgRestoreCheckpointInputSchema = z.object({
 export const rpgRollDiceInputSchema = z.object({
   chatId: chatIdField,
   notation: z.string().min(1),
+  ability: z.string().min(1).optional(),
 });
 
 /** A read scoped to a chat's game (member for getGame/getTrackerView; host for getConfigView; member for

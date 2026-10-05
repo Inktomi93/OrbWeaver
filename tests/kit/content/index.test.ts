@@ -1002,3 +1002,19 @@ describe("projectBodyForPreview", () => {
     expect(preview.startsWith("an x")).toBe(true);
   });
 });
+
+test("dice stamps become display spans while code, escaped and malformed stamps stay literal", () => {
+  const body = "Before [dice: Strength d20+2 → 16] after [dice: d6 → -1].";
+  const spans = tokenizeContent(body);
+  expect(spans).toContainEqual({ kind: "dice", label: "Strength d20+2", total: 16, raw: "[dice: Strength d20+2 → 16]" });
+  expect(spans.map(contentSpanRaw).join("")).toBe(body);
+  for (const literal of [
+    "```\n[dice: d20 → 16]\n```",
+    "`[dice: d20 → 16]`",
+    "\\[dice: d20 → 16]",
+    "[dice: d20 → many]",
+    "[dice: d20 → 99999999999999999999]",
+  ]) {
+    expect(tokenizeContent(literal)).toEqual([{ kind: "text", text: literal }]);
+  }
+});

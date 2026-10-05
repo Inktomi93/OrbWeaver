@@ -1,13 +1,6 @@
-// @orb/contracts/rpg/profile — the `statProfile` as DATA. The SHAPE is the
-// compatibility promise: lite never computes a modifier (no lite code path reads
-// `modifier`/`skillGoverning`/`perceptionAttribute`/`resolution`), but every field ships, populated and
-// validated, because full's check engine consumes the profile AS-IS on arrival — zero re-shape at graft.
-//
-// Home: `config.statProfile` inside the games config blob (no separate profile table until a
-// cross-game library exists). `RpgSheet.attributes` is a record over this profile's attribute vocabulary.
-//
-// Freeform and D20 are live ruleset vocabulary. D281 excludes dormant packaged templates and
-// catalogs; hosts edit stat profiles manually, and the storage grammar remains independent of defaults.
+// Game-owned stat vocabulary and modifier normalization; identity scores remain human-authored.
+// Human-requested ability rolls use the modifier. Resolution, skills and perception remain full-engine contracts.
+// D281: Freeform and D20 defaults preserve saved custom profiles and additive ruleset application.
 
 import { z } from "zod";
 import type { RpgTrackerDef, RpgTrackerValue } from "./tracker.ts";
@@ -30,8 +23,7 @@ export const RPG_PROFILE_MAX_ATTRIBUTES = 12;
 export const rpgStatResolutionSchema = z.discriminatedUnion("kind", [z.object({ kind: z.literal("house-d20") })]);
 export type RpgStatResolution = z.infer<typeof rpgStatResolutionSchema>;
 
-/** A `statProfile` — the full mechanical vocabulary, shipped whole. Lite exercises only `attributes`
- *  (via the sheet); the rest is the graft contract. `skillGoverning` maps a skill name → the attribute
+/** A `statProfile` — the full mechanical vocabulary, shipped whole. Manual ability rolls read `attributes` and `modifier`; the remaining fields reserve the full-engine contract. `skillGoverning` maps a skill name → the attribute
  *  key that governs it; `defaultAttribute`/`perceptionAttribute` name attribute keys; `resolution` is the
  *  reserved check-engine discriminant.
  *
@@ -59,6 +51,11 @@ export const rpgStatProfileSchema = z.object({
   resolution: rpgStatResolutionSchema,
 });
 export type RpgStatProfile = z.infer<typeof rpgStatProfileSchema>;
+
+/** Convert a set attribute score to the profile's shared modifier space. */
+export function rpgAttributeModifier(profile: RpgStatProfile, score: number): number {
+  return Math.floor((score - profile.modifier.center) / profile.modifier.step);
+}
 
 /** ONE attribute's VOCABULARY gloss — `Strength (raw physical power — lifting, melee force)`, the hint
  *  omitted when empty. The same `label value (hint)` grammar `trackerGloss` uses, split across two surfaces

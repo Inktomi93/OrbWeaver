@@ -108,6 +108,16 @@ function imageSpanBlock(span: Extract<ContentSpan, { kind: "image" }>): MessageC
   return { kind: "markdown", md: `![${span.alt}](asset:${span.ref.assetId})` };
 }
 
+function nonTextBlock(span: Exclude<ContentSpan, { kind: "text" | "hidden" | "unknown-directive" | "dice" }>, trust: CardTrust): MessageContentBlock {
+  if (span.kind === "image") {
+    return imageSpanBlock(span);
+  }
+  if (span.kind === "card") {
+    return { kind: "html-card", html: span.body, trust, origin: span.origin, ...(span.title === null ? {} : { title: span.title }) };
+  }
+  return { kind: "choices", options: [...span.options] };
+}
+
 export function contentSpansToBlocks(spans: readonly ContentSpan[], options?: ContentSpansToBlocksOptions): MessageContentBlock[] {
   const cardTrust: CardTrust = options?.cardTrust ?? "tierB";
   const blocks: MessageContentBlock[] = [];
@@ -119,8 +129,8 @@ export function contentSpansToBlocks(spans: readonly ContentSpan[], options?: Co
     }
   };
   for (const span of spans) {
-    if (span.kind === "text") {
-      pendingText += span.text;
+    if (span.kind === "text" || span.kind === "dice") {
+      pendingText += span.kind === "text" ? span.text : span.raw;
       continue;
     }
     // The READING-SURFACE plane (`CONTENT_CLASS_POLICY` `{hide, …}` classes) — the filter IS "the
@@ -132,16 +142,7 @@ export function contentSpansToBlocks(spans: readonly ContentSpan[], options?: Co
       continue;
     }
     flushText();
-    if (span.kind === "image") {
-      blocks.push(imageSpanBlock(span));
-      continue;
-    }
-    if (span.kind === "card") {
-      blocks.push({ kind: "html-card", html: span.body, trust: cardTrust, origin: span.origin, ...(span.title === null ? {} : { title: span.title }) });
-      continue;
-    }
-    // The one remaining kind — a NEW `ContentSpanKind` fails tsc here until it gets an arm (totality).
-    blocks.push({ kind: "choices", options: [...span.options] });
+    blocks.push(nonTextBlock(span, cardTrust));
   }
   flushText();
   return blocks;

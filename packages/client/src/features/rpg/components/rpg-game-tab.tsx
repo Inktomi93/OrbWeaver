@@ -31,6 +31,7 @@ import { useState } from "react";
 import { AddRow, HintEditor, QueryBoundary, SettingCheckboxRow, TrackerValue } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useReattributePersona, useTRPC } from "#data";
 import { notify } from "#lib";
+import { setContextTab } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
@@ -255,8 +256,8 @@ function RelationshipHintsEditor({ chatId, config }: { readonly chatId: ChatId; 
   const updateConfig = useUpdateConfig({ trpc, invalidation });
   return (
     <RpgHintMapEditor
-      kicker="Relationship hints — gloss custom labels"
-      emptyLine="No custom relationship labels glossed yet — the six built-in kinds need none."
+      kicker="Custom relationship meanings"
+      emptyLine="No custom relationships yet — built-in kinds already have meanings."
       labelNoun="relationship label"
       addPlaceholder="custom label (e.g. debtor)"
       hints={config.relationshipHints}
@@ -265,26 +266,22 @@ function RelationshipHintsEditor({ chatId, config }: { readonly chatId: ChatId; 
   );
 }
 
-/** The JOURNAL-TYPE hint editor (R4c) — the exact sibling of the relationship hints, on the plane that fires on
- *  ~79% of turns: a journal entry may ride `type:"custom"` with a free label, and this maps that label to the
- *  gloss the extraction prompt teaches with it. Stored + read (the tool descriptions render it) with no editor
- *  until now — the D107 dead-switch class. Whole-record replace on commit. */
 function JournalTypeHintsEditor({ chatId, config }: { readonly chatId: ChatId; readonly config: RpgConfigView }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateConfig = useUpdateConfig({ trpc, invalidation });
   return (
     <RpgHintMapEditor
-      kicker="Journal type hints — gloss your own beat types"
-      emptyLine="No custom journal types glossed yet — the built-in beat types need none."
+      kicker="Custom journal types"
+      emptyLine="No custom journal types yet — built-in types already have meanings."
       labelNoun="journal type"
       addPlaceholder="custom type (e.g. omen)"
       hints={config.journalTypeHints}
       onCommit={(next): void => updateConfig.mutate({ chatId, patch: { journalTypeHints: next } })}
     >
       <Text voice="gloss">
-        A beat the story records as your own type carries only its bare label unless you say what it means. The gloss rides the same instruction that teaches
-        the built-in types.
+        A beat the story records as your own type carries only its bare label unless you say what it means. Its meaning is included in the instructions for the
+        story.
       </Text>
     </RpgHintMapEditor>
   );
@@ -386,24 +383,47 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
           Host console — host only
         </Text>
       </Row>
-      {/* Section order: RULESET (#862 — the setting that decides the vocabulary, so it leads) → Stat profile (the sheet vocabulary) → TRACKERS (the unified def surface that absorbed
-          the Sheet tab's pool defs, the old cast-field schemas, and the band-pin section) → the two gloss maps
-          (relationship labels, then journal types — same block, same gesture) → the scalar form (Play style →
-          Immersive cards → Hidden channels → Prompt budget → Steering note → Delivery model → Extraction depth)
-          → GAME MACROS (WAVE MU — the game half of the two authoring homes; its own autosave boundary because
-          it owns a structural array). */}
       <RpgRulesetControl chatId={state.chatId} config={config} />
-      {/* #1032 — the GM-VOICE knob sits directly under the ruleset because the two answer the same class of
-          question about the whole table: the ruleset decides the vocabulary every section below edits, this
-          decides which preset the turns speak in. Both are per-room bindings, neither is a scalar. */}
-      <RpgGmVoice chatId={state.chatId} config={config} />
-      <RpgStatProfileEditor chatId={state.chatId} config={config} />
-      <TrackersEditor chatId={state.chatId} config={config} />
-      <RelationshipHintsEditor chatId={state.chatId} config={config} />
-      <JournalTypeHintsEditor chatId={state.chatId} config={config} />
-      <HostConsoleScalars chatId={state.chatId} config={config} structuredUnavailable={state.game.effectiveDelivery.structuredUnavailable} />
-      <RpgGameMacros chatId={state.chatId} config={config} />
-      <ResyncControl chatId={state.chatId} />
+      <Stack gap="field">
+        <Kicker>Stats</Kicker>
+        {config.statProfile.attributes.length === 0 ? (
+          <Text voice="gloss">Freeform play needs no scores. Choose D20 above to add its attributes and dice.</Text>
+        ) : (
+          <>
+            <Row gap="field" className="flex-wrap">
+              {config.statProfile.attributes.map((def) => (
+                <Badge key={def.key} tone="soft">
+                  {def.label}
+                </Badge>
+              ))}
+            </Row>
+            <Text voice="gloss">
+              {config.ruleset === "d20"
+                ? "Fill character scores in Status: roll 4d6 drop lowest, use the standard array, or enter them by hand."
+                : "Enter and edit character scores in Status. Customize stat definitions in Advanced."}
+            </Text>
+            <Button intent="secondary" size="sm" onClick={(): void => setContextTab("rpg.status")}>
+              Set character scores
+            </Button>
+          </>
+        )}
+      </Stack>
+      <HostConsoleScalars
+        chatId={state.chatId}
+        config={config}
+        structuredUnavailable={state.game.effectiveDelivery.structuredUnavailable}
+        advancedContent={
+          <>
+            <RpgGmVoice chatId={state.chatId} config={config} />
+            <RpgStatProfileEditor chatId={state.chatId} config={config} />
+            <TrackersEditor chatId={state.chatId} config={config} />
+            <RelationshipHintsEditor chatId={state.chatId} config={config} />
+            <JournalTypeHintsEditor chatId={state.chatId} config={config} />
+            <RpgGameMacros chatId={state.chatId} config={config} />
+            <ResyncControl chatId={state.chatId} />
+          </>
+        }
+      />
     </Stack>
   );
 }

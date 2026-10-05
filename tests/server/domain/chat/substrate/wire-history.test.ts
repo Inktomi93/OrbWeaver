@@ -598,3 +598,10 @@ test("signed tool boundaries inside a wire-full directive split its original tex
   ]);
   expect(frames[2]?.content).toEqual([{ type: "text", text: content.slice(at), thoughtSignature: "after" }]);
 });
+
+test("a persisted ability stamp keeps its exact bytes, row identity and prompt cost on replay", async () => {
+  const body = "I push. [dice: Strength d20+2 → 16] The door opens.";
+  const converted = await buildWireHistory(env, [row("user", body, "message_dice")]);
+  expect(wireCostRows(converted)).toEqual([{ role: "user", content: body, messageId: castId<MessageId>("message_dice") }]);
+  expect(converted[0]?.row.content).toEqual([{ type: "text", text: body }]);
+});

@@ -247,6 +247,7 @@ export {
   RPG_PROFILE_FREEFORM,
   RPG_PROFILE_MAX_ATTRIBUTES,
   RPG_SEED_HP_MAX,
+  rpgAttributeModifier,
   rpgSeedTrackers,
   rpgStatAttributeDefSchema,
   rpgStatProfileSchema,

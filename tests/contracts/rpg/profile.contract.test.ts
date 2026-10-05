@@ -1,3 +1,4 @@
+import { rpgAttributeModifier } from "@orb/contracts/rpg";
 // @orb/contracts/rpg/profile — the statProfile IS the compatibility promise (§2.3). Pins: the schema
 // parses the mechanical shape and preserves saved/custom vocabulary independently of live defaults.
 
@@ -82,4 +83,18 @@ test("the public RPG contract does not publish a dormant template catalog", asyn
   expect(Object.hasOwn(rpgContracts, "RPG_PROFILE_SPECIAL")).toBe(false);
   expect(Object.hasOwn(rpgContracts, "RPG_PACKAGED_PROFILE_BY_KEY")).toBe(false);
   expect(Object.hasOwn(rpgContracts, "RPG_PACKAGED_PROFILES")).toBe(false);
+});
+
+test("attribute modifiers use the profile normalization and floor negative results", () => {
+  const profile = rpgStatProfileSchema.parse({
+    attributes: [],
+    range: { min: 0, max: 20 },
+    modifier: { center: 8, step: 3 },
+    defaultAttribute: "",
+    perceptionAttribute: "",
+    resolution: { kind: "house-d20" },
+  });
+  expect(rpgAttributeModifier(profile, 15)).toBe(2);
+  expect(rpgAttributeModifier(profile, 7)).toBe(-1);
+  expect(rpgAttributeModifier(profile, 8)).toBe(0);
 });

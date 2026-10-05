@@ -592,10 +592,6 @@ export function makeRpgService(
     runToolRound,
     buildFoldedTurn,
     foldTurnToolCalls,
-    resolveCanonWindow: (chatId, opts) => {
-      fakes.canonWindowReads.push({ chatId, maxTokens: opts.maxTokens });
-      return Promise.resolve(fakes.canonWindow);
-    },
     resolveCardCorpus: (chatId, characterId) => {
       fakes.cardCorpusReads.push({ chatId, characterId });
       return Promise.resolve(fakes.cardCorpus);
@@ -610,7 +606,7 @@ export function makeRpgService(
       // Record the host userId the resync resolved UNDER + the window budget it read — the test asserts the
       // host-principal seam (the funding userId is the resolved HOST, never a caller-injected foreign id) and
       // the deep read fired.
-      fakes.resyncCalls.push({ chatId: input.chatId, hostUserId: input.hostUserId, windowTokens: input.transcript.length });
+      fakes.resyncCalls.push({ chatId: input.chatId, hostUserId: input.hostUserId, windowTokens: fakes.canonWindow.length });
       return Promise.resolve(fakes.resyncRefusal ?? { ok: true, delta: fakes.resyncDelta });
     },
     emitBus: (event) => {

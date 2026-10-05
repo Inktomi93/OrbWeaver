@@ -58,7 +58,7 @@ import type {
   RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
-import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../chat/index.ts";
+import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext } from "../../chat/index.ts";
 import type {
   AddJournalEntryParams,
   CreateCheckpointParams,
@@ -426,16 +426,6 @@ interface RpgStateDeliveryVerdict {
   readonly structuredUnavailable: boolean;
 }
 
-/** The DEEP canon-window read (crunchy-cluster §1.3 — the `resyncFromStory` host escape hatch's story feed). An
- *  INJECTED CHAT OP (chat owns canon reads; rpg reads no chat table, §2 one-directional flow): resolve the
- *  chat's selected-lineage canon, name-stamped + token-measured, oldest→newest, up to `maxTokens` (newest-first
- *  fill, then restored to chronological order — the SAME projection the engine threads at `fireRpgTurnCompleted`,
- *  one shared builder so the two can't drift). Room-plane per D106 ("the prompt is the room's"); hidden-class
- *  spans stay INTACT (the resync is model-plane — the model always reads its own lies, D110 §3.6; the member
- *  never sees this read). Principal-free (the resync verb gated its host caller before invoking).
- *  Non-exported: reachable only through `RpgContext.resolveCanonWindow`'s signature — no consumer names it (knip). */
-type RpgResolveCanonWindow = (chatId: ChatId, opts: { readonly maxTokens: number }) => Promise<readonly RpgTurnTranscriptMessage[]>;
-
 /** The STRUCTURED-OUTPUT extraction op (§4.6 / the delivery-model amendment). It reads the committed beat + the
  *  resolved base state and emits the whole state delta in ONE object. It is no longer a delivery MODE of its own
  *  (the `reliable` knob was deleted — owner ruling): it survives as the vehicle two capability-keyed
@@ -497,8 +487,7 @@ type RpgFoldTurnToolCalls = (input: RpgStateRoundInput & { readonly toolCalls: r
 
 /** The `resyncFromStory` model call (crunchy-cluster §1.3 — the host escape hatch). Rebuilds the tracked state
  *  from a DEEP story window with establish-EVERYTHING forcing (the reconcile arm, applied unconditionally). The
- *  verb resolves the host authority + reads the window (via the injected `resolveCanonWindow`) then hands the
- *  resolved inputs to THIS op; the op resolves the ROOM connection AS THE HOST (fresh, at the verb — the one
+ *  verb resolves host authority and the snapshot; this op resolves the ROOM connection AS THE HOST (fresh, at the verb — the one
  *  sanctioned non-inherited rpg model call, because the consenting human initiates it) and drives ONE
  *  structured-output call.
  *
@@ -520,13 +509,12 @@ type RpgResyncRoundResult = { readonly ok: true; readonly delta: RpgStateDelta }
 /** The resolved inputs the `resyncFromStory` model call consumes. `hostUserId` is the ROOM host (resolved by
  *  ROLE at the verb, D19) the op resolves the connection + creds + consent UNDER — never a caller-supplied
  *  principal/userId (the injected-op caller-gate class: dropping the host id here would let a foreign principal
- *  fund the model call). `transcript` is the deep canon window the injected `resolveCanonWindow` read;
+ *  fund the model call). This op reads canon after it resolves the sent connection window;
  *  `baseState` is the resolution-ladder head the rebuild reconciles against (locks honored at the verb's merge). */
 interface RpgResyncInput {
   readonly chatId: ChatId;
   readonly hostUserId: UserId;
   readonly baseState: RpgSnapshotState;
-  readonly transcript: readonly RpgTurnTranscriptMessage[];
 }
 
 /** The `populateFromCharacter` model call (owner ruling — the host BORN-STATE round). Reads ONE
@@ -701,10 +689,6 @@ export interface RpgContext {
    *  model calls of their own. */
   readonly buildFoldedTurn: RpgBuildFoldedTurn;
   readonly foldTurnToolCalls: RpgFoldTurnToolCalls;
-  /** The DEEP canon-window read (§1.3) the `resyncFromStory` host verb reads its story feed from — the injected
-   *  chat op (rpg reads no chat table). Wired at compose to a chat-owned builder that shares the engine's
-   *  transcript projection. A fake returns a fixed transcript in tests. */
-  readonly resolveCanonWindow: RpgResolveCanonWindow;
   /** The reconcile/resync structured model call under the HOST's FRESH-resolved connection (§1.3 resync).
    *  UNLIKE `runToolRound` (which rides the character turn's already-resolved connection +
    *  inherited consent), this resolves the ROOM connection AS THE HOST at the verb (a host-INITIATED

@@ -1,4 +1,5 @@
 import { contentSpansToBlocks, messageContentBlockSchema } from "@orb/contracts/chat";
+import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
@@ -108,4 +109,11 @@ test("a choices span projects to a choices block (buttons are the client arm; th
   for (const b of blocks) {
     expect(messageContentBlockSchema.parse(b)).toEqual(b);
   }
+});
+
+test("dice stamps retain one markdown parse with byte-identical prose, whitespace and formatting", () => {
+  const body = "**I try. [dice: Strength d20+2 → 16] The door opens.**\n\n[dice: d20 → 4]";
+  const blocks = contentSpansToBlocks(tokenizeContent(body));
+  expect(blocks).toEqual([{ kind: "markdown", md: body }]);
+  expect(messageContentBlockSchema.parse(blocks[0])).toEqual(blocks[0]);
 });

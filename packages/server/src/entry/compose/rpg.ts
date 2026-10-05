@@ -1698,6 +1698,7 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
 const RESYNC_UNRESOLVABLE_REASON = "this room's connection didn't resolve, so the rebuild never ran — check the chat's model/connection.";
 // @orb-waive no-hardcoded-model-prose(this): same host-toast class as the row above — never a model prompt
 const RESYNC_READONLY_REASON = "this room's model can't write game state, so there's nothing to rebuild with — switch to a connection that can.";
+const RPG_RESYNC_MAX_TOKENS = 16_384;
 const RESYNC_FAILED_REASON = "the model call failed, so nothing was rebuilt:";
 
 // ── THE CATCH-UP ROUND IS A MULTI-CALL TOOL ROUND (owner ruling 2026-08-03) ───────────────────────────
@@ -1813,10 +1814,66 @@ async function resyncViaStructuredRound(
   return { ok: true, delta };
 }
 
+function resyncNeededTokens(conn: Resolved<"chat">, inputs: PromptInputs, userPrompt: string, toolRound: boolean): number {
+  const primary = stateRoundNeededTokens(stateRoundRequestText(conn, inputs, userPrompt, toolRound));
+  if (!toolRound) {
+    return primary;
+  }
+  const tools = buildToolRoundWireTools(inputs.refs, inputs.config, inputs.prose);
+  const generation = generationOf(conn);
+  const shapes = structuredShapes(conn, inputs.refs, tools);
+  if (primaryStateRound(inputs.config.stateCaptureVehicle, generation, shapes.plans) !== null) {
+    return primary;
+  }
+  // Empty calls describe the possible retry; a forced round or unsupported format has no retry to reserve.
+  const fallback = fallbackStateRound(generation, [], shapes.plans);
+  if (fallback === null) {
+    return primary;
+  }
+  const round = structuredRound(fallback, shapes.schemas()[fallback], tools, { lead: toolRoundSystem(inputs), prose: inputs.prose });
+  return Math.max(primary, stateRoundNeededTokens([round.systemPrompt, userPrompt, JSON.stringify(round.format.schema)]));
+}
+
+async function fitResyncPrompt(
+  deps: RpgComposeDeps,
+  args: {
+    readonly chatId: ChatId;
+    readonly conn: Resolved<"chat">;
+    readonly baseState: RpgSnapshotState;
+    readonly inputs: PromptInputs;
+    readonly toolRound: boolean;
+  },
+): Promise<{ readonly ok: true; readonly userPrompt: string } | { readonly ok: false; readonly reason: string }> {
+  const { conn, inputs, toolRound } = args;
+  const windowTokens = generationOf(conn).context.window;
+  const price = (candidate: string): number => resyncNeededTokens(conn, inputs, candidate, toolRound);
+  const fixedTokens = price(buildExtractionUserPrompt([], args.baseState, inputs.config, inputs.prose));
+  if (fixedTokens >= windowTokens) {
+    return {
+      ok: false,
+      reason: `The room's context window (${windowTokens} tokens) cannot fit the game instructions, tracked state and reply reserve. Increase Max context before resyncing; nothing was rebuilt.`,
+    };
+  }
+  // The canonical reader can keep an oversized newest row. Price the actual request before any model call.
+  const transcript = [...(await deps.rpgChatOps.resolveCanonWindow(args.chatId, { maxTokens: Math.min(RPG_RESYNC_MAX_TOKENS, windowTokens - fixedTokens) }))];
+  let userPrompt = buildExtractionUserPrompt(transcript, args.baseState, inputs.config, inputs.prose);
+  while (transcript.length > 0 && price(userPrompt) > windowTokens) {
+    transcript.shift();
+    if (transcript.length === 0) {
+      return {
+        ok: false,
+        reason: `The latest story message cannot fit the room's context window (${windowTokens} tokens) alongside game state and reply reserve. Increase Max context before resyncing; nothing was rebuilt.`,
+      };
+    }
+    userPrompt = buildExtractionUserPrompt(transcript, args.baseState, inputs.config, inputs.prose);
+  }
+  return { ok: true, userPrompt };
+}
+
 /** Build the host `resyncFromStory` model call. Resolves the room connection AS THE HOST, gates readonly
  *  (capability-absent ⇒ a legible refusal), runs the establish-EVERYTHING extraction over the deep window. */
 function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncExtraction"] {
-  return async ({ chatId, hostUserId, baseState, transcript }) => {
+  return async ({ chatId, hostUserId, baseState }) => {
     // Resolve the ROOM connection AS THE HOST — fresh, at the verb (the `resolveStateDelivery` host-resolve
     // precedent). The host principal is minted from the room-host userId the VERB resolved by role, never a
     // caller-supplied id (the injected-op caller-gate class). A misconfigured/incoherent backend REFUSES the
@@ -1853,7 +1910,11 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     // teach sees it on the rebuild exactly as they see it on a turn — the inherited-preview rule.
     const prose = await deps.rpgChatOps.resolveChatPresetProse(chatId);
     const inputs: PromptInputs = { config: resyncConfig, refs, playerDisplayName, reconcile: true, prose };
-    const userPrompt = buildExtractionUserPrompt(transcript, baseState, resyncConfig, prose);
+    const fitted = await fitResyncPrompt(deps, { chatId, conn, baseState, inputs, toolRound });
+    if (!fitted.ok) {
+      return fitted;
+    }
+    const userPrompt = fitted.userPrompt;
     const args = { chatId, conn, baseState, inputs, userPrompt };
     return toolRound ? await resyncViaToolRound(deps, args) : await resyncViaStructured(deps, args);
   };
@@ -2135,9 +2196,6 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // Neither makes a model call; the character turn already paid for both.
     buildFoldedTurn: buildFoldedTurnBuilder(deps),
     foldTurnToolCalls: buildFoldTurnToolCalls(deps),
-    // The DEEP canon-window read (§1.3) the `resyncFromStory` host verb reads its story feed from — the injected
-    // chat op (chat owns canon reads; rpg reads no chat table), shares the engine's transcript projection.
-    resolveCanonWindow: deps.rpgChatOps.resolveCanonWindow,
     // The host resync model call (§1.3) — resolves the room connection AS THE HOST fresh at the verb (the ONE
     // non-inherited rpg model call, gated host-only inside the verb).
     runResyncExtraction: buildRunResyncExtraction(deps),
@@ -2291,12 +2349,12 @@ async function resolveFunderChat(deps: RpgComposeDeps, funderUserId: UserId): Pr
 
 /**
  * The text the state round's first request carries on `conn`: its system prompt, its user prompt, and its tool or
- * schema payload. The same vehicle choice and the same builders `buildRunToolRound` / `buildRunExtraction` send, so
- * pricing this prices the round.
+ * schema payload. The caller supplies its dispatcher's tool-round choice: API support alone does not select
+ * the resync vehicle. The same builders produce the priced and sent payloads.
  */
-export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInputs, userPrompt: string): readonly string[] {
+export function stateRoundRequestText(conn: Resolved<"chat">, inputs: PromptInputs, userPrompt: string, toolRound: boolean): readonly string[] {
   const { refs, config, prose } = inputs;
-  if (!carriesForcedToolRound(conn)) {
+  if (!toolRound) {
     return [extractionSystem(inputs), userPrompt, JSON.stringify(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs))];
   }
   const wireTools = buildToolRoundWireTools(refs, config, prose);
@@ -2329,6 +2387,8 @@ function buildResolveStateRoundFit(deps: RpgComposeDeps): RpgContext["resolveSta
     const userPrompt = buildExtractionUserPrompt([], baseState, config, prose);
     const sent = await roomWindowed(deps, chatId, conn);
     const windowTokens = generationOf(sent).context.window;
-    return stateRoundNeededTokens(stateRoundRequestText(sent, inputs, userPrompt)) > windowTokens ? { connectionId: conn.connectionId, windowTokens } : null;
+    return stateRoundNeededTokens(stateRoundRequestText(sent, inputs, userPrompt, carriesForcedToolRound(sent))) > windowTokens
+      ? { connectionId: conn.connectionId, windowTokens }
+      : null;
   };
 }

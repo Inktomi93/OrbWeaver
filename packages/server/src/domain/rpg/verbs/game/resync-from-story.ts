@@ -59,11 +59,6 @@ import { resolveSnapshotForTurn, writeResyncedSnapshot } from "../../persistence
 import { defaultSnapshotState } from "../../substrate/default-state.ts";
 import { applyLockedPatch } from "../../substrate/merge.ts";
 
-/** The deep-window budget the resync reads (the deepest honest read — a const, NOT a client knob, so a caller
- *  can't inflate the read). Bounded for the sad-path 8B ([[plan-for-small-hardware]]); a resync is a rare
- *  host-initiated action, so a generous ceiling is affordable. */
-const RPG_RESYNC_MAX_TOKENS = 16_384;
-
 /** The state-plane key whose vehicle semantics are APPEND (`applyUpdateScene` returns `[...base, beat]`) and
  *  whose reconciler semantics are REBUILD — the one plane {@link resyncStatePatch} re-shapes. */
 const RECENT_EVENTS = "recentEvents";
@@ -95,14 +90,11 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
     const baseRow = await resolveSnapshotForTurn(ctx.db, { id: game.id, chatId: game.chatId });
     const baseState = baseRow === undefined ? defaultSnapshotState() : snapshotRowToState(baseRow);
 
-    // The DEEP story window (the injected chat op — rpg reads no chat table; hidden spans intact, model-plane).
-    const transcript = await ctx.resolveCanonWindow(game.chatId, { maxTokens: RPG_RESYNC_MAX_TOKENS });
-
     // The host-principal model call: resolves the room connection AS THE HOST, establish-EVERYTHING rebuild over
     // the deep window. The op is ERRORS-AS-DATA — a round that could not RUN (unresolvable connection / no
     // structured writer / a failed model call) comes back `{ok:false, reason}` and is handed STRAIGHT to the
     // host. It used to come back as an empty delta, indistinguishable from a story with nothing to re-derive.
-    const round = await ctx.runResyncExtraction({ chatId: game.chatId, hostUserId, baseState, transcript });
+    const round = await ctx.runResyncExtraction({ chatId: game.chatId, hostUserId, baseState });
     if (!round.ok) {
       return round;
     }

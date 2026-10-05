@@ -1,12 +1,4 @@
-// The GM console's SCALAR autosave form (extracted from rpg-game-tab.tsx for the component-size cap):
-// Play style (CYOA switch + the compose|send segmented choice-click knob + plot steering) → Immersive
-// cards (the teaching gate + its interactivity sub-toggle + the keep-last-X wire knob) → Hidden
-// channels (the two teaching gates + the host reveal-eye offer) → Prompt budget (the reminder's
-// recent-beats slice) → Steering note →
-// Delivery model (the mock's SEGMENTED mode toggle with its honest consequence line — never a resting
-// dropdown) → Extraction depth (the evidence trio). Everything autosaves (D66 A4). The
-// section ORDER inside this form is the tail of the mock's console order (game.html) — the array/record
-// sub-editors render before it in rpg-game-tab.tsx.
+// One scalar autosave session spans Play style and Advanced; hidden fields retain their draft values.
 
 import type { RpgConfigView } from "@orb/contracts/rpg";
 import {
@@ -24,11 +16,12 @@ import {
   RPG_STEERING_NOTE_MAX,
 } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
@@ -67,10 +60,12 @@ export function HostConsoleScalars({
   chatId,
   config,
   structuredUnavailable,
+  advancedContent,
 }: {
   readonly chatId: ChatId;
   readonly config: RpgConfigView;
   readonly structuredUnavailable: boolean;
+  readonly advancedContent: ReactNode;
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -98,7 +93,7 @@ export function HostConsoleScalars({
             <Kicker>Play style</Kicker>
             <form.AppField name="cyoa">
               {(field): ReactElement => (
-                <field.SwitchField label="CYOA choices" hint="Every reply ends with a clickable set of choices — pick one to play it as your turn." />
+                <field.SwitchField label="Offer story choices" hint="Every reply ends with a clickable set of choices — pick one to play it as your turn." />
               )}
             </form.AppField>
             {/* The compose|send choice-click knob — a SEGMENTED toggle with its consequence line,
@@ -172,165 +167,176 @@ export function HostConsoleScalars({
             </form.AppField>
           </Stack>
 
-          {/* IMMERSIVE CARDS — both knobs shipped stored + wired and NEITHER had
+          <Collapsible>
+            <CollapsibleTrigger>Advanced</CollapsibleTrigger>
+            <CollapsiblePanel keepMounted={true}>
+              <Stack gap="section">
+                {advancedContent}
+                {/* IMMERSIVE CARDS — both knobs shipped stored + wired and NEITHER had
               an editor: a host who did not want HTML in their prompt had no switch (owner dogfood 2026-07-31,
               the D107 dead-switch class). The pair is a DEPENDENCY, so it reads as one: the sub-toggle sits
               under its parent and goes DISABLED (not hidden) when the teaching is off — an interactivity ask
               with nothing to ask for is inapplicable, and the reason stays readable on its hint. */}
-          {/* gap="row" — the Play style block's own fix-forward (same measured clearance defect,
+                {/* gap="row" — the Play style block's own fix-forward (same measured clearance defect,
               Kicker included so the FIRST row's collision with the Kicker's own label text clears too). */}
-          <Stack gap="row">
-            <Kicker>Immersive cards</Kicker>
-            <form.AppField name="immersiveHtml">
-              {(field): ReactElement => (
-                <field.SwitchField
-                  label="Immersive HTML cards"
-                  hint="Teaches the model to answer with self-contained HTML cards (letters, notices, terminals) rendered in a sandbox. Off = the story stays plain prose; cards already in the chronicle keep rendering."
-                />
-              )}
-            </form.AppField>
-            <form.AppField name="immersiveHtml">
-              {(htmlField): ReactElement => (
-                <form.AppField name="immersiveHtmlInteractive">
-                  {(field): ReactElement => (
-                    <field.SwitchField
-                      label="Allow interactivity in cards"
-                      disabled={!htmlField.state.value}
-                      hint={
-                        htmlField.state.value
-                          ? "Asks for animation and scripting inside those cards. Off = the calmer static table — still cards, no moving parts."
-                          : "Needs immersive HTML cards on — there is no card ask to make interactive."
-                      }
-                    />
-                  )}
-                </form.AppField>
-              )}
-            </form.AppField>
-            {/* The card WIRE knob, applicability-shown with its teaching parent: the newest X cards always
+                <Stack gap="row">
+                  <Kicker>Immersive cards</Kicker>
+                  <form.AppField name="immersiveHtml">
+                    {(field): ReactElement => (
+                      <field.SwitchField
+                        label="Immersive HTML cards"
+                        hint="Teaches the model to answer with self-contained HTML cards (letters, notices, terminals) rendered in a sandbox. Off = the story stays plain prose; cards already in the chronicle keep rendering."
+                      />
+                    )}
+                  </form.AppField>
+                  <form.AppField name="immersiveHtml">
+                    {(htmlField): ReactElement => (
+                      <form.AppField name="immersiveHtmlInteractive">
+                        {(field): ReactElement => (
+                          <field.SwitchField
+                            label="Allow interactivity in cards"
+                            disabled={!htmlField.state.value}
+                            hint={
+                              htmlField.state.value
+                                ? "Asks for animation and scripting inside those cards. Off = the calmer static table — still cards, no moving parts."
+                                : "Needs immersive HTML cards on — there is no card ask to make interactive."
+                            }
+                          />
+                        )}
+                      </form.AppField>
+                    )}
+                  </form.AppField>
+                  {/* The card WIRE knob, applicability-shown with its teaching parent: the newest X cards always
                 ride the prompt in full, and older ones collapse to their `[card: title]` stub X at a time.
                 The RENDER is untouched either way — this is prompt budget, not visibility. */}
-            <form.AppField name="immersiveHtml">
-              {(htmlField): ReactElement | null =>
-                htmlField.state.value ? (
-                  <form.AppField name="cardKeepLastX">
+                  <form.AppField name="immersiveHtml">
+                    {(htmlField): ReactElement | null =>
+                      htmlField.state.value ? (
+                        <form.AppField name="cardKeepLastX">
+                          {(field): ReactElement => (
+                            <field.NumberField
+                              label="Cards kept whole in the prompt"
+                              description={`This many of the newest cards always stay in full. Older cards collapse to a one-line stub, this many at a time. ${RPG_CARD_KEEP_LAST_DEFAULT} collapses every card right away, which costs the least. Each full card costs its whole length on every turn.`}
+                              placeholder={`${RPG_CARD_KEEP_LAST_DEFAULT} (default)`}
+                              min={0}
+                            />
+                          )}
+                        </form.AppField>
+                      ) : null
+                    }
+                  </form.AppField>
+                </Stack>
+
+                {/* gap="row" — same fix-forward (measured clearance defect, Kicker included). */}
+                <Stack gap="row">
+                  <Kicker crown={true}>Hidden channels — host only</Kicker>
+                  <form.AppField name="deception">
+                    {(field): ReactElement => (
+                      <field.SwitchField
+                        label="Deception"
+                        hint="Teach the model the <lie> channel — characters can hold standing secrets (the Veiled ledger)."
+                      />
+                    )}
+                  </form.AppField>
+                  <form.AppField name="omniscience">
+                    {(field): ReactElement => (
+                      <field.SwitchField
+                        label="Events outside the party's view"
+                        hint="Teach the <ofilter> channel — the model can note events the party can't perceive."
+                      />
+                    )}
+                  </form.AppField>
+                  {/* The host's own REVEAL EYE. Stored + read by `revealHidden` since launch with no way to reach it
+                (the D107 dead-switch class). It governs ONLY the host's peek: a member never reads hidden bytes
+                either way, and the model always remembers what it hid — so the copy must not imply otherwise. */}
+                  <form.AppField name="hiddenContentReveal">
+                    {(field): ReactElement => (
+                      <field.SwitchField
+                        label="Let me reveal hidden content"
+                        hint="Off = you play blind too: no reveal eye, no standing-lies ledger, for you either. It changes nothing for members (they never see hidden content) and nothing for the model (it always remembers what it hid)."
+                      />
+                    )}
+                  </form.AppField>
+                </Stack>
+
+                {/* PROMPT BUDGET — the reminder's own slice knob. The durable log is untouched by it: the
+              journal keeps every beat, this only bounds what the steering injection re-states each turn. */}
+                <Stack gap="field">
+                  <Kicker>Prompt budget</Kicker>
+                  <form.AppField name="recentBeatsKeepLast">
                     {(field): ReactElement => (
                       <field.NumberField
-                        label="Cards kept whole in the prompt"
-                        description={`This many of the newest cards always stay in full. Older cards collapse to a one-line stub, this many at a time. ${RPG_CARD_KEEP_LAST_DEFAULT} collapses every card right away, which costs the least. Each full card costs its whole length on every turn.`}
-                        placeholder={`${RPG_CARD_KEEP_LAST_DEFAULT} (default)`}
+                        label="Recent beats in the reminder"
+                        description={`How many recent beats the game reminder re-states to the model each turn. 0 drops the block entirely. Nothing is deleted — the journal keeps the full record; this is only what rides the prompt. Default ${RPG_RECENT_BEATS_KEEP_DEFAULT}.`}
+                        placeholder={`${RPG_RECENT_BEATS_KEEP_DEFAULT} (default)`}
                         min={0}
                       />
                     )}
                   </form.AppField>
-                ) : null
-              }
-            </form.AppField>
-          </Stack>
-
-          {/* gap="row" — same fix-forward (measured clearance defect, Kicker included). */}
-          <Stack gap="row">
-            <Kicker crown={true}>Hidden channels — host only</Kicker>
-            <form.AppField name="deception">
-              {(field): ReactElement => (
-                <field.SwitchField label="Deception" hint="Teach the model the <lie> channel — characters can hold standing secrets (the Veiled ledger)." />
-              )}
-            </form.AppField>
-            <form.AppField name="omniscience">
-              {(field): ReactElement => (
-                <field.SwitchField label="Omniscience" hint="Teach the <ofilter> channel — the model can note events the party can't perceive." />
-              )}
-            </form.AppField>
-            {/* The host's own REVEAL EYE. Stored + read by `revealHidden` since launch with no way to reach it
-                (the D107 dead-switch class). It governs ONLY the host's peek: a member never reads hidden bytes
-                either way, and the model always remembers what it hid — so the copy must not imply otherwise. */}
-            <form.AppField name="hiddenContentReveal">
-              {(field): ReactElement => (
-                <field.SwitchField
-                  label="Let me reveal hidden content"
-                  hint="Off = you play blind too: no reveal eye, no standing-lies ledger, for you either. It changes nothing for members (they never see hidden content) and nothing for the model (it always remembers what it hid)."
-                />
-              )}
-            </form.AppField>
-          </Stack>
-
-          {/* PROMPT BUDGET — the reminder's own slice knob. The durable log is untouched by it: the
-              journal keeps every beat, this only bounds what the steering injection re-states each turn. */}
-          <Stack gap="field">
-            <Kicker>Prompt budget</Kicker>
-            <form.AppField name="recentBeatsKeepLast">
-              {(field): ReactElement => (
-                <field.NumberField
-                  label="Recent beats in the reminder"
-                  description={`How many recent beats the game reminder re-states to the model each turn. 0 drops the block entirely. Nothing is deleted — the journal keeps the full record; this is only what rides the prompt. Default ${RPG_RECENT_BEATS_KEEP_DEFAULT}.`}
-                  placeholder={`${RPG_RECENT_BEATS_KEEP_DEFAULT} (default)`}
-                  min={0}
-                />
-              )}
-            </form.AppField>
-          </Stack>
-
-          <Stack gap="field">
-            <Kicker>Steering note — never shown to members</Kicker>
-            <form.AppField name="steeringNote">
-              {(field): ReactElement => (
-                <field.TextareaField
-                  label="Steering note"
-                  hint={`An always-wins host directive spliced into the game reminder. Members never see it. Max ${RPG_STEERING_NOTE_MAX} chars.`}
-                  rows={3}
-                />
-              )}
-            </form.AppField>
-          </Stack>
-
-          <Stack gap="field">
-            <Kicker>Delivery model</Kicker>
-            {/* The mock's SEGMENTED toggle over the whole mode axis + its honest consequence line — never
-                a resting dropdown. */}
-            <form.AppField name="extractionMode">
-              {(field): ReactElement => (
-                <Stack gap="field">
-                  <ToggleGroup
-                    aria-label="Delivery model"
-                    value={[field.state.value]}
-                    onValueChange={(next): void => {
-                      const picked = pickOption(RPG_EXTRACTION_MODES, next[0]);
-                      if (picked !== null) {
-                        field.handleChange(picked);
-                      }
-                    }}
-                  >
-                    {RPG_EXTRACTION_MODES.map((mode) => (
-                      <Toggle key={mode} value={mode}>
-                        {EXTRACTION_MODE_LABEL[mode]}
-                      </Toggle>
-                    ))}
-                  </ToggleGroup>
-                  <Text voice="gloss">{EXTRACTION_CONSEQUENCE[field.state.value]}</Text>
                 </Stack>
-              )}
-            </form.AppField>
-            {/* RECOMMEND, NEVER FORCE ([[gen-settings-are-preset-owned]]): generation params belong to the
+
+                <Stack gap="field">
+                  <Kicker>Steering note — never shown to members</Kicker>
+                  <form.AppField name="steeringNote">
+                    {(field): ReactElement => (
+                      <field.TextareaField
+                        label="Steering note"
+                        hint={`An always-wins host directive spliced into the game reminder. Members never see it. Max ${RPG_STEERING_NOTE_MAX} chars.`}
+                        rows={3}
+                      />
+                    )}
+                  </form.AppField>
+                </Stack>
+
+                <Stack gap="field">
+                  <Kicker>When state updates</Kicker>
+                  {/* The mock's SEGMENTED toggle over the whole mode axis + its honest consequence line — never
+                a resting dropdown. */}
+                  <form.AppField name="extractionMode">
+                    {(field): ReactElement => (
+                      <Stack gap="field">
+                        <ToggleGroup
+                          aria-label="When state updates"
+                          value={[field.state.value]}
+                          onValueChange={(next): void => {
+                            const picked = pickOption(RPG_EXTRACTION_MODES, next[0]);
+                            if (picked !== null) {
+                              field.handleChange(picked);
+                            }
+                          }}
+                        >
+                          {RPG_EXTRACTION_MODES.map((mode) => (
+                            <Toggle key={mode} value={mode}>
+                              {EXTRACTION_MODE_LABEL[mode]}
+                            </Toggle>
+                          ))}
+                        </ToggleGroup>
+                        <Text voice="gloss">{EXTRACTION_CONSEQUENCE[field.state.value]}</Text>
+                      </Stack>
+                    )}
+                  </form.AppField>
+                  {/* RECOMMEND, NEVER FORCE ([[gen-settings-are-preset-owned]]): generation params belong to the
                 preset, so the console STATES what the fold wants and leaves the lever where it lives. Shown on
                 the folded arm only — a recommendation about a mode you aren't running is noise. */}
-            <form.AppField name="extractionMode">
-              {(field): ReactElement | null =>
-                field.state.value === "folded" ? (
-                  <Text voice="gloss">
-                    Recommended with thinking turned OFF: the reply has to carry its own state calls, and a long reasoning pass tends to spend the turn thinking
-                    instead of recording. That switch lives in your preset — this console never changes generation settings for you.
-                  </Text>
-                ) : null
-              }
-            </form.AppField>
-          </Stack>
+                  <form.AppField name="extractionMode">
+                    {(field): ReactElement | null =>
+                      field.state.value === "folded" ? (
+                        <Text voice="gloss">
+                          Recommended with thinking turned OFF: the reply has to carry its own state calls, and a long reasoning pass tends to spend the turn
+                          thinking instead of recording. That switch lives in your preset — this console never changes generation settings for you.
+                        </Text>
+                      ) : null
+                    }
+                  </form.AppField>
+                </Stack>
 
-          <form.AppField name="stateCaptureVehicle">
-            {(field): ReactElement => (
-              <StateCaptureKnob value={field.state.value} onChange={field.handleChange} structuredUnavailable={structuredUnavailable} />
-            )}
-          </form.AppField>
+                <form.AppField name="stateCaptureVehicle">
+                  {(field): ReactElement => (
+                    <StateCaptureKnob value={field.state.value} onChange={field.handleChange} structuredUnavailable={structuredUnavailable} />
+                  )}
+                </form.AppField>
 
-          {/* EXTRACTION DEPTH — the knobs that decide how much EVIDENCE the state round reads.
+                {/* EXTRACTION DEPTH — the knobs that decide how much EVIDENCE the state round reads.
               Grouped under one kicker because they only make sense together: the context arm picks the shape,
               the token budget bounds the `window` arm (applicability-shown), and the cadence decides how often
               a beat re-states everything instead of just what changed.
@@ -341,87 +347,90 @@ export function HostConsoleScalars({
               of `extractionContext`/`extractionWindowTokens`) has three callers and all three are non-folded.
               So the two controls governed nothing while claiming to govern the fold's economics — copy that was
               simply false. `reconcileEveryBeats` STAYS: it gates the `FOLDED_RECONCILE_NOTE` and works. */}
-          <Stack gap="field">
-            <Kicker>Extraction depth</Kicker>
-            <form.AppField name="extractionMode">
-              {(modeField): ReactElement =>
-                modeField.state.value === "folded" ? (
-                  <Text voice="gloss">
-                    Folded delivery has no separate reading pass — the state calls ride the turn the model is already writing, so it sees exactly that turn's
-                    own context. There is no window to size. The cadence below still applies.
-                  </Text>
-                ) : (
-                  <Text voice="gloss">
-                    How much of the story the state pass reads before it updates the panel. It rides the turn's own transcript — no extra reads — so the cost is
-                    prompt size, not model calls.
-                  </Text>
-                )
-              }
-            </form.AppField>
-            <form.AppField name="extractionMode">
-              {(modeField): ReactElement | null =>
-                modeField.state.value === "folded" ? null : (
-                  <Stack gap="field">
-                    <form.AppField name="extractionContext">
-                      {(field): ReactElement => (
-                        <Row gap="block" align="center">
-                          <ToggleGroup
-                            aria-label="Extraction context"
-                            value={[field.state.value]}
-                            onValueChange={(next): void => {
-                              const picked = pickOption(RPG_EXTRACTION_CONTEXTS, next[0]);
-                              if (picked !== null) {
-                                field.handleChange(picked);
-                              }
-                            }}
-                          >
-                            {RPG_EXTRACTION_CONTEXTS.map((context) => (
-                              <Toggle key={context} value={context}>
-                                {EXTRACTION_CONTEXT_LABEL[context]}
-                              </Toggle>
-                            ))}
-                          </ToggleGroup>
-                          <Text voice="gloss" className="min-w-0 flex-1">
-                            {EXTRACTION_CONTEXT_CONSEQUENCE[field.state.value]}
-                          </Text>
-                        </Row>
-                      )}
-                    </form.AppField>
-                    {/* The window budget is the `window` arm's own knob — APPLICABILITY-shown, never a disabled twin. */}
-                    <form.AppField name="extractionContext">
-                      {(contextField): ReactElement | null =>
-                        contextField.state.value === "window" ? (
-                          <form.AppField name="extractionWindowTokens">
+                <Stack gap="field">
+                  <Kicker>Story read depth</Kicker>
+                  <form.AppField name="extractionMode">
+                    {(modeField): ReactElement =>
+                      modeField.state.value === "folded" ? (
+                        <Text voice="gloss">
+                          Folded delivery has no separate reading pass — the state calls ride the turn the model is already writing, so it sees exactly that
+                          turn's own context. There is no window to size. The cadence below still applies.
+                        </Text>
+                      ) : (
+                        <Text voice="gloss">
+                          How much of the story the state pass reads before it updates the panel. It rides the turn's own transcript — no extra reads — so the
+                          cost is prompt size, not model calls.
+                        </Text>
+                      )
+                    }
+                  </form.AppField>
+                  <form.AppField name="extractionMode">
+                    {(modeField): ReactElement | null =>
+                      modeField.state.value === "folded" ? null : (
+                        <Stack gap="field">
+                          <form.AppField name="extractionContext">
                             {(field): ReactElement => (
-                              <field.NumberField
-                                label="Window budget (tokens)"
-                                description={`How far back the recent arc reaches, sliced on whole messages. ${RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT} ≈ 10–16 typical beats. Range ${RPG_EXTRACTION_WINDOW_TOKENS_MIN}–${RPG_EXTRACTION_WINDOW_TOKENS_MAX}; raise it on a hosted model, keep it low on a small local one.`}
-                                placeholder={`${RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT} (default)`}
-                                min={RPG_EXTRACTION_WINDOW_TOKENS_MIN}
-                                max={RPG_EXTRACTION_WINDOW_TOKENS_MAX}
-                                step={512}
-                              />
+                              <Row gap="block" align="center">
+                                <ToggleGroup
+                                  aria-label="Extraction context"
+                                  value={[field.state.value]}
+                                  onValueChange={(next): void => {
+                                    const picked = pickOption(RPG_EXTRACTION_CONTEXTS, next[0]);
+                                    if (picked !== null) {
+                                      field.handleChange(picked);
+                                    }
+                                  }}
+                                >
+                                  {RPG_EXTRACTION_CONTEXTS.map((context) => (
+                                    <Toggle key={context} value={context}>
+                                      {EXTRACTION_CONTEXT_LABEL[context]}
+                                    </Toggle>
+                                  ))}
+                                </ToggleGroup>
+                                <Text voice="gloss" className="min-w-0 flex-1">
+                                  {EXTRACTION_CONTEXT_CONSEQUENCE[field.state.value]}
+                                </Text>
+                              </Row>
                             )}
                           </form.AppField>
-                        ) : null
-                      }
-                    </form.AppField>
-                  </Stack>
-                )
-              }
-            </form.AppField>
-            <form.AppField name="reconcileEveryBeats">
-              {(field): ReactElement => (
-                <field.NumberField
-                  label="Re-state everything every N beats"
-                  description={`Every Nth beat, the pass re-emits the whole scene and present characters instead of only what changed — so a long story's panel self-heals instead of drifting. 0 turns it off. That beat costs more; 1 would make every beat the expensive one. Range 0–${RPG_RECONCILE_EVERY_BEATS_MAX}, default ${RPG_RECONCILE_EVERY_BEATS_DEFAULT}.`}
-                  placeholder={`${RPG_RECONCILE_EVERY_BEATS_DEFAULT} (default)`}
-                  min={0}
-                  max={RPG_RECONCILE_EVERY_BEATS_MAX}
-                />
-              )}
-            </form.AppField>
-          </Stack>
+                          {/* The window budget is the `window` arm's own knob — APPLICABILITY-shown, never a disabled twin. */}
+                          <form.AppField name="extractionContext">
+                            {(contextField): ReactElement | null =>
+                              contextField.state.value === "window" ? (
+                                <form.AppField name="extractionWindowTokens">
+                                  {(field): ReactElement => (
+                                    <field.NumberField
+                                      label="Window budget (tokens)"
+                                      description={`How far back the recent arc reaches, sliced on whole messages. ${RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT} ≈ 10–16 typical beats. Range ${RPG_EXTRACTION_WINDOW_TOKENS_MIN}–${RPG_EXTRACTION_WINDOW_TOKENS_MAX}; raise it on a hosted model, keep it low on a small local one.`}
+                                      placeholder={`${RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT} (default)`}
+                                      min={RPG_EXTRACTION_WINDOW_TOKENS_MIN}
+                                      max={RPG_EXTRACTION_WINDOW_TOKENS_MAX}
+                                      step={512}
+                                    />
+                                  )}
+                                </form.AppField>
+                              ) : null
+                            }
+                          </form.AppField>
+                        </Stack>
+                      )
+                    }
+                  </form.AppField>
+                  <form.AppField name="reconcileEveryBeats">
+                    {(field): ReactElement => (
+                      <field.NumberField
+                        label="Re-state everything every N beats"
+                        description={`Every Nth beat, the pass re-emits the whole scene and present characters instead of only what changed — so a long story's panel self-heals instead of drifting. 0 turns it off. That beat costs more; 1 would make every beat the expensive one. Range 0–${RPG_RECONCILE_EVERY_BEATS_MAX}, default ${RPG_RECONCILE_EVERY_BEATS_DEFAULT}.`}
+                        placeholder={`${RPG_RECONCILE_EVERY_BEATS_DEFAULT} (default)`}
+                        min={0}
+                        max={RPG_RECONCILE_EVERY_BEATS_MAX}
+                      />
+                    )}
+                  </form.AppField>
+                </Stack>
+              </Stack>
+            </CollapsiblePanel>
+          </Collapsible>
         </Stack>
       )}
     </HostConsoleFormBoundary>

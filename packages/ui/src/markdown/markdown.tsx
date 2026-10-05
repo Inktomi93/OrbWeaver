@@ -4,6 +4,7 @@ import type { StreamdownProps } from "streamdown";
 import { defaultRehypePlugins, Streamdown } from "streamdown";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
+import { DICE_COMPONENTS, remarkInlineDice } from "./dice-inline.tsx";
 import { MARKDOWN_LIST_COMPONENTS } from "./list-components.tsx";
 import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
 import {
@@ -26,6 +27,16 @@ import { holdAmbiguousTail } from "./tail-hold.ts";
 // behind it, which is the test #1085 set for taking an element over rather than out-painting it.
 const SEAL_COMPONENTS: NonNullable<StreamdownProps["components"]> = { ...MARKDOWN_LIST_COMPONENTS, ...MARKDOWN_RULE_COMPONENTS };
 const SEAL_COMPONENTS_WITH_DIALOGUE: NonNullable<StreamdownProps["components"]> = { ...SEAL_COMPONENTS, ...DIALOGUE_COMPONENTS };
+const DICE_SEAL_COMPONENTS = { ...SEAL_COMPONENTS, ...DICE_COMPONENTS };
+const DICE_SEAL_COMPONENTS_WITH_DIALOGUE = { ...SEAL_COMPONENTS_WITH_DIALOGUE, ...DICE_COMPONENTS };
+const DICE_REMARK_PLUGINS: NonNullable<StreamdownProps["remarkPlugins"]> = [...MARKDOWN_REMARK_PLUGINS, remarkInlineDice];
+
+function sealComponents(inlineDice: boolean, colorQuotes: boolean): NonNullable<StreamdownProps["components"]> {
+  if (inlineDice) {
+    return colorQuotes ? DICE_SEAL_COMPONENTS_WITH_DIALOGUE : DICE_SEAL_COMPONENTS;
+  }
+  return colorQuotes ? SEAL_COMPONENTS_WITH_DIALOGUE : SEAL_COMPONENTS;
+}
 
 const TRUSTS = ["trusted", "untrusted"] as const;
 const MODES = ["static", "streaming"] as const;
@@ -60,6 +71,8 @@ export interface MarkdownProps {
    * `appearance.colorQuotedSpeech` pref through.
    */
   readonly colorQuotes?: boolean;
+  /** Chat-only inline dice stamps; ordinary Markdown keeps its original grammar and components. */
+  readonly inlineDice?: boolean;
   /**
    * Whether this content may load off-origin media. Read under `trusted` only; `untrusted` drops every
    * image. Off by default: a trusted caller passes its row's resolved external-media verdict, and off keeps
@@ -128,7 +141,15 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
  * large input falls back to a plain `<pre>`. Streaming input additionally passes the seal-owned M1
  * tail-hold pre-pass (`tail-hold.ts`) before Streamdown parses it.
  */
-export function Markdown({ trust, mode, children, className, colorQuotes = false, allowExternalMedia = false }: MarkdownProps): ReactElement {
+export function Markdown({
+  trust,
+  mode,
+  children,
+  className,
+  colorQuotes = false,
+  inlineDice = false,
+  allowExternalMedia = false,
+}: MarkdownProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
   const untrusted = trust === "untrusted";
   const ownOriginMedia = !(untrusted || allowExternalMedia);
@@ -246,7 +267,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
         key={ownOriginMedia ? "own-origin-media" : "any-media"}
         mode={mode}
         dir="auto"
-        remarkPlugins={MARKDOWN_REMARK_PLUGINS}
+        remarkPlugins={inlineDice ? DICE_REMARK_PLUGINS : MARKDOWN_REMARK_PLUGINS}
         plugins={{ code: MARKDOWN_SHIKI_PLUGIN, math: MARKDOWN_MATH_PLUGIN }}
         // Incomplete-markdown repair is a streaming concern only; a settled body must render as-authored.
         parseIncompleteMarkdown={mode === "streaming"}
@@ -255,7 +276,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
         // rather than replacing it. Both arms are module-level constants: Streamdown's Block memo compares
         // `components` key by key, so a stable identity is what keeps a settled block from re-rendering on
         // every commit.
-        components={colorQuotes ? SEAL_COMPONENTS_WITH_DIALOGUE : SEAL_COMPONENTS}
+        components={sealComponents(inlineDice, colorQuotes)}
         className={
           cn(
             "space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration",

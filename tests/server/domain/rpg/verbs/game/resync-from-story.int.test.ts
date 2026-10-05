@@ -41,10 +41,7 @@ test("HOST rebuild: a drifted state + resync → corrected (born-committed as a 
 
   await h.service.resyncFromStory({ principal: principal(castId<Handle>("host")), chatId });
 
-  // The deep window was read with the resync budget (a real, non-trivial token cap).
-  expect(h.fakes.canonWindowReads).toHaveLength(1);
-  expect(h.fakes.canonWindowReads[0]?.chatId).toBe(chatId);
-  expect(h.fakes.canonWindowReads[0]?.maxTokens).toBeGreaterThan(1024);
+  // Connection-dependent canon reads belong to the composed extraction op.
   // The rebuild ran UNDER the room host's userId (the caller = the host; never a caller-injected foreign id).
   expect(h.fakes.resyncCalls).toEqual([{ chatId, hostUserId: "user_host", windowTokens: 1 }]);
   // D124: the rebuild posts NOTHING to canon — the reconciled state is a message-less hand row.
