@@ -142,8 +142,8 @@ function countSetOverrides(overrides: RoomOverrides): number {
 // mobile between the host and the map, which pushes Documents (762) and World books (830) back below a
 // 740px mobile fold — the exact #830 symptom, re-created by a default. A map whose own entries can be
 // shoved off-screen by one entry's contents is not a map, so the rule is: the index is always whole, and
-// every data-driven section — the racks, the host band, and every grafted §6c contribution — opens on
-// demand. The count chips carry what a closed section is worth knowing ("Injections 2", "Documents 1").
+// every data-driven section opens on demand unless its contribution explicitly opts into discovery.
+// The count chips carry what a closed section is worth knowing ("Injections 2", "Documents 1").
 //
 // The host band's own children are the exception INSIDE the exception: they open by default, so ONE press
 // on "Host controls" reaches all eight knobs rather than eight more doors behind a door.
@@ -324,75 +324,78 @@ function HostControls({
     // THE BAND IS THE PANE'S BIGGEST SINGLE TERM (1,880px across eight sections), so it is the one section
     // whose default posture is CLOSED while its own children stay open: one press opens the host's knobs
     // and every one of them is already there, rather than eight more doors behind the door (#830).
-    <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker="Host controls" sectionId="host-controls">
-      <Stack gap="section">
-        <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Background" sectionId="background">
-          <ChatBackgroundSection chatId={chatId} background={background} />
-        </DisclosureSection>
-        {showGroup ? (
-          <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Group behavior" sectionId="group-behavior">
-            <QueryBoundary
-              // Shape-matched skeleton for the Group-behavior form's initially-visible rows (the reply-mode
-              // toggle-group, the two switch fields, the Advanced accordion trigger) — never a spinner/text
-              // void (house loading law, UIP-309 / UI-Arch §4.3 rule 7). Same idiom every panel section uses.
-              fallback={<SkeletonRows count={GROUP_SECTION_SKELETON_ROWS} shape="line" />}
-              renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
-              reserveKey="chat.context.groupBehavior"
-            >
-              <CommittedGroupConfigTab chatId={chatId} />
-            </QueryBoundary>
+    <Stack gap="section">
+      <DisclosureSection defaultOpen={CLOSED_BY_DEFAULT} kicker="Host controls" sectionId="host-controls">
+        <Stack gap="section">
+          <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Background" sectionId="background">
+            <ChatBackgroundSection chatId={chatId} background={background} />
           </DisclosureSection>
-        ) : null}
-        {/* `Appearance` IS GONE (#1742). It held one control — the display-tier broadcast switch (D121-E) —
+          {showGroup ? (
+            <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Group behavior" sectionId="group-behavior">
+              <QueryBoundary
+                // Shape-matched skeleton for the Group-behavior form's initially-visible rows (the reply-mode
+                // toggle-group, the two switch fields, the Advanced accordion trigger) — never a spinner/text
+                // void (house loading law, UIP-309 / UI-Arch §4.3 rule 7). Same idiom every panel section uses.
+                fallback={<SkeletonRows count={GROUP_SECTION_SKELETON_ROWS} shape="line" />}
+                renderError={(_error, retry): ReactElement => <QueryErrorState label="group settings" onRetry={retry} />}
+                reserveKey="chat.context.groupBehavior"
+              >
+                <CommittedGroupConfigTab chatId={chatId} />
+              </QueryBoundary>
+            </DisclosureSection>
+          ) : null}
+          {/* `Appearance` IS GONE (#1742). It held one control — the display-tier broadcast switch (D121-E) —
             which is a REGEX control, and it now sits at the foot of the Regex section's `On screen` group
             beside the display scripts it governs. Its posture key and `reserveKey` retired with it: an
             unknown persisted section id is dropped on the store's next write
             (`chat-context-section-open-store.ts`), and the reservation gate's arm B forbids reusing the
             literal. Do NOT re-add a display-script control here without re-opening §2 of the design. */}
-        {/* Storytelling — the room's offer-choices posture (B1) and whether members' persona lore joins the
+          {/* Storytelling — the room's offer-choices posture (B1) and whether members' persona lore joins the
             prompt. Sits in the host band and NOT with Field overrides/Injections above it because neither is
             something a member may set: both change what the model is told for everyone in the room. Reads the
             getChat this tab already loaded, plus the host's own settings default for offer choices. */}
-        <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Storytelling" sectionId="storytelling">
-          <QueryBoundary
-            fallback={<SkeletonRows count={2} shape="line" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="the storytelling settings" onRetry={retry} />}
-            reserveKey="chat.context.storytelling"
-          >
-            <Stack gap="field">
-              <OfferChoicesControl chatId={chatId} />
-              <MemberPersonaLoreControl chatId={chatId} />
-            </Stack>
-          </QueryBoundary>
-        </DisclosureSection>
-        {/* Reactions (B7) — the plane's master switch + the react-tool opt-in, SIDE BY SIDE (owner ask:
+          <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Storytelling" sectionId="storytelling">
+            <QueryBoundary
+              fallback={<SkeletonRows count={2} shape="line" />}
+              renderError={(_error, retry): ReactElement => <QueryErrorState label="the storytelling settings" onRetry={retry} />}
+              reserveKey="chat.context.storytelling"
+            >
+              <Stack gap="field">
+                <OfferChoicesControl chatId={chatId} />
+                <MemberPersonaLoreControl chatId={chatId} />
+              </Stack>
+            </QueryBoundary>
+          </DisclosureSection>
+          {/* Reactions (B7) — the plane's master switch + the react-tool opt-in, SIDE BY SIDE (owner ask:
             one place for both reactions knobs). Host band for the same reason as its neighbours: both
             reach every member (one gates their writes, one the room's prompt). */}
-        <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Reactions" sectionId="reactions">
-          <QueryBoundary
-            fallback={<SkeletonRows count={2} shape="line" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="the reaction settings" onRetry={retry} />}
-            reserveKey="chat.context.reactions"
-          >
-            <Stack gap="field">
-              <ReactionsEnabledControl chatId={chatId} />
-              <CharactersCanReactControl chatId={chatId} />
-            </Stack>
-          </QueryBoundary>
-        </DisclosureSection>
-        {/* Tool use — reads getChat (already loaded for this tab) for the current cap; the QueryBoundary
+          <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Reactions" sectionId="reactions">
+            <QueryBoundary
+              fallback={<SkeletonRows count={2} shape="line" />}
+              renderError={(_error, retry): ReactElement => <QueryErrorState label="the reaction settings" onRetry={retry} />}
+              reserveKey="chat.context.reactions"
+            >
+              <Stack gap="field">
+                <ReactionsEnabledControl chatId={chatId} />
+                <CharactersCanReactControl chatId={chatId} />
+              </Stack>
+            </QueryBoundary>
+          </DisclosureSection>
+          {/* Tool use — reads getChat (already loaded for this tab) for the current cap; the QueryBoundary
             matches the getChat suspense. */}
-        <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Tool use" sectionId="tool-use">
-          <QueryBoundary
-            fallback={<SkeletonRows count={1} shape="line" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="the tool round limit" onRetry={retry} />}
-            reserveKey="chat.context.toolUse"
-          >
-            <ToolRecurseControl chatId={chatId} />
-          </QueryBoundary>
-        </DisclosureSection>
-        {/* THE GRAFTED SECTIONS (§6c, #616) — a foreign feature's host-only section, rendered LAST so the
-            band's own knobs keep their order and a contributor can never wedge itself between them. The
+          <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Tool use" sectionId="tool-use">
+            <QueryBoundary
+              fallback={<SkeletonRows count={1} shape="line" />}
+              renderError={(_error, retry): ReactElement => <QueryErrorState label="the tool round limit" onRetry={retry} />}
+              reserveKey="chat.context.toolUse"
+            >
+              <ToolRecurseControl chatId={chatId} />
+            </QueryBoundary>
+          </DisclosureSection>
+        </Stack>
+      </DisclosureSection>
+      {/* THE GRAFTED SECTIONS (§6c, #616) — foreign host-only sections rendered as peers AFTER the native
+            group, so its knobs keep their order and a contributor can never wedge itself between them. The
             HOST spells the `<Section kicker>`: a contribution carries a name and a body, never chrome, so
             a grafted section reads in this pane's voice by construction. Zero contributors renders
             nothing at all (no empty Section, no gap).
@@ -411,26 +414,26 @@ function HostControls({
             Base UI panel is REMOVED from the DOM — which would take the graft-body wrapper with it and leave
             `has-[…:empty]` nothing to match, i.e. an orphan "Plugin panels" kicker on every room. Kept
             mounted (hidden, zero height) the wrapper is still there to be asked, and the collapse still
-            hides the whole Section, trigger included. Grafted sections start CLOSED: a contribution's body
+            hides the whole Section, trigger included. Grafted sections start CLOSED unless explicitly
+            opted into discovery: a contribution's body
             is data-driven (automation's Rules measured 704px desktop / 1,296px mobile with three rules —
             the §5-P3 term that becomes payable the moment it rises into the viewport). */}
-        {(sections?.list() ?? [])
-          .filter((section) => section.when?.(state) ?? true)
-          .map((section) => (
-            <DisclosureSection
-              className="has-[[data-slot=chat-settings-graft-body]:empty]:hidden"
-              defaultOpen={CLOSED_BY_DEFAULT}
-              keepMounted={true}
-              key={section.id}
-              kicker={section.kicker}
-              sectionId={`graft:${section.id}`}
-            >
-              <Stack className="contents" data-slot="chat-settings-graft-body">
-                {section.body(state)}
-              </Stack>
-            </DisclosureSection>
-          ))}
-      </Stack>
-    </DisclosureSection>
+      {(sections?.list() ?? [])
+        .filter((section) => section.when?.(state) ?? true)
+        .map((section) => (
+          <DisclosureSection
+            className="has-[[data-slot=chat-settings-graft-body]:empty]:hidden"
+            defaultOpen={section.defaultOpen ?? CLOSED_BY_DEFAULT}
+            keepMounted={true}
+            key={section.id}
+            kicker={section.kicker}
+            sectionId={`graft:${section.id}`}
+          >
+            <Stack className="contents" data-slot="chat-settings-graft-body">
+              {section.body(state)}
+            </Stack>
+          </DisclosureSection>
+        ))}
+    </Stack>
   );
 }

@@ -99,6 +99,8 @@ interface ChatSettingsHostControlsContribution {
   /** The section's NAME, rendered by the host as its `<Section kicker>` (a real `<h3>` in the pane's
    *  micro-caps voice) — never spelled by the contributor's own body. */
   readonly kicker: string;
+  /** Referenced controls may opt into discovery; a remembered user collapse still wins. */
+  readonly defaultOpen?: boolean;
   readonly when?: (state: ChatSettingsSectionState) => boolean;
   readonly body: (state: ChatSettingsSectionState) => ReactNode;
 }

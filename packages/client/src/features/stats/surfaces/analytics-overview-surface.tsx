@@ -31,6 +31,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection, useSectionListMode } from "#state";
+import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
 import { RhythmFigures } from "../components/rhythm-figures.tsx";
 import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recompute-stats.ts";
 import {
@@ -44,6 +45,7 @@ import {
   formatPercent,
   formatSignedDelta,
   formatThroughput,
+  IMPORTED_ACTIVITY_NOTE,
   LATENCY_LABELS,
   momentumBarItems,
   REASONING_LABEL,
@@ -131,6 +133,10 @@ function OverviewBody(): ReactElement {
       <Text voice="gloss" role="note">
         Whole library · Aggregate only
       </Text>
+      <Text voice="gloss" role="note">
+        {IMPORTED_ACTIVITY_NOTE}
+      </Text>
+      <AccountingCoverageNotice />
       <Row align="center" justify="between" gap="row">
         {/* ONE time vocabulary in this column: relative in the text, the exact stamp in `title=` (P2e). */}
         <Text voice="gloss" {...(freshness.computedAt === null ? {} : { title: timeLib.formatDateTime(freshness.computedAt) })}>
@@ -152,7 +158,7 @@ function OverviewBody(): ReactElement {
             <StatFigure label="Swipes" value={formatCompact(wrapped.swipes)} />
             <StatFigure label="Forked chats" value={formatCompact(wrapped.forkedChats)} />
             <StatFigure label={formatAccountingLabel("Spend", wrapped.costUsd)} value={formatUsd(wrapped.costUsd)} />
-            <StatFigure label="Time generating" value={formatDurationMs(wrapped.genTimeMs)} />
+            <StatFigure label="Time generating" value={wrapped.genTimeMs === 0 && overview.avgGenMs === null ? "—" : formatDurationMs(wrapped.genTimeMs)} />
             <StatFigure label="First chat" value={wrapped.firstChatAt === null ? "—" : timeLib.formatDate(wrapped.firstChatAt)} />
             {/* The swiped share divides by replies and the depth by re-rolled replies; with no sample each reads
                 unrecorded rather than the 0 an empty denominator divides to. */}
@@ -311,15 +317,21 @@ function MomentumColumn({
 
 function EmptyStateNoData(): ReactElement {
   return (
-    <EmptyState
-      icon={<Icon icon={ChartColumn} size="lg" />}
-      title="No insights yet"
-      description="Play a chat and your replies, words, time and cost will show up here."
-      action={
-        <Button intent="primary" size="sm" onClick={(): void => setActiveSection("chats")}>
-          Go to Chats
-        </Button>
-      }
-    />
+    <Stack gap="block">
+      <EmptyState
+        icon={<Icon icon={ChartColumn} size="lg" />}
+        title="No insights yet"
+        description="Play a chat to build activity insights. Usage and cost appear only when recorded."
+        action={
+          <Button intent="primary" size="sm" onClick={(): void => setActiveSection("chats")}>
+            Go to Chats
+          </Button>
+        }
+      />
+      <Text voice="gloss" role="note">
+        {IMPORTED_ACTIVITY_NOTE}
+      </Text>
+      <RecomputeButton />
+    </Stack>
   );
 }

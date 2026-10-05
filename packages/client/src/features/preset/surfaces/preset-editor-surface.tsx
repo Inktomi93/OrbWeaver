@@ -44,6 +44,7 @@ import type { PresetId } from "@orb/kit/ids";
 // `Container` is lane B's shared content-column ruling — the panel column measures the PANE through it.
 import { Container, Stack } from "@orb/ui/layout";
 import { Tabs, TabsPanel } from "@orb/ui/tabs";
+import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
@@ -225,6 +226,11 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             onRename={(name): void => update.mutate({ id: presetId, name })}
             capability={capability}
             capabilityError={capabilityError}
+            editorConnection={
+              target === undefined
+                ? undefined
+                : (connectionsQuery.data?.find((row) => row.id === target.connectionId)?.label ?? `${target.providerId} · ${target.model}`)
+            }
             samplerSpelling={samplerSpelling}
             effective={effectiveQuery.data ?? undefined}
             reset={reset}
@@ -264,6 +270,7 @@ interface PresetEditorBodyProps {
   readonly capability: GenerationCapability | undefined;
   /** The capability read's thrown error object, `null` while it is still PENDING (§F-02). */
   readonly capabilityError: ReadFailure | null;
+  readonly editorConnection: string | undefined;
   readonly samplerSpelling: ViewContentProps["samplerSpelling"];
   readonly effective: EffectiveProfileRow | undefined;
   readonly reset: ReturnType<typeof useResetPreset>;
@@ -284,6 +291,7 @@ function PresetEditorBody({
   onRename,
   capability,
   capabilityError,
+  editorConnection,
   samplerSpelling,
   effective,
   reset,
@@ -381,6 +389,15 @@ function PresetEditorBody({
                 are two elements and not one. It lives HERE and not per view so no body can opt out. */}
             <Container className="w-full">
               <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide) py-block" gap="block">
+                {entry.id === "params" ? (
+                  <Stack gap="field" data-slot="preset-editor-connection">
+                    <Text voice="label">Editing for Chat role{editorConnection === undefined ? "" : ` · ${editorConnection}`}</Text>
+                    <Text voice="gloss">
+                      Controls and effective values use your Chat connection. Connection in view changes only the readout, not this editor or your role
+                      bindings.
+                    </Text>
+                  </Stack>
+                ) : null}
                 {viewContent(entry.id, viewProps)}
               </Stack>
             </Container>

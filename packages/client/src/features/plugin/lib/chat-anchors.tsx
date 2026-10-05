@@ -72,5 +72,6 @@ export const pluginChatSettingsSection: ChatSettingsSectionContribution = {
   id: "pluginChatSurfaces",
   anchor: "host-controls",
   kicker: "Plugin panels",
+  defaultOpen: true,
   body: ({ chatId }): ReactElement | null => <PluginAnchoredSurfaces anchor="chat-settings-section" chatId={chatId} />,
 };

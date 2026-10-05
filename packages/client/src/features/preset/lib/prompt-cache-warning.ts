@@ -10,7 +10,7 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import { createDefaultRegistry, macroTextInvalidatesCache, registerUserMacros } from "@orb/kit/macro";
 import { isTemplatedMarkerSection } from "./assembly-model.ts";
 
-const PER_TURN_MARKERS: ReadonlySet<MarkerType> = new Set<MarkerType>(["memory", "databank", "guided_instruction", "world_info_before", "world_info_after"]);
+const PER_TURN_MARKERS: ReadonlySet<MarkerType> = new Set<MarkerType>(["memory", "databank", "guided_instruction"]);
 
 function sectionText(section: PromptSection): string | null {
   if (section.type === "literal") {
@@ -53,6 +53,14 @@ export function cacheInvalidatingSections(config: PromptConfig, presetId: Preset
     return [];
   }
   const registry = createDefaultRegistry();
+  // Card prose is unavailable in a preset editor; a reference is not evidence of turn-varying content.
+  for (const metadata of registry.allMetadata()) {
+    const handler = registry.get(metadata.name);
+    const options = registry.getOptions(metadata.name);
+    if (handler !== undefined && options?.requires === "char" && options.analysis?.cacheDependent === true) {
+      registry.register(metadata.name, handler, { ...options, metadata, analysis: { ...options.analysis, cacheDependent: false } });
+    }
+  }
   registerUserMacros(registry, config.userMacros, { source: { kind: "preset", id: presetId } });
   return config.sections.slice(0, pivotIndex).filter((section) => section.enabled && entersCachedSystemPrefix(section) && changesPerTurn(section, registry));
 }

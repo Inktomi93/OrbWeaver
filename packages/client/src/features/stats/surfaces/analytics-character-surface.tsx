@@ -22,6 +22,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, testId, timeLib, useFocusOnMount } from "#lib";
 import { useMobileViewport } from "#state";
+import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
 import {
   formatAccountingLabel,
   formatCompact,
@@ -30,6 +31,7 @@ import {
   formatMs,
   formatPercent,
   formatThroughput,
+  IMPORTED_ACTIVITY_NOTE,
   LATENCY_LABELS,
   REASONING_LABEL,
   THROUGHPUT_LABEL,
@@ -77,26 +79,31 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
 
   if (stats === null) {
     return (
-      <EmptyState
-        icon={<Icon icon={ChartColumn} size="lg" />}
-        title="No stats yet"
-        description={
-          drilledName.length > 0
-            ? `${drilledName} has no rolled-up activity yet. Play a chat with them, then come back.`
-            : "This character has no rolled-up activity. Play a chat with them, then come back."
-        }
-        // The phone's topbar already carries the one Back.
-        {...(phone
-          ? {}
-          : {
-              action: (
-                <Button intent="secondary" size="sm" onClick={onBack}>
-                  <Icon icon={ArrowLeft} size="sm" />
-                  {`Back to ${CORPUS_MODE_LABELS.insights}`}
-                </Button>
-              ),
-            })}
-      />
+      <Stack gap="block">
+        <EmptyState
+          icon={<Icon icon={ChartColumn} size="lg" />}
+          title="No stats yet"
+          description={
+            drilledName.length > 0
+              ? `${drilledName} has no rolled-up activity yet. Play a chat with them, then come back.`
+              : "This character has no rolled-up activity. Play a chat with them, then come back."
+          }
+          // The phone's topbar already carries the one Back.
+          {...(phone
+            ? {}
+            : {
+                action: (
+                  <Button intent="secondary" size="sm" onClick={onBack}>
+                    <Icon icon={ArrowLeft} size="sm" />
+                    {`Back to ${CORPUS_MODE_LABELS.insights}`}
+                  </Button>
+                ),
+              })}
+        />
+        <Text voice="gloss" role="note">
+          {IMPORTED_ACTIVITY_NOTE}
+        </Text>
+      </Stack>
     );
   }
 
@@ -122,6 +129,11 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
           </Text>
         )}
       </Stack>
+
+      <Text voice="gloss" role="note">
+        {IMPORTED_ACTIVITY_NOTE}
+      </Text>
+      <AccountingCoverageNotice characterOnly={true} />
 
       <Section heading="Activity">
         <Stack gap="block">

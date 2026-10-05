@@ -101,6 +101,12 @@ test("the model tool advertises replay and returns a readable clock result", asy
   expect(drive.vars["clock:the_ritual"]).toBe("1/6");
 });
 
+test("the empty flank points to the actual host panel path", async () => {
+  const drive = await bootClocks();
+  await drive.act("clear", { name: "the ritual" });
+  expect(drive.published.find(({ id }) => id === "clock_flank")?.state["summary"]).toBe("No clocks yet — the host starts one in This chat → Plugin panels.");
+});
+
 test("a second panel action inside the toast floor still writes and refreshes the flank", async () => {
   const drive = await bootClocks();
   await drive.act("start", { name: "the ritual", segments: "6" });

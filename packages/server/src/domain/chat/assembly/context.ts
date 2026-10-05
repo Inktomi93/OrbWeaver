@@ -1003,6 +1003,11 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       dropped,
       matchedKeys: wi.matchedKeys,
       activated,
+      worldInfoDynamicEntries: kept.flatMap((candidate) =>
+        candidate.worldEntry === undefined || candidate.bucket?.half !== "dynamic"
+          ? []
+          : [{ id: candidate.worldEntry.id, title: candidate.worldEntry.title, position: candidate.bucket.anchor }],
+      ),
     },
   };
 }

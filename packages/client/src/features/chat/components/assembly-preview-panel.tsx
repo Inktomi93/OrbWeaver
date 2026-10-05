@@ -67,6 +67,21 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
     <Stack gap="block">
       <ContextBudget budget={budget} />
 
+      {(trace.worldInfoDynamicEntries?.length ?? 0) > 0 ? (
+        <Stack gap="field" data-slot="world-info-cache-warning" role="note">
+          <Text voice="label">Dynamic world info can reduce history-cache reuse</Text>
+          {trace.worldInfoDynamicEntries?.map((entry) => (
+            <Text key={entry.id} voice="gloss">
+              {entry.title.trim() || "Untitled entry"} · World info ({entry.position})
+            </Text>
+          ))}
+          <Text voice="gloss">
+            These keyword-matched entries actually join this turn's prompt at the named anchors. Their content can change between turns. Adjust entry activation
+            or depth placement in World Info to keep dynamic lore out of the system prefix.
+          </Text>
+        </Stack>
+      ) : null}
+
       <Stack>
         {budget.sources.map((source, index) => (
           <SourceRow key={source.source} slice={source} divider={index > 0} />

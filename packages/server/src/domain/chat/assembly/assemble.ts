@@ -728,6 +728,7 @@ function freshTrace(ctx: AssembleContext): AssembleTrace {
     worldInfoIncluded: wi.included,
     worldInfoDropped: wi.dropped,
     worldInfoActivated: wi.activated.map((e) => ({ id: e.id, title: e.title, keys: e.keys })),
+    ...(wi.worldInfoDynamicEntries === undefined ? {} : { worldInfoDynamicEntries: wi.worldInfoDynamicEntries }),
     matchedKeys: wi.matchedKeys,
     compactSummaryIncluded: false,
     memoryIncluded: false,

@@ -54,12 +54,9 @@ test("P3-6 the rack's glyph disc appears on MARKER rows only — a literal row c
   await expect(rack.locator(LEADING)).toHaveCount(MARKER_ROWS.length);
 });
 
-test("warns when per-turn content sits above Chat History", async ({ mount }) => {
+test("an unbound world-info placeholder does not assert a cache warning", async ({ mount }) => {
   const rack = await mount(<RackStory />);
-  await expect(rack.locator('[data-slot="prompt-cache-warning"]')).toContainText(
-    "Content that can change between turns above Chat History invalidates the history cache.",
-  );
-  await expect(rack.locator('[data-slot="prompt-cache-warning"]')).toContainText("World info (before)");
+  await expect(rack.locator('[data-slot="prompt-cache-warning"]')).toHaveCount(0);
 });
 
 test("does not warn for static content above Chat History", async ({ mount }) => {
@@ -112,9 +109,9 @@ test("warns for runtime variable reads", async ({ mount }) => {
   await expect(rack.locator('[data-slot="prompt-cache-warning"]')).toContainText("Static");
 });
 
-test("warns for recursively rendered card prose", async ({ mount }) => {
+test("a card-field reference alone does not assert changing content", async ({ mount }) => {
   const rack = await mount(<CacheWarningStory placement="recursiveCardField" />);
-  await expect(rack.locator('[data-slot="prompt-cache-warning"]')).toContainText("Static");
+  await expect(rack.locator('[data-slot="prompt-cache-warning"]')).toHaveCount(0);
 });
 
 test("warns when a user macro wraps staged turn data", async ({ mount }) => {

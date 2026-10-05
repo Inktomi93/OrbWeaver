@@ -145,7 +145,8 @@ async function publishClocks(chat: ChatHandle, vars: Readonly<Record<string, str
     const clock = clocks[i];
     state[`line${i}`] = clock === undefined ? "" : clockLine(clock);
   }
-  state["summary"] = clocks.length === 0 ? "No clocks yet — the host starts one below." : `${clocks.length} of ${MAX_CLOCKS} clocks running.`;
+  state["summary"] =
+    clocks.length === 0 ? "No clocks yet — the host starts one in This chat → Plugin panels." : `${clocks.length} of ${MAX_CLOCKS} clocks running.`;
   await host.ui.setState("clock_flank", state, chat);
   await host.ui.setState("clock_panel", state, chat);
 }

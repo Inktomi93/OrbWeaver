@@ -3,7 +3,7 @@
 **Archetype: room mechanics.** Writes ROOM state other machinery can read. Start here if your idea begins
 with "the room should keep track of…".
 
-Blades-in-the-Dark progress clocks: the host starts and ticks them from the room's host controls, the model
+Blades-in-the-Dark progress clocks: the host starts and ticks them in **This chat → Plugin panels**, the model
 ticks them mid-turn through a tool, a flank widget shows them filling — and when a human tick FILLS one, the
 plugin asks the narrator to take a turn and make it matter.
 
@@ -51,8 +51,9 @@ Its completed calls replay from the active swipe on later tool-capable turns bec
 Set `replayHistory: false` for transient results. Hiding or deleting a card removes future replay, not its clock mutation.
 The history budget trims the tool exchange with its message row. RPG turn-tool display records remain display-only.
 
-* **`chat-settings-section`** — the host-controls band. The one anchor that is host-gated at the MOUNT, which
-  is why it is the right home for room configuration.
+* **`chat-settings-section`** — **This chat → Plugin panels**, open by default when applicable unless the
+  host has explicitly collapsed it. The anchor is host-gated at the MOUNT, which is why it is the right
+  home for room configuration. Native Host controls and unrelated grafts retain their closed defaults.
 * **`chat-flank`** — the read-only clock readout, published PER ROOM (`host.ui.setState(id, state, chat)` —
   the third argument keys the row to the room; omit it and every room shows the same publication).
 * **`events.on("chatOpened")`** — the hydration idiom every per-room widget wants: a bound surface renders

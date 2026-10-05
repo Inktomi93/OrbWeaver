@@ -4,7 +4,7 @@
 //   DatumRow   — `label · value ⟨provenance⟩`, the mock's `.drow`: label voice left, datum voice right.
 //   EffectiveProfile — the §4.3 resolver's rows, the readout's spine (the no-selection panel and the
 //                Params panel are the SAME projection pointed at different presets — stated, not hidden).
-//   CapabilityCard   — model · window · output cap · the honored-knob list: WHY a knob is absent or clamps.
+//   CapabilityCard   — model · window · output cap · honored knobs for the selected readout connection.
 //
 // READ-ONLY BY CONSTRUCTION (§16 invariant i): nothing here takes a mutation callback. The only
 // interactions the whole readout carries are the sanctioned SELECTION echoes, and those live on the
@@ -216,10 +216,8 @@ function contextWindowSuffix(context: GenerationCapability["context"]): string |
   return context.windowEstimated === true ? "estimated" : null;
 }
 
-/** WHY a knob is absent, and what the window costs you — the two questions the deck itself cannot answer
- *  (an absent knob renders as nothing, which is correct doctrine and mute). The MODEL name comes from the
- *  effective read, not the descriptor: `GenerationCapability` is keyed by `(model, backend)` and deliberately
- *  names neither. */
+/** Describes the selected readout connection, not which controls its independent Chat editor shows.
+ *  The model name comes from the effective read: `GenerationCapability` names neither model nor backend. */
 export function CapabilityCard({
   capability,
   model,
@@ -249,12 +247,7 @@ export function CapabilityCard({
         <DatumRow label="Context window" suffix={contextWindowSuffix(capability.context)} value={formatKnobValue(capability.context.window)} />
         <DatumRow label="Output cap" value={formatKnobValue(capability.output.maxTokens.max)} />
       </Stack>
-      <Text voice="gloss">
-        {/* SECOND SITE of the same leak (side-eye 2026-08-22 P3-3 — found by that finding's own pin, which
-            the report had scoped to the staleness line alone): "the deck" again, in the one sentence that
-            explains an EMPTY Sampling cluster to someone looking straight at it. */}
-        {honored.length === 0 ? `This model honors no sampling knobs — that is why ${PARAMS_VIEW_LABEL} shows none.` : `honors ${honored.join(" · ")}`}
-      </Text>
+      <Text voice="gloss">{honored.length === 0 ? "This connection honors no sampling knobs." : `honors ${honored.join(" · ")}`}</Text>
     </Section>
   );
 }

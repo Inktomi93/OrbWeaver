@@ -37,6 +37,7 @@ import {
   throughputProvenance,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
+import { AccountingCoverageNotice } from "./accounting-coverage-notice.tsx";
 import { LibraryScopeNotice } from "./library-scope-notice.tsx";
 
 export function AnalyticsModelsTab(): ReactElement {
@@ -68,6 +69,7 @@ function ModelsBody(): ReactElement {
   return (
     <Stack gap="section">
       <LibraryScopeNotice reason="Model usage is rolled up per model, with no per-character breakdown to narrow to." />
+      <AccountingCoverageNotice />
 
       {drilled === null ? <OwnerLatency /> : null}
 

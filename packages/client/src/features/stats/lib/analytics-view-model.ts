@@ -62,6 +62,10 @@ const EM_DASH = "—";
 /** Shared legend for absent accounting and estimates; missing totals are not measured zeros. */
 export const UNRECORDED_NOTE = "A dash means the figure was never recorded. ~ marks estimates. Token and cost totals omit turns with missing accounting.";
 
+/** Imported transcript activity can be rebuilt; missing provider telemetry cannot. */
+export const IMPORTED_ACTIVITY_NOTE =
+  "Imported transcripts can appear in Explore before Insights has a rollup. Recompute includes retained chat activity, but imports may not contain tokens, generation time or provider cost; missing telemetry is not zero.";
+
 export const REASONING_LABEL = "Reasoning (of replies + swipes)";
 export const THROUGHPUT_LABEL = "Speed (tokens per second)";
 

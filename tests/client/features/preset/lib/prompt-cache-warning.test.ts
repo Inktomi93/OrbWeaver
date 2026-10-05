@@ -8,6 +8,10 @@ import { expect, test } from "../../../../support/fixtures.ts";
 const PRESET_ID = castId<PresetId>("preset_cachewarning");
 const HISTORY: PromptSection = { type: "marker", id: "history", name: "Chat History", marker: "chat_history", role: "system", enabled: true };
 
+test("the default rack does not mistake static card slots or unknown books for per-turn content", () => {
+  expect(cacheInvalidatingSections(DEFAULT_PROMPT_CONFIG, PRESET_ID)).toEqual([]);
+});
+
 function config(sections: readonly PromptSection[], userMacros: readonly UserMacroSpec[] = []): PromptConfig {
   return { ...DEFAULT_PROMPT_CONFIG, sections: [...sections], userMacros: [...userMacros] };
 }
@@ -23,7 +27,7 @@ test("finds every enabled per-turn source above history, including volatile user
     { type: "marker", id: "memory", name: "Memory", marker: "memory", role: "system", enabled: true },
   ];
 
-  expect(cacheInvalidatingSections(config(sections, userMacros), PRESET_ID).map((section) => section.name)).toEqual(["Lore", "Clock", "Triggered"]);
+  expect(cacheInvalidatingSections(config(sections, userMacros), PRESET_ID).map((section) => section.name)).toEqual(["Clock", "Triggered"]);
 });
 
 test("ignores disabled, static, and below-history content", () => {
@@ -123,20 +127,34 @@ test("does not warn for nested bytes that the evaluator discards", () => {
   expect(cacheInvalidatingSections(config([transformed, HISTORY]), PRESET_ID).map((section) => section.id)).toEqual([transformed.id]);
 });
 
-test("finds direct staged data, recursive card prose, and runtime variable reads above history", () => {
-  const contents = [
-    "{{memory}}",
-    "{{databank}}",
-    "{{guided_instruction}}",
-    "{{description}}",
-    "{{getvar::counter}}",
-    "{{hasvar::counter}}",
-    "{{getglobalvar::counter}}",
-  ];
+test("finds staged turn data and variable reads without assuming card prose changes", () => {
+  const contents = ["{{memory}}", "{{databank}}", "{{guided_instruction}}", "{{getvar::counter}}", "{{hasvar::counter}}", "{{getglobalvar::counter}}"];
   const sections = contents.map(
     (content, index): PromptSection => ({ type: "literal", id: `dependency_${String(index)}`, name: content, role: "system", content, enabled: true }),
   );
   expect(cacheInvalidatingSections(config([...sections, HISTORY]), PRESET_ID).map((section) => section.id)).toEqual(sections.map((section) => section.id));
+});
+
+test("static card and persona references do not warn, but explicit volatile templates do", () => {
+  const sections: PromptSection[] = ["{{description}}", "{{personality}}", "{{scenario}}", "{{persona}}", "{{mesExamples}}"].map((content, index) => ({
+    type: "literal",
+    id: `card_${String(index)}`,
+    name: content,
+    role: "system",
+    content,
+    enabled: true,
+  }));
+  expect(cacheInvalidatingSections(config([...sections, HISTORY]), PRESET_ID)).toEqual([]);
+  const timed: PromptSection = {
+    type: "marker",
+    id: "timed",
+    name: "Timed description",
+    marker: "char_description",
+    role: "system",
+    template: "{{description}} {{time}}",
+    enabled: true,
+  };
+  expect(cacheInvalidatingSections(config([timed, HISTORY]), PRESET_ID)).toEqual([timed]);
 });
 
 test("warns for an above-history variable read whose value can be advanced below history", () => {
