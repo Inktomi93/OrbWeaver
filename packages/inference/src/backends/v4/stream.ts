@@ -77,6 +77,7 @@ interface Accumulator {
   readonly reasoningParts: Map<string, ReasoningAcc>;
   readonly textParts: Map<string, { text: string; thoughtSignature: string | undefined }>;
   readonly toolCalls: ToolCallInput[];
+  readonly toolMetadata: Map<number, SharedV4ProviderMetadata>;
   readonly images: GeneratedImage[];
   readonly warnings: SharedV4Warning[];
   finish: LanguageModelV4FinishReason | undefined;
@@ -161,6 +162,11 @@ function applyTextSignature(acc: Accumulator, part: LanguageModelV4StreamPart): 
   }
 }
 
+function openRouterToolMeta(metadata: SharedV4ProviderMetadata | undefined): Pick<ToolCallInput, "openrouter"> {
+  const reasoningDetails = jsonArrayAt(metadata?.[OPENROUTER_KEY], REASONING_DETAILS_KEY);
+  return reasoningDetails === undefined || reasoningDetails.length === 0 ? {} : { openrouter: { reasoningDetails } };
+}
+
 function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, callbacks: DrainCallbacks): void {
   applyTextSignature(acc, part);
   if (part.type === "text-delta") {
@@ -173,6 +179,9 @@ function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
     const thoughtSignature = Object.values(part.providerMetadata ?? {})
       .map((metadata) => metadata["thoughtSignature"])
       .find((value): value is string => typeof value === "string");
+    if (part.providerMetadata !== undefined) {
+      acc.toolMetadata.set(acc.toolCalls.length, part.providerMetadata);
+    }
     acc.toolCalls.push({
       toolCallId: part.toolCallId,
       name: part.toolName,
@@ -283,6 +292,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
     reasoningParts: new Map(),
     textParts: new Map(),
     toolCalls: [],
+    toolMetadata: new Map(),
     images: [],
     warnings: [],
     finish: undefined,
@@ -314,7 +324,7 @@ export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPa
     ),
     reasoning: acc.reasoning,
     reasoningParts: reasoningPartsOf(acc),
-    toolCalls: acc.toolCalls,
+    toolCalls: acc.toolCalls.map((call, index) => ({ ...call, ...openRouterToolMeta(acc.toolMetadata.get(index)) })),
     images: acc.images,
     finish: acc.finish,
     usage: acc.usage,

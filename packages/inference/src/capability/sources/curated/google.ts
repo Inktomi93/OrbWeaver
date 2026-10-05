@@ -69,9 +69,7 @@ export const googleRows = [
       cite: "§6.7 'go look at nano banana' — a chat model whose output modalities include image and that edits prior pictures across turns",
     },
   },
-  // The window is Google's input token limit and the output cap its output token limit. The direct route is the
-  // OpenAI-compatible layer, whose `/models` lists bare `{id, object, owned_by}` rows with a `models/` id prefix, so
-  // these rows take that prefix too.
+  // Google's compatibility catalog omits limits and prefixes ids with `models/`; native discovery advertises limits.
   {
     match: {
       model:
@@ -145,7 +143,7 @@ export const googleRows = [
       cite: "Input token limit 65,536, output token limit 4,096: ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite-image",
     },
   },
-  // The direct route: a `custom-openai` row against Google's OpenAI-compatible layer. That layer takes reasoning as
+  // The compatibility route: a `custom-openai` row against Google's OpenAI-compatible layer. That layer takes reasoning as
   // `reasoning_effort`; a token budget needs its `extra_body.google.thinking_config`, which the openai-compatible
   // transport never sends, and its thought signatures ride tool calls, not a replayed reasoning part. The image ids
   // are not in its effort table and keep the family cell.
@@ -388,6 +386,24 @@ export const googleRows = [
       tier: "curated",
       dated: "2026-10-03",
       cite: "scripts/probes/hosted-families/RESULTS.md, OpenRouter google case c5: CONTINUES on gemini-2.5-flash, 2.5-flash-lite, 2.5-pro and 3.1-pro-preview. Earlier, OpenRouter Gemini 3.1 Pro took the final assistant prefix 'The answer is' and returned only ' ORBIT.' (2026-09-30)",
+    },
+  },
+  {
+    match: { model: "^(models/)?gemini-(?!embedding)(?!.*(image|transcribe|tts|live))", wire: "google-generative-ai" },
+    generation: { tools: { parallel: true, requiredChoice: true, namedChoice: true, noneChoice: true, parallelControl: false } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "https://ai.google.dev/gemini-api/docs/generate-content/function-calling: parallel calls and AUTO/ANY/NONE choices; @ai-sdk/google/src/google-prepare-tools.ts maps named choices to ANY with allowedFunctionNames and exposes no parallel-call disable option",
+    },
+  },
+  {
+    match: { ids: ["google/gemini-3.8-flash", "google/gemini-3.1-pro-preview"], provider: "openrouter" },
+    generation: { tools: { parallel: true, parallelControl: false } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-05",
+      cite: "scripts/probes/gemini-capabilities/RESULTS.md: current OpenRouter endpoint rows advertise no parallel_tool_calls; default routing emitted two calls with the field false on both model ids. Strict parameter routing returned 404; the precise refusal wording is unclassified.",
     },
   },
 ] as const satisfies readonly CapabilityOverrideInput[];

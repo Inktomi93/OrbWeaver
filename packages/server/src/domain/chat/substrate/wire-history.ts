@@ -487,10 +487,7 @@ function replayToolBatch(
   let consumed = options.start;
   for (const record of batch) {
     const offset = canonicalToolOffset(record.textOffset, options);
-    parts.push(
-      ...replayProseBetween(source, consumed, offset, proseSignatures),
-      recordedToolPart(record, toolProvenance(record, signatures, allRecords)?.thoughtSignature),
-    );
+    parts.push(...replayProseBetween(source, consumed, offset, proseSignatures), recordedToolPart(record, toolProvenance(record, signatures, allRecords)));
     consumed = offset;
   }
   const boundary = batch[0]?.exchangeTextEnd;
@@ -503,13 +500,17 @@ function canonicalToolOffset(offset: number | undefined, options: { readonly exa
   return options.exact && offset !== undefined ? options.origin + Math.min(options.canonical.length, offset) : 0;
 }
 
-function recordedToolPart(record: Pick<ToolCallRecord, "toolCallId" | "name" | "arguments">, thoughtSignature: string | undefined): ChatContentPart {
+function recordedToolPart(
+  record: Pick<ToolCallRecord, "toolCallId" | "name" | "arguments">,
+  provenance: Pick<NonNullable<ContentSignatures["tools"]>[number], "thoughtSignature" | "openrouter"> | undefined,
+): ChatContentPart {
   return {
     type: "tool-call",
     toolCallId: record.toolCallId,
     name: record.name,
     arguments: record.arguments,
-    ...(thoughtSignature === undefined ? {} : { thoughtSignature }),
+    ...(provenance?.thoughtSignature === undefined ? {} : { thoughtSignature: provenance.thoughtSignature }),
+    ...(provenance?.openrouter === undefined ? {} : { openrouter: provenance.openrouter }),
   };
 }
 
@@ -535,7 +536,7 @@ export function receivedToolExchangeMessages(input: {
       return part === null ? [] : [{ part, at: image.atChars ?? input.content.length, ordinal: image.partOrdinal ?? index }];
     }),
     ...input.calls.map((call, index) => ({
-      part: recordedToolPart(call, call.thoughtSignature),
+      part: recordedToolPart(call, call),
       at: call.atChars ?? input.content.length,
       ordinal: call.partOrdinal ?? images.length + index,
     })),

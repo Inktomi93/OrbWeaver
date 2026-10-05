@@ -13,7 +13,7 @@ import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, World
 import type { ChatApi, EffortLevel, ProviderId } from "#inference";
 import { SAMPLER_KNOBS } from "#inference";
 import type { WiBusEvent } from "#world-info";
-import type { ChatReasoningPart, MessageView } from "./messages.ts";
+import type { ChatReasoningPart, MessageView, ReasoningPartMeta } from "./messages.ts";
 import type { ReactionEmoji } from "./reactions.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -64,6 +64,7 @@ export type ChatContentPart =
       readonly arguments: string;
       /** Opaque transport provenance required by the next tool round; never a public tool record. */
       readonly thoughtSignature?: string;
+      readonly openrouter?: ReasoningPartMeta["openrouter"];
     }
   | {
       readonly type: "tool-result"; // the wire `tool` role carries — one per executed call

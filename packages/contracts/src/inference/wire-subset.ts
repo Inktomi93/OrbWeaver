@@ -174,6 +174,11 @@ const OPEN_OBJECT: NodeRefusal = {
   test: (node) => "additionalProperties" in node && node["additionalProperties"] !== false,
 };
 
+const REF_WITH_SIBLINGS: NodeRefusal = {
+  label: "$ref with non-reference siblings",
+  test: (node) => REF_KEYWORD in node && Object.keys(node).some((key) => !key.startsWith("$")),
+};
+
 /** xgrammar refuses a string that mixes `pattern` or `format` with a length bound. */
 const PATTERN_WITH_LENGTH: NodeRefusal = {
   label: "pattern or format with a length bound",
@@ -209,6 +214,8 @@ interface WireSubset {
   readonly refuseRecursion?: true;
   /** Refuse a `$ref` inside a `$defs` member (llama.cpp's converter breaks on a nested reference). */
   readonly refuseNestedRef?: true;
+  /** Recursive references can occur only under a non-required property on this carrier. */
+  readonly refuseRequiredRecursion?: true;
   /** The vendor's per-request ceilings as documented; a capability row names the mode whose ceilings bind
    *  (`output.structuredLimitsFrom`) and may override them field by field (`output.structuredLimits`). */
   readonly limits?: WireSchemaLimits;
@@ -233,7 +240,16 @@ export const LONG_ENUM_VALUES = 250;
 
 const ANTHROPIC_STRIPPED_BOUNDS = BOUND_KEYWORDS.filter((keyword) => keyword !== "minItems" && keyword !== PATTERN_KEYWORD);
 const HOSTED_STRIPPED_BOUNDS = BOUND_KEYWORDS.filter((keyword) => keyword !== PATTERN_KEYWORD);
-const GEMINI_STRIPPED = ["minLength", "maxLength", PATTERN_KEYWORD, "exclusiveMinimum", "exclusiveMaximum", "multipleOf"] as const;
+const GEMINI_STRIPPED = [
+  "minLength",
+  "maxLength",
+  PATTERN_KEYWORD,
+  "exclusiveMinimum",
+  "exclusiveMaximum",
+  "multipleOf",
+  "minProperties",
+  "maxProperties",
+] as const;
 
 /** The per-mode vocabulary, a mapped Record so a new mode without a row fails `tsc`. Exported so the
  *  strip-versus-clamp coupling is asserted over the table. */
@@ -310,15 +326,33 @@ export const WIRE_SUBSETS: Readonly<Record<WireSchemaMode, WireSubset>> = {
     clampMinItems: false,
     refuseNestedRef: true,
   },
-  // ai.google.dev structured-output: the keywords below are not in the subset and the model ignores them silently.
+  // Google ignores unsupported constraints and reads oneOf as anyOf; neither preserves validation semantics.
   "gemini-schema": {
     strip: new Set<string>([...GEMINI_STRIPPED, ...META_KEYWORDS]),
-    refuse: new Set<string>(["allOf", "oneOf"]),
-    refuseNodes: [],
+    refuse: new Set<string>([
+      "allOf",
+      "oneOf",
+      "not",
+      "if",
+      "then",
+      "else",
+      "dependentRequired",
+      "dependentSchemas",
+      "propertyNames",
+      "patternProperties",
+      "uniqueItems",
+      "contains",
+      "minContains",
+      "maxContains",
+      "unevaluatedProperties",
+      "unevaluatedItems",
+    ]),
+    refuseNodes: [REF_WITH_SIBLINGS],
     stripNumberRanges: false,
     pinClosed: false,
     requireAllAsNullable: false,
     clampMinItems: false,
+    refuseRequiredRecursion: true,
   },
 };
 
@@ -381,6 +415,13 @@ export interface WireSchemaScrub<S extends Record<string, unknown> = Record<stri
   readonly ambiguousPaths: readonly string[];
 }
 
+interface WalkPosition {
+  readonly path: string;
+  readonly location: string;
+  readonly required: boolean;
+  readonly definitionRoot: string | undefined;
+}
+
 /** Walk state for one scrub. A path under `$defs` starts with `#/`; those are expanded through each `$ref` use. */
 interface Walk {
   readonly subset: WireSubset;
@@ -391,6 +432,7 @@ interface Walk {
    *  share a field) cannot tell the author's null from the reshape's, so it is ambiguous too. */
   readonly declaredNull: string[];
   readonly refUses: Map<string, string[]>;
+  readonly refLocations: Map<string, WalkPosition[]>;
   /** The authored root, where a local `$ref` resolves when asking whether a property accepts null. */
   readonly root: Record<string, unknown>;
 }
@@ -423,12 +465,21 @@ function childPath(key: string, path: string): string {
   return key === "additionalProperties" ? `${path}${MAP_VALUES_SEGMENT}` : path;
 }
 
+function pointerChild(location: string, key: string): string {
+  return `${location}/${key.replaceAll("~", "~0").replaceAll("/", "~1")}`;
+}
+
+function childPosition(position: WalkPosition, key: string): WalkPosition {
+  return { ...position, path: childPath(key, position.path), location: pointerChild(position.location, key) };
+}
+
 function strips(subset: WireSubset, key: string, node: Record<string, unknown>): boolean {
   return subset.strip.has(key) || (subset.stripNumberRanges && node["type"] === NUMBER_TYPE && NUMBER_RANGE_KEYWORDS.has(key));
 }
 
 // What a node says as a whole: a construct the wire refuses, and a local `$ref` use its defs' paths are placed at.
-function noteNode(node: Record<string, unknown>, walk: Walk, path: string): void {
+function noteNode(node: Record<string, unknown>, walk: Walk, position: WalkPosition): void {
+  const { path } = position;
   for (const rule of walk.subset.refuseNodes) {
     if (rule.test(node)) {
       refuse(walk, rule.label, path);
@@ -437,47 +488,70 @@ function noteNode(node: Record<string, unknown>, walk: Walk, path: string): void
   const ref = node[REF_KEYWORD];
   if (typeof ref === "string" && ref.startsWith(LOCAL_REF_PREFIX)) {
     walk.refUses.set(ref, [...(walk.refUses.get(ref) ?? []), path]);
+    walk.refLocations.set(ref, [...(walk.refLocations.get(ref) ?? []), position]);
     if (walk.subset.refuseNestedRef === true && path.startsWith(`${LOCAL_REF_PREFIX}/`)) {
       refuse(walk, "$ref inside $defs", path);
     }
   }
 }
 
-// The references that reach themselves: an edge runs from the def a `$ref` sits in to the def it names. A use outside
-// every `$defs` member sits in the root document, which `"$ref": "#"` names.
-function recursiveRefs(refUses: ReadonlyMap<string, readonly string[]>): readonly string[] {
+function insideSchema(location: string, ancestor: string): boolean {
+  return location === ancestor || location.startsWith(`${ancestor}/`);
+}
+
+// Definition declarations are independent schemas, not dependencies of the object that holds their map.
+function referenceSources(use: WalkPosition, refs: Iterable<string>): string[] {
+  const containing = [...refs].filter((ref) => insideSchema(use.location, ref) && (use.definitionRoot === undefined || insideSchema(ref, use.definitionRoot)));
+  return use.definitionRoot === undefined ? [...new Set([LOCAL_REF_PREFIX, ...containing])] : containing;
+}
+
+function refEdges(refUses: ReadonlyMap<string, readonly WalkPosition[]>): ReadonlyMap<string, readonly string[]> {
   const edges = new Map<string, string[]>();
   for (const [target, uses] of refUses) {
     for (const use of uses) {
-      const inRoot = !use.startsWith(`${LOCAL_REF_PREFIX}/`);
-      for (const source of inRoot ? [LOCAL_REF_PREFIX] : [...refUses.keys()].filter((ref) => isUnderRef(use, ref))) {
+      for (const source of referenceSources(use, refUses.keys())) {
         edges.set(source, [...(edges.get(source) ?? []), target]);
       }
     }
   }
-  const reaches = (from: string, goal: string, seen: Set<string>): boolean => {
-    for (const next of edges.get(from) ?? []) {
-      if (next === goal) {
+  return edges;
+}
+
+function refReaches(edges: ReadonlyMap<string, readonly string[]>, from: string, goal: string, seen: Set<string>): boolean {
+  for (const next of edges.get(from) ?? []) {
+    if (next === goal) {
+      return true;
+    }
+    if (!seen.has(next)) {
+      seen.add(next);
+      if (refReaches(edges, next, goal, seen)) {
         return true;
       }
-      if (!seen.has(next)) {
-        seen.add(next);
-        if (reaches(next, goal, seen)) {
-          return true;
-        }
-      }
     }
-    return false;
-  };
-  return [...refUses.keys()].filter((ref) => reaches(ref, ref, new Set()));
+  }
+  return false;
+}
+
+function recursiveRefs(refUses: ReadonlyMap<string, readonly WalkPosition[]>): readonly string[] {
+  const edges = refEdges(refUses);
+  return [...refUses.keys()].filter((ref) => refReaches(edges, ref, ref, new Set()));
+}
+
+function requiredRecursiveRefPaths(walk: Walk): readonly string[] {
+  const edges = refEdges(walk.refLocations);
+  return [...walk.refLocations].flatMap(([target, uses]) =>
+    uses
+      .filter((use) => use.required && referenceSources(use, walk.refLocations.keys()).some((source) => refReaches(edges, target, source, new Set())))
+      .map((use) => use.path),
+  );
 }
 
 // One node's keyword pass: drop what this wire cannot express, report what it must refuse, recurse into the rest,
 // and relay the dropped bounds into the node's description.
-function scrubKeywords(node: Record<string, unknown>, walk: Walk, path: string): Record<string, unknown> {
+function scrubKeywords(node: Record<string, unknown>, walk: Walk, position: WalkPosition): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const stripped = new Map<string, unknown>();
-  noteNode(node, walk, path);
+  noteNode(node, walk, position);
   for (const [key, value] of Object.entries(node)) {
     if (strips(walk.subset, key, node)) {
       if (BOUND_KEYWORD_SET.has(key)) {
@@ -486,9 +560,11 @@ function scrubKeywords(node: Record<string, unknown>, walk: Walk, path: string):
       continue;
     }
     if (walk.subset.refuse.has(key)) {
-      refuse(walk, key, path);
+      refuse(walk, key, position.path);
     }
-    out[key] = NAME_MAP_KEYWORDS.has(key) ? walkNameMap(value, walk, path, key) : walkNode(value, walk, childPath(key, path));
+    out[key] = NAME_MAP_KEYWORDS.has(key)
+      ? walkNameMap(value, walk, { position: childPosition(position, key), key, parent: node })
+      : walkNode(value, walk, childPosition(position, key));
   }
   if (walk.subset.clampMinItems) {
     clampMinItems(out, stripped);
@@ -528,33 +604,41 @@ function requireAllProperties(node: Record<string, unknown>, walk: Walk, path: s
   node["required"] = names;
 }
 
-function walkNode(node: unknown, walk: Walk, path: string): unknown {
+function walkNode(node: unknown, walk: Walk, position: WalkPosition): unknown {
   if (Array.isArray(node)) {
-    return node.map((item) => walkNode(item, walk, path));
+    return node.map((item, index) => walkNode(item, walk, { ...position, location: pointerChild(position.location, String(index)) }));
   }
   if (!isPlainObject(node)) {
     return node;
   }
-  const out = scrubKeywords(node, walk, path);
+  const out = scrubKeywords(node, walk, position);
   if (walk.subset.pinClosed && out["type"] === OBJECT_TYPE && out["additionalProperties"] === undefined) {
     out["additionalProperties"] = false;
   }
   if (walk.subset.requireAllAsNullable && out["type"] === OBJECT_TYPE) {
-    requireAllProperties(out, walk, path);
+    requireAllProperties(out, walk, position.path);
   }
   return out;
 }
 
 // Descend a `{ name → schema }` map: every key is an opaque name, every value a schema. A `$defs` member's paths
 // are rooted at its reference string until a `$ref` use places them.
-function walkNameMap(node: unknown, walk: Walk, path: string, key: string): unknown {
+function walkNameMap(
+  node: unknown,
+  walk: Walk,
+  args: { readonly position: WalkPosition; readonly key: string; readonly parent: Record<string, unknown> },
+): unknown {
+  const { position, key, parent } = args;
   if (!isPlainObject(node)) {
-    return walkNode(node, walk, path);
+    return walkNode(node, walk, position);
   }
   const out: Record<string, unknown> = {};
   for (const [name, schema] of Object.entries(node)) {
-    const memberPath = DEF_MAP_KEYWORDS.has(key) ? `${LOCAL_REF_PREFIX}/${key}/${name}` : propertyPath(path, name);
-    out[name] = walkNode(schema, walk, memberPath);
+    const definition = DEF_MAP_KEYWORDS.has(key);
+    const location = pointerChild(position.location, name);
+    const memberPath = definition ? pointerChild(pointerChild(LOCAL_REF_PREFIX, key), name) : propertyPath(position.path, name);
+    const required = key === "properties" ? Array.isArray(parent["required"]) && parent["required"].includes(name) : definition || position.required;
+    out[name] = walkNode(schema, walk, { path: memberPath, location, required, definitionRoot: definition ? location : position.definitionRoot });
   }
   return out;
 }
@@ -594,11 +678,25 @@ function expandDefPath(path: string, seen: ReadonlySet<string>, refUses: Readonl
  * caller's cached `ResponseFormat.schema` also feeds wires that need the keywords this one drops.
  */
 export function scrubWireSchema<S extends Record<string, unknown>>(schema: S, mode: WireSchemaMode): WireSchemaScrub<S> {
-  const walk: Walk = { subset: WIRE_SUBSETS[mode], refused: new Map(), reshaped: [], ambiguous: [], declaredNull: [], refUses: new Map(), root: schema };
-  const scrubbed = walkNode(schema, walk, "") as S;
+  const walk: Walk = {
+    subset: WIRE_SUBSETS[mode],
+    refused: new Map(),
+    reshaped: [],
+    ambiguous: [],
+    declaredNull: [],
+    refUses: new Map(),
+    refLocations: new Map(),
+    root: schema,
+  };
+  const scrubbed = walkNode(schema, walk, { path: "", location: LOCAL_REF_PREFIX, required: true, definitionRoot: undefined }) as S;
   if (walk.subset.refuseRecursion === true) {
-    for (const ref of recursiveRefs(walk.refUses)) {
+    for (const ref of recursiveRefs(walk.refLocations)) {
       refuse(walk, "recursive $ref", ref === LOCAL_REF_PREFIX ? "" : ref);
+    }
+  }
+  if (walk.subset.refuseRequiredRecursion === true) {
+    for (const path of requiredRecursiveRefPaths(walk)) {
+      refuse(walk, "required recursive $ref", path);
     }
   }
   const reshapedPaths = placeDefPaths(walk.reshaped, walk.refUses);

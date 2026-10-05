@@ -155,12 +155,16 @@ function reasoningOptions(meta: ReasoningPartMeta | undefined): SharedV4Provider
 }
 
 function toolCallPart(part: Extract<ChatContentPart, { type: "tool-call" }>): LanguageModelV4ToolCallPart {
+  const providerOptions = reasoningOptions({
+    ...(part.thoughtSignature === undefined ? {} : { google: { thoughtSignature: part.thoughtSignature } }),
+    ...(part.openrouter === undefined ? {} : { openrouter: part.openrouter }),
+  });
   return {
     type: "tool-call",
     toolCallId: part.toolCallId,
     toolName: part.name,
     input: toolInput(part.arguments),
-    ...(part.thoughtSignature === undefined ? {} : { providerOptions: { google: { thoughtSignature: part.thoughtSignature } } }),
+    ...(providerOptions === undefined ? {} : { providerOptions }),
   };
 }
 

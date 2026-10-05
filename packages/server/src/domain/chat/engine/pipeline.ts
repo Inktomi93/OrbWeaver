@@ -1286,7 +1286,7 @@ function toolDepthSignatures(
 ): NonNullable<ContentSignatures["tools"]> {
   const reasoningParts = economics?.reasoningParts ?? [];
   return calls.flatMap((call, index) =>
-    call.thoughtSignature === undefined && reasoningParts.length === 0
+    call.thoughtSignature === undefined && call.openrouter === undefined && reasoningParts.length === 0
       ? []
       : [
           {
@@ -1294,6 +1294,7 @@ function toolDepthSignatures(
             turnId,
             callOrdinal: firstOrdinal + index,
             ...(call.thoughtSignature === undefined ? {} : { thoughtSignature: call.thoughtSignature }),
+            ...(call.openrouter === undefined ? {} : { openrouter: call.openrouter }),
             ...(reasoningParts.length === 0 ? {} : { reasoningParts: [...reasoningParts] }),
           },
         ],

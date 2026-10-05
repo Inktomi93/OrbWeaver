@@ -516,3 +516,121 @@ test("strict-compatible caps one string enum past 250 values at 15,000 character
   const short = { type: "object", required: ["pick"], properties: { pick: { type: "string", enum: long.slice(0, 250) } } };
   expect(checkWireSchema([short], "strict-compatible", limits).fits).toBe(true);
 });
+
+test("Gemini refuses unsupported semantic constraints instead of sending ignored validation", () => {
+  const constraints = {
+    not: { enum: ["bad"] },
+    if: { type: "string" },
+    else: { enum: ["no"] },
+    dependentRequired: { a: ["b"] },
+    dependentSchemas: { a: { required: ["b"] } },
+    propertyNames: { pattern: "^a" },
+    patternProperties: { "^a": { type: "string" } },
+    uniqueItems: true,
+    contains: { type: "integer" },
+    minContains: 1,
+    maxContains: 2,
+    unevaluatedProperties: false,
+    unevaluatedItems: false,
+  };
+  for (const [keyword, value] of [...Object.entries(constraints), ["then", { enum: ["yes"] }] as const]) {
+    const schema = { type: "object", properties: { data: { [keyword]: value } } };
+    expect(scrubWireSchema(schema, "gemini-schema").refused, keyword).toEqual([{ keyword, path: "data" }]);
+    expect(scrubWireSchema(schema, "hosted-common").refused, keyword).toEqual([]);
+  }
+});
+
+test("Gemini object bounds remain instructions and reference siblings are refused without changing a reference", () => {
+  const bounded = scrubWireSchema({ type: "object", minProperties: 1, maxProperties: 3 }, "gemini-schema");
+  expect(bounded.schema).toEqual({ type: "object", description: "[Constraints: minProperties: 1, maxProperties: 3]" });
+  const defs = { Leaf: { type: "string" } };
+  expect(scrubWireSchema({ type: "object", properties: { a: { $ref: "#/$defs/Leaf", description: "a" } }, $defs: defs }, "gemini-schema").refused).toEqual([
+    { keyword: "$ref with non-reference siblings", path: "a" },
+  ]);
+  expect(scrubWireSchema({ type: "object", properties: { a: { $ref: "#/$defs/Leaf", $anchor: "a" } }, $defs: defs }, "gemini-schema").refused).toEqual([]);
+});
+
+test("Gemini recursive references depend on their owning property's requirement, not root admission or nullability", () => {
+  const schema = (next: Record<string, unknown>, required: readonly string[]): Record<string, unknown> => ({
+    type: "object",
+    required: ["entry"],
+    properties: { entry: { $ref: "#/$defs/Node" } },
+    $defs: { Node: { type: "object", required, properties: { next } } },
+  });
+  const ref = { $ref: "#/$defs/Node" };
+  expect(scrubWireSchema(schema(ref, []), "gemini-schema").refused).toEqual([]);
+  expect(scrubWireSchema(schema(ref, ["next"]), "gemini-schema").refused).toEqual([{ keyword: "required recursive $ref", path: "#/$defs/Node.next" }]);
+  expect(scrubWireSchema(schema({ anyOf: [ref, { type: "null" }] }, ["next"]), "gemini-schema").refused).toEqual([
+    { keyword: "required recursive $ref", path: "#/$defs/Node.next" },
+  ]);
+  expect(scrubWireSchema(schema({ type: "array", items: ref }, []), "gemini-schema").refused).toEqual([]);
+  expect(scrubWireSchema(schema({ type: "array", items: ref }, ["next"]), "gemini-schema").refused).toEqual([
+    { keyword: "required recursive $ref", path: "#/$defs/Node.next[*]" },
+  ]);
+  const nested = { type: "object", required: ["inner"], properties: { inner: ref } };
+  expect(scrubWireSchema(schema(nested, []), "gemini-schema").refused).toEqual([{ keyword: "required recursive $ref", path: "#/$defs/Node.next.inner" }]);
+  const root = { type: "object", required: ["next"], properties: { next: { $ref: "#" } } };
+  expect(scrubWireSchema(root, "gemini-schema").refused).toEqual([{ keyword: "required recursive $ref", path: "next" }]);
+});
+
+test("Gemini tracks mutual reference cycles without refusing a required root reference to an optional cycle", () => {
+  const schema = (required: readonly string[]): Record<string, unknown> => ({
+    type: "object",
+    required: ["entry"],
+    properties: { entry: { $ref: "#/$defs/A" } },
+    $defs: { A: { type: "object", required, properties: { next: { $ref: "#/$defs/B" } } }, B: { type: "object", properties: { next: { $ref: "#/$defs/A" } } } },
+  });
+  expect(scrubWireSchema(schema([]), "gemini-schema").refused).toEqual([]);
+  expect(scrubWireSchema(schema(["next"]), "gemini-schema").refused).toEqual([{ keyword: "required recursive $ref", path: "#/$defs/A.next" }]);
+});
+
+test("Gemini recursive references bind escaped JSON pointer definition names", () => {
+  const schema = (required: readonly string[]): Record<string, unknown> => ({
+    type: "object",
+    properties: { entry: { $ref: "#/$defs/A~0~1B" } },
+    required: ["entry"],
+    $defs: { "A~/B": { type: "object", properties: { next: { $ref: "#/$defs/A~0~1B" } }, required } },
+  });
+  expect(scrubWireSchema(schema([]), "gemini-schema").refused).toEqual([]);
+  expect(scrubWireSchema(schema(["next"]), "gemini-schema").refused).toEqual([{ keyword: "required recursive $ref", path: "#/$defs/A~0~1B.next" }]);
+});
+
+test("Gemini required inline pointer cycles refuse at their value path while optional and acyclic pointers remain available", () => {
+  const schema = (required: readonly string[]): Record<string, unknown> => ({
+    type: "object",
+    required: ["node"],
+    properties: {
+      node: { type: "object", required, properties: { next: { $ref: "#/properties/node" } } },
+    },
+  });
+  expect(scrubWireSchema(schema(["next"]), "gemini-schema").refused).toEqual([{ keyword: "required recursive $ref", path: "node.next" }]);
+  expect(scrubWireSchema(schema([]), "gemini-schema").refused).toEqual([]);
+  const acyclic = {
+    type: "object",
+    required: ["node"],
+    properties: {
+      node: { type: "object", required: ["next"], properties: { next: { $ref: "#/properties/leaf" } } },
+      leaf: { type: "string" },
+    },
+  };
+  expect(scrubWireSchema(acyclic, "gemini-schema").refused).toEqual([]);
+});
+
+test("Gemini inline cycle identity escapes pointer segments and does not confuse sibling name prefixes", () => {
+  const escaped = (required: readonly string[]): Record<string, unknown> => ({
+    type: "object",
+    properties: {
+      "A~/B": { type: "object", required, properties: { next: { $ref: "#/properties/A~0~1B" } } },
+    },
+  });
+  expect(scrubWireSchema(escaped(["next"]), "gemini-schema").refused).toEqual([{ keyword: "required recursive $ref", path: '["A~/B"].next' }]);
+  expect(scrubWireSchema(escaped([]), "gemini-schema").refused).toEqual([]);
+  const siblings = {
+    type: "object",
+    properties: {
+      node: { type: "string" },
+      nodeSuffix: { type: "object", required: ["next"], properties: { next: { $ref: "#/properties/node" } } },
+    },
+  };
+  expect(scrubWireSchema(siblings, "gemini-schema").refused).toEqual([]);
+});

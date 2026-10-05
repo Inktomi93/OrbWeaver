@@ -227,3 +227,65 @@ test("a turn whose shape refuses the native carrier (an Anthropic prefill) rides
     violations: [{ kind: "no-vehicle", cause: "unsupported" }],
   });
 });
+
+test("Gemini payload semantics refuse before any carrier; optional recursion plans without invented vendor ceilings", () => {
+  const endpoint = target({ mode: "gemini-schema", vehicles: ["response-format", "forced-tool"] });
+  const unsupported: ResponseFormat = {
+    name: "result",
+    schema: wireSchema({ type: "object", properties: { value: { type: "string", not: { enum: ["bad"] } } } }),
+  };
+  const refused = planStructured({ formats: [unsupported] }, endpoint);
+  expect(refused).toMatchObject({
+    ok: false,
+    violations: [
+      { kind: "refused-keyword", keyword: "not", vehicle: "response-format" },
+      { kind: "refused-keyword", keyword: "not", vehicle: "forced-tool" },
+    ],
+  });
+  const schema = (required: readonly string[]): ResponseFormat => ({
+    name: "tree",
+    schema: wireSchema({ type: "object", properties: { next: { $ref: "#" } }, required }),
+  });
+  expect(planStructured({ formats: [schema([])] }, endpoint)).toMatchObject({ ok: true, responseFormat: { vehicle: "response-format" } });
+  expect(planStructured({ formats: [schema(["next"])] }, endpoint)).toMatchObject({
+    ok: false,
+    violations: expect.arrayContaining([expect.objectContaining({ kind: "refused-keyword", keyword: "required recursive $ref" })]),
+  });
+  expect(planStructured({ formats: [optionals(41)] }, endpoint)).toMatchObject({ ok: true });
+});
+
+test("the OpenRouter adapter refuses explicit strict tools loudly without disabling strict response formats", () => {
+  const generation = makeGenerationCapability({
+    tools: { parallel: true },
+    output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"], structured: true },
+  });
+  const tools = [
+    { name: "write", description: "Write.", parameters: { type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"] }, strict: true },
+  ];
+  const routed = planStructuredFor(makeResolved({ providerId: "openrouter", generation }), { formats: [SMALL], tools, toolChoice: { mode: "auto" } });
+  expect(routed).toMatchObject({ ok: true, responseFormat: { strict: true }, tools: [{ name: "write", strict: undefined }] });
+  expect(routed.ok && routed.downgrades.map((warning) => warning.code)).toEqual(["sdk_unsupported_tool"]);
+  const native = planStructuredFor(makeResolved({ providerId: "google", generation }), { tools, toolChoice: { mode: "auto" } });
+  expect(native).toMatchObject({ ok: true, tools: [{ name: "write", strict: true }], downgrades: [] });
+});
+
+test("Gemini inline required pointer cycles refuse on both carriers and optional controls still plan", () => {
+  const schema = (required: readonly string[]): ResponseFormat => ({
+    name: "tree",
+    schema: wireSchema({
+      type: "object",
+      required: ["node"],
+      properties: {
+        node: { type: "object", required, properties: { next: { $ref: "#/properties/node" } } },
+      },
+    }),
+  });
+  for (const vehicle of ["response-format", "forced-tool"] as const) {
+    const endpoint = target({ mode: "gemini-schema", vehicles: [vehicle] });
+    expect(planStructured({ formats: [schema(["next"])] }, endpoint)).toMatchObject({
+      ok: false,
+      violations: [{ kind: "refused-keyword", keyword: "required recursive $ref", path: "node.next", vehicle }],
+    });
+    expect(planStructured({ formats: [schema([])] }, endpoint)).toMatchObject({ ok: true, responseFormat: { vehicle } });
+  }
+});

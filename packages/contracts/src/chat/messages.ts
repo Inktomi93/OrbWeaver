@@ -256,6 +256,7 @@ const contentSignatureSnapshotSchema = z.object({
         toolCallId: z.string(),
         callOrdinal: z.number().int().nonnegative().optional(),
         thoughtSignature: z.string().optional(),
+        openrouter: chatReasoningPartSchema.shape.meta.unwrap().shape.openrouter,
         reasoningParts: z.array(chatReasoningPartSchema).optional(),
         turnId: typeIdSchema(ID_PREFIX.chatTurn).optional(),
       }),

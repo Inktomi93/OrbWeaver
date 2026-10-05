@@ -1,5 +1,14 @@
 import type { GenerationCapability } from "@orb/contracts/inference";
-import { acceptsAssistantPrefill, builtinProvider, connectionTasks, isTurnEstimated } from "@orb/contracts/inference";
+import {
+  acceptsAssistantPrefill,
+  acceptsNamedToolChoice,
+  acceptsNoneToolChoice,
+  acceptsRequiredToolChoice,
+  builtinProvider,
+  connectionTasks,
+  honoursParallelControl,
+  isTurnEstimated,
+} from "@orb/contracts/inference";
 import { embeddingPrompt } from "../../../../../packages/inference/src/backends/kit/embedding-input.ts";
 import { curatedKind, curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
@@ -81,6 +90,19 @@ const GEMINI_ROUTES = [
   ["models/", "custom-openai", "openai-compat"],
   ["google/", "openrouter", "openai-compat"],
 ] as const;
+
+test("native and measured OpenRouter Gemini support parallel calls but cannot disable them; forced choices remain available", () => {
+  for (const model of ["gemini-3.8-flash", "gemini-3.1-pro-preview"]) {
+    const native = geminiOn("", "google", "google-generative-ai", model);
+    const routed = geminiOn("google/", "openrouter", "openai-compat", model);
+    expect(native.tools?.parallel).toBe(true);
+    expect(honoursParallelControl(native)).toBe(false);
+    expect(honoursParallelControl(routed)).toBe(false);
+    expect(acceptsRequiredToolChoice(native)).toBe(true);
+    expect(acceptsNamedToolChoice(native)).toBe(true);
+    expect(acceptsNoneToolChoice(native)).toBe(true);
+  }
+});
 
 function geminiOn(prefix: string, providerId: string, wire: "google-generative-ai" | "openai-compat", model: string): GenerationCapability {
   const { capability } = synthesizeCapability("generation", "google", {

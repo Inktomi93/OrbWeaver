@@ -29,7 +29,8 @@ export const BUILTIN_PROVIDER_ROWS = [
     // The whole wire set. `rerank` rides the wire's plain-POST arm: OpenRouter answers `POST /rerank` with
     // the same `{ results: [{ index, relevance_score }] }` shape vLLM does (raw SDK 1.1.8 `rerankRerank`,
     // `pathToFunc("/rerank")`), so the row names the path like the vllm row does.
-    features: { rerankPath: "/rerank", structuredMode: "strict-compatible" },
+    // The adapter drops strict tool flags; response-format strictness is independent.
+    features: { rerankPath: "/rerank", structuredMode: "strict-compatible", strictJson: "never" },
     catalog: "url",
     metered: true,
     docsUrl: "https://openrouter.ai/docs",
