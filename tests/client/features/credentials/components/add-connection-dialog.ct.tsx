@@ -765,7 +765,7 @@ for (const { arm, width, device } of AUTHORING_ARMS) {
       await expect(dialog.getByText("Key storage is turned off on this server")).toBeVisible();
       await expect(dialog.getByLabel("API key", { exact: true })).toHaveCount(0);
       await expect(dialog.getByRole("button", { name: "Add connection" })).toHaveCount(0);
-      await expect(dialog.getByRole("button", { name: "Close" })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "Close", exact: true }).filter({ hasText: "Close" })).toBeVisible();
       await expectInsideViewport(page, dialog);
 
       await pickProvider(page, dialog, "Ollama");

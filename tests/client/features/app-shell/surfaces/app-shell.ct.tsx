@@ -76,6 +76,8 @@ const SHELL_AMBIENT_ROUTES = defineTrpcRoutes({
   "regex.listScripts": [],
   "worldInfo.listBooksWithUsage": [],
   "rosterPreset.list": [],
+  "connection.listBindings": [],
+  "connection.list": [],
   // `ViewerView` — a projection of the request Principal (transport/trpc/routers/sessions.ts:25).
   "sessions.me": { userId: "user_ct_shell", handle: "ct_shell", globalRole: "user" },
   // The viewer's settings row at the production defaults — the appearance/tier readers the shell root
