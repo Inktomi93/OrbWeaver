@@ -66,8 +66,8 @@
 // and nothing was invented for an unmarked finding.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `domain-freshness-plane` descriptor at 7183b7abaee141b0e2e85cb79e939878bd482f77, the parent of the conversion
-// `472bc940c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `domain-freshness-plane` descriptor at dc84ae015aed480988f09f3257e60cadb2124398, the parent of the conversion
+// `87ba2ac30e` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,377 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,178 and final `population` admits 1,178. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside

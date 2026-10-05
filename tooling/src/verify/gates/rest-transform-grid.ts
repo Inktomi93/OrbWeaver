@@ -21,7 +21,7 @@
 // `motion-token-purity`; a policy has ONE family and it names the reader that decides its subject, not
 // every reader it touches.
 //
-// POPULATION PORT (legacy `0acf26cb8`), two halves and both byte-identical:
+// POPULATION PORT (legacy `fee591fe17`), two halves and both byte-identical:
 //   · the AST half was `scanRoot: (path) => path.startsWith("packages/ui/src/") || path.startsWith("packages/client/src/")`
 //     plus the same predicate re-applied to `ctx.files`; `{ in: ["@client", "@ui"] }` is exactly those two
 //     roots (`contract/population.ts`), so the double filter collapses into the declaration.
@@ -44,8 +44,8 @@
 // population-phase TOOL ERROR, which is strictly louder than the finding it replaces.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `rest-transform-grid` descriptor at 89851ec5eae1f7d6f17384fe48946087c73a7308, the parent of the conversion
-// `a0807ce47` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `0acf26cb8`
+// `rest-transform-grid` descriptor at (pruned from public history), the parent of the conversion
+// `04eaef9f44` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `fee591fe17`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,435 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1,685.

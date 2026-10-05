@@ -7,7 +7,7 @@
 // semantics). The law these arms mechanize is tooling/src/verify/gates/GATE-AUTHORING.md.
 //
 // ARM D (a gate reading a committed ratchet ledger must DECLARE what it admitted) RETIRED 2026-09-14 (#2359):
-// its last subject, `ratchet-row-integrity`, retired at 6bab419ad, leaving zero ledger readers in the
+// its last subject, `ratchet-row-integrity`, retired at f2d7b07625, leaving zero ledger readers in the
 // corpus — and `lib/gate-contract.ts`'s `baseline-ledger` finding (§8-controlled here, `gate:contract`
 // on the real corpus) refuses ANY gate module whose resolved string values end in `.baseline.json`, which
 // is strictly stronger than ARM D's whole-literal ledger-path match: it also catches a concatenated or
@@ -15,7 +15,7 @@
 // list stays A/B/E.
 //
 // ARM A's LEGACY-descriptor branch and ARM C (docRow citation) were RETIRED (#2367, 2026-09-18) — the
-// legacy contract and its dispatcher were deleted at df2a54b09 (#2176 Phase F), and `lib/loader.ts` now
+// legacy contract and its dispatcher were deleted at 9ccb9b9122 (#2176 Phase F), and `lib/loader.ts` now
 // REFUSES an unbranded `gate` at load, so no module carrying a legacy descriptor can reach this policy's
 // population. Successor evidence: the loader's refusal plus `lib/policy-validation.ts` at load (arm A's
 // half) and `dangling-refs` / `dangling-ref-citations` (arm C's citation half). The retirement changed

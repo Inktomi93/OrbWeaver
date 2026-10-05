@@ -193,7 +193,7 @@ const BELT_IDENTITY_KEYS: readonly string[] = ["model", "messages"];
 
 /** WHY a belt key is refused, in the user's terms — one gloss per FAILURE CLASS, not one per key, because
  *  the eight keys at `@orb/contracts/inference::BELT_OWNED_BODY_KEYS` fail in exactly three ways. Written
- *  fresh from the transport: the `SCOPE_GLOSS` §5.3a used to point at went with `146f71cd5` and there is no
+ *  fresh from the transport: the `SCOPE_GLOSS` §5.3a used to point at went with `9a6061b487` and there is no
  *  prior string to recover. Rendered at AUTHORING time, before the turn — never as a
  *  `custom_parameters_ignored` warning after it. */
 export function beltKeyGloss(key: string): string | null {

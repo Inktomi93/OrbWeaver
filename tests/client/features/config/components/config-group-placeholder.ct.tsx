@@ -1,5 +1,5 @@
 // CT: ConfigGroupPlaceholder (#696) — the honest "not built yet" body for a config group whose sections
-// haven't landed. It lost its last PRODUCTION subject at C5 (cb8026bfc turned the final
+// haven't landed. It lost its last PRODUCTION subject at C5 (e6ec0317f7 turned the final
 // `{ placeholder: true }` group — automation — into a real surface), so the host's placeholder branch
 // (config-content-surface.tsx `GroupBody`) renders for nobody today. The mechanism is deliberate scaffolded
 // intent (the `body: { placeholder: true }` arm of the §3.1 union and the render branch guard it), so

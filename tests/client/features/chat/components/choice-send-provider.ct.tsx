@@ -31,7 +31,7 @@ function gameView(behavior: RpgCyoaChoiceBehavior): RpgGameView {
 
 const FIRST_OPTION = "Draw your blade.";
 
-// The provider's game gate (`8eb6e427`) reads `chat.getChat.rpg` through `isRpgEngaged` BEFORE it fires
+// The provider's game gate (`829b70083e`) reads `chat.getChat.rpg` through `isRpgEngaged` BEFORE it fires
 // `rpg.getGame` — it only queries the game (and thus honors the `send` knob) on a LIVE game room. So the
 // story's room must present an ENGAGED rpg pointer here, or the provider falls back to `compose` and never
 // sends. (The prod fix that added this gate stopped `rpg.getGame` 404-looping on non-game chats.)

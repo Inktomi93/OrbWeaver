@@ -7,8 +7,8 @@
 // `full` ONLY. That is the §4.2 production-dispatched identity arm (`waivedFindings === 1`,
 // `authorityAlarms === []`), the central grant table's wrong-identity/duplicate/stale boundaries, and the
 // §4.5 refusal and receipt pins. Measured cost, twice, five days each:
-// `tests/tooling/verify/gates/registry-family.test.ts` red from `ab675b23b` (95 refused proof rows across
-// eight policies, #1953) and `tests/tooling/static-class-consumers.int.test.ts` red from `1416f2c98`
+// `tests/tooling/verify/gates/registry-family.test.ts` red from `40f2b3014a` (95 refused proof rows across
+// eight policies, #1953) and `tests/tooling/static-class-consumers.int.test.ts` red from `0cd914649a`
 // (#1956). Both commits ran and passed their named scoped floor; NEITHER TOUCHED A FAMILY TEST, which is
 // exactly why the per-conversion floor rule — prose, "run the family test(s) you touched" — did not fire.
 //

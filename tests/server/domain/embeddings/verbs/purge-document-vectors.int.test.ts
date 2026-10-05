@@ -24,7 +24,7 @@ describe("purgeDocumentVectors", () => {
 
     // The same chunk in the OLD space and the NEW (active) space — both coexist (model is in the upsert key).
     // The old-space row is created the way a REAL strand is: the provider reported the retired model when
-    // that row was written. Declaring `model: OLD_MODEL` in the params no longer does it — since 0fed0b3ee
+    // that row was written. Declaring `model: OLD_MODEL` in the params no longer does it — since 088209c8be
     // the column records what the provider returned, which is the whole point of that fix.
     const fkRefs = { documentId, chunkIdx: 0, charStart: 0, charEnd: 11 };
     embedAs(harness, OLD_MODEL);

@@ -128,7 +128,7 @@ test("two hinted fields on one surface get DISTINCT hint-trigger accnames", asyn
 // adjacent label TEXT, and a pseudo does NOT self-report to `elementFromPoint` (measured, #807), so the
 // point resolved to the label span. design-audit read that as "another element's text owns this pixel" and
 // filed NINE P1 `tap-target` rows at 22×22 on the presets editor — the auditor was RIGHT and the surface
-// was the defect. #1286 (08e2b0436) fixed it with `pointer-fine:gap-row` (8px — reach 8, overlap 0) and
+// was the defect. #1286 (10326855fc) fixed it with `pointer-fine:gap-row` (8px — reach 8, overlap 0) and
 // shipped NO geometry pin, so re-spelling that one utility back to `gap-field` would silently re-open all
 // nine.
 //

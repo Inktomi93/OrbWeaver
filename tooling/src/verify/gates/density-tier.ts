@@ -81,14 +81,14 @@
 // A CORRECTED FALSE STATEMENT, recorded rather than silently deleted. The legacy module's `loadBaseline`
 // comment read "Every density row is DEBT today — the density sweep is a burn-down, and a ratified density
 // row would be a claim that a surface is permanently off-tier." Its own ledger contradicted it: all 22 rows
-// carried `ratified === count` from `75d9f774a` (2026-08) onward, ZERO were debt, and `a6d519761` ratified
+// carried `ratified === count` from `f5ec6cfbe4` (2026-08) onward, ZERO were debt, and `c71bd9ade8` ratified
 // the twenty-second. The comment was wrong about the artifact it introduced, and a reader who believed it
 // would have classified this conversion as a burn-down and deleted 22 recorded owner rulings.
 //
 // MARKER CENSUS: ZERO, per file and in total. This gate never owned an `@orb-gate-ignore` vocabulary — its
 // exemption mechanism was the baseline JSON plus two path tables, never a comment grammar — so nothing was
 // translated and nothing was dropped. Verified by reading the legacy module in full at
-// `4791ef15dc813861a7aa5362a6311e36b2671272`: no marker string, no consumption map, no stale-marker sweep.
+// `c2f07a4d2515ee806e02d0e1012a0797407c90df`: no marker string, no consumption map, no stale-marker sweep.
 // No product or test file changed for marker reasons in the conversion commit, which is the other half of
 // that claim ("a gate with live markers and no product/test diff translated nothing").
 //
@@ -98,13 +98,13 @@
 // axis, not by topic: the slot-map sibling is `hard` where this is `reviewed-grant`, and it needs the
 // ENTIRE population (does ANY ui file emit this slot) where this composes per file.
 //
-// LEGACY SHA: the conversion parent is `4791ef15dc813861a7aa5362a6311e36b2671272`. The legacy
+// LEGACY SHA: the conversion parent is `c2f07a4d2515ee806e02d0e1012a0797407c90df`. The legacy
 // `GateDescriptor` at that revision is what the §6.4 differential replayed against.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standing law §2.1, 2026-09-13, lane p-convert-density-tier).
 // Legacy `scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/")` becomes
 // `["@client", "@ui"]` = `packages/client/src/` + `packages/ui/src/`. Over the SAME 7,704 harness candidates
-// at `4791ef15d` (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy admits 1,687 and final
+// at `c2f07a4d25` (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy admits 1,687 and final
 // admits 1,687. legacy − final = ∅. final − legacy = ∅. The only change is that a substring match becomes
 // two anchored prefixes, and that distinction is empty on this tree. Controls: inside
 // `packages/client/src/features/__dtlane_in/probe.tsx` (virtual) admitted by both; outside

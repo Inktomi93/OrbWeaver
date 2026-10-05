@@ -15,14 +15,14 @@
 // FAMILY `registry-definitions` — the shared reader is `lib/registry-fact.ts` (`registryDefinitionFacts`)
 // plus `lib/registry-definition-{anchor,field,home}.ts`, consumed identically by all seven members.
 // POPULATION PORT: an INTENTIONAL WIDENING. The legacy descriptor admitted only files matching its own
-// `SECTION_FILE_RE` (`*-section.{ts,tsx}`, 577d03d63^); the final population is `@client` and the subject is
+// `SECTION_FILE_RE` (`*-section.{ts,tsx}`, 8b86eeec75^); the final population is `@client` and the subject is
 // the canonical SectionDefinition TYPE. A section declared outside its co-located home still owes distinct
 // copy — whether it is co-located at all is `section-registry-completeness`'s arm, not this one's, and
 // filtering by FILENAME here let an uncolocated section duplicate another's copy unseen.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `placeholder-copy-registry` descriptor at f5b222e10d2ffc5d8a364eaf0694e31fdc5b8823, the parent of the conversion
-// `577d03d63` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
+// `placeholder-copy-registry` descriptor at 231f4bdbd9ff792161fbcdf04450267f745737b6, the parent of the conversion
+// `8b86eeec75` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
 // descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
 // `if (!SECTION_FILE_RE.test(sf.getFilePath())) continue` with lib/section-defs.ts SECTION_FILE_RE =
 // /\/features\/[^/]+\/lib\/[^/]+-section\.tsx?$/. Over the SAME 7,141 harness candidates at that tree (`git ls-tree`

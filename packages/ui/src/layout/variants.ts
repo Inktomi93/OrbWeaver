@@ -218,7 +218,7 @@ export const gridVariants = tv({
       //
       // A SEPARATE ARM, not a retune of `lead`: `lead`'s other consumer WAS the
       // config welcome hearth (retired by #1210), whose own CT declared the `@4xl` width as the one its split had
-      // to engage at (`6b00c37fd^:tests/client/features/config/_ct-stories.tsx:215` — #1210 deleted that story with
+      // to engage at (`5a9534aac2^:tests/client/features/config/_ct-stories.tsx:215` — #1210 deleted that story with
       // the surface, so the claim is anchored to the SHA that carried it, never to today's file). Moving the
       // shared value would change a surface nobody measured. Reach for `leadEarly` when the pane holding the
       // split is a docked CONTENT region rather than a whole page.

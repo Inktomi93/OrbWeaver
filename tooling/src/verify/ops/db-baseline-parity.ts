@@ -13,7 +13,7 @@
 // WHY IT IS A COMMIT-TIER STAGE, not only a test: `freshDb` PUSHES schema-derived DDL, so every per-table
 // `.int` test passes while the committed migrations rot. TWICE a schema-version bump shipped without a
 // baseline regen and was only caught ~10 hours later at `verify --push` (latest: the `schema_version`
-// DEFAULT 5→6 drift, fixed 1160f0a8). The comparison costs ~1s in-process (drizzle-kit's own snapshot API
+// DEFAULT 5→6 drift, fixed 8a8a0c65ae). The comparison costs ~1s in-process (drizzle-kit's own snapshot API
 // — no stack, no db file, no network), so it was wired too LATE, not too heavy.
 //
 // ONE COMPARATOR, TWO CALLERS: `compareSchemaBaseline` is the single home for the diff — this file's CLI

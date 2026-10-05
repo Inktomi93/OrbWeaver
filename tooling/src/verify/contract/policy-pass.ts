@@ -35,7 +35,7 @@ export type GateFactPhase = (typeof GATE_FACT_PHASES)[number];
  *  NOT here on purpose: it READS the table to build the envelope and raises nothing, which the same pin
  *  asserts rather than assumes. */
 export const POLICY_REFUSAL_EMITTERS = Object.freeze([
-  // RE-DERIVED 2026-09-20 (#2497). `lib/policy-pass.ts` split into four leaves at 32858021c and kept only its
+  // RE-DERIVED 2026-09-20 (#2497). `lib/policy-pass.ts` split into four leaves at b748ea7eb9 and kept only its
   // re-exports — zero throws, zero table references — so it LEFT this roster and the three leaves that took its
   // refusals joined it. The split shipped without touching this data, which is exactly the drift the two-sided
   // pin exists to catch; it caught it, unread, for a week while the instrument battery was dark.
@@ -50,7 +50,7 @@ export const POLICY_REFUSAL_EMITTERS = Object.freeze([
 
 /** THE SAME DISPATCHER'S INVARIANT-ONLY LEAVES: modules that RAISE refusals but COMPOSE none, so they are not
  *  emitters by the roster predicate above and would otherwise fall out of the census entirely. The receipt
- *  validator is one — the 32858021c split carried five caller/programmer invariants out of `policy-pass-context.ts`
+ *  validator is one — the b748ea7eb9 split carried five caller/programmer invariants out of `policy-pass-context.ts`
  *  into it, and with no list naming it those five sentences went unmeasured while `DISPATCHER_INVARIANTS` still
  *  declared them. `tests/tooling/verify/lib/policy-refusal-envelope.test.ts` censuses these modules TOGETHER with
  *  the emitters and holds this list two-sided in the other direction: a member here that starts composing from the

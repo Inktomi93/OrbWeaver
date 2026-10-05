@@ -93,7 +93,7 @@ const RESOLVED_APP: Partial<EffectiveAppSettings> = {
   maxImageBytes: 5_000_000,
   localMultiUser: false,
   discreetLogin: false,
-  // Multi-user's third control (0753b234a, the private-endpoint admission editor) joins the same resolved
+  // Multi-user's third control (d272353c16, the private-endpoint admission editor) joins the same resolved
   // slice: its body does `resolved.privateEndpointAllowlist.join(…)` at first render, so an ABSENT key
   // throws inside the boundary and the section's anchor never lands — a 12-of-13 pane, not a visible error.
   privateEndpointAllowlist: [],

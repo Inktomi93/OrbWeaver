@@ -13,14 +13,14 @@
 // `lib/property-assignment-name.ts` for the field key — consuming four shared readers is not a family
 // (guide §2, §7 item 4), so it declares itself rather than inventing one around "wire schemas".
 //
-// POPULATION PORT: byte-identical, legacy at `0d83d99f1^`. That descriptor's `scanRoot` was
+// POPULATION PORT: byte-identical, legacy at `02536f2f07^`. That descriptor's `scanRoot` was
 // `p.startsWith("packages/server/src/transport/trpc/routers/") || p.startsWith("packages/contracts/src/")`;
 // the final expression beside `WIRE_SCHEMA_POPULATION` admits exactly that set, and its `under` half is
 // pinned by a mustPass row placing the same unbounded field one directory outside it.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `bounded-list-limit` descriptor at ef22519578607c76a03196f343fb025520c796a5, the parent of the conversion
-// `0d83d99f1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `bounded-list-limit` descriptor at 4561cb18c483c15b9fc1dfed78777f70bbd958cb, the parent of the conversion
+// `02536f2f07` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 132 and final `population` admits 132. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/contracts/src/assets/__cbbhr_in_index.ts` (virtual) admitted by both; outside

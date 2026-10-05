@@ -14,7 +14,7 @@
 //          binding remains in its declared conformance row.
 //   §4.5 — every `entire-population` policy DEFERS a narrowed request instead of adjudicating a row its
 //          scope cannot see — the successor of the legacy int test's scoped-run defect pin (2026-08-30).
-//   §4.6 — the two split differentials against the frozen legacy descriptors (`1f5e25c00`, `4097be20d`):
+//   §4.6 — the two split differentials against the frozen legacy descriptors (`8de18d2f5f`, `29d09f0697`):
 //          every legacy example replayed through the legacy `runPass` and through the UNION of the two
 //          final policies, differences CLASSIFIED rather than averaged, and the legacy-side coverage of every
 //          moved arm asserted. Classified for the import family: (1) POSITION — the finding moved from the

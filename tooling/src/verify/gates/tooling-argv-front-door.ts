@@ -52,15 +52,15 @@
 // judged from its first day there (mustPass[4], with an in-population anchor file because a fixture that
 // admits nothing is a population tool error).
 //
-// Legacy descriptor: `4097be20d` (`tooling/src/verify/gates/tooling-argv-front-door.ts`). No private marker
+// Legacy descriptor: `29d09f0697` (`tooling/src/verify/gates/tooling-argv-front-door.ts`). No private marker
 // grammar; zero live `@orb-gate-ignore tooling-argv-front-door` markers at conversion (rg over packages/,
 // tests/, tooling/, scripts/), so no translation was owed. The `isGovernedArgvEntry` door the legacy
 // exported for `tests/tooling/_shared/entrypoint.int.test.ts` is gone with the table: that twin derives the
 // governed entries from `REVIEWED_GRANTS` itself.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `tooling-argv-front-door` descriptor at f1bbc34e7e6961bb5cbb607c17470a642e44a1ca, the parent of the conversion
-// `e2b183b80` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `4097be20d`
+// `tooling-argv-front-door` descriptor at 12d34bb79a7d599eea9c9cf3a40cfbd8498fb9f1, the parent of the conversion
+// `24ed572f1c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `29d09f0697`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,445 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.

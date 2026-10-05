@@ -14,7 +14,7 @@
 // DIRECTORY exists in the authored client-feature tree, so no reader of the family's could serve it, and a
 // constant shared only to satisfy `policy-family-readers` would prove a spelling rather than a family.
 //
-// SUCCESSOR PROOF for the retired legacy arm (§4.6). LEGACY at 854c81c80, `surface-in-a-container.ts:131-143`:
+// SUCCESSOR PROOF for the retired legacy arm (§4.6). LEGACY at (pruned from public history), `surface-in-a-container.ts:131-143`:
 // a `STALE_PREFIX` finding reported at the GATE'S OWN SOURCE FILE when a `SHELL_EXEMPT` name had no feature
 // dir, guarded by `ANCHOR_FEATURE = "chat"` so a synthetic conformance tree could not "prove" the shell tier
 // had vanished. Three things change and each is deliberate:
@@ -38,10 +38,10 @@
 // and the guard mechanism moved, and both are stated above.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `surface-in-a-container` descriptor at fc5cad14c0f060ce35d257d96955d778e756d605, the parent of the conversion
-// `ff07e1302`; this module did not exist there, so it is measured against the module it was carved from,
+// `surface-in-a-container` descriptor at (pruned from public history), the parent of the conversion
+// `222bd23712`; this module did not exist there, so it is measured against the module it was carved from,
 // `surface-in-a-container` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
-// `854c81c80` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// `(pruned from public history)` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,458 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,458, and the final
 // `population` admits 0; the subject is the declared `client-feature` tree + `package-metadata:client`.

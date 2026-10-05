@@ -93,7 +93,7 @@ const FLANK_STATE = { score: 7, caption: "Your latest warmth reading, 7 of 10." 
 const ROOM_ROUTES: TrpcRoutes<"chat.listMessages" | "chat.listReactions" | "chat.getChat" | "chat.previewContextFit"> = {
   "chat.listMessages": () => makeMessagesPage([makeMessageView({ content: "Hi Aria", role: "user", seq: 1 })]),
   // FED, not declared (the unfed-read ratchet): the committed-row footer anchor mounts chat's own reaction pill
-  // row (B6, 99b6ba2c6), which reads `chat.listReactions`. It landed AFTER this file and its lane's CT floor did
+  // row (B6, 3118306b64), which reads `chat.listReactions`. It landed AFTER this file and its lane's CT floor did
   // not name this file, so the read ran INERT here — `routeTrpc` answering `null` is not a view, and a
   // regression inside the pill pipeline would have been invisible in every arm below. An EMPTY reaction set is
   // the honest fixture for these arms: they are about the FLANK's geometry, and a room where nobody has reacted

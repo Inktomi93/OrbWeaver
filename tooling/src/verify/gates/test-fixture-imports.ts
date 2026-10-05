@@ -6,14 +6,14 @@
 // vitest declaration, so origin cannot tell them apart) and the door's own serializer registration, so a
 // rename of either door is free. Exempt by population: e2e, the doors themselves, and `.test-d.ts`.
 //
-// DIFFERENTIAL, MEASURED RATHER THAN CLAIMED. The legacy descriptor (`519242add`) reported SIX findings on
+// DIFFERENTIAL, MEASURED RATHER THAN CLAIMED. The legacy descriptor (`464652d33d`) reported SIX findings on
 // the pre-conversion tree and the conversion's final pass reported ZERO — the only legacy-non-zero →
 // final-zero row in its family, and the literal shape of a lost catch, made likelier by the fact that the
-// same commit REPAIRED the member arm below (89 false positives). Replaying `519242add` establishes what
+// same commit REPAIRED the member arm below (89 false positives). Replaying `464652d33d` establishes what
 // the six were: THREE specs × the TWO named specifiers each (the legacy detector keys on `ImportSpecifier`,
 // not on the import declaration) — `tests/tooling/verify/gates/{id-brand-flow,ledger-banned-shapes,
 // schema-fact-wave-1}.test.ts`, each `import { expect, test } from "vitest"`, all three re-doored to
-// `support/tool-fixtures.ts` by `e3c80bbbc` itself. They were FIXED, not waived, and no catch was lost.
+// `support/tool-fixtures.ts` by `6f0f2b3eb3` itself. They were FIXED, not waived, and no catch was lost.
 // The claim no longer rests on that prose: `tests/tooling/verify/gates/test-fixture-imports.repo.int.test.ts`
 // replays the frozen descriptor beside this policy over the SAME real workspace on every run and asserts
 // SET EQUALITY of the reported sites, armed in both directions (§4.6).
@@ -24,13 +24,13 @@
 // same vitest declaration, so the AUTHORED door and its serializer registration are the only discriminators),
 // and that is a reader, not a policy detail. A second consumer inherits the door vocabulary unchanged.
 //
-// POPULATION PORT: byte-identical, legacy at `ef2251957^`
+// POPULATION PORT: byte-identical, legacy at `4561cb18c4^`
 // (`scanRoot: (p) => p.includes("tests/") && !p.includes("tests/e2e/") && !p.includes("tests/support/") && !p.endsWith(".test-d.ts")`);
 // the final `TEST_POPULATION` is that expression, and each of its three exclusions now owns a mustPass row.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `test-fixture-imports` descriptor at e8d06378079aecba08a27a033ef707794f1e625c, the parent of the conversion
-// `ef2251957` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `519242add`
+// `test-fixture-imports` descriptor at 2325062f91fac612856a95c68027bd8735eb040c, the parent of the conversion
+// `4561cb18c4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `464652d33d`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,186 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 2,627 and final `population` admits 2,627.

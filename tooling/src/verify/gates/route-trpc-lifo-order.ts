@@ -32,14 +32,14 @@
 // the same predicate as the path suffix (no directory segment can end in `.ct.tsx` and still carry a
 // file below it). The fence is pinned by `mustPass[3]`, the only row that dies without it.
 //
-// LEGACY SHA: 174cc2961 (`git show 174cc2961:tooling/src/verify/gates/route-trpc-lifo-order.ts`).
+// LEGACY SHA: c93d1567c2 (`git show c93d1567c2:tooling/src/verify/gates/route-trpc-lifo-order.ts`).
 // §4.6 differential: fixture-level replay of that descriptor over every row's own file map — see the
 // conversion commit. Real-corpus replay is VACUOUS in both directions (the legacy side is zero because
 // the tree has no live inversion), so the fixture-level method is the one that reaches catch parity.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `route-trpc-lifo-order` descriptor at a4ed280d18da42e55be62960b8ce1aec1f76ff32, the parent of the conversion
-// `5f8347dca` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `174cc2961`
+// `route-trpc-lifo-order` descriptor at b6d7f7569992264b59763294f4b72a0a8b9b135e, the parent of the conversion
+// `421d9db98f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `c93d1567c2`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 491 and final `population` admits 491.

@@ -1132,7 +1132,7 @@ export function buildToolRoundWireTools(
  *       the beat to NAME one, so the empty-pack miss (#76's measured Sabine beat: a thing acquired into a pack
  *       holding nothing) can never trigger this repair — the exact defect class the audit reads as if it
  *       covered. Reaching it needs an ACQUISITION-CUE detector over the beat text, and that escalation is
- *       DEFERRED by the owner's own sequencing: `b5e48a907` ruled the fix prompt-first and said "measurement
+ *       DEFERRED by the owner's own sequencing: `c993cde338` ruled the fix prompt-first and said "measurement
  *       over real turns follows before any detector escalation". The prompt arm is now on BOTH vehicles
  *       (`rpg.extract.plane.inventory` v4 here, `rpg.extract.tool.updateInventory` v4 for the fold), and the
  *       measurement HAS run: on the empty-pack acquisition corpus the description-only (folded) teaching

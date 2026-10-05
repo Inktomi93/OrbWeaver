@@ -60,8 +60,8 @@
 // reader either; the family field names this module's own id.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `contract-derives-not-respells` descriptor at 534c1327f682be2578e1dee7c7a2bfa488fb672a, the parent of the
-// conversion `bd56189ba` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// `contract-derives-not-respells` descriptor at (pruned from public history), the parent of the
+// conversion `1692e75291` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,358 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,283 and final `population` admits 1,640. legacy − final = ∅. final − legacy = 357 — `@server`
 // outside `domain/` (345) and `@db` outside `schema/` (12): root-level declaration, no arm reads them. Controls:

@@ -52,7 +52,7 @@ const NO_CHARACTERS = { items: [], nextCursor: null, totalCount: 0 } satisfies T
 // forces a blocking, undismissable gate open over a viewer who cannot SPEAK yet. These tests are about the
 // home page's normal (settled-identity) render, so this viewer must be one the gate stands down for.
 //
-// OWNING A PERSONA IS NOT ENOUGH (#1570, 418d40c7f): the trigger is derived from the SEED POINTERS, not
+// OWNING A PERSONA IS NOT ENOUGH (#1570, 8efdc3f533): the trigger is derived from the SEED POINTERS, not
 // from the row count — a persona that no `seeds.currentPersonaId`/`defaultPersonaId` names is the ORPHAN
 // the gate now offers to recover, so a row plus the DEFAULT (all-null) seeds is precisely the state that
 // opens it. {@link SEEDED_SETTINGS_ROUTE} points both pointers at this row; the two must always move together.
@@ -82,7 +82,7 @@ const ARIA_CARD = {
 /**
  * The viewer's settings with BOTH persona seed pointers naming {@link HOME_PERSONA} — the state of an
  * ordinary returning reader, and the one the first-run gate stands down for (#1570). `DEFAULT_USER_SETTINGS`
- * seeds them NULL, which since 418d40c7f is the ORPHAN state the gate opens over to recover, so every mount
+ * seeds them NULL, which since 8efdc3f533 is the ORPHAN state the gate opens over to recover, so every mount
  * in this file that means "a viewer who is set up" must say so with the pointers, not with the row alone.
  */
 const SEEDED_SETTINGS_ROUTE: TrpcRoutes<"settings.getUserSettings"> = {

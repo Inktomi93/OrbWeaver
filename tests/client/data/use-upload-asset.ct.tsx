@@ -16,7 +16,7 @@ import { UploadAssetStory } from "./_ct-stories.tsx";
 
 const UPLOAD_URL = "**/api/assets/upload";
 // 64 hex chars, because `storedAssetSchema.hash` is `z.string().length(CAS_HASH_HEX_LENGTH)`
-// (`contracts/assets/index.ts:78,89`, landed in b588b9d0a with the #1359-#1380 validation floors) and
+// (`contracts/assets/index.ts:78,89`, landed in 19a1cf636e with the #1359-#1380 validation floors) and
 // `data/upload-asset.ts:31` PARSES the upload response against it. A 16-char stub made this test's own
 // subject — the post-upload refetch — unreachable behind a zod refusal (#1589; the same stale fixture that
 // took three composer tests down, in its fourth instance).

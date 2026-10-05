@@ -22,14 +22,14 @@
 // vocabulary and none shares a `lib/` reader — a shape is not a family, and no sibling policy judges
 // content WIDTH. A merge is a real future candidate for the three, not forced here.
 // POPULATION PORT: an INTENTIONAL CORRECTION, and the subtraction is the whole of it. The legacy descriptor
-// (`d6f36904f`, the commit before the split at `99b7429e2`) admitted `packages/client/src` +
+// (`1b999db38d`, the commit before the split at `a2a93cac72`) admitted `packages/client/src` +
 // `packages/ui/src` and excluded the two primitive homes that IMPLEMENT the container scale; `notUnder:
 // ["packages/ui/src/layout/**", "packages/ui/src/markdown/**"]` is the non-lossy replacement for that
 // exclusion. It removes 24 real files from judgement, which is why it carries its own two-file `mustPass`.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-raw-container-widths` descriptor at d6f36904fa6946238678e61760888aaf62ba0c93, the parent of the conversion
-// `99b7429e2` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-raw-container-widths` descriptor at 1b999db38d4c6bd7421e7adbf1c426f591e8eb97, the parent of the conversion
+// `a2a93cac72` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,351 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,661 and final `population` admits 1,661. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside

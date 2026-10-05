@@ -9,7 +9,7 @@
 // instrumentation") is not a family (guide §2), so it declares itself rather than inventing one.
 //
 // POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
-// `path.startsWith("packages/client/src/") || path === CT` (pre-conversion SHA 250c9eb60); the final
+// `path.startsWith("packages/client/src/") || path === CT` (pre-conversion SHA 7474cfee30); the final
 // population is `{ in: ["@client", "@tests"], under: ["packages/client/src/**", CT] }` — `@client` IS
 // `packages/client/src/`, and the CT is admitted by its exact path rather than by a `tests/` root that
 // would widen the walk to 2,702 files.
@@ -35,8 +35,8 @@
 // a tool error nobody reads as a product verdict.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `agent-bridge-lock` descriptor at c19da53c3baa600b50c3a569830b77d2037b45fb, the parent of the conversion
-// `ac0085c91` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `250c9eb60`
+// `agent-bridge-lock` descriptor at (pruned from public history), the parent of the conversion
+// `ce85507a5c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `7474cfee30`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,476 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,320 and final `population` admits 1,320.

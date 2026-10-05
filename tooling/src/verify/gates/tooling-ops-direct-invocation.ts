@@ -37,15 +37,15 @@
 // files, which no per-file subset carries; a narrowed request DEFERS this policy rather than refusing on
 // every scoped run.
 //
-// Legacy descriptor: `36bf5fa74` (`tooling/src/verify/gates/tooling-ops-direct-invocation.ts`). No private
+// Legacy descriptor: `d53fc98828` (`tooling/src/verify/gates/tooling-ops-direct-invocation.ts`). No private
 // marker grammar; zero live `@orb-gate-ignore tooling-ops-direct-invocation` markers at conversion (rg over
 // packages/, tests/, tooling/, scripts/), so no translation was owed. Behavioral twin:
 // `tests/tooling/_shared/entrypoint.int.test.ts` RUNS every ops module and asserts exit 2.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `tooling-ops-direct-invocation` descriptor at 01123330987d1f22a088bcf5a57ef280942d30e7, the parent of the
-// conversion `f1bbc34e7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
-// `36bf5fa74` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// `tooling-ops-direct-invocation` descriptor at (pruned from public history), the parent of the
+// conversion `12d34bb79a` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `d53fc98828` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,441 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 270 and final `population` admits 272.
 // legacy − final = ∅. final − legacy = {`tooling/src/_shared/entrypoint.ts`, `tooling/src/_shared/run-tool.ts`} — the

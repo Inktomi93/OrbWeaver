@@ -8,7 +8,7 @@
 //
 //
 //   1. AN ABSENT OVERRIDE IS BYTE-IDENTICAL to the pre-migration prompt. The fixtures below are the RENDERED
-//      bytes at `e495855de` (the commit before the migration), frozen for a game that lights up every gated
+//      bytes at `5f7cd8d843` (the commit before the migration), frozen for a game that lights up every gated
 //      clause at once — deception, both actor-tracker axes, a game tracker, structured dates, plot
 //      progression, journal-type hints. A drift in ANY of the ~30 slots those blocks compose REDs here and
 //      names the block, which is the whole safety story for a migration this wide.
@@ -17,11 +17,11 @@
 //            BE THOROUGH guide between the last plane and the RECONCILE rule. The guide was authored as a
 //            write-surface addendum and composed onto nothing for its entire life; the ruling wired it so its
 //            effect can be measured.
-//        (b) `b5e48a907` (#76): `rpg.extract.plane.inventory` v3→v4 — the FIRST-ACQUISITION clause, after a
+//        (b) `c993cde338` (#76): `rpg.extract.plane.inventory` v3→v4 — the FIRST-ACQUISITION clause, after a
 //            measured miss where an empty pack read as nothing-to-do.
 //        (c) `#118`: `rpg.extract.tool.updateInventory` v3→v4 — the same clause, compressed, on the FOLD's own
 //            teaching vehicle (see §2c below for why one vehicle was not enough).
-//      Every other byte is still `e495855de`'s.
+//      Every other byte is still `5f7cd8d843`'s.
 //   2. AN OVERRIDE ACTUALLY REACHES THE WIRE — including through the per-game TOKEN vocabulary, which is what
 //      makes these template slots (§4.5 arm (a)) rather than static text.
 //
@@ -276,7 +276,7 @@ test("the POPULATE round does NOT get the guide — a born-state read has no tur
 });
 
 // ── 2c. The first-acquisition rule reaches BOTH write-surface vehicles (#118) ────────────────────────
-// b5e48a907 put the clause on the PLANE fragment, which reaches only the vehicles that compose an extraction
+// c993cde338 put the clause on the PLANE fragment, which reaches only the vehicles that compose an extraction
 // SYSTEM PROMPT — the structured arm (`extractionSystem`) and the cheap tool round (`toolRoundSystem`). The
 // DEFAULT extraction mode is `folded` (`contracts/rpg/config.ts` `extractionMode`), and a folded turn assembles
 // NO extraction system prompt at all: `buildFoldedTurnBuilder` returns `{tools, reconcileNote}` and the gather

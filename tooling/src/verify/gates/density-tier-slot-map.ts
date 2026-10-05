@@ -30,7 +30,7 @@
 // narrowed run never loaded. A6a rides the same mode rather than being split a third time, because the
 // mapped vocabulary both arms judge is one read and the verdict is one question about the map.
 //
-// LEGACY SHA: the conversion parent is `4791ef15dc813861a7aa5362a6311e36b2671272`, where both arms lived in
+// LEGACY SHA: the conversion parent is `c2f07a4d2515ee806e02d0e1012a0797407c90df`, where both arms lived in
 // `gates/density-tier.ts` (A6a in `visitFile`, A6b in `finalize` guarded on `scope.kind === "project"`).
 // That guard IS this policy's `entire-population` declaration, now made by the runtime rather than by hand.
 //
@@ -42,7 +42,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standing law §2.1, 2026-09-13, lane p-convert-density-tier).
 // INHERITED from the occurrence twin rather than ported: this half had no population of its own. Legacy
 // `scanRoot: (p) => p.includes("packages/client/src/") || p.includes("packages/ui/src/")` becomes
-// `["@client", "@ui"]`. Over the SAME 7,704 harness candidates at `4791ef15d`, legacy admits 1,687 and final
+// `["@client", "@ui"]`. Over the SAME 7,704 harness candidates at `c2f07a4d25`, legacy admits 1,687 and final
 // admits 1,687; legacy − final = ∅, final − legacy = ∅. Controls: inside
 // `packages/client/src/features/__dtlane_in/probe.tsx` (virtual) admitted by both; outside
 // `packages/contracts/src/__dtlane_out/probe.ts` (virtual) rejected by both. The CSS side is not a source

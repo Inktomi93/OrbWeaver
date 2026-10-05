@@ -24,8 +24,8 @@
 // from certifying an empty census.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). NONE:
-// this module was BORN FINAL at `6eadf5d3a` —
-// `git cat-file -e 6eadf5d3a^:tooling/src/verify/gates/policy-family-readers.ts` fails at its parent `fc2b82d53`, and
+// this module was BORN FINAL at `484c9d75c2` —
+// `git cat-file -e 484c9d75c2^:tooling/src/verify/gates/policy-family-readers.ts` fails at its parent `5489642441`, and
 // no legacy descriptor was carved into it — so there is no legacy population to compare, no set difference, and no
 // legacy SHA to record.
 import type { Node as MorphNode, ObjectLiteralExpression } from "ts-morph";

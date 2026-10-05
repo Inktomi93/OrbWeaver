@@ -4,7 +4,7 @@
 // stated `dims`, else `SpaceMismatchError`) → upsert (never touches `hub_score`).
 //
 // THE STAMPED TAG IS THE PROVIDER'S, NOT THE CALLER'S, and that is a recorded ruling (issue 724,
-// `0fed0b3ee`): a request-time snapshot can go stale between parameter construction and the live role call,
+// `088209c8be`): a request-time snapshot can go stale between parameter construction and the live role call,
 // so `EmbedResult.model` is the honest answer for which geometry the vector is actually in. The pin is
 // `store.int.test.ts` "stamps the model that actually produced the vector when the live role changed".
 //

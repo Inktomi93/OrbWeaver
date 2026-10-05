@@ -28,7 +28,7 @@
 // fact). `baseui-anatomy-completeness`, `baseui-derives-not-respells`, `baseui-portal-container-seam` and
 // `baseui-surface-manifest` are the other members.
 //
-// POPULATION PORT: `@ui` (= `packages/ui/src/`), whole, both extensions. LEGACY at 854c81c80:
+// POPULATION PORT: `@ui` (= `packages/ui/src/`), whole, both extensions. LEGACY at (pruned from public history):
 // `scanRoot: (p) => p.includes(UI_SRC)` with `UI_SRC = "packages/ui/src/"`, plus an in-`run` re-test of the
 // same predicate through `repoRelative`. On repo-relative authored paths the two admit the identical set, so
 // the port is byte-identical and both spellings of the fence are gone. Pinned by `mustPass[4]`.
@@ -64,8 +64,8 @@
 // live markers name this policy in either grammar, so no translation is owed.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `baseui-state-data-attributes` descriptor at fc5cad14c0f060ce35d257d96955d778e756d605, the parent of the conversion
-// `ff07e1302` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `854c81c80`
+// `baseui-state-data-attributes` descriptor at (pruned from public history), the parent of the conversion
+// `222bd23712` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,458 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 366 and final `population` admits 366.

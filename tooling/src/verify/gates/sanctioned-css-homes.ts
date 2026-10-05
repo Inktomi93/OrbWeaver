@@ -9,7 +9,7 @@
 // closed list, and the list was moved out of this module by #2096 precisely so the sibling could stop
 // importing a gate module.
 //
-// POPULATION PORT: an INTENTIONAL WIDENING, legacy at eba8ef526. The legacy descriptor ran its own
+// POPULATION PORT: an INTENTIONAL WIDENING, legacy at 39f71b2294. The legacy descriptor ran its own
 // `readdirSync` recursion from `<root>/packages` and skipped `GENERATED_DIRS = {dist, node_modules}`. The
 // final declares `authored-tree:packages`, whose reader excludes `NON_AUTHORED_DIRECTORIES = {node_modules,
 // .git, dist, .cache}` (`ops/resource-reader.ts`) — a strict SUPERSET, so `.git` and `.cache` are newly
@@ -57,8 +57,8 @@
 // count the §4.1 cut moves. No arm of this policy is unfalsifiable.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `sanctioned-css-homes` descriptor at 865e7050cae7e489f86ac7177621c4e6dc03ebb7, the parent of the conversion
-// `17a59099b` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `eba8ef526`
+// `sanctioned-css-homes` descriptor at (pruned from public history), the parent of the conversion
+// `9c7bd2dd0f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `39f71b2294`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,554 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,554, and the final

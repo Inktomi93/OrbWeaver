@@ -39,10 +39,10 @@
 // question is about). The family is a shared `lib/` computation, not a topic: the OPEN resolution class
 // lives here so `policy-soundness`'s closed-class pin can stay honest at zero.
 // POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL. It first
-// appears at `d334dd5ca` already carrying `defineGate`, and `git show d334dd5ca^:<this file>` refuses with
-// "exists on disk, but not in d334dd5ca^". That refusal IS the receipt (the `scrubber-factory-home`
+// appears at `66f3521e4b` already carrying `defineGate`, and `git show 66f3521e4b^:<this file>` refuses with
+// "exists on disk, but not in 66f3521e4b^". That refusal IS the receipt (the `scrubber-factory-home`
 // precedent) and is strictly better than an invented pre-conversion sha. Note for a later census: this
-// module did not exist at `61cae0710`, the tip the #2005 census was taken at, so it is one of the two that
+// module did not exist at `f236e5b7de`, the tip the #2005 census was taken at, so it is one of the two that
 // made that census's "248 modules" read stable while its membership moved.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";

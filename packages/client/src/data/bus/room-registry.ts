@@ -40,7 +40,7 @@
 // per reconnect, on the same edge that already fires the gap-heal. The FIRST live edge is deliberately
 // excluded: every joined room already announced itself when the transport bound.
 //
-// THE GAP-HEAL IS A RE-CONNECT INSTRUMENT, NEVER A PAGE-LOAD ONE (BOOT-4X, `46d75eaf`). `onSocketLive` fires
+// THE GAP-HEAL IS A RE-CONNECT INSTRUMENT, NEVER A PAGE-LOAD ONE (BOOT-4X, `818f20dfff`). `onSocketLive` fires
 // for a room only once that room HAS ALREADY BEEN LIVE in this page. The rule was measured, not reasoned:
 // healing on the first connect re-fetched every mounted user root a SECOND time on every page load
 // (persona.list / character.list / settings.getUserSettings / chat.listChats each ×2, the heal wave landing

@@ -106,7 +106,7 @@ const DOCUMENTED_STATIC = new Map<string, string>([
   ],
   [
     "--color-selection-quiet-foreground",
-    "audited-static (#1247, the pair minted at a743e4799 for #1110) — its ground `--color-selection-quiet` is a " +
+    "audited-static (#1247, the pair minted at a7bb58f5ca for #1110) — its ground `--color-selection-quiet` is a " +
       "static `light-dark()` token outside the ThemeScope override subset (§12.1), so the pair can never be " +
       "half-overridden: both arms are fixed and the ACTIVE arm follows `color-scheme`, which ThemeScope does " +
       "set. Deriving it is not merely unnecessary but wrong — the fill carries a two-sided MEASURED bound (a " +

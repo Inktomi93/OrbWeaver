@@ -22,7 +22,7 @@
 // (server/contracts). `contract/resource-mirror.ts:17-18` publishes `testsByDirectory` because THIS policy
 // "needs the LISTING of one mirror directory" — the kind was designed around clause B.
 //
-// POPULATION PORT — legacy at 6b1d01be0 (the parent of the conversion commit aecbc6c6c), a `GateDescriptor` with
+// POPULATION PORT — legacy at (pruned from public history) (the parent of the conversion commit 7a0a2375aa), a `GateDescriptor` with
 // `scopeSafety: "whole-project"` and `fsBacked: true`. The legacy corpus was
 // `project.getSourceFiles()` filtered by `path.indexOf("/packages/client/src/")` /
 // `"/packages/ui/src/"` with `sf.getBaseName() === "index.ts"` skipped — i.e. the harness globs ∩ those two
@@ -51,11 +51,11 @@
 // missing filename in the MESSAGE, where it was always the load-bearing half. §4.6 category 6 (ANCHOR
 // MOVE) owes a marker receipt; the live `@orb-gate-ignore test-presence-client` census is ZERO measured
 // with a planted positive control, so nothing binds to the old position and nothing is orphaned
-// (RE-MEASURED 2026-09-13 at `5045a6a68`: the planted control was found, the corpus holds no other hit).
+// (RE-MEASURED 2026-09-13 at `(pruned from public history)`: the planted control was found, the corpus holds no other hit).
 //
 // §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273), AND IT IS A POPULATION + OUTCOME RECEIPT, NOT CATCH
-// PARITY. `aecbc6c6c` landed a population/refusal receipt and no findings comparison for this policy:
-//   · FINDINGS. FINAL side through `runPolicyPass` over the real workspace at `5045a6a68`: 0 findings,
+// PARITY. `7a0a2375aa` landed a population/refusal receipt and no findings comparison for this policy:
+//   · FINDINGS. FINAL side through `runPolicyPass` over the real workspace at `(pruned from public history)`: 0 findings,
 //     owner `success`. The LEGACY side was never EXECUTED for findings, so this is guide §6.4 VACUITY
 //     SHAPE 1 and is NOT closable by rule; the fixture-level replay is what would close it. The port is
 //     also not 1:1 — `CLIENT_EXCLUDE_NESTED` and `CLIENT_EXCLUDE_FILES` were deleted (above), which the
@@ -126,8 +126,8 @@
 // path key was carried forward.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `test-presence-client` descriptor at 6b1d01be054c113c68595540f3a6a28c9f7d1744, the parent of the conversion
-// `aecbc6c6c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
+// `test-presence-client` descriptor at (pruned from public history), the parent of the conversion
+// `7a0a2375aa` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
 // descriptor had no `scanRoot`, so its effective population is its in-run path filter —
 // `CLIENT_SRC = "/packages/client/src/"`, `UI_SRC = "/packages/ui/src/"`, `sf.getBaseName() === "index.ts"` skipped.
 // Over the SAME 7,487 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it

@@ -1,5 +1,5 @@
 // E2E (@live) — GUIDED GENERATIONS end-to-end through the real stack, pinning the Phase-1 improved
-// semantics (commit 36d0b128: F1 rewrite fire · F2 undo/revert exposure · F3 input-restore · F5
+// semantics (commit b0c0740a70: F1 rewrite fire · F2 undo/revert exposure · F3 input-restore · F5
 // steer+speaker · F4 WI-scan). Guided had ZERO e2e coverage before this file; the kit resolvers +
 // steer routing are exhaustively unit/int-tested server-side (kit/guided, assembly/context.int,
 // read.int, turn.int) — this spec tests the OTHER half: that the composer's guided controls + the

@@ -33,7 +33,7 @@
 // No `domain/**` module imports this package.
 //
 // THERE IS NO GALLERY READER. The `gallery/<handle>-gallery.webp` family was placeholder art, deleted with
-// the authored default-card pack v2 (`bb6d50646`); its reader outlived its content and returned `null` for
+// the authored default-card pack v2 (`da9f207c88`); its reader outlived its content and returned `null` for
 // every handle. Re-introducing starter gallery art is a file drop plus a reader here — not a reason to ship
 // a reader for a directory this package does not contain.
 

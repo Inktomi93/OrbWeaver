@@ -6,7 +6,7 @@
 // while ARM C — the founding-file blindness tripwire — is a whole-population question. The split gave A+B
 // `execution: "selected-files"` and C `execution: "entire-population"`, so the legacy gate's behaviour is
 // now the behaviour of both policies together. This file compares them against the frozen legacy
-// descriptor at `bd56189ba`, the commit immediately before `47c35b61c` split them.
+// descriptor at `1692e75291`, the commit immediately before `608deaffcb` split them.
 //
 // THE CLASSIFIED DIFFERENCES:
 //   1. SPLIT — one legacy gate, two final policies.

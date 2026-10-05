@@ -4,7 +4,7 @@
 // stack nests the real chrome registry, mirroring main.tsx).
 //
 // THE EXPECTATION IS A CENSUS OF THE DOOR, so every chrome entry added to `topbar.trail` lands here too:
-// `character-create` (`features/character/lib/character-create-chrome.tsx`) joined the zone at b64f6bdc0
+// `character-create` (`features/character/lib/character-create-chrome.tsx`) joined the zone at 4b52925686
 // (#1669 — the phone's chrome paying for itself) and this probe was not swept with it, so the file sat red
 // on main until #1741's lane ran it. The order asserted is the registry's own `(order, id)`: the
 // section-primary at `order: 10` precedes the shell's focus/detail toggles by that entry's own ruling.

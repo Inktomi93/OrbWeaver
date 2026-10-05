@@ -43,17 +43,17 @@
 // old token and is re-pointed in the same commit. Marker receipt: ZERO live `@orb-gate-ignore
 // form-factory-for-multifield` markers on the tree (measured 2026-09-12), so nothing re-binds or orphans.
 //
-// §12.7 CARRY-FORWARD (`b849e7add`, the "current source ownership and exact grant identities" row).
+// §12.7 CARRY-FORWARD (`0fd46e8696`, the "current source ownership and exact grant identities" row).
 // `forms/` was split into `forms/editor/` by #1861; the CURRENT homes were re-read on `main` and the delta
-// re-derived with `git diff 6c8424806 HEAD -- <this policy and packages/client/src/forms/>`. The factory
+// re-derived with `git diff 26eb0aa0d9 HEAD -- <this policy and packages/client/src/forms/>`. The factory
 // subjects are named by `lib/editor-form-factory.ts`, and every fixture specifier is the post-split
 // `#forms/editor`. The bare `#forms` spelling is a stale old-path permission and MUST NOT be restored.
 //
-// LEGACY SHA: b849e7add (`git show b849e7add:tooling/src/verify/gates/form-factory-for-multifield.ts`).
+// LEGACY SHA: 0fd46e8696 (`git show 0fd46e8696:tooling/src/verify/gates/form-factory-for-multifield.ts`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `form-factory-for-multifield` descriptor at a4ed280d18da42e55be62960b8ce1aec1f76ff32, the parent of the conversion
-// `5f8347dca` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `b849e7add`
+// `form-factory-for-multifield` descriptor at b6d7f7569992264b59763294f4b72a0a8b9b135e, the parent of the conversion
+// `421d9db98f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `0fd46e8696`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 620 and final `population` admits 620.

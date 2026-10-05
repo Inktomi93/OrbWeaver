@@ -1109,7 +1109,7 @@ const PROBES: readonly Probe[] = [
   },
   {
     // S5 §4 (#669 C1) — the room's RUNTIME variable fold. UNCLASSIFIED until 2026-08-24: the proc landed in
-    // f32b0af76 and nothing here covered it, so the completeness guard had been RED and this sweep was not a
+    // 8aff0c12f9 and nothing here covered it, so the completeness guard had been RED and this sweep was not a
     // verdict for anyone who ran it. It is a member-gated READ of live room state (the vars plane the clock
     // widget and the needle meter poll), so a dropped `requireParticipant` would hand a stranger the current
     // fold of A's room — leak-free NOT_FOUND is the only acceptable answer. Filed by the cb-plugin-scope lane
@@ -1393,7 +1393,7 @@ const PROBES: readonly Probe[] = [
   // → NOT_FOUND before any fire row is read. A no-id proc is NOT auto-exempt — it is PROBED because it takes
   // A's chatId, the foreign handle a leak would ride.
   { path: "automation.listChatActivity", call: (c, i) => c.automation.listChatActivity({ chatId: i.chatId }) },
-  // ── automation C5 — the OWNER-GLOBAL lane (cb8026bfc). These three take NO id, which is exactly why they
+  // ── automation C5 — the OWNER-GLOBAL lane (e6ec0317f7). These three take NO id, which is exactly why they
   //    are PROBED rather than exempted as "self-scoped": their partition is a WHERE clause, not a parameter,
   //    so the only thing separating two users' private global lanes is `ownerId = principal.userId` inside
   //    the read. A dropped predicate leaks WITHOUT any foreign id being expressible — the failure mode an

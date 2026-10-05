@@ -15,7 +15,7 @@
 // !PERSISTENCE.test(\`/${p}\`)` (`PERSISTENCE = /\/persistence\//`) — every path under `@server` except one
 // containing a `persistence` path segment anywhere. The final population is `{ in: ["@server"], notUnder:
 // ["packages/server/src/**/persistence/**"] }`, an end-anchored glob equivalent over the same tree.
-// LEGACY at 86ce80b6c (this module's content there is byte-identical to the parent it was converted from).
+// LEGACY at (pruned from public history) (this module's content there is byte-identical to the parent it was converted from).
 //
 // §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.suite.test.ts): every legacy
 // mustFlag/mustPass example replays byte-identically against the final policy (same finding count, same
@@ -32,8 +32,8 @@
 // dead position` and suppresses nothing.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `assumes-single-replica` descriptor at d2d0f644c46ee75c2ac44d962d22d18a97a375fe, the parent of the conversion
-// `04e455f4d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `86ce80b6c`
+// `assumes-single-replica` descriptor at (pruned from public history), the parent of the conversion
+// `ef163b8fce` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,455 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,389 and final `population` admits 1,389.

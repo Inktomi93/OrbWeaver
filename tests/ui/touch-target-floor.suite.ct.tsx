@@ -10,7 +10,7 @@
 //     pseudo (variants.ts); icon Button + NumberField steppers are square touch-target boxes. A
 //     boundingBox-only read would wrongly fail the pseudo controls, so `box()` unions the visible box
 //     with the absolutely-positioned pseudo, and the assertion is on the SHORT side.
-//     SWITCH IS NO LONGER IN THAT BUCKET (382e46d83): its ROOT grows to `h-touch-target` at a coarse
+//     SWITCH IS NO LONGER IN THAT BUCKET (96d167e407): its ROOT grows to `h-touch-target` at a coarse
 //     pointer, so the coarse floor is carried by the visible track and the pseudo demotes to the
 //     unknown-pointer fallback. Its case below asserts the live mechanism, not the union alone.
 //   • CONTROL HEIGHT — for row / text controls (text Button/Toggle/Tabs/Select/Input/ListRow/Menu item/
@@ -107,7 +107,7 @@ test("icon Button is a square control meeting the floor on both axes", async ({ 
   await expect.poll(() => shortSide(button), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
-// The Switch's coarse floor is ROOT-CARRIED (landed 382e46d83 as `pointer-coarse:h-touch-target`; since
+// The Switch's coarse floor is ROOT-CARRIED (landed 96d167e407 as `pointer-coarse:h-touch-target`; since
 // #1109 the root spells its height from the ONE pointer-conditional `--spacing-switch-track-height`,
 // whose coarse arm is that same 44px, so this floor is now a token VALUE rather than a variant) — the
 // visible track itself grows to 44 at a coarse pointer while the thumb rides its own pointer-conditional

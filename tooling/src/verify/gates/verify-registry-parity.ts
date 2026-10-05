@@ -15,7 +15,7 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13).
 // HAND-DERIVED: the scratch replay cannot import this legacy module (its import-time reads resolve against the
 // archive root and throw), so the sets were derived by reading the blob. Legacy `verify-registry-parity` descriptor
-// at cdfe100d0b62f477912eb5caa526bd3bff207ac2, the parent of the conversion `9377887c0` (blob read with `git show`:
+// at 942e76b8cb81bfe59b4c816c7656882f8988c7a1, the parent of the conversion `23644bc7ab` (blob read with `git show`:
 // no `scanRoot`, `fsBacked: true`, no `defineGate`). With no `scanRoot` the legacy harness dispatched all 7,355
 // harness candidates at that tree and its `run` read none of them — its subject came from `existsSync`/`readFileSync`
 // of the root `package.json`; the final `population` is `{ of: "none" }` and the subject is the declared

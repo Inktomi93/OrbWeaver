@@ -2067,7 +2067,7 @@ test("#523 the tag-vocabulary scroll viewport is a NAMED region, not an unlabele
 // ── #1661: THE SURFACE'S OWN CHROME BUDGET AT A COARSE VIEWPORT (a RATCHET, not a defect proof; NOT the
 // phone regime — #1721 renamed it after this fence's name read to a cold agent as a phone-screen budget
 // it structurally cannot measure) ──────────────────────────────────────────────────────────────────────
-// MEASURED on an isolated stage at HEAD (`snap / --goto characters --isolated --ref 9b0623869 --mobile
+// MEASURED on an isolated stage at HEAD (`snap / --goto characters --isolated --ref bb0afb5e00 --mobile
 // --idle`, 430x740 DPR3 `pointer:coarse`): the first character row starts at y=280 of a 740px phone —
 // 37.8% of the screen spent before the thing the reader came for. The 2026-09-02 side-eye measured ~262px
 // there, so the number REGRESSED and nothing was watching it. Per-band, at 430 coarse:

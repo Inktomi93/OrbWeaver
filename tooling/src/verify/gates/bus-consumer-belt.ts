@@ -28,12 +28,12 @@
 // anywhere in `@client`, and the server-side exhaustive dispatch that acquits a never-browser bus is in
 // `@server`. Drop any one root and a legal consumer becomes invisible, which is a false accusation.
 //
-// The legacy `bus-definition-belts` descriptor (001949630e8ae87b44c758fd4ba5614c8e63c15a) carried the
+// The legacy `bus-definition-belts` descriptor (3208f7340c6bb3a5a123e33c9ba7016cf0935643) carried the
 // `SERVER_INTERNAL_REACH` row and the consumer-belt check as two of its four arms before this split.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `bus-definition-belts` descriptor at 001949630e8ae87b44c758fd4ba5614c8e63c15a, the parent of the conversion
-// `bda39454c`; this module did not exist there, so it is measured against the module it was carved from,
+// `bus-definition-belts` descriptor at 3208f7340c6bb3a5a123e33c9ba7016cf0935643, the parent of the conversion
+// `55b0040f2c`; this module did not exist there, so it is measured against the module it was carved from,
 // `bus-definition-belts` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,230 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // harness dispatch (no `scanRoot`) admits 7,230 and final `population` admits 2,908. legacy − final = 4,322 harness

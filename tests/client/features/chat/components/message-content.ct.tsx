@@ -301,7 +301,7 @@ test("with allowExternal=true the card's sandbox CSP gains https: on img-src + m
 // AUDIT RESULT: not reproduced. Inline-only content paints with the flag OFF, and the restriction is
 // external-only exactly as designed. The original symptom is best explained by CARD-TRUST-INVERTED, which the
 // entry itself names as a dependency ("cards don't reach ImmersiveCard at all until [it] is fixed") and which
-// shipped in `9f30b7045`. Kept as the standing regression pin, because "the sandbox is too tight for its own
+// shipped in `e03c0e030a`. Kept as the standing regression pin, because "the sandbox is too tight for its own
 // content" is a failure that would otherwise only ever be found by a human looking at a blank card.
 const INLINE_ONLY_CARD_BODY = ':::card title="Ledger"\n<div class="row"><span>Debt owed</span><b>40 marks</b></div>\n:::';
 

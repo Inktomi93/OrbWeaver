@@ -18,7 +18,7 @@
 // spelling); no live marker carries it. Ends if a new site is authored with the legacy spelling — the
 // central engine does not recognize it under any grammar, so it would suppress nothing silently.
 //
-// The legacy `owner-scoped-reads` descriptor (40223a0915eda72dd8ab35fbdeaf9e9892089717) carried the
+// The legacy `owner-scoped-reads` descriptor (04978142566ff3412b204f73d849f0b9bf301154) carried the
 // `@owner-scope-ok` marker grammar and its own inline schema read before this conversion.
 //
 // FAMILY `tenancy-scope` — the shared reader is `lib/tenancy-scope.ts` (`ownerScopedTableIdents` for the
@@ -27,14 +27,14 @@
 // are ownerId-scoped" from the one registry, so the read half and the write half cannot disagree about
 // which table is even in scope — which is precisely how a cross-tenant hole hides.
 // POPULATION PORT: the same set, byte-for-byte in membership. The legacy
-// `scanRoot: (p) => p.includes("packages/server/src/")` (40223a0915eda72dd8ab35fbdeaf9e9892089717)
+// `scanRoot: (p) => p.includes("packages/server/src/")` (04978142566ff3412b204f73d849f0b9bf301154)
 // becomes `@server`, which is `packages/server/src/`; the only change is substring matching becoming
 // anchored, and 1560 tracked paths contain that segment while the same 1560 begin with it. The
 // derivation and its measurement have ONE home, in the shared reader's own header.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `owner-scoped-reads` descriptor at 40223a0915eda72dd8ab35fbdeaf9e9892089717, the parent of the conversion
-// `b54b2c34e` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `owner-scoped-reads` descriptor at 04978142566ff3412b204f73d849f0b9bf301154, the parent of the conversion
+// `5e6b7d09df` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,367 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside

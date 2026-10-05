@@ -12,17 +12,17 @@
 // private reader of that weight behind the contract (§5b.7). A second consumer — any policy asking "is this
 // call a Drizzle round trip" — inherits it without a rewrite.
 //
-// POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^`
+// POPULATION PORT: byte-identical, legacy at `76196db5d4^`
 // (`scanRoot: (p) => !(p.includes(".test.") || p.startsWith("tests/"))` over the whole harness corpus); the
 // final `PRODUCTION_POPULATION` is that expression, and each of its two exclusion clauses owns its own
 // mustPass row rather than sharing one.
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "byte-identical" is REFUTED. Measured over
-// the harness candidates at `e5a7a8a8c^`: legacy − final = {`packages/showcase-plugins/src/index.ts`}, which the
+// the harness candidates at `76196db5d4^`: legacy − final = {`packages/showcase-plugins/src/index.ts`}, which the
 // legacy complement admitted and `@authored` does not (#1980), and final − legacy = ∅ — a one-file narrowing.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-await-db-in-loop` descriptor at 509671ae2e013b6d07fe6f7e9e744e0d7cbac946, the parent of the conversion
-// `e5a7a8a8c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-await-db-in-loop` descriptor at de9a84d2560cc0c2ae9642f4f98144315cbaab53, the parent of the conversion
+// `76196db5d4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,183 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 4,404 and final `population` admits 4,403. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
 // one source of an authored package outside the declared composite roots (`@showcase` is not in

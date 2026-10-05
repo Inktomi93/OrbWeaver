@@ -27,7 +27,7 @@ import {
 import { afterEach, beforeEach, describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
-const COMMIT = "823d76f4343a1cea086b17a1b5bf212b44c17a7d";
+const COMMIT = "f4cdde34be59914c4a2aecec108899bd034579ac";
 const OTHER_COMMIT = "f00dcafe1234567890abcdef1234567890abcdef";
 const BRANCH = "refs/heads/main";
 
@@ -99,7 +99,7 @@ describe("readVersionIdentity", () => {
     expect(readVersionIdentity(root)).toEqual({
       version: "1.4.2",
       commit: COMMIT,
-      short: "823d76f4343a",
+      short: "f4cdde34be59",
       source: "checkout",
       channel: "main",
     });
@@ -130,7 +130,7 @@ describe("readVersionIdentity", () => {
     expect(readVersionIdentity(root)).toEqual({
       version: "1.4.2",
       commit: COMMIT,
-      short: "823d76f4343a",
+      short: "f4cdde34be59",
       builtAt: "2026-09-18T09:30:00Z",
       source: "container",
       channel: "stable",
@@ -194,7 +194,7 @@ describe("buildVersionStamp — the CONTENT the image build writes to version.js
     const stamp = buildVersionStamp(root, "2026-09-18T09:30:00Z");
     await writeFile(join(root, VERSION_STAMP_FILE), JSON.stringify(stamp), "utf8");
     expect(readVersionStamp(root)).toEqual(stamp);
-    expect(readVersionIdentity(root)).toEqual({ ...stamp, short: "823d76f4343a", source: "container" });
+    expect(readVersionIdentity(root)).toEqual({ ...stamp, short: "f4cdde34be59", source: "container" });
   });
 });
 

@@ -4,7 +4,7 @@
 //
 // The invariant under test: the heal is a RECONNECT instrument, never a page-load one. Firing it on the
 // FIRST connect cost a second wire fetch of every mounted user root on every page load (measured live on
-// the snap stage at 23c00bdf: persona.list / character.list / settings.getUserSettings / chat.listChats
+// the snap stage at (pruned from public history): persona.list / character.list / settings.getUserSettings / chat.listChats
 // each ×2, the heal wave landing after the mount wave had already RESOLVED). The mount's own reads ARE
 // that page's fresh state; only a connect that FOLLOWS a live connection can have missed a write.
 //

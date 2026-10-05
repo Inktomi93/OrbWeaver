@@ -27,15 +27,15 @@
 //
 // A DECLARED HYBRID (§12.4). RESOURCE half: `product-css`. COMPILER half: `{ in: ["@client", "@ui"] }`, the
 // hook-owner walk that proves a slot is UI-only. POPULATION PORT: as `css-family-ownership`'s, legacy sha
-// `1692583d6`. MARKER CENSUS 0 = 0 = 0 (2026-09-12, N=7,725, control 1,196).
+// `(pruned from public history)`. MARKER CENSUS 0 = 0 = 0 (2026-09-12, N=7,725, control 1,196).
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here (`mustRefuse[0]`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `css-family-ownership` descriptor at 5545f9ccf12c19cdeafe81d41378ce7eb511e6ee, the parent of the conversion
-// `9104f718f`; this module did not exist there, so it is measured against the module it was carved from,
+// `css-family-ownership` descriptor at (pruned from public history), the parent of the conversion
+// `a7c6745477`; this module did not exist there, so it is measured against the module it was carved from,
 // `css-family-ownership` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
-// `1692583d6` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// `(pruned from public history)` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its
 // in-run path filter — parent css-family-ownership: `ownerForPath`, `packages/{ui,client}/src/`. Over the SAME 7,567
 // harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,686 and the

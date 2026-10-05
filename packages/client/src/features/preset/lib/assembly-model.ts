@@ -104,7 +104,7 @@ export function isStructuralSection(section: PromptSection): boolean {
  *     (post-pivot) section: the same function returns `inject.depth`, or 0 (the tail) when none is set.
  *
  *  So DEPTH and ORDER are In-Chat vocabulary only, and the drill-in renders them only on that arm
- *  (absent, never disabled — the `628a3666` carrier precedent). The zone itself stays DERIVED from the
+ *  (absent, never disabled — the `7bce7aba8c` carrier precedent). The zone itself stays DERIVED from the
  *  section's position relative to the pivot, so picking one is a MOVE across it (the same
  *  `moveFieldValues` the drag and the ⋯ Move-above/below item go through — one home, §16 row 17), never a
  *  stored field. */

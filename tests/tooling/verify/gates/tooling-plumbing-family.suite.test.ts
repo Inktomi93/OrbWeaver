@@ -19,7 +19,7 @@
 //          missing (the legacy blindness tripwire, now the runtime's); every `entire-population` policy DEFERS a
 //          narrowed request. Plus the AMBIENT branch of `tooling-process-exit-home`, pinned against a plant
 //          derived from the shared `_proof/node-types.ts` surface (the same augmentation shape plus `exit`).
-//   §4.6 — the conversion differential against the frozen legacy descriptor (`2c1a1d37c`): every one of its 36
+//   §4.6 — the conversion differential against the frozen legacy descriptor (`bbdccb2d5c`): every one of its 36
 //          examples replayed through the legacy `runPass` FIRST and then through the UNION of the nine tree
 //          policies, differences CLASSIFIED rather than averaged (below), and the legacy-side coverage of every
 //          arm asserted so the replay is evidence. The resource policy's differential is the real-tree replay:
@@ -92,10 +92,10 @@ const TREE: readonly GatePolicy[] = [
 ];
 const ALL: readonly GatePolicy[] = [...TREE, runnerConfigLiterals];
 const GRANT_POLICIES: readonly GatePolicy[] = [projectHome, browserDoor, artifactPathHome, processExitHome, childProcessDoor, portRegistry];
-// 19 at mint; 17 since `tooling-project-home:dangling-refs` (d32dbde26) and `:enforcement-registry-parity`
-// (ed4b7588a) retired with their gates' conversions — a converted policy owns no Project, so its grant died
+// 19 at mint; 17 since `tooling-project-home:dangling-refs` (cb4c0feab1) and `:enforcement-registry-parity`
+// (c6e942b00e) retired with their gates' conversions — a converted policy owns no Project, so its grant died
 // with the act it licensed; 16 since `tooling-project-home:ops-conformance` died with the legacy conformance
-// runner at df2a54b09 (#2176 Phase F); 17 since `tooling-child-process-door:stack-start` licensed the
+// runner at 9ccb9b9122 (#2176 Phase F); 17 since `tooling-child-process-door:stack-start` licensed the
 // portable `pnpm start` launcher, whose children are the production server and its client build and which
 // cannot ride the niced doors at all (they exec POSIX `nice`, absent on Windows); 16 when
 // `tooling-child-process-door:stack-engines` left with the engine fleet; 17 since

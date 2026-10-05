@@ -5,15 +5,15 @@
 // Three freezes: no `MemberCardView` declaration outside packages/contracts/; no clamp declaration outside domain/chat/substrate/auth/; `getRosterCardView` banned in server src.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `member-card-clamped` descriptor at 99b7429e2b0377aa5a6ae62341f9a22aa40de94c, the parent of the conversion
-// `7be684811` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `member-card-clamped` descriptor at a2a93cac726442da889b41f089610914f5dc692f, the parent of the conversion
+// `9c04cd7182` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,353 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy harness
 // dispatch (no `scanRoot`) admits 7,353 and final `population` admits 7,353. legacy − final = ∅. final − legacy = ∅.
 // Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside
 // `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
 // CONVERSION-COMMIT PORT (verifier cb-v-header-residue L5): the figures above resolve TODAY'S declaration. The
-// conversion `7be684811` itself declared `@authored`: legacy 7,353 vs final 7,352, legacy − final =
-// {`packages/showcase-plugins/src/index.ts`}, final − legacy = ∅. Later change, recorded separately: `03dd7329e`
+// conversion `9c04cd7182` itself declared `@authored`: legacy 7,353 vs final 7,352, legacy − final =
+// {`packages/showcase-plugins/src/index.ts`}, final − legacy = ∅. Later change, recorded separately: `9597c1233c`
 // widened it to `{ in: ["@authored", "@showcase"] }` (#1980), restoring that file and giving the ∅/∅ above.
 // The 2026-09-21 classification decision now places showcase inside `@authored`, so the same reach needs
 // no redundant root in this descriptor.

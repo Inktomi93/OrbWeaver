@@ -16,7 +16,7 @@
 // FAMILY: `text-citation`, the shared reader `lib/text-cite-scan.ts#scanTextCitations`, with
 // `dangling-doc-cite`.
 //
-// POPULATION PORT (legacy SHA `50088b39b`, verified byte-identical to HEAD at conversion) — AND THE HALF
+// POPULATION PORT (legacy SHA `2a7094966f`, verified byte-identical to HEAD at conversion) — AND THE HALF
 // THAT NEVER RAN. The legacy `inScope` admitted `packages/**` `.ts`/`.tsx` OR `docs/law/**`
 // `.md`, and filtered `project.getSourceFiles()`. That project is `_shared/ts-workspace.ts#harnessGlobs`,
 // which globs `.ts`/`.tsx` ONLY, so **no Markdown file was ever a member and the entire core-doc arm was

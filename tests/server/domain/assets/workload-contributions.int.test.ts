@@ -87,7 +87,7 @@ describe("assets-backfill", () => {
   test("a character whose card blob is NOT in the CAS is skipped (no phantom candidate)", async () => {
     const characterId = await seedCharacter(db, ownerId, { id: "character_ghost", handle: castId<CharacterHandle>("ghost") });
     // A WELL-FORMED hash that simply is not on disk — the state a real row holds. The old fixture used a
-    // malformed string, which since `ff581148a` throws out of `cas.exists` rather than answering false:
+    // malformed string, which since `8e2fcf462b` throws out of `cas.exists` rather than answering false:
     // that fail-loud behaviour is correct for corrupt data and is pinned by its own test below, but it is
     // NOT what this test is about.
     const absent = "f".repeat(64);
@@ -101,7 +101,7 @@ describe("assets-backfill", () => {
   });
 
   test("a MALFORMED card hash fails loud — a corrupt row is never silently skipped as absent", async () => {
-    // The other half of the contract `ff581148a` minted: "not in the CAS" answers false, but a value that
+    // The other half of the contract `8e2fcf462b` minted: "not in the CAS" answers false, but a value that
     // is not a content hash at all is corruption, and treating it as a clean miss would let a backfill
     // report `scanned: 0` over rows it never understood. Loud beats a phantom clean.
     const characterId = await seedCharacter(db, ownerId, { id: "character_corrupt", handle: castId<CharacterHandle>("corrupt") });

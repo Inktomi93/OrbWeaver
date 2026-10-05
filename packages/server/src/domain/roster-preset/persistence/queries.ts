@@ -65,7 +65,7 @@ export async function ownedPresetNameTaken(db: Db, ownerId: UserId, name: string
  *  WITH each seated card's `name` and `avatarHash`. The two live callers resolve their ids one hop earlier
  *  from an owner-scoped read (`listOwnedPresetRows` in `verbs/list`, `loadOwnedPresetRow` in
  *  `substrate/authored-input`), so the belt is local rather than a live fix — the same disposition the
- *  seven-seam pass took (00d770fa4): a predicate at the seam, not a dataflow argument.
+ *  seven-seam pass took (24092223f7): a predicate at the seam, not a dataflow argument.
  *   • THE PRESET axis rides `roster_presets.owner_id` through a join, because the junction stamps no owner
  *     by design (D23 derive-don't-stamp) — the identical belt `updatePresetWithMembers` puts on its DELETE.
  *   • THE CARD axis is an INNER-join predicate, and it is fail-closed rather than restrictive:

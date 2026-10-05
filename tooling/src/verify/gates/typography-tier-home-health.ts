@@ -18,14 +18,14 @@
 // would police a table over files the occurrence policy never reads. The legacy predicate behind it is that
 // twin's `SCOPE_REGEX = /\/packages\/(?:client|ui)\/src\//`, byte-identical to the two roots, recorded once
 // in `no-raw-typography-in-features.ts`.
-// LEGACY SHA: NONE, and none is possible. This module was BORN FINAL at `99b7429e2`, the commit that split
-// the tripwire out — `git show 99b7429e2^:<this file>` refuses with "exists on disk, but not in
-// 99b7429e2^", and that refusal is the receipt (the `scrubber-factory-home` precedent). The twin cites
-// `99b7429e2^` (spelled `d6f36904fa…`) for the legacy module both halves came from.
+// LEGACY SHA: NONE, and none is possible. This module was BORN FINAL at `a2a93cac72`, the commit that split
+// the tripwire out — `git show a2a93cac72^:<this file>` refuses with "exists on disk, but not in
+// a2a93cac72^", and that refusal is the receipt (the `scrubber-factory-home` precedent). The twin cites
+// `a2a93cac72^` (spelled `1b999db38d…`) for the legacy module both halves came from.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-raw-typography-in-features` descriptor at d6f36904fa6946238678e61760888aaf62ba0c93, the parent of the
-// conversion `99b7429e2`; this module did not exist there, so it is measured against the module it was carved from,
+// `no-raw-typography-in-features` descriptor at 1b999db38d4c6bd7421e7adbf1c426f591e8eb97, the parent of the
+// conversion `a2a93cac72`; this module did not exist there, so it is measured against the module it was carved from,
 // `no-raw-typography-in-features` (blob read from git with no working-tree plant: a `GateDescriptor`, no
 // `defineGate`). Over the SAME 7,351 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1,685.

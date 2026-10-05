@@ -36,15 +36,15 @@
 //
 // POPULATION PORT: `{ of: "none" }`. Unlike its twin this policy reads no TypeScript — the census, the
 // namespace and seam completeness are all questions about the five-home CSS identity. Legacy sha
-// `1692583d6`; the legacy `existsSync(package.json)` real-tree anchor retires with the walk it guarded.
+// `(pruned from public history)`; the legacy `existsSync(package.json)` real-tree anchor retires with the walk it guarded.
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here (`mustRefuse[0]`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `css-family-ownership` descriptor at 5545f9ccf12c19cdeafe81d41378ce7eb511e6ee, the parent of the conversion
-// `9104f718f`; this module did not exist there, so it is measured against the module it was carved from,
+// `css-family-ownership` descriptor at (pruned from public history), the parent of the conversion
+// `a7c6745477`; this module did not exist there, so it is measured against the module it was carved from,
 // `css-family-ownership` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
-// `1692583d6` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// `(pruned from public history)` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,567 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,567, and the final
 // `population` admits 0; the subject is the declared `product-css`. legacy − final = all 7,567 harness candidates —

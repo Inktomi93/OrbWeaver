@@ -3,7 +3,7 @@
 //
 //   • the WRITE side's tag is the backend's own — `local-light` folds the DEPLOYMENT's served precision
 //     (`deps.localLight.embedDtype`, env `LOCAL_LIGHT_EMBED_DTYPE`) into `EmbedResult.model`, and
-//     `embeddings.store` stamps the provider's answer by the issue-724 ruling (`0fed0b3ee`);
+//     `embeddings.store` stamps the provider's answer by the issue-724 ruling (`088209c8be`);
 //   • the READ side's tag is derived from the CURATED capability row's `dtype` (`embedDtypeOf` →
 //     `embedSpaceOf`), which is what `nearest.ts` filters on and a generation's identity is minted from.
 //

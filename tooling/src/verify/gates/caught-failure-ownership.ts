@@ -90,7 +90,7 @@
 //     KNOWN FALSE POSITIVE, so its honest proof is the `opaque-rethrow-helper` mustFLAG, ADDED here. The
 //     catalogue claimed a mustPass for it; a mustPass would have been a lie about which way the limit cuts.
 //
-// The legacy `caught-failure-ownership` descriptor (5f4d2703d15b930afbadbeb7fb8d77a6178c85a4) carried
+// The legacy `caught-failure-ownership` descriptor ((pruned from public history)) carried
 // the `@orb-gate-ignore` grammar named above and its own inline three-arm reader before this conversion
 // extracted `lib/caught-failure.ts`.
 //

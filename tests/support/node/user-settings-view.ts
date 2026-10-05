@@ -5,7 +5,7 @@
 // served — and silently absorbed by every consumer that reads through a `??` fallback, right up until
 // the first consumer that dereferences a section the partial omitted (e.g.
 // `data.config.appearance.backgroundLibrary`) throws straight inside an unrelated component's
-// QueryBoundary (#1014, commit 820000ef7). `userSettingsView` builds the WHOLE view from
+// QueryBoundary (#1014, commit 571922d4a1). `userSettingsView` builds the WHOLE view from
 // `DEFAULT_USER_SETTINGS` (the contract's own `userSettingsSchema.parse({})`), and a per-knob override
 // SPREADS the section's own contract default rather than replacing the section —
 // `userSettingsView({ chat: { offerChoices: true } })` yields a full `ChatSettings`, never a one-key

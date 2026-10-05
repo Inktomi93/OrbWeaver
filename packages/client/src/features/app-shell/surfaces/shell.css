@@ -234,7 +234,7 @@
  * squeezed; one docked ⇒ that one at its clamp, because its squeeze asks about a pane that is not there.
  *
  * THE SPLIT IS NOT EVEN, AND THAT IS AN INHERITED OWNER RULING. The context pane may not squeeze below
- * `--dimension-panel-context-step` (24rem): 660b2dd4 widened this pane to 30vw precisely so a standard
+ * `--dimension-panel-context-step` (24rem): 3c49a6cce2 widened this pane to 30vw precisely so a standard
  * 1280px desktop REACHES that container step, where the rpg takeover's Waystone paints at its focal
  * 120px. So the list pane carries the larger share and the context pane's floor is that step, not the
  * shared 17rem — the ruled recovery is bought out of list width first, and the takeover's focal stone is

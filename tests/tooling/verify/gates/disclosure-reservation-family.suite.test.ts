@@ -20,7 +20,7 @@
 //          full family is `knownPolicies`, so no unknown-policy short-circuit is reachable).
 //   §4.5 — every `entire-population` sibling DEFERS a narrowed request, and the sub-floor tripwire whose
 //          population is exactly its home REFUSES at the population phase when the home is absent.
-//   §4.6 — the two split differentials against the frozen legacy descriptors (`4e1bdb87e`, `370243fe7`):
+//   §4.6 — the two split differentials against the frozen legacy descriptors (`ce02ffcdfe`, `1e92eb43fc`):
 //          every legacy example replayed through the frozen `runPass` and the UNION of the final pair,
 //          differences CLASSIFIED: (1) the retired grammar is INERT text — a legacy-marked site is a finding
 //          now, and legacy marker verdicts (malformed/stale) vanish, so the comparison runs the legacy over

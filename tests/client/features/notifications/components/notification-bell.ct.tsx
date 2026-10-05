@@ -389,7 +389,7 @@ test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driv
 test("a typed roomFailed frame surfaces as a toast (it is NOT an arrival)", async ({ mount, page }) => {
   await routeTrpc(page, { ...STREAM_MUTATION_ROUTES, "notifications.list": () => ({ items: [], nextCursor: null }) });
   // The frame the socket yields when THIS room's pump throws a DomainError (here: the durable replay).
-  // Before `54643a8d` the consumer took the typed fault for an inbox arrival and INVALIDATED on it — the
+  // Before `7751c0d508` the consumer took the typed fault for an inbox arrival and INVALIDATED on it — the
   // inbox looked freshly-loaded behind a stream that had just died, and the user was told nothing. The fold
   // carries that fix: a room fault is a CONTROL frame routed to the room's `onError`, so it can no longer
   // reach `onEvent` at all, and it still says so out loud.

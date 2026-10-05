@@ -203,7 +203,7 @@ test("a DUPLICATE root in one list files exactly once", () => {
 });
 
 /** THE THREE DELTA CLASSES THE HEADER LISTED AND NO TEST CARRIED (#2315). The module header enumerates
- *  what the fold onto the shared facts changed against the frozen pre-fold TEXT reader (`680d66e7c^`);
+ *  what the fold onto the shared facts changed against the frozen pre-fold TEXT reader (`0433028387^`);
  *  a class named in prose and pinned by nothing is the same defect one layer out, and the verifier found
  *  three of them — two WIDER reads the header claimed, plus the seed-in-seed drop it did not mention.
  *  Each expectation below is the TIP side of a measured pair; the frozen side is in the header. */
@@ -245,7 +245,7 @@ test("an ordinary flat sheet is untouched by the ancestry read — the control",
  *  pins `reviewedGrants: []`, so a reviewed-grant policy can prove nothing about consumption there.
  *
  *  This is the arm the conversion OWES, because the nine decorative-stroke rows were a gate-owned
- *  `ExemptionTable` until #2182 (`2dabae9ce`'s own subject line; this cited #2183, the sibling pair's
+ *  `ExemptionTable` until #2182 (`7963046ecf`'s own subject line; this cited #2183, the sibling pair's
  *  issue, until #2294/#2314) and §12.5 bans one. What the migration must not lose is the table's two-sided
  *  ratchet: the row licenses exactly the ink it names, and a row whose ink stopped being painted goes STALE
  *  rather than sitting forever. Both directions are asserted below, plus the wrong-operation control that

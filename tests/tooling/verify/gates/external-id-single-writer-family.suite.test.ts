@@ -7,7 +7,7 @@
 // claim writer). The split gave the occurrence half `execution: "selected-files"` and the carve-out half
 // `execution: "entire-population"`, so the legacy gate's behaviour is now the behaviour of the two policies
 // TOGETHER and nothing checked the union. This file checks it, against the frozen legacy descriptor at
-// `9377887c0` — the commit immediately before `35bf7d328` split them.
+// `23644bc7ab` — the commit immediately before `70fbc2ea6d` split them.
 //
 // THE CLASSIFIED DIFFERENCES:
 //   1. SPLIT — one legacy gate, two final policies; the union is what is compared.

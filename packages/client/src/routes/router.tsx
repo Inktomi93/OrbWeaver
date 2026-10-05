@@ -52,7 +52,7 @@ const loginRoute = createRoute({
 // here would only buy a second `/api/auth/me` round-trip on every deep link. Static routes out-rank dynamic
 // ones in TanStack's matcher, so `/login` is never swallowed by this.
 //
-// NOT A REGRESSION FIX: `/chats` never resolved. Probed on the isolated stage at 94636b0ed (the pre-merge-train
+// NOT A REGRESSION FIX: `/chats` never resolved. Probed on the isolated stage at 6f266ea6cf (the pre-merge-train
 // floor), a direct load of `/chats` rendered the same 404 — the deep link had simply never existed.
 const sectionAliasRoute = createRoute({
   getParentRoute: () => rootRoute,

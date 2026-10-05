@@ -2360,7 +2360,7 @@ test("nested commands: the depth fence says so rather than waving an unread comm
 });
 
 // ── self-exemption identity: the same FILE, not the same-looking path ─────────────────────────────────
-// The P1 leg (27aad9d18) made the exemption an INVOCATION rather than a mention, but compared identity by
+// The P1 leg (78288158e8) made the exemption an INVOCATION rather than a mention, but compared identity by
 // path SUFFIX — so any file whose path ended in `/.claude/hooks/tool-guard.mjs` was "the guard's own
 // tooling" and skipped every rule below it, including the hard floor. A scratchpad copy is trivial to
 // place, which makes that a laundering route through the control the P1 leg had just built. The rows here

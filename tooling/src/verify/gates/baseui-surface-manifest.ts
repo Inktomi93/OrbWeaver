@@ -24,7 +24,7 @@
 // sibling), `baseui-portal-container-seam` and `baseui-state-data-attributes` are the other members.
 //
 // POPULATION PORT: `{ of: "none" }` — this policy has no TS population at all and never did. LEGACY at
-// 1692583d6 it declared `scopeSafety: "whole-project"` with NO `scanRoot`, so the legacy dispatcher handed
+// (pruned from public history) it declared `scopeSafety: "whole-project"` with NO `scanRoot`, so the legacy dispatcher handed
 // it all 7,557 harness paths and `run` read not one of them: every subject came off disk through
 // `readInstalledSurface` / `readManifest`. The port therefore DROPS a population the policy never used,
 // and the subjects become three declared resources. Measured on this tree: legacy `check:structure --check
@@ -92,11 +92,11 @@
 //
 // COMMENT POSTURE: comment-BLIND — every subject is a declared resource artifact (parsed JSON, installed
 // `.d.ts` declarations); this policy reads no authored source and no comment.
-// LEGACY SHA: 1692583d6.
+// LEGACY SHA: (pruned from public history).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `baseui-surface-manifest` descriptor at 89a0b751d78372c17b549ba2ac25931c768d7ccd, the parent of the conversion
-// `17297f298` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// `baseui-surface-manifest` descriptor at 22aa5c8a7f9d395f2f679b7d08ad36d51747a31b, the parent of the conversion
+// `d16bb6872a` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,560 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,560, and the final

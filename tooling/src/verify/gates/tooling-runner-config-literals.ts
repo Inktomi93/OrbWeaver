@@ -33,14 +33,14 @@
 // configs are outside every population, so no carrier could hold a waiver). `entire-population` — the
 // verdict is over closed facts; a narrowed request DEFERS this policy.
 //
-// Legacy descriptor: `2c1a1d37c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, `sweepRootConfigs`
+// Legacy descriptor: `bbdccb2d5c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, `sweepRootConfigs`
 // + `sweepPlaywrightConfigs`). No private marker grammar; zero live markers at conversion.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `tooling-shared-plumbing` descriptor at daf3444358fc10c2b0a3bc3377c62abe23e82c63, the parent of the conversion
-// `7b80f66a4`; this module did not exist there, so it is measured against the module it was carved from,
+// `tooling-shared-plumbing` descriptor at (pruned from public history), the parent of the conversion
+// `ba01f7898e`; this module did not exist there, so it is measured against the module it was carved from,
 // `tooling-shared-plumbing` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
-// `2c1a1d37c` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// `bbdccb2d5c` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,464 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 1,617, and the final
 // `population` admits 0; the subject is the declared three `exact-file` runner-config ids. legacy − final = all 1,617

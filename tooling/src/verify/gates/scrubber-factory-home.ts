@@ -19,15 +19,15 @@
 // boundary must name the SAME directory or this completeness arm stops covering the reference policy. The split is by AUTHORITY — reviewed-grant
 // permission there, hard completeness here — which the contract requires to be two policy ids under one
 // `family` string. This policy resolves no origin at all; the declaration home is the only thing it shares.
-// POPULATION PORT: this policy has NO legacy population of its own — it did not exist at `9808b93c0^`
-// (`git show 9808b93c0^:tooling/src/verify/gates/scrubber-factory-home.ts` → `exists on disk, but not in`).
+// POPULATION PORT: this policy has NO legacy population of its own — it did not exist at `b5acbf2594^`
+// (`git show b5acbf2594^:tooling/src/verify/gates/scrubber-factory-home.ts` → `exists on disk, but not in`).
 // It is the DEFINITION half carved out of `scrubber-home`'s legacy `PACKAGES_SRC` scan at the conversion,
 // and `@kit` (`packages/kit/src/`) is the narrowest population that contains the declaration home the
 // carved-out arm judges. Nothing was subtracted from `scrubber-home`'s side to make room for it: the kit
 // directory stays in that policy's population too, where it is now SCANNED rather than excused.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `scrubber-home` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion `9808b93c0`;
+// `scrubber-home` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion `b5acbf2594`;
 // this module did not exist there, so it is measured against the module it was carved from, `scrubber-home` (blob
 // read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,372
@@ -44,7 +44,7 @@ const HOME_RECEIPT = "kit content home";
 const MESSAGE =
   "the kit content home no longer EXPORTS `createHiddenSpanStreamScrubber` — the hidden-span scrubber's " +
   "declaration site is what `scrubber-home` resolves every reference against, so a rename or a move here " +
-  "silently retires that trust boundary rather than breaking it (§3.6, ed2aafc5). (tooling/src/verify/gates/GATE-AUTHORING.md)";
+  "silently retires that trust boundary rather than breaking it (§3.6, 808ba09cc6). (tooling/src/verify/gates/GATE-AUTHORING.md)";
 const FIX =
   "keep the stateful hidden-span scrubber factory exported from packages/kit/src/content/, or move `scrubber-home`'s declared home with it in the same commit.";
 

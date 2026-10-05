@@ -742,7 +742,7 @@ export default tseslint.config(
     // (most notably `control-has-associated-label`). We use the strict config as a baseline.
     //
     // NO DOC CARRIES THIS RULE, and the sentence that claimed one is gone (#1331). It cited a root-level
-    // agent-navigability doc added by `8e27d1563` and deleted two days later by `443d712c1` (2026-07-09);
+    // agent-navigability doc added by `f075271678` and deleted two days later by `31425ede14` (2026-07-09);
     // the pointer outlived it by two months and was the LAST reference to that filename in the repo,
     // which is why the row's done-check bans the spelling outright — naming it again, even to explain it,
     // re-creates the dangling reference. The provenance is the two SHAs. The live authority for "every

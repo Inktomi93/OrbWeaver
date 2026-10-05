@@ -45,9 +45,9 @@
 // definition, not a call to a write verb) and `contracts` carries wire shapes, neither of which this
 // predicate's AST shapes match. Widening bought no coverage and would have let a db/contracts file "carry"
 // this family's reads/writes with no real consumer having asked for it.
-// LEGACY SHA: (35bf7d328^) — the conversion's parent. Re-verified by the three-question test rather than
-// inherited: the introducing commit is `35bf7d328` (`git log -S 'defineGate({' --reverse`), the cited sha is
-// its parent by construction, and `git show 35bf7d328^:<this file>` is a LEGACY descriptor (`defineGate`
+// LEGACY SHA: (70fbc2ea6d^) — the conversion's parent. Re-verified by the three-question test rather than
+// inherited: the introducing commit is `70fbc2ea6d` (`git log -S 'defineGate({' --reverse`), the cited sha is
+// its parent by construction, and `git show 70fbc2ea6d^:<this file>` is a LEGACY descriptor (`defineGate`
 // count 0).
 // POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot: (p) => p.startsWith("packages/server/src/")`
 // becomes `@server`, which IS `packages/server/src/` — same predicate, same anchoring, no delta. The
@@ -55,16 +55,16 @@
 // decision worth recording here; the port itself moved nothing.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `external-id-single-writer` descriptor at 9377887c0edb28a63931b57f697b0c1596d5aa72, the parent of the conversion
-// `35bf7d328` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `external-id-single-writer` descriptor at 23644bc7ab1bb939f53724bd919cc2c10be16b58, the parent of the conversion
+// `70fbc2ea6d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,356 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 // CONVERSION-COMMIT PORT (verifier cb-v-header-residue L5): the figures above resolve TODAY'S declaration. The
-// conversion `35bf7d328` itself declared `@backend`: legacy 1,493 vs final 1,640, legacy − final = ∅, final − legacy
+// conversion `70fbc2ea6d` itself declared `@backend`: legacy 1,493 vs final 1,640, legacy − final = ∅, final − legacy
 // = 147 (`packages/contracts/src` 105, `packages/db/src` 42) — the unrecorded widening the POPULATION CORRECTION
-// paragraph above describes. Later change, recorded separately: `841d080a9` (#1937) reverted it to `@server`, which
+// paragraph above describes. Later change, recorded separately: `e75a2bf351` (#1937) reverted it to `@server`, which
 // gives the ∅/∅ above.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";

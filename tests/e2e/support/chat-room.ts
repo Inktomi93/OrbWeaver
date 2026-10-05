@@ -28,7 +28,7 @@ import { HOST_BAND, openContextSections } from "../../support/node/open-context-
 // Chat CTA. Each row exposes a `aria-label="Chat with <name>"` button — visually hover-revealed on fine
 // pointers, but ALWAYS present in the accessibility tree (verified via `pnpm snap --aria` on the live client
 // 2026-07-24), so a role/name locator hits it at every width. This is the exemplar path
-// (start-chat-with-character.spec.ts, commit 34d1829a). The stale kebab→"Chat" menuitem flow is dead — this
+// (start-chat-with-character.spec.ts, commit b79cf0a871). The stale kebab→"Chat" menuitem flow is dead — this
 // client's row kebab ("Actions for <name>") carries only Archive/Duplicate/Delete, NO "Chat" item.
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
 const APP_READY = "html[data-app-ready]";
@@ -349,7 +349,7 @@ export async function openContextTab(page: Page, label: string): Promise<void> {
  *  section granularity). Gates on the section's real h3, so a caller acting on its controls can't race the
  *  suspended group-config read.
  *
- *  AND THE TAB IS AN INDEX OF DISCLOSURES (#830, `195085e2c`) — a closed Base UI panel is REMOVED from the
+ *  AND THE TAB IS AN INDEX OF DISCLOSURES (#830, `545e28ff60`) — a closed Base UI panel is REMOVED from the
  *  DOM, not merely hidden, so the section's heading does not exist until its band is pressed. Group behavior
  *  lives inside the host-ops band, which is the one section that defaults CLOSED while its own children stay
  *  open, so ONE press reaches it. Skipping that walk is what made this helper's heading gate fail with

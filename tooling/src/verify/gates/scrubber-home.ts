@@ -1,4 +1,4 @@
-// Policy: scrubber-home (security — the §3.6 member-strip trust boundary; ed2aafc5 "the cold-scrubber
+// Policy: scrubber-home (security — the §3.6 member-strip trust boundary; 808ba09cc6 "the cold-scrubber
 // leak"). The hidden-span stream scrubber (`@orb/kit/content::createHiddenSpanStreamScrubber`) is STATEFUL
 // over a slot's whole stream: a scrubber constructed anywhere but the producer stamp cold-starts mid-stream,
 // and a reader that begins — or resumes — while a `<lie …/>` open is in flight sees no `<` in the tail and
@@ -30,7 +30,7 @@
 // contract requires to be two policy ids under one `family` string. The sealed-origin reader underneath
 // (`lib/sealed-origin.ts`) is a corpus-wide primitive, not what makes these two a family.
 // POPULATION PORT: intentional correction, stated. The legacy descriptor filtered `PACKAGES_SRC.test('/' + p)`
-// where `PACKAGES_SRC = /\/packages\/[^/]+\/src\//` (`9808b93c0^:101`) — ANY workspace package's `src`. The
+// where `PACKAGES_SRC = /\/packages\/[^/]+\/src\//` (`b5acbf2594^:101`) — ANY workspace package's `src`. The
 // final population is `@packages`, the explicit SIX-root list, which does not admit
 // `packages/showcase-plugins/src/` (the `@showcase` root added 2026-09-11). One directory narrower, and it
 // is the standing `@packages`-vs-`@authored` boundary question (contract/population.ts, #1980), not a
@@ -38,7 +38,7 @@
 // excused it is deleted, and judging that directory is `scrubber-factory-home`'s whole job.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `scrubber-home` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion `9808b93c0`
+// `scrubber-home` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion `b5acbf2594`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,372
 // and final `population` admits 3,371. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the one source
@@ -65,7 +65,7 @@ const OPERATION = "hidden-span-scrubber-construction";
 
 const MESSAGE =
   "the hidden-span stream scrubber is reached outside its producer home — per-subscription scrub state " +
-  "cannot survive replay→live handoffs (a cold scrubber mid-`<lie>` forwards the secret's tail; ed2aafc5), " +
+  "cannot survive replay→live handoffs (a cold scrubber mid-`<lie>` forwards the secret's tail; 808ba09cc6), " +
   "and the producer stamp domain/chat/substrate/member-visibility.ts is the ONE construction home.";
 const FIX =
   "read the already-stamped `memberText` (createMemberDeltaStamper, domain/chat/substrate/member-visibility.ts) — a read seam is a STATELESS field read; never build a scrubber of your own.";
@@ -138,7 +138,7 @@ export const gate = defineGate({
           'import { createHiddenSpanStreamScrubber } from "../../../../kit/src/content/index.ts";\nexport const s = createHiddenSpanStreamScrubber();\n',
       },
       expect: { count: 1, messageIncludes: "packages/server/src/transport/trpc/leak.ts" },
-      why: "the founding shape — a per-subscription scrubber in transport, the exact cold-scrubber reconnect leak ed2aafc5 closed; import and call are ONE finding at the grant's granularity",
+      why: "the founding shape — a per-subscription scrubber in transport, the exact cold-scrubber reconnect leak 808ba09cc6 closed; import and call are ONE finding at the grant's granularity",
     },
     {
       mode: "types",

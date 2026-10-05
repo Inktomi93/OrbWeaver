@@ -47,7 +47,7 @@
 // compiler-source candidate set: 2,928 admitted on both sides, symmetric difference ZERO in both directions.
 // (The `POPULATION COORDINATES` paragraph above is about a proof row's `files` map, NOT about this port —
 // a §5b.5 census keying on the word alone reads it as one, which is why this is its own labelled field.)
-// LEGACY SHA: (61aa46279^) — the conversion's parent.
+// LEGACY SHA: (9aea17e390^) — the conversion's parent.
 import type { CallExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

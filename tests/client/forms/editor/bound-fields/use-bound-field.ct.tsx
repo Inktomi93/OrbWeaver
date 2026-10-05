@@ -3,7 +3,7 @@
 // The crunch's claim was that `useBoundField` drops `dirty`/`touched`, and that the trigger-based
 // primitives (Select/Combobox/ColorField/MultiToggle) cannot receive `field.handleBlur` at all — so Base
 // UI could never paint `data-dirty`/`data-touched` and any CSS keyed on them was permanently dead. Both
-// halves were closed in the Base UI 1.7 base (`d732be317`); nothing PROVED it, which is what this file is.
+// halves were closed in the Base UI 1.7 base (`931f0f7ab5`); nothing PROVED it, which is what this file is.
 // It reads the RENDERED attributes on `<Field.Root>`, never the form state that feeds them — the whole
 // defect class lived in the gap between the two.
 //

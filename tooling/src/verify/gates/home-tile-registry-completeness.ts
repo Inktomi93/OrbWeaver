@@ -41,12 +41,12 @@
 // one provider per definition kind) plus `lib/registry-definition-{anchor,field,home}.ts`, consumed
 // identically by all seven members, so the co-location law and the finding anchor cannot drift apart.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
-// (68c8f42d6); the final population is `@client`.
+// (c2b5253308); the final population is `@client`.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `home-tile-registry-completeness` descriptor at 614b2cb554c77344aa1f2ba34a1c64ab595ea5ac, the parent of the
-// conversion `2241d52b8` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
-// `68c8f42d6` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// `home-tile-registry-completeness` descriptor at (pruned from public history), the parent of the
+// conversion `48f6d88041` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `c2b5253308` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its
 // in-run path filter — run: `if (!sf.getFilePath().includes(CLIENT_SRC)) continue`. Over the SAME 7,432 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,319 and the final

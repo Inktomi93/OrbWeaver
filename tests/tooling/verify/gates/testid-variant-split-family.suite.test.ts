@@ -20,7 +20,7 @@
 //          `entire-population` policy in the family.
 //   THE HARD REFUSAL — `ui-variant-axes-stamped` is `authority: "hard"`, so a marker aimed at it ALARMS
 //          and suppresses nothing. A split that silently softened an authority would pass every other check.
-//   §4.6 — the two split differentials against the frozen legacy descriptors (`9e2eca320`, `da01f7eb9`):
+//   §4.6 — the two split differentials against the frozen legacy descriptors (`07b1b7b19d`, `f93c987f82`):
 //          every legacy example replayed through the frozen legacy `runPass` and through the UNION of the
 //          final pair, differences CLASSIFIED, with a PER-EXAMPLE coverage statement for each split arm.
 //          The `ui-variant-axes-stamped` tripwire has ZERO legacy coverage by construction (no legacy
@@ -75,7 +75,7 @@ test("all four policies preserve their founding fixtures", () => {
 
 // ─── THE POPULATION PORT — measured, not asserted ───────────────────────────────────────────────────────
 test("testid-liveness excludes non-UI package roots from the legacy producer census", () => {
-  // The legacy predicate, verbatim from `9e2eca320`.
+  // The legacy predicate, verbatim from `07b1b7b19d`.
   const legacyAdmits = (path: string): boolean => (path.includes("packages/") && path.includes("/src/")) || path.includes("tests/");
   const roots = testid.population as readonly ("@packages" | "@showcase" | "@tests")[];
   const prefixes = roots

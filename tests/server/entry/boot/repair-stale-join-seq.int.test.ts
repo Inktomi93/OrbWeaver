@@ -1,5 +1,5 @@
 // entry/boot/repair-stale-join-seq — the #2253 boot repair over a REAL libSQL db (the .int lane). Before
-// eba8ef526 the invite-redeem seat's join_seq was stamped against the GLOBAL max(messages.seq) instead of
+// 39f71b2294 the invite-redeem seat's join_seq was stamped against the GLOBAL max(messages.seq) instead of
 // the per-chat one, so a member seated on a low-traffic chat could carry a join_seq far above any message
 // that chat actually has. Pins: a stamped-too-high row is clamped down to the per-chat canon head, a
 // correctly-stamped row is left byte-identical, and a second boot is a no-op (the predicate, not a marker,

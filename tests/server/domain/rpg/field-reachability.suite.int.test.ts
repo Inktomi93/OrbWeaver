@@ -1258,7 +1258,7 @@ test("CONFIG hiddenContentReveal is a HOST-plane knob: it never changes what the
 
 test("the participant/cast SPLIT is total: the same write reaches the model on a participant actor AND a scene NPC", async () => {
   // The parity claim in one place: whatever plane a beat writes, the carrier kind must not decide whether the
-  // model gets to see it. (`4cd5d31d` fixed conditions on this axis; the volatile planes followed.)
+  // model gets to see it. (`a4188c3a6f` fixed conditions on this axis; the volatile planes followed.)
   await Promise.all(
     ACTOR_CARRIERS.map(async (kind) => {
       const f = await openGame({ carrier: CARRIERS[kind] });

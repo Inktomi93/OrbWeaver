@@ -21,8 +21,8 @@
 // shared reader supplies today.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `theme-override-only-via-scope` descriptor at 256682e4aa17a2555c99834c468905fa53ae5500, the parent of the
-// conversion `47fc0ae01` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// `theme-override-only-via-scope` descriptor at c96e75a9174307d159c5193c96eaf93fbab5c3cb, the parent of the
+// conversion `55bf359599` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,224 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,671 and final `population` admits 1,671. legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside

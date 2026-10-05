@@ -4,7 +4,7 @@
 // symbol, the claim behind its permission is dead and the row is a standing permission nobody uses. The
 // arm self-guards on a REAL-TREE ANCHOR (tooling/src/verify/gates/GATE-AUTHORING.md §4.5): the kit module that DEFINES the engine.
 //
-// The legacy `serde-core-seal` descriptor (534c1327f682be2578e1dee7c7a2bfa488fb672a) carried this
+// The legacy `serde-core-seal` descriptor ((pruned from public history)) carried this
 // stale-sanction check as one arm of a single gate before this conversion split it out here.
 //
 // FAMILY: `serde-core-seal`, shared with the occurrence sibling. The shared computation is
@@ -24,7 +24,7 @@
 // compiler-source candidate set: 1,493 (the parent's port) admitted on both sides, symmetric difference ZERO in both directions.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `serde-core-seal` descriptor at 534c1327f682be2578e1dee7c7a2bfa488fb672a, the parent of the conversion `bd56189ba`;
+// `serde-core-seal` descriptor at (pruned from public history), the parent of the conversion `1692e75291`;
 // this module did not exist there, so it is measured against the module it was carved from, `serde-core-seal` (blob
 // read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,358 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,493

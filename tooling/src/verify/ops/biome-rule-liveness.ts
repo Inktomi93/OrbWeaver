@@ -1,5 +1,5 @@
 // The `config:biome-rule-liveness` stage — the SUCCESSOR to `biome-grant-liveness` arm six (#2074),
-// deleted with a receipt by `97e68be91` because §12.3 forbids a final policy from doing a filesystem
+// deleted with a receipt by `bd0a01d6b4` because §12.3 forbids a final policy from doing a filesystem
 // WRITE plus a subprocess spawn. The deletion was right; the HOLE it left is not.
 //
 // WHAT NOTHING ELSE ASKS. A `biome.json` override row that turns a rule OFF for named files is a promise

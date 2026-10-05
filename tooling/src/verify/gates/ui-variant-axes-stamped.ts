@@ -23,8 +23,8 @@
 // package, and that sibling's population is one file.
 //
 // A4 — THE STALE-RATCHET ARM — IS DELETED WITH ITS BASELINE (guide §5: `*.baseline.json` debt RETIRES,
-// it does not convert). `ui-variant-axes-stamped.baseline.json` held 11 rows at mint (`da01f7eb9`, tranche
-// 1 = the seam + four pilots) and was DRAINED TO `{}` by #1097 (`fc5f99e4c`, tranche 2 — all 15
+// it does not convert). `ui-variant-axes-stamped.baseline.json` held 11 rows at mint (`f93c987f82`, tranche
+// 1 = the seam + four pilots) and was DRAINED TO `{}` by #1097 (`4125176411`, tranche 2 — all 15
 // stamped-axis recipes reach the seam). It was 3 bytes on conversion day, so ZERO rows were carried:
 // nothing became a reviewed grant and nothing became warning debt, which is why this policy declares
 // `severity: "error"` and no `workItem` despite the ruled row naming warning debt. The ledger, its
@@ -43,11 +43,11 @@
 // COMMENT POSTURE: comment-SAFE — every read is node-kind subscription through lib/ast-read.ts; nothing
 // here matches a literal against file TEXT.
 //
-// Legacy descriptor: `da01f7eb9` (`tooling/src/verify/gates/ui-variant-axes-stamped.ts`).
+// Legacy descriptor: `f93c987f82` (`tooling/src/verify/gates/ui-variant-axes-stamped.ts`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `ui-variant-axes-stamped` descriptor at ccd404f6feb0cdb84adce3d978522f138baadaab, the parent of the conversion
-// `aebf416fc` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `da01f7eb9`
+// `ui-variant-axes-stamped` descriptor at (pruned from public history), the parent of the conversion
+// `b20c3fe174` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `f93c987f82`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,461 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 366 and final `population` admits 366.

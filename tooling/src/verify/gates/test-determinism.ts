@@ -10,7 +10,7 @@
 // The position is the finding's `token`: the matched banned spelling trimmed of its call parens
 // (`Date.now`, `process.hrtime`, `performance.timeOrigin`). Comments are blanked, so the marker line can
 // never itself match.
-// MARKER CENSUS (#1963, 2026-09-11). The conversion commit (`7be684811`) converted this module's own proof
+// MARKER CENSUS (#1963, 2026-09-11). The conversion commit (`9c04cd7182`) converted this module's own proof
 // rows to `@orb-waive` but did NOT translate the live tree, and marker routing is FENCED (design §7):
 // legacy `@orb-gate-ignore` reaches only LEGACY owners, so all 14 real-tree markers naming this now-FINAL
 // policy went inert in one commit — 14 suppressions LOST, reported by `gate-ignore-inventory` as 14 STALE
@@ -35,7 +35,7 @@
 // property read, which is not this gate's job.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `test-determinism` descriptor at 99b7429e2b0377aa5a6ae62341f9a22aa40de94c, the parent of the conversion `7be684811`
+// `test-determinism` descriptor at a2a93cac726442da889b41f089610914f5dc692f, the parent of the conversion `9c04cd7182`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,353 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 2,744
 // and final `population` admits 2,744. legacy − final = ∅. final − legacy = ∅. Controls: inside

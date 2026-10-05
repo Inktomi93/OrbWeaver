@@ -63,7 +63,7 @@
 // draft's out-of-population REFUSAL arm was deleted on that same unverified reachability claim.)
 //
 // #2097's owner ruling moved binding/origin resolution to shared readers; the migration lane for #2163
-// (`ddf1adf53`) replaced the chain with `resolveCallableDeclaration`, which follows a named import, an
+// (`797c0a4c2c`) replaced the chain with `resolveCallableDeclaration`, which follows a named import, an
 // import rename, a re-export rename and a namespace member to the declaring file, and that LANE kept the
 // same-file limit as an explicit fence. No ruling decides the fence itself: #2036's arm 1 (drop the fence
 // and restore following) versus arm 2 (keep it as a declared narrowing) is UNADJUDICATED, and this module
@@ -99,7 +99,7 @@
 // `@orb-gate-ignore audit-client-tests` markers (re-derived at conversion). legacy 0 = current 0; the door
 // is now the central `@orb-waive audit-client-tests(<position>)`.
 //
-// §4.6 DIFFERENTIAL: the pre-conversion descriptor at `86ce80b6c` replayed through the legacy dispatcher
+// §4.6 DIFFERENTIAL: the pre-conversion descriptor at `(pruned from public history)` replayed through the legacy dispatcher
 // against the final policy, both over the real `tests/**` corpus AND fixture-level over every legacy
 // example. The result is in the landing commit message.
 import type { ArrowFunction, CallExpression, FunctionExpression, Node as MorphNode, SourceFile } from "ts-morph";
@@ -519,7 +519,7 @@ export const gate = defineGate({
           "});\n",
       },
       expect: { count: 1, line: 2, token: "test", messageIncludes: "no `expect(...).<matcher>()`" },
-      why: "THE NAMESPACE-IMPORT SPELLING OF THE SAME-FILE FENCE (#2036). The conversion's first guard was justified by the claim that a helper could never leave the calling file; `import * as h` REFUTED it — the shared `resolveCallableDeclaration` follows `h.expectOk` to the other file's declaration — and no row used the spelling, so the divergence was unpinned in both directions. The fence is a narrowing kept by the #2163 migration lane (`ddf1adf53`) for the `selected-files` reason in the header — no ruling decides it, and #2036's arm 1 vs arm 2 stays UNADJUDICATED — and this row states it for the namespace door exactly as mustFlag[8] does for the named one: the helper body spans offsets 42-243 and this file's `expect(1).toBe(1)` spans 169-186, so cutting `resolveCalleeBody`'s source-file test lets the followed body satisfy the stub and the count drops to 0",
+      why: "THE NAMESPACE-IMPORT SPELLING OF THE SAME-FILE FENCE (#2036). The conversion's first guard was justified by the claim that a helper could never leave the calling file; `import * as h` REFUTED it — the shared `resolveCallableDeclaration` follows `h.expectOk` to the other file's declaration — and no row used the spelling, so the divergence was unpinned in both directions. The fence is a narrowing kept by the #2163 migration lane (`797c0a4c2c`) for the `selected-files` reason in the header — no ruling decides it, and #2036's arm 1 vs arm 2 stays UNADJUDICATED — and this row states it for the namespace door exactly as mustFlag[8] does for the named one: the helper body spans offsets 42-243 and this file's `expect(1).toBe(1)` spans 169-186, so cutting `resolveCalleeBody`'s source-file test lets the followed body satisfy the stub and the count drops to 0",
     },
     {
       mode: "types",

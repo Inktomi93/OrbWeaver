@@ -1028,7 +1028,7 @@ const PNG_1PX = Buffer.from(PNG_1PX_BASE64, "base64");
 
 const STUB_ASSET_ID = "asset_01h455vb4pex5vsknk084sn02q";
 // …and a 64-char hex CAS hash, because `storedAssetSchema.hash` is `z.string().length(CAS_HASH_HEX_LENGTH)`
-// (`contracts/assets/index.ts:78,89`, landed in b588b9d0a with the #1359-#1380 validation floors) and
+// (`contracts/assets/index.ts:78,89`, landed in 19a1cf636e with the #1359-#1380 validation floors) and
 // `data/upload-asset.ts:31` PARSES the upload response against it. The stubs here used to answer a 6-char
 // `"cthash"`, so the parse threw at the boundary, the attachment never resolved and `chat.send` never fired
 // — three composer tests red on main with an error that named none of that (#1589). The contract moved

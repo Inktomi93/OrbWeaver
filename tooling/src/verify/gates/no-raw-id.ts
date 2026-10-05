@@ -22,7 +22,7 @@
 // pre-fix module, which is its §4.7 planted-break receipt.
 //
 // POPULATION PORT: an intentional WIDENING, plus one dead arm dropped. The legacy descriptor
-// (`0dd6f17c6^:tooling/src/verify/gates/no-raw-id.ts`) declared NO `scanRoot` at all, so it judged whatever
+// (`5550ec4706^:tooling/src/verify/gates/no-raw-id.ts`) declared NO `scanRoot` at all, so it judged whatever
 // the legacy pass happened to load; the final population is `@authored` — the nine-root authored corpus —
 // which states that intent instead of inheriting it. The legacy `kinds` were
 // `[PropertyAssignment, PropertySignature]` and the final are `[PropertyAssignment]` alone: the
@@ -31,7 +31,7 @@
 // the bare-`string` TYPE position is `brand-in-name-position`'s subject, the family sibling that owns it.
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "an intentional WIDENING" is REFUTED. What
 // the legacy pass loaded was `_shared/ts-workspace.ts#harnessGlobs` (`packages/*/src`, `tests`, `tooling/src`,
-// `scripts`), and over those candidates at `0dd6f17c6^` legacy − final = {`packages/showcase-plugins/src/index.ts`},
+// `scripts`), and over those candidates at `5550ec4706^` legacy − final = {`packages/showcase-plugins/src/index.ts`},
 // final − legacy = ∅: a one-file NARROWING.
 //
 // RETIRED VOCABULARY: the legacy `EXEMPT_SYMBOL`/`EXEMPT_PAYLOAD_SYMBOL` pair — a DECLARATION-NAME allowlist
@@ -43,7 +43,7 @@
 // carries 9 — the block the allowlist used to cover with a single symbol name.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-raw-id` descriptor at 1ee6bb9820b1b245f6e2c25a4adf68356ca85b0a, the parent of the conversion `0dd6f17c6` (blob
+// `no-raw-id` descriptor at 52b33fc581708a8f782f6e811cbac3be55bc77c0, the parent of the conversion `5550ec4706` (blob
 // read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,133 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy harness dispatch (no
 // `scanRoot`) admits 7,133 and final `population` admits 7,132. legacy − final =

@@ -15,7 +15,7 @@
 // singleton family must equal its sole policy id until then (`lib/policy-module.ts:79`).
 //
 // POPULATION PORT: `@client` under `packages/client/src/features/*/surfaces/**`, `tsx` only, MINUS the
-// app-shell and topbar features. LEGACY at 854c81c80: `scopeSafety: "whole-project"` with no `scanRoot`,
+// app-shell and topbar features. LEGACY at (pruned from public history): `scopeSafety: "whole-project"` with no `scanRoot`,
 // filtered inside `run` by
 // `SURFACE_RE = /^packages\/client\/src\/features\/([^/]+)\/surfaces\/[^/]+\.tsx$/u` and then
 // `if (rel.includes("app-shell") || rel.includes("topbar")) continue;`.
@@ -68,8 +68,8 @@
 // `mustFlag[1]`: it is the row that dies if anyone ever re-introduces a file-text scan.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `surface-a11y-focus` descriptor at fc5cad14c0f060ce35d257d96955d778e756d605, the parent of the conversion
-// `ff07e1302` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `854c81c80`
+// `surface-a11y-focus` descriptor at (pruned from public history), the parent of the conversion
+// `222bd23712` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — scan: `SURFACE_RE = /^packages\/client\/src\/features\/([^/]+)\/surfaces\/[^/]+\.tsx$/` then

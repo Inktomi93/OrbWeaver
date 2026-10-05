@@ -48,11 +48,11 @@
 // COORDINATE, so they are re-anchored. Marker census: ZERO live `@orb-gate-ignore testid-liveness` markers
 // anywhere in the tree (positive control: 4 in `lib/gate-ignore.ts`), so the reconciliation closes 0 = 0 = 0.
 //
-// Legacy descriptor: `9e2eca320` (`tooling/src/verify/gates/testid-liveness.ts`).
+// Legacy descriptor: `07b1b7b19d` (`tooling/src/verify/gates/testid-liveness.ts`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `testid-liveness` descriptor at ccd404f6feb0cdb84adce3d978522f138baadaab, the parent of the conversion `aebf416fc`
-// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `9e2eca320` cited above
+// `testid-liveness` descriptor at (pruned from public history), the parent of the conversion `b20c3fe174`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `07b1b7b19d` cited above
 // is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations resolve to this
 // source. Over the SAME 7,461 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 6,297 and final `population` admits 6,297.
@@ -351,7 +351,7 @@ export const gate = defineGate({
       mode: "source",
       files: {
         // A1 — THE FOUNDING SHAPE, replayed: the story stopped rendering `draft-cast` (the R1 draft-runtime
-        // deletion, efc4cc2b2) and the two CT assertions on it survived, green under every scoped floor.
+        // deletion, 99ec49cda1) and the two CT assertions on it survived, green under every scoped floor.
         "tests/client/features/character/_ct-stories.tsx": 'export const S = () => <p data-testid="cast-count">2</p>;\n',
         "tests/client/features/character/components/list-pane.ct.tsx":
           'test("cast", async () => {\n  await expect(component.getByTestId("draft-cast")).toHaveText("Aveline");\n});\n',

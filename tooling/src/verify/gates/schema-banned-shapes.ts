@@ -14,14 +14,14 @@
 // `DRIZZLE_SCHEMA_POPULATION`, whose admitted set is that same directory, barrel included. The family's
 // one-path delta against the other legacy spelling is recorded at that constant in `lib/schema-fact.ts`.
 //
-// The legacy `schema-banned-shapes` descriptor (0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef — the PARENT of
-// the `1bf7ff7d9` split commit, verified 2026-09-12 to hold a `GateDescriptor` at this path) checked both
+// The legacy `schema-banned-shapes` descriptor (3034bdad6c79e4f9423c07c5a3133ce2a32e4a49 — the PARENT of
+// the `faf2dc3857` split commit, verified 2026-09-12 to hold a `GateDescriptor` at this path) checked both
 // this schema partition and the contract partition (now `contract-banned-shapes`) in one combined gate
 // with its own inline schema read before this split.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `schema-banned-shapes` descriptor at 0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef, the parent of the conversion
-// `1bf7ff7d9` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `schema-banned-shapes` descriptor at 3034bdad6c79e4f9423c07c5a3133ce2a32e4a49, the parent of the conversion
+// `faf2dc3857` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,137 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy harness
 // dispatch (no `scanRoot`) admits 7,137 and final `population` admits 30. legacy − final = 7,107 harness sources
 // outside `packages/db/src/schema/` — read by the combined module's contract and import arms, which left for

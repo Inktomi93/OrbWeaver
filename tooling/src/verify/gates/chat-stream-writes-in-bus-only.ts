@@ -11,7 +11,7 @@
 // gets no row at all — an unexercised permission is not representable as a grant (a row consumed zero times
 // is STALE), and the day it needs one it will red and be reviewed.
 //
-// The legacy `chat-stream-writes-in-bus-only` descriptor (6a79781359a51916bffaac9edbc42c883b8aee5a)
+// The legacy `chat-stream-writes-in-bus-only` descriptor ((pruned from public history))
 // subtracted `data/bus/**`/`main.tsx` from the scanned population before this conversion moved that
 // exemption onto the reviewed-grant table.
 //

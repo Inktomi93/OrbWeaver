@@ -61,7 +61,7 @@ export const PORTABLE_IMPORT_ORDER = [
 
 // ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────
 // Every orb-NATIVE portable file carries this header. Re-minted 2026-08-03 WITH consumers (the original
-// `PortableEnvelope` died unconsumed in `cfa2049f` because each serde re-spelled it structurally — the
+// `PortableEnvelope` died unconsumed in `c1a8f726c7` because each serde re-spelled it structurally — the
 // drift that let world-info spell the version key `version` and persona ship no envelope at all): the ONE
 // consumer is `@orb/server/kit/serde/lib`, the spine every orb-native JSON serde is defined through, so a
 // family can no longer re-spell it. Foreign wire formats (ST cards, ST chat jsonl) carry no envelope by

@@ -26,8 +26,8 @@
 // runtime's own refusal already held.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `feature-structure` descriptor at 7b739d9b5cd5ed752f6c38065dfa34e242695d48, the parent of the conversion
-// `941d730cc` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `feature-structure` descriptor at 530b6705a73e829158782f26b382377f10e0a828, the parent of the conversion
+// `f01f0b92a4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,354 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness
 // — no `scanRoot` — dispatched 7,354, and the final `population` admits 0; the subject is the declared
 // `server-domain` tree. legacy − final = all 7,354 harness candidates — dispatched to the legacy `run`, which read

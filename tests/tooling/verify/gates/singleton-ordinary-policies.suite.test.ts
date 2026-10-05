@@ -35,7 +35,7 @@
 // §4.3 (reviewed grants) and §4.5 (refusal/receipt) do not apply to any of the seven: all declare `facts: []`
 // and `resources: []`, resolve no home and derive no population, so there is no receipt to forge and
 // nothing to refuse about. §4.6 (the conversion differential): its "landing-commit evidence, not standing
-// law" clause was RETIRED by #2000 deliverable 3 (`2084c403e`) — evidence may no longer vanish. Three of
+// law" clause was RETIRED by #2000 deliverable 3 (`(pruned from public history)`) — evidence may no longer vanish. Three of
 // the seven (`baseui-render-prop-composition`, `no-external-media-without-gate`,
 // `no-array-literal-querykey`) were on the #2000 Tier-3 CLOSE-BY-RULE roster; the other four were not, and their
 // differentials are #2000 work rather than something this file claims.

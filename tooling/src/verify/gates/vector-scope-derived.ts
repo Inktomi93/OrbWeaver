@@ -18,14 +18,14 @@
 // over one substrate, and no sibling shares an arm; `lib/sealed-origin.ts` and `_shared/reference-fact.ts` are
 // shared readers, which guide §2 says is not a family.
 //
-// POPULATION PORT: byte-identical, legacy at `0d83d99f1^` (`scanRoot: (p) => SERVER_SRC.test(\`/\${p}\`)` —
+// POPULATION PORT: byte-identical, legacy at `02536f2f07^` (`scanRoot: (p) => SERVER_SRC.test(\`/\${p}\`)` —
 // the `@server` root exactly). The sanctioned homes stay IN the population and are decided per arm, so a
 // re-home reds at its new path instead of inheriting the old role. Every import role has a proof;
 // membership grants no write or cosine privilege, which those arms decide independently.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `vector-scope-derived` descriptor at ef22519578607c76a03196f343fb025520c796a5, the parent of the conversion
-// `0d83d99f1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `vector-scope-derived` descriptor at 4561cb18c483c15b9fc1dfed78777f70bbd958cb, the parent of the conversion
+// `02536f2f07` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,488 and final `population` admits 1,488. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside

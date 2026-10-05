@@ -146,7 +146,7 @@ const HOST_AMBIENT_ROUTES = defineTrpcRoutes({
   // Model roles' rows read the embed generation state; fed not-paused so no row paints a pause notice.
   "search.spaceStatus": { paused: false, embed: false, imageEmbed: false },
   // The About group's version section suspends on the version identity.
-  "settings.getVersion": { version: "0.4.1", commit: "823d76f4343a1cea086b17a1b5bf212b44c17a7d", short: "823d76f4343a", source: "checkout", channel: "main" },
+  "settings.getVersion": { version: "0.4.1", commit: "f4cdde34be59914c4a2aecec108899bd034579ac", short: "f4cdde34be59", source: "checkout", channel: "main" },
   "plugin.list": [],
   "plugin.listDistributed": [],
   "automation.listOwnerRules": [],
@@ -433,7 +433,7 @@ test("a plain user reaches This install: the version line and its copy control r
   const component = await mount(<ConfigHostStory />);
 
   await component.getByRole("button", { name: "This install", exact: true }).click();
-  await expect(component.getByTestId("about-version-line")).toHaveText("0.4.1-dev+823d76f4343a");
+  await expect(component.getByTestId("about-version-line")).toHaveText("0.4.1-dev+f4cdde34be59");
   await expect(component.getByRole("button", { name: "Copy version for a bug report" })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Updates" })).toHaveCount(0);
   await expect(component.getByRole("button", { name: "Check for updates" })).toHaveCount(0);
@@ -1501,7 +1501,7 @@ for (const width of [1440, 990] as const) {
 // value, and a first-timer opening an empty library is exactly the reader the inconsistency lands on. The
 // note then handed the reconciliation to the orchestrator, naming its two arms.
 //
-// #1845 TOOK THE FIRST ARM (`76806c510`, "fix zero-member library EmptyState to open on the same register as
+// #1845 TOOK THE FIRST ARM (`e6dbee1d21`, "fix zero-member library EmptyState to open on the same register as
 // the populated arm via ConfigPaneGlance"). The zero arm stopped being the EmptyState's heading:
 // `config-collection-landing.tsx`'s `count === 0` branch now draws `ConfigPaneGlance level={2}` — the same
 // component, at the same step, as the populated and settings panes — and the EmptyState below it carries the

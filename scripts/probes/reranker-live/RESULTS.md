@@ -1,6 +1,6 @@
 # Reranker live acceptance results (work item 0514)
 
-**Run:** 2026-10-03 on branch head `359ca0dc62`. Evidence: `results.jsonl` (one row per cell, run, seed check, cold
+**Run:** 2026-10-03 on branch head `5bcd1c8d54`. Evidence: `results.jsonl` (one row per cell, run, seed check, cold
 start, token count and reference score) and `speaker-pick/`. Method: the header of `run.ts`, and "Method" below.
 
 **Device:** 13th Gen Intel Core i7-13700K, x64, Node v26.5.0, CPU only (`device: "cpu"`, `CUDA_VISIBLE_DEVICES=`

@@ -20,15 +20,15 @@
 // POPULATION PORT: an INTENTIONAL NARROWING, stated with its derivation and its positive control at the
 // `population:` field below.
 //
-// The legacy `schema-banned-shapes` descriptor (0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef — the PARENT of
-// the `1bf7ff7d9` split commit; this policy's OWN file does not exist there, because this half was BORN at
+// The legacy `schema-banned-shapes` descriptor (3034bdad6c79e4f9423c07c5a3133ce2a32e4a49 — the PARENT of
+// the `faf2dc3857` split commit; this policy's OWN file does not exist there, because this half was BORN at
 // that split, and the legacy blob verified 2026-09-12 at `schema-banned-shapes.ts`) checked both
 // the contract rows above and the schema rows below in one combined gate before this split by evidence
 // plane.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `schema-banned-shapes` descriptor at 0593a6a6cbd151faa088ddd3f9cbaca0ce69b4ef, the parent of the conversion
-// `1bf7ff7d9`; this module did not exist there, so it is measured against the module it was carved from,
+// `schema-banned-shapes` descriptor at 3034bdad6c79e4f9423c07c5a3133ce2a32e4a49, the parent of the conversion
+// `faf2dc3857`; this module did not exist there, so it is measured against the module it was carved from,
 // `schema-banned-shapes` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,137 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // harness dispatch (no `scanRoot`) admits 7,137 and final `population` admits 105. legacy − final = 7,032 harness

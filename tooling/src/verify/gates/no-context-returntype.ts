@@ -26,8 +26,8 @@
 //     probe forces the clause to matter. Documented rather than faked (§4.1's fourth outcome).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-context-returntype` descriptor at a4ec5c1b6525da029b9d35bda2c3c4b7720e5c0a, the parent of the conversion
-// `7ed48eca8` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-context-returntype` descriptor at 9d8b96146c08572d427924e073005e4913b07638, the parent of the conversion
+// `2ee31c5d22` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,196 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 32 and final `population` admits 32. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in/context.ts` (virtual) admitted by both; outside

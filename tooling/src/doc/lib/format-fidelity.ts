@@ -275,7 +275,7 @@ export function ambiguousTemplateLiteralRefusal(tree: MarkdownNode, source: stri
  * a delta there is not by itself evidence of a lost construct. A backtick has exactly one job.
  *
  * ITS CORPUS RECEIPT IS TWO, MEASURED, NOT ZERO (2026-09-12, over the 328-file living corpus at
- * `cf7e46d12`): 163 files would be rewritten by a `--write`, and exactly two of them would gain backtick
+ * `(pruned from public history)`): 163 files would be rewritten by a `--write`, and exactly two of them would gain backtick
  * escapes — the gate-runtime program's wave-4 fix review (+12) and its refutation ledger (+3), both since
  * deleted with that program's working set. Both were the evidence documents carrying this defect, and both
  * were being silently cemented. The planted control beside this arm is what holds it now.

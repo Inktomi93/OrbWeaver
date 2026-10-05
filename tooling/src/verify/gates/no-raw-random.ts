@@ -25,18 +25,18 @@
 // three-valued ambient verdict cannot drift between the generator and the clock.
 // POPULATION PORT: intentional correction, stated — the legacy NEGATIVE fence is re-expressed as a POSITIVE
 // root list. The legacy descriptor admitted everything EXCEPT `.test.` / `tests/` / `scripts/` / `tools/`
-// (`9808b93c0^:38`); the final population is `{ in: ["@packages", "@tooling"], notNamed: ["*.test.*"] }`.
+// (`b5acbf2594^:38`); the final population is `{ in: ["@packages", "@tooling"], notNamed: ["*.test.*"] }`.
 // `@tooling` is IN the list here and absent from `no-raw-clock`'s, which is exactly the legacy pair's own
 // asymmetry (the clock's predicate fenced `tooling/` out because tools measure the real wall clock, this
 // one never did) — the difference between the two siblings is deliberate and `mustFlag[4]` pins it. The two
 // halves differ only where the legacy complement admitted a path outside `packages/*/src` and `tooling/src`.
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "differ only where the legacy complement
 // admitted a path outside `packages/*/src` and `tooling/src`" is REFUTED. Measured over the harness candidates at
-// `9808b93c0^`: legacy − final = {`packages/showcase-plugins/src/index.ts`}, a path INSIDE `packages/*/src` that
+// `b5acbf2594^`: legacy − final = {`packages/showcase-plugins/src/index.ts`}, a path INSIDE `packages/*/src` that
 // `@packages` does not admit (#1980); final − legacy = ∅.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-raw-random` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion `9808b93c0`
+// `no-raw-random` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion `b5acbf2594`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,383
 // and final `population` admits 4,382. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the one source

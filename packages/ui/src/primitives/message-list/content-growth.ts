@@ -13,7 +13,7 @@
 // must be dy NEGATIVE — the list is tail-pinned, and a positive-dy burst scrolls nothing and records
 // 0 long tasks / 0 blocking, an EMPTY window that reads exactly like a clean surface.
 //
-// THE SIGNAL COMES FROM VIRTUAL-CORE, NOT FROM A ResizeObserver (#1384, c53958876). Both effects need
+// THE SIGNAL COMES FROM VIRTUAL-CORE, NOT FROM A ResizeObserver (#1384, bdc37d10d9). Both effects need
 // "the measured content got taller"; both used to observe `viewportNodeRef` — virtual-core's own container
 // (`setViewportRef` → `containerRef`), whose height IT writes from inside its own `measureElement`
 // ResizeObserver callback. Observing a box another observer resizes is what Chrome reports as
@@ -22,7 +22,7 @@
 // effect and costs no observer at all. The SCROLLER's own ResizeObserver stays, because nobody else writes
 // that box — a container resize is a real, separate trigger.
 //
-// ── TWO TIMING FACTS THE c53958876 SHAPE PRODUCES, stated because neither is obvious from the call site ──
+// ── TWO TIMING FACTS THE bdc37d10d9 SHAPE PRODUCES, stated because neither is obvious from the call site ──
 //
 // (a) THE MOUNT SYNC IS GATED, SO AN EMPTY LIST WAITS FOR THE SCROLLER'S OBSERVER. `useScrollportSync` runs
 //     its `sync()` at effect time only when `contentHeightPx > 0`, and `getTotalSize()` on an empty list is

@@ -50,8 +50,8 @@
 // ordinary policy in this lane uses.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-hardcoded-model-prose` descriptor at d2d0f644c46ee75c2ac44d962d22d18a97a375fe, the parent of the conversion
-// `04e455f4d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-hardcoded-model-prose` descriptor at (pruned from public history), the parent of the conversion
+// `ef163b8fce` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,455 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 55 and final `population` admits 7,454. legacy − final = ∅. final − legacy = 7,399 `@authored` sources
 // outside the seam/catalog set — the ARM B importer census reach recorded above; findings still fire only on

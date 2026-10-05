@@ -1,5 +1,5 @@
 // <Section> CT — the block-spacing wrapper: an internal `gap-block` rhythm + the conditional heading
-// slot. It NO LONGER self-pads (commit 428707a: between-section spacing is the container's `gap`, not
+// slot. It NO LONGER self-pads (commit 1461bd0513: between-section spacing is the container's `gap`, not
 // Section's own `py` — padding-as-margin double-counted the gap; UI layout doctrine).
 import { Section } from "@orb/ui/layout";
 import { expect, test } from "@playwright/experimental-ct-react";

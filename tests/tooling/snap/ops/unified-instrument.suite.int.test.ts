@@ -477,7 +477,7 @@ const FOLDED_TOOLS: readonly (readonly [string, string])[] = [
 ];
 
 test("the folded tool dirs are NOT programs: no argv door exists at all — only the engine index, and the arm is snap's", async () => {
-  // Truth-repaired 2026-09-06 (the tooling-slot-template ENGINE arm, ea1952de5 / 7ce93bad4): the refusing
+  // Truth-repaired 2026-09-06 (the tooling-slot-template ENGINE arm, 7550071082 / 7545b6caee): the refusing
   // stub `cli.ts` files were DELETED, so the proof is no longer "the door refuses" but "there is no door".
   // The four-hop shape that survives: the dir has an `index.ts` (an engine snap imports), it has NO `cli.ts`
   // (nothing the argv front door could run as a program), and the spelling that replaced it is a REAL snap

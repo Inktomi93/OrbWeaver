@@ -32,7 +32,7 @@
 //   (`contract/population.ts#POPULATION_ROOTS`), so the port is lossless and `carrierPath`'s hand-rolled
 //   absolute-to-relative slicing retires with it — `ctx.relativePath` is the total house idiom.
 //
-// POPULATION PORT: BYTE-IDENTICAL on both halves, legacy at eba8ef526. The legacy `existsSync(theme.css)`
+// POPULATION PORT: BYTE-IDENTICAL on both halves, legacy at 39f71b2294. The legacy `existsSync(theme.css)`
 // early return and the `realTree` anchor (the gate's own source file being in `ctx.files`) are BOTH retired:
 // a resource fixture supplies its whole CSS identity, so "is this the real tree" is no longer a question —
 // an unloadable `product-css` is a population-phase REFUSAL (`mustRefuse[0]`), and the zero-ink tripwire and
@@ -99,8 +99,8 @@
 // clean corpus, and cutting `for (const miss of unresolved)` turns it green.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `seed-theme-ink-contrast` descriptor at a9745471429558128b7953bc59e52dc59ae62828, the parent of the conversion
-// `2dabae9ce` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `eba8ef526`
+// `seed-theme-ink-contrast` descriptor at 26f167a43dda1114aa0cd57de43f5e10b7b8129e, the parent of the conversion
+// `7963046ecf` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `39f71b2294`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — `INK_SOURCES = ["packages/ui/src/", "packages/client/src/"]`, `file.getFilePath().includes(`/${root}`)`.

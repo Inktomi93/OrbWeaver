@@ -31,7 +31,7 @@ import { classifyServedTransform } from "../lib/verdicts.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm stack served-probe");
 
-/** The workspace trees vite SOURCE-consumes (no prebundling since 086c4e047), i.e. every tree whose edits
+/** The workspace trees vite SOURCE-consumes (no prebundling since 435e8b981d), i.e. every tree whose edits
  *  the dev watcher is responsible for invalidating. `server`/`db` are absent: they are node's `--watch`
  *  problem, not vite's. */
 const WATCHED_SOURCE_DIRS = ["packages/client/src", "packages/ui/src", "packages/kit/src", "packages/contracts/src"];

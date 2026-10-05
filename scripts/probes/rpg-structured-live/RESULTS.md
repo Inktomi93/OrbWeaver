@@ -3,8 +3,8 @@
 Run 2026-10-03 on branch `wt/agent-ac2270bb4049dd28e`. Every row in `results.jsonl` carries `tree.head` and
 `tree.dirtyProduct`. Two trees were measured:
 
-- **Baseline, `7082f1ecbe`** (verifier round 6 CONFIRMED): the whole matrix.
-- **After the fixes, `ea8af82ffa`**: `ece4c571c7` (both delivery reasons show on the panel) and `ca17618d12` (several
+- **Baseline, `28ff5ad5fc`** (verifier round 6 CONFIRMED): the whole matrix.
+- **After the fixes, `632f51c8ba`**: `af742f57af` (both delivery reasons show on the panel) and `791d5a7ba0` (several
   `update_scene` calls in one round merge field by field), merged with main. Every structured cell, the
   structured-unavailable cell and all swipe cells reran here.
 
@@ -25,10 +25,10 @@ KoboldCpp, vLLM and Claude on the structured round).
 
 Defects found and their status:
 
-1. **Fixed in `ca17618d12`: the structured union lost split scene writes.** On the baseline, 12 of 79 structured
+1. **Fixed in `791d5a7ba0`: the structured union lost split scene writes.** On the baseline, 12 of 79 structured
    rounds (every clean baseline run) split one beat's scene write across several `update_scene` entries, and in all
    12 an earlier entry carried a field the last one did not. The last-wins fold
-   (`packages/contracts/src/rpg/extraction.ts:546-551` at `7082f1ecbe`) dropped those fields (location, time, plot,
+   (`packages/contracts/src/rpg/extraction.ts:546-551` at `28ff5ad5fc`) dropped those fields (location, time, plot,
    recent event) without a warning. Tool rounds split the scene once in 112 rounds, with no field lost. After the
    fix, 7 of 77 structured rounds split the scene, and the panel kept the merged location in every one; a value a
    later call restated differently is now recorded as `salvaged` (seen once, on Claude's patch list).
@@ -55,39 +55,39 @@ wall time at the provider transport, median over the consumer's turns. The panel
 
 | cell | consumer | head | panel (path / reason) | vehicle used | turns pass | checks | retries / audits | drops and issues | state round ms (median) |
 | - | - | - | - | - | - | - | - | - | - |
-| vllm-qwen3.8-27b | folded | `7082f1ecbe` | tool-round / local-engine-fold-guard | state-tools(tool_choice "required") | 6/8 | 13/16 | 0 / 1 | - | 10641 |
-| vllm-qwen3.8-27b | cheap | `7082f1ecbe` | tool-round / null | state-tools(tool_choice "required") | 6/8 | 14/16 | 0 / 0 | - | 10485 |
-| vllm-qwen3.8-27b | resync | `7082f1ecbe` | tool-round / null | state-tools(tool_choice "required") | 1/1 | 5/5 | 0 / 0 | - | 14054 |
-| ollama-gemma4-e4b | folded | `ea8af82ffa` | tool-round / local-engine-fold-guard | state-structured(ollama format union) | 3/8 | 7/16 | 0 / 1 | rpg.toolround.unparseable×2, rpg.flush.dropped×2, rpg.extraction.empty×1 | 2384 |
-| ollama-gemma4-e4b | cheap | `ea8af82ffa` | tool-round / null | state-structured(ollama format union) | 4/8 | 10/16 | 0 / 2 | rpg.toolround.unparseable×1, rpg.flush.dropped×1 | 1696 |
-| ollama-gemma4-e4b | resync | `ea8af82ffa` | tool-round / null | state-structured(ollama format union) | 0/1 | 2/5 | 0 / 0 | - | 677 |
-| koboldcpp-gemma-4-e4b | folded | `ea8af82ffa` | tool-round / local-engine-fold-guard | state-structured(response_format.json_schema union) | 7/8 | 15/16 | 0 / 0 | - | 5850 |
-| koboldcpp-gemma-4-e4b | cheap | `ea8af82ffa` | tool-round / null | state-structured(response_format.json_schema union) | 6/8 | 13/16 | 0 / 0 | - | 3302 |
-| koboldcpp-gemma-4-e4b | resync | `ea8af82ffa` | tool-round / null | state-structured(response_format.json_schema union) | 1/1 | 5/5 | 0 / 0 | - | 3164 |
-| ollama-gemma4-e4b-window16k | folded | `ea8af82ffa` | tool-round / local-engine-fold-guard | state-structured(ollama format union) | 6/8 | 12/16 | 0 / 0 | - | 2438 |
-| ollama-gemma4-e4b-window16k | cheap | `ea8af82ffa` | tool-round / null | state-structured(ollama format union) | 7/8 | 15/16 | 0 / 0 | - | 1646 |
-| ollama-gemma4-e4b-window16k | resync | `ea8af82ffa` | tool-round / null | state-structured(ollama format union) | 1/1 | 5/5 | 0 / 0 | - | 1745 |
-| llamacpp-gemma-4-e4b | folded | `7082f1ecbe` | tool-round / local-engine-fold-guard | state-tools(tool_choice "required") | 7/8 | 15/16 | 0 / 0 | rpg.extraction.stripped×1 | 9138 |
-| llamacpp-gemma-4-e4b | cheap | `7082f1ecbe` | tool-round / null | state-tools(tool_choice "required") | 7/8 | 15/16 | 0 / 1 | update_scene:salvaged×2, rpg.extraction.unparseable×2, rpg.extraction.empty×1 | 15589 |
-| llamacpp-gemma-4-e4b | resync | `7082f1ecbe` | tool-round / null | state-tools(tool_choice "required") | 0/1 | 4/5 | 0 / 0 | rpg.extraction.empty×1 | 7959 |
-| llamacpp-gemma-4-e4b-structured | cheap | `ea8af82ffa` | tool-round / null | state-structured(response_format.json_schema union) | 7/8 | 15/16 | 0 / 0 | - | 3219 |
-| llamacpp-gemma-4-e4b-structured | resync | `ea8af82ffa` | tool-round / null | state-structured(response_format.json_schema union) | 1/1 | 5/5 | 0 / 0 | - | 3031 |
-| vllm-qwen3.8-27b-structured | cheap | `ea8af82ffa` | tool-round / null | state-structured(response_format.json_schema union) | 7/8 | 14/16 | 0 / 0 | - | 10573 |
-| vllm-qwen3.8-27b-structured | resync | `ea8af82ffa` | tool-round / null | state-structured(response_format.json_schema union) | 1/1 | 5/5 | 0 / 0 | - | 8442 |
-| anthropic-claude-sonnet-5-5 | folded | `7082f1ecbe` | folded / null | folded (co-emitted on the character turn) | 8/8 | 16/16 | 0 / 0 | rpg.extraction.empty×1 | - |
-| anthropic-claude-sonnet-5-5 | cheap | `7082f1ecbe` | tool-round / null | state-tools(tool_choice {"type":"auto"}) | 8/8 | 16/16 | 0 / 1 | - | 4082 |
-| anthropic-claude-sonnet-5-5 | resync | `7082f1ecbe` | tool-round / null | state-tools(tool_choice {"type":"auto"}) | 1/1 | 5/5 | 0 / 0 | - | 6890 |
-| anthropic-claude-sonnet-5-5-structured | cheap | `ea8af82ffa` | tool-round / null | state-structured(output_config.format patch) | 8/8 | 16/16 | 0 / 3 | update_scene:salvaged×1, rpg.extraction.unparseable×1 | 5272 |
-| openrouter-claude-sonnet-5.5 | folded | `7082f1ecbe` | folded / null | folded (co-emitted on the character turn) | 8/8 | 16/16 | 0 / 0 | rpg.extraction.empty×1 | - |
-| openrouter-claude-sonnet-5.5 | cheap | `7082f1ecbe` | tool-round / null | state-tools(tool_choice "auto") | 8/8 | 16/16 | 0 / 2 | - | 4387 |
-| openrouter-claude-sonnet-5.5 | resync | `7082f1ecbe` | tool-round / null | state-tools(tool_choice "auto") | 1/1 | 5/5 | 0 / 0 | - | 6242 |
-| openrouter-claude-sonnet-4.6 | folded | `7082f1ecbe` | folded / null | folded (co-emitted on the character turn) | 5/8 | 11/16 | 0 / 0 | - | - |
-| openrouter-claude-sonnet-4.6 | cheap | `7082f1ecbe` | tool-round / null | state-tools(tool_choice "required") | 7/8 | 15/16 | 0 / 2 | update_scene:salvaged×1, rpg.extraction.unparseable×1 | 10817 |
-| openrouter-claude-sonnet-4.6 | resync | `7082f1ecbe` | tool-round / null | state-tools(tool_choice "required") | 1/1 | 5/5 | 0 / 0 | - | 9709 |
-| openai-gpt-5.5 | folded | `7082f1ecbe` | folded / null | folded (co-emitted on the character turn) | 8/8 | 16/16 | 0 / 0 | rpg.extraction.empty×1 | - |
-| openai-gpt-5.5 | cheap | `7082f1ecbe` | tool-round / null | state-tools(tool_choice "required") | 8/8 | 16/16 | 0 / 0 | rpg.extraction.empty×1 | 2901 |
-| openai-gpt-5.5 | resync | `7082f1ecbe` | tool-round / null | state-tools(tool_choice "required") | 1/1 | 5/5 | 0 / 0 | - | 2498 |
-| koboldcpp-gemma-4-e4b-structured-unavailable | cheap | `ea8af82ffa` | tool-round / null + structuredUnavailable | state-tools(tool_choice "auto") | 6/8 | 13/16 | 0 / 1 | rpg.toolround.vehicle_fallback×8, rpg.extraction.empty×1 | 4056 |
+| vllm-qwen3.8-27b | folded | `28ff5ad5fc` | tool-round / local-engine-fold-guard | state-tools(tool_choice "required") | 6/8 | 13/16 | 0 / 1 | - | 10641 |
+| vllm-qwen3.8-27b | cheap | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice "required") | 6/8 | 14/16 | 0 / 0 | - | 10485 |
+| vllm-qwen3.8-27b | resync | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice "required") | 1/1 | 5/5 | 0 / 0 | - | 14054 |
+| ollama-gemma4-e4b | folded | `632f51c8ba` | tool-round / local-engine-fold-guard | state-structured(ollama format union) | 3/8 | 7/16 | 0 / 1 | rpg.toolround.unparseable×2, rpg.flush.dropped×2, rpg.extraction.empty×1 | 2384 |
+| ollama-gemma4-e4b | cheap | `632f51c8ba` | tool-round / null | state-structured(ollama format union) | 4/8 | 10/16 | 0 / 2 | rpg.toolround.unparseable×1, rpg.flush.dropped×1 | 1696 |
+| ollama-gemma4-e4b | resync | `632f51c8ba` | tool-round / null | state-structured(ollama format union) | 0/1 | 2/5 | 0 / 0 | - | 677 |
+| koboldcpp-gemma-4-e4b | folded | `632f51c8ba` | tool-round / local-engine-fold-guard | state-structured(response_format.json_schema union) | 7/8 | 15/16 | 0 / 0 | - | 5850 |
+| koboldcpp-gemma-4-e4b | cheap | `632f51c8ba` | tool-round / null | state-structured(response_format.json_schema union) | 6/8 | 13/16 | 0 / 0 | - | 3302 |
+| koboldcpp-gemma-4-e4b | resync | `632f51c8ba` | tool-round / null | state-structured(response_format.json_schema union) | 1/1 | 5/5 | 0 / 0 | - | 3164 |
+| ollama-gemma4-e4b-window16k | folded | `632f51c8ba` | tool-round / local-engine-fold-guard | state-structured(ollama format union) | 6/8 | 12/16 | 0 / 0 | - | 2438 |
+| ollama-gemma4-e4b-window16k | cheap | `632f51c8ba` | tool-round / null | state-structured(ollama format union) | 7/8 | 15/16 | 0 / 0 | - | 1646 |
+| ollama-gemma4-e4b-window16k | resync | `632f51c8ba` | tool-round / null | state-structured(ollama format union) | 1/1 | 5/5 | 0 / 0 | - | 1745 |
+| llamacpp-gemma-4-e4b | folded | `28ff5ad5fc` | tool-round / local-engine-fold-guard | state-tools(tool_choice "required") | 7/8 | 15/16 | 0 / 0 | rpg.extraction.stripped×1 | 9138 |
+| llamacpp-gemma-4-e4b | cheap | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice "required") | 7/8 | 15/16 | 0 / 1 | update_scene:salvaged×2, rpg.extraction.unparseable×2, rpg.extraction.empty×1 | 15589 |
+| llamacpp-gemma-4-e4b | resync | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice "required") | 0/1 | 4/5 | 0 / 0 | rpg.extraction.empty×1 | 7959 |
+| llamacpp-gemma-4-e4b-structured | cheap | `632f51c8ba` | tool-round / null | state-structured(response_format.json_schema union) | 7/8 | 15/16 | 0 / 0 | - | 3219 |
+| llamacpp-gemma-4-e4b-structured | resync | `632f51c8ba` | tool-round / null | state-structured(response_format.json_schema union) | 1/1 | 5/5 | 0 / 0 | - | 3031 |
+| vllm-qwen3.8-27b-structured | cheap | `632f51c8ba` | tool-round / null | state-structured(response_format.json_schema union) | 7/8 | 14/16 | 0 / 0 | - | 10573 |
+| vllm-qwen3.8-27b-structured | resync | `632f51c8ba` | tool-round / null | state-structured(response_format.json_schema union) | 1/1 | 5/5 | 0 / 0 | - | 8442 |
+| anthropic-claude-sonnet-5-5 | folded | `28ff5ad5fc` | folded / null | folded (co-emitted on the character turn) | 8/8 | 16/16 | 0 / 0 | rpg.extraction.empty×1 | - |
+| anthropic-claude-sonnet-5-5 | cheap | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice {"type":"auto"}) | 8/8 | 16/16 | 0 / 1 | - | 4082 |
+| anthropic-claude-sonnet-5-5 | resync | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice {"type":"auto"}) | 1/1 | 5/5 | 0 / 0 | - | 6890 |
+| anthropic-claude-sonnet-5-5-structured | cheap | `632f51c8ba` | tool-round / null | state-structured(output_config.format patch) | 8/8 | 16/16 | 0 / 3 | update_scene:salvaged×1, rpg.extraction.unparseable×1 | 5272 |
+| openrouter-claude-sonnet-5.5 | folded | `28ff5ad5fc` | folded / null | folded (co-emitted on the character turn) | 8/8 | 16/16 | 0 / 0 | rpg.extraction.empty×1 | - |
+| openrouter-claude-sonnet-5.5 | cheap | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice "auto") | 8/8 | 16/16 | 0 / 2 | - | 4387 |
+| openrouter-claude-sonnet-5.5 | resync | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice "auto") | 1/1 | 5/5 | 0 / 0 | - | 6242 |
+| openrouter-claude-sonnet-4.6 | folded | `28ff5ad5fc` | folded / null | folded (co-emitted on the character turn) | 5/8 | 11/16 | 0 / 0 | - | - |
+| openrouter-claude-sonnet-4.6 | cheap | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice "required") | 7/8 | 15/16 | 0 / 2 | update_scene:salvaged×1, rpg.extraction.unparseable×1 | 10817 |
+| openrouter-claude-sonnet-4.6 | resync | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice "required") | 1/1 | 5/5 | 0 / 0 | - | 9709 |
+| openai-gpt-5.5 | folded | `28ff5ad5fc` | folded / null | folded (co-emitted on the character turn) | 8/8 | 16/16 | 0 / 0 | rpg.extraction.empty×1 | - |
+| openai-gpt-5.5 | cheap | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice "required") | 8/8 | 16/16 | 0 / 0 | rpg.extraction.empty×1 | 2901 |
+| openai-gpt-5.5 | resync | `28ff5ad5fc` | tool-round / null | state-tools(tool_choice "required") | 1/1 | 5/5 | 0 / 0 | - | 2498 |
+| koboldcpp-gemma-4-e4b-structured-unavailable | cheap | `632f51c8ba` | tool-round / null + structuredUnavailable | state-tools(tool_choice "auto") | 6/8 | 13/16 | 0 / 1 | rpg.toolround.vehicle_fallback×8, rpg.extraction.empty×1 | 4056 |
 | gemini-3.8-flash | all | - | pending: quota, item 0527 | - | - | - | - | - | - |
 
 Notes on the table:
@@ -98,7 +98,7 @@ Notes on the table:
 - A `rpg.extraction.empty` on the quiet beat is the correct outcome and is left out of the issues column.
 - The resync runs on the cheap game after its eight turns, so it checks that a rebuild leaves the story's end state.
 
-## Baseline: the structured cells before the fixes (`7082f1ecbe`)
+## Baseline: the structured cells before the fixes (`28ff5ad5fc`)
 
 Kept for comparison. The tool cells did not rerun: the fixes touch the panel and the shared scene fold, and tool
 rounds split the scene once in 112 rounds with no field lost.
@@ -125,7 +125,7 @@ rounds split the scene once in 112 rounds with no field lost.
 The KoboldCpp row with `output.structured: false` declared and the knob on `structured` runs the round as tool calls
 (`tool_choice: auto`; KoboldCpp forces nothing). Every turn logs `rpg.toolround.vehicle_fallback` with
 `code: "structured-unavailable"`, and the panel reports `effectiveDelivery.structuredUnavailable: true` beside the
-fold reason (`ece4c571c7` shows both reasons). Measured on `ea8af82ffa`.
+fold reason (`af742f57af` shows both reasons). Measured on `632f51c8ba`.
 
 ## Swipes: state is stored per variant
 
@@ -143,7 +143,7 @@ location, and where KoboldCpp's D removed the rope itself, the rope is correctly
 - (d) regenerating N+1 builds on the same state, drops the regenerated sibling's writes, and switching back restores
   the sibling exactly.
 
-All 48 checks pass on all six cells, on `ea8af82ffa`. No mismatch, so no defect.
+All 48 checks pass on all six cells, on `632f51c8ba`. No mismatch, so no defect.
 
 #### vllm-qwen3.8-27b swipes
 

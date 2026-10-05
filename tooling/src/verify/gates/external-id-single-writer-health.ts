@@ -37,10 +37,10 @@
 // suppression vocabulary for a dead carve-out or a broken caller either (its `finalize` unconditionally
 // reported), so `hard` preserves rather than escalates the legacy behavior.
 // COMMENT POSTURE: comment-SAFE — pure node-kind subscription, no file text is matched.
-// LEGACY SHA: (35bf7d328^) — the parent of the commit that split this policy out. Note what that sentence
+// LEGACY SHA: (70fbc2ea6d^) — the parent of the commit that split this policy out. Note what that sentence
 // is doing, because it is the `contract-banned-shapes` shape and not a mis-assignment: THIS FILE DOES NOT
-// EXIST AT THE CITED SHA. It was BORN FINAL at `35bf7d328` (`git show 35bf7d328^:<this file>` refuses with
-// "exists on disk, but not in 35bf7d328^" — that refusal is the receipt), so the sha names the LEGACY
+// EXIST AT THE CITED SHA. It was BORN FINAL at `70fbc2ea6d` (`git show 70fbc2ea6d^:<this file>` refuses with
+// "exists on disk, but not in 70fbc2ea6d^" — that refusal is the receipt), so the sha names the LEGACY
 // MODULE this half was split out of, never this file's own predecessor.
 // POPULATION PORT: INHERITED, not ported. This half never had a legacy population of its own; it declares
 // `@server` because its occurrence sibling does, and the two MUST be identical — a two-sided ratchet is
@@ -49,16 +49,16 @@
 // `external-id-single-writer.ts`.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `external-id-single-writer` descriptor at 9377887c0edb28a63931b57f697b0c1596d5aa72, the parent of the conversion
-// `35bf7d328`; this module did not exist there, so it is measured against the module it was carved from,
+// `external-id-single-writer` descriptor at 23644bc7ab1bb939f53724bd919cc2c10be16b58, the parent of the conversion
+// `70fbc2ea6d`; this module did not exist there, so it is measured against the module it was carved from,
 // `external-id-single-writer` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
 // Over the SAME 7,356 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
 // legacy `scanRoot` admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅.
 // Controls: inside `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside
 // `packages/client/src/agent-handles/__cbbhr_out_index.ts` (virtual) rejected by both.
 // CONVERSION-COMMIT PORT (verifier cb-v-header-residue L5): the figures above resolve TODAY'S declaration. The split
-// `35bf7d328` itself declared `@backend`: legacy 1,493 vs final 1,640, legacy − final = ∅, final − legacy = 147
-// (`packages/contracts/src` 105, `packages/db/src` 42). Later change, recorded separately: `841d080a9` (#1937)
+// `70fbc2ea6d` itself declared `@backend`: legacy 1,493 vs final 1,640, legacy − final = ∅, final − legacy = 147
+// (`packages/contracts/src` 105, `packages/db/src` 42). Later change, recorded separately: `e75a2bf351` (#1937)
 // reverted it to `@server`, which gives the ∅/∅ above.
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";

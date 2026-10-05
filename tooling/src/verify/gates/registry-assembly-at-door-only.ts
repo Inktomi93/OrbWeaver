@@ -28,14 +28,14 @@
 // resolves a factory callee's identity to the registry home — so the string named a topic, not a shared
 // computation (standardization §2). Nothing else judges where a registry is assembled.
 // POPULATION PORT: an INTENTIONAL CORRECTION, stated above. The legacy `scanRoot:
-// (p) => p.startsWith("packages/client/src/")` (68c8f42d6) becomes `@client` MINUS the door, because the
+// (p) => p.startsWith("packages/client/src/")` (c2b5253308) becomes `@client` MINUS the door, because the
 // door is a structural class the law itself names and carrying it as a run-time check would have kept the
 // composition root inside a population it can never legally violate.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `registry-assembly-at-door-only` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the
-// conversion `4885cde80` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
-// `68c8f42d6` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// `registry-assembly-at-door-only` descriptor at f4b6d0cbae5e9351b180b7079da5339b02820284, the parent of the
+// conversion `493fdbedae` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `c2b5253308` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,263 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,313 and final `population` admits 1,308.
 // legacy − final = 5 — `packages/client/src/main.tsx` and the four `compose/` modules: the door, moved from the

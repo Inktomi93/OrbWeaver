@@ -16,19 +16,19 @@
 // never` arm is pure syntax off the visited node.
 //
 // POPULATION PORT: an intentional NARROWING, the same one its two cast siblings took in the same commit. The
-// legacy descriptor (`1ee6bb982^:tooling/src/verify/gates/no-loose-id-cast.ts`) SUBTRACTED rather than
+// legacy descriptor (`52b33fc581^:tooling/src/verify/gates/no-loose-id-cast.ts`) SUBTRACTED rather than
 // selected — `scanRoot: (p) => !(p.includes("tests/") || p.includes("tools/") || p.includes("scripts/") ||
 // TEST_FILE_REGEX.test(p))` — so it also judged `tooling/src`, which `@packages` does not. The surviving half
 // of that subtraction is stated positively by the `tests are outside this policy population` mustPass row.
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "an intentional NARROWING" states one
-// direction of a port that moves in BOTH. Measured over the harness candidates at `1ee6bb982^`: legacy − final = 986
+// direction of a port that moves in BOTH. Measured over the harness candidates at `52b33fc581^`: legacy − final = 986
 // `tooling/src` paths plus `packages/showcase-plugins/src/index.ts` (the narrowing stated), and final − legacy = 13
 // production server files the legacy SUBSTRING subtraction wrongly excluded — `domain/regex/verbs/scripts/*` (10,
 // matched `scripts/`) and `domain/rpg/tools/*` (3, matched `tools/`). That widening was unrecorded; it repairs a
 // legacy blind spot.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-loose-id-cast` descriptor at d10462449bb3b00307033eece47312f45455ca74, the parent of the conversion `1ee6bb982`
+// `no-loose-id-cast` descriptor at d59c504cd27d0a185f3bf1ef1b9c6bd10e88e4c8, the parent of the conversion `52b33fc581`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,132 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 4,324
 // and final `population` admits 3,350. legacy − final = 987 — `tooling/src/**` (986), which the legacy SUBTRACTING

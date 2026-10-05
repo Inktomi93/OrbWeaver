@@ -47,8 +47,8 @@
 //
 // THE FAMILY'S POPULATION PORT IS DERIVED ONCE HERE (§5b.5), so the three call-shape members cite one
 // measurement instead of copying it three times — the `DRIZZLE_SCHEMA_POPULATION` precedent, which this
-// family's fourth member consumes directly. All four converted in ONE commit, `b54b2c34e`, so the legacy
-// sha is its parent `40223a0915eda72dd8ab35fbdeaf9e9892089717` for every member.
+// family's fourth member consumes directly. All four converted in ONE commit, `5e6b7d09df`, so the legacy
+// sha is its parent `04978142566ff3412b204f73d849f0b9bf301154` for every member.
 //   `owner-scoped-{reads,writes,upserts}`: legacy `scanRoot: (p) => p.includes("packages/server/src/")`
 //   becomes `@server`, which IS `packages/server/src/` — the same set. The only difference is that
 //   `includes(` matched the segment ANYWHERE in a path while the population root is ANCHORED at its start,

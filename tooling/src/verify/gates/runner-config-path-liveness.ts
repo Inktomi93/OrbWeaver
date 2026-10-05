@@ -2,7 +2,7 @@
 // (`include`/`exclude`/`testDir`/`globalSetup` in vitest.config.ts + the two playwright configs) names ONE
 // tree node, and a runner NEVER complains when it names nothing: vitest silently drops a non-matching
 // include/exclude entry. #1018's founding defect: `tests/tooling/ast-observability.int.test.ts` moved in
-// 8931a886c and vitest.config.ts's SERIAL_INT row was not repointed, so the row matched NOTHING for months
+// 07a2b1f776 and vitest.config.ts's SERIAL_INT row was not repointed, so the row matched NOTHING for months
 // and the heaviest file in the repo (17.6 min) ran in the PARALLEL lane — the load bomb that row exists to
 // prevent. This is eslint-grant-liveness's shape on the RUNNER configs, which are CODE: kind globs and named
 // selector arrays hide behind imports, calls and spreads, so a bare-StringLiteral reader finds almost

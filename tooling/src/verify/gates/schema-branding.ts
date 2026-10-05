@@ -4,14 +4,14 @@
 // FAMILY `drizzle-schema` — the shared reader is `lib/schema-fact.ts` (`drizzleSchemaFact`), which owns
 // Drizzle builder identity, the table/column model and the `$type<XId>()` override this policy judges.
 // POPULATION PORT: an INTENTIONAL NARROWING OF THE WALKED SET over an IDENTICAL subject set. The legacy
-// descriptor (fa56128359a0a5e107d1dde042dfe5c95001ec2f, the parent of the `32b66931e` conversion) declared
+// descriptor (dd1a0458822222d84f1d0157bde55a3346288375, the parent of the `7d66188923` conversion) declared
 // `scopeSafety: "whole-project"` with NO `scanRoot` and filtered in-run on `path.includes(SCHEMA_DIR)`
 // (`/packages/db/src/schema/`), so it loaded the whole harness project to judge one directory. The final
 // declares the PROVIDER'S OWN `DRIZZLE_SCHEMA_POPULATION`, whose admitted set is that same directory —
 // recorded once at that constant in `lib/schema-fact.ts`, with its one-path delta and positive control.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `schema-branding` descriptor at fa56128359a0a5e107d1dde042dfe5c95001ec2f, the parent of the conversion `32b66931e`
+// `schema-branding` descriptor at dd1a0458822222d84f1d0157bde55a3346288375, the parent of the conversion `7d66188923`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy descriptor had no
 // `scanRoot`, so its effective population is its in-run path filter — collectColumns:
 // `if (!path.includes(SCHEMA_DIR)) continue` with SCHEMA_DIR = "/packages/db/src/schema/". Over the SAME 7,130

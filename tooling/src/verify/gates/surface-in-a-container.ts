@@ -13,7 +13,7 @@
 // see (guide §2.1, the `caught-failure.ts` shared-anchor payoff).
 //
 // POPULATION PORT: `@client` under `packages/client/src/features/*/surfaces/**` and
-// `packages/client/src/features/*/anchors/**`, `tsx` only, MINUS the app-shell feature. LEGACY at 854c81c80:
+// `packages/client/src/features/*/anchors/**`, `tsx` only, MINUS the app-shell feature. LEGACY at (pruned from public history):
 // `scopeSafety: "whole-project"` with no `scanRoot`, filtered inside `run` by
 // `FEATURE_FILE_RE = /^packages\/client\/src\/features\/([^/]+)\/(surfaces|anchors)\/[^/]+\.tsx$/u`, then
 // `if (SHELL_EXEMPT.has(feature)) continue;` with `SHELL_EXEMPT = new Set(["app-shell"])`. The two `under`
@@ -65,8 +65,8 @@
 // (`mustPass[4]`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `surface-in-a-container` descriptor at fc5cad14c0f060ce35d257d96955d778e756d605, the parent of the conversion
-// `ff07e1302` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `854c81c80`
+// `surface-in-a-container` descriptor at (pruned from public history), the parent of the conversion
+// `222bd23712` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — scan: `FEATURE_FILE_RE = /^packages\/client\/src\/features\/([^/]+)\/(surfaces|anchors)\/[^/]+\.tsx$/`

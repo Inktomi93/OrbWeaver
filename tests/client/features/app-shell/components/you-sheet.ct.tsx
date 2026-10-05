@@ -33,7 +33,7 @@ test('a topbar.trail widget curated `mobile:"sheet"` projects into the sheet, in
 // could be listed twice or not at all. It is now the same `topbar.trail` entry the desktop trail renders,
 // curated `mobile: "sheet"`, and the sheet's rule is stated in terms of KIND: a ROW-shaped overflow entry
 // (modal/section) joins the row group; a WIDGET renders its own `body("sheet")` lens in the block below.
-// RED on 43ae0481a: the lookup and the projection both fired, so "Jump to…" resolved to TWO rows.
+// RED on (pruned from public history): the lookup and the projection both fired, so "Jump to…" resolved to TWO rows.
 test("a topbar.trail MODAL curated for the sheet is ONE row, and it joins the row group", async ({ mount }) => {
   const sheet = await mount(<YouSheetProjectionStory />);
   const group = sheet.getByRole("group", { name: "Account and settings" });

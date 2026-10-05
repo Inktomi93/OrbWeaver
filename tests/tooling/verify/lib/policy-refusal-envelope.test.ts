@@ -303,7 +303,7 @@ test("the context-door sentences the envelope carries are the text the LIVE cont
 const DISPATCHER_MODULES = POLICY_REFUSAL_EMITTERS;
 // THE CENSUS SCOPE IS WIDER THAN THE EMITTER ROSTER (#2497). A module can RAISE refusals while COMPOSING
 // none — `policy-pass-context-receipts.ts` is exactly that, five caller/programmer invariants carried out of
-// `policy-pass-context.ts` by the 32858021c split. It fails the emitter predicate, so scoping the invariant
+// `policy-pass-context.ts` by the b748ea7eb9 split. It fails the emitter predicate, so scoping the invariant
 // census to the roster alone silently DROPPED those five declared sentences from measurement while
 // `DISPATCHER_INVARIANTS` went on declaring them. Both lists are held two-sided below.
 const CENSUS_MODULES: readonly string[] = [...POLICY_REFUSAL_EMITTERS, ...POLICY_REFUSAL_INVARIANT_ONLY];
@@ -516,7 +516,7 @@ const COMPOSITION_FRAGMENTS: readonly string[] = [
   " candidate(s)",
   " is ",
   "authored text ",
-  // `resource-policy.ts#candidateIndexDelta` (f5030b149), the one label added since the census was written.
+  // `resource-policy.ts#candidateIndexDelta` (dbbe942c7c), the one label added since the census was written.
   "candidate index path ",
   "fact ",
   "members",
@@ -629,7 +629,7 @@ function unaccountedRefusals(sourceFile: SourceFile): readonly string[] {
  *  envelope would refuse rows for text the runtime never shows a policy author. Declared here, held two-sided by
  *  the test below, over all five emitters. */
 const DISPATCHER_INVARIANTS: readonly string[] = [
-  // TWINNED BY THE 32858021c SPLIT (#2497): `policy-pass-context.ts` and `policy-pass-context-receipts.ts`
+  // TWINNED BY THE b748ea7eb9 SPLIT (#2497): `policy-pass-context.ts` and `policy-pass-context-receipts.ts`
   // each keep their own scalar-shape guard, so these two sentences are raised at two SITES. This census is
   // per site, not per sentence — collapsing the duplicates here would stop it seeing one of the two go away.
   "… cannot author …",

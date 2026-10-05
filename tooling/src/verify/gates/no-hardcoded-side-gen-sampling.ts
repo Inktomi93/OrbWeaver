@@ -10,14 +10,14 @@
 // nothing else in the corpus computes. It consumes `_shared/reference-fact.ts` (static numbers, module origin)
 // and `lib/property-assignment-name.ts`; a shared reader is not a family (guide §2).
 //
-// POPULATION PORT: byte-identical, legacy at `0d83d99f1^` — that `scanRoot` admitted
+// POPULATION PORT: byte-identical, legacy at `02536f2f07^` — that `scanRoot` admitted
 // `packages/server/src/domain/**` and `packages/server/src/entry/**` minus every `*.test.ts`/`*.test.tsx`
 // basename, with `infra/` deliberately outside. The final `SIDE_GEN_POPULATION` is that set, and BOTH of its
 // clauses now own a mustPass row (the `infra/` wire translator, and a co-located spec).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-hardcoded-side-gen-sampling` descriptor at ef22519578607c76a03196f343fb025520c796a5, the parent of the
-// conversion `0d83d99f1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// `no-hardcoded-side-gen-sampling` descriptor at 4561cb18c483c15b9fc1dfed78777f70bbd958cb, the parent of the
+// conversion `02536f2f07` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,229 and final `population` admits 1,229. legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside

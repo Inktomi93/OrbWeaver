@@ -46,14 +46,14 @@
 // `WRITE_POPULATION` (the same constant, not a copy of its value) precisely so the guarded writer set
 // cannot differ between the halves; the port of that constant, including the one-package narrowing and its
 // measurement, is recorded once beside the constant in `lib/freeze-provenance.ts`.
-// LEGACY SHA: NONE, and none is possible. This module was BORN FINAL at `5c17068b7`, the commit that split
-// it out of the occurrence policy — `git show 5c17068b7^:<this file>` refuses with "exists on disk, but not
-// in 5c17068b7^", and that refusal is the receipt (the `scrubber-factory-home` precedent). The occurrence
-// half cites `5c17068b7^` for the legacy module both came from.
+// LEGACY SHA: NONE, and none is possible. This module was BORN FINAL at `fbf9d22893`, the commit that split
+// it out of the occurrence policy — `git show fbf9d22893^:<this file>` refuses with "exists on disk, but not
+// in fbf9d22893^", and that refusal is the receipt (the `scrubber-factory-home` precedent). The occurrence
+// half cites `fbf9d22893^` for the legacy module both came from.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `freeze-provenance-write-pairing` descriptor at ef334c050af962f304d72e0295f7d15d3a5aacd4, the parent of the
-// conversion `5c17068b7`; this module did not exist there, so it is measured against the module it was carved from,
+// `freeze-provenance-write-pairing` descriptor at (pruned from public history), the parent of the
+// conversion `fbf9d22893`; this module did not exist there, so it is measured against the module it was carved from,
 // `freeze-provenance-write-pairing` (blob read from git with no working-tree plant: a `GateDescriptor`, no
 // `defineGate`). Over the SAME 7,388 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,387 and final `population` admits 3,386.

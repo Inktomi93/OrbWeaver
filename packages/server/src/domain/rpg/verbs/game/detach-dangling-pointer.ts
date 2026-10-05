@@ -1,6 +1,6 @@
 // domain/rpg/verbs/game/detach-dangling-pointer — the dangling-pointer HEAL (fork-clones-the-game §3.3). A
 // chat's `metadata.rpg` pointer can point at a game row that no longer exists: a pre-fix fork (made before
-// W-F cloned the game / the `8306a2b9` stopgap), or any future desync where the game vanished but the pointer
+// W-F cloned the game / the `03c60fae63` stopgap), or any future desync where the game vanished but the pointer
 // stayed. That dangle makes `getGame`/`getTrackerView` 404 and the panel/header crash. This verb nulls the
 // stale pointer via the widened `ctx.setPointer(chatId, null)`, self-healing the chat to a plain chat.
 //

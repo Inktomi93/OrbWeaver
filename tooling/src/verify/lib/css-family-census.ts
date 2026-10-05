@@ -10,7 +10,7 @@
 //   * the read is `ctx.resources.cssInventory("product")`, the closed `product-css` identity;
 //   * the direct-`@theme` question is `AuthoredCssFile.atRules` — `CssAtRule.declarations` is *declarations
 //     authored directly in this block; nested rules/at-rules are separate parser facts*, which is the exact
-//     predicate the hand parser existed to supply. MEASURED BYTE-IDENTICAL on the real tree at `1692583d6`:
+//     predicate the hand parser existed to supply. MEASURED BYTE-IDENTICAL on the real tree at `(pruned from public history)`:
 //     the shared parser reports 203 direct `@theme` declarations (all custom properties) against the hand
 //     parser's 203, and 109 rule declarations against the fixture's `themeRules: 109`.
 //

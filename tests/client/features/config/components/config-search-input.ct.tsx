@@ -303,7 +303,7 @@ test("nothing modified ⇒ no marks anywhere, and @modified is an honest empty",
 //     were not in the audited DOM at all. The one 40px tap-target population in that run is three
 //     `[aria-label="Theme actions: …"]` theme-row menus, which is a different element and its own row.
 // The `@orb/ui` Command primitive has carried `pointer-coarse:h-touch-target` on its input wrapper since
-// 275c0e40d and pins it in `tests/ui/primitives/command/command.ct.tsx`. What is NOT pinned anywhere else,
+// f42816f1f6 and pins it in `tests/ui/primitives/command/command.ct.tsx`. What is NOT pinned anywhere else,
 // and is why this arm is worth keeping: that the floor SURVIVES THIS CONSUMER'S MOUNT. The search block is
 // a plain flex child of the LIST's `h-full min-h-0 overflow-y-auto` column with no `shrink-0`, and the
 // Command root carries `overflow-hidden` — the pair that disables a flex item's automatic content-based

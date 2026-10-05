@@ -168,8 +168,8 @@ function forkVariantValues(args: {
     // served only on the host-gated variant wire view, never on `MessageView`). The receive transforms exist
     // partly to STRIP (a host regex can remove hidden material), so the raw is by definition PRE-strip bytes:
     // copying it forward hands a non-host forker exactly what the strip removed. LIVE, not dormant: the D129-F
-    // writers landed in `c197ce01b` (the user send's pre-transform text, `turn.ts`; the volatile-macro freeze on
-    // commit, `freezeVariantContentStatement`) and `16bb934a1` made every non-freeze content write CLEAR the
+    // writers landed in `7512e842e3` (the user send's pre-transform text, `turn.ts`; the volatile-macro freeze on
+    // commit, `freezeVariantContentStatement`) and `a2225f9e20` made every non-freeze content write CLEAR the
     // pair — so real rows carry these bytes and this strip is load-bearing on every member→host fork today.
     rawContent: hostPlane(variant.rawContent),
     macroFreezes: hostPlane(variant.macroFreezes),

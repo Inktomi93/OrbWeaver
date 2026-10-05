@@ -24,7 +24,7 @@
 // generator. The `AmbientSource` tuples differ; the judgement does not.
 // POPULATION PORT: intentional correction, stated — the legacy NEGATIVE fence is re-expressed as a POSITIVE
 // root list. The legacy descriptor admitted everything EXCEPT `.test.` / `tests/` / `scripts/` / `tools/` /
-// `tooling/` (`9808b93c0^:30-40`), i.e. an open-ended complement whose admitted set was whatever else the
+// `tooling/` (`b5acbf2594^:30-40`), i.e. an open-ended complement whose admitted set was whatever else the
 // candidate walk offered. The final population is `{ in: ["@packages"], notNamed: ["*.test.*"] }`, which
 // states the same intent as an ADMISSION: the six workspace package sources minus test files. The two
 // differ only where the legacy complement would have admitted a path outside `packages/*/src` — the repo

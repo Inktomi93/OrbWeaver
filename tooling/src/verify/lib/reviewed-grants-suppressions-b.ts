@@ -8,7 +8,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/style/useShorthandFunctionType",
     operation: "source",
-    why: "RULING — the shorthand `export type X = (…) => …` trips the house `no-inline-types` gate outside a contract home — two house rules collide and the gate wins (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 4 live site(s) under governed source at conversion.)",
+    why: "RULING — the shorthand `export type X = (…) => …` trips the house `no-inline-types` gate outside a contract home — two house rules collide and the gate wins (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 4 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `lint/style/useShorthandFunctionType` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -17,7 +17,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/noArrayIndexKey",
     operation: "source",
-    why: "RULING — positional identity — the index IS the row's identity in a snapshot nothing reorders mid-list (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 24 live site(s) under governed source at conversion.)",
+    why: "RULING — positional identity — the index IS the row's identity in a snapshot nothing reorders mid-list (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 24 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `lint/suspicious/noArrayIndexKey` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -26,7 +26,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/noBitwiseOperators",
     operation: "source",
-    why: "RULING — byte codecs (PNG/CRC) are DEFINED in bitwise terms — the operators are the specification (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 22 live site(s) under governed source at conversion.)",
+    why: "RULING — byte codecs (PNG/CRC) are DEFINED in bitwise terms — the operators are the specification (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 22 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `lint/suspicious/noBitwiseOperators` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -35,7 +35,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/noControlCharactersInRegex",
     operation: "source",
-    why: "RULING — the regex exists to STRIP control characters — naming them is the function (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 2 live site(s) under governed source at conversion.)",
+    why: "RULING — the regex exists to STRIP control characters — naming them is the function (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 2 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `lint/suspicious/noControlCharactersInRegex` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -44,7 +44,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/noDeprecatedImports",
     operation: "source",
-    why: "RULING — the vendor deprecates an overload we do not use; the supported form is what the call site spells (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 10 live site(s) under governed source at conversion.)",
+    why: "RULING — the vendor deprecates an overload we do not use; the supported form is what the call site spells (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 10 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `lint/suspicious/noDeprecatedImports` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -53,7 +53,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/noExplicitAny",
     operation: "source",
-    why: "RULING — type-extraction-only instantiation of a vendor's own generic escape hatch — never a runtime value, never reaches app logic (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 15 live site(s) under governed source at conversion.)",
+    why: "RULING — type-extraction-only instantiation of a vendor's own generic escape hatch — never a runtime value, never reaches app logic (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 15 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `lint/suspicious/noExplicitAny` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -62,7 +62,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/noTemplateCurlyInString",
     operation: "source",
-    why: "TOOL FALSE POSITIVE — gate self-proof strings intentionally carry template-literal source text for the synthetic project to parse (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 9 live site(s) under governed source at conversion.)",
+    why: "TOOL FALSE POSITIVE — gate self-proof strings intentionally carry template-literal source text for the synthetic project to parse (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 9 live site(s) under governed source at conversion.)",
     endsWhen:
       "the analyzer stops mis-reading this shape — an upgrade whose `lint/suspicious/noTemplateCurlyInString` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -71,7 +71,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/suspicious/noUnnecessaryConditions",
     operation: "source",
-    why: "TOOL FALSE POSITIVE — biome's type service cannot see through the cross-package zod-union inference, so a live runtime branch reads as unreachable (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 19 live site(s) under governed source at conversion.)",
+    why: "TOOL FALSE POSITIVE — biome's type service cannot see through the cross-package zod-union inference, so a live runtime branch reads as unreachable (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 19 live site(s) under governed source at conversion.)",
     endsWhen:
       "the analyzer stops mis-reading this shape — an upgrade whose `lint/suspicious/noUnnecessaryConditions` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -80,7 +80,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "react-hooks/exhaustive-deps",
     operation: "source",
-    why: "TOOL FALSE POSITIVE — the eslint twin of the value-keyed deps ruling above — same site, same reason (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 2 live site(s) under governed source at conversion.)",
+    why: "TOOL FALSE POSITIVE — the eslint twin of the value-keyed deps ruling above — same site, same reason (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 2 live site(s) under governed source at conversion.)",
     endsWhen:
       "the analyzer stops mis-reading this shape — an upgrade whose `react-hooks/exhaustive-deps` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -89,7 +89,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "react-you-might-not-need-an-effect/no-derived-state",
     operation: "source",
-    why: "RULING — not derivable in render — it runs only once the bus echo CONFIRMS the row is gone from the roster (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 1 live site(s) under governed source at conversion.)",
+    why: "RULING — not derivable in render — it runs only once the bus echo CONFIRMS the row is gone from the roster (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 1 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `react-you-might-not-need-an-effect/no-derived-state` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -98,7 +98,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "react-you-might-not-need-an-effect/no-external-store-subscription",
     operation: "source",
-    why: "RULING — the subscription drives an IMPERATIVE flush (jump the reveal cursor), not a state mirror (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 1 live site(s) under governed source at conversion.)",
+    why: "RULING — the subscription drives an IMPERATIVE flush (jump the reveal cursor), not a state mirror (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 1 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `react-you-might-not-need-an-effect/no-external-store-subscription` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -107,7 +107,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "@ts-expect-error",
     operation: "source",
-    why: "RULING — probe-only compatibility seams intentionally import untyped JS or browser-virtual modules whose runtime shape is asserted immediately after the directive (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 5 live site(s) under governed source at conversion.)",
+    why: "RULING — probe-only compatibility seams intentionally import untyped JS or browser-virtual modules whose runtime shape is asserted immediately after the directive (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 5 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `@ts-expect-error` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -116,7 +116,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "@typescript-eslint/no-unnecessary-condition",
     operation: "source",
-    why: "TOOL FALSE POSITIVE — the lib type is wider than the runtime value (JSON.stringify(undefined) is `undefined` despite a `string` signature) (Carried VERBATIM from the legacy RATIFIED_RULES table at 02382639e; 5 live site(s) under governed source at conversion.)",
+    why: "TOOL FALSE POSITIVE — the lib type is wider than the runtime value (JSON.stringify(undefined) is `undefined` despite a `string` signature) (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 5 live site(s) under governed source at conversion.)",
     endsWhen:
       "the analyzer stops mis-reading this shape — an upgrade whose `@typescript-eslint/no-unnecessary-condition` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -177,7 +177,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/style/noProcessEnv",
     operation: "tests",
-    why: "RULING — the test's SUBJECT is the env boundary — it crafts `process.env` to drive the sole env reader, or reads ONE opt-in gate flag for a hardware-gated suite; there is no other seam to drive (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 02382639e; 32 live site(s) under governed tests at conversion.)",
+    why: "RULING — the test's SUBJECT is the env boundary — it crafts `process.env` to drive the sole env reader, or reads ONE opt-in gate flag for a hardware-gated suite; there is no other seam to drive (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 65aa7f4743; 32 live site(s) under governed tests at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed tests site under `lint/style/noProcessEnv` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -195,7 +195,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "lint/style/useThrowOnlyError",
     operation: "tests",
-    why: "RULING — a DEPENDENCY's non-Error throw is the test's SUBJECT — the arm proves the app's error path (policied 500, request id, ring entry) holds when foreign code throws a string; our own code obeys the rule and the fixture is the instrument, never a value the code under test owns (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 02382639e; 1 live site(s) under governed tests at conversion.)",
+    why: "RULING — a DEPENDENCY's non-Error throw is the test's SUBJECT — the arm proves the app's error path (policied 500, request id, ring entry) holds when foreign code throws a string; our own code obeys the rule and the fixture is the instrument, never a value the code under test owns (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 65aa7f4743; 1 live site(s) under governed tests at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed tests site under `lint/style/useThrowOnlyError` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
@@ -263,7 +263,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "@ts-expect-error",
     operation: "tests",
-    why: "RULING — a type-level NEGATIVE pin (`.test-d` and inline): the directive IS the assertion that the type refuses the shape, and tsc reds the day it stops; plus an untyped `.cjs` config import whose shape is asserted immediately after (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 02382639e; 52 live site(s) under governed tests at conversion.)",
+    why: "RULING — a type-level NEGATIVE pin (`.test-d` and inline): the directive IS the assertion that the type refuses the shape, and tsc reds the day it stops; plus an untyped `.cjs` config import whose shape is asserted immediately after (Carried VERBATIM from the legacy RATIFIED_TEST_RULES table at 65aa7f4743; 52 live site(s) under governed tests at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed tests site under `@ts-expect-error` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },

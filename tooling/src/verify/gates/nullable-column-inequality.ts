@@ -11,13 +11,13 @@
 // policy's own rather than the provider's, because the SUBJECT is a query anywhere in the cake while the
 // FACT is the schema directory — the derivation and its measured delta are at
 // `NULLABLE_INEQUALITY_POPULATION` below.
-// The legacy `nullable-column-inequality` descriptor is 521780ac67160db90e8ff0a0bab4fad850443c6c, the
-// PARENT of this module's own conversion commit `66d28b127` (verified 2026-09-12 to hold a
+// The legacy `nullable-column-inequality` descriptor is 229652060f634f7172e9238af3ccc7064e4345b9, the
+// PARENT of this module's own conversion commit `311379083c` (verified 2026-09-12 to hold a
 // `GateDescriptor` carrying the `scanRoot` quoted at that population constant).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `nullable-column-inequality` descriptor at 521780ac67160db90e8ff0a0bab4fad850443c6c, the parent of the conversion
-// `66d28b127` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `nullable-column-inequality` descriptor at 229652060f634f7172e9238af3ccc7064e4345b9, the parent of the conversion
+// `311379083c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,141 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 6,114 and final `population` admits 6,113. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
 // one source of an authored package outside the declared composite roots (`@showcase` is not in

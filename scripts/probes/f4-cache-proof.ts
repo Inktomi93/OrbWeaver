@@ -39,7 +39,7 @@ import { BEFORE_HISTORY_DEPTH } from "../../packages/server/src/domain/chat/asse
 import type { DeliveredCue } from "../../packages/server/src/domain/chat/contract/results.ts";
 import { makeCapability, makeGenerationCapability, makeResolved } from "../../tests/support/factories/resolved-connection.ts";
 
-const BASE_REF = "83a73e291";
+const BASE_REF = "9b99ac912d";
 const HISTORY_BUDGET_PATH = "packages/server/src/domain/chat/assembly/history-budget.ts";
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const REPORT_PATH = `${REPO_ROOT}reports/f4-proof/f4-cache-proof.md`;

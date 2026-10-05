@@ -27,7 +27,7 @@
 // byte-identical (`@tooling`) — the legacy fenced arm H before `capability()` ever ran, which is what keeps
 // test-owned browsers under `tests/**` out of the substrate (§2.1) and out of this population by derivation.
 //
-// Legacy descriptor: `2c1a1d37c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arms B + H). No
+// Legacy descriptor: `bbdccb2d5c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arms B + H). No
 // private marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at conversion.
 import { SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../_shared/reference-fact.ts";

@@ -10,7 +10,7 @@ area: verify
 
 ## What
 
-ct-config-mirror-parity compares configSections and the CT mirror realSettingsSections as multisets, so an order drift (831c43917 put attachments first) passed it and only a CT caught it. Compare each anchor sequence of (anchor, nav.id) too. Separately, config-section-partition.dom.test.ts realDoorSections() is a third hand copy of the door that lacks several sections; import the door or bring it to the full list.
+ct-config-mirror-parity compares configSections and the CT mirror realSettingsSections as multisets, so an order drift (2617d03278 put attachments first) passed it and only a CT caught it. Compare each anchor sequence of (anchor, nav.id) too. Separately, config-section-partition.dom.test.ts realDoorSections() is a third hand copy of the door that lacks several sections; import the door or bring it to the full list.
 
 ## Why
 

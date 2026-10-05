@@ -72,7 +72,7 @@ test("the same drive returns normally once the surface's settle subject is there
 // turn once the virtualizer has measured, which landed AFTER the drive's single scroll and put the one row
 // `dark-name-time-short-bubble` judges ~4100px above the fold; the census then classified a legitimately
 // mounted sample as `offViewport:1` and `pnpm snap --matrix` refused the whole run at that cell (measured
-// on `1bec07baa`, `withheld-rect top=-4097`). The anchor scrolls, re-measures after a settle, and retries.
+// on `124b96f84c`, `withheld-rect top=-4097`). The anchor scrolls, re-measures after a settle, and retries.
 //
 // @instrument-absence-proof: the second arm is the planted control in the other direction — a surface that
 // re-pins FOREVER gets a named refusal carrying the last measured rect, so "anchored" is a real answer

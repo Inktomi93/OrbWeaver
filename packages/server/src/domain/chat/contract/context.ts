@@ -884,7 +884,7 @@ export interface ChatRpgOps {
   /** FORK CLONES THE GAME (fork-clones-the-game §3.2). Called by `forkChat` AFTER its atomic fork batch commits:
    *  rpg re-keys its whole 6-table vertical from the source game onto the fork through the fork's id maps and
    *  writes the fork's `metadata.rpg` pointer LAST (crash safety — a mid-clone failure leaves the fork a valid
-   *  PLAIN chat, the `8306a2b9`/`forkMetadataWithoutGame` stopgap as the structural fallback). The maps ENCODE
+   *  PLAIN chat, the `03c60fae63`/`forkMetadataWithoutGame` stopgap as the structural fallback). The maps ENCODE
    *  the fork horizon: a snapshot/journal row whose variant was not copied (truncated past the fork's `throughSeq`,
    *  or withheld below the forker's D106 join-floor) has no `variantIdMap` entry and is dropped by construction —
    *  no separate horizon param. `forker` drives the host-secret strip: a NON-`readsHidden` forker becomes HOST of

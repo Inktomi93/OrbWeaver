@@ -2,7 +2,7 @@
 // `if` throws) must route through the domain's ONE cited authority chokepoint. Spine invariant #6: `can()`
 // is the only privilege-comparison site.
 //
-// THE TWO CLASSES (ruled 2026-08-03, cross-cited in the code at 22389aff):
+// THE TWO CLASSES (ruled 2026-08-03, cross-cited in the code at 751d2a6cf6):
 // (1) ENFORCEMENT — a role comparison that DECIDES whether an operation may proceed. Its home is the
 //     domain's chokepoint (`domain/chat/substrate/auth/decide.ts`, `domain/rpg/guard.ts`), both of which now
 //     route the verdict through the injected `can()` at `domain/admin/guard.ts`. THIS is what the gate bites.
@@ -43,7 +43,7 @@
 // (`PARTICIPANT_ROLES` vs `USER_ROLES`) and this policy's additional ENFORCEMENT-POSITION test differ; the
 // axis judgement is one computation, which is what keeps the two lattices from drifting apart.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `p.includes(DOMAIN_ROOT)` where
-// `DOMAIN_ROOT = "packages/server/src/domain/"` (`9808b93c0^:49,200`); the final population is
+// `DOMAIN_ROOT = "packages/server/src/domain/"` (`b5acbf2594^:49,200`); the final population is
 // `{ in: ["@server"], under: ["packages/server/src/domain/**"] }`. The legacy `SANCTIONED_HOMES` entries
 // were scanned and excused, never subtracted.
 import type { Node as MorphNode, SourceFile } from "ts-morph";

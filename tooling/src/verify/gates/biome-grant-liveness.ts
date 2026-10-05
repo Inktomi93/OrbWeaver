@@ -57,8 +57,8 @@
 // RULE half is that stage's, and neither reads as the other's verdict.
 //
 // POPULATION PORT, and the LEGACY SHA that makes it checkable (#2123; the legacy descriptor is
-// `git show c97de9d2f:tooling/src/verify/gates/biome-grant-liveness.ts`, the parent of the conversion
-// commit `97e68be91`). The legacy `scanRoot` was `() => false` — it admitted no TypeScript source at all —
+// `git show acc6750ee3:tooling/src/verify/gates/biome-grant-liveness.ts`, the parent of the conversion
+// commit `bd0a01d6b4`). The legacy `scanRoot` was `() => false` — it admitted no TypeScript source at all —
 // and its SUBJECT was the single repo-root `biome.json`, read with `existsSync` + `readFileSync` and
 // judged against `existsSync` + `git ls-files`. The port is `{ of: "none" }` for the TS dispatch plus three
 // declarations that carry exactly those three reads: `json:biome` (the parse, with missing and unparseable
@@ -77,14 +77,14 @@
 // ZERO proof rows, which is the §4.1 definition of unenforced.
 //
 // §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273), AND IT IS CATEGORY 5 WITH A ZERO LEGACY SIDE, SO IT IS
-// A LIVENESS-AND-OUTCOME RECEIPT AND NOT CATCH PARITY. `97e68be91` states no differential and lands none
+// A LIVENESS-AND-OUTCOME RECEIPT AND NOT CATCH PARITY. `bd0a01d6b4` states no differential and lands none
 // as a test, and §4.6 (#2000) stopped accepting silence; this is the record it owes, all three axes named
-// separately, driven on ONE corpus at `ce8e5174f`.
+// separately, driven on ONE corpus at `d9fd599923`.
 //   · FINDINGS. FINAL side through `runPolicyPass` over the real root: raw 1 — a `biome.json` override
 //     row naming a since-removed catalog temp-file glob — granted 1 (a since-retired grant row,
 //     consumed exactly once), effective 0, owner `success`/`complete`, `authorityAlarms []` measured with a
 //     planted stale grant that DID alarm.
-//     LEGACY side: the frozen descriptor at `c97de9d2f`, header-import-shimmed into a scratch module
+//     LEGACY side: the frozen descriptor at `acc6750ee3`, header-import-shimmed into a scratch module
 //     OUTSIDE `gates/` and driven through `runPass` over the SAME real root — **0 findings, 0 tool
 //     errors**, declaring 98 candidates / 73 scanned / `{glob: 25, negated: 0, glob-live: 24,
 //     glob-ratified: 1, rule-live: 18, rule-files: 23, rule-dead-file-pairs: 1, rule-mixed-row: 6}`.
@@ -135,8 +135,8 @@
 // COMMENT POSTURE: n/a — the scanned unit is STRICT JSON, which has no comment syntax.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `biome-grant-liveness` descriptor at c97de9d2faeebb319b6195017905c1ccd91a8de0, the parent of the conversion
-// `97e68be91` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the 7,495
+// `biome-grant-liveness` descriptor at acc6750ee39f49471090812c918f4f6445c617a2, the parent of the conversion
+// `bd0a01d6b4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the 7,495
 // harness candidates at that tree the legacy `scanRoot: () => false` admits 0 and the final
 // `population: { of: "none" }` admits 0, both by declaration: legacy − final = ∅, final − legacy = ∅. That equality
 // is VACUOUS BY CONSTRUCTION — neither side ever had a TypeScript subject — and the subject comparison is the

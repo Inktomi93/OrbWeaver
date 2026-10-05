@@ -1210,7 +1210,7 @@ test(
     await assertLiveFamilyConsumption(project, repoRoot, shapeCount);
 
     // The error policy pins its CLOSED classes; the tree is the proof they are closed. Asserted LAST so a red here
-    // (a foreign module landing an unwrapped read, as `97e68be91` did for E4) still lets every receipt above print.
+    // (a foreign module landing an unwrapped read, as `bd0a01d6b4` did for E4) still lets every receipt above print.
     expect(result.authority.effectiveFindings.filter(({ policyId }) => policyId === policySoundness.id)).toEqual([]);
   },
   REAL_CORPUS_TIMEOUT_MS,

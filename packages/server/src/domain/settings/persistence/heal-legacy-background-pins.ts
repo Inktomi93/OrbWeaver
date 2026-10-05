@@ -1,6 +1,6 @@
 // domain/settings/persistence/heal-legacy-background-pins — the #1600 ONE-TIME DATA heal.
 //
-// THE DEFECT. #1478.1 (`24bc96f53`) added the ownership+kind guard: every pinned background id must name an
+// THE DEFECT. #1478.1 (`bfd43e0a4e`) added the ownership+kind guard: every pinned background id must name an
 // asset this user owns AND whose `kind` is `background`. `writeUserConfig` is the ONE whole-blob writer, so a
 // user whose STORED blob already pins an asset that predates that guard — dev data seeded before #1478, or
 // any asset whose `kind` was never `background` — now fails EVERY settings write for that user, not only a

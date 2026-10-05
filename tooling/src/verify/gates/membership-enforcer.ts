@@ -9,12 +9,12 @@
 // `discovery-no-stats-rollups` is: `lib/sealed-origin.ts` is a shared READER, not a family, and the two
 // policies seal different homes under different laws. Nothing computes a membership verdict but this module.
 //
-// POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^` (`scanRoot: (p) => CHAT_SCOPE.test(\`/\${p}\`)`);
+// POPULATION PORT: byte-identical, legacy at `76196db5d4^` (`scanRoot: (p) => CHAT_SCOPE.test(\`/\${p}\`)`);
 // the final expression beside the population const admits exactly that set.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `membership-enforcer` descriptor at 509671ae2e013b6d07fe6f7e9e744e0d7cbac946, the parent of the conversion
-// `e5a7a8a8c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `membership-enforcer` descriptor at de9a84d2560cc0c2ae9642f4f98144315cbaab53, the parent of the conversion
+// `76196db5d4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,183 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 138 and final `population` admits 138. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/chat/__cbbhr_in_active-turns.ts` (virtual) admitted by both; outside

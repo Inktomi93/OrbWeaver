@@ -20,7 +20,7 @@ import {
   triggerLabel,
 } from "../../../../../packages/client/src/features/automation/lib/rule-copy.ts";
 // The unreadable-rule refusal vocabulary moved to its own module when #1673 pushed rule-copy.ts past the
-// component-size cap (29e77ae2c); the #1665 pins below still own these four symbols.
+// component-size cap (4f9052b99c); the #1665 pins below still own these four symbols.
 import {
   RULE_UNREADABLE_BADGE,
   ruleUnreadableEnableRefusal,

@@ -597,7 +597,7 @@ const DICE_CHIPS = defineRulePreset({
         {
           type: "surface_quick_reply",
           // Explicit "send" (the zod default): dice picks are the member's own diegetic words — §2 law 3's
-          // send-legal chip class, same as call-a-vote. S1 (e0a910d9c) made the field required at the type.
+          // send-legal chip class, same as call-a-vote. S1 (ae7f42ccae) made the field required at the type.
           choices: knobs.labels.map((label) => ({ label, sendTemplate: label, mode: "send" as const })),
         },
       ],

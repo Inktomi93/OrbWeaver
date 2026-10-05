@@ -67,8 +67,8 @@
 // which §8 step 6 excludes by name, and the legacy descriptor was `markerImmune` so none of them ever bit).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `bus-payload-allowlist` descriptor at c810fee0749e37333042645e1a061b257e289627, the parent of the conversion
-// `a196a35d7`; this module did not exist there, so it is measured against the module it was carved from,
+// `bus-payload-allowlist` descriptor at ddee5116a989e15ab36c7269ecd35eb9c8e45430, the parent of the conversion
+// `b6a112823f`; this module did not exist there, so it is measured against the module it was carved from,
 // `bus-payload-allowlist` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,558 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 8 and final `population` admits 105. legacy − final = ∅. final − legacy = 97 `@contracts` sources

@@ -22,7 +22,7 @@
 //      joins that identity (p-baseui-family, #1584) it reports the same drift with the part named.
 //
 // Both arms were measured UNENFORCED by the §5b audit (cuts w04/w05: iterating `[]` killed no row) and
-// measured EMPTY on the real tree at `1692583d6` (manifest 75 attributes, installed 75, symmetric
+// measured EMPTY on the real tree at `(pruned from public history)` (manifest 75 attributes, installed 75, symmetric
 // difference zero in both directions), so the retirement removes no live catch. The receipt for the
 // successor is `baseui-surface-manifest`'s own row, not this module's.
 //
@@ -36,7 +36,7 @@
 //   * the VANISHED-COMPONENT direction — its `mustFlag[4]`, `count: 1`, "component `Dialog` vanished from
 //     the installed package".
 // Those last two are the direct analogue of the `baseUiManifestOnly` arm retired here, and they landed in
-// `dea1061df` EIGHTEEN MINUTES before the commit that wrote "measured unenforced by any proof row" — an
+// `494b601a0b` EIGHTEEN MINUTES before the commit that wrote "measured unenforced by any proof row" — an
 // ancestor of it, so the claim was false on the tree it shipped on. Read-first §0 ruling 3 is the rule it
 // broke: a recorded refusal is a snapshot, not a standing verdict, and it is re-derived before it is
 // inherited. #2297 stays OPEN for its OTHER rows and is cited for those, never for these three.
@@ -56,16 +56,16 @@
 // POPULATION PORT: `{ of: "none" }`. Unlike its twin this policy reads no TypeScript at all — its subjects
 // are the product CSS identity and the installed vendor surface, both closed ResourceHost facts. The legacy
 // descriptor's whole-harness admitted set reached these arms through nothing but `ctx.root` filesystem
-// reads. Legacy sha `1692583d6`.
+// reads. Legacy sha `(pruned from public history)`.
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here (`mustRefuse[0]`); the runtime withholds this owner at the
 // population phase and the module owns no not-ready branch.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `css-selector-has-a-writer` descriptor at 5545f9ccf12c19cdeafe81d41378ce7eb511e6ee, the parent of the conversion
-// `9104f718f`; this module did not exist there, so it is measured against the module it was carved from,
+// `css-selector-has-a-writer` descriptor at (pruned from public history), the parent of the conversion
+// `a7c6745477`; this module did not exist there, so it is measured against the module it was carved from,
 // `css-selector-has-a-writer` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
-// The `1692583d6` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// The `(pruned from public history)` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,567 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,567, and the final
 // `population` admits 0; the subject is the declared `product-css` + `vendor-css-surface`. legacy − final = all 7,567

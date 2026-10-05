@@ -352,7 +352,7 @@ test("two CONCURRENT accepts of one offer mint ONE copy — the loser converges 
   expect(settled.flatMap((result) => result.map((copy) => copy.minted)).filter(Boolean)).toHaveLength(1);
 });
 
-// #1571 — THIS IS A FENCE, NOT A RED-FIRST DEFECT PROOF, and the label is deliberate: c096e260c added this
+// #1571 — THIS IS A FENCE, NOT A RED-FIRST DEFECT PROOF, and the label is deliberate: de2dcaa23a added this
 // pin alongside the #1560/#1445 basis-fence work, but that commit's code changes never touched the
 // handoff-copy write path itself (`provenance-resolved, mint-the-rest` was already how a retry behaved) —
 // only `card.ts`'s update predicate and `apply-fields.ts`/`iterate.ts` moved. The pin therefore does not

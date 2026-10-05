@@ -165,7 +165,7 @@ export interface ConfigSearchRow {
  *  §6.8: it was the old nav map beside the new one, in five groups.
  *
  *  THE PLACEHOLDER ARM HAS ZERO PRODUCTION OCCUPANTS TODAY (#1713, re-derived 2026-09-05 —
- *   ruling 3): `automation` graduated to a real surface at `cb8026bfc` and no group literal on
+ *   ruling 3): `automation` graduated to a real surface at `e6ec0317f7` and no group literal on
  *  the tree declares `{ placeholder: true }`. Kept as live declared intent, not speculative dead code — its
  *  ONLY subject is the synthetic `placeholderConfigGroups` registry (`tests/support/browser/ct-config-groups.ts`)
  *  `config-group-placeholder.ct.tsx` mounts, standing in for the next unbuilt group. Retire the arm only if

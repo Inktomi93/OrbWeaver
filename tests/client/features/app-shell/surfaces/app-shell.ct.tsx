@@ -426,7 +426,7 @@ test("the topbar toggle collapses the list panel to zero rendered width (clamp-o
 });
 
 // #895 — THE OPEN COMMITS THE PANEL'S CHROME; THE BODY FOLLOWS IN A LATER TASK. Latching the collapsed
-// body's mount DURING RENDER kept it out of the boot commit (4a6c54cdf) and put the whole query-backed
+// body's mount DURING RENDER kept it out of the boot commit (a227aa1b4d) and put the whole query-backed
 // mount inside the open click's own discrete-event task instead: measured on the live stack at 4× CPU,
 // 127ms of blocking against a 50ms budget, the worst LoAF attributed to `dispatchDiscreteEvent` with 43ms
 // of forced style/layout in the click frame.
@@ -4779,7 +4779,7 @@ test("boot: the grid's FIRST committed template already carries the resolved tra
 // breakpoint, all read off the browser's own resolved `grid-template-columns`:
 //   1. WHERE IT BINDS — both docked at 1360: the content track reaches the floor token, and neither pane
 //      is pushed past its own floor (list: the shared 17rem; context: the 24rem Waystone step, the
-//      inherited 660b2dd4 ruling this split exists to keep);
+//      inherited 3c49a6cce2 ruling this split exists to keep);
 //   2. WHERE IT DOES NOT — a viewport wide enough that the floor already fits is BYTE-IDENTICAL to the
 //      plain clamps (the non-vacuity control for "conditional": 24vw / 30vw, un-squeezed);
 //   3. IT IS BOTH-DOCKED ONLY — with the context pane collapsed the list track is its plain clamp, so a
@@ -4818,7 +4818,7 @@ test("#242 both docked at 1360: the content track reaches the reading floor, and
   expect(content).toBeGreaterThanOrEqual(remPx(40) - 1);
   expect(rail + list + content + context).toBeCloseTo(SQUEEZE_BINDS.width, 0);
   // …bought out of BOTH panes, neither past its floor. The context floor is the Waystone container step:
-  // 660b2dd4 widened this pane so a standard desktop REACHES 24rem, and #242 does not spend that.
+  // 3c49a6cce2 widened this pane so a standard desktop REACHES 24rem, and #242 does not spend that.
   expect(list).toBeGreaterThanOrEqual(remPx(17));
   expect(list).toBeLessThan(0.24 * SQUEEZE_BINDS.width);
   expect(context).toBeGreaterThanOrEqual(remPx(24));
@@ -7184,7 +7184,7 @@ test("with Dialogs glass on, a LIGHT dialog stays at least as opaque as the read
 // only ASSERTED row (the positive control — a census that reds on surfaces its lane was fenced out of would
 // be parking someone else's work inside a failing test), while `.shell-main` and `[data-slot="composer"]`
 // were measured-and-annotated as "the same defect waiting to be filed". Both have since been filed and
-// fixed: `.shell-main`'s carrier took the arm at `a743e4799` (#1173), and the composer plus the three
+// fixed: `.shell-main`'s carrier took the arm at `a7bb58f5ca` (#1173), and the composer plus the three
 // `[data-slot="message-bubble"]` roles take it here, off the `over-art-plate-arm` gate's own warnings
 // (globals.css:306/419/423/427 — "mixes `var(--color-…)` over `transparent` and no `[data-has-bg-image]`
 // rule gives that pair a `light-dark()` plate arm").
@@ -7401,7 +7401,7 @@ test("#1669 @desktop: the Characters LIST band keeps its own doors and the topba
 // The two pins below are mechanism proofs, not fences: the stories hand the shell a chrome registry while
 // leaving the REAL modal registry underneath, so on the pre-fix source the deleted lookup still finds the
 // command modal and the chip renders (and leads) no matter what the chrome registry says. Measured RED on
-// 43ae0481a: the first saw the chip with ZERO trail modal entries, the second read it first at `order: -10`
+// (pruned from public history): the first saw the chip with ZERO trail modal entries, the second read it first at `order: -10`
 // against a widget declaring `-20`.
 test("#1789 the ⌘K chip is the topbar.trail MODAL entry's presentation — with no such entry there is no chip", async ({ mount, page }) => {
   await page.setViewportSize(WIDE);

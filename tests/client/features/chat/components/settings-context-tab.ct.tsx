@@ -1299,7 +1299,7 @@ test("#821: the Injections fallback is the section's own shape, not a line", asy
 // #829: THE KICKER'S OWN LINE BOX — `HeadingWithCount`'s count chip must not resize the heading it rides in.
 // Named by #821 as a separate defect from the section-fence one above (the reserve fence budgets the shift,
 // this pin closes the source): pre-fix the Badge's `size="sm"` was `inline-flex` with its own type axes, so
-// its arrival grew the kicker's line box 13.125px → 30.25px (measured by lane cb-this-chat-fixes, 76ee75493).
+// its arrival grew the kicker's line box 13.125px → 30.25px (measured by lane cb-this-chat-fixes, 3d9d31280e).
 // Same `trpcHold` barrier as the fence test above — the heading's own bounding-box height, absent vs present.
 test("#829: the count chip's arrival does not resize the kicker's own line box", async ({ mount, page }) => {
   const hold = trpcHold();

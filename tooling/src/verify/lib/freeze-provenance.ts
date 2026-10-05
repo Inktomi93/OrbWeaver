@@ -40,7 +40,7 @@ export const TRIPLE: readonly string[] = [CONTENT, RAW, FREEZES];
  *
  *  THE FAMILY'S POPULATION PORT IS DERIVED ONCE HERE (§5b.5), beside the constant rather than copied into
  *  two headers. The legacy descriptor's `scanRoot: (p) => p.includes("packages/") && p.includes("/src/")`
- *  (`5c17068b7^`) becomes `@packages`, the explicit six-root list — an INTENTIONAL NARROWING BY EXACTLY ONE
+ *  (`fbf9d22893^`) becomes `@packages`, the explicit six-root list — an INTENTIONAL NARROWING BY EXACTLY ONE
  *  PACKAGE, `packages/showcase-plugins/src`, which #1980 keeps deliberately outside the composite sets.
  *  Lossless, and measured rather than assumed: that package holds ONE file carrying ZERO drizzle write
  *  calls, so no write this policy would have judged leaves the population. The legacy DECLARED LIMIT is

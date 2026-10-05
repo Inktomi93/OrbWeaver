@@ -19,7 +19,7 @@
 //
 // POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
 // `p === REGISTRY || p.startsWith("tests/tooling/") || p.startsWith("tooling/src/")` (pre-conversion SHA
-// 250c9eb60); `@tooling` IS `tooling/src/`, and `tests/tooling/**` names the other half. No `ext` filter, so
+// 7474cfee30); `@tooling` IS `tooling/src/`, and `tests/tooling/**` names the other half. No `ext` filter, so
 // the `.tsx` half of `tests/tooling/**` stays admitted exactly as the legacy prefix test admitted it.
 //
 // §12.6 SHAPE DEVIATION, reported: the ruled row reads "syntax/resource visitors plus `evaluate`". The
@@ -66,7 +66,7 @@
 // nothing. A home that cannot be located at all is arm F's own blindness tripwire (`mustFlag[9]`).
 //
 // AND ARM F HAD NO NAME PREFILTER, SO ITS FAIL-CLOSED THIRD ANSWER ACCUSED 654 CORRECT CALLS (#1950 D1,
-// refuted at `ac0085c91` by a real-tree run). The identity upgrade above is right; what shipped with it
+// refuted at `ce85507a5c` by a real-tree run). The identity upgrade above is right; what shipped with it
 // was a CANDIDATE SET of every call in a file that imports the artifacts door. `classifyProjectHomeOrigin`
 // routes through `resolveModuleMemberOrigin`, which cannot place a language builtin or a method on a local
 // value, so `classifyOriginRefusal` answered `unreadable` and arm F reported it as never-a-pass: 654
@@ -89,8 +89,8 @@
 // it — dead code with a confident paragraph — so only one of the two ships.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `tooling-instrument-proof` descriptor at c19da53c3baa600b50c3a569830b77d2037b45fb, the parent of the conversion
-// `ac0085c91` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `250c9eb60`
+// `tooling-instrument-proof` descriptor at (pruned from public history), the parent of the conversion
+// `ce85507a5c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `7474cfee30`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,476 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,614 and final `population` admits 1,614.

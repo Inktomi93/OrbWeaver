@@ -604,7 +604,7 @@ function traceDeliveredRows(args: {
 
 // THERE IS NO DELIVERED-ROLE DISPATCH — a canon row's wire role is its OWN role, on every model.
 //
-// D129(B) committed, and `56a979d44` shipped, a SHAPE-time mapping that re-roled a `narrator`-kind canon row
+// D129(B) committed, and `6aad2053fb` shipped, a SHAPE-time mapping that re-roled a `narrator`-kind canon row
 // to a wire `system` row wherever the model's MEASURED `turns.historySystemRows` said the wire takes mid-array
 // system rows (the vLLM arm, 2026-08-18). The OWNER RULED IT OUT the same day, verbatim: "if you mean group
 // chat narration mode then that is the wrong behavior." Group-chat narration mode is ONE generation voicing
@@ -816,7 +816,7 @@ function userShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryM
  *   • `conversation`   — an ordinary history row.
  *   • `system-channel` — delivered, assistant-voiced and byte-identically to `conversation`, on EVERY wire.
  *     The arm's NAME is now archaeology: it was minted for the D129(B) narrator→wire-`system` mapping, which
- *     `56a979d44` built on the measured vLLM cell and the OWNER RULED OUT on 2026-08-18 ("if you mean group
+ *     `6aad2053fb` built on the measured vLLM cell and the OWNER RULED OUT on 2026-08-18 ("if you mean group
  *     chat narration mode then that is the wrong behavior" — group narration is the assistant's own output
  *     voice). The arm is kept, not folded into `conversation`, because the POLICY record still distinguishes
  *     the two purposes for the label policy and the trace; it has never meant "drop the row", which is why

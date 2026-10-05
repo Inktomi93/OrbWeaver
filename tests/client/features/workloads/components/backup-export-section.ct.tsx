@@ -108,7 +108,7 @@ test("export: the all-on Include group spends no accent — every row renders th
   await expect(characters).not.toHaveCSS("background-color", checkedFill);
 });
 
-// IT ASKS BEFORE IT SENDS (#1099 F36, landed in bf7dd6d29). This test used to expect the DROP itself to
+// IT ASKS BEFORE IT SENDS (#1099 F36, landed in 3c292fed5f). This test used to expect the DROP itself to
 // POST, and #979 moved that: a pick lands in `staged` — pure client state, zero requests — the surface names
 // the file and states the consequence, and `confirm()` is the only caller of either upload seam
 // (`use-library-import.ts`'s own header: "SELECTION IS STAGED, NEVER FIRED"). That commit swept the sibling

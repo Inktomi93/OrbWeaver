@@ -36,7 +36,7 @@ const REVIEWED = "no-raw-matchmedia";
 const HARD_RESOURCE = "verify-registry-parity";
 /** THE NONBLOCKING-WARNING SUBJECT IS PLANTED, NOT BORROWED (#2497) — this file's own §"MATERIALIZE the
  *  premise" lesson, applied to SEVERITY. It used to shim the live `over-art-plate-arm` for its
- *  `severity: "warning"`; `16b8b2b8f` raised that policy to `"error"` (its warning-debt flip condition was met
+ *  `severity: "warning"`; `8300c13bbc` raised that policy to `"error"` (its warning-debt flip condition was met
  *  at #2389) and the reconciliation arm below silently measured ZERO warnings — the middle term of the
  *  equation it exists to prove. A severity another owner may flip is not a premise to borrow. */
 const WARNING_POLICY_ID = "planted-warning";

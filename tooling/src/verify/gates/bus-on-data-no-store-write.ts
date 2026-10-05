@@ -19,20 +19,20 @@
 // explicitly not a family (§5b.4), which is why it does not join `bus-definition` or `bus-fact`.
 //
 // POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
-// `(p) => p.includes("packages/client/src/data/bus/")` (`45743d76d^:tooling/src/verify/gates/
+// `(p) => p.includes("packages/client/src/data/bus/")` (`d5c8b278e3^:tooling/src/verify/gates/
 // bus-onData-no-store-write.ts:35`); the final population is `{ in: ["@client"], under:
 // ["packages/client/src/data/bus/**"] }`, the same prefix expressed in the algebra. The `under:` subtree is
 // the SUBSCRIPTION SEAM's own directory — the only place a bus `onData` is wired — so the fence is a
 // statement about where the subject lives, not a narrowing of the law.
 //
-// The legacy `bus-onData-no-store-write` descriptor is at `45743d76d^` (the mechanical-gate conversion
+// The legacy `bus-onData-no-store-write` descriptor is at `d5c8b278e3^` (the mechanical-gate conversion
 // commit deleted the camelCase file and landed this one). The SHA this header carried until #2047
-// (`2f3f070c693f54f0f482c067b8627f21efec9da6`) named a later unrelated checkpoint commit where NEITHER
+// (`29959c57a3e8e3540472c9ba3d838d58f64720a3`) named a later unrelated checkpoint commit where NEITHER
 // filename exists — a citation that resolved to nothing, found by `git cat-file -e`.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `bus-onData-no-store-write` descriptor at 073520068d3305dfedbb481153cadfef6b30f847, the parent of the conversion
-// `45743d76d`; this file name did not exist there, because that conversion RENAMED the camelCase legacy module
+// `bus-onData-no-store-write` descriptor at 879e5b65226d9333a5d49c3dfc9139c55b3bf2ae, the parent of the conversion
+// `d5c8b278e3`; this file name did not exist there, because that conversion RENAMED the camelCase legacy module
 // `bus-onData-no-store-write` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
 // Over the SAME 7,006 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
 // legacy `scanRoot` admits 11 and final `population` admits 11. legacy − final = ∅. final − legacy = ∅. Controls:

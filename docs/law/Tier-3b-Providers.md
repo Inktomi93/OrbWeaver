@@ -216,7 +216,7 @@ Local-light executes model calls in its worker thread. Its host scheduler priori
 
 ## 12. Known gaps (stated, not invented)
 
-- **The agent-sdk behavioral probe fleet is GONE.** `scripts/probes/sdk-*.ts` (cache, session, hook-wire, tool-seed, …) and their `pnpm sdk:*-probe` aliases were deleted in the extraction commit `146f71cd5`; the measured matrices they produced are in git history. Any claim in §10 item 3 or 5 that says "re-run after an SDK bump" currently has no runnable instrument.
+- **The agent-sdk behavioral probe fleet is GONE.** `scripts/probes/sdk-*.ts` (cache, session, hook-wire, tool-seed, …) and their `pnpm sdk:*-probe` aliases were deleted in the extraction commit `9a6061b487`; the measured matrices they produced are in git history. Any claim in §10 item 3 or 5 that says "re-run after an SDK bump" currently has no runnable instrument.
 - **Four dep-cruiser rules once scoped to the deleted server infra/providers tree now govern the package instead.** They are spelled here without code formatting, per the note above, because that tree does not exist. What each governs now:
   - `providers-public-surface-only` — everything outside `@orb/inference` may import only the package front door (`packages/inference/src/index.ts`); a deep reach into a family, the funnel, the registry or `contract/` is RED. `tests/support` and `tooling/` are exempt, the latter to its own narrower half.
   - `infra-strategy-isolation` — a module in `packages/inference/src/backends/<wire>/` may not import a sibling backend's internals; `backends/kit/` and `backends/v4/` are the two derived shared seams. Enforces invariant 2 above; the `infra` in its name is historical only (see that row).

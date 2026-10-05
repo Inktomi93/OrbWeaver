@@ -7,7 +7,7 @@
 // authored-css reader, and the mixed door (#1584 §5) is the first loader to have run this module. Re-declare the
 // shared family in the same commit that converts the second member.
 // POPULATION PORT: an INTENTIONAL CORRECTION, from a filesystem WALK to a declared resource. The legacy
-// descriptor at `5c55b1d9c` (the commit before the conversion at `b32797507`) owned its own
+// descriptor at `(pruned from public history)` (the commit before the conversion at `db37327386`) owned its own
 // `globSync("packages/{ui,client}/src/**/*.css")` under `scopeSafety: "whole-project"`, plus an `ALLOWLIST:
 // ExemptionTable` whose one row was the generated `theme.css` and whose stale arm needed a real-tree ANCHOR
 // to prove the run was whole. The final shape carries all three differently and deliberately: the walk
@@ -42,8 +42,8 @@
 // declarations on separate lines, which the alarm names.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-raw-color-in-css` descriptor at 5c55b1d9cf3f2330daf90519327ee72ea07d256d, the parent of the conversion
-// `b32797507` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-raw-color-in-css` descriptor at (pruned from public history), the parent of the conversion
+// `db37327386` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,034 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness
 // — no `scanRoot` — dispatched 7,034, and the final `population` admits 0; the subject is the declared
 // `authored-css`. legacy − final = all 7,034 harness candidates — dispatched to the legacy `run`, which read none of

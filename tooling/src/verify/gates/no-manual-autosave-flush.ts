@@ -17,8 +17,8 @@
 // fail-closed direction, because a body that MIGHT hold the retired flush is what this gate exists to catch.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-manual-autosave-flush` descriptor at 7ed48eca86ea8b82234cefa42dfc128e01874448, the parent of the conversion
-// `cf2ec7dc1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-manual-autosave-flush` descriptor at 2ee31c5d2254c7fdb8ef9ecdc68c24f69b45b44d, the parent of the conversion
+// `be629bf4ac` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,197 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,000 and final `population` admits 1,000. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside

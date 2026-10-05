@@ -8,7 +8,7 @@
 // CONTENT / CONTEXT→sheet / a modal / the settings surface. A grant screen is the SECURITY surface of this
 // feature, and when this group was placed the `automation` group was `{placeholder: true}` — anchoring a
 // consent screen inside a stub would have hidden the one screen a person must be able to find. (TRUTH-REPAIR
-// 2026-08-24: automation is a REAL surface since cb8026bfc. The placement stands on its own second reason,
+// 2026-08-24: automation is a REAL surface since e6ec0317f7. The placement stands on its own second reason,
 // which never depended on that: a group beside Connections, the other "credentials and reach" screen, is
 // where a reader already looks for this class of thing.)
 //

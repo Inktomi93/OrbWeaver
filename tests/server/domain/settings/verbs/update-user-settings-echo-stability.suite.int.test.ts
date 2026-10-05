@@ -86,7 +86,7 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
     const h = makeHarness(db, { materializeBackground: () => Promise.resolve({ ok: true, asset: stored }) });
     const p = principal(await seedUser(db, { id: "user_bg_fp" }), "user");
     // The REAL materialize op writes the asset row; this harness fakes only the op, so seed the row it
-    // would have created. Since `934fae273` the settings write is FK-guarded against `assets` and refuses
+    // would have created. Since `b6e092745c` the settings write is FK-guarded against `assets` and refuses
     // (`background_unavailable`) rather than storing a dangling reference — a fake that mints an id without
     // the row is asking the server to persist a pointer to nothing.
     // `kind: "background"` is what the REAL op stores (`entry/compose/assets-character.ts` binds

@@ -41,7 +41,7 @@
 // POPULATION PORT: a CORRECTION, inherited — this policy was SPLIT OUT at conversion and has no legacy
 // descriptor of its own, so the port is the parent `baseui-derives-not-respells`' one: legacy
 // `scanRoot: (p) => p.includes("packages/ui/src/")` → `@ui`, byte-identical on repo-relative authored paths.
-// LEGACY SHA: 1692583d6 — the commit this policy was split out of.
+// LEGACY SHA: (pruned from public history) — the commit this policy was split out of.
 //
 // THE UNWAIVABILITY ARM CANNOT BE A PROOF ROW HERE, AND THE ATTEMPT IS THE RECEIPT. The obvious pin — plant
 // a correctly-spelled `@orb-waive baseui-derives-not-respells-health(onValueChange)` at the reported
@@ -57,10 +57,10 @@
 // makes the posture moot for suppression: there is no marker this policy reads in either grammar.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `baseui-derives-not-respells` descriptor at 89a0b751d78372c17b549ba2ac25931c768d7ccd, the parent of the conversion
-// `17297f298`; this module did not exist there, so it is measured against the module it was carved from,
+// `baseui-derives-not-respells` descriptor at 22aa5c8a7f9d395f2f679b7d08ad36d51747a31b, the parent of the conversion
+// `d16bb6872a`; this module did not exist there, so it is measured against the module it was carved from,
 // `baseui-derives-not-respells` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
-// The `1692583d6` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// The `(pruned from public history)` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,560 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 366 and final `population` admits 366.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/ui/src/art/art-bleed/__cbbhr_in_art-bleed.tsx`

@@ -12,7 +12,7 @@
 // read that one invalidate already refreshes. The rows are not lost — the reconnect gap-heal below refetches
 // the whole inbox, which is strictly more current than any replay of them.
 //
-// A ROOM FAULT IS NOT AN ARRIVAL — the `54643a8d` fix, carried through the fold. A server-side domain error
+// A ROOM FAULT IS NOT AN ARRIVAL — the `7751c0d508` fix, carried through the fold. A server-side domain error
 // used to arrive as a typed TERMINAL frame (`__subscriptionError`) that this consumer counted as an inbox
 // arrival: it refetched, and left the user looking at a fresh-looking list behind a stream that had just DIED.
 // Under the multiplex that fault is a `roomFailed` control frame carrying the classified code + message, which

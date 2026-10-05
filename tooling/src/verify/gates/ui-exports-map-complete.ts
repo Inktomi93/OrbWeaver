@@ -6,7 +6,7 @@
 // FAMILY: singleton. The subject is one package's manifest-versus-tree agreement; no second policy reads
 // the `@orb/ui` exports map, and the shared reader this module does use is the declaration-consumption
 // reader `readyResourceValue` (`lib/resource-declaration.ts`), not a family identity reader.
-// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at eb5fc2fab (the parent of 05e595f33). The legacy
+// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at (pruned from public history) (the parent of 1bf2127e14). The legacy
 // descriptor `readdirSync`-walked `packages/ui/src` two levels deep and `existsSync`-checked each exports
 // target joined under `packages/ui`. The final declares `authored-tree:packages` plus
 // `package-metadata:ui` — `packages`, NOT `ui-source`, because the real manifest exports a file OUTSIDE
@@ -43,8 +43,8 @@
 // their function rather than pinned by a row that would not discriminate (guide §6.1's structurally-unfalsifiable classification).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `ui-exports-map-complete` descriptor at eb5fc2fabcf0251deaf3a1921762fd0ff9b13a69, the parent of the conversion
-// `05e595f33` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `ui-exports-map-complete` descriptor at (pruned from public history), the parent of the conversion
+// `1bf2127e14` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,047 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness
 // — no `scanRoot` — dispatched 7,047, and the final `population` admits 0; the subject is the declared
 // `authored-tree:packages` + `package-metadata:ui`. legacy − final = all 7,047 harness candidates — dispatched to the

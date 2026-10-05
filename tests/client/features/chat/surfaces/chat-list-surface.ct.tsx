@@ -1695,7 +1695,7 @@ test("#500 the pane's skip link is its FIRST focusable and lands focus on the fi
 // The chats-list door carried the identical 52px shift Home Resume had (#1126/H13): `ChatCharacterBar`
 // reads `chat.getChat` non-suspending, so a cold click paints the room without the strip and then pushes
 // the transcript down 40px + the room stack's 12px gap once the roster lands. Measured on this door at
-// main d8f10cee5: `[cls] shift 0.0225 · div[aria-label=Example — Midnight Run] moved 0px,52px`.
+// main 3fbbcbf9ed: `[cls] shift 0.0225 · div[aria-label=Example — Midnight Run] moved 0px,52px`.
 //
 // The click is too late to fix it, so the warm-up rides the reader's APPROACH. Two halves are pinned
 // because both can fail silently: that the intent reaches the NETWORK (the one place a warm-up is

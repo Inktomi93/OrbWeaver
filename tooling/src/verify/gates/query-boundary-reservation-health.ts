@@ -22,13 +22,13 @@
 // member of the population, where the legacy reported on the gate module's own path. Arm D self-guards on
 // the home being loaded (a fixture or mini-project without it stays silent), exactly as the legacy did.
 //
-// Legacy descriptor: `370243fe7` (`tooling/src/verify/gates/query-boundary-reservation.ts`, arms B and D).
+// Legacy descriptor: `1e92eb43fc` (`tooling/src/verify/gates/query-boundary-reservation.ts`, arms B and D).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `query-boundary-reservation` descriptor at e2b183b809625973be3060bdca51755317d42f3c, the parent of the conversion
-// `6563946a0`; this module did not exist there, so it is measured against the module it was carved from,
+// `query-boundary-reservation` descriptor at 24ed572f1c9cd5c7a0fd0635a9371262a98e7ede, the parent of the conversion
+// `c7c0882709`; this module did not exist there, so it is measured against the module it was carved from,
 // `query-boundary-reservation` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
-// The `370243fe7` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// The `1e92eb43fc` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,450 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`

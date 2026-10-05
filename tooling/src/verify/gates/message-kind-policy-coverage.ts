@@ -29,7 +29,7 @@
 // dispatch. A naive shared reader test would red both ruled designs.
 //
 // POPULATION PORT: an INTENTIONAL NARROWING, and lossless. The legacy descriptor was
-// `scopeSafety: "whole-project"` and walked `ctx.project.getSourceFiles()` (307640dae^), but it reached a
+// `scopeSafety: "whole-project"` and walked `ctx.project.getSourceFiles()` (6e5449e627^), but it reached a
 // verdict from nothing outside `READER_SCOPE_RE` (`packages/{server,client}/src/`) and the home file under
 // `packages/contracts/src` — so `in: ["@contracts", "@server", "@client"]` admits exactly the files the
 // legacy walk could judge, and `@client` is HALF THE LEGACY READER SCOPE rather than a new third root. The
@@ -37,13 +37,13 @@
 // REAL-TREE ANCHOR; it left with the mode-B arm, whose successor is the zero-member receipt above.
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "admits exactly the files the legacy walk
 // could judge" is REFUTED. In `@contracts` the legacy walk judged only the HOME. Measured over the harness candidates
-// at `307640dae^` against the legacy in-run scope (`READER_SCOPE_RE` plus HOME plus the anchor): legacy − final =
+// at `6e5449e627^` against the legacy in-run scope (`READER_SCOPE_RE` plus HOME plus the anchor): legacy − final =
 // {`packages/db/src/schema/index.ts`}, the retired anchor, and final − legacy = 104 other `@contracts` sources,
 // admitted by the root and never judged.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `message-kind-policy-coverage` descriptor at ef18f3a14925c17dd34a43829a64b985901b4f5f, the parent of the conversion
-// `307640dae` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
+// `message-kind-policy-coverage` descriptor at d06010fd95fe69e661aab6f03c046b3f83ac6a36, the parent of the conversion
+// `6e5449e627` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
 // descriptor had no `scanRoot`, so its effective population is its in-run path filter — readers:
 // `READER_SCOPE_RE = /(?:^|\/)packages\/(?:server|client)\/src\//`, plus HOME
 // `packages/contracts/src/chat/participants.ts` and the mode-B REAL_TREE_ANCHOR `packages/db/src/schema/index.ts`.

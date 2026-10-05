@@ -43,7 +43,7 @@ export const realConfigGroups: ConfigGroupRegistry = createRegistry<ConfigGroupI
 );
 
 // #696 — a live subject for the config host's PLACEHOLDER branch. The `ConfigGroupPlaceholder` component
-// (the honest "not built yet" body for a deferred group) lost its last production subject at C5 (cb8026bfc
+// (the honest "not built yet" body for a deferred group) lost its last production subject at C5 (e6ec0317f7
 // turned the final `{ placeholder: true }` group — automation — into a real surface), so the placeholder
 // body renders for nobody today. The mechanism is deliberate scaffolded intent ("swapped for the real
 // surface, group by group, as each lands"), so rather than delete future intent it earns a live subject

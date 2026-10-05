@@ -41,7 +41,7 @@
 // MARKER CENSUS: ZERO. `git grep '@orb-gate-ignore zustand-selector-derived'` over the whole tree returns
 // no line at the pre-conversion SHA, so no legacy marker was translated, dropped, or dead-lettered.
 //
-// LEGACY SHA: 68c8f42d6 (`tooling/src/verify/gates/zustand-selector-derived.ts`, the last commit carrying
+// LEGACY SHA: c2b5253308 (`tooling/src/verify/gates/zustand-selector-derived.ts`, the last commit carrying
 // the `GateDescriptor` form).
 //
 // §4.1 NARROWING MATRIX, measured 2026-09-12 by cutting each fence OPEN (the direction that makes the
@@ -64,8 +64,8 @@
 // kind rides the MESSAGE instead, where a paren is legal.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `zustand-selector-derived` descriptor at 2eaae72bbfb355e1f7cc84291433983e48557177, the parent of the conversion
-// `e81ca1979` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `68c8f42d6`
+// `zustand-selector-derived` descriptor at (pruned from public history), the parent of the conversion
+// `2db36f630d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `c2b5253308`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,433 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.

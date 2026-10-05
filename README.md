@@ -161,7 +161,7 @@ in four places, so a bug report can always say what it is running:
 | the boot log's FIRST line | `boot: orbweaver <version line>` |
 | a captured bug report (`pnpm bug:reports`) | the first header field of the bundle |
 
-The version line is `v0.1.0` for a stable release and `0.1.0-dev+823d76f4343a` for anything else. `version`
+The version line is `v0.1.0` for a stable release and `0.1.0-dev+f4cdde34be59` for anything else. `version`
 is the ROOT `package.json` version. `commit` is read from `.git`'s plain ref files at boot (no git binary,
 no child process); a container image has no `.git`, so the build stamps `/app/version.json` instead and the
 reader prefers it. When neither can answer, the commit reads `unknown` — never a fabricated sha. A build is

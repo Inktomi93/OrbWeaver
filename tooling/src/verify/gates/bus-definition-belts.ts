@@ -11,7 +11,7 @@
 // two-sidedness survives verbatim: the day one of those aliases stops being a subset it owes its own belt
 // and this policy says so, with no row to delete.
 //
-// The legacy `bus-definition-belts` descriptor (001949630e8ae87b44c758fd4ba5614c8e63c15a) carried
+// The legacy `bus-definition-belts` descriptor (3208f7340c6bb3a5a123e33c9ba7016cf0935643) carried
 // `BELT_EXEMPT`/`SERVER_INTERNAL_REACH`/the belt-const name search as its four arms before this
 // conversion split them into `bus-belt-total`/`bus-consumer-belt`/`bus-coverage-owner` alongside this file.
 //
@@ -20,7 +20,7 @@
 // `bus-consumer-belt` and this policy). It is a SECOND provider beside `busProducerFact` rather than fields
 // on it, because producers are a contracts/server question and definitions reach the client too — which is
 // the population line below.
-// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at 001949630 (the parent of bda39454c). The legacy
+// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at 001949630 (the parent of 55b0040f2c). The legacy
 // descriptor declared `scopeSafety: "whole-project"` with no `scanRoot` and read
 // `ctx.project.getSourceFiles()`, so its effective population was the entire tree, `@orb/ui` included. The
 // final is `{ in: ["@contracts", "@client", "@server"] }` — and that set is NOT a free choice: it must

@@ -1,4 +1,4 @@
-// THE RULE HALF's permanent pin, rebuilt on its successor (#2074). `97e68be91` deleted
+// THE RULE HALF's permanent pin, rebuilt on its successor (#2074). `bd0a01d6b4` deleted
 // `biome-grant-liveness` arm six under §12.3 (a final policy may not write a file and spawn a child) and
 // deleted these controls with it, leaving the question UNASKED: path liveness proves the granted SUBJECT
 // exists and never that the granted RULE still fires, so a rule-off override on a file that stopped

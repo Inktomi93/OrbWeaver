@@ -12,7 +12,7 @@
 // `no-raw-typography-in-features` descriptors carried the occurrence `visit` AND the rename tripwire in
 // `finalize`. So the legacy gate's behaviour must now be reproduced by the UNION of the two final
 // policies, and §4.6 requires a successor proof for the moved arm. This file is that proof: every original
-// `mustFlag`/`mustPass` example from `d6f36904f` (the commit immediately before `99b7429e2` split them)
+// `mustFlag`/`mustPass` example from `1b999db38d` (the commit immediately before `a2a93cac72` split them)
 // replayed through the frozen legacy dispatcher and, byte-identically, through both final policies
 // together.
 //

@@ -3,7 +3,7 @@
 // THE DEFECT IT CLOSES. `pnpm check:structure` exits 1 BY CONSTRUCTION while the loader is mixed (#1584), so a
 // NEW red on a final policy is invisible: the verdict is already red, the tail numbers are aggregates, and
 // nobody diffs per policy. Proven 2026-09-12 — `conversion-refusal-liveness`, a HARD gate landed in
-// `03dd7329e`, had been RED on main against its one live subject since it landed and no run surfaced it
+// `9597c1233c`, had been RED on main against its one live subject since it landed and no run surfaced it
 // (#2106). The posture is "baseline the red, never launder it", but baselining was a HAND read of two
 // artifacts, which is why nobody did it.
 //

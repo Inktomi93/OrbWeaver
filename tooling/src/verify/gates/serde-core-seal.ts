@@ -26,7 +26,7 @@
 // carrier fences and each has a mustPass row that dies without it: the `packages/server/src/` + sanctioned-
 // domain prefix test (mustPass[0]/[1]), and the card-chunk SYMBOL set plus the module SPECIFIER (mustPass[2]).
 //
-// The legacy `serde-core-seal` descriptor (534c1327f682be2578e1dee7c7a2bfa488fb672a) carried BOTH the
+// The legacy `serde-core-seal` descriptor ((pruned from public history)) carried BOTH the
 // occurrence check and the stale-sanction ratchet as one gate before this conversion split them.
 //
 // POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot` was `/\/packages\/server\/src\//u` over `/${p}`,
@@ -37,7 +37,7 @@
 // `(<sha>^)` form; it names this conversion's parent directly, so both spellings resolve to one commit.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `serde-core-seal` descriptor at 534c1327f682be2578e1dee7c7a2bfa488fb672a, the parent of the conversion `bd56189ba`
+// `serde-core-seal` descriptor at (pruned from public history), the parent of the conversion `1692e75291`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,358 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,493
 // and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside

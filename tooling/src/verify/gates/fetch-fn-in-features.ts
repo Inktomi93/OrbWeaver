@@ -15,8 +15,8 @@
 // readers cannot place is REPORTED as unreadable (GATE-AUTHORING §5, #944).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `fetch-fn-in-features` descriptor at a4ec5c1b6525da029b9d35bda2c3c4b7720e5c0a, the parent of the conversion
-// `7ed48eca8` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `fetch-fn-in-features` descriptor at 9d8b96146c08572d427924e073005e4913b07638, the parent of the conversion
+// `2ee31c5d22` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,196 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,000 and final `population` admits 1,000. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside

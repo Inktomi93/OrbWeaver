@@ -1,8 +1,8 @@
 // The FAMILY test for the `mirror-index` family — `test-layout`, `test-presence`,
 // `test-presence-inference` and `test-presence-client`. The original three were converted from legacy
-// `GateDescriptor`s at `aecbc6c6c` (#2061/#2062). The legacy
-// tree is that conversion's PARENT, `6b1d01be0` — the sha the three modules' own header lines cite (#2136:
-// this line read "the child of 90bbeb04f", which is a different commit, `90c7be9e7`).
+// `GateDescriptor`s at `7a0a2375aa` (#2061/#2062). The legacy
+// tree is that conversion's PARENT, `(pruned from public history)` — the sha the three modules' own header lines cite (#2136:
+// this line read "the child of (pruned from public history)", which is a different commit, `(pruned from public history)`).
 // The four share ONE subject reader: `ops/resource-mirror.ts` `loadMirrorIndex`, reached through the
 // `mirrorIndex` host door. This lane is what WIRED that kind — it shipped frozen with zero gate consumers.
 //
@@ -443,7 +443,7 @@ test("state store mirrors are NOT all .ct.tsx — the false premise that made cl
  *  `runPolicyPass`, so no single source module exists to prefix-swap to. The park's own retirement clause
  *  was "when the class empties, #2142's park and this pin retire together".
  *
- *  THE CLASS EMPTIED BY BEING FIXED, not by being silenced. `c6ae36152` ("resolve 178 structure-gate
+ *  THE CLASS EMPTIED BY BEING FIXED, not by being silenced. `4f01a59139` ("resolve 178 structure-gate
  *  violations across 4 gates") RENAMED the whole class onto the registered `.suite.test.ts` /
  *  `.suite.repo.int.test.ts` kinds — this file is one of the renamed members — and `mirror: "suite"` is the
  *  declared cross-cutting-property exemption both mirror arms honour (`test-layout.ts` §4.7 tooling arm and

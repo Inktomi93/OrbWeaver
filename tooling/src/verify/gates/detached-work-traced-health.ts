@@ -44,8 +44,8 @@
 // example exercised this arm ZERO times. The measured replay is in the landing commit message.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `detached-work-traced` descriptor at d07338082afc3525bdc2b0813d7ce451087dd40f, the parent of the conversion
-// `1e81658b4`; this module did not exist there, so it is measured against the module it was carved from,
+// `detached-work-traced` descriptor at (pruned from public history), the parent of the conversion
+// `71c52aa677`; this module did not exist there, so it is measured against the module it was carved from,
 // `detached-work-traced` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,437 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls:

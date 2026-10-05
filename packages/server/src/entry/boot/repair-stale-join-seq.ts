@@ -1,4 +1,4 @@
-// Boot step: the #2253 stale-join_seq DATA repair. Before eba8ef526 the `canonHeadSeq` subquery inside
+// Boot step: the #2253 stale-join_seq DATA repair. Before 39f71b2294 the `canonHeadSeq` subquery inside
 // `insertMemberAfterInviteClaimStatement` was unqualified, resolving against the global max(messages.seq)
 // instead of the per-chat max. Invite-redeemed seats therefore recorded a join_seq equal to the table-wide
 // canon head — potentially far above their own chat's highest message seq. The symptom: a `from-join`

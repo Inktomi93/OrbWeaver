@@ -31,11 +31,11 @@
 // `path.includes("/packages/client/src/")` is exactly `@client`.
 // Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
 // compiler-source candidate set: 1,319 admitted on both sides, symmetric difference ZERO in both directions.
-// LEGACY SHA: (58370d705^) — the parent of the commit that split this policy out.
+// LEGACY SHA: (f908c67db9^) — the parent of the commit that split this policy out.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `config-group-completeness` descriptor at dd862e988959e1f2f1d216d0649c029fea8d9751, the parent of the conversion
-// `58370d705`; this module did not exist there, so it is measured against the module it was carved from,
+// `config-group-completeness` descriptor at a8fc8f34e4454dbae8bb0b5e0ae38a9b662e4548, the parent of the conversion
+// `f908c67db9`; this module did not exist there, so it is measured against the module it was carved from,
 // `config-group-completeness` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
 // The legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter — parent run:
 // `if (!path.includes(CLIENT_SRC)) continue` with CLIENT_SRC = "/packages/client/src/". Over the SAME 7,144 harness

@@ -2,7 +2,7 @@
 // editing the corpus lossily while reading as a cosmetic pass.
 //
 // WHY THESE FIXTURES: every one is reduced from a REAL byte diff measured by running the unmodified
-// formatter over the pre-widening tree (`91d9a2ab7^`, 350 living docs). That pass added 369 backslash
+// formatter over the pre-widening tree (`6fa0d97efb^`, 350 living docs). That pass added 369 backslash
 // escapes, cost 25 distinct snake_case identifiers their grep hits, and left 10 files re-parsing to a
 // DIFFERENT tree. `render-identical` was never the bar: a law corpus you cannot grep is a law corpus you
 // cannot enforce, and a table that silently gains a column is a law doc that silently says something else.

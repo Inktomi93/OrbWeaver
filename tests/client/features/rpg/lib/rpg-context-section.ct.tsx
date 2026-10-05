@@ -768,7 +768,7 @@ test("the mobile Waystone wraps a long authored weather reading without clipping
 });
 
 // ── #1383 the Status region is a LIST OF PEOPLE, and it must announce like one ────────────────────────
-// Measured on main b767bedfc (`--aria '[aria-label="Chats details"]'`): `region "Status"` was one FLAT
+// Measured on main 32350c768f (`--aria '[aria-label="Chats details"]'`): `region "Status"` was one FLAT
 // tree — `button "Open Traveler"`, then bare `text: HP`, `button "HP value"`, `text: /`, `button "HP max"`
 // … repeated per character with ZERO group boundary, giving 4x "Add condition", 4x "Status line",
 // 3x "HP value", 3x "HP max". On an EDITING surface a reader heard "button, 17" four times and could not

@@ -17,7 +17,7 @@
 // member turn produces BOTH hidden-class channels; the member SSE strip must withhold the reasoning channel
 // (whole) AND the `<lie>` body span, while the host sees both.
 //
-// WHY THE SPAN IS SPLIT (ed2aafc5): a one-chunk span cannot falsify the MID-SLOT RESUME defect — a reader
+// WHY THE SPAN IS SPLIT (808ba09cc6): a one-chunk span cannot falsify the MID-SLOT RESUME defect — a reader
 // that starts after the opener is the whole bug, and it only exists when the tag straddles a chunk boundary.
 // See the `LIE_SPAN_*` block below for the full rationale + the exported comparands.
 //
@@ -63,7 +63,7 @@ export const FIXTURE_LIE_REASON = "to avoid the mob";
 /** The visible cover prose + the hidden `<lie>` span the body channel streams (the `<lie>` truth is the
  *  secret; the surrounding prose is member-visible).
  *
- *  THE SPAN IS STREAMED IN TWO CHUNKS, SPLIT MID-ATTRIBUTE (deliberate, ed2aafc5). A one-chunk span is
+ *  THE SPAN IS STREAMED IN TWO CHUNKS, SPLIT MID-ATTRIBUTE (deliberate, 808ba09cc6). A one-chunk span is
  *  unfalsifiable for the mid-slot RESUME defect: any reader — stateful or freshly cold-started — sees the
  *  whole `<lie …/>` at once and strips it, so a spec built on it goes green against BOTH the fixed and the
  *  broken producer. Splitting inside `truth="…"` creates the exact byte window the leak lived in: a reader

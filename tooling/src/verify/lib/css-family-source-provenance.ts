@@ -9,7 +9,7 @@
 // `css-family-ownership`, and the second call was a deliberate no-op — its own comment said "the sibling
 // CSS gate reuses the still-open state". That sharing is the whole point: the pass builds one
 // `StaticClassCollector` over `@ui` + `@client` and walks it once (measured on the real tree at
-// `1692583d6`: 23.9s of gate-hook time for the selector gate's visit, 16.7s for the ownership gate's
+// `(pruned from public history)`: 23.9s of gate-hook time for the selector gate's visit, 16.7s for the ownership gate's
 // finalize, ONE collector between them). The final contract owns state in `create`, which is PER POLICY —
 // and this fact now has THREE consumers — `css-selector-has-a-writer`, `css-family-ownership` and
 // `css-family-direct-client-mechanism` — so `create`-owned state would build the collector three times over

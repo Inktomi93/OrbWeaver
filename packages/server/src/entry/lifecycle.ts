@@ -558,7 +558,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // until this runs. Idempotent — a no-op on every boot once the candidate set is drained. Runs before
     // compose, which is where the first character read lives.
     await backfillPluginProvenanceOnBoot({ db });
-    // #2253 DATA repair: before eba8ef526 the invite-redeem's `canonHeadSeq` subquery was unqualified,
+    // #2253 DATA repair: before 39f71b2294 the invite-redeem's `canonHeadSeq` subquery was unqualified,
     // recording the table-wide max(messages.seq) instead of the per-chat head. Clamp any stale join_seq
     // to the actual per-chat canon head. Idempotent — a no-op on every boot once the candidates are drained.
     await repairStaleJoinSeqOnBoot({ db });

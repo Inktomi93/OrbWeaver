@@ -25,7 +25,7 @@ interface ShapeStages {
   // (`turns.midConversationSystem`) or mid-array (`turns.historySystemRows`) — so `withTail` (pre-splice) in
   // fact never carries one. It is typed on the full axis anyway rather than `Exclude<…,"system">`: this is a
   // structural INPUT shape, and narrowing it would make the builder reject a caller that is already correct.
-  // (`withTail` did briefly carry system, from the D129(B) narrator delivery `56a979d44` shipped; the owner
+  // (`withTail` did briefly carry system, from the D129(B) narrator delivery `6aad2053fb` shipped; the owner
   // ruled that out 2026-08-18 — group narration is the assistant's own voice.)
   withTail: readonly { role: MessageRole }[];
   injected: readonly { role: MessageRole }[];

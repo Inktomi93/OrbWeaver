@@ -18,7 +18,7 @@
 // verbatim AND MARKED, the carried-forward host verbatim and UNMARKED — then drive the REAL escape path
 // (`plugin.setGrant`) end to end, at both ask sizes: one outstanding capability and two.
 //
-// CONSENT IS APPROVE-ALL / DENY (#1855, owner ruling, `5e713309e`). Every arm below that used to tick a
+// CONSENT IS APPROVE-ALL / DENY (#1855, owner ruling, `6f6b9ba61f`). Every arm below that used to tick a
 // per-capability box now reads the list as the read-only statement it is and presses ONE button. The CT was
 // not swept with that landing, which is what board row #2390 was: five tests clicking checkboxes the product
 // had deliberately disabled. Each rewritten arm carries its own before/after note rather than a bare new
@@ -601,7 +601,7 @@ test("the grant screen shows the ui.surface consent line when a plugin declares 
   await expect(page.getByText("Reaches further")).toHaveCount(0);
 });
 
-// APPROVE-ALL / DENY, AND THIS ARM USED TO ASSERT THE OPPOSITE (#1855, owner ruling, landed `5e713309e`).
+// APPROVE-ALL / DENY, AND THIS ARM USED TO ASSERT THE OPPOSITE (#1855, owner ruling, landed `6f6b9ba61f`).
 // It was "unchecking a permission installs the NARROWED subset, not what the bundle asked for", and it drove
 // a real per-row checkbox. The owner replaced cherry-picking with two choices: approve the whole declared set,
 // or cancel — "unchecking capabilities the plugin declares rarely leaves a working plugin, and it taught
@@ -857,7 +857,7 @@ test("a same-task repeat admits one enable write, owns only its plugin row, and 
 
   // THE PENDING SWITCH IS NAMED "off", NOT "on". `useSetPluginEnabled` carries an OPTIMISTIC update that
   // flips the cached row's `status` the moment the write starts, and the switch's aria-label follows STATE
-  // (a4b008957) — so while the held mutation is in flight this control announces the act it now offers.
+  // (1529d12524) — so while the held mutation is in flight this control announces the act it now offers.
   // The commit that made the label state-derived did not sweep this assertion, which had pinned the old
   // static name; re-anchored here rather than weakened, because the rename IS the correct behaviour.
   const firstPending = page.getByRole("switch", { name: "Turn Weather Teller off" });
@@ -950,7 +950,7 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   // decision a person can make; "re-read these hostnames" is not.
   await expect(notice).toContainText("adds a new host it can reach");
 
-  // THE ROWS ARE READ-ONLY, AND THIS ARM USED TO ASSERT THE OPPOSITE (#1855, `5e713309e`). Three shapes have
+  // THE ROWS ARE READ-ONLY, AND THIS ARM USED TO ASSERT THE OPPOSITE (#1855, `6f6b9ba61f`). Three shapes have
   // stood here: a DISABLED checkbox beside a sentence saying the plugin wanted exactly that permission (#650
   // P1-3 — a control that looked live and silently did nothing); then a REALLY interactive row (#658), the
   // same editable arm install used; and now approve-all/deny, by owner ruling, on BOTH surfaces at once.
@@ -1016,7 +1016,7 @@ test("an upgrade that WIDENS reach says exactly what widened, and Allow closes t
   });
 });
 
-// A MULTI-CAPABILITY ASK, AND THE CLIENT'S PARTIAL PATH IS GONE (#1855, `5e713309e`).
+// A MULTI-CAPABILITY ASK, AND THE CLIENT'S PARTIAL PATH IS GONE (#1855, `6f6b9ba61f`).
 //
 // THIS ARM USED TO BE "a PARTIAL re-consent records exactly the narrower subset, and the notice keeps saying
 // so" — #658's granularity, driven end to end: tick ONE of the two newly-declared capabilities, and watch the
@@ -1344,7 +1344,7 @@ test.describe("coarse pointer — the disclosure triggers meet the touch floor (
 // THE OTHER HALF OF P2-2 IS RETIRED WITH ITS ARM, and this test used to be named for it: "clicking a
 // capability's CONSEQUENCE text toggles its grant". That finding was about a HIT TARGET — only an 18×18
 // square was clickable, so the fix wrapped the name, pills and consequence in a bare `<label htmlFor>`. #1855
-// (`5e713309e`, owner ruling) made the list read-only on every surface, so there is nothing to toggle and no
+// (`6f6b9ba61f`, owner ruling) made the list read-only on every surface, so there is nothing to toggle and no
 // target to widen; the label wrapper went with it. A test that kept clicking the sentence would be asserting
 // an affordance the owner deliberately removed.
 //
@@ -1420,7 +1420,7 @@ test("a re-consent row's checkbox name is exactly its label, with no badge run-o
   // A GRANTED row is the case this pin still owns: it renders a checkbox, so it HAS a computed name, and that
   // name must be exactly the label — not the label plus its two pills plus the consequence.
   await expect(notice.getByRole("checkbox", { name: "Read this room's messages", exact: true })).toHaveCount(1);
-  // THE NEWLY-ASKED ROW IS NO LONGER A CHECKBOX (#1855, `5e713309e`): it is a "Not granted" statement, so it
+  // THE NEWLY-ASKED ROW IS NO LONGER A CHECKBOX (#1855, `6f6b9ba61f`): it is a "Not granted" statement, so it
   // computes no accessible name at all and the "New" mark is plain adjacent text rather than part of one.
   // This arm used to assert `name: "Write world book entries New"` on a live control; the run-on defect it
   // pins (a name swallowing the badge text and the consequence) can only exist where a name exists, so the

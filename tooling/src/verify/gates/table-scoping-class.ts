@@ -13,8 +13,8 @@
 // vocabulary — the three `owner-scoped-*` members can waive a call site, but nothing may waive the
 // classification their (a)-class set is read from.
 // POPULATION PORT: the same set, byte-for-byte in membership. The legacy
-// `scanRoot: (p) => p.includes("packages/db/src/schema/")` (40223a0915eda72dd8ab35fbdeaf9e9892089717 —
-// the whole family converted in one commit, `b54b2c34e`) becomes `DRIZZLE_SCHEMA_POPULATION`
+// `scanRoot: (p) => p.includes("packages/db/src/schema/")` (04978142566ff3412b204f73d849f0b9bf301154 —
+// the whole family converted in one commit, `5e6b7d09df`) becomes `DRIZZLE_SCHEMA_POPULATION`
 // (`{ in: ["@db"], under: ["packages/db/src/schema/**"] }`); the only change is substring matching
 // becoming anchored, and 30 tracked paths contain that segment while the same 30 begin with it. Note which
 // population that is: this member declares the DRIZZLE-SCHEMA family's shared constant while belonging to
@@ -22,8 +22,8 @@
 // deliberately not merged — the shared reader's header records the same split.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `table-scoping-class` descriptor at 40223a0915eda72dd8ab35fbdeaf9e9892089717, the parent of the conversion
-// `b54b2c34e` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `table-scoping-class` descriptor at 04978142566ff3412b204f73d849f0b9bf301154, the parent of the conversion
+// `5e6b7d09df` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,367 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 30 and final `population` admits 30. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside

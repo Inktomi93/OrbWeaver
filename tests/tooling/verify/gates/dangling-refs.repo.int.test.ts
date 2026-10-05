@@ -24,7 +24,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 const HARD_GATE = "dangling-refs";
 const CITATION_GATE = "dangling-ref-citations";
 const FAMILY_GRANTS = REVIEWED_GRANTS.filter(({ policyId }) => policyId === CITATION_GATE);
-// Two rows joined the family AFTER the conversion (a6740edc3, 2026-09-14): the `ELEVATED_ALLOW` and
+// Two rows joined the family AFTER the conversion (2206566d95, 2026-09-14): the `ELEVATED_ALLOW` and
 // `EXEMPT_PROCEDURES` symbol citations that the density-tier and duplicate-action-doors conversions retired
 // from the tree while Core-Enforcement-Active-Gates.md kept naming them. They are live grants, not
 // translations of a legacy private row, so the arm below names them separately. The `TRANSLATED_GRANTS`

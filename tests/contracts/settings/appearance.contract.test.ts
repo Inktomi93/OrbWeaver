@@ -4,7 +4,7 @@
 // What these pins protect: the move is a FILE split, not an ownership move or a second copy — the barrel and
 // the deep door must hand back the SAME object, and the schema must stay TOTAL, because
 // `state/appearance-boot-hint.ts` parses an untrusted durable-local blob through it before React mounts
-// (ab192aedf: one set of bounds, never a client copy).
+// (e94c50a718: one set of bounds, never a client copy).
 
 import { DEFAULT_USER_SETTINGS, appearanceSettingsSchema as viaBarrel } from "@orb/contracts/settings";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";

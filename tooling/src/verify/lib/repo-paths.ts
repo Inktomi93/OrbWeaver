@@ -106,7 +106,7 @@ export function gitChangedPaths(root: string = ROOT): readonly string[] {
 // of the instruments a branch CHANGED. It needs the branch answer and not the working-tree one for the
 // reason #1842's own note implies — at `--push` the changes are COMMITTED and the working tree is clean,
 // so a working-tree read selects nothing and the stage passes vacuously, which is the #1967 defect in a
-// new costume. Restored verbatim from `8d9f25183`, including its `null`-is-not-empty contract.
+// new costume. Restored verbatim from `1038dd8e37`, including its `null`-is-not-empty contract.
 
 /** The candidate mainline refs a branch's merge base is taken against. THE ORDER IS A TIE-BREAK, NOT A
  *  PREFERENCE — see `resolveMergeBase`. */

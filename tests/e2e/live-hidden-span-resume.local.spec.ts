@@ -1,8 +1,8 @@
-// E2E (LOCAL mode) — the MID-SLOT RESUME arm of the §3.6 hidden-span strip (ed2aafc5), with two real
+// E2E (LOCAL mode) — the MID-SLOT RESUME arm of the §3.6 hidden-span strip (808ba09cc6), with two real
 // principals. This is the ONE §3.6 sub-claim the existing live specs cannot reach, and it had never been
 // driven end-to-end.
 //
-// THE DEFECT IT PINS (ed2aafc5, "CONFIRMED LEAK — member-visible, exploitable on demand"): the hidden-span
+// THE DEFECT IT PINS (808ba09cc6, "CONFIRMED LEAK — member-visible, exploitable on demand"): the hidden-span
 // scrub is STATEFUL over a slot's whole delta stream — a `<lie …/>` opener is withheld until its `/>`
 // arrives. That state used to be allocated PER SUBSCRIPTION (one map in the SSE generator, another thrown
 // away inside every `replayChatEvents` call), so any reader that began — or RESUMED — while a span was open

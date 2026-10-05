@@ -157,7 +157,7 @@ export const gate = defineGate({
   family: "no-raw-matchmedia",
   authority: "reviewed-grant",
   severity: "error",
-  // POPULATION PORT: an INTENTIONAL CORRECTION, legacy at 6a7978135 (the parent of 256682e4a). The legacy
+  // POPULATION PORT: an INTENTIONAL CORRECTION, legacy at (pruned from public history) (the parent of c96e75a917). The legacy
   // `scanRoot` was `p.includes("packages/client/src/") || p.includes("packages/ui/src/")` MINUS three home
   // files returned false one at a time (`use-prefers-reduced-motion.ts`, `reduced-motion-now.ts`,
   // `use-is-mobile-viewport.ts`). The final admits the same two packages and subtracts NOTHING — the homes

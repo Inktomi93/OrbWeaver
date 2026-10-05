@@ -22,4 +22,4 @@ Each notice names the plugin and the reason and links to its card.
 
 ## Evidence
 
-Lane S4 (54cb1d440b) names the plugin and the reason in the inbox notice and adds an Open in Plugins button. Not done: a link to the plugin's own card (config nav has no per-card anchor), and the missing second notice: crash-policy notifies only while consecutive_crashes is under three and set-enabled never resets it, so a re-enabled plugin re-disables silently; proposed fix is resetCrashes on enable in set-enabled.ts with an int test.
+Lane S4 (40faaf7df5) names the plugin and the reason in the inbox notice and adds an Open in Plugins button. Not done: a link to the plugin's own card (config nav has no per-card anchor), and the missing second notice: crash-policy notifies only while consecutive_crashes is under three and set-enabled never resets it, so a re-enabled plugin re-disables silently; proposed fix is resetCrashes on enable in set-enabled.ts with an int test.

@@ -1,13 +1,13 @@
 # Smart-picker live matrix: results
 
-Run 2026-10-03 on branch `wt/agent-a35378799df0d73a3`. The current verdict is for `748d598052`: the
-side-gen reasoning fix `2b257a5d4f` plus a docs-only main merge, with no product diff between them. Every row
+Run 2026-10-03 on branch `wt/agent-a35378799df0d73a3`. The current verdict is for `3e4957f7c8`: the
+side-gen reasoning fix `89a6207bf1` plus a docs-only main merge, with no product diff between them. Every row
 in `results.jsonl` carries `tree.head`, and `tree.dirtyProduct` is false for all of them. Rows without `tree`
-predate the tag and come from the pre-fix tree `4fd95384e6`. `node scripts/probes/smart-picker-live/run.ts
+predate the tag and come from the pre-fix tree `49bc0597ef`. `node scripts/probes/smart-picker-live/run.ts
 report` prints the per-cell table from each cell's latest run. [`README.md`](README.md) describes how the probe
 drives the production path.
 
-## Verdict on 748d598052
+## Verdict on 3e4957f7c8
 
 The structured-only arbiter returns a valid pick on 9 of 9 scenes on eight cells: OpenAI, Anthropic direct,
 three Claude models through OpenRouter, vLLM, Ollama and KoboldCpp. Every pick was a member of the round's
@@ -19,7 +19,7 @@ unbound row both degraded, and no model scene on a passing cell degraded.
 Still open: llama.cpp with Gemma 4, which is lane 0512's `body.ts` change, and DeepSeek through a Custom
 connection, which waits on item 0518. Gemini is **pending: quota, reset 23:59:59 UTC, runs on the final tree**.
 
-## Matrix (748d598052)
+## Matrix (3e4957f7c8)
 
 "Scenes pass" means a valid, non-degraded pick on each of the 9 scenes, with a model call exactly when the scene
 needs one: `clear-name` and `clear-names` resolve without a call. "Quality hits" counts valid picks inside
@@ -37,7 +37,7 @@ through the app's runtime, over the 7 rounds that called the model.
 | Gemini compat (Custom, `v1beta/openai`) | hosted | `gemini-3.8-flash` | pending: quota | - | - | `response_format: json_schema` | pass | pass |
 | DeepSeek (Custom) | hosted | `deepseek-flash` | not configurable until 0518 | - | - | none | pass | pass |
 | vLLM | GPU 1 | `qwen3.8-27b` (Qwen3.8-27B W8A8) | 9/9 | 7/8 | 622 / 1131 | `response_format: json_schema` | pass | pass |
-| llama.cpp (on `2b257a5d4f`) | GPU 1 | `gemma-4-e4b-it` (gemma-4-E4B-it Q8_0) | **2/9** | - | 2779 / 3060 | `response_format: json_schema` | pass | pass |
+| llama.cpp (on `89a6207bf1`) | GPU 1 | `gemma-4-e4b-it` (gemma-4-E4B-it Q8_0) | **2/9** | - | 2779 / 3060 | `response_format: json_schema` | pass | pass |
 | Ollama | GPU 0 | `gemma4:e4b` | 9/9 | 8/8 | 317 / 4665 | Ollama `format` schema | pass | pass |
 | KoboldCpp | GPU 0 | `koboldcpp/gemma-4-E4B-it-Q8_0` | 9/9 | 7/8 | 392 / 452 | `response_format: json_schema` | pass | pass |
 | Reranker, built-in local-light | CPU | `Xenova/ms-marco-MiniLM-L-6-v2` | 9/9 | 7/8 | 29 / 390 (first call loads) | rerank | pass | pass |
@@ -79,18 +79,18 @@ rows.
 
 ## Defects found by this matrix
 
-Each was found on the pre-fix tree `4fd95384e6` and routed by the orchestrator.
+Each was found on the pre-fix tree `49bc0597ef` and routed by the orchestrator.
 
 1. **OR `anthropic/claude-sonnet-5.5` never turned reasoning off.** The app body carried no `reasoning`
    field, and OpenRouter defaulted to adaptive thinking, which spent the 128-token arbiter cap
    (`SIDE_GEN_POSTURES.arbiter`, `packages/contracts/src/preset/index.ts:203`): `finish_reason: length` and
    empty content, twice, then a degrade. The pre-fix result was 7/9 (`player-shares-name` and
-   `duplicate-names` degraded). Fixed in `2b257a5d4f`.
+   `duplicate-names` degraded). Fixed in `89a6207bf1`.
 2. **Ollama sent no `think: false`.** The model reasoned until `num_predict` ran out; the pre-fix result was
-   2/9. Fixed in `2b257a5d4f`.
+   2/9. Fixed in `89a6207bf1`.
 3. **The reranker banned the last speaker after a human line.** `rerank-pick.ts` `topAllowed` dropped the last
    speaker whenever the round banned it. In `role-addressed` it ranked Liesel, the healer, first, then banned
-   her and picked Brannoc. Fixed in `2b257a5d4f`: `role-addressed` now picks Liesel.
+   her and picked Brannoc. Fixed in `89a6207bf1`: `role-addressed` now picks Liesel.
 4. **llama.cpp with Gemma 4: the template switch does not hold under a JSON schema. Open; routed to lane
    0512.** Gemma 4 obeys `enable_thinking: false` until the request carries a `json_schema`. With one, it
    reasons about 470 characters of `reasoning_content` into the 128-token cap. Sending

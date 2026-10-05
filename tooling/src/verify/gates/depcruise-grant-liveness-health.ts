@@ -34,7 +34,7 @@
 //
 // POPULATION PORT. This module is not a port of its own descriptor — it has none. It is an ARM carved out of
 // `depcruise-grant-liveness` (`reportBudget`/`BACKREF_BUDGET`/`PATTERN_MESSAGES.budgetMoved` at
-// `6f7fe543f`), whose population is `{ of: "none" }` over the same two resources minus the package
+// `92ce249b47`), whose population is `{ of: "none" }` over the same two resources minus the package
 // manifests, which only the pattern-member arms read: legacy − final = ∅ and final − legacy = ∅ by
 // declaration on the TypeScript side (neither side ever admitted a source file), and the resource side is
 // `native-config:depcruise` + `tracked-files`, both carried over.

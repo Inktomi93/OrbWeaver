@@ -87,9 +87,9 @@
 // INDEX, and no frozen resource kind serves a staged blob), so the loader would refuse a family string with
 // one final member that is not its own id.
 //
-// LEGACY SHA: the conversion parent is `d23150315`; the frozen dispatcher the §4.6 differential
-// replayed against is `02382639e` (named as such in the conversion commit `a33b2e339`'s own message:
-// "legacy dispatcher (02382639e) and the final policy over the same bytes: 15 IDENTICAL, 1 classified").
+// LEGACY SHA: the conversion parent is `(pruned from public history)`; the frozen dispatcher the §4.6 differential
+// replayed against is `65aa7f4743` (named as such in the conversion commit `c961a5ab10`'s own message:
+// "legacy dispatcher (65aa7f4743) and the final policy over the same bytes: 15 IDENTICAL, 1 classified").
 // Recorded here because §5b.5 asks the HEADER for it and a hand read over this whole span found no hex
 // at all — the shas lived only in the commit message and in `lib/reviewed-grants.ts`'s `why` strings,
 // neither of which a reader of this module sees.
@@ -128,7 +128,7 @@
 // the gate-runtime exception-authority census says cannot be translated one-for-one.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `suppressions` descriptor at d2315031518b859f3355c931ac158c2e32951249, the parent of the conversion `a33b2e339`
+// `suppressions` descriptor at (pruned from public history), the parent of the conversion `c961a5ab10`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,497 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,497
 // and final `population` admits 7,497. legacy − final = ∅. final − legacy = ∅. Controls: inside

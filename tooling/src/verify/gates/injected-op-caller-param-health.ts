@@ -19,11 +19,11 @@
 // compiler-source candidate set: 178 legacy vs 1,596 final, 1,418 admitted only by the final and ZERO
 // only by legacy — a pure WIDENING, which is the direction a two-sided ratchet needs: it must see every
 // op declaration AND every caller, not only the contract directories the legacy predicate named.
-// LEGACY SHA: (f693a27a9^) — the parent of the commit that split this policy out.
+// LEGACY SHA: (fd17cc9a10^) — the parent of the commit that split this policy out.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `injected-op-caller-param` descriptor at 7993f264c43f96f5b3595d184919d4cdee253a43, the parent of the conversion
-// `f693a27a9`; this module did not exist there, so it is measured against the module it was carved from,
+// `injected-op-caller-param` descriptor at 6044391ca791b8ae4a28e91fa13be8cb94e86350, the parent of the conversion
+// `fd17cc9a10`; this module did not exist there, so it is measured against the module it was carved from,
 // `injected-op-caller-param` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
 // Over the SAME 7,365 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
 // legacy `scanRoot` admits 178 and final `population` admits 1,596. legacy − final = ∅. final − legacy = 1,418 —

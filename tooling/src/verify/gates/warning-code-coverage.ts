@@ -23,19 +23,19 @@
 // policies, and this one) — and no sibling policy judges whether a warning code is EMITTED, which is this
 // policy's subject.
 // POPULATION PORT: the legacy descriptor was `scopeSafety: "whole-project"` and walked `ctx.project`
-// entirely (ed8b96aef), narrowing to the channels inside its own reader. The final population is
+// entirely (6a8996e48f), narrowing to the channels inside its own reader. The final population is
 // `in: ["@server", "@contracts"]` — an INTENTIONAL narrowing, and lossless: both tuple homes live there
 // (server/infra/providers, contracts/chat) and both emit scopes are under `packages/server/src/`, so no
 // admitted file the legacy walk judged is dropped.
-// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the citation above kept: the `(ed8b96aef)` is NOT this
-// conversion's legacy source. `git rev-parse` gives a different `warning-code-coverage.ts` blob at `ed8b96aef` than
-// at the conversion parent `307640dae` (= `e18bce01e^`), which is the replayable descriptor. "lossless" holds
+// SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the citation above kept: the `(6a8996e48f)` is NOT this
+// conversion's legacy source. `git rev-parse` gives a different `warning-code-coverage.ts` blob at `6a8996e48f` than
+// at the conversion parent `6e5449e627` (= `700f6b375e^`), which is the replayable descriptor. "lossless" holds
 // (legacy − final = ∅), and the population is a superset of what the reader judges (final − legacy = 1,347; the
 // sets at the end of this header).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `warning-code-coverage` descriptor at 307640dae36a13f5c21e08cbd24a8e24633adb92, the parent of the conversion
-// `e18bce01e` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `ed8b96aef`
+// `warning-code-coverage` descriptor at 6e5449e6277b78503a2863de6b646d15815d72ea, the parent of the conversion
+// `700f6b375e` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `6a8996e48f`
 // cited above is NOT this blob — `git rev-parse` gives a different blob there than at the conversion parent, which is
 // the replayable legacy source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run
 // path filter — channels: homeFile `/packages/server/src/infra/providers/contract/resolve.ts` + emitScope

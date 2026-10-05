@@ -624,7 +624,7 @@ export default defineConfig({
     // Sized to the ACCEPTED bundle, not to an aspiration (owner ruling 2026-09-05, #1752). The lazy
     // seals (echarts/codemirror class) were always large; what moved the number is that `@orb/client`
     // no longer declares `sideEffects`. That allowlist existed for the Aug-14 boot code-split
-    // (d99b6586f: 4,936 kB → 1,056 kB by letting barrels shake), but Rolldown applies the NEAREST
+    // (12e98e88f5: 4,936 kB → 1,056 kB by letting barrels shake), but Rolldown applies the NEAREST
     // package.json's `sideEffects` to the app's OWN files (vitejs/vite#22620), so every module imported
     // purely for effect had to be ENUMERATED — and when the CSS front door `src/styles/index.ts`
     // arrived on Aug 31, nobody added the entry. The bare `import "./styles/index.ts"` was shaken away

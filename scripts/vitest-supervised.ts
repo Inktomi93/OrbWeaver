@@ -40,7 +40,7 @@
 //      2026-09-01:** the previous version of this file claimed 300s was "~2.5× the longest legitimate quiet
 //      gap, the 120s `ast-observability` serial rows". That sentence was wrong TWICE, and it made this
 //      watchdog the primary defect it was written to fix. (i) It cited a file that has not existed since
-//      8931a886c; the suite is `tests/tooling/ast/cli.repo.int.test.ts`, and 120s is its PER-ROW spawn budget
+//      07a2b1f776; the suite is `tests/tooling/ast/cli.repo.int.test.ts`, and 120s is its PER-ROW spawn budget
 //      (300s for the two typed whole-workspace rows), not the file's cost. (ii) vitest's default reporter
 //      prints NOTHING while a single file runs, so the quiet gap is the WHOLE FILE. A live capture of an
 //      unsupervised battery caught the parent silent in `ep_poll` for 7+ minutes with one idle worker fork

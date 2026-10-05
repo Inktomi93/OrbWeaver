@@ -91,7 +91,7 @@ const SERVICE_KEYS = [
   "preset",
   "refinery",
   // The regex library service (D121-E) — this list was the one coupled site the regex lane missed
-  // (the SERVICE_KEYS-phantom class; fixed at `d8a67e94`).
+  // (the SERVICE_KEYS-phantom class; fixed at `9fda2735c0`).
   "regex",
   "rosterPreset",
   "rpg",

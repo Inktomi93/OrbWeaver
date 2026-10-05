@@ -10,7 +10,7 @@
 // Drizzle builder identity and the table/column model) plus `lib/schema-fact-value.ts`
 // (`effectiveObjectProperty`, `unwrapSchemaExpression`, `SchemaRefusal`), consumed identically by all
 // fifteen members, so no member re-derives "which call is a column builder" from a name.
-// POPULATION PORT: byte-identical. The legacy descriptor (1bf7ff7d9, the parent of 521780ac6) scoped with
+// POPULATION PORT: byte-identical. The legacy descriptor (faf2dc3857, the parent of 229652060f) scoped with
 // `scanRoot: (p) => /\/packages\/db\/src\/schema\//u.test(`/${p}`)`; the final declares
 // `DRIZZLE_SCHEMA_POPULATION` = `{ in: ["@db"], under: ["packages/db/src/schema/**"] }`, the same set. The
 // population is the PROVIDER's own (lib/schema-fact.ts:519-526) and is shared by reference rather than
@@ -25,8 +25,8 @@
 // `UNREADABLE` are deliberately DISJOINT strings so that fragment can discriminate at all.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `db-enum-from-tuple` descriptor at 1bf7ff7d9f5b9320217a3abf6dfedc08bf10db3a, the parent of the conversion
-// `521780ac6` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `db-enum-from-tuple` descriptor at faf2dc3857bb695611584aacb5d8accc5806b382, the parent of the conversion
+// `229652060f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,141 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 30 and final `population` admits 30. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside

@@ -91,11 +91,11 @@
 // surviving question is whether the two MINTING FACTORIES pass complete options, so the population is
 // exactly those two files. The narrowing is what makes the out-of-factory `mustPass` row meaningful, and
 // the §4.1 matrix above pins it (population widened to the whole `@client` → RED x1).
-// LEGACY SHA: (61aa46279^) — the conversion's parent.
+// LEGACY SHA: (9aea17e390^) — the conversion's parent.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `persist-partialize-and-total-migrate` descriptor at 644785bf211affac516d38c955d275ce45fc09b0, the parent of the
-// conversion `61aa46279` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// `persist-partialize-and-total-migrate` descriptor at (pruned from public history), the parent of the
+// conversion `9aea17e390` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,368 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,319 and final `population` admits 2. legacy − final = 1,317 `@client` sources other than the
 // two minting factories — the ARM A reach retired to `no-raw-zustand-persist`. final − legacy = ∅. Controls: inside:

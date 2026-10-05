@@ -1,5 +1,5 @@
 // Gate: json-column-write-parity — a JSON column with BOTH a key-wise writer and a whole-record-replace
-// writer is a silent clobber. FOUNDING DEFECT (`57fb8595b`, red-first at
+// writer is a silent clobber. FOUNDING DEFECT (`163b93fa10`, red-first at
 // tests/server/domain/refinery/verbs/update-session.int.test.ts): `refinery_sessions.selection` was written
 // two ways — `applyFields` REMAPPED `greetingIndexes` key-wise when an accepted rewrite removed a greeting,
 // while `updateSession` did `set.selection = refinerySelectionSchema.parse(patch.selection)`, a whole value
@@ -75,7 +75,7 @@ const MESSAGE =
   "WHOLE-RECORD REPLACE of a JSON column that ANOTHER writer merges key-wise — the replace silently undoes " +
   "the merge on the next write. The founding defect: refinery_sessions.selection, where applyFields remapped " +
   "greetingIndexes across a greeting removal while updateSession rebuilt the whole value from the client's " +
-  "image (fixed in 57fb8595b; red-first at " +
+  "image (fixed in 163b93fa10; red-first at " +
   "tests/server/domain/refinery/verbs/update-session.int.test.ts). Neither writer is wrong alone; the " +
   "STRADDLE is. ARM B (#879): AND a whole-replace writer of a VERSIONED-CONFIG column (one whose `$type` is " +
   "a type `defineVersionedConfig(...)` owns) must be DOMINATED in its own function body by " +
@@ -180,7 +180,7 @@ export const gate = defineGate({
           "export async function apply(ctx, removed, sessionId) {\n  const { session } = await resolveApplyBasis(ctx, sessionId);\n  await ctx.db.update(refinerySessions).set({ selection: remapSelection(session.selection, removed) }).where(sessionId);\n}\n",
       },
       expect: { count: 1 },
-      why: "THE FOUNDING DEFECT verbatim (57fb8595b): the whole-replace lives one helper hop in and reads only `patch`, while the sibling verb merges key-wise off a LOADED session — the straddle that undid the greeting remap",
+      why: "THE FOUNDING DEFECT verbatim (163b93fa10): the whole-replace lives one helper hop in and reads only `patch`, while the sibling verb merges key-wise off a LOADED session — the straddle that undid the greeting remap",
     },
     {
       mode: "types",
@@ -291,7 +291,7 @@ export const gate = defineGate({
         "packages/server/src/domain/refinery/verbs/apply-fields.ts":
           "export async function apply(ctx, removed, sessionId) {\n  const { session } = await resolveApplyBasis(ctx, sessionId);\n  await ctx.db.update(refinerySessions).set({ selection: remapSelection(session.selection, removed) }).where(sessionId);\n}\n",
       },
-      why: "THE FIX (57fb8595b) — the merge basis is passed in from a LOADED row, so the helper's `current` parameter carries the row taint and both writers are key-wise. This row is the gate's own regression pin against re-flagging the corrected shape",
+      why: "THE FIX (163b93fa10) — the merge basis is passed in from a LOADED row, so the helper's `current` parameter carries the row taint and both writers are key-wise. This row is the gate's own regression pin against re-flagging the corrected shape",
     },
     {
       mode: "types",

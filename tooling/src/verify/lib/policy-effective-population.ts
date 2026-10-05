@@ -16,7 +16,7 @@
 //
 //  1. AN INPUT IS NEVER NARROWED. A resource (the committed ledger, a package manifest, a CSS inventory) and a
 //     consumed fact's census are DATA the verdict reads, not subjects it judges. Intersecting them with the
-//     requested set withdrew the data and left the owner judging with a hole: measured 2026-09-13 at `028e278ee`,
+//     requested set withdrew the data and left the owner judging with a hole: measured 2026-09-13 at `2339040dbb`,
 //     a changed-mode request naming ONE `@ui` seal took `baseui-derives-not-respells` and its `-health` sibling
 //     to `[create] resource request json:baseui-manifest is undeclared` — a WITHHELD owner on the ordinary
 //     `--changed` path — because `requestStaysDeclared` drops a request whose paths all fell outside the

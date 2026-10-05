@@ -30,7 +30,7 @@
  * NOT here (enforced elsewhere, by shape): assets-single-writer / discovery-no-vector-write /
  * serde-core-single-mapper / ASSUMES(single-replica) presence — all method-call or comment shapes, so they
  * are structural gates under tooling/src/verify/gates/, not import edges; persistence-no-in-memory-state
- * (also a gate — the GritQL layer it used to be was retired in 64ab26501 and every plugin recreated as a
+ * (also a gate — the GritQL layer it used to be was retired in aa1750c1e5 and every plugin recreated as a
  * ts-morph gate); no-inline-types / exhaustive-dispatch (biome + gates); "runner/family never leave
  * providers" (compile-time + a gate). CLIENT LAYERING IS HERE, not deferred — 17 `client-*` rules carry
  * the client's own tier order, decided at the client-foundation wave (see the section note at the
@@ -722,7 +722,7 @@ module.exports = {
     {
       name: "persistence-no-io",
       comment:
-        "persistence/ is db queries ONLY — no node:* I/O (no node:fs / node:net / raw fetch). A raw fetch against a user URL is an infra adapter reached through an injected op; the live precedent is DatabankContext.fetchUrl → entry/compose/databank.ts → infra/network.fetchWebDocument. (Core-0-Architecture-and-Structure.md §3; Tier-3-Infra.md.) The no-module-scope-Map half is a structural gate (persistence-no-in-memory-state) — it was a GritQL plugin until 64ab26501 retired that layer.",
+        "persistence/ is db queries ONLY — no node:* I/O (no node:fs / node:net / raw fetch). A raw fetch against a user URL is an infra adapter reached through an injected op; the live precedent is DatabankContext.fetchUrl → entry/compose/databank.ts → infra/network.fetchWebDocument. (Core-0-Architecture-and-Structure.md §3; Tier-3-Infra.md.) The no-module-scope-Map half is a structural gate (persistence-no-in-memory-state) — it was a GritQL plugin until aa1750c1e5 retired that layer.",
       severity: "error",
       from: { path: `${SRV}domain/[^/]+/persistence/` },
       to: { dependencyTypes: ["core"] },

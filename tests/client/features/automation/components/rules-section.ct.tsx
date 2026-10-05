@@ -160,7 +160,7 @@ const CLOCK_PRESET = {
  *  `possibly undefined` under the tests program's `noUncheckedIndexedAccess`, while biome's type service
  *  disagrees and calls the guarding optional chain useless, so neither `?.` nor `[0]` is spellable there. */
 // PRE-EXISTING RED, FED HERE (found 2026-09-05 by cb-injections-idiom, reproduced against a clean
-// ca853697c with all three files at HEAD): the Regex section (#1742) landed in the "This chat" tab with two
+// 57d0228987 with all three files at HEAD): the Regex section (#1742) landed in the "This chat" tab with two
 // new reads, and the tab-mounting tests in THIS file were never swept — both `#616` and `#640` timed out
 // waiting for the host band that never rendered, and the #629 unfed-read census flagged both procs. The
 // section is closed by default here, so the disabled-and-empty projection is all these mounts need: they
@@ -1013,7 +1013,7 @@ test("#655: the picker speaks with ONE heading, and the heading names the step",
 // controlled `open` itself, so the reset never ran for the one close a host reaches most. Reopening
 // landed on the PREVIOUS preset's knob form with the catalogue unreachable, and the one visible
 // "Add rule" button minted a DUPLICATE of the rule just added while the host believed they had picked
-// a different one (measured twice on main, e96afef17). The two presets here are deliberately
+// a different one (measured twice on main, 4f77f88a20). The two presets here are deliberately
 // distinguishable at BOTH steps: `Add 2 rules` is the clock's own button label, so the second mint
 // cannot be the pacing form wearing a different name.
 test("#814: a MINT returns the picker to its catalogue — the next rule is the one the host picked", async ({ mount, page }) => {
@@ -1672,7 +1672,7 @@ test("#1673 a draft-rewriting rule refuses Run now — and keeps every affordanc
 //
 // EVERY PIN BELOW ASSERTS THROUGH WHAT A HOST MEETS — the visible summary, the reachable controls, the
 // measured box — never through the new `open` state or a testid. Red-first receipts (measured 2026-09-05,
-// cb-injections-idiom, by restoring `rule-row.tsx` + `rules-section.tsx` to ca853697c): the closed-face pin
+// cb-injections-idiom, by restoring `rule-row.tsx` + `rules-section.tsx` to 57d0228987): the closed-face pin
 // failed on "Test Illustrate the scene" being VISIBLE with the row shut, `ruleDisclosure` resolved nothing
 // at all (there was no row trigger to press, so `openRule` timed out), and the settled section measured
 // 764px at 367px / 1,166px at 411px against the budgets below.

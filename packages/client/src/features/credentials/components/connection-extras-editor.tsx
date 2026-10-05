@@ -1,6 +1,6 @@
 // "Extra request fields" (= `extras`) — the row editor step 9 BUILDS (inference program §5.3a · the
 // step-3b mock `editor.html` Board C). §5.3a used to say MOVE `preset/components/custom-parameters-editor.tsx`
-// here; `146f71cd5` deleted that file with the preset `customParameters` cut-over, so there is no prior art
+// here; `9a6061b487` deleted that file with the preset `customParameters` cut-over, so there is no prior art
 // and no `SCOPE_GLOSS` to recover — the three properties are the target, and a lane that replaces the rows
 // with one TEXTAREA has regressed all three (a pasted block of fields is split into rows instead):
 //

@@ -29,13 +29,13 @@
 //
 // POPULATION PORT: an INTENTIONAL NARROWING that deletes a structurally redundant fence. The legacy
 // descriptor carried `scopeSafety: "whole-project"` with NO `scanRoot`, so its admitted set was the whole
-// harness corpus (`_shared/ts-workspace.ts#harnessGlobs`, 7,557 files on the real tree at `1692583d6`) —
+// harness corpus (`_shared/ts-workspace.ts#harnessGlobs`, 7,557 files on the real tree at `(pruned from public history)`) —
 // and then `lib/css-selector-writers.ts#isProductSource` and `css-family-source-provenance.ts#ownerForPath`
 // each discarded everything outside `packages/{ui,client}/src/`, which is `@ui` + `@client` byte for byte
 // (`contract/population.ts#POPULATION_ROOTS`). `StaticClassCollector.index`/`.visit` additionally fence on
 // their own `sourceSet`, which was already built from that filtered list. The declared population therefore
 // admits exactly what the gate ever looked at; the fence is deleted rather than kept as decoration
-// (`server-layout` precedent). Legacy sha `1692583d6`.
+// (`server-layout` precedent). Legacy sha `(pruned from public history)`.
 //
 // WHERE A BROKEN RESOURCE REFUSES — not here, but at TWO phases. `resolveResourceDeclarations` acquires the
 // POPULATED declarations (`product-css`, `json:baseui-manifest`) at the population phase and withholds this
@@ -66,8 +66,8 @@
 //     policy uses the surface to ACQUIT: going blind silently would accuse every vendor-written selector.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `css-selector-has-a-writer` descriptor at 5545f9ccf12c19cdeafe81d41378ce7eb511e6ee, the parent of the conversion
-// `9104f718f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// `css-selector-has-a-writer` descriptor at (pruned from public history), the parent of the conversion
+// `a7c6745477` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — lib/css-family-source-provenance.ts `ownerForPath` (via lib/css-selector-writers.ts `isProductSource`),

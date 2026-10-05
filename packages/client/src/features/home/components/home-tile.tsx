@@ -32,7 +32,7 @@
 // end "first-ever boot reserves nothing (there is nothing honest to reserve)". That was right about a
 // static HEIGHT and wrong about the tile's own DATA CONTRACT, and it left the whole grid shifting for
 // every device with an empty box memory — a new profile, cleared storage, and every fresh Playwright
-// profile, which is why the harness kept measuring it. Live stack at HEAD 7462c165c, home alone: CLS
+// profile, which is why the harness kept measuring it. Live stack at HEAD 4a473e08f9, home alone: CLS
 // 0.1338 over the 0.1 budget in 3/3 runs, ONE entry, attributed `chat.recents` growing 233px → 541px and
 // pushing `chat.quickPicks`/`chat.tempChat` down 308px. The IDENTICAL drive with the box memory
 // pre-seeded scored 0.0002 with zero shifts — the mechanism was never broken, only its first-boot arm

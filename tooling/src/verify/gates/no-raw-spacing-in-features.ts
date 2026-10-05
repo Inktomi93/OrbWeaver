@@ -25,13 +25,13 @@
 // THE REPORTED POSITION is the WHOLE QUOTED LITERAL (`token: text, offset: 0` — `text` is `node.getText()`,
 // which INCLUDES the quotes), so a waiver names `"p-4"`, quotes and all; `fix` states the spelling.
 //
-// The legacy `no-raw-spacing-in-features` descriptor (d6f36904fa6946238678e61760888aaf62ba0c93) ran a
+// The legacy `no-raw-spacing-in-features` descriptor (1b999db38d4c6bd7421e7adbf1c426f591e8eb97) ran a
 // hand-rolled allowlist sweep before this migration moved the raw-CSS-literal-in-features family onto
 // the shared `lib/sanctioned-home.ts` reader.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-raw-spacing-in-features` descriptor at d6f36904fa6946238678e61760888aaf62ba0c93, the parent of the conversion
-// `99b7429e2` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-raw-spacing-in-features` descriptor at 1b999db38d4c6bd7421e7adbf1c426f591e8eb97, the parent of the conversion
+// `a2a93cac72` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,351 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,685 and final `population` admits 1,685. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside

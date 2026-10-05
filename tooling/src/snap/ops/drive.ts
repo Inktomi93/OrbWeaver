@@ -95,7 +95,7 @@ const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
  *
  *  AND IT COVERS EVERY NON-SETTLED ARM, NOT JUST `absent` (#1837). Scoping the retry to `absent` left the
  *  arm a cold stage ACTUALLY produces uncovered, so every isolated boot at today's tip refused: measured on a
- *  QUIET box (load 3.8/24, budget-factor 1.00) at d5adb9103, `snap / --isolated` came back
+ *  QUIET box (load 3.8/24, budget-factor 1.00) at 752c35b389, `snap / --isolated` came back
  *  `nav=ERROR / degraded`, and its HAR is 1375 entries of which ~1370 are vite source-module transforms
  *  served one at a time over 28.7 s — with exactly ONE api call in the whole trace (`/api/auth/me`, 19 ms,
  *  200), zero page errors and zero failed requests. A fresh stage worktree has an empty React-Compiler

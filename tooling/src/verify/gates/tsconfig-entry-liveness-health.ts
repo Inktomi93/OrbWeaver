@@ -48,8 +48,8 @@
 //
 // POPULATION PORT + LEGACY SHA (#2123). This module is NOT a port of its own descriptor — it has none. It
 // is the ARMS carved out of `tsconfig-entry-liveness`'s legacy descriptor at
-// `git show c97de9d2f:tooling/src/verify/gates/tsconfig-entry-liveness.ts` (the parent of the conversion
-// commit `97e68be91`), where UNPARSEABLE and NO-ROWS were that descriptor's `MSG_UNPARSEABLE` and
+// `git show acc6750ee3:tooling/src/verify/gates/tsconfig-entry-liveness.ts` (the parent of the conversion
+// commit `bd0a01d6b4`), where UNPARSEABLE and NO-ROWS were that descriptor's `MSG_UNPARSEABLE` and
 // `MSG_NO_ROWS` arms. Its population is IDENTICAL to its sibling's — `{ of: "none" }` plus `tracked-files`
 // and `authored-text` — because both halves must judge the SAME roster or the tripwire would be measuring
 // a different subject set than the ✓ it is guarding. The UNREADABLE arm has no legacy ancestor and is a
@@ -65,8 +65,8 @@
 // the one that produced the ✓.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `tsconfig-entry-liveness` descriptor at c97de9d2faeebb319b6195017905c1ccd91a8de0, the parent of the conversion
-// `97e68be91`; this module did not exist there, so it is measured against the module it was carved from,
+// `tsconfig-entry-liveness` descriptor at acc6750ee39f49471090812c918f4f6445c617a2, the parent of the conversion
+// `bd0a01d6b4`; this module did not exist there, so it is measured against the module it was carved from,
 // `tsconfig-entry-liveness` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
 // Over the 7,495 harness candidates at that tree the legacy `scanRoot: () => false` admits 0 and the final
 // `population: { of: "none" }` admits 0, both by declaration: legacy − final = ∅, final − legacy = ∅. That equality

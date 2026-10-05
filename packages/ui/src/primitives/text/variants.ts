@@ -58,7 +58,7 @@ export const textVariants = tv({
       // box competing for width with siblings, so that dead column is charged against the text. MEASURED on
       // the config LIST band at the 271px both-panels pane: "Regex scripts" needs 115.53px of a 115.109px
       // content box — a real 0.42px clip, i.e. an ellipsis on a group NAME. The term that grew is this
-      // label's own: the same string measures 115.52px in Geist against 110.06px in the pre-`ed55bf193`
+      // label's own: the same string measures 115.52px in Geist against 110.06px in the pre-`77e07912eb`
       // fallback stack, so the font pass cost it 5.5px and the compression debt is the tracking's, not a
       // sibling's (memory: label-compression-must-be-remeasured-after — name which term grew).
       // Returning the 1.04px is font-INDEPENDENT and typographically correct; it is scoped to THIS voice

@@ -585,7 +585,7 @@ describe("logout — CSRF gate", () => {
   // IF `id_token_hint` is. The earlier pins here asserted the URL was BARE, which was the correct shape
   // only while the deployment persisted no id_token; the owner ruled that it now does, so the RULING
   // survives and its INPUT changed. What must never regress is the pairing — #141's first attempt
-  // (8446a55ce, reverted) sent the redirect param ALONE, and authentik 2026.5.5's `EndSessionView.validate`
+  // (76cf663ba4, reverted) sent the redirect param ALONE, and authentik 2026.5.5's `EndSessionView.validate`
   // raises `invalid_request`/`id_token_hint_missing` BEFORE the flow planner, so the invalidation flow
   // never runs and THE UPSTREAM SSO SESSION SURVIVES the sign-out (regression #437). A redirect param
   // without a hint is strictly worse than sending nothing.

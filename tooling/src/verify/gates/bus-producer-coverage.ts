@@ -43,14 +43,14 @@
 // policy holds no path predicate at all. That is the same 5→1 move the roster records: the narrowing did not
 // disappear, it changed OWNER, and the receipt that it did is the belted-roster denominator below.
 //
-// The legacy `bus-coverage` descriptor (f287dc6dbb2dc4959a0bf4bd5698fea70fa03df8) checked ONLY
+// The legacy `bus-coverage` descriptor (913c83c5836275b624547cd37158dc3ce756034c) checked ONLY
 // `ChatBusEvent`'s producer coverage by name before this conversion retired it plus five siblings
 // (`automation-bus-coverage`, `bus-coverage-owner`, `domain-events-coverage`, `rpg-bus-coverage`,
 // `user-bus-coverage`) into this one roster-quantified policy.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `bus-coverage` descriptor at f287dc6dbb2dc4959a0bf4bd5698fea70fa03df8, the parent of `bus-coverage`'s own
-// conversion `83d6cf316` (at this module's birth `8f671bf27` that module was already final); the other five retired
+// `bus-coverage` descriptor at 913c83c5836275b624547cd37158dc3ce756034c, the parent of `bus-coverage`'s own
+// conversion `28091ce2b0` (at this module's birth `f6cd9b282b` that module was already final); the other five retired
 // descriptors are not replayed here (blob read from git with no working-tree plant: a `GateDescriptor`, no
 // `defineGate`). The legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter —
 // bus-coverage SPEC: contractsFile `/packages/contracts/src/chat/bus.ts`, emitScope

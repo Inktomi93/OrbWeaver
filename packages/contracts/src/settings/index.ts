@@ -27,7 +27,7 @@ import type { AppearanceSettings } from "./appearance.ts";
 import { appearanceSettingsSchema } from "./appearance.ts";
 
 // The `appearance` section lives in its own module so the client's pre-paint boot hint can reach the
-// CONTRACT's own schema object (ab192aedf: one set of bounds, never a client copy) without composing this
+// CONTRACT's own schema object (e94c50a718: one set of bounds, never a client copy) without composing this
 // whole `UserSettings` tree and its prose tables (#448). Ownership is unchanged — the section is settings',
 // and every name it publishes is re-exported here verbatim, so `@orb/contracts/settings` importers see no
 // difference. The deep door is the exact `@orb/contracts/settings/appearance` exports entry.

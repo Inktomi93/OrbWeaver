@@ -2783,7 +2783,7 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
 // inline IDENTITY clause, the invent-nothing doctrine, and the four user-turn labels — stopped being source
 // constants and became `rpg.populate.*` slot rows resolved against the GM PRESET's `promptConfig.prose`.
 //
-// THE FIXTURES BELOW ARE THE RENDERED BYTES AT `e495855de`+HEAD-BEFORE-THE-MIGRATION, captured by running
+// THE FIXTURES BELOW ARE THE RENDERED BYTES AT `5f7cd8d843`+HEAD-BEFORE-THE-MIGRATION, captured by running
 // these two tests against the pre-migration source. They are the graduation bar for this class: a migration
 // that changes the SOURCE of the bytes must not change the bytes, and the composed prompt is the only place
 // where "the slot resolved" and "the model was told it" are the same fact. Per-slot `.text` comparison would

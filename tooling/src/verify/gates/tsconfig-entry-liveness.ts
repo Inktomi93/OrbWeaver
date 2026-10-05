@@ -39,17 +39,17 @@
 // introduced here either.
 //
 // POPULATION PORT, with the LEGACY SHA that makes it checkable (#2123): the legacy descriptor is
-// `git show c97de9d2f:tooling/src/verify/gates/tsconfig-entry-liveness.ts`, the parent of the conversion
-// commit `97e68be91`. The legacy `scanRoot` was `() => false` (no TypeScript source at all) and the SUBJECT
+// `git show acc6750ee3:tooling/src/verify/gates/tsconfig-entry-liveness.ts`, the parent of the conversion
+// commit `bd0a01d6b4`. The legacy `scanRoot` was `() => false` (no TypeScript source at all) and the SUBJECT
 // set was a `readdirSync` of the repo root plus `packages/*/tsconfig.json` plus `tooling/tsconfig.json` —
 // 14 configs on 2026-09-12. The port is `{ of: "none" }` plus the tracked-corpus roster, which derives the
 // SAME 14 today and is strictly broader by construction: a config authored anywhere else is now judged
 // instead of being invisible. That widening is the intentional correction, recorded per §8.5.
 //
 // §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273), AND IT IS CATEGORY 5 WITH A ZERO LEGACY SIDE, SO IT IS
-// A LIVENESS-AND-OUTCOME RECEIPT AND NOT CATCH PARITY. The conversion commit `97e68be91` states no
+// A LIVENESS-AND-OUTCOME RECEIPT AND NOT CATCH PARITY. The conversion commit `bd0a01d6b4` states no
 // differential and lands none as a test, and §4.6 (#2000) stopped accepting silence; this is the record it
-// owes, all three axes named separately, driven on ONE corpus at `ce8e5174f`.
+// owes, all three axes named separately, driven on ONE corpus at `d9fd599923`.
 //   · FINDINGS. FINAL side through `runPolicyPass` over the real root: raw 8, granted 8, effective 0,
 //     owner `success`/`complete`, `authorityAlarms []` — the empty alarm set measured with a planted stale
 //     grant (`probe:never-matches` → one `stale-reviewed-grant`), so it is a measurement and not a silence.
@@ -57,7 +57,7 @@
 //     #2176 Phase F; the receipt below is kept VERBATIM as the conversion's record): `**/__g_*`, `**/__g_*/**`, `**/node_modules`,
 //     `scripts/**/*.mts`, `scripts/**/*.cts`, `tests/**/*.cts`, `scripts/**/*.tsx` and
 //     `scripts/probes/st-goldens/sillytavern-runtime`, each consumed EXACTLY once.
-//     LEGACY side: the frozen descriptor at `c97de9d2f`, header-import-shimmed into a scratch module
+//     LEGACY side: the frozen descriptor at `acc6750ee3`, header-import-shimmed into a scratch module
 //     OUTSIDE `gates/` and driven through `runPass` over the SAME real root — **0 findings, 0 tool
 //     errors**, declaring 106 candidates / 46 scanned / `{glob-live: 20, glob-ratified: 40}`.
 //     THE PLANTED POSITIVE CONTROL for that zero: the same frozen source with `EXEMPT` and `RATIFIED`
@@ -77,8 +77,8 @@
 //   · TOOL ERRORS. 0 on the final side. The legacy descriptor could emit none by construction (its reads
 //     had no refusal shape); that capability is what the conversion bought, and the `-health` sibling is
 //     where its refusals are proven.
-//   · THE NINTH GRANT IS NOT A LOST CATCH. `cb-v-wave-8b` measured raw 9 on `50e31c534`; it is 8 here
-//     because `tsconfig-entry-liveness:tests-iso-helpers` was DELETED at `815741e6c` when the first
+//   · THE NINTH GRANT IS NOT A LOST CATCH. `cb-v-wave-8b` measured raw 9 on `2929900c1f`; it is 8 here
+//     because `tsconfig-entry-liveness:tests-iso-helpers` was DELETED at `0485437190` when the first
 //     `tests/support/iso` source landed and its glob went live — the two-sided ratchet working, named
 //     path-by-path rather than absorbed into a count.
 //
@@ -113,8 +113,8 @@
 // structurally out of the scanned unit rather than being stripped by this module.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `tsconfig-entry-liveness` descriptor at c97de9d2faeebb319b6195017905c1ccd91a8de0, the parent of the conversion
-// `97e68be91` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the 7,495
+// `tsconfig-entry-liveness` descriptor at acc6750ee39f49471090812c918f4f6445c617a2, the parent of the conversion
+// `bd0a01d6b4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the 7,495
 // harness candidates at that tree the legacy `scanRoot: () => false` admits 0 and the final
 // `population: { of: "none" }` admits 0, both by declaration: legacy − final = ∅, final − legacy = ∅. That equality
 // is VACUOUS BY CONSTRUCTION — neither side ever had a TypeScript subject — and the subject comparison is the

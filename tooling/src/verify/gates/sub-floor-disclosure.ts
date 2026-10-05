@@ -41,11 +41,11 @@
 // prose mentions of the retired spelling were re-worded in the same commit. The family test reads both real
 // files off disk and proves 0 effective / 2 waived / 0 alarms.
 //
-// Legacy descriptor: `4e1bdb87e` (`tooling/src/verify/gates/sub-floor-disclosure.ts`).
+// Legacy descriptor: `ce02ffcdfe` (`tooling/src/verify/gates/sub-floor-disclosure.ts`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `sub-floor-disclosure` descriptor at e2b183b809625973be3060bdca51755317d42f3c, the parent of the conversion
-// `6563946a0` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `4e1bdb87e`
+// `sub-floor-disclosure` descriptor at 24ed572f1c9cd5c7a0fd0635a9371262a98e7ede, the parent of the conversion
+// `c7c0882709` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `ce02ffcdfe`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,450 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1,685.

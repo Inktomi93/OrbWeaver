@@ -79,7 +79,7 @@ test("the CONTEXT promise is a ROSTER, and the pane pays it (#276)", async ({ mo
 // workspace, so it cannot be satisfied by swapping one glyph for another that repeats somewhere else.
 //
 // THE SETTLE BARRIER MOVED WITH #434, THE INVARIANT DID NOT. This pin used to settle on CONTENT's
-// "Your databank" — copy #434 (e28d3cdeb) deliberately deleted on an empty bank with the list on screen, so
+// "Your databank" — copy #434 (9920fbf2d3) deliberately deleted on an empty bank with the list on screen, so
 // the barrier waited 5s for a string the product had stopped saying and the pin went red without the defect
 // coming back (`databank-detail-surface.ct` line 81 pins the SAME absence from the other side). It cannot
 // simply be dropped: an empty CONTENT pane and a CONTENT pane whose `bankHealth` census is still in flight

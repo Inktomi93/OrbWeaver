@@ -65,8 +65,8 @@
 // receipt added here never ran, because the refusal had already fired. The family test pins that refusal by
 // phase, with a seeing arm beside it, rather than this module carrying a second mechanism that says less.
 //
-// POPULATION PORT: NO legacy population — this policy is BORN FINAL, added at `575e48d5a`
-// (`git show 575e48d5a^:tooling/src/verify/gates/policy-fixture-substrate.ts` → `exists on disk, but not in`).
+// POPULATION PORT: NO legacy population — this policy is BORN FINAL, added at `4133d10352`
+// (`git show 4133d10352^:tooling/src/verify/gates/policy-fixture-substrate.ts` → `exists on disk, but not in`).
 // Nothing was ported and nothing was subtracted from a sibling to make room: `tests/tooling/verify/gates/**` was
 // scanned by NO gate before this one, which is the gap #2185 names. There is no legacy SHA to record and an
 // invented one would be worse than the absence.

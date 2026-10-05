@@ -45,7 +45,7 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
   // THE ROW WARMS THE ROOM IT OPENS (#1180, the chats-list twin of #1126/H13). `ChatCharacterBar` reads
   // `chat.getChat` non-suspending, so on a cold click it renders `null`, then appears once the roster
   // lands and pushes the transcript down by its own 40px plus the room stack's 12px gap — measured on
-  // this door at main d8f10cee5: `[cls] shift 0.0225 · div[aria-label=Example — Midnight Run] moved
+  // this door at main 3fbbcbf9ed: `[cls] shift 0.0225 · div[aria-label=Example — Midnight Run] moved
   // 0px,52px`. The click itself is too late (the room's shell paints a frame later), so the warm-up has
   // to ride the reader's APPROACH. Three modalities, because hover is not universal: a fine pointer
   // resting, any pointer pressing, and keyboard focus. `chat.getChat` ONLY — the owner refused the

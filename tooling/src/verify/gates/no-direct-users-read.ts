@@ -25,14 +25,14 @@
 // and `_shared/reference-fact.ts#readMemberReference` are corpus-wide primitives, not a family computation; the
 // identity root's home constant is this policy's alone and no sibling shares its subject.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `MSG_DIR.test(p)` where
-// `MSG_DIR = /packages\/server\/src\/domain\//` (`9808b93c0^:71`); the final population is
+// `MSG_DIR = /packages\/server\/src\/domain\//` (`b5acbf2594^:71`); the final population is
 // `{ in: ["@server"], under: ["packages/server/src/domain/**"] }`. The legacy `domain/sessions/` and
 // `domain/admin/` rows were scanned-and-excused SANCTIONED_HOMES entries, never a population subtraction, so
 // nothing moved between the two halves at the conversion.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-direct-users-read` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion
-// `9808b93c0` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-direct-users-read` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion
+// `b5acbf2594` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,219 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,148 and final `population` admits 1,148. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside

@@ -244,11 +244,11 @@ test("every compose shape resolves (the base and every overlay)", ({ repoRoot, s
   expect(services["orbweaver"]?.ports?.map((port) => port["host_ip"])).toEqual(["127.0.0.1"]);
 });
 
-// The sandbox is PERMISSIVE by owner ruling (2026-09-01, reverting a024cbe65 / 8b77f8ad9): the container +
+// The sandbox is PERMISSIVE by owner ruling (2026-09-01, reverting 3715a4812c / 8e8d5d0b3e): the container +
 // firewall are the boundary, and the point of the dev container is to run without prompts. These pins keep
 // the bypass CONTAINER-ONLY — the launcher and the devcontainer's own config carry it; the committed project
 // settings carry no mode at all, because a project-level pin overrides the owner's user-level `auto` in
-// every host session (that pin was the whole pain of a024cbe65).
+// every host session (that pin was the whole pain of 3715a4812c).
 test("the sandbox launcher starts Claude permissive and passes extra args through", async ({ fakeBin, repoRoot, scratch }) => {
   const callsPath = join(scratch, "npx-calls");
   await fakeBin(

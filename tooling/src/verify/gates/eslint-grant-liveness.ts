@@ -135,7 +135,7 @@ export const gate = defineGate({
       why: "a local ignore with no member inside its parent files scope — the parent-scoped-population arm the corpus-wide reader missed",
     },
     {
-      // THE #2213 COUPLED SITE, successor form. `c57e3c9b9` re-pointed the real config from `.cache/**` to
+      // THE #2213 COUPLED SITE, successor form. `89fe893fad` re-pointed the real config from `.cache/**` to
       // `**/.cache/**` and the retired table was not re-pointed with it. The OPERATION carries the authored
       // value byte-for-byte, so the shipped grant for `**/.cache/**` cannot license this spelling — the
       // stale half of that accusation is the central engine's, driven against the real config in the int test.

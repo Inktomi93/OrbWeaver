@@ -1,8 +1,8 @@
 // THE `@orb-waive` POSITION GRAMMAR'S ONLY PIN (refutation-ledger row 531, #2157).
 //
-// WHY IT EXISTS. `lib/waivable-coordinate.ts` landed at `a54de0421` carrying three exports — `POSITION`,
+// WHY IT EXISTS. `lib/waivable-coordinate.ts` landed at `843d24bf94` carrying three exports — `POSITION`,
 // `isWaivablePosition`, `waivableCoordinate` — and the fence that arms the third of them,
-// `assertWaivablePosition`, landed at `6cc09bab2` inside `lib/policy-pass-context.ts`. A literal sweep of
+// `assertWaivablePosition`, landed at `0b73079c27` inside `lib/policy-pass-context.ts`. A literal sweep of
 // `tests/` for all four names returned ZERO (positive control: the same sweep for `createOrdinaryWaiverEngine`,
 // exported from the sibling module the grammar moved OUT of, finds `tests/tooling/verify/lib/ordinary-waiver.test.ts:6`,
 // so the sweep can see test-side imports of this neighbourhood and the zero is a real zero). Delete any of the

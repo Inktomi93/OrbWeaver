@@ -4,7 +4,7 @@
 // so every `position:absolute` descendant (and `sr-only` IS absolute, which is why every Base UI form
 // primitive plants one) resolves its containing block further UP and contributes its static position to that
 // ANCESTOR's scrollable area. The user scrolls past the last row into blank space (owner dogfood 2026-08-13,
-// settings screen; 11 escapees measured on the preset editor; 36 client scrollers fixed as a class, 469be29d6).
+// settings screen; 11 escapees measured on the preset editor; 36 client scrollers fixed as a class, 57e596b9ee).
 // The runtime instrument is `readPhantomScrollers`; this policy is its STATIC half — the instrument can only see
 // a scroller a story actually mounts, and the class is written at authoring time.
 //
@@ -39,10 +39,10 @@
 // enforce it. In `no-hover-display-swap` the same code IS discriminating, because that policy reads the
 // variant SEGMENTS (`segments.slice(0, -1).some(isHoverVariant)`); this one reads only the terminal.
 //
-// FINAL-CONTRACT CONVERSION (#1584). LEGACY SHA: 174cc2961 (the descriptor this policy replaces, byte-for-byte
+// FINAL-CONTRACT CONVERSION (#1584). LEGACY SHA: c93d1567c2 (the descriptor this policy replaces, byte-for-byte
 // the pre-conversion module). The legacy ALLOWLIST/stale-arm ratchet retired with NO ROWS TO PORT — the table
 // was `{}` from this gate's own landing commit, which fixed every live instance (the `packages/ui` primitives
-// the 469be29d6 client sweep did not reach), and the `begin`/`finalize`/`fileLoaded` real-tree anchor existed
+// the 57e596b9ee client sweep did not reach), and the `begin`/`finalize`/`fileLoaded` real-tree anchor existed
 // only to police rows that never existed. A future legitimate unpositioned scroller is suppressed with
 // `@orb-waive scroll-container-positioned(<position>): <reason>` at the exact offending class token, not a
 // re-grown file table. MARKER CENSUS: zero legacy `@orb-gate-ignore scroll-container-positioned` markers on the
@@ -193,7 +193,7 @@ export const gate = defineGate({
     {
       mode: "source",
       files: { "packages/client/src/features/x/fixed.tsx": `export const G = <div className="relative min-h-0 flex-1 overflow-y-auto" />;\n` },
-      why: "the fix itself — one `relative` in the same class string, the shape 36 client scrollers were migrated onto in 469be29d6. §4.1: delete the `parts.some(POSITION_UTILITIES…)` balance test and this row reds",
+      why: "the fix itself — one `relative` in the same class string, the shape 36 client scrollers were migrated onto in 57e596b9ee. §4.1: delete the `parts.some(POSITION_UTILITIES…)` balance test and this row reds",
     },
     {
       mode: "source",

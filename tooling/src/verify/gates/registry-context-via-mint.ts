@@ -27,7 +27,7 @@
 // only "is this REACT's export", which is the half the legacy `getText() === "createContext"` got wrong.
 // POPULATION PORT: an INTENTIONAL WIDENING BY EXACTLY ONE PATH. The legacy
 // `scanRoot: (p) => p.startsWith("packages/client/src/") && p !== "packages/client/src/lib/create-registry-context.tsx"`
-// (`47fc0ae01^`) becomes `@client`, which is `packages/client/src/` exactly — so the ONLY delta is the mint
+// (`55bf359599^`) becomes `@client`, which is `packages/client/src/` exactly — so the ONLY delta is the mint
 // home, whose exclusion is DELETED rather than translated for the reason stated above: the mint's
 // `createContext<R | null>` is over a TYPE PARAMETER, which is not the `Registry` type, so the exclusion
 // licensed nothing and the home is now simply scanned like every other file.

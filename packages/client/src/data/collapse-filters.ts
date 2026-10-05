@@ -31,7 +31,7 @@ function subsumes(broad: InvalidateFilter, narrow: InvalidateFilter): boolean {
  * redundant row is a real second round trip, in the same shape BOOT-4X was minted against.
  *
  * It bites hardest on the derived reconnect gap-heal (`allUserRootFilters`), whose set is the UNION of every
- * user-map row: the W7b `identityChanged` member (`0bdbb7366`) mapped `persona.list` while `personasChanged`
+ * user-map row: the W7b `identityChanged` member (`062371a0dc`) mapped `persona.list` while `personasChanged`
  * already carried the `persona` ROOT, so every reconnect fetched persona twice
  * (`tests/client/data/bus/use-user-bus.ct.tsx:77` — persona.list 3, expected 2). The same union also repeated
  * `getUserSettings`, `regex.listScriptUsage`, `previewContextFit` and the three prompt-preview reads. Fixing

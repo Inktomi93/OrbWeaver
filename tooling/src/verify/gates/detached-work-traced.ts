@@ -104,13 +104,13 @@
 // is MEANINGFUL: that its name, id or attributes correlate to the work it wraps. It proves a root is opened
 // and that errors reach it; a wrong-but-present span passes.
 //
-// §4.6 DIFFERENTIAL: the pre-conversion descriptor at `86ce80b6c` replayed through the legacy dispatcher
+// §4.6 DIFFERENTIAL: the pre-conversion descriptor at `(pruned from public history)` replayed through the legacy dispatcher
 // against the final SPLIT PAIR, both over the real `packages/server/src/**` corpus and fixture-level over
 // every legacy example. The result, with each difference classified, is in the landing commit message.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `detached-work-traced` descriptor at d07338082afc3525bdc2b0813d7ce451087dd40f, the parent of the conversion
-// `1e81658b4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `86ce80b6c`
+// `detached-work-traced` descriptor at (pruned from public history), the parent of the conversion
+// `71c52aa677` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,437 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,493 and final `population` admits 1,493.

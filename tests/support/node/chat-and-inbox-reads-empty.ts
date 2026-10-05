@@ -1,7 +1,7 @@
 // The TWO reads a composition mount reaches for beyond its own subject — `chat.listChats` (the rail's
 // library roster / the home masthead+recents readers) and `notifications.list` (the topbar-trail inbox
 // bell, #1663 — it mounts for every authed principal since #1627 retired its `multiHumanCapable` gate).
-// Neither is the SUBJECT of the CTs that hit this file (#1817, the #1797 whole-tree census on 46004b6c2):
+// Neither is the SUBJECT of the CTs that hit this file (#1817, the #1797 whole-tree census on 4836b1912e):
 // `chat.listChats` fires because `CharacterCreateActions`/`AppShell` sit beside chat-aware chrome, and
 // `notifications.list` fires because the shell always mounts the bell. Left unfed, `routeTrpc`'s lenient
 // `{result:{data:null}}` answers each with `null`, which is not a view — a suspending reader throws on it

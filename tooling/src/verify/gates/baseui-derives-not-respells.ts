@@ -3,7 +3,7 @@
 // is not a stylistic duplicate: it is a NARROWER type that silently deletes capability from every caller,
 // and tsc cannot tell you, because the seal only ever passes the value onward.
 //
-// THIS IS THE ORDINARY HALF OF A SPLIT. The legacy descriptor at 1692583d6 carried TWO arms that differ in
+// THIS IS THE ORDINARY HALF OF A SPLIT. The legacy descriptor at (pruned from public history) carried TWO arms that differ in
 // AUTHORITY, and the contract allows one authority per policy (guide §5), so it splits:
 //   · ARM B — DATA PROPS, waivable. THIS policy. A non-function member of a `*Props` interface whose name is
 //     a prop of the wrapped component's ROOT — the part a seal spreads its rest props onto — must derive
@@ -35,7 +35,7 @@
 // `baseui-anatomy-completeness`, `baseui-portal-container-seam` and `baseui-state-data-attributes` are the
 // other members.
 //
-// POPULATION PORT: `@ui` (= `packages/ui/src/`), whole, both extensions. LEGACY at 1692583d6:
+// POPULATION PORT: `@ui` (= `packages/ui/src/`), whole, both extensions. LEGACY at (pruned from public history):
 // `scanRoot: (p) => p.includes(UI_SRC)` with `UI_SRC = "packages/ui/src/"`, plus an in-`run` re-test of the
 // same predicate through `repoRelative`. On repo-relative authored paths the two admit the identical set, so
 // the port is byte-identical and both spellings of the fence are gone. Pinned by `mustPass[5]`.
@@ -75,11 +75,11 @@
 //
 // COMMENT POSTURE: comment-SAFE — imports, type identifiers, interfaces and JSX forwarding are AST nodes;
 // the central waiver engine alone reads comments.
-// LEGACY SHA: 1692583d6.
+// LEGACY SHA: (pruned from public history).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `baseui-derives-not-respells` descriptor at 89a0b751d78372c17b549ba2ac25931c768d7ccd, the parent of the conversion
-// `17297f298` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// `baseui-derives-not-respells` descriptor at 22aa5c8a7f9d395f2f679b7d08ad36d51747a31b, the parent of the conversion
+// `d16bb6872a` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,560 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 366 and final `population` admits 366.

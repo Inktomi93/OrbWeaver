@@ -113,7 +113,7 @@ test("#848/#899 N6: both CHARACTERS add-doors carry a visible word, and each say
 // explained a label compression: #902 C1 grew the kicker "Cast"→"Characters" and paid the deficit by
 // shortening the saved-roster door to "Rosters…". MEASURED: the deficit was the KICKER's (29.2→75.7px,
 // +46.5) and the removed word "Saved " was worth 36.8px, so the cluster STILL escaped a 320px pane by
-// 9.75px — this very test was RED on main at 79e8ffb1f while the issue that caused it was recorded closed.
+// 9.75px — this very test was RED on main at 722636714c while the issue that caused it was recorded closed.
 // The label was spent for nothing; the constraint was that the header could not WRAP.
 //
 // So the pins run at the MATRIX ENDS and at both crossovers, at BOTH pointer classes, and they assert the
@@ -184,7 +184,7 @@ for (const width of MATRIX) {
 // ── THE CROSSOVERS: MEASURED CLIFFS, NOT PINNED WIDTHS (#1044, 2026-09-02) ───────────────────────────
 //
 // What stood here was five `lines(width) === N` equalities, one of them at 368 — 1.4px above the file's own
-// measured 366.6px one-line threshold. `ed55bf193` vendored Geist and the CHARACTERS kicker went 75.70 →
+// measured 366.6px one-line threshold. `77e07912eb` vendored Geist and the CHARACTERS kicker went 75.70 →
 // 79.41px (10.5px uppercase label; the trailing letter-spacing column travels with it), which moved the
 // one-line cliff 366.6 → 368.5 and the two-line cliff 284.9 → 283.0. 368 crossed a cliff it was 1.4px away
 // from and the pin red on unmodified main with no product code changed — the SECOND time this block has

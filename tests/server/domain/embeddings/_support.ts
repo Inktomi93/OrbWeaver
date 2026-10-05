@@ -218,7 +218,7 @@ export interface StoreHarnessSources {
 }
 
 /** Make `embed` report a DIFFERENT model until called again — the shape of rows written while the box ran
- *  another embed model. Since `0fed0b3ee` the stored `model` column records what the provider ACTUALLY
+ *  another embed model. Since `088209c8be` the stored `model` column records what the provider ACTUALLY
  *  returned rather than what the caller declared, so a retired-space fixture has to come from the provider;
  *  that is also exactly how a real strand is created. Batch-scoped (not `once`) because the store paths
  *  fan out concurrently, where per-call ordering is not something a fixture may assume. */

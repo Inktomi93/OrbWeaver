@@ -32,7 +32,7 @@
 // four families, not this policy's family computation; its SUBJECT — the D51 seam symbol plus the
 // declaration-home RECEIPT that makes the rule's own liveness a tool error — has no sibling.
 // POPULATION PORT: intentional correction, stated. The legacy descriptor filtered `PROD_SRC.test('/' + p)`
-// where `PROD_SRC = /\/packages\/[^/]+\/src\//` (`9808b93c0^:72`) — ANY workspace package's `src`. The final
+// where `PROD_SRC = /\/packages\/[^/]+\/src\//` (`b5acbf2594^:72`) — ANY workspace package's `src`. The final
 // population is `@packages`, which is the explicit SIX-root list (client · ui · server · db · contracts ·
 // kit) and therefore does NOT admit `packages/showcase-plugins/src/`, added as the separate `@showcase` root
 // on 2026-09-11. That is one directory narrower than the legacy predicate and it is the standing

@@ -44,7 +44,7 @@ export function isFileExact(p: string): boolean {
  * @public knip false positive — no live PRODUCTION importer since `depcruise-grant-liveness` converted to
  * reviewed-grant authority (#2176 Phase F); consumed at TEST RUNTIME by the frozen legacy
  * `tsconfig-entry-liveness` descriptor that `tests/tooling/verify/gates/grant-liveness-legacy-replay.test.ts`
- * git-shows at `c97de9d2f` and rewires to this live module (`:56` imports it, `:324` calls it). The whole
+ * git-shows at `acc6750ee3` and rewires to this live module (`:56` imports it, `:324` calls it). The whole
  * exemption half of this core — this function, `GrantExemption`, `LivenessMessages`, `LivenessInput` and
  * `patternLivenessFindings`' `ratified`/`anchorOk` inputs — dies with that replay when the legacy runtime
  * retires; nothing final reaches it.

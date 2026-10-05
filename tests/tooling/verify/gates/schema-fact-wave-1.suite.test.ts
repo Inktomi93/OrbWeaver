@@ -40,7 +40,7 @@ const FAMILY_TIMEOUT_MS = scaledBudget(120_000);
 // it claimed ("an empty or unresolved schema census is a broken instrument, never a clean verdict") is owned by
 // the runtime rather than by a policy, and the module's `if (fact.status !== "ready")` branch was provably dead.
 // WHICH RUNTIME PHASE owns it changed on 2026-09-11 (#1962): it was the dispatcher's fact-receipt refusal
-// (ab675b23b) until that receipt was corrected to state the denominator the provider WALKED instead of the
+// (40f2b3014a) until that receipt was corrected to state the denominator the provider WALKED instead of the
 // census it FOUND (§12.3); it is now every consumer's own fail-closed `recordReadySchemaFact`, which throws on
 // any non-`ready` status. The retirement ruling survives — its INPUT moved one phase later. See the describe
 // block at the bottom, which pins the guarantee where it actually lives.
@@ -72,7 +72,7 @@ test(
 // were red on the unmodified tree for exactly that reason.
 //
 // WHERE THE REFUSAL LIVES MOVED ONE PHASE ON 2026-09-11 (#1962), and these pins moved with it. It used to be
-// the dispatcher's fact-receipt refusal (`lib/policy-pass.ts` `factReceiptFailures`, ab675b23b): the provider
+// the dispatcher's fact-receipt refusal (`lib/policy-pass.ts` `factReceiptFailures`, 40f2b3014a): the provider
 // receipted its CENSUS, so members 0 / unresolved 1 refused the FACT and withheld every consumer before
 // `evaluate`. That is the §12.3 anti-pattern — a receipt states the denominator walked, never what was found —
 // and it is what kept `freeze-provenance-write-pairing-health`'s empty-schema arm unexecutable. The provider

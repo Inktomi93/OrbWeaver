@@ -15,7 +15,7 @@
 // ── THE RULED THREE-WAY ARITY WAS AMENDED TO ONE POLICY (#1584 §12.6, orchestrator ruling 2026-09-12) ───
 // §12.6 ruled this module into "ordinary union/respell policy, reviewed SDK-mirror grant policy, and hard
 // grant-health policy under one family". THE TREE REFUTES THE LAST TWO, and §12.6's own banner is the
-// authority for amending a ruled row that disagrees with the tree. Receipt, re-derived at 2030ab180 and at
+// authority for amending a ruled row that disagrees with the tree. Receipt, re-derived at 51d2730f30 and at
 // HEAD (identical bytes): the legacy `FILE_CLASS_EXEMPT` table was `{}` — EMPTY — and the legacy header
 // recorded why, at :22-24: "2026-09-05 (#1692): the published SDK mirror moved to
 // packages/showcase-plugins/bundles/, outside the scanned corpus, so its row (and the proof that planted
@@ -72,7 +72,7 @@
 //   repair if it ever bites is to home the axis, which is what the finding asks for.
 //
 // ── §4.6 DIFFERENTIAL: committed, `tests/tooling/verify/gates/union-axis-family.suite.test.ts` ────────────────
-// Every legacy example replayed through the frozen legacy descriptor at 2030ab180 and through this policy,
+// Every legacy example replayed through the frozen legacy descriptor at 51d2730f30 and through this policy,
 // over each example's OWN file map with this population applied. Legacy-side coverage: 5 of 10 examples
 // flag (both arms, all three sub-kinds) — nonzero, so the replay is evidence. One classified difference,
 // applied per finding rather than averaged: POSITION/TOKEN — arm A moves from the alias declaration's start
@@ -90,8 +90,8 @@
 // pre-existing debt the legacy gate already reported, neither introduced nor silently dropped here.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-inline-union-redecl` descriptor at ac0085c9101b35c5031363a29e32c1882477c4c0, the parent of the conversion
-// `4ed5a94d5` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-inline-union-redecl` descriptor at ce85507a5cc5641607254d9e93a7829d07a42a30, the parent of the conversion
+// `f323ab51e6` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,480 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 7,175 and final `population` admits 7,175. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside

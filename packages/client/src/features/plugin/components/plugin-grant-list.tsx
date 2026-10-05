@@ -1,7 +1,7 @@
 // plugin-grant-list — THE SECURITY SURFACE of the plugin feature: the list of everything a bundle is
 // asking for, and what of it is already granted.
 //
-// IT IS READ-ONLY, AND THAT IS AN OWNER RULING, NOT A MISSING FEATURE (#1855, landed `5e713309e`). This
+// IT IS READ-ONLY, AND THAT IS AN OWNER RULING, NOT A MISSING FEATURE (#1855, landed `6f6b9ba61f`). This
 // component used to carry an EDITABLE arm — an `onToggle` prop that made each row a live checkbox and let a
 // person cherry-pick a subset — and both of its call sites (the install card's confirm block and the row's
 // re-consent notice) drove it. The owner replaced that with APPROVE-ALL / DENY on both surfaces: "unchecking
@@ -60,7 +60,7 @@
 // wins the accname algorithm over the native label". It does not when `aria-labelledby` is ALSO present,
 // and Base UI's `Checkbox.Root` emits one automatically from the `<label htmlFor>` this row wraps its text
 // in — so the aria-label was inert and the computed name was the WHOLE label subtree. Measured on
-// a2cb2ada7 with `Locator.ariaSnapshot()` (an accname computation; reading the `aria-label` ATTRIBUTE back
+// (pruned from public history) with `Locator.ariaSnapshot()` (an accname computation; reading the `aria-label` ATTRIBUTE back
 // looks correct and proves nothing):
 //     checkbox "Write lorebook entries New Reaches further Adds and updates entries in lorebooks already
 //               attached to the room, up to 64 entries."

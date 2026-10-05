@@ -334,7 +334,7 @@ export const REVIEWED_GRANTS_NO_TO_FACTORY: readonly ReviewedGateGrant[] = [
     policyId: "scrubber-home",
     subject: "packages/server/src/domain/chat/substrate/member-visibility.ts",
     operation: "hidden-span-scrubber-construction",
-    why: "THE producer stamp — the one place a stateful per-slot scrubber may be constructed (§3.6, ed2aafc5), because scrub state cannot survive a replay→live handoff and a cold scrubber mid-`<lie>` forwards the secret's tail.",
+    why: "THE producer stamp — the one place a stateful per-slot scrubber may be constructed (§3.6, 808ba09cc6), because scrub state cannot survive a replay→live handoff and a cold scrubber mid-`<lie>` forwards the secret's tail.",
     endsWhen:
       "the producer stamp moves or stops constructing a scrubber; the row is then consumed zero times and reds, which is the legacy mode-A arm owned centrally.",
   },

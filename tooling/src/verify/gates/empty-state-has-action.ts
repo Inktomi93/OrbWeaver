@@ -29,8 +29,8 @@
 // already be correct.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `empty-state-has-action` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the conversion
-// `4885cde80` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `empty-state-has-action` descriptor at f4b6d0cbae5e9351b180b7079da5339b02820284, the parent of the conversion
+// `493fdbedae` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,263 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 620 and final `population` admits 620. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/features/app-shell/anchors/__cbbhr_in_region-anchor.tsx` (virtual) admitted by both; outside

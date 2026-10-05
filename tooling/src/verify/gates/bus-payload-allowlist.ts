@@ -13,7 +13,7 @@
 // door. The split axis is AUTHORITY, which is the only axis a split may take: this policy's exceptions are
 // reviewed grants, and the sibling's fail-closed verdicts are unsuppressible.
 //
-// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at 1692583d6, and it is FORCED. The legacy descriptor
+// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at (pruned from public history), and it is FORCED. The legacy descriptor
 // declared `scanRoot: (p) => BUS_FILES.has(p)` — eight exact files — yet REPORTED at the declaring site,
 // which for an inherited credential is an imported CARRIER file outside those eight (its own `mustFlag[2]`
 // is that row). Under this contract a finding must anchor inside the policy's own effective population
@@ -68,8 +68,8 @@
 // ruling #948 declined.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `bus-payload-allowlist` descriptor at c810fee0749e37333042645e1a061b257e289627, the parent of the conversion
-// `a196a35d7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// `bus-payload-allowlist` descriptor at ddee5116a989e15ab36c7269ecd35eb9c8e45430, the parent of the conversion
+// `b6a112823f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,558 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 8 and final `population` admits 105.

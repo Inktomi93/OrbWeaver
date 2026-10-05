@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Context
 
-Split off [ADR 0117](0117-domain-workloads-is-a-generic-execution-substrate-with.md), whose stage-E substrate upgrades and stats.reconcile scope addition pushed it over the 8 KiB ADR cap. Report: the workloads junk-drawer exit review (commit `c8bdf92bf`), report §5 stage E and §6 Q4.
+Split off [ADR 0117](0117-domain-workloads-is-a-generic-execution-substrate-with.md), whose stage-E substrate upgrades and stats.reconcile scope addition pushed it over the 8 KiB ADR cap. Report: the workloads junk-drawer exit review (commit `7ffeb7d8c8`), report §5 stage E and §6 Q4.
 
 ## Decision
 

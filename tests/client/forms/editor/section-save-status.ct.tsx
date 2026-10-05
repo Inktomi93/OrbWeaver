@@ -42,7 +42,7 @@ test("a failing section renders inline at its anchor WITH a retry, even while ho
 
   // SCOPED to the world-info anchor: an unscoped `Increase.first()` resolves to whichever stepper is highest
   // in the PANE, and the message-handling section above renders a deliberately DISABLED one
-  // (`autoContinueRounds` while auto-continue is off, `663b956b`), which can never be clicked.
+  // (`autoContinueRounds` while auto-continue is off, `54904c5104`), which can never be clicked.
   const worldInfo = page.locator("#config-anchor-chat-behavior-world-info");
   await worldInfo.getByRole("textbox", { name: "Scan depth" }).focus();
   await worldInfo.getByRole("button", { name: "Increase" }).first().click();

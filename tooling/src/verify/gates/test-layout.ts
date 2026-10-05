@@ -19,7 +19,7 @@
 // suffixes, the exemption classes and the §4.7 tooling arm are policy classifiers, which the ResourceHost
 // access-pattern ruling reserves for the gate.
 //
-// POPULATION PORT — legacy at 6b1d01be0 (the parent of the conversion commit aecbc6c6c), where the module was a
+// POPULATION PORT — legacy at (pruned from public history) (the parent of the conversion commit 7a0a2375aa), where the module was a
 // `GateDescriptor` with `scopeSafety: "whole-project"` and `fsBacked: true`. The legacy corpus was the
 // LITERAL predicate `readdirSync(join(root, "tests"), { recursive: true, withFileTypes: true })` filtered to
 // `entry.isFile()`, and its three source questions were `existsSync` on
@@ -70,14 +70,14 @@
 // without it that impossible tree builds the mirror question `tooling/src//<base>.ts` (the empty `sub`
 // segment), which is what the joint cut prints. `mustPass[10]` carries the joint-cut receipt.
 //
-// §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273). The conversion commit `aecbc6c6c` landed a population
+// §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273). The conversion commit `7a0a2375aa` landed a population
 // and refusal receipt and NO findings comparison, and §4.6 (#2000) stopped accepting silence as compliance;
 // this is the record it owes, with each of the three axes named rather than "the differential".
-//   · FINDINGS. FINAL side driven through `runPolicyPass` over the real workspace at `5045a6a68`: 57
+//   · FINDINGS. FINAL side driven through `runPolicyPass` over the real workspace at `(pruned from public history)`: 57
 //     findings, every one the §4.7 tooling arm ("mirror miss — no source for …"). LEGACY side: 53, measured
-//     by cb-v-wave-8c on `50e31c534`, where the final side also read 53 — the pair MATCHES on that tree. The
+//     by cb-v-wave-8c on `2929900c1f`, where the final side also read 53 — the pair MATCHES on that tree. The
 //     +4 since is not a catch delta: each member is a test file that landed after, and every one of them
-//     belonged to the class #2142 parked. THAT CLASS IS NOW EMPTY (#2388, 2026-09-18) — `c6ae36152` renamed
+//     belonged to the class #2142 parked. THAT CLASS IS NOW EMPTY (#2388, 2026-09-18) — `4f01a59139` renamed
 //     the whole `tests/tooling/verify/gates/**` family/wave corpus onto the registered `.suite.*` kinds, which
 //     `mirror: "suite"` exempts by declaration in both arms, so the real tree reads 0 findings here. The park
 //     and its three pins retired together per the park's own clause; the record is in
@@ -115,7 +115,7 @@
 // mirrored test's IMPORTS rather than trusting that its name resolves.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `test-layout` descriptor at 6b1d01be054c113c68595540f3a6a28c9f7d1744, the parent of the conversion `aecbc6c6c`
+// `test-layout` descriptor at (pruned from public history), the parent of the conversion `7a0a2375aa`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,487 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no
 // `scanRoot` — dispatched 7,487, and the final `population` admits 0; the subject is the declared `mirror-index`.

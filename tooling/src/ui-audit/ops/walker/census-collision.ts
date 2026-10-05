@@ -49,7 +49,7 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
   // EXCLUDED, NOT WITHHELD (#2468, 2026-09-20) — the same polarity call \`canvas-ink\` makes four lines
   // down, and for the same reason. This row shipped as a WITHHOLDING, so every list surface in the app
   // (ROW_REVEAL is the house row-actions idiom) was a permanent NO VERDICT at a fine pointer, whatever it
-  // looked like: measured \`restHiddenReveal=30\` on \`--goto characters\` at a5b34759f, unfixable by any
+  // looked like: measured \`restHiddenReveal=30\` on \`--goto characters\` at (pruned from public history), unfixable by any
   // operator action, printing a zero a reader would quote as coverage. The census PROVED these controls
   // out of this pass's scope rather than failing to measure them — accumulated opacity is exactly 0 while
   // display, visibility and geometry are all live (core.ts's \`isOpacityOnlyHidden\`), which is the house

@@ -6,7 +6,7 @@
 // `measureBootChunk` over PLANTED dist trees so every arm is pinned without paying a vite build per
 // assertion — including the ones that decide whether the fence can LIE:
 //   • THE #591 SHAPE (the headline pin): a chunk SPLIT — entry + a `<link rel="modulepreload">` sibling —
-//     must SUM. The old single-file read scored commit 2b87a0d7c as a 36,584 B win while the browser
+//     must SUM. The old single-file read scored commit 3d49dce6a0 as a 36,584 B win while the browser
 //     still fetched every byte on the boot path; the same blindness would score pushing 300 KB into a
 //     preloaded sibling as a win while boot got no cheaper.
 //   • an `/assets/*.js` the html mentions in an unrecognized shape must be UNMEASURABLE, never dropped
@@ -42,7 +42,7 @@ function indexHtml(entry: string, preloads: readonly string[] = []): Record<stri
 }
 
 test("a modulepreloaded sibling is SUMMED into the boot payload — the #591 shape", async ({ plantedTree }) => {
-  // Commit 2b87a0d7c's emitted dist, to the byte: the entry chunk shed 36,584 B into a jsx-runtime chunk
+  // Commit 3d49dce6a0's emitted dist, to the byte: the entry chunk shed 36,584 B into a jsx-runtime chunk
   // that index.html modulepreloads. Measuring the entry file alone reads a 36,584 B win; the browser
   // fetches both.
   const root = await plantedTree({

@@ -21,8 +21,8 @@
 // unsuppressible claims and live in their own `hard` policy id under the same family.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `injected-op-caller-param` descriptor at 7993f264c43f96f5b3595d184919d4cdee253a43, the parent of the conversion
-// `f693a27a9` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `injected-op-caller-param` descriptor at 6044391ca791b8ae4a28e91fa13be8cb94e86350, the parent of the conversion
+// `fd17cc9a10` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,365 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 178 and final `population` admits 1,554. legacy − final = ∅. final − legacy = 1,376 — `@server` beyond
 // `domain/*/contract/` (1,316) and `@kit` beyond `ids` (60): the root-level declaration the attribution walk needs.

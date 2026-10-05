@@ -3,7 +3,7 @@
 // `@orb/inference` runtime resolving a REAL `local-light` connection row.
 //
 // Why a suite and not four unit pins: the defect this exists to catch lives BETWEEN two correct halves.
-// `embeddings/verbs/store.ts` stamps the tag the BACKEND reports (issue-724 ruling, `0fed0b3ee`:
+// `embeddings/verbs/store.ts` stamps the tag the BACKEND reports (issue-724 ruling, `088209c8be`:
 // "snapshot getters are request-time hints"), and local-light reports `<repo>@<dtype>` because a
 // re-quantised encoder is a different geometry (#2417). The READ side derives its tag from the resolved
 // connection. If those two derivations disagree the tree is silently, permanently broken in the worst

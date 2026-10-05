@@ -432,7 +432,7 @@ interface EchoGeometry {
 //
 // WHAT IT USED TO SAY, AND WHY THAT PREMISE IS DEAD. It asserted an absolute floor: echo's prose ≥
 // `--reading-measure-min`. That token is 65 CSS `ch`, and `ch` resolves in the element's own FONT — so the
-// number was never a length, it was a bet on the metrics. `ed55bf193` (2026-09-01) shipped Geist, and
+// number was never a length, it was a bet on the metrics. `77e07912eb` (2026-09-01) shipped Geist, and
 // measured in this very stage `65ch` is **650px** under the bubble's inherited stack against
 // **557.703125px** under the pre-Geist fallback — which is, to the digit, the "557.70 floor" the paragraph
 // below recorded on 2026-08-24. The floor moved +92px; the row did not. `.orb-echo-track` caps the row at
@@ -677,7 +677,7 @@ for (const chatStyle of ["flat", "bubble"] as const) {
 //
 // `--width-shell-content` is `clamp(--dimension-shell-content-floor, <chatWidthPct>dvw, 100dvw)`, so the
 // floor is the narrowest the READER can make the thread. Before #1204 that floor was a `680px` literal in
-// `app-shell.tsx` sized against the pre-Geist fallback stack; after `ed55bf193` shipped Geist, 65 CSS `ch`
+// `app-shell.tsx` sized against the pre-Geist fallback stack; after `77e07912eb` shipped Geist, 65 CSS `ch`
 // stepped 557.7 -> 650px and the floor position held 592px of flat prose and 628px of echo — under the
 // transcript's own band floor for EVERY skin, which is a state the reader can reach with a slider.
 //

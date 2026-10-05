@@ -26,7 +26,7 @@
 // tests/tooling/verify/gates/tooling-plumbing-family.suite.test.ts). POPULATION PORT: byte-identical — the legacy
 // fenced arms A–H to `tooling/src/` inside `visit`, which is `@tooling`.
 //
-// Legacy descriptor: `2c1a1d37c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arm A + HOMES +
+// Legacy descriptor: `bbdccb2d5c` (`tooling/src/verify/gates/tooling-shared-plumbing.ts`, arm A + HOMES +
 // PROJECT_SITES). No private marker grammar; zero live `@orb-gate-ignore tooling-shared-plumbing` markers at
 // conversion (rg over packages/, tests/, tooling/, scripts/), so no translation was owed.
 import { Node, SyntaxKind } from "ts-morph";

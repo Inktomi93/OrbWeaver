@@ -15,8 +15,8 @@
 // same doc row live in `section-registry-completeness`.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `section-registry-completeness` descriptor at e18bce01edaa15a30220d7a34c96a2c5228a1646, the parent of the
-// conversion `dd862e988`; this module did not exist there, so it is measured against the module it was carved from,
+// `section-registry-completeness` descriptor at 700f6b375ecc1e4264e8c67b575315706e21068e, the parent of the
+// conversion `a8fc8f34e4`; this module did not exist there, so it is measured against the module it was carved from,
 // `section-registry-completeness` (blob read from git with no working-tree plant: a `GateDescriptor`, no
 // `defineGate`). The legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter —
 // parent run: `if (!path.includes(CLIENT_SRC)) continue`. Over the SAME 7,143 harness candidates at that tree

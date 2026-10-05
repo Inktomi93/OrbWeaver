@@ -9,7 +9,7 @@
 // `d-citation-integrity`. Both scan RAW TEXT and need the same
 // offset→authored-position answer; this module is the one whose text is COMMENT text on both sides.
 //
-// POPULATION PORT (legacy SHA `1f5e25c00`, verified byte-identical to HEAD at conversion). Arm A walked
+// POPULATION PORT (legacy SHA `8de18d2f5f`, verified byte-identical to HEAD at conversion). Arm A walked
 // `ctx.files` — the harness corpus, `_shared/ts-workspace.ts#harnessGlobs` — which is `@authored` plus
 // shipped `packages/showcase-plugins` and default content, now members of `@authored`. The st-goldens
 // captured runtime needs no `notUnder`: it is excluded from the PROJECT, and
@@ -69,8 +69,8 @@
 // pins every declared receipt (proof law §6.3).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `dangling-doc-cite` descriptor at 80b81a3471b24c88ef503f8896c4796831474a4f, the parent of the conversion
-// `ff3eacb44` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1f5e25c00`
+// `dangling-doc-cite` descriptor at (pruned from public history), the parent of the conversion
+// `c4efc8b8d6` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `8de18d2f5f`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,435 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy harness dispatch (no `scanRoot`) admits 7,435 and final

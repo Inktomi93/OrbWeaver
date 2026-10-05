@@ -16,7 +16,7 @@ import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "../../../../suppo
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
 import { AboutSectionStory, AboutUpdatesSectionStory } from "../_ct-stories.tsx";
 
-const LOCAL_COMMIT = "823d76f4343a1cea086b17a1b5bf212b44c17a7d";
+const LOCAL_COMMIT = "f4cdde34be59914c4a2aecec108899bd034579ac";
 const REMOTE_COMMIT = "f00dcafe1234567890abcdef1234567890abcdef";
 
 const VERSION = {
@@ -37,7 +37,7 @@ test("renders the version line a bug report quotes, anchored at the About group'
   const component = await mount(<AboutSectionStory />);
 
   // The exact string the issue form asks for: a main build is a dev pre-release carrying its SHORT commit.
-  await expect(component.getByTestId("about-version-line")).toHaveText("0.4.1-dev+823d76f4343a");
+  await expect(component.getByTestId("about-version-line")).toHaveText("0.4.1-dev+f4cdde34be59");
   await expect(component.getByText("Read from this checkout's git refs at startup.")).toBeVisible();
   await expect(component.getByRole("button", { name: "Copy version for a bug report" })).toBeVisible();
   await expect(page.locator("#config-anchor-about-version")).toBeVisible();

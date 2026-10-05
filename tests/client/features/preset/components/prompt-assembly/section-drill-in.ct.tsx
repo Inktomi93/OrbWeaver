@@ -534,7 +534,7 @@ test("Add mints a section AND drills straight into it, where the Name field is",
 });
 
 // ── §5.2 fork-eject: the section drill survives the built-in's fork-retarget remount ──────────────────────
-// The SAME defect the Actions template drill already fixed (dcaf87bc1), one view over: the production seam is
+// The SAME defect the Actions template drill already fixed (ea2493aba6), one view over: the production seam is
 // `PresetForm entityId={presetId}` + the autosave hook's `selectPreset(fork)` swapping that id mid-edit,
 // which remounts the whole keyed session. With the drill held in LOCAL component state, that remount dumped
 // the author from the section editor to the top of the rack mid-sentence. The fork carries the SAME config

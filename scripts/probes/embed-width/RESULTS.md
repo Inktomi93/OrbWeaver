@@ -1,10 +1,10 @@
 # Embedding-width results (work item 0507)
 
-**Run 2:** 2026-10-04, local-auth isolated stage at `1e22e132c3` (server port 8888), owner principal
+**Run 2:** 2026-10-04, local-auth isolated stage at `73e114a4cc` (server port 8888), owner principal
 `01m42sj1p2fzy98wa1cxak4e6v`, member principal `01m42sj3xhfzy98ya1a22h9d57`. Raw records and the stage server log:
 `~/homelab/development/probe-archive/embed-width-2026-10-04/raw-1e22e132c3/` (outside the repo). Run 1 (stage
-`a02aaa6a76`, `raw/`) stopped on two findings, both fixed and confirmed below. Cells 3a and 8 were re-run on a fresh
-stage at `9eccc1bef3` (`raw-9eccc1bef3/`), after the fix for finding 1 and observation 3.
+`0317b74544`, `raw/`) stopped on two findings, both fixed and confirmed below. Cells 3a and 8 were re-run on a fresh
+stage at `c830330d45` (`raw-9eccc1bef3/`), after the fix for finding 1 and observation 3.
 
 **Status: every cell passes through the product path.** Gemini is pending on item 0527 (quota).
 
@@ -26,7 +26,7 @@ same chat (judged by the chat id; digests exist once Utility is bound).
 | 1 | narrow to a declared width, memory on, no Utility model | built-in, declared 512 | 512 / 512 / 512 / none | hit / hit / hit / none | running → clear in 47 s; `index`, `databank-reindex`, `memory-backfill {embedderChanged}` succeeded | **pass** (run 1 finding 1 fixed by 0521) |
 | 2 | back to the default width, memory on | built-in, 1024 | 1024 / 1024 / 1024 / none | hit / hit / hit / none | running → clear in 3 s; all three succeeded | **pass** (run 1 finding 2 fixed: the row clears) |
 | - | Utility bound (`openai/gpt-4o-mini` on OpenRouter), memory swept | built-in, 1024 | 1024 / 1024 / 1024 / 1024 | hit / hit / hit / hit | `memory-backfill` succeeded | setup |
-| 3a | local server, first bind of a cold model | Ollama `nomic-embed-text` | 768 / 768 / 768 / none | hit / hit / hit / none | write accepted in 14,982 ms (the cold probe embed took 14.95 s); clear in 11 s; all three succeeded | **pass** at `9eccc1bef3` (run 2 failed: finding 1) |
+| 3a | local server, first bind of a cold model | Ollama `nomic-embed-text` | 768 / 768 / 768 / none | hit / hit / hit / none | write accepted in 14,982 ms (the cold probe embed took 14.95 s); clear in 11 s; all three succeeded | **pass** at `c830330d45` (run 2 failed: finding 1) |
 | 3a' | same bind, model warm | Ollama `nomic-embed-text` | 768 / 768 / 768 / 768 | hit / hit / hit / hit | clear in 50 s; all three succeeded | pass |
 | 3b | local server, `dimensions` 256 | Ollama `nomic-embed-text`, declared 256 | 256 / 256 / 256 / 256 | hit / hit / hit / hit | clear in 33 s | **pass** |
 | 3c | local server, native width | Ollama `all-minilm` | 384 / 384 / 384 / 384 | hit / hit / hit / hit | clear in 37 s | **pass** |
@@ -37,7 +37,7 @@ same chat (judged by the chat id; digests exist once Utility is bound).
 | 6b | local server stopped | Ollama `nomic-embed-text` | unchanged (768) | hit / hit / hit / hit | refused `connection_embed_unreachable`; no workload | **pass** |
 | 6c | server restarted, same row re-bound | Ollama `nomic-embed-text` | 768 / 768 / 768 / 768 | hit / hit / hit / hit | clear in 36 s | **pass** (the refused row is asked again) |
 | 7 | race: local, then hosted while the first rebuild runs | Ollama `all-minilm` → OpenAI `text-embedding-3-small` | 1536 / 1536 / 1536 / 1536 | hit / hit / hit / hit | second move landed while `index` was running; target epoch 12 → 14; clear in 8 s; no restart | **pass** |
-| 8 | bad key on the hosted embedder | OpenRouter `baai/bge-base-en-v1.5` (768) under a bad key | unchanged while bad | hit / hit / hit while bad | refused `connection_embed_auth` at `9eccc1bef3` (run 2: `connection_embed_unreachable`), no workload, bindings unchanged; after `credentials.replace`, the same row binds and rebuilds to 768 | **pass** (observation 3 fixed) |
+| 8 | bad key on the hosted embedder | OpenRouter `baai/bge-base-en-v1.5` (768) under a bad key | unchanged while bad | hit / hit / hit while bad | refused `connection_embed_auth` at `c830330d45` (run 2: `connection_embed_unreachable`), no workload, bindings unchanged; after `credentials.replace`, the same row binds and rebuilds to 768 | **pass** (observation 3 fixed) |
 | 9 | member re-points their own embedder | Ollama `all-minilm` as `member` | member: 384 (10 cards); owner: 768, untouched | member sees only their own rows | member's `index` and `databank-reindex` (ownerId member) succeeded; owner's targets unchanged (epoch 15) | **pass** |
 
 Ollama ran on GPU 1 only (`--gpus device=1`, loopback port 18434); GPU 0 stayed at 4,853 MiB throughout, in both
@@ -56,7 +56,7 @@ re-point's width probe got no answer").
 - The user is told "Couldn't reach this embedder ... Check that its server is running", and the server is running.
   The same bound hits any endpoint whose first answer is slow: a first model load, or a sleeping server waking.
 - The refusal itself was safe: binding, targets, widths and all four searches were identical before and after.
-- The fix (`9eccc1bef3`): detection already proves reachability, since a dead host fails there, so the width probe
+- The fix (`c830330d45`): detection already proves reachability, since a dead host fails there, so the width probe
   on a remote embedder gets the row's embed request deadline (`embedRequestTimeoutMs`: `requestTimeoutMs`, else
   120 s) instead of 10 s. The built-in encoder keeps its own bound.
 - Re-run on a fresh stage with a fresh Ollama container (nothing loaded): Ollama answered detect at 07:14:42,
@@ -79,11 +79,11 @@ re-point's width probe got no answer").
    1024. The server message says "not the 1024 its connection states", though the user stated nothing; the
    client's text names the fix ("Set its vector width under Advanced to 768"). After setting width 768 the bind
    passed. Records: `06-39-49.581Z` and `06-41-13.036Z` `bind-openrouter-bge-768-refused.json`. The probe's arm
-   now declares both. At `9eccc1bef3` the refusal's detail carries `assumed`, and with no width stated both the
+   now declares both. At `c830330d45` the refusal's detail carries `assumed`, and with no width stated both the
    server and the client name the width assumed for the model instead. How a row's kind is derived is unchanged.
 3. **A bad key reads as unreachable (fixed).** The hosted embedder under a bad key was refused
    `connection_embed_unreachable`, whose client text says to check that the server is running. A 401 is a key
-   problem, not a reachability one. At `9eccc1bef3` a probe refused with `auth_failed` is refused
+   problem, not a reachability one. At `c830330d45` a probe refused with `auth_failed` is refused
    `connection_embed_auth`, and the client says the embedder refused its key and to check it under Credentials.
    Record: `raw-9eccc1bef3/2026-10-04T07-15-47.804Z-badkey-openrouter-bge-768.json`.
 4. **Ollama rows offer `imageEmbed`.** `connection.list` gives every Ollama row the tasks `embed` and `imageEmbed`,

@@ -28,7 +28,7 @@
 // authored `.ts`/`.tsx` only (§12.4), `_proof/` stays IN exactly as legacy had it, and no other tree
 // contains that prefix. The legacy `scanRoot` existed to keep the four whole-project scanners from also
 // reading this gate's example strings; the population field now IS that fence and the four are unaffected.
-// LEGACY SHA `1e81658b4^` — this is the ONE member of the ten-module `policy-soundness` family that is a
+// LEGACY SHA `71c52aa677^` — this is the ONE member of the ten-module `policy-soundness` family that is a
 // CONVERSION rather than a module born final; the other NINE have no legacy population and say so.
 // (Both counts corrected 2026-09-13, LD-2319-3: the sentence said "nine-module" and "the other eight",
 // written before a tenth member joined. Re-derived, not adjusted:
@@ -36,9 +36,9 @@
 // diagnostic-legibility · policy-binding-resolution · policy-family-readers · policy-fixture-substrate ·
 // policy-legacy-imports · policy-proof-expectations · policy-refusal-coverage · policy-soundness ·
 // policy-waiver-identity · policy-waiver-spelling.) Read
-// by the three-question test rather than inherited: the introducing commit is `1e81658b4`
+// by the three-question test rather than inherited: the introducing commit is `71c52aa677`
 // (`git log -S 'defineGate({' --reverse -- <this file>`), the cited sha is its parent by construction, and
-// the blob there is legacy (`git show 1e81658b4^:<this file>` has `defineGate` count 0).
+// the blob there is legacy (`git show 71c52aa677^:<this file>` has `defineGate` count 0).
 //
 // MARKER CENSUS — the private `// terse-ok:` grammar is RETIRED (§12.5 bans a gate-specific exemption
 // vocabulary). Live sites on the tree at conversion: ZERO (`/usr/bin/grep -rn terse-ok packages tests
@@ -64,8 +64,8 @@
 //      SKIPPED, exactly as the legacy `undefined` was.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `diagnostic-legibility` descriptor at d07338082afc3525bdc2b0813d7ce451087dd40f, the parent of the conversion
-// `1e81658b4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `diagnostic-legibility` descriptor at (pruned from public history), the parent of the conversion
+// `71c52aa677` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,437 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 285 and final `population` admits 285. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `tooling/src/verify/gates/_proof/__cbbhr_in_client-vendors.ts` (virtual) admitted by both; outside

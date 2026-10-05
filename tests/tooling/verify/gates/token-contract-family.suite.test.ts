@@ -17,7 +17,7 @@ test("tokens-contract keeps its three-arm proofs", () => {
   expect(verifyPolicyProofs([tokensContract])).toEqual([]);
 });
 
-/** THE REMOVAL RATCHET, PINNED FOR THE FIRST TIME (#2182 — `a97454714`'s own subject line; this cited
+/** THE REMOVAL RATCHET, PINNED FOR THE FIRST TIME (#2182 — `26f167a43d`'s own subject line; this cited
  *  #2183, the sibling pair's issue, until #2294/#2314 — closing the §5b audit's ledger row 18).
  *
  *  The legacy descriptor gated the ratchet on `resolve(ctx.root) === REPO_ROOT`, and the audit's cut t01

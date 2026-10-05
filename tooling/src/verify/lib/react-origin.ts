@@ -14,9 +14,9 @@
 // THE FAMILY'S SHARED POPULATION PORT IS DERIVED ONCE HERE (§5b.5), so the member headers cite one
 // measurement instead of copying it five times — the `DRIZZLE_SCHEMA_POPULATION` precedent. It covers the
 // three React-19 members whose legacy descriptors declared NO `scanRoot` at all — `no-forward-ref`,
-// `no-use-context`, `no-context-provider`, all converted at `7ed48eca8` — whose legacy population was
+// `no-use-context`, `no-context-provider`, all converted at `2ee31c5d22` — whose legacy population was
 // therefore the whole legacy harness fileset: `packages/*/src/**/*.{ts,tsx}` plus `tests/**/*.{ts,tsx}`
-// (`lib/harness.ts` at `7ed48eca8^`). The final population is `@authored`, which is NOT byte-identical and
+// (`lib/harness.ts` at `2ee31c5d22^`). The final population is `@authored`, which is NOT byte-identical and
 // moves in BOTH directions:
 //   - NARROWS by `packages/showcase-plugins/src`, an authored package deliberately outside `@authored`
 //     (#1980, `contract/population.ts`). Measured rather than assumed: the package holds ONE file and it
@@ -29,11 +29,11 @@
 //     an ORIGIN-keyed reader does not mistake for the subject, and exactly what the legacy TEXT matchers
 //     this reader replaced would have red-flagged. The widening is safe BECAUSE of the conversion.
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the refuted text kept above: "the whole legacy harness fileset:
-// `packages/*/src/**/*.{ts,tsx}` plus `tests/**/*.{ts,tsx}` (`lib/harness.ts` at `7ed48eca8^`)" and "WIDENS by
+// `packages/*/src/**/*.{ts,tsx}` plus `tests/**/*.{ts,tsx}` (`lib/harness.ts` at `2ee31c5d22^`)" and "WIDENS by
 // `tooling/src` and `scripts/`" are REFUTED. `lib/harness.ts` at that tree is the BASELINE WRITERS' project; the live
 // legacy pass (`lib/pass.ts:434`, `getWorkspace({ root })`) loaded `_shared/ts-workspace.ts#harnessGlobs`, which
 // already carried `tooling/src` and `scripts/`. Measured for each of the three members over the harness candidates at
-// `7ed48eca8^`: legacy − final = {`packages/showcase-plugins/src/index.ts`}, final − legacy = ∅. The port is a
+// `2ee31c5d22^`: legacy − final = {`packages/showcase-plugins/src/index.ts`}, final − legacy = ∅. The port is a
 // one-file NARROWING in ONE direction; the zero-React-import measurement above stays true and is now simply not
 // needed to justify a widening that never happened. Each member header carries the sets and controls.
 // CURRENT 2026-09-21: shipped showcase/default-content packages now belong to `@authored`; the historical

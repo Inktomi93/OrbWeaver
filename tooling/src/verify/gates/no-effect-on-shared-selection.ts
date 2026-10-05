@@ -48,7 +48,7 @@
 // different reader (`lib/project-home-origin.ts`) on purpose: the two axes ask different questions and
 // neither should be able to answer the other's.
 // POPULATION PORT: an INTENTIONAL WIDENING BY EXACTLY TWO THINGS, both of which the paragraphs above state
-// the reason for. The legacy `scanRoot: (p) => p.includes("packages/client/src/features/")` (`47fc0ae01^`)
+// the reason for. The legacy `scanRoot: (p) => p.includes("packages/client/src/features/")` (`55bf359599^`)
 // becomes `{ in: ["@client"], under: ["packages/client/src/features/**",
 // "packages/client/src/state/index.ts"] }`. (1) `state/index.ts` joins the population as a RECEIPT carrier,
 // never a subject: the pointer vocabulary resolves against the state barrel, so a renamed pointer REFUSES
@@ -60,8 +60,8 @@
 // files on this tree.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-effect-on-shared-selection` descriptor at 256682e4aa17a2555c99834c468905fa53ae5500, the parent of the
-// conversion `47fc0ae01` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// `no-effect-on-shared-selection` descriptor at c96e75a9174307d159c5193c96eaf93fbab5c3cb, the parent of the
+// conversion `55bf359599` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,224 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,000 and final `population` admits 1,001. legacy − final = ∅. final − legacy =
 // {`packages/client/src/state/index.ts`} — the receipt carrier the paragraph above records. Controls: inside

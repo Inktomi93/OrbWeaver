@@ -17,7 +17,7 @@
 //
 // STORAGE: the PRESET's `promptConfig.prose` (owner ruling 2026-08-08, "we are putting everything in presets" —
 // the standing per-PRESET home already recorded at `domain/chat/assembly/injections.ts`). These slots homed on
-// `rpg_games.config.prose` for exactly one merge (`fa8f944a0`); that spine — the config field, the
+// `rpg_games.config.prose` for exactly one merge (`29a3d8079e`); that spine — the config field, the
 // `updateConfig.patch.prose` write arm, the fork strip arm — is DELETED, and `home:"preset"` is what routes each
 // row into `PRESET_PROSE_SLOT_IDS`, its Templates-tab row, and `composeProse`'s preset source. The host edits
 // them in the preset Templates tab; a GAME turn assembles the game's `gmPresetId` (the preset REDIRECT in

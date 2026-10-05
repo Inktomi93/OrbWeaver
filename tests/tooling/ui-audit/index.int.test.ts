@@ -866,7 +866,7 @@ ${OFF_CANVAS_CONTROL}
 
 // ── TYPE-HIERARCHY INVERSION: an alert outweighed by what it bounds (#652) ──────────────────────────
 // @instrument-proof. The fixtures below are the plugin consent screen's OWN markup at two commits, with
-// the computed steps it really rendered — not a synthetic shape. BEFORE 68c5d57d2 the unrecognised-
+// the computed steps it really rendered — not a synthetic shape. BEFORE ecd9186954 the unrecognised-
 // permissions sentence was `<Text role="alert" voice="gloss">` at 10.5px sitting in the same block as raw
 // egress hostnames set in the un-voiced 15px default: the most safety-relevant sentence on the screen,
 // rendered smaller than the machine strings it qualifies. AFTER, `prose` lifts the alert to 13px and the

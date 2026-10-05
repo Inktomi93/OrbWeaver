@@ -8,11 +8,11 @@
 // FAMILY `turn-identity` — a declared SINGLETON. `lib/sealed-origin.ts` is a shared READER, not a family: it
 // serves five seals over five homes. No sibling policy judges the chat engine's identity boundary.
 //
-// POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^` (`scanRoot: (p) => ENGINE_ANCHORED.test(p)`); the
+// POPULATION PORT: byte-identical, legacy at `76196db5d4^` (`scanRoot: (p) => ENGINE_ANCHORED.test(p)`); the
 // final expression beside the population const admits exactly that set.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `turn-identity` descriptor at 509671ae2e013b6d07fe6f7e9e744e0d7cbac946, the parent of the conversion `e5a7a8a8c`
+// `turn-identity` descriptor at de9a84d2560cc0c2ae9642f4f98144315cbaab53, the parent of the conversion `76196db5d4`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,183 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 10 and
 // final `population` admits 10. legacy − final = ∅. final − legacy = ∅. Controls: inside

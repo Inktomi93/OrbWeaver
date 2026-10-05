@@ -7,7 +7,7 @@
 //          example lives here as a `runPolicyPass` pin: guard home absent · runner home absent · guard
 //          export renamed · the complete run's receipt pair. And the `entire-population` deferral: a
 //          narrowed request must DEFER rather than refuse on a missing home it was never handed.
-//   §4.6 — the conversion differential against the frozen legacy descriptor at `36bf5fa74`: every legacy
+//   §4.6 — the conversion differential against the frozen legacy descriptor at `d53fc98828`: every legacy
 //          example replayed through the legacy `runPass` and the final policy, with the two classified
 //          differences asserted rather than averaged: (1) POSITION — legacy file-level findings sat at
 //          `0:0`, the final sink refuses a zero coordinate and anchors at `1:1`; (2) the BLINDNESS arm —

@@ -19,7 +19,7 @@
 // mustPass row): a pin PROVING this defect must seed the broken row by hand.
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "a byte-identical port" and
 // "`packages/showcase-plugins/` has no `src/` and was outside both" are REFUTED. At the conversion parent
-// `5c17068b7^` `packages/showcase-plugins/src/index.ts` exists and the legacy predicate admits it: legacy − final =
+// `fbf9d22893^` `packages/showcase-plugins/src/index.ts` exists and the legacy predicate admits it: legacy − final =
 // that one file, final − legacy = ∅ — the one-package narrowing the POPULATION PORT paragraph below records.
 //
 // PORT CORRECTIONS, each deliberate:
@@ -46,20 +46,20 @@
 //     is the table", which is prose-blind by construction. The COMMENT-POSTURE row is carried as its pin.
 //
 // POPULATION PORT: an INTENTIONAL NARROWING BY EXACTLY ONE PACKAGE, and it is lossless. The legacy
-// `scanRoot: (p) => p.includes("packages/") && p.includes("/src/")` (`5c17068b7^`) becomes
+// `scanRoot: (p) => p.includes("packages/") && p.includes("/src/")` (`fbf9d22893^`) becomes
 // `WRITE_POPULATION` = `@packages`, the explicit six-root list — so `packages/showcase-plugins/src` leaves
 // the population (#1980: `@showcase` is authored but deliberately outside the composite sets). Measured,
 // not assumed: that package holds ONE file with ZERO drizzle write calls, so nothing it could have carried
 // is dropped. The legacy DECLARED LIMIT survives unchanged — `tests/**` was outside `scanRoot` and is
 // outside `@packages`, for the same reason (scanning tests would red this policy's own proofs). The
 // derivation has ONE home, beside the constant itself in `lib/freeze-provenance.ts`.
-// LEGACY SHA `5c17068b7^`, by the three-question test: `git log -S 'defineGate({' --reverse -- <this file>`
-// gives `5c17068b7`, the cited sha is its parent by construction, and the blob there has `defineGate`
+// LEGACY SHA `fbf9d22893^`, by the three-question test: `git log -S 'defineGate({' --reverse -- <this file>`
+// gives `fbf9d22893`, the cited sha is its parent by construction, and the blob there has `defineGate`
 // count 0.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `freeze-provenance-write-pairing` descriptor at ef334c050af962f304d72e0295f7d15d3a5aacd4, the parent of the
-// conversion `5c17068b7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// `freeze-provenance-write-pairing` descriptor at (pruned from public history), the parent of the
+// conversion `fbf9d22893` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,388 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 3,387 and final `population` admits 3,386. legacy − final =
 // {`packages/showcase-plugins/src/index.ts`} — the one source of an authored package outside the declared composite

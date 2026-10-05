@@ -5,7 +5,7 @@
 // `@orb/ui/token-contract` exports subpath; no `lib/` reader is involved at all, and the nearest sibling
 // (`css-family-ownership`'s parity arm) judges the GENERATED CSS rather than the vault.
 //
-// POPULATION PORT: BYTE-IDENTICAL, legacy at eba8ef526. The legacy descriptor read the seven canonical
+// POPULATION PORT: BYTE-IDENTICAL, legacy at 39f71b2294. The legacy descriptor read the seven canonical
 // documents off disk under `scopeSafety: "whole-project"` with `fsBacked: true`; the final declares
 // `{ kind: "token-contract" }`, whose provider loads exactly `contract/resource-artifact.ts`'s
 // `TOKEN_CONTRACT_PATHS` — the same seven paths in the same order, one member short being a REFUSAL in both.
@@ -88,8 +88,8 @@
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13).
 // HAND-DERIVED: the scratch replay cannot import this legacy module (its import-time reads resolve against the
 // archive root and throw), so the sets were derived by reading the blob. Legacy `tokens-contract` descriptor at
-// 17a59099b73a500463ed1460ea30d5602fb045e2, the parent of the conversion `a97454714` (blob read with `git show`: no
-// `scanRoot`, `fsBacked: true`, no `defineGate`); the `eba8ef526` cited above is an ancestor carrying a
+// 9c7bd2dd0f1a29acf5e9c66998c885eb5eff5ac3, the parent of the conversion `26f167a43d` (blob read with `git show`: no
+// `scanRoot`, `fsBacked: true`, no `defineGate`); the `39f71b2294` cited above is an ancestor carrying a
 // byte-identical blob (`git rev-parse` of both). With no `scanRoot` the legacy harness dispatched all 7,555 harness
 // candidates at that tree and its `run` read none of them — its subject came from `readFileSync` of the seven
 // canonical documents plus `git merge-base`/`git show`; the final `population` is `{ of: "none" }` and the subject is

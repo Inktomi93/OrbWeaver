@@ -53,7 +53,7 @@
 //     exclusion) so a domain whose only files sit under `persistence/` is still detected as existing.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `own-tables-only` descriptor at 35bf7d328513bb5411a72eb1ca29786f75dbb99c, the parent of the conversion `fe7b5ea38`
+// `own-tables-only` descriptor at 70fbc2ea6dab4d991d96759b6cc26dbf4404b3bc, the parent of the conversion `b51daeba41`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,358 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,044
 // and final `population` admits 1,148. legacy − final = ∅. final − legacy = 104 `domain/**/persistence/**` sources —

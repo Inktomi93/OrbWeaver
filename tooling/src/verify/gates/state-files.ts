@@ -36,11 +36,11 @@
 //      (§4.6 category 6) and it owes a marker receipt: there are ZERO live `@orb-gate-ignore
 //      state-files` markers on the tree (measured 2026-09-12), so nothing re-binds and nothing orphans.
 //
-// LEGACY SHA: 50088b39b (`git show 50088b39b:tooling/src/verify/gates/state-files.ts`).
+// LEGACY SHA: 2a7094966f (`git show 2a7094966f:tooling/src/verify/gates/state-files.ts`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `state-files` descriptor at a4ed280d18da42e55be62960b8ce1aec1f76ff32, the parent of the conversion `5f8347dca`
-// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `50088b39b` cited above
+// `state-files` descriptor at b6d7f7569992264b59763294f4b72a0a8b9b135e, the parent of the conversion `421d9db98f`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `2a7094966f` cited above
 // is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations resolve to this
 // source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 87 and final `population` admits 87.

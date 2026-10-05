@@ -10,19 +10,19 @@
 // different export name. Five members read it, so "is this REACT's X" cannot answer differently in five
 // policies.
 // POPULATION PORT: NOT byte-identical, and it moves in both directions. The legacy descriptor declared no
-// `scanRoot` at all (`7ed48eca8^`), so its population was the legacy harness fileset (`packages/*/src` plus
+// `scanRoot` at all (`2ee31c5d22^`), so its population was the legacy harness fileset (`packages/*/src` plus
 // `tests/`); the final is `@authored` — a NARROWING by `packages/showcase-plugins/src` and a WIDENING by
 // `tooling/src` + `scripts/`, both measured empty of subjects. The derivation and its planted control have
 // ONE home, in the shared reader's own header, rather than three copies across this family.
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the refuted text kept above: "it moves in both directions",
 // "(`packages/*/src` plus `tests/`)" and "a WIDENING by `tooling/src` + `scripts/`" are REFUTED. The live legacy pass
-// at `7ed48eca8^` loaded `_shared/ts-workspace.ts#harnessGlobs` (`lib/pass.ts:434`, `getWorkspace({ root })`), which
+// at `2ee31c5d22^` loaded `_shared/ts-workspace.ts#harnessGlobs` (`lib/pass.ts:434`, `getWorkspace({ root })`), which
 // already carried `tooling/src` and `scripts/`; the narrower glob list in `lib/harness.ts` served only the baseline
 // writers. Measured over that tree's harness candidates: legacy − final = {`packages/showcase-plugins/src/index.ts`},
 // final − legacy = ∅ — a one-file NARROWING, with the sets and controls at the end of this header.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-forward-ref` descriptor at a4ec5c1b6525da029b9d35bda2c3c4b7720e5c0a, the parent of the conversion `7ed48eca8`
+// `no-forward-ref` descriptor at 9d8b96146c08572d427924e073005e4913b07638, the parent of the conversion `2ee31c5d22`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,196 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy harness dispatch (no
 // `scanRoot`) admits 7,196 and final `population` admits 7,195. legacy − final =

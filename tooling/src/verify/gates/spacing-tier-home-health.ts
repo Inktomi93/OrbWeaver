@@ -16,7 +16,7 @@
 // (#2096 / §12.3: a gate module never imports another gate module; a shared predicate moves to
 // `lib/<family>.ts`). The table moved to `lib/` and this sentence moved with it; a header that legitimises
 // a banned shape is read as precedent by the next lane, which is why it is corrected here and not later.
-// POPULATION PORT: byte-identical. The legacy descriptor (d6f36904f, the parent of 99b7429e2 — its
+// POPULATION PORT: byte-identical. The legacy descriptor (1b999db38d, the parent of a2a93cac72 — its
 // `no-raw-spacing-in-features.ts` carried BOTH arms in one `GateDescriptor`) scoped with
 // `scanRoot: (p) => /\/packages\/(?:client|ui)\/src\//u.test(`/${p}`)`; `["@client", "@ui"]` is the same set.
 // The population is a STRUCTURAL non-narrowing, not an unenforced fence (guide §6.1's structurally-unfalsifiable classification, wave 4):
@@ -26,12 +26,12 @@
 // makes it flag FEWER. The ANCHOR self-guard's falsifier is `mustPass[1]` going RED; the resolution reader's
 // is `mustFlag[0]` going GREEN. A lane applying the occurrence direction reads both as unenforced.
 // §4.5 and §4.6 live in `tests/tooling/verify/gates/tier-home-health-family.suite.int.test.ts`: the narrowed-request
-// DEFERRAL pin with its whole-project control (ec336d41c), and the split-arm differential replaying every
-// legacy example through the frozen d6f36904f descriptor and the UNION of both final policies (6f815e95e).
+// DEFERRAL pin with its whole-project control (d8a6cffee9), and the split-arm differential replaying every
+// legacy example through the frozen 1b999db38d descriptor and the UNION of both final policies (fa90c5832f).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-raw-spacing-in-features` descriptor at d6f36904fa6946238678e61760888aaf62ba0c93, the parent of the conversion
-// `99b7429e2`; this module did not exist there, so it is measured against the module it was carved from,
+// `no-raw-spacing-in-features` descriptor at 1b999db38d4c6bd7421e7adbf1c426f591e8eb97, the parent of the conversion
+// `a2a93cac72`; this module did not exist there, so it is measured against the module it was carved from,
 // `no-raw-spacing-in-features` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
 // Over the SAME 7,351 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
 // legacy `scanRoot` admits 1,685 and final `population` admits 1,685. legacy − final = ∅. final − legacy = ∅.

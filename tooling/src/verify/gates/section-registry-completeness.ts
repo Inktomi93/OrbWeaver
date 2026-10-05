@@ -19,12 +19,12 @@
 // one provider per definition kind) plus `lib/registry-definition-{anchor,field,home}.ts`, consumed
 // identically by all seven members, so the co-location law and the finding anchor cannot drift apart.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
-// (dd862e988^); the final population is `@client`. The ROUTES fence stays INSIDE the god-map arm rather
+// (a8fc8f34e4^); the final population is `@client`. The ROUTES fence stays INSIDE the god-map arm rather
 // than in the population, because the other four arms judge the whole client tree.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `section-registry-completeness` descriptor at e18bce01edaa15a30220d7a34c96a2c5228a1646, the parent of the
-// conversion `dd862e988` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
+// `section-registry-completeness` descriptor at 700f6b375ecc1e4264e8c67b575315706e21068e, the parent of the
+// conversion `a8fc8f34e4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
 // legacy descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
 // `if (!path.includes(CLIENT_SRC)) continue`. Over the SAME 7,143 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,302 and the final `population` admits 1,302 (the bare harness

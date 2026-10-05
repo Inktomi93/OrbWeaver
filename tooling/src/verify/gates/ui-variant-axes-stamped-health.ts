@@ -27,13 +27,13 @@
 // so it is line 1, column 1 of the same file. No marker ever bound to it — the arm was non-suppressible by
 // construction and the census measured ZERO live markers for this id.
 //
-// Legacy descriptor: `da01f7eb9` (`tooling/src/verify/gates/ui-variant-axes-stamped.ts`, arm A5).
+// Legacy descriptor: `f93c987f82` (`tooling/src/verify/gates/ui-variant-axes-stamped.ts`, arm A5).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `ui-variant-axes-stamped` descriptor at ccd404f6feb0cdb84adce3d978522f138baadaab, the parent of the conversion
-// `aebf416fc`; this module did not exist there, so it is measured against the module it was carved from,
+// `ui-variant-axes-stamped` descriptor at (pruned from public history), the parent of the conversion
+// `b20c3fe174`; this module did not exist there, so it is measured against the module it was carved from,
 // `ui-variant-axes-stamped` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The
-// `da01f7eb9` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// `f93c987f82` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,461 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 366 and final `population` admits 1.
 // legacy − final = 365 `@ui` sources other than `lib/variant-attrs.ts` — the axis home is this arm's whole

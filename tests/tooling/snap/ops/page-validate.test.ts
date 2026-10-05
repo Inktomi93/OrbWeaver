@@ -16,7 +16,7 @@ import { expect, test } from "../../../support/tool-fixtures.ts";
 
 /** A COMPLETE measured arm — every field `contrastFacts` declares it will refuse without. Kept in field
  *  order with the reader (`tooling/src/snap/ops/page-validate.ts`) so a new required field shows up here as
- *  a gap rather than as a mystery throw: `hasIconInk` and `radii` were added to the read at 881c70701
+ *  a gap rather than as a mystery throw: `hasIconInk` and `radii` were added to the read at 08be78e0cf
  *  (#1111) and this fixture was not swept, so the arm this test exists to prove PASSES was throwing the
  *  refusal the arm below exists to prove it throws (#1246). The two fields are the ICON-INK and SHAPE
  *  channels of #1111's fill arm — an `<svg>` subtree paints with `currentColor`, and a background is

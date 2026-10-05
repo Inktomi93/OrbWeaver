@@ -3,7 +3,7 @@
 //
 // THE VERSION LINE IS THE PRODUCT HERE. Everything else on this section serves it: it is the string a bug
 // report quotes, so it is selectable, copyable in one click, and spelled exactly the way the issue form asks
-// for it: `v0.1.0` for a stable release, `0.1.0-dev+823d76f4343a` for a main build. The commit is SHORT (12)
+// for it: `v0.1.0` for a stable release, `0.1.0-dev+f4cdde34be59` for a main build. The commit is SHORT (12)
 // because that is what someone pastes into `git show`; the full sha rides the copy, never the eye.
 //
 // THE UPDATE CHECK IS MANUAL, AND THAT IS THE FEATURE. `enabled: false` + an explicit `refetch()` is the

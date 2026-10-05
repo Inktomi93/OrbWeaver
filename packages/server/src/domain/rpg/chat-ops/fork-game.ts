@@ -12,7 +12,7 @@
 //
 // CRASH SAFETY — pointer-write-LAST: the pointer is a client sync SIGNAL (game-ness resolves server-side by the
 // `rpg_games` row). Writing it LAST means it only goes live once the game rows exist, so a failure at ANY point
-// before it can never leave a DANGLING pointer (a pointer at a game that doesn't exist — the class the `8306a2b9`
+// before it can never leave a DANGLING pointer (a pointer at a game that doesn't exist — the class the `03c60fae63`
 // stopgap fixed). A batch failure leaves the fork a valid PLAIN chat (no rows, no pointer); a pointer-write
 // failure after the batch leaves rows-but-no-pointer (the client shows a plain chat, healable — never a dangle).
 //

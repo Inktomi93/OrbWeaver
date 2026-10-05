@@ -15,7 +15,7 @@
 // POPULATION PORT: byte-identical. Legacy `scanRoot` was `path.includes(HTTP_DIR)`
 // (`packages/server/src/entry/http/`); final population is `{ in: ["@server"], under:
 // ["packages/server/src/entry/http/**"] }`.
-// LEGACY at 86ce80b6c.
+// LEGACY at (pruned from public history).
 //
 // §4.6 DIFFERENTIAL (committed at tests/tooling/verify/gates/simple-visitors-1584.suite.test.ts): every legacy
 // mustFlag/mustPass example (minus the census row, ported to the `-health` sibling) replays identically —
@@ -29,8 +29,8 @@
 // own start) every ordinary policy in this lane uses.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `public-route-body-cap` descriptor at d2d0f644c46ee75c2ac44d962d22d18a97a375fe, the parent of the conversion
-// `04e455f4d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `86ce80b6c`
+// `public-route-body-cap` descriptor at (pruned from public history), the parent of the conversion
+// `ef163b8fce` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,455 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 17 and final `population` admits 17.

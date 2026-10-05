@@ -61,8 +61,8 @@ Main owns the frozen benchmark. Compare durations, scope, pass timings and test 
 
 Owner deferred this work. Resume only on an explicit owner request.
 
-Narrowing is in `e9fe219ff`; resolution caching is in `2d2b27975`. Pre-commit checks the staged diff.
+Narrowing is in `84af5ea2ed`; resolution caching is in `1820f32165`. Pre-commit checks the staged diff.
 
 The optimized liveness roster passed; matching overlay batches took 8.5% less time. The uncached baseline precondition passed after catch-census regeneration. Policy and pass populations match, but that correction prevents a strict identical-byte timing claim.
 
-The static barrier passed at `b7f4d564d`. Its affected-instrument stage selected nothing after the push advanced the remote base, so behavioral evidence remains separate. This does not complete the broader same-changed-set performance criterion.
+The static barrier passed at `9406314e4f`. Its affected-instrument stage selected nothing after the push advanced the remote base, so behavioral evidence remains separate. This does not complete the broader same-changed-set performance criterion.

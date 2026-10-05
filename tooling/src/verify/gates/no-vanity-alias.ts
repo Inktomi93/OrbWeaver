@@ -16,7 +16,7 @@
 // (a content suffix, not a path prefix) and stays a code-level filter, ported verbatim.
 // THE ROOT MEMBERSHIP IS NOT RE-TYPED HERE. It was, as "the exact seven `packages/<pkg>/src/` roots", beside
 // an UNDATED claim of byte-identity — and both rotted the moment a package landed: `packages/inference/src/`
-// (`146f71cd5`) and `packages/default-content/src/` joined the tree, the legacy regex would have matched
+// (`9a6061b487`) and `packages/default-content/src/` joined the tree, the legacy regex would have matched
 // both, and the declaration admitted neither, so "byte-identical" described a tree that no longer existed
 // (GATE-AUTHORING §7: quote a count only when something derives it at read time). Read the membership off
 // `contract/population.ts`'s `PRODUCT_MEMBERSHIP`, which is tsc-exhaustive over the root list.
@@ -27,7 +27,7 @@
 // been modelling at the pre-extraction path. Fixed at `isContractVocabHome` (below) rather than waived.
 // The 2026-09-21 shipped-package decision admits both showcase and default-content through `@product`.
 // Their inclusion is generic classification rather than a policy-local exception.
-// LEGACY at 86ce80b6c.
+// LEGACY at (pruned from public history).
 //
 // THE IDENTIFIER-FREQUENCY CENSUS IS A VISITOR, NOT A DESCENDANT WALK (guide §3: gate modules cannot
 // call `getDescendantsOfKind`). Rule (a)'s "is the original name otherwise present in this module" test
@@ -47,8 +47,8 @@
 // this lane uses.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-vanity-alias` descriptor at d2d0f644c46ee75c2ac44d962d22d18a97a375fe, the parent of the conversion `04e455f4d`
-// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `86ce80b6c` cited above
+// `no-vanity-alias` descriptor at (pruned from public history), the parent of the conversion `ef163b8fce`
+// (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)` cited above
 // is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations resolve to this
 // source. Over the SAME 7,455 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 3,387 and final `population` admits 3,387.

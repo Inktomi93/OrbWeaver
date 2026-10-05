@@ -1,4 +1,4 @@
-// Family test for the three Principal/serde gates landed in 287a706c0 (#2381-#2383): none had a family
+// Family test for the three Principal/serde gates landed in 7da207505e (#2381-#2383): none had a family
 // test under `tests/tooling/**` (#2433, `git grep` over `tests/tooling/` found nothing but the proof rows
 // and the ledger row). All three are declared SINGLETONS (each gate's header states `family: a declared
 // SINGLETON under its own id — no shared reader exists`), so this file owns the family's shared drivers:
@@ -83,7 +83,7 @@ test("a Principal-typed PARAMETER or field never constructs one — mentions are
 // file-level word co-occurrence onto the object-literal shape.
 // ---------------------------------------------------------------------------------------------------
 
-test('THE NEAR-MISS the 287a706c0 fix was about: a chat message literal `role: "user"` in a file that genuinely imports Principal is NOT flagged', () => {
+test('THE NEAR-MISS the 7da207505e fix was about: a chat message literal `role: "user"` in a file that genuinely imports Principal is NOT flagged', () => {
   const result = passOf(entrySyntheticRoleIsUser, {
     "packages/server/src/domain/chat/verbs/message.ts":
       'import type { Principal } from "@orb/contracts/identity";\nexport function turn(caller: Principal, text: string) {\n  return { role: "user", content: text, by: caller.userId };\n}\n',

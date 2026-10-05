@@ -28,7 +28,7 @@
 // MARKER CENSUS: ZERO. No `@orb-gate-ignore windowed-infinite-query` line exists anywhere on the tree at
 // the pre-conversion SHA, so nothing was translated, dropped, or dead-lettered.
 //
-// LEGACY SHA: 67366da91.
+// LEGACY SHA: 20a3dfb481.
 //
 // THE TWO ARMS NOW SHARE ONE FINDING, AND THE MARKER GRAMMAR IS WHY. Legacy reported the cap TWICE — once
 // per arm — and distinguished them by the finding TOKEN (`maxPages/no-rewind` vs `maxPages/client-lens`).
@@ -68,12 +68,12 @@
 //   · ARM B pairs the cap with a lens by FILE, not by dataflow: a lens over an unrelated array in the same
 //     file counts. Acceptable — the cap is the thing to delete either way, and the corpus is zero.
 // SHA FORM NOTE: the `LEGACY SHA` above is the last commit that TOUCHED THE LEGACY DESCRIPTOR, not this
-// conversion's parent (`e81ca1979^`) — the other convention in this corpus. Both resolve to readable
+// conversion's parent (`2db36f630d^`) — the other convention in this corpus. Both resolve to readable
 // legacy source; this one points at it in its final state, which is why it was kept.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `windowed-infinite-query` descriptor at 2eaae72bbfb355e1f7cc84291433983e48557177, the parent of the conversion
-// `e81ca1979` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `67366da91`
+// `windowed-infinite-query` descriptor at (pruned from public history), the parent of the conversion
+// `2db36f630d` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `20a3dfb481`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,433 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.

@@ -5,7 +5,7 @@
 // WHY A GATE AND NOT tsc: nothing in the type system notices a new `.subscription(`, and the cost is
 // invisible until it is not. The 2026-08-01 starvation incident was exactly this — `useRpgBus` opened a
 // THIRD always-on stream per room, 3 sockets × 2 tabs hit the browser's ~6-per-origin ceiling, and an
-// unrelated `character.list` hung forever with zero errors (`a2658fbc`, spec §1).
+// unrelated `character.list` hung forever with zero errors (`c2ca838c42`, spec §1).
 //
 // IDENTITY, NOT SPELLING: the legacy check was `callee.getName() === "subscription"`, so any object with a
 // `subscription` property red as a second socket. The subject is now the procedure-builder method DECLARED
@@ -27,14 +27,14 @@
 // is a corpus-wide primitive, and no sibling policy judges a builder chain's declaring package. The
 // `_proof/server-vendors.ts` plants it shares are a fixture home, not a family computation.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `ROUTERS_DIR.test('/' + p)` where
-// `ROUTERS_DIR = /\/packages\/server\/src\/transport\/trpc\/routers\//` (`9808b93c0^:39,88`); the final
+// `ROUTERS_DIR = /\/packages\/server\/src\/transport\/trpc\/routers\//` (`b5acbf2594^:39,88`); the final
 // population is `{ in: ["@server"], under: ["packages/server/src/transport/trpc/routers/**"] }`. The legacy
 // `SANCTIONED_HOMES` rows (the one-socket home and the permanent `chat.impersonateStream` exemption) were
 // scanned and excused, never subtracted, so the admitted set is the same on both sides.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `single-stream-transport` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion
-// `9808b93c0` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `single-stream-transport` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion
+// `b5acbf2594` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,219 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 27 and final `population` admits 27. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/transport/trpc/routers/__cbbhr_in_admin.ts` (virtual) admitted by both; outside

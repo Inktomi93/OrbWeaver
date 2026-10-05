@@ -97,7 +97,7 @@ export function assertSelectedPoliciesAreLoaded(knownPolicies: readonly GatePoli
  *  left as decoration, and the fact side — which never narrowed at all (`resolveFactRuns` sets effective =
  *  declared) — had been running the same tautology since it was written.
  *
- *  What the narrowing COST while it was live, measured at `028e278ee`: both `baseui-derives-not-respells`
+ *  What the narrowing COST while it was live, measured at `2339040dbb`: both `baseui-derives-not-respells`
  *  siblings answered `[create] resource request json:baseui-manifest is undeclared` — withheld, exit 2 — on
  *  any `--changed` run naming a `@ui` seal, because the message this filter produces points at the
  *  descriptor, not at the filter. That misdirection is the reason it is documented here rather than removed

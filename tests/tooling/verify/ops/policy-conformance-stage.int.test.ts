@@ -5,7 +5,7 @@
 // arm, row index and why; a policy-less corpus proves the bare-zero refusal (2, never a clean 0).
 //
 // THE NON-SUBJECT MODULE IS UNREGISTERED, NOT LEGACY (#2497). Both arms used to plant a valid legacy
-// `GateDescriptor` as the "counted, never proven" module. `df2a54b09` deleted the legacy runtime and
+// `GateDescriptor` as the "counted, never proven" module. `9ccb9b9122` deleted the legacy runtime and
 // `lib/loader.ts` now REFUSES a legacy-shaped `gate` export by name, so that fixture stopped being a
 // non-subject and became a loader throw: the CLI died before printing and both arms read as exit 2 with an
 // empty stdout. The loader's refusal itself is pinned where it lives, in `tests/tooling/verify/lib/loader.test.ts`.

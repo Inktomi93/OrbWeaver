@@ -68,7 +68,7 @@ test("toMessageHandlingPatch writes exactly this section's owned keys — no sib
     "customStoppingStrings",
     "enterSends",
     "generateOnEmptySend",
-    // B1: the per-user DEFAULT offer-choices posture a room inherits — owned here since 171e4aa5e.
+    // B1: the per-user DEFAULT offer-choices posture a room inherits — owned here since a665b83a96.
     "offerChoices",
     "reactionsEnabled",
     "runCardScripts",

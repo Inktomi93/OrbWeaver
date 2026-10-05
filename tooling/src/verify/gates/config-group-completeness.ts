@@ -28,12 +28,12 @@
 // here two kinds: `config-group` and `collection`) plus `lib/registry-definition-{anchor,field,home}.ts`,
 // consumed identically by all seven members.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
-// (58370d705^); the final population is `@client`. The HOST fence and the two specifier prefixes stay
+// (f908c67db9^); the final population is `@client`. The HOST fence and the two specifier prefixes stay
 // INSIDE the import arm, since the definition arms judge the whole client tree.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `config-group-completeness` descriptor at dd862e988959e1f2f1d216d0649c029fea8d9751, the parent of the conversion
-// `58370d705` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
+// `config-group-completeness` descriptor at a8fc8f34e4454dbae8bb0b5e0ae38a9b662e4548, the parent of the conversion
+// `f908c67db9` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
 // descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
 // `if (!path.includes(CLIENT_SRC)) continue` with CLIENT_SRC = "/packages/client/src/". Over the SAME 7,144 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`) it admits 1,302 and the final

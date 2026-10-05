@@ -28,8 +28,8 @@
 // closes over the dedup state directly, once per invocation, exactly as the final contract requires.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `test-world-browser-contracts` descriptor at bd56189bacbd0b4c79103fc10fe94d5499d9f3fd, the parent of the conversion
-// `47c35b61c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `test-world-browser-contracts` descriptor at 1692e75291431f4ef5246b641b8927f2ae4d6876, the parent of the conversion
+// `608deaffcb` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,360 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 2,176 and final `population` admits 2,869. legacy − final = ∅. final − legacy = 693 `tests/**` sources the
 // legacy `scanRoot` (`isNodeTestContractRoot`) rejected — CT/e2e/story/browser-world files; the coarse `@tests`

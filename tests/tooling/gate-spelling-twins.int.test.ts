@@ -42,8 +42,8 @@
 //     (#2233, cb-v-wave-5): this sentence read "that gate's own new namespace `mustFlag` row" and was
 //     FALSE. A `mustFlag` can only ever make a gate LOUDER, so it structurally cannot pin an ACQUITTAL;
 //     the row's own `why` says exactly that ("cut it and no mustFlag row moves, while this row reds"). The
-//     commit credited with the repair, `eb51d4313`, never touched THIS file (4-file stat) — its last
-//     toucher `a7d88287b` predates it — which is how a shrink receipt kept naming the wrong proof.** The
+//     commit credited with the repair, `e411057eee`, never touched THIS file (4-file stat) — its last
+//     toucher `d8db566b0b` predates it — which is how a shrink receipt kept naming the wrong proof.** The
 //     same hunk first added a paragraph claiming this suite calls `loadGates()` and so shrinks with every
 //     conversion; it calls the whole-corpus loader and the census drives every policy in it. Deleted
 //     2026-09-13 — the header 26 lines above already states the true premise, and a comment-honesty fix
@@ -59,12 +59,12 @@
 // `lib/knob-wire-fact.ts`, `lib/react-origin.ts`, `lib/query-freshness-fact.ts`), each pinned by a new
 // `mustFlag` row carrying the respelled fixture and each acquitting side widened in the same commit. Nothing
 // was added here. FOUR rows left the ledger, and each names what closed it:
-//   • `finding-overload-provenance` — GONE, not fixed: the gate itself was retired at `4cb360a59` ("Retire
+//   • `finding-overload-provenance` — GONE, not fixed: the gate itself was retired at `cfcead9696` ("Retire
 //     legacy Finding overload gate"), so the row promised blindness for a policy the corpus no longer loads.
-//   • `no-legacy-react-api` ["bracket","namespace"] → ["namespace"] — closed at `474bd2b75`, BEFORE this
+//   • `no-legacy-react-api` ["bracket","namespace"] → ["namespace"] — closed at `c9271c42b9`, BEFORE this
 //     lane: `reactMemberCandidate` stopped asking `node.getText().includes("cloneElement")` and now asks
 //     `referenceNamesExport` with an explicit `ElementAccessExpression` arm for the `Children` receiver.
-//     Measured on the unmodified tree at `868eec0c5` before any edit in this lane, so the shrink is that
+//     Measured on the unmodified tree at `4c93b92e9e` before any edit in this lane, so the shrink is that
 //     commit's, recorded here because it had not reached the ledger.
 //   • `no-use-context` ["namespace"] → GONE — `lib/react-origin.ts#reactExportVisitors` gained its THIRD
 //     door. A namespace import produces no `ImportSpecifier` and a bare `R.useContext` reference is no

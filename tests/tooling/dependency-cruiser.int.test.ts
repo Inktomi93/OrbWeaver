@@ -180,7 +180,7 @@ function writeAllFixtures(): void {
   fx("packages/client/src/routes/__dc_shell_css_bypass.ts", `import "../features/app-shell/surfaces/shell.css";\nexport const bypass = true;\n`);
   fx("packages/client/src/styles/__dc_css_frontdoor_bypass.ts", `import "../features/__dc_cfeat/internal.ts";\nexport const bypass = true;\n`);
   // view-transition-fence (#1830): `withViewTransition` is shell-store's privilege — any OTHER client module
-  // importing `lib/view-transition.ts` directly is the fenced defect. The rule landed 2026-09-18 (ba641662d)
+  // importing `lib/view-transition.ts` directly is the fenced defect. The rule landed 2026-09-18 (86f2a7bc12)
   // with no fixture, so the anti-drift `test.each(ACTIVE_RULES)` case had nothing to fire it and this suite
   // was RED on arrival; the fixture is added here with the D160 package move that had to run it.
   fx("packages/client/src/lib/view-transition.ts", VAL);
@@ -224,7 +224,7 @@ function writeAllFixtures(): void {
   // workload-contributions precedent): the ratified root slot is a COMPOSITION surface — the only legal
   // importer is the owning domain's own index.ts (which is what entry/compose reads through). A VERB
   // importing the factory to call it inline is the hard-wired call site the seam exists to delete. The
-  // rule landed (2026-08-24, 171e4aa5e's S2 seam) without this fixture, so the anti-drift
+  // rule landed (2026-08-24, a665b83a96's S2 seam) without this fixture, so the anti-drift
   // `test.each(ACTIVE_RULES)` case had nothing to fire it and the suite was RED. The slot file is not
   // itself named `__dc*`; it lives under the per-run scratch root, so exact-root cleanup still removes it.
   fx(`${S}/domain/__dc_feat/teaching-contribution.ts`, "export const teachingContribution = () => 1;\n");

@@ -52,7 +52,7 @@ describe("persistence/card", () => {
     const id = castId<CharacterId>("character_1");
     await insertCharacter(db, makeRow(owner, "character_1", castId<CharacterHandle>("a")), bumpStatsCanonVersion);
 
-    // The verb returns a three-state verdict, not a boolean (934fae273): a foreign owner is indistinguishable
+    // The verb returns a three-state verdict, not a boolean (b6e092745c): a foreign owner is indistinguishable
     // from an absent row ON PURPOSE — the leak-free collapse, so a scoped write can never be an existence
     // oracle. `background-unavailable` is the third arm and is covered by its own test below.
     expect(await writeCardInPlace(db, { characterId: id, ownerId: other }, { name: "Hax" })).toBe("missing");

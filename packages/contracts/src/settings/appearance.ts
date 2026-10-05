@@ -4,7 +4,7 @@
 //
 // WHY IT IS ITS OWN FILE AND ITS OWN EXPORTS-MAP DOOR (#448). The client's pre-paint boot hint
 // (`state/appearance-boot-hint.ts`, #231) re-validates its persisted blob through THIS schema rather than
-// through a second copy of the bounds — that is the ab192aedf ruling and it stands. But `settings/index.ts`
+// through a second copy of the bounds — that is the e94c50a718 ruling and it stands. But `settings/index.ts`
 // composes the whole `UserSettings` tree, which reaches `#prose`, `#preset`, `#rpg`, `#refinery` and their
 // prose tables; zod construction is not statically pure, so `sideEffects: false` (#433) cannot shake those
 // siblings out once the module is reached. Importing the section barrel for ONE schema therefore cost the

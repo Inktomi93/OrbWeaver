@@ -480,7 +480,7 @@ test("#680 desktop: the flank wrapper is HEIGHT-neutral — a silent flank and n
 // SO THIS LOOP MEASURES BOTH ARMS ON THE AXIS EACH ARM ACTUALLY HAS. `@max-lg:flex-col` flips DIRECTION, so
 // the flank's cross axis is the BLOCK axis beside (a centred column floats down the painting) and the INLINE
 // axis stacked (a centred column floats away from the reading edge). Measured against the pre-#680 source
-// (`git show cddc2b5ae^:…`), both arms are RED — which is the receipt that the centring the finding reported
+// (`git show e64a2c69b2^:…`), both arms are RED — which is the receipt that the centring the finding reported
 // was the SAME baked `items-center` #680 removed, i.e. this loop is a FENCE on today's tree, not a fix.
 // A one-arm pin is how the centring shipped in the first place (#680's own lesson).
 const FLANK_START_ARMS = [

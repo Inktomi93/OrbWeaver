@@ -33,7 +33,7 @@
 // render-preserving is not enough for THIS corpus: the docs are law, agents enforce law by GREPPING it,
 // and `pnpm format:docs` runs over the whole living tree unattended.
 //   1. SEARCH FIDELITY (#2068) — a format must not change which literals the corpus contains. Measured
-//      on the pre-widening tree (`91d9a2ab7^`): one pass added 369 backslash escapes, and 25 distinct
+//      on the pre-widening tree (`6fa0d97efb^`): one pass added 369 backslash escapes, and 25 distinct
 //      snake_case identifiers LOST grep hits (`NOT_FOUND` 6 → 0 as `NOT\_FOUND`). `dropInertEscapes`
 //      below removes the escapes CommonMark provably cannot need; the predicate is stated there.
 //   2. RENDER FIDELITY (#2067) — remark's own round trip is NOT total. Measured on the same tree: 10 of

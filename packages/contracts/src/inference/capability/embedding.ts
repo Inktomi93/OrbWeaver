@@ -38,7 +38,7 @@ export const EMBED_SPACE_FIELDS = ["providerId", "baseUrl", "model", "api", "dec
 /** THE VECTOR-SPACE IDENTITY of an embedding — `<model>` or `<model>@<dtype>`. THE ONE derivation of the
  *  space tag every vector row is keyed on, every retrieval scan filters on, and a generation's identity is
  *  minted from. It lives here, in contracts, because BOTH sides must spell it identically or the box breaks
- *  silently: the backend stamps the tag on its `EmbedResult.model` (issue-724 `0fed0b3ee` — the provider's
+ *  silently: the backend stamps the tag on its `EmbedResult.model` (issue-724 `088209c8be` — the provider's
  *  own report is the truth of what geometry a vector is in), while the read side derives it from the owner's
  *  resolved connection. Two private copies of `${model}@${dtype}` is exactly the shape that shipped a corpus
  *  written as `jina-clip-v2@q8` and read back on `jina-clip-v2`: search answered empty forever and the

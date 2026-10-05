@@ -4,7 +4,7 @@
 // ResourceHost owns disk/overlay enumeration and byte decoding; no private walk or Project remains.
 // Unlike the legacy catch-and-skip walker, missing, empty or unreadable declared trees refuse.
 // Authority is hard because an occurrence can be in comment/prose bytes with no ordinary AST carrier.
-// Legacy source: 4522eee58. Differential, marker census and real-corpus controls are owed after conversion
+// Legacy source: 7d18c7e21e. Differential, marker census and real-corpus controls are owed after conversion
 // under the owner's 2026-09-13 conversion-first ordering; this header makes no measured parity claim.
 import { defineGate } from "../contract/policy.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";

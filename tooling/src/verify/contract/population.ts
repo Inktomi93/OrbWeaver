@@ -16,7 +16,7 @@
 // (`docs/law/Spine-TypeScript-and-Patterns.md` §10), and `@packages` is this repo's instance of that law. It is an explicit SIX-root list — an honest
 // recording of "the roots the policies declaring it were authored against" — but most of its declarers mean
 // "the authored code the product is built from", and those two answers diverged the day `@inference` became
-// its own root (`146f71cd5`). Sixteen policies declared the string; the set never widened and announced
+// its own root (`9a6061b487`). Sixteen policies declared the string; the set never widened and announced
 // nothing, which is line 126's "a smaller unannounced population is not a speed improvement". `@product`
 // below is the second meaning given its own name and its own classification, so a policy SAYS which one it
 // means. `@packages` keeps its recorded six-root meaning and is NOT a compatibility alias for `@product`

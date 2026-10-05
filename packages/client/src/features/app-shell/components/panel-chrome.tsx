@@ -64,7 +64,7 @@ export interface PanelChromeProps {
 
 export function PanelChrome({ panel, label, header, mode, available, onDismiss, primaryContent = false, ref, children }: PanelChromeProps): ReactElement {
   // A collapsed panel is translated out of the shell and inert, so its first body mount cannot be seen or
-  // reached — it must not ride the boot commit (4a6c54cdf). THAT RULING SURVIVES; ITS INPUT CHANGED (#895).
+  // reached — it must not ride the boot commit (a227aa1b4d). THAT RULING SURVIVES; ITS INPUT CHANGED (#895).
   // Latching the mount DURING RENDER (`if (mode !== "collapsed") setBodyMounted(true)`) satisfied it and
   // then moved the entire cost into the OPEN's own frame, which is the one frame the user is watching:
   // measured on the live stack at 4× CPU, the context pane's first open cost 127ms of blocking against a
@@ -80,7 +80,7 @@ export function PanelChrome({ panel, label, header, mode, available, onDismiss, 
   // original ruling was protecting. Once mounted the body stays mounted, so closing still preserves its
   // state and the transform animation is untouched.
   // ONCE-MOUNTED-STAYS-MOUNTED (#1796 investigation, closed): the body is deferred past the boot commit
-  // (4a6c54cdf), then stays mounted even while collapsed. This is DELIBERATE:
+  // (a227aa1b4d), then stays mounted even while collapsed. This is DELIBERATE:
   //  1. State preservation — closing/reopening is instant with no remount cost.
   //  2. TanStack Query subscriptions keep data warm — the pane reopens with current data.
   //  3. The `inert` attribute (below) prevents interaction while collapsed.

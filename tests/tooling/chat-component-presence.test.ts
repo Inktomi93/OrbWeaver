@@ -170,7 +170,7 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     why: "#490 split the faces strip + 'Filtered: X ✕' chip out of the list SURFACE under the 450-line cap; they render inside it and chat-list-surface.ct drives both (face tap scopes the list, the chip clears it).",
   },
   "chat-list-row-menu": { coveredBy: "chat-list-surface", why: "the per-row menu is driven through the real list rows in chat-list-surface.ct." },
-  // #1718's three filter parts (undecided since c545899ab — verified against the base commit's own copy of
+  // #1718's three filter parts (undecided since 08f1fa31ad — verified against the base commit's own copy of
   // this ledger, so this is a repair of an existing gap rather than this change's own debt). All three
   // render ONLY inside chat-list-surface.tsx and are driven through its CT.
   "chat-list-filter-field": {

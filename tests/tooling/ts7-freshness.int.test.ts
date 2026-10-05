@@ -11,7 +11,7 @@
 // stripping exists to buy: that a real TS7 run through this wrapper, driven with Vitest's own forced
 // incremental arguments, still answers about the CODE AS IT IS NOW.
 //
-// WHY THAT HALF NEEDS ITS OWN RUN AND CANNOT BE READ OFF THE ARGV (#1892, `7d9cd503e`). The defect the
+// WHY THAT HALF NEEDS ITS OWN RUN AND CANNOT BE READ OFF THE ARGV (#1892, `1ae2bc6ea0`). The defect the
 // wrapper fixed was not "a flag was passed"; it was a warm native TS7 accepting a widened program, updating
 // its file inventory, and RETAINING the prior semantic verdict for an unchanged consumer — exit 0 over
 // source that classic TypeScript and cold TS7 both rejected. The shape below is that shape: the error is

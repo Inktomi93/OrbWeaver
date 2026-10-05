@@ -60,8 +60,8 @@ async function openChatBehavior(mount: (c: ReactElement) => Promise<unknown>, pa
 /** Move a world-info knob (its autosave fires, and fails under `failSaves`). SCOPED to the world-info
  *  ANCHOR: an unscoped `Increase.first()` resolves to whichever stepper is highest in the PANE, and the
  *  message-handling section above renders a deliberately DISABLED one (`autoContinueRounds` while
- *  auto-continue is off, `663b956b`) — the click then hangs on a button that can never be enabled.
- *  Scoping supersedes the focus+ArrowUp workaround (`f88954f8`): it drives the same control the user does,
+ *  auto-continue is off, `54904c5104`) — the click then hangs on a button that can never be enabled.
+ *  Scoping supersedes the focus+ArrowUp workaround (`b40324b62c`): it drives the same control the user does,
  *  and it can't drift again the next time a section lands above this one. */
 async function bumpScanDepth(page: Page): Promise<void> {
   const worldInfo = page.locator("#config-anchor-chat-behavior-world-info");

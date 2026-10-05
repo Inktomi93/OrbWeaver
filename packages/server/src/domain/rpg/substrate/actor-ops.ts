@@ -14,7 +14,7 @@
 // row it is applied to is read at WRITE time — the blast radius is the datum the human actually touched, and
 // "hand always wins" stops being a merge flag (`fieldLocks: null`) and becomes a property of the applier.
 //
-// ERRORS-AS-DATA (the `editSnapshot` precedent, `ad60f455`): an op naming an item/condition the actor does not
+// ERRORS-AS-DATA (the `editSnapshot` precedent, `0911fee2dd`): an op naming an item/condition the actor does not
 // carry is REFUSED with a reason, never a silent no-op. A stale panel click is the reachable case, and "I did
 // nothing and I'm not telling you" is the exact class this door exists to kill.
 

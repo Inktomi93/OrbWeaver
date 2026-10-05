@@ -532,7 +532,7 @@ test("an opaque card with nothing painting over it is still judged — the refus
 // tokens-only tree produces — yielded zero stops, `resolveBackdrop` fell through to `image-indeterminate`,
 // and every glyph over it minted a false P1 `text-over-art` against a backdrop whose colors are fully
 // known. Latent when filed (no such surface on home or the chat room), and the exact sibling of the
-// border/contrast family that 7ad597e6d fixed with the canvas normalizer.
+// border/contrast family that 7e747bccdf fixed with the canvas normalizer.
 test("a legible oklch gradient backdrop mints nothing — its stops are known, so there is no art to bleed over", async ({ mount, page }) => {
   await mount(<WalkerGradientBackdropStory />);
   const findings = collectFindings(await samplesOf(page));

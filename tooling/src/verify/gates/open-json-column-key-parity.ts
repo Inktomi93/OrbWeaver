@@ -1,7 +1,7 @@
 // Gate: open-json-column-key-parity — an OPEN JSON column (`mode:"json"` whose `$type` is
 // `Record<string, unknown>` / `unknown` / `JsonValue`, i.e. NO type crosses the write/read seam) whose READER
 // names a key the WRITERS never produce renders empty forever while every other gate stays green. FOUNDING
-// DEFECT (issue #164, fixed `5e19418b4`): `image_embeddings.caption_meta` was read through fourteen facet
+// DEFECT (issue #164, fixed `a79d32f67b`): `image_embeddings.caption_meta` was read through fourteen facet
 // paths (`$.artStyle`, `$.palette`, …) by discovery's image analytics while both writers ever stored
 // `{ model }` — declared, exported, wired to tRPC, rendered in a tab, integration-tested, and blank. The
 // silent-reader audit (2026-08-18 §0) MEASURED that the class can

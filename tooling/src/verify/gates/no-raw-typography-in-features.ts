@@ -25,11 +25,11 @@
 // THE REPORTED POSITION is the WHOLE QUOTED LITERAL (`token: text, offset: 0` — `text` is `node.getText()`,
 // which INCLUDES the quotes), so a waiver names `"text-sm"`, quotes and all; `fix` states the spelling.
 //
-// The legacy `no-raw-typography-in-features` descriptor (d6f36904fa6946238678e61760888aaf62ba0c93) ran a
+// The legacy `no-raw-typography-in-features` descriptor (1b999db38d4c6bd7421e7adbf1c426f591e8eb97) ran a
 // hand-rolled allowlist sweep before this migration moved the raw-CSS-literal-in-features family onto
 // the shared `lib/sanctioned-home.ts` reader. That sha is the CONVERSION PARENT, verified rather than
-// assumed: `git log -S 'defineGate({' --reverse -- <this file>` gives `99b7429e2`, and
-// `git rev-parse 99b7429e2^` IS `d6f36904fa6946238678e61760888aaf62ba0c93`, whose blob has `defineGate`
+// assumed: `git log -S 'defineGate({' --reverse -- <this file>` gives `a2a93cac72`, and
+// `git rev-parse a2a93cac72^` IS `1b999db38d4c6bd7421e7adbf1c426f591e8eb97`, whose blob has `defineGate`
 // count 0. It is spelled here in the 40-char form without a caret, which is one of the spellings a
 // length-pinned census pattern drops.
 //
@@ -47,8 +47,8 @@
 // legacy had it — an excluded home carries its exemption silently through a rename.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-raw-typography-in-features` descriptor at d6f36904fa6946238678e61760888aaf62ba0c93, the parent of the
-// conversion `99b7429e2` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// `no-raw-typography-in-features` descriptor at 1b999db38d4c6bd7421e7adbf1c426f591e8eb97, the parent of the
+// conversion `a2a93cac72` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,351 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 1,685 and final `population` admits 1,685. legacy − final = ∅. final − legacy = ∅. Controls:
 // inside `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside

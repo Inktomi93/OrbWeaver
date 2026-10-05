@@ -11,7 +11,7 @@
 // `structure:db-baseline` stage (`tooling/src/verify/ops/db-baseline-parity.ts`, in `pnpm check`) owns the ONE
 // statement diff, and this suite is its second caller. It used to be push-only, which is how two
 // baseline-regen misses shipped and sat ~10 hours before `verify --push` caught them (latest: the
-// schema_version DEFAULT 5→6 drift, fixed 1160f0a8). Two comparators would be the drift this pins against,
+// schema_version DEFAULT 5→6 drift, fixed 8a8a0c65ae). Two comparators would be the drift this pins against,
 // so there is exactly one.
 import { join } from "node:path";
 import { compareSchemaBaseline } from "../../../../tooling/src/verify/index.ts";

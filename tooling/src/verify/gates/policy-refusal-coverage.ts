@@ -70,8 +70,8 @@
 // production dispatcher has never had one: `lib/policy-pass.ts:835` is `runPolicyPass(input: PolicyPassInput)`,
 // ONE options object, and the driven set is its `policies` property. So no real family test could ever be
 // recognised, and the `mustPass` "TEST HALF" row was green only because its fixture `declare`d a two-positional
-// dispatcher that exists nowhere on the tree. Measured by `cb-v-wave-8b` on `50e31c534` and reproduced here at
-// `80b0693cb`: a fixture-shaped scratch test moved the real-tree count 60 → 59, while
+// dispatcher that exists nowhere on the tree. Measured by `cb-v-wave-8b` on `2929900c1f` and reproduced here at
+// `(pruned from public history)`: a fixture-shaped scratch test moved the real-tree count 60 → 59, while
 // `tests/tooling/verify/gates/mirror-index-family.suite.test.ts` — fifteen refusal pins over all three mirror gates —
 // discharged nothing, and all three of its subjects sat in the accused list. With the recognizer below the same
 // real-tree drive reads 17, and NOTHING newly accused (43 discharged, 0 added) — the repair's two-sided receipt.
@@ -101,8 +101,8 @@
 // `policy-waiver-identity` and `policy-waiver-spelling` resolve through. NOT a singleton and NOT a `-health`
 // split: it differs from its siblings in SUBJECT (the refusal proof rather than the waiver arm), not in
 // authority, so it is one more policy under the shared `family` string.
-// POPULATION PORT: NO legacy population — this policy is BORN FINAL, added at `575e48d5a`
-// (`git show 575e48d5a^:tooling/src/verify/gates/policy-refusal-coverage.ts` → `exists on disk, but not in`).
+// POPULATION PORT: NO legacy population — this policy is BORN FINAL, added at `4133d10352`
+// (`git show 4133d10352^:tooling/src/verify/gates/policy-refusal-coverage.ts` → `exists on disk, but not in`).
 // Nothing was ported: no legacy descriptor ever asked who owed a refusal proof, which is the gap #2184 names
 // and why its paid defects are three separate lanes rediscovering it. There is no legacy SHA to record.
 //
@@ -576,7 +576,7 @@ export const gate = defineGate({
         [PIN_TEST_PATH]: PIN_TEST(`  const refused = ${DISPATCHER}(probe, {});\n  void refused;`, { dispatcher: RETIRED_DECLARATION }),
       }),
       expect: { count: 1, token: "resources" },
-      why: "#2274, THE DEAD HALF LANDED AS AN ASSERTION RATHER THAN AN ABSENCE (§4.1): a call in the RETIRED two-positional shape `runPolicyPass(<policy>, …)` credits NOTHING, because the production dispatcher takes one options object and never had a positional subject. The founding recognizer read exactly this shape, so its `mustPass` TEST-HALF row was green over a signature that exists nowhere on the tree while every real family test discharged nothing — measured 60 → 59 for the invented shape and 60 → 60 for the real one at `80b0693cb`. Without this row the recognizer could drift back and the proof set would not notice",
+      why: "#2274, THE DEAD HALF LANDED AS AN ASSERTION RATHER THAN AN ABSENCE (§4.1): a call in the RETIRED two-positional shape `runPolicyPass(<policy>, …)` credits NOTHING, because the production dispatcher takes one options object and never had a positional subject. The founding recognizer read exactly this shape, so its `mustPass` TEST-HALF row was green over a signature that exists nowhere on the tree while every real family test discharged nothing — measured 60 → 59 for the invented shape and 60 → 60 for the real one at `(pruned from public history)`. Without this row the recognizer could drift back and the proof set would not notice",
     },
     {
       mode: "types",

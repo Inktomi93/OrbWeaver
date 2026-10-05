@@ -39,8 +39,8 @@
 // grammar from the same module its sibling `policy-waiver-spelling` reads means the two cannot disagree
 // about what a marker IS while disagreeing about where it must be named.
 // POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL at
-// `fe8c9cc84`, the commit that created the family; `git show fe8c9cc84^:<this file>` refuses with "exists
-// on disk, but not in fe8c9cc84^", and that refusal IS the receipt (the `scrubber-factory-home`
+// `8194754f7c`, the commit that created the family; `git show 8194754f7c^:<this file>` refuses with "exists
+// on disk, but not in 8194754f7c^", and that refusal IS the receipt (the `scrubber-factory-home`
 // precedent). The population is authored and is the family's WIDEST — it joins `@tooling` gate modules to
 // `@tests` family tests, because the verdict is exactly that join.
 import type { CallExpression, Node as MorphNode, ObjectLiteralExpression, SourceFile } from "ts-morph";

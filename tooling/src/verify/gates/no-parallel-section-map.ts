@@ -67,7 +67,7 @@
 // why its sanctioned homes and the completeness policies' co-location law cannot drift apart. Its vocabulary
 // axis rides `lib/tuple-read.ts`, a shared PRIMITIVE, NOT a second family.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
-// (8d93d820f); the final population is `@client`. The per-vocabulary sanctioned HOMES stay INSIDE the arms
+// (7f86da903e); the final population is `@client`. The per-vocabulary sanctioned HOMES stay INSIDE the arms
 // rather than in the population, because each vocabulary allows a different set and a file that is a home
 // for one vocabulary is an ordinary accused file for the other three.
 import type { ArrayLiteralExpression, Expression, Node as MorphNode, ObjectLiteralExpression, TypeNode, VariableDeclaration } from "ts-morph";

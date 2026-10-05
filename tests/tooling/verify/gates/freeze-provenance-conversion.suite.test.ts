@@ -1,10 +1,10 @@
 // CONVERSION-TIME EVIDENCE for the `freeze-provenance` family of #1584 — the occurrence policy and its
 // `-health` sibling — written to the `drizzle-registry-conversion.suite.test.ts` recipe. It no longer
-// freezes any legacy source: `b1e5e3e30` deleted the replay arms when the legacy descriptors went, and
+// freezes any legacy source: `b23d02ab06` deleted the replay arms when the legacy descriptors went, and
 // what is left is family evidence for the two final policies.
 //
 // What it proves — one line per surviving `test(` block, because a header that promises an arm this file
-// no longer carries is the same defect class as a gate that reports a clean zero (#2454; `b1e5e3e30`
+// no longer carries is the same defect class as a gate that reports a clean zero (#2454; `b23d02ab06`
 // deleted the legacy-replay arms per TEST ARM, and this list kept promising a §4.6 DIFFERENTIAL nothing
 // delivers). The legacy side is GONE, so no differential is available to this suite at any price:
 //   1. both converted policies pass the production proof runtime;

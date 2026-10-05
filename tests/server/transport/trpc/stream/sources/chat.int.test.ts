@@ -188,7 +188,7 @@ describe("the chat room — durable delta replay over a real reads-slice (the #1
     const read = createRead(ctx, readDeps());
     const replaySpy = vi.fn(read.replayChatEvents);
     const iterator = await openChatRoom({ ...read, replayChatEvents: replaySpy }, host, chatId);
-    // ⚠ RECONCILED (R3, caa06972c — the unit twin carries the full note): this pin used to assert
+    // ⚠ RECONCILED (R3, b6b37ec21e — the unit twin carries the full note): this pin used to assert
     // seq 0 on the cursor-less synthetic, and that 0 WAS the fresh-room message-loss window. The
     // synthetic now carries bounds.maxSeq (the durable high-water, here 1 — the seeded head delta)
     // as the client's resume floor. The REAL invariant this test protects is unchanged and asserted

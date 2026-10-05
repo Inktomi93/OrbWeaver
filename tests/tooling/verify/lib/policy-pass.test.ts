@@ -267,7 +267,7 @@ test("an empty selected intersection is not-applicable and missing source popula
 // two-resource policy under a one-resource request was handed a hole. `bindPolicyResources` then throws
 // `is undeclared` on the withdrawn door (`requestStaysDeclared` drops it) or `is outside the effective
 // resource population` on a fact whose paths outran the narrowed set — a TOOL ERROR on the ordinary
-// `--changed` path, measured on both `baseui-derives-not-respells` siblings at `028e278ee`. A RUNNING owner
+// `--changed` path, measured on both `baseui-derives-not-respells` siblings at `2339040dbb`. A RUNNING owner
 // now receives its COMPLETE declared resource population; the fixture reads both, as obligation 1 of
 // `docs/law/resource-policy-contract.md` requires of every resource policy.
 test("resource identities join requested selection and resource-only findings are file-anchored", () => {

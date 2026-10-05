@@ -15,7 +15,7 @@
 // tests/tooling/gate-ignore-grammar.repo.int.test.ts, "whose whole six-case probe rests on this gate
 // biting a bare exported `bg-black` class constant under packages/ui/src". That suite exercises the LEGACY
 // `@orb-gate-ignore` engine, and marker routing is FENCED (docs/law/gate-runtime-standardization.md
-// §7): its carriers must be LEGACY gates BY REQUIREMENT. This module converted at `99b7429e2`, left the
+// §7): its carriers must be LEGACY gates BY REQUIREMENT. This module converted at `a2a93cac72`, left the
 // legacy roster, and took that pin with it — the suite went RED, unrun for days because tests/tooling/**
 // is `--full`-only (#1842), and has since been re-pointed at a still-legacy carrier. This module's own
 // receipt is its `defineGate` proof rows on `structure:policy-conformance` plus its family test; do not
@@ -24,14 +24,14 @@
 // FAMILY: a declared SINGLETON under its own id. It shares its "split a class string into whitespace
 // fragments and classify each" SHAPE with `no-raw-container-widths` and `no-off-token-radius-shadow`, but
 // each owns a private, disjoint token vocabulary and none shares a `lib/` reader — a shape is not a family.
-// POPULATION PORT: BYTE-IDENTICAL. The legacy descriptor at `d6f36904f` (the commit before the conversion
-// at `99b7429e2`) scanned `p.startsWith("packages/client/src") || p.startsWith("packages/ui/src")`, which
+// POPULATION PORT: BYTE-IDENTICAL. The legacy descriptor at `1b999db38d` (the commit before the conversion
+// at `a2a93cac72`) scanned `p.startsWith("packages/client/src") || p.startsWith("packages/ui/src")`, which
 // is exactly `["@client", "@ui"]`; nothing is added and nothing is subtracted.
 //
 // §4.6 DIFFERENTIAL — LANDED AS A COMMITTED TEST 2026-09-13 (#2273):
-// `tests/tooling/verify/gates/no-color-literals-parity.test.ts`. `99b7429e2` stated none and this module
+// `tests/tooling/verify/gates/no-color-literals-parity.test.ts`. `a2a93cac72` stated none and this module
 // is on NO close-by-rule roster, so §4.6 (#2000) left it silent; the replay is the record, and it is the
-// NON-VACUOUS arm rather than a real-corpus count, because the legacy descriptor at `d6f36904f` is a pure
+// NON-VACUOUS arm rather than a real-corpus count, because the legacy descriptor at `1b999db38d` is a pure
 // AST visitor with ZERO filesystem reach and `tests/support/legacy-differential.ts` therefore accepts it.
 //   · FINDINGS. 5 on the LEGACY side across 4 of the 6 legacy examples, 5 on the FINAL side, same files,
 //     same lines, same tokens, one per offending fragment — so neither of §4.6's vacuity shapes applies.
@@ -53,8 +53,8 @@
 // offending token>): <reason>` — and the position token is the offending class fragment, not the literal.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-color-literals` descriptor at d6f36904fa6946238678e61760888aaf62ba0c93, the parent of the conversion
-// `99b7429e2` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-color-literals` descriptor at 1b999db38d4c6bd7421e7adbf1c426f591e8eb97, the parent of the conversion
+// `a2a93cac72` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,351 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,685 and final `population` admits 1,685. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside

@@ -63,7 +63,7 @@ async function compareCharactersDeep(
   // NO RETRY DRIFT: `prompt`/`system`/`sampleOpts` are all resolved ABOVE and merely CLOSED OVER, so
   // `runStructuredTurn`'s bounded second attempt sends the same pass the first did — only the appended
   // `correction` differs. Resolving any of them INSIDE this closure would re-read the settings/preset rung
-  // mid-turn and let the retry drift (the `DistillPass` bundle, 49616a67, is the same invariant where the
+  // mid-turn and let the retry drift (the `DistillPass` bundle, 13d6787e86, is the same invariant where the
   // retry is a separate function).
   const run = async (correction?: string): Promise<string> => {
     const result = await rc.structured([{ systemPrompt: system, userPrompt: correction === undefined ? prompt : `${prompt}\n\n${correction}` }], sampleOpts);

@@ -3,7 +3,7 @@
 // surface's CT (the URL arm materializes server-side, an upload lands in the same library, a refusal writes
 // nothing) plus P1 (SET-SEAMS §9): the `appearance` section-patch carries EXACTLY the nine background keys.
 //
-// THE PICKER IS A THUMBNAIL GRID, NOT A COMBOBOX (#1207, re-pinned 2026-09-02). `8a038b047` (#866 S4a,
+// THE PICKER IS A THUMBNAIL GRID, NOT A COMBOBOX (#1207, re-pinned 2026-09-02). `000f60dd45` (#866 S4a,
 // 2026-08-30) retired the `Image` kind combobox for R-BG's one MediaGrid — None · every
 // library entry — where `backgroundImageKind` DERIVES from the tapped tile and is never a user-facing
 // control, and moved both ways in (upload · URL) behind one "Add background" door at the grid's end. That

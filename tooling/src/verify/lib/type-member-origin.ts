@@ -22,7 +22,7 @@ import { normalizedPath, resolved, symbolDeclarations, unresolved } from "./type
 // RE-EXPORTED, NEVER RE-BOUND (#2414, 2026-09-18). `export const X = importedX;` is a BINDING ALIAS, and the
 // canonical-export reader (`_shared/reference-fact-module.ts` `validatedProjectTarget`) refuses one fail-closed
 // BY DESIGN (#2320, #944): an identifier initializer cannot prove where the export actually comes from. The
-// tooling-size split `fb6d06c92` landed the rebound form, and `policy-legacy-imports` — which asks this front
+// tooling-size split `b26828ab3b` landed the rebound form, and `policy-legacy-imports` — which asks this front
 // door about every `../lib/` binding a final gate module imports — then REFUSED the whole real-tree run
 // (`check:structure --check policy-legacy-imports` exit 2, owner withheld) instead of reading the gate corpus.
 // A named re-export is the shape the reader follows, and it leaves both subjects' homes where the split put them.

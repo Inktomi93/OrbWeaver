@@ -23,7 +23,7 @@
 // purity`, `rest-transform-grid`) rests on a different reader for its own subject, so neither is a proven
 // sibling, and the loader refuses a lone member whose `family` is not its id.
 //
-// POPULATION PORT (legacy `6977b977b`), byte-identical: the legacy `stylesheetsOf` globbed
+// POPULATION PORT (legacy `3aba2bdbda`), byte-identical: the legacy `stylesheetsOf` globbed
 // `packages/client/src/**/*.css` + `packages/ui/src/**/*.css` and parsed each with `parseCssRules`;
 // `authored-css` is exactly every `.css` under those two trees (`ops/resource-tree.ts:84-107`) and its
 // `rules` come from the SAME `lib/css-rules.ts` parser. The ledger is the declared `ledger:ratchet-baselines`
@@ -65,7 +65,7 @@
 // `workItem: 2024` warning debt").
 //
 // THE OWNER IS #2326 SINCE 2026-09-13, AND THE POINTER HAS NOW ROTTED TWICE — which is why the flip condition
-// below is stated as a COUNT and never as a date. #626 closed under the debt (`17a495fb8` repointed to #2024);
+// below is stated as a COUNT and never as a date. #626 closed under the debt (`1b8c73e999` repointed to #2024);
 // #2024 then closed the same day on the REPOINT RECEIPT while all four surfaces were still firing, so the debt
 // again had no live owner. `warning-workitem-liveness` is what MEASURES this now: it holds a warning's
 // `workItem` against its `docs/work` item and reds when that item is done or missing. THE FLIP CONDITION WAS MET AND TAKEN (owner,
@@ -90,8 +90,8 @@
 // resources through `readyResourceValue`, whose throw asserts the runtime's own refusal already held.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `over-art-plate-arm` descriptor at 89851ec5eae1f7d6f17384fe48946087c73a7308, the parent of the conversion
-// `a0807ce47` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `6977b977b`
+// `over-art-plate-arm` descriptor at (pruned from public history), the parent of the conversion
+// `04eaef9f44` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `3aba2bdbda`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the 7,435 harness candidates at that tree the legacy `scanRoot: () => false` admits 0
 // and the final `population: { of: "none" }` admits 0, both by declaration: legacy − final = ∅, final − legacy = ∅.

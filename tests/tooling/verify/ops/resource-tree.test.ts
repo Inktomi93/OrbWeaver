@@ -111,7 +111,7 @@ test("authored CSS shares the client/ui trees, reads CSS only, and preserves par
   expect(loaded).toMatchObject({ status: "ready", paths: [client, ui], members: 2 });
   const files = readyValue(loaded);
   // THIS `toEqual` WAS RED AT HEAD, and `tests/tooling/**` being `--full`-only is why nobody saw it: the
-  // statement at-rule fact (#2183, `17a59099b`) added `statements` to every `AuthoredCssFile` and this
+  // statement at-rule fact (#2183, `9c7bd2dd0f`) added `statements` to every `AuthoredCssFile` and this
   // whole-object assertion never learned the key, so the suite has been failing on `+ "statements": []`
   // since that commit. Found by the #2293-leg-2 control (both files restored to HEAD, still red) rather
   // than caused by it; both missing keys land together here.

@@ -25,12 +25,12 @@
 // column 1 of the same file. No marker ever bound to it — the arm was non-suppressible by construction and
 // the census measured ZERO live markers for this id.
 //
-// Legacy descriptor: `9e2eca320` (`tooling/src/verify/gates/testid-liveness.ts`, arm A3).
+// Legacy descriptor: `07b1b7b19d` (`tooling/src/verify/gates/testid-liveness.ts`, arm A3).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `testid-liveness` descriptor at ccd404f6feb0cdb84adce3d978522f138baadaab, the parent of the conversion `aebf416fc`;
+// `testid-liveness` descriptor at (pruned from public history), the parent of the conversion `b20c3fe174`;
 // this module did not exist there, so it is measured against the module it was carved from, `testid-liveness` (blob
-// read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `9e2eca320` cited above is an
+// read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `07b1b7b19d` cited above is an
 // ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations resolve to this source.
 // Over the SAME 7,461 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`),
 // legacy `scanRoot` admits 6,297 and final `population` admits 1. legacy − final = 6,296 `packages/*/src` +

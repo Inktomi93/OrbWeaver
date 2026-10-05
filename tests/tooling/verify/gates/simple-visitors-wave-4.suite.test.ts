@@ -18,7 +18,7 @@
 //
 // Same recipe as simple-visitors-wave-2.suite.test.ts: `verifyPolicyProofs` runs each final policy's own proofs
 // through the production runtime; the differential replays every ORIGINAL mustFlag/mustPass example from
-// the frozen pre-conversion source (172485b3a, the commit immediately before this wave) through both the
+// the frozen pre-conversion source (79e5f7e6db, the commit immediately before this wave) through both the
 // legacy dispatcher and the final one; and a successor-proof section replays persist-partialize's retired
 // ARM A examples through `no-raw-zustand-persist` instead, so the retirement is a receipt, not a dropped rule.
 import { Project } from "ts-morph";

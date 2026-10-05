@@ -11,7 +11,7 @@
 //
 // POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
 // `p === REGISTRY || p.startsWith("tests/tooling/ui-audit/") || p === WALKER_CT` (pre-conversion SHA
-// 250c9eb60); the final population names the same three shapes through `under`.
+// 7474cfee30); the final population names the same three shapes through `under`.
 //
 // AUTHORITY `hard`, verified rather than inherited. Every arm is an ABSENCE or IDENTITY verdict about the
 // registry denominator — a missing registry, a missing proof class, a stale id — and the legacy descriptor
@@ -37,7 +37,7 @@
 //   (#944) with its own message and its own row (`mustFlag[9]`, pinned by `messageIncludes`).
 //
 // THE SHARED READER ONCE REFUSED THE REAL REGISTRY, AND THIS MODULE HAD NO ROW THAT COULD SEE IT (#1950
-// D2, refuted at `ac0085c91` by a real-tree run). `resolveAuthoredComposite` → `explicitCompositeRefusal`
+// D2, refuted at `ce85507a5c` by a real-tree run). `resolveAuthoredComposite` → `explicitCompositeRefusal`
 // → `invokedMemberThroughAliases` answered `dynamic` for `DESIGN_AUDIT_RULES` because the module declares
 // `DESIGN_AUDIT_RULE_IDS = DESIGN_AUDIT_RULES.map((rule) => rule.id)` three lines below the array. That is
 // a refusal about the binding's DOWNSTREAM USE, and a `.map()` cannot change what the literal IS — so
@@ -49,8 +49,8 @@
 // refusal because none of them declared a consumer beside the array — which is why `mustPass[3]` now does.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `design-audit-rule-proof` descriptor at c19da53c3baa600b50c3a569830b77d2037b45fb, the parent of the conversion
-// `ac0085c91` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `250c9eb60`
+// `design-audit-rule-proof` descriptor at (pruned from public history), the parent of the conversion
+// `ce85507a5c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `7474cfee30`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,476 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 43 and final `population` admits 43.

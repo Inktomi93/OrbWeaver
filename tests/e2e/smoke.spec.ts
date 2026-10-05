@@ -104,7 +104,7 @@ test("the SPA shell mounts and single-user boots with no login form", {
 // #181 — the SECTION DEEP LINK. A rail section is client state, so `/chats` is an ALIAS route
 // (`routes/router.tsx`): it selects the section and hands the visitor to `/`, which is the app's one URL.
 // Before the alias existed, a direct load of `/chats` rendered the root's notFound surface — probed on the
-// isolated stage at 94636b0ed, so this was never a regression, just a deep link nobody had built. It lives in
+// isolated stage at 6f266ea6cf, so this was never a regression, just a deep link nobody had built. It lives in
 // `@smoke` because it is a BOOT contract: every `snap /<section>` probe and every bookmarked section link
 // depends on it, and a silent 404 here reads as "the app is broken" to whoever hits it next.
 test("a section deep link boots the app and lands on the one app URL", { tag: "@smoke" }, async ({ page }) => {

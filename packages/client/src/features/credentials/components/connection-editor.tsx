@@ -24,7 +24,7 @@
 // §5.3a ruling rather than a layout accident.
 //
 // WHAT IS DELIBERATELY ABSENT, each by DATA rather than omission:
-//   • NO `api` control. `showsApiControl` is `apis.length > 1` and `1911bbcdd` retired the `responses` api,
+//   • NO `api` control. `showsApiControl` is `apis.length > 1` and `837016eda6` retired the `responses` api,
 //     so every built-in provider lists exactly one. A one-option combobox can only be gotten wrong.
 //   • NO prefetch status surface. §8.3's per-row `downloading/ready/failed` line was STRUCK by owner ruling.
 //   • NO per-chat or per-room override, anywhere. F20: a room never binds a connection.

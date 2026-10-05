@@ -20,7 +20,7 @@
 // table carried, now owned centrally: the day the mint moves, the row goes red at its dead subject. Nothing
 // here subtracts a path from the population and this policy holds no allowlist of its own.
 //
-// The legacy `bus-channel-primitive` descriptor (123b36f453318217b33a76d6e7ffb0ff15288f06 = `9808b93c0^`)
+// The legacy `bus-channel-primitive` descriptor (b01dff396ad1f8f51bfd1cc92a0f972de8cdc731 = `b5acbf2594^`)
 // ran the spelling-based `getExpression().getText() === "EventEmitter"` check and carried `SANCTIONED_HOMES`
 // before this conversion moved both onto the callable-origin reader and the central reviewed-grant table.
 //
@@ -30,14 +30,14 @@
 // families consume, which is a shared PRIMITIVE and not a shared family computation (guide §2: a theme or a
 // shared topic is not a family).
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `TRANSPORT_SCOPE.test('/' + p)` where
-// `TRANSPORT_SCOPE = /\/packages\/server\/src\/transport\//` (`9808b93c0^:36`); the final population is
+// `TRANSPORT_SCOPE = /\/packages\/server\/src\/transport\//` (`b5acbf2594^:36`); the final population is
 // `{ in: ["@server"], under: ["packages/server/src/transport/**"] }`, and `@server` is exactly
 // `packages/server/src/`. The legacy `SANCTIONED_HOMES` row is NOT a population subtraction on either side —
 // it was a scanned-and-excused home then and is a central reviewed grant now.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `bus-channel-primitive` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion
-// `9808b93c0` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `bus-channel-primitive` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion
+// `b5acbf2594` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,219 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 58 and final `population` admits 58. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/transport/jobs/__cbbhr_in_catalog-refresh-scheduler.ts` (virtual) admitted by both; outside

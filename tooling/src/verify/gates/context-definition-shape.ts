@@ -52,7 +52,7 @@
 // adding markers makes it worse. Marker receipt: ZERO live `@orb-gate-ignore context-definition-shape`
 // markers on the tree (measured 2026-09-12), so nothing re-binds and nothing orphans.
 //
-// LEGACY SHA: aa8cf0d53 (`git show aa8cf0d53:tooling/src/verify/gates/context-definition-shape.ts`).
+// LEGACY SHA: 02bab80ad4 (`git show 02bab80ad4:tooling/src/verify/gates/context-definition-shape.ts`).
 import type { Node as MorphNode, SourceFile, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { referenceResolutionServices, resolveModuleMemberOrigin } from "../../_shared/reference-fact.ts";

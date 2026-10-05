@@ -129,7 +129,7 @@ const STACK_RUN_SUBDIR = "stack";
  * (`multi-user-seed: owner "owner" not found …`, which aborts the whole run in globalSetup) and
  * `auth-smoke.forward.spec.ts`'s owner case would resolve role=user. It stayed hidden for days only because
  * the pre-D135 owner fallback
- * minted a TWIN row at `DEFAULT_USER_HANDLE` on exactly such a box (`04a96f459`) — the seed had been finding
+ * minted a TWIN row at `DEFAULT_USER_HANDLE` on exactly such a box (`053f422226`) — the seed had been finding
  * that bug's artifact, and the first fresh DB after the fix turned the latent gap red.
  *
  * Identity is part of a mode project's fixture contract, exactly like its DB/assets/ports — so it is

@@ -12,7 +12,7 @@
 // BOOT-4X LIVES IN THE REGISTRY NOW, NOT HERE. The rule is unchanged and non-negotiable: the gap-heal is a
 // RE-connect instrument, never a page-load one. A page's FIRST connect has no downtime window — the reads
 // it would heal were issued by that same page load, in the same commit as the subscription — and healing
-// there re-fetched every mounted user root a SECOND time on every load (measured live at 23c00bdf:
+// there re-fetched every mounted user root a SECOND time on every load (measured live at (pruned from public history):
 // persona.list / character.list / settings.getUserSettings / chat.listChats each ×2, the heal wave landing
 // ~5ms AFTER the mount wave had RESOLVED; `invalidateQueries` only rides an in-flight fetch while it IS in
 // flight, and these were not). What moved is only WHERE the gate lives: `room-registry.ts` now owns one

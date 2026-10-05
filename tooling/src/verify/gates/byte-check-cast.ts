@@ -12,13 +12,13 @@
 // property of the same fact rather than sharing a theme; here the fact is what acquits a byte cap over a
 // BLOB column, which no text reader could.
 //
-// POPULATION PORT: byte-identical, legacy at `0d83d99f1^` (`scanRoot: (p) => p.startsWith("packages/db/src/schema/")`).
+// POPULATION PORT: byte-identical, legacy at `02536f2f07^` (`scanRoot: (p) => p.startsWith("packages/db/src/schema/")`).
 // The final `SCHEMA_POPULATION` is that expression and also `drizzleSchemaFact`'s own population, which is
 // why widening it to the bare `@db` root reds a mustPass row: outside the schema directory there is no
 // table fact to judge the capped column against.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `byte-check-cast` descriptor at ef22519578607c76a03196f343fb025520c796a5, the parent of the conversion `0d83d99f1`
+// `byte-check-cast` descriptor at 4561cb18c483c15b9fc1dfed78777f70bbd958cb, the parent of the conversion `02536f2f07`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,186 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 30 and
 // final `population` admits 30. legacy − final = ∅. final − legacy = ∅. Controls: inside

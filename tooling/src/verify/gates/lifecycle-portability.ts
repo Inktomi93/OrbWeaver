@@ -50,8 +50,8 @@
 // ✓, router ✓, http ✓, a server domain file ✗).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `lifecycle-portability` descriptor at 7183b7abaee141b0e2e85cb79e939878bd482f77, the parent of the conversion
-// `472bc940c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
+// `lifecycle-portability` descriptor at dc84ae015aed480988f09f3257e60cadb2124398, the parent of the conversion
+// `87ba2ac30e` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy
 // descriptor had no `scanRoot`, so its effective population is its in-run path filter — run:
 // `SCHEMA_FILE_RE.test(rel) && rel !== SCHEMA_BARREL` + `fileLoaded(ctx, SCHEMA_BARREL)`; readDoorCorpus:
 // `rel.startsWith(ROUTER_DIR)` / `rel.startsWith(HTTP_DIR)`. Over the SAME 7,377 harness candidates at that tree
@@ -622,7 +622,7 @@ export const gate = defineGate({
         "packages/db/src/schema/empty.ts": "export const NOT_A_TABLE = 1;\n",
       },
       expect: { messageIncludes: "drizzle schema fact empty" },
-      why: "THE SUPPLY REFUSAL (law §6.3): a schema tree that declares NO drizzle table gives the `drizzle-schema` fact a zero-member receipt, and the dispatcher withholds every consumer before `evaluate` (the 9b29c5595 receipt); both coverage arms rest on that census, so a silent clean here would certify portability over nothing. Successor to the frozen-replay arm retired at b1e5e3e30 (#2176).",
+      why: "THE SUPPLY REFUSAL (law §6.3): a schema tree that declares NO drizzle table gives the `drizzle-schema` fact a zero-member receipt, and the dispatcher withholds every consumer before `evaluate` (the 3e44e045b2 receipt); both coverage arms rest on that census, so a silent clean here would certify portability over nothing. Successor to the frozen-replay arm retired at b23d02ab06 (#2176).",
     },
   ],
   mustPass: [

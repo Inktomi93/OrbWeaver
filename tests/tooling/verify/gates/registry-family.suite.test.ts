@@ -280,7 +280,7 @@ test("the CHROME_ZONES spread resolves to all four zones, so the rail arm is not
 });
 
 // RE-POINTED 2026-09-20 (#2497): the provider warning channel's home and emit scope left
-// `packages/server/src/infra/providers/` for the `@orb/inference` package at 4b90bdf78. A fixture under
+// `packages/server/src/infra/providers/` for the `@orb/inference` package at 77bf95dc18. A fixture under
 // the OLD directory admits zero paths, so `WARNING_CODES` resolved zero members and this policy's own
 // receipt refused on every pass here — which also silently emptied the three withholding cases below
 // (their `stringContaining("CHAT_WARNING_CODES")` still matched a refusal naming BOTH channels).

@@ -14,7 +14,7 @@
 //   COMPILER half — `population: { in: ["@client", "@tests"] }`. `@client` is where the three production
 //   anchors' ImportDeclarations are read (exact specifiers, never text); `@tests` is the CT story/spec walk.
 //
-// POPULATION PORT: an INTENTIONAL NARROWING, legacy at eba8ef526, and the narrowing DELETES A DEAD CLAUSE
+// POPULATION PORT: an INTENTIONAL NARROWING, legacy at 39f71b2294, and the narrowing DELETES A DEAD CLAUSE
 // rather than losing a capability. The legacy `directCtCssImports` filtered `ctx.files` for
 // `rel.startsWith("playwright/") || rel.startsWith("tests/")`. The gate harness corpus is
 // `_shared/ts-workspace.ts#harnessGlobs` — `packages/*/src/**`, `tests/**`, `tooling/src/**`, `scripts/**`
@@ -78,8 +78,8 @@
 // unenforced by cut p12 before that row existed, and the row dies under it).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `playwright-css-topology` descriptor at 865e7050cae7e489f86ac7177621c4e6dc03ebb7, the parent of the conversion
-// `17a59099b` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `eba8ef526`
+// `playwright-css-topology` descriptor at (pruned from public history), the parent of the conversion
+// `9c7bd2dd0f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `39f71b2294`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — directCtCssImports: `ctx.files` filtered

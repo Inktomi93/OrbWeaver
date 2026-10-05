@@ -14,7 +14,7 @@
 //                                      `PROSE-OK` marker retires into the central `@orb-waive` grammar.
 //
 // `verifyPolicyProofs` runs each final policy's own proofs through the production runtime; the frozen-legacy
-// differential replays every ORIGINAL mustFlag/mustPass example from the pre-conversion source (86ce80b6c,
+// differential replays every ORIGINAL mustFlag/mustPass example from the pre-conversion source ((pruned from public history),
 // the parent commit — all four modules are byte-identical there to their current-`main` legacy content)
 // through both the legacy dispatcher and the final one, comparing FILE+COUNT (not message text — see the
 // note beside `legacyFindings`). `public-route-body-cap-health` has no legacy standalone descriptor (it is

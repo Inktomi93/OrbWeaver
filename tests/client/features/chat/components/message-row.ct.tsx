@@ -2740,7 +2740,7 @@ test("#598 even the narrowest bubble the row can produce still contains its page
 //
 // THE FLOOR IS MEASURED, NOT PINNED (#1050, 2026-09-02). This block used to carry `COARSE_CHIP_FLOOR =
 // 127.48` — 2 × 48px chevron + the compact counter + 2 × 4px `gap-tight`, i.e. two device constants and ONE
-// FONT METRIC. `ed55bf193` vendored Geist, the datum-voice counter went 23.48 → 24.00px, the chip went
+// FONT METRIC. `77e07912eb` vendored Geist, the datum-voice counter went 23.48 → 24.00px, the chip went
 // 127.48 → 128.00, and a 0.52px drift red a 0.5px `toBeCloseTo` tolerance with no product code changed
 // (measured both ways in ONE evaluate: with the inherited stack and with the pre-Geist
 // `ui-monospace, SFMono-Regular, monospace` fallback forced, which reproduces 127.484375 exactly).

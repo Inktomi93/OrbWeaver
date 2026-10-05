@@ -18,9 +18,9 @@
 // `population: { in: ["@client", "@ui"] }`, the hook-owner walk.
 //
 // POPULATION PORT: an INTENTIONAL NARROWING of a fence that was already redundant. The legacy descriptor was
-// `scopeSafety: "whole-project"` with NO `scanRoot` (the whole harness corpus, 7,557 files at `1692583d6`),
+// `scopeSafety: "whole-project"` with NO `scanRoot` (the whole harness corpus, 7,557 files at `(pruned from public history)`),
 // and `css-family-source-provenance.ts#ownerForPath` then discarded everything outside
-// `packages/{ui,client}/src/` — `@ui` + `@client` byte for byte. Legacy sha `1692583d6`.
+// `packages/{ui,client}/src/` — `@ui` + `@client` byte for byte. Legacy sha `(pruned from public history)`.
 //
 // THE ANCHOR GUARD IS RETIRED WITH THE WALK IT GUARDED. `existsSync(join(ctx.root, "package.json"))` told a
 // fixture from a gutted checkout; a product identity that cannot be loaded is now a population-phase
@@ -35,8 +35,8 @@
 // not survive the conversion; nothing used it.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `css-family-ownership` descriptor at 5545f9ccf12c19cdeafe81d41378ce7eb511e6ee, the parent of the conversion
-// `9104f718f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// `css-family-ownership` descriptor at (pruned from public history), the parent of the conversion
+// `a7c6745477` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — lib/css-family-source-provenance.ts `ownerForPath` → `sourceOwner`, admitting `packages/{ui,client}/src/`.

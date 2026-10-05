@@ -84,7 +84,7 @@ test(
     // union with no belt, a dynamic member type): the `bus-producers` fact never fails for this consumer —
     // law §3 puts domain emptiness INSIDE the delivered fact so the health policy can judge it — and the
     // policy REPORTS the incomplete census rather than being withheld. Successor to the frozen-replay arm
-    // retired at b1e5e3e30 (#2176), which asserted the same posture against the legacy reconcile.
+    // retired at b23d02ab06 (#2176), which asserted the same posture against the legacy reconcile.
     const noBus = { "packages/contracts/src/probe/index.ts": "export const NOT_A_BUS = 1;\n" };
     const project = new Project({ useInMemoryFileSystem: true });
     for (const [path, source] of Object.entries(noBus)) {

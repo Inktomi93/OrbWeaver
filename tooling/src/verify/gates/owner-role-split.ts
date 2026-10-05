@@ -30,12 +30,12 @@
 // `PARTICIPANT_ROLES`), the enforcement-position test and the lattice subset differ; the axis judgement does
 // not, which is what keeps the privilege lattice and the participant vocabulary from drifting apart.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `SERVER_SRC.test('/' + p)` where
-// `SERVER_SRC = /\/packages\/server\/src\//` (`9808b93c0^:46`); the final population is `@server`, which is
+// `SERVER_SRC = /\/packages\/server\/src\//` (`b5acbf2594^:46`); the final population is `@server`, which is
 // exactly `packages/server/src/`. The legacy `domain/admin/guard.ts` SANCTIONED_HOMES row was scanned and
 // excused, never subtracted — and it is DELETED rather than translated, for the reason stated above.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `owner-role-split` descriptor at 123b36f453318217b33a76d6e7ffb0ff15288f06, the parent of the conversion `9808b93c0`
+// `owner-role-split` descriptor at b01dff396ad1f8f51bfd1cc92a0f972de8cdc731, the parent of the conversion `b5acbf2594`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,219 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,492
 // and final `population` admits 1,492. legacy − final = ∅. final − legacy = ∅. Controls: inside

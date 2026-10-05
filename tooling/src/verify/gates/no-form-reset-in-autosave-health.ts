@@ -27,14 +27,14 @@
 // the blind spot a rename would have opened. That is a strengthening the population algebra gives for
 // free; the rows below prove the part it cannot see — the file still exists and the strip is gone.
 //
-// LEGACY SHA: b849e7add (`git show b849e7add:tooling/src/verify/gates/no-form-reset-in-autosave.ts`,
+// LEGACY SHA: 0fd46e8696 (`git show 0fd46e8696:tooling/src/verify/gates/no-form-reset-in-autosave.ts`,
 // `modelFileViolations`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-form-reset-in-autosave` descriptor at a4ed280d18da42e55be62960b8ce1aec1f76ff32, the parent of the conversion
-// `5f8347dca`; this module did not exist there, so it is measured against the module it was carved from,
+// `no-form-reset-in-autosave` descriptor at b6d7f7569992264b59763294f4b72a0a8b9b135e, the parent of the conversion
+// `421d9db98f`; this module did not exist there, so it is measured against the module it was carved from,
 // `no-form-reset-in-autosave` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
-// The `b849e7add` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// The `0fd46e8696` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1.
 // legacy − final = 1,318 `@client` sources other than `forms/editor/autosave-contract.ts` — the carved arm only ever

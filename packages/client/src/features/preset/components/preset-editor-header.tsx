@@ -90,7 +90,7 @@ export function PresetEditorHeader({
           RE-DERIVED AND HELD (side-eye 2026-08-22 P2-1, which read the header as 176px wider than "the
           body column"). Measured live at that arm (both panels hidden, `main` = 1224px): header x=220
           w=896 and panel column x=220 w=896, on all five tabs — the panel column has carried this exact
-          class pair since 45cf001d53 (2026-08-01), so the ruling above was never broken. What that report
+          class pair since 70ad4f055e (2026-08-01), so the ruling above was never broken. What that report
           measured is a THIRD, deeper column: the Params deck's own 720px instrument cap
           (`params-deck.tsx`, side-eye 2026-08-19 P2), which is why the offset shows on Params and on no
           other tab. Fenced by a CT; the deck's cap is argued at its own site. */}

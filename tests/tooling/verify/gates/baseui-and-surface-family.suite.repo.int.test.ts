@@ -489,7 +489,7 @@ describe("the real tree — marker translation, and the conversion differential"
 
   test("the seven translated `baseui-derives-not-respells` markers close their arithmetic per file", ({ repoRoot }) => {
     // The step-6 reconciliation as ARITHMETIC. Legacy `@orb-gate-ignore baseui-derives-not-respells(` count
-    // per file at 1692583d6 was 3/3/1; current `@orb-waive` count is 3/3/1; the retired vocabulary survives
+    // per file at (pruned from public history) was 3/3/1; current `@orb-waive` count is 3/3/1; the retired vocabulary survives
     // in no product file. Every one was already on the line ABOVE its member, so no trailing-position site
     // moved and no position changed — the legacy position WAS the prop name at its own offset inside the
     // member, which is exactly what `locateFinding` requires, so this translation is a pure grammar swap.
@@ -527,7 +527,7 @@ describe("the real tree — marker translation, and the conversion differential"
 // can name the LEDGER without naming a single seal — and the ledger is exactly the input whose meaning
 // decides every seal's verdict.
 //
-// MEASURED AT `028e278ee`, BEFORE THE FIX, with this same fixture pair:
+// MEASURED AT `2339040dbb`, BEFORE THE FIX, with this same fixture pair:
 //   · request = [the ledger]  → both siblings `mode: "run"`, `owner: success`, `effectiveSourcePaths: []`,
 //     `findings: []`, `toolErrors: []` — a SUCCESSFUL CLEAN over zero subjects, while the identical tree at
 //     whole scope reported one finding each;

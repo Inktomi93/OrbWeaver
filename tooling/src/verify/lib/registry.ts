@@ -237,7 +237,7 @@ const GATING_STAGES: readonly StageDef[] = [
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:biome-rule-liveness"],
-    // THE RULE HALF of biome grant liveness (#2074), successor to the arm `97e68be91` deleted under §12.3
+    // THE RULE HALF of biome grant liveness (#2074), successor to the arm `bd0a01d6b4` deleted under §12.3
     // (a policy may not write a file and spawn a child). Path liveness proves the granted SUBJECT exists;
     // NOTHING proved the granted RULE still fires, so a rule-off override on a file that stopped violating
     // the rule was invisible — and an exemption nobody granted it is what the next violation at that path

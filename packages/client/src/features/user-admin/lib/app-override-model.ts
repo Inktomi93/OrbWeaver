@@ -29,7 +29,7 @@ export function isOverridden(v: unknown): boolean {
  *  override AS its own default — the lie SET-SEAMS §4 set out to kill along with the pane's footnote.
  *
  *  Generic over the floor's shape: a NUMBER for `AdminOverrideField` (which formats it through the same
- *  Intl.NumberFormat the NumberField above it uses, `f88954f8`), a label string for the switch/select rows.
+ *  Intl.NumberFormat the NumberField above it uses, `b40324b62c`), a label string for the switch/select rows.
  *  A key whose floor is a CONTRACT constant (memoryDefaults) never goes through here — its floor is knowable
  *  in both states, so it passes the constant directly. */
 export function envFloor<T>(overridden: boolean, resolvedValue: T): T | null {

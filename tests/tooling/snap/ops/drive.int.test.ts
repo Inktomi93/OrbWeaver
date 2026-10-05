@@ -92,7 +92,7 @@ test("a non-stage origin that never mounts still refuses on the first navigation
 // ACTUALLY produces. The client's readiness signal has its OWN hard 20s ceiling that stamps
 // `data-app-ready="degraded"` one-shot (packages/client/src/lib/app-ready-signal.ts), well inside snap's 60s
 // STAGE_READY budget — so a cold stage never reaches `absent`, it reaches `degraded`, and every isolated boot
-// at d5adb9103 refused on a QUIET box (load 3.8/24): 1375 HAR entries, ~1370 of them vite source-module
+// at 752c35b389 refused on a QUIET box (load 3.8/24): 1375 HAR entries, ~1370 of them vite source-module
 // transforms over 28.7s, ONE api call (`/api/auth/me`, 19ms, 200), zero page errors. The same stage re-run
 // warm came back `nav=OK` in 8s — a fresh document gets a fresh one-shot signal, which is the whole retry.
 const DEGRADED_DOCUMENT = '<!doctype html><html lang="en" data-app-ready="degraded"><body><main>mid-hydration</main></body></html>';

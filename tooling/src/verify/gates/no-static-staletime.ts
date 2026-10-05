@@ -15,8 +15,8 @@
 // object passes; a "static" whose contextual owner cannot be placed is REPORTED (GATE-AUTHORING §5, #944).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-static-staletime` descriptor at 7ed48eca86ea8b82234cefa42dfc128e01874448, the parent of the conversion
-// `cf2ec7dc1` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-static-staletime` descriptor at 2ee31c5d2254c7fdb8ef9ecdc68c24f69b45b44d, the parent of the conversion
+// `be629bf4ac` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,197 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 5,195 and final `population` admits 5,194. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
 // one source of an authored package outside the declared composite roots (`@showcase` is not in

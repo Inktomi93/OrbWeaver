@@ -36,7 +36,7 @@ const RENDER_TIMEOUT_MS = 20_000;
 // viewport. Anything under these is a collapsed/undocked panel, which is the failure this guards.
 const PANEL_MIN_WIDTH_PX = 200;
 const PANEL_MIN_HEIGHT_PX = 200;
-// THE PRESENCE CLAUSE IS PART OF THE NAME AND MAY OR MAY NOT BE THERE (#1039, `ff6f460b8`):
+// THE PRESENCE CLAUSE IS PART OF THE NAME AND MAY OR MAY NOT BE THERE (#1039, `af0c88aa32`):
 // `rowAccessibleName` (member-rows.ts) appends ", online"/", offline" — and NOTHING when the presence read
 // has not resolved, which is its own honest third state. These four were `$`-anchored on the role clause and
 // were never swept when that landed, so every one of them stopped matching against a live stack (#1851). The

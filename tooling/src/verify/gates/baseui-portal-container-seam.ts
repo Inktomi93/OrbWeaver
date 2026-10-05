@@ -21,8 +21,8 @@
 // members; this one is the only member that consumes NO committed manifest, which is why it declares
 // `resources: []` while its siblings declare the `json:baseui-manifest` door.
 //
-// POPULATION PORT: `@ui` (= `packages/ui/src/`), whole, both extensions. LEGACY at 854c81c80 (this module
-// last changed at 2b95e9adb): `scanRoot: (p) => p.includes(UI_SRC)` with `UI_SRC = "packages/ui/src/"`, plus
+// POPULATION PORT: `@ui` (= `packages/ui/src/`), whole, both extensions. LEGACY at (pruned from public history) (this module
+// last changed at 58f4124c3e): `scanRoot: (p) => p.includes(UI_SRC)` with `UI_SRC = "packages/ui/src/"`, plus
 // an in-`run` re-test of the same predicate through `repoRelative`. On repo-relative authored paths
 // `includes("packages/ui/src/")` and the `@ui` root prefix admit the identical set — no path can carry that
 // segment anywhere but at its head — so the port is byte-identical and BOTH spellings of the fence are gone.
@@ -54,15 +54,15 @@
 // so the numbers below were the only evidence and the citation was pointing away from it — corrected under
 // board #2297, and NOT by minting a test after the fact, which would be a receipt nobody ran):
 // legacy descriptor loaded from
-// 2b95e9adb, replayed over the policy's OWN declared population on the real workspace and over each proof's
+// 58f4124c3e, replayed over the policy's OWN declared population on the real workspace and over each proof's
 // file map. Real-tree: legacy 0 findings, final 0 findings, populations identical (360 `@ui` files), zero
 // tool errors on either side — a BOTH-SIDES-ZERO receipt (§4.6 vacuity shape 1), stated as such and NOT as
 // catch parity. Fixture-level: the five proof file maps replay to the same flagged ELEMENT set on both
 // sides; the only delta is `mustFlag[0]`'s count (legacy 2, final 1), which is the granularity fix above.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `baseui-portal-container-seam` descriptor at fc5cad14c0f060ce35d257d96955d778e756d605, the parent of the conversion
-// `ff07e1302` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `854c81c80`
+// `baseui-portal-container-seam` descriptor at (pruned from public history), the parent of the conversion
+// `222bd23712` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,458 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 366 and final `population` admits 366.

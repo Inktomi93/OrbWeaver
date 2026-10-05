@@ -20,14 +20,14 @@
 // are outside `@authored` by definition, so a decorator there is now unjudged; whether the legacy runner
 // ever fed them is a property of THAT runner's candidate set, which this measurement bounds, not settles.
 // SETTLED 2026-09-13 (lane cb-b-header-residue): over the candidate set the legacy runner ACTUALLY loaded
-// (`_shared/ts-workspace.ts#harnessGlobs` at `45743d76d^`), legacy − final = ∅ and final − legacy = ∅ — none of the
+// (`_shared/ts-workspace.ts#harnessGlobs` at `d5c8b278e3^`), legacy − final = ∅ and final − legacy = ∅ — none of the
 // 18 was a harness candidate (the root-level configs are outside `harnessGlobs`, and no
 // `packages/showcase-plugins/src` source existed there), so the port dropped nothing. The 7,537-path compiler-source
 // set above is not the legacy candidate basis.
-// LEGACY SHA: (45743d76d^) — the conversion's parent.
+// LEGACY SHA: (d5c8b278e3^) — the conversion's parent.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-decorators` descriptor at 073520068d3305dfedbb481153cadfef6b30f847, the parent of the conversion `45743d76d`
+// `no-decorators` descriptor at 879e5b65226d9333a5d49c3dfc9139c55b3bf2ae, the parent of the conversion `d5c8b278e3`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,006 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 7,006
 // and final `population` admits 7,006. legacy − final = ∅. final − legacy = ∅. Controls: inside

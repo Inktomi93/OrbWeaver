@@ -146,7 +146,7 @@ test("adapted preset slots are byte-identical to the constants the assembler alr
 // The frozen literal `DEFAULT_COMPACT_INSTRUCTIONS` shipped as a source const before census 49 slotted it —
 // re-typed here independently of the slot table. A FENCE (it passes both sides of the migration, because the
 // migration is byte-preserving by construction), so it guards the default-identity discipline, not a defect:
-// a drift in the slot text OR the derived const REDs and names the seam. Bytes at `e495855de`.
+// a drift in the slot text OR the derived const REDs and names the seam. Bytes at `5f7cd8d843`.
 test("the adapted compaction slot ships the exact bytes DEFAULT_COMPACT_INSTRUCTIONS carried as a source const", () => {
   const frozen =
     "Summarize the roleplay so far for continuation: preserve each character's voice and persona, the " +
@@ -163,7 +163,7 @@ test("the adapted compaction slot ships the exact bytes DEFAULT_COMPACT_INSTRUCT
 
 // ── S1: the app-tier cohort's defaults are the PRE-migration constants, byte for byte ───────────────
 // The frozen fixture the spec's §10 default-identity discipline demands: these literals are the bytes each
-// constant had at `9f7345b3`, re-typed independently of the slot table. A drift in either direction REDs,
+// constant had at `(pruned from public history)`, re-typed independently of the slot table. A drift in either direction REDs,
 // which is what makes "migrating a slot changes nothing until a host types something" a fact, not a claim.
 const S1_FROZEN_DEFAULTS: Readonly<Partial<Record<ProseSlotId, string>>> = {
   // packages/server/src/domain/chat/assembly/context.ts — ANCHOR_IDENTITY_PREFIX
@@ -275,7 +275,7 @@ test("S1b framing slots render, unset, to the exact bytes their inline template 
 });
 
 // The three discovery system prompts were file-local template literals in `analyze.ts` / `distill.ts` with no
-// catalog entry at all. Re-typed here from those files at `72e10422`.
+// catalog entry at all. Re-typed here from those files at `(pruned from public history)`.
 const DISCOVERY_FROZEN_DEFAULTS: Readonly<Partial<Record<ProseSlotId, string>>> = {
   "discovery.compare.system": `You compare two roleplay characters for a user browsing their own library. You are given a precomputed facet diff (genres, tones, shared vs distinct tags). Ground your read in ONLY that diff — do not invent traits.
 
@@ -313,7 +313,7 @@ test("discovery's three system prompts resolve, unset, to the exact bytes they h
 });
 
 // ── S3: the per-GAME steering-reminder cohort (census 1-10) — frozen at the bytes each constant carried in
-// `domain/rpg/substrate/reminder.ts` + `delta.ts` at `48e679d02`, re-typed independently of the slot table.
+// `domain/rpg/substrate/reminder.ts` + `delta.ts` at `(pruned from public history)`, re-typed independently of the slot table.
 // A drift in EITHER the slot text OR the reminder-derived const (`RPG_STEERING_LICENSE = PROSE_SLOTS[…].text`)
 // REDs, which is what makes "the reminder ships the same bytes it always did" a fact, not a claim. The card
 // example's LEADING BLANK LINE is load-bearing (it separates the example from the ask) — the resolver must not

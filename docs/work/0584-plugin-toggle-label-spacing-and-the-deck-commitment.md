@@ -22,4 +22,4 @@ A plugin toggle sits beside its label at page width, and the commitment reads as
 
 ## Evidence
 
-Lane S6 (bc7ba151e5) put the plugin toggle label beside its switch (ToggleLeaf in plugin-leaf-nodes.tsx). Open: the Oracle Deck commitment display needs a bundle change with a version bump.
+Lane S6 (c904d209f2) put the plugin toggle label beside its switch (ToggleLeaf in plugin-leaf-nodes.tsx). Open: the Oracle Deck commitment display needs a bundle change with a version bump.

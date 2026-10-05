@@ -32,13 +32,13 @@ test("every declared row conforms", () => {
 test("every committed knob-wire grant names a real arm operation and a uniquely identifiable member", () => {
   const rows = REVIEWED_GRANTS.filter((row) => row.policyId === gate.id);
   const operations = new Set<string>(Object.values(KNOB_WIRE_OPERATIONS));
-  // The two retired ExemptionTables carried 1 DOORWAY + 5 DEFERRED rows. BOTH halves shrank at 4b90bdf78
+  // The two retired ExemptionTables carried 1 DOORWAY + 5 DEFERRED rows. BOTH halves shrank at 77bf95dc18
   // (the @orb/inference §12 extraction audit): `metadata-provider-routing` — the sole DOORWAY — and the
   // DEFERRED `config-allow-non-owner-local-compute` were retired with the fields they named, leaving four
-  // DEFERRED rows and no doorway. cb51aea2d added a fifth row, `app-key-ip-certificate`: not DEFERRED debt
+  // DEFERRED rows and no doorway. 3327e53fa6 added a fifth row, `app-key-ip-certificate`: not DEFERRED debt
   // but a cited grant for a key that arm B2's admin-dir scan cannot see, because its write goes through a
   // dedicated verb rather than a generic editor field.
-  expect(rows.length, "4 DEFERRED rows plus the cb51aea2d ip-certificate grant").toBe(5);
+  expect(rows.length, "4 DEFERRED rows plus the 3327e53fa6 ip-certificate grant").toBe(5);
   for (const row of rows) {
     expect(operations.has(row.operation), `${row.id} names a live arm operation`).toBe(true);
     // The subject grammar is `<member source>.<member>`; a row that cannot be produced by the policy would

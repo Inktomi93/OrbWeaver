@@ -9,7 +9,7 @@
 // runtime's own validator, not a gate-family reader, which is exactly why it lives there (§12.7: a
 // world-program guarantee is an INPUT to conversion, preserved rather than reimplemented).
 //
-// POPULATION PORT: BYTE-IDENTICAL, legacy at 1692583d6. The legacy descriptor was `fsBacked: true` +
+// POPULATION PORT: BYTE-IDENTICAL, legacy at (pruned from public history). The legacy descriptor was `fsBacked: true` +
 // `scopeSafety: "whole-project"` and read `join(ctx.root, "tooling/src/snap/lib/devtools-frontend")` off
 // disk; the final declares `{ kind: "devtools-closure" }`, whose provider walks exactly
 // `contract/resource-artifact.ts`'s `DEVTOOLS_CLOSURE_ROOT` — the same directory, every regular member,
@@ -58,8 +58,8 @@
 // tuple, which is an UNPOPULATED kind acquired at the call rather than at planning).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `devtools-frontend-assets` descriptor at c810fee0749e37333042645e1a061b257e289627, the parent of the conversion
-// `a196a35d7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1692583d6`
+// `devtools-frontend-assets` descriptor at ddee5116a989e15ab36c7269ecd35eb9c8e45430, the parent of the conversion
+// `b6a112823f` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `(pruned from public history)`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,558 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,558, and the final

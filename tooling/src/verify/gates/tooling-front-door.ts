@@ -25,13 +25,13 @@
 // sink would refuse, since the unquoted specifier is not the text at offset 0 (`import …`). Zero live
 // markers existed, so nothing re-binds.
 //
-// Legacy descriptor: `1f5e25c00` (`tooling/src/verify/gates/tooling-front-door.ts`). No private marker
+// Legacy descriptor: `8de18d2f5f` (`tooling/src/verify/gates/tooling-front-door.ts`). No private marker
 // grammar; zero live `@orb-gate-ignore tooling-front-door` markers at conversion (rg over packages/, tests/,
 // tooling/, scripts/), so no translation was owed.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `tooling-front-door` descriptor at f1bbc34e7e6961bb5cbb607c17470a642e44a1ca, the parent of the conversion
-// `e2b183b80` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1f5e25c00`
+// `tooling-front-door` descriptor at 12d34bb79a7d599eea9c9cf3a40cfbd8498fb9f1, the parent of the conversion
+// `24ed572f1c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `8de18d2f5f`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,445 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,105 and final `population` admits 1,105.

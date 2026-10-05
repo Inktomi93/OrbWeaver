@@ -3,7 +3,7 @@
 // `@orb-waive <id>(`. §2.1 of docs/law/gate-runtime-standardization.md says why the spelling cannot be guessed: the
 // reported position is routinely not what a reader would call the offense (a type argument is waived at its
 // first identifier; a string-literal token includes its quotes), so a `fix` that omits it makes the policy
-// unusable by the very author it fires on. Wave 1's D7 named two modules; the AST census at 8257071ee found
+// unusable by the very author it fires on. Wave 1's D7 named two modules; the AST census at 7760e030d6 found
 // 51 of 88 — WARNING DEBT tied to its own row (#1978) until the owner ruled `hard` + `warning` a contradiction
 // (#2025, 2026-09-12): it is `hard`/`error` now and BLOCKS, and it is still never a grant — the burn-down is
 // one `fix` string per module, read off that module's `report.node` call.
@@ -20,9 +20,9 @@
 // `policy-waiver-identity`). One reader for the grammar is what makes "names the spelling" and "names the
 // RIGHT spelling" two questions about one definition.
 // POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL at
-// `fe8c9cc84`, the commit that created the family; `git show fe8c9cc84^:<this file>` refuses with "exists
-// on disk, but not in fe8c9cc84^", and that refusal IS the receipt (the `scrubber-factory-home`
-// precedent). READ THE SHA ALREADY IN THIS HEADER CORRECTLY: `8257071ee` above is the tip the 51-of-88 AST
+// `8194754f7c`, the commit that created the family; `git show 8194754f7c^:<this file>` refuses with "exists
+// on disk, but not in 8194754f7c^", and that refusal IS the receipt (the `scrubber-factory-home`
+// precedent). READ THE SHA ALREADY IN THIS HEADER CORRECTLY: `7760e030d6` above is the tip the 51-of-88 AST
 // CENSUS was taken at, not a pre-conversion sha — this module cannot have one. A census that word-matches
 // hex in a header counts it as a legacy-SHA citation; it is not one.
 import type { ObjectLiteralExpression } from "ts-morph";

@@ -351,7 +351,7 @@ function postLogoutRedirectUri(headers: Headers, transport: RequestTransport, al
  * `id_token_hint` raises `invalid_request`/`id_token_hint_missing` → a 400 page. That raise happens BEFORE
  * the flow planner, so the invalidation flow never runs: the IdP's access tokens are not deleted, the logout
  * stage never fires, and THE SSO SESSION SURVIVES (regression #437 — a redirect param alone is strictly
- * WORSE than sending nothing, which is what #141's first attempt, 8446a55ce, shipped and why it was
+ * WORSE than sending nothing, which is what #141's first attempt, 76cf663ba4, shipped and why it was
  * reverted).
  *
  * So there are exactly three shapes this returns, and no fourth is constructible here:

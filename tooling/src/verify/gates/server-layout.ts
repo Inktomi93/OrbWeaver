@@ -7,7 +7,7 @@
 // sibling (`ui-exports-map-complete`) judges a DIFFERENT package against its manifest exports, and the two
 // share the `readyResourceValue` declaration reader (`lib/resource-declaration.ts`) rather than a family
 // identity reader.
-// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at 05e595f33 (the parent of d59803f7f). The legacy
+// POPULATION PORT: an INTENTIONAL CORRECTION, legacy at 1bf2127e14 (the parent of 8aa5bc3dd6). The legacy
 // descriptor `readdirSync`-listed `packages/server/src` at depth 1 and gated its MISSING-tier arm on a
 // real-tree anchor (`pnpm-workspace.yaml`), because a conformance fixture could not be told from a gutted
 // tree; it also reported that arm at the gate's OWN source file. The final walks `authored-tree:server`
@@ -33,7 +33,7 @@
 // arm is pinned by a row whose count the §4.1 cut moves.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `server-layout` descriptor at 05e595f33a483879860210e24a1b88231c3bae7f, the parent of the conversion `d59803f7f`
+// `server-layout` descriptor at 1bf2127e148ff3bf775b9ff09994041c9987eafd, the parent of the conversion `8aa5bc3dd6`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,047 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no
 // `scanRoot` — dispatched 7,047, and the final `population` admits 0; the subject is the declared

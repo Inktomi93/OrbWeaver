@@ -29,11 +29,11 @@
 // MARKER CENSUS AT CONVERSION (§8.6): `@first-boot-only` had 0 live marker-form sites (its only mention is
 // the central engine's foreign-grammar fixture) — an empty grammar, deleted; nothing to reconcile.
 //
-// Legacy descriptor: `370243fe7` (`tooling/src/verify/gates/query-boundary-reservation.ts`).
+// Legacy descriptor: `1e92eb43fc` (`tooling/src/verify/gates/query-boundary-reservation.ts`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `query-boundary-reservation` descriptor at e2b183b809625973be3060bdca51755317d42f3c, the parent of the conversion
-// `6563946a0` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `370243fe7`
+// `query-boundary-reservation` descriptor at 24ed572f1c9cd5c7a0fd0635a9371262a98e7ede, the parent of the conversion
+// `c7c0882709` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `1e92eb43fc`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,450 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.

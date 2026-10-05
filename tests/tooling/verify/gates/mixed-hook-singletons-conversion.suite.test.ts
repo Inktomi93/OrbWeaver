@@ -1,5 +1,5 @@
 // FAMILY EVIDENCE for `tooling-instrument-proof` (#1584 §12.6), all that survives of what was the
-// mixed-hook singletons' §4.6 conversion differential: `b1e5e3e30` deleted the legacy-replay arms with the
+// mixed-hook singletons' §4.6 conversion differential: `b23d02ab06` deleted the legacy-replay arms with the
 // legacy descriptors, so this file holds exactly ONE `test(` block and the header enumerates it rather
 // than promising a differential nothing here can run any more (#2454 — a header claim owes a control,
 // GATE-AUTHORING §7).

@@ -51,7 +51,7 @@
 // stale/shrink sweep reporting at the gate's own source file — retires WITH it rather than becoming a
 // `-health` sibling: it existed only to keep the ledger honest.
 //
-// POPULATION PORT — legacy at 6b1d01be0 (the parent of the conversion commit aecbc6c6c), a `GateDescriptor` with
+// POPULATION PORT — legacy at (pruned from public history) (the parent of the conversion commit 7a0a2375aa), a `GateDescriptor` with
 // `scopeSafety: "whole-project"` and `fsBacked: true`. The legacy corpus was `project.getSourceFiles()`
 // routed by `sf.getFilePath().split("/packages/server/src/")` and `.split("/packages/contracts/src/")`,
 // i.e. the harness globs ∩ those two roots; the final expression is `population: ["@server", "@contracts"]`
@@ -74,9 +74,9 @@
 // withholds the policy with no partial findings.
 //
 // §4.6 DIFFERENTIAL — RECORDED 2026-09-13 (#2273), AND IT IS A POPULATION + OUTCOME RECEIPT, NOT CATCH
-// PARITY. The conversion `aecbc6c6c` landed a population/refusal receipt and never ran a findings
+// PARITY. The conversion `7a0a2375aa` landed a population/refusal receipt and never ran a findings
 // comparison for this policy, so the honest record names which of §4.6's three axes it has:
-//   · FINDINGS. FINAL side driven through `runPolicyPass` over the real workspace at `5045a6a68`: 0
+//   · FINDINGS. FINAL side driven through `runPolicyPass` over the real workspace at `(pruned from public history)`: 0
 //     findings, owner `success`. The LEGACY side was never EXECUTED for findings — so this cell is guide
 //     §4.6 VACUITY SHAPE 1 (both sides zero, or one side unmeasured) and it CANNOT be closed by rule, which
 //     requires "a 1:1 port whose legacy side was EXECUTED and returned zero". What would close it is the
@@ -144,7 +144,7 @@
 // exercise some OTHER fence goes silent for the wrong reason and its cut comes back clean.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `test-presence` descriptor at 6b1d01be054c113c68595540f3a6a28c9f7d1744, the parent of the conversion `aecbc6c6c`
+// `test-presence` descriptor at (pruned from public history), the parent of the conversion `7a0a2375aa`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy descriptor had no
 // `scanRoot`, so its effective population is its in-run path filter — scanTestPresence: `serverSrcRel`
 // ("/packages/server/src/") or `contractsSrcRel` ("/packages/contracts/src/"). Over the SAME 7,487 harness candidates

@@ -10,8 +10,8 @@
 // static-class-provenance set is a decision that belongs to the lane that converts the rest of it, not a
 // string minted unilaterally here; this policy's own verdict (is any top-level `dark` variant present) shares
 // no computation with theirs beyond the walk.
-// POPULATION PORT: BYTE-IDENTICAL. The legacy descriptor at `d6f36904f` (the commit before the conversion at
-// `99b7429e2`) scanned `path.startsWith("packages/client/src/") || path.startsWith("packages/ui/src/")`,
+// POPULATION PORT: BYTE-IDENTICAL. The legacy descriptor at `1b999db38d` (the commit before the conversion at
+// `a2a93cac72`) scanned `path.startsWith("packages/client/src/") || path.startsWith("packages/ui/src/")`,
 // which is exactly `["@client", "@ui"]`; nothing is added and nothing is subtracted.
 //
 // THE REPORTED POSITION is the CLASS CANDIDATE (`dark:bg-card`), supplied with its offset inside the carrier
@@ -27,8 +27,8 @@
 // zero-carrier-root tripwire report a synthetic label, not authored text.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-tailwind-dark-variant` descriptor at d6f36904fa6946238678e61760888aaf62ba0c93, the parent of the conversion
-// `99b7429e2` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-tailwind-dark-variant` descriptor at 1b999db38d4c6bd7421e7adbf1c426f591e8eb97, the parent of the conversion
+// `a2a93cac72` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,351 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,685 and final `population` admits 1,685. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside

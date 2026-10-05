@@ -453,7 +453,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "lint:biome",
     "lint:eslint",
     // #1943 F3: the PreToolUse Bash guard is linted by nothing else, so its syntax rides the commit bar. The
-    // registry row landed in 515b775cc without this pin — a stale exact-list pin reads red for every later row.
+    // registry row landed in bf2bc24f0e without this pin — a stale exact-list pin reads red for every later row.
     "lint:hook-syntax",
     "types:native",
     "types:testd",
@@ -478,7 +478,7 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     // main sat red on the next whole node run.
     "ledgers:fresh",
     "release:showcase-versions",
-    // #2074: the RULE half of biome grant liveness, successor to the policy arm `97e68be91` deleted under
+    // #2074: the RULE half of biome grant liveness, successor to the policy arm `bd0a01d6b4` deleted under
     // §12.3 (a write plus a spawn). Path liveness proves the granted SUBJECT exists; nothing proved the
     // granted RULE still fires, so a rule-off override on a file that stopped violating it was unpoliced.
     "config:biome-rule-liveness",

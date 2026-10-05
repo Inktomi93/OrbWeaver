@@ -107,7 +107,7 @@ export const gate = defineGate({
         "packages/client/src/features/chat/lib/chats-section.tsx": 'export const s = { id: "chats" };\n',
       },
       expect: { messageIncludes: 'unsupported spread in "SECTION_IDS"' },
-      why: "THE SUPPLY REFUSAL (law §6.3): a `SECTION_IDS` tuple built from a call the shared tuple reader cannot resolve makes the `action-door-census` fact FAIL at finish, and the dispatcher withholds this consumer before `evaluate` — the tripwires never run over a vocabulary they could not read. An EMPTY census is deliberately NOT a refusal here (the fact receipts the walk, not the doors, so the zero-definitions tripwire can fire as a finding). Successor to the frozen-replay arm retired at b1e5e3e30 (#2176); measured 2026-09-15 through the production runner.",
+      why: "THE SUPPLY REFUSAL (law §6.3): a `SECTION_IDS` tuple built from a call the shared tuple reader cannot resolve makes the `action-door-census` fact FAIL at finish, and the dispatcher withholds this consumer before `evaluate` — the tripwires never run over a vocabulary they could not read. An EMPTY census is deliberately NOT a refusal here (the fact receipts the walk, not the doors, so the zero-definitions tripwire can fire as a finding). Successor to the frozen-replay arm retired at b23d02ab06 (#2176); measured 2026-09-15 through the production runner.",
     },
   ],
   mustPass: [

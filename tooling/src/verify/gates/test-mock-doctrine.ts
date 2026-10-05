@@ -9,13 +9,13 @@
 // it consumes `_shared/reference-fact.ts` and `lib/sealed-origin.ts`'s `originModuleSpecifier`, and sharing those
 // with the rest of the canonical-origin corpus is not a family (guide §2). "Test-tree policies" is a theme.
 //
-// POPULATION PORT: byte-identical, legacy at `ef2251957^` (`scanRoot: (p) => p.includes("tests/")` — every
+// POPULATION PORT: byte-identical, legacy at `4561cb18c4^` (`scanRoot: (p) => p.includes("tests/")` — every
 // authored `tests/` tree, including the nested ones); the final `TEST_POPULATION` is that expression, pinned
 // by a mustPass row placing the same internal `vi.mock` in production source.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `test-mock-doctrine` descriptor at e8d06378079aecba08a27a033ef707794f1e625c, the parent of the conversion
-// `ef2251957` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `test-mock-doctrine` descriptor at 2325062f91fac612856a95c68027bd8735eb040c, the parent of the conversion
+// `4561cb18c4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,186 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 2,780 and final `population` admits 2,780. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `tests/client/a11y/__cbbhr_in__ct-stories.tsx` (virtual) admitted by both; outside

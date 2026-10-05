@@ -17,7 +17,7 @@
 // unresolved/tool-error facts… The host must never collapse missing/unparseable into `{}`. An empty row
 // population is a refusal for the liveness family, not a clean result."* Today the consuming gates disagree
 // — some return silently, some report a finding, some throw — and unifying that is part of this door, not a
-// follow-up. It is the same shape as the ruled biome refusal (`0df3fa9d6`, #1245): checking ZERO files is a
+// follow-up. It is the same shape as the ruled biome refusal (`da3c71831c`, #1245): checking ZERO files is a
 // REFUSAL, never a clean lint, because an empty result and a broken reader are byte-identical.
 //
 // WHY `JsonValue` AND NOT A PER-ID SCHEMA. The access-patterns design sketches `JsonValueFor<I>`, a distinct

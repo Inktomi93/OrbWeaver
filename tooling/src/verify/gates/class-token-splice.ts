@@ -12,7 +12,7 @@
 // expression the policy cannot resolve to a literal set is UNSAFE — an unverifiable class interpolation is
 // exactly the "whole literals only" law's blind spot, and the permissive direction ships dead paint.
 //
-// FINAL-CONTRACT CONVERSION (#1584). LEGACY SHA: 68c8f42d6 (the descriptor this policy replaces,
+// FINAL-CONTRACT CONVERSION (#1584). LEGACY SHA: c2b5253308 (the descriptor this policy replaces,
 // byte-for-byte the pre-conversion module). THREE THINGS CHANGED, all forced by §3's non-negotiables:
 //
 //   1. THE PRIVATE CROSS-MODULE RESOLVER IS GONE. Legacy `resolveName` hand-rolled identifier lookup
@@ -83,8 +83,8 @@
 // looks at a seam.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `class-token-splice` descriptor at 2241d52b80eedf94a6de8c6cfa29027bfc7364eb, the parent of the conversion
-// `e8e4d85b7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `68c8f42d6`
+// `class-token-splice` descriptor at 48f6d880410ea300c00ef6b45f193a89ae59f3d3, the parent of the conversion
+// `28d530a42b` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `c2b5253308`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,432 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,685 and final `population` admits 1,685.

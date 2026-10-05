@@ -20,11 +20,11 @@
 // plus `lib/registry-definition-{anchor,field,home}.ts`, consumed identically by all seven members.
 // `tupleVocabularyFact` is a shared PRIMITIVE this policy also reads, not a second family.
 // POPULATION PORT: byte-identical. The legacy descriptor filtered `path.includes("/packages/client/src/")`
-// (9055cfe6a); the final population is `@client`.
+// (f472cafd80); the final population is `@client`.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `chrome-registry-completeness` descriptor at 577d03d6365832310d849aa4752459443ed4cba3, the parent of the conversion
-// `f16cde889` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `9055cfe6a`
+// `chrome-registry-completeness` descriptor at 8b86eeec75da25a0dc2fe38e54157b2dcbb95e37, the parent of the conversion
+// `e3fc21fd94` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `f472cafd80`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. The legacy descriptor had no `scanRoot`, so its effective population is its in-run path
 // filter — run: `if (!path.includes(CLIENT_SRC)) continue` with CLIENT_SRC = "/packages/client/src/". Over the SAME

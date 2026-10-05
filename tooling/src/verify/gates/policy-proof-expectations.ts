@@ -59,9 +59,9 @@
 // worth naming: whether a `messageIncludes` actually DISCRIMINATES is computed once, for every member, so a
 // row cannot read as pinning an arm here and as pinning nothing next door.
 // POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL, in the
-// commit that created the family (`fe8c9cc84`, "the §5b soundness enforcer — four final meta-policies over
-// the gate corpus"). `git show fe8c9cc84^:<this file>` refuses with "exists on disk, but not in
-// fe8c9cc84^"; that refusal IS the receipt (the `scrubber-factory-home` precedent). Its population was
+// commit that created the family (`8194754f7c`, "the §5b soundness enforcer — four final meta-policies over
+// the gate corpus"). `git show 8194754f7c^:<this file>` refuses with "exists on disk, but not in
+// 8194754f7c^"; that refusal IS the receipt (the `scrubber-factory-home` precedent). Its population was
 // authored against the gate corpus from the start, `_proof/` fixtures fenced out.
 import type { CallExpression, ObjectLiteralExpression, PropertyAssignment, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";

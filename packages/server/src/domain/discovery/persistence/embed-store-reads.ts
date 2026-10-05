@@ -553,7 +553,7 @@ export async function readCorpusCoverage(db: Db, ownerId: UserId): Promise<{ cha
  *  carries its own `ownerId` (D23 — the row's own key dimension), so the belt is a join on the cluster
  *  itself rather than a walk out to a chat host. Both reads take a caller-supplied `themeClusterId`:
  *  `verbs/views::themeDetail` resolves it from an owner-scoped list one hop earlier, which is derivation,
- *  not enforcement — the seven-seam pass (00d770fa4) ruled that class toward a predicate AT the seam.
+ *  not enforcement — the seven-seam pass (24092223f7) ruled that class toward a predicate AT the seam.
  *
  *  NOT ALSO A `characters.ownerId` PREDICATE, deliberately: a digest's `scopedCharacterId` in a shared room
  *  can legitimately be a co-member's card, so belting the card axis here would silently delete real rows

@@ -2,7 +2,7 @@
 //
 // #1976 built the consumer-side diagnosis: a shared `defineFact` provider's population is the UNION of its
 // consumers', so a policy handed a declaration from a file its OWN population excludes gets a refusal, and
-// since `f96f45fb4` that refusal DIAGNOSES — it names the admitting fact and points at `declarationHome`.
+// since `5804b28585` that refusal DIAGNOSES — it names the admitting fact and points at `declarationHome`.
 // cb-v-wave-6 then drove all three doors and found the closing clause hard-coded to *"never with
 // ctx.relativePath"* and appended VERBATIM by the `sourceFile` and `report.file` twins, so a policy that
 // called `ctx.sourceFile(path)` was told not to use a function it never called. §5b criterion 2 applied to a

@@ -21,7 +21,7 @@ import {
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
-const SHA = "823d76f4343a1cea086b17a1b5bf212b44c17a7d";
+const SHA = "f4cdde34be59914c4a2aecec108899bd034579ac";
 const SHA256 = "a".repeat(64);
 const OTHER = "f00dcafe1234567890abcdef1234567890abcdef";
 const BRANCH = "refs/heads/main";
@@ -115,7 +115,7 @@ describe("gitDirRedirect", () => {
 
 describe("shortCommit", () => {
   test("truncates to 12 — the length that pastes into `git show`", () => {
-    expect(shortCommit(SHA)).toBe("823d76f4343a");
+    expect(shortCommit(SHA)).toBe("f4cdde34be59");
   });
 
   test("`unknown` passes through WHOLE — a truncated 'unkno' would read like a sha prefix", () => {
@@ -127,10 +127,10 @@ describe("compareToMainHead — the main verdict table", () => {
   const remote = { channel: "main", commit: OTHER, short: "f00dcafe1234", committedAt: "2026-09-17T12:00:00Z" } as const;
 
   test("the same commit is up-to-date, with no reason to explain", () => {
-    expect(compareToMainHead(SHA, { ...remote, commit: SHA, short: "823d76f4343a" }, null)).toEqual({
+    expect(compareToMainHead(SHA, { ...remote, commit: SHA, short: "f4cdde34be59" }, null)).toEqual({
       status: "up-to-date",
       local: SHA,
-      remote: { channel: "main", commit: SHA, short: "823d76f4343a", committedAt: "2026-09-17T12:00:00Z" },
+      remote: { channel: "main", commit: SHA, short: "f4cdde34be59", committedAt: "2026-09-17T12:00:00Z" },
       reason: null,
     });
   });
@@ -215,7 +215,7 @@ describe("the wire schema", () => {
 });
 
 describe("the identity shape", () => {
-  const identity: VersionIdentity = { version: "0.4.1", commit: SHA, short: "823d76f4343a", source: "container", channel: "main" };
+  const identity: VersionIdentity = { version: "0.4.1", commit: SHA, short: "f4cdde34be59", source: "container", channel: "main" };
 
   test("`builtAt` is optional — a checkout has no build instant to report", () => {
     expect(versionIdentitySchema.safeParse({ ...identity, source: "checkout" }).success).toBe(true);
@@ -234,6 +234,6 @@ describe("the identity shape", () => {
   });
 
   test("a main build prints as a dev pre-release with the short commit as build metadata", () => {
-    expect(formatVersionIdentity(identity)).toBe("0.4.1-dev+823d76f4343a");
+    expect(formatVersionIdentity(identity)).toBe("0.4.1-dev+f4cdde34be59");
   });
 });

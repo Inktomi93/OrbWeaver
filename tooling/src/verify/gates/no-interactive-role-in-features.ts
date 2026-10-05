@@ -2,7 +2,7 @@
 // FAMILY: singleton; the policy owns the widget-role vocabulary and uses the common scalar reader.
 // Population preserves client features TSX. Immutable aliases use canonical scalar identity rather
 // than the legacy four-hop name lookup. Dynamic role values remain the explicitly tested limit.
-// Legacy source:4522eee58. All ten legacy proof cases are carried; population/cut/authority replay
+// Legacy source:7d18c7e21e. All ten legacy proof cases are carried; population/cut/authority replay
 // is deferred by the owner's conversion-first order. The obsolete synthetic token role="value"
 // becomes the exact role attribute name. The empty burn-down table was already retired.
 import type { JsxAttribute } from "ts-morph";

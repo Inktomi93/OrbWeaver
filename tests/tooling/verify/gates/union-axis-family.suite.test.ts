@@ -9,7 +9,7 @@
 //          matches a re-spell in one package against a tuple homed in ANOTHER, so a request admitting only
 //          the re-speller would "prove" the axis has no home and report nothing. A proper subset must
 //          DEFER, not partially run.
-//   §4.6 — the conversion differential against the frozen legacy descriptor at 2030ab180, replayed over
+//   §4.6 — the conversion differential against the frozen legacy descriptor at 51d2730f30, replayed over
 //          each legacy example's OWN file map. Legacy-side coverage is stated per example rather than
 //          averaged: 5 of the 10 legacy examples flag, covering both arms and all three legacy token
 //          sub-kinds, so the replay is evidence rather than a vacuous zero-vs-zero. ONE classified

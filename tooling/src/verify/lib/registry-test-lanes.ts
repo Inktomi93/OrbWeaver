@@ -95,9 +95,9 @@ export const TEST_LANE_STAGES: readonly StageDef[] = [
     // battery off the push bar and that placement is NOT reverted — but it left every proof a policy
     // carries that a declared row cannot express (the §4.2 identity arm, the central grant table's
     // identity/duplicate/stale boundaries, the §4.5 refusal and receipt pins) running at `--full` and
-    // NOWHERE ELSE. Measured twice at five days each: `registry-family.test.ts` red from `ab675b23b` (95
+    // NOWHERE ELSE. Measured twice at five days each: `registry-family.test.ts` red from `40f2b3014a` (95
     // refused proof rows across eight policies, #1953) and `static-class-consumers.int.test.ts` red from
-    // `1416f2c98` (#1956). Both commits ran and passed their named scoped floor; neither touched a family
+    // `0cd914649a` (#1956). Both commits ran and passed their named scoped floor; neither touched a family
     // test, which is why the prose per-conversion floor rule did not fire — and per constitution §2 a
     // prose-only boundary is not a placement, it is a wish.
     //

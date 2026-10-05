@@ -3,7 +3,7 @@
 // can express lives in their own `mustFlag`/`mustPass`/`mustRefuse` rows and runs on the static bar through
 // `structure:policy-conformance`. This file carries ONLY what a row structurally cannot:
 //
-//   §6.4 THE CONVERSION DIFFERENTIAL — the frozen legacy descriptor at `9dca9fca4` (the conversion commit's
+//   §6.4 THE CONVERSION DIFFERENTIAL — the frozen legacy descriptor at `(pruned from public history)` (the conversion commit's
 //   parent) and the two final policies, replayed over the SAME BYTES: every legacy example, both
 //   populations, both finding sets, both tool-error sets, each difference CLASSIFIED.
 //

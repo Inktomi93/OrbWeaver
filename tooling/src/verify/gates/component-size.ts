@@ -10,10 +10,10 @@
 // plus `.d.ts`; the declaration above is that walk expressed as population algebra.
 // Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
 // compiler-source candidate set: 1,318 admitted on both sides, symmetric difference ZERO in both directions.
-// LEGACY SHA: (70a944751^) — the conversion's parent.
+// LEGACY SHA: (ecf93f598e^) — the conversion's parent.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `component-size` descriptor at d59803f7f00233b70d97820311f9f706c911336e, the parent of the conversion `70a944751`
+// `component-size` descriptor at 8aa5bc3dd6b002cc77db49187bdec3a8dddfc6bf, the parent of the conversion `ecf93f598e`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The legacy descriptor had no
 // `scanRoot`, so its effective population is its in-run path filter — fs walk of `packages/client/src`, SKIP_DIRS
 // {node_modules,dist,__screenshots__}, `.ts`/`.tsx` minus `/\.(?:test|spec|gen)\.tsx?$/` and `.d.ts`. Over the SAME

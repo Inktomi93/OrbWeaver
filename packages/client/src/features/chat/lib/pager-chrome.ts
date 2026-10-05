@@ -65,7 +65,7 @@ export const PAGER_CHIP = "ms-auto w-max";
  *  (`sr-only` is absolutely positioned ⇒ zero width contribution, and an abspos child is not a flex item
  *  at all, so its gap goes with it). DERIVED: the widest chip that may carry the word is the coarse
  *  compact one — 2 × 48px chevron + 49.9px kicker + 24.0px compact counter + 3 × 4px gap = 181.9px (183.91
- *  before `ed55bf193` vendored Geist; the face moves these advances by ~2px and the step has the headroom
+ *  before `77e07912eb` vendored Geist; the face moves these advances by ~2px and the step has the headroom
  *  to absorb that, which is why the step is a clean rem and not the measurement) — so 192px is the next
  *  clean step that still contains it; at a fine pointer the same band holds with ~30px to spare.
  *  #490's ruling survives, its INPUT changed: the sighted reader is told what the
@@ -76,7 +76,7 @@ export const PAGER_LABEL_QUIET_WHEN_TIGHT = "@max-[12rem]/pager:sr-only";
 /** STEP 1 — below 13rem (208px) the chip compacts: `gap-tight` (4px) instead of `gap-field` (6px), and
  *  the counter drops the spaces around its slash (see `PAGER_SEPARATOR_*`). DERIVED from the widest chip
  *  that may exist ABOVE this line — the coarse chip with its kicker and roomy counter, 2 × 48 + 49.89 +
- *  40.0 + 3 × 6 = 203.89px (205.55 pre-Geist, `ed55bf193`) — which 208px contains; below it every chip is
+ *  40.0 + 3 × 6 = 203.89px (205.55 pre-Geist, `77e07912eb`) — which 208px contains; below it every chip is
  *  compact, which is what lets the 12rem kicker line above be a single number for both pointers. */
 export const PAGER_CHIP_COMPACT = "@max-[13rem]/pager:gap-tight";
 

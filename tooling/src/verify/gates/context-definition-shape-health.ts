@@ -28,14 +28,14 @@
 // assembled through a variable, a re-export or a computed property is invisible to them — the HUD-1 §10
 // CTs are the required second lens, not a nice-to-have.
 //
-// LEGACY SHA: aa8cf0d53 (`git show aa8cf0d53:tooling/src/verify/gates/context-definition-shape.ts`,
+// LEGACY SHA: 02bab80ad4 (`git show 02bab80ad4:tooling/src/verify/gates/context-definition-shape.ts`,
 // `collectRegionMintSites` / `collectRegionHostSites` / `reportExtraSites`).
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `context-definition-shape` descriptor at a4ed280d18da42e55be62960b8ce1aec1f76ff32, the parent of the conversion
-// `5f8347dca`; this module did not exist there, so it is measured against the module it was carved from,
+// `context-definition-shape` descriptor at b6d7f7569992264b59763294f4b72a0a8b9b135e, the parent of the conversion
+// `421d9db98f`; this module did not exist there, so it is measured against the module it was carved from,
 // `context-definition-shape` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`).
-// The `aa8cf0d53` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
+// The `02bab80ad4` cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both
 // citations resolve to this source. Over the SAME 7,429 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,319 and final `population` admits 1,319.
 // legacy − final = ∅. final − legacy = ∅. Controls: inside `packages/client/src/agent-handles/__cbbhr_in_index.ts`

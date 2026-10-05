@@ -53,7 +53,7 @@ interface TagChipPresentation {
    *  a FORK between two live rulings, resolved, not reversed). #102 ruled the rail carries THREE registers
    *  and that a filter chip "recedes to muted" against the command's foreground; it got that for free
    *  because `Button`'s `outline` intent painted the receding ink itself. #969
-   *  (242bfaecb) then ruled the opposite half —
+   *  (60380f7d95) then ruled the opposite half —
    *  "Transparent `Button` actions inherit their host surface's paired ink; they do not substitute the
    *  low-emphasis `muted-foreground` semantic for an action label" — and flipped all three transparent
    *  intents to `text-current`, which silently collapsed two of the rail's three registers onto one ink

@@ -11,7 +11,7 @@
 // the sibling `owner-scoped-upserts` owns it (its collision is a UNIQUE-index question, not a WHERE
 // predicate — a third gate with its own waiver position).
 //
-// The legacy `owner-scoped-writes` descriptor (40223a0915eda72dd8ab35fbdeaf9e9892089717) carried the
+// The legacy `owner-scoped-writes` descriptor (04978142566ff3412b204f73d849f0b9bf301154) carried the
 // `@owner-scope-ok` marker grammar and its own inline schema read before this conversion, and treated
 // `onConflictDoUpdate` as out of scope entirely.
 //
@@ -21,14 +21,14 @@
 // what makes the read/write split a DECLARED LIMIT rather than a coverage gap: the two halves cannot
 // disagree about which tables are in scope, only about which statement shape each judges.
 // POPULATION PORT: the same set, byte-for-byte in membership. The legacy
-// `scanRoot: (p) => p.includes("packages/server/src/")` (40223a0915eda72dd8ab35fbdeaf9e9892089717)
+// `scanRoot: (p) => p.includes("packages/server/src/")` (04978142566ff3412b204f73d849f0b9bf301154)
 // becomes `@server`, which is `packages/server/src/`; the only change is substring matching becoming
 // anchored, and 1560 tracked paths contain that segment while the same 1560 begin with it. The derivation
 // and its measurement have ONE home, in the shared reader's own header.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `owner-scoped-writes` descriptor at 40223a0915eda72dd8ab35fbdeaf9e9892089717, the parent of the conversion
-// `b54b2c34e` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `owner-scoped-writes` descriptor at 04978142566ff3412b204f73d849f0b9bf301154, the parent of the conversion
+// `5e6b7d09df` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,367 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,493 and final `population` admits 1,493. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/__cbbhr_in_context.ts` (virtual) admitted by both; outside

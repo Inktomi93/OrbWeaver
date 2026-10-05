@@ -22,7 +22,7 @@
 // resolvers, `lib/origin-verdict.ts`'s `classifyOriginRefusal`) are shared with policies asking entirely
 // different questions, and a shared reader is not a family (guide §2).
 //
-// POPULATION PORT: byte-identical, legacy at `e5a7a8a8c^`
+// POPULATION PORT: byte-identical, legacy at `76196db5d4^`
 // (`scanRoot: (p) => p.includes("/persistence/") && !p.includes(".test.") && !p.startsWith("tests/")`); the
 // final `PERSISTENCE_POPULATION` is that expression, and both exclusion clauses already carry rows.
 //
@@ -37,8 +37,8 @@
 // clause stays because it states the collapse invariant locally; no row enforces it.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `persistence-no-in-memory-state` descriptor at 509671ae2e013b6d07fe6f7e9e744e0d7cbac946, the parent of the
-// conversion `e5a7a8a8c` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// `persistence-no-in-memory-state` descriptor at de9a84d2560cc0c2ae9642f4f98144315cbaab53, the parent of the
+// conversion `76196db5d4` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,183 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy
 // `scanRoot` admits 104 and final `population` admits 104. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/server/src/domain/admin/persistence/__cbbhr_in_queries.ts` (virtual) admitted by both; outside

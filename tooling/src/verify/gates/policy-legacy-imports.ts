@@ -126,8 +126,8 @@
 // place rather than by each member's own idea of the word). Nine modules declare this family; that reader's
 // own header still says four, which was true when it was written.
 // POPULATION PORT: NONE — there is no legacy population to port, because this module was BORN FINAL. It
-// first appears at `b2c6a8553` already carrying `defineGate`, and `git show b2c6a8553^:<this file>` refuses
-// with "exists on disk, but not in b2c6a8553^". That refusal IS the receipt (the `scrubber-factory-home`
+// first appears at `8d25905189` already carrying `defineGate`, and `git show 8d25905189^:<this file>` refuses
+// with "exists on disk, but not in 8d25905189^". That refusal IS the receipt (the `scrubber-factory-home`
 // precedent); an invented pre-conversion sha would be worse than the absence. The population
 // `{ in: ["@tooling"], under: ["tooling/src/verify/gates/**"], notUnder: [".../_proof/**"] }` was therefore
 // authored, not derived: the `_proof/` exclusion is a fixture fence, not a translated legacy predicate.

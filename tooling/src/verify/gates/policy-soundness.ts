@@ -7,7 +7,7 @@
 //
 //   E1 an inert `ext: ["ts","tsx"]` on a population (#1959) — `lib/policy-source-candidate.ts` pre-filters
 //      every policy source to `.ts`/`.tsx`, so the full set is a no-op that teaches the next lane a field
-//      means something. Swept to 0 at 8257071ee; a narrowing (`ext: ["tsx"]`) is LIVE and stays legal.
+//      means something. Swept to 0 at 7760e030d6; a narrowing (`ext: ["tsx"]`) is LIVE and stays legal.
 //   E2 final-contract residue — every code `lib/gate-contract.ts` reports on a module body (a ts-morph
 //      walk, a gate-owned Project, module-scope `let`/mutation, a baseline ledger, a legacy descriptor
 //      field, a descriptor spread or computed key). That reader already exists as the manual `pnpm
@@ -78,9 +78,9 @@
 // class lives in its own module (`policy-legacy-imports`, `policy-binding-resolution`) so that this
 // module's held-at-zero pin cannot quietly absorb a class that is still moving.
 // POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL at
-// `fe8c9cc84`, the commit that created the family. `git show fe8c9cc84^:<this file>` refuses with "exists
-// on disk, but not in fe8c9cc84^", and that refusal IS the receipt (the `scrubber-factory-home`
-// precedent). READ THE SHA ALREADY IN THIS HEADER CORRECTLY: `8257071ee` at E1 is a SWEEP reference — the
+// `8194754f7c`, the commit that created the family. `git show 8194754f7c^:<this file>` refuses with "exists
+// on disk, but not in 8194754f7c^", and that refusal IS the receipt (the `scrubber-factory-home`
+// precedent). READ THE SHA ALREADY IN THIS HEADER CORRECTLY: `7760e030d6` at E1 is a SWEEP reference — the
 // commit the inert-`ext` class was swept to zero at — and is NOT a pre-conversion sha. A census that
 // word-matches hex in a header counts it as a legacy-SHA citation; it is not one, and this module cannot
 // have one.

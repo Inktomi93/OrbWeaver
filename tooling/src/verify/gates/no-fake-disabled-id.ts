@@ -6,7 +6,7 @@
 // `lib/static-authored-value.ts` (`readStaticAuthoredScalar`). This module holds no table, walk or cache.
 //
 // POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
-// `(p) => p.includes("packages/client/src/")` (`1ee6bb982^:tooling/src/verify/gates/no-fake-disabled-id.ts`);
+// `(p) => p.includes("packages/client/src/")` (`52b33fc581^:tooling/src/verify/gates/no-fake-disabled-id.ts`);
 // the final population is `@client`, whose single root is `packages/client/src/`. The client-only fence is
 // the law itself and not a convenience: the fake-disabled sentinel is a QUERY-KEY defect — the shape exists
 // to make `enabled:` unnecessary — so the server has no version of it.

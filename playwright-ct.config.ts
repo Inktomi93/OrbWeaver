@@ -119,7 +119,7 @@ export default defineConfig({
   // every test at `mount()` on pure contention — ZERO signal, indistinguishable from a real red — while
   // the capped run came back green in 53s. `pnpm test` composes `pnpm test:ct --retries=2` with no worker
   // flag, so the uncapped default reached `pnpm verify --push` too. Same defect class as the Stryker
-  // `concurrency` default fixed in 387ff771e: the shipped value was not the one the operating discipline
+  // `concurrency` default fixed in c8e645105a: the shipped value was not the one the operating discipline
   // assumed.
   // TRUTH REPAIR (#1835, 2026-09-06): the paragraph above ended "4 rather than 2 because the box is
   // otherwise quiet at the gate" — and the box is NOT otherwise quiet. Six lanes across two accounts run
@@ -211,7 +211,7 @@ export default defineConfig({
       // transform, not es2025 semantics). `esbuild.target` + optimizeDeps.esbuildOptions.target belt the
       // output/prebundle paths too. The client PRODUCTION build lowers es2025 via OXC/Rolldown
       // (packages/client/vite.config.ts — a different, es2025-capable path, untouched here). (Masked by a
-      // stale-node_modules esbuild@0.28.1 until a clean install re-resolved to 0.25.12 — 67d7805d0's
+      // stale-node_modules esbuild@0.28.1 until a clean install re-resolved to 0.25.12 — 741002bb36's
       // "green without the override" was a false green; a dep-override removal owes a CLEAN-INSTALL CT run.)
       esbuild: { target: CT_ESBUILD_TARGET, tsconfigRaw: { compilerOptions: { target: CT_ESBUILD_TARGET } } },
       optimizeDeps: { esbuildOptions: { target: CT_ESBUILD_TARGET } },

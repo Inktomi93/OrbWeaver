@@ -25,8 +25,8 @@
 // imported/spread columns object (#945) and the shorthand member (#1035) are the fact's own resolution.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `no-untyped-soft-ref` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the conversion
-// `4885cde80` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `no-untyped-soft-ref` descriptor at f4b6d0cbae5e9351b180b7079da5339b02820284, the parent of the conversion
+// `493fdbedae` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,263 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 30 and final `population` admits 30. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/db/src/schema/__cbbhr_in_assets.ts` (virtual) admitted by both; outside

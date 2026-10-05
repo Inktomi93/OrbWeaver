@@ -34,8 +34,8 @@
 // LEGACY SHA, made precise rather than replaced: `774231540` above is a tree where the legacy descriptor is
 // readable (`git show 774231540:<this file>` has `defineGate` count 0), but it is NOT this module's
 // conversion parent — it is an unrelated docs-retirement commit from 2026-08-30. The canonical form is
-// **`f1bbc34e7^`** (= `011233309`): `git log -S 'defineGate({' --reverse -- <this file>` gives the
-// introducing commit `f1bbc34e7`, and the cited parent carries the legacy descriptor by construction. Both
+// **`12d34bb79a^`** (= `011233309`): `git log -S 'defineGate({' --reverse -- <this file>` gives the
+// introducing commit `12d34bb79a`, and the cited parent carries the legacy descriptor by construction. Both
 // are true; the second is the one a §4.6 differential can replay against, which is what the field is for.
 // TWO CENSUS TRAPS IN ONE LINE, recorded because this field has now under-reported four distinct ways: a
 // `[0-9a-f]{7,40}` pattern with a "contains a digit AND a letter" filter — the filter that correctly
@@ -43,8 +43,8 @@
 // sha at all; and a census that found it would have counted a NON-PORT citation as satisfying the field.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `session-channel-boundary` descriptor at 01123330987d1f22a088bcf5a57ef280942d30e7, the parent of the conversion
-// `f1bbc34e7` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `session-channel-boundary` descriptor at (pruned from public history), the parent of the conversion
+// `12d34bb79a` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,441 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 1,319 and final `population` admits 1,319. legacy − final = ∅. final − legacy = ∅. Controls: inside
 // `packages/client/src/agent-handles/__cbbhr_in_index.ts` (virtual) admitted by both; outside

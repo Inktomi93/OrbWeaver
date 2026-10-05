@@ -18,7 +18,7 @@
 // DEPTH AND ORDER ARE IN-CHAT VOCABULARY (crunch-list O-9★, owner ruling). The zone is the two DELIVERIES
 // the assembler performs (`ZONE_ITEMS`): RELATIVE renders into the system block ordered among the prompts
 // and has no depth to speak of; IN CHAT splices at a depth. So both fields render ONLY on the In-Chat arm
-// — ABSENT, never disabled (the `628a3666` supportsArrangement precedent) — and moving a section back to
+// — ABSENT, never disabled (the `7bce7aba8c` supportsArrangement precedent) — and moving a section back to
 // Relative CLEARS its splice, because `injectionDepthFor` honours an explicit `inject.depth` whatever side
 // of the pivot the row sits on: leaving one behind would splice a section the editor now calls relative.
 //

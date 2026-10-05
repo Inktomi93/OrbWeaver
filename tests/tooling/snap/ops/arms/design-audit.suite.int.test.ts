@@ -2,7 +2,7 @@
 // through the real `pnpm snap … --design-audit` door and requires the verdict; the twin cases prove the
 // red is the plant and not the harness. Three of them are the census's own reproductions
 // (2026-09-04 §2.1/§2.2/§2.3) — they were RED on
-// `main@b767bedfc` before this fold and are the receipts #1324/#1325/#1326 close.
+// `main@32350c768f` before this fold and are the receipts #1324/#1325/#1326 close.
 //
 // @instrument-absence-proof: a walk that censused nothing, a reveal action that did not land, and a
 // selector the emitted finding cannot be reopened by are each reported as an ABSENCE (exit 2, or a named
@@ -83,7 +83,7 @@ test("a planted 1:1 contrast defect REDs the arm, and its white-on-black twin ex
 
 /** The census's §2.1 control: a `position:fixed; z-index:-1` WHITE band under white text. No DOM ancestor
  *  of the text carries it, so an ancestor-only resolver composites against the black body and reports
- *  21:1 — measured on main at b767bedfc through `pnpm snap --contrast '#layer-text'`. */
+ *  21:1 — measured on main at 32350c768f through `pnpm snap --contrast '#layer-text'`. */
 const LAYER_FIXTURE = page(
   '<div style="position:fixed;inset:0 0 auto 0;height:120px;z-index:-1;background:#fff"></div>' +
     '<main><p id="layer-text" style="color:#fff;font-size:16px;margin:24px">white text over a fixed white band</p></main>',

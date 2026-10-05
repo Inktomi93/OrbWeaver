@@ -1,4 +1,4 @@
-// Conversion from e9d9fd232: shared dispatch collects imports, callbacks and returns; no private AST walk.
+// Conversion from 8ce889ff78: shared dispatch collects imports, callbacks and returns; no private AST walk.
 // All six legacy proofs retained. The legacy lexical import/tag vocabulary and same-file alias fence
 // remain explicit limits. Composed differential, authority and population checks are deferred.
 // Gate: list-row-adoption (client-architecture-state-and-gates.md §14/§16 G6) — a LIST-region surface file (one
@@ -29,7 +29,7 @@ const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set(["LibrarySurfaceShell"
  *  not an exemption artifact of any kind: it has no per-file rows, licenses no site, and nothing in it can
  *  go stale.
  *
- *  IT WAS SPELLED `ALLOWED_ROOTS` UNTIL 2026-09-13 (#2268), AND THE SPELLING WAS THE DEFECT. `b5490a02a`
+ *  IT WAS SPELLED `ALLOWED_ROOTS` UNTIL 2026-09-13 (#2268), AND THE SPELLING WAS THE DEFECT. `4ce9e0e552`
  *  deleted this module's genuinely empty `ALLOWLIST` together with its stale arm (correctly — the arm was
  *  vacuous), and `gate-modernization` arm B, whose identity test is the const NAME, then accused this
  *  vocabulary set as a one-sided exemption table: measured with the gate's own predicates,

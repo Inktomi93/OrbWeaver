@@ -18,7 +18,7 @@
 // state, which the contract allows; there is no private reader, table, walk or filesystem read.
 //
 // POPULATION PORT: an intentional NARROWING of an unstated legacy scope, and the reason the array is written
-// out rather than spelled `@authored`. The legacy descriptor (`d10462449^`) declared NO `scanRoot` — it
+// out rather than spelled `@authored`. The legacy descriptor (`d59c504cd2^`) declared NO `scanRoot` — it
 // judged whatever the legacy pass loaded — and carried a `FILE_CLASS_EXEMPT` table (empty since #1692) plus
 // a `REAL_TREE_ANCHOR` instead. The final population is the seven AUTHORED PRODUCT roots: `@authored` minus
 // `@tooling` and `@scripts`. That subtraction is the decision — an instrument or a script naming a variable
@@ -27,7 +27,7 @@
 // launder a raw id into a typed call (`mustFlag[4]` is that row).
 // SUPERSEDED 2026-09-13 (lane cb-b-header-residue), the text above kept: "declared NO `scanRoot` — it judged whatever
 // the legacy pass loaded" and "`@authored` minus `@tooling` and `@scripts`. That subtraction is the decision" are
-// REFUTED by the blob. The descriptor at `d10462449^` declared `scanRoot: inScope`,
+// REFUTED by the blob. The descriptor at `d59c504cd2^` declared `scanRoot: inScope`,
 // `path.includes("packages/") || path.includes("tests/")`, which ALREADY excluded `tooling/src` and `scripts/`.
 // Measured over that tree's harness candidates: legacy − final = {`packages/showcase-plugins/src/index.ts`},
 // final − legacy = ∅. The tooling/scripts exclusion was inherited, not decided here; the port narrowed by one file.
@@ -60,8 +60,8 @@
 //     the whole product.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `brand-in-name-position` descriptor at 32b66931e2a921557108b9e03e2f834f8208c116, the parent of the conversion
-// `d10462449` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
+// `brand-in-name-position` descriptor at 7d661889232f9e63ddc97bf0764a8c83eb5b91ac, the parent of the conversion
+// `d59c504cd2` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME
 // 7,130 harness candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot`
 // admits 6,109 and final `population` admits 6,108. legacy − final = {`packages/showcase-plugins/src/index.ts`} — the
 // one source of an authored package outside the declared composite roots (`@showcase` is not in

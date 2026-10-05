@@ -24,7 +24,7 @@ import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, wai
  *  home does not belong in the three dots, so Injections is now a section of the ONE "This chat" tab
  *  (settings-context-tab.tsx). Same editor, same verbs; only the navigation changed.
  *
- *  AND THAT SECTION IS A CLOSED DISCLOSURE (#830, `195085e2c`) — the tab opens as an INDEX and a closed Base
+ *  AND THAT SECTION IS A CLOSED DISCLOSURE (#830, `545e28ff60`) — the tab opens as an INDEX and a closed Base
  *  UI panel is REMOVED from the DOM, so "Add injection" does not exist until the kicker is pressed
  *  (measured: 0 collapsed / 1 expanded). This helper asserted the button straight after the tab click and so
  *  failed with `element(s) not found` from the day the index landed (#1851). The kicker carries a live count

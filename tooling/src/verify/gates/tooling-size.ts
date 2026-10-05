@@ -2,7 +2,7 @@
 // Gate modules are the declared carve: a single-purpose contract can be longer than ordinary tooling.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `tooling-size` descriptor at 03b42351fde5c4192dc20b5d15943482e88e7cfb, the parent of the conversion `e656ce65d`
+// `tooling-size` descriptor at 1bddbac29829048e2455766e704ae77ff2f98694, the parent of the conversion `4e228d8529`
 // (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over the SAME 7,349 harness
 // candidates at that tree (`git ls-tree` ∩ `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,053
 // and final `population` admits 783. legacy − final = 270 `tooling/src/verify/gates/**` sources — the declared

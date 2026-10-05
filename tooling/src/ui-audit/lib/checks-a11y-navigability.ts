@@ -51,7 +51,7 @@ export function checkAccessibleName(input: AccessibleNameInput): Finding | null 
  *  THE POINTER IS AN EXCLUSION, NOT A WITHHOLDING (#2468, measured 2026-09-20). This arm shipped as
  *  `withheld(finePointer)` on 2026-09-19, and the pointer is a fact the pass KNOWS about itself — so
  *  every desktop `--design-audit` of any surface carrying a visible tooltip trigger became a NO VERDICT
- *  the day it landed, whatever the surface actually looks like: on `--goto characters` at `a5b34759f` the
+ *  the day it landed, whatever the surface actually looks like: on `--goto characters` at `(pruned from public history)` the
  *  population read candidates=17, judged=0, withheld(finePointer=17) — one of three rules holding that
  *  run's verdict. The rule's own question is COARSE-ONLY by construction — "at a coarse pointer,
  *  where the popup cannot be opened at all" — so on a fine pointer the popup opens on hover and there is

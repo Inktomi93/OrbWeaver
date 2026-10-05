@@ -842,7 +842,7 @@ test.describe("final policy planner", () => {
   //
   // ITS SUBJECT IS DERIVED, because the hardcoded one ROTTED. This arm used to name
   // `tests/server/infra/providers/backends/local-light/fixtures/orphan-survival-child.mts` by literal;
-  // that fixture went with the `@orb/inference` cut-over (146f71cd5, 2026-09-19) and the arm then asserted
+  // that fixture went with the `@orb/inference` cut-over (9a6061b487, 2026-09-19) and the arm then asserted
   // a path that no longer existed — it failed for a missing file rather than for the fence it is named
   // for, and nothing swept it.
   //

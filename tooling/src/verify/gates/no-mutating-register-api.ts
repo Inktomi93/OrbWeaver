@@ -22,7 +22,7 @@
 // POPULATION PORT: `@client`, whole — deliberately WITHOUT the sibling's `main.tsx`/`compose/` subtraction,
 // which is the entire reason for the split above (mustFlag[3] is that site). The `@client` root is itself a
 // narrowing and is pinned by the `@server` mustPass row, which is the only row that dies without it.
-// LEGACY at 5dd83aaa4 (the parent of 4885cde80): this module has no predecessor of its own — it was carved
+// LEGACY at f4b6d0cbae (the parent of 493fdbedae): this module has no predecessor of its own — it was carved
 // out of `gates/registry-assembly-at-door-only.ts` at that SHA, whose `scanRoot` was
 // `(p) => p.startsWith("packages/client/src/")` with the door subtraction applied INSIDE the visitor
 // (`repoRelPath === DOOR_FILE || repoRelPath.includes("/compose/")`, :13). Moving that subtraction out of
@@ -37,8 +37,8 @@
 // (measured 2026-09-12). Populations equal; no finding and no tool-error delta on this arm.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `registry-assembly-at-door-only` descriptor at 5dd83aaa42c85c361d321fe56bf13063c93edf17, the parent of the
-// conversion `4885cde80`; this module did not exist there, so it is measured against the module it was carved from,
+// `registry-assembly-at-door-only` descriptor at f4b6d0cbae5e9351b180b7079da5339b02820284, the parent of the
+// conversion `493fdbedae`; this module did not exist there, so it is measured against the module it was carved from,
 // `registry-assembly-at-door-only` (blob read from git with no working-tree plant: a `GateDescriptor`, no
 // `defineGate`). Over the SAME 7,263 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), legacy `scanRoot` admits 1,313 and final `population` admits 1,313.

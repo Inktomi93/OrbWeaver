@@ -24,7 +24,7 @@
 // distinction that prop encoded was real; it just wasn't an argument for keeping an action in a data row.
 //
 // Generation timer: the turn engine writes `message_variants.gen_started_at`/`gen_finished_at`
-// on the real turn path (live since eb5d6b3c) and the read seam surfaces them as `genStartedAt`/
+// on the real turn path (live since 477bc40154) and the read seam surfaces them as `genStartedAt`/
 // `genFinishedAt`. Its readout was already quiet micro-mono text — untouched here.
 //
 // #1032 (the viewgap WIRE batch) — THREE MORE READS, ON THE EXISTING TOGGLES, NO NEW APPEARANCE KEY.

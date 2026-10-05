@@ -43,7 +43,7 @@
 //
 // The budget, MEASURED at the default theme in the CT browser (both pointer classes give the SAME widths
 // here — the two doors are text buttons already past the coarse touch floor, so coarse costs HEIGHT, not
-// width; the pins are `committed-members-tab.ct.tsx`). Re-measured 2026-09-02 after `ed55bf193` vendored
+// width; the pins are `committed-members-tab.ct.tsx`). Re-measured 2026-09-02 after `77e07912eb` vendored
 // Geist, with the pre-Geist fallback reading beside each number:
 //   · "Characters" kicker 79.4 (was 75.7 — a 10.5px uppercase label carries a trailing letter-spacing
 //     column, so it moves with the face) · gap-field 6 · "Saved rosters…" 137.0 (138.9) · gap-tight 4 ·

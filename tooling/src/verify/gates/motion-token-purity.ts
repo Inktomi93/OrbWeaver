@@ -13,7 +13,7 @@
 // re-declaring it needs an edit to THAT module, outside this lane's fence, so both stay singletons and the
 // merge is one line in each when a lane owns both.
 //
-// POPULATION PORT (legacy `a4206c511`, byte-identical): the legacy `scanCss` globbed
+// POPULATION PORT (legacy `c24d4d7057`, byte-identical): the legacy `scanCss` globbed
 // `packages/ui/src/**/*.css` + `packages/client/src/**/*.css`; `authored-css` is exactly every `.css` under
 // `packages/ui/src` and `packages/client/src` (`ops/resource-tree.ts:84-107`). The four motion PROPERTIES
 // are ported verbatim, INCLUDING the deliberate absence of `animation-timing-function` and of `*-delay`:
@@ -47,8 +47,8 @@
 // inventory through `readyResourceValue`, whose throw asserts the runtime's own refusal already held.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `motion-token-purity` descriptor at 89851ec5eae1f7d6f17384fe48946087c73a7308, the parent of the conversion
-// `a0807ce47` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `a4206c511`
+// `motion-token-purity` descriptor at (pruned from public history), the parent of the conversion
+// `04eaef9f44` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). The `c24d4d7057`
 // cited above is an ancestor carrying a byte-identical legacy blob (`git rev-parse` of both), so both citations
 // resolve to this source. Over the SAME 7,435 harness candidates at that tree (`git ls-tree` ∩
 // `_shared/ts-workspace.ts#harnessGlobs`), the legacy harness — no `scanRoot` — dispatched 7,435, and the final

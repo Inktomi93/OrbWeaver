@@ -5,7 +5,7 @@
 // `<link rel="modulepreload">` and the browser fetches those on the same boot path.
 //
 // SCOPED TO THE BOOT SET, NOT THE ENTRY FILE (issue #591 — the instrument was caught lying). Measuring
-// only `index-<hash>.js` makes a CHUNK SPLIT read as a win: commit 2b87a0d7c moved 36,584 B of the entry
+// only `index-<hash>.js` makes a CHUNK SPLIT read as a win: commit 3d49dce6a0 moved 36,584 B of the entry
 // chunk into `jsx-runtime-<hash>.js`, which index.html modulepreloads — the old single-file read would
 // have reported a −36,491 B improvement while the real boot payload moved +93 B. The lie is symmetric:
 // pushing 300 KB into a preloaded sibling would have read as a large win while boot got no cheaper. Any
@@ -98,17 +98,17 @@ const BUILD_TIMEOUT_MS = budget(BUILD_TIMEOUT_MS_BASE);
 // CALIBRATION (the discipline: measured value, headroom,
 // re-calibrate conditions — never a bare number).
 //
-// MEASURED 2026-08-22 on the #460 lane tree (branch base 70e7c398c): dist/assets/index-CMvWBNPJ.js =
+// MEASURED 2026-08-22 on the #460 lane tree (branch base aee49dbea5): dist/assets/index-CMvWBNPJ.js =
 // 740,339 B — but that was the ENTRY FILE ALONE, which #591 established is not the boot payload.
 //
-// RE-MEASURED 2026-08-23 on this lane's tree (branch base 1b5fe507a, warm `pnpm --filter @orb/client
+// RE-MEASURED 2026-08-23 on this lane's tree (branch base (pruned from public history), warm `pnpm --filter @orb/client
 // build`) against the BOOT SET the emitted index.html declares:
 //   index-BsalMtFR.js       706,346 B  (the module entry script)
 //   jsx-runtime-DUeIs9Gz.js  36,584 B  (<link rel="modulepreload"> — fetched on the boot path)
 //   ────────────────────────────────
 //   boot payload            742,930 B
 // That is the same post-#433+#448 plateau as the 740,339 B figure (the pre-#433 entry chunk was
-// 1,146,760 B); the split into a preloaded sibling arrived with 2b87a0d7c and moved the real total by
+// 1,146,760 B); the split into a preloaded sibling arrived with 3d49dce6a0 and moved the real total by
 // +93 B, which is ordinary tree movement, not a regression.
 //
 // That 780,000 B ceiling expired before #995: the 2026-09-01 pre-fix build measured 819,676 B and the
