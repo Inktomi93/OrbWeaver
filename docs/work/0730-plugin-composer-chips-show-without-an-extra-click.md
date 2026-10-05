@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-04
+status: doing
+updated: 2026-10-05
 priority: P2
 area: plugin
+lane: codex/launch-plugin-polish
 ---
 
 # Plugin composer chips show without an extra click

@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-04
+status: doing
+updated: 2026-10-05
 priority: P3
 area: plugin
+lane: codex/launch-plugin-polish
 ---
 
 # Keepsake Camera's empty album is useful
