@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-05
 priority: P2
 area: stats
-lane: codex/launch-truth
 ---
 
 # Spend history follow-ups
@@ -23,7 +22,9 @@ Each point ruled and fixed with a drift-gate test.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The launch cut discloses partial retained accounting without rebuilding absent telemetry. Its client controls passed scoped behavioral checks and independent source and rendered reviews. Implementation: `d9ff5c6704516c5f88c0d1b3dcfe675bd8d62183`.
+
+The original accounting, restore, sample and owner-enumeration work remains open.
 
 Also: extraction and caption spend (generate-picture.ts:248-250) never reach stats at all; reconcileStats all-owner mode enumerates only owners with characters.
 
