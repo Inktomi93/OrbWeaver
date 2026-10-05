@@ -1,10 +1,10 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-05
 priority: P2
 area: chat
-lane: codex/launch-inference
+blocked: owner
 ---
 
 # History fit counts real tokens on a hard window
@@ -23,4 +23,4 @@ The ledger-row case stays inside a 4096 window by its real count on a server wit
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The owner deferred tokenizer and history-fit implementation beyond alpha. The existing estimate path stays unchanged. Gemini launch evidence does not complete this item.
