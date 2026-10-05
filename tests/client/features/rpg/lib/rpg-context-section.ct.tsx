@@ -504,13 +504,14 @@ test("the crown HOST console (Game tab, host) renders getConfigView — scalars,
 
   // The Game tab lives in the meta strip (host-only crown console).
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   // The crown header + the sections the config read feeds.
   await expect(component.getByText("Host console — host only")).toBeVisible();
   // The steering-note scalar (autosave form) — the stubbed value.
   await expect(component.getByRole("textbox", { name: "Steering note" })).toHaveValue("Keep the tone grim.");
   // The stat-profile READ display (the vocabulary badge).
-  await expect(component.getByText("Strength")).toBeVisible();
+  await expect(component.locator('[data-slot="rpg-stat-profile"]').getByText("Strength", { exact: true })).toBeVisible();
   // The TRACKER def row (the stubbed "Trust" text tracker, display-at-rest — the input appears on click,
   // §12.4.1) + the relationship-hint row ("debtor"). ONE section now holds what three surfaces used to.
   const trackerRest = component.getByRole("button", { name: "Tracker 1 label" });
@@ -534,6 +535,7 @@ test("the GM-voice knob renders the preset library and shows the game's current 
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   const trigger = component.locator('[data-slot="rpg-gm-voice"]').getByRole("combobox", { name: "GM voice preset" });
   // The pinned preset's NAME, not its id — the trigger mirrors the picked option's label.
@@ -550,6 +552,7 @@ test("picking a preset writes the knob through updateConfig; picking the shown v
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   const trigger = component.locator('[data-slot="rpg-gm-voice"]').getByRole("combobox", { name: "GM voice preset" });
   // Re-picking what is already shown is not an edit — a knob that writes on every open would repaint the
@@ -571,6 +574,7 @@ test("choosing `Your own preset` CLEARS the knob to null (the augment arm), neve
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   await component.locator('[data-slot="rpg-gm-voice"]').getByRole("combobox", { name: "GM voice preset" }).click();
   await page.getByRole("option", { name: "Your own preset", exact: true }).click();
@@ -586,6 +590,7 @@ test("a DANGLING pick shows as its own degraded option, never silently as the de
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   const trigger = component.locator('[data-slot="rpg-gm-voice"]').getByRole("combobox", { name: "GM voice preset" });
   await expect(trigger).toContainText("preset_gone_ct");
@@ -598,6 +603,7 @@ test("the state-capture knob shows the game's vehicle and a pick autosaves it th
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   const knob = component.getByRole("group", { name: "State capture" });
   await expect(knob.getByRole("button", { name: "Automatic" })).toHaveAttribute("aria-pressed", "true");
@@ -623,6 +629,7 @@ test("the state-capture group is described by its glosses, which read under it a
   });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   const knob = component.getByRole("group", { name: "State capture" });
   const unavailable = component.locator('[data-slot="rpg-structured-unavailable"]');
@@ -635,7 +642,7 @@ test("the state-capture group is described by its glosses, which read under it a
   // The consequence gloss is the description that follows the group.
   await expectGlossUnder(knob, component.locator(`[id="${described[1] ?? ""}"]`));
 
-  const delivery = component.getByRole("group", { name: "Delivery model" });
+  const delivery = component.getByRole("group", { name: "When state updates" });
   await expectGlossUnder(delivery, delivery.locator("xpath=following-sibling::*[1]"));
 });
 
@@ -644,6 +651,7 @@ test("the GM console BAND toggle fires updateConfig (host) — the mutation COUN
   const component = await mount(<RpgTakeoverStory />);
 
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   // Band visibility is a control ON THE DEF ROW (the band section is gone — one home). It speaks BAND
   // vocabulary, never "pin" (owner 08-01: "pin" belongs to the hand-lock), and the write is the same
@@ -2114,6 +2122,7 @@ test("RV-4/RV-12: the GM stat profile adds, renames and GLOSSES attributes — e
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   const profile = component.locator('[data-slot="rpg-stat-profile"]');
   // RENAME the stubbed "Strength" (display-at-rest — the field appears on click).
@@ -2357,6 +2366,7 @@ test("the Game tab toggles immersive HTML, and the interactivity sub-toggle is D
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   // APPLICABILITY, not absence: the sub-toggle is visible and disabled — an interactivity ask is
   // meaningless with no card ask to make interactive, and the reason has to stay readable.
@@ -2384,11 +2394,12 @@ test("the Game tab adds and glosses a CUSTOM JOURNAL TYPE — each write fires t
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   // The stub carries NO journal-type hints — the empty state has to say what an empty map MEANS, not just
   // render nothing (an absent section reads as "unbuilt").
   const tab = component.locator('[data-slot="rpg-game-tab"]');
-  await expect(tab).toContainText("No custom journal types glossed yet");
+  await expect(tab).toContainText("No custom journal types yet");
 
   // ADD — the shared AddRow: a name is required first, Enter commits it, and the row is born gloss-less.
   const draft = tab.getByRole("textbox", { name: "New journal type" });
@@ -2416,6 +2427,7 @@ test("the Game tab's numeric knobs write through the config door — the reminde
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   // The field shows the game's CURRENT value honestly (the stub's 6, not the schema default 8) — and its
   // placeholder still names the default, so a cleared box reads as configured-by-default, not broken.
@@ -2555,6 +2567,7 @@ test("WAVE MU: the Game tab lists the game's macros and ADDS one — the WHOLE l
   const trpc = await stubTakeover(page, { config: configView([gameMacro("waystone", "how the stone reads")]) });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   // The existing def reads as its CALL form + its own description (the list is the macro's identity).
   const section = component.locator('[data-slot="rpg-game-macros"]');
@@ -2577,6 +2590,7 @@ test("WAVE MU: a name that collides with the active preset's macro carries the h
   await stubTakeover(page, { config: configView([gameMacro("tone"), gameMacro("waystone")], ["tone", "narrator"]) });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   // The colliding def states the CONSEQUENCE (the game def is the one that resolves) — the shadow rule is
   // real and invisible everywhere else; the non-colliding sibling stays unglossed (no blanket noise).
@@ -2589,6 +2603,7 @@ test("WAVE MU: the macro editor COMPLETES against both planes — the game's def
   await stubTakeover(page, { config: configView([gameMacro("waystone", "how the stone reads")], ["narrator"]) });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   // Open the existing def's editor (the row title is the edit affordance; the dialog portals to body).
   await component.locator('[data-slot="rpg-game-macros"]').getByText("{{waystone}}").click();
@@ -2612,6 +2627,7 @@ test("WAVE MU: a shadowed preset name is offered ONCE, as the GAME's definition 
   await stubTakeover(page, { config: configView([gameMacro("tone", "the game's own tone")], ["tone"]) });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
   await component.locator('[data-slot="rpg-game-macros"]').getByText("{{tone}}").click();
 
   const body = page.getByRole("textbox", { name: "Template" });
@@ -2628,6 +2644,7 @@ test("WAVE MU: with no macros the section says what empty MEANS (never a blank t
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   await expect(component.locator('[data-slot="rpg-game-macros"]')).toContainText("No game macros yet");
 });
@@ -3711,6 +3728,7 @@ test("the resync's opt-in restamp: checked ⇒ the stamp write fires with the al
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   await component.getByRole("checkbox", { name: "Restamp my messages first" }).click();
   await component.getByRole("button", { name: "Resync from story" }).click();
@@ -3728,6 +3746,7 @@ test("a FAILED restamp aborts the rebuild — the rebuild never runs on the stam
   const trpc = await stubTakeover(page, { restampFails: true });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   await component.getByRole("checkbox", { name: "Restamp my messages first" }).click();
   await component.getByRole("button", { name: "Resync from story" }).click();
@@ -3743,6 +3762,7 @@ test("unchecked ⇒ the rebuild ALONE — the resync never restamps anything the
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   await component.getByRole("button", { name: "Resync from story" }).click();
 
@@ -3761,6 +3781,7 @@ test("RESYNC-OR: a provider refusal is TOLD to the host, with the server's own r
   const trpc = await stubTakeover(page, { resyncVerdict: { ok: false, reason } });
   const component = await mount(<RpgTakeoverNotifyStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   await component.getByRole("button", { name: "Resync from story" }).click();
 
@@ -3772,6 +3793,7 @@ test("RESYNC-OR: a rebuild that found NOTHING says so — not silence, and not a
   const trpc = await stubTakeover(page, { resyncVerdict: { ok: true, rebuilt: false } });
   const component = await mount(<RpgTakeoverNotifyStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   await component.getByRole("button", { name: "Resync from story" }).click();
 
@@ -3783,6 +3805,7 @@ test("RESYNC-OR: a rebuild that LANDED stays quiet — the repainted panel is th
   const trpc = await stubTakeover(page, { resyncVerdict: { ok: true, rebuilt: true } });
   const component = await mount(<RpgTakeoverNotifyStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   await component.getByRole("button", { name: "Resync from story" }).click();
 
@@ -3795,6 +3818,7 @@ test("with no persona in this chat the option is DISABLED and says why (never hi
   await stubTakeover(page, { chat: gameChat(null) });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   await expect(component.getByRole("checkbox", { name: "Restamp my messages first" })).toBeDisabled();
   await expect(component.getByText("Pick a persona for this chat first — there's nothing to re-stamp to.")).toBeVisible();
@@ -4008,6 +4032,7 @@ test("GLYPHFIX: at the 272px floor the tracker-def row's SWATCH and its three gl
   await stubTakeover(page, { config: meterTrackerConfig() });
   const component = await mount(<RpgTakeoverFloorStory />);
   await component.getByRole("toolbar", { name: "Chat" }).getByRole("button", { name: "Game" }).click();
+  await component.getByRole("button", { name: "Advanced", exact: true }).click();
 
   const row = component.locator('[data-slot="rpg-tracker-row"]').first();
   const swatch = row.locator('[data-slot="track-bar"]').first();

@@ -31,7 +31,7 @@ import type { ChatContentPart, ChatReasoningPart, ContentSignatures, MessageView
 import type { WireMeta } from "@orb/inference";
 import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
-import { cardWireStub, tokenizeContent } from "@orb/kit/content";
+import { cardWireStub, contentSpanRaw, tokenizeContent } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
 import type { ResolvedMediaRef, TurnMessage } from "../contract/results.ts";
 import type { shapeTurn, toShapeCanon } from "./assembly-access.ts";
@@ -218,6 +218,7 @@ const WIRE_PART_HANDLERS: { readonly [K in ContentSpanKind]: WirePartHandler<K> 
   text: (span) => (span.text.length > 0 ? { type: "text", text: span.text } : null),
   // wire:"drop" — the CYOA fence must not re-pile unselected options into context on later turns.
   choices: () => null,
+  dice: (span) => ({ type: "text", text: contentSpanRaw(span) }),
   // wire:"full" — the model must remember its own lie / the true event.
   hidden: (span) => ({ type: "text", text: span.raw }),
   // wire:"full" — the §3.2.1 allowlist-strip keeps the model's bytes even though it renders as noise.
@@ -277,6 +278,7 @@ function spanToWirePart(span: ContentSpan, env: WirePartsEnv, row: WireRowFacts)
 const SPAN_CONVERTS_TO_NOTHING: { readonly [K in ContentSpanKind]: (span: SpanOfKind<K>) => boolean } = {
   text: (span) => span.text.length === 0,
   choices: () => true,
+  dice: () => false,
   hidden: () => false,
   "unknown-directive": () => false,
   card: () => false,

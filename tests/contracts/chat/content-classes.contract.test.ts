@@ -20,6 +20,7 @@ test("CONTENT_CLASS_POLICY covers EVERY ContentSpanKind (registry totality — a
 test("the shipped cells match the ratified §3.1 table", () => {
   expect(CONTENT_CLASS_POLICY).toEqual({
     text: { reading: "show", wire: "full" },
+    dice: { reading: "show", wire: "full" },
     image: { reading: "show", wire: "drop" },
     // <lie>/<ofilter>: the reader never sees it; the model MUST remember its own lie / the true event.
     hidden: { reading: "hide", wire: "full" },

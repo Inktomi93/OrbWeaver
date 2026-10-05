@@ -33,6 +33,7 @@ import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-
 import type { ActorEdit } from "./rpg-actor-trackers.tsx";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
 import { AttributeGrid } from "./rpg-attribute-grid.tsx";
+import { RpgAttributeSetup } from "./rpg-attribute-setup.tsx";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
@@ -382,6 +383,13 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
         {...walletWrites}
       />
 
+      {canEditSheet && state.game.publicConfig.ruleset === "d20" ? (
+        <RpgAttributeSetup
+          chatId={chatId}
+          profile={profile}
+          onFill={(attributes): Promise<unknown> => patchSheet.mutateAsync({ chatId, actorRef: actor.actorRef, patch: { attributes } })}
+        />
+      ) : null}
       <AttributeGrid profile={profile} actor={actor} {...attributeWrites} />
 
       <TrackerSection actor={actor} carriesNone={carriesNone} {...(edit === undefined ? {} : { edit })} />

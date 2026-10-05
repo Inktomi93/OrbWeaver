@@ -54,6 +54,7 @@ export interface ContentClassPolicy {
  *  will not build until it declares its row. */
 export const CONTENT_CLASS_POLICY: Readonly<Record<ContentSpanKind, ContentClassPolicy>> = {
   text: { reading: "show", wire: "full" },
+  dice: { reading: "show", wire: "full" },
   image: { reading: "show", wire: "drop" },
   hidden: { reading: "hide", wire: "full" },
   card: { reading: "show", wire: "stub" },

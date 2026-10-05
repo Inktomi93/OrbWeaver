@@ -62,6 +62,7 @@ export type CardSpanOrigin = "fence" | "lenient";
  *  dispatch on `kind` totally). */
 export type ContentSpan =
   | { readonly kind: "text"; readonly text: string }
+  | { readonly kind: "dice"; readonly label: string; readonly total: number; readonly raw: string }
   | { readonly kind: "image"; readonly ref: ContentImageRef; readonly alt: string }
   | { readonly kind: "hidden"; readonly tag: string; readonly attrs: Readonly<Record<string, string>>; readonly raw: string }
   | { readonly kind: "card"; readonly title: string | null; readonly body: string; readonly origin: CardSpanOrigin; readonly raw: string }
@@ -70,7 +71,7 @@ export type ContentSpan =
 
 /** The span-kind axis the visibility registry (`CONTENT_CLASS_POLICY`) keys off — one member per content
  *  class. A NEW class = a tuple member + a policy row + (if distinct) a projection arm (graft #V1). */
-export const CONTENT_SPAN_KINDS = ["text", "image", "hidden", "card", "choices", "unknown-directive"] as const;
+export const CONTENT_SPAN_KINDS = ["text", "image", "hidden", "card", "choices", "unknown-directive", "dice"] as const;
 export type ContentSpanKind = (typeof CONTENT_SPAN_KINDS)[number];
 
 // ── The OPEN registries (§3.2 — P3/P4/P5 REGISTER rows; the mechanism never changes) ─────────────────────
@@ -814,6 +815,30 @@ function coalesceTextPieces(pieces: readonly Piece[]): Piece[] {
   return out;
 }
 
+// Body stamps are authored text, not proof that a server roll occurred. Preserve their original bytes.
+const DICE_STAMP_RE = /(`+)[\s\S]*?\1|(?<!\\)\[dice: ((?:[^[\]\r\n]* )?\d*d\d+(?:[+-]\d+)?) → (-?\d+)\]/g;
+
+function scanDiceStamps(text: string): Expanded[] {
+  const out: Expanded[] = [];
+  let last = 0;
+  for (const match of text.matchAll(DICE_STAMP_RE)) {
+    const label = match[2];
+    const total = Number(match[3]);
+    if (label === undefined || !Number.isSafeInteger(total)) {
+      continue;
+    }
+    if (match.index > last) {
+      out.push({ kind: "text", text: text.slice(last, match.index) });
+    }
+    out.push({ kind: "span", span: { kind: "dice", label, total, raw: match[0] } });
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) {
+    out.push({ kind: "text", text: text.slice(last) });
+  }
+  return out;
+}
+
 function expandPieces(content: string, pieces: readonly Piece[]): Expanded[] {
   const expanded: Expanded[] = [];
   for (const p of coalesceTextPieces(pieces)) {
@@ -823,7 +848,7 @@ function expandPieces(content: string, pieces: readonly Piece[]): Expanded[] {
     }
     const text = content.slice(p.start, p.end);
     if (p.allowTags) {
-      expanded.push(...scanTags(text));
+      expanded.push(...scanTags(text).flatMap((part) => (part.kind === "text" ? scanDiceStamps(part.text) : [part])));
     } else {
       expanded.push({ kind: "text", text });
     }

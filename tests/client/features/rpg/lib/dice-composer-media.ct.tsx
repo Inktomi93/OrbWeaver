@@ -10,9 +10,11 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { resolveSpacingPx } from "../../../../support/browser/touch-floor.ts";
 import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
-import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { CtToastSurface } from "../../../lib/_ct-stories.tsx";
 import { RpgDiceComposerStory } from "../../chat/_ct-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../../chat/fixtures.ts";
+import { FIRST_SESSION_USER, firstSessionTracker } from "../first-session-fixtures.ts";
 import { makeRpgGameView } from "../fixtures.ts";
 
 const CHIPS = '[data-slot="chat-control-chips"]';
@@ -49,7 +51,13 @@ function routeRoom(
     ruleset = "d20",
     heldRoll,
     unconnected = false,
-  }: { readonly ruleset?: RpgRuleset; readonly heldRoll?: ReturnType<typeof trpcHold>; readonly unconnected?: boolean } = {},
+    attributes,
+  }: {
+    readonly ruleset?: RpgRuleset;
+    readonly heldRoll?: ReturnType<typeof trpcHold>;
+    readonly unconnected?: boolean;
+    readonly attributes?: Readonly<Record<string, number>>;
+  } = {},
 ): Promise<{ readonly count: (p: string) => number; readonly lastInput: (p: string) => unknown }> {
   return routeTrpc(page, {
     ...CHAT_AMBIENT_ROUTES,
@@ -70,8 +78,10 @@ function routeRoom(
       identities: readonly ChatIdentity[];
       group: GroupConfig;
       rpg: { gameId: string; engaged: boolean } | null;
+      viewerUserId?: typeof FIRST_SESSION_USER;
     } => ({
       participants: [],
+      ...(attributes === undefined ? {} : { viewerUserId: FIRST_SESSION_USER }),
       anchorPersonaId: null,
       identities: [],
       group: DEFAULT_GROUP_CONFIG,
@@ -81,7 +91,13 @@ function routeRoom(
       makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_dice_room"), role: "assistant", content: "The corridor forks.", seq: 1 })]),
     // The engaged room's game-aware chrome suspends on getGame; a plain chat never asks for it (no unfed read).
     ...(engaged ? { "rpg.getGame": (): RpgGameView => gameView(ruleset) } : {}),
-    "rpg.rollDice": heldRoll ?? (() => rollOutcome("d20", [14], 14)),
+    ...(attributes === undefined ? {} : { "rpg.getTrackerView": () => firstSessionTracker(attributes) }),
+    "rpg.rollDice":
+      heldRoll ??
+      (() =>
+        attributes === undefined
+          ? rollOutcome("d20", [14], 14)
+          : { notation: "d20", rolls: [14], modifier: 2, total: 16, stamp: "[dice: Strength d20+2 → 16]" }),
     "chat.send": () => ({ messages: [], aborted: false }),
   });
 }
@@ -252,4 +268,43 @@ test("every Message tools row in a game room leads with a glyph", async ({ mount
           .map((row) => row.textContent ?? ""),
       );
   await expect.poll(bare).toEqual([]);
+});
+
+test("an ability check selects the sheet ability and appends its baked modifier stamp", async ({ mount, page }) => {
+  const trpc = await routeRoom(page, true, { attributes: { str: 15 } });
+  const component = await mount(<RpgDiceComposerStory />);
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await page.getByRole("menuitem", { name: "Ability check", exact: true }).click();
+  const strength = page.getByRole("menuitem", { name: "Strength (+2)", exact: true });
+  await expect(strength).toBeEnabled();
+  await strength.click();
+  await expect(component.getByRole("textbox", { name: "Message" })).toHaveValue("[dice: Strength d20+2 → 16]");
+  await expect.poll(() => trpc.lastInput("rpg.rollDice")).toEqual({ chatId: CHAT_ID, notation: "d20", ability: "str" });
+});
+
+test("an unset ability explains how to fill the score instead of inventing a zero modifier", async ({ mount, page }) => {
+  await routeRoom(page, true, { attributes: {} });
+  const component = await mount(<RpgDiceComposerStory />);
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await page.getByRole("menuitem", { name: "Ability check", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Strength Set your score in Status first.", exact: true })).toBeDisabled();
+});
+
+test("a failed ability roll surfaces the failure and leaves the composer draft unchanged", async ({ mount, page }) => {
+  const heldRoll = trpcHold();
+  await routeRoom(page, true, { attributes: { str: 15 }, heldRoll });
+  const component = await mount(
+    <CtToastSurface>
+      <RpgDiceComposerStory />
+    </CtToastSurface>,
+  );
+  const composer = component.getByRole("textbox", { name: "Message" });
+  await composer.fill("I push the door.");
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await page.getByRole("menuitem", { name: "Ability check", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Strength (+2)", exact: true }).click();
+  await heldRoll.requested;
+  heldRoll.release(trpcError({ message: "dice unavailable" }));
+  await expect(page.locator('[data-slot="toast-title"]').filter({ hasText: "Couldn't roll the dice." })).toBeVisible();
+  await expect(composer).toHaveValue("I push the door.");
 });

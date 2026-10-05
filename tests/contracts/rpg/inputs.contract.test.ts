@@ -18,6 +18,7 @@ import {
   rpgPatchSheetInputSchema,
   rpgPromoteActorInputSchema,
   rpgRestoreCheckpointInputSchema,
+  rpgRollDiceInputSchema,
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
 } from "@orb/contracts/rpg";
@@ -178,4 +179,11 @@ test("promoteActor: the target is the CAST ARM ONLY, and the card content is not
   // that could only ever see the plane in projections must not author what lands in it (the R1 lesson).
   const parsed = rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "npc", npcKey: "mira" }, name: "Not Mira", handle: "hijack" });
   expect(parsed.success && Object.keys(parsed.data)).toEqual(["chatId", "targetRef"]);
+});
+
+test("rollDice carries an optional ability key through the wire and rejects a blank key", () => {
+  const input = { chatId: CHAT_ID, notation: "d20", ability: "str" };
+  expect(rpgRollDiceInputSchema.parse(input)).toEqual(input);
+  expect(rpgRollDiceInputSchema.parse({ chatId: CHAT_ID, notation: "4d6" })).toEqual({ chatId: CHAT_ID, notation: "4d6" });
+  expect(rpgRollDiceInputSchema.safeParse({ ...input, ability: "" }).success).toBe(false);
 });
