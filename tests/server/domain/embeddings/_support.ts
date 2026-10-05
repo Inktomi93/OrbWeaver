@@ -264,6 +264,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     },
     db,
     roleClientsFor: () => Promise.resolve(roleClients),
+    withStableEmbeddingBinding: (_ownerId, read) => read(),
     resolveUtilityPresetParams: () => Promise.resolve(undefined),
     resolveEmbeddingConnection: async (_ownerId, task) => {
       const resolved = await roleClients.resolved(task);

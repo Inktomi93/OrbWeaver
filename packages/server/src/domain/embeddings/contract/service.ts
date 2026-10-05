@@ -37,6 +37,7 @@ import type {
 } from "./params.ts";
 import type {
   BulkEmbedResult,
+  ImageSpace,
   PruneDocumentChunksResult,
   PruneMemoryBlocksResult,
   PurgeDocumentVectorsResult,
@@ -72,6 +73,12 @@ export interface PinnedGeneration extends GenerationReceipt {
   readonly connection: EmbeddingConnectionSnapshot;
   /** The width every vector of this generation is written at — the bound embedder's, never the deployment's. */
   readonly dims: number;
+}
+
+/** Image routing and the target it selected, resolved from one stable owner binding snapshot. */
+export interface PinnedImageSpace {
+  readonly space: ImageSpace;
+  readonly generation: PinnedGeneration;
 }
 
 /** `cachedFacts`: read only the server facts already cached, dialing nothing (a read-only preview). */
@@ -120,6 +127,8 @@ export interface EmbeddingsContext {
   /** The owner's Utility-role preset params (D299), `undefined` under task defaults — avatar analysis sampling. */
   readonly resolveUtilityPresetParams: (userId: UserId) => Promise<SideGenSampling | undefined>;
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
+  /** Serialize target publication with connection writes; binding settlement already holds this queue. */
+  readonly withStableEmbeddingBinding: <T>(ownerId: UserId, read: () => Promise<T>) => Promise<T>;
   readonly now: () => number;
   readonly newCharacterEmbeddingId: () => CharacterEmbeddingId;
   readonly newImageEmbeddingId: () => ImageEmbeddingId;

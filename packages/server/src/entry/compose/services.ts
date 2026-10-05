@@ -779,6 +779,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     audit,
     roleClientsFor,
     resolveEmbeddingConnection,
+    withStableEmbeddingBinding: connection.withStableEmbeddingBinding,
     eventBus,
     attachCardTagByName: tag.attachCardTagByName,
     resolveUtilityPresetParams,

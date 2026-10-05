@@ -95,6 +95,7 @@ async function target(db: Db, ownerId: UserId, clients: RoleClients, task: "embe
       db,
       now: () => NOW,
       resolveEmbeddingConnection: (_ownerId, resolvedTask) => connectionOf(clients, resolvedTask),
+      withStableEmbeddingBinding: (_ownerId, read) => read(),
       onTargetGenerationMoved: () => undefined,
     },
     ownerId,
@@ -230,7 +231,13 @@ test.each([
     capability: { kind: "embedding", embedding: legacy },
   };
   const oldGeneration = await resolveTargetGeneration(
-    { db, now: () => NOW, resolveEmbeddingConnection: async () => before, onTargetGenerationMoved: () => undefined },
+    {
+      db,
+      now: () => NOW,
+      resolveEmbeddingConnection: async () => before,
+      withStableEmbeddingBinding: (_ownerId, read) => read(),
+      onTargetGenerationMoved: () => undefined,
+    },
     ownerId,
     "embed",
   );
@@ -249,7 +256,11 @@ test.each([
     fingerprint: space.fingerprint,
   }));
   expect(served).toMatchObject({ id: oldGeneration.id, model });
-  const again = await resolveTargetGeneration({ ...ctx, now: () => NOW, onTargetGenerationMoved: () => undefined }, ownerId, "embed");
+  const again = await resolveTargetGeneration(
+    { ...ctx, now: () => NOW, withStableEmbeddingBinding: (_ownerId, read) => read(), onTargetGenerationMoved: () => undefined },
+    ownerId,
+    "embed",
+  );
   expect(again?.id).toBe(oldGeneration.id);
   expect(again?.epoch).toBe(oldGeneration.epoch);
   // Positive control: actual encoder evidence drift still closes the read rather than serving it blindly.

@@ -398,6 +398,7 @@ function ConnectionBadges({
           Provider unavailable
         </Badge>
       ) : null}
+      {connection.tasks.length === 0 ? null : <Text voice="gloss">Can do:</Text>}
       {connectionRoleLabels(connection.tasks).map((label) => (
         <Badge key={label} intent="primary" size="sm" tone="soft">
           {label}

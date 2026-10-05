@@ -55,7 +55,7 @@ test("a switch and promotion between query embedding and scan retry once against
     return Promise.resolve(connectionId === oldConnection.connectionId ? oldConnection : newConnection);
   };
   const oldGeneration = await resolveTargetGeneration(
-    { db, now: () => 1, resolveEmbeddingConnection: resolve, onTargetGenerationMoved: () => undefined },
+    { db, now: () => 1, resolveEmbeddingConnection: resolve, withStableEmbeddingBinding: (_ownerId, read) => read(), onTargetGenerationMoved: () => undefined },
     ownerId,
     "embed",
   );
@@ -75,7 +75,13 @@ test("a switch and promotion between query embedding and scan retry once against
     if (calls === 1) {
       live = newConnection;
       const newGeneration = await resolveTargetGeneration(
-        { db, now: () => 2, resolveEmbeddingConnection: resolve, onTargetGenerationMoved: () => undefined },
+        {
+          db,
+          now: () => 2,
+          resolveEmbeddingConnection: resolve,
+          withStableEmbeddingBinding: (_ownerId, read) => read(),
+          onTargetGenerationMoved: () => undefined,
+        },
         ownerId,
         "embed",
       );

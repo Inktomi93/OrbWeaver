@@ -3,7 +3,7 @@
 // else the kind its server or catalog states, else the curated row, else `generation`.
 
 import type { RoutableTask, UserConnection } from "@orb/contracts/inference";
-import { connectionTasks, isRoutableTask, taskDef } from "@orb/contracts/inference";
+import { isRoutableTask, taskDef } from "@orb/contracts/inference";
 import type { ConnectionContext } from "../contract/service.ts";
 
 // How fresh a kind read must be. A write that may move the index warms the catalog first; a read that lists rows,
@@ -13,11 +13,7 @@ type KindRead = Parameters<ConnectionContext["runtime"]["modelKind"]>[1];
 
 /** The tasks this row may be bound to — provider × the model's kind. */
 export async function servableTasks(ctx: Pick<ConnectionContext, "runtime">, row: UserConnection, read: KindRead = {}): Promise<readonly RoutableTask[]> {
-  const provider = ctx.runtime.providers.registry.get(row.providerId, row.ownerId);
-  if (provider === undefined) {
-    return [];
-  }
-  return connectionTasks(provider, await ctx.runtime.modelKind(row, read)).filter(isRoutableTask);
+  return (await ctx.runtime.modelTasks(row, read)).filter(isRoutableTask);
 }
 
 /** The tasks "use for everything" binds: every task the row can serve AND fund. A background task on a row with

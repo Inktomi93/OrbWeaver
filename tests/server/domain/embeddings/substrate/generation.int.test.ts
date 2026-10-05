@@ -55,7 +55,13 @@ test("a slow stale resolution cannot reset a newer target or promote its generat
   const now = (): number => 1;
 
   const oldGeneration = await resolveTargetGeneration(
-    { db, now, resolveEmbeddingConnection: () => Promise.resolve(oldConnection), onTargetGenerationMoved: () => undefined },
+    {
+      db,
+      now,
+      resolveEmbeddingConnection: () => Promise.resolve(oldConnection),
+      withStableEmbeddingBinding: (_ownerId, read) => read(),
+      onTargetGenerationMoved: () => undefined,
+    },
     ownerId,
     "embed",
   );
@@ -107,6 +113,7 @@ test("a slow stale resolution cannot reset a newer target or promote its generat
     {
       db,
       now,
+      withStableEmbeddingBinding: (_ownerId, read) => read(),
       onTargetGenerationMoved: () => undefined,
       resolveEmbeddingConnection: () => {
         staleReads += 1;
@@ -123,7 +130,13 @@ test("a slow stale resolution cannot reset a newer target or promote its generat
   await staleStarted.promise;
 
   const newGeneration = await resolveTargetGeneration(
-    { db, now, resolveEmbeddingConnection: () => Promise.resolve(newConnection), onTargetGenerationMoved: () => undefined },
+    {
+      db,
+      now,
+      resolveEmbeddingConnection: () => Promise.resolve(newConnection),
+      withStableEmbeddingBinding: (_ownerId, read) => read(),
+      onTargetGenerationMoved: () => undefined,
+    },
     ownerId,
     "embed",
   );

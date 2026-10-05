@@ -2,7 +2,8 @@
 // failure shape whether the planner refused before the call or the provider refused after it. Fixtures are the
 // recorded Anthropic bodies; an unmatched schema-shaped 400 is logged with its body, never guessed at.
 
-import { withSchemaRejection } from "../../../../packages/inference/src/backends/kit/error-classify.ts";
+import { providerErrorFromHttp, withSchemaRejection } from "../../../../packages/inference/src/backends/kit/error-classify.ts";
+import { IdleTripError, isIdleTrip } from "../../../../packages/inference/src/backends/kit/idle-timeout.ts";
 import type { ProviderLogger } from "../../../../packages/inference/src/backends/kit/provider-log.ts";
 import { NO_PROVIDER_SECRETS } from "../../../../packages/inference/src/backends/kit/sanitize.ts";
 import { ProviderError } from "../../../../packages/inference/src/contract/errors.ts";
@@ -29,6 +30,18 @@ function recordingLogger(lines: Emitted[]): ProviderLogger {
 }
 
 const INVALID = new ProviderError({ kind: "invalid", retryable: false, message: "anthropic chat: Bad Request", apiErrorStatus: 400 });
+
+test("an idle trip survives nested causes and wins over an abort-named SDK wrapper", () => {
+  const trip = new IdleTripError(50);
+  const wrapped = Object.assign(new Error("aborted", { cause: new Error("middle", { cause: trip }) }), { name: "AbortError" });
+  expect(isIdleTrip(trip)).toBe(true);
+  expect(isIdleTrip(wrapped)).toBe(true);
+  expect(providerErrorFromHttp(wrapped, "wire", NO_PROVIDER_SECRETS)).toMatchObject({ kind: "server", retryable: true });
+  const cancel = Object.assign(new Error("connection timeout"), { name: "AbortError" });
+  cancel.cause = cancel;
+  expect(isIdleTrip(cancel)).toBe(false);
+  expect(providerErrorFromHttp(cancel, "wire", NO_PROVIDER_SECRETS)).toMatchObject({ kind: "aborted", retryable: false });
+});
 
 /** An SDK-shaped HTTP failure carrying the upstream body. */
 function httpError(body: string): Error & { readonly statusCode: number; readonly responseBody: string } {

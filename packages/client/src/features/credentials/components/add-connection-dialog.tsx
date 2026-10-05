@@ -34,10 +34,10 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useId, useState } from "react";
-import { FormDialog, QueryBoundary } from "#components";
+import { FormDialog, QueryBoundary, useSetBinding } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { trpcErrorReason } from "#lib";
-import { pushRecentModel } from "#state";
+import { ADD_CONNECTION_DOOR, CHAT_ROLE_DOOR, trpcErrorReason } from "#lib";
+import { configSettingControlId, openConfigTo, pushRecentModel } from "#state";
 import { useAddConnectionForm } from "../hooks/use-add-connection-form.ts";
 import { useAddCredentialOwned, useCreateConnection, useDraftCatalogModels } from "../hooks/use-connections-mutations.ts";
 import { useSignInCheckAfterSave } from "../hooks/use-sign-in-check.ts";
@@ -46,10 +46,10 @@ import {
   ADD_DIALOG_COPY,
   acceptsKey,
   CONNECTION_FORM_COPY,
-  draftKeyOf,
   draftModelReason,
   keyStorageBlocks,
-  listsOnDemand,
+  listingKeyFor,
+  listsInDialog,
   needsBaseUrl,
   sameFormValues,
   submitFailureSentence,
@@ -68,22 +68,6 @@ import type { ModelPickerProps } from "./model-picker.tsx";
 type CredentialView = inferOutput<Trpc["credentials"]["add"]>;
 type ModelCatalogSource = ModelPickerProps["source"];
 
-/** Whether the dialog itself reads this provider's list: an endpoint or a keyed hosted draft on "List models",
- *  and a built-in provider, whose catalog is closed, as soon as it is picked. */
-function listsInDialog(provider: ProviderDef): boolean {
-  return listsOnDemand(provider) || provider.catalog === "builtin";
-}
-
-/** The draft a list answer is about: the provider, plus the URL where the draft names one and the key where the
- *  list is read under it. A built-in list depends on the provider alone. */
-function listingKeyFor(provider: ProviderDef, values: Pick<AddConnectionFormValues, "baseUrl" | "key">): string {
-  return draftKeyOf({
-    providerId: provider.id,
-    baseUrl: needsBaseUrl(provider) ? values.baseUrl : "",
-    key: provider.catalog === "builtin" ? "" : values.key,
-  });
-}
-
 export interface AddConnectionDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
@@ -96,13 +80,21 @@ type ConnectionView = inferOutput<Trpc["connection"]["create"]>;
 /** What the dialog is doing: adding a connection, the first-model step, or adding the Utility model that step asked for. */
 type AddStep =
   | { readonly kind: "add" }
-  | { readonly kind: "setup"; readonly chat: ConnectionView; readonly picked: ConnectionView["id"] | null }
-  | { readonly kind: "add-utility"; readonly chat: ConnectionView };
+  | { readonly kind: "setup"; readonly chat: ConnectionView; readonly picked: ConnectionView["id"] | null; readonly chatBinding: Promise<string | null> }
+  | { readonly kind: "add-utility"; readonly chat: ConnectionView; readonly chatBinding: Promise<string | null> };
 
 const ADD_STEP: AddStep = { kind: "add" };
 
 export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation }: AddConnectionDialogProps): ReactElement {
   const [step, setStep] = useState<AddStep>(ADD_STEP);
+  const [closeTarget, setCloseTarget] = useState({ open, chat: false });
+  if (closeTarget.open !== open) {
+    setCloseTarget({ open, chat: open ? false : closeTarget.chat });
+  }
+  const setBinding = useSetBinding({ trpc, invalidation, failureShownInline: true });
+  // @orb-waive caught-failure-ownership(setBinding.mutateAsync): the returned refusal is carried to FirstModelSetup's inline failure or its late-refusal toast, never discarded; ends if either result stops reaching that component.
+  const bindChat = (chat: ConnectionView): Promise<string | null> =>
+    setBinding.mutateAsync({ task: "chat", connectionId: chat.id }).then(() => null, errorMessage);
   // Every close starts the next open at the add form.
   const changeOpen = (next: boolean): void => {
     if (!next) {
@@ -112,25 +104,49 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation }: 
   };
   const onSaved = (created: ConnectionView, firstChatModel: boolean): void => {
     if (step.kind === "add-utility") {
-      setStep({ kind: "setup", chat: step.chat, picked: created.id });
+      setStep({ kind: "setup", chat: step.chat, picked: created.id, chatBinding: step.chatBinding });
       return;
     }
     if (firstChatModel) {
-      setStep({ kind: "setup", chat: created, picked: null });
+      // Start before mounting setup: closing it never cancels the saved connection's Chat assignment.
+      const chatBinding = bindChat(created);
+      setStep({ kind: "setup", chat: created, picked: null, chatBinding });
       return;
     }
     changeOpen(false);
   };
   return (
-    <FormDialog description={ADD_DIALOG_COPY[step.kind].description} onOpenChange={changeOpen} open={open} title={ADD_DIALOG_COPY[step.kind].title}>
+    <FormDialog
+      anchor="top"
+      finalFocus={(): HTMLElement | false | null =>
+        closeTarget.chat ? false : document.getElementById(configSettingControlId(ADD_CONNECTION_DOOR.group, ADD_CONNECTION_DOOR.setting))
+      }
+      onOpenChangeComplete={(next): void => {
+        if (!next && closeTarget.chat) {
+          openConfigTo(CHAT_ROLE_DOOR.group, CHAT_ROLE_DOOR.sub, CHAT_ROLE_DOOR.setting);
+        }
+      }}
+      closeButton={true}
+      description={ADD_DIALOG_COPY[step.kind].description}
+      onOpenChange={changeOpen}
+      open={open}
+      title={ADD_DIALOG_COPY[step.kind].title}
+    >
       {/* DELIBERATELY UNRESERVED (#1098): a dialog body sizes itself around its content. */}
       <QueryBoundary fallback={<WebSpinner label="Checking key storage…" />}>
         {step.kind === "setup" ? (
           <FirstModelSetup
             chat={step.chat}
+            chatBinding={step.chatBinding}
+            onRetryChat={(): void => setStep({ ...step, chatBinding: bindChat(step.chat) })}
             invalidation={invalidation}
-            onAddUtility={(): void => setStep({ kind: "add-utility", chat: step.chat })}
+            onAddUtility={(): void => setStep({ kind: "add-utility", chat: step.chat, chatBinding: step.chatBinding })}
             onDone={(): void => changeOpen(false)}
+            onChangeChat={(): void => {
+              // Native close owns focus until dismissal completes; the canonical leaf landing owns it next.
+              setCloseTarget({ open, chat: true });
+              changeOpen(false);
+            }}
             picked={step.picked}
             trpc={trpc}
           />
@@ -138,7 +154,9 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation }: 
           <AddConnectionGate
             invalidation={invalidation}
             key={step.kind}
-            onCancel={step.kind === "add-utility" ? (): void => setStep({ kind: "setup", chat: step.chat, picked: null }) : undefined}
+            onCancel={
+              step.kind === "add-utility" ? (): void => setStep({ kind: "setup", chat: step.chat, picked: null, chatBinding: step.chatBinding }) : undefined
+            }
             onSaved={onSaved}
             purpose={step.kind === "add-utility" ? "utility" : "connection"}
             trpc={trpc}

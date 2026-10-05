@@ -127,6 +127,7 @@ export interface PaneStubOptions {
   readonly draftCatalogModels?: TrpcResponder<"connection.draftCatalogModels">;
   /** Replaces `connection.verifyAuth` — the sign-in check a saved subscription row runs. */
   readonly verifyAuth?: TrpcResponder<"connection.verifyAuth">;
+  readonly setBinding?: TrpcResponder<"connection.setBinding">;
   /** The caller's `sessions.me` role; the box owner by default. */
   readonly role?: (typeof USER_ROLES)[number];
   /** The deployment's private-endpoint allowlist. A `settings.updateAppSettings` that writes it replaces it. */
@@ -149,6 +150,7 @@ export const SIGNED_IN: TrpcWireOutput<"connection.verifyAuth"> = {
 /** The whole Connections pane's network, stateful across an add (header). */
 export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}): Promise<TrpcRecorder> {
   const connections: ConnectionRow[] = [...(opts.connections ?? [])];
+  const bindings: BindingView[] = UNBOUND.map((view) => ({ ...view }));
   const credentials: CredentialRow[] = [...(opts.credentials ?? [])];
   let allowlist: readonly string[] = opts.allowlist ?? [];
   const mintCredential = (input: TrpcInput<"credentials.add">): CredentialRow => {
@@ -172,9 +174,13 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
     return row;
   };
   return await routeTrpc(page, {
+    // The full config host mounts its library shelves while the canonical Chat leaf lands.
+    "regex.listScripts": () => [],
+    "rosterPreset.list": () => [],
+    "worldInfo.listBooksWithUsage": () => [],
     "sessions.me": () => ({ userId: OWNER_ID, handle: "owner", globalRole: opts.role ?? "owner" }),
     "connection.list": () => connections,
-    "connection.listBindings": () => UNBOUND,
+    "connection.listBindings": () => bindings,
     "connection.providersAvailable": () => opts.providers ?? ALL_AVAILABLE,
     "credentials.list": () => credentials,
     "credentials.storageStatus": opts.storageStatus ?? { enabled: opts.storageEnabled ?? true },
@@ -203,15 +209,22 @@ export async function stubConnectionsPane(page: Page, opts: PaneStubOptions = {}
       connections.splice(index, 1, updated);
       return updated;
     },
-    "connection.setBinding": ({ task, connectionId }) => ({
-      id: `connection_binding_ct${task}`,
-      actorKind: "user",
-      userId: OWNER_ID,
-      ruleId: null,
-      pluginId: null,
-      task,
-      connectionId,
-    }),
+    "connection.setBinding":
+      opts.setBinding ??
+      (({ task, connectionId }) => {
+        const binding: TrpcWireOutput<"connection.setBinding"> = {
+          id: `connection_binding_ct${task}`,
+          actorKind: "user",
+          userId: OWNER_ID,
+          ruleId: null,
+          pluginId: null,
+          task,
+          connectionId,
+        };
+        const index = bindings.findIndex((view) => view.task === task);
+        bindings[index] = { task, binding, resolved: null, unavailableCause: null };
+        return binding;
+      }),
     "connection.verifyAuth": opts.verifyAuth ?? SIGNED_IN,
     "settings.getAppSettingsWithOverrides": () => ({
       resolved: { privateEndpointAllowlist: [...allowlist] },

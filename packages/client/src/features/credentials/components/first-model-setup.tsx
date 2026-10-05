@@ -12,10 +12,11 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useSetBinding, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { connectionSummary, MEMORY_COST_SENTENCE } from "#lib";
+import { CHAT_ROLE_DOOR, connectionSummary, MEMORY_COST_SENTENCE, notify } from "#lib";
+import { openConfigTo } from "#state";
 import { CLAUDE_SUBSCRIPTION_NOTICE, isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
@@ -23,7 +24,6 @@ type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 const UTILITY_CHOICES = ["same", "existing", "add", "later"] as const;
 type UtilityChoice = (typeof UTILITY_CHOICES)[number];
 
-const CHAT_TASK: RoutableTask = "chat";
 const UTILITY_TASK: RoutableTask = "summarize";
 
 function isUtilityChoice(value: unknown): value is UtilityChoice {
@@ -53,15 +53,36 @@ function initialChoice(picked: string | null, subscription: boolean, canUseSame:
 export interface FirstModelSetupProps {
   /** The connection just added, which becomes the Chat model. */
   readonly chat: ConnectionListItem;
+  /** The immediate Chat write started by the add flow; resolves to its inline refusal or success. */
+  readonly chatBinding: Promise<string | null>;
+  readonly onRetryChat: () => void;
   /** A connection added for the Utility role a moment ago, offered as the pick. */
   readonly picked: ConnectionListItem["id"] | null;
   readonly onAddUtility: () => void;
   readonly onDone: () => void;
+  readonly onChangeChat: () => void;
   readonly trpc: Trpc;
   readonly invalidation: Invalidation;
 }
 
-export function FirstModelSetup({ chat, picked, onAddUtility, onDone, trpc, invalidation }: FirstModelSetupProps): ReactElement {
+function chatAssignmentText(pending: boolean, failure: string | null, name: string): string {
+  if (pending) {
+    return `Setting Chat to ${name}…`;
+  }
+  return failure === null ? `Chat now uses ${name}.` : `Your connection was saved, but Chat isn't set: ${failure}`;
+}
+
+export function FirstModelSetup({
+  chat,
+  chatBinding,
+  onRetryChat,
+  picked,
+  onAddUtility,
+  onDone,
+  onChangeChat,
+  trpc,
+  invalidation,
+}: FirstModelSetupProps): ReactElement {
   // The step's own alert line carries a failure and stays open as the retry, so the writes raise no toast.
   const deps = { trpc, invalidation, failureShownInline: true };
   const setBinding = useSetBinding(deps);
@@ -76,6 +97,26 @@ export function FirstModelSetup({ chat, picked, onAddUtility, onDone, trpc, inva
   const [otherId, setOtherId] = useState<string>(picked ?? others[0]?.id ?? "");
   const [failure, setFailure] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [chatState, setChatState] = useState<{ readonly pending: boolean; readonly failure: string | null }>({ pending: true, failure: null });
+  useEffect(() => {
+    let mounted = true;
+    const settled = (reason: string | null): void => {
+      if (mounted) {
+        setChatState({ pending: false, failure: reason });
+      } else if (reason !== null) {
+        notify.error({
+          title: "Chat wasn't assigned",
+          description: `Your connection was saved, but Chat isn't set: ${reason}`,
+          action: { label: "Choose Chat model", onClick: (): void => openConfigTo(CHAT_ROLE_DOOR.group, CHAT_ROLE_DOOR.sub, CHAT_ROLE_DOOR.setting) },
+        });
+      }
+    };
+    // @orb-waive caught-failure-ownership(chatBinding): settled writes the inline failure while mounted and a recovery toast after close; ends if that owner no longer surfaces either outcome.
+    void chatBinding.then(settled, (error: unknown): void => settled(errorMessage(error)));
+    return (): void => {
+      mounted = false;
+    };
+  }, [chatBinding]);
   const labelId = useId();
   const reasonId = useId();
   const name = connectionSummary(chat);
@@ -88,7 +129,6 @@ export function FirstModelSetup({ chat, picked, onAddUtility, onDone, trpc, inva
   };
 
   const bindRoles = async (): Promise<void> => {
-    await setBinding.mutateAsync({ task: CHAT_TASK, connectionId: chat.id });
     const utility = utilityRow();
     if (utility !== undefined) {
       // The bind refuses a background role on a row that does not allow background work, so the switch goes first.
@@ -97,6 +137,11 @@ export function FirstModelSetup({ chat, picked, onAddUtility, onDone, trpc, inva
       }
       await setBinding.mutateAsync({ task: UTILITY_TASK, connectionId: utility.id });
     }
+  };
+
+  const retryChat = (): void => {
+    setChatState({ pending: true, failure: null });
+    onRetryChat();
   };
 
   const finish = (): void => {
@@ -116,7 +161,20 @@ export function FirstModelSetup({ chat, picked, onAddUtility, onDone, trpc, inva
 
   return (
     <Stack gap="block" data-slot="first-model-setup">
-      <Text prose={true} voice="gloss">{`Chat will run on ${name}.`}</Text>
+      <Row gap="field" className="flex-wrap">
+        <Text prose={true} role={chatState.failure === null ? undefined : "alert"} voice="gloss">
+          {chatAssignmentText(chatState.pending, chatState.failure, name)}
+        </Text>
+        {chatState.failure === null ? (
+          <Button disabled={chatState.pending} intent="ghost" onClick={onChangeChat} size="sm">
+            Change
+          </Button>
+        ) : (
+          <Button intent="ghost" onClick={retryChat} size="sm">
+            Retry Chat assignment
+          </Button>
+        )}
+      </Row>
       <Stack gap="tight">
         <Text id={labelId} voice="label">
           Utility model
@@ -133,7 +191,7 @@ export function FirstModelSetup({ chat, picked, onAddUtility, onDone, trpc, inva
       <RadioGroup
         aria-describedby={subscription ? reasonId : undefined}
         aria-labelledby={labelId}
-        disabled={saving}
+        disabled={saving || chatState.pending || chatState.failure !== null}
         onValueChange={(value): void => {
           if (isUtilityChoice(value)) {
             setChoice(value);
@@ -169,13 +227,13 @@ export function FirstModelSetup({ chat, picked, onAddUtility, onDone, trpc, inva
       )}
       <Row gap="field" justify="end">
         {choice === "add" ? (
-          <Button intent="primary" onClick={onAddUtility}>
+          <Button disabled={chatState.pending || chatState.failure !== null} intent="primary" onClick={onAddUtility}>
             Add a model
           </Button>
         ) : (
           <Button
             // A picked connection the list read has not caught up with yet would bind Chat alone; wait for it.
-            disabled={choice === "existing" && utilityRow() === undefined}
+            disabled={chatState.pending || chatState.failure !== null || (choice === "existing" && utilityRow() === undefined)}
             intent="primary"
             loading={saving}
             onClick={finish}

@@ -5,8 +5,7 @@ import type { EmbeddingsContext } from "../context.ts";
 import type { EmbedPassParams } from "../contract/params.ts";
 import type { BulkEmbedResult, StoreResult } from "../contract/results.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
-import { completeGenerationScope, resolveTargetGeneration } from "../substrate/generation.ts";
-import { resolveImageSpace } from "../substrate/task-model.ts";
+import { completeGenerationScope, resolveImageTargetGeneration } from "../substrate/generation.ts";
 export function createEmbedAssets(ctx: EmbeddingsContext, deps: Pick<EmbeddingsService, "indexAsset">): EmbeddingsService["embedAssets"] {
   return async ({ force, signal, ownerId, onProgress }: EmbedPassParams): Promise<BulkEmbedResult> => {
     let embedded = 0;
@@ -57,16 +56,16 @@ async function recordReceipt(ctx: EmbeddingsContext, assetId: AssetId, result: S
 
 async function completeImageSweep(ctx: EmbeddingsContext, ownerId: UserId | null, receipts: ReadonlyMap<UserId, StoreResult>): Promise<void> {
   for (const [spaceOwnerId, receipt] of receipts) {
-    const generation = await resolveTargetGeneration(ctx, spaceOwnerId, "imageEmbed", receipt.generationVia);
-    if (generation !== null && generation.id === receipt.generationId && generation.epoch === receipt.generationEpoch) {
+    const resolved = await resolveImageTargetGeneration(ctx, spaceOwnerId);
+    const generation = resolved?.generation;
+    if (generation !== undefined && generation.id === receipt.generationId && generation.epoch === receipt.generationEpoch) {
       await completeGenerationScope(ctx, { ownerId: spaceOwnerId, scope: "images", generation });
     }
   }
   if (ownerId !== null && !receipts.has(ownerId)) {
-    const emptySpace = await resolveImageSpace(ctx, ownerId);
-    const generation = emptySpace === null ? null : await resolveTargetGeneration(ctx, ownerId, "imageEmbed", emptySpace.via);
-    if (generation !== null) {
-      await completeGenerationScope(ctx, { ownerId, scope: "images", generation });
+    const resolved = await resolveImageTargetGeneration(ctx, ownerId);
+    if (resolved !== null) {
+      await completeGenerationScope(ctx, { ownerId, scope: "images", generation: resolved.generation });
     }
   }
 }

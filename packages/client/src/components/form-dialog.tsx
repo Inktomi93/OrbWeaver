@@ -20,7 +20,7 @@ import type { DialogPopupProps } from "@orb/ui/dialog";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import type { ReactElement, ReactNode, RefObject } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { testId } from "#lib";
 
 /** A registered test-id key (the registry is the API — never a new literal). */
@@ -52,6 +52,10 @@ export interface FormDialogProps {
   readonly testKey?: TestKey;
   /** DialogPopup size passthrough (a wide VIEW dialog uses "lg"). @defaultValue "md" */
   readonly size?: DialogPopupProps["size"];
+  /** Native block-axis placement; changing-height forms can pin their heading at the viewport gutter. */
+  readonly anchor?: DialogPopupProps["anchor"];
+  /** Native completion seam for a forward-navigation dismissal, after the modal finishes closing. */
+  readonly onOpenChangeComplete?: ComponentProps<typeof Dialog>["onOpenChangeComplete"];
   /** The dialog body — a form body (with its own FormSubmitButton) or, in PROMPT mode, the single control. */
   readonly children: ReactNode;
   /** PROMPT-mode footer — renders a Cancel/Confirm Row below `children`. Omit for a form-body dialog. */
@@ -77,7 +81,7 @@ export interface FormDialogProps {
   readonly closeButton?: boolean;
   /** Where focus goes on close. Give one when the dialog can open with no trigger focused (a request from another
    *  section), or its close drops focus on the page body. */
-  readonly finalFocus?: RefObject<HTMLElement | null>;
+  readonly finalFocus?: DialogPopupProps["finalFocus"];
 }
 
 /**
@@ -88,10 +92,12 @@ export interface FormDialogProps {
 export function FormDialog({
   open,
   onOpenChange,
+  onOpenChangeComplete,
   title,
   description,
   testKey,
   size,
+  anchor,
   children,
   submit,
   dismissLabel,
@@ -99,9 +105,10 @@ export function FormDialog({
   finalFocus,
 }: FormDialogProps): ReactElement {
   return (
-    <Dialog onOpenChange={onOpenChange} open={open}>
+    <Dialog onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete} open={open}>
       <DialogPopup
         {...(size === undefined ? {} : { size })}
+        {...(anchor === undefined ? {} : { anchor })}
         {...(testKey === undefined ? {} : { "data-testid": testId(testKey) })}
         {...(finalFocus === undefined ? {} : { finalFocus })}
       >

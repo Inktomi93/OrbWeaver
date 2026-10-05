@@ -14,7 +14,6 @@ import type { ConnectionApi, ModelCheck, ProviderDef, UserConnection } from "@or
 import {
   CONNECTION_LABEL_SEPARATOR,
   CONNECTION_OP_CODES,
-  connectionTasks,
   EMBED_SPACE_FIELDS,
   isHubModelId,
   modelIdSchema,
@@ -94,7 +93,7 @@ async function toView(ctx: ConnectionContext, row: UserConnection): Promise<Conn
   return {
     ...row,
     providerLabel: provider === undefined ? row.providerId : providerDisplayLabel(provider),
-    tasks: provider === undefined ? [] : connectionTasks(provider, await ctx.runtime.modelKind(row, { cachedFacts: true })),
+    tasks: await ctx.runtime.modelTasks(row, { cachedFacts: true }),
   };
 }
 

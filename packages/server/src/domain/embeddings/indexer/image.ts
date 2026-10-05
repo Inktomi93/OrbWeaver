@@ -3,13 +3,12 @@ import { EMBEDDABLE_ASSET_KINDS } from "@orb/contracts/assets";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { EmbeddingsContext } from "../context.ts";
 import type { AvatarAnalysis, StoreResult } from "../contract/results.ts";
-import type { EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
+import type { EmbeddingsService, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
 import { existingCaptionedRow, existingImageHash, existingImageSkip, insertImageSkip } from "../persistence/queries.ts";
-import { resolveTargetGeneration } from "../substrate/generation.ts";
+import { resolveImageTargetGeneration } from "../substrate/generation.ts";
 import { contentHash } from "../substrate/hash.ts";
 import { imageBelowFloor } from "../substrate/image-admission.ts";
 import { reportImageSpaceDegrade } from "../substrate/image-space-degrade.ts";
-import { resolveImageSpace } from "../substrate/task-model.ts";
 
 interface ImageIndexerDeps {
   readonly store: EmbeddingsService["store"];
@@ -21,10 +20,8 @@ interface ImageAnalysisCounterDeps {
   readonly analysisCallsModel: (ownerId: UserId) => Promise<boolean>;
 }
 
-interface ImageSweepSpace {
+interface ImageSweepSpace extends PinnedImageSpace {
   readonly ownerId: UserId;
-  readonly space: NonNullable<Awaited<ReturnType<typeof resolveImageSpace>>>;
-  readonly generation: PinnedGeneration;
 }
 
 async function resolveImageSweepSpace(ctx: EmbeddingsContext, assetId: AssetId): Promise<ImageSweepSpace | null> {
@@ -32,12 +29,8 @@ async function resolveImageSweepSpace(ctx: EmbeddingsContext, assetId: AssetId):
   if (ownerId === null) {
     return null;
   }
-  const space = await resolveImageSpace(ctx, ownerId);
-  if (space === null) {
-    return null;
-  }
-  const generation = await resolveTargetGeneration(ctx, ownerId, "imageEmbed", space.via);
-  return generation === null ? null : { ownerId, space, generation };
+  const resolved = await resolveImageTargetGeneration(ctx, ownerId);
+  return resolved === null ? null : { ownerId, ...resolved };
 }
 
 /** The image space an asset would be indexed into, or `null` when the indexer would not touch it at all: not an

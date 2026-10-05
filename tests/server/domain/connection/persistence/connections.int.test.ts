@@ -6,8 +6,9 @@
 // Beside it: the field-wise update writes only the keys present and is owner-scoped, and the delete leaves
 // the binding row alive with a NULL connection (schema physics, not a verb loop).
 
+import { SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import { connectionBindings } from "@orb/db";
+import { connectionBindings, userConnections } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { ConnectionBindingId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -53,6 +54,21 @@ async function seedRow(db: Db, id: UserConnectionId, ownerId: UserId, label: str
 }
 
 describe("the two readers", () => {
+  test("every canonical read clamps old utility concurrency while preserving unrelated declarations", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await seedRow(db, ROW_ID, owner, "mine");
+    const declared = { features: { concurrency: { summarize: 99, embed: 3 }, requestTimeoutMs: 1000 }, kind: "generation" as const };
+    await db.update(userConnections).set({ declared }).where(eq(userConnections.id, ROW_ID));
+    const expected = {
+      ...declared,
+      features: { ...declared.features, concurrency: { ...declared.features.concurrency, summarize: SUMMARIZE_CONCURRENCY_MAX } },
+    };
+    expect((await fetchOwnedConnection(db, owner, ROW_ID))?.declared).toEqual(expected);
+    expect((await fetchConnectionById(db, ROW_ID))?.declared).toEqual(expected);
+    expect((await listOwnedConnections(db, owner))[0]?.declared).toEqual(expected);
+    expect((await db.select().from(userConnections))[0]?.declared).toEqual(declared);
+  });
   test("`fetchOwnedConnection` collapses not-found and not-yours into `null`", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");

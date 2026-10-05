@@ -29,7 +29,7 @@ import { createResolveStandingAsks, createResolveViewerVisibility } from "#domai
 import { resolveActiveDocumentIds } from "#domain/databank";
 import type { DiscoveryContext, DiscoveryService } from "#domain/discovery";
 import { createDiscoveryService, distinctCorpusOwners } from "#domain/discovery";
-import type { EmbeddingsIndexer, EmbeddingsService, ResolveEmbeddingConnection } from "#domain/embeddings";
+import type { EmbeddingsContext, EmbeddingsIndexer, EmbeddingsService, ResolveEmbeddingConnection } from "#domain/embeddings";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
 import { createNotificationsService } from "#domain/notifications";
@@ -81,6 +81,7 @@ export interface SearchDiscoveryComposeDeps {
    *  (vector tasks are owner-scoped, §7.5) and the workload's acting user for the summarize passes. */
   readonly roleClientsFor: (funderUserId: UserId) => Promise<RoleClientsWithSignal>;
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
+  readonly withStableEmbeddingBinding: EmbeddingsContext["withStableEmbeddingBinding"];
   readonly eventBus: DomainEventBus;
   readonly attachCardTagByName: TagService["attachCardTagByName"];
   /** The card owner's Utility-role preset params (D299) — distill + analyze. */
@@ -166,6 +167,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     roleClientsFor,
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
     resolveEmbeddingConnection: deps.resolveEmbeddingConnection,
+    withStableEmbeddingBinding: deps.withStableEmbeddingBinding,
     now,
     newCharacterEmbeddingId: minter(ID_PREFIX.characterEmbedding),
     newImageEmbeddingId: minter(ID_PREFIX.imageEmbedding),
