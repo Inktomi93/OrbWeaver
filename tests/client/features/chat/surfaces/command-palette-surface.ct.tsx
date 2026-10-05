@@ -126,7 +126,7 @@ test("with ZERO registrations the palette shows exactly its native groups (no co
   await expect(page.getByText("Commands")).toBeHidden();
 });
 
-for (const label of ["Insights", "Labels", "Analytics"]) {
+for (const label of ["Insights", "Tags", "Analytics"]) {
   test(`Corpus navigation ranks ${label} ahead of fuzzy settings`, async ({ mount, page }) => {
     await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
     const component = await mount(<CommandPaletteSurfaceStory corpus={true} />);

@@ -13,6 +13,7 @@ const FAMILIES = MEMBERS.map((name) => ({
   label: LABEL,
   genre: null,
   tone: null,
+  analysedMembers: 0,
   artStyle: null,
   palette: null,
   mood: null,
@@ -33,7 +34,7 @@ for (const width of [300, 600, 960]) {
     await expect(grid.getByRole("listitem")).toHaveCount(FAMILIES.length);
     await testInfo.attach("family-map", { body: await component.screenshot(), contentType: "image/png" });
     for (const member of MEMBERS) {
-      const name = `${LABEL} · ${member}`;
+      const name = `${member} · Elara +1 more`;
       const button = grid.getByRole("button", { name, exact: true });
       await expect(button).toBeVisible();
       await expect
@@ -72,6 +73,24 @@ for (const width of [300, 600, 960]) {
       await button.press("Enter");
       await expect(component.getByRole("status", { name: "Selected family" })).toHaveText(name);
     }
-    await expect(grid.getByText(/3 members · .* · Elara \+1 more/u)).toHaveCount(FAMILIES.length);
+    await expect(grid.getByText("3 members", { exact: true })).toHaveCount(FAMILIES.length);
+    await expect(grid.getByText("Not analysed yet", { exact: true })).toHaveCount(FAMILIES.length);
   });
 }
+
+test("analysed families use their analysis while a partial pass states its coverage", async ({ mount }) => {
+  const families = FAMILIES.map((family, index) => ({
+    ...family,
+    baseLabel: "ink",
+    label: "ink",
+    artStyle: "ink",
+    analysedMembers: index === 0 ? 1 : family.size,
+  }));
+  const component = await mount(<FamilyMapFixture families={families} width={600} />);
+  const grid = component.getByRole("list", { name: "Visual families" });
+  for (const name of MEMBERS) {
+    await expect(grid.getByRole("button", { name: `Ink · ${name}`, exact: true })).toBeVisible();
+  }
+  await expect(grid.getByText("1 of 3 portraits analysed", { exact: true })).toBeVisible();
+  await expect(grid.getByText("Not analysed yet", { exact: true })).toHaveCount(0);
+});

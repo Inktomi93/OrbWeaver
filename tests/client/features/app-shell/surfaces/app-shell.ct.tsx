@@ -48,9 +48,9 @@ import {
   AppShellListPrimaryStory,
   AppShellMobileRuleStory,
   AppShellNamedListBandStory,
-  AppShellNoticeBandStory,
   AppShellOnSectionStory,
   AppShellStory,
+  AppShellToastOverlayStory,
   AppShellTrackDoorsStory,
   AppShellTrailProjectionStory,
   AppShellWidthProbeStory,
@@ -264,6 +264,7 @@ interface NoticeGeometry {
 
 /** Measure the content column, raise one notice, and measure everything the notice could have hit. */
 async function raiseNoticeAndMeasure(page: Page): Promise<NoticeGeometry> {
+  await page.getByTestId("raise-notice").scrollIntoViewIfNeeded();
   const contentBefore = await settledBox(page.getByTestId("band-content-pane"));
   await page.getByTestId("raise-notice").click();
   const toast = await settledBox(page.locator('[data-slot="toast-root"]'));
@@ -277,95 +278,64 @@ async function raiseNoticeAndMeasure(page: Page): Promise<NoticeGeometry> {
   };
 }
 
-test.describe("the notice band — coarse pointer, the phone mount where the burial was measured", () => {
+test.describe("toast overlay on a phone", () => {
   test.use({ hasTouch: true, viewport: { width: 430, height: 932 } });
-
-  test("a notice reflows the phone content column instead of burying the transcript", async ({ mount, page }) => {
-    await mount(<AppShellNoticeBandStory />);
+  test("a notice preserves phone content geometry and leaves the composer clear", async ({ mount, page }) => {
+    await mount(<AppShellToastOverlayStory />);
     const g = await raiseNoticeAndMeasure(page);
-
-    // THE DEFECT, first and measured: with the band removed, the overlay stack's box INTERSECTS the
-    // reading surface (`toast ∩ transcript` = true, probe receipt) — that intersection is the 60% burial.
-    expect(overlaps(g.toast, g.transcript)).toBe(false);
-    expect(overlaps(g.toast, g.h1)).toBe(false);
+    expect(g.contentAfter).toEqual(g.contentBefore);
     expect(overlaps(g.toast, g.composer)).toBe(false);
-    // THE REFLOW: the content pane gave the band its height. Without this, the two non-overlap
-    // assertions would also pass for a toast that had merely been parked somewhere empty.
-    expect(g.contentAfter.height).toBeLessThan(g.contentBefore.height);
-    expect(g.contentAfter.y).toBeGreaterThan(g.contentBefore.y);
-    // …and the mechanism that bought it: the stack is in the BAND, not on the body, and the band is not
-    // a stacking context painting over anything — it has no position of its own.
-    await expect(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]')).toHaveCount(1);
-    await expect(page.locator('[data-slot="notice-band"]')).toHaveCSS("position", "static");
+    await expect(page.locator('[data-slot="toast-viewport"]')).toHaveCSS("position", "fixed");
   });
 });
 
-test("a notice reflows the desktop content column too — ONE surface, not a mobile mode", async ({ mount, page }) => {
+test("a notice preserves desktop content geometry", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await mount(<AppShellNoticeBandStory />);
+  await mount(<AppShellToastOverlayStory />);
   const g = await raiseNoticeAndMeasure(page);
-
-  expect(overlaps(g.toast, g.transcript)).toBe(false);
-  expect(overlaps(g.toast, g.h1)).toBe(false);
+  expect(g.contentAfter).toEqual(g.contentBefore);
   expect(overlaps(g.toast, g.composer)).toBe(false);
-  expect(g.contentAfter.height).toBeLessThan(g.contentBefore.height);
-  await expect(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]')).toHaveCount(1);
 });
 
-test("the shell band sheds overlay padding and caps a burst without covering content", async ({ mount, page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await mount(<AppShellNoticeBandStory />);
+test("a burst stays inside the overlay's resolved height cap", async ({ mount, page }) => {
+  await mount(<AppShellToastOverlayStory />);
   const raise = page.getByTestId("raise-notice");
   await raise.click();
   await raise.click();
   await raise.click();
-  const viewport = page.locator('[data-slot="notice-band"] [data-slot="toast-viewport"]');
-  await expect(viewport).toHaveCSS("padding-top", "0px");
-  await expect(viewport).toHaveCSS("padding-bottom", "0px");
-  await expect(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]')).toHaveCount(3);
-  const band = await settledBox(page.locator('[data-slot="notice-band"]'));
-  expect(band.height).toBeLessThanOrEqual(224);
-  expect(overlaps(await settledBox(page.getByTestId("band-transcript")), band)).toBe(false);
+  const viewport = page.locator('[data-slot="toast-viewport"]');
+  await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(3);
+  await expect.poll(() => viewport.evaluate((node) => Number.parseFloat(getComputedStyle(node).maxHeight))).toBeGreaterThan(0);
+  const cap = await viewport.evaluate((node) => Number.parseFloat(getComputedStyle(node).maxHeight));
+  await expect.poll(() => viewport.evaluate((node) => node.getBoundingClientRect().height)).toBeLessThanOrEqual(cap);
 });
 
-// A CAP THAT CLIPS MUST ALSO SCROLL (side-eye 2026-08-21 P3). The test above cannot see the difference:
-// three SHORT notices fit inside `max-block-size: min(14rem, 30dvh)`, so `band.height <= 224` holds
-// whether the cap bites or not. Driven by TALL notices the cap genuinely bites — and then the notices
-// past the window are only readable if the capped viewport is operable, which for a pointer user means
-// the wheel. The viewport's own class list opens with `pointer-events-none` (the primitive's default, so
-// an EMPTY overlay stack never eats clicks on the controls it floats over), and in the band that default
-// hands the wheel to the transcript underneath instead of to the scroller that is clipping the notice.
-test("a capped burst is READABLE: the band's own scroller takes the wheel, not the transcript beneath it", async ({ mount, page }) => {
+test("the capped overlay takes the wheel between notices", async ({ mount, page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await mount(<AppShellNoticeBandStory />);
+  await mount(<AppShellToastOverlayStory />);
   const raise = page.getByTestId("raise-tall-notice");
   await raise.click();
   await raise.click();
   await raise.click();
-  const viewport = page.locator('[data-slot="notice-band"] [data-slot="toast-viewport"]');
-  await expect(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]')).toHaveCount(3);
-  // The cap BITES — without this the wheel assertion below would be vacuous (nothing to scroll).
-  await expect.poll(() => viewport.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeGreaterThan(0);
+  const viewport = page.locator('[data-slot="toast-viewport"]');
+  const notices = page.locator('[data-slot="toast-root"]');
+  await expect(notices).toHaveCount(3);
+  await expect.poll(() => viewport.evaluate((node) => node.scrollHeight - node.clientHeight)).toBeGreaterThan(0);
+  const first = await settledBox(notices.nth(0));
+  const second = await settledBox(notices.nth(1));
   const before = await settledBox(page.getByTestId("band-transcript"));
-
-  // Aim at the GAP BETWEEN two notices, not at a card. A toast root re-enables pointer events for
-  // itself, so a wheel over one already reaches the scroller; the gaps are the pixels the region's own
-  // `pointer-events-none` gives away, and a reader aiming at the stack rather than at one card lands
-  // there. Every pixel of the capped window belongs to the scroller or the cap is only sometimes real.
-  const firstNotice = await settledBox(page.locator('[data-slot="notice-band"] [data-slot="toast-root"]').first());
   const box = await settledBox(viewport);
-  await page.mouse.move(box.x + box.width / 2, firstNotice.y + firstNotice.height + 4);
+  await page.mouse.move(box.x + box.width / 2, (first.y + first.height + second.y) / 2);
   await page.mouse.wheel(0, 200);
-  await expect.poll(() => viewport.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
-  // …and the reading surface underneath did not move instead (the wheel was not handed through).
+  await expect.poll(() => viewport.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
   expect((await settledBox(page.getByTestId("band-transcript"))).y).toBe(before.y);
 });
 
-test("with nothing to say the band costs zero pixels — an empty shell is byte-for-byte the old layout", async ({ mount, page }) => {
-  await mount(<AppShellNoticeBandStory />);
-  // The band element exists (its ref is what the outlet portals into) and renders NOTHING.
-  await expect(page.locator('[data-slot="notice-band"]')).toHaveCount(1);
-  await expect(page.locator('[data-slot="notice-band"]')).toBeHidden();
+test("the empty toast overlay does not intercept page controls", async ({ mount, page }) => {
+  await mount(<AppShellToastOverlayStory />);
+  await expect(page.locator('[data-slot="notice-band"]')).toHaveCount(0);
+  await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
+  await expect(page.locator('[data-slot="toast-viewport"]')).toHaveCSS("pointer-events", "none");
 });
 
 test("default renders the chats content pane inside the frame", async ({ mount }) => {

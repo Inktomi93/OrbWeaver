@@ -36,6 +36,7 @@ test("visual names use portrait facets and representative names without card nar
   const visual = (name: string, genre: string): Cluster => ({
     ...cluster(name, []),
     baseLabel: "painted",
+    analysedMembers: 1,
     artStyle: "painted",
     palette: "blue",
     mood: "quiet",
@@ -44,4 +45,19 @@ test("visual names use portrait facets and representative names without card nar
   });
   const groups = [visual("Aria", "fantasy"), visual("Bolt", "romance")];
   expect(resolveCorpusArchetypeNames(groups)).toEqual(["Painted · Aria", "Painted · Bolt"]);
+});
+
+test("unanalysed portrait families lead with bounded member names, never a repeated readiness prefix", () => {
+  const group = {
+    ...cluster("Aria", []),
+    baseLabel: "unanalysed portraits",
+    label: "unanalysed portraits",
+    artStyle: null,
+    mood: null,
+    palette: null,
+    analysedMembers: 0,
+    size: 3,
+    members: ["Aria", "Bolt", "Cass"].map((name) => ({ characterId: mintTypeId(ID_PREFIX.character), name, avatarHash: null })),
+  };
+  expect(resolveCorpusArchetypeNames([group])).toEqual(["Aria · Bolt +1 more"]);
 });

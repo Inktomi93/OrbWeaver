@@ -165,9 +165,23 @@ describe("visualArchetypes", () => {
     const arch = await svcFor(db).visualArchetypes(owner, 1);
     expect(arch).toHaveLength(1);
     expect(arch[0]?.label).toBe("unanalysed portraits");
+    expect(arch[0]).toMatchObject({ analysedMembers: 0 });
     // The card-text reading still rides the payload — it is context, and context is not a name.
     expect(arch[0]?.genre).toBe("fantasy");
     expect(arch[0]?.tone).toBe("melancholic");
+  });
+
+  test("a uniformly analysed family is mixed, not waiting for analysis", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await Promise.all(
+      Array.from({ length: 4 }, (_, i) =>
+        seedAvatarChar(db, { id: `uniform_${i}`, ownerId: owner, avatarVec: vec(1, i * 0.001), artStyle: "anime", mood: "quiet" }),
+      ),
+    );
+    const groups = await svcFor(db).visualArchetypes(owner, 1);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ baseLabel: "mixed portraits", label: "mixed portraits", analysedMembers: 4, size: 4 });
   });
 
   test("TWO FAMILIES NEVER WEAR THE SAME LABEL — a tie qualifies rather than repeating", async () => {

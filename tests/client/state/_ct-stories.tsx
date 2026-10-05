@@ -78,7 +78,6 @@ import {
   openPersonaEditor,
   openRoomInvite,
   publishContextTabs,
-  publishNoticeBand,
   readComposerDraft,
   readCorpusResultScroll,
   registerListFlipCarry,
@@ -232,14 +231,9 @@ import {
 import type { AssetId, CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from "react";
-// Deep, not the app-shell barrel: `NoticeBand` is the store's only in-app writer and the probe drives the
-// REAL component, so publishing and releasing are exercised exactly as the shell does them.
+import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { ModalHost } from "../../../packages/client/src/features/app-shell/components/modal-host.tsx";
-import { NoticeBand } from "../../../packages/client/src/features/app-shell/components/notice-band.tsx";
-import { notify } from "../../../packages/client/src/lib/notify.ts";
 import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/browser/ct-data-providers.tsx";
-import { CtToastSurface } from "../lib/_ct-stories.tsx";
 
 // ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────
 // Mounted over the REAL config selection seam (`CtFakeSectionRegistry` passes `REAL[id].selection` through
@@ -1462,39 +1456,6 @@ export function DeploymentBootHintProbe(): ReactElement {
         forget device
       </button>
     </div>
-  );
-}
-
-/**
- * The notice-band store's WHOLE contract, in the shape that made it necessary (#193): the band and the
- * toast outlet are NOT in the same subtree, so a context could never carry this — the outlet is mounted at
- * the composition root, above the router and outside the error boundary, while the band is a row deep
- * inside the shell. The probe reproduces exactly that: `NoticeBand` (the real writer) and `AppToaster`
- * (inside `CtToastSurface`, the real reader) are siblings, and the band can be UNMOUNTED mid-life —
- * which is the app-level crash-boundary swap, the one case a "is a shell mounted?" flag would go stale on.
- */
-export function NoticeBandProbe(): ReactElement {
-  const [banded, setBanded] = useState(true);
-  // A SECOND host, published by hand: the store's re-target path. A shell swap (a route change that
-  // rebuilds the frame) hands the outlet a different node while a notice is already up, and the stack has
-  // to follow the live one — nothing about the band component itself can produce that case.
-  const spare = useRef<HTMLDivElement>(null);
-  return (
-    <CtToastSurface>
-      <div>
-        {banded ? <NoticeBand /> : null}
-        <div data-testid="spare-host" ref={spare} />
-        <button type="button" onClick={(): void => notify.error("Lost the live connection")}>
-          raise notice
-        </button>
-        <button type="button" onClick={(): void => setBanded(false)}>
-          drop the shell
-        </button>
-        <button type="button" onClick={(): void => publishNoticeBand(spare.current)}>
-          publish the spare host
-        </button>
-      </div>
-    </CtToastSurface>
   );
 }
 

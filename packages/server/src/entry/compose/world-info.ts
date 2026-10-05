@@ -12,8 +12,10 @@ import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/c
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
+import { users } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
@@ -25,7 +27,7 @@ import { bumpStatsCanonVersion } from "#domain/stats";
 import type { WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createHasPrimaryBook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
-import { createBulkImportChats, requireHost, requireParticipant } from "../../domain/chat/index.ts";
+import { createBulkImportChats, createReadInheritedChatBooks, requireHost, requireParticipant } from "../../domain/chat/index.ts";
 import { publishUserEvent } from "../../transport/trpc/index.ts";
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
@@ -53,7 +55,7 @@ export interface WorldInfoComposeDeps {
   /** character's find-or-mint of a room's synthetic `__group__<chatId>` narrator identity — the SAME op
    *  chat's turn verb runs for a live `output:"narrator"` round. The bulk-import write needs it so an
    *  imported narrator slot is authored by the identical row (chat never imports domain/character). */
-  readonly character: Pick<CharacterService, "mintSyntheticGroupCharacter">;
+  readonly character: Pick<CharacterService, "mintSyntheticGroupCharacter" | "getCard">;
 }
 
 /** The world-info compose product: the service + the import ports + the bulk importers + the owner resolver. */
@@ -67,6 +69,7 @@ export interface WorldInfoComposeResult {
 
 export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResult {
   const { db, now, audit, assets } = deps;
+  const resolvePrincipal = createHostPrincipalResolver(deps.sessions);
 
   const worldInfo = createWorldInfoService({
     db,
@@ -76,6 +79,12 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     audit,
     requireChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined),
     requireChatMember: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    readInheritedChatBooks: createReadInheritedChatBooks({
+      db,
+      can,
+      getCard: async ({ ownerId, characterId }) => deps.character.getCard({ principal: await resolvePrincipal(ownerId), characterId }),
+      resolveUserEnabled: async (userId) => (await db.select({ enabled: users.enabled }).from(users).where(eq(users.id, userId)).limit(1))[0]?.enabled ?? false,
+    }),
     emitWiEvent: deps.emitChatBusEvent,
     emitUserEvent: publishUserEvent,
     emit: deps.emitDomainEvent,

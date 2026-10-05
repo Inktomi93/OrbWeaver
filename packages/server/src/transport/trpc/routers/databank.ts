@@ -13,6 +13,7 @@ import {
   bankHealthViewSchema,
   docOriginSchema,
   documentAttachmentsViewSchema,
+  documentDestinationSchema,
   documentDetailViewSchema,
   documentIdSchema,
   documentListCursorSchema,
@@ -36,23 +37,27 @@ const LIMIT_MAX = 500;
 export const databankRouter = t.router({
   createFromText: authedProcedure
     .output(uploadResultSchema)
-    .input(z.object({ name: z.string().min(1).max(NAME_MAX), text: z.string().min(TEXT_MIN) }))
-    .mutation(({ ctx, input }) => ctx.services.databank.createFromText({ principal: ctx.auth, name: input.name, text: input.text })),
+    .input(z.object({ name: z.string().min(1).max(NAME_MAX), text: z.string().min(TEXT_MIN), destination: documentDestinationSchema.optional() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.databank.createFromText({ principal: ctx.auth, name: input.name, text: input.text, destination: input.destination }),
+    ),
 
   scrapeWeb: authedProcedure
     .output(uploadResultSchema)
-    .input(z.object({ url: z.url() }))
-    .mutation(({ ctx, input }) => ctx.services.databank.scrapeWeb({ principal: ctx.auth, url: input.url })),
+    .input(z.object({ url: z.url(), destination: documentDestinationSchema.optional() }))
+    .mutation(({ ctx, input }) => ctx.services.databank.scrapeWeb({ principal: ctx.auth, url: input.url, destination: input.destination })),
 
   scrapeYoutube: authedProcedure
     .output(uploadResultSchema)
-    .input(z.object({ url: z.url(), lang: z.string().default("en") }))
-    .mutation(({ ctx, input }) => ctx.services.databank.scrapeYoutube({ principal: ctx.auth, url: input.url, lang: input.lang })),
+    .input(z.object({ url: z.url(), lang: z.string().default("en"), destination: documentDestinationSchema.optional() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.databank.scrapeYoutube({ principal: ctx.auth, url: input.url, lang: input.lang, destination: input.destination }),
+    ),
 
   scrapeWiki: authedProcedure
     .output(uploadResultSchema)
-    .input(z.object({ url: z.url() }))
-    .mutation(({ ctx, input }) => ctx.services.databank.scrapeWiki({ principal: ctx.auth, url: input.url })),
+    .input(z.object({ url: z.url(), destination: documentDestinationSchema.optional() }))
+    .mutation(({ ctx, input }) => ctx.services.databank.scrapeWiki({ principal: ctx.auth, url: input.url, destination: input.destination })),
 
   get: authedProcedure
     .output(documentDetailViewSchema)

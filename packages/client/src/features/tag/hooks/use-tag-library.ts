@@ -61,7 +61,7 @@ export function useTagLibrarySummary(): { readonly count: number; readonly facts
   const unused = rows.filter((row) => row.usage.total === 0 && row.pendingSuggestions === 0);
   const byType = (Object.keys(USAGE_KIND_TITLES) as (keyof typeof USAGE_KIND_TITLES)[]).map((key) => ({
     id: `on-${key}`,
-    label: `Labels on ${USAGE_KIND_TITLES[key].toLowerCase()}`,
+    label: `Tags on ${USAGE_KIND_TITLES[key].toLowerCase()}`,
     value: String(rows.filter((row) => row.usage[key] > 0).length),
   }));
   const facts: readonly TagLibraryFact[] = [

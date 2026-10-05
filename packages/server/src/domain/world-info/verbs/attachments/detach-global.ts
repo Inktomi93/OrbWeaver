@@ -18,6 +18,7 @@ export function createDetachGlobal(ctx: WorldInfoContext): WorldInfoService["det
       throw new WorldInfoNotFoundError("world_book", bookId);
     }
     const at = ctx.now();
+    const fanReach = await ctx.captureRoomReachForDelete(bookId);
     const removed = await ctx.db.delete(globalBooks).where(eq(globalBooks.worldBookId, bookId)).returning({ worldBookId: globalBooks.worldBookId });
     if (removed.length === 0) {
       return { detached: false };
@@ -32,6 +33,7 @@ export function createDetachGlobal(ctx: WorldInfoContext): WorldInfoService["det
       at,
     );
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
+    fanReach();
     return { detached: true };
   };
 }

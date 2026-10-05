@@ -37,11 +37,11 @@ import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-t
 import {
   MessageListFooterDisclosureStory,
   MessageListMomentStory,
-  MessageListNoticeBandStory,
   MessageListOverArtStory,
   MessageListStoppingStory,
   MessageListSurfaceStory,
   MessageListTabWalkStory,
+  MessageListWarningOverlayStory,
 } from "../_ct-stories.tsx";
 import { MessageListEdgeFadeStory } from "../_edge-fade-stories.tsx";
 import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
@@ -1484,28 +1484,13 @@ test("#113 CONTROL: a short turn is left alone — no sticky, no chip, no measur
 });
 
 // ── #1873: a capability WARNING landing mid-turn must not leave the transcript oscillating ──────────
-// The owner's report: generating against an endpoint that lacks a requested capability raises the
-// `tools_unsupported` notice, and when it arrives DURING a turn the streaming message enters an infinite
-// rendering jitter and never settles.
-//
-// THE MECHANISM THIS PINS (measured — the story's own header carries the mount):
-//   1. the engine emits its capability drops AFTER the last delta and BEFORE the turn terminal
-//      (`emitCapabilityDropWarnings`, engine.ts) — exactly ONCE per turn — so the notice lands while the
-//      turn is still live on the client and the ghost has STOPPED growing;
-//   2. `AppToaster` puts the notice in the shell's NOTICE BAND, a flow row of `.shell-main`, so the
-//      transcript's containing block genuinely SHRINKS (`shell.css`, #193);
-//   3. a smaller scrollport flips `MessageListRowMeta.exceedsViewport` for the live row, which is the
-//      `stickyAttribution` verdict — and that verdict must change NO BOX (`message-row-backing.ts`:
-//      "going sticky changes NO box", the #167 precedent). When it does, the row's own height re-crosses
-//      the threshold that produced the verdict and the verdict inverts, forever.
-// The scrollport is therefore CALIBRATED onto that boundary rather than guessed: the test measures the
-// live row and the band, then sets the column so the row sits just past the port — the one state where a
-// height-changing verdict cannot converge.
+// A capability warning arrives after the last delta, while the streaming row still owns sticky attribution.
+// Calibrate the scrollport just inside that row's height: a box-changing sticky verdict would oscillate.
+// The document overlay must leave both the scrollport and the row unchanged.
 
 const JITTER_SCROLLER = '[data-slot="message-list-scroll"]';
 const GHOST_LI = 'li[data-slot="message-list-row"]:has([data-slot="ghost-message-row"])';
 const TOAST_ROOT = '[data-slot="toast-root"]';
-const NOTICE_BAND = '[data-slot="notice-band"]';
 
 /** Eight paragraphs: taller than a phone's transcript, shorter than the 900px calibration column. */
 const JITTER_REPLY = Array.from({ length: 8 }, (_, i) => `Paragraph ${i} of a reply that keeps going for a while yet.`).join("\n\n");
@@ -1538,26 +1523,23 @@ const NARRATOR_ROSTER_STUB: TrpcRoutes<"chat.getChat"> = {
   }),
 };
 
-/** Tall enough that the live row fits inside it with the band up — the calibration state. */
+/** Tall enough to calibrate the live row against a bounded scrollport. */
 const CALIBRATION_COLUMN_PX = 900;
 /** How far INSIDE the live row's own height the calibrated scrollport lands: the row then exceeds the
  *  port (⇒ sticky) by less than the box a height-changing sticky verdict removes (⇒ not sticky). */
 const PORT_INSET_PX = 16;
 
-test("#1873 a capability warning raised mid-turn settles: the notice band reflows the transcript ONCE, it does not oscillate", async ({ mount, page }) => {
+test("a capability warning overlay preserves a stable streaming transcript", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, { ...CHAT_AMBIENT_ROUTES, ...NARRATOR_ROSTER_STUB, "chat.listMessages": () => makeMessagesPage([USER_VIEW]) });
   await routeOrbSocket(page, { frames: chatFrames(WARNED_TURN), awaitAttaches: 1 });
 
-  const component = await mount(<MessageListNoticeBandStory columnHeight={CALIBRATION_COLUMN_PX} />);
+  const component = await mount(<MessageListWarningOverlayStory columnHeight={CALIBRATION_COLUMN_PX} />);
   const ghost = component.locator(GHOST_LI);
   await expect(ghost).toContainText("Paragraph 7");
 
-  // The notice arrived through the real reducer → the real copy mapper → the real outlet, and it landed
-  // in the BAND (a flow row), which is what makes the reflow half reachable at all.
-  await expect(component.locator(TOAST_ROOT)).toContainText("Tools were turned off");
-  const band = component.locator(NOTICE_BAND);
-  await expect.poll(async () => await band.evaluate((el: HTMLElement) => el.getBoundingClientRect().height)).toBeGreaterThan(0);
+  await expect(page.locator(TOAST_ROOT)).toContainText("Tools were turned off");
+  await expect(page.locator('[data-slot="toast-viewport"]')).toHaveCSS("position", "fixed");
 
   // CALIBRATION + the planted control: in a column this tall the live row fits, so the verdict is a
   // settled NO — were it already sticky here, the height measured below would be of the wrong arm.
@@ -1567,7 +1549,7 @@ test("#1873 a capability warning raised mid-turn settles: the notice band reflow
   const chromePx = CALIBRATION_COLUMN_PX - portPx;
 
   // …now put the scrollport just inside the row, which is where the reported defect lives.
-  await component.update(<MessageListNoticeBandStory columnHeight={Math.round(rowPx) - PORT_INSET_PX + chromePx} />);
+  await component.update(<MessageListWarningOverlayStory columnHeight={Math.round(rowPx) - PORT_INSET_PX + chromePx} />);
 
   // THE OBSERVABLE IS THE ROW'S RENDERED HEIGHT, SAMPLED PER FRAME — a judder is a geometry fact, and a
   // two-point read across two idle windows catches the same phase of a per-frame alternation half the time
@@ -1602,9 +1584,8 @@ test("#1873 a capability warning raised mid-turn settles: the notice band reflow
   // The sticky verdict changed NO box: the row measures what it measured before it went sticky.
   expect(distinctHeights[0]).toBe(Math.round(rowPx));
 
-  // The notice is STILL up (its 12s life has not expired) — otherwise the band would have released its
-  // height and the sampling above would be of a state the defect cannot occur in.
-  await expect(component.locator(TOAST_ROOT)).toBeVisible();
+  // Keep the warning live throughout the calibrated transcript measurement.
+  await expect(page.locator(TOAST_ROOT)).toBeVisible();
   // …and the row really is past the port, i.e. the sample was taken at the boundary this test exists for
   // — and the verdict SETTLED there, rather than alternating across it.
   await expect(component.locator(STUCK_NAME_ROW)).toHaveCount(1);

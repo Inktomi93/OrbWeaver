@@ -8,7 +8,7 @@
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { LoreConstantCanonRow, LoreEntryIndexRow, UpsertEntriesResult, WiBusEvent } from "@orb/contracts/world-info";
+import type { ChatBookView, LoreConstantCanonRow, LoreEntryIndexRow, UpsertEntriesResult, WiBusEvent } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
@@ -59,6 +59,7 @@ export interface WorldInfoContext {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
   readonly requireChatMember: (principal: Principal, chatId: ChatId) => Promise<void>;
+  readonly readInheritedChatBooks: (principal: Principal, chatId: ChatId) => Promise<ChatBookView[]>;
   readonly emitWiEvent: (event: WiBusEvent) => Promise<void>;
   /** Live-freshness emit; distinct from emitWiEvent (the per-open-chat bus for attachment changes). */
   readonly emitUserEvent: EmitUserEvent;
@@ -131,7 +132,7 @@ export interface WorldInfoService {
   readonly attachToChat: (params: AttachToChatParams) => Promise<void>;
   readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
   /** Room-public, not owner-filtered — the room's pool is what every member's turns assemble against. */
-  readonly listForChat: (params: ListForChatParams) => Promise<BookAttachmentView[]>;
+  readonly listForChat: (params: ListForChatParams) => Promise<ChatBookView[]>;
 
   /** The SHARED machine-writer bulk upsert (D59). Upserts entries by (bookId,
    *  title), owner-gated on the book; NEVER overwrites a human-curated entry (the stored

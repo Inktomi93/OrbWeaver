@@ -10,7 +10,7 @@ import { CORPUS_SECTION_LABEL } from "./corpus-section-label.ts";
 const MODE_DESCRIBE: Readonly<Record<CorpusMode, string>> = {
   explore: "Search and browse your whole library",
   insights: "Activity, economics and per-character stats",
-  labels: "Create, merge, prune and edit your labels",
+  labels: "Create, merge, prune and edit your tags",
 };
 
 const MODE_KEYWORDS: Readonly<Record<CorpusMode, readonly string[]>> = {

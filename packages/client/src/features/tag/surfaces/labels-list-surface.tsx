@@ -33,7 +33,7 @@ export function LabelsListSurface(): ReactElement {
         <Row align="center" data-slot="labels-control-row" gap="field">
           <Row align="center" className="min-w-0 flex-1">
             <ListSearch>
-              <Input aria-label="Filter labels" onValueChange={setLabelFilter} placeholder="Filter labels…" value={filter} />
+              <Input aria-label="Filter tags" onValueChange={setLabelFilter} placeholder="Filter tags…" value={filter} />
             </ListSearch>
           </Row>
           <LabelsSortSelect />
@@ -41,14 +41,14 @@ export function LabelsListSurface(): ReactElement {
         </Row>
         {empty ? (
           <Text voice="gloss" data-slot="labels-finder-empty">
-            No labels yet.
+            No tags yet.
           </Text>
         ) : null}
         {/* The rows' windowed arm takes its height from this box, so it is a bounded flex column. */}
         <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <QueryBoundary
             fallback={<Skeleton className="h-16 w-full" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="labels" onRetry={retry} />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="tags" onRetry={retry} />}
           >
             <TagCollectionRows view={{ selectedId, onSelect: selectLabelFromList, filter }} />
           </QueryBoundary>
@@ -62,7 +62,7 @@ function LabelsSortSelect(): ReactElement {
   const sort = useTagSortControl();
   return (
     <Select
-      aria-label="Sort labels"
+      aria-label="Sort tags"
       // @orb-waive ui-size-via-variant(w-auto): content-width Select leaves the row slack to its filter; auto overrides the standard w-full deterministically.
       className="w-auto"
       items={sort.options}
@@ -83,7 +83,7 @@ function LabelsOverflow(): ReactElement {
     <Menu>
       <MenuTrigger
         render={
-          <Button aria-label="More label actions" intent="ghost" size="icon-sm">
+          <Button aria-label="More tag actions" intent="ghost" size="icon-sm">
             <Icon icon={MoreVertical} size="sm" />
           </Button>
         }
@@ -91,7 +91,7 @@ function LabelsOverflow(): ReactElement {
       <MenuPopup align="end">
         <MenuItem onClick={(): void => setTagPruneConfirmOpen(true)}>
           <Icon icon={Trash2} size="sm" />
-          Prune unused labels
+          Prune unused tags
         </MenuItem>
       </MenuPopup>
     </Menu>

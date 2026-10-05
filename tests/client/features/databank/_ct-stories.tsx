@@ -9,6 +9,8 @@
 
 import { ListPaneHeaderHost } from "@orb/client/components";
 import { useInvalidation, useOrbSocket, useUserBus } from "@orb/client/data";
+import type { ChatId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -23,6 +25,7 @@ import { createContributorRegistry } from "../../../../packages/client/src/lib/i
 import type { HomeTileContribution } from "../../../../packages/client/src/state/index.ts";
 import {
   closeModal,
+  selectChat,
   setFocusMode,
   useActiveChatId,
   useActiveSection,
@@ -58,10 +61,11 @@ export function DatabankLibraryStory(): ReactElement {
 /** The LIST chrome band (title · count · Add · the D-6 maintenance kebab) PLUS the shell's real ModalHost:
  *  the band's Add opens a MODAL SLOT now (P1-2), so the dialog it opens is the shell's, not the band's, and
  *  a story without the host would assert on a dialog that production renders one level up. */
-export function DatabankListHeaderStory(): ReactElement {
+export function DatabankListHeaderStory({ chatId }: { readonly chatId?: ChatId }): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
+        {chatId === undefined ? null : <Button onClick={(): void => selectChat(chatId)}>Open test chat</Button>}
         <div style={{ display: "flex", justifyContent: "space-between", width: 320 }}>
           <ListPaneHeaderHost useView={useDatabankListHeader} />
         </div>

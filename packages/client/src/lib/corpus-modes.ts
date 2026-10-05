@@ -9,7 +9,7 @@ export const CORPUS_MODES = ["explore", "insights", "labels"] as const;
 export type CorpusMode = (typeof CORPUS_MODES)[number];
 
 /** The user-facing mode names — the switch, the LIST band, and the phone title all read these. */
-export const CORPUS_MODE_LABELS: Readonly<Record<CorpusMode, string>> = { explore: "Explore", insights: "Insights", labels: "Labels" };
+export const CORPUS_MODE_LABELS: Readonly<Record<CorpusMode, string>> = { explore: "Explore", insights: "Insights", labels: "Tags" };
 
 /** The CONTEXT band's name for owner-wide context in every mode — never a description of the open subject. */
 export const CORPUS_WHOLE_LABEL = "Whole corpus";

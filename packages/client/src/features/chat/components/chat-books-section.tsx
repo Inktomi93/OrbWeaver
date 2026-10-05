@@ -40,6 +40,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { rowActionsName } from "#lib";
 import { useDetachBookFromChat } from "../hooks/use-chat-book-mutations.ts";
+import { inheritedBookLabel } from "../lib/chat-books-model.ts";
 import { AddChatBookDialog } from "./add-chat-book-dialog.tsx";
 
 /** One row of the rack — DERIVED from the read's wire type, never re-spelled (§5.4). */
@@ -56,7 +57,9 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
   const invalidation = useInvalidation();
   const detach = useDetachBookFromChat({ trpc, invalidation });
   const [pickerOpen, setPickerOpen] = useState(false);
-  const { data: books } = useSuspenseQuery(trpc.worldInfo.listForChat.queryOptions({ chatId }));
+  const { data: books } = useSuspenseQuery(trpc.worldInfo.listForChat.queryOptions({ chatId, includeInherited: true }));
+  const inherited = books.filter((book) => book.inherited !== undefined);
+  const attached = books.filter((book) => book.inherited === undefined);
 
   return (
     <Stack gap="block">
@@ -68,7 +71,23 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
           : "These books add background to this room's prompts for everyone here. Only the host attaches or removes one."}
       </Text>
 
-      {books.length === 0 ? (
+      {inherited.length === 0 ? null : (
+        <Stack gap="tight">
+          <Text voice="label">Inherited books</Text>
+          <Text voice="gloss">These sources can add lore to prompts. They are managed on their own source, not attached to this chat.</Text>
+          {inherited.map((book) =>
+            book.inherited === undefined ? null : (
+              <ListRow
+                key={`${book.id}:${book.inherited.source}:${book.inherited.name ?? ""}`}
+                title={book.name}
+                subtitle={inheritedBookLabel(book.inherited)}
+              />
+            ),
+          )}
+        </Stack>
+      )}
+      <Text voice="label">Attached to this chat</Text>
+      {attached.length === 0 ? (
         // Never render nothing: "no books attached" is the normal starting state, and a blank block reads as
         // a failed load (empty states are load-bearing).
         <Text voice="gloss">
@@ -78,7 +97,7 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
         </Text>
       ) : (
         <Stack gap="tight">
-          {books.map((book) => (
+          {attached.map((book) => (
             <ChatBookRow book={book} isHost={isHost} key={book.id} onDetach={(): void => detach.mutate({ chatId, bookId: book.id })} />
           ))}
         </Stack>
@@ -91,7 +110,7 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
           <Button intent="secondary" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
             Attach a world book
           </Button>
-          <AddChatBookDialog attachedIds={books.map((book) => book.id)} chatId={chatId} onOpenChange={setPickerOpen} open={pickerOpen} />
+          <AddChatBookDialog attachedIds={attached.map((book) => book.id)} chatId={chatId} onOpenChange={setPickerOpen} open={pickerOpen} />
         </>
       ) : null}
     </Stack>

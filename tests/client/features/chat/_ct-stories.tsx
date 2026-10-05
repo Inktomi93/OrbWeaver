@@ -127,7 +127,6 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { NoticeBand } from "../../../../packages/client/src/features/app-shell/components/notice-band.tsx";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog.tsx";
 import { AddChatBookDialog } from "../../../../packages/client/src/features/chat/components/add-chat-book-dialog.tsx";
@@ -1200,24 +1199,7 @@ function MomentHarness({ target }: { readonly target: MessageWindowTarget }): Re
   );
 }
 
-// ── #1873: a capability WARNING raised while a turn is on screen, into the shell's real notice band ──
-// The reported defect is an infinite rendering jitter of the streaming message when a `tools_unsupported`
-// notice arrives mid-turn. Every hop here is the production one: a `warning` FRAME on the scripted room
-// stream → `applyChatBusEvent` → the injected `onWarning` (the same two calls `chat-content.tsx`'s
-// module-private `surfaceWarning` makes) → the real copy mapper → `AppToaster` into the REAL `NoticeBand`,
-// which is a flow row of `.shell-main` (`shell.css`) — so raising the notice genuinely SHRINKS the
-// transcript's containing block, which is the half a story with a floating overlay toast cannot produce.
-//
-// `columnHeight` is the knob the CT CALIBRATES: the scrollport height decides `MessageListRowMeta`'s
-// `exceedsViewport`, i.e. whether the live row's attribution goes sticky, so the defect's boundary is a
-// property of "the port after the band takes its height", which the test measures rather than guesses.
-//
-// NO COMMIT TALLY HERE, DELIBERATELY. The obvious instrument — a `<Profiler>` around the surface, the
-// shape the Background section's story carried until #2412 deleted it — MEASURES NOTHING IN A CT: playwright-ct runs the
-// PRODUCTION React build, whose `<Profiler>` never calls `onRender` (that is a profiling-build feature).
-// Wired here first and measured: the tally sat at exactly 0 across a mount, a full scripted turn and three
-// idle windows of a transcript that was visibly oscillating. The honest observable for a judder is the
-// RENDERED GEOMETRY sampled per frame, which is what the CT reads.
+// Capability warnings use the real room bus and document-level toast overlay.
 
 function StreamNoticeHarness({ columnHeight }: { readonly columnHeight: number }): ReactElement {
   const trpc = useTRPC();
@@ -1231,7 +1213,6 @@ function StreamNoticeHarness({ columnHeight }: { readonly columnHeight: number }
   };
   return (
     <div className="shell-main" style={{ display: "flex", flexDirection: "column", height: columnHeight, minHeight: 0 }}>
-      <NoticeBand />
       <main className="shell-content">
         <div className="shell-region-fill">
           <MessageThreadAnchor>
@@ -1243,9 +1224,8 @@ function StreamNoticeHarness({ columnHeight }: { readonly columnHeight: number }
   );
 }
 
-/** #1873 — the keystone surface under the shell's real notice band, in a column whose height the CT sets
- *  (see the block comment above). */
-export function MessageListNoticeBandStory({ columnHeight = 480 }: { readonly columnHeight?: number }): ReactElement {
+/** The warning-driven transcript in a calibratable host. */
+export function MessageListWarningOverlayStory({ columnHeight = 480 }: { readonly columnHeight?: number }): ReactElement {
   return (
     <CtDataProviders>
       <SocketHost>

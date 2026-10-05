@@ -201,7 +201,7 @@ function TagBehaviorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; 
           ruling (2026-08-09), so the option is named as what it currently is rather than promising
           navigation that does not exist. */}
       <Field
-        description="In the library's grouped view, an Open folder starts expanded and a Plain label starts collapsed behind its name and count. Closed folders (hidden until you enter them) aren't built yet — they behave like Plain."
+        description="In the library's grouped view, an Open folder starts expanded and a Plain tag starts collapsed behind its name and count. Closed folders (hidden until you enter them) aren't built yet — they behave like Plain."
         label="Folder type"
         name="tag-folder-type"
       >
@@ -285,17 +285,17 @@ function TagMergeControl({
         Merge into…
       </Button>
       <FormDialog
-        description="Every attachment moves to the label you pick, then this label is deleted. This can't be undone."
+        description="Every attachment moves to the tag you pick, then this tag is deleted. This can't be undone."
         onOpenChange={setOpen}
         open={open}
         submit={{ label: "Merge", onSubmit: confirmMerge, disabled: target === null }}
-        title={`Merge "${tag.name}" into another label`}
+        title={`Merge "${tag.name}" into another tag`}
       >
         <Select
-          aria-label="Merge target label"
+          aria-label="Merge target tag"
           items={others.map((other) => ({ label: other.name, value: other.id }))}
           onValueChange={(value: TagId | null): void => setTarget(value)}
-          placeholder="Choose a label…"
+          placeholder="Choose a tag…"
           value={target}
         />
       </FormDialog>

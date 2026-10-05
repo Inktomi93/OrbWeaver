@@ -34,7 +34,7 @@ import {
 } from "../assembly/speaker-card.ts";
 import { buildShapeTrace as buildShapeTraceImpl } from "../assembly/trace.ts";
 import { buildTurnUserMacros as buildTurnUserMacrosImpl } from "../assembly/user-macros.ts";
-import { loadCharacterCardLore as loadCharacterCardLoreImpl } from "../assembly/world-info/pool.ts";
+import { loadCharacterCardLore as loadCharacterCardLoreImpl, loadInheritedWorldBooks as loadInheritedWorldBooksImpl } from "../assembly/world-info/pool.ts";
 
 /** BUILD: render the prompt config against the immutable assemble ctx → the static/dynamic halves + splices. */
 export function buildPrompt(...args: Parameters<typeof assemblePrompt>): ReturnType<typeof assemblePrompt> {
@@ -114,6 +114,11 @@ export function renderMacros(...args: Parameters<typeof renderMacrosImpl>): Retu
  *  reached through this substrate seam like every other assembly touch. */
 export function loadCharacterCardLore(...args: Parameters<typeof loadCharacterCardLoreImpl>): ReturnType<typeof loadCharacterCardLoreImpl> {
   return loadCharacterCardLoreImpl(...args);
+}
+
+/** LOAD eligible inherited book headers through the same assembly boundary as the room's lore reads. */
+export function loadInheritedWorldBooks(...args: Parameters<typeof loadInheritedWorldBooksImpl>): ReturnType<typeof loadInheritedWorldBooksImpl> {
+  return loadInheritedWorldBooksImpl(...args);
 }
 
 /** Render an unsteered trailing-user NUDGE template's macros (`{{user}}`/`{{char}}`/`{{person}}`) — the same

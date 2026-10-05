@@ -69,6 +69,38 @@ function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
 }
 
 describe("browseCharacters", () => {
+  test("lists owned cards before distillation without inventing facets or exposing synthetic and foreign cards", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const other = await seedUser(db, "user_b");
+    const plain = await seedCharacter(db, { id: "character_plain", ownerId: owner, name: "Alpha" });
+    const distilled = await seedCharacter(db, { id: "character_distilled", ownerId: owner, name: "Bravo" });
+    await seedCharacter(db, { id: "character_foreign", ownerId: other, name: "Foreign" });
+    await seedCharacter(db, { id: "character_synthetic", ownerId: owner, name: "Synthetic", synthetic: true });
+    await seedSummary(db, { characterId: distilled, genre: "fantasy", tags: ["airships"] });
+    const svc = svcFor(db);
+
+    const page = await svc.browseCharacters(owner, { sort: "name" });
+    expect(page.items.map((row) => row.characterId)).toEqual([plain, distilled]);
+    expect(page.totalCount).toBe(2);
+    expect(page.items[0]).toEqual({
+      characterId: plain,
+      name: "Alpha",
+      genre: null,
+      tone: null,
+      setting: null,
+      tags: [],
+      elevatorPitch: null,
+      avatarHash: null,
+      createdAt: FROZEN_AT,
+    });
+    expect((await svc.browseCharacters(owner, { q: "ALPHA" })).items.map((row) => row.characterId)).toEqual([plain]);
+    expect((await svc.browseCharacters(owner, { genre: "fantasy" })).items.map((row) => row.characterId)).toEqual([distilled]);
+    await seedSummary(db, { characterId: plain, genre: "horror", tags: ["ghosts"], elevatorPitch: "Keeps the light." });
+    expect((await svc.browseCharacters(owner, { q: "light" })).items[0]).toMatchObject({ characterId: plain, genre: "horror", tags: ["ghosts"] });
+    expect((await svc.browseCharacters(owner)).totalCount).toBe(2);
+  });
+
   test("returns the owner's distilled cards with facets + identity, newest-collected first", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
@@ -215,6 +247,20 @@ describe("browseCharacters", () => {
     expect([...byRecent].sort()).toEqual(["Alpha", "Bravo", "Charlie", "Delta"]);
     // Reachability is the whole point: the walk's row count agrees with the census the header prints.
     expect((await svc.browseCharacters(owner)).totalCount).toBe(byRecent.length);
+  });
+
+  test("keysets reach undistilled cards on both sides of a distilled card", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await seedCharacter(db, { id: "character_alpha", ownerId: owner, name: "Alpha" });
+    const middle = await seedCharacter(db, { id: "character_bravo", ownerId: owner, name: "Bravo" });
+    await seedCharacter(db, { id: "character_charlie", ownerId: owner, name: "Charlie" });
+    await seedSummary(db, { characterId: middle, genre: "fantasy" });
+    const svc = svcFor(db);
+
+    expect(await walk(svc, owner, { sort: "name" })).toEqual(["Alpha", "Bravo", "Charlie"]);
+    expect(await walk(svc, owner, { sort: "recent" })).toEqual(["Alpha", "Bravo", "Charlie"]);
+    expect((await svc.browseCharacters(owner, { limit: 1 })).totalCount).toBe(3);
   });
 
   test("a cursor minted under one sort is REFUSED under the other, never applied to the wrong keyset", async () => {

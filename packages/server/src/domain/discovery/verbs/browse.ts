@@ -1,5 +1,5 @@
-// domain/discovery/verbs/browse — the distill read-half: the filterable distilled catalog
-// (browseCharacters) + the facet dropdowns (characterFacets). Content-only, no engagement/usage counts.
+// domain/discovery/verbs/browse — owned character pages plus distilled facet dropdowns.
+// Content-only: no engagement or usage counts.
 // Owner scope derives via a characters join (character_summaries keeps no ownerId), never a caller-supplied owner.
 
 import type { BrowseSort } from "@orb/contracts/discovery";
@@ -33,12 +33,9 @@ export function createBrowse(ctx: DiscoveryContext): Pick<DiscoveryService, "bro
  *  repeat, and a keyset on a non-unique column alone either skips or duplicates rows at the seam. */
 function afterCursor(cursor: BrowseCursor): ReturnType<typeof or> {
   if (cursor.sort === "name") {
-    return or(gt(characters.name, cursor.name), and(eq(characters.name, cursor.name), gt(characterSummaries.characterId, cursor.characterId)));
+    return or(gt(characters.name, cursor.name), and(eq(characters.name, cursor.name), gt(characters.id, cursor.characterId)));
   }
-  return or(
-    lt(characters.createdAt, cursor.createdAt),
-    and(eq(characters.createdAt, cursor.createdAt), gt(characterSummaries.characterId, cursor.characterId)),
-  );
+  return or(lt(characters.createdAt, cursor.createdAt), and(eq(characters.createdAt, cursor.createdAt), gt(characters.id, cursor.characterId)));
 }
 
 /** The boundary of the page just served — `null` at the tail, where a short page proves there is no next. */
@@ -87,12 +84,11 @@ async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = 
   const page = filter.cursor === undefined ? scope : and(scope, afterCursor(filter.cursor));
   // Both keysets end on the same tie-break column, so the ORDER BY has to carry it too — an ordering the
   // cursor predicate does not share is a keyset that skips rows at every repeated name/timestamp.
-  const orderBy =
-    sort === "name" ? [asc(characters.name), asc(characterSummaries.characterId)] : [desc(characters.createdAt), asc(characterSummaries.characterId)];
+  const orderBy = sort === "name" ? [asc(characters.name), asc(characters.id)] : [desc(characters.createdAt), asc(characters.id)];
 
   const rows = await db
     .select({
-      characterId: characterSummaries.characterId,
+      characterId: characters.id,
       name: characters.name,
       genre: characterSummaries.genre,
       tone: characterSummaries.tone,
@@ -102,19 +98,20 @@ async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = 
       avatarHash: assets.hash,
       createdAt: characters.createdAt,
     })
-    .from(characterSummaries)
-    .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
+    .from(characters)
+    .leftJoin(characterSummaries, eq(characters.id, characterSummaries.characterId))
     .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
     .where(page)
     .orderBy(...orderBy)
     .limit(pageSize);
   const totalRows = await db
     .select({ count: sql<number>`count(*)` })
-    .from(characterSummaries)
-    .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
+    .from(characters)
+    .leftJoin(characterSummaries, eq(characters.id, characterSummaries.characterId))
     .where(scope);
 
-  return { items: rows, nextCursor: nextCursorFor(sort, rows, pageSize), totalCount: totalRows[0]?.count ?? 0 };
+  const items = rows.map((row) => ({ ...row, tags: row.tags ?? [] }));
+  return { items, nextCursor: nextCursorFor(sort, items, pageSize), totalCount: totalRows[0]?.count ?? 0 };
 }
 
 async function characterFacets(db: Db, ownerId: UserId): Promise<CharacterFacets> {

@@ -78,7 +78,7 @@ function captionsToText(xml: string): string {
 }
 
 export function createScrapeYoutube(ctx: DatabankContext): DatabankService["scrapeYoutube"] {
-  return async ({ principal, url, lang }: ScrapeYoutubeParams): Promise<UploadResult> => {
+  return async ({ principal, url, lang, destination }: ScrapeYoutubeParams): Promise<UploadResult> => {
     const videoId = videoIdFrom(url);
     if (videoId === undefined) {
       throw new ScrapeFailedError();
@@ -100,6 +100,7 @@ export function createScrapeYoutube(ctx: DatabankContext): DatabankService["scra
 
     return finalizeScrape(ctx, {
       principal,
+      destination,
       bytes: new TextEncoder().encode(text),
       origin: "youtube",
       mime: PLAIN_MIME,

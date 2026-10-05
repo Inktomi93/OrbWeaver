@@ -294,7 +294,6 @@ export { useModalRegistry } from "./modal-registry-context.ts";
 export { ModalRegistryProvider } from "./modal-registry-provider.tsx";
 export type { ModalSlotId } from "./modal-slot-ids.ts";
 export { MODAL_SLOT_IDS } from "./modal-slot-ids.ts";
-export { publishNoticeBand, useNoticeBand } from "./notice-band-store.ts";
 export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
 export { resolvePanelMode } from "./panel-resolve.ts";
 export { openPersonaEditor, selectPersonaEditor, usePersonaEditorId } from "./persona-editor-selection-store.ts";

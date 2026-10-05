@@ -14,10 +14,10 @@ import { selectCharacter, setActiveSection } from "#state";
 
 export function LabelsSuggestions(): ReactElement {
   return (
-    <Section heading="Suggested labels">
+    <Section heading="Suggested tags">
       <QueryBoundary
         fallback={<Skeleton className="h-16 w-full" />}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="suggested labels" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="suggested tags" onRetry={retry} />}
       >
         <SuggestionsBody />
       </QueryBoundary>
@@ -50,7 +50,7 @@ function SuggestionsBody(): ReactElement {
   if (suggestions.length === 0) {
     return (
       <Text role="status" ref={empty} tabIndex={-1} voice="gloss">
-        No suggested labels awaiting review.
+        No suggested tags awaiting review.
       </Text>
     );
   }

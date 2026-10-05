@@ -103,7 +103,7 @@ const SEEDED_SETTINGS_ROUTE: TrpcRoutes<"settings.getUserSettings"> = {
  * every one of those pipelines INERT across this whole file. Spread FIRST in each `routeTrpc` call so a
  * test's own per-fixture value (the zero-persona gate test's unseeded `settings.getUserSettings`, say) wins.
  */
-const HOME_AMBIENT_ROUTES: TrpcRoutes<"sessions.me" | "chat.reapTemporaryChats" | "notifications.list"> = {
+const HOME_AMBIENT_ROUTES: TrpcRoutes<"sessions.me" | "chat.reapTemporaryChats" | "notifications.list" | "connection.listBindings"> = {
   ...CHAT_AMBIENT_ROUTES,
   ...STREAM_MUTATION_ROUTES,
   // The viewer's own settings, OVERRIDING the all-null-seeds default {@link CHAT_AMBIENT_ROUTES} carries:
@@ -125,6 +125,7 @@ const HOME_AMBIENT_ROUTES: TrpcRoutes<"sessions.me" | "chat.reapTemporaryChats" 
   // whole file. An EMPTY inbox is the honest ambient shape: this route's subject is navigation, and a
   // badged bell would only add noise to the topbar assertions.
   "notifications.list": { items: [], nextCursor: null },
+  "connection.listBindings": [],
 };
 
 // The greeting-preview identity reads. `settings.getUserSettings` is NOT re-spelled here: it is fed
@@ -874,7 +875,7 @@ interface CensusCase {
   /** The rail/sheet affordance's accessible name, which is also the section label the topbar prints. */
   readonly label: string;
   /** A Corpus mode other than Explore, picked from the mode switch once the section is showing (D271). */
-  readonly mode?: "Insights" | "Labels";
+  readonly mode?: "Insights" | "Tags";
   /** What the LIST band names — the section label, or the Corpus mode (D271). Absent ⇒ `label`. */
   readonly bandTitle?: string;
   /** `tab` sections sit on the phone's bottom bar; the rest are reached through the You sheet (§E-5). */
@@ -891,7 +892,7 @@ const CENSUS_CASES: readonly CensusCase[] = [
   { label: "Chats", onPhoneBar: true, phoneTitle: "Chats · 3", bandCount: "3" },
   { label: "Corpus", onPhoneBar: false, phoneTitle: "Explore · 12 of 19 distilled", bandCount: "12 of 19 distilled", bandTitle: "Explore" },
   { label: "Corpus", mode: "Insights", onPhoneBar: false, phoneTitle: "Insights · 2 of 330", bandCount: "2 of 330", bandTitle: "Insights" },
-  { label: "Corpus", mode: "Labels", onPhoneBar: false, phoneTitle: "Labels · 3", bandCount: "3", bandTitle: "Labels" },
+  { label: "Corpus", mode: "Tags", onPhoneBar: false, phoneTitle: "Tags · 3", bandCount: "3", bandTitle: "Tags" },
   { label: "Presets", onPhoneBar: false, phoneTitle: "Presets · 4", bandCount: "4" },
   { label: "Databank", onPhoneBar: false, phoneTitle: "Databank · 2", bandCount: "2" },
   { label: "Plugin pages", onPhoneBar: false, phoneTitle: "Plugin pages · 2", bandCount: "2" },
@@ -1001,9 +1002,9 @@ test("desktop: Corpus holds Explore, Insights and Labels in one workspace, with 
   await expect(context.getByRole("button", { name: "Archetypes", exact: true })).toHaveCount(0);
 
   // Labels: the tag library is the finder, its facts are CONTENT, and its one inspector explains labels.
-  await modes.getByRole("radio", { name: "Labels" }).click();
-  await expect(list.getByRole("textbox", { name: "Filter labels" })).toBeVisible();
-  await expect(main.getByRole("heading", { name: "Labels", level: 2 })).toBeVisible();
+  await modes.getByRole("radio", { name: "Tags" }).click();
+  await expect(list.getByRole("textbox", { name: "Filter tags" })).toBeVisible();
+  await expect(main.getByRole("heading", { name: "Tags", level: 2 })).toBeVisible();
   await expect(context.getByRole("button", { name: "Usage", exact: true })).toBeVisible();
   await expect(context.getByRole("button", { name: "Models", exact: true })).toHaveCount(0);
 });
@@ -1077,10 +1078,10 @@ test.describe("the Corpus workbench on a phone", () => {
     await expect(component.locator(".shell-topbar-title")).toHaveText("Insights · 2 of 330");
 
     // Labels lands on its finder again.
-    await main.getByRole("radio", { name: "Labels" }).tap();
+    await main.getByRole("radio", { name: "Tags" }).tap();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
-    await expect(list.getByRole("textbox", { name: "Filter labels" })).toBeVisible();
-    await expect(component.getByRole("button", { name: "Show Labels overview", exact: true })).toBeVisible();
+    await expect(list.getByRole("textbox", { name: "Filter tags" })).toBeVisible();
+    await expect(component.getByRole("button", { name: "Show Tags overview", exact: true })).toBeVisible();
   });
 
   test("the empty Explore finder opens its understanding pass with focus in Content", async ({ mount, page }) => {
@@ -1195,9 +1196,9 @@ test.describe("the Corpus workbench on a phone", () => {
     await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     const list = component.locator(CORPUS_LIST);
-    await list.getByRole("radio", { name: "Labels" }).tap();
-    await list.getByRole("button", { name: "More label actions" }).tap();
-    await page.getByRole("menuitem", { name: "Prune unused labels" }).tap();
+    await list.getByRole("radio", { name: "Tags" }).tap();
+    await list.getByRole("button", { name: "More tag actions" }).tap();
+    await page.getByRole("menuitem", { name: "Prune unused tags" }).tap();
     await page.getByRole("alertdialog").getByRole("button", { name: "Delete it", exact: true }).tap();
     await expect(page.getByRole("alertdialog")).toHaveCount(0);
     await expect(list.locator('[data-slot="labels-finder"]')).toBeFocused();
@@ -1212,8 +1213,8 @@ test.describe("the Corpus workbench on a phone", () => {
     await page.getByRole("dialog").getByRole("button", { name: "Corpus", exact: true }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     const list = component.locator(CORPUS_LIST);
-    await list.getByRole("radio", { name: "Labels" }).tap();
-    await list.getByRole("textbox", { name: "Filter labels" }).fill("o");
+    await list.getByRole("radio", { name: "Tags" }).tap();
+    await list.getByRole("textbox", { name: "Filter tags" }).fill("o");
     await list.getByRole("button", { name: "slow burn", exact: true }).tap();
 
     const main = component.locator("main.shell-content");
@@ -1221,9 +1222,9 @@ test.describe("the Corpus workbench on a phone", () => {
     await expect(main.locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "slow burn" })).toBeVisible();
     await expect(component.locator(".shell-topbar-title")).toHaveText("slow burn");
 
-    await component.getByRole("button", { name: "Back to Labels" }).tap();
+    await component.getByRole("button", { name: "Back to Tags" }).tap();
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
-    await expect(list.getByRole("textbox", { name: "Filter labels" })).toHaveValue("o");
+    await expect(list.getByRole("textbox", { name: "Filter tags" })).toHaveValue("o");
     await expect(main.locator('[data-slot="tag-member-editor"]')).toHaveCount(0);
   });
 });

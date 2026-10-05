@@ -866,7 +866,7 @@ test.describe("P2-5 suggestion chips at a coarse pointer", () => {
     const floor = await touchFloorPx(page);
     const accept = await component.getByRole("button", { name: `Accept ${FIRST_SUGGESTION}` }).boundingBox();
     const dismiss = await component.getByRole("button", { name: `Dismiss ${FIRST_SUGGESTION}` }).boundingBox();
-    const edit = await component.getByRole("button", { name: `Edit label ${FIRST_SUGGESTION}`, exact: true }).boundingBox();
+    const edit = await component.getByRole("button", { name: `Edit tag ${FIRST_SUGGESTION}`, exact: true }).boundingBox();
     expect(accept?.height ?? 0).toBeGreaterThanOrEqual(floor);
     expect(dismiss?.height ?? 0).toBeGreaterThanOrEqual(floor);
     expect(dismiss?.width ?? 0).toBeGreaterThanOrEqual(floor);

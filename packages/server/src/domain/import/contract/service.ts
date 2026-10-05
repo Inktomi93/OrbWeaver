@@ -48,7 +48,7 @@ type FindCharacterByName = (args: { readonly ownerId: UserId; readonly name: str
 /** CAS-stores the card/avatar PNG bytes and returns the asset id (one blob serves both roles). */
 export type StoreImportAsset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array; readonly mime: string }) => Promise<AssetId>;
 
-/** Attaches one author-shipped card tag by name as a card/pending suggestion; idempotent, race-safe. */
+/** Applies one author-shipped card tag by name; idempotent, race-safe. */
 type AttachImportedCardTag = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
 
 /** World-info-owned lorebook bulk-import write op; optional (card-only upload path skips embedded books).

@@ -16,9 +16,8 @@ test("the palette lists each Corpus mode under Corpus, and a picked row lands on
     </>,
   );
 
-  // Tags are found by their own word, though the mode is named Labels.
   await page.getByRole("combobox").fill("tags");
-  await page.getByRole("option", { name: /Labels/u }).click();
+  await page.getByRole("option", { name: /Tags/u }).click();
   const state = page.locator("output");
   await expect(state).toContainText("section=corpus mode=labels");
 

@@ -11,16 +11,20 @@
 
 import type { AssetKind, AssetUploadRefusal, StoredAsset } from "@orb/contracts/assets";
 import { assetKindSchema } from "@orb/contracts/assets";
+import { DOCUMENT_DESTINATION_FORM_FIELD, documentDestinationSchema } from "@orb/contracts/databank";
 import { docUploadMime } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { DomainOperationError } from "@orb/kit/errors";
+import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { z } from "zod";
 import { AssetContentRejectedError } from "#domain/assets";
 import type { DatabankService } from "#domain/databank";
 import type { ImportCardScripts } from "#domain/regex";
 import { hasCsrfHeader } from "#infra/auth";
+import { classifyDomainError } from "#transport/trpc";
 import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort, ProfileImportResult } from "../import/index.ts";
 import { runCardLorebookRestore, runProfileImport } from "../import/index.ts";
 import type { PrincipalEnv } from "./blob.ts";
@@ -42,6 +46,23 @@ const DATABANK_UPLOAD_ROUTE = "/api/databank/upload";
 const UPLOAD_FIELD = "file";
 const KIND_FIELD = "kind";
 const NAME_FIELD = "name";
+
+function documentUploadName(field: ReturnType<FormData["get"]>, filename: string): string {
+  const name = typeof field === "string" && field.length > 0 ? field : filename;
+  return name.length > 0 ? name : "document";
+}
+
+const destinationFormSchema = z.string().transform((value, ctx) => {
+  try {
+    return documentDestinationSchema.parse(JSON.parse(value));
+  } catch (error) {
+    if (!(error instanceof SyntaxError || error instanceof z.ZodError)) {
+      throw error;
+    }
+    ctx.addIssue({ code: "custom", message: "invalid document destination" });
+    return z.NEVER;
+  }
+});
 
 const IMAGE_MIME_PREFIX = "image/";
 
@@ -128,6 +149,17 @@ function uploadRefusal(
   throw err;
 }
 
+function documentUploadRefusal(c: Parameters<typeof uploadRefusal>[0], error: unknown): Response {
+  if (error instanceof AssetContentRejectedError || (error instanceof DomainOperationError && error.code === ASSET_TOO_LARGE)) {
+    return uploadRefusal(c, error);
+  }
+  const modeled = classifyDomainError(error);
+  if (modeled === null) {
+    throw error;
+  }
+  return Response.json({ error: modeled.message }, { status: getHTTPStatusCodeFromError(modeled) });
+}
+
 /** Register `POST /api/assets/upload` + `POST /api/import` on `app`. Each: auth-first → CSRF → body cap → handler. */
 export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void {
   app.post(ASSET_UPLOAD_ROUTE, authCsrfGuard, bodyCap(ASSET_UPLOAD_MAX_BYTES), async (c) => {
@@ -188,18 +220,24 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
       return c.json({ error: "that document type is not accepted" }, UNSUPPORTED_MEDIA_TYPE);
     }
     const nameField = form.get(NAME_FIELD);
-    const name = typeof nameField === "string" && nameField.length > 0 ? nameField : file.name;
+    const name = documentUploadName(nameField, file.name);
+    const destinationField = form.get(DOCUMENT_DESTINATION_FORM_FIELD);
+    const destination = destinationFormSchema.optional().safeParse(destinationField ?? undefined);
+    if (!destination.success) {
+      return c.json({ error: "invalid document destination" }, BAD_REQUEST);
+    }
     // @orb-waive caught-failure-ownership(err): byte admission refusals are actionable 4xx responses; unexpected extraction/storage failures stay owned by the app error boundary.
     try {
       const result = await deps.databank.upload({
         principal,
         bytes: await fileBytes(file),
         mime,
-        name: name.length > 0 ? name : "document",
+        name,
+        destination: destination.data,
       });
       return c.json(result);
     } catch (err) {
-      return uploadRefusal(c, err);
+      return documentUploadRefusal(c, err);
     }
   });
 

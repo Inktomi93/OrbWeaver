@@ -16,6 +16,7 @@ import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, Handl
 import { castId } from "@orb/kit/ids";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
+import { can } from "../../../../packages/server/src/domain/admin/index.ts";
 import type { DatabankContext, DatabankIngest, DatabankService } from "../../../../packages/server/src/domain/databank/contract/service.ts";
 import { createDatabankService } from "../../../../packages/server/src/domain/databank/index.ts";
 import { createDatabankIngest } from "../../../../packages/server/src/domain/databank/ingest/index.ts";
@@ -167,6 +168,7 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
 
   const ctx: DatabankContext = {
     db,
+    can,
     now: () => clock.now(),
     newDocumentId: () => castId<DocumentId>(ids.next("document")),
     audit: () => Promise.resolve(),

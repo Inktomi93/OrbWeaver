@@ -14,7 +14,7 @@
  *  whether they describe one mechanism or two. Surfaces that need MORE than this add their own second
  *  sentence after it (the CONTENT welcome does) — they never re-word this one. */
 export const DATABANK_INGEST_GLOSS =
-  "Upload a file, paste text, or pull in a page — its contents get indexed so the most relevant passages feed into your chats as they happen.";
+  "Upload a file, paste text, or pull in a page — choose which chats it feeds. Relevant passages can reach those chats after indexing.";
 
 /** CONTEXT with no document open. Names what the pane WILL show — never the word "Details" (the band
  *  already says that) and never a section-less "select something" (side-eye F-12).

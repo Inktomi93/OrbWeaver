@@ -8,14 +8,17 @@
 // and the guard is exercised on its own (its 401/403/next behavior is the CSRF pin).
 
 import type { StoredAsset } from "@orb/contracts/assets";
+import { DOCUMENT_DESTINATION_FORM_FIELD } from "@orb/contracts/databank";
 import { DOC_UPLOAD_ACCEPT, docUploadMime } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { closeDb, createDb, runMigrations } from "@orb/db";
+import { characterDocuments, chatDocuments, closeDb, createDb, documents, runMigrations } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
+import { can } from "@orb/server/domain/admin";
 import { AssetContentRejectedError, createAssetsService } from "@orb/server/domain/assets";
+import { requireHost } from "@orb/server/domain/chat";
 import type { ImportCardScripts } from "@orb/server/domain/regex";
 import type { UploadAssetsPort, UploadDeps } from "@orb/server/entry/http";
 import { registerUpload } from "@orb/server/entry/http";
@@ -25,8 +28,9 @@ import { describe, onTestFinished } from "vitest";
 import { createDatabankService } from "../../../../packages/server/src/domain/databank/index.ts";
 import { matchesAccept } from "../../../../packages/ui/src/primitives/file-dropzone/accept.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { createSeededIds } from "../../../support/ids.ts";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
-import { makeDatabankHarness, principalFor, seedUser } from "../../domain/databank/_support.ts";
+import { makeDatabankHarness, principalFor, seedCharacter, seedChat, seedChatHost, seedUser } from "../../domain/databank/_support.ts";
 import { buildDocx, buildEpub, buildPdf } from "../../infra/extraction/_fixtures.ts";
 
 const OWNER: Principal = {
@@ -476,7 +480,7 @@ const DOCUMENT_FILES = [
   { name: "notes.epub", bytes: (): Uint8Array => buildEpub({ title: "Notes", chapters: ["keeper mends vellum"] }), mime: "application/epub+zip" },
 ];
 
-async function realDatabankDeps(): Promise<{ readonly deps: UploadDeps; readonly principal: Principal }> {
+async function realDatabankDeps(): Promise<{ readonly deps: UploadDeps; readonly principal: Principal; readonly db: Awaited<ReturnType<typeof createDb>> }> {
   // The shipped schema avoids drizzle-kit/api's enumerable Array.prototype additions, which pdfjs refuses.
   const db = await createDb(":memory:");
   onTestFinished(() => closeDb(db));
@@ -484,12 +488,73 @@ async function realDatabankDeps(): Promise<{ readonly deps: UploadDeps; readonly
   const ownerId = await seedUser(db, { handle: castId<Handle>("doc_owner") });
   const assets = await makeAssetsHarness(db);
   onTestFinished(assets.cleanup);
-  const h = makeDatabankHarness(db, { extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
+  const h = makeDatabankHarness(db, {
+    extractor: { op: createExtractText(), version: EXTRACTOR_VERSION },
+    ensureChatHost: (actor, id) => requireHost({ db, can }, actor, id).then((): void => undefined),
+  });
   const databank = createDatabankService({ ...h.ctx, assetsStore: createAssetsService(assets.ctx).store });
-  return { deps: { ...okDeps, databank }, principal: principalFor(ownerId) };
+  return { deps: { ...okDeps, databank }, principal: principalFor(ownerId), db };
 }
 
 describe("Databank picker admission reaches the real route, CAS belt and extraction", () => {
+  test("foreign character and room destinations return modeled4xx through the multipart route without canon or consent rows", async () => {
+    const { deps, principal, db } = await realDatabankDeps();
+    const ids = createSeededIds();
+    const stranger = await seedUser(db, { handle: castId<Handle>("foreign_doc_owner") });
+    const characterId = await seedCharacter(db, stranger, { id: ids.next(ID_PREFIX.character), name: "Foreign character" });
+    const chatId = await seedChat(db, ids.next(ID_PREFIX.chat));
+    await seedChatHost(db, chatId, stranger);
+    for (const destination of [
+      { kind: "character", characterId },
+      { kind: "chat", chatId },
+    ]) {
+      const form = new FormData();
+      form.set("file", new File(["Notes"], "notes.txt", { type: "text/plain" }));
+      form.set(DOCUMENT_DESTINATION_FORM_FIELD, JSON.stringify(destination));
+      const response = await handlerFor(deps, DATABANK_ROUTE)(makeCtx(principal, form));
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: expect.stringMatching(/not found/u) });
+    }
+    expect(await db.select().from(documents)).toEqual([]);
+    expect(await db.select().from(characterDocuments)).toEqual([]);
+    expect(await db.select().from(chatDocuments)).toEqual([]);
+  });
+  test("the multipart destination reaches the canonical producer, while malformed consent refuses before it", async () => {
+    const destinations: Parameters<UploadDeps["databank"]["upload"]>[0]["destination"][] = [];
+    const deps: UploadDeps = {
+      ...okDeps,
+      databank: {
+        upload: (params): ReturnType<UploadDeps["databank"]["upload"]> => {
+          destinations.push(params.destination);
+          return Promise.resolve({
+            document: {
+              id: castId("document_test"),
+              name: "notes",
+              mime: "text/plain",
+              origin: "upload",
+              sourceUrl: null,
+              byteSize: 5,
+              charCount: 5,
+              chunkCount: 0,
+              embeddedCount: 0,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+            outcome: "created",
+            ingest: "queued",
+          });
+        },
+      },
+    };
+    for (const raw of ['{"kind":"global"}', '{"kind":"not-a-scope"}', "{"]) {
+      const form = new FormData();
+      form.set("file", new File(["Notes"], "notes.txt", { type: "text/plain" }));
+      form.set(DOCUMENT_DESTINATION_FORM_FIELD, raw);
+      const response = await handlerFor(deps, DATABANK_ROUTE)(makeCtx(OWNER, form));
+      expect(response.status).toBe(raw === '{"kind":"global"}' ? 200 : 400);
+    }
+    expect(destinations).toEqual([{ kind: "global" }]);
+  });
   for (const example of DOCUMENT_FILES) {
     for (const browserType of ["", "application/octet-stream", example.mime]) {
       test(`${example.name} with ${browserType || "no browser MIME"} stores as ${example.mime}`, async () => {

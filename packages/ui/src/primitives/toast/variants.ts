@@ -2,27 +2,9 @@ import { ACCENT_HOVER, FOCUS_RING_ON_POPOVER, FOCUS_RING_OUTLINE, tv } from "#li
 
 export const toastVariants = tv({
   slots: {
-    // TOP-anchored, not bottom (side-eye INFRA-WARN-DEAF P1-1). A bottom-right stack lands on whatever the
-    // app puts at the bottom of the screen, and in this app that is the chat COMPOSER: the stack covered
-    // its Send button by 94% and swallowed the click — fired at the TURN-TERMINAL moment, i.e. exactly when
-    // the user reaches for Send. Every bottom edge in the shell is load-bearing (composer on desktop, the
-    // mobile tab bar at ≤48rem); the only thing along the top is the chrome row, which the inset clears.
-    // `p-section` then adds the float gap. A consumer that wants it elsewhere still has `className` +
-    // `container` + `swipeDirection` (ToasterProps).
-    //
-    // THE RESIDUAL THIS LINE CARRIED IS RETIRED (#193). It read: "on a phone the stack lands on the
-    // message transcript… No inset avoids it, and the reason is STRUCTURAL… Escaping the choice entirely
-    // means a non-overlay surface (a reflowing shell band), which is layout machinery, not an inset —
-    // raise it as its own piece of work." That work is done: the `band` placement below is the non-overlay
-    // surface, the client mounts the app's stack into a shell band, and an overlay toast no longer has to
-    // choose which load-bearing edge it covers. `overlay` survives as the placement for a surface with NO
-    // shell around it (the login screen, the app-level crash fallback) — see `placement` under variants.
-    //
-    // `pointer-events-none` on the region so an empty viewport never eats clicks on the controls it
-    // overlaps — individual toasts opt back in via `root`'s `pointer-events-auto`. No `outline-none`:
-    // nothing rings this element today, but the reset would arm the `--tw-outline-style` landmine that
-    // FOCUS_RING_OUTLINE's header documents for whoever adds one (the Viewport IS an F6 focus stop).
-    viewport: "pointer-events-none flex w-full max-w-cq-sm flex-col gap-row p-section",
+    // A fixed overlay keeps content geometry stable; an empty stack must not intercept the page.
+    viewport:
+      "pointer-events-none has-[[data-slot=toast-root]]:pointer-events-auto fixed top-(--dimension-chrome-row) right-0 z-(--z-toast) flex w-full max-w-cq-sm max-h-(--dimension-shell-notice-cap) flex-col gap-row overflow-y-auto overscroll-contain p-section",
     root: [
       // `flex` + `gap-row`: the type GLYPH is a sibling of the content column (see `icon`), so meaning is
       // never carried by the border colour alone.
@@ -79,33 +61,4 @@ export const toastVariants = tv({
     // 8%-alpha white over the same fill (~1.1:1); the boundary has to come from the fill.
     action: `mt-field inline-flex h-control-sm w-fit items-center justify-center gap-field whitespace-nowrap rounded-control bg-primary px-block text-label leading-label font-medium text-primary-foreground outline-none transition-colors duration-(--motion-fast) ease-out-expo hover:bg-primary/90 active:bg-primary/80 ${FOCUS_RING_ON_POPOVER}`,
   },
-  variants: {
-    /**
-     * WHERE THE STACK LIVES — the #193 escape, and the only axis on this component that is not cosmetic.
-     *
-     * `band` is the APP's arm (`AppToaster` asks for it whenever a shell is mounted): the viewport
-     * renders IN NORMAL FLOW inside a host that is
-     * itself a row of the shell's content column, so raising a notice REFLOWS the column instead of
-     * painting over it. Occlusion is then impossible by construction rather than by inset arithmetic —
-     * which is what the retired residual above proved could not be made to work on a 430-wide column
-     * (topbar, transcript, composer, tab bar, and no toast-height gap that is none of them).
-     * `ms-auto` keeps the stack's own max-width column at the END of the band, so the shape a reader
-     * already knows — a right-aligned stack of cards under the chrome row — survives the move.
-     *
-     * `overlay` is the FIXED top-right float and the DEFAULT, because a primitive holds no opinion about
-     * an app's shell: a surface with no band to reflow into (the login screen, the app-level crash
-     * fallback, a bare playground) must still be able to speak. It stays TOP-anchored for the
-     * reason it was moved there (side-eye INFRA-WARN-DEAF P1-1): a bottom stack covered the chat
-     * composer's Send button by 94% and swallowed the click, at the turn-terminal moment the user reaches
-     * for it. Every bottom edge in the shell is load-bearing; only the chrome row is along the top, and
-     * the inset clears it.
-     */
-    placement: {
-      // The shell band is already its own normal-flow row. `p-section` would spend 24px above and below
-      // every notice burst there (the retired overlay inset tax); only the fallback overlay owns that air.
-      band: { viewport: "ms-auto p-0" },
-      overlay: { viewport: "fixed top-(--dimension-chrome-row) right-0 z-(--z-toast)" },
-    },
-  },
-  defaultVariants: { placement: "overlay" },
 });

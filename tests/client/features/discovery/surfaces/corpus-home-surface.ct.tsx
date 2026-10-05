@@ -52,6 +52,7 @@ const FAMILIES = [
     label: "mixed",
     genre: null,
     tone: null,
+    analysedMembers: 2,
     artStyle: null,
     palette: null,
     mood: null,
@@ -67,6 +68,7 @@ const FAMILIES = [
     label: "mixed",
     genre: null,
     tone: null,
+    analysedMembers: 1,
     artStyle: null,
     palette: null,
     mood: null,
@@ -639,6 +641,7 @@ const MANY_FAMILIES: TrpcWireOutput<"discovery.visualArchetypes"> = Array.from({
   label: "mixed",
   genre: null,
   tone: null,
+  analysedMembers: 1,
   artStyle: null,
   palette: null,
   mood: null,
@@ -790,6 +793,7 @@ const POP_FAMILIES: TrpcWireOutput<"discovery.visualArchetypes"> = FAMILY_SIZES.
   // The seventh plate is the UNLABELLED arm: no art facets at all — the state that used to make the plate
   // title itself with a run of member names while its sibling surface called the same family
   // "Unanalysed portraits" ([P2-1]). The facets stay null so the fixture keeps reproducing that state.
+  analysedMembers: index === 6 ? 0 : size,
   artStyle: index === 6 ? null : "painterly",
   palette: index === 6 ? null : "warm",
   mood: index === 6 ? null : "playful",
@@ -1058,19 +1062,18 @@ test("N7: the family plates name a bounded member run and COUNT the rest", async
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
-  const glosses = await page
-    .locator('[data-corpus-focal="familyMap"] .grid')
-    .evaluate((grid) =>
-      [...grid.querySelectorAll("span")]
-        .filter((span) => (span.textContent ?? "").includes(" members · "))
-        .map((span) => ({ text: span.textContent ?? "", clipped: span.scrollWidth > span.clientWidth + 1 })),
-    );
-
-  expect(glosses.length, "every plate carries a member gloss").toBe(FAMILY_SIZES.length);
-  expect(
-    glosses.filter((gloss) => gloss.clipped).map((gloss) => gloss.text),
-    "not one gloss may be cut — an ellipsis mid-name is the defect, and the count is what replaces the run",
-  ).toEqual([]);
+  await expect
+    .poll(async () => {
+      const glosses = await page
+        .locator('[data-corpus-focal="familyMap"] .grid')
+        .evaluate((grid) =>
+          [...grid.querySelectorAll("span")]
+            .filter((span) => /^\d+ members(?: · |$)/u.test(span.textContent ?? ""))
+            .map((span) => ({ text: span.textContent ?? "", clipped: span.scrollWidth > span.clientWidth + 1 })),
+        );
+      return { count: glosses.length, clipped: glosses.filter((gloss) => gloss.clipped).map((gloss) => gloss.text) };
+    })
+    .toEqual({ count: FAMILY_SIZES.length, clipped: [] });
   // The largest family names two and counts the other 48, rather than trailing off inside a name.
   await expect(component.getByText(`${LARGEST_FAMILY.toString()} members ·`, { exact: false }).first()).toContainText("+");
 });
@@ -1165,20 +1168,15 @@ test("#557: the never-played section states how many there are (P2-4)", async ({
   ).toBeVisible();
 });
 
-// ── #557 / [P2-1]: ONE FAMILY, ONE NAME ─────────────────────────────────────────────────────────────
-// The CONTENT plate for the unlabelled family printed a 120-char run of its members' names while the
-// Archetypes tab 30px to its right called the same family "Unanalysed portraits". The plate's label and
-// gloss slots were inverted relative to its seven siblings.
-
 test("#557: the unlabelled family plate carries the name its sibling surface gives it (P2-1)", async ({ mount, page }) => {
   await routeTrpc(page, { ...CORPUS_VIEWER_ROUTE, ...POPULATED });
   const component = await mount(<CorpusHomePopulatedStory />);
   await settled(page);
 
   const island = component.locator('[data-corpus-focal="familyMap"]');
-  await expect(island.getByText(UNLABELLED_FAMILY, { exact: true })).toBeVisible();
-  // …and the member names it displaced live where every other plate keeps them: the gloss.
-  await expect(island.getByText(UNLABELLED_FAMILY_GLOSS), "the member count and the names ride the second line, as on the seven labelled plates").toBeVisible();
+  await expect(island.getByRole("button", { name: "Member 6-0 · Member 6-1 +14 more", exact: true })).toBeVisible();
+  await expect(island.getByText("Not analysed yet", { exact: true })).toBeVisible();
+  await expect(island.getByText(UNLABELLED_FAMILY_GLOSS), "the member count stays beside the family identity").toBeVisible();
 });
 
 // ── #557 / [P2-2] + #536: THE GEM SHELF'S SORT IS VISIBLE AS A DATUM ────────────────────────────────

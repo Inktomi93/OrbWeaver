@@ -24,7 +24,7 @@ const ROOM_BOOKS = [
     role: null,
   },
   { id: "worldbook_ct_0000000000002", name: "Session Notes", description: null, createdAt: 1_700_000_000_001, role: null },
-];
+] as const;
 
 function stubRack(page: Page, books: TrpcWireOutput<"worldInfo.listForChat"> = ROOM_BOOKS): Promise<unknown> {
   return routeTrpc(page, {
@@ -63,4 +63,27 @@ test("320px empty (member): the copy says who can change it, since a member cann
   const component = await mount(<ChatBooksSectionStory isHost={false} />);
   await expect(component.getByText("the host attaches the ones this room carries", { exact: false })).toBeVisible();
   await expect(component.getByRole("button", { name: "Attach a world book" })).toHaveCount(0);
+});
+
+test("inherited sources precede attached books, remain read-only, and can still be attached to the room", async ({ mount, page }) => {
+  const inherited: TrpcWireOutput<"worldInfo.listForChat"> = [
+    { ...ROOM_BOOKS[0], name: "Global history", inherited: { source: "global", name: null } },
+    { ...ROOM_BOOKS[0], id: "worldbook_ct_0000000000003", name: "Character history", inherited: { source: "character", name: "Aveline" } },
+    { ...ROOM_BOOKS[0], id: "worldbook_ct_0000000000004", name: "Persona history", inherited: { source: "persona", name: "Nate" } },
+  ];
+  await routeTrpc(page, {
+    "worldInfo.listForChat": () => [...inherited, ROOM_BOOKS[1]],
+    "worldInfo.listBooks": () => [{ id: ROOM_BOOKS[0].id, name: "Global history", description: null, createdAt: ROOM_BOOKS[0].createdAt }],
+  });
+  const component = await mount(<ChatBooksSectionStory isHost={true} />);
+  await expect(component.getByText("Global · inherited", { exact: true })).toBeVisible();
+  await expect(component.getByText("Character: Aveline · inherited", { exact: true })).toBeVisible();
+  await expect(component.getByText("Persona: Nate · inherited", { exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: rowActionsName("Global history") })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: rowActionsName("Session Notes") })).toBeVisible();
+  await expect
+    .poll(() => component.locator('[data-slot="list-row-title"]').allTextContents())
+    .toEqual(["Global history", "Character history", "Persona history", "Session Notes"]);
+  await component.getByRole("button", { name: "Attach a world book", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Attach Global history to this chat" })).toBeVisible();
 });

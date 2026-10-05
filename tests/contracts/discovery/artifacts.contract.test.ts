@@ -18,7 +18,7 @@ test("computed archetypes retain corpus provenance and complete members but not 
     model: "embedding-model",
   };
   const card = { ...row, topTags: ["scholar"] };
-  const visual = { ...row, artStyle: "ink", palette: null, mood: null };
+  const visual = { ...row, analysedMembers: 1, artStyle: "ink", palette: null, mood: null };
   expect(archetypeSchema.parse(card)).toEqual(card);
   expect(visualArchetypeSchema.parse(visual)).toEqual(visual);
   expect(archetypeSchema.safeParse({ ...card, privateOwner: "private" }).success).toBe(false);

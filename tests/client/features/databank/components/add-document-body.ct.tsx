@@ -2,12 +2,27 @@ import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { dropFiles } from "../../../../support/browser/drop-files.ts";
+import { characterListResponder, makeCharacterSummary } from "../../character/fixtures.ts";
+import { CHAT_ROOM_ROUTES } from "../../chat/fixtures.ts";
 import { DatabankListHeaderStory } from "../_ct-stories.tsx";
 import { READY_DOC, stubDatabank } from "../fixtures.ts";
 
 const EFFECTIVE_CAP_BYTES = 2 * 1024 * 1024;
 const FORMAT_DESCRIPTION = /Supported formats:.*PDF.*Markdown.*Plain text.*Word document.*EPUB book/u;
 const DOCUMENT_ID = mintTypeId(ID_PREFIX.document);
+
+for (const mode of ["Upload a file", "Paste text", "From a link"]) {
+  test(`${mode} offers an explicit shared destination defaulting to Every chat`, async ({ mount, page }) => {
+    await stubDatabank(page);
+    const band = await mount(<DatabankListHeaderStory />);
+    await band.getByRole("button", { name: "Add", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByRole("button", { name: mode, exact: true }).click();
+    await expect(dialog.getByRole("button", { name: "Every chat", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(dialog.getByRole("button", { name: "This character", exact: true })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "This chat", exact: true })).toBeVisible();
+  });
+}
 
 for (const mimeType of ["text/html", "application/javascript", "image/png"]) {
   for (const feeder of ["picker", "drop"] as const) {
@@ -48,9 +63,49 @@ for (const mimeType of ["text/html", "application/javascript", "image/png"]) {
       await expect(dialog).toBeHidden();
       expect(uploads).toHaveLength(1);
       expect(uploads[0]).toContain('filename="good.md"');
+      expect(uploads[0]).toContain('{"kind":"global"}');
     });
   }
 }
+
+test("paste uses the selected owned character rather than the default global destination", async ({ mount, page }) => {
+  const characterId = mintTypeId(ID_PREFIX.character);
+  const routes = await stubDatabank(page, {
+    "character.list": characterListResponder([makeCharacterSummary({ id: characterId, name: "Chosen character" })]),
+    "databank.createFromText": () => ({ document: { ...READY_DOC, id: DOCUMENT_ID }, outcome: "created", ingest: "queued" }),
+  });
+  const band = await mount(<DatabankListHeaderStory />);
+  await band.getByRole("button", { name: "Add", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Paste text", exact: true }).click();
+  await dialog.getByRole("button", { name: "This character", exact: true }).click();
+  await dialog.getByRole("option", { name: "Chosen character" }).click();
+  await dialog.getByLabel("Name", { exact: true }).fill("Notes");
+  await dialog.getByLabel("Text", { exact: true }).fill("Chosen lore");
+  await dialog.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect
+    .poll(() => routes.lastInput("databank.createFromText"))
+    .toEqual({ name: "Notes", text: "Chosen lore", destination: { kind: "character", characterId } });
+});
+
+test("link uses the current hosted chat destination", async ({ mount, page }) => {
+  const chatId = mintTypeId(ID_PREFIX.chat);
+  const routes = await stubDatabank(page, {
+    "chat.getChat": CHAT_ROOM_ROUTES["chat.getChat"],
+    "databank.scrapeWeb": () => ({ document: { ...READY_DOC, id: DOCUMENT_ID }, outcome: "created", ingest: "queued" }),
+  });
+  const band = await mount(<DatabankListHeaderStory chatId={chatId} />);
+  await band.getByRole("button", { name: "Open test chat", exact: true }).click();
+  await band.getByRole("button", { name: "Add", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "From a link", exact: true }).click();
+  await dialog.getByRole("button", { name: "This chat", exact: true }).click();
+  await dialog.getByLabel("Link", { exact: true }).fill("https://example.org/notes");
+  await dialog.getByRole("button", { name: "Fetch and add", exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => routes.lastInput("databank.scrapeWeb")).toEqual({ url: "https://example.org/notes", destination: { kind: "chat", chatId } });
+});
 
 test.describe("phone mode layout", () => {
   test.use({ viewport: { width: 360, height: 780 }, hasTouch: true, isMobile: true });

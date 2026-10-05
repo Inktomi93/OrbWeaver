@@ -18,14 +18,170 @@
 // cross-table read; the domain-no-cross-feature gate bans importing sibling RUNTIME, not the shared @orb/db
 // schema — the visibility blob's schema is databank's own contract).
 
-import type { DocumentScopeSource } from "@orb/contracts/databank";
+import type { DocumentDestination, DocumentScopeSource } from "@orb/contracts/databank";
+import type { Principal } from "@orb/contracts/identity";
+import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { characterDocuments, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
+import { characterDocuments, characters, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
+import type { AwaitableBatchStmt } from "@orb/db/kit";
+import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
+import type { DatabankContext } from "../contract/service.ts";
+import { ensureCharacterOwned } from "./queries.ts";
 
 const LIMIT_ONE = 1;
+
+/** Admission precedes extraction/CAS work; the same parent standing is checked inside the write below. */
+export async function requireIngestDestination(ctx: DatabankContext, principal: Principal, destination: DocumentDestination | undefined): Promise<void> {
+  if (destination?.kind === "character") {
+    await ensureCharacterOwned(ctx.db, principal.userId, destination.characterId);
+  } else if (destination?.kind === "chat") {
+    await ctx.ensureChatHost(principal, destination.chatId);
+  }
+}
+
+function destinationStanding(ctx: DatabankContext, principal: Principal, destination: DocumentDestination | undefined): SQL {
+  if (destination?.kind === "character") {
+    return sql`exists (select 1 from ${characters} where ${characters}.${sql.identifier("id")} = ${destination.characterId} and ${characters}.${sql.identifier("owner_id")} = ${principal.userId})`;
+  }
+  if (destination?.kind === "chat") {
+    const roles = PARTICIPANT_ROLES.filter((role) => {
+      try {
+        ctx.can(principal, "host", { kind: "chat", membership: { role } });
+        return true;
+      } catch (error) {
+        if (!(error instanceof DomainForbiddenError)) {
+          throw error;
+        }
+        return false;
+      }
+    });
+    return roles.length === 0
+      ? sql`0`
+      : sql`exists (select 1 from ${chatParticipants} where ${chatParticipants}.${sql.identifier("chat_id")} = ${destination.chatId} and ${chatParticipants}.${sql.identifier("user_id")} = ${principal.userId} and ${chatParticipants}.${sql.identifier("kind")} = 'human' and ${chatParticipants}.${sql.identifier("left_seq")} is null and ${chatParticipants}.${sql.identifier("role")} in (${sql.join(
+          roles.map((role) => sql`${role}`),
+          sql`, `,
+        )}))`;
+  }
+  return sql`1`;
+}
+
+function destinationInsert(
+  ctx: DatabankContext,
+  principal: Principal,
+  destination: DocumentDestination,
+  importHash: string,
+): AwaitableBatchStmt<{ documentId: DocumentId }[]> {
+  const standing = destinationStanding(ctx, principal, destination);
+  const predicate = and(eq(documents.ownerId, principal.userId), eq(documents.importHash, importHash), standing);
+  if (destination.kind === "global") {
+    return ctx.db
+      .insert(globalDocuments)
+      .select(
+        ctx.db
+          .select({ ownerId: sql<UserId>`${principal.userId}`.as("owner_id"), documentId: documents.id })
+          .from(documents)
+          .where(predicate),
+      )
+      .onConflictDoNothing()
+      .returning({ documentId: globalDocuments.documentId });
+  }
+  if (destination.kind === "character") {
+    return ctx.db
+      .insert(characterDocuments)
+      .select(
+        ctx.db
+          .select({ characterId: sql<CharacterId>`${destination.characterId}`.as("character_id"), documentId: documents.id })
+          .from(documents)
+          .where(predicate),
+      )
+      .onConflictDoNothing()
+      .returning({ documentId: characterDocuments.documentId });
+  }
+  return ctx.db
+    .insert(chatDocuments)
+    .select(
+      ctx.db
+        .select({ chatId: sql<ChatId>`${destination.chatId}`.as("chat_id"), documentId: documents.id })
+        .from(documents)
+        .where(predicate),
+    )
+    .onConflictDoNothing()
+    .returning({ documentId: chatDocuments.documentId });
+}
+
+/** Duplicate consent is additive and idempotent; existing attachments are never silently removed. */
+export async function attachIngestDestination(
+  ctx: DatabankContext,
+  principal: Principal,
+  destination: DocumentDestination | undefined,
+  importHash: string,
+): Promise<void> {
+  if (destination === undefined) {
+    return;
+  }
+  const standing = destinationStanding(ctx, principal, destination);
+  // RETURNING a matching canon is the post-write standing receipt even when the junction already exists.
+  const check = ctx.db
+    .update(documents)
+    .set({ importHash })
+    .where(and(eq(documents.ownerId, principal.userId), eq(documents.importHash, importHash), standing))
+    .returning({ id: documents.id });
+  const [rows] = await ctx.db.batch([check, destinationInsert(ctx, principal, destination, importHash)]);
+  const [row] = rows;
+  if (row === undefined) {
+    throw new DomainForbiddenError("The document destination is no longer available.");
+  }
+  await ctx.fanDatabankRoomsForDocument(row.id);
+  ctx.emitUserEvent(principal.userId, { type: "databankChanged", documentId: row.id });
+}
+
+/** Canon and the chosen consent junction share a write-only atomic unit. A lost parent standing creates neither. */
+export async function insertIngestDocument(
+  ctx: DatabankContext,
+  principal: Principal,
+  destination: DocumentDestination | undefined,
+  row: typeof documents.$inferSelect,
+): Promise<boolean> {
+  const standing = destinationStanding(ctx, principal, destination);
+  const insert = ctx.db
+    .insert(documents)
+    .select(
+      ctx.db
+        .select({
+          id: sql<DocumentId>`${row.id}`.as("id"),
+          ownerId: sql<UserId>`${row.ownerId}`.as("owner_id"),
+          sourceAssetId: sql<typeof row.sourceAssetId>`${row.sourceAssetId}`.as("source_asset_id"),
+          name: sql<string>`${row.name}`.as("name"),
+          mime: sql<string>`${row.mime}`.as("mime"),
+          origin: sql<typeof row.origin>`${row.origin}`.as("origin"),
+          sourceUrl: sql<typeof row.sourceUrl>`${row.sourceUrl}`.as("source_url"),
+          extractedText: sql<string>`${row.extractedText}`.as("extracted_text"),
+          importHash: sql<string>`${row.importHash}`.as("import_hash"),
+          byteSize: sql<number>`${row.byteSize}`.as("byte_size"),
+          extractorVersion: sql<string>`${row.extractorVersion}`.as("extractor_version"),
+          createdAt: sql<number>`${row.createdAt}`.as("created_at"),
+          updatedAt: sql<number>`${row.updatedAt}`.as("updated_at"),
+        })
+        .from(sql`(select 1)`)
+        .where(standing),
+    )
+    .onConflictDoNothing({ target: [documents.ownerId, documents.importHash] })
+    .returning({ id: documents.id });
+  const rows = destination === undefined ? await insert : (await ctx.db.batch([insert, destinationInsert(ctx, principal, destination, row.importHash)]))[0];
+  if (rows.length === 0) {
+    // A concurrent dedup winner is reusable only if this request still has target authority.
+    await attachIngestDestination(ctx, principal, destination, row.importHash);
+    return false;
+  }
+  if (destination !== undefined) {
+    await ctx.fanDatabankRoomsForDocument(row.id);
+  }
+  return true;
+}
 
 /** The TOLERANT read-side shape for the stored `databankVisibility` sub-blob. The WIRE/verb input is validated
  *  strictly (branded `documentIdSchema`) at the trust boundary by `chatDocumentVisibilitySchema`; here on the

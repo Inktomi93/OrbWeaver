@@ -169,6 +169,7 @@ export { createPostNarratorMessage } from "./verbs/post-narrator-message.ts";
 // B7 — the `react` tool's standalone write op (deliberately NOT a ChatService member — its one consumer is
 // the composition root's tool definition, `entry/compose/chat-tools.ts`; contract/params.ts states why).
 export { createReactAsCharacter } from "./verbs/reactions.ts";
+export { createReadInheritedChatBooks } from "./verbs/read-inherited-chat-books.ts";
 // THE cross-domain viewer-visibility op (the read-visibility D-entry) — membership AND the D16 canon floor as
 // ONE inseparable answer, wired at the composition root into every non-chat consumer that decides "may this
 // human see this chat's CONTENT" (today: the automation plugin fan-out + the plugin membrane's chat read).

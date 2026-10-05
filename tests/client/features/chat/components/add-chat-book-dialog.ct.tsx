@@ -16,6 +16,18 @@ const BOOK = {
   createdAt: 1_750_000_000_000,
 } satisfies TrpcWireOutput<"worldInfo.listBooks">[number];
 
+test("a populated picker exposes the shared close glyph and a keyboard-operable Cancel", async ({ mount, page }) => {
+  await routeTrpc(page, { "worldInfo.listBooks": () => [BOOK] });
+  const component = await mount(<AddChatBookDialogStory />);
+  await expect(page.getByRole("button", { name: "Attach Ashfall Almanac to this chat" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close", exact: true })).toBeVisible();
+  const cancel = page.getByRole("button", { name: "Cancel", exact: true });
+  await expect(cancel).toBeVisible();
+  await cancel.focus();
+  await page.keyboard.press("Enter");
+  await expect(component.getByTestId("book-picker-closes")).toHaveText("1");
+});
+
 test("the picker owns a held attach, ignores a same-tick repeat, and closes only after success", async ({ mount, page }) => {
   const hold = trpcHold();
   const trpc = await routeTrpc(page, {

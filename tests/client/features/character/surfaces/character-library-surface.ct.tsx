@@ -2194,7 +2194,7 @@ test("a roving filter keeps one tab stop and F2 opens its shared label editor wi
   const filter = cloud.getByRole("button", { name: /Filter by editable label: off/u });
   await filter.focus();
   await filter.press("F2");
-  const editor = page.getByRole("dialog", { name: "Edit label editable label", exact: true });
+  const editor = page.getByRole("dialog", { name: "Edit tag editable label", exact: true });
   await expect(editor.getByRole("textbox", { name: "Name" })).toHaveValue("editable label");
   await page.keyboard.press("Escape");
   await expect(editor).toHaveCount(0);

@@ -5,13 +5,15 @@
 // These assertions MOVED here from `chat-landing-surface.ct.tsx` when the launcher moved to home.
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { TrpcFixtureOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "../../../../support/node/route-trpc.ts";
 import { makeCharacterSummary, makeTagFixture } from "../../character/fixtures.ts";
 import { ChatQuickPicksTileStory } from "../_ct-stories.tsx";
 import { chatListResponder } from "../fixtures.ts";
+import { QuickPicksResumeStory } from "./home-quick-picks-tile-body.fixtures.tsx";
 
 // "Start with" reads the room list to pick its column, so every drive routes a house with no rooms.
 const NO_ROOMS = { "chat.listChats": chatListResponder([]) };
@@ -19,12 +21,31 @@ const NO_ROOMS = { "chat.listChats": chatListResponder([]) };
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt" });
 const CHAR_PAGE = { items: [ARIA, BOLT], nextCursor: null };
+
+test("a returning character resumes its latest room; New chat remains a separate deliberate action", async ({ mount, page }) => {
+  let creates = 0;
+  await routeTrpc(page, {
+    ...NO_ROOMS,
+    "character.list": { items: [makeCharacterSummary({ id: "char_aria", name: "Aria", lastChatId: castId<ChatId>("chat_latest") })], nextCursor: null },
+    "chat.startChat": () => {
+      creates += 1;
+      return startChatResult("chat_new");
+    },
+  });
+  const home = await mount(<QuickPicksResumeStory />);
+  await home.getByRole("button", { name: "Aria", exact: true }).press("Enter");
+  await expect(home.getByRole("status", { name: "Active chat" })).toHaveText("chat_latest");
+  expect(creates).toBe(0);
+  await home.getByRole("button", { name: "New chat with Aria", exact: true }).click();
+  await expect(home.getByRole("status", { name: "Active chat" })).toHaveText("chat_new");
+  expect(creates).toBe(1);
+});
 /** The two-line GLOSS of the long-name fixture below, matched by its head so the clamp can do its work. */
 const LONG_GLOSS = /^An immortal/u;
 
 /** The `chat.startChat` response the launcher awaits — the same shape `use-start-chat.ct.tsx` serves (a
  *  full `ChatDetail` under `chat`, because the seam seeds `chat.getChat` with it). */
-function startChatResult(id: string): { chat: Record<string, unknown>; opening: null } {
+function startChatResult(id: string): TrpcFixtureOutput<"chat.startChat"> {
   return {
     chat: {
       id,

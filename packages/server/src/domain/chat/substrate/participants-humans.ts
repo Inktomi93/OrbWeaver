@@ -58,7 +58,10 @@ function presentHumanUserIdsOf(participants: readonly HumanSeat[]): readonly Use
  *  route through — `verbs/turn.ts`'s `loadRoom` inlined this once and nowhere else, which is exactly the
  *  silently-dead-pin disagreement this file's header warns about, reintroduced for a second axis. Read fresh
  *  per call (never cached), mirroring `sessions.validate`'s per-request re-check. */
-export async function presentAndEnabledHumanUserIdsOf(ctx: ChatContext, participants: readonly HumanSeat[]): Promise<readonly UserId[]> {
+export async function presentAndEnabledHumanUserIdsOf(
+  ctx: Pick<ChatContext, "resolveUserEnabled">,
+  participants: readonly HumanSeat[],
+): Promise<readonly UserId[]> {
   const present = presentHumanUserIdsOf(participants);
   const enabled = await Promise.all(present.map((userId) => ctx.resolveUserEnabled(userId)));
   return present.filter((_userId, i) => isBackingUserEnabled("human", enabled[i] ?? false));

@@ -47,8 +47,7 @@ export interface ImportAssetPort {
   }) => Promise<{ readonly assetId: AssetId }>;
 }
 
-/** The `tag` front-door slice the driver wires the import card-tag carry to. The driver binds
- *  `source:'card'`, `status:'pending'` so each `card.tags` entry lands as a staged suggestion. */
+/** The `tag` front-door slice for author-shipped tags, applied under the importing principal. */
 export interface ImportTagPort {
   readonly attachCardTagByName: (params: {
     readonly ownerId: UserId;
@@ -133,8 +132,8 @@ export function buildImportContext(wiring: ImportContextWiring): ImportContext {
       });
       return stored.assetId;
     },
-    // Author-shipped card tags land as card/pending suggestions (the user's "Accept" flips them later).
-    attachCardTag: ({ characterId, tagName }) => attachCardTag({ ownerId, characterId, tagName, source: "card", status: "pending" }),
+    // Importing applies the author's tags; model-generated suggestions retain their separate approval flow.
+    attachCardTag: ({ characterId, tagName }) => attachCardTag({ ownerId, characterId, tagName, source: "card", status: "accepted" }),
     ...(importLorebook !== undefined ? { importLorebook } : {}),
     ...(hasPrimaryBook !== undefined ? { hasPrimaryBook } : {}),
     ...(linkCarriedBooks !== undefined ? { linkCarriedBooks } : {}),

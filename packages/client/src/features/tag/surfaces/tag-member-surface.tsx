@@ -26,10 +26,10 @@ export function TagMemberSurface({ tagId }: { readonly tagId: TagId }): ReactEle
           <MemberDrillHeader back={back} />
           {creating ? (
             <Text role="status" voice="gloss">
-              Loading your new label…
+              Loading your new tag…
             </Text>
           ) : (
-            <EmptyState description="This label was deleted. Pick another from the list." icon={<Icon icon={Hash} size="lg" />} title="Label not found" />
+            <EmptyState description="This tag was deleted. Pick another from the list." icon={<Icon icon={Hash} size="lg" />} title="Tag not found" />
           )}
         </Stack>
       </Container>

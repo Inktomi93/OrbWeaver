@@ -29,7 +29,7 @@ function fallbackName(url: string): string {
 }
 
 export function createScrapeWeb(ctx: DatabankContext): DatabankService["scrapeWeb"] {
-  return async ({ principal, url }: ScrapeWebParams): Promise<UploadResult> => {
+  return async ({ principal, url, destination }: ScrapeWebParams): Promise<UploadResult> => {
     let bytes: Uint8Array;
     try {
       bytes = await ctx.fetchUrl(url);
@@ -40,6 +40,7 @@ export function createScrapeWeb(ctx: DatabankContext): DatabankService["scrapeWe
 
     return finalizeScrape(ctx, {
       principal,
+      destination,
       bytes,
       origin: "web",
       mime: HTML_MIME,
