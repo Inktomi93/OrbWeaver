@@ -1,9 +1,7 @@
 // domain/plugin/substrate/bridge — build the `PluginBridge` the membrane's host functions call (P4b-CORE),
-// PER INSTALLER. The composed `PluginHostOps` chat writes are chat-id-keyed and principal-free (the DOMAIN is
-// their authority gate — the invocation-chat-context admission ran `can(installer,…)` before any chat reaches
-// here); global-vars is the ONE installer-scoped op, closed over the installer's `UserId` so a cross-user KV
-// read is structurally impossible (fetchOwned under the installer, 02 §4). Pure of DB/Principal — testable
-// with fake ops.
+// PER INSTALLER. Room effects recheck the installer through chat's canonical host gate; notifications
+// require present membership. Read visibility and owner-scoped operations also close over the installer.
+// Pure of DB/Principal construction — the composed ops own their guards and I/O.
 //
 // THE ONE VIEWER-VISIBILITY CHOKE for guest canon reads. Every admission path that can put a chat in a guest's
 // scope resolves MEMBERSHIP ONLY — `resolveChatAuthority` (runSnippet), `resolveInvocationChat` (a plugin
@@ -58,8 +56,8 @@ function pluginEntryTitle(pluginId: PluginId | null, entryKey: string): string {
 }
 
 /** Adapt the injected `PluginHostOps` into the membrane's `PluginBridge` for one installing user. `listMessages`
- *  is clamped to the installer's own viewer visibility (see the file header); the other chat ops
- *  pass through; the global-vars ops close over `installerUserId`;
+ *  is clamped to the installer's own viewer visibility; room effects recheck their current authority.
+ *  The global-vars ops close over `installerUserId`;
  *  worldInfo + imagery close over the installer for the ownership attribution the shared writers gate on.
  *  worldInfo maps the guest `PluginWorldEntryUpsert` onto the shared `UpsertLoreEntryInput` writer
  *  (`entryKey`→`title`, `contentTemplate`→`content`; the guest's `position` hint has no target in the shared
@@ -131,28 +129,22 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         }
         return await ops.chat.listCharacters(chatId);
       },
-      // THE ROOM WRITE re-checks the installer's standing NOW, not at admission: a continuation may run for the
-      // whole continuation window after its command, and the installer can leave or hand off the host seat in that
-      // time. The write ceiling is the host seat, the same `role === "host"` every plugin admission derives
-      // `canWrite` from; the membrane already refused a call that was never admitted with it.
+      // Admission authority expires when the installer leaves or hands off the host seat, even inside a live continuation.
       applyVariableOps: async (chatId, varOps, expect): ReturnType<PluginBridge["chat"]["applyVariableOps"]> => {
-        const visibility = await ops.chat.resolveViewerVisibility(chatId, installerUserId);
-        if (visibility?.role !== "host") {
-          throw new Error("plugin host: chat.applyVariableOps requires host authority on the chat");
-        }
+        await ops.chat.requireHost(chatId, installerUserId);
         return await ops.chat.applyVariableOps(chatId, varOps, expect);
       },
-      // The initiator is closed over the installer (never infra/guest-supplied) — the membrane passes only the
-      // admitted chatId + child depth + guest speaker/guided hints; `initiator:"plugin"`, initiator membership,
-      // frozen host funding, and the cascade-depth guard are resolved inside chat's `requestTurn`.
-      requestTurn: (chatId, automationDepth, p): Promise<void> =>
-        ops.chat.requestTurn({
+      // The installer owns initiation; chat freezes the current host for funding only after this live host gate.
+      requestTurn: async (chatId, automationDepth, p): Promise<void> => {
+        await ops.chat.requireHost(chatId, installerUserId);
+        await ops.chat.requestTurn({
           triggeredBy: installerUserId,
           chatId,
           automationDepth,
           ...(p.speakerCharacterId !== undefined ? { speakerCharacterId: p.speakerCharacterId } : {}),
           ...(p.guided !== undefined ? { guided: p.guided } : {}),
-        }),
+        });
+      },
     },
     worldInfo: {
       // THE LORE READ (#788 F12) — the read symmetry of the write below, owner-scoped + attachment-gated the
@@ -269,6 +261,9 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         // the ≤32 concurrent host calls the membrane admits — a check that awaited before recording would let
         // a burst through the gap.
         belts.notify.admit(id, chatId);
+        if ((await ops.chat.resolveViewerVisibility(chatId, installerUserId)) === null) {
+          throw new Error("plugin host: notifications.post requires present membership on the chat");
+        }
         await ops.notifications.post({ pluginId: id, installerUserId, chatId, recipient, message });
       },
     },
@@ -320,9 +315,12 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     admitAssetEgress: (): void => {
       belts.assetEgress.admit(requirePluginId("net.fetchAsset"));
     },
-    // Transient quick-reply chips onto the chat's automation bus — host-authority is gated UPSTREAM in the
-    // membrane (`InvocationChat.canWrite`); the source stamps THIS plugin.
-    surfaceQuickReply: (chatId, choices) => ops.quickReply.surface({ pluginId: requirePluginId("surfaceQuickReply"), chatId, choices }),
+    // Quick replies are room effects; a continuation must still hold the installer host seat when it emits.
+    surfaceQuickReply: async (chatId, choices): Promise<void> => {
+      const id = requirePluginId("surfaceQuickReply");
+      await ops.chat.requireHost(chatId, installerUserId);
+      await ops.quickReply.surface({ pluginId: id, chatId, choices });
+    },
     // Publish a UI surface's state (`host.ui.setState`, ui.surface). The pluginId + installer are closed over
     // here (a guest names only the surfaceId, the state, and — through an already-admitted opaque handle the
     // membrane resolved — its room); the op writes the state row + emits the per-user poke. `chatId` arrives

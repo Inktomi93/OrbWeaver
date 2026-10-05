@@ -73,9 +73,11 @@ function recordingOps(): {
   readonly ops: PluginHostOps;
   readonly turns: { readonly calls: Parameters<PluginHostOps["chat"]["requestTurn"]>[0][] };
   readonly varGets: { readonly owners: UserId[] };
+  readonly hosts: { readonly calls: { readonly chatId: ChatId; readonly installerUserId: UserId }[] };
 } {
   const calls: Parameters<PluginHostOps["chat"]["requestTurn"]>[0][] = [];
   const owners: UserId[] = [];
+  const hosts: { calls: { readonly chatId: ChatId; readonly installerUserId: UserId }[] } = { calls: [] };
   const turns = { calls };
   const varGets = { owners };
   const base = makeInertOps();
@@ -83,6 +85,10 @@ function recordingOps(): {
     ...base,
     chat: {
       ...base.chat,
+      requireHost: (chatId, installerUserId) => {
+        hosts.calls.push({ chatId, installerUserId });
+        return Promise.resolve();
+      },
       requestTurn: (req) => {
         turns.calls.push(req);
         return Promise.resolve();
@@ -96,7 +102,7 @@ function recordingOps(): {
       },
     },
   };
-  return { ops, turns, varGets };
+  return { ops, turns, varGets, hosts };
 }
 
 describe("buildPluginBridge — turn.trigger initiator is the installer", () => {
@@ -106,6 +112,7 @@ describe("buildPluginBridge — turn.trigger initiator is the installer", () => 
 
     await bridge.chat.requestTurn(CHAT, 2, { speakerCharacterId: "char_x00000000000000000000000", guided: "steer" });
 
+    expect(rec.hosts.calls).toEqual([{ chatId: CHAT, installerUserId: INSTALLER }]);
     expect(rec.turns.calls).toHaveLength(1);
     const call = rec.turns.calls[0];
     // The initiator is the installer — NEVER a guest/infra-supplied id (the membrane never passes it).
@@ -134,6 +141,7 @@ describe("buildPluginBridge — turn.trigger initiator is the installer", () => 
 
     await otherBridge.chat.requestTurn(CHAT, 1, {});
 
+    expect(rec.hosts.calls).toEqual([{ chatId: CHAT, installerUserId: OTHER }]);
     expect(rec.turns.calls[0]?.triggeredBy).toBe(OTHER);
   });
 });
@@ -323,6 +331,7 @@ function noticeOps(): { readonly ops: PluginHostOps; readonly posts: Parameters<
   const base = makeInertOps();
   const ops: PluginHostOps = {
     ...base,
+    chat: { ...base.chat, resolveViewerVisibility: () => Promise.resolve({ role: "member", historyFloorSeq: historyFloor(0), readsHidden: false }) },
     notifications: {
       ...base.notifications,
       post: (req) => {

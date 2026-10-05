@@ -13,9 +13,10 @@ export interface FileDropzoneHarnessProps {
   multiple?: boolean;
   /** The consumer-supplied accept vocabulary under test — the drop feeder must honour it, not just the picker dialog. */
   accept?: string;
+  deniedTypes?: readonly string[];
 }
 
-export function FileDropzoneHarness({ maxSizeBytes, multiple = false, accept }: FileDropzoneHarnessProps): ReactElement {
+export function FileDropzoneHarness({ maxSizeBytes, multiple = false, accept, deniedTypes }: FileDropzoneHarnessProps): ReactElement {
   const [acceptedNames, setAcceptedNames] = useState<string[]>([]);
 
   return (
@@ -27,6 +28,7 @@ export function FileDropzoneHarness({ maxSizeBytes, multiple = false, accept }: 
       </ul>
       <FileDropzone
         aria-label="Upload"
+        {...(deniedTypes === undefined ? {} : { isFileAccepted: (file: File): boolean => !deniedTypes.includes(file.type) })}
         multiple={multiple}
         {...(accept === undefined ? {} : { accept })}
         {...(maxSizeBytes === undefined ? {} : { maxSizeBytes })}

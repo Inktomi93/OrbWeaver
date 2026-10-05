@@ -8,18 +8,26 @@
 // and the guard is exercised on its own (its 401/403/next behavior is the CSRF pin).
 
 import type { StoredAsset } from "@orb/contracts/assets";
+import { DOC_UPLOAD_ACCEPT, docUploadMime } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { closeDb, createDb, runMigrations } from "@orb/db";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { AssetContentRejectedError } from "@orb/server/domain/assets";
+import { AssetContentRejectedError, createAssetsService } from "@orb/server/domain/assets";
 import type { ImportCardScripts } from "@orb/server/domain/regex";
 import type { UploadAssetsPort, UploadDeps } from "@orb/server/entry/http";
 import { registerUpload } from "@orb/server/entry/http";
 import type { ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "@orb/server/entry/import";
-import { describe } from "vitest";
+import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
+import { describe, onTestFinished } from "vitest";
+import { createDatabankService } from "../../../../packages/server/src/domain/databank/index.ts";
+import { matchesAccept } from "../../../../packages/ui/src/primitives/file-dropzone/accept.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
+import { makeDatabankHarness, principalFor, seedUser } from "../../domain/databank/_support.ts";
+import { buildDocx, buildEpub, buildPdf } from "../../infra/extraction/_fixtures.ts";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),
@@ -29,6 +37,7 @@ const OWNER: Principal = {
   via: "fallback",
 };
 const ASSET_ROUTE = "POST /api/assets/upload";
+const DATABANK_ROUTE = "POST /api/databank/upload";
 const IMPORT_ROUTE = "POST /api/import";
 const CARD_JSON = '{"spec":"chara_card_v2","spec_version":"2.0","data":{"name":"Tester","description":"A test character."}}';
 const LOREBOOK_RESTORE_ROUTE = "POST /api/import/restore-card-lorebook";
@@ -406,12 +415,12 @@ describe("registerUpload — the #1598 card-lorebook RESTORE door", () => {
 
 describe("registerUpload — auth+CSRF guard (belt order, before the body is read)", () => {
   test("every mutating route mounts [authCsrfGuard, bodyCap, handler] — auth runs BEFORE the body cap", () => {
-    for (const key of [ASSET_ROUTE, IMPORT_ROUTE, LOREBOOK_RESTORE_ROUTE]) {
+    for (const key of [ASSET_ROUTE, DATABANK_ROUTE, IMPORT_ROUTE, LOREBOOK_RESTORE_ROUTE]) {
       expect(chainFor(okDeps, key)).toHaveLength(3);
     }
   });
 
-  for (const key of [ASSET_ROUTE, IMPORT_ROUTE, LOREBOOK_RESTORE_ROUTE]) {
+  for (const key of [ASSET_ROUTE, DATABANK_ROUTE, IMPORT_ROUTE, LOREBOOK_RESTORE_ROUTE]) {
     test(`${key}: anonymous → 401, never reaches next (no body buffered)`, async () => {
       const { status, nexted } = await runGuard(okDeps, key, guardCtx(null));
       expect(status).toBe(401);
@@ -450,6 +459,83 @@ describe("registerUpload — auth+CSRF guard (belt order, before the body is rea
       const { status, nexted } = await runGuard(okDeps, key, guardCtx({ ...OWNER, via: "header" }));
       expect(status).toBeNull();
       expect(nexted).toBe(true);
+    });
+  }
+});
+
+const DOCUMENT_FILES = [
+  { name: "notes.md", bytes: (): Uint8Array => new TextEncoder().encode("# Notes\nkeeper mends vellum"), mime: "text/markdown" },
+  { name: "notes.markdown", bytes: (): Uint8Array => new TextEncoder().encode("# Notes\nkeeper mends vellum"), mime: "text/markdown" },
+  { name: "notes.txt", bytes: (): Uint8Array => new TextEncoder().encode("keeper mends vellum"), mime: "text/plain" },
+  { name: "notes.pdf", bytes: (): Uint8Array => buildPdf(["keeper mends vellum"]), mime: "application/pdf" },
+  {
+    name: "notes.docx",
+    bytes: (): Uint8Array => buildDocx(["keeper mends vellum"]),
+    mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  },
+  { name: "notes.epub", bytes: (): Uint8Array => buildEpub({ title: "Notes", chapters: ["keeper mends vellum"] }), mime: "application/epub+zip" },
+];
+
+async function realDatabankDeps(): Promise<{ readonly deps: UploadDeps; readonly principal: Principal }> {
+  // The shipped schema avoids drizzle-kit/api's enumerable Array.prototype additions, which pdfjs refuses.
+  const db = await createDb(":memory:");
+  onTestFinished(() => closeDb(db));
+  await runMigrations(db, "packages/db/src/migrations");
+  const ownerId = await seedUser(db, { handle: castId<Handle>("doc_owner") });
+  const assets = await makeAssetsHarness(db);
+  onTestFinished(assets.cleanup);
+  const h = makeDatabankHarness(db, { extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
+  const databank = createDatabankService({ ...h.ctx, assetsStore: createAssetsService(assets.ctx).store });
+  return { deps: { ...okDeps, databank }, principal: principalFor(ownerId) };
+}
+
+describe("Databank picker admission reaches the real route, CAS belt and extraction", () => {
+  for (const example of DOCUMENT_FILES) {
+    for (const browserType of ["", "application/octet-stream", example.mime]) {
+      test(`${example.name} with ${browserType || "no browser MIME"} stores as ${example.mime}`, async () => {
+        const { deps, principal } = await realDatabankDeps();
+        const file = new File([new Uint8Array(example.bytes())], example.name.toUpperCase(), { type: browserType });
+        expect(matchesAccept(file, DOC_UPLOAD_ACCEPT) && docUploadMime(file.type, file.name) !== undefined).toBe(true);
+        const form = new FormData();
+        form.append("file", file);
+        const response = await handlerFor(deps, DATABANK_ROUTE)(makeCtx(principal, form));
+        expect(response.status).toBe(200);
+        const result = (await response.json()) as { readonly outcome: string; readonly document: { readonly mime: string; readonly charCount: number } };
+        expect(result).toMatchObject({ outcome: "created", document: { mime: example.mime } });
+        expect(result.document.charCount).toBeGreaterThan(0);
+      });
+    }
+  }
+  for (const name of ["page.html", "page.htm"]) {
+    test(`${name} is excluded from the picker and refused at the route`, async () => {
+      const { deps, principal } = await realDatabankDeps();
+      const file = new File(["<html><script>alert(1)</script></html>"], name, { type: "text/html" });
+      expect(matchesAccept(file, DOC_UPLOAD_ACCEPT)).toBe(false);
+      const form = new FormData();
+      form.append("file", file);
+      const response = await handlerFor(deps, DATABANK_ROUTE)(makeCtx(principal, form));
+      expect(response.status).toBe(415);
+    });
+  }
+  for (const example of [
+    { name: "fake.docx", type: "", bytes: new TextEncoder().encode("not a ZIP") },
+    { name: "fake.pdf", type: "", bytes: new TextEncoder().encode("not a PDF") },
+    { name: "fake.md", type: "", bytes: new Uint8Array([0xff, 0xfe, 0x80]) },
+    { name: "active.md", type: "text/html", bytes: new TextEncoder().encode("<html></html>") },
+    { name: "script.md", type: "application/javascript", bytes: new TextEncoder().encode("content") },
+    { name: "image.md", type: "image/png", bytes: new TextEncoder().encode("content") },
+    { name: "unknown.bin", type: "", bytes: new TextEncoder().encode("not supported") },
+  ]) {
+    test(`${example.name} does not bypass byte or active-MIME admission`, async () => {
+      const { deps, principal } = await realDatabankDeps();
+      const form = new FormData();
+      const file = new File([example.bytes], example.name, { type: example.type });
+      expect(matchesAccept(file, DOC_UPLOAD_ACCEPT) && docUploadMime(file.type, file.name) !== undefined).toBe(
+        example.type === "" && example.name !== "unknown.bin",
+      );
+      form.append("file", file);
+      const response = await handlerFor(deps, DATABANK_ROUTE)(makeCtx(principal, form));
+      expect(response.status).toBe(415);
     });
   }
 });

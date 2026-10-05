@@ -98,6 +98,8 @@ export interface PluginHostOps {
      *  boundary. `null` = not a present member ⇒ the guest sees nothing. The TYPE is chat's (type-only
      *  cross-domain import); plugin never re-derives membership or the floor. */
     readonly resolveViewerVisibility: ResolveViewerVisibility;
+    /** Live host-authority check through chat's canonical guard. The bridge supplies its closed-over installer. */
+    readonly requireHost: (chatId: ChatId, installerUserId: UserId) => Promise<void>;
     /** The chat's current runtime variable fold cache (read) — `capability: chat.read`. The CURRENT fold is
      *  room-state, not transcript (every member plays against it and post-join turns render it into text via
      *  `{{getvar}}`), so it is NOT floor-clamped — the read-visibility ruling's activity plane. */
@@ -255,7 +257,7 @@ export interface PluginHostOps {
   /** Surface transient quick-reply chips (`surfaceQuickReply`; the automation-bus `quickReplySurfaced`
    *  event). Rides the SAME frame-free emit seam automation's `surface_quick_reply` arm does
    *  (`publishAutomationEvent`, composed UP — infra never imports transport), stamping the emit
-   *  `source:{kind:"plugin",pluginId}`. Host-authority is gated UPSTREAM in the membrane (`InvocationChat.canWrite`).
+   *  `source:{kind:"plugin",pluginId}`. Host-authority is admitted in the membrane and rechecked on every call by the bridge.
    *  `capability: chat.quick_reply`. Wired at compose. */
   readonly quickReply: {
     readonly surface: (req: {

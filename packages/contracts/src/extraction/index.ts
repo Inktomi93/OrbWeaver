@@ -34,7 +34,7 @@ export const MIME_TO_FORMAT: Readonly<Record<string, DocFormat>> = {
 
 /** The filename suffixes each format arrives with (a browser often reports no mime for `.md` or `.epub`). Total
  *  over {@link DocFormat}, so a new format fails `tsc` until it names its suffixes. */
-const DOC_FORMAT_EXTENSIONS: { readonly [F in DocFormat]: readonly string[] } = {
+export const DOC_FORMAT_EXTENSIONS: { readonly [F in DocFormat]: readonly string[] } = {
   pdf: [".pdf"],
   html: [".html", ".htm"],
   markdown: [".md", ".markdown"],
@@ -43,9 +43,25 @@ const DOC_FORMAT_EXTENSIONS: { readonly [F in DocFormat]: readonly string[] } = 
   epub: [".epub"],
 };
 
-/** The upload picker/dropzone `accept` string (HTML grammar), derived from {@link MIME_TO_FORMAT} and the
- *  suffix table so the accepted-type list has one home. */
-export const DOC_UPLOAD_ACCEPT: string = [...Object.values(DOC_FORMAT_EXTENSIONS).flat(), ...Object.keys(MIME_TO_FORMAT)].join(",");
+/** Storable upload formats; HTML extraction stays scrape-only because the CAS refuses active document MIME. */
+export const DOC_UPLOAD_FORMATS = DOC_FORMATS.filter((format) => format !== "html");
+const DOC_UPLOAD_MIMES = Object.keys(MIME_TO_FORMAT).filter((mime) => MIME_TO_FORMAT[mime] !== "html");
+const GENERIC_BINARY_MIME = "application/octet-stream";
+
+/** The file picker vocabulary for formats the CAS can safely store, not every extraction loader. */
+export const DOC_UPLOAD_ACCEPT: string = [...DOC_UPLOAD_FORMATS.flatMap((format) => DOC_FORMAT_EXTENSIONS[format]), ...DOC_UPLOAD_MIMES].join(",");
+
+/** Resolve a document upload's declared MIME, inferring only an absent/generic browser claim by suffix.
+ * The CAS still verifies the bytes; an explicit unsupported or active claim is never replaced. */
+export function docUploadMime(mime: string, filename: string): string | undefined {
+  const declared = mime.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+  if (declared.length > 0 && declared !== GENERIC_BINARY_MIME) {
+    return DOC_UPLOAD_MIMES.includes(declared) ? declared : undefined;
+  }
+  const name = filename.toLowerCase();
+  const format = DOC_UPLOAD_FORMATS.find((candidate) => DOC_FORMAT_EXTENSIONS[candidate].some((suffix) => name.endsWith(suffix)));
+  return format === undefined ? undefined : DOC_UPLOAD_MIMES.find((candidate) => MIME_TO_FORMAT[candidate] === format);
+}
 
 /** The format a declared mime dispatches to, ignoring parameters and case (`text/html; charset=utf-8` →
  *  `html`); `undefined` for a mime extraction does not do. */

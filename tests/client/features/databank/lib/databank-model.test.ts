@@ -10,6 +10,7 @@ import {
   bankHealth,
   bankHealthLine,
   characterCount,
+  DOCUMENT_UPLOAD_FORMAT_HINT,
   documentSubtitle,
   documentTypeLabel,
   INGEST_POLL_MS,
@@ -325,7 +326,18 @@ describe("ingestEmptyHint — the failed extraction's own remedy", () => {
 });
 
 describe("DOC_UPLOAD_ACCEPT", () => {
-  test("the dropzone gate admits every extractor format by suffix, with or without a browser mime", () => {
+  test("the upload guide names readable formats and their usable suffixes, excluding scrape-only HTML", () => {
+    expect(DOCUMENT_UPLOAD_FORMAT_HINT).toContain("Word document (.docx)");
+    expect(DOCUMENT_UPLOAD_FORMAT_HINT).toContain("Markdown (.md, .markdown)");
+    expect(DOCUMENT_UPLOAD_FORMAT_HINT).toContain("Plain text (.txt)");
+    expect(DOCUMENT_UPLOAD_FORMAT_HINT).toContain("PDF (.pdf)");
+    expect(DOCUMENT_UPLOAD_FORMAT_HINT).toContain("EPUB book (.epub)");
+    expect(DOCUMENT_UPLOAD_FORMAT_HINT).not.toContain("html");
+    expect(DOCUMENT_UPLOAD_FORMAT_HINT).not.toContain("Web page");
+  });
+  test("the dropzone admits storable document formats with or without a browser mime", () => {
+    expect(matchesAccept(new File(["x"], "page.html", { type: "text/html" }), DOC_UPLOAD_ACCEPT)).toBe(false);
+    expect(matchesAccept(new File(["x"], "page.htm", { type: "" }), DOC_UPLOAD_ACCEPT)).toBe(false);
     const docx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     expect(matchesAccept(new File(["x"], "brief.docx", { type: docx }), DOC_UPLOAD_ACCEPT)).toBe(true);
     expect(matchesAccept(new File(["x"], "novel.epub", { type: "" }), DOC_UPLOAD_ACCEPT)).toBe(true);

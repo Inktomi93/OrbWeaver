@@ -363,6 +363,7 @@ export function makeInertOps(): PluginHostOps {
       // Fail-closed default: the inert bundle reports NO membership, so a bridge test that forgets to wire a
       // visibility verdict sees an empty read rather than a silently-unclamped one.
       resolveViewerVisibility: () => Promise.resolve(null),
+      requireHost: () => Promise.reject(new Error("test: live host authority not wired")),
       getVariables: () => Promise.resolve({}),
       listCharacters: () => Promise.resolve([]),
       applyVariableOps: () => Promise.resolve({ outcome: "applied" }),

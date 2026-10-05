@@ -11,6 +11,7 @@
 
 import type { AssetKind, AssetUploadRefusal, StoredAsset } from "@orb/contracts/assets";
 import { assetKindSchema } from "@orb/contracts/assets";
+import { docUploadMime } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
 import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -182,15 +183,24 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     if (file.size > deps.maxDatabankBytes()) {
       return c.body(null, PAYLOAD_TOO_LARGE);
     }
+    const mime = docUploadMime(file.type, file.name);
+    if (mime === undefined) {
+      return c.json({ error: "that document type is not accepted" }, UNSUPPORTED_MEDIA_TYPE);
+    }
     const nameField = form.get(NAME_FIELD);
     const name = typeof nameField === "string" && nameField.length > 0 ? nameField : file.name;
-    const result = await deps.databank.upload({
-      principal,
-      bytes: await fileBytes(file),
-      mime: file.type.length > 0 ? file.type : FALLBACK_MIME,
-      name: name.length > 0 ? name : "document",
-    });
-    return c.json(result);
+    // @orb-waive caught-failure-ownership(err): byte admission refusals are actionable 4xx responses; unexpected extraction/storage failures stay owned by the app error boundary.
+    try {
+      const result = await deps.databank.upload({
+        principal,
+        bytes: await fileBytes(file),
+        mime,
+        name: name.length > 0 ? name : "document",
+      });
+      return c.json(result);
+    } catch (err) {
+      return uploadRefusal(c, err);
+    }
   });
 
   // #1598 — the explicit restore. ONE card file, the same belts as the batch import (auth → CSRF → body cap).

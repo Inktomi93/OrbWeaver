@@ -50,7 +50,7 @@ import {
   resolveNotificationRecipients,
 } from "#domain/automation";
 import { readPluginCardData, writePluginCardData } from "#domain/character";
-import { loadPresentRole } from "#domain/chat";
+import { loadPresentRole, requireHost } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { DatabankService } from "#domain/databank";
 import type { ImageryService } from "#domain/imagery";
@@ -537,14 +537,16 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   // cooldown rather than sleeping through it.
   const pluginUiOutbox = createPluginUiOutbox(now);
   const pluginHostOps: PluginHostOps = {
-    // INVARIANT (injected-op-caller-gate, INFO-5): every chat op below takes a BARE chatId and does NOT re-check
-    // caller authority — it TRUSTS that admission already happened. The membrane is the ONLY caller and the gate.
+    // The bridge calls the live authority op before reaching any principal-free room effect.
     chat: {
       // The reduced plugin view, FLOOR-CLAMPED in SQL — `plugin-chat-reads.ts` (extracted so the
       // predicate deciding which canon bytes reach an untrusted guest realm has a reachable test seam).
       listMessages: (chatId, opts) => loadPluginMessages(db, chatId, opts),
       // The bridge asks this BEFORE `listMessages` and hands the resolved floor down (a non-member ⇒ `[]`).
       resolveViewerVisibility: deps.resolveViewerVisibility,
+      requireHost: async (chatId, installerUserId) => {
+        await requireHost({ db, can }, await deps.resolveOwnerPrincipal(installerUserId), chatId);
+      },
       // #788 F11 — the present CHARACTER roster (id/name/avatar), the `loadPluginMessages` principal-free
       // precedent: the bridge resolves membership via `resolveViewerVisibility` and short-circuits a non-member
       // to `[]` BEFORE this read, so a plugin sees only the roster of a room it is in.

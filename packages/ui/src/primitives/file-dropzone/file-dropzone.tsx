@@ -30,6 +30,8 @@ export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, 
    * consumer bytes its `accept` excludes (#423). Omit to take anything.
    */
   accept?: string;
+  /** Additional per-file type admission shared by picker and drop. Native accept keeps its HTML OR grammar. */
+  isFileAccepted?: (file: File) => boolean;
   multiple?: boolean;
   disabled?: boolean;
   /**
@@ -183,6 +185,7 @@ function FileDropzoneGlyph({ loading, success, slots }: FileDropzoneGlyphProps):
  */
 export function FileDropzone({
   accept,
+  isFileAccepted,
   multiple = false,
   disabled = false,
   loading = false,
@@ -221,7 +224,7 @@ export function FileDropzone({
     const accepted: File[] = [];
     const rejectedNow: FileDropzoneRejection[] = [];
     for (const file of files) {
-      if (!matchesAccept(file, accept)) {
+      if (!matchesAccept(file, accept) || (isFileAccepted !== undefined && !isFileAccepted(file))) {
         rejectedNow.push({ file, reason: "type" });
       } else if (maxSizeBytes !== undefined && file.size > maxSizeBytes) {
         rejectedNow.push({ file, reason: "size" });

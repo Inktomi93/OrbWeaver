@@ -25,7 +25,7 @@
 // Databank section, from wherever the ceremony was started.
 
 import type { IngestOutcome, ScraperKind } from "@orb/contracts/databank";
-import { DOC_UPLOAD_ACCEPT } from "@orb/contracts/extraction";
+import { DOC_UPLOAD_ACCEPT, docUploadMime } from "@orb/contracts/extraction";
 import type { DocumentId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
@@ -46,6 +46,7 @@ import { closeModal, selectDocumentFromList, setActiveSection } from "#state";
 import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutube } from "../hooks/use-databank-mutations.ts";
 import { useScrapeForm } from "../hooks/use-scrape-form.ts";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
+import { DOCUMENT_UPLOAD_FORMAT_HINT } from "../lib/databank-model.ts";
 import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
 import { DEFAULT_CAPTION_LANG, SCRAPER_OPTIONS } from "../lib/scrape-form-model.ts";
 
@@ -106,7 +107,7 @@ export function AddDocumentBody(): ReactElement {
       <Stack gap="block">
         {/* Three pressable modes, not a tablist: each swaps the body in place with no panel to own or
             label, and `aria-pressed` is the honest name for "this is the one you are on". */}
-        <Row gap="field">
+        <Row className="flex-wrap" gap="field">
           {ADD_MODES.map((id) => (
             <Button aria-pressed={mode === id} intent={mode === id ? "primary" : "ghost"} key={id} onClick={(): void => setMode(id)} size="sm" type="button">
               {MODE_LABELS[id]}
@@ -185,9 +186,16 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
   return (
     // `flex-1` + the footer's `mt-auto`: the arm spends the region's reserved height (N-2).
     <Stack className="flex-1" gap="block">
-      <Field error={error} label="File">
+      <Field description={DOCUMENT_UPLOAD_FORMAT_HINT} error={error} label="File">
         {/* The cap is the DEPLOYMENT's, read live (§2.2) — the dropzone also prints it as its own hint. */}
-        <FileDropzone accept={DOC_UPLOAD_ACCEPT} loading={loading} maxSizeBytes={caps.databankUpload} onFilesSelected={onFilesSelected} success={success} />
+        <FileDropzone
+          accept={DOC_UPLOAD_ACCEPT}
+          isFileAccepted={(file): boolean => docUploadMime(file.type, file.name) !== undefined}
+          loading={loading}
+          maxSizeBytes={caps.databankUpload}
+          onFilesSelected={onFilesSelected}
+          success={success}
+        />
       </Field>
       {/* CANCEL, EVEN THOUGH THIS ARM HAS NO SUBMIT (side-eye sweep 2026-08-03). Each arm draws its own
           footer because each has its own submit verb, and this one — where picking the file IS the submit —

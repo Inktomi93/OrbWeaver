@@ -16,7 +16,7 @@
 import type { BankHealthView, DocOrigin, DocumentView, IngestPhase } from "@orb/contracts/databank";
 import { INGEST_PHASES, STALE_INGEST_MS } from "@orb/contracts/databank";
 import type { DocFormat } from "@orb/contracts/extraction";
-import { docFormatForMime } from "@orb/contracts/extraction";
+import { DOC_FORMAT_EXTENSIONS, DOC_UPLOAD_FORMATS, docFormatForMime } from "@orb/contracts/extraction";
 // `formatBytes` moved to `@orb/kit/strings` when the per-chat rack became its THIRD consumer (it was
 // spelled here and, byte-identically, inside `@orb/ui/file-dropzone`). Same function, one home.
 import { formatBytes, groupThousands } from "@orb/kit/strings";
@@ -45,6 +45,11 @@ const DOCUMENT_FORMAT_LABELS: Readonly<Record<DocFormat, string>> = {
   docx: "Word document",
   epub: "EPUB book",
 };
+
+/** Visible upload guidance from the same format and suffix vocabulary the route admits. */
+export const DOCUMENT_UPLOAD_FORMAT_HINT = `Supported formats: ${DOC_UPLOAD_FORMATS.map(
+  (format) => `${DOCUMENT_FORMAT_LABELS[format]} (${DOC_FORMAT_EXTENSIONS[format].join(", ")})`,
+).join(", ")}.`;
 
 /** A document's file type in words; a type the extractor does not do shows as stored. The mime is the
  *  browser's `file.type` raw, so parameters and case are ignored. */

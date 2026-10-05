@@ -3,12 +3,14 @@
 // continuation window, so admission-time authority alone would let it keep writing a room its installer has
 // since left or lost the host seat in.
 
-import type { PluginBridge, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
+import type { PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db/schema";
 import type { ChatId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { can } from "@orb/server/domain/admin";
+import { requireHost } from "@orb/server/domain/chat";
 import { createPluginHost } from "@orb/server/infra/plugin-host";
 import { and, eq } from "drizzle-orm";
 import { afterEach, beforeEach, vi } from "vitest";
@@ -19,7 +21,7 @@ import { __terminateManagedPluginBrokerForTest } from "../../../../../packages/s
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant, seedUser } from "../../chat/_support.ts";
-import { makeInertOps, makePluginHarness } from "../_support.ts";
+import { makeInertOps, makePluginHarness, principalFor } from "../_support.ts";
 
 const LONG = 30_000;
 const PLUGIN_ID = castId<PluginId>("plugin_bridge_revocation0001");
@@ -55,6 +57,9 @@ function roomOps(): RoomOps {
     chat: {
       ...base.chat,
       resolveViewerVisibility: createResolveViewerVisibility({ db }),
+      requireHost: async (chatId, userId) => {
+        await requireHost({ db, can }, principalFor(userId), chatId);
+      },
       getVariables: async () => {
         reads += 1;
         if (reads > 1) {
@@ -178,3 +183,90 @@ test("a room-variable read for a chat the installer is not in is the empty fold,
   await expect(bridge.chat.getVariables(chatId)).resolves.toEqual({});
   expect(reached).toBe(false);
 });
+
+const CHAT_EFFECTS = [
+  { name: "requestTurn", grant: "turn.trigger", expression: "h.chat.requestTurn(room, {})", hostsOnly: true },
+  {
+    name: "surfaceQuickReply",
+    grant: "chat.quick_reply",
+    expression: 'h.chat.surfaceQuickReply(room, [{ label: "Continue", sendText: "Continue" }])',
+    hostsOnly: true,
+  },
+  { name: "notifications.post", grant: "notify", expression: 'h.notifications.post(room, "all_members", "notice")', hostsOnly: false },
+] as const satisfies readonly { readonly name: string; readonly grant: PluginCapability; readonly expression: string; readonly hostsOnly: boolean }[];
+
+async function exerciseContinuation(effect: (typeof CHAT_EFFECTS)[number], change: "leave" | "demote"): Promise<number> {
+  const { installer, chatId } = await seedRoom(`${effect.name.replaceAll(".", "_")}_${change}`);
+  const room = roomOps();
+  const effects: string[] = [];
+  const ops: PluginHostOps = {
+    ...room.ops,
+    chat: {
+      ...room.ops.chat,
+      requestTurn: () => {
+        effects.push("turn");
+        return Promise.resolve();
+      },
+    },
+    quickReply: {
+      surface: () => {
+        effects.push("reply");
+        return Promise.resolve();
+      },
+    },
+    notifications: {
+      ...room.ops.notifications,
+      post: () => {
+        effects.push("notice");
+        return Promise.resolve();
+      },
+    },
+  };
+  const harness = makePluginHarness(db);
+  const bridge = buildPluginBridge(ops, installer, { id: PLUGIN_ID, name: "Continuation", slug: "continuation" }, harness.ctx.belts);
+  const host = createPluginHost({ nowEpochMs: () => 1_700_000_000_000, nextRandom: () => 0.5, mintId: () => "effect-id" });
+  const outcome = await host.createInstance({
+    mainJs: `const h = orb.host(1); h.tools.register({ name: "later", description: "test", parameters: { type: "object", properties: {} }, handler: async () => {
+          const room = h.chat.current();
+          void (async () => { await h.chat.getVariables(room); await ${effect.expression}; h.log.info("late allowed"); })().catch((e) => h.log.warn("late refused: " + e.message));
+          await ${effect.expression}; return "accepted";
+        } });`,
+    reloadMainJs: () => Promise.reject(new Error("test: no cold wake")),
+    grants: ["tools.register", "chat.read", effect.grant],
+    bridge,
+    chat: null,
+  });
+  if (!outcome.ok) {
+    throw new Error(outcome.error);
+  }
+  const instance = outcome.instance;
+  try {
+    const handler = instance.tools[0]?.handler;
+    if (handler === undefined) {
+      throw new Error("test: no handler");
+    }
+    await expect(host.invoke(instance, handler, "{}", { chatId, canWrite: true, automationDepth: 0 })).resolves.toBe("accepted");
+    await room.reachedGate;
+    expect(effects).toHaveLength(1);
+    await db
+      .update(chatParticipants)
+      .set(change === "leave" ? { leftSeq: LEFT_AT_SEQ } : { role: "member" })
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, installer)));
+    harness.advance(60_000);
+    room.releaseGate();
+    const refused = change === "leave" || effect.hostsOnly;
+    await vi.waitFor(() => expect(host.readLog(instance).some((line) => line.message.startsWith(refused ? "late refused:" : "late allowed"))).toBe(true));
+    expect(effects).toHaveLength(refused ? 1 : 2);
+  } finally {
+    host.dispose(instance);
+  }
+  return effects.length;
+}
+
+for (const effect of CHAT_EFFECTS) {
+  for (const change of ["leave", "demote"] as const) {
+    test(`${effect.name}: each continuation call rechecks installer standing after ${change}`, { timeout: LONG }, async () => {
+      await expect(exerciseContinuation(effect, change)).resolves.toBe(change === "demote" && !effect.hostsOnly ? 2 : 1);
+    });
+  }
+}

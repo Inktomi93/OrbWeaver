@@ -1,5 +1,5 @@
 import type { DocFormat } from "@orb/contracts/extraction";
-import { DOC_FORMATS, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
+import { DOC_FORMATS, DOC_UPLOAD_ACCEPT, docFormatForMime, docUploadMime, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
 import { expect, test } from "../../support/fixtures.ts";
 
 // ── The extraction FORMAT axis — the ONE tuple the MIME→format map + the
@@ -44,4 +44,18 @@ test("ExtractionFailedError is an Error, names itself, carries the format, and p
   expect(err.message).toContain("pdf");
   expect(err.cause).toBe(cause);
   expect(err).not.toBeInstanceOf(UnsupportedDocTypeError);
+});
+
+test("upload MIME inference preserves explicit claims and excludes active HTML without removing its scraper loader", () => {
+  expect(docUploadMime("", "NOTES.MD")).toBe("text/markdown");
+  expect(docUploadMime("application/octet-stream", "brief.DOCX")).toBe("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  expect(docUploadMime("", "novel.EPUB")).toBe("application/epub+zip");
+  expect(docUploadMime("TEXT/X-MARKDOWN; charset=utf-8", "notes.md")).toBe("text/x-markdown");
+  expect(docUploadMime("text/html", "notes.md")).toBeUndefined();
+  expect(docUploadMime("application/javascript", "notes.txt")).toBeUndefined();
+  expect(docUploadMime("", "page.html")).toBeUndefined();
+  expect(docUploadMime("", "page.htm")).toBeUndefined();
+  expect(docUploadMime("", "unknown.bin")).toBeUndefined();
+  expect(DOC_UPLOAD_ACCEPT).not.toContain("html");
+  expect(docFormatForMime("text/html")).toBe("html");
 });

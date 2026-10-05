@@ -1,6 +1,7 @@
 // CT: the file-dropzone seal — a REAL <input type="file"> under the hood (keyboard/SR operable is
 // the primary path, drag-and-drop is progressive enhancement only), the maxSizeBytes pre-check, and
 // the inline error display (the retired ui-primitive-carve-out-work-order plan item 10).
+import { DOC_UPLOAD_ACCEPT } from "@orb/contracts/extraction";
 import { Field } from "@orb/ui/field";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -304,4 +305,37 @@ test("success shows a checkmark glyph and the success border token", async ({ mo
   await mount(<FileDropzone aria-label="Upload" success={true} />);
   const root = page.locator('[data-slot="file-dropzone"]');
   await expect(root).toHaveAttribute("data-success", "");
+});
+
+test("Databank picker and drop refuse active HTML while accepting typeless supported suffixes", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness accept={DOC_UPLOAD_ACCEPT} multiple={true} />);
+  const root = page.locator(DROPZONE_ROOT);
+  await dropFiles(root, [
+    { name: "notes.md", mimeType: "", content: "# Notes" },
+    { name: "novel.epub", mimeType: "", content: "PK" },
+    { name: "brief.docx", mimeType: "", content: "PK" },
+    { name: "active.html", mimeType: "text/html", content: "<html></html>" },
+  ]);
+  await expect(page.getByTestId("accepted-names")).toContainText("notes.md");
+  await expect(page.getByTestId("accepted-names")).toContainText("novel.epub");
+  await expect(page.getByTestId("accepted-names")).toContainText("brief.docx");
+  await expect(page.getByTestId("accepted-names")).not.toContainText("active.html");
+  await expect(page.getByRole("alert")).toContainText("active.html");
+  const chooserPromise = page.waitForEvent("filechooser");
+  await root.click();
+  const chooser = await chooserPromise;
+  await chooser.setFiles({ buffer: Buffer.from("<html></html>"), mimeType: "text/html", name: "active.htm" });
+  await expect(page.getByRole("alert")).toContainText("active.htm");
+  await expect(page.getByTestId("accepted-names")).not.toContainText("active.htm");
+});
+
+test("additional per-file admission keeps the next admissible file of a single-file drop", async ({ mount, page }) => {
+  await mount(<FileDropzoneHarness accept=".md" deniedTypes={["text/html"]} />);
+  await dropFiles(page.locator(DROPZONE_ROOT), [
+    { name: "conflicting.md", mimeType: "text/html", content: "content" },
+    { name: "admitted.md", mimeType: "text/markdown", content: "# Notes" },
+  ]);
+  await expect(page.getByTestId("accepted-names")).toContainText("admitted.md");
+  await expect(page.getByTestId("accepted-names")).not.toContainText("conflicting.md");
+  await expect(page.getByRole("alert")).toContainText("conflicting.md");
 });

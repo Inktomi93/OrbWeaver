@@ -5,12 +5,12 @@
 
 // Imported by source path, not through the barrel: this is the primitive's internal decision, not part of
 // `@orb/ui`'s public surface (the same shape `macro-textarea-logic.test.ts` uses).
+import { DOC_UPLOAD_ACCEPT, docUploadMime } from "@orb/contracts/extraction";
 import { matchesAccept } from "../../../../packages/ui/src/primitives/file-dropzone/accept.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const CARD_ACCEPT = ".png,.json,image/png,application/json";
 const TRANSCRIPT_ACCEPT = ".jsonl,.json,application/x-ndjson,application/json";
-const DATABANK_ACCEPT = ".txt,.md,.markdown,.pdf,.html,.htm,text/plain,text/markdown,application/pdf,text/html";
 const LIBRARY_ACCEPT = ".zip,.png,.json";
 
 function file(name: string, type: string): File {
@@ -52,7 +52,17 @@ test("a file the browser gave no MIME can match a suffix token but never a MIME 
 test("the live consumer vocabularies admit their own files and refuse a foreign one", () => {
   expect(matchesAccept(file("villain.png", "image/png"), CARD_ACCEPT)).toBe(true);
   expect(matchesAccept(file("payload.exe", "application/x-msdownload"), CARD_ACCEPT)).toBe(false);
-  expect(matchesAccept(file("manual.pdf", "application/pdf"), DATABANK_ACCEPT)).toBe(true);
-  expect(matchesAccept(file("villain.png", "image/png"), DATABANK_ACCEPT)).toBe(false);
+  expect(matchesAccept(file("manual.pdf", "application/pdf"), DOC_UPLOAD_ACCEPT)).toBe(true);
+  expect(matchesAccept(file("villain.png", "image/png"), DOC_UPLOAD_ACCEPT)).toBe(false);
   expect(matchesAccept(file("preset.json", "application/json"), "application/json,.json")).toBe(true);
+});
+
+test("Databank's additional admission refuses conflicting claims without changing native accept OR grammar", () => {
+  for (const type of ["text/html", "application/javascript", "image/png"]) {
+    const candidate = file("notes.md", type);
+    expect(matchesAccept(candidate, DOC_UPLOAD_ACCEPT)).toBe(true);
+    expect(matchesAccept(candidate, DOC_UPLOAD_ACCEPT) && docUploadMime(candidate.type, candidate.name) !== undefined).toBe(false);
+  }
+  const typeless = file("notes.md", "");
+  expect(matchesAccept(typeless, DOC_UPLOAD_ACCEPT) && docUploadMime(typeless.type, typeless.name) !== undefined).toBe(true);
 });
