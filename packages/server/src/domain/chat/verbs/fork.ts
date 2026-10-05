@@ -23,7 +23,7 @@
 // (`buildForkStandaloneDeltas`, D79 ruling #8).
 
 import type { ChatMetadata, DurableChatBusEvent, ParticipantView, StandaloneVariableDelta, VariantMetadata } from "@orb/contracts/chat";
-import { parseVariantMetadata, variableDeltaSchema } from "@orb/contracts/chat";
+import { parseVariantMetadata, VARIANT_METADATA_REASONING_MS_KEY, VARIANT_METADATA_TOKEN_COUNT_KEY, variableDeltaSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
@@ -55,7 +55,8 @@ import {
 } from "../persistence/queries.ts";
 import { NO_HISTORY_FLOOR, permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
-import { viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
+import { memberToolCalls, viewerReadsHidden } from "../substrate/member-visibility.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
@@ -83,12 +84,31 @@ interface ForkCopyPosture {
   readonly stripReasoning: boolean;
 }
 
-function forkVariantMetadata(metadata: VariantMetadata | null, stripHostPlane: boolean): VariantMetadata | null {
+function forkVariantMetadata(metadata: VariantMetadata | null, stripHostPlane: boolean, afterContent: string, currentContent: string): VariantMetadata | null {
   if (!stripHostPlane || metadata === null) {
     return metadata;
   }
-  const { contentSignatures: _hostOnly, ...visible } = parseVariantMetadata(metadata);
-  return Object.keys(visible).length === 0 ? null : visible;
+  const parsed = parseVariantMetadata(metadata);
+  const snapshot = parsed.continuationTools;
+  // Classify embedded data as well as columns: snapshot prose follows the member strip, signatures never copy.
+  const visible = {
+    [VARIANT_METADATA_REASONING_MS_KEY]: parsed[VARIANT_METADATA_REASONING_MS_KEY],
+    [VARIANT_METADATA_TOKEN_COUNT_KEY]: parsed[VARIANT_METADATA_TOKEN_COUNT_KEY],
+    systemTokens: parsed.systemTokens,
+    providerMetadata: parsed.providerMetadata,
+    contentSignatures: undefined,
+    continuationTools:
+      snapshot === undefined
+        ? undefined
+        : {
+            beforeContent: stripHiddenSpans(snapshot.beforeContent).content,
+            before: memberToolCalls(snapshot.before, snapshot.beforeContent),
+            after: memberToolCalls(snapshot.after, afterContent),
+            undone: continuationToolsAreUndone(snapshot, currentContent),
+          },
+    importResidue: parsed.importResidue,
+  } satisfies Required<VariantMetadata>;
+  return Object.values(visible).every((value) => value === undefined) ? null : visible;
 }
 
 /** THE COPY IS AN ALLOW-LIST, AND `tsc` KEEPS IT TOTAL. This function names EVERY `message_variants` column and is typed
@@ -130,6 +150,12 @@ function forkVariantValues(args: {
   // (`resolveHistoryFloorSeq` F2), so a clamped forker is necessarily a non-host and the one flag covers both
   // the hidden-span leak and the D16 pre-floor-history leak.
   const hostPlane = <T>(value: T): T | null => (posture.stripHidden ? null : value);
+  const snapshot = parseVariantMetadata(variant.metadata).continuationTools;
+  const afterToolContent =
+    snapshot !== undefined && variant.lastContinuationContent !== null ? snapshot.beforeContent + variant.lastContinuationContent : variant.content;
+  const activeBefore = snapshot !== undefined && continuationToolsAreUndone(snapshot, variant.content);
+  const snapshotTools = activeBefore ? snapshot.before : snapshot?.after;
+  const activeTools = snapshotTools ?? variant.toolCalls;
   return {
     // ── REMAPPED — identity + the cross-slot pointer ────────────────────────────────────────────────────
     id: args.newId,
@@ -212,12 +238,12 @@ function forkVariantValues(args: {
     // `toolCalls` is on `MessageView` (the client's only tool read surface — members render the chips), so it
     // is member-plane by construction. `variableDelta` is the runtime-variable op-log whose folded state a
     // member already reads UNCLAMPED (`getVariables` is member-gated; the D79 ruling #8 baseline below leans on
-    // exactly that), and the fork's own fold depends on it. `metadata` is a server-internal economics sidecar —
-    // its ONLY reader is the stats delta's `reasoning_duration` (`substrate/stats-delta.ts`), it reaches no
-    // caller-facing payload, and dropping it would desync the fork's stats REBUILD from its live delta.
-    toolCalls: variant.toolCalls,
+    // exactly that), and the fork's own fold depends on it. Metadata keeps economics and import residue;
+    // its embedded continuation prose/offsets project with the copied canon and private signatures drop.
+    toolCalls:
+      posture.stripHidden && activeTools !== null ? memberToolCalls(activeTools, activeBefore ? snapshot.beforeContent : afterToolContent) : variant.toolCalls,
     variableDelta: variant.variableDelta,
-    metadata: forkVariantMetadata(variant.metadata, posture.stripHidden),
+    metadata: forkVariantMetadata(variant.metadata, posture.stripHidden, afterToolContent, variant.content),
     createdAt: variant.createdAt,
   };
 }

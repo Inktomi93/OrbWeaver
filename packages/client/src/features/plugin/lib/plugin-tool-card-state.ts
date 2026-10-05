@@ -33,3 +33,18 @@ export function toolCardState(record: ToolCallRecord): Record<string, unknown> {
     durationMs: record.durationMs,
   } satisfies PluginToolCardState;
 }
+
+/** A generic card keeps a readable result even when no custom surface is available. */
+export function toolCardResultLine(record: ToolCallRecord): string {
+  if (record.result === null) {
+    return "";
+  }
+  const value = parseJsonOrRaw(record.result);
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "object" && value !== null && "summary" in value && typeof value.summary === "string") {
+    return value.summary;
+  }
+  return record.result;
+}

@@ -92,6 +92,8 @@ export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginT
 
     const registered: RegisteredTool = {
       name: spec.name,
+      ...(spec.displayName === undefined ? {} : { displayName: spec.displayName }),
+      ...(spec.replayHistory === undefined ? {} : { replayHistory: spec.replayHistory }),
       description: spec.description,
       // The turn-caller ceiling is null (member floor); the real ceiling is the PL-C installer gate in `run`.
       capability: null,

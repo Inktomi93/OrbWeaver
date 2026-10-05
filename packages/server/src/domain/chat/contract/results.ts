@@ -317,15 +317,33 @@ export interface TurnEconomics {
   readonly textSignatures?: readonly TextSignature[] | undefined;
 }
 
-/** §6.7 — the PLACED twin of a `TurnEconomics.replyImages` entry: one picture the engine has already
+/** §6.7 — the emitted twin of a `TurnEconomics.replyImages` entry: one picture the engine has already
  *  materialized and stored, ready to become an `![alt](asset:<id>)` span. The `atChars` offset rides
  *  through from the provider's raw reply and is CLAMPED at the splice (`substrate/inline-reply-images`),
  *  because the receive tier rewrites those bytes in between. It lives here rather than beside the splice
  *  because a domain-internal shape's home is `contract/` (`no-inline-domain-interface`). */
+export interface OrderedReplyImage extends GeneratedImage {
+  readonly eventOrdinal: number;
+}
+
+/** A completed neutral reply's original tool/image order plus its closing event. */
+export interface ReplyPartReceipt {
+  readonly images: readonly OrderedReplyImage[];
+  readonly callEvents: readonly number[];
+  readonly endEvent: number;
+}
+
 export interface PlacedInlineImage {
+  readonly eventOrdinal?: number;
   readonly thoughtSignature?: string | undefined;
   readonly assetId: AssetId;
   readonly atChars: number;
+}
+
+/** Canonical image splice and the original prose boundaries projected through it. */
+export interface InlineReplyImageProjection {
+  readonly content: string;
+  readonly offsets: readonly number[];
 }
 
 /**

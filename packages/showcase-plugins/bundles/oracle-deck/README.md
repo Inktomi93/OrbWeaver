@@ -44,6 +44,11 @@ fields its card binds (`{ $state: "result.commitment" }` reads the result of the
 `parameters` is raw JSON Schema, validated host-side. Keep it small and literal — that text is what the model
 plans against.
 
+`displayName` labels the transcript card. A plain string result stays readable; a JSON result can provide a `summary` string.
+The tools declare `replayHistory: true`. Completed calls on the active swipe replay as tool call/result pairs on later tool-capable turns.
+Set `replayHistory: false` for transient results. Hiding or deleting a card removes its replay without undoing the tool's effects.
+The history budget keeps or trims each exchange with its message row. RPG turn-tool display records do not use this replay.
+
 ### The commit-and-reveal mechanism
 
 1. The first `draw` of a session mints a secret seed (`host.ids.mint()`) and prints a **commitment** derived

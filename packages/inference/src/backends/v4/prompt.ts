@@ -234,8 +234,8 @@ function toolMessages(row: ChatHistoryMessage, callNames: ReadonlyMap<string, st
 }
 
 interface PlanBuilder {
-  /** Tool-call id → the called tool's name, from every assistant `tool-call` part in the history. */
-  readonly callNames: ReadonlyMap<string, string>;
+  /** Provider call ids are request-local; results bind to the latest preceding assistant exchange. */
+  readonly callNames: Map<string, string>;
   readonly includeAssistantMedia: boolean;
   readonly prompt: LanguageModelV4Message[];
   readonly names: Map<number, string>;
@@ -254,6 +254,14 @@ function pushRow(builder: PlanBuilder, message: LanguageModelV4Message, row: Pla
     const media = mediaOf(source.content);
     if (media.length > 0) {
       builder.assistantMedia.set(index, media);
+    }
+  }
+}
+
+function rememberToolCalls(builder: PlanBuilder, row: ChatHistoryMessage): void {
+  for (const part of row.content) {
+    if (part.type === "tool-call") {
+      builder.callNames.set(part.toolCallId, part.name);
     }
   }
 }
@@ -277,6 +285,7 @@ function pushHistoryRow(builder: PlanBuilder, row: ChatHistoryMessage, options: 
     return;
   }
   if (row.role === "assistant") {
+    rememberToolCalls(builder, row);
     const message = assistantMessage(row, options, builder.includeAssistantMedia);
     if (message !== null) {
       const toolExchange = row.content.some((part) => part.type === "tool-call");
@@ -292,12 +301,9 @@ function pushHistoryRow(builder: PlanBuilder, row: ChatHistoryMessage, options: 
 
 /** Build the V4 prompt + the plan (see the header). Empty rows are dropped BEFORE indexing. */
 export function buildWirePlan(args: BuildPromptArgs): WirePlan {
-  const callNames = new Map(
-    args.history.flatMap((row) => row.content.flatMap((part) => (part.type === "tool-call" ? [[part.toolCallId, part.name] as const] : []))),
-  );
   const builder: PlanBuilder = {
     includeAssistantMedia: args.includeAssistantMedia === true,
-    callNames,
+    callNames: new Map(),
     prompt: [],
     names: new Map(),
     assistantMedia: new Map(),

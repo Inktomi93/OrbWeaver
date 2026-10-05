@@ -86,6 +86,8 @@ export type ToolCallBatch = readonly ToolCallInput[];
  *  and threads it, so a plugin tool's guest handler sees the chat it was called from (`null` off-chat). */
 export interface PluginToolSpec {
   readonly name: string;
+  readonly displayName?: string;
+  readonly replayHistory?: boolean;
   readonly description: string;
   readonly parameters: Record<string, unknown>;
   readonly installer: Principal;

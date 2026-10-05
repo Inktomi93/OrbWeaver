@@ -6,12 +6,20 @@
 // card that binds a field must still render something rather than blow up the transcript row it lives in.
 
 import type { ToolCallRecord } from "@orb/contracts/chat";
-import { toolCardState } from "../../../../../packages/client/src/features/plugin/lib/plugin-tool-card-state.ts";
+import { toolCardResultLine, toolCardState } from "../../../../../packages/client/src/features/plugin/lib/plugin-tool-card-state.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 function record(over: Partial<ToolCallRecord> = {}): ToolCallRecord {
   return { toolCallId: "call_1", name: "plugin_oracle__deck_draw", arguments: "{}", result: null, isError: false, durationMs: null, ...over };
 }
+
+test("generic card result lines use readable prose or a structured summary without losing a raw fallback", () => {
+  expect(toolCardResultLine(record({ result: "The ritual advances to 1/6." }))).toBe("The ritual advances to 1/6.");
+  expect(toolCardResultLine(record({ result: '{"summary":"Drew The Moon.","cards":["Moon"]}' }))).toBe("Drew The Moon.");
+  expect(toolCardResultLine(record({ result: '"Seed revealed."' }))).toBe("Seed revealed.");
+  expect(toolCardResultLine(record({ result: '{"cards":["Moon"]}' }))).toBe('{"cards":["Moon"]}');
+  expect(toolCardResultLine(record())).toBe("");
+});
 
 test("a JSON result is parsed, so `result.<field>` paths resolve", () => {
   const state = toolCardState(record({ arguments: '{"count":2}', result: '{"commitment":"0000000042","dealt":2}', durationMs: 12 }));

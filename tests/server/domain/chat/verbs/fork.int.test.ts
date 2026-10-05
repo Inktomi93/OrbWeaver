@@ -5,23 +5,30 @@
 // fires. Reached through the BUNDLE `createFork(ctx, { emit, loadParticipantViews })`.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatReasoningPart } from "@orb/contracts/chat";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characters, chatInjections, chats, messages, messageVariants, userConnections } from "@orb/db";
-import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import { batchMany } from "@orb/db/kit";
+import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { parseChatBundleFile } from "@orb/server/kit/serde/chat-bundle";
 import { and, asc, eq, getTableColumns } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { ChatContext, ForkGameArgs } from "../../../../../packages/server/src/domain/chat/index.ts";
+import { setVariantContentStatement } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
+import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { buildWireHistory } from "../../../../../packages/server/src/domain/chat/substrate/wire-history.ts";
 import { createFork } from "../../../../../packages/server/src/domain/chat/verbs/fork.ts";
+import { createExportChatBundle } from "../../../../../packages/server/src/domain/export/verbs/export-chat-bundle.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { testModelId, testProviderId } from "../../../../support/inference-identities.ts";
+import { makeHarness as makeExportHarness } from "../../export/_support.ts";
 import {
   addVariant,
   makeChatContext,
@@ -813,6 +820,149 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
   // seed exactly that (a lone non-host member, host departed). The belt still fires (a non-host role → strip).
   describe("§3.6 hidden-content strip across the member→host fork boundary (defense-in-depth belt)", () => {
     const lie = '<lie character="Z" truth="he is the traitor"/>';
+
+    test("a hidden-only continuation keeps its after calls when the member fork's before and after prose collapse", async () => {
+      const forker = await seedUser(db, castId<Handle>("collapsed_member"));
+      const chatId = await seedChat(db, "collapsed_member");
+      await seedParticipant(db, { chatId, key: "collapsed_member", userId: forker, role: "member" });
+      const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: `Before.${lie}` });
+      const call = {
+        toolCallId: "after",
+        callOrdinal: 0,
+        name: "draw",
+        arguments: "{}",
+        result: "Moon",
+        isError: false,
+        durationMs: 1,
+        textOffset: 7 + lie.length,
+      };
+      await db
+        .update(messageVariants)
+        .set({
+          toolCalls: [call],
+          preContinueContent: "Before.",
+          lastContinuationContent: lie,
+          metadata: { continuationTools: { beforeContent: "Before.", before: [], after: [call] } },
+        })
+        .where(eq(messageVariants.id, variantId));
+      const { chat } = await createFork(makeChatContext(db), { emit, loadParticipantViews }).forkChat({ principal: principal(forker), chatId });
+      const readAndReplay = async (count: number): Promise<void> => {
+        const canon = await loadCanonHistory(db, chat.id);
+        expect(canon[0]?.content).toBe("Before.");
+        expect(canon[0]?.toolCalls).toHaveLength(count);
+        const converted = await buildWireHistory(
+          {
+            toolsOk: true,
+            visionOk: false,
+            videoOk: false,
+            cardKeepLastX: undefined,
+            canon,
+            resolveImageUrl: () => Promise.resolve(null),
+            loadInlineReplyAssetIds: () => Promise.resolve(new Map()),
+            reasoningByMessage: new Map<MessageId, readonly ChatReasoningPart[]>(),
+          },
+          canon.map((view) => ({ role: view.role, content: view.content, messageId: view.id })),
+        );
+        expect(
+          converted
+            .flatMap((frame) => [...(frame.prefixRows ?? []), frame.row])
+            .flatMap((frame) => frame.content)
+            .filter((part) => part.type === "tool-result"),
+        ).toHaveLength(count);
+      };
+      await readAndReplay(1);
+      const [copied] = await db
+        .select()
+        .from(messageVariants)
+        .innerJoin(messages, eq(messages.selectedVariantId, messageVariants.id))
+        .where(eq(messages.chatId, chat.id));
+      if (copied === undefined) {
+        throw new Error("missing fork variant");
+      }
+      await db.batch(batchMany([setVariantContentStatement(db, copied.message_variants.id, { content: "Before.", reasoning: null, undoContinuation: true })]));
+      await readAndReplay(0);
+      await db.batch(batchMany([setVariantContentStatement(db, copied.message_variants.id, { content: "Before.", reasoning: null, undoContinuation: false })]));
+      await readAndReplay(1);
+    });
+
+    test.for(["member", "host"] as const)("continued tool snapshots preserve undo state without exporting hidden source canon to a %s forker", async (role) => {
+      const forker = await seedUser(db, castId<Handle>(`snapshot_${role}`));
+      const characterId = await seedCharacter(db, forker, `snapshot_${role}`);
+      const chatId = await seedChat(db, `snapshot_${role}`);
+      await seedParticipant(db, { chatId, key: `snapshot_${role}`, userId: forker, role });
+      const beforeContent = `Before.${lie}`;
+      const content = `${beforeContent}After.Done.`;
+      const first = {
+        toolCallId: "same",
+        callOrdinal: 0,
+        name: "draw",
+        arguments: "{}",
+        result: "Moon",
+        isError: false,
+        durationMs: 1,
+        textOffset: beforeContent.length,
+      };
+      const second = { ...first, turnId: mintTypeId(ID_PREFIX.chatTurn), name: "tick", result: "1/6", textOffset: beforeContent.length + 6 };
+      const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId, content });
+      const metadata = { systemTokens: 23, continuationTools: { beforeContent, before: [first], after: [first, second] } };
+      await db
+        .update(messageVariants)
+        .set({ toolCalls: [first, second], preContinueContent: beforeContent, lastContinuationContent: "After.Done.", metadata })
+        .where(eq(messageVariants.id, variantId));
+      const fork = createFork(makeChatContext(db), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(forker), chatId });
+      const [copied] = await db
+        .select()
+        .from(messages)
+        .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+        .where(eq(messages.chatId, chat.id));
+      if (copied === undefined) {
+        throw new Error("fork has no selected variant");
+      }
+      const variant = copied.message_variants;
+      const expectedCalls = {
+        host: [first, second],
+        member: [
+          { ...first, textOffset: 7 },
+          { ...second, textOffset: 13 },
+        ],
+      } as const;
+      const [expectedFirst, expectedSecond] = expectedCalls[role];
+      expect((await loadCanonHistory(db, chat.id))[0]?.toolCalls).toEqual([expectedFirst, expectedSecond]);
+      expect(variant.metadata).toEqual({
+        systemTokens: 23,
+        continuationTools: {
+          beforeContent: { host: beforeContent, member: "Before." }[role],
+          before: [expectedFirst],
+          after: [expectedFirst, expectedSecond],
+          ...(role === "member" ? { undone: false } : {}),
+        },
+      });
+      await db.batch(
+        batchMany([setVariantContentStatement(db, variant.id, { content: variant.preContinueContent ?? "", reasoning: null, undoContinuation: true })]),
+      );
+      expect((await loadCanonHistory(db, chat.id))[0]?.toolCalls).toEqual([expectedFirst]);
+      await db.batch(
+        batchMany([
+          setVariantContentStatement(db, variant.id, {
+            content: (variant.preContinueContent ?? "") + (variant.lastContinuationContent ?? ""),
+            reasoning: null,
+            undoContinuation: false,
+          }),
+        ]),
+      );
+      expect((await loadCanonHistory(db, chat.id))[0]?.toolCalls).toEqual([expectedFirst, expectedSecond]);
+      const exported = await createExportChatBundle(makeExportHarness(db).ctx)({ principal: principal(forker), chatId: chat.id });
+      if (exported === null) {
+        throw new Error("fork host export was refused");
+      }
+      const portable = parseChatBundleFile(exported.bytes);
+      expect(portable.ok).toBe(true);
+      if (!portable.ok) {
+        throw new Error(portable.reason);
+      }
+      expect(JSON.stringify(portable.value).includes("he is the traitor")).toBe(role === "host");
+    });
 
     test("a NON-HOST (solo) forker's copied assistant body is STRIPPED of hidden spans", async () => {
       const member = await seedUser(db, castId<Handle>("member"));

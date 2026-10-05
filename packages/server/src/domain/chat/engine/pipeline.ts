@@ -24,7 +24,6 @@ import type {
   AssembleContext,
   AssembledPrompt,
   AssemblePersona,
-  ChatContentPart,
   ChatDeltaEvent,
   ChatInjection,
   ChatReasoningPart,
@@ -37,7 +36,7 @@ import { acceptsAssistantPrefill, acceptsImageInput, acceptsVideoInput, coEmitsP
 import type { CarryReasoning, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { ChatToolExecution, ChatToolOffer, GeneratedImage, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
+import type { ChatToolExecution, ChatToolOffer, Resolved, ResolvedWarning, ToolCallInput, WireTool } from "@orb/inference";
 import { cachesByAnthropicMarkers, generationOf, resolveCarryReasoning, withPresetWindow } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
@@ -55,10 +54,11 @@ import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type {
   DeliveredCue,
   HistoryMacroNames,
+  OrderedReplyImage,
+  ReplyPartReceipt,
   ResolvedMediaRef,
   TurnEconomics,
   TurnKind,
-  TurnMessage,
   TurnRequest,
   TurnSpeakerShape,
   TurnStreamChunk,
@@ -76,7 +76,14 @@ import {
   voiceContextForSpeaker,
 } from "../substrate/assembly-access.ts";
 import { cueReplayFor } from "../substrate/cue-replay.ts";
-import { buildWireHistory, convertsToEmptyWireRow, dropEmptyWireRows, shapeConvertFit } from "../substrate/wire-history.ts";
+import {
+  buildWireHistory,
+  convertsToEmptyWireRow,
+  dropEmptyWireRows,
+  receivedToolExchangeMessages,
+  replayToolMessageIds,
+  shapeConvertFit,
+} from "../substrate/wire-history.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
  *  + the turn axes. Stays UNEXPORTED (`no-inline-types`: an exported type belongs in `contract/`, and this is
@@ -188,6 +195,7 @@ const EMPTY_REASONING_BY_MESSAGE: ReadonlyMap<MessageId, readonly ChatReasoningP
 
 /** The pipeline product the engine persists — the reduced generation + the request + the fit offset. */
 interface TurnPipelineResult {
+  readonly toolSignatures: NonNullable<ContentSignatures["tools"]>;
   readonly imageSignatures?: readonly ContentSignatures["images"][number][];
   readonly request: TurnRequest;
   readonly content: string;
@@ -216,7 +224,9 @@ interface TurnPipelineResult {
    *  through the SSRF-safe belt, stores them under the room HOST, splices the `![alt](asset:id)` spans and
    *  writes the `origin:"inline-reply"` links. Empty on every text-only turn, which is every turn whose
    *  preset did not ask for `replyMedia: "text+image"` on a model that produces images. */
-  readonly replyImages: readonly GeneratedImage[];
+  readonly replyImages: readonly OrderedReplyImage[];
+  readonly toolEvents: ReadonlyMap<number, number>;
+  readonly exchangeEnds: ReadonlyMap<number, number>;
   /** The calls the TERMINAL tools (R1) drew off this completion, or `null` when there is NO usable channel —
    *  the tools didn't ride (none requested / the connection can't carry wire `tools[]`), or the turn produced
    *  no terminal economics at all. An EMPTY array is the honest "they rode, the wire answered, and the model
@@ -635,7 +645,36 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   const effectiveIntent = materializeMaxOutput(foldGenerationParams(ctx.promptConfig.params, input.intent, input.extraStopSequences));
   // The window this turn sends and fits, ONE value: on a route whose request sets it (Ollama's native `num_ctx`), the
   // effective Max context; every read of `args.connection` below, the request included, sees it.
-  const args: RunTurnPipelineArgs = { ...input, connection: withPresetWindow(input.connection, effectiveIntent.maxContextTokens) };
+  let streamedText = "";
+  let nextToolOrdinal = 0;
+  let nextReceiptEvent = 0;
+  const toolEvents = new Map<number, number>();
+  const exchangeEnds = new Map<number, number>();
+  const reserveReceiptEvents = (count: number): number => {
+    const first = nextReceiptEvent;
+    nextReceiptEvent += count;
+    return first;
+  };
+  const reserveToolOrdinals = (count: number, events?: readonly number[], endEvent?: number): number => {
+    const first = nextToolOrdinal;
+    nextToolOrdinal += count;
+    const event = events === undefined ? reserveReceiptEvents(count + 1) : 0;
+    for (let index = 0; index < count; index += 1) {
+      toolEvents.set(first + index, events?.[index] ?? event + index);
+    }
+    exchangeEnds.set(first, endEvent ?? event + count);
+    return first;
+  };
+  const args: RunTurnPipelineArgs = {
+    ...input,
+    connection: withPresetWindow(input.connection, effectiveIntent.maxContextTokens),
+    onDelta: (delta) => {
+      if (delta.kind === "text") {
+        streamedText += delta.text;
+      }
+      input.onDelta(delta);
+    },
+  };
 
   // BUILD — the system-prompt halves + the after-history (in_chat) section splices — then the D50
   // `assembled_dynamic` PromptTransform point: rewrite the dynamic half only (static is untransformable).
@@ -672,6 +711,8 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   const convertEnv: Parameters<typeof buildWireHistory>[0] = {
     visionOk: acceptsImageInput(generationOf(args.connection)),
     videoOk: acceptsVideoInput(generationOf(args.connection)),
+    toolsOk: generationOf(args.connection).tools !== undefined,
+    carryToolReasoning: carryReasoning === "conversation",
     resolveImageUrl: args.resolveImageUrl,
     cardKeepLastX: args.cardKeepLastX,
     canon: args.canon,
@@ -722,6 +763,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
         ...turnsLevelFor(generationOf(args.connection), effectiveIntent.advanced?.roleHandling),
         roleHandling: effectiveIntent.advanced?.roleHandling,
         explicitCacheMarkers: cachesByAnthropicMarkers(args.connection, generationOf(args.connection)),
+        replayToolMessageIds: replayToolMessageIds(args.canon, generationOf(args.connection).tools !== undefined),
         squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,
         // The room host's note frames (PROSE-1) rode onto the ctx at build; SHAPE frames the spliced injections.
         prose: ctx.prose,
@@ -733,7 +775,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   // The empty-row drop re-anchors the §8 breakpoint: it is a DEPTH from the end, which the fit's front-trim and
   // the marker's head row preserve for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
   const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(fitKept, shaped.cacheBreakpointFromEnd);
-  const history = kept.map((w) => w.row);
+  const history = kept.flatMap((w) => [...(w.prefixRows ?? []), w.row]);
   // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.
   // `fitted.usedTokens` is now the WIRE cost, so this is what the request actually weighs.
   const fitUsedTokens = fitted.usedTokens + systemTokens + budget.reserveOutputTokens;
@@ -761,16 +803,27 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
 
   // REDUCE + the tool-recurse loop. The two request-builder gates chain (they touch disjoint fields, and by
   // construction a turn sets tools OR responseFormat, never both — 04 §8).
-  const attach = await attachTools(args, baseRequest);
+  const attach = await attachTools(args, baseRequest, () => streamedText.length, reserveToolOrdinals);
   // The REGISTRY names that actually rode this turn — the left half of the tool-identity partition (#1404).
   // Empty when no set resolved (unwired ops / no capability), which is exactly when nothing may execute.
   const registryNames: ReadonlySet<string> = new Set(attach.execute === null ? [] : args.attachedToolNames);
   const terminal = attachTerminalTools(args, attach.request, registryNames);
   const structured = attachResponseFormat(args, terminal.request);
-  const loop = await runRecurseLoop({ args, request: structured.request, execute: attach.execute, terminalNames: terminal.names, carryReasoning });
+  const loop = await runRecurseLoop({
+    args,
+    request: structured.request,
+    execute: attach.execute,
+    reserveToolOrdinals,
+    reserveReceiptEvents,
+    terminalNames: terminal.names,
+    carryReasoning,
+  });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
   const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx);
   return {
+    toolEvents,
+    exchangeEnds,
+    toolSignatures: [...loop.toolSignatures, ...attach.offerSignatures].toSorted((a, b) => (a.callOrdinal ?? 0) - (b.callOrdinal ?? 0)),
     request: structured.request,
     content: received.content,
     reasoning: received.reasoning,
@@ -790,7 +843,15 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     // Records from the pipeline's own recurse loop (an array wire) and from the offer's `execute` callback (a
     // backend that owns the loop) — mutually exclusive by construction, concatenated so persistence is
     // arm-agnostic.
-    toolRecords: [...loop.records, ...attach.offerRecords],
+    toolRecords: [...loop.records, ...attach.offerRecords]
+      .toSorted((a, b) => (a.callOrdinal ?? 0) - (b.callOrdinal ?? 0))
+      .map((record) => {
+        if (received.content === loop.content) {
+          return record;
+        }
+        const { textOffset: _offset, exchangeTextEnd: _end, ...rest } = record;
+        return rest;
+      }),
     replyImages: loop.replyImages,
     terminalToolCalls: terminalCallsOf(terminal.attached, loop.economics, loop.terminalCalls),
     terminalToolsCollided: terminal.collided,
@@ -826,15 +887,23 @@ function turnCarriesTools(args: RunTurnPipelineArgs): boolean {
 async function attachTools(
   args: RunTurnPipelineArgs,
   baseRequest: TurnRequest,
-): Promise<{ request: TurnRequest; execute: BoundToolExecution | null; unsupported: boolean; offerRecords: readonly ToolCallRecord[] }> {
+  textOffset: () => number,
+  reserveToolOrdinals: (count: number, events?: readonly number[], endEvent?: number) => number,
+): Promise<{
+  request: TurnRequest;
+  execute: BoundToolExecution | null;
+  unsupported: boolean;
+  offerRecords: readonly ToolCallRecord[];
+  offerSignatures: NonNullable<ContentSignatures["tools"]>;
+}> {
   const wantTools = args.attachedToolNames.length > 0 && args.tools !== null;
   const toolsSupported = generationOf(args.connection).tools !== undefined;
   // Aliased narrowing: `!wantTools` returning implies `args.tools !== null` below (tsc 5.5+).
   if (!wantTools) {
-    return { request: baseRequest, execute: null, unsupported: false, offerRecords: [] };
+    return { request: baseRequest, execute: null, unsupported: false, offerRecords: [], offerSignatures: [] };
   }
   if (!toolsSupported) {
-    return { request: baseRequest, execute: null, unsupported: true, offerRecords: [] };
+    return { request: baseRequest, execute: null, unsupported: true, offerRecords: [], offerSignatures: [] };
   }
   // Resolved on the TURN HOST's shelf (#677) — the same identity the teaching contributions enumerated the
   // attach union from (`tctx.runAsUserId`). A guest in the room never pulls their own plugin's tools in, and
@@ -842,12 +911,22 @@ async function attachTools(
   const set = args.tools.resolveTools(args.toolExecFrame.runAsUserId, args.attachedToolNames);
   const execute = await args.tools.prepareExecution(set, args.toolExecFrame);
   const offerRecords: ToolCallRecord[] = [];
+  const offerSignatures: NonNullable<ContentSignatures["tools"]> = [];
   const offer: ChatToolOffer = {
     definitions: args.tools.toToolDefinitions(set),
-    execute: (call) => executeOfferedCall({ execute, call, sink: offerRecords }),
+    execute: (call) =>
+      executeOfferedCall({
+        execute,
+        call,
+        sink: offerRecords,
+        signatureSink: offerSignatures,
+        turnId: args.toolExecFrame.turnId,
+        textOffset: textOffset(),
+        callOrdinal: reserveToolOrdinals(1),
+      }),
     turnLimit: args.toolRecurseLimit,
   };
-  return { request: { ...baseRequest, tools: { offer } }, execute, unsupported: false, offerRecords };
+  return { request: { ...baseRequest, tools: { offer } }, execute, unsupported: false, offerRecords, offerSignatures };
 }
 
 /** ONE backend-driven invocation through the ONE execute path: single call in, single record out. The record is
@@ -858,13 +937,18 @@ async function executeOfferedCall(input: {
   readonly execute: BoundToolExecution;
   readonly call: ToolCallInput;
   readonly sink: ToolCallRecord[];
+  readonly signatureSink: NonNullable<ContentSignatures["tools"]>;
+  readonly turnId: ChatToolExecFrame["turnId"];
+  readonly textOffset: number;
+  readonly callOrdinal: number;
 }): Promise<ChatToolExecution> {
   const records = await input.execute([input.call]);
   const record = records[0];
   if (record === undefined) {
     throw new Error(`tool-use: executeToolCalls returned no record for ${input.call.name}`);
   }
-  input.sink.push(record);
+  input.sink.push(...recordToolBoundary([record], { textOffset: input.textOffset, turnId: input.turnId, firstOrdinal: input.callOrdinal }));
+  input.signatureSink.push(...toolDepthSignatures([input.call], null, input.turnId, input.callOrdinal));
   return { text: record.result ?? "", isError: record.isError };
 }
 
@@ -984,6 +1068,8 @@ async function runRecurseLoop(input: {
   /** The TERMINAL half of the tool-identity partition (#1404) — {@link attachTerminalTools}'s name set. Calls
    *  in it are collected for the terminal channel and are structurally unreachable from the executor below. */
   readonly terminalNames: ReadonlySet<string>;
+  readonly reserveToolOrdinals: (count: number, events?: readonly number[], endEvent?: number) => number;
+  readonly reserveReceiptEvents: (count: number) => number;
   /** §8.8's RESOLVED carry rung. Above `off`, each depth's reasoning parts ride back on the NEXT leg's
    *  assistant row — the ST `promptIdx > lastUserIdx` fence made structural, because this loop IS the active
    *  tool chain and nothing older is reachable from here. BOTH live rungs behave identically in-loop: the
@@ -994,8 +1080,9 @@ async function runRecurseLoop(input: {
   reasoning: string | null;
   economics: TurnEconomics | null;
   records: readonly ToolCallRecord[];
+  toolSignatures: NonNullable<ContentSignatures["tools"]>;
   terminalCalls: readonly ToolCallInput[];
-  replyImages: readonly GeneratedImage[];
+  replyImages: readonly OrderedReplyImage[];
   warnings: readonly ResolvedWarning[];
   refused: boolean;
   reasoningMs: number | null;
@@ -1009,13 +1096,14 @@ async function runRecurseLoop(input: {
   // generation, and a turn that reasons at three depths spent all three windows thinking.
   let reasoningMs: number | null = null;
   const records: ToolCallRecord[] = [];
+  const toolSignatures: NonNullable<ContentSignatures["tools"]> = [];
   // Collected AT THE DEPTH THEY WERE EMITTED: the aggregate keeps only the last depth's `toolCalls`, so a
   // terminal call co-emitted with a registry call would otherwise be erased by the recursion it triggered.
   const terminalCalls: ToolCallInput[] = [];
   // §6.7: the turn's inline pictures across every recursion depth. Each depth's `atChars` is an offset into
   // THAT depth's reply, and `content` is the depth-cumulative prose, so the offset is REBASED by the length
   // already accumulated — otherwise a picture emitted at depth 1 would splice into depth 0's text.
-  const replyImages: GeneratedImage[] = [];
+  const replyImages: OrderedReplyImage[] = [];
   // Deduped across depths: the same request-level degrade (a customParameters blob, a dropped knob) re-fires at
   // every recursion, but it is ONE degrade and the user gets ONE notice (the `image_dropped` "once" precedent).
   // KEYED ON THE WHOLE WARNING (#1440): the structured half now distinguishes two drops that share a code
@@ -1028,8 +1116,8 @@ async function runRecurseLoop(input: {
   let depth = 0;
   for (;;) {
     // Sequential by design: each recursion depends on the previous depth's executed results.
+    const contentStart = content.length;
     const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
-    replyImages.push(...rebaseReplyImages(reduced.economics?.replyImages, reduced.content.length, content.length));
     content += reduced.content;
     refusedByDepth.push(reduced.refused);
     for (const warning of reduced.warnings) {
@@ -1046,19 +1134,46 @@ async function runRecurseLoop(input: {
     const split = partitionToolCalls(reduced.economics, terminalNames);
     terminalCalls.push(...split.terminal);
     const calls = pivotCalls(execute, reduced.economics, split.registry);
+    const receipt = captureReplyParts({
+      economics: reduced.economics,
+      calls,
+      length: reduced.content.length,
+      prefix: contentStart,
+      reserveEvents: input.reserveReceiptEvents,
+    });
+    replyImages.push(...receipt.images);
     if (calls === null || execute === null) {
       break;
     }
+    const firstOrdinal = input.reserveToolOrdinals(calls.length, receipt.callEvents, receipt.endEvent);
+    toolSignatures.push(...toolDepthSignatures(calls, reduced.economics, args.toolExecFrame.turnId, firstOrdinal));
     if (depth >= args.toolRecurseLimit) {
-      records.push(...calls.map(asUnexecutedRecord));
+      records.push(
+        ...recordToolBoundary(calls.map(asUnexecutedRecord), {
+          textOffset: content.length,
+          turnId: args.toolExecFrame.turnId,
+          firstOrdinal,
+          calls,
+          prefix: contentStart,
+        }),
+      );
       break;
     }
     // `Promise.resolve` wrap: biome's nursery `useAwaitThenable` does not carry the `execute === null` break above
     // into this line and reads the union as non-thenable (the same false positive `applyDynamicTransform` wraps
     // for); the wrap is a no-op on an already-Promise and keeps the await honest without a suppression.
     const batch = await Promise.resolve(execute(calls));
-    records.push(...batch);
-    history = [...history, ...toolExchangeMessages(reduced.content, batch, carriedReasoning(reduced.economics, input.carryReasoning), calls)];
+    records.push(...recordToolBoundary(batch, { textOffset: content.length, turnId: args.toolExecFrame.turnId, firstOrdinal, calls, prefix: contentStart }));
+    history = [
+      ...history,
+      ...receivedToolExchangeMessages({
+        content: reduced.content,
+        records: batch,
+        reasoning: carriedReasoning(reduced.economics, input.carryReasoning),
+        calls,
+        economics: reduced.economics,
+      }),
+    ];
     depth += 1;
   }
   return {
@@ -1066,6 +1181,7 @@ async function runRecurseLoop(input: {
     reasoning,
     economics,
     records,
+    toolSignatures,
     terminalCalls,
     replyImages,
     warnings: [...warnings.values()],
@@ -1078,8 +1194,25 @@ async function runRecurseLoop(input: {
  *  this depth's own reply text, and the loop concatenates depths into one variant body, so every offset
  *  shifts by what came before. A picture whose wire carried no offset is pinned at this depth's TAIL (the
  *  honest "after everything it said here"), never at 0 — which would put it in front of prose it followed. */
-function rebaseReplyImages(images: readonly GeneratedImage[] | undefined, depthLength: number, alreadyAccumulated: number): readonly GeneratedImage[] {
-  return (images ?? []).map((image) => ({ ...image, atChars: (image.atChars ?? depthLength) + alreadyAccumulated }));
+function captureReplyParts(input: {
+  readonly economics: TurnEconomics | null;
+  readonly calls: readonly ToolCallInput[] | null;
+  readonly length: number;
+  readonly prefix: number;
+  readonly reserveEvents: (count: number) => number;
+}): ReplyPartReceipt {
+  const { length, prefix, reserveEvents } = input;
+  const images = input.economics?.replyImages ?? [];
+  const calls = input.calls ?? [];
+  const imageParts = images.map((image, index) => image.partOrdinal ?? index);
+  const callParts = calls.map((call, index) => call.partOrdinal ?? images.length + index);
+  const size = Math.max(-1, ...imageParts, ...callParts) + 1;
+  const first = reserveEvents(size + 1);
+  return {
+    images: images.map((image, index) => ({ ...image, atChars: (image.atChars ?? length) + prefix, eventOrdinal: first + (imageParts[index] ?? index) })),
+    callEvents: callParts.map((ordinal) => first + ordinal),
+    endEvent: first + size,
+  };
 }
 
 /** Splits ONE depth's model-emitted calls into the two tool classes by NAME (#1404) — the ONE place the
@@ -1121,47 +1254,57 @@ function asUnexecutedRecord(call: ToolCallInput): ToolCallRecord {
   };
 }
 
+function recordToolBoundary(
+  records: readonly ToolCallRecord[],
+  input: {
+    readonly textOffset: number;
+    readonly turnId: ChatToolExecFrame["turnId"];
+    readonly firstOrdinal: number;
+    readonly calls?: readonly ToolCallInput[];
+    readonly prefix?: number;
+  },
+): readonly ToolCallRecord[] {
+  const { textOffset, turnId, firstOrdinal } = input;
+  return records.map((record, index) => {
+    const at = input.calls?.[index]?.atChars;
+    return {
+      ...record,
+      textOffset: at === undefined ? textOffset : (input.prefix ?? 0) + at,
+      turnId,
+      callOrdinal: firstOrdinal + index,
+      exchangeOrdinal: firstOrdinal,
+      exchangeTextEnd: textOffset,
+    };
+  });
+}
+
+function toolDepthSignatures(
+  calls: readonly ToolCallInput[],
+  economics: TurnEconomics | null,
+  turnId: ChatToolExecFrame["turnId"],
+  firstOrdinal: number,
+): NonNullable<ContentSignatures["tools"]> {
+  const reasoningParts = economics?.reasoningParts ?? [];
+  return calls.flatMap((call, index) =>
+    call.thoughtSignature === undefined && reasoningParts.length === 0
+      ? []
+      : [
+          {
+            toolCallId: call.toolCallId,
+            turnId,
+            callOrdinal: firstOrdinal + index,
+            ...(call.thoughtSignature === undefined ? {} : { thoughtSignature: call.thoughtSignature }),
+            ...(reasoningParts.length === 0 ? {} : { reasoningParts: [...reasoningParts] }),
+          },
+        ],
+  );
+}
+
 /** THE IN-CHAIN CARRY (§8.8): the depth's replayable thinking when the resolved rung is above `off`, else
  *  nothing. The parts are always PRODUCED (the wire records what the model emitted); this is the one place
  *  that decides whether they ride back, so `off` is a real "the model does not see its prior thinking". */
 function carriedReasoning(economics: TurnEconomics | null, carry: CarryReasoning): readonly ChatReasoningPart[] {
   return carry === "off" ? [] : (economics?.reasoningParts ?? []);
-}
-
-// Thinking precedes tool calls for signed replay. Tool signatures come from request-local calls, not public records.
-function toolExchangeMessages(
-  depthText: string,
-  batch: readonly ToolCallRecord[],
-  reasoning: readonly ChatReasoningPart[],
-  calls: readonly ToolCallInput[],
-): TurnMessage[] {
-  const signatures = new Map(calls.map((call) => [call.toolCallId, call.thoughtSignature]));
-  const assistantParts: ChatContentPart[] = [
-    ...reasoning,
-    ...(depthText.length > 0 ? [{ type: "text", text: depthText } as const] : []),
-    ...batch.map((record) => {
-      const thoughtSignature = signatures.get(record.toolCallId);
-      return {
-        type: "tool-call" as const,
-        toolCallId: record.toolCallId,
-        name: record.name,
-        arguments: record.arguments,
-        ...(thoughtSignature === undefined ? {} : { thoughtSignature }),
-      };
-    }),
-  ];
-  const results: TurnMessage[] = batch.map((record) => ({
-    role: "tool",
-    content: [
-      {
-        type: "tool-result",
-        toolCallId: record.toolCallId,
-        content: record.result ?? "",
-        ...(record.isError ? { isError: true } : {}),
-      },
-    ],
-  }));
-  return [{ role: "assistant", content: assistantParts }, ...results];
 }
 
 /** Folds one depth's economics into the turn aggregate: counts/costs sum (absent stays absent), ttftMs is

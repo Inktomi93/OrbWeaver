@@ -8,6 +8,8 @@ interface ActionArgs {
 }
 
 interface Drive {
+  readonly advance: (args: unknown) => Promise<string>;
+  readonly registration: { readonly displayName?: string; readonly replayHistory?: boolean };
   readonly vars: Record<string, string>;
   readonly published: { id: string; state: Record<string, unknown> }[];
   readonly logs: { level: string; message: string }[];
@@ -15,6 +17,11 @@ interface Drive {
 }
 
 const HOST_BOUND = "chat.requestTurn exceeded 5000ms host bound";
+interface ClockTool {
+  readonly handler: (args: unknown) => Promise<string>;
+  readonly displayName?: string;
+  readonly replayHistory?: boolean;
+}
 const GRANTS = ["chat.read", "chat.variables.write", "turn.trigger", "events.subscribe", "tools.register", "ui.surface"];
 
 /** The real outbox's toast floor, reduced to its behaviour: the first toast lands, every later one throws. */
@@ -23,6 +30,7 @@ async function bootClocks(options: { vars?: Record<string, string>; requestTurn?
   const published: Drive["published"] = [];
   const logs: Drive["logs"] = [];
   let panelAction: ((a: ActionArgs) => Promise<void>) | null = null;
+  let tool: ClockTool | null = null;
   let toasts = 0;
   const log =
     (level: string) =>
@@ -33,7 +41,11 @@ async function bootClocks(options: { vars?: Record<string, string>; requestTurn?
     version: 1,
     grants: GRANTS,
     log: { info: log("info"), warn: log("warn"), error: log("error") },
-    tools: { register: (): void => undefined },
+    tools: {
+      register: (registration: ClockTool): void => {
+        tool = registration;
+      },
+    },
     events: { on: (): void => undefined },
     chat: {
       current: (): string => "chat-token",
@@ -74,8 +86,20 @@ async function bootClocks(options: { vars?: Record<string, string>; requestTurn?
     await panelAction({ actionId, values, chat: "chat-token" });
     await settle();
   };
-  return { vars, published, logs, act };
+  const readTool = (): ClockTool | null => tool;
+  const registered = readTool();
+  if (registered === null) {
+    throw new Error("story clocks registered no tool");
+  }
+  return { vars, published, logs, act, registration: registered, advance: registered.handler };
 }
+
+test("the model tool advertises replay and returns a readable clock result", async () => {
+  const drive = await bootClocks();
+  expect(drive.registration).toMatchObject({ displayName: "Advance story clock", replayHistory: true });
+  expect(await drive.advance({ name: "the ritual", segments: 6 })).toBe('Started the clock "the ritual" at 1/6.');
+  expect(drive.vars["clock:the_ritual"]).toBe("1/6");
+});
 
 test("a second panel action inside the toast floor still writes and refreshes the flank", async () => {
   const drive = await bootClocks();

@@ -94,6 +94,7 @@ type CardScope = Extract<GroupConfig, { output: "per-speaker" }>["cardScope"];
 
 /** The resolved per-turn inputs SHAPE consumes; pure given them. */
 interface ShapeInput {
+  readonly replayToolMessageIds?: ReadonlySet<MessageId> | undefined;
   canon: readonly CanonRow[];
   /** The synthetic trailing user turn for the intent (regen/draft+continue), or null for a plain send. */
   appendUserTurn: string | null;
@@ -547,6 +548,7 @@ function preSquashRowFacts(namedInput: readonly WireRow[], injected: readonly (C
 /** How this turn squashes same-role runs: whether the level merges at all, and whether stored rows stay apart
  *  inside a merged run (the file header's caching wire). */
 interface SquashMode {
+  readonly replayToolMessageIds?: ReadonlySet<MessageId> | undefined;
   readonly merges: boolean;
   readonly canonApart: boolean;
 }
@@ -559,7 +561,11 @@ function squashRunsFor<T extends { role: DeliveredRole; content: string; name?: 
   rows: readonly T[],
   mode: SquashMode,
 ): readonly (readonly number[])[] {
-  return mode.merges ? squashRuns(rows, mode) : rows.flatMap((row, index) => (row.content.trim().length > 0 ? [[index]] : []));
+  return mode.merges
+    ? squashRuns(rows, mode)
+    : rows.flatMap((row, index) =>
+        row.content.trim().length > 0 || (row.messageId !== undefined && mode.replayToolMessageIds?.has(row.messageId) === true) ? [[index]] : [],
+      );
 }
 
 /** Project the DELIVERED wire history onto the content-free `ShapeTrace.rows` — the block-order/role/voice
@@ -641,14 +647,16 @@ export function shape(input: ShapeInput): ShapeOutput {
   // every other level squashes. The level also decides where a system row may stay one (`deliverSystemRows`).
   const level = clampRoleHandling(input.roleHandlingFloor ?? TURNS_FLOOR.roleHandlingFloor, input.roleHandling);
   const merges = level !== "none";
-  const squash: SquashMode = { merges, canonApart: input.explicitCacheMarkers === true };
+  const squash: SquashMode = { merges, canonApart: input.explicitCacheMarkers === true, replayToolMessageIds: input.replayToolMessageIds };
 
   // The splice re-roles a depth-1 assistant injection that would merge into the last committed row before this
   // turn's own row (the last row of `withTail`).
   const prefixBoundaryLen = withTail.length > 1 ? withTail.length - 1 : undefined;
 
   const runSquash = <T extends { role: DeliveredRole; content: string; name?: string; messageId?: MessageId | undefined }>(rows: readonly T[]): T[] =>
-    merges ? squashSameRole(rows, squash) : rows.filter((r) => r.content.trim().length > 0);
+    merges
+      ? squashSameRole(rows, squash)
+      : rows.filter((r) => r.content.trim().length > 0 || (r.messageId !== undefined && input.replayToolMessageIds?.has(r.messageId) === true));
 
   // 2. splice in_chat by depth (every system injection stays a bare system row at its author's position) →
   // 3. name-stamp → 4. deliver system rows + place the user tail → 5. squash same-role.

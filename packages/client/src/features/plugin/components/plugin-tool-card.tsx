@@ -20,12 +20,14 @@
 // old draw keeps showing the cards it drew.
 
 import type { ToolCallRecord } from "@orb/contracts/chat";
+import { Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { useActiveChatId } from "#state";
-import { toolCardState } from "../lib/plugin-tool-card-state.ts";
+import { toolCardResultLine, toolCardState } from "../lib/plugin-tool-card-state.ts";
 import { PluginFrame } from "./plugin-frame.tsx";
 import { PluginScriptedSurface } from "./plugin-scripted-surface.tsx";
 import { PluginSurfaceRenderer } from "./plugin-surface-renderer.tsx";
@@ -34,6 +36,18 @@ import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
 export interface PluginToolCardProps {
   /** The persisted call — the client's ONLY tool read surface (chat never body-parses for tool markers). */
   readonly record: ToolCallRecord;
+}
+
+function ToolFallback({ record }: PluginToolCardProps): ReactElement {
+  if (record.displayName === undefined) {
+    return <ToolCallBlock record={record} />;
+  }
+  return (
+    <Stack gap="field">
+      <ToolCallBlock record={{ ...record, name: record.displayName }} />
+      {record.result === null ? null : <Text voice="gloss">{toolCardResultLine(record)}</Text>}
+    </Stack>
+  );
 }
 
 /** A plugin tool call: its owning plugin's registered card, or the generic block. */
@@ -50,6 +64,11 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
   // the caller can read it.
   const chatId = useActiveChatId();
 
+  // Guest success cards cannot replace the first-party evidence that a call failed or never ran.
+  if (record.isError || record.result === null) {
+    return <ToolFallback record={record} />;
+  }
+
   // `toolWireName` is the SERVER's projection of `plugin_<slug'>_<toolName>` (the one mint lives in contracts;
   // the client never re-derives the namespacing rule). A surface only carries it at the `tool-card` anchor.
   const surface = (surfaces ?? []).find(
@@ -57,7 +76,7 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
   );
   const plugin = surface === undefined ? undefined : plugins?.find((row) => row.id === surface.pluginId);
   if (surface === undefined || plugin === undefined) {
-    return <ToolCallBlock record={record} />;
+    return <ToolFallback record={record} />;
   }
   // U7 — the ARBITRARY-CARD-ART arm (§6.1). LAZY, never per-row-eager: the mint happens on mount and the iframe
   // itself carries `loading="lazy"`, so a transcript scrolled past a plugin tool call pays for nothing. Note
@@ -70,7 +89,7 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
   if (surface.tier === "frame") {
     return (
       <PluginFrame
-        fallback={<ToolCallBlock record={record} />}
+        fallback={<ToolFallback record={record} />}
         pluginId={surface.pluginId}
         pluginName={plugin.name}
         surfaceId={surface.id}
@@ -84,13 +103,13 @@ export function PluginToolCard({ record }: PluginToolCardProps): ReactElement {
     .map((candidate) => candidate.id);
   if (surface.spec === undefined) {
     if (surface.tier !== "scripted") {
-      return <ToolCallBlock record={record} />;
+      return <ToolFallback record={record} />;
     }
     return (
       <PluginSurfaceShell pluginName={plugin.name} title={surface.title}>
         <PluginScriptedSurface
           anchor="tool-card"
-          fallback={<ToolCallBlock record={record} />}
+          fallback={<ToolFallback record={record} />}
           grants={plugin.grantedCapabilities}
           pluginId={surface.pluginId}
           state={toolCardState(record)}

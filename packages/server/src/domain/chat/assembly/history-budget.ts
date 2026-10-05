@@ -26,6 +26,7 @@ interface HistoryTurn {
    *  here either way). Derived, never re-spelled. */
   readonly role: MessageRole;
   readonly content: string;
+  readonly extraTokens?: number;
   readonly name?: string;
   readonly messageId?: MessageId | undefined;
 }
@@ -144,8 +145,8 @@ function chunkAlignedCut(history: readonly HistoryTurn[], minimalCut: number, ch
 
 /** What ONE history row costs the fit: its estimated content tokens plus the per-message wire overhead. The
  *  one cost rule; the marker re-head after a trim (`substrate/wire-history` fitWireHistory) prices with it too. */
-export function historyTurnTokens(turn: { readonly content: string }): number {
-  return estimateTokens(turn.content) + PER_MESSAGE_OVERHEAD;
+export function historyTurnTokens(turn: { readonly content: string; readonly extraTokens?: number }): number {
+  return estimateTokens(turn.content) + PER_MESSAGE_OVERHEAD + (turn.extraTokens ?? 0);
 }
 
 /** The materialized output reserve — the EFFECTIVE `max_tokens` the runner sends AND the fit reserves, one

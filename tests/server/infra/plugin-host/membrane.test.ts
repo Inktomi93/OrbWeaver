@@ -720,6 +720,33 @@ describe("attachMembrane — sync registration metadata is guarded before ctx.du
     expect(collected).toEqual([`a${"a".repeat(PLUGIN_TOOL_NAME_LOCAL_MAX - 1)}`]);
   });
 
+  test("tool registration captures replay opt-out and a readable label, with a local-name fallback", async () => {
+    const { bridge } = fakeBridge();
+    const collected: { name: string; displayName?: string; replayHistory?: boolean }[] = [];
+    const runtime = makeRuntime(["tools.register"], false, bridge, {
+      collectTool: (registration, handler): void => {
+        collected.push(registration);
+        handler.dispose();
+      },
+    });
+    await withRuntime(runtime, (ctx) => {
+      const result = ctx.evalCode(
+        `host.tools.register({name:"draw",displayName:"Draw a card",replayHistory:false,description:"d",parameters:{},handler:async()=>"Moon"}); host.tools.register({name:"advance_clock",description:"d",parameters:{},handler:async()=>"Ticked"}); "registered"`,
+      );
+      expect(readString(ctx, result.error ?? result.value)).toBe("registered");
+      const refused = ctx.evalCode(
+        `try { host.tools.register({name:"bad",displayName:42,replayHistory:"no",description:"d",parameters:{},handler:async()=>""}); } catch(e) { e.message; }`,
+      );
+      expect(readString(ctx, refused.error ?? refused.value)).toContain("displayName");
+    });
+    expect(
+      collected.map((registration) => ({ name: registration.name, displayName: registration.displayName, replayHistory: registration.replayHistory })),
+    ).toEqual([
+      { name: "draw", displayName: "Draw a card", replayHistory: false },
+      { name: "advance_clock", displayName: "advance clock", replayHistory: undefined },
+    ]);
+  });
+
   // #1803 — the failure text says LENGTH: `PLUGIN_TOOL_NAME_RE.source` carries the numeric bound
   // (`{0,N}`), so a caller reading the thrown message sees the byte cap, not a bare charset complaint.
   test("tools.register's over-length refusal message states the numeric bound", async () => {

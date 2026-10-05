@@ -27,6 +27,7 @@ import {
   chatImportClaims,
   connectionBindings,
   documents,
+  messageVariants,
   notifications,
   plugins,
   themes,
@@ -42,6 +43,7 @@ import type {
   ChatId,
   DocumentId,
   MessageId,
+  MessageVariantId,
   ModelId,
   NotificationId,
   PersonaId,
@@ -67,6 +69,7 @@ import { loadPresentRole } from "@orb/server/domain/chat";
 import type { ConnectionService } from "@orb/server/domain/connection";
 import { CREDENTIALS_OP_CODES } from "@orb/server/domain/credentials";
 import { appRouter } from "@orb/server/transport/trpc";
+import { eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
 import { describe, onTestFinished } from "vitest";
 import { TEST_PROVIDER_ID } from "../../support/factories/resolved-connection.ts";
@@ -79,6 +82,8 @@ import { seedTurns } from "../domain/chat/memory/_support.ts";
 // ── Owner A's distinctive marker names — these strings exist ONLY in A's owned rows, so their appearance in
 //    a stranger's result is an unambiguous LEAK signal (an echoed input id is NOT a leak — a stranger's own
 //    empty/zeroed result may legitimately carry the id it asked about; a NAME never appears by accident). ──
+const OWNER_TOOL_CALL_ID = "owner-call";
+
 const MARK = {
   character: "AlphaSecretHero",
   persona: "AlphaSecretPersona",
@@ -181,6 +186,7 @@ interface OwnerIds {
   snapshotId: string;
   chatId: ChatId;
   messageId: MessageId;
+  messageVariantId: MessageVariantId;
   documentId: DocumentId;
   automationRuleId: AutomationRuleId;
   // automation C5 — A's OWNER-GLOBAL rule id (`chat_id IS NULL`). The rule-scoped verbs are SHARED between
@@ -982,6 +988,12 @@ const PROBES: readonly Probe[] = [
   {
     path: "chat.setMessageHidden",
     call: (c, i) => c.chat.setMessageHidden({ chatId: i.chatId, messageId: i.messageId, hidden: true }),
+  },
+  {
+    path: "chat.editToolCall",
+    call: (c, i) =>
+      c.chat.editToolCall({ chatId: i.chatId, messageId: i.messageId, variantId: i.messageVariantId, toolCallId: OWNER_TOOL_CALL_ID, action: "hide" }),
+    requireNotFound: true,
   },
   {
     path: "chat.deleteMessages",
@@ -2359,13 +2371,22 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // The turn/canon rows sidestep the provider — seed them directly (owner A is the host member).
     const chatId = await seedChat(db, "idor", { id: mintTypeId(ID_PREFIX.chat), title: "AlphaSecretChatTitle" });
     await seedParticipant(db, { chatId, key: "idor_h", id: mintTypeId(ID_PREFIX.chatParticipant), userId: OWNER_USER_ID, role: "host" });
-    const { messageId } = await seedMessage(db, chatId, 1, {
+    const { messageId, variantId: messageVariantId } = await seedMessage(db, chatId, 1, {
       id: mintTypeId(ID_PREFIX.message),
       variantId: mintTypeId(ID_PREFIX.messageVariant),
       role: "user",
       authorUserId: OWNER_USER_ID,
       content: MARK.message,
     });
+    await db
+      .update(messageVariants)
+      .set({
+        toolCalls: [{ toolCallId: OWNER_TOOL_CALL_ID, name: "draw", arguments: "{}", result: MARK.message, isError: false, durationMs: 1, hidden: false }],
+      })
+      .where(eq(messageVariants.id, messageVariantId));
+    const toolTarget = { chatId, messageId, variantId: messageVariantId, toolCallId: OWNER_TOOL_CALL_ID };
+    expect((await owner.chat.editToolCall({ ...toolTarget, action: "hide" })).toolCalls[0]?.hidden).toBe(true);
+    expect((await owner.chat.editToolCall({ ...toolTarget, action: "show" })).toolCalls[0]?.hidden).toBe(false);
 
     // Seed the ordinary composed domain front door; the strict mounted authoring wrappers are probed above.
     const automationRule = await automation.createRule({
@@ -2669,6 +2690,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       snapshotId: snapshot.id,
       chatId,
       messageId,
+      messageVariantId,
       documentId,
       automationRuleId: automationRule.id,
       automationOwnerRuleId: automationOwnerRule.id,
@@ -2989,6 +3011,8 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(messagesStill.messages).toHaveLength(1); // chat.deleteMessages never dropped A's row; send/commitMessage never added one
     expect(messagesStill.messages[0]?.content).toBe(MARK.message); // untouched by chat.editMessage
     expect(messagesStill.messages[0]?.excludedFromPrompt).toBe(false); // chat.setMessageHidden({hidden:true}) never landed
+    expect(messagesStill.messages[0]?.toolCalls[0]?.hidden).toBe(false);
+    expect(messagesStill.messages[0]?.toolCalls[0]?.result).toBe(MARK.message);
     expect(messagesStill.messages[0]?.personaId).toBeNull(); // chat.reattributePersona never restamped A's row
     expect(injectionsStill).toEqual([]); // chat.setChatInjection never spliced prompt content into A's room
 

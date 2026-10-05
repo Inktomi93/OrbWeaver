@@ -486,6 +486,10 @@ export interface PluginHostV1 {
      *  capability: tools.register */
     register: (def: {
       name: string; // /^[a-z][a-z0-9_]{0,40}$/; host prefixes to "plugin_<slug'>_<name>"
+      /** Transcript label. Omitted labels use the guest-local name with spaces. */
+      displayName?: string;
+      /** Completed calls replay on later tool-capable turns. Set false for transient results. */
+      replayHistory?: boolean;
       description: string;
       parameters: Record<string, unknown>; // JSON Schema (validated host-side)
       handler: (args: unknown) => Promise<string>; // runs IN the guest under the invocation budget

@@ -993,3 +993,47 @@ test("a budget-mode chat turn counts its thinking budget once: beside the visibl
   expect(thinking.budget_tokens).toBe(BUDGET.budget_tokens);
   expect(body?.body["max_tokens"]).toBe(visible + BUDGET.budget_tokens);
 });
+
+for (const carryReasoning of ["off", "tool-chain", "conversation"] as const) {
+  test(`completed historical tool replay preserves native Anthropic blocks with carry ${carryReasoning}`, async () => {
+    for (const model of ["claude-sonnet-4-5", "claude-opus-5"]) {
+      const reasoning =
+        carryReasoning === "conversation" ? [{ type: "reasoning" as const, text: THINKING, meta: { anthropic: { signature: SIGNATURE } } }] : [];
+      const { body } = await recordedTurn(
+        turnRequest({
+          connection: curatedConnection(model),
+          params: { effort: "high", carryReasoning },
+          history: [
+            { role: "user", content: [{ type: "text", text: "Check Paris." }] },
+            {
+              role: "assistant",
+              content: [
+                ...reasoning,
+                { type: "text", text: "Before." },
+                { type: "tool-call", toolCallId: "toolu_past", name: "get_weather", arguments: '{"city":"Paris"}' },
+              ],
+            },
+            { role: "tool", content: [{ type: "tool-result", toolCallId: "toolu_past", content: "18C, clear." }] },
+            { role: "assistant", content: [{ type: "text", text: "After." }] },
+            { role: "user", content: [{ type: "text", text: "Explain the result." }] },
+          ],
+        }),
+        anthropicTextStream("Understood."),
+      );
+      expect(body?.body["messages"], model).toMatchObject([
+        { role: "user", content: [{ type: "text", text: "Check Paris." }] },
+        {
+          role: "assistant",
+          content: [
+            ...(carryReasoning === "conversation" ? [{ type: "thinking", thinking: THINKING, signature: SIGNATURE }] : []),
+            { type: "text", text: "Before." },
+            { type: "tool_use", id: "toolu_past", name: "get_weather", input: { city: "Paris" } },
+          ],
+        },
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "toolu_past", content: "18C, clear." }] },
+        { role: "assistant", content: [{ type: "text", text: "After." }] },
+        { role: "user", content: [{ type: "text", text: "Explain the result." }] },
+      ]);
+    }
+  });
+}

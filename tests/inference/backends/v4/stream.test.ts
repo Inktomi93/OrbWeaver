@@ -222,6 +222,35 @@ test("a tool-call part is captured with its raw JSON string input, and a generat
     ]),
     { label: "test" },
   );
-  expect(drain.toolCalls).toEqual([{ toolCallId: "call_1", name: "get_weather", arguments: inputJson }]);
-  expect(drain.images).toEqual([{ url: undefined, base64: "YWJj", mediaType: "image/png", atChars: "look: ".length }]);
+  expect(drain.toolCalls).toEqual([{ toolCallId: "call_1", name: "get_weather", arguments: inputJson, atChars: 6, partOrdinal: 1 }]);
+  expect(drain.images).toEqual([{ url: undefined, base64: "YWJj", mediaType: "image/png", atChars: "look: ".length, partOrdinal: 0 }]);
+});
+
+test.each([true, false])("native imageBeforeTool=%s retains original equal-offset part order and call position", async (imageBeforeTool) => {
+  const tool = part({
+    type: "tool-call",
+    toolCallId: "same",
+    toolName: "draw",
+    input: "{}",
+    providerMetadata: { google: { thoughtSignature: "tool-private" } },
+  });
+  const image = part({
+    type: "file",
+    mediaType: "image/png",
+    data: { type: "data", data: "YWJj" },
+    providerMetadata: { google: { thoughtSignature: "image-private" } },
+  });
+  const drained = await drainStream(
+    streamOf([
+      part({ type: "text-delta", id: "before", delta: "Before." }),
+      ...(imageBeforeTool ? [image, tool] : [tool, image]),
+      part({ type: "text-delta", id: "after", delta: "After." }),
+      FINISH,
+    ]),
+    { label: "test" },
+  );
+  expect(drained.reply).toBe("Before.After.");
+  expect(drained.toolCalls[0]).toMatchObject({ toolCallId: "same", atChars: 7, thoughtSignature: "tool-private" });
+  expect(drained.images[0]).toMatchObject({ atChars: 7, thoughtSignature: "image-private" });
+  expect([drained.toolCalls[0]?.partOrdinal, drained.images[0]?.partOrdinal]).toEqual(imageBeforeTool ? [1, 0] : [0, 1]);
 });

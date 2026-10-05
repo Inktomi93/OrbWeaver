@@ -58,9 +58,9 @@
 // incl. `reasoningEdited`/`reasoningCleared`), the live `reasoning`-channel token DELTA, `reasoningStreamDone`,
 // and the fork copy (a non-host forker of a deception game must not launder a member→host reasoning leak).
 
-import type { ChatBusEvent, ChatDeltaEvent, MemberCardView, MessageView } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatDeltaEvent, MemberCardView, MessageView, ToolCallRecord } from "@orb/contracts/chat";
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
-import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
+import { createHiddenSpanStreamScrubber, projectHiddenSpans, stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../contract/views.ts";
 
@@ -72,7 +72,20 @@ import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../contract/view
  */
 export function stripHiddenForMember(view: MessageView): MessageView {
   const { content, hadHidden } = stripHiddenSpans(view.content);
-  return hadHidden ? { ...view, content } : view;
+  return hadHidden ? { ...view, content, toolCalls: memberToolCalls(view.toolCalls, view.content) } : view;
+}
+
+/** Tool positions belong to the delivered body, while native and occurrence identities stay unchanged. */
+export function memberToolCalls(records: readonly ToolCallRecord[], content: string): ToolCallRecord[] {
+  const offsets = projectHiddenSpans(
+    content,
+    records.flatMap((record) => [record.textOffset ?? 0, record.exchangeTextEnd ?? 0]),
+  ).offsets;
+  return records.map((record, index) => ({
+    ...record,
+    ...(record.textOffset === undefined ? {} : { textOffset: offsets[index * 2] ?? record.textOffset }),
+    ...(record.exchangeTextEnd === undefined ? {} : { exchangeTextEnd: offsets[index * 2 + 1] ?? record.exchangeTextEnd }),
+  }));
 }
 
 /** P3 (§3.6): withhold the whole REASONING channel from a member of a deception-active game. Nulls

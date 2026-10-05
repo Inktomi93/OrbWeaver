@@ -13,7 +13,11 @@
 
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { mintInlineImageAlt, spliceInlineReplyImages } from "../../../../../packages/server/src/domain/chat/substrate/inline-reply-images.ts";
+import {
+  mintInlineImageAlt,
+  projectInlineReplyImages,
+  spliceInlineReplyImages,
+} from "../../../../../packages/server/src/domain/chat/substrate/inline-reply-images.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const A = castId<AssetId>("asset_a");
@@ -105,4 +109,28 @@ test("a PICTURE-ONLY reply is a body — the span is all there is, and it is not
 test("no pictures leaves the body BYTE-IDENTICAL — every text-only turn pays nothing", () => {
   const body = "Nothing to see here.\n\nReally.";
   expect(spliceInlineReplyImages(body, [])).toBe(body);
+});
+
+test("tool boundaries rebase through picture spans without changing the canonical splice", () => {
+  const content = "Before.😀After.";
+  const images = [
+    { assetId: A, atChars: 7 },
+    { assetId: B, atChars: 9 },
+  ];
+  const projected = projectInlineReplyImages(content, images, [0, 7, 9, content.length]);
+  expect(projected.content).toBe(spliceInlineReplyImages(content, images));
+  expect(projected.content.slice(projected.offsets[1], projected.offsets[2])).toBe("😀\n\n![Before.😀](asset:asset_b)\n\n");
+  expect(projected.content.slice(projected.offsets[2])).toBe("After.");
+  expect(projected.offsets[0]).toBe(0);
+  expect(projected.offsets[3]).toBe(projected.content.length);
+});
+
+test("equal prose positions retain both image-before-tool and tool-before-image receipt order", () => {
+  const content = "Before.After.";
+  const image = { assetId: A, atChars: 7, eventOrdinal: 1 };
+  const projection = projectInlineReplyImages(content, [image], [7, 7], [0, 2]);
+  expect(projection.content).toBe(spliceInlineReplyImages(content, [image]));
+  expect(projection.content.slice(0, projection.offsets[0])).toBe("Before.");
+  expect(projection.content.slice(0, projection.offsets[1])).toContain("asset:asset_a");
+  expect(projection.content.slice(projection.offsets[1])).toBe("After.");
 });

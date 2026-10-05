@@ -106,12 +106,75 @@ function revealRecord(): ToolCallRecord {
   return record({ toolCallId: "call_2", name: REVEAL, arguments: "{}", result: '"Seed: abc\\nCards dealt: 2"' });
 }
 
+test("a plugin tool without a custom card shows its display label and readable result", async ({ mount, page }) => {
+  await routeTrpc(page, pluginRoutes([]));
+  const component = await mount(
+    <PluginToolCardStory
+      records={[record({ name: "plugin_story__clocks_advance_clock", displayName: "Advance story clock", result: 'Started the clock "The ritual" at 1/6.' })]}
+    />,
+  );
+  await expect(component.getByText("Advance story clock", { exact: true })).toBeVisible();
+  await expect(component.getByRole("paragraph").filter({ hasText: 'Started the clock "The ritual" at 1/6.' })).toBeVisible();
+  await expect(component.getByText("plugin_story__clocks_advance_clock", { exact: true })).toHaveCount(0);
+});
+
 /** The plugin routes both halves share. `surfaces` drives the arm. */
 function pluginRoutes(
   surfaces: TrpcWireOutput<"plugin.listSurfaces">,
   plugins: TrpcWireOutput<"plugin.list"> = [PLUGIN_ROW],
 ): TrpcRoutes<"plugin.list" | "plugin.listSurfaces"> {
   return { "plugin.list": () => plugins, "plugin.listSurfaces": () => surfaces };
+}
+
+for (const state of [
+  { label: "failed", result: "Tool refused: could not contact the deck storage.", isError: true, durationMs: 12, status: "Error" },
+  { label: "unexecuted", result: null, isError: false, durationMs: null, status: "Requested, not run" },
+] as const) {
+  test(`an installed Oracle card retains first-party ${state.label} state instead of rendering empty success facts`, async ({ mount, page }) => {
+    await routeTrpc(page, pluginRoutes([DRAW_CARD]));
+    const component = await mount(
+      <PluginToolCardStory
+        records={[
+          record({ toolCallId: "native", callOrdinal: 0 }),
+          record({
+            toolCallId: "native",
+            callOrdinal: 1,
+            displayName: "Draw oracle cards",
+            result: state.result,
+            isError: state.isError,
+            durationMs: state.durationMs,
+          }),
+          record({
+            toolCallId: "native",
+            callOrdinal: 2,
+            result: JSON.stringify({
+              drawn: "**The Lantern**",
+              commitment: "lantern-proof",
+              dealt: 3,
+              countLabel: "1 card",
+              remainingLabel: "19 left in the deck",
+            }),
+          }),
+        ]}
+      />,
+    );
+    // Successful siblings settle the actual installed renderer before testing its failure/requested arm.
+    const cards = component.getByRole("group", { name: `${PLUGIN_NAME} — Draw`, exact: true });
+    await expect(cards.first().getByText("The Road", { exact: true })).toBeVisible();
+    await expect(cards.last().getByText("The Lantern", { exact: true })).toBeVisible();
+    await expect(cards).toHaveCount(2);
+    await expect(cards.first().getByRole("meter")).toHaveAttribute("aria-valuenow", "2");
+    await expect(cards.last().getByRole("meter")).toHaveAttribute("aria-valuenow", "3");
+    await expect(cards.last()).toContainText("lantern-proof");
+    const fallback = component.getByRole("group", { name: "Draw oracle cards", exact: true });
+    await expect(fallback.locator(BLOCK)).toHaveCount(1);
+    await expect(fallback.locator('[data-slot="tool-call-block-name"]')).toHaveText("Draw oracle cards");
+    await expect(fallback.locator('[data-slot="tool-call-block-status"]')).toHaveText(state.status);
+    await expect(fallback.locator('[data-slot="tool-call-block-status"]')).toBeVisible();
+    await expect(fallback.locator("p:visible")).toHaveText(state.result === null ? [] : [state.result]);
+    await expect(fallback.getByText("Commitment", { exact: true })).toHaveCount(0);
+    await expect(fallback.getByRole("meter")).toHaveCount(0);
+  });
 }
 
 test("a REGISTERED plugin tool renders its card inside the plugin-labelled shell, bound to THIS call", async ({ mount, page }) => {

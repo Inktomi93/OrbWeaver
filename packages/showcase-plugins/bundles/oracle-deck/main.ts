@@ -223,6 +223,7 @@ function drawResult(session: OracleSession, taken: readonly string[], narration:
   return JSON.stringify({
     // What the model reads first, and what the card's markdown node draws.
     drawn: narration,
+    summary: taken.length === 0 ? "The deck is spent." : `Drew ${taken.join(", ")}.`,
     cards: taken,
     // The public commitment: safe to show every time (only the SEED is secret), which is what lets the card
     // carry it as a stable row instead of a sometimes-line.
@@ -315,6 +316,8 @@ if (!canDeal) {
 if (canDeal) {
   host.tools.register({
     name: "draw",
+    displayName: "Draw oracle cards",
+    replayHistory: true,
     description:
       "Draw from the oracle deck. Returns the drawn cards in order. The first draw of a session also returns a commitment that fixes the whole shuffle in advance.",
     // Raw JSON Schema, validated host-side. Keep it small and literal: this text is what the model plans against.
@@ -352,6 +355,8 @@ if (canDeal) {
 
   host.tools.register({
     name: "reveal",
+    displayName: "Reveal oracle deck",
+    replayHistory: true,
     description: "Reveal the seed behind the current oracle session so the draws can be verified, and retire the deck. The next draw starts a fresh session.",
     parameters: { type: "object", properties: {}, additionalProperties: false },
     handler: async () => {

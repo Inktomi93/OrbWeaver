@@ -189,6 +189,26 @@ test("toolCallRecordSchema round-trips an executed record AND the recorded-unexe
   expect(toolCallRecordSchema.parse(errored)).toEqual(errored);
 });
 
+test("tool call replay/display metadata round-trips without exposing provider signatures", () => {
+  const record = {
+    toolCallId: "call_1",
+    name: "draw",
+    arguments: "{}",
+    result: "Moon",
+    isError: false,
+    durationMs: 1,
+    displayName: "Draw a card",
+    replayHistory: false,
+    hidden: true,
+    deleted: false,
+    textOffset: 4,
+  };
+  expect(toolCallRecordSchema.parse(record)).toEqual(record);
+  expect(toolCallRecordSchema.parse({ ...record, thoughtSignature: "private" })).not.toHaveProperty("thoughtSignature");
+  expect(toolCallRecordSchema.safeParse({ ...record, textOffset: -1 }).success).toBe(false);
+  expect(toolCallRecordSchema.parse({ ...record, displayName: undefined })).not.toHaveProperty("displayName");
+});
+
 test("toolCallRecordSchema refuses a structurally wrong record (no cast-shaped reads)", () => {
   // `arguments` must stay the RAW string — a pre-parsed object is the exact drift the schema exists to catch.
   expect(

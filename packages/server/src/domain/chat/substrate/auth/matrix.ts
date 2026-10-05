@@ -113,6 +113,7 @@ export const CHAT_VERB_AUTHORITY = {
   // of its bytes, so even a host's confirm can only land on the exact body the audit read.
   applyProseRewrite: "host",
   setMessageHidden: "author-or-host",
+  editToolCall: "author-or-host",
   deleteMessages: "author-or-host",
   editReasoning: "author-or-host",
   clearReasoning: "author-or-host",

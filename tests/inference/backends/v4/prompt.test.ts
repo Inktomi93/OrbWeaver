@@ -19,6 +19,30 @@ function userRow(text: string): ChatHistoryMessage {
   return { role: "user", content: [{ type: "text", text }] };
 }
 
+test("reused request-local ids bind each result to its preceding tool, never a later call", () => {
+  const plan = buildWirePlan({
+    systemPrompt: { static: "", dynamic: "" },
+    history: [
+      { role: "assistant", content: [{ type: "tool-call", toolCallId: "call-1", name: "draw", arguments: "{}", thoughtSignature: "draw-signature" }] },
+      { role: "tool", content: [{ type: "tool-result", toolCallId: "call-1", content: "Moon" }] },
+      { role: "assistant", content: [{ type: "tool-call", toolCallId: "call-1", name: "tick", arguments: "{}", thoughtSignature: "tick-signature" }] },
+      { role: "tool", content: [{ type: "tool-result", toolCallId: "call-1", content: "1/6" }] },
+    ],
+  });
+  expect(
+    plan.prompt
+      .filter((message) => message.role === "tool")
+      .flatMap((message) => message.content)
+      .flatMap((part) => (part.type === "tool-result" ? [part.toolName] : [])),
+  ).toEqual(["draw", "tick"]);
+  expect(
+    plan.prompt
+      .filter((message) => message.role === "assistant")
+      .flatMap((message) => message.content)
+      .map((part) => part.providerOptions),
+  ).toEqual([{ google: { thoughtSignature: "draw-signature" } }, { google: { thoughtSignature: "tick-signature" } }]);
+});
+
 test("static + dynamic join into ONE leading system row", () => {
   const plan = buildWirePlan({
     systemPrompt: { static: "You are helpful.", dynamic: "Time: noon." },

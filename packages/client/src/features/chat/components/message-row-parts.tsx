@@ -4,6 +4,7 @@
 // message-row-header.tsx, split off when #288 pushed this file past the cap.
 
 import type { MessageView } from "@orb/contracts/chat";
+import type { UserId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Avatar } from "@orb/ui/avatar";
@@ -11,19 +12,20 @@ import { Stack } from "@orb/ui/layout";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
-import type { MessageRenderContext, RowRenderPolicy } from "#lib";
+import type { ContributorRegistry, MessageRenderContext, RowRenderPolicy, ToolRenderer } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
-
 import type { RowAttribution } from "../lib/attribution.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { MESSAGE_REASONING_NAME } from "../lib/message-action-names.ts";
 import { BG_PHOTO_CHROME_PLATE } from "../lib/message-row-backing.ts";
 import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
 import { avatarPortraitSrcProp, avatarSrcProp } from "../lib/message-row-variants.ts";
+import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
 import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
 import { MessageContent } from "./message-content.tsx";
 import { MessageEditTextarea } from "./message-edit-textarea.tsx";
 import { renderSingleBubble } from "./message-row-bubble.tsx";
+import { MessageToolCalls } from "./message-tool-calls.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
 import { SwipeStrip } from "./swipe-strip.tsx";
 
@@ -34,6 +36,27 @@ const GUTTER_RAIL_CLASS: Readonly<Record<"none" | "leading" | "trailing", string
   leading: "@4xl:justify-self-end",
   trailing: "@4xl:justify-self-start",
 };
+
+/** Train bubbles derive paragraphs from the display projection, never while editing canon. */
+export function trainParagraphsFor(message: MessageView, editing: boolean, trains: boolean): ReturnType<typeof splitIntoTrainParagraphs> | null {
+  return !editing && trains ? splitIntoTrainParagraphs(message.content) : null;
+}
+
+/** Tool-card controls follow the message's author-or-host display posture. */
+export function renderRowToolCalls(args: {
+  readonly editing: boolean;
+  readonly message: MessageView;
+  readonly renderers: ContributorRegistry<ToolRenderer> | undefined;
+  readonly viewerIsHost: boolean | undefined;
+  readonly viewerUserId: UserId | null | undefined;
+}): ReactNode {
+  if (args.editing) {
+    return null;
+  }
+  const canEdit =
+    args.viewerIsHost === true || (args.viewerUserId !== undefined && args.viewerUserId !== null && args.message.authorUserId === args.viewerUserId);
+  return <MessageToolCalls records={args.message.toolCalls} renderers={args.renderers} message={args.message} canEdit={canEdit} />;
+}
 
 /** The SETTLED reasoning disclosure for a committed row — the durable half of the live ghost's block, reading
  *  `MessageView.reasoning` (the `message_variants.reasoning` column every backend's turn persists) so a

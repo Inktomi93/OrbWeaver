@@ -37,6 +37,8 @@ export type PluginInvokeArgs = string | ((chatHandle: string | null) => string);
  *  ({@link pluginToolWireName} — `slug'` doubles the slug's hyphens, and that is load-bearing). */
 export interface PluginToolRegistration {
   readonly name: string;
+  readonly displayName?: string;
+  readonly replayHistory?: boolean;
   readonly description: string;
   readonly parameters: Record<string, unknown>;
   readonly handler: PluginHandlerRef;

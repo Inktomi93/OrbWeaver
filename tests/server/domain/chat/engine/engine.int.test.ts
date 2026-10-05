@@ -108,6 +108,7 @@ function harness(
   database: Db,
   over: {
     runChatTurn?: ChatContext["runChatTurn"];
+    tools?: ChatContext["tools"];
     generateSegments?: Parameters<typeof createTurnEngine>[1]["generateSegments"];
     generateDigests?: Parameters<typeof createTurnEngine>[1]["generateDigests"];
     loadWitnessHorizons?: Parameters<typeof createTurnEngine>[1]["loadWitnessHorizons"];
@@ -128,9 +129,11 @@ function harness(
   const deltas: StatsDelta[] = [];
   const chatChangedFans: { chatId: ChatId; options: unknown }[] = [];
   const ctx = makeChatContext(database, {
+    newChatTurnId: () => mintTypeId(ID_PREFIX.chatTurn),
     newStreamEventId: () => mintTypeId(ID_PREFIX.chatStreamEvent),
     newStreamGenerationId: () => mintTypeId(ID_PREFIX.chatStreamGeneration),
     runChatTurn: over.runChatTurn ?? OK_TURN,
+    ...(over.tools === undefined ? {} : { tools: over.tools }),
     ...(over.now !== undefined ? { now: over.now } : {}),
     ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
     applyStatsDelta:
@@ -1238,6 +1241,63 @@ describe("createTurnEngine — the D16 `slotSeq` anchor on every streamed delta"
 });
 
 describe("createTurnEngine — continue (extend in place + the D26 snapshot)", () => {
+  test("continue retains prior calls, namespaces request-local ids by turn, and rebases new prose boundaries", async () => {
+    const chatId = await seedChat(db, "tool-continue");
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Before." });
+    const oldTurn = mintTypeId(ID_PREFIX.chatTurn);
+    const prior = {
+      toolCallId: "call-1",
+      turnId: oldTurn,
+      callOrdinal: 0,
+      name: "draw",
+      arguments: "{}",
+      result: "Moon",
+      isError: false,
+      durationMs: 1,
+      textOffset: 7,
+    };
+    await db
+      .update(messageVariants)
+      .set({ toolCalls: [prior] })
+      .where(eq(messageVariants.id, variantId));
+    let depth = 0;
+    const h = harness(db, {
+      tools: {
+        resolveTools: () => ({}),
+        toToolDefinitions: () => [{ name: "tick", description: "Tick", parameters: { type: "object" }, inputShape: {} }],
+        prepareExecution: () => Promise.resolve((calls) => Promise.resolve(calls.map((call) => ({ ...call, result: "1/6", isError: false, durationMs: 1 })))),
+      },
+      runChatTurn: () =>
+        (async function* (): AsyncGenerator<TurnStreamChunk> {
+          await Promise.resolve();
+          depth += 1;
+          yield {
+            kind: "final",
+            economics:
+              depth === 1
+                ? { content: "After.", finishReason: "tool", toolCalls: [{ toolCallId: "call-1", name: "tick", arguments: "{}" }] }
+                : { content: "Done.", finishReason: "stop" },
+          };
+        })(),
+    });
+    const connection = testConnection();
+    const outcome = await h.engine.runTurn(
+      prepOf(chatId, {
+        kind: "continue",
+        appendUserTurn: "[continue]",
+        persist: { mode: "continue", targetMessageId: messageId },
+        attachedToolNames: ["tick"],
+        connection: { ...connection, capability: makeCapability({ ...generationOf(connection), tools: { parallel: true } }) },
+      }),
+    );
+    const records = outcome.messages[0]?.toolCalls ?? [];
+    expect(records).toHaveLength(2);
+    expect(records[0]).toEqual(prior);
+    expect(records[1]).toMatchObject({ toolCallId: "call-1", name: "tick", textOffset: 13 });
+    expect(records[1]?.turnId).not.toBe(oldTurn);
+    expect(outcome.messages[0]?.content).toBe("Before.After.Done.");
+    expect((await loadCanonHistory(db, chatId))[0]?.toolCalls).toEqual(records);
+  });
   test("appends the continuation to the variant + records preContinue*/lastContinuation*", async () => {
     const chatId = await seedChat(db, "a");
     await seedMessage(db, chatId, 1, { role: "user", content: "hi" });

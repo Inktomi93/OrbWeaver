@@ -2817,6 +2817,30 @@ describe("swipe — append-variant on an existing assistant slot (D26)", () => {
 });
 
 describe("continueTurn / undoContinue / revertContinue — extend in place (D26)", () => {
+  test("undo/revert carries explicit tool phase when projected before/after bodies are identical", async () => {
+    const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
+    const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: chars[0] ?? null, content: "Before." });
+    const record = { toolCallId: "native", callOrdinal: 0, name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1, textOffset: 7 };
+    await db
+      .update(messageVariants)
+      .set({
+        toolCalls: [record],
+        preContinueContent: "Before.",
+        lastContinuationContent: "",
+        metadata: { continuationTools: { beforeContent: "Before.", before: [], after: [record], undone: false } },
+      })
+      .where(eq(messageVariants.id, variantId));
+    const h = harness(db, names);
+    const undone = await h.turn.undoContinue({ principal: principal(host), chatId, messageId });
+    expect(undone.content).toBe("Before.");
+    expect(undone.toolCalls).toEqual([]);
+    const reverted = await h.turn.revertContinue({ principal: principal(host), chatId, messageId });
+    expect(reverted.content).toBe("Before.");
+    expect(reverted.toolCalls).toEqual([record]);
+    const [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
+    expect(stored?.metadata?.continuationTools?.undone).toBe(false);
+    expect(stored?.toolCalls).toEqual([record]);
+  });
   test("continue extends; undo restores the pre-continue state; revert re-applies it", async () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hi" });

@@ -71,6 +71,7 @@ interface ReasoningAcc {
 }
 
 interface Accumulator {
+  nextPartOrdinal: number;
   reply: string;
   reasoning: string;
   readonly reasoningParts: Map<string, ReasoningAcc>;
@@ -176,6 +177,8 @@ function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
       toolCallId: part.toolCallId,
       name: part.toolName,
       arguments: part.input,
+      atChars: acc.reply.length,
+      partOrdinal: acc.nextPartOrdinal++,
       ...(thoughtSignature === undefined ? {} : { thoughtSignature }),
     });
   } else if (part.type === "file") {
@@ -186,7 +189,12 @@ function applyContentPart(acc: Accumulator, part: LanguageModelV4StreamPart, cal
       // text and file parts are still interleaved in stream order. The chat reducer splices the span there
       // and mints the alt from the prose in front of it.
       const signature = stringAt(part.providerMetadata?.[GOOGLE_KEY], THOUGHT_SIGNATURE_KEY);
-      const placed: GeneratedImage = { ...image, atChars: acc.reply.length, ...(signature === undefined ? {} : { thoughtSignature: signature }) };
+      const placed: GeneratedImage = {
+        ...image,
+        atChars: acc.reply.length,
+        partOrdinal: acc.nextPartOrdinal++,
+        ...(signature === undefined ? {} : { thoughtSignature: signature }),
+      };
       acc.images.push(placed);
       callbacks.onImage?.(placed);
     }
@@ -269,6 +277,7 @@ function isSynthesizedFinish(finish: LanguageModelV4FinishReason, usage: Languag
 
 export async function drainStream(stream: ReadableStream<LanguageModelV4StreamPart>, callbacks: DrainCallbacks): Promise<StreamDrain> {
   const acc: Accumulator = {
+    nextPartOrdinal: 0,
     reply: "",
     reasoning: "",
     reasoningParts: new Map(),

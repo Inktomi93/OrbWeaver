@@ -65,7 +65,11 @@ export type ToolChoice =
   | { readonly mode: "tool"; readonly name: string };
 
 /** One assembled model-emitted call off the stream. `arguments` is the raw JSON string, parsed once inside execute. */
-export type ToolCallInput = Pick<Extract<ChatContentPart, { type: "tool-call" }>, "toolCallId" | "name" | "arguments" | "thoughtSignature">;
+export type ToolCallInput = Pick<Extract<ChatContentPart, { type: "tool-call" }>, "toolCallId" | "name" | "arguments" | "thoughtSignature"> & {
+  /** Original UTF-16 reply position and relative tool/file part order, captured by the stream producer. */
+  readonly atChars?: number;
+  readonly partOrdinal?: number;
+};
 
 /** One tool a caller EXECUTES, offered backend-neutrally: the {@link WireTool} declaration every array wire
  *  sends, plus the zod raw shape that declaration was projected from. The in-process MCP projection needs the

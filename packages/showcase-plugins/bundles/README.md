@@ -307,6 +307,10 @@ three rules that keep a scripted surface alive (render immediately; never block;
 
 * **Tools** (`tools.register`) — oracle-deck. Your name is prefixed to `plugin_<slug>_<name>`; the returned
   STRING is what the model reads, verbatim; return a JSON document if you also draw a card from it.
+  Set `displayName` to the transcript label and include a `summary` string in JSON results for a readable generic card.
+  Completed calls replay from the active swipe on later tool-capable turns. Set `replayHistory: false` for transient results.
+  Hiding or deleting a card removes its replay without undoing its effects. The history budget trims exchanges with their message row.
+  RPG turn-tool display records remain display-only.
 * **Prompt transforms** (`transforms.register`) — draft-polish. 250 ms, no I/O, rooms you host.
 * **Display transforms** (`transforms.registerDisplay`) — draft-polish. Your own screen only, after your
   macros and display regex, before markdown; skip-on-failure.

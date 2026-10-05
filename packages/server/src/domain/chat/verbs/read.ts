@@ -176,7 +176,7 @@ import { humanSeatPersonasOf, memberPersonaIdsOf, presentAndEnabledHumanUserIdsO
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
 import { collectTeaching, resolveTeachingKnobs } from "../substrate/teaching.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
-import { buildWireHistory, convertsToEmptyWireRow, shapeConvertFit } from "../substrate/wire-history.ts";
+import { buildWireHistory, convertsToEmptyWireRow, replayToolMessageIds, shapeConvertFit } from "../substrate/wire-history.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -1224,6 +1224,7 @@ async function shapeNextTurn(
       roleHandling: params.advanced?.roleHandling,
       roleHandlingFloor: level?.roleHandlingFloor,
       explicitCacheMarkers: inputs.explicitCacheMarkers,
+      replayToolMessageIds: replayToolMessageIds(canon, inputs.capability?.tools !== undefined),
       squashSystemMessages: params.advanced?.squashSystemMessages,
       prose: assembleContext.prose,
     });
@@ -1274,6 +1275,8 @@ async function fitShapedHistory(args: {
     outputCeiling: args.capability?.output.maxTokens.max,
   });
   const convertEnv: Parameters<typeof buildWireHistory>[0] = {
+    toolsOk: args.capability?.tools !== undefined,
+    carryToolReasoning: args.capability !== undefined && resolveCarryReasoning(params, args.capability, []) === "conversation",
     visionOk: args.capability !== undefined && acceptsImageInput(args.capability),
     videoOk: args.capability !== undefined && acceptsVideoInput(args.capability),
     resolveImageUrl: (ref) => args.ctx.resolveImageUrl({ ownerId: args.convert.hostUserId, chatId: args.convert.chatId, ref, quality: args.convert.quality }),

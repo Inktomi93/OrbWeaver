@@ -10,6 +10,7 @@ import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../../../../../p
 import {
   createMemberDeltaStamper,
   projectViewForMember,
+  projectViewReturnForViewer,
   scrubChatEventReplayForMember,
   scrubDeltaEventForMember,
   scrubStreamReplayForMember,
@@ -24,12 +25,42 @@ const LIE = '<lie character="Zandik" type="location" truth="He is in the crypt" 
 const chatId = castId<ChatId>("chat_1");
 const messageId = castId<MessageId>("msg_1");
 
+test("member list/return/event body projection rebases both tool boundaries, including positions inside removed tags", async () => {
+  const content = `Before.${LIE}After.${LIE}Done.`;
+  const base = { toolCallId: "native", callOrdinal: 4, name: "draw", arguments: "{}", result: "Moon", isError: false, durationMs: 1 };
+  const view = {
+    ...viewOf(content),
+    toolCalls: [
+      { ...base, textOffset: 7 + LIE.length, exchangeTextEnd: 13 + LIE.length * 2 },
+      { ...base, callOrdinal: 5, textOffset: 9, exchangeTextEnd: 16 + LIE.length },
+    ],
+  };
+  const expected = [
+    { ...base, textOffset: 7, exchangeTextEnd: 13 },
+    { ...base, callOrdinal: 5, textOffset: 7, exchangeTextEnd: 13 },
+  ];
+  const member = projectViewForMember(view, false);
+  expect(member.content).toBe("Before.After.Done.");
+  expect(member.toolCalls).toEqual(expected);
+  expect((await projectViewReturnForViewer(view, { role: "member" }, () => Promise.resolve(false))).toolCalls).toEqual(expected);
+  for (const type of ["messageCommitted", "messageEdited", "messageHidden", "variantSelected", "reasoningEdited", "reasoningCleared"] as const) {
+    const event = { type, chatId, messageId, view };
+    const projected = stripChatEventForMember(event);
+    expect(projected !== null && "view" in projected ? projected.view?.toolCalls : undefined).toEqual(expected);
+  }
+  expect(view.toolCalls).toEqual([
+    { ...base, textOffset: 7 + LIE.length, exchangeTextEnd: 13 + LIE.length * 2 },
+    { ...base, callOrdinal: 5, textOffset: 9, exchangeTextEnd: 16 + LIE.length },
+  ]);
+  expect(view.content).toBe(content);
+});
+
 function viewOf(content: string, reasoning: string | null = null): MessageView {
-  // A deliberate minimal view — the stripper reads ONLY `content` + `reasoning`, so the other ~30 MessageView
+  // A deliberate minimal view — the stripper reads content, reasoning and tool positions, so other MessageView
   // fields are irrelevant to what these tests assert; a full factory would obscure that the strip is
-  // content/reasoning-only, and the `not.toContain` byte checks below are the real assertion.
+  // projection fields stay explicit, and the `not.toContain` byte checks below are the real assertion.
   // @orb-waive no-test-fabrication(unknown): content/reasoning-only strip probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  return { id: messageId, chatId, content, reasoning } as unknown as MessageView;
+  return { id: messageId, chatId, content, reasoning, toolCalls: [] } as unknown as MessageView;
 }
 
 test("stripHiddenForMember removes hidden-class spans; the serialized payload carries ZERO truth bytes", () => {
