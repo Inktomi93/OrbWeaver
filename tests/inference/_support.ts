@@ -273,7 +273,7 @@ export function fakeDeps(options: FakeDepsOptions = {}): InferenceDeps & { reado
     connections: stores.connections,
     bindings: stores.bindings,
     providerStore: stores.providerStore,
-    agentSdk: { summarizeConcurrency: () => 2, ...(options.agentSdkQuery !== undefined ? { query: options.agentSdkQuery } : {}) },
+    agentSdk: { ...(options.agentSdkQuery !== undefined ? { query: options.agentSdkQuery } : {}) },
     ...(options.captureWire !== undefined ? { captureWire: options.captureWire } : {}),
     userRuntimeDir: (ownerId, tool) => `/tmp/orb-test/${ownerId}/${tool}`,
     localLight: { cache: fakeModelCache() },

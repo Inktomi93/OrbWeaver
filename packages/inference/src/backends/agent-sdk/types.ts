@@ -41,8 +41,6 @@ export interface AgentSdkDeps {
   readonly normalizeImageBytes: NormalizeImageBytes;
   /** The TIMER seam every bound in this backend arms through — injected so a test trips a bound by hand. */
   readonly scheduleTimeout: (fn: () => void, ms: number) => () => void;
-  /** Live getter for the max in-flight summarize workers — read per BATCH so an admin retune applies. */
-  readonly summarizeConcurrency: () => number;
   readonly captureWire?: WireCaptureSink | undefined;
   /** Opt-in subprocess stderr at debug level. */
   readonly debug: boolean;

@@ -82,7 +82,6 @@ const NAV_LABELS = [
 const RESOLVED_APP: Partial<EffectiveAppSettings> = {
   memoryDefaults: {},
   rateLimits: { publicIp: 60, authed: 600, aiTurn: 30, login: 10 },
-  agentSdkConcurrency: { summarize: 4 },
   promptTransformDeadlineMs: 250,
   catalogRefreshIntervalMs: 86_400_000,
   imageVariantQuality: 80,

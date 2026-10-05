@@ -14,7 +14,7 @@
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
-import { resolveSideGenSampling } from "@orb/inference";
+import { ProviderError, resolveSideGenSampling } from "@orb/inference";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -67,10 +67,10 @@ async function summarizerOpts(ctx: ChatContext, funderUserId: UserId): Promise<S
  * verbatim for the caller's own empty-skip guard).
  *
  * The vLLM summarize surface is DELIBERATELY all-or-nothing (a per-item throw rejects the whole batch — a
- * contract chat-turn callers depend on and a pinned test asserts). So a batch rejection here falls back to
- * ISOLATED per-item calls: a POISON item then loses only itself and the rest still build (the content-hash
- * self-heal retries the dropped item next pass). The fallback runs only on failure, so the happy path stays a
- * single batched call.
+ * contract chat-turn callers depend on and a pinned test asserts). So a batch rejection here keeps the items the
+ * batch finished (`ProviderError.partialItems`) and falls back to ISOLATED per-item calls for the rest: a POISON
+ * item then loses only itself and the rest still build (the content-hash self-heal retries the dropped item next
+ * pass). The fallback runs only on failure, so the happy path stays a single batched call.
  *
  * The opts resolve only after the empty check: resolving them reads the funder's summarize window, which
  * refuses for a funder with no Utility model, and a sweep with nothing to summarize must still complete.
@@ -85,32 +85,40 @@ async function summarizeBatchIsolated(
     return [];
   }
   const call = { funderUserId, opts: await summarizerOpts(ctx, funderUserId) };
-  // @orb-waive caught-failure-ownership(catch): a batch rejection falls back to ISOLATED
+  // @orb-waive caught-failure-ownership(batchErr): a batch rejection falls back to ISOLATED
   // per-item calls (documented above) — the per-item loop below owns and reports each item's own failure
   // via `onItemError`; this outer catch only routes to that fallback, it never drops a failure silently.
   try {
     const res = await ctx.summarize(call.funderUserId, [...inputs], call.opts);
     return inputs.map((_, i) => res.items.at(i)?.text ?? null);
-  } catch {
+  } catch (batchErr) {
+    // The items the batch finished before it stopped are kept, never re-sent: each one is already billed.
+    const finished = batchErr instanceof ProviderError ? batchErr.partialItems : undefined;
     const out: (string | null)[] = [];
-    for (let i = 0; i < inputs.length; i += 1) {
-      const input = inputs[i];
-      if (input === undefined) {
-        out.push(null);
-        continue;
-      }
-      // @orb-waive caught-failure-ownership(err): reported via `onItemError(i, err)` (the
-      // caller's own callback — content-hash self-heal retries the dropped item next pass) and returned as
-      // a consumed `null` result, per the batch/isolate contract documented above.
-      try {
-        const res = await ctx.summarize(call.funderUserId, [input], call.opts);
-        out.push(res.items.at(0)?.text ?? null);
-      } catch (err) {
-        onItemError(i, err);
-        out.push(null);
-      }
+    for (const [i, input] of inputs.entries()) {
+      const kept = finished?.[i];
+      out.push(kept !== undefined ? kept.text : await summarizeAlone(ctx, call, input, (err) => onItemError(i, err)));
     }
     return out;
+  }
+}
+
+/** One item's isolated summarize after its batch failed; `null` when it fails alone too. */
+async function summarizeAlone(
+  ctx: ChatContext,
+  call: { readonly funderUserId: UserId; readonly opts: SummarizeOptions },
+  input: SummarizeInput,
+  onError: (err: unknown) => void,
+): Promise<string | null> {
+  // @orb-waive caught-failure-ownership(err): reported via `onError(err)` (the caller's own callback — the
+  // content-hash self-heal retries the dropped item next pass) and returned as a consumed `null` result, per the
+  // batch/isolate contract on `summarizeBatchIsolated`.
+  try {
+    const res = await ctx.summarize(call.funderUserId, [input], call.opts);
+    return res.items.at(0)?.text ?? null;
+  } catch (err) {
+    onError(err);
+    return null;
   }
 }
 

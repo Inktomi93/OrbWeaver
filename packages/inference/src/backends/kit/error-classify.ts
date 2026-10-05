@@ -12,6 +12,7 @@ import type { WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inferen
 import { errorMessage } from "@orb/kit/error-message";
 import type { ProviderErrorKind, ProviderScrubSet } from "../../contract/errors.ts";
 import { ProviderError, SCHEMA_REJECTED_DETAIL } from "../../contract/errors.ts";
+import { isIdleTrip } from "./idle-timeout.ts";
 import { redactSecretsFromText } from "./openai-body.ts";
 import type { ProviderLogger } from "./provider-log.ts";
 import { NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
@@ -164,6 +165,11 @@ function isModerationBlock(error: unknown): boolean {
 // File-local: the full HTTP-runner classification path — moderation block → status table → transport-name
 // fallback → `unknown` floor. Returns the status so the caller can attach it as `apiErrorStatus`.
 function classifyHttpError(error: unknown): ErrorClassification & { status: number | undefined } {
+  // An idle trip is a stalled server, not a cancel. It is read down the cause chain before the abort-name rule,
+  // so an SDK wrapper named for an abort cannot turn it into one.
+  if (isIdleTrip(error)) {
+    return { kind: "server", retryable: true, status: undefined };
+  }
   const status = readStatusCode(error);
   if (isModerationBlock(error)) {
     return { kind: "moderation", retryable: false, status };

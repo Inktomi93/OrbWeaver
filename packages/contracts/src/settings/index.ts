@@ -167,14 +167,6 @@ export function clampRateLimit(raw: number): number | null {
   return Math.min(RATE_LIMIT_CAP_MAX, Math.max(RATE_LIMIT_CAP_MIN, Math.round(raw)));
 }
 
-// The agent-sdk summarize concurrency (Q6): the max in-flight summarize calls the agent-sdk backend runs.
-// It caps the Claude-Agent-SDK subprocess fan-out (floor 4, byte-identical to the former hardcoded SUMMARIZE_CONCURRENCY). Positive int.
-export const AGENT_SDK_CONCURRENCY_MAX = 32;
-export const agentSdkConcurrencySchema = z.object({
-  summarize: z.number().int().positive().max(AGENT_SDK_CONCURRENCY_MAX).optional(),
-});
-export type AgentSdkConcurrency = z.infer<typeof agentSdkConcurrencySchema>;
-
 // Image variant lossy-encoder quality (1–100, webp/jpeg) — the admin-tunable default the asset variant
 // pipeline encodes at. CRITICAL: the value is folded into the variant CACHE KEY (resolve-variant), so an
 // admin change yields fresh keys → regeneration, never a stale-quality variant served forever.
@@ -243,7 +235,6 @@ const appSettingsShape = {
   allowInteractiveCards: z.boolean().nullable().optional().catch(undefined),
   memoryDefaults: memoryDefaultsSchema.nullable().optional().catch(undefined),
   rateLimits: rateLimitsSchema.nullable().optional().catch(undefined),
-  agentSdkConcurrency: agentSdkConcurrencySchema.nullable().optional().catch(undefined),
   // The non-owner local-compute budget WINDOW (ms) — the cap's sibling (compose read it hardcoded at 24h).
   maxImageBytes: z.number().int().min(MAX_IMAGE_BYTES_FLOOR).max(MAX_IMAGE_BYTES_CEIL).nullable().optional().catch(undefined),
   // Databank single-document upload cap — TIGHTEN-only (schema max = the route belt).
@@ -294,10 +285,9 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   // program F11) was purely additive/optional — no field moved or renamed. Stamp the version so a v2 row
   // stops re-running the lift chain; the absent section reads back as the env floor.
   2: (config) => ({ ...config, schemaVersion: 3 }),
-  // v3→v4: the Phase B ⑩ admin-tier fields (agentSdkConcurrency, maxDatabankBytes, promptTransformDeadlineMs,
-  // catalogRefreshIntervalMs, imageVariantQuality, and engineLaunch.genPresencePenalty — the last, like
-  // nonOwnerLocalComputeBudgetWindowMs beside it, since RETIRED, F11) were purely additive/optional — an
-  // absent field reads back as its floor.
+  // v3→v4: the Phase B ⑩ admin-tier fields (maxDatabankBytes, promptTransformDeadlineMs, catalogRefreshIntervalMs,
+  // imageVariantQuality, and the since-retired agentSdkConcurrency and engineLaunch.genPresencePenalty) were purely
+  // additive/optional — an absent field reads back as its floor.
   3: (config) => ({ ...config, schemaVersion: 4 }),
   // v4→v5: a stamp; no stored field changes meaning.
   4: (config) => ({ ...config, schemaVersion: 5 }),
@@ -882,10 +872,6 @@ export interface ResolvedRateLimits {
   login: number;
 }
 
-export interface ResolvedAgentSdkConcurrency {
-  summarize: number;
-}
-
 export interface EffectiveAppConfig {
   corpusAutoindex: boolean;
   importSkipCharacters: string[];
@@ -895,7 +881,6 @@ export interface EffectiveAppConfig {
   allowInteractiveCards: boolean;
   memoryDefaults: MemoryDefaults;
   rateLimits: ResolvedRateLimits;
-  agentSdkConcurrency: ResolvedAgentSdkConcurrency;
   privateEndpointAllowlist: string[];
   localMultiUser: boolean;
   discreetLogin: boolean;
@@ -967,7 +952,6 @@ export const resolvedRateLimitsSchema = z.strictObject({
   authed: z.number(),
   login: z.number(),
 }) satisfies z.ZodType<ResolvedRateLimits>;
-export const resolvedAgentSdkConcurrencySchema = z.strictObject({ summarize: z.number() }) satisfies z.ZodType<ResolvedAgentSdkConcurrency>;
 export const effectiveAppConfigSchema = z.strictObject({
   corpusAutoindex: z.boolean(),
   importSkipCharacters: z.array(z.string()),
@@ -977,7 +961,6 @@ export const effectiveAppConfigSchema = z.strictObject({
   allowInteractiveCards: z.boolean(),
   memoryDefaults: memoryDefaultsSchema.strict(),
   rateLimits: resolvedRateLimitsSchema,
-  agentSdkConcurrency: resolvedAgentSdkConcurrencySchema,
   privateEndpointAllowlist: z.array(z.string()),
   localMultiUser: z.boolean(),
   discreetLogin: z.boolean(),
@@ -993,7 +976,6 @@ export const effectiveAppConfigSchema = z.strictObject({
 const appSettingsOutputSchema = appSettingsSchema.strict().extend({
   memoryDefaults: memoryDefaultsSchema.strict().nullable().optional(),
   rateLimits: rateLimitsSchema.strict().nullable().optional(),
-  agentSdkConcurrency: agentSdkConcurrencySchema.strict().nullable().optional(),
 });
 const userSettingsOutputSchema = userSettingsSchema.strict().extend({
   groupDefaults: groupConfigSchema,

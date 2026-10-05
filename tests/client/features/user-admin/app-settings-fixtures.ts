@@ -12,7 +12,6 @@ export const EFFECTIVE_APP_SETTINGS: EffectiveAppSettings = {
   allowInteractiveCards: false,
   memoryDefaults: {},
   rateLimits: { login: 10, aiTurn: 10, publicIp: 50, authed: 200 },
-  agentSdkConcurrency: { summarize: 4 },
   privateEndpointAllowlist: [],
   localMultiUser: false,
   discreetLogin: false,

@@ -290,6 +290,28 @@ export const openaiRows = [
       cite: "rec-probe.mjs openai-h2 — req_4609158162fd4953b00a62cf6f23d82f (temperature 0.7 → 400 unsupported_value); req_f68c8dc2e4a24908a2e5be64132edbc0 (max_tokens → 400 unsupported_parameter, the H2 outputCapField row); req_8eff1a4cbff5461b820f47331f2c26b2 (max_completion_tokens + reasoning_effort low → 200). GPT-6: developers.openai.com/api/docs/guides/latest-model 'When reasoning effort is not none, remove temperature, top_p, and top_logprobs'; developers.openai.com/api/docs/guides/reasoning 'reasoning items … include an encrypted_content property … that you can pass to future calls'. Families: developers.openai.com/api/docs/models/{o1-pro,o3-pro,gpt-5-pro,gpt-5.5-pro,gpt-5.1-codex,gpt-5.1-codex-max,gpt-5.2-codex} each list 'Reasoning token support'; the -pro ids of GPT-5.6 and GPT-6 are 'the same underlying model … served with reasoning.mode set to pro' (openrouter.ai/api/v1/models, per developers.openai.com/api/docs/guides/reasoning 'GPT-5.6 and GPT-6 models support standard and pro reasoning modes'); gpt-5-image and gpt-5.4-image-2 are GPT-5 and GPT-5.4 with image generation (openrouter.ai/api/v1/models). developers.openai.com/api/docs/models/{gpt-5-chat-latest,gpt-5.2-chat-latest,gpt-chat-latest} list no reasoning-token support",
     },
   },
+  // On OpenAI's own API the ids that take effort `none` take temperature and top_p with it, and only with it. OpenRouter
+  // strips both upstream at every effort and advertises neither, so this row is the direct route's alone.
+  {
+    match: {
+      model: "^gpt-(5\\.1|5\\.2|5\\.4-mini|5\\.5|6-(sol|luna))(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$",
+      provider: "openai",
+    },
+    generation: {
+      sampling: {
+        temperature: { min: 0, max: 2 },
+        topP: { min: 0, max: 1 },
+      },
+      reasoning: {
+        offOnlySamplers: ["temperature", "topP"],
+      },
+    },
+    evidence: {
+      tier: "curated",
+      dated: "2026-10-04",
+      cite: "Measured by the orchestrator 2026-10-04 on direct chat completions: gpt-5.1, gpt-5.2, gpt-5.4-mini and gpt-5.5 take temperature 0.7 and top_p 0.9 with reasoning_effort none (200) and refuse them at every other effort ('Only the default (1) value is supported'); gpt-5 and gpt-5-mini refuse them at every effort. gpt-6-sol and gpt-6-luna: developers.openai.com/api/docs/guides/latest-model 'When reasoning effort is not none, remove temperature, top_p, and top_logprobs'. Ranges: developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create (temperature 0 to 2)",
+    },
+  },
   // A window row states the most input a request may carry, and its output cap the page's max output tokens. A
   // GPT-5-class id caps input at its context window less its max output (OpenAI states it for GPT-5); the older ids
   // share one window between input and output.

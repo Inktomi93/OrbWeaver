@@ -141,6 +141,17 @@ describe("resolveEffective — provenance", () => {
     expect(set.knobs.topK).toStrictEqual({ value: 12, provenance: "explicit" });
   });
 
+  test("an unset sampler on a route that fills it reads the route's value, not the server's advertised default", async () => {
+    const capability = makeGenerationCapability({
+      ...SAMPLING_CAPABLE,
+      samplingDefaults: { temperature: 0.6, topK: 20 },
+      routeSamplingDefaults: { temperature: 1 },
+    });
+    const effective = await resolveWith({}, capability);
+    expect(effective.knobs.temperature).toStrictEqual({ value: 1, provenance: "serverDefault" });
+    expect(effective.knobs.topK).toStrictEqual({ value: 20, provenance: "serverDefault" });
+  });
+
   test("an unset output cap reads the ENGINE FLOOR the wire actually falls back to", async () => {
     const effective = await resolveWith({}, makeGenerationCapability());
     expect(effective.knobs.maxOutputTokens).toStrictEqual({ value: DEFAULT_MAX_OUTPUT_TOKENS, provenance: "floor" });
@@ -155,6 +166,19 @@ describe("resolveEffective — provenance", () => {
       expect(effective.knobs.effort, `mandatory=${String(mandatory)}`).toBeUndefined();
       expect(effective.stale).toStrictEqual([]);
     }
+  });
+
+  test("a sampler the model takes only with reasoning off reads explicit on an off turn and stale on any other", async () => {
+    const capability = makeGenerationCapability({
+      sampling: { temperature: { min: 0, max: 2 } },
+      reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high"], offOnlySamplers: ["temperature"] },
+    });
+    const off = await resolveWith({ effort: "none", temperature: 0.7 }, capability);
+    expect(off.knobs.temperature).toStrictEqual({ value: 0.7, provenance: "explicit" });
+    expect(off.stale).toStrictEqual([]);
+    const on = await resolveWith({ effort: "low", temperature: 0.7 }, capability);
+    expect(on.knobs.temperature).toBeUndefined();
+    expect(on.stale).toStrictEqual([{ knob: "temperature", value: 0.7 }]);
   });
 
   test("reasoning switched off is the effective effort `none` — not an absent knob and not staleness", async () => {

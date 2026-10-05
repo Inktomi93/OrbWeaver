@@ -524,8 +524,6 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     captureWireReply: wireReplyCaptureOn,
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     agentSdk: {
-      // LIVE getter (per request) so an admin retune applies WITHOUT a restart (Q6 / item 7).
-      summarizeConcurrency: () => effectiveConfig.getEffectiveConfig().agentSdkConcurrency.summarize,
       // D8 `session_entries` write path (issue #71) — the sealed backend never touches @orb/db itself.
       sessionWriter: createSessionEntryWriter(db),
       ...(deps.providerSeams?.agentSdk ?? {}),

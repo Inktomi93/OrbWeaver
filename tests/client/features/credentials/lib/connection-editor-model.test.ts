@@ -7,7 +7,7 @@
 // line that is merely plausible is the defect.
 
 import type { Capability, DeclaredCapability, EndpointFeatures } from "@orb/contracts/inference";
-import { declaredCapabilitySchema, RERANK_MIN_WINDOW_TOKENS } from "@orb/contracts/inference";
+import { declaredCapabilitySchema, RERANK_MIN_WINDOW_TOKENS, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import { describe } from "vitest";
 import { capabilityFactRows } from "../../../../../packages/client/src/features/credentials/lib/connection-capability-fact-model.ts";
 import {
@@ -27,7 +27,7 @@ import {
 } from "../../../../../packages/client/src/features/credentials/lib/connection-editor-model.ts";
 import type { FactRow } from "../../../../../packages/client/src/features/credentials/lib/connection-fact-model.ts";
 import {
-  minimumRefusal,
+  boundRefusal,
   parseFactValue,
   QUIRK_LEAF_PATH_LIST,
   QUIRK_ROW_PATHS,
@@ -112,6 +112,13 @@ describe("a quirk row's source line names the layer it actually came from", () =
     expect(rows.map((row) => row.name)).not.toContain("reasoningKeys");
     expect(rows.map((row) => row.name)).not.toContain("prefillSuppressesThinking");
   });
+
+  // The schema refuses a fan-out above the maximum, so the editor refuses it where it is typed.
+  test("utility calls at once above the maximum are refused at entry; the maximum itself is not", () => {
+    const summarize = rowFor(quirkFactRows(VLLM_FEATURES, undefined, "vLLM"), "features.concurrency.summarize");
+    expect(boundRefusal(summarize.edit, String(SUMMARIZE_CONCURRENCY_MAX + 1))).not.toBeNull();
+    expect(boundRefusal(summarize.edit, String(SUMMARIZE_CONCURRENCY_MAX))).toBeNull();
+  });
 });
 
 describe("the capability block is honest about what it cannot know", () => {
@@ -140,10 +147,10 @@ describe("the capability block is honest about what it cannot know", () => {
   test("a reranker window under the floor is refused at entry; the floor itself and every other fact are not", () => {
     const rerank: Capability = { kind: "rerank", rerank: { maxInputTokens: 512, input: ["text"], instructionAware: false } };
     const window = rowFor(capabilityFactRows(rerank, null, rerank), "rerank.maxInputTokens");
-    expect(minimumRefusal(window.edit, String(RERANK_MIN_WINDOW_TOKENS - 1))).not.toBeNull();
-    expect(minimumRefusal(window.edit, String(RERANK_MIN_WINDOW_TOKENS))).toBeNull();
+    expect(boundRefusal(window.edit, String(RERANK_MIN_WINDOW_TOKENS - 1))).not.toBeNull();
+    expect(boundRefusal(window.edit, String(RERANK_MIN_WINDOW_TOKENS))).toBeNull();
     const context = rowFor(capabilityFactRows(GENERATION, null, GENERATION), "generation.context.window");
-    expect(minimumRefusal(context.edit, "1")).toBeNull();
+    expect(boundRefusal(context.edit, "1")).toBeNull();
   });
 
   test("a row nobody declared says where the value comes from without claiming a tier it cannot prove", () => {

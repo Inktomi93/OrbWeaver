@@ -212,7 +212,6 @@ export interface InferenceDeps {
   readonly captureWireReply?: boolean | undefined;
   readonly imageToPng?: ((bytes: Uint8Array) => Promise<Uint8Array>) | undefined;
   readonly agentSdk: {
-    readonly summarizeConcurrency: () => number;
     readonly query?: unknown;
     readonly sessionStore?: unknown;
     readonly sessionWriter?: SessionEntryWriter | undefined;

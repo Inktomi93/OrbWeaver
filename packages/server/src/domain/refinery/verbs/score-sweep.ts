@@ -39,7 +39,7 @@ import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import type { ReportProgress } from "@orb/contracts/workloads";
 import type { SideGenSampling } from "@orb/inference";
-import { runStructuredTurn } from "@orb/inference";
+import { ProviderError, runStructuredTurn } from "@orb/inference";
 import type { UserId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { RefineryScoreTarget } from "#domain/character";
@@ -142,7 +142,7 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
   // The funder's `summarize` binding answers every card — the sweep is one caller's workload, whoever's
   // cards it enumerates (§7.5-2); the model's window sizes the output cap exactly as a session run does.
   const rc = await deps.roleClientsFor(funderUserId);
-  const facts = await summarizerFactsOf(rc);
+  const facts = await summarizerFactsOf(rc, presetParams);
   const sampleOpts: StructuredOptions = {
     responseFormat: REFINERY_RESPONSE_FORMATS.score,
     ...sweepOutputSamplingOf(items, presetParams, facts.contextTokens),
@@ -203,8 +203,9 @@ function readyTargetsOf(targets: readonly RefineryScoreTarget[]): { target: Refi
 /** Fetch the batch's replies, CONTAINED. The vLLM summarize surface is all-or-nothing (one item's infra
  *  error — e.g. a card whose prompt overruns the model window — rejects the WHOLE batch), and this pass is a
  *  library sweep with per-card containment: one bad card must never fail the other N. So a batch rejection
- *  degrades to empty replies, and the bounded, per-card-contained retry path below re-fetches each card one at
- *  a time (`SWEEP_RETRY_CONCURRENCY`-bounded) — the poison card fails alone (counted `failed`), the rest score.
+ *  keeps the replies the batch finished (`ProviderError.partialItems`) and degrades the rest to empty replies,
+ *  and the bounded, per-card-contained retry path below re-fetches each of those one at a time
+ *  (`SWEEP_RETRY_CONCURRENCY`-bounded) — the poison card fails alone (counted `failed`), the rest score.
  *  This is the same isolation the memory backfill's `summarizeBatchIsolated` gives its digest batch. */
 async function fetchBatchReplies(rc: RoleClients, items: readonly SweepItem[], sampleOpts: StructuredOptions): Promise<{ text: string }[]> {
   const replies: { text: string }[] = [];
@@ -221,7 +222,9 @@ async function fetchBatchReplies(rc: RoleClients, items: readonly SweepItem[], s
         { err, cards: chunk.length },
         "refinery score sweep: batch fetch rejected — degrading to per-card retry (one card's infra error must not fail the whole sweep)",
       );
-      replies.push(...chunk.map(() => ({ text: "" })));
+      // A card the batch finished keeps its reply and is never re-sent: it is already billed.
+      const finished = err instanceof ProviderError ? err.partialItems : undefined;
+      replies.push(...chunk.map((_, j) => ({ text: finished?.[j]?.text ?? "" })));
     }
   }
   return replies;

@@ -10,6 +10,7 @@ import { curatedRows } from "../../../packages/inference/src/capability/sources/
 import { measuredRows } from "../../../packages/inference/src/capability/sources/measured/loader.ts";
 import { synthesizeCapability } from "../../../packages/inference/src/capability/synthesize.ts";
 import type { ProviderExecutor } from "../../../packages/inference/src/contract/backend.ts";
+import { ProviderError } from "../../../packages/inference/src/contract/errors.ts";
 import type { InferenceLog } from "../../../packages/inference/src/deps.ts";
 import { buildBackends } from "../../../packages/inference/src/registry/backends.ts";
 import { createProviderExecutor } from "../../../packages/inference/src/roles/executor.ts";
@@ -207,27 +208,35 @@ const stalledServer: typeof fetch = (input, init) => {
   }
   const body = new ReadableStream<Uint8Array>({
     start(controller): void {
-      init?.signal?.addEventListener("abort", () => controller.error(new DOMException("aborted", "AbortError")), { once: true });
+      // As fetch does: an aborted body errors with the signal's own reason.
+      const signal = init?.signal;
+      signal?.addEventListener("abort", () => controller.error(signal.reason), { once: true });
     },
   });
   return Promise.resolve(new Response(body, { status: 200, headers: { "content-type": "text/event-stream" } }));
 };
 
-test("(3) a stalled body aborts at the row's requestTimeoutMs on summarize and on a chat turn alike", { timeout: 5000 }, async () => {
+// An idle trip is a stalled server, retryable on every wire; the caller's own cancel stays a non-retryable abort.
+test("(3) a stalled body trips at the row's requestTimeoutMs as a retryable server failure on summarize and chat alike", { timeout: 10_000 }, async () => {
   const executor = executorWith({ fetch: stalledServer });
   const declaredFeatures = { requestTimeoutMs: 50 };
   const connection = fakeResolved({ task: "summarize", providerId: "vllm", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL, declaredFeatures });
-  await expect(executor.summarize({ connection, inputs: [ITEM] })).rejects.toMatchObject({ name: "ProviderError" });
+  const stalled = { name: "ProviderError", kind: "server", retryable: true };
+  await expect(executor.summarize({ connection, inputs: [ITEM] })).rejects.toMatchObject(stalled);
   const chat = fakeResolved({ task: "chat", providerId: "vllm", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL, declaredFeatures });
-  await expect(
+  const turn = (signal?: AbortSignal): ReturnType<ProviderExecutor["runChatTurn"]> =>
     executor.runChatTurn({
       api: "chat-completions",
       connection: chat,
       params: {},
       systemPrompt: { static: "S.", dynamic: "" },
       history: [{ role: "user", content: [{ type: "text", text: "Go." }] }],
-    }),
-  ).rejects.toMatchObject({ name: "ProviderError" });
+      ...(signal !== undefined ? { signal } : {}),
+    });
+  await expect(turn()).rejects.toMatchObject(stalled);
+  const cancel = new AbortController();
+  setTimeout(() => cancel.abort(), 10);
+  await expect(turn(cancel.signal)).rejects.toMatchObject({ kind: "aborted", retryable: false });
 });
 
 // ── (4) cost ───────────────────────────────────────────────────────────────────────────────────────────
@@ -414,6 +423,41 @@ test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's 
   ]);
   expect(outcome).toMatchObject({ kind: "server", retryable: true });
   expect(controllers[0]?.signal.aborted).toBe(true);
+  // The caller's own cancel inside the same window stays a non-retryable abort.
+  const cancel = new AbortController();
+  setTimeout(() => cancel.abort(), 10);
+  await expect(executor.summarize({ connection, inputs: [ITEM], signal: cancel.signal })).rejects.toMatchObject({ kind: "aborted", retryable: false });
+});
+
+// Each agent-sdk item is a Claude subprocess; the connection's 'utility calls at once' bounds how many run together.
+test("(3) agent-sdk side generation fans out to the connection's utility calls at once, 4 when it states none", async () => {
+  const model = "claude-opus-5";
+  const run = async (declaredFeatures: { readonly concurrency?: { readonly summarize: number } }): Promise<number> => {
+    let inFlight = 0;
+    let peak = 0;
+    const counting = (): AsyncGenerator<Record<string, unknown>> => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      return (async function* stream(): AsyncGenerator<Record<string, unknown>> {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        yield* agentFrames(model);
+        inFlight -= 1;
+      })();
+    };
+    const executor = executorWith({ agentSdkQuery: counting });
+    const connection = fakeResolved({
+      task: "summarize",
+      providerId: "claude-sub",
+      model,
+      capability: agentConnection("summarize", model).capability,
+      secret: fakeApiKeySecret("sk-ant-oat-not-a-real-token"),
+      declaredFeatures,
+    });
+    await executor.summarize({ connection, inputs: Array.from({ length: 10 }, () => ITEM) });
+    return peak;
+  };
+  expect(await run({})).toBe(4);
+  expect(await run({ concurrency: { summarize: 2 } })).toBe(2);
 });
 
 // ── (8) word-keyed logit bias ──────────────────────────────────────────────────────────────────────────
@@ -467,6 +511,34 @@ test("(10) an unterminated <think> block at the output cap never reaches the sum
   const connection = fakeResolved({ task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
   const result = await executor.summarize({ connection, inputs: [ITEM], maxTokens: 64 });
   expect(result.items[0]?.text).not.toContain("<think>");
+});
+
+test("(10) the Utility preset's own tag pair splits a summarize reply in place of the house pair", async () => {
+  const executor = executorWith({ fetch: openAiServer([], () => ({ content: "<reason>which beats matter</reason>The scene, summarized." })) });
+  const connection = fakeResolved({ task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
+  const result = await executor.summarize({ connection, inputs: [ITEM], reasoningTags: { prefix: "<reason>", suffix: "</reason>" } });
+  expect(result.items[0]?.text).toBe("The scene, summarized.");
+});
+
+// SillyTavern's default pair carries newlines, and the importer copies it verbatim; the split reads its trimmed form.
+test("(10) a role tag pair wrapped in whitespace splits on its trimmed form, ST's default pair included", async () => {
+  const connection = fakeResolved({ task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
+  for (const [tag, pair] of [
+    ["think", { prefix: "<think>\n", suffix: "\n</think>" }],
+    ["reason", { prefix: "<reason>\n", suffix: "\n</reason>" }],
+  ] as const) {
+    const executor = executorWith({ fetch: openAiServer([], () => ({ content: `<${tag}>which beats matter</${tag}>The scene, summarized.` })) });
+    const result = await executor.summarize({ connection, inputs: [ITEM], reasoningTags: pair });
+    expect(result.items[0]?.text, tag).toBe("The scene, summarized.");
+  }
+});
+
+// The stream splitter takes only an XML-shaped pair; any other pair would split nothing, so the house pair runs.
+test("(10) a role tag pair the splitter cannot carry falls back to the house pair", async () => {
+  const executor = executorWith({ fetch: openAiServer([], () => ({ content: "<think>which beats matter</think>The scene, summarized." })) });
+  const connection = fakeResolved({ task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
+  const result = await executor.summarize({ connection, inputs: [ITEM], reasoningTags: { prefix: "[thinking]", suffix: "[/thinking]" } });
+  expect(result.items[0]?.text).toBe("The scene, summarized.");
 });
 
 test("(10) items sharing a static system prompt on an OpenRouter Claude route each place its cache breakpoint", async () => {
@@ -535,6 +607,24 @@ test("0525: an item refused as mandatory-reasoning replays alone; an item that a
   });
   expect(result.items.map((item) => item.text)).toEqual(["done", "done"]);
   expect(recorded.filter((request) => userTextOf(request.body).includes("First item."))).toHaveLength(1);
+});
+
+test("a failed batch carries the items it finished, by input index, so a caller re-sends only the rest", async () => {
+  const executor = executorWith({
+    fetch: openAiServer([], (body) => (userTextOf(body).includes("Second item.") ? { status: 400, error: "bad item" } : { content: "done" })),
+  });
+  const connection = fakeResolved({
+    task: "summarize",
+    providerId: "vllm",
+    model: "m",
+    capability: NO_REASONING,
+    baseUrl: LOCAL_URL,
+    declaredFeatures: { concurrency: { summarize: 1 } },
+  });
+  const inputs = ["First item.", "Second item.", "Third item."].map((userPrompt) => ({ systemPrompt: "Summarize.", userPrompt }));
+  const failure = await executor.summarize({ connection, inputs }).catch((error: unknown) => error);
+  expect(failure).toBeInstanceOf(ProviderError);
+  expect((failure as ProviderError).partialItems?.map((item) => item?.text)).toEqual(["done", undefined, undefined]);
 });
 
 // ── one speller: the template switch is the off on a row that spells one ───────────────────────────────

@@ -56,13 +56,17 @@ const ringStream = new Writable({
   },
 });
 
+/** The serializers every log line runs: an `err` field is copied enumerable key by enumerable key.
+ * @public Test-anchored module surface; focused tests pin what an error serializes to. */
+export const logSerializers = { err: pino.stdSerializers.err } as const;
+
 export const logger: Logger = pino(
   {
     level: env.LOG_LEVEL,
     // Emit the level as its string label ("warn"), not pino's numeric 40 — greppable in any aggregator.
     formatters: { level: (label) => ({ level: label }) },
     timestamp: pino.stdTimeFunctions.isoTime,
-    serializers: { err: pino.stdSerializers.err },
+    serializers: logSerializers,
     // Auth/secrets only — RP bodies are never logged. Top-level keys + one-level *.x wildcards: pino
     // redact is not recursive, so a bare "apiKey" misses a nested { credential: { apiKey } }.
     redact: {

@@ -6,6 +6,7 @@
 // (`backends/kit/sanitize.ts`) is a backend concern.
 
 import type { WireSchemaViolation } from "@orb/contracts/inference";
+import type { SummarizeResultItem } from "@orb/contracts/providers";
 import type { AgentSdkSessionId } from "./identity.ts";
 
 declare const providerScrubSet: unique symbol;
@@ -68,6 +69,9 @@ export interface ProviderErrorInit {
   readonly width?: VectorWidthMismatch;
   /** A structured request the plan or the provider refused (`detail: "schema_rejected"`): every reason, as data. */
   readonly violations?: readonly WireSchemaViolation[];
+  /** A failed summarize or structured batch: the items that finished before it stopped, by input index. A hole
+   *  is an item that failed or never started, so a caller re-sends only those. */
+  readonly partialItems?: readonly (SummarizeResultItem | undefined)[];
   readonly cause?: unknown;
 }
 
@@ -89,6 +93,9 @@ export class ProviderError extends Error {
   readonly requestId: string | undefined;
   readonly width: VectorWidthMismatch | undefined;
   readonly violations: readonly WireSchemaViolation[] | undefined;
+  // A private field, never an own enumerable property: an error serializer copies every enumerable field, and an
+  // item's text is model output that must not reach a log line.
+  readonly #partialItems: readonly (SummarizeResultItem | undefined)[] | undefined;
 
   constructor(init: ProviderErrorInit) {
     super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
@@ -104,6 +111,12 @@ export class ProviderError extends Error {
     this.requestId = init.requestId;
     this.width = init.width;
     this.violations = init.violations;
+    this.#partialItems = init.partialItems;
+  }
+
+  /** {@link ProviderErrorInit.partialItems}: read only by a caller re-sending a failed batch. */
+  get partialItems(): readonly (SummarizeResultItem | undefined)[] | undefined {
+    return this.#partialItems;
   }
 
   /** Every carried field as its own log key. A field added to {@link ProviderErrorInit} MUST be mirrored
@@ -122,6 +135,8 @@ export class ProviderError extends Error {
       ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
       ...(this.width !== undefined ? { width: this.width } : {}),
       ...(this.violations !== undefined ? { violations: this.violations } : {}),
+      // The count only: an item's text is model output, never a log field.
+      ...(this.partialItems !== undefined ? { partialItems: this.partialItems.filter((item) => item !== undefined).length } : {}),
     };
   }
 
@@ -130,10 +145,28 @@ export class ProviderError extends Error {
    *  `resetsAt`, `apiErrorStatus`, `model`, `requestId`, and a dropped field looks like a provider that never
    *  sent one. */
   rewrap(message: string): ProviderError {
+    return new ProviderError({ ...this.#carried(), message, ...this.#partialOf(this.#partialItems), cause: this });
+  }
+
+  /** The same failure, carrying the items its batch finished. Not a re-frame: the message and cause stay as they
+   *  were, so a logged chain does not repeat the message. */
+  withPartialItems(partialItems: readonly (SummarizeResultItem | undefined)[]): ProviderError {
     return new ProviderError({
+      ...this.#carried(),
+      message: this.message,
+      ...this.#partialOf(partialItems),
+      ...(this.cause !== undefined ? { cause: this.cause } : {}),
+    });
+  }
+
+  #partialOf(partialItems: ProviderErrorInit["partialItems"]): Pick<ProviderErrorInit, "partialItems"> {
+    return partialItems !== undefined ? { partialItems } : {};
+  }
+
+  #carried(): Omit<ProviderErrorInit, "message" | "partialItems" | "cause"> {
+    return {
       kind: this.kind,
       retryable: this.retryable,
-      message,
       ...(this.resetsAt !== undefined ? { resetsAt: this.resetsAt } : {}),
       ...(this.apiErrorStatus !== undefined ? { apiErrorStatus: this.apiErrorStatus } : {}),
       ...(this.model !== undefined ? { model: this.model } : {}),
@@ -143,8 +176,7 @@ export class ProviderError extends Error {
       ...(this.requestId !== undefined ? { requestId: this.requestId } : {}),
       ...(this.width !== undefined ? { width: this.width } : {}),
       ...(this.violations !== undefined ? { violations: this.violations } : {}),
-      cause: this,
-    });
+    };
   }
 }
 

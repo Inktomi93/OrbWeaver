@@ -2,6 +2,7 @@
 // output shape (requestId stamped on the line), and securityEvent. The rings are module singletons shared
 // across tests, so each test pushes its OWN markers and asserts on those (most-recent-first).
 
+import { ProviderError } from "@orb/inference";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RequestRecord } from "@orb/server/foundation/observability";
@@ -10,6 +11,7 @@ import {
   getLog,
   getRequestUserId,
   logger,
+  logSerializers,
   recentRequests,
   recordRequest,
   runInRequest,
@@ -89,6 +91,26 @@ describe("getLog output shape", () => {
       // @orb-waive no-test-fabrication(unknown): narrowing pino's Logger (a vendor type we don't own) to the one internal API used here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       expect((getLog() as unknown as { bindings: () => Record<string, unknown> }).bindings()["requestId"]).toBe(requestId);
     });
+  });
+});
+
+// A failed batch carries its finished items on the error; their text is model output and never a log field.
+describe("error serialization", () => {
+  test("a batch failure's finished item text never reaches a serialized log line, directly or as a cause", () => {
+    const itemText = "the scene summary the model wrote";
+    const failure = new ProviderError({
+      kind: "server",
+      retryable: true,
+      message: "summarize item 1 failed",
+      partialItems: [{ text: itemText, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }, undefined],
+    });
+    const wrapped = new Error("refinery batch rejected", { cause: failure });
+    for (const err of [failure, wrapped, failure.rewrap("re-framed")]) {
+      const line = JSON.stringify(logSerializers.err(err));
+      expect(line).toContain("summarize item 1 failed");
+      expect(line).not.toContain(itemText);
+    }
+    expect(failure.partialItems?.[0]?.text).toBe(itemText);
   });
 });
 

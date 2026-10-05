@@ -151,7 +151,7 @@ async function buildStack(cacheDir: string, allowRemoteModels: boolean): Promise
     connections: ports.connections,
     bindings: ports.bindings,
     providerStore: ports.providerStore,
-    agentSdk: { summarizeConcurrency: (): number => 1 },
+    agentSdk: {},
     userRuntimeDir: (ownerId): string => path.join(cacheDir, "..", "runtime", ownerId),
     localLight: { cacheDir, device: "cpu", allowRemoteModels },
     sdkFetch: globalThis.fetch,

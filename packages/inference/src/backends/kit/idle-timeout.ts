@@ -17,6 +17,29 @@ import { foldAbortInto } from "./abort-flatten.ts";
  *  enough to ride out slow first-token latency; short enough that a wedged socket can't pin a slot forever. */
 const IDLE_TIMEOUT_MS = 180_000;
 
+/** The reason an idle trip aborts with: a stalled server, not a cancel, so every wire classifies it as a retryable
+ *  `server` failure ahead of the abort-name rule. The caller's own cancel still flattens to a plain `AbortError`. */
+export class IdleTripError extends Error {
+  constructor(idleMs: number) {
+    super(`no data within the ${idleMs} ms idle ceiling`);
+    this.name = "IdleTripError";
+  }
+}
+
+/** Whether a failure is an idle trip, directly or anywhere down its `cause` chain (an SDK may wrap the reason). */
+export function isIdleTrip(error: unknown): boolean {
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+  while (current instanceof Error && !seen.has(current)) {
+    if (current instanceof IdleTripError) {
+      return true;
+    }
+    seen.add(current);
+    current = current.cause;
+  }
+  return false;
+}
+
 /** The composed idle-abort handle a runner threads through its stream loop. */
 export interface IdleAbort {
   /** The composed signal — fires on either the caller's cancel or an idle stall. Pass to `fetch`. */
@@ -56,7 +79,7 @@ export function turnAbortSignal(external?: AbortSignal, idleMs: number = IDLE_TI
     if (timer !== undefined) {
       clearTimeout(timer);
     }
-    timer = setTimeout((): void => controller.abort(), idleMs);
+    timer = setTimeout((): void => controller.abort(new IdleTripError(idleMs)), idleMs);
   };
 
   // Fold the caller's cancel into our controller so the composed signal fires on either cause — through

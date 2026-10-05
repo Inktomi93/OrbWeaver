@@ -194,8 +194,13 @@ export const localServerRows = [
         seed: true,
         stop: true,
       },
+      routeSamplingDefaults: { temperature: 1, topP: 1 },
     },
-    evidence: { tier: "curated", dated: DATED, cite: "ollama 42e911bc openai/openai.go ChatCompletionRequest (118-144) and fromChatRequest (604-816)" },
+    evidence: {
+      tier: "curated",
+      dated: DATED,
+      cite: "ollama 42e911bc openai/openai.go ChatCompletionRequest (118-144) and fromChatRequest (604-816); fromChatRequest sets options temperature and top_p to 1.0 when the request omits them (ollama main openai/openai.go, read 2026-10-04)",
+    },
   },
   {
     match: { model: ANY_MODEL, provider: "lm-studio" },

@@ -526,7 +526,8 @@ export const userIntentSchema = z.strictObject({
 });
 export type UserIntent = z.infer<typeof userIntentSchema>;
 
-// What a non-chat model role takes from its preset (D299): generation params only, never prompt structure.
+// What a non-chat model role takes from its preset (D299): generation params plus its inline reasoning tag pair,
+// which splits a prose reply; never other prompt structure.
 // The two tuples partition `UserIntent`'s keys (pinned by `tests/contracts/preset/index.test-d.ts`),
 // so a new intent field reaches background tasks only after someone lists it here. A sampler knob is a role
 // field unless it is listed chat-only, which keeps the sampler catalog the one place a new knob is declared.
@@ -558,15 +559,39 @@ export const ROLE_PRESET_FIELDS = [
   "thinkingBudgetTokens",
 ] as const satisfies readonly (keyof UserIntent)[];
 export type RolePresetField = (typeof ROLE_PRESET_FIELDS)[number];
-export type RolePresetParams = Pick<UserIntent, RolePresetField>;
+/** The inline reasoning tag pair a role's preset splits a prose reply with (its `reasoningParse`). */
+export interface ReasoningTagPair {
+  readonly prefix: string;
+  readonly suffix: string;
+}
+export type RolePresetParams = Pick<UserIntent, RolePresetField> & { readonly reasoningTags?: ReasoningTagPair | undefined };
 
-/** Project a preset's `params` to the fields a non-chat role takes. Absent fields stay absent. */
-export function rolePresetParamsOf(params: UserIntent): RolePresetParams {
+const XML_OPEN_TAG_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;
+
+/** A tag pair as the stream splitter carries it: trimmed (SillyTavern's default pair wraps the tags in newlines), and
+ *  only when it is an XML-shaped `<x>`/`</x>`. `undefined` for any other pair, which would split nothing. The same
+ *  shape rule as the openai-compat splitter (`think-tags.ts`). */
+export function splittableTagPair(pair: ReasoningTagPair | undefined): ReasoningTagPair | undefined {
+  if (pair === undefined) {
+    return;
+  }
+  const prefix = pair.prefix.trim();
+  const suffix = pair.suffix.trim();
+  const name = XML_OPEN_TAG_RE.exec(prefix)?.groups?.["name"];
+  return name !== undefined && suffix === `</${name}>` ? { prefix, suffix } : undefined;
+}
+
+/** Project a preset's `params` to the fields a non-chat role takes, keeping a tag pair already carried. Absent
+ *  fields stay absent. */
+export function rolePresetParamsOf(params: UserIntent & Pick<RolePresetParams, "reasoningTags">): RolePresetParams {
   const out: Record<string, unknown> = {};
   for (const field of ROLE_PRESET_FIELDS) {
     if (params[field] !== undefined) {
       out[field] = params[field];
     }
+  }
+  if (params.reasoningTags !== undefined) {
+    out["reasoningTags"] = params.reasoningTags;
   }
   return out as RolePresetParams;
 }

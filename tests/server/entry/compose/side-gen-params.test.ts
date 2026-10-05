@@ -71,6 +71,22 @@ describe("resolveUtilityPresetParams — the Utility role's preset choice", () =
     await expect(utilityPresetResolver(params)(USER_ID)).resolves.toEqual({ temperature: 0.9, maxOutputTokens: 640 });
   });
 
+  test("a named preset's inline reasoning tag pair rides with its params, so a summary splits on that pair", async () => {
+    const config = { ...DEFAULT_PROMPT_CONFIG, params: { temperature: 0.9 }, reasoningParse: { autoParse: true, prefix: "<reason>", suffix: "</reason>" } };
+    const get = vi.fn<PresetGet>().mockResolvedValue(presetDetail(config));
+    await expect(resolverFor({ kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: UTILITY_PRESET_ID }, get)(USER_ID)).resolves.toEqual({
+      temperature: 0.9,
+      reasoningTags: { prefix: "<reason>", suffix: "</reason>" },
+    });
+  });
+
+  // A pair with auto-parse off is inert in chat, so it does not reach a background task either: the house pair runs.
+  test("a named preset's tag pair with auto-parse off is not carried", async () => {
+    const config = { ...DEFAULT_PROMPT_CONFIG, params: { temperature: 0.9 }, reasoningParse: { autoParse: false, prefix: "<reason>", suffix: "</reason>" } };
+    const get = vi.fn<PresetGet>().mockResolvedValue(presetDetail(config));
+    await expect(resolverFor({ kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: UTILITY_PRESET_ID }, get)(USER_ID)).resolves.toEqual({ temperature: 0.9 });
+  });
+
   test("a stale or unowned named preset degrades to task defaults", async () => {
     const get = vi.fn<PresetGet>().mockRejectedValue(new PresetNotFoundError(castId<PresetId>(UTILITY_PRESET_ID)));
     await expect(resolverFor({ kind: ROLE_PRESET_CHOICE_KINDS.preset, presetId: UTILITY_PRESET_ID }, get)(USER_ID)).resolves.toBeUndefined();

@@ -1,8 +1,7 @@
 // CT: the System tuning admin SECTION (Phase B ⑩ — system-tuning-section.tsx). Drives the production admin
 // path: getAppSettingsWithOverrides seeds the fields (resolved floor + which are overridden), editing + Save
-// fires updateAppSettings with the only-moved-fields delta (including the NESTED agentSdkConcurrency path),
-// and Reset clears every ⑩ override. Asserts the mutation fired with the right patch shape (route
-// recorder) — assert-the-mutation-fired, not a UI reaction.
+// fires updateAppSettings with the only-moved-fields delta, and Reset clears every ⑩ override. Asserts the
+// mutation fired with the right patch shape (route recorder) — assert-the-mutation-fired, not a UI reaction.
 //
 // THE vLLM KNOBS ARE GONE (`@orb/inference` cut-over, 2026-09-20): `engineLaunch.*` and
 // `nonOwnerLocalComputeBudgetWindowMs` left `AppSettings` with the in-server engine fleet, so the two
@@ -22,7 +21,6 @@ import { appSettingsView, effectiveAppSettings } from "../app-settings-fixtures.
 // The resolved slice the section reads (getAppSettingsWithOverrides.resolved) — only the ⑩ fields matter; the
 // handler returns are untyped stubs so a partial suffices (the rate-limits CT precedent — no fabricated shape).
 const RESOLVED: Partial<EffectiveAppSettings> = {
-  agentSdkConcurrency: { summarize: 4 },
   promptTransformDeadlineMs: 250,
   catalogRefreshIntervalMs: 86_400_000,
   imageVariantQuality: 80,
@@ -33,7 +31,6 @@ const RESOLVED: Partial<EffectiveAppSettings> = {
 /** Every ⑩-owned key, exactly as `onReset` must name it (`KNOBS` in system-tuning-section.tsx). Re-derived
  *  from the section, never decremented by arithmetic off the pre-cut-over set. */
 const RESET_PATCH = {
-  agentSdkConcurrency: null,
   promptTransformDeadlineMs: null,
   catalogRefreshIntervalMs: null,
   imageVariantQuality: null,
@@ -60,7 +57,6 @@ function lastPartial(trpc: TrpcRecorder): Record<string, unknown> | undefined {
 test("mounts with the resolved floors and shows the default beneath each field", async ({ mount, page }) => {
   await stub(page);
   await mount(<SystemTuningSectionStory />);
-  await expect(page.getByRole("textbox", { name: "Agent-SDK summarize concurrency" })).toHaveValue("4");
   await expect(page.getByRole("textbox", { name: "Image-variant quality (1–100)" })).toHaveValue("80");
   // GROUPED, as the number field renders it — the value a reader has to check against their intent is
   // "86,400,000", and asserting the bare digits would pass on a field that stopped formatting.
@@ -85,18 +81,6 @@ test("editing the prompt-cache depth floor + Save patches promptCacheMinDepth al
   await setNumber(page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)" }), "2");
   await page.getByRole("button", { name: "Save" }).click();
   await expect.poll(() => lastPartial(trpc)?.["promptCacheMinDepth"], { intervals: [20, 50, 100] }).toBe(2);
-  expect(lastPartial(trpc)?.["imageVariantQuality"]).toBeUndefined();
-});
-
-test("editing a flat field + Save fires updateAppSettings with ONLY the moved nested key", async ({ mount, page }) => {
-  const trpc = await stub(page);
-  await mount(<SystemTuningSectionStory />);
-  await setNumber(page.getByRole("textbox", { name: "Agent-SDK summarize concurrency" }), "8");
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect
-    .poll(() => (lastPartial(trpc)?.["agentSdkConcurrency"] as Record<string, unknown> | undefined)?.["summarize"], { intervals: [20, 50, 100] })
-    .toBe(8);
-  // Untouched knobs are NOT pinned into the override.
   expect(lastPartial(trpc)?.["imageVariantQuality"]).toBeUndefined();
 });
 

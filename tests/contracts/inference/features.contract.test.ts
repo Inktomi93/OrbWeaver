@@ -5,13 +5,26 @@
 // other half: those eight keys are dropped from a user's `extras`, and `isBeltOwnedBodyKey` is the ONE
 // predicate both the server's belt and the client's Extras editor read.
 
-import { BELT_OWNED_BODY_KEYS, endpointFeaturesSchema, foldFeatures, isBeltOwnedBodyKey, WIRE_DEFAULT_FEATURES } from "@orb/contracts/inference";
+import {
+  BELT_OWNED_BODY_KEYS,
+  endpointFeaturesSchema,
+  foldFeatures,
+  isBeltOwnedBodyKey,
+  SUMMARIZE_CONCURRENCY_MAX,
+  WIRE_DEFAULT_FEATURES,
+} from "@orb/contracts/inference";
 import { expect, test } from "../../support/fixtures.ts";
 
 test("the sampler spellings fold key by key: overriding one keeps the row's others, and no layer means no map", () => {
   const folded = foldFeatures({ samplerKeys: { typicalP: "typical", topNSigma: "nsigma" } }, { samplerKeys: { topA: "top_a_custom" } });
   expect(folded.samplerKeys).toEqual({ typicalP: "typical", topNSigma: "nsigma", topA: "top_a_custom" });
   expect(foldFeatures({ prefill: "none" })).not.toHaveProperty("samplerKeys");
+});
+
+// Each agent-sdk utility call is a Claude subprocess, so a connection's fan-out is bounded where it is written.
+test("a connection's utility calls at once are refused above the maximum when they are written", () => {
+  expect(endpointFeaturesSchema.safeParse({ concurrency: { summarize: SUMMARIZE_CONCURRENCY_MAX } }).success).toBe(true);
+  expect(endpointFeaturesSchema.safeParse({ concurrency: { summarize: SUMMARIZE_CONCURRENCY_MAX + 1 } }).success).toBe(false);
 });
 
 test("an empty fold is the WIRE default, not an empty object", () => {

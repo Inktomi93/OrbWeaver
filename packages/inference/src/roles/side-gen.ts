@@ -2,8 +2,8 @@
 // the connection's own api, so the wire's chat path is the one request builder for both. This file maps an item
 // onto a chat request with the `side-gen` posture and folds the turn back into the item; it spells no wire body.
 
-import type { UserIntent } from "@orb/contracts/preset";
-import { rolePresetParamsOf, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
+import type { ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
+import { rolePresetParamsOf, splittableTagPair, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import type { SummarizeResult, SummarizeResultItem } from "@orb/contracts/providers";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
@@ -19,8 +19,10 @@ import type { StructuredRequest, SummarizeRequest } from "../contract/roles.ts";
 import type { InferenceLog } from "../deps.ts";
 
 const SIDE_GEN_POSTURE = "side-gen";
-/** A prose item splits inline reasoning out of its reply with the house tag pair, on a row with no native reasoning
- *  field. A structured item does not: a literal tag inside a JSON string value is the payload's own content. */
+/** A prose item splits inline reasoning out of its reply, on a row with no native reasoning field, with the role
+ *  preset's tag pair in its trimmed form, or the house pair where the role states none or one the splitter cannot
+ *  carry (`splittableTagPair`). A structured item does not: a literal tag inside a JSON string value is
+ *  the payload's own content. */
 const PROSE_REASONING_TAGS = { prefix: THINK_PREFIX_DEFAULT, suffix: THINK_SUFFIX_DEFAULT } as const;
 
 /** What the loop needs from the backend that serves the task. */
@@ -47,6 +49,7 @@ export function sideGenChatRequest(args: {
   readonly item: SideGenItem;
   readonly params: UserIntent;
   readonly responseFormat?: ResponseFormat | undefined;
+  readonly reasoningTags?: ReasoningTagPair | undefined;
   readonly chatId?: ChatId | undefined;
   readonly signal?: AbortSignal | undefined;
 }): ChatRequest {
@@ -76,7 +79,7 @@ export function sideGenChatRequest(args: {
     ...common,
     api,
     history: [row],
-    ...(args.responseFormat === undefined ? { reasoningTags: PROSE_REASONING_TAGS } : {}),
+    ...(args.responseFormat === undefined ? { reasoningTags: splittableTagPair(args.reasoningTags) ?? PROSE_REASONING_TAGS } : {}),
   };
 }
 
@@ -90,9 +93,10 @@ export function sideGenReplyOf(result: ChatResult, model: string): string {
   return result.reply.trim();
 }
 
-/** The role's params as a turn's intent: the request names its output cap `maxTokens`. */
-function paramsOf(req: SummarizeRequest | StructuredRequest): UserIntent {
-  return { ...rolePresetParamsOf(req), ...(req.maxTokens !== undefined ? { maxOutputTokens: req.maxTokens } : {}) };
+/** The role's params as a turn's intent, and its tag pair apart: the request names its output cap `maxTokens`. */
+function paramsOf(req: SummarizeRequest | StructuredRequest): { readonly params: UserIntent; readonly reasoningTags: ReasoningTagPair | undefined } {
+  const { reasoningTags, ...params } = rolePresetParamsOf(req);
+  return { params: { ...params, ...(req.maxTokens !== undefined ? { maxOutputTokens: req.maxTokens } : {}) }, reasoningTags };
 }
 
 function warningKey(warning: ResolvedWarning): string {
@@ -102,14 +106,15 @@ function warningKey(warning: ResolvedWarning): string {
 /**
  * Run a summarize or structured batch: each item one chat turn on the connection's own wire, under the role preset's
  * window (`withPresetWindow`), at most `concurrency` at a time, in input order. A failed item stops the batch from
- * starting more; the items already running finish, and the first failure is thrown. Each distinct warning is one
+ * starting more; the items already running finish, and the first failure is thrown carrying the finished items
+ * (`partialItems`), so a caller re-sends only the rest. Each distinct warning is one
  * `provider.resolve-warning` line per batch, and each item one `provider.<task>-item` line.
  */
 export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps: SideGenDeps): Promise<SummarizeResult> {
   const responseFormat = "responseFormat" in req ? req.responseFormat : undefined;
   const task = responseFormat === undefined ? "summarize" : "structured";
   const connection = withPresetWindow({ ...req.connection, task: "chat" }, req.maxContextTokens);
-  const params = paramsOf(req);
+  const { params, reasoningTags } = paramsOf(req);
   const log = providerLogger(deps.log, connection.wire, connection.providerId);
   const seen = new Set<string>();
   const label = `${connection.providerId} ${task} (${connection.model})`;
@@ -123,7 +128,9 @@ export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps
     const startedAt = deps.now();
     try {
       const images = await Promise.all((input.images ?? []).map((image) => toImageUrl(image, deps.normalize)));
-      const result = await deps.runChatTurn(sideGenChatRequest({ connection, item: { ...input, images }, params, responseFormat, signal: req.signal }));
+      const result = await deps.runChatTurn(
+        sideGenChatRequest({ connection, item: { ...input, images }, params, responseFormat, reasoningTags, signal: req.signal }),
+      );
       for (const event of result.events) {
         if (event.kind === "warning" && !seen.has(warningKey(event))) {
           seen.add(warningKey(event));
@@ -161,13 +168,16 @@ export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps
       state.next += 1;
       try {
         items[index] = await runItem(index);
-        // @orb-waive caught-failure-ownership(err): the first item failure is held so the items already running settle, then runSideGen rethrows it unchanged as the batch's failure. Ends if that rethrow is removed.
+        // @orb-waive caught-failure-ownership(err): the first item failure is held so the items already running settle, then runSideGen rethrows it as the batch's failure, carrying the finished items. Ends if that rethrow is removed.
       } catch (err) {
         state.failure ??= err;
       }
     }
   };
   await Promise.all(Array.from({ length: Math.min(Math.max(deps.concurrency, 1), req.inputs.length) }, () => worker()));
+  if (state.failure instanceof ProviderError) {
+    throw state.failure.withPartialItems(req.inputs.map((_, index) => items[index]));
+  }
   if (state.failure !== undefined) {
     throw state.failure;
   }

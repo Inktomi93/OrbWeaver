@@ -7,7 +7,8 @@
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { characters, refineryRuns, refinerySessions } from "@orb/db";
-import type { CharacterHandle } from "@orb/kit/ids";
+import { ProviderError } from "@orb/inference";
+import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRefineryWorkloadContributions, createScoreSweep } from "@orb/server/domain/refinery";
 import { eq } from "drizzle-orm";
@@ -208,6 +209,47 @@ test("batch containment: an infra rejection on the batch fetch fails those cards
 
   // Resolves (no throw): both cards counted failed, the four counts still partition the candidate set.
   expect(result).toEqual({ scanned: 2, scored: 0, skipped: 0, failed: 2 });
+});
+
+// A failed batch carries the cards it finished; re-sending them would bill the user's key twice.
+test("a rejected batch keeps the cards it finished and re-sends only the failed and unstarted ones", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_sw_partial" });
+  const h = makeRefineryHarness(db);
+  const cards: CharacterId[] = [];
+  for (const [i, score] of [7, 4, 9].entries()) {
+    cards.push(await seedOwnedCharacter(h, owner, `sw-card-partial-${i}`));
+    h.queueReply(scoreReply({ overallScore: score }));
+  }
+  h.queueReply(scoreReply({ overallScore: 5 }));
+  const singles: string[] = [];
+  const deps = refineryWorkloadDepsOf(db, h);
+  const sweep = createScoreSweep({
+    ...deps,
+    roleClientsFor: async (funder) => {
+      const rc = await deps.roleClientsFor(funder);
+      return {
+        ...rc,
+        structured: async (inputs, opts) => {
+          if (inputs.length === 1) {
+            singles.push(inputs[0]?.userPrompt ?? "");
+            return rc.structured(inputs, opts);
+          }
+          const { items } = await rc.structured(inputs, opts);
+          // Cards 0 and 2 finished; card 1 failed, so its scripted 4 is discarded and only it is re-sent.
+          throw new ProviderError({ kind: "server", retryable: true, message: "item 1 failed", partialItems: [items[0], undefined, items[2]] });
+        },
+      };
+    },
+  });
+
+  const result = await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: owner });
+
+  expect(result).toEqual({ scanned: 3, scored: 3, skipped: 0, failed: 0 });
+  expect(singles).toHaveLength(1);
+  const rows = await db.select({ id: characters.id, refinery: characters.refinery }).from(characters).where(eq(characters.ownerId, owner));
+  const scoreOf = new Map(rows.map((row) => [row.id, row.refinery?.score ?? null]));
+  expect(cards.map((id) => scoreOf.get(id))).toEqual([7, 5, 9]);
 });
 
 test("the CONTENT FLOOR counts a name-only card as skipped, never as scored or failed", async () => {

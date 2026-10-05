@@ -285,7 +285,6 @@ test("a resumed turn records its own cost: the session total less what the trans
     sessionStore: sessions.store,
     normalizeImageBytes: passthroughImageNormalizer,
     scheduleTimeout: () => () => undefined,
-    summarizeConcurrency: () => 1,
     debug: false,
     childEnv: () => ({}),
   };
@@ -463,7 +462,6 @@ async function capturedBody(tailSystem: string | undefined): Promise<Record<stri
     sessionStore: sessions.store,
     normalizeImageBytes: passthroughImageNormalizer,
     scheduleTimeout: () => () => undefined,
-    summarizeConcurrency: () => 1,
     captureWire: (entry) => {
       captured.push(entry.body);
     },
@@ -525,7 +523,6 @@ async function outputFormatOf(schema: Record<string, unknown>): Promise<unknown>
     sessionStore: sessions.store,
     normalizeImageBytes: passthroughImageNormalizer,
     scheduleTimeout: () => () => undefined,
-    summarizeConcurrency: () => 1,
     debug: false,
     childEnv: () => ({}),
   };

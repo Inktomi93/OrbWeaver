@@ -12,8 +12,6 @@ export const SYSTEM_TUNING_SUBCATEGORY: ConfigSubcategory = {
     affects: ["cost, latency and cache behavior for the whole deployment"],
   },
   keywords: [
-    "concurrency",
-    "summarize",
     "deadline",
     "transform",
     "budget",

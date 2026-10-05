@@ -26,7 +26,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { BooleanLabels, FactRow } from "../lib/connection-fact-model.ts";
-import { minimumRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
+import { boundRefusal, PLAIN_BOOLEAN_LABELS, parseFactValue, quirkFactRows } from "../lib/connection-fact-model.ts";
 
 export interface FactRowListProps {
   readonly rows: readonly FactRow[];
@@ -116,7 +116,7 @@ function FactOverrideEditor({
   readonly onCancel: () => void;
 }): ReactElement {
   const [draft, setDraft] = useState(row.draft);
-  const refusal = minimumRefusal(row.edit, draft);
+  const refusal = boundRefusal(row.edit, draft);
 
   return (
     <Row align="end" className="@max-lg:flex-col @max-lg:items-stretch" gap="field">

@@ -49,6 +49,22 @@ test("the gate differs per server: DRY on llama.cpp and KoboldCpp, not on Ollama
   expect(generationOf("llama-cpp", "m").sampling.smoothingFactor).toBeUndefined();
 });
 
+// Ollama's `/v1` route fills an omitted temperature and top_p with 1.0, so the Modelfile's own values never run there.
+test("Ollama's compat route states the values it sends for an omitted temperature and top_p; the native route states none", () => {
+  const route = (nativeChat: "ollama" | "none"): GenerationCapability => {
+    const { capability } = synthesizeCapability("generation", "other", {
+      curated: curatedRows({ model: "m", providerId: testProviderId("ollama"), wire: "openai-compat", nativeChat }),
+      advertised: { samplingDefaults: { temperature: 0.6, topP: 0.95, topK: 20 } },
+    });
+    if (capability.kind !== "generation") {
+      throw new Error("expected a generation capability");
+    }
+    return capability.generation;
+  };
+  expect(route("none").routeSamplingDefaults).toEqual({ temperature: 1, topP: 1 });
+  expect(route("ollama").routeSamplingDefaults).toBeUndefined();
+});
+
 test("every stage a server orders has a token in the vocabulary its provider row names", () => {
   const mismatches = LOCAL_SERVERS.flatMap((providerId) => {
     const stages = generationOf(providerId, "m").sampling.samplerOrder ?? [];

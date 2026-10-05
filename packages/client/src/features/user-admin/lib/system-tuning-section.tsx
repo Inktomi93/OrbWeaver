@@ -16,7 +16,7 @@ export const systemTuningSection: ConfigSectionContribution = {
   nav: SYSTEM_TUNING_SUBCATEGORY,
   owns: {
     tier: "app",
-    keys: ["agentSdkConcurrency", "promptTransformDeadlineMs", "catalogRefreshIntervalMs", "imageVariantQuality", "maxDatabankBytes", "promptCacheMinDepth"],
+    keys: ["promptTransformDeadlineMs", "catalogRefreshIntervalMs", "imageVariantQuality", "maxDatabankBytes", "promptCacheMinDepth"],
   },
   body: () => <SystemTuningSection sectionId={SECTION_ID} />,
 };

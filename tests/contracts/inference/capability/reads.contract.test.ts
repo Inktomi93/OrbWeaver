@@ -10,6 +10,7 @@ import {
   isStricterRoleHandling,
   ROLE_HANDLING,
   roleHandlingFloorOf,
+  SETTABLE_WINDOW_FLOOR,
   USER_ROLE_HANDLING,
   userRoleHandlingOptions,
   windowForPreset,
@@ -87,6 +88,13 @@ describe("windowForPreset — a route whose window the request sets runs the pre
 
   test("a preset above the model's trained maximum runs at that maximum", () => {
     expect(windowForPreset(floor, 65_536).context.window).toBe(32_768);
+  });
+
+  // A typo such as 1 would otherwise become the server's whole window.
+  test("a preset below the settable floor runs at the floor, and a trained maximum below the floor caps it", () => {
+    expect(windowForPreset(floor, 1).context.window).toBe(SETTABLE_WINDOW_FLOOR);
+    const tiny = { ...floor, context: { window: 1024, settable: { max: 1024 } } };
+    expect(windowForPreset(tiny, 1).context.window).toBe(1024);
   });
 
   test("with no preset window the resolved one stands", () => {
