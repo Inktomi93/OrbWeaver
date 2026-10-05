@@ -216,3 +216,19 @@ export function submitFailureSentence(args: { readonly heldKeyLabel: string | nu
   const key = args.heldKeyLabel === null ? "Your key (unnamed) was saved in Saved keys" : `Your key was saved as “${args.heldKeyLabel}” in Saved keys`;
   return `${key}, but the connection wasn't created: ${reason}. Adding again reuses the saved key. If you cancel, the key stays in Saved keys.`;
 }
+
+/** Whether the dialog itself reads this provider's list: an endpoint or a keyed hosted draft on "List models",
+ *  and a built-in provider, whose catalog is closed, as soon as it is picked. */
+export function listsInDialog(provider: ProviderDef): boolean {
+  return listsOnDemand(provider) || provider.catalog === "builtin";
+}
+
+/** The draft a list answer is about: the provider, plus the URL where the draft names one and the key where the
+ *  list is read under it. A built-in list depends on the provider alone. */
+export function listingKeyFor(provider: ProviderDef, values: Pick<AddConnectionFormValues, "baseUrl" | "key">): string {
+  return draftKeyOf({
+    providerId: provider.id,
+    baseUrl: needsBaseUrl(provider) ? values.baseUrl : "",
+    key: provider.catalog === "builtin" ? "" : values.key,
+  });
+}

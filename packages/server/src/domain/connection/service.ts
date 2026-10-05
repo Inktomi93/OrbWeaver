@@ -17,6 +17,7 @@ export function createConnectionService(ctx: ConnectionContext): ConnectionServi
   // Row and binding writes share one per-owner queue: either kind can move the owner's embed space.
   const ownerWrites = createOwnerWriteQueue();
   return {
+    withStableEmbeddingBinding: ownerWrites,
     resolve: createResolve(ctx),
     availability: createAvailability(ctx),
     resolveChatCapability: createResolveChatCapability(ctx),

@@ -10,8 +10,9 @@ import { and, eq } from "drizzle-orm";
 import { connectionFingerprint, generationIdOf, vectorSpaceFingerprint } from "#kit/embedding-generation";
 import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type { GenerationReceipt, GenerationTask } from "../contract/generation.ts";
-import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration } from "../contract/service.ts";
+import type { EmbeddingConnectionSnapshot, EmbeddingsContext, PinnedGeneration, PinnedImageSpace } from "../contract/service.ts";
 import { markGenerationComplete, switchTargetGeneration } from "../persistence/space-state.ts";
+import { resolveImageSpace } from "./task-model.ts";
 
 type TargetResolveCtx = Pick<EmbeddingsContext, "db" | "now" | "resolveEmbeddingConnection" | "onTargetGenerationMoved">;
 
@@ -28,16 +29,29 @@ export async function completeGenerationScope(
 /** The owner's target generation for `task`, moving the stored target first when the binding now resolves elsewhere.
  *  A move probes the new width before it purges anything. */
 export async function resolveTargetGeneration(
-  ctx: TargetResolveCtx,
+  ctx: TargetResolveCtx & Pick<EmbeddingsContext, "withStableEmbeddingBinding">,
   ownerId: UserId,
   task: GenerationTask,
   via: GenerationTask = task,
 ): Promise<PinnedGeneration | null> {
-  return await resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven: undefined, attempt: 0 });
+  return await ctx.withStableEmbeddingBinding(ownerId, () => resolveTargetGenerationAttempt({ ctx, ownerId, task, via, proven: undefined, attempt: 0 }));
 }
 
-/** {@link resolveTargetGeneration} for a move the caller already probed: landing `proven`, the generation that proof
- *  probed, does not probe again. */
+/** Choose the image/fallback route and publish its target inside the same owner snapshot. A refused joint-encoder
+ *  write must not leave a reader holding the transient fallback route after rollback. */
+export async function resolveImageTargetGeneration(ctx: EmbeddingsContext, ownerId: UserId): Promise<PinnedImageSpace | null> {
+  return await ctx.withStableEmbeddingBinding(ownerId, async () => {
+    const space = await resolveImageSpace(ctx, ownerId);
+    if (space === null) {
+      return null;
+    }
+    const generation = await resolveTargetGenerationAttempt({ ctx, ownerId, task: "imageEmbed", via: space.via, proven: undefined, attempt: 0 });
+    return generation === null ? null : { space, generation };
+  });
+}
+
+/** {@link resolveTargetGeneration} inside binding settlement's owner queue: landing the proven generation does not
+ *  acquire that queue again or probe twice. */
 export async function landProvenTarget(
   ctx: TargetResolveCtx,
   ownerId: UserId,

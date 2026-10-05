@@ -7,7 +7,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDefInput, ProviderId } from "@orb/contracts/inference";
-import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDefSchema } from "@orb/contracts/inference";
 import { characterEmbeddings } from "@orb/db";
 import type { PluginId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -338,7 +338,7 @@ describe("list / get", () => {
     const view = await h.svc.get({ principal: owner.principal, connectionId: created.id });
     expect(view.providerLabel).toBe("Custom OpenAI-compatible");
     // A generation model on the BYO endpoint: the four generation tasks, and no vector task.
-    expect([...view.tasks].toSorted()).toEqual(["chat", "generateImage", "structured", "summarize"]);
+    expect([...view.tasks].toSorted()).toEqual(["chat", "structured", "summarize"]);
   });
 });
 
@@ -567,4 +567,34 @@ describe("remove", () => {
     await expect(h.svc.remove({ principal: other.principal, connectionId: created.id })).rejects.toMatchObject({ code: CONNECTION_OP_CODES.notFound });
     expect((await h.svc.list({ principal: owner.principal })).map((row) => row.id)).toEqual([created.id]);
   });
+});
+
+test("image-only providers with no chat API remain operable through create, get and list", async () => {
+  const db = await freshDb();
+  const h = await makeHarness(db);
+  const owner = await seedOwner(db);
+  const provider = providerDefSchema.parse({
+    id: "image-only",
+    label: "Image only",
+    wire: "openai-compat",
+    dialect: "openai-compatible",
+    auth: "endpoint",
+    apis: [],
+    serves: ["generateImage"],
+    catalog: "url",
+    metered: false,
+  });
+  await h.runtime.providers.register(provider, { admin: owner.userId });
+  const created = await h.svc.create({
+    principal: owner.principal,
+    providerId: provider.id,
+    credentialId: null,
+    model: "image-model",
+    baseUrl: BYO_BASE_URL,
+    declared: { kind: "generation", generation: { output: { modalities: ["image"] } } },
+  });
+  expect(created.tasks).toEqual(["generateImage"]);
+  expect(await h.svc.get({ principal: owner.principal, connectionId: created.id })).toEqual(created);
+  expect(await h.svc.list({ principal: owner.principal })).toEqual([created]);
+  expect(h.requests).toEqual([]);
 });

@@ -16,6 +16,7 @@ import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { assertRefusedBindingRace } from "../_binding-race-support.ts";
 import type { StoreHarness } from "../_support.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedUser } from "../_support.ts";
 
@@ -23,6 +24,15 @@ const STALE_MODEL = "old-embed-model-v0";
 const NOW = 1_750_000_000_000;
 
 const signal = (): AbortSignal => new AbortController().signal;
+
+test("a sweep inside a refused binding probe never publishes its transient target", async () => {
+  expect.assertions(7);
+  expect(await assertRefusedBindingRace("sweep")).toBe(1);
+});
+test("an empty sweep completion inside a refused binding probe keeps the old index intact", async () => {
+  expect.assertions(7);
+  expect(await assertRefusedBindingRace("empty-sweep")).toBe(1);
+});
 
 /** The width a user declares under Advanced, narrower than the fixture embedder's native `EMBED_DIM`. */
 const DECLARED_DIM = 4;

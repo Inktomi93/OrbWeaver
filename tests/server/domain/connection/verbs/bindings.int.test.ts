@@ -40,6 +40,31 @@ const OLLAMA_HOUSE_EMBEDDER_ROUTES = [
 ];
 
 describe("setBinding", () => {
+  test("image generation is neither offered nor bindable on a text-only model; declared image output enables it", async () => {
+    const db = await freshDb();
+    const h = await makeHarness(db);
+    const owner = await seedOwner(db);
+    const row = await h.svc.create({
+      principal: owner.principal,
+      providerId: BYO_PROVIDER,
+      credentialId: null,
+      baseUrl: BYO_BASE_URL,
+      model: "m",
+      declared: { generation: { output: { modalities: ["text"] } } },
+    });
+    expect(row.tasks).not.toContain("generateImage");
+    expect((await h.svc.list({ principal: owner.principal }))[0]?.tasks).not.toContain("generateImage");
+    await expect(h.svc.setBinding({ principal: owner.principal, task: "generateImage", connectionId: row.id })).rejects.toMatchObject({
+      code: CONNECTION_OP_CODES.taskUnservable,
+    });
+    await h.svc.update({
+      principal: owner.principal,
+      connectionId: row.id,
+      patch: { declared: { generation: { output: { modalities: ["text", "image"] } } } },
+    });
+    expect((await h.svc.get({ principal: owner.principal, connectionId: row.id })).tasks).toContain("generateImage");
+    expect((await h.svc.setBinding({ principal: owner.principal, task: "generateImage", connectionId: row.id })).connectionId).toBe(row.id);
+  });
   test("a row the provider's catalog lists as an embedder binds as one, with no Purpose set by hand", async () => {
     const db = await freshDb();
     const h = await makeHarness(db, { routes: OPENROUTER_EMBEDDER_ROUTES });
@@ -462,11 +487,11 @@ describe("useForEverything", () => {
       allowBackground: false,
     });
     const written = await h.svc.useForEverything({ principal: owner.principal, connectionId: row.id });
-    expect(written.map((binding) => binding.task).toSorted()).toEqual(["chat", "generateImage"]);
+    expect(written.map((binding) => binding.task).toSorted()).toEqual(["chat"]);
 
     await h.svc.update({ principal: owner.principal, connectionId: row.id, patch: { allowBackground: true } });
     const withBackground = await h.svc.useForEverything({ principal: owner.principal, connectionId: row.id });
-    expect(withBackground.map((binding) => binding.task).toSorted()).toEqual(["chat", "generateImage", "summarize"]);
+    expect(withBackground.map((binding) => binding.task).toSorted()).toEqual(["chat", "summarize"]);
   });
 
   test("a stranger's row is refused", async () => {
@@ -497,7 +522,7 @@ describe("useForEverything", () => {
       allowBackground: true,
     });
     const written = await h.svc.useForEverything({ principal: owner.principal, connectionId: embedder.id });
-    expect(written.map((binding) => binding.task).toSorted()).toEqual(["embed", "imageEmbed"]);
+    expect(written.map((binding) => binding.task).toSorted()).toEqual(["embed"]);
     expect(h.embedSpaceChanges).toEqual([owner.userId]);
   });
 });
@@ -520,6 +545,6 @@ describe("a vector role admits an embedder of any width", () => {
     await expect(h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: narrow.id })).resolves.toMatchObject({ task: "embed" });
     expect(h.embedSpaceChanges).toEqual([owner.userId]);
     const written = await h.svc.useForEverything({ principal: owner.principal, connectionId: narrow.id });
-    expect(written.map((binding) => binding.task).toSorted()).toEqual(["embed", "imageEmbed"]);
+    expect(written.map((binding) => binding.task).toSorted()).toEqual(["embed"]);
   });
 });

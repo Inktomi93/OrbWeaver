@@ -32,6 +32,7 @@ import {
 } from "../../../../../packages/client/src/features/credentials/lib/add-connection-form-model.ts";
 import type { TrpcResponder } from "../../../../support/node/route-trpc.ts";
 import { trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
+import { ConfigHostStory } from "../../config/_ct-stories.tsx";
 import {
   ALL_AVAILABLE,
   AUTHORING_ARMS,
@@ -852,6 +853,86 @@ async function addOpenRouter(page: Page, dialog: Locator, model: string): Promis
   await submit(dialog);
 }
 
+test("closing first-model setup early keeps Chat bound and offers a visible Change door", async ({ mount, page }) => {
+  const trpc = await stubConnectionsPane(page);
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  await addOpenRouter(page, await openAddDialog(page), OPUS);
+  const setup = firstModelSetup(page);
+  await expect(setup.getByText(/Chat now uses/u)).toBeVisible();
+  await expect(setup.getByRole("button", { name: "Change", exact: true })).toBeVisible();
+  await setup.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(setup).toBeHidden();
+  await expect.poll(() => trpc.inputs("connection.setBinding")).toEqual([{ task: "chat", connectionId: "user_connection_ctcreated01" }]);
+  await expect(page.getByRole("combobox", { name: "Chat connection", exact: true })).toContainText(OPUS);
+});
+
+test("first-model Change keeps settled keyboard focus on the canonical Chat leaf", async ({ mount, page }) => {
+  await stubConnectionsPane(page);
+  await mount(<ConfigHostStory target="connections" width={1180} height={720} />);
+  const add = page.getByRole("button", { name: "Add connection", exact: true }).first();
+  const initial = await openAddDialog(page);
+  await initial.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCount(0);
+  await expect(add).toBeFocused();
+  await addOpenRouter(page, await openAddDialog(page), OPUS);
+  const setup = firstModelSetup(page);
+  await expect(setup.getByText(/Chat now uses/u)).toBeVisible();
+  await setup.getByRole("button", { name: "Change", exact: true }).click();
+  await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCount(0);
+  const chat = page.getByRole("combobox", { name: "Chat connection", exact: true });
+  await expect(chat).toBeFocused();
+  await expect(chat).toContainText(OPUS);
+  await expect
+    .poll(
+      async () =>
+        await chat.evaluate(async (element): Promise<boolean> => {
+          await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+          return element.ownerDocument.activeElement === element;
+        }),
+    )
+    .toBe(true);
+  await openAddDialog(page);
+  await page.keyboard.press("Escape");
+  await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCount(0);
+  await expect(add).toBeFocused();
+});
+
+test("a failed first Chat assignment is stated and retried without creating another connection or key", async ({ mount, page }) => {
+  let attempts = 0;
+  const trpc = await stubConnectionsPane(page, {
+    setBinding: ({ task, connectionId }) => {
+      attempts += 1;
+      return attempts === 1
+        ? trpcError({ code: "BAD_REQUEST", message: "assignment failed" })
+        : { id: "connection_binding_retry01", actorKind: "user", userId: "user_ctowner", ruleId: null, pluginId: null, task, connectionId };
+    },
+  });
+  await mount(<ConnectionsAuthoringStory width={870} />);
+  await addOpenRouter(page, await openAddDialog(page), OPUS);
+  const setup = firstModelSetup(page);
+  await expect(setup.getByRole("alert")).toHaveText("Your connection was saved, but Chat isn't set: assignment failed");
+  await expect(setup.getByRole("button", { name: "Finish" })).toBeDisabled();
+  await setup.getByRole("button", { name: "Retry Chat assignment" }).click();
+  await expect(setup.getByText(/Chat now uses/u)).toBeVisible();
+  await expect.poll(() => trpc.count("connection.create")).toBe(1);
+  await expect.poll(() => trpc.count("credentials.add")).toBe(1);
+  await expect.poll(() => trpc.count("connection.setBinding")).toBe(2);
+});
+
+test("closing setup during the Chat write still reports a late refusal with recovery", async ({ mount, page }) => {
+  const response = trpcHold();
+  const trpc = await stubConnectionsPane(page, { setBinding: response });
+  const component = await mount(<ConnectionsAuthoringStory width={870} />);
+  await addOpenRouter(page, await openAddDialog(page), OPUS);
+  const setup = firstModelSetup(page);
+  await expect(setup.getByText(/Setting Chat to/u)).toBeVisible();
+  await setup.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(setup).toBeHidden();
+  response.release(trpcError({ code: "BAD_REQUEST", message: "assignment failed" }));
+  await expect(component.getByTestId("connection-notice")).toHaveText("Chat wasn't assigned: Your connection was saved, but Chat isn't set: assignment failed");
+  await expect.poll(() => trpc.count("connection.setBinding")).toBe(1);
+});
+
 test("the first chat model: 'Use the same one' turns its background work on, then binds Chat and Utility to it", async ({ mount, page }) => {
   const trpc = await stubConnectionsPane(page);
   await mount(<ConnectionsAuthoringStory width={870} />);
@@ -952,4 +1033,41 @@ test("a later connection, with a chat model already saved, closes as before and 
   await expect(firstModelSetup(page)).toHaveCount(0);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the dialog has closed after its one write; no step opened, so there is no role write to wait for and a poll would pass at t=0 and prove less.
   expect(trpc.count("connection.setBinding")).toBe(0);
+});
+
+test.describe("first-model top anchor on a phone", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, deviceScaleFactor: 3 });
+  test("first-model top anchor retains phone bounds, visible exits and keyboard dismissal", async ({ mount, page }) => {
+    await stubConnectionsPane(page);
+    await mount(<ConnectionsAuthoringStory width={390} />);
+    // A keyboard dismissal returns to the keyboard origin; a touch click alone need not focus its door.
+    await page.getByRole("button", { name: "Add connection", exact: true }).first().focus();
+    await page.getByRole("button", { name: "Add connection", exact: true }).first().press("Enter");
+    const addDialog = dialogNamed(page, ADD_TITLE);
+    await expect(addDialog).toBeVisible();
+    await addOpenRouter(page, addDialog, OPUS);
+    const setup = firstModelSetup(page);
+    await expect(setup.getByText(/Chat now uses/u)).toBeVisible();
+    await expect.poll(() => setup.evaluate((element) => element.getAnimations().length)).toBe(0);
+    await expectInsideViewport(page, setup);
+    await expect(setup.getByRole("button", { name: "Close", exact: true })).toBeInViewport();
+    await expect(setup.getByRole("button", { name: "Finish", exact: true })).toBeInViewport();
+    await expect
+      .poll(() =>
+        setup.evaluate((element) => {
+          const viewport = element.parentElement;
+          if (viewport === null) {
+            throw new Error("the setup owns its dialog viewport");
+          }
+          return {
+            atGutter: element.getBoundingClientRect().y === Number.parseFloat(getComputedStyle(viewport).paddingTop),
+            coarse: matchMedia("(pointer: coarse)").matches,
+          };
+        }),
+      )
+      .toEqual({ atGutter: true, coarse: true });
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[data-slot="dialog-popup"]')).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Add connection", exact: true }).first()).toBeFocused();
+  });
 });

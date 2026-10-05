@@ -151,12 +151,14 @@ export class ProviderError extends Error {
   /** The same failure, carrying the items its batch finished. Not a re-frame: the message and cause stay as they
    *  were, so a logged chain does not repeat the message. */
   withPartialItems(partialItems: readonly (SummarizeResultItem | undefined)[]): ProviderError {
-    return new ProviderError({
+    const failure = new ProviderError({
       ...this.#carried(),
       message: this.message,
       ...this.#partialOf(partialItems),
       ...(this.cause !== undefined ? { cause: this.cause } : {}),
     });
+    Object.defineProperty(failure, "stack", { value: this.stack, configurable: true, writable: true });
+    return failure;
   }
 
   #partialOf(partialItems: ProviderErrorInit["partialItems"]): Pick<ProviderErrorInit, "partialItems"> {

@@ -3,6 +3,7 @@
 // construction (it names its credential by id), so the projection is a shape check, never a redaction.
 
 import type { UserConnection } from "@orb/contracts/inference";
+import { SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { userConnections } from "@orb/db";
 import { fetchOwned } from "@orb/db/kit";
@@ -13,6 +14,14 @@ type ConnectionRow = typeof userConnections.$inferSelect;
 type ConnectionInsert = typeof userConnections.$inferInsert;
 
 function toConnectionRow(row: ConnectionRow): UserConnection {
+  const summarize = row.declared?.features?.concurrency?.summarize;
+  const declared =
+    summarize !== undefined && summarize > SUMMARIZE_CONCURRENCY_MAX
+      ? {
+          ...row.declared,
+          features: { ...row.declared?.features, concurrency: { ...row.declared?.features?.concurrency, summarize: SUMMARIZE_CONCURRENCY_MAX } },
+        }
+      : row.declared;
   return {
     id: row.id,
     ownerId: row.ownerId,
@@ -22,7 +31,7 @@ function toConnectionRow(row: ConnectionRow): UserConnection {
     baseUrl: row.baseUrl,
     model: row.model,
     api: row.api,
-    declared: row.declared,
+    declared,
     extras: row.extras,
     transport: row.transport,
     modelCheck: row.modelCheck,

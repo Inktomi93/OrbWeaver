@@ -239,6 +239,62 @@ test("(3) a stalled body trips at the row's requestTimeoutMs as a retryable serv
   await expect(turn(cancel.signal)).rejects.toMatchObject({ kind: "aborted", retryable: false });
 });
 
+for (const providerId of ["anthropic", "google"] as const) {
+  test(`a stalled ${providerId} chat and side generation trip retryably; caller cancellation does not`, { timeout: 10_000 }, async () => {
+    const executor = executorWith({ fetch: stalledServer });
+    const connection = fakeResolved({
+      task: "chat",
+      providerId,
+      model: providerId === "google" ? "gemini-2.5-flash" : "claude-sonnet-5",
+      capability: NO_REASONING,
+      declaredFeatures: { requestTimeoutMs: 50 },
+      secret: fakeApiKeySecret("test-key"),
+    });
+    const api = providerId === "google" ? "google-generative-ai" : "anthropic-messages";
+    const turn = (signal?: AbortSignal): ReturnType<ProviderExecutor["runChatTurn"]> =>
+      executor.runChatTurn({
+        api,
+        connection,
+        params: {},
+        systemPrompt: { static: "S.", dynamic: "" },
+        history: [{ role: "user", content: [{ type: "text", text: "Go." }] }],
+        ...(signal === undefined ? {} : { signal }),
+      });
+    await expect(turn()).rejects.toMatchObject({ kind: "server", retryable: true });
+    await expect(executor.summarize({ connection: { ...connection, task: "summarize" }, inputs: [ITEM] })).rejects.toMatchObject({
+      kind: "server",
+      retryable: true,
+    });
+    const cancel = new AbortController();
+    const timer = setTimeout(() => cancel.abort(new Error("network timeout")), 10);
+    try {
+      await expect(turn(cancel.signal)).rejects.toMatchObject({ kind: "aborted", retryable: false });
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+}
+
+test("a stalled Google embed trips retryably while caller cancellation remains aborted", async () => {
+  const executor = executorWith({ fetch: stalledServer });
+  const connection = fakeResolved({
+    task: "embed",
+    providerId: "google",
+    model: "gemini-embedding-001",
+    capability: { kind: "embedding", embedding: { dims: 3, maxInputTokens: 2048, mrl: true, input: ["text"], output: ["vector"], instructionAware: false } },
+    declaredFeatures: { requestTimeoutMs: 50 },
+    secret: fakeApiKeySecret("test-key"),
+  });
+  await expect(executor.embed({ connection, input: "Go." })).rejects.toMatchObject({ kind: "server", retryable: true });
+  const cancel = new AbortController();
+  const timer = setTimeout(() => cancel.abort(new Error("network timeout")), 10);
+  try {
+    await expect(executor.embed({ connection, input: "Go.", signal: cancel.signal })).rejects.toMatchObject({ kind: "aborted", retryable: false });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 // ── (4) cost ───────────────────────────────────────────────────────────────────────────────────────────
 
 test("(4) a row with shipped pricing reports the item's estimated cost", async () => {

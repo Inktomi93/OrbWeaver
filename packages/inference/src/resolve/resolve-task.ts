@@ -452,36 +452,26 @@ async function warmedOrCached(ctx: ResolverContext, provider: ProviderDef, conne
   }
 }
 
-interface CapabilityResolveOutcome extends ResolveOutcome {
-  readonly baseline: Capability;
-}
-
-async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: false): Promise<ResolveOutcome>;
-async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: true): Promise<CapabilityResolveOutcome>;
-async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: boolean): Promise<ResolveOutcome | CapabilityResolveOutcome> {
-  const connection = await connectionFor(ctx, args);
-  // Read as the connection's owner, so a row saved on a plugin provider stops resolving once none of that
-  // owner's enabled installs contributes it (D147) — the same answer as an unregistered id.
-  const provider = ctx.registry.get(connection.providerId, connection.ownerId);
-  if (provider === undefined) {
-    throw new NoConnectionError(
-      `provider "${connection.providerId}" is not registered (a plugin provider reads no-connection unless one of the owner's enabled plugins contributes it)`,
-    );
-  }
-  // Every fact read below goes through the behaved row; identity (`providerId`, `provider`, the credential and
-  // every refusal's wording) stays the registered row's.
-  const { behaved, credential } = await warmFacts(ctx, provider, connection, args.cachedFacts === true);
+function connectionCapability(
+  ctx: ResolverContext,
+  {
+    provider,
+    behaved,
+    connection,
+    kind,
+    baselineKind,
+  }: {
+    readonly provider: ProviderDef;
+    readonly behaved: ProviderDef;
+    readonly connection: UserConnection;
+    readonly kind: ModelKind;
+    readonly baselineKind?: ModelKind | undefined;
+  },
+): Pick<Resolved, "api" | "model" | "factsModel" | "features" | "capability"> & {
+  readonly baseline: Capability | undefined;
+  readonly warnings: readonly ResolvedWarning[];
+} {
   const declared = connection.declared;
-  const kind = kindOf(ctx, { task: args.task, provider: behaved, connection });
-  const baselineKind = includeBaseline ? kindOf(ctx, { task: args.task, provider: behaved, connection, includeDeclared: false }) : undefined;
-  const served = connectionTasks(behaved, kind);
-  if (!served.includes(args.task)) {
-    throw new ProviderError({
-      kind: "forbidden",
-      retryable: false,
-      message: `connection "${connection.label}" (${provider.id}, ${kind}) cannot serve "${args.task}"`,
-    });
-  }
   const api = resolveApi(behaved, connection, kind);
   const model = normalizeModelId(connection.model, provider.wire === "agent-sdk" ? ctx.agentSdkCatalog.get() : null);
   const factsModel = factsModelFor(ctx, behaved, model);
@@ -518,29 +508,87 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
       features.nativeChat === "ollama",
       entry?.contextTrained,
     );
-  const capability = withLocalLightEmbedDtype(
-    postured(synthesized.capability, declared?.generation?.input !== undefined || advertisedInput, declared?.generation?.context?.window !== undefined),
-    provider,
-    declared?.embedding?.dtype,
-    ctx.deps.localLight?.embedDtype,
+  const capability = postured(
+    synthesized.capability,
+    declared?.generation?.input !== undefined || advertisedInput,
+    declared?.generation?.context?.window !== undefined,
   );
   const baseline =
     baselineKind === undefined
       ? undefined
-      : withLocalLightEmbedDtype(
-          postured(
-            synthesizeCapability(baselineKind, family, {
-              ...evidence,
-              declared: undefined,
-              advertised: advertisedFor(ctx, { provider: behaved, registered: provider, connection, model, kind: baselineKind }),
-            }).capability,
-            advertisedInput,
-            false,
-          ),
-          provider,
-          undefined,
-          ctx.deps.localLight?.embedDtype,
+      : postured(
+          synthesizeCapability(baselineKind, family, {
+            ...evidence,
+            declared: undefined,
+            advertised: advertisedFor(ctx, { provider: behaved, registered: provider, connection, model, kind: baselineKind }),
+          }).capability,
+          advertisedInput,
+          false,
         );
+  return { api, model, factsModel, features, capability, baseline, warnings: synthesized.warnings };
+}
+
+/** Model-supported tasks from the same capability fold as execution, without opening credentials on a cached read. */
+export async function modelTasks(
+  ctx: ResolverContext,
+  connection: UserConnection,
+  options: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined } = {},
+): Promise<readonly Task[]> {
+  const provider = ctx.registry.get(connection.providerId, connection.ownerId);
+  if (provider === undefined) {
+    return [];
+  }
+  const behaved = options.cachedFacts === true ? await heldFacts(ctx, provider, connection) : await warmedOrCached(ctx, provider, connection);
+  const held = connection.declared?.kind !== undefined || kindFactsHeld(ctx, provider, behaved, connection);
+  const kind = (!held && options.cachedFacts === true ? options.coldAs : undefined) ?? statedKind(ctx, { provider: behaved, connection }) ?? "generation";
+  const tasks = connectionTasks(behaved, kind);
+  if (tasks.length === 0) {
+    return [];
+  }
+  const { capability, features } = connectionCapability(ctx, { provider, behaved, connection, kind });
+  return tasks.filter((task) => withWireRequirement(requirementMet(capability, taskDef(task).requires), task, provider, features).ok);
+}
+
+interface CapabilityResolveOutcome extends ResolveOutcome {
+  readonly baseline: Capability;
+}
+
+async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: false): Promise<ResolveOutcome>;
+async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: true): Promise<CapabilityResolveOutcome>;
+async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeBaseline: boolean): Promise<ResolveOutcome | CapabilityResolveOutcome> {
+  const connection = await connectionFor(ctx, args);
+  // Read as the connection's owner, so a row saved on a plugin provider stops resolving once none of that
+  // owner's enabled installs contributes it (D147) — the same answer as an unregistered id.
+  const provider = ctx.registry.get(connection.providerId, connection.ownerId);
+  if (provider === undefined) {
+    throw new NoConnectionError(
+      `provider "${connection.providerId}" is not registered (a plugin provider reads no-connection unless one of the owner's enabled plugins contributes it)`,
+    );
+  }
+  // Every fact read below goes through the behaved row; identity (`providerId`, `provider`, the credential and
+  // every refusal's wording) stays the registered row's.
+  const { behaved, credential } = await warmFacts(ctx, provider, connection, args.cachedFacts === true);
+  const kind = kindOf(ctx, { task: args.task, provider: behaved, connection });
+  const baselineKind = includeBaseline ? kindOf(ctx, { task: args.task, provider: behaved, connection, includeDeclared: false }) : undefined;
+  const served = connectionTasks(behaved, kind);
+  if (!served.includes(args.task)) {
+    throw new ProviderError({
+      kind: "forbidden",
+      retryable: false,
+      message: `connection "${connection.label}" (${provider.id}, ${kind}) cannot serve "${args.task}"`,
+    });
+  }
+  const {
+    api,
+    model,
+    factsModel,
+    features,
+    capability: foldedCapability,
+    baseline: foldedBaseline,
+    warnings: synthesisWarnings,
+  } = connectionCapability(ctx, { provider, behaved, connection, kind, baselineKind });
+  const capability = withLocalLightEmbedDtype(foldedCapability, provider, connection.declared?.embedding?.dtype, ctx.deps.localLight?.embedDtype);
+  const baseline = foldedBaseline === undefined ? undefined : withLocalLightEmbedDtype(foldedBaseline, provider, undefined, ctx.deps.localLight?.embedDtype);
   const requirement = withWireRequirement(requirementMet(capability, taskDef(args.task).requires), args.task, provider, features);
   const resolved: Resolved = {
     task: args.task,
@@ -566,7 +614,7 @@ async function resolveTaskFold(ctx: ResolverContext, args: ResolveArgs, includeB
     ),
     factsModel,
   };
-  const warnings: ResolvedWarning[] = [...synthesized.warnings];
+  const warnings: ResolvedWarning[] = [...synthesisWarnings];
   if (!canFund(connection, args.task)) {
     warnings.push({
       code: "background_task_degraded",

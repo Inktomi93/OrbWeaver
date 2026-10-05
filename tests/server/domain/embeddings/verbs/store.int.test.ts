@@ -18,6 +18,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { assertRefusedBindingRace } from "../_binding-race-support.ts";
 import {
   EMBED_DIM,
   EMBED_MODEL,
@@ -35,6 +36,11 @@ import {
 
 const CARD_TEXT = "Alice — a curious traveler who maps forgotten roads.";
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
+
+test("a store inside a refused binding probe leaves the target and old index intact", async () => {
+  expect.assertions(7);
+  expect(await assertRefusedBindingRace("store")).toBe(1);
+});
 
 describe("store — card-text (character_embeddings)", () => {
   test("a seed vector uses the normal generation and dimension checks without calling the encoder", async () => {

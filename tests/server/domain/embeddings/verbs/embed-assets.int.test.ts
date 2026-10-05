@@ -9,11 +9,12 @@
 //   • a vanished asset row is a skip, not an error;
 //   • cooperative abort: an aborted signal does no work.
 
-import { EMBEDDING_FLOOR, providerIdSchema } from "@orb/contracts/inference";
-import { embedGenerations, embedSpaceState, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import { CONNECTION_OP_CODES, EMBEDDING_FLOOR, providerIdSchema } from "@orb/contracts/inference";
+import { embedGenerations, embedGenerationTargets, embedSpaceState, imageEmbeddings, imageIndexSkips } from "@orb/db";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { EmbeddingsContext } from "@orb/server/domain/embeddings";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -23,11 +24,14 @@ import { runOpenAiCompatImageEmbed } from "../../../../../packages/inference/src
 import { curatedRows } from "../../../../../packages/inference/src/capability/sources/curated/loader.ts";
 import { localLightRows } from "../../../../../packages/inference/src/capability/sources/curated/local-light.ts";
 import { synthesizeCapability } from "../../../../../packages/inference/src/capability/synthesize.ts";
+import { createImageAnalysisCounter } from "../../../../../packages/server/src/domain/embeddings/indexer/image.ts";
+import { resolveTargetGeneration } from "../../../../../packages/server/src/domain/embeddings/substrate/generation.ts";
 import { fakeModelCache, fakeResolved } from "../../../../inference/_support.ts";
 import type { RecordedRequest } from "../../../../inference/backends/_hosted-support.ts";
 import { scriptedJsonFetch } from "../../../../inference/backends/_hosted-support.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner } from "../../connection/_support.ts";
 import { EMBED_DIM, EMBED_MODEL, IMAGE_EMBED_MODEL, makeRoleClients, makeStoreHarness, pngBytes, seedAsset, seedUser, TEST_CAPTION } from "../_support.ts";
 
 const IMG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3, 4]);
@@ -503,4 +507,121 @@ test("the analysis-call estimate is zero for an owner whose Utility model reads 
 
   expect(estimate).toBe(0);
   expect(textOnly.structured).not.toHaveBeenCalled();
+});
+
+test.each([
+  "empty-sweep",
+  "indexer",
+  "analysis-counter",
+] as const)("a refused joint-encoder update preserves retained images during $0 routing", async (reader) => {
+  const db = await freshDb();
+  const probing = Promise.withResolvers<void>();
+  const release = Promise.withResolvers<Response>();
+  const state: { hold: boolean; signalQueued: boolean } = { hold: false, signalQueued: false };
+  const h = await makeHarness(db, {
+    intercept: (url, init) => {
+      if (!url.endsWith("/embeddings")) {
+        return null;
+      }
+      if (state.hold) {
+        state.hold = false;
+        probing.resolve();
+        return release.promise;
+      }
+      const request = JSON.parse(String(init?.body)) as { input: string | string[] };
+      const inputs = Array.isArray(request.input) ? request.input : [request.input];
+      return Promise.resolve(Response.json({ data: inputs.map((_input, index) => ({ index, embedding: [1, 2, 3] })) }));
+    },
+  });
+  const owner = await seedOwner(db);
+  const declared = { kind: "embedding", embedding: { dims: 3, input: ["text", "image"] } } satisfies NonNullable<
+    Parameters<typeof h.svc.create>[0]["declared"]
+  >;
+  const row = await h.svc.create({
+    principal: owner.principal,
+    providerId: BYO_PROVIDER,
+    credentialId: null,
+    baseUrl: BYO_BASE_URL,
+    model: "original",
+    allowBackground: true,
+    declared,
+  });
+  await h.svc.setBinding({ principal: owner.principal, task: "embed", connectionId: row.id });
+  await h.svc.setBinding({ principal: owner.principal, task: "imageEmbed", connectionId: row.id });
+  const assetId = await seedAsset(db, owner.userId);
+  const fixture = makeStoreHarness(db, { imageAssetIds: reader === "analysis-counter" ? [assetId] : [] });
+  const rebuilds: UserId[] = [];
+  const queued = Promise.withResolvers<void>();
+  const ctx: EmbeddingsContext = {
+    ...fixture.ctx,
+    roleClientsFor: async () => h.runtime.roleClientsFor(owner.principal),
+    withStableEmbeddingBinding: (ownerId, read) => {
+      if (state.signalQueued) {
+        queued.resolve();
+      }
+      return h.svc.withStableEmbeddingBinding(ownerId, read);
+    },
+    resolveEmbeddingConnection: async (_ownerId, task, connectionId) => {
+      const resolved =
+        connectionId === undefined
+          ? await h.runtime.roleClientsFor(owner.principal).resolved(task)
+          : (await h.runtime.resolve({ principal: owner.principal, task, connectionId })).resolved;
+      return resolved === null
+        ? null
+        : {
+            ...resolved,
+            api: resolved.api ?? "none",
+            embed: (input, opts) => h.runtime.executor.embed({ connection: { ...resolved, task: "embed" }, input, signal: opts?.signal }),
+            imageEmbed: (input, opts) => h.runtime.executor.imageEmbed({ connection: { ...resolved, task: "imageEmbed" }, input, signal: opts?.signal }),
+          };
+    },
+    onTargetGenerationMoved: (id) => rebuilds.push(id),
+  };
+  const embeddings = createEmbeddingsService(ctx);
+  await resolveTargetGeneration(ctx, owner.userId, "embed");
+  const generation = await resolveTargetGeneration(ctx, owner.userId, "imageEmbed");
+  if (generation === null) {
+    throw new Error("the joint encoder must resolve an image generation");
+  }
+  await db.insert(imageEmbeddings).values({
+    id: mintTypeId(ID_PREFIX.imageEmbedding),
+    assetId,
+    embedding: new Float32Array([1, 2, 3]),
+    lens: "image-raw",
+    contentHash: "retained-image",
+    model: "original",
+    generationId: generation.id,
+    dim: 3,
+  });
+  const before = await db.select().from(imageEmbeddings);
+  const targets = await db.select().from(embedGenerationTargets);
+  h.useEmbeddings(embeddings);
+  state.hold = true;
+  const write = h.svc
+    .update({ principal: owner.principal, connectionId: row.id, patch: { declared: { kind: "embedding", embedding: { dims: 4, input: ["text"] } } } })
+    .catch((error: unknown) => error);
+  await probing.promise;
+  state.signalQueued = true;
+  const operations = {
+    "empty-sweep": () => embeddings.embedAssets({ ownerId: owner.userId, force: false, signal: signal() }),
+    indexer: () => embeddings.indexAsset(assetId),
+    "analysis-counter": () => createImageAnalysisCounter(ctx, { analysisCallsModel: async () => false })({ ownerId: owner.userId, force: false }),
+  };
+  const work = (async (): Promise<Awaited<ReturnType<(typeof operations)[typeof reader]>>> => await operations[reader]())().catch((error: unknown) => error);
+  try {
+    await Promise.race([queued.promise, work]);
+    expect(await db.select().from(imageEmbeddings)).toEqual(before);
+    expect(await db.select().from(embedGenerationTargets)).toEqual(targets);
+  } finally {
+    release.resolve(Response.json({ error: { message: "host failed" } }, { status: 400 }));
+    await write;
+    await work;
+  }
+  expect(await write).toMatchObject({ code: CONNECTION_OP_CODES.embedUnreachable });
+  const expected = { "empty-sweep": { embedded: 0, skipped: 0 }, indexer: null, "analysis-counter": 0 };
+  expect(await work).toEqual(expected[reader]);
+  expect((await h.svc.get({ principal: owner.principal, connectionId: row.id })).declared).toEqual(declared);
+  expect(await db.select().from(imageEmbeddings)).toEqual(before);
+  expect(await db.select().from(embedGenerationTargets)).toEqual(targets);
+  expect(rebuilds).toEqual([]);
 });

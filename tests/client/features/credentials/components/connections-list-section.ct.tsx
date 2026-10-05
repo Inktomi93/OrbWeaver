@@ -10,6 +10,21 @@ import { ConnectionsAuthoringStory } from "../_ct-stories.tsx";
 
 const ROW_NAME = "Legacy relay · claude-opus-5";
 
+test("connection chips say what the model can do, while the image role offers only image-capable rows", async ({ mount, page }) => {
+  await stubConnectionsPane(page, {
+    connections: [
+      connectionRow({ label: "Text model", tasks: ["chat", "summarize"] }),
+      connectionRow({ id: "user_connection_image01", label: "Image model", model: "image-model", tasks: ["generateImage"] }),
+    ],
+  });
+  const component = await mount(<ConnectionsAuthoringStory width={870} />);
+  await expect(component.getByText("Can do:", { exact: true })).toHaveCount(2);
+  await expect(component.locator('[data-slot="badge"]').getByText("Image generation", { exact: true })).toHaveCount(1);
+  await component.getByRole("combobox", { name: "Image generation connection" }).click();
+  await expect(page.getByRole("option", { name: /Image model/u })).toBeVisible();
+  await expect(page.getByRole("option", { name: /Text model/u })).toHaveCount(0);
+});
+
 test("an unavailable-provider row stays operable while provider-backed actions are disabled", async ({ mount, page }) => {
   const row = connectionRow({
     label: "Legacy relay",

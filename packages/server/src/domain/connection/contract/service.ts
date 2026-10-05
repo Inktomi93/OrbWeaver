@@ -115,6 +115,8 @@ export interface ConnectionContext {
 
 /** The connection surface — selection's FRONT DOOR, never execution. Nothing here carries a secret. */
 export interface ConnectionService {
+  /** Run a target-changing read only after this owner's binding/row probe has landed or been undone. */
+  readonly withStableEmbeddingBinding: <T>(ownerId: UserId, read: () => Promise<T>) => Promise<T>;
   // ── delegations to the runtime (the turn path, the composer's pre-send gate, the pane's readouts)
   readonly resolve: (params: ResolveTaskParams) => Promise<ResolveOutcome>;
   readonly availability: (params: ResolveTaskParams) => Promise<SendAvailability>;

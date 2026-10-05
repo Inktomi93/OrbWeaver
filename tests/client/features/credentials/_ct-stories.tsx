@@ -314,10 +314,23 @@ export function ConnectionsPaneNarrowStory(): ReactElement {
 /** Every cached mutation's variables that carry a `key` field — i.e. a plaintext secret still held in memory
  *  by the mutation cache. Rendered as a count so the add-flow CTs can assert the secret is gone after an add. */
 function SecretProbe(): ReactElement {
+  const [notice, setNotice] = useState("");
+  useEffect(() => {
+    const sink = (input: NotifyInput): void => {
+      const { title, description } = toNotice(input);
+      setNotice(`${title}: ${description ?? ""}`);
+    };
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
+  }, []);
   const held = useMutationState({
     select: (mutation) => mutation.state.variables,
   }).filter((variables) => typeof variables === "object" && variables !== null && "key" in variables);
-  return <p data-testid="held-secrets">{held.length}</p>;
+  return (
+    <>
+      <p data-testid="held-secrets">{held.length}</p>
+      <p data-testid="connection-notice">{notice}</p>
+    </>
+  );
 }
 
 /** The pane as connection AUTHORING sees it: the production sections at a settings-body width (870, 486, or a

@@ -61,6 +61,7 @@ import {
   discoveredKind,
   endpointMirrorTenant,
   modelInfoApiOf,
+  modelTasks,
   resolveTask,
   resolveTaskWithBaseline,
 } from "./resolve/resolve-task.ts";
@@ -152,6 +153,8 @@ export interface InferenceRuntime {
     connection: UserConnection,
     options?: { readonly cachedFacts?: boolean | undefined; readonly coldAs?: ModelKind | undefined },
   ) => Promise<ModelKind>;
+  /** Tasks whose actual capability requirements this model meets; cached reads never open credentials or dial. */
+  readonly modelTasks: (connection: UserConnection, options?: Parameters<InferenceRuntime["modelKind"]>[1]) => Promise<readonly Task[]>;
   readonly executor: ProviderExecutor;
   readonly capabilities: {
     /** provider row + declared overrides + catalog row → one descriptor, for a connection the principal owns
@@ -455,6 +458,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
       return (held ? undefined : options.coldAs) ?? kind ?? DEFAULT_MODEL_KIND;
     },
     executor,
+    modelTasks: (connection, options) => modelTasks(ctx, connection, options),
     capabilities: {
       for: async ({ connectionId, principal }): Promise<CapabilityRead> => {
         const connection = await ownedConnection(connectionId, principal);
@@ -477,7 +481,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
           capability: outcome.resolved.capability,
           baseline: outcome.baseline,
           warnings: outcome.warnings,
-          tasks,
+          tasks: await modelTasks(ctx, connection, { cachedFacts: true }),
           ...(detected === provider ? {} : { detectedProviderId: detected.id }),
         };
       },
