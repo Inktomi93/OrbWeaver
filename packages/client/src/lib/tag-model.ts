@@ -10,7 +10,7 @@ import { TAG_SORT_MODES } from "./tag-sort.ts";
 
 // A Map, not an object literal, so the contract's uppercase keys don't trip the camelCase naming lint.
 const FOLDER_TYPE_LABELS = new Map<TagFolderType, string>([
-  ["NONE", "Plain label"],
+  ["NONE", "Plain tag"],
   ["OPEN", "Open folder"],
   ["CLOSED", "Closed folder"],
 ]);
@@ -36,9 +36,7 @@ export function tagSortItems(handlesAvailable: boolean, cap: number): readonly S
     label: SORT_MODE_LABELS[value],
     value,
     disabled: value === "manual" && !handlesAvailable,
-    ...(value === "manual"
-      ? { description: handlesAvailable ? "Manual order lets you drag rows." : `Drag to reorder is off above ${String(cap)} labels.` }
-      : {}),
+    ...(value === "manual" ? { description: handlesAvailable ? "Manual order lets you drag rows." : `Drag to reorder is off above ${String(cap)} tags.` } : {}),
   }));
 }
 
@@ -49,14 +47,14 @@ export function pruneConfirmLabel(count: number): string {
 }
 
 /** The create action and placeholder name share one vocabulary. */
-export const NEW_LABEL_NAME = "New label";
+export const NEW_LABEL_NAME = "New tag";
 
 /** What the Labels library is for — the landing's lead line. */
 export const LABELS_BLURB =
-  "Your own labels for characters, chats, books, personas and presets. Generated genres, themes and archetypes are analysis facets, not labels.";
+  "Your own tags for characters, chats, books, personas and presets. Generated genres, themes and archetypes are analysis facets, not tags.";
 
 /** The empty library landing names its create door; the finder states only its census. */
-export const LABELS_EMPTY = `Create a label with ${NEW_LABEL_NAME}. Labels you adopt from character cards land here too.`;
+export const LABELS_EMPTY = `Create a tag with ${NEW_LABEL_NAME}. Tags you adopt from character cards land here too.`;
 
 /** The five per-target usage counts (singular labels, pluralized in {@link usageBreakdown}). */
 const USAGE_LABELS: Record<Exclude<keyof TagUsage, "total">, string> = {
@@ -87,7 +85,7 @@ export const USAGE_KIND_TITLES: Record<Exclude<keyof TagUsage, "total">, string>
 /** How many tags a prune would delete, as words — the noun BOTH halves of the prune confirm name (its title
  *  and its body), so the count a user reads and the count they agree to cannot drift. */
 export function unusedTagsLabel(count: number): string {
-  return `${count} unused label${count === 1 ? "" : "s"}`;
+  return `${count} unused tag${count === 1 ? "" : "s"}`;
 }
 
 /** The "no colour at all" state, in words — ONE sentence, spent two ways below. `null` is a real state, not

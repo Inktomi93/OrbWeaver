@@ -104,18 +104,29 @@ test("an UNKNOWN disposition on a 200 is a throw, and the message names the fiel
   const file = new File(["bytes"], "notes.md", { type: "text/markdown" });
 
   vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ document: documentView(), outcome: "perhaps", ingest: "queued" })));
-  await expect(uploadDocument(file)).rejects.toThrow(/response field "outcome"/u);
+  await expect(uploadDocument(file)).rejects.toThrow(/"outcome"/u);
 
   vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ document: documentView(), outcome: "created", ingest: 7 })));
-  await expect(uploadDocument(file)).rejects.toThrow(/response field "ingest"/u);
+  await expect(uploadDocument(file)).rejects.toThrow(/"ingest"/u);
 
   // An ABSENT warning stays absent (the optional's own arm) — only a PRESENT unknown one is a refusal.
   vi.stubGlobal("fetch", () => Promise.resolve(Response.json({ document: documentView(), outcome: "created", ingest: "queued", warning: "on-fire" })));
-  await expect(uploadDocument(file)).rejects.toThrow(/response field "warning"/u);
+  await expect(uploadDocument(file)).rejects.toThrow(/"warning"/u);
 });
 
 test("throws on a non-OK response", async () => {
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ error: "too large" }), { status: 413 })));
 
   await expect(uploadDocument(new File(["bytes"], "huge.pdf", { type: "application/pdf" }))).rejects.toThrow();
+});
+
+test("explicit ingestion consent rides the multipart body and a saved-but-not-indexed response is preserved", async () => {
+  const bodies: FormData[] = [];
+  vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
+    bodies.push(init.body as FormData);
+    return Promise.resolve(Response.json({ document: documentView(), outcome: "created", ingest: "not-queued" }));
+  });
+  const file = new File(["bytes"], "notes.md", { type: "text/markdown" });
+  expect((await uploadDocument(file, undefined, { kind: "global" })).ingest).toBe("not-queued");
+  expect(bodies[0]?.get("destination")).toBe('{"kind":"global"}');
 });

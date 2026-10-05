@@ -11,11 +11,31 @@ import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeHarness, principal, seedChat, seedUser } from "../../_support.ts";
 
 describe("listForChat", () => {
+  test("the chat rack includes its runtime-derived inherited projection ahead of chat attachments", async () => {
+    const db = await freshDb();
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const chatId = await seedChat(db);
+    const harness = makeHarness(db, { requireChatMember: () => Promise.resolve(), requireChatHost: () => Promise.resolve() });
+    const base = createWorldInfoService(harness.ctx);
+    const global = await base.createBook({ principal: principal(host), input: { name: "Inherited global" } });
+    const direct = await base.createBook({ principal: principal(host), input: { name: "Direct" } });
+    await base.attachToChat({ principal: principal(host), chatId, bookId: direct.id });
+    const ctx = {
+      ...harness.ctx,
+      readInheritedChatBooks: () => Promise.resolve([{ ...global, role: null, inherited: { source: "global" as const, name: null } }]),
+    };
+    const svc = createWorldInfoService(ctx);
+    expect((await svc.listForChat({ principal: principal(host), chatId, includeInherited: true })).map((book) => book.name)).toEqual([
+      "Inherited global",
+      "Direct",
+    ]);
+  });
   test("member list is room-public: another user's attached book is visible; role null; newest first", async () => {
     const db = await freshDb();
     const harness = makeHarness(db, {
       requireChatHost: () => Promise.resolve(),
       requireChatMember: () => Promise.resolve(),
+      readInheritedChatBooks: () => Promise.resolve([]),
     });
     const svc = createWorldInfoService(harness.ctx);
     const host = await seedUser(db, { handle: castId<Handle>("host") });

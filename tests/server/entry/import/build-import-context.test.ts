@@ -8,9 +8,7 @@
 //     That drop is the cross-tenant belt: an import driver (or a future caller) that put a foreign ownerId
 //     on the wire cannot make the character/tag front door read or write another account's rows. Each is
 //     asserted here by passing a DIFFERENT ownerId in and proving the port still sees the principal's.
-//   • THE CARD-TAG CARRY IS PINNED TO card/pending. Author-shipped tags are UNTRUSTED input; landing them
-//     as anything other than a staged suggestion would let a card's own metadata write accepted library
-//     labels.
+//   • Author-shipped tags are applied under the importing principal; model-generated suggestions remain staged.
 //   • THE AVATAR STORE IS enforceMagic:false, kind:"avatar". Deliberate (the card's own embedded avatar has
 //     already been parsed), and exactly the kind of default that must never flip silently in either
 //     direction — so it is asserted explicitly rather than left to the reader.
@@ -130,14 +128,14 @@ describe("buildImportContext — owner scope is the PRINCIPAL's, never the argum
   });
 });
 
-describe("buildImportContext — the author-shipped tag carry stays a STAGED suggestion", () => {
-  test("attachCardTag binds source:'card', status:'pending' (a card's own metadata never lands accepted)", async () => {
+describe("buildImportContext — author-shipped tags are applied", () => {
+  test("attachCardTag preserves card provenance and applies the author's tag", async () => {
     const p = ports();
     const ctx = buildImportContext(wiring(p));
 
     await ctx.attachCardTag({ ownerId: OWNER, characterId: CHARACTER, tagName: "fantasy" });
 
-    expect(p.attachCardTag).toHaveBeenCalledWith({ ownerId: OWNER, characterId: CHARACTER, tagName: "fantasy", source: "card", status: "pending" });
+    expect(p.attachCardTag).toHaveBeenCalledWith({ ownerId: OWNER, characterId: CHARACTER, tagName: "fantasy", source: "card", status: "accepted" });
   });
 
   test("the tag carry is scoped to the principal (a foreign ownerId cannot attach onto another library)", async () => {
@@ -146,7 +144,7 @@ describe("buildImportContext — the author-shipped tag carry stays a STAGED sug
 
     await ctx.attachCardTag({ ownerId: FOREIGN, characterId: CHARACTER, tagName: "fantasy" });
 
-    expect(p.attachCardTag).toHaveBeenCalledWith({ ownerId: OWNER, characterId: CHARACTER, tagName: "fantasy", source: "card", status: "pending" });
+    expect(p.attachCardTag).toHaveBeenCalledWith({ ownerId: OWNER, characterId: CHARACTER, tagName: "fantasy", source: "card", status: "accepted" });
   });
 });
 

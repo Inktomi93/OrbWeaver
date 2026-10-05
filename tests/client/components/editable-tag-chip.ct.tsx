@@ -27,29 +27,29 @@ test("inline edit reads back through the same library cache and Escape restores 
     },
   });
   const story = await mount(<EditableTagChipStory tag={{ id: TAG_ID, name: "Adventure" }} />);
-  await story.getByRole("button", { name: "Edit label Adventure", exact: true }).click();
-  const popup = page.getByRole("dialog", { name: "Edit label Adventure", exact: true });
+  await story.getByRole("button", { name: "Edit tag Adventure", exact: true }).click();
+  const popup = page.getByRole("dialog", { name: "Edit tag Adventure", exact: true });
   await expect(popup.getByRole("textbox", { name: "Name" })).toHaveValue("Adventure");
   await popup.getByRole("textbox", { name: "Name" }).fill("Voyage");
   await popup.getByRole("textbox", { name: "Name" }).press("Enter");
   await expect.poll(() => recorder.count("tag.updateTag")).toBe(1);
   await story.getByRole("button", { name: "deliver tag change", includeHidden: true }).evaluate((button) => (button as HTMLButtonElement).click());
-  await expect(page.getByRole("dialog", { name: "Edit label Voyage", exact: true }).getByRole("textbox", { name: "Name" })).toHaveValue("Voyage");
+  await expect(page.getByRole("dialog", { name: "Edit tag Voyage", exact: true }).getByRole("textbox", { name: "Name" })).toHaveValue("Voyage");
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog", { name: "Edit label Voyage", exact: true })).toHaveCount(0);
-  await expect(story.getByRole("button", { name: "Edit label Voyage", exact: true })).toBeFocused();
-  await story.getByRole("button", { name: "Edit label Voyage", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Edit label Voyage", exact: true }).getByRole("textbox", { name: "Name" })).toHaveValue("Voyage");
+  await expect(page.getByRole("dialog", { name: "Edit tag Voyage", exact: true })).toHaveCount(0);
+  await expect(story.getByRole("button", { name: "Edit tag Voyage", exact: true })).toBeFocused();
+  await story.getByRole("button", { name: "Edit tag Voyage", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Edit tag Voyage", exact: true }).getByRole("textbox", { name: "Name" })).toHaveValue("Voyage");
   expect(recorder.unstubbed()).toEqual([]);
 });
 
-test("Manage in Labels dismisses the content-scoped popup before navigating", async ({ mount, page }) => {
+test("Manage in Tags dismisses the content-scoped popup before navigating", async ({ mount, page }) => {
   await routeTrpc(page, { "tag.listTagsWithUsage": [] });
   const story = await mount(<EditableTagChipStory tag={{ id: TAG_ID, name: "Adventure" }} />);
-  await story.getByRole("button", { name: "Edit label Adventure", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Edit label Adventure", exact: true }).getByText("This label was deleted.")).toBeVisible();
-  await page.getByRole("button", { name: "Manage in Labels", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Edit label Adventure", exact: true })).toHaveCount(0);
+  await story.getByRole("button", { name: "Edit tag Adventure", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Edit tag Adventure", exact: true }).getByText("This tag was deleted.")).toBeVisible();
+  await page.getByRole("button", { name: "Manage in Tags", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Edit tag Adventure", exact: true })).toHaveCount(0);
 });
 
 test("a long label keeps the narrow popup and its controls inside their host", async ({ mount, page }) => {
@@ -72,10 +72,10 @@ test("a long label keeps the narrow popup and its controls inside their host", a
     ],
   });
   const story = await mount(<EditableTagChipStory tag={{ id: TAG_ID, name }} />);
-  const chip = story.getByRole("button", { name: `Edit label ${name}`, exact: true });
+  const chip = story.getByRole("button", { name: `Edit tag ${name}`, exact: true });
   await expect.poll(() => chip.evaluate((button) => button.getBoundingClientRect().right <= window.innerWidth)).toBe(true);
   await chip.click();
-  const popup = page.getByRole("dialog", { name: `Edit label ${name}`, exact: true });
+  const popup = page.getByRole("dialog", { name: `Edit tag ${name}`, exact: true });
   await expect(popup.getByRole("textbox", { name: "Name" })).toHaveValue(name);
   await popup.evaluate(async (element) => {
     await Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished));
@@ -90,8 +90,8 @@ test("a long label keeps the narrow popup and its controls inside their host", a
     popup.getByRole("textbox", { name: "Name" }),
     popup.getByText("Background", { exact: true }),
     popup.getByText("Text", { exact: true }),
-    popup.getByRole("button", { name: "Close label editor" }),
-    popup.getByRole("button", { name: "Manage in Labels" }),
+    popup.getByRole("button", { name: "Close tag editor" }),
+    popup.getByRole("button", { name: "Manage in Tags" }),
   ]) {
     await expect
       .poll(async () => {

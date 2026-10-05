@@ -16,6 +16,7 @@ import { clearCorpusSelection, resumeChat, selectCorpusArtifact, selectCorpusCha
 import { CorpusArtifactFrame } from "../components/corpus-artifact-frame.tsx";
 import { CompareResult } from "../components/corpus-compare-tab.tsx";
 import { CorpusSearchResults } from "../components/corpus-search-results.tsx";
+import { corpusFamilyAnalysisLabel } from "../lib/corpus-archetype-presentation.ts";
 import { percent } from "../lib/corpus-vocabulary.ts";
 import { localThemeTimeline } from "../lib/story-time-folds.ts";
 import { CorpusDossierSurface } from "./corpus-dossier-surface.tsx";
@@ -158,9 +159,11 @@ function CorpusClusterSurface({ destination }: { readonly destination: Extract<C
   const writing = useQuery(trpc.discovery.archetypes.queryOptions(opts, { enabled: !destination.visual }));
   const visual = useQuery(trpc.discovery.visualArchetypes.queryOptions(opts, { enabled: destination.visual }));
   const read = destination.visual ? visual : writing;
+  const analysis = "analysedMembers" in destination.cluster ? corpusFamilyAnalysisLabel(destination.cluster) : null;
   return (
     <CorpusArtifactFrame title={destination.title}>
       <Text voice="gloss">Generated grouping; names may change when analysis reruns.</Text>
+      {analysis === null ? null : <Text voice="gloss">{analysis}</Text>}
       <Text>
         {destination.cluster.size} {destination.cluster.size === 1 ? "member" : "members"} · {destination.cluster.model}
       </Text>

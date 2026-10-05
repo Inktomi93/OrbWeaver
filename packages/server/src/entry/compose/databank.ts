@@ -85,6 +85,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
   const { db, now, audit, embeddings, extractText, search, workloads, loadUserSettings } = deps;
   const databankCtx: DatabankContext = {
     db,
+    can,
     now,
     newDocumentId: minter(ID_PREFIX.document),
     audit,

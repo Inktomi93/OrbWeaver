@@ -18,7 +18,6 @@ import { RegionAnchor } from "../anchors/region-anchor.tsx";
 import { CONTEXT_TOGGLE_MARKER } from "../components/context-toggle.tsx";
 import { CustomThemeStyle } from "../components/custom-theme-style.tsx";
 import { ModalHost } from "../components/modal-host.tsx";
-import { NoticeBand } from "../components/notice-band.tsx";
 import { PanelChrome } from "../components/panel-chrome.tsx";
 import { Rail } from "../components/rail.tsx";
 import { SectionContent } from "../components/section-content.tsx";
@@ -362,7 +361,6 @@ export function AppShell(): ReactElement {
                   or the composer, and both are load-bearing. Sits inside `.shell-main` rather than the grid
                   so it spans the CONTENT column — the region whose reading surface it protects — and leaves
                   the rail and both panels untouched. */}
-              <NoticeBand />
               {/* A11y (side-eye R3): the scroll container is tabbable, so name it from the active section's
                   visible label — the `main` landmark otherwise announces as an unnamed region.
                   INERT BEHIND AN OPEN SHEET (item 22): whenever the scrim is up it already swallows every

@@ -1,4 +1,4 @@
-// A chip opens the same editor as Corpus Labels; closed chips subscribe only to the warm library cache.
+// A chip opens the same editor as Corpus; closed chips subscribe only to the warm library cache.
 import type { TagView } from "@orb/contracts/tag";
 import { Button } from "@orb/ui/button";
 import { Icon, Pencil, X } from "@orb/ui/icons";
@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { QueryErrorState, useTRPC } from "#data";
+import { CORPUS_MODE_LABELS } from "#lib";
 import { selectLabel, setActiveSection, setCorpusMode } from "#state";
 import { TagEditorBody } from "./tag-editor-body.tsx";
 
@@ -32,6 +33,7 @@ export function EditableTagChip({
   const library = useQuery({ ...trpc.tag.listTagsWithUsage.queryOptions(), enabled: open });
   const row = library.data?.find((item) => item.id === tag.id);
   const name = row?.name ?? tag.name;
+  const editTitle = `Edit tag ${name}`;
   const changeOpen = (next: boolean): void => {
     if (next) {
       setNavigating(false);
@@ -42,7 +44,7 @@ export function EditableTagChip({
   if (library.isError) {
     body = (
       <QueryErrorState
-        label="this label"
+        label="this tag"
         onRetry={async (): Promise<void> => {
           await library.refetch();
         }}
@@ -51,7 +53,7 @@ export function EditableTagChip({
   } else if (library.data === undefined) {
     body = <Skeleton className="h-16 w-full" />;
   } else if (row === undefined) {
-    body = <Text voice="gloss">This label was deleted.</Text>;
+    body = <Text voice="gloss">This tag was deleted.</Text>;
   } else {
     body = <TagEditorBody onMerged={(): void => changeOpen(false)} key={row.id} tag={row} others={library.data.filter((item) => item.id !== row.id)} />;
   }
@@ -71,7 +73,7 @@ export function EditableTagChip({
         ref={triggerRef}
         render={
           trigger === undefined ? (
-            <Button className="min-w-0 max-w-full" aria-label={`Edit label ${name}`} intent="ghost" size={iconOnly ? "icon-sm" : "chip"} type="button">
+            <Button className="min-w-0 max-w-full" aria-label={editTitle} intent="ghost" size={iconOnly ? "icon-sm" : "chip"} type="button">
               {iconOnly ? (
                 <Icon icon={Pencil} size="xs" />
               ) : (
@@ -85,22 +87,15 @@ export function EditableTagChip({
           )
         }
       />
-      <PopoverPopup aria-label={`Edit label ${name}`} finalFocus={navigating ? false : triggerRef} width="stable">
+      <PopoverPopup aria-label={editTitle} finalFocus={navigating ? false : triggerRef} width="stable">
         <Stack gap="block">
           <Row className="min-w-0" align="center" justify="between" gap="field">
-            <PopoverTitle className="min-w-0 truncate" title={`Edit label ${name}`}>
-              Edit label {name}
+            <PopoverTitle className="min-w-0 truncate" title={editTitle}>
+              {editTitle}
             </PopoverTitle>
             <PopoverClose
               render={
-                <Button
-                  className="shrink-0"
-                  aria-label="Close label editor"
-                  intent="ghost"
-                  size="icon-sm"
-                  onClick={(): void => changeOpen(false)}
-                  type="button"
-                >
+                <Button className="shrink-0" aria-label="Close tag editor" intent="ghost" size="icon-sm" onClick={(): void => changeOpen(false)} type="button">
                   <Icon icon={X} size="sm" />
                 </Button>
               }
@@ -121,7 +116,7 @@ export function EditableTagChip({
               setActiveSection("corpus");
             }}
           >
-            Manage in Labels
+            {`Manage in ${CORPUS_MODE_LABELS.labels}`}
           </Button>
         </Stack>
       </PopoverPopup>

@@ -266,11 +266,8 @@ export function AppShellListPrimaryStory(): ReactElement {
   );
 }
 
-/** THE NOTICE BAND (#193): the real shell + the real toast outlet, plus one control that raises a notice.
- *  The content pane carries a bottom-anchored stand-in for the composer, because the defect being retired
- *  is precisely "an overlay stack must cover the transcript OR the composer, and both are load-bearing" —
- *  a story with only a transcript could not tell a reflow from a lucky inset. */
-export function AppShellNoticeBandStory(): ReactElement {
+/** Real shell and toast outlet with transcript/composer geometry and notice controls. */
+export function AppShellToastOverlayStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtToastSurface>
@@ -301,10 +298,7 @@ export function AppShellNoticeBandStory(): ReactElement {
           >
             raise notice
           </button>
-          {/* A notice long enough that THREE of them overflow the band's one-screen budget (shell.css's
-              `max-block-size: min(14rem, 30dvh)`). The short notice above cannot: a burst of three fits
-              inside the cap, so a "the band is at most N tall" assertion driven by it passes whether or
-              not the cap bites at all. The burst arm needs a stack that genuinely exceeds the window. */}
+          {/* The long notice makes the burst exceed the viewport cap, so the scroll test cannot pass on an uncapped short stack. */}
           <button
             data-testid="raise-tall-notice"
             onClick={(): void => {

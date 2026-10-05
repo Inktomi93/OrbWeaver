@@ -76,6 +76,8 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
 
   return (
     <FormDialog
+      closeButton={true}
+      dismissLabel="Cancel"
       description="Its entries can fire in this room's prompts for everyone here — and an automation rule in this room can write new entries into it. Attaching is what grants that write reach; you can take it back out here at any time."
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {

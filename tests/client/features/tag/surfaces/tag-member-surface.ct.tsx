@@ -205,7 +205,7 @@ test("#980 F22: the hide-on-card row faces the house direction", async ({ mount,
 test("a deleted member says so instead of rendering a dead form", async ({ mount, page }) => {
   await stub(page);
   const editor = await mount(<TagMemberStory memberId="tag_gone" />);
-  await expect(editor.getByText("Label not found")).toBeVisible();
+  await expect(editor.getByText("Tag not found")).toBeVisible();
 });
 
 test("every control clears the 32px tap-target floor", async ({ mount, page }) => {

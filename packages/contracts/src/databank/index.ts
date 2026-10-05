@@ -11,7 +11,7 @@ import { visibleRoomRefSchema } from "../chat/visible-rooms.ts";
 // haul megabytes — a dedicated `get` with `includeText` returns it).
 
 import type { ChunkParams } from "@orb/kit/chunk";
-import type { CharacterId, DocumentId, WorkloadId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, DocumentId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -216,6 +216,20 @@ export const DEFAULT_CHAT_DOCUMENT_VISIBILITY: ChatDocumentVisibility = { hidden
 export const DOCUMENT_SCOPE_SOURCES = ["global", "chat", "character"] as const;
 
 export type DocumentScopeSource = (typeof DOCUMENT_SCOPE_SOURCES)[number];
+
+/** An explicit ingestion consent. Omitted by legacy/internal producers means private, never global. */
+export const documentDestinationSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("global") }),
+  z.strictObject({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
+  z.strictObject({ kind: z.literal("chat"), chatId: typeIdSchema(ID_PREFIX.chat) }),
+]) satisfies z.ZodType<DocumentDestination>;
+export type DocumentDestination = {
+  readonly global: { readonly kind: "global" };
+  readonly character: { readonly kind: "character"; readonly characterId: CharacterId };
+  readonly chat: { readonly kind: "chat"; readonly chatId: ChatId };
+}[DocumentScopeSource];
+
+export const DOCUMENT_DESTINATION_FORM_FIELD = "destination";
 
 // ── reindex scope + mode (the cross-boundary maintenance axis) ───────────────────────────────────────────
 // Both the tRPC `reindex` verb and the `databank-reindex` WORKLOAD params derive from these ONE schemas

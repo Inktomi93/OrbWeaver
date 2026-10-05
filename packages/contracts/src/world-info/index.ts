@@ -172,6 +172,14 @@ export interface BookAttachmentView extends BookView {
   role: WorldBookRole | null;
 }
 
+export const INHERITED_BOOK_SOURCES = ["global", "character", "persona"] as const;
+export type InheritedBookSource = (typeof INHERITED_BOOK_SOURCES)[number];
+
+/** A room attachment, or an eligible runtime source the room inherits without granting automation writes. */
+export interface ChatBookView extends BookAttachmentView {
+  readonly inherited?: { readonly source: InheritedBookSource; readonly name: string | null } | undefined;
+}
+
 /** The owner-scoped reverse index for one book's character/persona activation controls. Deliberately
  *  excludes chats (membership-scoped in the room) and global (its own one-row query). */
 export interface BookAttachmentTargets {
@@ -206,6 +214,9 @@ export const entryViewSchema = z.strictObject({
   metadata: entryMetadataSchema.nullable(),
 }) satisfies z.ZodType<EntryView>;
 export const bookAttachmentViewSchema = bookViewSchema.extend({ role: worldBookRoleSchema.nullable() }) satisfies z.ZodType<BookAttachmentView>;
+export const chatBookViewSchema = bookAttachmentViewSchema.extend({
+  inherited: z.strictObject({ source: z.enum(INHERITED_BOOK_SOURCES), name: z.string().nullable() }).optional(),
+}) satisfies z.ZodType<ChatBookView>;
 export const bookAttachmentTargetsSchema = z.strictObject({
   characters: z.array(z.strictObject({ characterId: typeIdSchema(ID_PREFIX.character), role: worldBookRoleSchema })).readonly(),
   personaIds: z.array(typeIdSchema(ID_PREFIX.persona)).readonly(),

@@ -16,7 +16,7 @@ import type { StoredAsset } from "@orb/contracts/assets";
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { BankHealthView, DatabankSettings, IngestRunResult, ReindexMode, ReindexResult, ReindexScope } from "@orb/contracts/databank";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
-import type { Principal } from "@orb/contracts/identity";
+import type { Can, Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
@@ -99,6 +99,7 @@ type SafeFetchOp = (url: string) => Promise<Uint8Array>;
 
 /** The DI bundle every databank verb + the ingest subsystem close over (assembled at `entry/compose`). */
 export interface DatabankContext {
+  readonly can: Can;
   readonly db: Db;
   readonly now: () => number;
   readonly newDocumentId: () => DocumentId;

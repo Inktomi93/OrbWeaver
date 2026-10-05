@@ -121,6 +121,32 @@ function dialogDoor(app: ServicesResult, userId: UserId, bytes: Uint8Array, file
 }
 
 describe("import identity across doors and split uploads", () => {
+  test("card tags are immediately applied across both import doors while model suggestions remain pending", async ({
+    app,
+    clock,
+    ownerCaller,
+    importStagingDir,
+  }) => {
+    const card = v2Card("Tagged Keeper").replace('"first_mes":"The lamp is lit."', '"first_mes":"The lamp is lit.","tags":["harbor","keeper"]');
+    const imported = await dialogDoor(app, OWNER_USER_ID, ENC.encode(card), "tagged-keeper.json");
+    expect(imported.failed).toEqual([]);
+    const characterId = await characterNamed(app, "Tagged Keeper");
+    const appliedTags = async (): Promise<string[]> => (await ownerCaller.character.get({ characterId })).tags.map((tag) => tag.name).toSorted();
+    expect(await appliedTags()).toEqual(["harbor", "keeper"]);
+    expect(await ownerCaller.tag.listPendingSuggestions({ characterId })).toEqual([]);
+
+    await app.services.tag.attachCardTagByName({ ownerId: OWNER_USER_ID, characterId, tagName: "model suggestion", source: "auto", status: "pending" });
+    await importStaged({ app, importStagingDir, now: () => clock.now() }, "tagged-reimport", [
+      { path: `profile/${ST_SETTINGS_FILE}`, bytes: ENC.encode("{}") },
+      { path: "profile/characters/tagged-keeper.json", bytes: ENC.encode(card) },
+    ]);
+    expect(await app.services.character.findByName({ ownerId: OWNER_USER_ID, name: "Tagged Keeper" })).toHaveLength(1);
+    expect(await appliedTags()).toEqual(["harbor", "keeper"]);
+    expect((await ownerCaller.tag.listPendingSuggestions({ characterId })).map((tag) => ({ name: tag.name, source: tag.source }))).toEqual([
+      { name: "model suggestion", source: "auto" },
+    ]);
+  });
+
   test("a split folder upload mints each persona once, with its avatar, and every batch's transcripts attribute to it", async ({
     app,
     clock,

@@ -166,6 +166,7 @@ export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: Cha
   // editor-local user-bus `charactersChanged` row. Plus the seat's name/avatar in the roster (`getChat`) and
   // the member-gated fit budget + previews, which the card's content feeds.
   character: (chatId, trpc) => [
+    trpc.worldInfo.listForChat.pathFilter(),
     trpc.chat.getMemberCard.pathFilter(),
     trpc.chat.getChat.queryFilter({ chatId }),
     trpc.chat.previewContextFit.pathFilter(),
@@ -173,10 +174,14 @@ export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: Cha
   ],
   // A human seat's member-visible displayName + avatar ARE their active persona's (the server's
   // `resolveUserPublics`), so roster identity moves; the description feeds the next turn's assembly.
-  persona: (chatId, trpc) => [trpc.chat.getChat.queryFilter({ chatId }), trpc.chat.previewContextFit.pathFilter(), ...promptPreviewReads(trpc)],
-  // ASSEMBLY-derived reads only. No `worldInfo.*` row: those reads are OWNER-scoped, so a member never holds
-  // a cache entry for them, and the owner's own devices already ride the user-bus `worldInfoChanged`.
-  "world-info": (_chatId, trpc) => [trpc.chat.previewContextFit.pathFilter(), ...promptPreviewReads(trpc)],
+  persona: (chatId, trpc) => [
+    trpc.worldInfo.listForChat.pathFilter(),
+    trpc.chat.getChat.queryFilter({ chatId }),
+    trpc.chat.previewContextFit.pathFilter(),
+    ...promptPreviewReads(trpc),
+  ],
+  // The inherited room rack follows eligible scope changes as well as the assembly previews.
+  "world-info": (_chatId, trpc) => [trpc.worldInfo.listForChat.pathFilter(), trpc.chat.previewContextFit.pathFilter(), ...promptPreviewReads(trpc)],
   // #1733/#1742 — the room's regex. THREE reads and no more: the member-readable room rack
   // (`regex.listForChat`, room-public), the HOST's effective read (the section's whole body, host-gated), and
   // the assembly-derived family every tier change moves (the host-tier union feeds the prompt, and the
@@ -233,15 +238,13 @@ export const ROOM_ENTITY_FILTERS: { readonly [K in RoomEntityKind]: (chatId: Cha
 export const ROOM_ENTITY_HEAL_FILTERS: { readonly [K in RoomEntityKind]: (chatId: ChatId, trpc: Trpc) => readonly InvalidateFilter[] } = {
   // The D22 member-card dialog — the read this heal was born for, and the one it covered alone until today.
   // Free when the dialog is shut (`enabled: open` ⇒ no cache entry ⇒ `invalidateQueries` is a no-op).
-  character: (_chatId, trpc) => [trpc.chat.getMemberCard.pathFilter()],
+  character: (_chatId, trpc) => [trpc.chat.getMemberCard.pathFilter(), trpc.worldInfo.listForChat.pathFilter()],
   // NOTHING of its own. A persona edit moves the seat's member-visible name/avatar, which live in `getChat`
   // — the row the heal's caller already invalidates whenever the room was dark. The rest of the `persona`
   // row is the fit/preview family, excluded above.
-  persona: () => [],
-  // NOTHING. The `world-info` row is assembly-derived reads ONLY (excluded above), and every `worldInfo.*`
-  // read is OWNER-scoped — a member holds no cache entry for one, and the owner's devices ride the user-bus
-  // `worldInfoChanged` plus its reconnect heal.
-  "world-info": () => [],
+  persona: (_chatId, trpc) => [trpc.worldInfo.listForChat.pathFilter()],
+  // The inherited rack may have missed a source-scope fan while this room was dark.
+  "world-info": (_chatId, trpc) => [trpc.worldInfo.listForChat.pathFilter()],
   // #1733 — the room's regex rack (`regex.listForChat`), room-public and member-readable. NOT
   // `chat.listEffectiveRegex`: that read is HOST-GATED, and the host is the writer, so their every device
   // already rides the owner-plane `regexChanged`. NOT `regex.listScripts`/`listGlobal`: owner-scoped.

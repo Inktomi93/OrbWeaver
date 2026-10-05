@@ -114,6 +114,7 @@ const MIN_LABEL_LIFT = 1.15;
 /** What a family whose members carry NO breakdown is called. Never a narrative label — the honest reading is
  *  that the visual pass has not looked at these yet. */
 const UNANALYSED_LABEL = "unanalysed portraits";
+const MIXED_LABEL = "mixed portraits";
 
 type FacetCounts = Map<LabelFacet, Map<string, number>>;
 
@@ -283,9 +284,11 @@ function labelClusters(
       if (label !== null) {
         taken.add(label);
       }
+      const fallbackLabel = acc.analysed === 0 ? UNANALYSED_LABEL : MIXED_LABEL;
       return {
-        baseLabel: candidates[0]?.value ?? UNANALYSED_LABEL,
-        label: label ?? UNANALYSED_LABEL,
+        baseLabel: candidates[0]?.value ?? fallbackLabel,
+        label: label ?? fallbackLabel,
+        analysedMembers: acc.analysed,
         genre: mode(acc.genre),
         tone: mode(acc.tone),
         artStyle: mode(acc.facets.get("artStyle") ?? new Map()),

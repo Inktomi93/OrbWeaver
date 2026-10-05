@@ -14,7 +14,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { CorpusDestination } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
-import { resolveCorpusArchetypeNames } from "../lib/corpus-archetype-presentation.ts";
+import { corpusFamilyAnalysisLabel, resolveCorpusArchetypeNames } from "../lib/corpus-archetype-presentation.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
 import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
@@ -189,6 +189,7 @@ function ClusterView({
 
 function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; readonly name: string }): ReactElement {
   const facets = [cluster.genre, cluster.tone, ...(cluster.extra ?? [])].filter((v) => v !== null && v !== "");
+  const analysis = "analysedMembers" in cluster.destination.cluster ? corpusFamilyAnalysisLabel(cluster.destination.cluster) : null;
   return (
     <Stack gap="field">
       <Row align="center" gap="field" justify="between">
@@ -200,6 +201,7 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
           {cluster.size} {cluster.size === 1 ? "member" : "members"}
         </Text>
       </Row>
+      {analysis === null ? null : <Text voice="gloss">{analysis}</Text>}
       {/* THE FACET CHAIN IS DATA (P3-2): 45-59 characters of distilled tokens, set in the 9.5px UPPERCASE
           band-label register. `kicker` names a SECTION; this names a cluster's contents, so it drops to the
           quiet second-line voice and is cased like the sentence it is. */}

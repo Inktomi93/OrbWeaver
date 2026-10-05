@@ -52,7 +52,7 @@ interface TagAttachCall {
   readonly status: TagStatus;
 }
 
-/** A recording tag port (the driver binds source:'card'/status:'pending'; tests assert exactly that). */
+/** Records the importer's tag provenance and application policy at the owning-domain boundary. */
 function recordingTag(): { readonly tag: ImportTagPort; readonly calls: TagAttachCall[] } {
   const calls: TagAttachCall[] = [];
   return {
@@ -213,7 +213,7 @@ describe("runProfileImport", () => {
     expect(lifts).toEqual([{ characterId: "chr_scripted", scripts: 1 }]);
   });
 
-  test("carries the card's tags as card/pending suggestions to the created character", async () => {
+  test("applies the card author's tags to the created character", async () => {
     const character: ImportCharacterPort = {
       create: (): Promise<{ id: CharacterId }> => Promise.resolve({ id: castId<CharacterId>("chr_tagged") }),
       findByImportHash: (): Promise<null> => Promise.resolve(null),
@@ -235,7 +235,7 @@ describe("runProfileImport", () => {
       expect(call.ownerId).toBe(OWNER.userId);
       expect(call.characterId).toBe("chr_tagged");
       expect(call.source).toBe("card");
-      expect(call.status).toBe("pending");
+      expect(call.status).toBe("accepted");
     }
     expect(rec.calls.map((c) => c.tagName)).toEqual(["bard", "fantasy"]);
   });

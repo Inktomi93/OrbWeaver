@@ -46,6 +46,7 @@ const VISUAL_FAMILY = {
   label: "noir",
   genre: null,
   tone: null,
+  analysedMembers: 1,
   artStyle: null,
   palette: null,
   mood: null,

@@ -57,7 +57,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       {filterMiss ? (
         <Stack align="start" gap="field">
           <Text role="status" voice="gloss">
-            No labels match that filter.
+            No tags match that filter.
           </Text>
           <Button
             intent="secondary"
@@ -73,7 +73,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       ) : null}
       {empty || !windowed ? null : (
         <VirtualList
-          aria-label="Labels"
+          aria-label="Tags"
           className="min-h-0 flex-1"
           estimateSize={(): number => ESTIMATED_ROW_PX}
           fadeEdge={true}
@@ -85,7 +85,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       )}
       {empty || !draggable ? null : (
         <SortableList
-          aria-label="Labels"
+          aria-label="Tags"
           getItemKey={(tag: TagWithUsage): string => tag.id}
           handle={true}
           itemLabel={(tag: TagWithUsage): string => tag.name}
@@ -96,7 +96,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
       )}
 
       {empty || windowed || draggable ? null : (
-        <Stack aria-label="Labels" gap="field" role="list">
+        <Stack aria-label="Tags" gap="field" role="list">
           {filtered.map((tag, index) => (
             <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={tag.id} role="listitem">
               {renderRow(tag)}
@@ -160,7 +160,7 @@ function LabelsPruneConfirm({
       body={
         hasUnused ? (
           <VirtualList
-            aria-label="Labels to delete"
+            aria-label="Tags to delete"
             // @orb-waive ui-size-via-variant(h-64): VirtualList has no sealed size; its contract requires caller-owned bounded height through className.
             className="h-64"
             estimateSize={(): number => ESTIMATED_ROW_PX}
@@ -174,8 +174,8 @@ function LabelsPruneConfirm({
       confirmLabel={pruneConfirmLabel(unusedCount)}
       description={
         hasUnused
-          ? `This deletes ${unusedTagsLabel(unusedCount)} — every label attached to nothing. This can't be undone.`
-          : "Every label in this library is attached to something, so there is nothing to delete."
+          ? `This deletes ${unusedTagsLabel(unusedCount)} — every tag attached to nothing. This can't be undone.`
+          : "Every tag in this library is attached to something, so there is nothing to delete."
       }
       finalFocus={pruneFinalFocus}
       onConfirm={onPrune}
@@ -232,11 +232,11 @@ function useLabelDelete(
     dialog: (
       <ConfirmDialog
         key={decision?.revision ?? 0}
-        title={decision === null ? "Delete label?" : `Delete "${decision.tag.name}"?`}
+        title={decision === null ? "Delete tag?" : `Delete "${decision.tag.name}"?`}
         description={
           decision === null
             ? "Deleting removes every attachment and cannot be undone."
-            : `This removes the label from ${usageBreakdown(decision.tag.usage)} and can't be undone.`
+            : `This removes the tag from ${usageBreakdown(decision.tag.usage)} and can't be undone.`
         }
         confirmLabel="Delete"
         open={decision?.open ?? false}

@@ -79,6 +79,8 @@ test("a GROUNDED answer badges the model's own claim", async ({ mount, page }) =
     sampledMessages: 4,
   });
   const component = await mount(<CorpusDossierSurfaceStory />);
+  await expect(component.getByRole("heading", { name: "Facets", exact: true })).toBeVisible();
+  await expect(component.getByRole("heading", { name: "Tags", exact: true })).toHaveCount(0);
 
   await component.getByTestId("corpus-ask-input").fill(QUESTION);
   await component.getByTestId("corpus-ask-submit").click();

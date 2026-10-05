@@ -52,6 +52,8 @@ export interface VisualArchetype {
   readonly label: string;
   readonly genre: string | null;
   readonly tone: string | null;
+  /** Members whose current portraits carry a visual-analysis breakdown. */
+  readonly analysedMembers: number;
   readonly artStyle: string | null;
   readonly palette: string | null;
   readonly mood: string | null;
@@ -115,6 +117,7 @@ export const visualArchetypeSchema = z.strictObject({
   label: z.string(),
   genre: z.string().nullable(),
   tone: z.string().nullable(),
+  analysedMembers: z.number().int().nonnegative(),
   artStyle: z.string().nullable(),
   palette: z.string().nullable(),
   mood: z.string().nullable(),

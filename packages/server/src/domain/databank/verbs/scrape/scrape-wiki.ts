@@ -43,7 +43,7 @@ function parseExtract(json: unknown): { readonly text: string; readonly title: s
 }
 
 export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeWiki"] {
-  return async ({ principal, url }: ScrapeWikiParams): Promise<UploadResult> => {
+  return async ({ principal, url, destination }: ScrapeWikiParams): Promise<UploadResult> => {
     // `url` is a validated `z.url()` from the tRPC seam (the scrapeWeb precedent trusts it the same way).
     const parsed = new URL(url);
     const title = articleTitle(parsed);
@@ -73,6 +73,7 @@ export function createScrapeWiki(ctx: DatabankContext): DatabankService["scrapeW
 
     return finalizeScrape(ctx, {
       principal,
+      destination,
       bytes: new TextEncoder().encode(extract.text),
       origin: "wiki",
       mime: PLAIN_MIME,

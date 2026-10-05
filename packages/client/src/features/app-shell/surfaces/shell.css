@@ -1429,42 +1429,6 @@
   view-transition-name: none;
 }
 
-/* THE NOTICE BAND (#193) — a flow row of the content column that hosts the app's toast stack, so a
- * notice PUSHES the reading surface instead of covering it. `flex: none` is the whole mechanism: the
- * band takes its own height out of `.shell-content`'s `1 1 auto`, which is why occlusion is impossible
- * here rather than merely avoided.
- *
- * ZERO PIXELS WHILE EMPTY, and gated on a rendered TOAST, not on `:empty`: the Base UI Viewport is always
- * mounted (it is the live region every announcement lands in), so the band is never an empty element —
- * `:has()` asks the question that actually matters, "is anything being said right now?".
- *
- * NOT position/z-index/overflow of any kind. Every one of those would re-introduce the thing this band
- * exists to delete: a stacking context is what lets a stack paint over its neighbour. */
-.shell-notice-band {
-  flex: none;
-  min-width: 0;
-}
-.shell-notice-band:not(:has([data-slot="toast-root"])) {
-  display: none;
-}
-.shell-notice-band [data-slot="toast-viewport"] {
-  /* One normal-flow notice budget: a burst must scroll inside the band rather than tax every section by
-   * the full unbounded stack height. The viewport remains the live region; only its visual reading window
-   * is capped. */
-  max-block-size: var(--dimension-shell-notice-cap);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  /* …AND THE CAP IS OPERABLE, which is not free (side-eye 2026-08-21 P3). The primitive's viewport opens
-   * `pointer-events-none` so an EMPTY OVERLAY stack never eats clicks on whatever it floats over — but
-   * this placement is not an overlay: the band is a flow row that is `display: none` while it holds no
-   * notice, so there is nothing to click through to and nothing to protect. Left at the default, only the
-   * notice CARDS (which re-enable it for themselves) took the wheel; the gaps between them handed it to
-   * the reading surface underneath, and the notices the cap clips were reachable or not depending on which
-   * pixel the pointer happened to be over. MEASURED: wheeling in a 8px inter-card gap left `scrollTop` at
-   * 0 with 229px of notice below the fold. */
-  pointer-events: auto;
-}
-
 .shell-content {
   flex: 1 1 auto;
   min-height: 0;

@@ -8,6 +8,7 @@
 // databank rack one section up. A tRPC call is a DATA seam, not a feature import
 // (`client-features-no-cross` is satisfied by construction).
 
+import type { ChatBookView, InheritedBookSource } from "@orb/contracts/world-info";
 import type { WorldBookId } from "@orb/kit/ids";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
@@ -16,6 +17,12 @@ import type { Trpc } from "#data";
  *  returns the whole library — which is why this picker needs none of the server-side search the paged
  *  databank picker had to grow: there is no page for a candidate to fall off the end of. */
 type OwnedBook = inferOutput<Trpc["worldInfo"]["listBooks"]>[number];
+
+const SOURCE_LABELS: Record<InheritedBookSource, string> = { global: "Global", character: "Character", persona: "Persona" };
+
+export function inheritedBookLabel(source: NonNullable<ChatBookView["inherited"]>): string {
+  return `${SOURCE_LABELS[source.source]}${source.name === null ? "" : `: ${source.name}`} · inherited`;
+}
 
 /**
  * The picker's offer set: the caller's own books minus the ones already attached to this room.

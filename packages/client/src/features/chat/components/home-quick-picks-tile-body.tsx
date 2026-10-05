@@ -20,7 +20,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { FocusEvent, ReactElement } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useStartChat, useTRPC } from "#data";
-import { setActiveSection } from "#state";
+import { resumeChat, setActiveSection } from "#state";
 
 /** The most faces this shelf reads; it shows as many of them as fit one row beside the door. */
 export const QUICK_PICKS_LIMIT = 6;
@@ -159,7 +159,13 @@ export function HomeQuickPicksTileBody(): ReactElement {
                 aria-label={character.name}
                 className="flex-col items-stretch gap-tight text-left"
                 intent="ghost"
-                onClick={(): void => startChatWith(castId<CharacterId>(character.id))}
+                onClick={(): void => {
+                  if (character.lastChatId !== null) {
+                    resumeChat(character.lastChatId);
+                  } else {
+                    startChatWith(castId<CharacterId>(character.id));
+                  }
+                }}
                 size="media"
                 {...(caption === null ? {} : { "aria-describedby": captionId })}
               >
@@ -216,6 +222,11 @@ export function HomeQuickPicksTileBody(): ReactElement {
                   </Text>
                 )}
               </Button>
+              {character.lastChatId === null ? null : (
+                <Button aria-label={`New chat with ${character.name}`} intent="ghost" onClick={(): void => startChatWith(character.id)} size="sm">
+                  New chat
+                </Button>
+              )}
             </Stack>
           );
         })}

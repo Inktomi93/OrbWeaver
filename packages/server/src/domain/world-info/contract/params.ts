@@ -141,6 +141,7 @@ export interface DetachFromChatParams extends WorldInfoActorParams {
 
 export interface ListForChatParams extends WorldInfoActorParams {
   readonly chatId: ChatId;
+  readonly includeInherited?: boolean | undefined;
 }
 
 /** The shared machine-writer bulk upsert (D59). The book is owner-gated (`loadOwnedBook`);

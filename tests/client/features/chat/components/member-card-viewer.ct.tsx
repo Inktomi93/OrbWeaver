@@ -172,10 +172,10 @@ test("owner manual label chips open the shared editor and Manage closes both con
   };
   const recorder = await routeTrpc(page, { "chat.getMemberCard": ownerCard, "tag.listTagsWithUsage": [label] });
   await mount(<MemberCardViewerStory />);
-  await page.getByRole("button", { name: "Edit label explorer", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Edit label explorer", exact: true }).getByRole("textbox", { name: "Name" })).toHaveValue("explorer");
-  await page.getByRole("button", { name: "Manage in Labels", exact: true }).click();
-  await expect(page.getByRole("dialog", { name: "Edit label explorer", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Edit tag explorer", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Edit tag explorer", exact: true }).getByRole("textbox", { name: "Name" })).toHaveValue("explorer");
+  await page.getByRole("button", { name: "Manage in Tags", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Edit tag explorer", exact: true })).toHaveCount(0);
   await expect(page.getByRole("dialog", { name: NAME_RE })).toHaveCount(0);
   expect(recorder.unstubbed()).toEqual([]);
 });
@@ -184,6 +184,6 @@ test("a guest's clamped host-card labels remain read-only names", async ({ mount
   const recorder = await routeTrpc(page, { "chat.getMemberCard": fullCard() });
   await mount(<MemberCardViewerStory />);
   await expect(page.getByRole("dialog", { name: NAME_RE }).getByText("explorer", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Edit label explorer", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Edit tag explorer", exact: true })).toHaveCount(0);
   expect(recorder.unstubbed()).toEqual([]);
 });

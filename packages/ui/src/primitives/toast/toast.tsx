@@ -1,7 +1,6 @@
 import type { ToastPortalProps as BasePortalProps, ToastProviderProps as BaseProviderProps, ToastRootProps as BaseRootProps } from "@base-ui/react/toast";
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ReactElement } from "react";
-import type { VariantProps } from "tailwind-variants";
 import { AlertTriangle, Check, CircleAlert, Icon, X } from "#primitives/icons";
 import { toastVariants } from "./variants.ts";
 
@@ -116,13 +115,10 @@ function ToastItems({ swipeDirection = TOP_ANCHORED_SWIPE }: ToastItemsProps): R
   );
 }
 
-export interface ToasterProps extends VariantProps<typeof toastVariants> {
+export interface ToasterProps {
   className?: string;
   /** Portal target — render the toast viewport into a specific container (default: document.body). */
   container?: BasePortalProps["container"];
-  /* `placement` rides in from VariantProps: `overlay` (default) is the fixed top-right float, for a
-     surface with nothing to reflow; `band` renders the viewport IN FLOW and is only correct when
-     `container` names a host that is itself a layout row — pass the two together (`variants.ts`). */
   /** Override when a consumer repositions the Viewport away from the default top-right anchor. */
   swipeDirection?: BaseRootProps["swipeDirection"];
 }
@@ -133,8 +129,8 @@ export interface ToasterProps extends VariantProps<typeof toastVariants> {
  * `Toast.Positioner`/`Toast.Arrow` (per-toast anchored placement) are not wrapped here.
  */
 export function Toaster(props: ToasterProps): ReactElement {
-  const { className, container, placement, swipeDirection } = props;
-  const viewport = toastVariants({ placement }).viewport({ className });
+  const { className, container, swipeDirection } = props;
+  const viewport = toastVariants().viewport({ className });
   return (
     <BaseToast.Portal container={container}>
       {/* NAMED "Alerts", not Base UI's default (side-eye rail sweep P3-15, 2026-08-17). The viewport is a

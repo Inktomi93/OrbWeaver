@@ -3,7 +3,7 @@
 // read. The chat-attach authority is the injected `ensureChatHost` op (D18 — databank never reads the chat
 // roster itself). The `reindex` scope/mode axis derives from `@orb/contracts/databank` (one home).
 
-import type { DocOrigin, DocumentListCursor, IngestPhase, ReindexMode, ReindexScope } from "@orb/contracts/databank";
+import type { DocOrigin, DocumentDestination, DocumentListCursor, IngestPhase, ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 
@@ -11,15 +11,19 @@ interface DatabankActorParams {
   readonly principal: Principal;
 }
 
+interface DocumentIngestionParams extends DatabankActorParams {
+  readonly destination?: DocumentDestination | undefined;
+}
+
 // ── canon producers ───────────────────────────────────────────────────────────────────────────────────
-export interface UploadDocumentParams extends DatabankActorParams {
+export interface UploadDocumentParams extends DocumentIngestionParams {
   /** The raw source bytes (the multipart route hands the domain the file body). */
   readonly bytes: Uint8Array;
   readonly mime: string;
   readonly name: string;
 }
 
-export interface CreateFromTextParams extends DatabankActorParams {
+export interface CreateFromTextParams extends DocumentIngestionParams {
   readonly name: string;
   /** origin 'text' (ST Notepad) — no bytes, no extraction; `extractedText` IS the canon. */
   readonly text: string;
@@ -27,21 +31,21 @@ export interface CreateFromTextParams extends DatabankActorParams {
 
 /** scrapeWeb (DB7) — fetch a web page over the compose-bound ANY_HOST safeFetch guard, extract its html, then
  *  the SAME §2 canon pipeline as upload. `url` is validated `z.url()` at the tRPC seam; the domain trusts it. */
-export interface ScrapeWebParams extends DatabankActorParams {
+export interface ScrapeWebParams extends DocumentIngestionParams {
   readonly url: string;
 }
 
 /** scrapeYoutube (DB8) — fetch a video's caption track over the SAME safeFetch guard, join it to plain text,
  *  then the §2 canon pipeline. `url` is a watch URL (or bare id); `lang` selects the caption language (the tRPC
  *  seam defaults it to `en`). origin 'youtube', mime 'text/plain'. */
-export interface ScrapeYoutubeParams extends DatabankActorParams {
+export interface ScrapeYoutubeParams extends DocumentIngestionParams {
   readonly url: string;
   readonly lang: string;
 }
 
 /** scrapeWiki (DB8) — fetch a MediaWiki article's plain-text extract over the SAME guard (the API endpoint is
  *  derived from the article URL's host), then the §2 canon pipeline. origin 'wiki', mime 'text/plain'. */
-export interface ScrapeWikiParams extends DatabankActorParams {
+export interface ScrapeWikiParams extends DocumentIngestionParams {
   readonly url: string;
 }
 
@@ -53,7 +57,7 @@ export type ScrapeName = { readonly literal: string } | { readonly titleFallback
 /** The write inputs a scraper hands the shared §2 canon tail (`substrate/scrape-canon`): who, the fetched bytes,
  *  and the canon stamps that vary by source (origin/mime/name/sourceUrl/auditAction). Not a wire boundary (a
  *  domain-internal handoff, no zod) — the three scraper verbs build it, one substrate fn consumes it. */
-export interface ScrapeWrite extends DatabankActorParams {
+export interface ScrapeWrite extends DocumentIngestionParams {
   readonly bytes: Uint8Array;
   readonly origin: DocOrigin;
   /** The document's TRUE mime — the extraction contract. `ingest/index.ts` re-extracts with `doc.mime`, so

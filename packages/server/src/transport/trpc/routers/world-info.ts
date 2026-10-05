@@ -10,6 +10,7 @@ import {
   bookAttachmentViewSchema,
   bookViewSchema,
   bookWithUsageSchema,
+  chatBookViewSchema,
   createBookSchema,
   createEntrySchema,
   detachResultSchema,
@@ -256,7 +257,7 @@ export const worldInfoRouter = t.router({
     ),
 
   listForChat: authedProcedure
-    .output(z.array(bookAttachmentViewSchema))
-    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat) }))
-    .query(({ ctx, input }) => ctx.services.worldInfo.listForChat({ principal: ctx.auth, chatId: input.chatId })),
+    .output(z.array(chatBookViewSchema))
+    .input(z.object({ chatId: typeIdSchema(ID_PREFIX.chat), includeInherited: z.boolean().optional() }))
+    .query(({ ctx, input }) => ctx.services.worldInfo.listForChat({ principal: ctx.auth, chatId: input.chatId, includeInherited: input.includeInherited })),
 });

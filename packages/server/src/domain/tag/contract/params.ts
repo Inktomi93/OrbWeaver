@@ -58,8 +58,8 @@ export interface AttachTagParams extends TagActorParams {
   /** The target row's id (plain string on the wire; branded per `targetType` at the junction dispatch). */
   readonly targetId: string;
   /** The proposed/accepted surface — honored ONLY for `targetType: "character"` (the four other junctions
-   *  have no status column). Default `accepted` (a manual attach is a live tag); import / corpus distillation
-   *  pass `pending` to stage a suggestion. Re-attaching with `accepted` flips a pending row (the "Accept"). */
+   *  have no status column). Default `accepted` (a manual attach is a live tag); corpus distillation
+   *  passes `pending` to stage a suggestion. Re-attaching with `accepted` flips a pending row (the "Accept"). */
   readonly status?: TagStatus;
 }
 
@@ -88,7 +88,7 @@ export interface AttachCardTagByNameParams {
   /** Stamped on the tag at first create only. Default `manual`; import/seeded cards pass `card`;
    *  corpus distillation passes `auto`. */
   readonly source?: TagSource;
-  /** Default `accepted`; import/distillation pass `pending` to stage a suggestion. Never downgrades an
+  /** Default `accepted`; distillation passes `pending` to stage a suggestion. Never downgrades an
    *  already-`accepted` row. */
   readonly status?: TagStatus;
 }

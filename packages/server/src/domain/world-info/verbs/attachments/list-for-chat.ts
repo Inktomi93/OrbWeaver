@@ -9,8 +9,12 @@ import type { WorldInfoService } from "../../contract/service.ts";
 import { listChatBooks } from "../../persistence/queries.ts";
 
 export function createListForChat(ctx: WorldInfoContext): WorldInfoService["listForChat"] {
-  return async ({ principal, chatId }: ListForChatParams) => {
+  return async ({ principal, chatId, includeInherited }: ListForChatParams) => {
     await ctx.requireChatMember(principal, chatId);
-    return listChatBooks(ctx.db, chatId);
+    if (includeInherited !== true) {
+      return listChatBooks(ctx.db, chatId);
+    }
+    const [inherited, attached] = await Promise.all([ctx.readInheritedChatBooks(principal, chatId), listChatBooks(ctx.db, chatId)]);
+    return [...inherited, ...attached];
   };
 }

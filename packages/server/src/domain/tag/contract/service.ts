@@ -73,8 +73,8 @@ export interface TagService {
   readonly detachTag: (params: DetachTagParams) => Promise<void>;
   readonly bulkAttachTag: (params: BulkAttachTagParams) => Promise<void>;
   /** Resolve-or-create the owner's tag by name (race-safe), then attach it to the character, idempotently.
-   *  `source`/`status` default to `manual`/`accepted`; import/seeded cards pass `card`/`pending` to stage a
-   *  suggestion. Not principal-gated — trusts the caller-resolved `ownerId`. */
+   *  `source`/`status` default to `manual`/`accepted`; author-shipped imports use `card`/`accepted`, while
+   *  model suggestions use `auto`/`pending`. Not principal-gated — trusts the caller-resolved `ownerId`. */
   readonly attachCardTagByName: (params: AttachCardTagByNameParams) => Promise<boolean>;
   /** R6 — the CHAT arm of the same by-name attach: resolve-or-create the owner's tag, then place the D30
    *  per-tagger overlay row. No `status` (the junction has no such column). Not principal-gated. */

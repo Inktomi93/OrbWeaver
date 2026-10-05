@@ -31,5 +31,6 @@ export function createAttachToPersona(ctx: WorldInfoContext): WorldInfoService["
       at,
     );
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
+    ctx.emit({ type: "world-info.updated", bookId });
   };
 }

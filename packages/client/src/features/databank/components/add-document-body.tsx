@@ -24,7 +24,8 @@
 // and no `onOpenChange` to thread. Landing a document CLOSES the modal and opens that document in the
 // Databank section, from wherever the ceremony was started.
 
-import type { IngestOutcome, ScraperKind } from "@orb/contracts/databank";
+import type { DocumentDestination, DocumentScopeSource, IngestOutcome, ScraperKind } from "@orb/contracts/databank";
+import { DOCUMENT_SCOPE_SOURCES } from "@orb/contracts/databank";
 import { DOC_UPLOAD_ACCEPT, docUploadMime } from "@orb/contracts/extraction";
 import type { DocumentId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -39,10 +40,10 @@ import { Textarea } from "@orb/ui/textarea";
 import { useToastManager } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormSubmitButton } from "#components";
-import { uploadDocument, useInvalidation, useTRPC, useUploadCaps } from "#data";
+import { CharacterPicker, FormSubmitButton } from "#components";
+import { uploadDocument, useGatedQuery, useInvalidation, useTRPC, useUploadCaps } from "#data";
 import { notify } from "#lib";
-import { closeModal, selectDocumentFromList, setActiveSection } from "#state";
+import { closeModal, selectDocumentFromList, setActiveSection, useActiveChatId } from "#state";
 import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutube } from "../hooks/use-databank-mutations.ts";
 import { useScrapeForm } from "../hooks/use-scrape-form.ts";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
@@ -59,11 +60,27 @@ const MODE_LABELS: Record<AddMode, string> = { upload: "Upload a file", paste: "
 /** The add-document modal BODY: a three-mode toggle over upload · paste · scrape. */
 export function AddDocumentBody(): ReactElement {
   const [mode, setMode] = useState<AddMode>("upload");
+  const [scope, setScope] = useState<DocumentScopeSource>("global");
+  const [character, setCharacter] = useState<Extract<DocumentDestination, { kind: "character" }> | null>(null);
+  const trpc = useTRPC();
+  const chatId = useActiveChatId();
+  const chat = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  const destinations: Record<DocumentScopeSource, DocumentDestination | null> = {
+    global: { kind: "global" },
+    character,
+    chat: chatId !== null && chat.data?.viewerIsHost === true ? { kind: "chat", chatId } : null,
+  };
+  const destination = destinations[scope];
+  const scopeCopy: Record<DocumentScopeSource, string> = {
+    global: "Feeds every chat you are in. Switch Everywhere off on the document to stop that; any other attachments remain.",
+    character: "Feeds chats with the selected character. Existing attachments stay unchanged.",
+    chat: destination === null ? "Open a chat you host before choosing This chat." : "Feeds only the current chat. Existing attachments stay unchanged.",
+  };
   const toast = useToastManager();
 
   const landed: OnLanded = ({ id, outcome, ingest, warning }): void => {
     if (outcome === "duplicate") {
-      toast.add({ title: "Already in your bank — opened it." });
+      toast.add({ title: "Already in your bank — destination added.", description: "Its other attachments are unchanged." });
     } else if (ingest === "not-queued") {
       // The half-success, said plainly: the document IS saved (the old behaviour threw here and rendered
       // "Couldn't save the document." over a document that had in fact been saved), but nothing indexed it,
@@ -85,9 +102,9 @@ export function AddDocumentBody(): ReactElement {
   };
 
   const bodies: Record<AddMode, ReactElement> = {
-    upload: <UploadBody onLanded={landed} />,
-    paste: <PasteBody onLanded={landed} />,
-    link: <LinkBody onLanded={landed} />,
+    upload: <UploadBody destination={destination} onLanded={landed} />,
+    paste: <PasteBody destination={destination} onLanded={landed} />,
+    link: <LinkBody destination={destination} onLanded={landed} />,
   };
 
   return (
@@ -105,6 +122,33 @@ export function AddDocumentBody(): ReactElement {
         {DATABANK_INGEST_GLOSS}
       </Text>
       <Stack gap="block">
+        <Stack gap="field">
+          <Text voice="label">Use this document in</Text>
+          <Row className="flex-wrap" gap="field">
+            {DOCUMENT_SCOPE_SOURCES.map((kind) => (
+              <Button
+                aria-pressed={scope === kind}
+                intent={scope === kind ? "primary" : "ghost"}
+                key={kind}
+                onClick={(): void => setScope(kind)}
+                size="sm"
+                type="button"
+              >
+                {({ global: "Every chat", character: "This character", chat: "This chat" } satisfies Record<DocumentScopeSource, string>)[kind]}
+              </Button>
+            ))}
+          </Row>
+          {scope === "character" ? (
+            <CharacterPicker
+              emptyText="No characters match."
+              isSelected={(id): boolean => character?.characterId === id}
+              label="Choose a character"
+              onSelect={(characterId): void => setCharacter({ kind: "character", characterId })}
+              placeholder="Search characters…"
+            />
+          ) : null}
+          <Text voice="gloss">{scopeCopy[scope]}</Text>
+        </Stack>
         {/* Three pressable modes, not a tablist: each swaps the body in place with no panel to own or
             label, and `aria-pressed` is the honest name for "this is the one you are on". */}
         <Row className="flex-wrap" gap="field">
@@ -145,7 +189,7 @@ type OnLanded = (landing: {
   readonly warning?: "empty-extraction";
 }) => void;
 
-function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
+function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; readonly destination: DocumentDestination | null }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const caps = useUploadCaps();
@@ -155,12 +199,12 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
 
   const onFilesSelected = ({ accepted }: FileDropzoneResult): void => {
     const file = accepted[0];
-    if (file === undefined) {
+    if (file === undefined || destination === null) {
       return;
     }
     setLoading(true);
     setError(null);
-    uploadDocument(file).then(
+    uploadDocument(file, undefined, destination).then(
       (result) => {
         // The raw multipart seam has no `createEntityMutation` to hang `invalidates` on — refresh the list
         // AND the bank census through the SAME sanctioned seam by hand (never a bare `invalidateQueries`).
@@ -177,7 +221,7 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
         setLoading(false);
       },
       () => {
-        setError("Upload failed — check the file type and size, then try again.");
+        setError("Couldn't add the document. Check the destination, file type and size, then try again.");
         setLoading(false);
       },
     );
@@ -190,6 +234,7 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
         {/* The cap is the DEPLOYMENT's, read live (§2.2) — the dropzone also prints it as its own hint. */}
         <FileDropzone
           accept={DOC_UPLOAD_ACCEPT}
+          disabled={destination === null}
           isFileAccepted={(file): boolean => docUploadMime(file.type, file.name) !== undefined}
           loading={loading}
           maxSizeBytes={caps.databankUpload}
@@ -209,7 +254,7 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
   );
 }
 
-function PasteBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
+function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; readonly destination: DocumentDestination | null }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const create = useCreateDocumentFromText({ trpc, invalidation });
@@ -218,14 +263,14 @@ function PasteBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement 
 
   const trimmedName = name.trim();
   const trimmedText = text.trim();
-  const canCreate = trimmedName !== "" && trimmedText !== "" && !create.isPending;
+  const canCreate = destination !== null && trimmedName !== "" && trimmedText !== "" && !create.isPending;
 
   const onSubmit = (): void => {
     if (!canCreate) {
       return;
     }
     create.mutate(
-      { name: trimmedName, text: trimmedText },
+      { name: trimmedName, text: trimmedText, destination },
       {
         onSuccess: (result): void => {
           onLanded({
@@ -260,7 +305,7 @@ function PasteBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement 
 /** Three fields (source · link · the revealed caption language), so it rides the editor FACTORY rather than
  *  three hand-rolled `useState`s (D54 §13.4 / the `form-factory-for-multifield` gate): seed, key-remount,
  *  post-submit reset and the reseed guard are the factory's, not this dialog's to re-derive. */
-function LinkBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
+function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; readonly destination: DocumentDestination | null }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const scrapeWeb = useScrapeWeb({ trpc, invalidation });
@@ -281,6 +326,9 @@ function LinkBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
   };
 
   const save = async (values: ScrapeFormValues): Promise<ScrapeFormValues> => {
+    if (destination === null) {
+      throw new Error("Choose a document destination.");
+    }
     const url = values.url.trim();
     const lang = values.lang.trim() === "" ? DEFAULT_CAPTION_LANG : values.lang.trim();
     // A Record over the scraper axis — a new `ScraperKind` fails tsc rather than silently having no runner.
@@ -292,9 +340,9 @@ function LinkBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
         readonly ingest: IngestOutcome;
       }>
     > = {
-      web: () => scrapeWeb.mutateAsync({ url }),
-      youtube: () => scrapeYoutube.mutateAsync({ url, lang }),
-      wiki: () => scrapeWiki.mutateAsync({ url }),
+      web: () => scrapeWeb.mutateAsync({ url, destination }),
+      youtube: () => scrapeYoutube.mutateAsync({ url, lang, destination }),
+      wiki: () => scrapeWiki.mutateAsync({ url, destination }),
     };
     const result = await runners[values.source]();
     onLanded({ id: result.document.id, outcome: result.outcome, ingest: result.ingest });
@@ -340,7 +388,7 @@ function LinkBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>
           {(urlEmpty): ReactElement => (
             <FormSubmitButton
-              disabled={urlEmpty || pending}
+              disabled={destination === null || urlEmpty || pending}
               label={pending ? "Fetching…" : "Fetch and add"}
               onSubmit={(): void => {
                 form.handleSubmit().catch(() => notify.error("Couldn't add the document."));

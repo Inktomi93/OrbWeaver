@@ -42,7 +42,7 @@ const MANY_TAGS = Array.from({ length: 60 }, (_unused, index) =>
 
 /** The tag the create verb answers with. The library read already lists it, because a CT runs no user bus to
  *  refresh the read after a create. */
-const CREATED = tagRow("tag_created", "New label 2", 0);
+const CREATED = tagRow("tag_created", "New tag 2", 0);
 
 function stub(page: Page, tags: readonly TagWithUsage[] = FEW_TAGS): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -70,29 +70,29 @@ function rowTitles(workspace: Locator): Locator {
   return finder(workspace).locator('[data-slot="list-row-title"]');
 }
 
-test("the finder reads filter · sort · overflow, the band carries New label, and CONTENT states the library", async ({ mount, page }) => {
+test("the finder reads filter · sort · overflow, the band carries New tag, and CONTENT states the library", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<LabelsWorkspaceStory />);
   const row = finder(workspace).locator('[data-slot="labels-control-row"]');
 
   // GEOMETRY, never DOM order: the claim is about what the eye sweeps.
-  const filter = await row.getByRole("textbox", { name: "Filter labels" }).boundingBox();
-  const sort = await row.getByRole("combobox", { name: "Sort labels" }).boundingBox();
-  const overflow = await row.getByRole("button", { name: "More label actions" }).boundingBox();
+  const filter = await row.getByRole("textbox", { name: "Filter tags" }).boundingBox();
+  const sort = await row.getByRole("combobox", { name: "Sort tags" }).boundingBox();
+  const overflow = await row.getByRole("button", { name: "More tag actions" }).boundingBox();
   expect(filter?.x ?? 0).toBeLessThan(sort?.x ?? 0);
   expect(sort?.x ?? 0).toBeLessThan(overflow?.x ?? 0);
   // The finder's ONE primary verb rides the band, with the library census beside the mode's name.
   const band = workspace.locator('[data-slot="ct-labels-band"]');
-  await expect(band.getByRole("button", { name: "New label" })).toBeVisible();
-  await expect(band).toContainText("Labels");
+  await expect(band.getByRole("button", { name: "New tag" })).toBeVisible();
+  await expect(band).toContainText("Tags");
   await expect(band).toContainText("3");
 
   // CONTENT states what no row can: orphans, with the verb that clears them, and the taxonomy's reach by kind.
-  await expect(content(workspace).getByRole("heading", { name: "Labels", level: 2 })).toBeVisible();
+  await expect(content(workspace).getByRole("heading", { name: "Tags", level: 2 })).toBeVisible();
   const facts = content(workspace).locator('[data-slot="labels-library-facts"]');
   await expect(facts).toContainText("Unattached1 of 3");
-  await expect(facts).toContainText("Labels on characters2");
-  await expect(facts).toContainText("Labels on chats2");
+  await expect(facts).toContainText("Tags on characters2");
+  await expect(facts).toContainText("Tags on chats2");
   // The orphan fact's door acts on EVERY orphan, not the first one: it opens the prune confirm.
   await test.info().attach("0314-labels", { body: await workspace.screenshot(), contentType: "image/png" });
   await workspace.evaluate((element) => {
@@ -102,7 +102,7 @@ test("the finder reads filter · sort · overflow, the band carries New label, a
   });
   await test.info().attach("0314-labels-light", { body: await workspace.screenshot(), contentType: "image/png" });
   await facts.getByRole("button", { name: "Prune 1 unused" }).click();
-  await expect(page.getByRole("heading", { name: "Delete 1 unused label?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Delete 1 unused tag?" })).toBeVisible();
 });
 
 test("the finder's sort Select writes the mode the rows read", async ({ mount, page }) => {
@@ -110,7 +110,7 @@ test("the finder's sort Select writes the mode the rows read", async ({ mount, p
   const workspace = await mount(<LabelsWorkspaceStory />);
   await expect(rowTitles(workspace)).toHaveText(["zeal", "adventure", "orphan"]);
 
-  await finder(workspace).getByRole("combobox", { name: "Sort labels" }).click();
+  await finder(workspace).getByRole("combobox", { name: "Sort tags" }).click();
   await page.getByRole("option", { name: "A–Z" }).click();
   await expect(rowTitles(workspace)).toHaveText(["adventure", "orphan", "zeal"]);
 });
@@ -120,7 +120,7 @@ test("picking Manual order puts drag handles on the rows", async ({ mount, page 
   const workspace = await mount(<LabelsWorkspaceStory />);
   await expect(finder(workspace).getByRole("button", { name: /Reorder/u })).toHaveCount(0);
 
-  await finder(workspace).getByRole("combobox", { name: "Sort labels" }).click();
+  await finder(workspace).getByRole("combobox", { name: "Sort tags" }).click();
   await page.getByRole("option", { name: "Manual order" }).click();
   await expect(
     finder(workspace)
@@ -133,21 +133,21 @@ test("picking Manual order puts drag handles on the rows", async ({ mount, page 
 test("ABOVE the cap: Manual order is disabled and its option carries the reason", async ({ mount, page }) => {
   await stub(page, MANY_TAGS);
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await finder(workspace).getByRole("combobox", { name: "Sort labels" }).click();
+  await finder(workspace).getByRole("combobox", { name: "Sort tags" }).click();
   const manual = page.getByRole("option", { name: "Manual order" });
   await expect(manual).toHaveAttribute("data-disabled", "");
-  await expect(manual).toHaveAccessibleDescription("Drag to reorder is off above 30 labels.");
+  await expect(manual).toHaveAccessibleDescription("Drag to reorder is off above 30 tags.");
   await expect(page.getByRole("option", { name: "A–Z" })).not.toHaveAttribute("data-disabled", "");
 });
 
-test("the overflow carries Prune unused labels, and the item alone deletes nothing", async ({ mount, page }) => {
+test("the overflow carries Prune unused tags, and the item alone deletes nothing", async ({ mount, page }) => {
   const trpc = await stub(page);
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await finder(workspace).getByRole("button", { name: "More label actions" }).click();
-  await page.getByRole("menuitem", { name: "Prune unused labels" }).click();
+  await finder(workspace).getByRole("button", { name: "More tag actions" }).click();
+  await page.getByRole("menuitem", { name: "Prune unused tags" }).click();
 
   // The item only OPENS the rows' confirm; the count and the cascade are the rows' knowledge.
-  await expect(page.getByRole("heading", { name: "Delete 1 unused label?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Delete 1 unused tag?" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await expect.poll(() => trpc.count("tag.pruneUnusedTags"), { intervals: [20, 50, 100] }).toBe(0);
@@ -155,14 +155,14 @@ test("the overflow carries Prune unused labels, and the item alone deletes nothi
 
 // A second create must not collide with the first: the default name is unique in the library, and the Name
 // field takes focus so the reader can type the real one at once.
-test("New label creates a uniquely named tag and focuses its Name field", async ({ mount, page }) => {
-  const trpc = await stub(page, [...FEW_TAGS, tagRow("tag_first_new", "New label", 0), CREATED]);
+test("New tag creates a uniquely named tag and focuses its Name field", async ({ mount, page }) => {
+  const trpc = await stub(page, [...FEW_TAGS, tagRow("tag_first_new", "New tag", 0), CREATED]);
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New label" }).click();
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).click();
 
-  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New label 3" } });
+  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag 3" } });
   const editor = content(workspace).locator('[data-slot="tag-member-editor"]');
-  await expect(editor.getByRole("heading", { name: "New label 2" })).toBeVisible();
+  await expect(editor.getByRole("heading", { name: "New tag 2" })).toBeVisible();
   const name = editor.getByRole("textbox", { name: "Name" });
   await expect(name).toBeFocused();
   // The placeholder name is selected, so the first keystroke replaces it.
@@ -171,17 +171,17 @@ test("New label creates a uniquely named tag and focuses its Name field", async 
     .toBe(true);
 });
 
-// The server's name index is case-folded (`lower(name)`), so `new label` already takes `New label`.
-test("New label skips a name the library holds in another casing", async ({ mount, page }) => {
-  const trpc = await stub(page, [...FEW_TAGS, tagRow("tag_lower_new", "new label", 0)]);
+// The server's name index is case-folded (`lower(name)`), so `new tag` already takes `New tag`.
+test("New tag skips a name the library holds in another casing", async ({ mount, page }) => {
+  const trpc = await stub(page, [...FEW_TAGS, tagRow("tag_lower_new", "new tag", 0)]);
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New label" }).click();
-  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New label 2" } });
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).click();
+  await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag 2" } });
 });
 
 // The rows learn a new name only on the bus refetch, so a second click during the create would offer the
 // same name again: the door holds shut until the create settles.
-test("a double click on New label creates once", async ({ mount, page }) => {
+test("a double click on New tag creates once", async ({ mount, page }) => {
   const hold = trpcHold();
   const { usage: _usage, pendingSuggestions: _pending, ...created } = CREATED;
   const trpc = await routeTrpc(page, {
@@ -191,10 +191,10 @@ test("a double click on New label creates once", async ({ mount, page }) => {
     "tag.listAttachedEntities": { entities: [], hasMore: false },
   });
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New label" }).dblclick();
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).dblclick();
   await hold.requested;
   hold.release(created);
-  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "New label 2" })).toBeVisible();
+  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "New tag 2" })).toBeVisible();
   await expect.poll(() => trpc.count("tag.createTag")).toBe(1);
 });
 
@@ -212,9 +212,9 @@ test("a create the name index refuses retries once with the next free name", asy
     },
   });
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New label" }).click();
-  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "New label 2" })).toBeVisible();
-  await expect.poll(() => trpc.inputs("tag.createTag")).toEqual([{ input: { name: "New label" } }, { input: { name: "New label 3" } }]);
+  await workspace.locator('[data-slot="ct-labels-band"]').getByRole("button", { name: "New tag" }).click();
+  await expect(content(workspace).locator('[data-slot="tag-member-editor"]').getByRole("heading", { name: "New tag 2" })).toBeVisible();
+  await expect.poll(() => trpc.inputs("tag.createTag")).toEqual([{ input: { name: "New tag" } }, { input: { name: "New tag 3" } }]);
 });
 
 // A merge closes the editor; focus lands on the library, never on <body>.
@@ -224,7 +224,7 @@ test("merging a tag returns focus to the library landing", async ({ mount, page 
   await finder(workspace).getByRole("button", { name: "orphan", exact: true }).click();
   const editor = content(workspace).locator('[data-slot="tag-member-editor"]');
   await editor.getByRole("button", { name: "Merge into…" }).click();
-  await page.getByRole("combobox", { name: "Merge target label" }).click();
+  await page.getByRole("combobox", { name: "Merge target tag" }).click();
   await page.getByRole("option", { name: "zeal" }).click();
   await page.getByRole("button", { name: "Merge", exact: true }).click();
 
@@ -236,8 +236,8 @@ test("merging a tag returns focus to the library landing", async ({ mount, page 
 test("Back from the editor keeps the finder's filter and sort, and releases the open tag", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await finder(workspace).getByRole("textbox", { name: "Filter labels" }).fill("e");
-  await finder(workspace).getByRole("combobox", { name: "Sort labels" }).click();
+  await finder(workspace).getByRole("textbox", { name: "Filter tags" }).fill("e");
+  await finder(workspace).getByRole("combobox", { name: "Sort tags" }).click();
   await page.getByRole("option", { name: "A–Z" }).click();
   await expect(rowTitles(workspace)).toHaveText(["adventure", "zeal"]);
 
@@ -249,24 +249,24 @@ test("Back from the editor keeps the finder's filter and sort, and releases the 
   await expect(context.locator('[data-slot="label-reach"]')).toContainText("Characters5");
   await expect(context.locator('[data-slot="label-reach"]')).toContainText("You created it");
 
-  await editor.getByRole("button", { name: "Back to Labels" }).click();
-  await expect(content(workspace).getByRole("heading", { name: "Labels", level: 2 })).toBeVisible();
+  await editor.getByRole("button", { name: "Back to Tags" }).click();
+  await expect(content(workspace).getByRole("heading", { name: "Tags", level: 2 })).toBeVisible();
   await expect(content(workspace).locator('[data-slot="tag-member-editor"]')).toHaveCount(0);
-  await expect(finder(workspace).getByRole("textbox", { name: "Filter labels" })).toHaveValue("e");
-  await expect(finder(workspace).getByRole("combobox", { name: "Sort labels" })).toContainText("A–Z");
+  await expect(finder(workspace).getByRole("textbox", { name: "Filter tags" })).toHaveValue("e");
+  await expect(finder(workspace).getByRole("combobox", { name: "Sort tags" })).toContainText("A–Z");
   await expect(rowTitles(workspace)).toHaveText(["adventure", "zeal"]);
   // With nothing open, CONTEXT explains labels against generated facets.
   await expect(context.locator('[data-slot="labels-meaning"]')).toContainText("generated facets");
 });
 
-// AN EMPTY LIBRARY TEACHES IN BOTH PANES WITH ONE VERB: the band's `New label` is the only create control on
+// AN EMPTY LIBRARY TEACHES IN BOTH PANES WITH ONE VERB: the band's `New tag` is the only create control on
 // the workspace, the ruled count the Configuration host held (side-eye 2026-08-08 P2).
-test("an empty library says so in the finder and on the landing, with exactly ONE New label", async ({ mount, page }) => {
+test("an empty library says so in the finder and on the landing, with exactly ONE New tag", async ({ mount, page }) => {
   await stub(page, []);
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await expect(finder(workspace).locator('[data-slot="labels-finder-empty"]')).toContainText("No labels yet");
-  await expect(content(workspace).getByText("Create a label with New label", { exact: false })).toBeVisible();
-  await expect(workspace.getByRole("button", { name: "New label" })).toHaveCount(1);
+  await expect(finder(workspace).locator('[data-slot="labels-finder-empty"]')).toContainText("No tags yet");
+  await expect(content(workspace).getByText("Create a tag with New tag", { exact: false })).toBeVisible();
+  await expect(workspace.getByRole("button", { name: "New tag" })).toHaveCount(1);
 });
 
 async function deleteRow(page: Page, workspace: Locator, name: string): Promise<void> {
@@ -365,7 +365,7 @@ test("pending-only labels stay outside In use and prune until Apply; Reject remo
   await reject.press("Enter");
   await expect.poll(() => recorder.count("tag.detachTag")).toBe(1);
   await workspace.getByRole("button", { name: "deliver tag change" }).evaluate((button) => (button as HTMLButtonElement).click());
-  await expect(content(workspace).getByRole("status")).toHaveText("No suggested labels awaiting review.");
+  await expect(content(workspace).getByRole("status")).toHaveText("No suggested tags awaiting review.");
   await expect(content(workspace).getByRole("status")).toBeFocused();
   await expect(facts.getByRole("button", { name: "Prune 1 unused" })).toBeVisible();
   expect(recorder.unstubbed()).toEqual([]);
@@ -412,23 +412,23 @@ test("rapid creates reserve settled names before the library refresh", async ({ 
     },
   });
   const workspace = await mount(<LabelsWorkspaceStory />);
-  const create = workspace.getByRole("button", { name: "New label", exact: true });
+  const create = workspace.getByRole("button", { name: "New tag", exact: true });
   for (let index = 0; index < 3; index += 1) {
     await create.click();
     await expect.poll(() => names.length).toBe(index + 1);
     await expect(create).toBeEnabled();
   }
-  expect(names).toEqual(["New label", "New label 2", "New label 3"]);
+  expect(names).toEqual(["New tag", "New tag 2", "New tag 3"]);
 });
 
 test("a stale label filter has a clear door", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<LabelsWorkspaceStory />);
-  await finder(workspace).getByRole("textbox", { name: "Filter labels" }).fill("merged-away");
-  await expect(finder(workspace).getByRole("status")).toContainText("No labels match");
+  await finder(workspace).getByRole("textbox", { name: "Filter tags" }).fill("merged-away");
+  await expect(finder(workspace).getByRole("status")).toContainText("No tags match");
   await finder(workspace).getByRole("button", { name: "Clear filter", exact: true }).click();
   await expect(rowTitles(workspace)).toHaveText(["zeal", "adventure", "orphan"]);
-  await expect(finder(workspace).getByRole("textbox", { name: "Filter labels" })).toBeFocused();
+  await expect(finder(workspace).getByRole("textbox", { name: "Filter tags" })).toBeFocused();
 });
 
 test("prune names the exact unused labels and excludes pending suggestions", async ({ mount, page }) => {
@@ -529,7 +529,7 @@ for (const kind of ["delete", "prune"] as const) {
       await open("adventure");
       const heading = page
         .getByRole("alertdialog")
-        .getByRole("heading", { name: kind === "prune" ? "Delete 1 unused label?" : 'Delete "adventure"?', exact: true });
+        .getByRole("heading", { name: kind === "prune" ? "Delete 1 unused tag?" : 'Delete "adventure"?', exact: true });
       await expect(heading).toBeVisible();
       const success = kind === "prune" ? { removed: 1 } : null;
       hold.release(outcome === "failure" ? trpcError({ message: "earlier decision failed" }) : success);

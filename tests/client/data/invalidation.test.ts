@@ -72,6 +72,22 @@ function isInvalidated(queryClient: QueryClient, queryKey: readonly unknown[]): 
   return queryClient.getQueryCache().find({ queryKey: [...queryKey] })?.state.isInvalidated ?? false;
 }
 
+test("the inherited world-book cache follows room consent, persona switches and source entity changes", () => {
+  for (const event of [
+    { type: "chatUpdated", chatId: CHAT_ID },
+    { type: "personaSwitched", chatId: CHAT_ID, from: null, to: null },
+    { type: "roomEntityChanged", chatId: CHAT_ID, entity: "world-info" },
+    { type: "roomEntityChanged", chatId: CHAT_ID, entity: "persona" },
+    { type: "roomEntityChanged", chatId: CHAT_ID, entity: "character" },
+  ] satisfies ChatBusEvent[]) {
+    const { invalidate, queryClient, trpc } = setup();
+    const key = trpc.worldInfo.listForChat.queryKey({ chatId: CHAT_ID, includeInherited: true });
+    queryClient.setQueryData(key, []);
+    invalidate(event);
+    expect(isInvalidated(queryClient, key), event.type).toBe(true);
+  }
+});
+
 /** Seed every tracked read so `isInvalidated` reflects the FILTER under test, not an absent cache entry.
  *  ONE home for the seed (the `as never` payload is irrelevant to this seam — only key MATCHING is). */
 function seedReads(queryClient: QueryClient, keys: Iterable<readonly unknown[]>): void {
@@ -1049,6 +1065,7 @@ describe("invalidation — the live-only lane's attach heal reaches a CO-MEMBER 
       memberCard: trpc.chat.getMemberCard.queryKey({ chatId: CHAT_ID, characterId: CHARACTER_ID, timeZone: UTC_TIME_ZONE }),
       regexRack: trpc.regex.listForChat.queryKey({ chatId: CHAT_ID }),
       databankRack: trpc.databank.listActiveForChat.queryKey({ chatId: CHAT_ID }),
+      inheritedBooks: trpc.worldInfo.listForChat.queryKey({ chatId: CHAT_ID, includeInherited: true }),
     };
   }
 
@@ -1070,6 +1087,7 @@ describe("invalidation — the live-only lane's attach heal reaches a CO-MEMBER 
       invalidateUser({ type: "charactersChanged", characterId: CHARACTER_ID });
       invalidateUser({ type: "regexChanged" });
       invalidateUser({ type: "databankChanged", documentId: castId<DocumentId>("document_invalidationheal") });
+      invalidateUser({ type: "worldInfoChanged" });
     });
 
     expect(stillStale).toEqual([]);

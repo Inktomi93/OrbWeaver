@@ -39,8 +39,9 @@
 //   • global   → `target.ownerId`, unchanged (FLAG[global-scope] above).
 
 import type { AssembleWorldEntry, AssembleWorldEntryAttachment } from "@orb/contracts/chat";
+import type { ChatBookView } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
-import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
+import { characterBooks, characters, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { resolveEntryInjection, resolveEntryKeyMode, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { and, eq, inArray } from "drizzle-orm";
@@ -67,6 +68,14 @@ interface BookExpansionRow {
   ignoreBudget: boolean | null;
   metadata: unknown;
 }
+
+const bookColumns = {
+  id: worldBooks.id,
+  ownerId: worldBooks.ownerId,
+  name: worldBooks.name,
+  description: worldBooks.description,
+  createdAt: worldBooks.createdAt,
+} as const;
 
 const entryColumns = {
   id: worldEntries.id,
@@ -118,7 +127,22 @@ function dedupeByEntryId(sources: readonly AssembleWorldEntry[][]): AssembleWorl
 
 /** Fetch the merged, deduped per-turn World-Info pool — four parallel SQL reads, one Map-based dedup. There
  *  is no master toggle; an empty result (no books attached) is the "no lore" path. */
-export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Promise<AssembleWorldEntry[]> {
+async function loadWorldInfoSources(
+  db: Db,
+  target: WorldInfoPoolTarget,
+): Promise<{
+  chatRows: BookExpansionRow[];
+  characterRows: (BookExpansionRow & {
+    book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description" | "createdAt">;
+    sourceName: string;
+  })[];
+  globalRows: (BookExpansionRow & { book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description" | "createdAt"> })[];
+  personaRows: (BookExpansionRow & {
+    book: Pick<typeof worldBooks.$inferSelect, "id" | "ownerId" | "name" | "description" | "createdAt">;
+    personaName: string;
+    personaDescription: string;
+  })[];
+}> {
   const characterIds = [...target.characterIds];
   const personaIds = [...target.personaIds];
 
@@ -133,14 +157,15 @@ export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Pr
     characterIds.length === 0
       ? Promise.resolve([])
       : db
-          .select(entryColumns)
+          .select({ ...entryColumns, book: bookColumns, sourceName: characters.name })
           .from(characterBooks)
+          .innerJoin(characters, eq(characters.id, characterBooks.characterId))
           .innerJoin(worldEntries, eq(characterBooks.worldBookId, worldEntries.worldBookId))
           .innerJoin(worldBooks, eq(worldBooks.id, characterBooks.worldBookId))
           .where(and(inArray(characterBooks.characterId, characterIds), eq(worldBooks.ownerId, target.ownerId), eq(worldEntries.enabled, true))),
     // global → scoped to the HOST owner via the world_books.ownerId join (see FLAG[global-scope]).
     db
-      .select(entryColumns)
+      .select({ ...entryColumns, book: bookColumns })
       .from(globalBooks)
       .innerJoin(worldEntries, eq(globalBooks.worldBookId, worldEntries.worldBookId))
       .innerJoin(worldBooks, eq(worldBooks.id, globalBooks.worldBookId))
@@ -149,7 +174,7 @@ export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Pr
     personaIds.length === 0
       ? Promise.resolve([])
       : db
-          .select({ ...entryColumns, personaName: personas.name, personaDescription: personas.description })
+          .select({ ...entryColumns, book: bookColumns, personaName: personas.name, personaDescription: personas.description })
           .from(personaBooks)
           .innerJoin(worldEntries, eq(personaBooks.worldBookId, worldEntries.worldBookId))
           .innerJoin(worldBooks, eq(worldBooks.id, personaBooks.worldBookId))
@@ -164,6 +189,32 @@ export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Pr
           ),
   ]);
 
+  return { chatRows, characterRows, globalRows, personaRows };
+}
+
+/** The inherited rack and the assembler read the same owner-belted eligible entry sources. */
+export async function loadInheritedWorldBooks(db: Db, target: WorldInfoPoolTarget): Promise<ChatBookView[]> {
+  const { characterRows, globalRows, personaRows } = await loadWorldInfoSources(db, target);
+  const rows: ChatBookView[] = [
+    ...globalRows.map((row) => ({ ...row.book, role: null, inherited: { source: "global" as const, name: null } })),
+    ...characterRows.map((row) => ({ ...row.book, role: null, inherited: { source: "character" as const, name: row.sourceName } })),
+    ...personaRows.map((row) => ({
+      ...row.book,
+      description: null,
+      role: null,
+      inherited: { source: "persona" as const, name: row.personaName },
+    })),
+  ].map(({ ownerId: _ownerId, ...row }) => ({ ...row, description: null }));
+  return rows.filter(
+    (row, index) =>
+      rows.findIndex((other) => other.id === row.id && other.inherited?.source === row.inherited?.source && other.inherited?.name === row.inherited?.name) ===
+      index,
+  );
+}
+
+/** Macro routing and entry precedence are unchanged by the rack's source projection. */
+export async function loadWorldInfoPool(db: Db, target: WorldInfoPoolTarget): Promise<AssembleWorldEntry[]> {
+  const { chatRows, characterRows, globalRows, personaRows } = await loadWorldInfoSources(db, target);
   const chat = { source: "chat" } as const;
   return dedupeByEntryId([
     chatRows.map((r) => fromBookExpansion(r, chat)),

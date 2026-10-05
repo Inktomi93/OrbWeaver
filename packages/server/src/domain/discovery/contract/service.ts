@@ -243,8 +243,8 @@ export interface DiscoveryService {
    *  with writing beyond its name. Reads only. */
   readonly countDistillCalls: (ownerId: UserId | null) => Promise<number>;
 
-  // ── browse (the filterable distilled catalog — CONTENT-only) ───────────────
-  /** ONE keyset PAGE of the owner's filterable distilled character catalog, with the boundary for the next
+  // ── browse (the filterable owned catalog — CONTENT-only) ───────────────
+  /** ONE keyset PAGE of the owner's characters, including cards without analysis, with the boundary for the next
    *  page and the census of the whole filtered scope. Keyset rather than a bare `limit` since A8: the pane
    *  above it prints the census, so every counted row has to be reachable. */
   readonly browseCharacters: (userId: UserId, filter?: BrowseFilter) => Promise<BrowseCharactersPage>;

@@ -42,7 +42,7 @@ export function LabelsContent(): ReactElement {
             fallback={exit}
             renderError={(_error, retry): ReactElement => (
               <QueryErrorState
-                label="this label"
+                label="this tag"
                 onRetry={retry}
                 renderRetry={(refetch): ReactElement => (
                   <Stack gap="block">
@@ -69,7 +69,7 @@ export function LabelsContextHeader(): ReactElement {
   const name = useTagName(tagId);
   return (
     <Text className="truncate" voice="label">
-      {tagId === null ? CORPUS_MODE_LABELS.labels : (name ?? "Label")}
+      {tagId === null ? CORPUS_MODE_LABELS.labels : (name ?? "Tag")}
     </Text>
   );
 }
@@ -90,10 +90,10 @@ function LabelsMeaning(): ReactElement {
   return (
     <Stack data-slot="labels-meaning" gap="block">
       <Text prose={true} voice="gloss">
-        A label is yours: you create it, attach it, and it stays until you remove it.
+        A tag is yours: you create it, attach it, and it stays until you remove it.
       </Text>
       <Text prose={true} voice="gloss">
-        Genres, tones, themes, families and archetypes come from corpus analysis. They are generated facets, not labels, and they can change when the analysis
+        Genres, tones, themes, families and archetypes come from corpus analysis. They are generated facets, not tags, and they can change when the analysis
         reruns.
       </Text>
     </Stack>

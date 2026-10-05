@@ -13,6 +13,7 @@ export function createDetachFromPersona(ctx: WorldInfoContext): WorldInfoService
     const ownerId = principal.userId;
     await ensurePersonaOwned(ctx.db, ownerId, personaId);
     const at = ctx.now();
+    const fanReach = await ctx.captureRoomReachForDelete(bookId);
     const removed = await ctx.db
       .delete(personaBooks)
       .where(and(eq(personaBooks.personaId, personaId), eq(personaBooks.worldBookId, bookId)))
@@ -31,6 +32,7 @@ export function createDetachFromPersona(ctx: WorldInfoContext): WorldInfoService
       at,
     );
     ctx.emitUserEvent(ownerId, { type: "worldInfoChanged", bookId });
+    fanReach();
     return { detached: true };
   };
 }

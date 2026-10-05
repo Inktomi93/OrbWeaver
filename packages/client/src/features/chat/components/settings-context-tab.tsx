@@ -189,12 +189,10 @@ function DocumentsHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   return <HeadingWithCount count={data?.length ?? 0} label="Documents" />;
 }
 
-// The World books count, on the same non-suspending shared-cache idiom as the two above (#640). Every viewer
-// receives the same rows — `worldInfo.listForChat` is member-read and NOT owner-filtered (the room's books
-// are room-public prompt content) — so unlike Documents there is no hidden subset for the chip to leak.
+// Count the viewer's projected rack, never another viewer's inherited personal-library headers.
 function LorebooksHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
-  const { data } = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId }));
+  const { data } = useQuery(trpc.worldInfo.listForChat.queryOptions({ chatId, includeInherited: true }));
   return <HeadingWithCount count={data?.length ?? 0} label="World books" />;
 }
 

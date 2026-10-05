@@ -100,7 +100,7 @@ const BUS_FILTERS: BusFilterMap = {
 
   // A re-anchored persona rewrites `{{user}}` (and the persona block) in the NEXT turn's prompt — the room
   // read AND the prompt preview.
-  personaSwitched: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId }), ...promptPreviewReads(trpc)],
+  personaSwitched: (e, trpc) => [trpc.chat.getChat.queryFilter({ chatId: e.chatId }), trpc.worldInfo.listForChat.pathFilter(), ...promptPreviewReads(trpc)],
 
   reactionsChanged: (_e, trpc) => reactionsRead(trpc),
   // Attachment changes move the ASSEMBLY POOL — the WI reads, the room, and the prompt preview built from it.
@@ -154,6 +154,7 @@ const BUS_FILTERS: BusFilterMap = {
   // member (or the host's second tab) sat on the pre-edit splice list forever.
   chatUpdated: (e, trpc) => [
     ...chatReads(trpc),
+    trpc.worldInfo.listForChat.pathFilter(),
     trpc.chat.getChat.queryFilter({ chatId: e.chatId }),
     trpc.chat.getNextTurnConnection.queryFilter({ chatId: e.chatId }),
     trpc.chat.getGroupConfig.queryFilter({ chatId: e.chatId }),

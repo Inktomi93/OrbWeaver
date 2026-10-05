@@ -5,13 +5,13 @@
 // Then the SAME step 5–7 as upload: documents row → enqueue `databank-ingest` → report the ingest outcome
 // (`queued`, or `not-queued` when the queue refused the build — the canon still lands; `substrate/queue-ingest`).
 
-import { documents } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { sha256Hex } from "#kit/content-hash";
 import type { CreateFromTextParams } from "../contract/params.ts";
 import type { UploadResult } from "../contract/results.ts";
 import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import { findByImportHash, toDocumentView } from "../persistence/queries.ts";
+import { attachIngestDestination, insertIngestDocument, requireIngestDestination } from "../persistence/scope.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";
 import { queueIngest } from "../substrate/queue-ingest.ts";
 
@@ -19,12 +19,14 @@ const TEXT_MIME = "text/plain";
 const NO_EXTRACTOR = "none";
 
 export function createCreateFromText(ctx: DatabankContext): DatabankService["createFromText"] {
-  return async ({ principal, name, text }: CreateFromTextParams): Promise<UploadResult> => {
+  return async ({ principal, name, text, destination }: CreateFromTextParams): Promise<UploadResult> => {
     const ownerId: UserId = principal.userId;
     const importHash = sha256Hex(text);
 
+    await requireIngestDestination(ctx, principal, destination);
     const existing = await findByImportHash(ctx.db, ownerId, importHash);
     if (existing !== undefined) {
+      await attachIngestDestination(ctx, principal, destination, importHash);
       const counts = await ctx.countChunks({ documentIds: [existing.id], model: await activeSpaceModel(ctx, ownerId) });
       return { document: toDocumentView(existing, counts.get(existing.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
     }
@@ -32,7 +34,7 @@ export function createCreateFromText(ctx: DatabankContext): DatabankService["cre
     const at = ctx.now();
     const id = ctx.newDocumentId();
     const byteSize = new TextEncoder().encode(text).length;
-    await ctx.db.insert(documents).values({
+    const created = await insertIngestDocument(ctx, principal, destination, {
       id,
       ownerId,
       sourceAssetId: null,
@@ -47,6 +49,15 @@ export function createCreateFromText(ctx: DatabankContext): DatabankService["cre
       createdAt: at,
       updatedAt: at,
     });
+
+    if (!created) {
+      const winner = await findByImportHash(ctx.db, ownerId, importHash);
+      if (winner === undefined) {
+        throw new Error("Atomic ingestion did not produce a document.");
+      }
+      const counts = await ctx.countChunks({ documentIds: [winner.id], model: await activeSpaceModel(ctx, ownerId) });
+      return { document: toDocumentView(winner, counts.get(winner.id) ?? 0), outcome: "duplicate", ingest: "skipped" };
+    }
 
     const queued = await queueIngest(ctx, { documentId: id, ownerId });
     await ctx.audit({ actorUserId: ownerId, action: "databank.createFromText", entityType: "document", entityId: id, metadata: { name, ...queued } }, at);
