@@ -28,4 +28,4 @@ The original accounting, restore, sample and owner-enumeration work remains open
 
 Also: extraction and caption spend (generate-picture.ts:248-250) never reach stats at all; reconcileStats all-owner mode enumerates only owners with characters.
 
-Also: the TSDoc at rebuild-from-canon.ts (reconcileOwnersMissingTimeline) should name owners whose generated assets were deleted among the per-boot re-run cases; the model_stats-only arm of the heal predicate (unpriced generations) has no test of its own.
+Also: the TSDoc at rebuild-from-canon.ts (reconcileOwnersMissingTimeline) should name owners whose generated assets were deleted among the per-boot re-run cases; the model_stats-only case of the heal predicate (unpriced generations) has no test of its own.

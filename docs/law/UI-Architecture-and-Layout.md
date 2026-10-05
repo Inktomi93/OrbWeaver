@@ -1,12 +1,12 @@
 ---
 kind: law
 status: active
-updated: 2026-10-03
+updated: 2026-10-05
 ---
 
 # UI-Architecture-and-Layout
 
-> **The UI law**, one of the docs split from the D42 spec. The ledger entries (D42–D44, D52, D54, D58) are the decision records; these docs are the expansion, and win on any conflict with another copy.
+> **UI law**, split from the D42 spec. The ledger entries (D42–D44, D52, D54, D58) are the decision records; these docs are the expansion, and win on any conflict with another copy.
 >
 > **Reading order:** UI-Architecture-and-Layout (§0–§6) → UI-Gates-and-Lessons (§7–§11) → UI-Theming-and-Content (§12) → UI-Primitives-and-Reuse (§13) → `ui-package-design.md` → `motion-and-animation-guide.md`.
 >
