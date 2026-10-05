@@ -566,6 +566,21 @@ export interface ReasoningTagPair {
 }
 export type RolePresetParams = Pick<UserIntent, RolePresetField> & { readonly reasoningTags?: ReasoningTagPair | undefined };
 
+const XML_OPEN_TAG_RE = /^<(?<name>[A-Za-z][\w:-]*)>$/u;
+
+/** A tag pair as the stream splitter carries it: trimmed (SillyTavern's default pair wraps the tags in newlines), and
+ *  only when it is an XML-shaped `<x>`/`</x>`. `undefined` for any other pair, which would split nothing. The same
+ *  shape rule as the openai-compat splitter (`think-tags.ts`). */
+export function splittableTagPair(pair: ReasoningTagPair | undefined): ReasoningTagPair | undefined {
+  if (pair === undefined) {
+    return;
+  }
+  const prefix = pair.prefix.trim();
+  const suffix = pair.suffix.trim();
+  const name = XML_OPEN_TAG_RE.exec(prefix)?.groups?.["name"];
+  return name !== undefined && suffix === `</${name}>` ? { prefix, suffix } : undefined;
+}
+
 /** Project a preset's `params` to the fields a non-chat role takes, keeping a tag pair already carried. Absent
  *  fields stay absent. */
 export function rolePresetParamsOf(params: UserIntent & Pick<RolePresetParams, "reasoningTags">): RolePresetParams {

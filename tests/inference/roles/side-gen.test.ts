@@ -520,6 +520,27 @@ test("(10) the Utility preset's own tag pair splits a summarize reply in place o
   expect(result.items[0]?.text).toBe("The scene, summarized.");
 });
 
+// SillyTavern's default pair carries newlines, and the importer copies it verbatim; the split reads its trimmed form.
+test("(10) a role tag pair wrapped in whitespace splits on its trimmed form, ST's default pair included", async () => {
+  const connection = fakeResolved({ task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
+  for (const [tag, pair] of [
+    ["think", { prefix: "<think>\n", suffix: "\n</think>" }],
+    ["reason", { prefix: "<reason>\n", suffix: "\n</reason>" }],
+  ] as const) {
+    const executor = executorWith({ fetch: openAiServer([], () => ({ content: `<${tag}>which beats matter</${tag}>The scene, summarized.` })) });
+    const result = await executor.summarize({ connection, inputs: [ITEM], reasoningTags: pair });
+    expect(result.items[0]?.text, tag).toBe("The scene, summarized.");
+  }
+});
+
+// The stream splitter takes only an XML-shaped pair; any other pair would split nothing, so the house pair runs.
+test("(10) a role tag pair the splitter cannot carry falls back to the house pair", async () => {
+  const executor = executorWith({ fetch: openAiServer([], () => ({ content: "<think>which beats matter</think>The scene, summarized." })) });
+  const connection = fakeResolved({ task: "summarize", providerId: "custom-openai", model: "m", capability: NO_REASONING, baseUrl: LOCAL_URL });
+  const result = await executor.summarize({ connection, inputs: [ITEM], reasoningTags: { prefix: "[thinking]", suffix: "[/thinking]" } });
+  expect(result.items[0]?.text).toBe("The scene, summarized.");
+});
+
 test("(10) items sharing a static system prompt on an OpenRouter Claude route each place its cache breakpoint", async () => {
   const recorded: RecordedRequest[] = [];
   const executor = executorWith({ fetch: openAiServer(recorded, () => ({})) });

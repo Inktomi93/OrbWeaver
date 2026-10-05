@@ -3,7 +3,7 @@
 // onto a chat request with the `side-gen` posture and folds the turn back into the item; it spells no wire body.
 
 import type { ReasoningTagPair, UserIntent } from "@orb/contracts/preset";
-import { rolePresetParamsOf, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
+import { rolePresetParamsOf, splittableTagPair, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import type { SummarizeResult, SummarizeResultItem } from "@orb/contracts/providers";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId } from "@orb/kit/ids";
@@ -20,7 +20,8 @@ import type { InferenceLog } from "../deps.ts";
 
 const SIDE_GEN_POSTURE = "side-gen";
 /** A prose item splits inline reasoning out of its reply, on a row with no native reasoning field, with the role
- *  preset's tag pair or else the house pair. A structured item does not: a literal tag inside a JSON string value is
+ *  preset's tag pair in its trimmed form, or the house pair where the role states none or one the splitter cannot
+ *  carry (`splittableTagPair`). A structured item does not: a literal tag inside a JSON string value is
  *  the payload's own content. */
 const PROSE_REASONING_TAGS = { prefix: THINK_PREFIX_DEFAULT, suffix: THINK_SUFFIX_DEFAULT } as const;
 
@@ -78,7 +79,7 @@ export function sideGenChatRequest(args: {
     ...common,
     api,
     history: [row],
-    ...(args.responseFormat === undefined ? { reasoningTags: args.reasoningTags ?? PROSE_REASONING_TAGS } : {}),
+    ...(args.responseFormat === undefined ? { reasoningTags: splittableTagPair(args.reasoningTags) ?? PROSE_REASONING_TAGS } : {}),
   };
 }
 

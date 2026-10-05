@@ -23,9 +23,10 @@ export interface SideGenParamsDeps {
   readonly settings: Pick<SettingsService, "loadUserSettings">;
 }
 
-/** A preset's role params, with its `reasoningParse` pair where it states one. */
+/** A preset's role params, with its `reasoningParse` pair where auto-parse is on: an off pair is inert in chat, so a
+ *  background task keeps the house pair. */
 function rolePresetOf(config: PromptConfig): SideGenSampling {
-  const pair = config.reasoningParse;
+  const pair = config.reasoningParse?.autoParse === true ? config.reasoningParse : undefined;
   return rolePresetParamsOf({ ...config.params, ...(pair !== undefined ? { reasoningTags: { prefix: pair.prefix, suffix: pair.suffix } } : {}) });
 }
 
