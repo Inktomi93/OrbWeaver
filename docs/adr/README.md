@@ -176,7 +176,7 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D200 | [Shadow ingredients derive per polarity from the base surface](0200-theme-shadow-ingredient-derivation.md) | active |
 | D201 | [The neutral surface ramp derives two cases from the same pivot](0201-theme-surface-ramp-two-case-derivation.md) | active |
 | D202 | [Accepted-base foreground contract supersedes the raw-L pivot](0202-theme-accepted-base-foreground-contract.md) | active |
-| D203 | [The admin tier wires eight AppSettings system-tuning knobs](0203-admin-tier-system-tuning-knobs.md) | active |
+| D203 | [The admin tier wires eight AppSettings system-tuning knobs](0203-admin-tier-system-tuning-knobs.md) | superseded by [0305-admin-tier-wires-four-system-tuning-knobs.md](0305-admin-tier-wires-four-system-tuning-knobs.md) |
 | D204 | [Imagery prompt templates home in per-user UserSettings, not preset cards](0204-imagery-prompt-templates-per-user-home.md) | active |
 | D205 | [Folded extraction mode is the born default](0205-folded-extraction-is-born-default.md) | active |
 | D206 | [The agent-sdk wire gets a terminal-tool channel for folded extraction](0206-agent-sdk-terminal-tool-channel.md) | active |
@@ -245,7 +245,10 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D295 | [Sampler order on the chat wire](0295-sampler-order-on-the-chat-wire.md) | active |
 | D296 | [Ollama chat rides its native route](0296-ollama-chat-rides-its-native-route.md) | active |
 | D298 | [A picture made in a room runs as the room host](0298-room-images-run-as-the-host.md) | active |
-| D299 | [Each model role picks its preset](0299-each-model-role-picks-its-preset.md) | active |
+| D299 | [Each model role picks its preset](0299-each-model-role-picks-its-preset.md) | superseded by [0304-each-model-role-picks-its-preset-and-tag-pair.md](0304-each-model-role-picks-its-preset-and-tag-pair.md) |
 | D300 | [Rooms attribute each reply honestly, and room pictures belong to the host](0300-room-attribution-and-host-owned-pictures.md) | active |
 | D301 | [Structured output has one plan per request](0301-structured-output-plan-one-home.md) | active |
-| D302 | [Side generation runs through the chat turn](0302-side-generation-runs-through-the-chat-turn.md) | active |
+| D302 | [Side generation runs through the chat turn](0302-side-generation-runs-through-the-chat-turn.md) | superseded by [0303-side-generation-runs-through-the-chat-turn-with-the-role-tag-pair.md](0303-side-generation-runs-through-the-chat-turn-with-the-role-tag-pair.md) |
+| D303 | [Side generation runs through the chat turn and splits with the role's tag pair](0303-side-generation-runs-through-the-chat-turn-with-the-role-tag-pair.md) | active |
+| D304 | [Each model role picks its preset, including its reasoning tag pair](0304-each-model-role-picks-its-preset-and-tag-pair.md) | active |
+| D305 | [The admin tier wires four AppSettings system-tuning knobs](0305-admin-tier-wires-four-system-tuning-knobs.md) | active |

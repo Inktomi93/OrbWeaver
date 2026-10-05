@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-10-03
+status: superseded
+updated: 2026-10-05
+superseded-by: docs/adr/0304-each-model-role-picks-its-preset-and-tag-pair.md
 ---
 
 # Each model role picks its preset

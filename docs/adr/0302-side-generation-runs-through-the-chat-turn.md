@@ -1,7 +1,8 @@
 ---
 kind: adr
-status: active
-updated: 2026-10-04
+status: superseded
+updated: 2026-10-05
+superseded-by: docs/adr/0303-side-generation-runs-through-the-chat-turn-with-the-role-tag-pair.md
 ---
 
 # Side generation runs through the chat turn
