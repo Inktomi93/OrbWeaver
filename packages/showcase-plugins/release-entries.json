@@ -2,17 +2,17 @@
   "format": 1,
   "bundles": {
     "affinity-tracker": {
-      "main.js": "adaee875f0537e1fb6b80ce9a2a1b8a10f70832c26037fae1b00e0ede46c1117",
-      "manifest.json": "00011638ce8d1eb7ead892003e773b243879f6dc9dfd39a8dbcf629b3f431721",
-      "ui.js": "ca1df2a0b2126ba3dddde9df181a065b2b9e948c656619687f4d86a1dc4f7f36"
+      "main.js": "08f84302297ffc065e55f33029cedad79047d52c3ed0549c5be1a60e57081eb4",
+      "manifest.json": "615c0169123ac637ea4a952f9f97b19fc7b76d78e8adba38a7fcc58326a6caf8",
+      "ui.js": "a6670fa7b241009ba426d1db615945dfb75be4e9ab2a3618d68bb6e818cc8834"
     },
     "card-atlas": {
       "main.js": "ccf8e27d96a74d2a9a5232c7fe0306331c4e400673c5b84208cb952ee26ddeaf",
       "manifest.json": "acd1e271a574bec37e028d84f6e2312599c4512b8fc78dd05716a3aafc556e69"
     },
     "draft-polish": {
-      "main.js": "57922b280ec0f678fdebf7421240ebebe78f8723b3ed25d8d76d3920490fb27e",
-      "manifest.json": "3cb85dbd6c2796a91e004398610b0b0fa580da145e0aa7c1ef6d19847823bb73"
+      "main.js": "2d7648284c5e21a9a770f86034c8806bec52fa09b45da4a852a08e6d84769eb1",
+      "manifest.json": "07c6c7a278404b59c44b6122aa708f3bb5fe522e1d942b98cba239dc1447c3d5"
     },
     "keepsake-camera": {
       "main.js": "8374d4453887496174bf94cbf16fb089ab49b25d282c2f69707b490ef57793a8",
@@ -27,8 +27,9 @@
       "manifest.json": "49787bc3b3f1d994da4b710e92b0f638079386b68bb96fdfa4465cac56dd1310"
     },
     "research-familiar": {
-      "main.js": "a71c5ac8caf8950ace9b5c012217cc4a00f0fc7f13f5ab70b88e747a0c2f347c",
-      "manifest.json": "00a32277ee38aa1e1004da0d4e27444c46bc2c1b5275104c666cd87ef4a0b88f"
+      "main.js": "24b2eea1e8037cef1444675f109fe861427975db7403facad5ce2c7ba63431f1",
+      "manifest.json": "98d106b105176592882a00a7eade05781ba68a11bd0fc448d3bd6b1488469ea4",
+      "ui.js": "1d524a140b7a666da757710b32ea9dc771b2523a2c702b18930befe116758aa1"
     },
     "scene-chips": {
       "main.js": "a1a52a3b8ce3cbd0afd15a7b7c8176f63a1598ad6e8a4edf12b0728c4529dbb4",

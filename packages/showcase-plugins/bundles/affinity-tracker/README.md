@@ -13,7 +13,7 @@ only when the reading moves by three or more. Nothing it does is ever visible in
 cp -r packages/showcase-plugins/bundles/affinity-tracker /tmp/my-plugin
 # change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
 pnpm --filter @orb/showcase-plugins build
-pnpm plugin:pack affinity-tracker ./out    # → ./out/affinity-tracker-1.1.1.zip
+pnpm plugin:pack affinity-tracker ./out    # → ./out/affinity-tracker-1.2.0.zip
 ```
 
 Settings → Plugins → drop the zip → tick the capabilities → turn it on. Same `id` upgrades in place; a new
@@ -43,8 +43,8 @@ surface renders inside a frame labelled with your plugin's name. Both of these a
 spec lives server-side and its values are bound with `{ $state }` to whatever you last published.
 
 * **Settings panel** (`anchor: "settings"`, id `affinity_summary`) — a private roll-up of every reading, in
-  Settings → Plugins under this plugin's row. Its one button round-trips to `onAction` in this same guest,
-  which recomputes from storage and republishes.
+  Settings → Plugins under this plugin's row. Refresh readings recomputes from storage and republishes.
+  Browse readings explicitly opens its scripted `affinity_browser` dialog. Failed loading shows a readable error and Retry.
 * **Room widget** (`anchor: "chat-flank"`, id `affinity_flank`) — a warmth meter beside the transcript,
   republished from the `messageCommitted` handler, so it moves as the scene does.
 

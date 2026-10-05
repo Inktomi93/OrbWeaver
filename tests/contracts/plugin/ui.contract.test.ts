@@ -60,7 +60,23 @@ import {
   resolvePluginPrimaryButton,
   UI_PROXYABLE_HOST_FUNCTIONS,
 } from "@orb/contracts/plugin";
+
 import { expect, test } from "../../support/fixtures.ts";
+
+test("a host-owned lore picker is one option source, never combined with guest options", () => {
+  const node = { kind: "select", name: "book", label: "Lore book", optionsFromHost: "owned-lore-books", actionId: "configure" };
+  expect(pluginSurfaceSpecSchema.safeParse(node).success).toBe(true);
+  expect(pluginSurfaceSpecSchema.safeParse({ ...node, options: [{ value: "foreign", label: "Foreign" }] }).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse({ ...node, optionsFrom: { $state: "books" } }).success).toBe(false);
+  expect(pluginSurfaceSpecSchema.safeParse({ ...node, optionsFromHost: "arbitrary-catalog" }).success).toBe(false);
+});
+
+test("composer draft commands explicitly opt in at the composer action placement only", () => {
+  const command = { name: "polish", describe: "Polish this draft", composerDraft: true, placements: [{ target: "composer-action", label: "Polish" }] };
+  expect(pluginCommandRegistrationMetaSchema.parse(command)).toEqual(command);
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ ...command, placements: [{ target: "composer-media", label: "Polish" }] }).success).toBe(false);
+  expect(pluginCommandRegistrationMetaSchema.safeParse({ ...command, placements: [] }).success).toBe(false);
+});
 
 test("PLUGIN_SURFACE_ANCHORS is the merged anchor set — U6's `message-footer`, then U5's `page` + `dialog`", () => {
   expect(PLUGIN_SURFACE_ANCHORS).toEqual(["settings", "chat-flank", "chat-settings-section", "tool-card", "message-footer", "page", "dialog"]);

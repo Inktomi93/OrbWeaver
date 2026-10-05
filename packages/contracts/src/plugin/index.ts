@@ -10,14 +10,6 @@
  *  BAD_REQUEST rather than an unbounded log fetch (the #45 class). */
 export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
 
-/** The `plugin.transformForDisplay` input CEILING (seam 14, U6) — the longest rendered row a
- *  viewer's client may submit for display transformation, enforced at the transport trust boundary. It is
- *  generous against real prose (a very long message is a few thousand characters) and it exists because the
- *  round-trip is PER ROW: without it a transcript render is an unbounded upload per visible message. A row over
- *  the cap is a BAD_REQUEST, and the client's fallback is the text it already has — the same degrade a skipped
- *  transform produces, so an over-long row renders un-annotated rather than not at all. */
-export const PLUGIN_DISPLAY_TEXT_MAX_CHARS = 32_000;
-
 export type { InvocationChat, PluginBridge, PluginInvocationLiveness } from "./bridge.ts";
 export { HostVersionError, PluginCapabilityError, PluginSuggestedError } from "./errors.ts";
 export type { PluginFrameCall, PluginFrameMintRequest, PluginFrameMintResponse, PluginFrameResult } from "./frame.ts";
@@ -157,6 +149,7 @@ export type {
   PluginRowNode,
   PluginSearchBarNode,
   PluginSectionNode,
+  PluginSelectHostSource,
   PluginSelectNode,
   PluginSelectOption,
   PluginSliderNode,
@@ -193,6 +186,8 @@ export {
   PLUGIN_COMMAND_NAME_RE,
   PLUGIN_COMMAND_PLACEMENT_LABEL_MAX,
   PLUGIN_COMMAND_PLACEMENT_TARGETS,
+  PLUGIN_COMPOSER_DRAFT_MAX_CHARS,
+  PLUGIN_DISPLAY_TEXT_MAX_CHARS,
   PLUGIN_FOOTER_MAX_DEPTH,
   PLUGIN_FOOTER_MAX_NODES,
   PLUGIN_FOOTER_NODE_KIND_ALLOWED,
@@ -207,6 +202,7 @@ export {
   PLUGIN_PAGE_STAGE_KINDS,
   PLUGIN_PAGE_STAGES_MAX,
   PLUGIN_ROWS_MAX,
+  PLUGIN_SELECT_HOST_SOURCES,
   PLUGIN_SPEC_MAX_BYTES,
   PLUGIN_SPEC_MAX_DEPTH,
   PLUGIN_SPEC_MAX_NODES,
@@ -237,6 +233,7 @@ export {
   pluginCommandArgsSchema,
   pluginCommandPlacementSchema,
   pluginCommandRegistrationMetaSchema,
+  pluginComposerDraftSchema,
   pluginFrameBodySchema,
   pluginSurfaceNodeSchema,
   pluginSurfaceRegistrationMetaSchema,

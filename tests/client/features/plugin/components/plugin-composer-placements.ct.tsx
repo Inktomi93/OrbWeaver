@@ -7,8 +7,14 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-trpc.ts";
-import { CHAT_AMBIENT_ROUTES, CHAT_ID, makeMessagesPage } from "../../chat/fixtures.ts";
-import { PluginCommandsYouSheetStory, PluginComposerPlacementsStory, PluginComposerRemovalStory, PluginComposerRoomStory } from "../_ct-stories.tsx";
+import { CHAT_AMBIENT_ROUTES, CHAT_ID, CHAT_ROOM_ROUTES, makeMessagesPage } from "../../chat/fixtures.ts";
+import {
+  PluginCommandsYouSheetStory,
+  PluginComposerDraftRoomStory,
+  PluginComposerPlacementsStory,
+  PluginComposerRemovalStory,
+  PluginComposerRoomStory,
+} from "../_ct-stories.tsx";
 
 const FIRST_ID = castId<PluginId>("plugin_ct_same_name000001");
 const SECOND_ID = castId<PluginId>("plugin_ct_same_name000002");
@@ -18,6 +24,122 @@ const ZETA_ID = castId<PluginId>("plugin_ct_order_zeta000001");
 const MID_A_SLUG_ID = castId<PluginId>("plugin_ct_order_mid_z00001");
 const MID_B_SLUG_ID = castId<PluginId>("plugin_ct_order_mid_a00001");
 const LONG_PLACEMENT_LABEL = "Create a detailed illustrated character scene";
+
+const POLISH_COMMAND: TrpcWireOutput<"plugin.listCommands">[number] = {
+  pluginId: FIRST_ID,
+  slug: "draft-polish",
+  pluginName: "Draft Polish",
+  name: "polish",
+  describe: "Polish this draft before sending",
+  args: [],
+  group: null,
+  composerDraft: true,
+  placements: [{ target: "composer-action", label: "Polish", icon: "sparkles" }],
+};
+const DRAFT_ROUTES = {
+  ...CHAT_AMBIENT_ROUTES,
+  ...CHAT_ROOM_ROUTES,
+  "chat.listChats": { items: [], nextCursor: null },
+  "plugin.listCommands": [POLISH_COMMAND],
+  "chat.previewContextFit": {
+    boundaryMessageId: null,
+    usedTokens: 120,
+    ceilingTokens: 32_768,
+    ceilingEstimated: false,
+    limit: null,
+    reserveOutputTokens: 2048,
+    droppedCount: 0,
+    compactSummary: null,
+  },
+} satisfies TrpcRoutes;
+
+test("explicit Polish replaces the visible draft, Undo restores exact bytes, and Send submits precisely the replacement", async ({ mount, page }) => {
+  const original = "  Hello...  ran ` x  --  ... `\nDone!!!  ";
+  const replacement = "Hello… ran ` x  --  ... `\nDone!";
+  const recorder = await routeTrpc(page, {
+    ...DRAFT_ROUTES,
+    "plugin.invokeUiCommand": { toasts: [], composerDraft: replacement },
+    "chat.send": { messages: [], aborted: false },
+  });
+  await mount(<PluginComposerDraftRoomStory />);
+  const draft = page.getByRole("textbox", { name: "Message", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish (draft-polish) · Commands · Run Polish", exact: true });
+  await draft.fill(original);
+  await expect(polish).toBeVisible();
+  await expect.poll(() => recorder.count("plugin.invokeUiCommand")).toBe(0);
+  await polish.click();
+  await expect(draft).toHaveValue(replacement);
+  await expect
+    .poll(() => recorder.lastInput("plugin.invokeUiCommand"))
+    .toEqual({
+      pluginId: FIRST_ID,
+      name: "polish",
+      args: "",
+      values: {},
+      chatId: CHAT_ID,
+      composerDraft: original,
+    });
+  await page.getByRole("button", { name: "Undo Polish", exact: true }).click();
+  await expect(draft).toHaveValue(original);
+  await expect(page.getByRole("button", { name: "Undo Polish", exact: true })).toHaveCount(0);
+  await polish.click();
+  await expect(draft).toHaveValue(replacement);
+  await page.getByRole("button", { name: "Send message", exact: true }).click();
+  await expect.poll(() => recorder.lastInput("chat.send")).toMatchObject({ chatId: CHAT_ID, content: replacement });
+  await expect.poll(() => recorder.count("plugin.invokeUiCommand")).toBe(2);
+});
+
+test("a pending Polish cannot overwrite an edit-and-restore or another room, and Undo cannot overwrite a later edit", async ({ mount, page }) => {
+  const pending = [trpcHold(), trpcHold()] as const;
+  let runs = 0;
+  await routeTrpc(page, {
+    ...DRAFT_ROUTES,
+    "plugin.invokeUiCommand": () => pending.at(runs++) ?? { toasts: [], composerDraft: "Replacement" },
+  });
+  await mount(<PluginComposerDraftRoomStory />);
+  const draft = page.getByRole("textbox", { name: "Message", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish (draft-polish) · Commands · Run Polish", exact: true });
+  await draft.fill("Original");
+  await polish.click();
+  await expect.poll(() => runs).toBe(1);
+  await draft.fill("Later edit");
+  await draft.fill("Original");
+  pending[0].release({ toasts: [], composerDraft: "Stale replacement" });
+  await expect(page.getByText("The draft or room changed. Nothing was replaced.", { exact: true })).toBeVisible();
+  await expect(draft).toHaveValue("Original");
+  await expect(page.getByRole("button", { name: "Undo Polish", exact: true })).toHaveCount(0);
+  await polish.click();
+  await expect.poll(() => runs).toBe(2);
+  await page.getByRole("button", { name: "Other room", exact: true }).click();
+  await expect(draft).toHaveValue("");
+  await draft.fill("Other room draft");
+  pending[1].release({ toasts: [], composerDraft: "Wrong room replacement" });
+  await expect(polish).toBeEnabled();
+  await expect(draft).toHaveValue("Other room draft");
+  await page.getByRole("button", { name: "Original room", exact: true }).click();
+  await expect(draft).toHaveValue("Original");
+  await polish.click();
+  await expect(draft).toHaveValue("Replacement");
+  await expect(page.getByRole("button", { name: "Undo Polish", exact: true })).toBeVisible();
+  await draft.fill("Edit after Polish");
+  await expect(page.getByRole("button", { name: "Undo Polish", exact: true })).toHaveCount(0);
+  await expect(draft).toHaveValue("Edit after Polish");
+});
+
+test("a failed explicit Polish leaves the draft intact and gives a visible error, not a replacement or send", async ({ mount, page }) => {
+  const recorder = await routeTrpc(page, {
+    ...DRAFT_ROUTES,
+    "plugin.invokeUiCommand": trpcError({ code: "INTERNAL_SERVER_ERROR", message: "Polish failed" }),
+  });
+  await mount(<PluginComposerDraftRoomStory />);
+  const draft = page.getByRole("textbox", { name: "Message", exact: true });
+  await draft.fill("Keep my draft");
+  await page.getByRole("button", { name: "Draft Polish (draft-polish) · Commands · Run Polish", exact: true }).click();
+  await expect(page.getByLabel("Alerts").getByText("Polish failed", { exact: true })).toBeVisible();
+  await expect(draft).toHaveValue("Keep my draft");
+  await expect(page.getByRole("button", { name: "Undo Polish", exact: true })).toHaveCount(0);
+  await expect.poll(() => recorder.count("chat.send")).toBe(0);
+});
 
 const COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
   {

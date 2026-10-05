@@ -37,9 +37,17 @@ const PERSIST_VERSION = 1;
 interface ComposerDraftState {
   /** Per-room draft text (`scopeKey → text`), MRU-ordered — an absent scope reads "". */
   readonly drafts: Readonly<Record<string, string>>;
+  readonly revision: number;
 }
 
-const DEFAULT_STATE: ComposerDraftState = { drafts: {} };
+type PersistedComposerDraftState = Pick<ComposerDraftState, "drafts">;
+const DEFAULT_STATE: ComposerDraftState = { drafts: {}, revision: 0 };
+
+/** A pending explicit replacement is tied to the exact edit revision, including edit-and-restore. */
+export interface ComposerDraftSnapshot {
+  readonly text: string;
+  readonly revision: number;
+}
 
 /** Keep only non-empty string entries, newest-last, capped. Shared by the write path and `migrate` so a
  *  rehydrated blob obeys exactly the same bounds a live write does. */
@@ -53,13 +61,13 @@ function migrate(persisted: unknown): ComposerDraftState {
   if (!(isPlainObject(persisted) && isPlainObject(persisted["drafts"]))) {
     return DEFAULT_STATE;
   }
-  return { drafts: bound(persisted["drafts"] as Record<string, string>) };
+  return { drafts: bound(persisted["drafts"] as Record<string, string>), revision: 0 };
 }
 
-const useComposerDraftStore = createPersistedStore<ComposerDraftState>("composer-draft", (): ComposerDraftState => DEFAULT_STATE, {
+const useComposerDraftStore = createPersistedStore<ComposerDraftState, PersistedComposerDraftState>("composer-draft", (): ComposerDraftState => DEFAULT_STATE, {
   version: PERSIST_VERSION,
   migrate,
-  partialize: (s): ComposerDraftState => ({ drafts: bound(s.drafts) }),
+  partialize: (s): PersistedComposerDraftState => ({ drafts: bound(s.drafts) }),
 });
 
 /** Replace a room's draft text (the composer's `onChange`). The touched key is RE-SEATED at the end of the
@@ -68,7 +76,28 @@ export function setComposerDraft(scopeKey: string, text: string): void {
   const next = { ...useComposerDraftStore.getState().drafts };
   delete next[scopeKey];
   next[scopeKey] = text;
-  useComposerDraftStore.setState({ drafts: next }, false, "composerDraft/set");
+  useComposerDraftStore.setState({ drafts: next, revision: useComposerDraftStore.getState().revision + 1 }, false, "composerDraft/set");
+}
+
+/** Capture text without trimming: Undo must restore the person's exact input. */
+export function readComposerDraftSnapshot(scopeKey: string): ComposerDraftSnapshot {
+  const state = useComposerDraftStore.getState();
+  return { text: state.drafts[scopeKey] ?? "", revision: state.revision };
+}
+
+/** Apply or undo only while the original edit revision still owns the draft. */
+export function replaceComposerDraft(scopeKey: string, expected: ComposerDraftSnapshot, text: string): ComposerDraftSnapshot | null {
+  const current = readComposerDraftSnapshot(scopeKey);
+  if (current.revision !== expected.revision || current.text !== expected.text) {
+    return null;
+  }
+  setComposerDraft(scopeKey, text);
+  return readComposerDraftSnapshot(scopeKey);
+}
+
+/** A later edit invalidates the pending replacement and its Undo affordance. */
+export function useComposerDraftRevision(): number {
+  return useComposerDraftStore((state) => state.revision);
 }
 
 /** Non-reactive snapshot of one room's draft text (the husk-reap skip reads it outside a render; `""` when
@@ -89,5 +118,5 @@ export function __readComposerDraftsForTest(): Readonly<Record<string, string>> 
 
 /** Drop every draft — test-only hygiene (a module singleton must not leak state across tests). */
 export function __resetComposerDrafts(): void {
-  useComposerDraftStore.setState({ drafts: {} }, false, "composerDraft/clearAll");
+  useComposerDraftStore.setState({ drafts: {}, revision: useComposerDraftStore.getState().revision + 1 }, false, "composerDraft/clearAll");
 }

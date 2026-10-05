@@ -51,6 +51,8 @@ export interface PluginScriptedSurfaceProps {
   readonly fallback?: ReactElement;
   /** Host-owned binding state for a per-call surface. Tool cards bind against their persisted call record. */
   readonly state?: Record<string, unknown>;
+  /** Optional placements add attribution only when the guest has actual content. */
+  readonly renderContent?: (content: ReactElement) => ReactElement;
 }
 
 type ScriptedSurfaceState =
@@ -68,6 +70,7 @@ export function PluginScriptedSurface({
   chatId,
   fallback,
   state: bindingState,
+  renderContent,
 }: PluginScriptedSurfaceProps): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -198,7 +201,7 @@ export function PluginScriptedSurface({
       </Stack>
     );
   }
-  return (
+  const content = (
     <PluginSurfaceRenderer
       anchor={anchor}
       pluginId={pluginId}
@@ -212,4 +215,5 @@ export function PluginScriptedSurface({
       {...(chatId === undefined ? {} : { chatId })}
     />
   );
+  return renderContent === undefined ? content : renderContent(content);
 }

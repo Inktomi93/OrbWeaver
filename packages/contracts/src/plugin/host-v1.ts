@@ -638,14 +638,18 @@ export interface PluginHostV1 {
      *  re-validated host-side at the membrane against these same specs (a client is untrusted), so `onRun` sees
      *  only well-typed, in-enum, required-present values. capability: ui.surface (a declared arg is metadata on a
      *  command a plugin could already register — no new capability). */
-    registerCommand: (def: {
-      name: string; // /^[a-z][a-z0-9_]{0,40}$/, unique per plugin
-      describe: string; // the palette/menu one-liner (≤ 200 chars)
-      args?: readonly PluginCommandArgSpec[]; // the declared typed args (≤ 16); absent ⇒ one opaque `args` remainder
-      group?: string; // optional subgroup inside the attributed Plugins menu
-      placements?: readonly PluginCommandPlacement[]; // closed host-owned composer placement vocabulary
-      onRun: (a: { args: string; values: Record<string, PluginCommandArgValue> }) => void | Promise<void>;
-    }) => void;
+    registerCommand: (
+      def: {
+        name: string; // /^[a-z][a-z0-9_]{0,40}$/, unique per plugin
+        describe: string; // the palette/menu one-liner (≤ 200 chars)
+        args?: readonly PluginCommandArgSpec[]; // the declared typed args (≤ 16); absent ⇒ one opaque `args` remainder
+        group?: string; // optional subgroup inside the attributed Plugins menu
+        placements?: readonly PluginCommandPlacement[]; // closed host-owned composer placement vocabulary
+      } & (
+        | { composerDraft: true; onRun: (a: { args: string; values: Record<string, PluginCommandArgValue>; draft: string }) => string | Promise<string> }
+        | { composerDraft?: never; onRun: (a: { args: string; values: Record<string, PluginCommandArgValue> }) => void | Promise<void> }
+      ),
+    ) => void;
     /** Raise a HOUSE toast, prefixed with the plugin's name (stamped host-side — a guest-supplied prefix is the
      *  impersonation the attribution exists to prevent). Length-capped and RATE-FLOORED per plugin
      *  (`PLUGIN_TOAST_COOLDOWN_SECONDS`). Transient viewer-local feedback: it rides the outcome of the

@@ -44,15 +44,68 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 // ── configuration ──────────────────────────────────────────────────────────────────────────────────────────
-// The lore book the familiar files into. The target is read from the installer's own global-variable namespace
-// — the same plane `{{getglobalvar}}` reads — then checked against the books attached to this room. Set it once
-// from any chat:
-//
-//     {{setglobalvar::familiar_book_id::wib_01j…}}
-//
-// Unset ⇒ the familiar stays completely inert. That is the deliberate default: a plugin that guesses where to
-// write is a plugin that writes somewhere you did not mean.
+// Configuration selects a destination, not permission to write in a room. The attachment gate remains separate.
 const BOOK_ID_VAR = "familiar_book_id";
+const CONFIG_SURFACE = "familiar_configuration";
+const sentNotices = new Set<string>();
+
+async function notifyInstallerOnce(reason: string, message: string): Promise<void> {
+  host.log.warn(message);
+  if (!host.grants.includes("notify") || sentNotices.has(reason)) {
+    return;
+  }
+  const key = `notice:${reason}`;
+  const persistent = host.grants.includes("storage.kv");
+  if (persistent && (await host.storage.get(key)) !== null) {
+    return;
+  }
+  sentNotices.add(reason);
+  try {
+    await host.notifications.post(host.chat.current(), "host", message);
+  } catch (err) {
+    sentNotices.delete(reason);
+    host.log.warn(`installer notice could not be delivered: ${String(err)}`);
+    return;
+  }
+  if (persistent) {
+    try {
+      await host.storage.set(key, "sent");
+    } catch (err) {
+      host.log.warn(`installer notice memory could not be saved: ${String(err)}`);
+    }
+  }
+}
+
+if (host.grants.includes("ui.surface")) {
+  const canConfigure = host.grants.includes("global_vars");
+  host.ui.register({
+    id: "familiar_settings",
+    anchor: "settings",
+    title: "Research destination",
+    tier: "static",
+    spec: {
+      kind: "stack",
+      gap: "field",
+      children: [
+        { kind: "text", value: "Choose a lore book, then attach that book to each room where you want lookup results." },
+        ...(canConfigure
+          ? [{ kind: "button" as const, actionId: "configure", label: "Choose lore book" }]
+          : [{ kind: "text" as const, value: "Allow global variables in this plugin's permissions to configure its destination." }]),
+        ...(!host.grants.includes("notify")
+          ? [{ kind: "text" as const, value: "Allow notifications to receive private configuration and permission notices." }]
+          : []),
+      ],
+    },
+    onAction: async (action) => {
+      if (action.actionId === "configure") {
+        await host.ui.openDialog(CONFIG_SURFACE);
+      }
+    },
+  });
+  if (canConfigure) {
+    host.ui.register({ id: CONFIG_SURFACE, anchor: "dialog", title: "Choose lore book", tier: "scripted" });
+  }
+}
 
 /** `((lookup: Term))` / `((clip: Term))` — EXPLICIT, human-typed markers. Scanning prose for "interesting
  *  nouns" would make every message an egress candidate; a marker makes the room's members the rate limiter.
@@ -173,14 +226,11 @@ async function searchLibrary(term: string): Promise<ResearchSummary | null> {
  *  network request or write. The write membrane repeats the attachment gate; this early read gives the person
  *  a quiet refusal instead of spending egress on a destination the write will reject. */
 async function configuredBookIsAttached(chat: ChatHandle, bookId: string): Promise<boolean> {
-  if (!host.grants.includes("worldinfo.read")) {
-    return true;
-  }
   const books = await host.worldInfo.listBooks(chat);
   if (books.some((book) => book.id === bookId)) {
     return true;
   }
-  host.log.warn(`configured lore book ${bookId} is not attached to this room — skipping`);
+  await notifyInstallerOnce("destination", "Research Familiar's chosen lore book is not attached to this room. Attach it before using lookup.");
   return false;
 }
 
@@ -215,6 +265,17 @@ async function admit(fact: PluginTriggerFact): Promise<AdmittedResearch | null> 
     return null; // The overwhelmingly common path. Cheap, silent, no host call at all.
   }
   const { verb, term } = marker;
+  const required: PluginCapability[] = [
+    "chat.read",
+    "storage.kv",
+    "net.fetch",
+    ...(verb === "lookup" ? (["global_vars", "worldinfo.read", "worldinfo.write"] as const) : (["databank.ingest"] as const)),
+  ];
+  const missing = required.filter((grant) => !host.grants.includes(grant));
+  if (missing.length > 0) {
+    await notifyInstallerOnce("permissions", `Research Familiar needs these permissions for ${verb}: ${missing.join(", ")}. Open Settings → Plugins.`);
+    return null;
+  }
   if (await alreadyFiled(verb, term)) {
     host.log.info(`"${term}" is already ${verb === "lookup" ? "filed" : "clipped"} — skipping`);
     return null;
@@ -224,19 +285,11 @@ async function admit(fact: PluginTriggerFact): Promise<AdmittedResearch | null> 
     return null;
   }
   if (verb === "clip") {
-    if (!host.grants.includes("databank.ingest")) {
-      host.log.warn("a ((clip: …)) marker needs the databank.ingest capability granted (Settings → Plugins)");
-      return null;
-    }
     return { verb, term, bookId: null };
-  }
-  if (!host.grants.includes("worldinfo.write")) {
-    host.log.warn("a ((lookup: …)) marker needs the worldinfo.write capability granted (Settings → Plugins)");
-    return null;
   }
   const bookId = await host.variables.get(BOOK_ID_VAR);
   if (bookId === null || bookId.length === 0) {
-    host.log.warn(`no lore book configured — set {{setglobalvar::${BOOK_ID_VAR}::<book id>}} to switch me on`);
+    await notifyInstallerOnce("configuration", "Research Familiar needs a lore book. Open Settings → Plugins → Research Familiar → Choose lore book.");
     return null;
   }
   return { verb, term, bookId };

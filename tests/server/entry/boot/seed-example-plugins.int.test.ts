@@ -24,7 +24,8 @@ import type { Db } from "@orb/db";
 import type { AssetId, ChatId, Handle, MessageId, PluginId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { liftJsonSchema } from "@orb/kit/json-schema";
-import { createResolveStandingAsks } from "@orb/server/domain/chat";
+import { can } from "@orb/server/domain/admin";
+import { ChatOperationError, createResolveStandingAsks, requireHost } from "@orb/server/domain/chat";
 import { createNotificationsService } from "@orb/server/domain/notifications";
 // The ALIASED front door, not a deep relative path: biome's type service cannot see through
 // `../../../../packages/server/src/...` into a branded type, and it then mis-fires `useAwaitThenable` /
@@ -35,6 +36,7 @@ import { createPluginHost } from "@orb/server/infra/plugin-host";
 import { writeShowcaseArtifacts } from "@orb/tooling/plugin-author-showcase";
 import { unzipSync, zipSync } from "fflate";
 import { afterEach, beforeAll } from "vitest";
+import { createResolveViewerVisibility } from "../../../../packages/server/src/domain/chat/verbs/resolve-viewer-visibility.ts";
 import type { ExamplePluginSeederDeps } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
 import { createExamplePluginSeeder } from "../../../../packages/server/src/entry/boot/seed-example-plugins.ts";
 import { __terminateManagedPluginBrokerForTest } from "../../../../packages/server/src/infra/plugin-host/process-runtime.ts";
@@ -42,7 +44,8 @@ import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from 
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
-import { makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../../domain/plugin/_support.ts";
+import { seedChat, seedParticipant } from "../../domain/chat/_support.ts";
+import { makeInertOps, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../../domain/plugin/_support.ts";
 
 const DRAW_LINE_RE = /^\d+\. (.+)$/;
 /** The public commitment's shape — ten digits, zero-padded (`commitmentFor`). */
@@ -227,6 +230,16 @@ function recordingOps(db: Db, globals: Map<string, string>): { ops: PluginHostOp
   return { ops, captured };
 }
 
+// Room-effect drives must pass the same live membership/host guards as production, not an admission-time host bit.
+function roomAuthority(db: Db): Pick<PluginHostOps["chat"], "resolveViewerVisibility" | "requireHost"> {
+  return {
+    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    requireHost: async (chatId, installerUserId): Promise<void> => {
+      await requireHost({ db, can }, principalFor(installerUserId), chatId);
+    },
+  };
+}
+
 /** The per-activation invoke closure, or a legible failure. Split out of the call sites because biome's type
  *  service models `arr[0]` as always-defined (no `noUncheckedIndexedAccess`), so an inline
  *  `x[0]?.h === undefined` guard reads to it as statically dead and poisons the narrowing around it. */
@@ -302,13 +315,27 @@ const FAMILIAR_GRANT: readonly PluginCapability[] = [
   "events.subscribe",
   "net.fetch",
   "databank.ingest",
+  "ui.surface",
+  "notify",
 ];
 
 test("research familiar: the real bundle installs consent-first, and its messageCommitted handler actually fires", async () => {
   const db = await freshDb();
   const globals = new Map<string, string>();
   const { ops, captured } = recordingOps(db, globals);
-  const h = makePluginHarness(db, { port: realHost(), ops });
+  const configurationWrites: { readonly ownerId: Principal["userId"]; readonly key: string; readonly value: string }[] = [];
+  const configuredOps: PluginHostOps = {
+    ...ops,
+    variables: {
+      ...ops.variables,
+      set: (ownerId, key, value): Promise<void> => {
+        configurationWrites.push({ ownerId, key, value });
+        globals.set(key, value);
+        return Promise.resolve();
+      },
+    },
+  };
+  const h = makePluginHarness(db, { port: realHost(), ops: configuredOps });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
   // THE SEEDED SEQUENCE, verbatim: install with an EMPTY grant, then the empty RE-GRANT that raises the
@@ -352,7 +379,7 @@ test("research familiar: the real bundle installs consent-first, and its message
   // immediately before the outbound fetch (see the file header).
   await invoke(handler, messageFact(CHAT, "we ride north ((lookup: Aurora borealis))"), chatScope(CHAT, true));
   const log = await h.service.getLog({ caller, pluginId: installed.id });
-  expect(log.some((line) => line.level === "warn" && line.message.includes("familiar_book_id"))).toBe(true);
+  expect(log.some((line) => line.level === "warn" && line.message.includes("Choose lore book"))).toBe(true);
 
   // The CLIP verb's per-verb grant gate: `databank.ingest` was deliberately left out of the grant above, so
   // the marker is admitted through the same debounce chain and then refused BY NAME — a warn log, never a
@@ -364,7 +391,10 @@ test("research familiar: the real bundle installs consent-first, and its message
 
   // The configured lookup stays inside the host when the installer already has a useful document: it proves
   // the destination is attached, asks the owner-scoped corpus, and files the local hit without public egress.
-  globals.set("familiar_book_id", FAMILIAR_BOOK_ID);
+  // The script's UI relay uses the same owner-scoped variable writer as the real composer-free dialog.
+  await h.service.uiHostCall({ caller, pluginId: installed.id, fn: "variables.set", argsJson: JSON.stringify(["familiar_book_id", FAMILIAR_BOOK_ID]) });
+  expect(globals.get("familiar_book_id")).toBe(FAMILIAR_BOOK_ID);
+  expect(configurationWrites).toEqual([{ ownerId: caller.userId, key: "familiar_book_id", value: FAMILIAR_BOOK_ID }]);
   await invoke(handler, messageFact(CHAT, "we ride north ((lookup: Aurora borealis))"), chatScope(CHAT, true));
   expect(captured.worldBookReads).toEqual([{ chatId: CHAT }]);
   expect(captured.searches).toEqual([{ queryText: "Aurora borealis", limit: 1 }]);
@@ -510,26 +540,30 @@ test("oracle deck: two CONCURRENT draws claim DISJOINT cards — the shared sess
   expect(Math.max(first.dealt, second.dealt)).toBe(all.length);
 });
 
-test("draft polish: the real bundle registers a user_input transform that tidies a draft", async () => {
+test("draft polish: the real bundle explicitly replaces a draft and registers no hidden outgoing transform", async () => {
   const db = await freshDb();
   const { ops, captured } = recordingOps(db, new Map());
   const h = makePluginHarness(db, { port: realHost(), ops });
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
-  await installGrantEnable({ h, caller, slug: "draft-polish", grant: ["chat.transform"] });
-  expect(captured.transforms.map((t) => ({ name: t.name, point: t.point }))).toEqual([{ name: "typography", point: "user_input" }]);
-
-  // The transform is re-entered with ONE `{draft, env}` object — the same single-arg seam the domain
-  // registrar's `buildPluginPromptTransform` uses — and the STRING return is the new draft.
-  const invoke = requireInvoke(captured);
-  const apply = requireHandler(captured.transforms, 0, "transform");
-  const env = { chatId: "chat_1", vars: {} };
-  expect(await invoke(apply, JSON.stringify({ draft: "he paused...  then  spoke , quietly  ", env }), null)).toBe("he paused… then spoke, quietly");
-
-  // A room that opted out through its own variables gets the draft back untouched — the courtesy an
-  // always-on transform owes its users, and proof the synchronous `env.vars` read reaches the guest.
-  const optedOut = JSON.stringify({ draft: "leave  me   alone...", env: { chatId: "chat_1", vars: { polishOff: "1" } } });
-  expect(await invoke(apply, optedOut, null)).toBe("leave  me   alone...");
+  const installed = await installGrantEnable({ h, caller, slug: "draft-polish", grant: ["chat.transform", "ui.surface"] });
+  expect(captured.transforms).toEqual([]);
+  const commands = await h.service.listCommands({ caller });
+  expect(commands).toEqual([
+    expect.objectContaining({ name: "polish", composerDraft: true, placements: [{ target: "composer-action", label: "Polish", icon: "sparkles" }] }),
+  ]);
+  const result = await h.service.invokeUiCommand({
+    caller,
+    pluginId: installed,
+    name: "polish",
+    args: "",
+    chatId: CHAT,
+    composerDraft: 'he paused...  then ran `echo  "..."` , quietly  ',
+  });
+  expect(result).toEqual({ toasts: [], composerDraft: 'he paused… then ran `echo  "..."`, quietly' });
+  expect(captured.transforms).toEqual([]);
+  await h.service.setEnabled({ caller, pluginId: installed, enabled: false });
+  expect(await h.service.listCommands({ caller })).toEqual([]);
 });
 
 test("draft polish: the DISPLAY transform typesets the viewer's own screen and leaves code spans alone", async () => {
@@ -555,11 +589,24 @@ test("draft polish: the DISPLAY transform typesets the viewer's own screen and l
 
 test("scene chips: the real bundle offers chips on a long narrator beat, once per cooldown", async () => {
   const db = await freshDb();
-  const { ops, captured } = recordingOps(db, new Map());
-  const h = makePluginHarness(db, { port: realHost(), ops });
+  const { ops: recorded, captured } = recordingOps(db, new Map());
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  await seedChat(db, "scene", { id: CHAT });
+  await seedParticipant(db, { chatId: CHAT, key: "scene_host", userId: caller.userId, role: "host" });
+  const otherRoom = await seedChat(db, "scene_other", { id: castId<ChatId>("chat_2") });
+  await seedParticipant(db, { chatId: otherRoom, key: "scene_other_host", userId: caller.userId, role: "host" });
+  const memberRoom = await seedChat(db, "scene_member");
+  const foreignHost = await seedUser(db, { handle: castId<Handle>("foreign_host") });
+  await seedParticipant(db, { chatId: memberRoom, key: "scene_member", userId: caller.userId, role: "member" });
+  await seedParticipant(db, { chatId: memberRoom, key: "scene_foreign_host", userId: foreignHost, role: "host" });
+  const h = makePluginHarness(db, { port: realHost(), ops: { ...recorded, chat: { ...recorded.chat, ...roomAuthority(db) } } });
 
-  await installGrantEnable({ h, caller, slug: "scene-chips", grant: ["chat.read", "chat.quick_reply", "storage.kv", "events.subscribe", "plugin_events"] });
+  const pluginId = await installGrantEnable({
+    h,
+    caller,
+    slug: "scene-chips",
+    grant: ["chat.read", "chat.quick_reply", "storage.kv", "events.subscribe", "plugin_events"],
+  });
   const invoke = requireInvoke(captured);
   const handler = requireHandler(captured.events, 0, "event handler");
   const beat = "The vault door groans open. ".repeat(20); // Past the plugin's 400-char long-beat floor.
@@ -586,11 +633,16 @@ test("scene chips: the real bundle offers chips on a long narrator beat, once pe
   // FOURTH, omen-flavored door. A second room dodges the per-room cooldown the second beat above just claimed.
   const pubsubHandler = requireHandler(captured.pubsubSubs, 0, "pubsub subscription");
   await invoke(pubsubHandler, JSON.stringify({ name: "draw", data: { cards: ["The Storm"], dealt: 1, commitment: "0000000001", deckSize: 22 } }), null);
-  const otherRoom = castId<ChatId>("chat_2");
   await invoke(handler, messageFact(otherRoom, beat, "assistant"), chatScope(otherRoom, true));
   expect(captured.chips).toHaveLength(2);
   expect(captured.chips[1]?.map((c) => c.label)).toEqual(["Continue", "Time skip", "New scene", "Follow the omen"]);
   expect(captured.chips[1]?.at(-1)?.sendText).toContain("The Storm");
+
+  // A stale admission bit cannot authorize chips in a room whose live host is somebody else.
+  await expect(roomAuthority(db).requireHost(memberRoom, caller.userId)).rejects.toBeInstanceOf(ChatOperationError);
+  await invoke(handler, messageFact(memberRoom, beat, "assistant"), chatScope(memberRoom, true));
+  expect(captured.chips).toHaveLength(2);
+  expect((await h.service.getLog({ caller, pluginId })).some((line) => line.message.includes("chips not offered: ChatOperationError"))).toBe(true);
 });
 
 /** The two `UserSettings.onboarding` fields the seeder owns, as one mutable object a test can hand to several
@@ -758,6 +810,9 @@ function casRefusal(vars: Record<string, string>, beliefs: readonly VariablePrec
 test("story clocks: variables are the room-state plane, the tool ticks, and a human fill asks for a turn", async () => {
   const db = await freshDb();
   const { ops: recorded, captured } = recordingOps(db, new Map());
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  await seedChat(db, "clocks", { id: CHAT });
+  await seedParticipant(db, { chatId: CHAT, key: "clock_host", userId: caller.userId, role: "host" });
   // The ROOM-STATE fakes this archetype is about: a per-room chat-variable store the delta seam mutates, and
   // a `requestTurn` capture — both riding the exact op signatures compose wires.
   const roomVars = new Map<string, Record<string, string>>();
@@ -779,10 +834,7 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
     ...recorded,
     chat: {
       ...recorded.chat,
-      // The bridge re-checks the installer's standing on every room-variable read and write, and the inert
-      // default reports no membership. This archetype's installer hosts the room, so the fixture says so.
-      resolveViewerVisibility: (): ReturnType<PluginHostOps["chat"]["resolveViewerVisibility"]> =>
-        Promise.resolve({ role: "host", historyFloorSeq: historyFloor(0), readsHidden: true }),
+      ...roomAuthority(db),
       getVariables: (chatId): Promise<Record<string, string>> => Promise.resolve({ ...(roomVars.get(chatId) ?? {}) }),
       applyVariableOps: (chatId, varOps, beliefs): Promise<VariableWriteResult> => {
         raceOnce(beliefs);
@@ -817,7 +869,6 @@ test("story clocks: variables are the room-state plane, the tool ticks, and a hu
   };
   const h = makePluginHarness(db, { port: realHost(), ops });
   const publishState = createSurfaceStatePublisher(h.ctx.surfaceState, () => undefined);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
   const pluginId = await installGrantEnable({
     h,

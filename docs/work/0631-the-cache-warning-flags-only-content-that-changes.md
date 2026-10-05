@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-04
+status: doing
+updated: 2026-10-05
 priority: P2
 area: client
+lane: codex/launch-truth
 ---
 
 # The cache warning flags only content that changes per turn

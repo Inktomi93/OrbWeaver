@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-03
+status: doing
+updated: 2026-10-05
 priority: P2
 area: stats
+lane: codex/launch-truth
 ---
 
 # Spend history follow-ups

@@ -47,6 +47,7 @@ interface Reading {
 let readings: Reading[] = [];
 let query = "";
 let loaded = false;
+let failed = false;
 
 /** Sort by warmth, descending — the interesting rooms first. Stable enough for a display list. */
 function byScore(a: Reading, b: Reading): number {
@@ -71,7 +72,9 @@ function draw(): void {
     { kind: "textField", name: "q", label: "Filter rooms", value: query, placeholder: "Type to narrow the list" },
   ];
 
-  if (!loaded) {
+  if (failed) {
+    children.push({ kind: "text", value: "Couldn't load your readings." }, { kind: "button", actionId: "retry", label: "Retry" });
+  } else if (!loaded) {
     children.push({ kind: "text", voice: "gloss", value: "Loading your readings…" });
   } else if (readings.length === 0) {
     children.push({ kind: "text", voice: "gloss", value: "No readings yet. The tracker takes one every few messages once a room gets going." });
@@ -88,15 +91,17 @@ function draw(): void {
 /** Load every reading ONCE. `storage.list`/`storage.get` are relayed to the server and re-checked against this
  *  plugin's own grants there — but they happen exactly here, at startup, and never again. */
 async function load(): Promise<void> {
+  failed = false;
+  loaded = false;
+  draw();
   try {
     const keys = await ui.host.storage.list("score:");
     // In parallel: the host caps concurrent calls, and a handful of rooms is well inside it.
     const values = await Promise.all(keys.map((key) => ui.host.storage.get(key)));
     readings = keys.map((key, index) => ({ label: key.slice("score:".length), score: Number(values[index]) })).filter((row) => Number.isFinite(row.score));
   } catch (err) {
-    // A failed read is not a reason to vanish — draw the empty state and say so in the log.
     ui.log.warn(`could not load readings: ${String(err)}`);
-    readings = [];
+    failed = true;
   }
   loaded = true;
   draw();
@@ -104,7 +109,11 @@ async function load(): Promise<void> {
 
 // EVENTS ARRIVE LOCALLY. No network, no await, no host call — just state and a redraw. This handler is the
 // entire "zero network on keystroke" claim, and it is three lines because that is all it should ever be.
-ui.onEvent((event) => {
+ui.onEvent(async (event) => {
+  if (event.event.type === "action" && event.event.actionId === "retry") {
+    await load();
+    return;
+  }
   if (event.event.type === "field" && event.event.name === "q") {
     query = event.event.value;
     draw();
@@ -115,5 +124,4 @@ ui.onEvent((event) => {
 // The load is deliberately NOT awaited at top level: startup has its own budget, and holding it open on a
 // network round-trip is how a plugin turns a slow connection into a surface that never appears. `load` handles
 // its own failures, so there is nothing here for a rejection to escape from.
-draw();
 void load();

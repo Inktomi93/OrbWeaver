@@ -10,7 +10,7 @@
 // the capability list in as a prop would prove nothing about the path that actually produces it.
 
 import { ListPaneHeaderHost } from "@orb/client/components";
-import { useInvalidation, useTRPC } from "@orb/client/data";
+import { useInvalidation, usePluginDisplayText, useTRPC } from "@orb/client/data";
 import { CommandPaletteSurface } from "@orb/client/features/chat";
 import {
   pluginChatFlankSurface,
@@ -30,26 +30,31 @@ import type { ChatSettingsSectionContribution, ChatSurfaceContribution, CommandP
 import { createContributorRegistry } from "@orb/client/lib";
 import type { ChromeEntry, ConfigSectionContribution } from "@orb/client/state";
 import {
+  __resetComposerDrafts,
   __resetPluginCommandArgs,
   __resetPluginDialog,
   ChromeRegistryProvider,
   CommandPaletteSourceRegistryProvider,
   clearPluginPage,
+  closeModal,
   openPluginCommandArgs,
   openPluginDialog,
   pluginPageKey,
   selectChat,
   selectPluginPageFromList,
+  useOpenModal,
   useSectionRegistry,
 } from "@orb/client/state";
 import type { ToolCallRecord } from "@orb/contracts/chat";
-import type { ChatId, PluginId } from "@orb/kit/ids";
+import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
+import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
 import { YouSheet } from "../../../../packages/client/src/features/app-shell/components/you-sheet.tsx";
 import { MessageToolCalls } from "../../../../packages/client/src/features/chat/components/message-tool-calls.tsx";
 // The "This chat" tab as the component it is — the same relative-into-the-package import chat's own story
@@ -59,10 +64,12 @@ import { PluginCommandArgsBody } from "../../../../packages/client/src/features/
 import { PluginCommandsMenu } from "../../../../packages/client/src/features/plugin/components/plugin-commands-menu.tsx";
 import { PluginComposerActions, PluginComposerMediaItems } from "../../../../packages/client/src/features/plugin/components/plugin-composer-placements.tsx";
 import { PluginDialogBody } from "../../../../packages/client/src/features/plugin/components/plugin-dialog-body.tsx";
+import { PluginRow } from "../../../../packages/client/src/features/plugin/components/plugin-row.tsx";
 import { PluginSurfacesPanel } from "../../../../packages/client/src/features/plugin/components/plugin-surfaces-panel.tsx";
 import {
   useReportUiCrash,
   useSetPluginEnabled,
+  useSetPluginGrant,
   useUninstallPlugin,
   useWithdrawPlugin,
 } from "../../../../packages/client/src/features/plugin/lib/plugin-mutations.ts";
@@ -80,6 +87,59 @@ import { CHAT_ID } from "../chat/fixtures.ts";
 const SETTINGS_PANE_WIDTH = 560;
 /** The CONTEXT pane's docked width — the narrowest REAL host for the "This chat" console section. */
 const CONTEXT_PANE_WIDTH = 384;
+
+function PluginConfigurationBody({ pluginId, pluginName, grants }: Parameters<typeof PluginSurfacesPanel>[0]): ReactElement {
+  const modal = useOpenModal();
+  return (
+    <>
+      <PluginSurfacesPanel pluginId={pluginId} pluginName={pluginName} grants={grants} />
+      <ModalHost openModal={modal} onClose={closeModal} />
+    </>
+  );
+}
+
+/** Configuration actions open the real governed modal registry and selected dialog body. */
+export function PluginConfigurationStory(props: Parameters<typeof PluginSurfacesPanel>[0]): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <CtRealSectionRegistry>
+          <div style={{ width: SETTINGS_PANE_WIDTH }}>
+            <PluginConfigurationBody {...props} />
+          </div>
+        </CtRealSectionRegistry>
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
+function PluginDisplayLifecycleBody({ pluginId }: { readonly pluginId: PluginId }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const enabled = useSetPluginEnabled({ trpc, invalidation });
+  const grant = useSetPluginGrant({ trpc, invalidation });
+  const text = usePluginDisplayText("Original transcript bytes", {
+    chatId: CHAT_ID,
+    messageId: castId<MessageId>("msg_ct_display_lifecycle"),
+  });
+  return (
+    <Stack gap="field">
+      <output aria-label="Transcript row">{text}</output>
+      <Button onClick={(): void => enabled.mutate({ pluginId, enabled: false })}>Disable plugin</Button>
+      <Button onClick={(): void => enabled.mutate({ pluginId, enabled: true })}>Enable plugin</Button>
+      <Button onClick={(): void => grant.mutate({ pluginId, grant: ["chat.transform"], acknowledgedNetHosts: [], enable: true })}>Change grants</Button>
+    </Stack>
+  );
+}
+
+/** An already-mounted transcript row beside real lifecycle mutations. */
+export function PluginDisplayLifecycleStory({ pluginId }: { readonly pluginId: PluginId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <PluginDisplayLifecycleBody pluginId={pluginId} />
+    </CtDataProviders>
+  );
+}
 
 /** The plugins anchor's real config-section roster, assembled as at the door:
  *  Installed · Add-a-plugin · the admin-gated "Distribute to everyone" section. Rendered through the config
@@ -198,6 +258,52 @@ export function PluginComposerRoomStory(): ReactElement {
           <ChatRoomHarness />
         </CtChatContributorSectionRegistry>
       </CtToastSurface>
+    </CtDataProviders>
+  );
+}
+
+/** Explicit draft actions in the real room, with the production mutation-error channel. */
+export function PluginComposerDraftRoomStory(): ReactElement {
+  useEffect(() => {
+    __resetComposerDrafts();
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <CtChatContributorSectionRegistry surfaceContributors={pluginComposerContributors}>
+          <Button onClick={(): void => selectChat(castId<ChatId>("chat_ct_otherdraft"))}>Other room</Button>
+          <Button onClick={(): void => selectChat(CHAT_ID)}>Original room</Button>
+          <ChatRoomHarness />
+        </CtChatContributorSectionRegistry>
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
+function PluginOptOutBody(): ReactElement {
+  const trpc = useTRPC();
+  const { data: plugins } = useQuery(trpc.plugin.list.queryOptions());
+  const text = usePluginDisplayText("Original transcript bytes", { chatId: CHAT_ID, messageId: castId<MessageId>("msg_ct_polish_optout") });
+  return (
+    <Stack gap="block">
+      {(plugins ?? []).map((plugin) => (
+        <PluginRow plugin={plugin} key={plugin.id} />
+      ))}
+      <output aria-label="Transcript row">{text}</output>
+      <PluginComposerActions chatId={CHAT_ID} />
+    </Stack>
+  );
+}
+
+/** The documented installed-card switch and already-mounted Polish contributions share one real cache. */
+export function PluginOptOutStory(): ReactElement {
+  useEffect(() => {
+    selectChat(CHAT_ID);
+  }, []);
+  return (
+    <CtDataProviders>
+      <PluginOptOutBody />
     </CtDataProviders>
   );
 }

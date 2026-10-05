@@ -21,6 +21,7 @@
 // is precisely why the capability is addable at all. Here it goes to private storage and a notice.
 
 const host = orb.host(1);
+const BROWSER_SURFACE = "affinity_browser";
 
 /** Score every Nth committed message. THE budget dial — see the header. */
 const SCORE_EVERY = 8;
@@ -241,6 +242,7 @@ const AFFINITY_PANEL_SPEC = {
     { kind: "meter", label: "Average warmth", max: SCORE_MAX, value: { $state: "averageWarmth" } },
     { kind: "text", value: { $state: "summary" } },
     { kind: "button", actionId: "refresh", label: "Refresh readings", variant: "outline" },
+    { kind: "button", actionId: "browse", label: "Browse readings", variant: "outline" },
   ],
 } satisfies PluginSurfaceSpec;
 
@@ -289,6 +291,8 @@ if (host.grants.includes("ui.surface")) {
     onAction: async (a) => {
       if (a.actionId === "refresh") {
         await publishSummary();
+      } else if (a.actionId === "browse") {
+        await host.ui.openDialog(BROWSER_SURFACE);
       }
     },
   });
@@ -359,8 +363,8 @@ if (host.grants.includes("ui.surface")) {
 // back to this file.
 if (host.grants.includes("ui.surface")) {
   host.ui.register({
-    id: "affinity_browser",
-    anchor: "settings",
+    id: BROWSER_SURFACE,
+    anchor: "dialog",
     title: "Browse readings",
     tier: "scripted",
   });

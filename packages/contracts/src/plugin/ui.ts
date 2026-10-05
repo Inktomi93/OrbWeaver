@@ -565,6 +565,11 @@ export interface PluginSelectOption {
   readonly value: string;
   readonly label: string;
 }
+
+/** Host-owned catalogs stay in the first-party picker. Guests receive only the person's selected value. */
+export const PLUGIN_SELECT_HOST_SOURCES = ["owned-lore-books"] as const;
+export type PluginSelectHostSource = (typeof PLUGIN_SELECT_HOST_SOURCES)[number];
+
 export interface PluginSelectNode {
   readonly kind: "select";
   readonly name: string;
@@ -578,6 +583,7 @@ export interface PluginSelectNode {
    *  structurally cannot express). Resolved by {@link resolvePluginBoundSelectOptions}: entries are
    *  UNTRUSTED STATE (validated, malformed dropped, clamped to {@link PLUGIN_ROWS_MAX}). */
   readonly optionsFrom?: PluginStateBinding | undefined;
+  readonly optionsFromHost?: PluginSelectHostSource | undefined;
   readonly value?: string | undefined;
   /** Fired when the person PICKS a value (hub v1.2) — the `searchBar.actionId` shape one control over, so a
    *  select that drives the page (a source switcher, a sort order) applies on change instead of sitting inert
@@ -926,6 +932,7 @@ export const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =
       label: labelSchema,
       options: readonlyArrayOutput(z.array(z.object({ value: z.string().max(LABEL_MAX), label: labelSchema })).max(PLUGIN_ROWS_MAX)).optional(),
       optionsFrom: stateBindingSchema.optional(),
+      optionsFromHost: z.enum(PLUGIN_SELECT_HOST_SOURCES).optional(),
       value: z.string().max(LABEL_MAX).optional(),
       actionId: identSchema.optional(),
     }),
@@ -1141,8 +1148,10 @@ function collectTileCoverViolations(node: Extract<PluginSurfaceNode, { kind: "gr
  *  `select` menu and the `tabs` strip (#799). Split out for the same reason {@link collectHeroViolations}
  *  was: {@link collectArmViolations} sits at the cognitive-complexity ceiling. */
 function collectOptionArmViolation(node: Extract<PluginSurfaceNode, { kind: "select" | "tabs" }>, out: string[]): void {
-  if ((node.options === undefined) === (node.optionsFrom === undefined)) {
-    out.push(`a ${node.kind} names exactly one of \`options\` (declared) or \`optionsFrom\` (bound)`);
+  const sources =
+    Number(node.options !== undefined) + Number(node.optionsFrom !== undefined) + Number(node.kind === "select" && node.optionsFromHost !== undefined);
+  if (sources !== 1) {
+    out.push(`a ${node.kind} names exactly one option source`);
   }
 }
 
@@ -1554,8 +1563,12 @@ export const pluginCommandRegistrationMetaSchema = z
     args: z.array(pluginCommandArgSpecSchema).max(PLUGIN_COMMAND_ARGS_DECLARED_MAX).optional(),
     group: z.string().min(1).max(LABEL_MAX).optional(),
     placements: readonlyArrayOutput(z.array(pluginCommandPlacementSchema).max(PLUGIN_COMMAND_PLACEMENT_TARGETS.length)).optional(),
+    composerDraft: z.literal(true).optional(),
   })
   .superRefine((meta, ctx) => {
+    if (meta.composerDraft === true && (meta.placements?.length !== 1 || meta.placements[0]?.target !== "composer-action" || (meta.args?.length ?? 0) !== 0)) {
+      ctx.addIssue({ code: "custom", message: "a composer draft command has only a composer-action placement and no arguments", path: ["composerDraft"] });
+    }
     const seen = new Set<string>();
     for (const arg of meta.args ?? []) {
       if (seen.has(arg.name)) {
@@ -1729,12 +1742,22 @@ export interface PluginToast {
 export interface PluginUiOutcome {
   readonly toasts: readonly PluginToast[];
   readonly openDialog?: string;
+  readonly composerDraft?: string;
 }
+
+/** A draft stays below the resident invoke byte limit even with JSON escaping. */
+export const PLUGIN_DISPLAY_TEXT_MAX_CHARS = 32_000;
+export const PLUGIN_COMPOSER_DRAFT_MAX_CHARS = PLUGIN_DISPLAY_TEXT_MAX_CHARS;
+export const pluginComposerDraftSchema = z
+  .string()
+  .max(PLUGIN_COMPOSER_DRAFT_MAX_CHARS)
+  .refine((text) => text.isWellFormed(), { message: "draft contains an unpaired surrogate" });
 
 /** Strict: installed as the tRPC output parser of `invokeUiAction` / `invokeUiCommand`. */
 export const pluginUiOutcomeSchema = z.strictObject({
   toasts: z.array(z.strictObject({ level: z.enum(PLUGIN_TOAST_LEVELS), message: z.string() })).readonly(),
   openDialog: z.string().exactOptional(),
+  composerDraft: pluginComposerDraftSchema.exactOptional(),
 }) satisfies z.ZodType<PluginUiOutcome>;
 
 /** Every DISTINCT node kind in `spec` that {@link PLUGIN_FOOTER_NODE_KIND_ALLOWED} refuses, in first-seen

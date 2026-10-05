@@ -37,9 +37,17 @@ function pluginContributionCatalogReads(
 ): readonly [
   ReturnType<Trpc["plugin"]["listSurfaces"]["queryFilter"]>,
   ReturnType<Trpc["plugin"]["listCommands"]["queryFilter"]>,
+  ReturnType<Trpc["plugin"]["listDisplayTransforms"]["queryFilter"]>,
+  ReturnType<Trpc["plugin"]["transformForDisplay"]["queryFilter"]>,
   ReturnType<Trpc["automation"]["listRuleTools"]["queryFilter"]>,
 ] {
-  return [trpc.plugin.listSurfaces.queryFilter(), trpc.plugin.listCommands.queryFilter(), trpc.automation.listRuleTools.queryFilter()];
+  return [
+    trpc.plugin.listSurfaces.queryFilter(),
+    trpc.plugin.listCommands.queryFilter(),
+    trpc.plugin.listDisplayTransforms.queryFilter(),
+    trpc.plugin.transformForDisplay.queryFilter(),
+    trpc.automation.listRuleTools.queryFilter(),
+  ];
 }
 
 /** The server's own refusal sentence when it threw one, else `fallback`. The lifecycle taxonomy

@@ -202,6 +202,7 @@ export interface PluginCommandView {
   readonly args: readonly PluginCommandArgSpec[];
   readonly group: string | null;
   readonly placements: readonly PluginCommandPlacement[];
+  readonly composerDraft?: true;
 }
 
 export const pluginCommandViewSchema = z.strictObject({
@@ -213,6 +214,7 @@ export const pluginCommandViewSchema = z.strictObject({
   args: z.array(pluginCommandArgSpecSchema).readonly(),
   group: z.string().nullable(),
   placements: z.array(pluginCommandPlacementSchema).readonly(),
+  composerDraft: z.literal(true).exactOptional(),
 }) satisfies z.ZodType<PluginCommandView>;
 
 /** One registered DISPLAY transform as the caller's client sees it (`listDisplayTransforms`

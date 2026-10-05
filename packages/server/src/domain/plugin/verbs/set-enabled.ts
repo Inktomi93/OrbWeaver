@@ -15,7 +15,7 @@
 import { PluginCrashedError, PluginNotFoundError } from "../contract/errors.ts";
 import type { SetPluginEnabledParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
-import { getById, setStatus } from "../persistence/plugins.ts";
+import { getById, resetCrashes, setStatus } from "../persistence/plugins.ts";
 
 export function createSetEnabled(ctx: PluginContext, deps: ActivationDeps): PluginService["setEnabled"] {
   return async ({ caller, pluginId, enabled }: SetPluginEnabledParams): Promise<void> => {
@@ -27,6 +27,7 @@ export function createSetEnabled(ctx: PluginContext, deps: ActivationDeps): Plug
     if (enabled) {
       // Clean slate: tear down any stale resident so a re-enable never leaks a second instance.
       await deps.deactivate(pluginId);
+      await resetCrashes(ctx.db, pluginId, ctx.now());
       // THE STORED GRANT, AND THE CONSENTED REACH — the two halves of "enabling grants nothing". The
       // capability half needs no work (an unconfirmed capability was never written into the grant); the
       // `net.fetch` half does, because its reach is parameterized by the MANIFEST, which an upgrade can widen

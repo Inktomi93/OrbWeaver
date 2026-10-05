@@ -20,3 +20,15 @@ is not a URL or filesystem path.
 
 Keep main, UI, and frame source in separate compiler programs. The runtime consumes built, self-contained
 JavaScript; importing this package from an emitted guest script is unsupported.
+
+## Explicit composer drafts and host-owned pickers
+
+A command with `composerDraft: true` declares only a `composer-action` placement and no typed arguments. Only an explicit composer click supplies `input.draft`.
+
+Return a string replacement. The host rejects nonstrings and bounds both input and output. The client replaces the visible draft only while that invocation still owns it, and offers exact-text Undo until the next edit.
+
+Ordinary commands, slash dispatch, palette commands, and background events receive no unsent composer draft.
+
+A select with `optionsFromHost: "owned-lore-books"` uses the installer's first-party catalog. It cannot also declare `options` or `optionsFrom`.
+
+The guest receives only the person's selected id. Selection configures a destination; it does not attach a book or grant room write authority.

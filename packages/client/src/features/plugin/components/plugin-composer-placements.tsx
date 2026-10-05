@@ -68,7 +68,7 @@ function comparePlaced(a: PlacedCommand, b: PlacedCommand): number {
 }
 
 function usePlacedCommands(target: PluginCommandPlacementTarget): readonly PlacedCommand[] {
-  return usePluginCommands()
+  return usePluginCommands(target === "composer-action")
     .flatMap((command) => {
       const placement = command.placements.find((candidate) => candidate.target === target);
       return placement === undefined ? [] : [{ command, label: placement.label, icon: placement.icon }];
@@ -93,7 +93,7 @@ function groupPlacedCommands(placed: readonly PlacedCommand[]): readonly PlacedC
 
 export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): ReactElement | null {
   const placed = usePlacedCommands("composer-action");
-  const { isPending, run } = useRunPluginCommand(chatId);
+  const { isPending, run, undo, undoLabel } = useRunPluginCommand(chatId, true);
   const rowRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [directCount, setDirectCount] = useState(0);
@@ -146,6 +146,11 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
       {direct.map((item) => (
         <PlacedActionButton isPending={isPending} item={item} key={`${item.command.pluginId}:${item.command.name}`} onRun={(): void => run(item.command)} />
       ))}
+      {undo === null ? null : (
+        <Button intent="ghost" onClick={undo} shape="pill" size="sm">
+          {undoLabel}
+        </Button>
+      )}
       {groups.length === 0 ? null : (
         <Menu>
           <MenuTrigger

@@ -6,7 +6,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { TrpcRoutes, TrpcWireOutput } from "../../../../support/node/route-trpc.ts";
 import { routeTrpc } from "../../../../support/node/route-trpc.ts";
-import { PluginTerminalInvalidationStory } from "../_ct-stories.tsx";
+import { PluginDisplayLifecycleStory, PluginOptOutStory, PluginTerminalInvalidationStory } from "../_ct-stories.tsx";
 
 type PluginSurfaceRow = TrpcWireOutput<"plugin.listSurfaces">[number];
 
@@ -31,6 +31,120 @@ const COMMANDS: TrpcWireOutput<"plugin.listCommands"> = [
     placements: [],
   },
 ];
+
+test("toggle and same-name re-grant refresh an already-rendered display transform without reload", async ({ mount, page }) => {
+  let active = true;
+  let version = 1;
+  const row = {
+    id: PLUGIN_ID,
+    slug: "polish",
+    name: "Polish",
+    version: "1.0.0",
+    status: "enabled",
+    origin: "upload",
+    sourceUrl: null,
+    sourceCommit: null,
+    updateSource: null,
+    declaredCapabilities: ["chat.transform"],
+    grantedCapabilities: ["chat.transform"],
+    netHosts: null,
+    reconsentPending: false,
+    widenedNetHosts: [],
+    builtAgainst: null,
+    description: "Typesets your display",
+    lastError: null,
+    installedAt: 1_750_000_000_000,
+    updatedAt: 1_750_000_000_000,
+  } satisfies TrpcWireOutput<"plugin.setGrant">;
+  const recorder = await routeTrpc(page, {
+    "plugin.list": () => [row],
+    "plugin.listDisplayTransforms": () => (active ? [{ pluginId: PLUGIN_ID, name: "typeset" }] : []),
+    "plugin.transformForDisplay": () => ({ text: active ? `Annotation ${version}` : "Original transcript bytes" }),
+    "plugin.setEnabled": (input) => {
+      active = input.enabled;
+      return null;
+    },
+    "plugin.setGrant": () => {
+      version += 1;
+      return row;
+    },
+  });
+  const component = await mount(<PluginDisplayLifecycleStory pluginId={PLUGIN_ID} />);
+  const transcript = component.getByRole("status", { name: "Transcript row" });
+  await expect(transcript).toHaveText("Annotation 1");
+  await component.getByRole("button", { name: "Disable plugin", exact: true }).click();
+  await expect(transcript).toHaveText("Original transcript bytes");
+  await component.getByRole("button", { name: "Enable plugin", exact: true }).click();
+  await expect(transcript).toHaveText("Annotation 1");
+  await component.getByRole("button", { name: "Change grants", exact: true }).click();
+  await expect(transcript).toHaveText("Annotation 2");
+  await expect.poll(() => recorder.count("plugin.listDisplayTransforms")).toBeGreaterThanOrEqual(4);
+});
+
+test("the documented Draft Polish switch removes Polish and restores displayed bytes without reload", async ({ mount, page }) => {
+  let enabled = true;
+  const row = {
+    id: PLUGIN_ID,
+    slug: "draft-polish",
+    name: "Draft Polish",
+    version: "1.2.0",
+    status: "enabled",
+    origin: "upload",
+    sourceUrl: null,
+    sourceCommit: null,
+    updateSource: null,
+    declaredCapabilities: ["ui.surface", "chat.transform"],
+    grantedCapabilities: ["ui.surface", "chat.transform"],
+    netHosts: null,
+    reconsentPending: false,
+    widenedNetHosts: [],
+    builtAgainst: null,
+    description: "Explicit draft polishing and display typography",
+    lastError: null,
+    installedAt: 1,
+    updatedAt: 1,
+  } satisfies TrpcWireOutput<"plugin.list">[number];
+  const recorder = await routeTrpc(page, {
+    "plugin.list": () => [{ ...row, status: enabled ? "enabled" : "disabled" }],
+    "plugin.listSurfaces": [],
+    "plugin.getLog": [],
+    "plugin.listCommands": (): TrpcWireOutput<"plugin.listCommands"> =>
+      enabled
+        ? [
+            {
+              pluginId: PLUGIN_ID,
+              slug: row.slug,
+              pluginName: row.name,
+              name: "polish",
+              describe: row.description,
+              args: [],
+              group: null,
+              composerDraft: true,
+              placements: [{ target: "composer-action", label: "Polish", icon: "sparkles" }],
+            },
+          ]
+        : [],
+    "plugin.listDisplayTransforms": () => (enabled ? [{ pluginId: PLUGIN_ID, name: "typeset" }] : []),
+    "plugin.transformForDisplay": { text: "Viewer-only typography" },
+    "plugin.setEnabled": (input) => {
+      enabled = input.enabled;
+      return null;
+    },
+  });
+  await mount(<PluginOptOutStory />);
+  const transcript = page.getByRole("status", { name: "Transcript row", exact: true });
+  const polish = page.getByRole("button", { name: "Draft Polish (draft-polish) · Commands · Run Polish", exact: true });
+  await expect(polish).toBeVisible();
+  await expect(transcript).toHaveText("Viewer-only typography");
+  const card = page.getByRole("group", { name: "Draft Polish plugin", exact: true });
+  await card.getByRole("switch", { name: "Turn Draft Polish off", exact: true }).click();
+  await expect(polish).toHaveCount(0);
+  await expect(transcript).toHaveText("Original transcript bytes");
+  await expect.poll(() => recorder.lastInput("plugin.setEnabled")).toEqual({ pluginId: PLUGIN_ID, enabled: false });
+  await card.getByRole("switch", { name: "Turn Draft Polish on", exact: true }).click();
+  await expect(polish).toBeVisible();
+  await expect(transcript).toHaveText("Viewer-only typography");
+});
 
 for (const transition of ["uninstall", "withdraw", "auto-disable"] as const) {
   test(`${transition} clears warmed surface and command catalogs`, async ({ mount, page }) => {

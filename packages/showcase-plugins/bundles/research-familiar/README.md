@@ -14,7 +14,7 @@ at 120 queries an hour for this plugin.
 cp -r packages/showcase-plugins/bundles/research-familiar /tmp/my-plugin
 # change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
 pnpm --filter @orb/showcase-plugins build
-pnpm plugin:pack research-familiar ./out    # → ./out/research-familiar-1.2.1.zip
+pnpm plugin:pack research-familiar ./out    # → ./out/research-familiar-1.3.0.zip
 ```
 
 Settings → Plugins → drop the zip → tick the capabilities → turn it on. Keep the same `id` and it upgrades
@@ -23,21 +23,20 @@ independent second plugin — which is what you want while experimenting.
 
 ## Turning it on
 
-It needs one thing you have to give it: the lore book to write into. It reads the target from your own global
-variable namespace, then `worldInfo.listBooks` checks that the book is attached to the room before the
-familiar searches or writes. From any chat:
+Open Settings → Plugins → Research Familiar → Choose lore book. Select one of your owned books in the configuration dialog.
 
-```
-{{setglobalvar::familiar_book_id::wib_your_book_id_here}}
-```
+The picker writes `familiar_book_id` in your own global-variable namespace. The guest receives your selected id, not your book catalog.
 
-Until that is set the familiar stays completely inert and says so in its log. That is deliberate: a plugin
-that guesses where to write is a plugin that writes somewhere you did not mean.
+Attach the selected book to each room where you want lookup results. Selection is configuration, not room write consent.
+
+The familiar checks actual room attachment before searching or writing. A missing destination or required permission produces a private installer notice once.
+
+Allow `notify` and `chat.read` to receive notices. With `storage.kv`, notice memory survives reactivation. A missing Wikipedia article remains quiet.
 
 ## The manifest
 
 ```json
-"capabilities": ["chat.read", "worldinfo.read", "worldinfo.write", "global_vars", "storage.kv", "search.query", "events.subscribe", "net.fetch", "databank.ingest"],
+"capabilities": ["chat.read", "worldinfo.read", "worldinfo.write", "global_vars", "storage.kv", "search.query", "events.subscribe", "net.fetch", "databank.ingest", "ui.surface", "notify"],
 "netHosts": ["en.wikipedia.org"]
 ```
 
@@ -54,6 +53,8 @@ that guesses where to write is a plugin that writes somewhere you did not mean.
   knowing when you are trimming a grant list: you cannot write to a room without being able to name it.
 * `global_vars` — reading the configured book id.
 * `storage.kv` — its private memory of what it has already looked up.
+* `ui.surface` — the settings action and explicitly opened configuration dialog.
+* `notify` — private configuration and required-permission notices to the installer, never the whole room.
 
 ## Two verbs, two destinations — the capability lesson
 
@@ -68,7 +69,7 @@ before you design your own writes:
   destination to configure and no host authority to ask — a write into your own shelves is your own reach.
 
 Each verb feature-detects its own grant at the moment of use: a marker for an unticked capability logs one
-clear warning and stays silent, never a throw (a throw is a strike against the three-crash auto-disable).
+clear warning and a private notice when notification permissions allow it. It does not throw for a withheld grant.
 
 ## How it works
 
@@ -100,8 +101,7 @@ clear warning and stays silent, never a throw (a throw is a strike against the t
 * **You must host the room.** World-info writes need host authority. In a room the installer does not host,
   the write becomes a **confirm card** for the room's host and the call throws `PluginSuggestedError` — which
   the handler catches by name and logs. Nothing is lost, but nothing lands until someone says yes.
-* **The book id is still explicit configuration.** The read surface can verify and inspect attached books,
-  but this example has no settings picker. Guessing a destination belongs nowhere.
+* **The destination must be attached.** The settings picker does not attach the book or grant room authority.
 * **Wikipedia fetches are rate-floored at 360/hour per plugin; library queries at 120/hour per plugin.** There is no rate belt on event delivery —
   which is exactly why the marker and the two debounce layers are not optional decoration.
 * **Macros in fetched text are neutralised** before storage. World-info content is macro-rendered later, at

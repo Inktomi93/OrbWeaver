@@ -1485,6 +1485,36 @@ describe("host.ui — declarative surface registration + state publish (U1)", ()
     expect(collected).toEqual([{ name: "draw", describe: "Draw a card" }]);
   });
 
+  test("composer draft returns preserve real strings and refuse nonstrings before serialization", async () => {
+    const { bridge } = fakeBridge();
+    const handlers: { name: string; handle: QuickJSHandle }[] = [];
+    const runtime = makeRuntime(uiGrants, false, bridge, {
+      collectCommand: (meta, onRun): void => {
+        handlers.push({ name: meta.name, handle: onRun });
+      },
+    });
+    await withRuntime(runtime, async (ctx) => {
+      const out = ctx.evalCode(`
+        for (const [name, value] of [["text", "null"], ["number", 1], ["object", {}], ["nullish", null], ["absent", undefined]]) {
+          host.ui.registerCommand({ name, describe: "Replace draft", composerDraft: true,
+            placements: [{ target: "composer-action", label: "Polish" }], onRun: async () => value });
+        }
+      `);
+      ctx.unwrapResult(out).dispose();
+      expect(handlers.map(({ name }) => name)).toEqual(["text", "number", "object", "nullish", "absent"]);
+      for (const { name, handle } of handlers) {
+        ctx.setProp(ctx.global, name, handle);
+        handle.dispose();
+      }
+      expect(await runAsync(ctx, "text({ draft: 'input' })")).toBe("null");
+      for (const name of ["number", "object", "nullish", "absent"]) {
+        expect(await runAsync(ctx, `${name}({ draft: 'input' }).then(() => 'accepted', error => String(error))`)).toBe(
+          "plugin host: a composer draft command must return a string",
+        );
+      }
+    });
+  });
+
   test("#791: host.ui.registerCommand parses the DECLARED typed args off the def", async () => {
     const { bridge } = fakeBridge();
     const collected: PluginCommandRegistrationMeta[] = [];

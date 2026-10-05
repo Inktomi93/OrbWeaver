@@ -9,9 +9,14 @@
 
 import { useOrbSocket } from "@orb/client/data";
 import { NotificationBell, notificationsChrome } from "@orb/client/features/notifications";
-import { useActiveConfigGroup, useActiveSection } from "@orb/client/state";
+import { pluginsInstalledSection } from "@orb/client/features/plugin";
+import { createContributorRegistry } from "@orb/client/lib";
+import type { ChromeEntry, ConfigSectionContribution } from "@orb/client/state";
+import { ChromeRegistryProvider, closeModal, openModal, useActiveConfigGroup, useActiveSection, useConfigTarget, useOpenModal } from "@orb/client/state";
+import { Button } from "@orb/ui/button";
 import type { ReactElement, ReactNode } from "react";
-import { CtDataProviders } from "../../../support/browser/ct-data-providers.tsx";
+import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
+import { CtConfigGroupBody, CtDataProviders, CtRealSectionRegistry } from "../../../support/browser/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */
@@ -97,7 +102,13 @@ export function NotificationBellToastStory(): ReactElement {
 function ShellDestinationProbe(): ReactElement {
   const section = useActiveSection();
   const group = useActiveConfigGroup();
-  return <output data-testid="ct-shell-destination">{`${section}/${group ?? "none"}`}</output>;
+  const target = useConfigTarget();
+  return (
+    <>
+      <output data-testid="ct-shell-destination">{`${section}/${group ?? "none"}`}</output>
+      <output data-testid="ct-plugin-target">{target === null ? "none" : `${target.group}/${target.sub}/${target.setting}`}</output>
+    </>
+  );
 }
 
 export function NotificationBellDestinationStory(): ReactElement {
@@ -108,6 +119,40 @@ export function NotificationBellDestinationStory(): ReactElement {
           <NotificationBell />
           <ShellDestinationProbe />
         </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+const notificationChrome = createContributorRegistry<ChromeEntry>("chrome", [notificationsChrome]);
+const installedPlugins = createContributorRegistry<ConfigSectionContribution>("config-sections", [pluginsInstalledSection]);
+
+function PhonePluginNoticeBody(): ReactElement {
+  const modal = useOpenModal();
+  const section = useActiveSection();
+  const group = useActiveConfigGroup();
+  return (
+    <>
+      <Button data-modal-trigger="you" onClick={(): void => openModal("you")}>
+        You
+      </Button>
+      {section === "config" && group === "plugins" ? <CtConfigGroupBody anchor="plugins" sections={installedPlugins} /> : null}
+      <ShellDestinationProbe />
+      <ModalHost openModal={modal} onClose={closeModal} />
+    </>
+  );
+}
+
+/** The real You drawer contains the inbox, above the real installed-card destination. */
+export function NotificationPhonePluginDestinationStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <CtRealSectionRegistry>
+          <ChromeRegistryProvider value={notificationChrome}>
+            <PhonePluginNoticeBody />
+          </ChromeRegistryProvider>
+        </CtRealSectionRegistry>
       </SocketHost>
     </CtDataProviders>
   );

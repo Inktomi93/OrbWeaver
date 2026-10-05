@@ -375,6 +375,7 @@ export interface InvokeUiCommandParams {
    *  Optional so a raw-remainder caller (`args` only) needs no empty-bag ceremony; the verb normalizes absent to `{}`. */
   readonly values?: Record<string, PluginCommandArgValue>;
   readonly chatId: ChatId | null;
+  readonly composerDraft?: string;
 }
 
 /** `listDisplayTransforms` — the caller's OWN enabled plugins' registered DISPLAY transforms

@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-10-03
+status: doing
+updated: 2026-10-05
 priority: P2
 area: inference
+lane: codex/launch-inference
 ---
 
 # Run the Gemini live cells pending from the launch inference matrices

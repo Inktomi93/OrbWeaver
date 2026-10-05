@@ -8,17 +8,21 @@
 // one place: the fresh pick rides the round-trip as an EXTRA value, because the React state write beside it is
 // async and the submit must not read the stale draft bag.
 
-import type { PluginSelectNode, PluginTabsNode } from "@orb/contracts/plugin";
+import type { PluginSelectHostSource, PluginSelectNode, PluginTabsNode } from "@orb/contracts/plugin";
 import { Field } from "@orb/ui/field";
 import { Select } from "@orb/ui/select";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { selectOptions, tabOptions } from "../lib/plugin-surface-bindings.ts";
 
 /** Submit `actionId` with the current draft plus the fresh pick — the leaf module's own `SubmitAction`,
  *  restated here rather than imported so this module keeps its zero-import-back-into-the-walk property. */
 type SubmitAction = (actionId: string, extra?: Record<string, string>) => void;
+const HOST_PICKERS: Record<PluginSelectHostSource, typeof OwnedLoreSelect> = { "owned-lore-books": OwnedLoreSelect };
 
 /** The MENU half of the option grammar (`select`) — extracted beside {@link TabsStrip} for the same reason
  *  and at the same time: the two nodes are one grammar in two presentations, and each carries a live-pick
@@ -36,6 +40,18 @@ export function BoundSelect({
   readonly submit: SubmitAction;
   readonly state: Record<string, unknown>;
 }): ReactElement {
+  if (node.optionsFromHost !== undefined) {
+    const HostPicker = HOST_PICKERS[node.optionsFromHost];
+    return (
+      <QueryBoundary
+        fallback={<SkeletonRows count={1} shape="line" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="your lore books" onRetry={retry} />}
+        reserveKey="plugin.lore-picker"
+      >
+        <HostPicker node={node} setValue={setValue} submit={submit} values={values} />
+      </QueryBoundary>
+    );
+  }
   return (
     <Field label={node.label}>
       {/* aria-label mirrors the Field label onto the trigger — Base UI's Select.Label doesn't reach the
@@ -52,6 +68,26 @@ export function BoundSelect({
           }
         }}
         value={values[node.name] ?? ""}
+      />
+    </Field>
+  );
+}
+
+function OwnedLoreSelect({ node, values, setValue, submit }: Pick<Parameters<typeof BoundSelect>[0], "node" | "values" | "setValue" | "submit">): ReactElement {
+  const trpc = useTRPC();
+  const { data: books } = useSuspenseQuery(trpc.worldInfo.listBooks.queryOptions());
+  return (
+    <Field label={node.label}>
+      <Select
+        aria-label={node.label}
+        items={books.map((book) => ({ value: String(book.id), label: book.name }))}
+        value={values[node.name] ?? ""}
+        onValueChange={(next): void => {
+          setValue(node.name, next ?? "");
+          if (node.actionId !== undefined) {
+            submit(node.actionId, { [node.name]: next ?? "" });
+          }
+        }}
       />
     </Field>
   );

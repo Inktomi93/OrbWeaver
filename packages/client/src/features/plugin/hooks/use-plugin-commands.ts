@@ -8,10 +8,12 @@
 
 import type { PluginCommandArgSpec, PluginCommandArgValue, PluginCommandPlacement } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
-import { useIsMutating, useQuery } from "@tanstack/react-query";
+import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
-import { openPluginCommandArgs } from "#state";
+import type { ComposerDraftSnapshot } from "#state";
+import { activeChatId, openPluginCommandArgs, readComposerDraftSnapshot, replaceComposerDraft, useActiveChatId, useComposerDraftRevision } from "#state";
 import { useInvokeUiCommand } from "../lib/plugin-mutations.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
 
@@ -27,11 +29,16 @@ export interface PluginCommandView {
   readonly args: readonly PluginCommandArgSpec[];
   readonly group: string | null;
   readonly placements: readonly PluginCommandPlacement[];
+  readonly composerDraft?: true;
 }
 
 interface PluginCommandRunner {
   readonly isPending: boolean;
-  readonly run: (request: PluginCommandRunRequest, onSettled?: (succeeded: boolean) => void) => void;
+  readonly run: (
+    request: PluginCommandRunRequest,
+    onSettled?: (succeeded: boolean) => void,
+    onReplaced?: (before: ComposerDraftSnapshot, after: ComposerDraftSnapshot) => void,
+  ) => void;
 }
 
 interface PluginCommandRunRequest {
@@ -39,28 +46,33 @@ interface PluginCommandRunRequest {
   readonly name: string;
   readonly args: string;
   readonly values: Record<string, PluginCommandArgValue>;
+  readonly composerDraft?: ComposerDraftSnapshot;
 }
 
 interface PluginCommandAction {
   readonly isPending: boolean;
   readonly run: (command: PluginCommandView) => void;
+  readonly undo: (() => void) | null;
+  readonly undoLabel: string;
 }
 
 /** Every command across the caller's granted-and-enabled plugins, ordered by what the Plugins menu and palette
  *  show: the plugin attribution, then group and command name. The plugin id keeps same-attribution installs
  *  contiguous. Not a suspense read: the composer and the chrome menu are both always-mounted chrome, and neither
  *  may block the shell on a plugin catalog. */
-export function usePluginCommands(): readonly PluginCommandView[] {
+export function usePluginCommands(includeComposerDraft = false): readonly PluginCommandView[] {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.plugin.listCommands.queryOptions());
-  return (data ?? []).toSorted(
-    (a, b) =>
-      a.pluginName.localeCompare(b.pluginName) ||
-      a.slug.localeCompare(b.slug) ||
-      a.pluginId.localeCompare(b.pluginId) ||
-      (a.group ?? "").localeCompare(b.group ?? "") ||
-      a.name.localeCompare(b.name),
-  );
+  return (data ?? [])
+    .filter((command) => includeComposerDraft || command.composerDraft !== true)
+    .toSorted(
+      (a, b) =>
+        a.pluginName.localeCompare(b.pluginName) ||
+        a.slug.localeCompare(b.slug) ||
+        a.pluginId.localeCompare(b.pluginId) ||
+        (a.group ?? "").localeCompare(b.group ?? "") ||
+        a.name.localeCompare(b.name),
+    );
 }
 
 /** What a failed resolve tells the person. Written HERE, module-private, so the slash line and the menu say
@@ -77,15 +89,16 @@ const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name — try the Plugi
  *  value is refused there too. */
 export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunner {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const invalidation = useInvalidation();
   const invoke = useInvokeUiCommand({ trpc, invalidation });
   const runningCommandCount = useIsMutating({ mutationKey: trpc.plugin.invokeUiCommand.mutationKey() });
-  const commands = usePluginCommands();
+  const commands = usePluginCommands(true);
   // No manual memoization — the React Compiler runs full-compile on this tree and already caches this closure
   // across renders (D54). A hand-rolled `useCallback` here would be a second, weaker cache beside its.
-  const run = (request: PluginCommandRunRequest, onSettled?: (succeeded: boolean) => void): void => {
+  const run: PluginCommandRunner["run"] = (request, onSettled, onReplaced): void => {
     const command = commands.find((candidate) => candidate.slug === request.slug && candidate.name === request.name);
-    if (command === undefined) {
+    if (command === undefined || (command.composerDraft === true) !== (request.composerDraft !== undefined)) {
       notify.error(PLUGIN_COMMAND_UNKNOWN);
       onSettled?.(false);
       return;
@@ -93,8 +106,29 @@ export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunn
     // The mutation's error toast owns the visible failure. Keep a collecting surface open with its values,
     // and report the rejection for diagnostics even when no collecting surface is mounted.
     invoke
-      .mutateAsync({ pluginId: command.pluginId, name: command.name, args: request.args, values: request.values, chatId })
+      .mutateAsync({
+        pluginId: command.pluginId,
+        name: command.name,
+        args: request.args,
+        values: request.values,
+        chatId,
+        ...(request.composerDraft === undefined ? {} : { composerDraft: request.composerDraft.text }),
+      })
       .then((outcome): void => {
+        if (request.composerDraft !== undefined && outcome.composerDraft !== undefined && chatId !== null) {
+          const currentCommands = queryClient.getQueryData(trpc.plugin.listCommands.queryKey());
+          const stillRegistered =
+            currentCommands?.some(
+              (candidate) => candidate.pluginId === command.pluginId && candidate.name === command.name && candidate.composerDraft === true,
+            ) === true;
+          const after = activeChatId() === chatId && stillRegistered ? replaceComposerDraft(chatId, request.composerDraft, outcome.composerDraft) : null;
+          if (after === null) {
+            notify.info("The draft or room changed. Nothing was replaced.");
+            onSettled?.(false);
+            return;
+          }
+          onReplaced?.(request.composerDraft, after);
+        }
         applyPluginUiOutcome(command.pluginId, outcome);
         onSettled?.(true);
       })
@@ -112,10 +146,33 @@ export function usePluginCommandRunner(chatId: ChatId | null): PluginCommandRunn
  *  through here so a with-args command can never be fired with a bare, invalid bag from one door but not another.
  *  (The composer takes the parallel path: it PARSES `name=value` inline rather than opening a modal — one grammar,
  *  two entry gestures.) */
-export function useRunPluginCommand(chatId: ChatId | null): PluginCommandAction {
+export function useRunPluginCommand(chatId: ChatId | null, allowComposerDraft = false): PluginCommandAction {
   const runner = usePluginCommandRunner(chatId);
+  const selectedChat = useActiveChatId();
+  const revision = useComposerDraftRevision();
+  const [replacement, setReplacement] = useState<{
+    readonly chatId: ChatId;
+    readonly before: ComposerDraftSnapshot;
+    readonly after: ComposerDraftSnapshot;
+    readonly label: string;
+  } | null>(null);
   const run = (command: PluginCommandView): void => {
-    if (command.args.length > 0) {
+    if (command.composerDraft === true) {
+      if (!allowComposerDraft || chatId === null || activeChatId() !== chatId) {
+        return;
+      }
+      runner.run(
+        { slug: command.slug, name: command.name, args: "", values: {}, composerDraft: readComposerDraftSnapshot(chatId) },
+        undefined,
+        (before, after): void =>
+          setReplacement({
+            chatId,
+            before,
+            after,
+            label: command.placements.find((placement) => placement.target === "composer-action")?.label ?? command.name,
+          }),
+      );
+    } else if (command.args.length > 0) {
       openPluginCommandArgs({
         pluginId: command.pluginId,
         slug: command.slug,
@@ -128,5 +185,12 @@ export function useRunPluginCommand(chatId: ChatId | null): PluginCommandAction 
       runner.run({ slug: command.slug, name: command.name, args: "", values: {} });
     }
   };
-  return { isPending: runner.isPending, run };
+  const undo =
+    replacement !== null && replacement.chatId === selectedChat && replacement.chatId === chatId && replacement.after.revision === revision
+      ? (): void => {
+          replaceComposerDraft(replacement.chatId, replacement.after, replacement.before.text);
+          setReplacement(null);
+        }
+      : null;
+  return { isPending: runner.isPending, run, undo, undoLabel: `Undo ${replacement?.label ?? "draft replacement"}` };
 }

@@ -55,14 +55,26 @@ export function PluginSurfacesPanel({ pluginId, pluginName, grants }: PluginSurf
         if (surface.tier === "frame") {
           return <PluginFrame key={surface.id} pluginId={pluginId} pluginName={pluginName} surfaceId={surface.id} title={surface.title} />;
         }
+        if (surface.tier === "scripted") {
+          return (
+            <PluginScriptedSurface
+              key={surface.id}
+              anchor="settings"
+              grants={grants}
+              pluginId={pluginId}
+              surfaceId={surface.id}
+              surfaceIds={scriptedIds}
+              renderContent={(content): ReactElement => (
+                <PluginSurfaceShell pluginName={pluginName} title={surface.title}>
+                  {content}
+                </PluginSurfaceShell>
+              )}
+            />
+          );
+        }
         return (
           <PluginSurfaceShell key={surface.id} pluginName={pluginName} title={surface.title}>
-            {surface.tier === "scripted" ? (
-              <PluginScriptedSurface anchor="settings" grants={grants} pluginId={pluginId} surfaceId={surface.id} surfaceIds={scriptedIds} />
-            ) : (
-              // The filter guarantees a static surface has a spec; the guard keeps the type narrow.
-              surface.spec !== undefined && <PluginSurfaceRenderer anchor="settings" pluginId={pluginId} spec={surface.spec} surfaceId={surface.id} />
-            )}
+            {surface.spec !== undefined && <PluginSurfaceRenderer anchor="settings" pluginId={pluginId} spec={surface.spec} surfaceId={surface.id} />}
           </PluginSurfaceShell>
         );
       })}

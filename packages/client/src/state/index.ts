@@ -105,14 +105,7 @@ export { useChromeRegistry } from "./chrome-registry-context.ts";
 export { ChromeRegistryProvider } from "./chrome-registry-provider.tsx";
 export { CommandPaletteSourceRegistryContext } from "./command-palette-source-registry-context.ts";
 export { CommandPaletteSourceRegistryProvider } from "./command-palette-source-registry-provider.tsx";
-export {
-  __readComposerDraftsForTest,
-  __resetComposerDrafts,
-  COMPOSER_DRAFT_CAP,
-  readComposerDraft,
-  setComposerDraft,
-  useComposerDraft,
-} from "./composer-draft-store.ts";
+export * from "./composer-draft-store.ts";
 export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-store.ts";
 export type { ConfigFocus } from "./config-focus-store.ts";
 export { __resetConfigFocus, clearConfigFocus, setConfigFocus, useConfigFocus } from "./config-focus-store.ts";
@@ -313,6 +306,7 @@ export {
   selectPluginPageFromList,
   usePluginPageKey,
 } from "./plugin-page-selection-store.ts";
+export { INSTALLED_PLUGINS_SUBCATEGORY_ID, installedPluginControlId, openInstalledPlugin } from "./plugin-settings-navigation.ts";
 export { setPresetEditorView, setPresetReadoutTarget, usePresetEditorView, usePresetReadoutTarget } from "./preset-editor-view-store.ts";
 export { setPresetSearchQuery, usePresetSearchQuery } from "./preset-search-store.ts";
 export {

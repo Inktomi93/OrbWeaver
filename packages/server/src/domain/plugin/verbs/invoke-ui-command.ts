@@ -19,11 +19,12 @@
 //
 // The re-entry runs through the resident's crash-policy'd `invoke`, so a throwing/hung command bumps
 // `consecutive_crashes` toward the 3-strike auto-disable exactly like a tool, event or action handler. The guest
-// receives ONE `{ args, chat }` object (the single-arg host→guest seam); its return is DISCARDED — a command's
-// effect is the state it publishes and the chrome it asks for, never a value the client renders unlabelled.
+// receives ONE args/values bag (the single-arg host→guest seam); ordinary returns are discarded. A declared
+// composer-draft command returns one bounded string only to its explicit human invocation; it does not send
+// or persist the draft.
 
-import type { InvocationChat, PluginCommandArgSpec, PluginCommandArgValue, PluginUiOutcome } from "@orb/contracts/plugin";
-import { pluginCommandArgsSchema } from "@orb/contracts/plugin";
+import type { InvocationChat, PluginCommandArgSpec, PluginCommandArgValue, PluginCommandRegistration, PluginUiOutcome } from "@orb/contracts/plugin";
+import { pluginCommandArgsSchema, pluginComposerDraftSchema } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { z } from "zod";
 import { asPluginActionError, PluginNotFoundError } from "../contract/errors.ts";
@@ -49,8 +50,58 @@ function validateCommandValues(
   return parsed.data;
 }
 
+function validateComposerDraftMode(
+  params: InvokeUiCommandParams,
+  command: PluginCommandRegistration,
+  existing: NonNullable<Awaited<ReturnType<typeof getById>>>,
+): void {
+  if ((command.composerDraft === true) !== (params.composerDraft !== undefined)) {
+    throw new Error("plugin host: this command requires its declared invocation mode");
+  }
+  if (params.composerDraft === undefined) {
+    return;
+  }
+  pluginComposerDraftSchema.parse(params.composerDraft);
+  if (params.chatId === null || existing.status !== "enabled" || !existing.grantedCapabilities.includes("ui.surface")) {
+    throw new Error("plugin host: a composer draft requires an enabled, granted plugin in a current room");
+  }
+}
+
+async function resolveCommandChat(ctx: PluginContext, { caller, chatId }: InvokeUiCommandParams): Promise<InvocationChat | null> {
+  if (chatId === null) {
+    return null;
+  }
+  const authority = await ctx.resolveChatAuthority(caller, chatId);
+  if (!authority.canRead) {
+    throw new DomainNotFoundError("chat", chatId);
+  }
+  // A human-initiated command is the cascade root; a turn it triggers stamps depth one.
+  return { chatId, canWrite: authority.canWrite, automationDepth: 0 };
+}
+
+async function revalidateDraftStanding(
+  ctx: PluginContext,
+  registry: PluginRegistry,
+  { caller, pluginId, chatId }: InvokeUiCommandParams,
+  resident: NonNullable<ReturnType<PluginRegistry["get"]>>,
+): Promise<void> {
+  if (chatId !== null && !(await ctx.resolveChatAuthority(caller, chatId)).canRead) {
+    throw new DomainNotFoundError("chat", chatId);
+  }
+  // The final standing decision must follow every awaited room check.
+  const current = await getById(ctx.db, caller.userId, pluginId);
+  if (current?.status !== "enabled" || !current.grantedCapabilities.includes("ui.surface") || registry.get(pluginId) !== resident) {
+    throw new Error("plugin host: this draft action is no longer available");
+  }
+}
+
+function serializeCommandInput(params: InvokeUiCommandParams, values: Record<string, PluginCommandArgValue>): string {
+  return JSON.stringify({ args: params.args, values, ...(params.composerDraft === undefined ? {} : { draft: params.composerDraft }) });
+}
+
 export function createInvokeUiCommand(ctx: PluginContext, registry: PluginRegistry): PluginService["invokeUiCommand"] {
-  return async ({ caller, pluginId, name, args, values, chatId }: InvokeUiCommandParams) => {
+  return async (params: InvokeUiCommandParams) => {
+    const { caller, pluginId, name, values, composerDraft } = params;
     // (1) OWNER SCOPE — leak-free NOT_FOUND for a plugin the caller does not own (the cross-tenant gate).
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
@@ -66,32 +117,30 @@ export function createInvokeUiCommand(ctx: PluginContext, registry: PluginRegist
     if (command === undefined) {
       throw new Error(`plugin host: no command '${name}' on this plugin`);
     }
+    validateComposerDraftMode(params, command, existing);
     // (3a) TYPED ARGS (#791) — the membrane trust boundary, re-derived from the resident command's OWN specs.
     const typedValues = validateCommandValues(name, command.args ?? [], values);
     // (4) CHAT SCOPE — admitted leak-free, exactly as the snippet gate does it. A room the caller cannot read is
     // indistinguishable from one that does not exist.
-    let chat: InvocationChat | null = null;
-    if (chatId !== null) {
-      const authority = await ctx.resolveChatAuthority(caller, chatId);
-      if (!authority.canRead) {
-        throw new DomainNotFoundError("chat", chatId);
-      }
-      // A command is a HUMAN-initiated act, so it is the cascade ROOT (depth 0) — a turn it triggers stamps 1.
-      chat = { chatId, canWrite: authority.canWrite, automationDepth: 0 };
-    }
+    const chat = await resolveCommandChat(ctx, params);
     // The DRAIN is in a `finally` so a throwing command's toasts still reach the person who ran it (and never
     // leak into a later, unrelated round-trip). The invoke's own rejection still propagates.
     let outcome: PluginUiOutcome = { toasts: [] };
+    let replacement: string | undefined;
     try {
       // ONE `{ args }` object (the single-arg host→guest seam). The ROOM is not in the bag: it is the
       // invocation's chat SCOPE, which the guest reads through `chat.current()`'s opaque handle — one mint, one
       // accessor (see `registerCommand`'s contract).
-      await resident.invoke(command.onRun, JSON.stringify({ args, values: typedValues }), chat);
+      const returned = await resident.invoke(command.onRun, serializeCommandInput(params, typedValues), chat);
+      if (composerDraft !== undefined) {
+        replacement = pluginComposerDraftSchema.parse(returned);
+        await revalidateDraftStanding(ctx, registry, params, resident);
+      }
     } catch (error) {
       throw asPluginActionError(error);
     } finally {
       outcome = resolveUiOutcome(ctx.uiOutbox.drain(pluginId), resident.instance);
     }
-    return outcome;
+    return replacement === undefined ? outcome : { ...outcome, composerDraft: replacement };
   };
 }

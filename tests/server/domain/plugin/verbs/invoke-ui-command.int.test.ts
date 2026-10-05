@@ -11,6 +11,7 @@
 // when the handler THREW, because a handler that toasts "couldn't reach the API" and then throws should still
 // reach the person who acted.
 
+import { PLUGIN_COMPOSER_DRAFT_MAX_CHARS } from "@orb/contracts/plugin";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -27,6 +28,135 @@ function instanceWithCommands(commands: PluginInstance["commands"]): PluginInsta
 }
 
 const DRAW: PluginInstance["commands"] = [{ name: "draw", describe: "Draw a card", onRun: castId<PluginHandlerRef>("plugin-handler-0") }];
+
+test("a declared composer action receives only its explicit draft and returns the replacement on that invocation", async () => {
+  const db = await freshDb();
+  const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
+  const commands = DRAW.map((command) => ({ ...command, composerDraft: true as const, placements: [{ target: "composer-action" as const, label: "Polish" }] }));
+  const recording = recordingPort(invokes, commands);
+  const h = makePluginHarness(db, {
+    port: {
+      ...recording,
+      invoke: async (...args) => {
+        await recording.invoke(...args);
+        return "Polished draft";
+      },
+    },
+  });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "polish", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+  const request = { caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID, composerDraft: "Typed draft" };
+  expect(await h.service.invokeUiCommand(request)).toEqual({ toasts: [], composerDraft: "Polished draft" });
+  const first = invokes.at(0);
+  if (first === undefined) {
+    throw new Error("Expected the explicit draft invocation");
+  }
+  expect(JSON.parse(first.argsJson)).toEqual({ args: "", values: {}, draft: "Typed draft" });
+});
+
+test("unsent draft input is refused for undeclared commands, foreign owners and missing grants before any guest runs", async () => {
+  const db = await freshDb();
+  const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
+  const h = makePluginHarness(db, { port: recordingPort(invokes) });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const stranger = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("stranger") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "ordinary", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+  const request = { caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID, composerDraft: "Unsent private draft" };
+  await expect(h.service.invokeUiCommand(request)).rejects.toThrow(/declared invocation mode/u);
+  await expect(h.service.invokeUiCommand({ ...request, caller: stranger })).rejects.toBeInstanceOf(PluginNotFoundError);
+  expect(invokes).toEqual([]);
+
+  const declared = DRAW.map((command) => ({ ...command, composerDraft: true as const }));
+  const ungrantedDb = await freshDb();
+  const ungranted = makePluginHarness(ungrantedDb, { port: recordingPort(invokes, declared) });
+  const otherCaller = ownerPrincipalFor(await seedUser(ungrantedDb, { handle: castId<Handle>("other") }));
+  const other = await ungranted.service.install({ caller: otherCaller, bundle: makeBundle({ id: "ungranted", capabilities: ["ui.surface"] }), grant: [] });
+  await ungranted.service.setEnabled({ caller: otherCaller, pluginId: other.id, enabled: true });
+  await expect(ungranted.service.invokeUiCommand({ ...request, caller: otherCaller, pluginId: other.id })).rejects.toThrow(/enabled, granted plugin/u);
+  expect(invokes).toEqual([]);
+});
+
+test("composer input and output are bounded; a draft action has no non-composer invocation", async () => {
+  const db = await freshDb();
+  const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
+  const commands = DRAW.map((command) => ({ ...command, composerDraft: true as const }));
+  const recording = recordingPort(invokes, commands);
+  const h = makePluginHarness(db, {
+    port: {
+      ...recording,
+      invoke: async (...args) => {
+        await recording.invoke(...args);
+        return "x".repeat(PLUGIN_COMPOSER_DRAFT_MAX_CHARS + 1);
+      },
+    },
+  });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "polish", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+  const request = { caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID };
+  await expect(h.service.invokeUiCommand(request)).rejects.toThrow(/declared invocation mode/u);
+  await expect(h.service.invokeUiCommand({ ...request, composerDraft: "draft", chatId: null })).rejects.toThrow(/current room/u);
+  await expect(h.service.invokeUiCommand({ ...request, composerDraft: "x".repeat(PLUGIN_COMPOSER_DRAFT_MAX_CHARS + 1) })).rejects.toThrow();
+  expect(invokes).toEqual([]);
+  await expect(h.service.invokeUiCommand({ ...request, composerDraft: "draft" })).rejects.toBeInstanceOf(PluginActionFailedError);
+  expect(invokes).toHaveLength(1);
+});
+
+test("a disable during an async draft command refuses the late replacement", async () => {
+  const db = await freshDb();
+  const started = Promise.withResolvers<void>();
+  const result = Promise.withResolvers<string>();
+  const commands = DRAW.map((command) => ({ ...command, composerDraft: true as const }));
+  const port = recordingPort([], commands);
+  const h = makePluginHarness(db, {
+    port: {
+      ...port,
+      invoke: () => {
+        started.resolve();
+        return result.promise;
+      },
+    },
+  });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "polish", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+  const pending = h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID, composerDraft: "draft" });
+  await started.promise;
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: false });
+  result.resolve("Late replacement");
+  await expect(pending).rejects.toThrow(/no longer available/u);
+});
+
+test("revocation during final room authority lookup refuses the draft replacement", async () => {
+  const db = await freshDb();
+  const checkingRoom = Promise.withResolvers<void>();
+  const roomAuthority = Promise.withResolvers<{ canRead: boolean; canWrite: boolean }>();
+  let authorityCalls = 0;
+  const commands = DRAW.map((command) => ({ ...command, composerDraft: true as const }));
+  const port = recordingPort([], commands);
+  const h = makePluginHarness(db, {
+    port: { ...port, invoke: () => Promise.resolve("Late replacement") },
+    resolveChatAuthority: () => {
+      authorityCalls += 1;
+      if (authorityCalls === 2) {
+        checkingRoom.resolve();
+        return roomAuthority.promise;
+      }
+      return Promise.resolve({ canRead: true, canWrite: true });
+    },
+  });
+  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "polish", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+  const pending = h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID, composerDraft: "draft" });
+  await checkingRoom.promise;
+  await h.service.setEnabled({ caller, pluginId: installed.id, enabled: false });
+  roomAuthority.resolve({ canRead: true, canWrite: true });
+  await expect(pending).rejects.toThrow(/no longer available/u);
+  expect(authorityCalls).toBe(2);
+});
 
 /** A command that DECLARES typed args (#791): a required enum + an optional number. The verb re-validates the
  *  client's `values` against exactly these specs before the guest re-entry (the membrane trust boundary). */

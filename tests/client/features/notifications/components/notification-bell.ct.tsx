@@ -23,7 +23,13 @@ import { routeTrpc, trpcError, trpcHold } from "../../../../support/node/route-t
 // it and it was riding `routeTrpc`'s lenient null in every mount here. Imported from the bus's own fixture
 // module rather than re-spelled, so the two directions of this feed cannot drift apart.
 import { STREAM_MUTATION_ROUTES } from "../../../data/bus/fixtures.ts";
-import { NotificationBellDestinationStory, NotificationBellSheetStory, NotificationBellStory, NotificationBellToastStory } from "../_ct-stories.tsx";
+import {
+  NotificationBellDestinationStory,
+  NotificationBellSheetStory,
+  NotificationBellStory,
+  NotificationBellToastStory,
+  NotificationPhonePluginDestinationStory,
+} from "../_ct-stories.tsx";
 
 type InboxRow = TrpcWireOutput<"notifications.list">["items"][number];
 type InboxRowOf<TType extends InboxRow["type"]> = Omit<InboxRow, "type" | "payload"> & {
@@ -762,6 +768,32 @@ test("each auto-disabled plugin gets its own notice naming it, with a door to th
 
   await page.getByRole("button", { name: "Open Plugins — Draft Polish" }).click();
   await expect(destination).toHaveText("config/plugins");
+  await expect(page.getByTestId("ct-plugin-target")).toHaveText("plugins/installed/plugin_ct_polish0000000001");
+  await page.getByRole("button", { name: "Notifications" }).click();
+  await page.getByRole("button", { name: "Open Plugins — Affinity Tracker" }).click();
+  await expect(page.getByTestId("ct-plugin-target")).toHaveText("plugins/installed/plugin_ct_affinity00000001");
+});
+
+test("a phone's disabled-plugin notice closes the real You drawer and reveals that plugin's own installed card", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await routeTrpc(page, {
+    ...STREAM_MUTATION_ROUTES,
+    "notifications.list": { items: [disabledRow("plugin_ct_affinity00000001", 2)], nextCursor: null },
+    "notifications.markAllRead": { markedCount: 1 },
+    "plugin.list": [installedPlugin("plugin_ct_affinity00000001", "Affinity Tracker")],
+    "plugin.listSurfaces": [],
+    "plugin.getLog": [],
+    "sessions.me": { userId: "user_ct_reader", handle: "reader", globalRole: "user" },
+  });
+  await routeInboxStream(page, []);
+  await mount(<NotificationPhonePluginDestinationStory />);
+  await page.getByRole("button", { name: "You", exact: true }).click();
+  const you = page.getByRole("dialog", { name: "You", exact: true });
+  await expect(you).toBeVisible();
+  await you.getByRole("button", { name: "Open Plugins — Affinity Tracker", exact: true }).click();
+  await expect(you).toHaveCount(0);
+  await expect(page.getByTestId("ct-plugin-target")).toHaveText("plugins/installed/plugin_ct_affinity00000001");
+  await expect(page.getByRole("group", { name: "Affinity Tracker plugin", exact: true })).toBeVisible();
 });
 
 // ── THE UNREAD MARK IS A DOT, NOT A NUMBER (#1798, owner ruling) ─────────────────────────────────────

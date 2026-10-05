@@ -236,6 +236,23 @@ interface AsyncFnSpec {
   readonly impl: (args: readonly unknown[], signal: AbortSignal) => Promise<unknown>;
 }
 
+function commandHandler(ctx: QuickJSContext, onRun: QuickJSHandle, composerDraft: boolean): QuickJSHandle {
+  if (!composerDraft) {
+    return onRun;
+  }
+  // Validate the original guest type before the port's generic string/JSON serialization can erase it.
+  using wrapper = ctx.unwrapResult(
+    ctx.evalCode(`(handler => async input => {
+    const result = await handler(input);
+    if (typeof result !== "string") throw "plugin host: a composer draft command must return a string";
+    return result;
+  })`),
+  );
+  const wrapped = ctx.callFunction(wrapper, ctx.undefined, onRun);
+  onRun.dispose();
+  return ctx.unwrapResult(wrapped);
+}
+
 /** Attach every gated namespace onto the surface handle (mutates `surface`; the caller owns disposal of
  *  `surface`). The full set — chat.read (current/listMessages/getVariables), chat.variables.write,
  *  chat.surfaceQuickReply (chat.quick_reply — host-authority gated), worldInfo.upsertEntry,
@@ -588,6 +605,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     using argsH = ctx.getProp(defHandle, "args");
     using groupH = ctx.getProp(defHandle, "group");
     using placementsH = ctx.getProp(defHandle, "placements");
+    using composerDraftH = ctx.getProp(defHandle, "composerDraft");
     const onRun = ctx.getProp(defHandle, "onRun");
     let parsed: ReturnType<typeof pluginCommandRegistrationMetaSchema.safeParse>;
     // @orb-waive caught-failure-ownership(err): guest-supplied command metadata that fails to dump/validate is REFUSED registration (onRun handle disposed, warn logged) — a malformed untrusted plugin def can never register a live command, the fail-closed direction. Ends if a dump/parse failure ever returns a live command instead of ctx.undefined.
@@ -597,7 +615,8 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       const args = tryDumpGuestValue(ctx, argsH);
       const group = tryDumpGuestValue(ctx, groupH);
       const placements = tryDumpGuestValue(ctx, placementsH);
-      if (!(name.ok && describe.ok && args.ok && group.ok && placements.ok)) {
+      const composerDraft = tryDumpGuestValue(ctx, composerDraftH);
+      if (!(name.ok && describe.ok && args.ok && group.ok && placements.ok && composerDraft.ok)) {
         throw new Error("metadata is too deeply nested or too large to validate");
       }
       parsed = pluginCommandRegistrationMetaSchema.safeParse({
@@ -606,6 +625,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
         args: args.value,
         group: group.value,
         placements: placements.value,
+        composerDraft: composerDraft.value,
       });
     } catch (err) {
       onRun.dispose();
@@ -622,7 +642,8 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
       runtime.logWarn(`ui.registerCommand refused '${parsed.data.name}': onRun must be a function`);
       return ctx.undefined;
     }
-    runtime.collectCommand(parsed.data, onRun);
+    const handler = commandHandler(ctx, onRun, parsed.data.composerDraft === true);
+    runtime.collectCommand(parsed.data, handler);
     return ctx.undefined;
   });
   ctx.setProp(ui, "registerCommand", registerCommandFn);

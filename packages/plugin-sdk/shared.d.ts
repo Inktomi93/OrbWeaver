@@ -416,6 +416,8 @@ interface PluginSelectNode {
   readonly label: string;
   readonly options?: readonly PluginSelectOption[] | undefined;
   readonly optionsFrom?: PluginStateBinding | undefined;
+  /** The host renders its own catalog; the guest receives only the person's selected id. */
+  readonly optionsFromHost?: "owned-lore-books" | undefined;
   readonly value?: string | undefined;
   readonly actionId?: string | undefined;
 }
@@ -887,15 +889,19 @@ interface PluginHostV1 {
      *  host-owned composer placements. Declare typed `args` (≤ 16) and `values` arrives validated; the raw
      *  remainder always arrives as `args`. Inside a room the command's invocation carries that room — reach
      *  it via `chat.current()`. */
-    registerCommand: <const TArgs extends readonly PluginCommandArgDeclaration[] = readonly []>(def: {
-      name: string;
-      describe: string;
-      // Inference reads the loose declaration so one invalid arg cannot collapse `values` to the open bag.
-      args?: TArgs & readonly PluginCommandArgSpec[];
-      group?: string;
-      placements?: readonly PluginCommandPlacement[];
-      onRun: (a: { args: string; values: PluginCommandValuesFor<TArgs> }) => void | Promise<void>;
-    }) => void;
+    registerCommand: <const TArgs extends readonly PluginCommandArgDeclaration[] = readonly []>(
+      def: {
+        name: string;
+        describe: string;
+        // Inference reads the loose declaration so one invalid arg cannot collapse `values` to the open bag.
+        args?: TArgs & readonly PluginCommandArgSpec[];
+        group?: string;
+        placements?: readonly PluginCommandPlacement[];
+      } & (
+        | { composerDraft: true; onRun: (a: { args: string; values: PluginCommandValuesFor<TArgs>; draft: string }) => string | Promise<string> }
+        | { composerDraft?: never; onRun: (a: { args: string; values: PluginCommandValuesFor<TArgs> }) => void | Promise<void> }
+      ),
+    ) => void;
     /** A transient house toast, prefixed with your plugin's name (host-stamped), ≤ 200 chars, rate-floored
      *  (10 s per plugin). Delivered on the round-trip the person just made — the durable channel is
      *  `notifications.post`. */

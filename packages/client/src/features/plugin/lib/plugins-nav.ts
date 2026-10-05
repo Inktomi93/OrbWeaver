@@ -5,11 +5,12 @@
 // these two plus the admin-gated distribute section ARE its rows.
 
 import type { ConfigSubcategory } from "#state";
+import { INSTALLED_PLUGINS_SUBCATEGORY_ID } from "#state";
 
 const PLUGIN_PERMISSIONS_SETTING_ID = "plugin-permissions";
 
 export const PLUGINS_INSTALLED_SUBCATEGORY: ConfigSubcategory = {
-  id: "installed",
+  id: INSTALLED_PLUGINS_SUBCATEGORY_ID,
   label: "Installed",
   keywords: ["plugin", "extension", "script", "sandbox", "enable", "disable", "remove", "uninstall", "update", "upgrade", "log"],
   teach: {

@@ -30,6 +30,7 @@ function toView(pluginId: PluginId, slug: string, pluginName: string, command: P
     args: command.args ?? [],
     group: command.group ?? null,
     placements: command.placements ?? [],
+    ...(command.composerDraft === true ? { composerDraft: true } : {}),
   };
 }
 

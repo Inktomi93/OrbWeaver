@@ -335,6 +335,52 @@ test("THE U4 DONE-CRITERION — a scripted surface filters a list with ZERO netw
   expect(recorder.count("plugin.uiHostCall")).toBe(1);
 });
 
+test("a ready-empty optional settings surface has no attribution chrome while its scripted sibling renders", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "plugin.list": [enabledRow(SCRIPTED_ID, "Scripted Demo")],
+    "plugin.listSurfaces": [scriptedSurface(SCRIPTED_ID, "browser"), { ...scriptedSurface(SCRIPTED_ID, "sentinel"), title: "Live sibling" }],
+    "plugin.getLog": [],
+    "plugin.getSurfaceState": null,
+    "assets.resolveBlobRefs": [],
+    "sessions.me": USER_VIEWER,
+  });
+  await routeUiBundle(page, 'orb.ui(1).render("sentinel", { kind: "text", value: "Guest is ready" });');
+  await mount(<PluginScriptedSurfaceStory />);
+  await expect(page.getByText("Guest is ready", { exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Scripted Demo — Live sibling", exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Scripted Demo — Browse readings", exact: true })).toHaveCount(0);
+  await expect(page.getByText("This plugin has no content to show here yet.", { exact: true })).toHaveCount(0);
+});
+
+test("a failed optional settings surface has no error or attribution chrome and leaves first-party siblings intact", async ({ mount, page }) => {
+  const recorder = await routeTrpc(page, {
+    "plugin.list": [enabledRow(SCRIPTED_ID, "Scripted Demo")],
+    "plugin.listSurfaces": [
+      scriptedSurface(SCRIPTED_ID, "browser"),
+      {
+        pluginId: SCRIPTED_ID,
+        id: "static_sibling",
+        anchor: "settings",
+        tier: "static",
+        title: "Persistent sibling",
+        spec: { kind: "text", value: "Sibling is intact" },
+      },
+    ],
+    "plugin.getLog": [],
+    "plugin.getSurfaceState": null,
+    "plugin.reportUiCrash": null,
+    "assets.resolveBlobRefs": [],
+    "sessions.me": USER_VIEWER,
+  });
+  await routeUiBundle(page, 'throw new Error("optional failed");');
+  await mount(<PluginScriptedSurfaceStory />);
+  await expect.poll(() => recorder.count("plugin.reportUiCrash")).toBe(1);
+  await expect(page.getByText("Sibling is intact", { exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Scripted Demo — Browse readings", exact: true })).toHaveCount(0);
+  await expect(page.getByText("Couldn't load this plugin content.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+});
+
 /** Both hang arms share everything but the guest and the expected reason — the wiring, the boot barrier, the
  *  collapse barrier and the crash-report shape are the SAME contract, so they are asserted once. Returns the
  *  reported reason for the arm-specific assertion. */

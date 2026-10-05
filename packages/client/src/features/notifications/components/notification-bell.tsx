@@ -14,7 +14,7 @@
 //
 // No data-testid inside the trigger: the bell is addressed by its role + accessible name.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, PluginId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -30,7 +30,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import type { ChromePresentation } from "#state";
-import { closeModal, openConfigTo, selectChat, setActiveSection } from "#state";
+import { closeModal, openConfigTo, openInstalledPlugin, selectChat, setActiveSection } from "#state";
 import { useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox.ts";
 import { useInboxStream } from "../hooks/use-inbox-stream.ts";
 import { HandoffAcceptConfirm } from "./handoff-accept-confirm.tsx";
@@ -117,6 +117,13 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   const onOpenPlugins = (): void => {
     setOpen(false);
     openConfigTo("plugins");
+  };
+  const onOpenPlugin = (pluginId: PluginId): void => {
+    setOpen(false);
+    if (isSheet) {
+      closeModal();
+    }
+    openInstalledPlugin(pluginId);
   };
 
   // EVERY HANDLER THAT MOVES THE SHELL CLOSES THE POPOVER ITSELF — an INHERITED invariant is the rot shape
@@ -210,6 +217,7 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
               acceptedHandoff={acceptedHandoffIds.includes(item.id)}
               onAccepted={onAccepted}
               onOpenPlugins={onOpenPlugins}
+              onOpenPlugin={onOpenPlugin}
               onRequestHandoff={onRequestHandoff}
             />
           </Fragment>

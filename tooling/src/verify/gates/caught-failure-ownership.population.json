@@ -2,16 +2,16 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 689,
+    "sites": 696,
     "reported": 0,
     "byVerdict": {
-      "deliberate-absorb": 689,
+      "deliberate-absorb": 696,
       "unproven": 0
     },
     "byGrammar": {
-      "default": 158,
-      "empty": 357,
-      "promise": 174
+      "default": 159,
+      "empty": 358,
+      "promise": 179
     }
   },
   "rows": [
@@ -316,9 +316,29 @@
       "reason": "useStartChat's mutation carries errorToast: \"Couldn't start the chat.\" — the toast is the surface; not closing lets the picked characters survive a retry. Ends if useStartChat drops errorToast."
     },
     {
+      "siteId": "packages/client/src/features/credentials/components/add-connection-dialog.tsx::AddConnectionDialog.bindChat::setBinding.mutateAsync::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the returned refusal is carried to FirstModelSetup's inline failure or its late-refusal toast, never discarded; ends if either result stops reaching that component."
+    },
+    {
       "siteId": "packages/client/src/features/credentials/components/connection-editor.tsx::AvailableConnectionEditorBody.patch.write::saved::1",
       "verdict": "deliberate-absorb",
       "reason": "a refusal becomes the editor's alert state; any other failure toasts through the mutation's errorToast. Ends if that toast goes."
+    },
+    {
+      "siteId": "packages/client/src/features/credentials/components/connection-extras-editor.tsx::ExtraRowView.pasteFields::parsePastedObject::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the only rejection is the lazy reader chunk failing to load; it lands in the Field error under the paste. Ends if the reader stops loading lazily."
+    },
+    {
+      "siteId": "packages/client/src/features/credentials/components/connection-transport-editor.tsx::IncludeBodyField.read::parseIncludeBody::1",
+      "verdict": "deliberate-absorb",
+      "reason": "the only rejection is the lazy reader chunk failing to load; it lands in this field's error, and nothing is saved. Ends if the reader stops loading lazily."
+    },
+    {
+      "siteId": "packages/client/src/features/credentials/components/first-model-setup.tsx::FirstModelSetup::chatBinding::1",
+      "verdict": "deliberate-absorb",
+      "reason": "settled writes the inline failure while mounted and a recovery toast after close; ends if that owner no longer surfaces either outcome."
     },
     {
       "siteId": "packages/client/src/features/credentials/components/first-model-setup.tsx::FirstModelSetup.finish::bindRoles::1",
@@ -479,6 +499,11 @@
       "siteId": "packages/client/src/features/refinery/components/start-session-door.tsx::StartSessionDoor::openRefinery::1",
       "verdict": "deliberate-absorb",
       "reason": "useOpenRefinery's own errorToast surfaces the failure. Ends if useOpenRefinery drops its errorToast."
+    },
+    {
+      "siteId": "packages/client/src/features/refinery/hooks/use-rewrite-decisions.ts::enqueueSheetWrite::write::1",
+      "verdict": "deliberate-absorb",
+      "reason": "useDecideRefineryRewrite's own errorToast surfaces the failure, and onRefused reverts the overlay to the server's copy. Ends if that mutation drops its errorToast."
     },
     {
       "siteId": "packages/client/src/features/roster-preset/hooks/use-start-roster.ts::useStartRoster.startRoster::startChat::1",
@@ -943,7 +968,7 @@
     {
       "siteId": "packages/inference/src/roles/side-gen.ts::runSideGen.worker::err::1",
       "verdict": "deliberate-absorb",
-      "reason": "the first item failure is held so the items already running settle, then runSideGen rethrows it unchanged as the batch's failure; the item itself was logged by runItem. Ends if the rethrow after the workers settle is removed."
+      "reason": "the first item failure is held so the items already running settle, then runSideGen rethrows it as the batch's failure, carrying the finished items. Ends if that rethrow is removed."
     },
     {
       "siteId": "packages/inference/src/roles/structured-turn.ts::tryParse::catch::1",
@@ -1176,14 +1201,14 @@
       "reason": "classified by signal state — a settled signal returns CANCELLED (the user stopped it); an unservable row, a failed call or an invalid payload after the one bounded retry degrades to the visible `fallback()`, the arbiter's documented best-effort contract."
     },
     {
-      "siteId": "packages/server/src/domain/chat/memory/generate/digests.ts::summarizeBatchIsolated::catch::1",
+      "siteId": "packages/server/src/domain/chat/memory/generate/digests.ts::summarizeAlone::err::1",
       "verdict": "deliberate-absorb",
-      "reason": "a batch rejection falls back to ISOLATED per-item calls (documented above) — the per-item loop below owns and reports each item's own failure via `onItemError`; this outer catch only routes to that fallback, it never drops a failure silently."
+      "reason": "reported via `onError(err)` (the caller's own callback — the content-hash self-heal retries the dropped item next pass) and returned as a consumed `null` result, per the batch/isolate contract on `summarizeBatchIsolated`."
     },
     {
-      "siteId": "packages/server/src/domain/chat/memory/generate/digests.ts::summarizeBatchIsolated::err::1",
+      "siteId": "packages/server/src/domain/chat/memory/generate/digests.ts::summarizeBatchIsolated::batchErr::1",
       "verdict": "deliberate-absorb",
-      "reason": "reported via `onItemError(i, err)` (the caller's own callback — content-hash self-heal retries the dropped item next pass) and returned as a consumed `null` result, per the batch/isolate contract documented above."
+      "reason": "a batch rejection falls back to ISOLATED per-item calls (documented above) — the per-item loop below owns and reports each item's own failure via `onItemError`; this outer catch only routes to that fallback, it never drops a failure silently."
     },
     {
       "siteId": "packages/server/src/domain/chat/substrate/prompt-transforms.ts::applyBounded::catch::1",
@@ -1639,6 +1664,11 @@
       "siteId": "packages/server/src/entry/http/upload.ts::registerUpload::err::1",
       "verdict": "deliberate-absorb",
       "reason": "answered — a refusal the person can fix becomes a 4xx carrying its reason; any other fault is rethrown to the app's error boundary. Ends if this stops being the terminal HTTP handler."
+    },
+    {
+      "siteId": "packages/server/src/entry/http/upload.ts::registerUpload::err::2",
+      "verdict": "deliberate-absorb",
+      "reason": "byte admission refusals are actionable 4xx responses; unexpected extraction/storage failures stay owned by the app error boundary."
     },
     {
       "siteId": "packages/server/src/entry/import/run-bundle-import.ts::importEntity::err::1",

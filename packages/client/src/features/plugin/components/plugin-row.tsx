@@ -54,6 +54,7 @@ import { QueryBoundary, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
+import { installedPluginControlId } from "#state";
 import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
 import { builtAgainstLine, PLUGIN_ERROR_COPY_SUBJECT, PLUGIN_ERROR_SENTENCE, REMOVE_PLUGIN_DESCRIPTION, statusCopy } from "../lib/plugin-copy.ts";
@@ -135,7 +136,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
     // plugin's own surfaces, two disclosures — so the pane read as one continuous wall with no edge saying
     // where one plugin's consent story ends and the next begins. A bordered Card per plugin is that edge;
     // the automation pane's gap-only rows stay gap-only because a rule row is four lines, not a wall.
-    <Card>
+    <Card aria-label={`${plugin.name} plugin`} id={installedPluginControlId(plugin.id)} role="group" tabIndex={-1}>
       <Stack gap="block">
         {/* THE HEADER is a distinct block — identity left, lifecycle controls right — closed by a hairline
             (the Section-divider grammar), so the acts (toggle/update/remove) read as chrome OF the plugin

@@ -44,6 +44,7 @@ import {
   PLUGIN_SURFACE_ID_RE,
   PLUGIN_UI_HOST_CALL_ARGS_MAX_BYTES,
   pluginBundleHashSchema,
+  pluginComposerDraftSchema,
   pluginNetHostSchema,
   pluginSlugSchema,
   pluginUiOutcomeSchema,
@@ -384,6 +385,7 @@ export const pluginRouter = t.router({
           .refine((v) => Object.keys(v).length <= PLUGIN_COMMAND_ARGS_DECLARED_MAX, { message: "too many command arguments" })
           .default({}),
         chatId: chatIdSchema.nullable(),
+        composerDraft: pluginComposerDraftSchema.optional(),
       }),
     )
     .output(pluginUiOutcomeSchema)
@@ -395,6 +397,7 @@ export const pluginRouter = t.router({
         args: input.args,
         values: input.values,
         chatId: input.chatId,
+        ...(input.composerDraft === undefined ? {} : { composerDraft: input.composerDraft }),
       }),
     ),
 

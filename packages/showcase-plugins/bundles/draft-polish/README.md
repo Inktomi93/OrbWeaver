@@ -1,102 +1,37 @@
 # Draft Polish
 
-**Archetype: the text pipeline.** One capability, two seams: rewrites what the MODEL reads (a prompt
-transform) and typesets what YOUR SCREEN shows (a display transform). Start here if your idea begins with
-"before the model sees it…" or "when this text renders…".
+Draft Polish offers an explicit pre-send action and viewer-local typesetting. It does not register a hidden outgoing prompt transform.
 
-It tidies typographic scruff in the draft you are about to send — `...` becomes a real ellipsis, doubled
-spaces collapse — and, on the display side, curls your quotes and sets your em dashes. The room's CANON stays
-exactly what was typed; one seam changes what the model reads, the other what you see.
+## Use it
 
-## Copy me
+1. Open Settings → Plugins → Draft Polish.
+2. Allow `ui.surface` for the composer action and `chat.transform` for display typesetting.
+3. Turn the plugin on.
+4. Type your message, then choose Polish in the composer actions. Narrow composers put it inside Plugin actions.
+5. Read the replacement before sending. Undo Polish restores the exact prior draft.
 
-```bash
-cp -r packages/showcase-plugins/bundles/draft-polish /tmp/my-plugin
-# change `id` and `name` in manifest.json, edit main.ts, build the checked JavaScript, then pack and install:
-pnpm --filter @orb/showcase-plugins build
-pnpm plugin:pack draft-polish ./out    # → ./out/draft-polish-1.1.1.zip
-```
+Undo remains available until you edit, send, or change rooms. A late response cannot replace a draft you edited while it ran.
 
-Settings → Plugins → drop the zip → allow `chat.transform` → turn it on.
+Send uses the normal chat path. The visible replacement is what you send; choosing not to polish leaves your draft unchanged.
 
-## The manifest
+## Turn it off
 
-```json
-"capabilities": ["chat.transform"]
-```
+Use the Draft Polish switch in Settings → Plugins. The composer action disappears and transcript rows return to their normal display without reloading.
 
-One capability. This is the smallest possible plugin, and it is a genuinely useful one.
+Revoking `ui.surface` removes the explicit action. Revoking `chat.transform` removes display typesetting. No chat macro is needed.
 
-## The two walls, before you plan anything
+## Authoring
 
-**250 ms, and no I/O.** The registry bounds each transform's `apply` at 250 ms and skips it on a throw or a
-timeout. `net.fetch`'s own deadline is 5 seconds. Those numbers are structurally incompatible: **a fetching
-transform cannot exist.** Neither can a `llm.quiet` transform, nor anything else that leaves the sandbox.
-What fits here is pure, local, synchronous-shaped text work.
+Copy this bundle, change its manifest identity, and build it against the matching SDK before packing. The author guide is [bundles/README.md](../README.md).
 
-**Rooms you host, only.** The prompt-transform registry is process-global and chat-blind, so the host gates
-every plugin transform on the installer hosting the chat. In a room you do not host, your `apply` is never
-called and the draft passes through untouched. You cannot detect this and must not design around it.
+`ui.registerCommand` declares `composerDraft: true` with only a `composer-action` placement. Its handler receives the draft only after an explicit composer click and returns a string replacement.
 
-## How it works
+The host bounds input and output, checks owner and current plugin grants, and refuses nonstring results. Ordinary commands and background events receive no composer draft.
 
-`transforms.register({name, point, apply})` runs once at activation.
+`transforms.registerDisplay` decorates only the installer's rendered rows. Display output never re-enters macro resolution or changes stored canon.
 
-* `point` is `"user_input"` (the member's outgoing draft) or `"assembled_dynamic"` (the assembled prompt
-  block).
-* You do **not** supply an order. The host assigns plugin transforms a band above every first-party one, by
-  registration order — a plugin can never jump ahead of the app's own rules.
-* `apply` receives ONE object, `{draft, env}`, and returns the new draft. `env` is `{chatId, vars}`, handed
-  over synchronously, so the common "branch on a chat variable" case needs no host call inside the deadline.
-  That is what the `polishOff` opt-out below demonstrates.
+Both paths split out backtick code spans and fenced blocks, transform only prose, and reassemble the code bytes unchanged. Internal newlines remain intact.
 
-Everything in `polish()` is a pure string function: testable in isolation, trivially inside the deadline, and
-impossible to give an accidental side effect.
+The visible Polish replacement uses Send's existing edge-whitespace normalization. Undo still restores the original bytes, including that whitespace.
 
-## The DISPLAY seam (`transforms.registerDisplay`)
-
-The same capability's second registration, and a DIFFERENT contract — the two side by side are this
-example's real lesson:
-
-|              | prompt transform                       | display transform                       |
-| ------------ | -------------------------------------- | --------------------------------------- |
-| reaches      | the MODEL (and only the model)         | the INSTALLER's screen (and only it)    |
-| input        | `{draft, env:{chatId, vars}}`          | `{text, env:{chatId, messageId}}`       |
-| scope gate   | rooms you host                         | none — it is your own screen            |
-| risk if wrong| the model answers unwritten words      | a glyph looks odd until you disable it  |
-
-That last row is why the display side is BOLDER (smart quotes, em dashes) while the prompt side stays timid.
-A throw or an overrun SKIPS a display transform — the row keeps the text it had, never a spinner.
-
-Two mechanics worth copying: display text arrives BEFORE markdown renders, so `typeset()` splits out backtick
-code spans and typesets only the prose between them (curling quotes inside `` `code` `` changes what the code
-says); and the shared rules live in `tidy()` while trailing-space stripping stays PROMPT-only — its `$`
-anchor eats the space before a code span when run on a segment, a bug this plugin's own test caught.
-
-## Turning it off per room
-
-```
-{{setvar::polishOff::1}}
-```
-
-The plugin reads `env.vars` and returns the draft untouched. An always-on transform owes its users a way to
-say no without revoking the whole grant.
-
-## Adapting it
-
-* **Different rules** — every rule in here is one a copy editor would make silently and nobody would argue
-  with. Keep that bar. The failure mode of an over-eager transform is a member watching the model answer
-  words they did not write.
-* **Context-sensitive** — branch on `env.vars`, which is already in your hand. A transform that only applies
-  in a particular room, or only while a scene flag is set, costs one `if`.
-* **`assembled_dynamic`** — change `point` to rewrite the assembled prompt block instead of the member's
-  draft. Much more powerful and much easier to break a scene with; test it against a real room.
-
-## Honest gaps
-
-* **Newlines are deliberately untouched.** Paragraph shape is authorial; collapsing it would be the
-  meaning-changing edit this plugin swore off.
-* **No feedback.** A skipped transform (deadline, throw, non-host room) is silent to you. There is no
-  "was I applied?" signal — write `apply` so that being skipped is merely a missed nicety.
-* **It runs on every draft in every room you host.** That is fine here because the work is a handful of
-  regex passes, but it is the reason a transform must stay cheap.
+The general prompt-transform API remains available for other plugins. This example uses the visible composer ceremony instead.

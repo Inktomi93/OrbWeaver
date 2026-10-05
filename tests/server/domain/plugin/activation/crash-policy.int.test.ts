@@ -120,3 +120,39 @@ test("a clean run resets the crash counter", async () => {
   await policy.recordCleanRun(installed.id);
   expect((await getById(h.ctx.db, owner, installed.id))?.consecutiveCrashes).toBe(0);
 });
+
+test("owner re-enable starts a fresh crash streak and the next disable notifies again", async () => {
+  const db = await freshDb();
+  const emitted: NotificationEvent[] = [];
+  const inert = makeInertOps();
+  const h = makePluginHarness(db, {
+    ops: {
+      ...inert,
+      notifications: {
+        ...inert.notifications,
+        emit: (event): Promise<void> => {
+          emitted.push(event);
+          return Promise.resolve();
+        },
+      },
+    },
+  });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const caller = ownerPrincipalFor(owner);
+  const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
+  const policy = createCrashPolicy(h.ctx, (id) => h.service.setEnabled({ caller, pluginId: id, enabled: false }), createPluginLifecycleLanes());
+
+  for (let round = 0; round < 2; round += 1) {
+    await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
+    expect((await getById(db, owner, installed.id))?.consecutiveCrashes).toBe(0);
+    for (let strike = 1; strike <= PLUGIN_CRASH_DISABLE_THRESHOLD; strike += 1) {
+      const result = await policy.recordCrash({ pluginId: installed.id, recipientUserId: owner, error: `failure ${strike}` });
+      expect(result).toEqual({ disabled: strike === PLUGIN_CRASH_DISABLE_THRESHOLD, count: strike });
+      expect(emitted.length).toBe(round + (strike === PLUGIN_CRASH_DISABLE_THRESHOLD ? 1 : 0));
+    }
+  }
+  expect(emitted).toEqual([
+    { type: "plugin-disabled", recipientUserId: owner, pluginId: installed.id },
+    { type: "plugin-disabled", recipientUserId: owner, pluginId: installed.id },
+  ]);
+});

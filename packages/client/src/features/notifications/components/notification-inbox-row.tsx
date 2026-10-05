@@ -5,7 +5,7 @@
 // the list (`Stack`/`Separator`/`EmptyState`) around it; only the per-row rendering + writes live here.
 
 import type { NotificationEvent, NotificationType } from "@orb/contracts/notifications";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, PluginId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
@@ -68,12 +68,13 @@ export interface InboxRowProps {
    *  (#1501, held across the hoist: the row is re-rendered from a list the failed dismiss did not change). */
   readonly acceptedHandoff: boolean;
   readonly onOpenPlugins: () => void;
+  readonly onOpenPlugin: (pluginId: PluginId) => void;
 }
 
 /** One inbox row: the delivery copy + its actions (invite → Accept/Decline; handoff-nominated →
  *  Accept/Dismiss; the rest → Dismiss). The handoff's Accept OPENS the disclosure confirm rather than
  *  firing the verb — what a nomination copies into your library is the bell's one two-step decision. */
-export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, onOpenPlugins }: InboxRowProps): ReactElement {
+export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, onOpenPlugins, onOpenPlugin }: InboxRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const dismiss = useDismissNotification({ trpc, invalidation });
@@ -226,7 +227,18 @@ export function InboxRow({ item, onAccepted, onRequestHandoff, acceptedHandoff, 
           </Button>
         ) : null}
         {disabledPluginName === undefined ? null : (
-          <Button aria-label={`Open Plugins — ${disabledPluginName}`} type="button" disabled={isPending} intent="secondary" size="sm" onClick={onOpenPlugins}>
+          <Button
+            aria-label={`Open Plugins — ${disabledPluginName}`}
+            type="button"
+            disabled={isPending}
+            intent="secondary"
+            size="sm"
+            onClick={(): void => {
+              if (item.payload.type === "plugin-disabled") {
+                onOpenPlugin(item.payload.pluginId);
+              }
+            }}
+          >
             Open Plugins
           </Button>
         )}

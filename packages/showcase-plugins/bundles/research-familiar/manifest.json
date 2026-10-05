@@ -1,9 +1,10 @@
 {
   "id": "research-familiar",
   "name": "Research Familiar",
-  "version": "1.2.1",
+  "version": "1.3.0",
   "hostVersion": 1,
   "entry": "main.js",
+  "uiEntry": "ui.js",
   "description": "Watches the room for ((lookup: Thing)), searches your corpus before Wikipedia, and files a short result into attached lore \u2014 or ((clip: Thing)) to keep the whole article in your databank.",
   "author": "Orbweaver",
   "capabilities": [
@@ -15,7 +16,9 @@
     "search.query",
     "events.subscribe",
     "net.fetch",
-    "databank.ingest"
+    "databank.ingest",
+    "ui.surface",
+    "notify"
   ],
   "netHosts": ["en.wikipedia.org"]
 }
