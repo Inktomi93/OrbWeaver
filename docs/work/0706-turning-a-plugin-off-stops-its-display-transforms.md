@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-04
+status: doing
+updated: 2026-10-05
 priority: P2
 area: plugin
+lane: codex/launch-plugins
 ---
 
 # Turning a plugin off stops its display transforms at once

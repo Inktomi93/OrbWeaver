@@ -23,3 +23,5 @@ The section tops align.
 ## Evidence
 
 Lane S3 tried a minimum band height on every Home tile band; it broke the Home REGIONS layout tests, so it was reverted. Needs measurement against those tests and live data.
+
+The staged member screenshot shows the section headings at different heights. Evidence: `reports/runs/snap/main-3487408-2026-10-05T01-12-29-777Z/run.json`. This is a visual observation, not a measured geometry verdict. The item remains open.

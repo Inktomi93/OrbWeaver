@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-04
+status: doing
+updated: 2026-10-05
 priority: P1
 area: plugin
+lane: codex/launch-plugins
 ---
 
 # Research Familiar can be configured from the UI

@@ -24,4 +24,4 @@ Each row names what it needs and offers the action, for example 'Needs chat memo
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The staged member drive shows readiness rows with not run and no explanation or per-pass action. Evidence: `reports/runs/snap/main-3544817-2026-10-05T01-23-20-949Z/run.json`. The screenshot was inspected. This item remains open; the library batch has not claimed the pass-action work.
